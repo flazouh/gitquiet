@@ -34,6 +34,16 @@ const mount = (reference: PullRequestRef, layers: AppLayers) => {
 
 const court = (name: string) => screen.getByRole("region", { name })
 
+const courtRows = () =>
+  ["Your Move", "Waiting On Others", "Settled"].flatMap((name) =>
+    within(court(name)).queryAllByRole("button")
+  )
+
+const correctCourtOf = async (title: string, to: string) => {
+  await userEvent.click(screen.getByLabelText(`Court for ${title}`))
+  await userEvent.click(await screen.findByRole("menuitemradio", { name: to }))
+}
+
 const awaitControlCenter = async () => {
   await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toBeDefined())
 }
@@ -110,7 +120,7 @@ describe("correcting a Court by hand", () => {
     await awaitControlCenter()
     expect(screen.getByText("2 things need you")).toBeDefined()
 
-    await userEvent.selectOptions(screen.getByLabelText("Court for a.ts"), "settled")
+    await correctCourtOf("a.ts", "Settled")
 
     await waitFor(() => expect(screen.getByText("1 thing needs you")).toBeDefined())
   })
@@ -120,7 +130,7 @@ describe("correcting a Court by hand", () => {
 
     const first = mount(draft, layers)
     await awaitControlCenter()
-    await userEvent.selectOptions(screen.getByLabelText("Court for a.ts"), "settled")
+    await correctCourtOf("a.ts", "Settled")
     await waitFor(() => expect(screen.getByText("1 thing needs you")).toBeDefined())
     first.unmount()
 
@@ -147,9 +157,7 @@ describe("a pull request large enough to bury the point", () => {
     mount(draft, constructed(large))
     await awaitControlCenter()
 
-    const rows = screen.getAllByRole("button").filter((button) => button.tagName === "BUTTON")
-
-    expect(rows.length).toBeLessThanOrEqual(9)
+    expect(courtRows().length).toBeLessThanOrEqual(9)
     expect(within(court("Your Move")).getByText("25 threads")).toBeDefined()
     expect(within(court("Your Move")).getByText("30 files")).toBeDefined()
     expect(within(court("Settled")).getByText("100 checks")).toBeDefined()

@@ -78,29 +78,29 @@ export const PullRequestScreen = ({
 
   if (screen.status === "loading") {
     return (
-      <main className="flex flex-col gap-1 p-6">
-        <p className="text-xs text-neutral-500">
+      <main className="flex h-screen flex-col gap-1 bg-canvas p-5 text-ink">
+        <p className="text-xs tabular-nums text-ink-dim">
           {reference.owner}/{reference.repo} #{reference.number}
         </p>
         {knownTitle === undefined ? null : (
-          <h1 className="text-xl font-semibold text-neutral-900">{knownTitle}</h1>
+          <h1 className="truncate text-lg font-semibold tracking-[-0.01em]">{knownTitle}</h1>
         )}
-        <p className="text-sm text-neutral-500">Working out what needs you…</p>
+        <p className="text-sm text-ink-dim">Working out what needs you…</p>
       </main>
     )
   }
 
   if (screen.status === "failed") {
     return (
-      <main className="flex flex-col items-start gap-3 p-6">
-        <h1 className="text-lg font-semibold text-neutral-900">
+      <main className="flex h-screen flex-col items-start gap-3 bg-canvas p-5 text-ink">
+        <h1 className="text-lg font-semibold tracking-[-0.01em]">
           Something GitHub sends has changed
         </h1>
-        <p className="max-w-prose text-sm text-neutral-600">
+        <p className="max-w-prose text-sm text-ink-muted">
           This pull request could not be read, so nothing is shown rather than part of it.
           GitHub's own page still works.
         </p>
-        <Button asChild variant="outline">
+        <Button asChild variant="quiet" size="md">
           <a href={toUrl(reference)}>Open on GitHub</a>
         </Button>
       </main>

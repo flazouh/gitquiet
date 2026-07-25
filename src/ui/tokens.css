@@ -1,0 +1,121 @@
+/**
+ * The design system's single source of values. Every colour, size, radius and
+ * duration in the interface is named here; no component declares a raw one.
+ *
+ * Dark by default, and tuned for a tool kept open all day: colour is spent only
+ * where a state is genuinely pass, fail, busy, or waiting on the Participant.
+ *
+ * There are no borders anywhere in this interface. Separation comes from
+ * surfaces sitting at different lightnesses, from space, and from shadow on the
+ * things that float. That puts the whole burden of legible depth on the surface
+ * ramp below, so its steps are deliberately far enough apart to read as
+ * distinct without a line to help them.
+ */
+
+@theme {
+  /* The surface ramp, darkest first. Each step is a visible jump. */
+  --color-canvas: oklch(13% 0.004 265);
+  --color-surface: oklch(17% 0.005 265);
+  --color-panel: oklch(21% 0.006 265);
+  --color-panel-hover: oklch(25% 0.007 265);
+  --color-panel-active: oklch(29% 0.008 265);
+
+  /* Ink, in the order it recedes. */
+  --color-ink: oklch(97% 0.002 265);
+  --color-ink-muted: oklch(70% 0.01 265);
+  --color-ink-dim: oklch(55% 0.01 265);
+
+  /* One accent, spent only on what needs the Participant. */
+  --color-accent: oklch(64% 0.15 274);
+  --color-accent-ink: oklch(85% 0.08 274);
+  --color-accent-quiet: oklch(32% 0.07 274);
+
+  /* Status, used where a state is genuinely one of these and nowhere else. */
+  --color-pass: oklch(72% 0.13 158);
+  --color-fail: oklch(66% 0.19 25);
+  --color-busy: oklch(80% 0.13 75);
+
+  /* One family. The system stack renders instantly and needs no network,
+     which matters more here than matching any particular typeface. */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Roboto,
+    "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+
+  /* A dense scale: this interface shows a lot at once on purpose. */
+  --text-2xs: 10px;
+  --text-2xs--line-height: 14px;
+  --text-xs: 11.5px;
+  --text-xs--line-height: 16px;
+  --text-sm: 13px;
+  --text-sm--line-height: 18px;
+  --text-base: 14px;
+  --text-base--line-height: 20px;
+  --text-lg: 17px;
+  --text-lg--line-height: 24px;
+  --text-xl: 20px;
+  --text-xl--line-height: 26px;
+
+  /* Tight radii: instruments, not cards. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  /* Shadow belongs only to things that genuinely float above the page. */
+  --shadow-pop: 0 12px 32px -8px oklch(0% 0 0 / 0.7);
+
+  /* Motion is short and never bounces. Anything slower reads as lag in a
+     tool whose entire claim is speed. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-instant: 80ms;
+  --duration-quick: 140ms;
+}
+
+@layer utilities {
+  /* Tailwind has no theme namespace for durations, so these carry the tokens
+     through rather than letting components write raw milliseconds. */
+  .duration-instant {
+    transition-duration: var(--duration-instant);
+  }
+
+  .duration-quick {
+    transition-duration: var(--duration-quick);
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    line-height: var(--text-sm--line-height);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-quiet);
+  }
+
+  /* An outline rather than a border: it exists only while focused, shows
+     instantly, and is never animated, so keyboard users are never waiting to
+     find out where they are. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 1ms !important;
+      animation-duration: 1ms !important;
+    }
+  }
+}
