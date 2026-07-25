@@ -19,7 +19,8 @@ jobs:
       # so it is skipped here in favour of running wxt prepare directly.
       - run: bun install --frozen-lockfile --ignore-scripts
 
-      - run: bunx wxt prepare
+      - name: Generate WXT types
+        run: bun run types
 
       - name: Typecheck
         run: bun run compile
