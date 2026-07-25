@@ -99,6 +99,14 @@ export type Recording = {
   readonly payloads: RawPayloads
 }
 
+const notRecorded = (reference: PullRequestRef) =>
+  new GatewayError({
+    reference,
+    route: CHANGES,
+    reason: "not-recorded",
+    detail: `No recording for ${reference.owner}/${reference.repo}#${reference.number}`
+  })
+
 const sameReference = (left: PullRequestRef, right: PullRequestRef): boolean =>
   left.owner === right.owner && left.repo === right.repo && left.number === right.number
 
@@ -113,16 +121,22 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
       const recording = recordings.find((candidate) =>
         sameReference(candidate.reference, reference)
       )
-      if (recording === undefined) {
-        return Effect.fail(
-          new GatewayError({
-            reference,
-            route: CHANGES,
-            reason: "not-recorded",
-            detail: `No recording for ${reference.owner}/${reference.repo}#${reference.number}`
-          })
-        )
-      }
+      if (recording === undefined) return Effect.fail(notRecorded(reference))
       return decodeInto(reference, recording.payloads)
+    }
+  })
+
+/**
+ * Serves snapshots built by hand, for the cases no real payload can express —
+ * a Participant who is the Author of the pull request they are looking at, for
+ * instance. Decoding is covered by {@link layerFromRecordings}.
+ */
+export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>) =>
+  Layer.succeed(GitHubGateway, {
+    snapshot: (reference: PullRequestRef) => {
+      const found = snapshots.find((candidate) =>
+        sameReference(candidate.reference, reference)
+      )
+      return found === undefined ? Effect.fail(notRecorded(reference)) : Effect.succeed(found)
     }
   })

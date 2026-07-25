@@ -13,6 +13,7 @@
     "src/**/*",
     "entrypoints/**/*",
     "tests/**/*",
+    "scripts/**/*",
     "wxt.config.ts",
     ".wxt/wxt.d.ts"
   ],

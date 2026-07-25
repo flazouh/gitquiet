@@ -20,6 +20,18 @@ describe("taking over GitHub's page", () => {
     expect(page.body.childElementCount).toBe(1)
   })
 
+  test("takes the document's own scrolling away, since we now own the screen", () => {
+    const page = githubPage()
+
+    takeOverPage(page, () => {})
+
+    for (const element of [page.documentElement, page.body]) {
+      expect(element.style.overflow).toBe("hidden")
+      expect(element.style.margin).toBe("0px")
+      expect(element.style.height).toBe("100%")
+    }
+  })
+
   test("hands the caller a container already mounted in the document", () => {
     const page = githubPage()
     const rendered: Array<string> = []

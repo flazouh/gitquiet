@@ -12,5 +12,15 @@ export const takeOverPage = (
   const container = target.createElement("div")
   container.id = ROOT_ID
   target.body.replaceChildren(container)
+
+  // The host page's margins and its scrolling would otherwise leak into ours,
+  // and the Control Center's whole claim is that it does not scroll.
+  for (const element of [target.documentElement, target.body]) {
+    element.style.margin = "0"
+    element.style.padding = "0"
+    element.style.height = "100%"
+    element.style.overflow = "hidden"
+  }
+
   render(container)
 }

@@ -1,12 +1,18 @@
-import { Effect, Option } from "effect"
+import { Effect, Layer, Option } from "effect"
 import { createRoot } from "react-dom/client"
 import { defineContentScript } from "wxt/utils/define-content-script"
+import { correctCourt, loadPullRequest } from "../src/app/pullRequest"
+import { layer as courtsLayer } from "../src/attention/CourtOverrides"
+import type { CourtOverride } from "../src/domain/Attention"
 import { fromPathname } from "../src/domain/PullRequestRef"
+import { layer as gatewayLayer } from "../src/github/GitHubGateway"
 import { readPullRequestHeader } from "../src/github/PageHeader"
 import { initialiseErrorReporting, reportError } from "../src/observability/sentry"
-import { App } from "../src/ui/App"
+import { PullRequestScreen } from "../src/ui/PullRequestScreen"
 import { takeOverPage } from "../src/ui/mount"
 import "../src/ui/styles.css"
+
+const services = Layer.merge(gatewayLayer, courtsLayer)
 
 export default defineContentScript({
   matches: ["*://github.com/*/*/pull/*"],
@@ -17,19 +23,35 @@ export default defineContentScript({
     const reference = fromPathname(window.location.pathname)
     if (Option.isNone(reference)) return
 
-    // GitHub's payload lives in the document we are about to replace, so it
-    // has to be read first. If it cannot be read we leave their page alone
-    // rather than showing a half-rendered one.
-    const header = await Effect.runPromise(readPullRequestHeader(document)).catch(
-      (error: unknown) => {
-        reportError(error)
-        return undefined
-      }
+    // Read GitHub's own payload before replacing the page that carries it, so
+    // the Participant sees the title with no network round trip.
+    const header = await Effect.runPromise(
+      readPullRequestHeader(document).pipe(Effect.result)
     )
-    if (header === undefined) return
+    const knownTitle = header._tag === "Success" ? header.success.title : undefined
+
+    const load = () =>
+      Effect.runPromise(
+        loadPullRequest(reference.value).pipe(Effect.provide(services))
+      ).catch((error: unknown) => {
+        reportError(error)
+        throw error
+      })
+
+    const correct = (override: CourtOverride) =>
+      Effect.runPromise(
+        correctCourt(reference.value, override).pipe(Effect.provide(services))
+      )
 
     takeOverPage(document, (container) => {
-      createRoot(container).render(<App reference={reference.value} header={header} />)
+      createRoot(container).render(
+        <PullRequestScreen
+          reference={reference.value}
+          load={load}
+          correct={correct}
+          knownTitle={knownTitle}
+        />
+      )
     })
   }
 })
