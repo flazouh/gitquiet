@@ -40,7 +40,11 @@ bun run compile      # typecheck
 bun test             # unit and behaviour tests
 bun run dev          # load the extension in a dev browser
 bun run build        # production build into .output/chrome-mv3
+bun run drift        # re-check GitHub's live payloads against our schemas
 ```
+
+`bun run drift` needs a session cookie and is not part of CI; see
+[`fixtures/README.md`](./fixtures/README.md) for why.
 
 `bun install` clones the Effect source to `.repos/effect` for local research. It
 is gitignored and exists only so the Effect API can be checked against source

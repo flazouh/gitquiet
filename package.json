@@ -10,6 +10,7 @@
     "build": "wxt build",
     "zip": "wxt zip",
     "compile": "tsc --noEmit",
+    "drift": "bun scripts/check-drift.ts",
     "test": "bun test",
     "test:watch": "bun test --watch"
   },

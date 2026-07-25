@@ -1,0 +1,49 @@
+# Recorded GitHub payloads
+
+These are real responses from GitHub's internal pull request endpoints, recorded
+from a logged-in browser session. They are the test corpus for the gateway, and
+the reason the behaviour tests exercise real decoding rather than hand-written
+stand-ins.
+
+| File | Pull request | Why it is here |
+| --- | --- | --- |
+| `changes.json` | `microsoft/vscode#327442` | Draft, two Copilot threads, mixed check states, three merge blockers |
+| `status-checks.json` | `microsoft/vscode#327442` | 29 checks, `SUCCESS` and `IN_PROGRESS` |
+| `merge-box.json` | `microsoft/vscode#327442` | Unmergeable, no reviews |
+| `approved-changes.json` | `microsoft/vscode#327417` | Merged, 28 files, added and modified |
+| `approved-status-checks.json` | `microsoft/vscode#327417` | 70 checks, all passing |
+| `merge-box-approved.json` | `microsoft/vscode#327417` | Carries an `APPROVED` review |
+
+Both pull requests are from a public repository. The payloads contain Alive
+websocket channel tokens, which are signed, short-lived and scoped to public
+topics.
+
+## Drift
+
+`src/github/contract.test.ts` decodes every file here on each CI run. That
+catches us breaking our own schemas; it cannot catch GitHub changing theirs,
+because the files are frozen.
+
+Catching GitHub is `bun run drift`, which re-fetches the live routes and decodes
+them with the same schemas:
+
+```sh
+GITHUB_SESSION_COOKIE='user_session=…; __Host-user_session_same_site=…' bun run drift
+```
+
+This is not wired into scheduled CI. These routes authenticate with a browser
+session cookie, which is a full account credential, and storing one in Actions
+secrets to run a weekly check is a poor trade. Drift is instead caught two ways:
+by running the command above when something looks wrong, and in production,
+where every decode failure is a typed error reported to Sentry naming the field
+that changed.
+
+## Re-recording
+
+Fixtures were captured through a logged-in browser session against the routes
+listed above, with `Accept: application/json` and `X-Requested-With:
+XMLHttpRequest` — GitHub answers 406 without the second header.
+
+When re-recording, keep the two pull requests distinct in what they exercise:
+one unmergeable draft carrying bot findings, one merged and approved. The tests
+assert exact counts, so they will need updating alongside.
