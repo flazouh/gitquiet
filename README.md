@@ -19,13 +19,33 @@ Work is tracked as issues in this repository.
 
 | Concern | Choice |
 | --- | --- |
+| Toolchain | Bun for install, scripts and tests |
 | Extension | WXT, Chrome MV3 |
 | UI | React, shadcn, Tailwind |
-| Domain and data | Effect (typed errors, Layers, Schema, Schedule) |
+| Domain and data | Effect v4 (typed errors, Layers, Schema, Schedule) |
 | Local store | Dexie over IndexedDB |
-| Observability | `@effect/opentelemetry` into Sentry |
-| Tests | Vitest, `@effect/vitest`, Testing Library, Playwright |
+| Observability | Sentry |
+| Tests | `bun test`, `effect/testing`, Testing Library, happy-dom |
+
+Effect v4 differs from v3 in ways worth knowing before writing code: `Either` is
+`Result`, `Effect.catchAll` and `Effect.orElse` are gone in favour of
+`Effect.catch`, and `@effect/vitest` is v3-only. Test clocks and property
+testing come from `effect/testing` instead.
 
 ## Setup
 
-Not yet scaffolded. `npm run prepare` will clone the Effect source to `.repos/effect` for local research; it is gitignored.
+```sh
+bun install          # also clones the Effect source and generates WXT types
+bun run compile      # typecheck
+bun test             # unit and behaviour tests
+bun run dev          # load the extension in a dev browser
+bun run build        # production build into .output/chrome-mv3
+```
+
+`bun install` clones the Effect source to `.repos/effect` for local research. It
+is gitignored and exists only so the Effect API can be checked against source
+rather than guessed.
+
+To load the extension by hand: `bun run build`, then in Chrome open
+`chrome://extensions`, enable Developer mode, choose Load unpacked and select
+`.output/chrome-mv3`. Open any pull request to see it take over the page.

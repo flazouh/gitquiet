@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # The prepare script clones the Effect source for local research only,
+      # so it is skipped here in favour of running wxt prepare directly.
+      - run: bun install --frozen-lockfile --ignore-scripts
+
+      - run: bunx wxt prepare
+
+      - name: Typecheck
+        run: bun run compile
+
+      - name: Tests
+        run: bun test
