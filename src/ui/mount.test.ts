@@ -9,7 +9,10 @@ const githubPage = (): Document => {
     <div id="repo-content-pjax-container">
       <react-app app-name="pull-requests">
         <div class="prc-PageLayout-PageLayoutWrapper-2BhU2">
-          <header class="prc-PageLayout-Header-0of-R">title, state and tabs</header>
+          <header class="prc-PageLayout-Header-0of-R">
+            title and state
+            <nav aria-label="Pull request navigation tabs">Conversation Commits Checks Files changed</nav>
+          </header>
           <div class="prc-PageLayout-PageLayoutContent-BneH9">
             <div class="js-updatable-content">GitHub's conversation</div>
           </div>
@@ -21,6 +24,8 @@ const githubPage = (): Document => {
 
 const slotOf = (page: Document) => page.querySelector('[class*="PageLayoutContent"]')!
 const theirsIn = (page: Document) => page.querySelector(".js-updatable-content")!
+const theirTabsIn = (page: Document) =>
+  page.querySelector('[aria-label="Pull request navigation tabs"]')!
 
 describe("slotting into GitHub's pull request page", () => {
   test("finds the region GitHub fills with the conversation", () => {
@@ -36,6 +41,39 @@ describe("slotting into GitHub's pull request page", () => {
 
     expect(page.querySelector(".header-wrapper")?.textContent).toContain("site nav")
     expect(page.querySelector('[class*="PageLayout-Header"]')?.hasAttribute("hidden")).toBe(false)
+  })
+
+  test("hides their pull request tabs, since ours answers the same question", () => {
+    const page = githubPage()
+
+    takeOverSlot(page)
+
+    expect(theirTabsIn(page).hasAttribute("hidden")).toBe(true)
+    // Only the tabs. The title and state above them are how someone knows
+    // which pull request this is, and they stay.
+    expect(page.querySelector('[class*="PageLayout-Header"]')?.hasAttribute("hidden")).toBe(false)
+  })
+
+  test("gives their tabs back when it steps aside", () => {
+    const page = githubPage()
+    const takeover = takeOverSlot(page)
+
+    takeover!.stepAside()
+
+    expect(theirTabsIn(page).hasAttribute("hidden")).toBe(false)
+  })
+
+  test("hides their tabs again when React draws them a second time", async () => {
+    const page = githubPage()
+    takeOverSlot(page)
+    theirTabsIn(page).remove()
+
+    const again = page.createElement("nav")
+    again.setAttribute("aria-label", "Pull request navigation tabs")
+    page.querySelector('[class*="PageLayout-Header"]')!.append(again)
+    await Promise.resolve()
+
+    expect(again.hasAttribute("hidden")).toBe(true)
   })
 
   test("hides GitHub's conversation rather than deleting it out from under React", () => {

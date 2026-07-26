@@ -2,7 +2,11 @@ import { useCallback, useEffect, useState } from "react"
 import type { CourtOverride } from "../domain/Attention"
 import type { PullRequestSnapshot } from "../domain/PullRequest"
 import type { PullRequestRef } from "../domain/PullRequestRef"
+import { ChangedFiles } from "./ChangedFiles"
 import { ControlCenter } from "./ControlCenter"
+import { Conversation } from "./Conversation"
+import { kindArt } from "./Icon"
+import { Tabs } from "./Tabs"
 
 export type Loaded = {
   readonly snapshot: PullRequestSnapshot
@@ -99,11 +103,32 @@ export const PullRequestScreen = ({
     )
   }
 
+  const { snapshot, overrides } = screen.loaded
+
   return (
-    <ControlCenter
-      snapshot={screen.loaded.snapshot}
-      overrides={screen.loaded.overrides}
-      onCorrect={onCorrect}
+    <Tabs
+      label="This pull request"
+      views={[
+        {
+          name: "Overview",
+          art: kindArt.review,
+          panel: () => (
+            <ControlCenter snapshot={snapshot} overrides={overrides} onCorrect={onCorrect} />
+          )
+        },
+        {
+          name: "Files",
+          art: kindArt.file,
+          count: snapshot.files.length,
+          panel: () => <ChangedFiles files={snapshot.files} />
+        },
+        {
+          name: "Conversation",
+          art: kindArt.thread,
+          count: snapshot.threads.length,
+          panel: () => <Conversation threads={snapshot.threads} />
+        }
+      ]}
     />
   )
 }

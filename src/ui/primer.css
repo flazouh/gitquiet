@@ -91,6 +91,23 @@
   box-sizing: border-box;
 }
 
+/**
+ * The border half of the preflight, scoped to this interface.
+ *
+ * A width with no style draws nothing, which is why every `border-b` here was
+ * invisible; a style with no reset width draws everything, which is what the
+ * first attempt at this did to a page full of elements carrying a width they
+ * never meant to show. Both halves, then — and through `:where`, which costs no
+ * specificity, so a `border-b` utility and GitHub's own `.Box` both still win
+ * over it.
+ */
+:where(#githubpro-root) *,
+:where(#githubpro-root) *::before,
+:where(#githubpro-root) *::after {
+  border-style: solid;
+  border-width: 0;
+}
+
 #githubpro-root :focus-visible {
   outline: 2px solid var(--focus-outlineColor, var(--fgColor-accent));
   outline-offset: -2px;

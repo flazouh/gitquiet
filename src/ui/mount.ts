@@ -31,14 +31,34 @@ export const findSlot = (target: Document): Element | null => {
 /** Marks what GitHub rendered into the slot, so it can be hidden again if it comes back. */
 const HIDDEN = "data-githubpro-hidden"
 
+/**
+ * Their Conversation / Commits / Checks / Files changed row.
+ *
+ * It goes, because our own row sits directly beneath it offering the same
+ * three-quarters of the same thing, and a page with two tab rows makes the
+ * reader work out which one they are in before they can do anything. Their
+ * title and state, immediately above, stay: that is how anyone knows which
+ * pull request this is.
+ */
+const THEIR_TABS = '[aria-label="Pull request navigation tabs"]'
+
+const hide = (element: Element): void => {
+  if (element.hasAttribute(HIDDEN)) return
+  element.setAttribute(HIDDEN, "")
+  element.setAttribute("hidden", "")
+}
+
+const hideTheirTabs = (target: Document): void => {
+  for (const tabs of target.querySelectorAll(THEIR_TABS)) hide(tabs)
+}
+
 const hideTheirs = (slot: Element, root: Element): void => {
   for (const child of slot.children) {
     // Never ours. A second takeover — a development reload, a script injected
     // twice — would otherwise hide the interface the first one rendered and
     // leave the page apparently empty while the DOM insists it is all there.
-    if (child === root || child.id === ROOT_ID || child.hasAttribute(HIDDEN)) continue
-    child.setAttribute(HIDDEN, "")
-    child.setAttribute("hidden", "")
+    if (child === root || child.id === ROOT_ID) continue
+    hide(child)
   }
 }
 
@@ -102,6 +122,7 @@ export const takeOverSlot = (target: Document): Takeover | null => {
   const settle = (into: Element): void => {
     into.append(container)
     hideTheirs(into, container)
+    hideTheirTabs(target)
   }
   settle(slot)
 
@@ -120,6 +141,7 @@ export const takeOverSlot = (target: Document): Takeover | null => {
     }
     const parent = container.parentElement
     if (parent !== null) hideTheirs(parent, container)
+    hideTheirTabs(target)
   })
   watcher.observe(ground, { childList: true, subtree: true })
 
@@ -127,9 +149,10 @@ export const takeOverSlot = (target: Document): Takeover | null => {
     container,
     stepAside: () => {
       watcher.disconnect()
-      const parent = container.parentElement
       container.remove()
-      for (const theirs of (parent ?? target).querySelectorAll(`[${HIDDEN}]`)) {
+      // Everything hidden anywhere, not only within the slot: their tab row
+      // lives in the header above it and has to come back too.
+      for (const theirs of target.querySelectorAll(`[${HIDDEN}]`)) {
         theirs.removeAttribute("hidden")
         theirs.removeAttribute(HIDDEN)
       }
