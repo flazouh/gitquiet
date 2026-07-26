@@ -12,3 +12,6 @@ coverage/
 .env
 .env.local
 .tmp/
+
+# Built by scripts/build-diff-engine.ts, not by hand.
+public/diff-engine.js

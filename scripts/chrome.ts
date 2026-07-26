@@ -6,7 +6,32 @@
  * --enable-unsafe-extension-debugging turns on.
  */
 
-const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+/**
+ * A Chrome that can load an unpacked extension, wherever this machine keeps one.
+ *
+ * Hardcoding the usual path meant the harness stopped working the day Chrome
+ * was not in Applications, with an ENOENT that says nothing about extensions.
+ * Chrome for Testing, which lands in the Puppeteer cache, does the job equally
+ * well and is what continuous integration would have anyway.
+ */
+const findChrome = (): string => {
+  const candidates = [
+    process.env["CHROME_PATH"],
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    ...new Bun.Glob("chrome/*/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/*")
+      .scanSync({ cwd: `${process.env["HOME"]}/.cache/puppeteer`, absolute: true, onlyFiles: true })
+  ].filter((path): path is string => path !== undefined)
+
+  for (const candidate of candidates) {
+    if (Bun.file(candidate).size > 0) return candidate
+  }
+  throw new Error(
+    `No Chrome found. Install one, or set CHROME_PATH. Looked in:\n  ${candidates.join("\n  ")}`
+  )
+}
+
+const CHROME = findChrome()
 const PORT = 9222
 const PROFILE = "/tmp/githubpro-csp-profile"
 
@@ -105,6 +130,11 @@ export const withExtension = async (
       CHROME,
       `--remote-debugging-port=${PORT}`,
       `--user-data-dir=${PROFILE}`,
+      // Loaded by flag rather than by Extensions.loadUnpacked: that CDP domain
+      // arrived after Chrome 128, and the Chrome for Testing sitting in a cache
+      // is usually older than that. The flag has worked since extensions did.
+      `--disable-extensions-except=${extension}`,
+      `--load-extension=${extension}`,
       "--enable-unsafe-extension-debugging",
       "--no-first-run",
       "--no-default-browser-check",
