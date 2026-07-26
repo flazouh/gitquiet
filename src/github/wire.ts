@@ -37,9 +37,14 @@ const Thread = Schema.Struct({
 const DiffSummary = Schema.Struct({
   path: Schema.String,
   pathDigest: Schema.String,
+  // REMOVED is what GitHub actually sends for a deleted file on this route.
+  // DELETED is kept beside it because it is the name their GraphQL schema uses
+  // for the same thing, and one of the two routes changing its mind is likelier
+  // than both.
   changeType: Schema.Literals([
     "ADDED",
     "MODIFIED",
+    "REMOVED",
     "DELETED",
     "RENAMED",
     "COPIED",

@@ -53,13 +53,14 @@ const stateOf = (state: "OPEN" | "CLOSED" | "MERGED" | "DRAFT"): PullRequestStat
 }
 
 const changeTypeOf = (
-  changeType: "ADDED" | "MODIFIED" | "DELETED" | "RENAMED" | "COPIED" | "CHANGED"
+  changeType: "ADDED" | "MODIFIED" | "REMOVED" | "DELETED" | "RENAMED" | "COPIED" | "CHANGED"
 ): ChangeType => {
   switch (changeType) {
     case "ADDED":
       return "added"
     case "MODIFIED":
       return "modified"
+    case "REMOVED":
     case "DELETED":
       return "deleted"
     case "RENAMED":

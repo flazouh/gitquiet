@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { draftWithBotFindings, mergedWithApproval } from "../../tests/fixtures"
+import { draftWithBotFindings, mergedWithApproval, withADeletedFile } from "../../tests/fixtures"
 import type { PullRequestRef } from "../domain/PullRequestRef"
 import { GitHubGateway, layer, layerFromRecordings } from "./GitHubGateway"
 
@@ -35,6 +35,20 @@ describe("asking the gateway for a pull request", () => {
 
     expect(snapshot.state).toBe("merged")
     expect(snapshot.reviews).toHaveLength(1)
+  })
+
+  test("reads a deleted file, which GitHub calls REMOVED here", async () => {
+    const deleting: PullRequestRef = { owner: "fluentai-pro", repo: "fluentai", number: 1934 }
+    const snapshot = await Effect.runPromise(
+      Effect.gen(function* () {
+        const gateway = yield* GitHubGateway
+        return yield* gateway.snapshot(deleting)
+      }).pipe(
+        Effect.provide(layerFromRecordings([{ reference: deleting, payloads: withADeletedFile }]))
+      )
+    )
+
+    expect(snapshot.files.filter((file) => file.changeType === "deleted")).toHaveLength(1)
   })
 
   test("fails rather than inventing an answer for one it has never seen", async () => {
