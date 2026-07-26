@@ -57,6 +57,37 @@ const recorded = (reference: PullRequestRef) =>
 const constructed = (snapshot: PullRequestSnapshot) =>
   Layer.merge(layerFromSnapshots([snapshot]), layerMemory())
 
+describe("the interface is never left invisible", () => {
+  const snapshot = aSnapshot({ reference: draft, files: [aFile("a.ts")] })
+
+  const revealed = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll(".t-stagger, .t-panel-slide")).map((element) =>
+      element.classList.contains("is-shown") ||
+      element.getAttribute("data-open") === "true"
+    )
+
+  test("everything that enters with an animation arrives even when no frame is ever drawn", async () => {
+    // An occluded window reports itself visible and still draws nothing, so a
+    // frame request can stay pending for seconds. Everything waiting on one
+    // starts at zero opacity, which would be a blank pull request.
+    const realFrame = globalThis.requestAnimationFrame
+    globalThis.requestAnimationFrame = (() => 0) as typeof globalThis.requestAnimationFrame
+
+    try {
+      const { container } = mount(draft, constructed(snapshot))
+      await awaitControlCenter()
+
+      await waitFor(() => {
+        const states = revealed(container)
+        expect(states.length).toBeGreaterThan(0)
+        expect(states.every(Boolean)).toBe(true)
+      })
+    } finally {
+      globalThis.requestAnimationFrame = realFrame
+    }
+  })
+})
+
 describe("opening a pull request as a Reviewer", () => {
   test("shows what needs the Participant, from real GitHub payloads", async () => {
     mount(draft, recorded(draft))

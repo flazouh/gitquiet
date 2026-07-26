@@ -1,11 +1,11 @@
-import { cn } from "../lib/cn"
+import { cn } from "../lib/utils"
 import { type Art, Icon } from "./Icon"
 
-export type Tone = "default" | "accent" | "pass" | "fail" | "busy"
+export type Tone = "default" | "brand" | "pass" | "fail" | "busy"
 
 export const toneInk: Record<Tone, string> = {
   default: "text-ink-dim",
-  accent: "text-accent-ink",
+  brand: "text-brand-ink",
   pass: "text-pass",
   fail: "text-fail",
   busy: "text-busy"

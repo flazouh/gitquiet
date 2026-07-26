@@ -1,0 +1,26 @@
+/**
+ * Inter, bundled with the extension rather than fetched.
+ *
+ * Two reasons it has to be local. GitHub's own Content-Security-Policy governs
+ * what the page may load, and a font from a CDN is exactly what it refuses;
+ * extension resources referenced from a content script's own stylesheet are
+ * exempt, which is why this points at a packaged file. And a font arriving over
+ * the network is a flash of the wrong metrics on a surface whose whole claim is
+ * that it is already there.
+ *
+ * The variable file carries both axes the interface uses: `wght`, for the weight
+ * an installed component adds as the pointer approaches it, and `opsz`, so small
+ * text is drawn with the shapes small text needs rather than a shrunk headline.
+ */
+
+@font-face {
+  font-family: "InterVariable";
+  font-style: normal;
+  font-weight: 100 900;
+  /* `swap`, not `block`: GitHub's policy allows fonts only from its own asset
+     host, and while Chrome exempts a content script's own resources from that,
+     `block` would hide the interface's text for three seconds if the exemption
+     ever failed to apply. Swapping means the worst case is the fallback stack. */
+  font-display: swap;
+  src: url("/fonts/InterVariable.woff2") format("woff2-variations");
+}

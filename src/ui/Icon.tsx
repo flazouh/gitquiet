@@ -19,7 +19,8 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import type { ComponentProps } from "react"
 import type { AttentionKind, Court } from "../domain/Attention"
 import type { CheckState, PullRequestState } from "../domain/PullRequest"
-import { cn } from "../lib/cn"
+import type { IconComponent } from "../lib/icon-context"
+import { cn } from "../lib/utils"
 
 export type Art = ComponentProps<typeof HugeiconsIcon>["icon"]
 
@@ -44,6 +45,33 @@ export const Icon = ({ of, size = "md", className }: IconProps) => (
     className={cn("shrink-0", className)}
   />
 )
+
+const adapted = new Map<Art, IconComponent>()
+
+/**
+ * Fills an installed component's icon slot with one of ours. Registry
+ * components expect Lucide's shape — a component taking size and strokeWidth —
+ * so this is the adapter that keeps them on Hugeicons without editing them.
+ *
+ * Memoised per icon: a fresh component identity on every render would remount
+ * the icon, and inside a menu that means losing the item's focus.
+ */
+export const asIcon = (of: Art): IconComponent => {
+  const existing = adapted.get(of)
+  if (existing !== undefined) return existing
+
+  const Adapted: IconComponent = ({ size, strokeWidth, className }) => (
+    <HugeiconsIcon
+      icon={of}
+      size={size ?? sizes.md}
+      strokeWidth={strokeWidth ?? 1.8}
+      className={cn("shrink-0", className)}
+    />
+  )
+
+  adapted.set(of, Adapted)
+  return Adapted
+}
 
 export const kindArt: Record<AttentionKind, Art> = {
   thread: Comment01Icon,

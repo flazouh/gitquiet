@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { cn } from "../lib/cn"
+import { cn } from "../lib/utils"
 import { type Art, Icon } from "./Icon"
 import { type Tone, toneInk } from "./Row"
 
@@ -30,7 +30,7 @@ export const Panel = ({
       <h2
         className={cn(
           "text-2xs font-medium uppercase tracking-[0.08em]",
-          tone === "accent" ? "text-ink" : "text-ink-dim"
+          tone === "brand" ? "text-ink" : "text-ink-dim"
         )}
       >
         {title}
@@ -39,7 +39,7 @@ export const Panel = ({
         <span
           className={cn(
             "text-2xs tabular-nums",
-            tone === "accent" ? "text-accent-ink" : "text-ink-dim"
+            tone === "brand" ? "text-brand-ink" : "text-ink-dim"
           )}
         >
           {count}

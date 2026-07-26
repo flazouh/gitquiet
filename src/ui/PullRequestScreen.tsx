@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from "react"
 import type { CourtOverride } from "../domain/Attention"
 import type { PullRequestSnapshot } from "../domain/PullRequest"
 import { type PullRequestRef, toUrl } from "../domain/PullRequestRef"
-import { Button } from "./button"
+import { Button } from "../components/ui/button"
 import { ControlCenter } from "./ControlCenter"
+import { Providers } from "./Providers"
 
 export type Loaded = {
   readonly snapshot: PullRequestSnapshot
@@ -20,6 +21,8 @@ export type PullRequestScreenProps = {
    */
   readonly knownTitle?: string | undefined
 }
+
+const WORKING = "Working out what needs you…"
 
 type Screen =
   | { readonly status: "loading" }
@@ -78,40 +81,52 @@ export const PullRequestScreen = ({
 
   if (screen.status === "loading") {
     return (
-      <main className="flex h-screen flex-col gap-1 bg-canvas p-5 text-ink">
-        <p className="text-xs tabular-nums text-ink-dim">
-          {reference.owner}/{reference.repo} #{reference.number}
-        </p>
-        {knownTitle === undefined ? null : (
-          <h1 className="truncate text-lg font-semibold tracking-[-0.01em]">{knownTitle}</h1>
-        )}
-        <p className="text-sm text-ink-dim">Working out what needs you…</p>
-      </main>
+      <Providers>
+        <main className="flex h-screen flex-col gap-1 bg-canvas p-5 text-ink">
+          <p className="text-xs tabular-nums text-ink-dim">
+            {reference.owner}/{reference.repo} #{reference.number}
+          </p>
+          {knownTitle === undefined ? null : (
+            <h1 className="truncate text-lg font-semibold tracking-[-0.01em]">{knownTitle}</h1>
+          )}
+          {/* Shimmer rather than a spinner: the work is a read, and a sweep over
+              the words says "in progress" without claiming a percentage. The
+              string is duplicated into data-text because the sweep is clipped to
+              a second copy of the same glyphs. */}
+          <p className="t-shimmer text-sm" data-text={WORKING}>
+            {WORKING}
+          </p>
+        </main>
+      </Providers>
     )
   }
 
   if (screen.status === "failed") {
     return (
-      <main className="flex h-screen flex-col items-start gap-3 bg-canvas p-5 text-ink">
-        <h1 className="text-lg font-semibold tracking-[-0.01em]">
-          Something GitHub sends has changed
-        </h1>
-        <p className="max-w-prose text-sm text-ink-muted">
-          This pull request could not be read, so nothing is shown rather than part of it.
-          GitHub's own page still works.
-        </p>
-        <Button asChild variant="quiet" size="md">
-          <a href={toUrl(reference)}>Open on GitHub</a>
-        </Button>
-      </main>
+      <Providers>
+        <main className="flex h-screen flex-col items-start gap-3 bg-canvas p-5 text-ink">
+          <h1 className="text-lg font-semibold tracking-[-0.01em]">
+            Something GitHub sends has changed
+          </h1>
+          <p className="max-w-prose text-sm text-ink-muted">
+            This pull request could not be read, so nothing is shown rather than part of it.
+            GitHub's own page still works.
+          </p>
+          <Button asChild variant="secondary" size="md">
+            <a href={toUrl(reference)}>Open on GitHub</a>
+          </Button>
+        </main>
+      </Providers>
     )
   }
 
   return (
-    <ControlCenter
-      snapshot={screen.loaded.snapshot}
-      overrides={screen.loaded.overrides}
-      onCorrect={onCorrect}
-    />
+    <Providers>
+      <ControlCenter
+        snapshot={screen.loaded.snapshot}
+        overrides={screen.loaded.overrides}
+        onCorrect={onCorrect}
+      />
+    </Providers>
   )
 }

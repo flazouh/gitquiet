@@ -4,14 +4,17 @@ import { deriveAttention } from "../attention/deriveAttention"
 import { COURTS, type AttentionItem, type CourtOverride, type CourtRow } from "../domain/Attention"
 import type { PullRequestSnapshot } from "../domain/PullRequest"
 import { toUrl } from "../domain/PullRequestRef"
-import { cn } from "../lib/cn"
+import { Button } from "../components/ui/button"
+import { ScrollArea } from "../components/ui/scroll-area"
+import { Tooltip } from "../components/ui/tooltip"
+import { cn } from "../lib/utils"
 import { CourtMenu } from "./CourtMenu"
-import { Icon, courtArt, kindArt, pullRequestArt } from "./Icon"
+import { Icon, asIcon, courtArt, kindArt, pullRequestArt } from "./Icon"
 import { Kbd } from "./Kbd"
 import { Panel } from "./Panel"
 import { Row } from "./Row"
-import { Button } from "./button"
 import { courtName, rowName, yourMoveSummary } from "./copy"
+import { useRevealed, useTextSwap } from "./motion"
 
 export type ControlCenterProps = {
   readonly snapshot: PullRequestSnapshot
@@ -30,7 +33,11 @@ const ItemLine = ({
 }) => (
   <li className="group/item flex items-center justify-between gap-4 rounded-md px-2 py-1.5 transition-colors duration-instant ease-out hover:bg-panel-hover">
     <span className="min-w-0">
-      <span className="block truncate text-sm text-ink">{item.title}</span>
+      {/* Paths and comment summaries are the things most likely to be cut off,
+          and the full text is exactly what decides whether to open the item. */}
+      <Tooltip content={item.title} side="top">
+        <span className="block truncate text-sm text-ink">{item.title}</span>
+      </Tooltip>
       <span className="block truncate text-xs text-ink-dim">{item.detail}</span>
     </span>
     <CourtMenu
@@ -41,9 +48,55 @@ const ItemLine = ({
   </li>
 )
 
+/**
+ * What the selected Control Center row contains, one line per Attention Item.
+ * Mounted fresh for each row — keyed by the caller — so choosing a different
+ * row plays the reveal again rather than silently exchanging the contents.
+ */
+const DetailPanel = ({
+  row,
+  onCorrect
+}: {
+  readonly row: CourtRow
+  readonly onCorrect: (override: CourtOverride) => void
+}) => {
+  const revealed = useRevealed()
+
+  return (
+    <div className="t-panel-slide flex min-h-0 flex-1 flex-col" data-open={revealed}>
+      <Panel
+        title={`${rowName(row.kind, row.items.length)} · ${courtName(row.court)}`}
+        art={kindArt[row.kind]}
+        className="min-h-0 flex-1 rounded-lg bg-surface p-3"
+        aside={
+          <span className="flex items-center gap-1.5 text-2xs text-ink-dim">
+            <Kbd>n</Kbd>
+            <span>next</span>
+            <Kbd>esc</Kbd>
+            <span>back</span>
+          </span>
+        }
+      >
+        <ScrollArea className="min-h-0 flex-1" viewportClassName="pr-1">
+          {/* Two columns, because one line per item across the full width leaves
+              a path stranded from the control that acts on it, and halves how
+              much of a long Queue is on screen at once. */}
+          <ul className="grid grid-cols-2 gap-x-4">
+            {row.items.map((item) => (
+              <ItemLine key={item.id} item={item} onCorrect={onCorrect} />
+            ))}
+          </ul>
+        </ScrollArea>
+      </Panel>
+    </div>
+  )
+}
+
 export const ControlCenter = ({ snapshot, overrides, onCorrect }: ControlCenterProps) => {
   const attention = deriveAttention(snapshot, overrides)
   const [selected, setSelected] = useState<string | null>(null)
+  const revealed = useRevealed()
+  const summary = useTextSwap(yourMoveSummary(attention.yourMoveCount))
 
   const selectedRow =
     attention.rows.find((row) => rowKey(row) === selected) ?? attention.rows[0] ?? null
@@ -53,8 +106,10 @@ export const ControlCenter = ({ snapshot, overrides, onCorrect }: ControlCenterP
   return (
     <main className="flex h-screen flex-col gap-4 overflow-hidden bg-canvas p-5 text-ink">
       <header className="flex shrink-0 items-start justify-between gap-6">
-        <div className="min-w-0">
-          <p className="flex items-center gap-1.5 text-xs text-ink-dim">
+        {/* The two lines rise in sequence on arrival, so the eye lands on which
+            pull request this is before the title it carries. */}
+        <div className={cn("t-stagger min-w-0", revealed && "is-shown")}>
+          <p className="t-stagger-line t-stagger-line--1 flex items-center gap-1.5 text-xs text-ink-dim">
             <Icon of={pullRequestArt(snapshot.state)} size="sm" />
             <span className="tabular-nums">
               {snapshot.reference.owner}/{snapshot.reference.repo} #{snapshot.reference.number}
@@ -62,7 +117,9 @@ export const ControlCenter = ({ snapshot, overrides, onCorrect }: ControlCenterP
             <span aria-hidden>·</span>
             <span>{attention.role === "author" ? "you opened this" : "you are reviewing"}</span>
           </p>
-          <h1 className="truncate text-lg font-semibold tracking-[-0.01em]">{snapshot.title}</h1>
+          <h1 className="t-stagger-line t-stagger-line--2 truncate text-lg font-semibold tracking-[-0.01em]">
+            {snapshot.title}
+          </h1>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -70,16 +127,23 @@ export const ControlCenter = ({ snapshot, overrides, onCorrect }: ControlCenterP
             aria-live="polite"
             className={cn(
               "rounded-md px-2 py-1 text-xs font-medium tabular-nums",
-              needsYou ? "bg-accent-quiet text-accent-ink" : "bg-panel text-ink-dim"
+              needsYou ? "bg-brand-quiet text-brand-ink" : "bg-panel text-ink-dim"
             )}
           >
-            {yourMoveSummary(attention.yourMoveCount)}
+            {/* Swapped in place rather than re-rendered: the count is the one
+                number the Participant is tracking, and a silent change is easy
+                to miss when a correction is what caused it. */}
+            <span ref={summary.ref} className="t-text-swap">
+              {summary.shown}
+            </span>
           </p>
-          <Button asChild variant="bare">
-            <a href={toUrl(snapshot.reference)}>
-              Open on GitHub
-              <Icon of={ArrowUpRight01Icon} size="sm" />
-            </a>
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            trailingIcon={asIcon(ArrowUpRight01Icon)}
+          >
+            <a href={toUrl(snapshot.reference)}>Open on GitHub</a>
           </Button>
         </div>
       </header>
@@ -94,7 +158,7 @@ export const ControlCenter = ({ snapshot, overrides, onCorrect }: ControlCenterP
               title={courtName(court)}
               art={courtArt[court]}
               count={items}
-              tone={court === "your-move" && needsYou ? "accent" : "default"}
+              tone={court === "your-move" && needsYou ? "brand" : "default"}
             >
               {rows.length === 0 ? (
                 <p className="px-2.5 py-2 text-xs text-ink-dim">Nothing here</p>
@@ -109,7 +173,7 @@ export const ControlCenter = ({ snapshot, overrides, onCorrect }: ControlCenterP
                           art={kindArt[row.kind]}
                           label={rowName(row.kind, row.items.length)}
                           meta={first?.title}
-                          tone={court === "your-move" ? "accent" : "default"}
+                          tone={court === "your-move" ? "brand" : "default"}
                           selected={selectedRow !== null && rowKey(selectedRow) === key}
                           onSelect={() => setSelected(key)}
                         />
@@ -124,25 +188,11 @@ export const ControlCenter = ({ snapshot, overrides, onCorrect }: ControlCenterP
       </div>
 
       {selectedRow === null ? null : (
-        <Panel
-          title={`${rowName(selectedRow.kind, selectedRow.items.length)} · ${courtName(selectedRow.court)}`}
-          art={kindArt[selectedRow.kind]}
-          className="min-h-0 flex-1 rounded-lg bg-surface p-3"
-          aside={
-            <span className="flex items-center gap-1.5 text-2xs text-ink-dim">
-              <Kbd>n</Kbd>
-              <span>next</span>
-              <Kbd>esc</Kbd>
-              <span>back</span>
-            </span>
-          }
-        >
-          <ul className="min-h-0 flex-1 overflow-y-auto">
-            {selectedRow.items.map((item) => (
-              <ItemLine key={item.id} item={item} onCorrect={onCorrect} />
-            ))}
-          </ul>
-        </Panel>
+        <DetailPanel
+          key={rowKey(selectedRow)}
+          row={selectedRow}
+          onCorrect={onCorrect}
+        />
       )}
     </main>
   )

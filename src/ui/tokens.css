@@ -25,21 +25,22 @@
   --color-ink-muted: oklch(70% 0.01 265);
   --color-ink-dim: oklch(55% 0.01 265);
 
-  /* One accent, spent only on what needs the Participant. */
-  --color-accent: oklch(64% 0.15 274);
-  --color-accent-ink: oklch(85% 0.08 274);
-  --color-accent-quiet: oklch(32% 0.07 274);
+  /* One brand colour, spent only on what needs the Participant. */
+  --color-brand: oklch(64% 0.15 274);
+  --color-brand-ink: oklch(85% 0.08 274);
+  --color-brand-quiet: oklch(32% 0.07 274);
 
   /* Status, used where a state is genuinely one of these and nowhere else. */
   --color-pass: oklch(72% 0.13 158);
   --color-fail: oklch(66% 0.19 25);
   --color-busy: oklch(80% 0.13 75);
 
-  /* One family. The system stack renders instantly and needs no network,
-     which matters more here than matching any particular typeface. */
+  /* One family, packaged with the extension (see fonts.css). The system stack
+     stays behind it: if the font file ever fails to load, the interface renders
+     in something close rather than in a serif. */
   --font-sans:
-    -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Roboto,
-    "Helvetica Neue", sans-serif;
+    "InterVariable", -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI",
+    Roboto, "Helvetica Neue", sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
 
   /* A dense scale: this interface shows a lot at once on purpose. */
@@ -64,24 +65,9 @@
   /* Shadow belongs only to things that genuinely float above the page. */
   --shadow-pop: 0 12px 32px -8px oklch(0% 0 0 / 0.7);
 
-  /* Motion is short and never bounces. Anything slower reads as lag in a
-     tool whose entire claim is speed. */
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-  --duration-instant: 80ms;
-  --duration-quick: 140ms;
-}
-
-@layer utilities {
-  /* Tailwind has no theme namespace for durations, so these carry the tokens
-     through rather than letting components write raw milliseconds. */
-  .duration-instant {
-    transition-duration: var(--duration-instant);
-  }
-
-  .duration-quick {
-    transition-duration: var(--duration-quick);
-  }
+  /* Motion is not declared here. Durations, easings, distances and blurs all
+     come from the transitions.dev scale in motion.css, so there is one answer
+     to how long "quick" is rather than two that drift. */
 }
 
 @layer base {
@@ -99,14 +85,14 @@
   }
 
   ::selection {
-    background-color: var(--color-accent-quiet);
+    background-color: var(--color-brand-quiet);
   }
 
   /* An outline rather than a border: it exists only while focused, shows
      instantly, and is never animated, so keyboard users are never waiting to
      find out where they are. */
   :focus-visible {
-    outline: 2px solid var(--color-accent);
+    outline: 2px solid var(--color-brand);
     outline-offset: 2px;
   }
 

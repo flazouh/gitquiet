@@ -1,0 +1,92 @@
+/**
+ * Speaks shadcn's colour vocabulary in terms of our own surface ramp, so any
+ * component installed from a registry renders in this interface's palette
+ * without being edited. Registry components stay upgradable; the design system
+ * in tokens.css stays the only place a real value is chosen.
+ *
+ * Two names deserve attention:
+ *
+ * `accent` means opposite things in the two vocabularies. Ours is the single
+ * indigo spent on what needs the Participant, which is why it is called `brand`
+ * in tokens.css. shadcn's `accent` is a quiet surface fill — a hovered row, a
+ * secondary button — so that is what it maps to here.
+ *
+ * `border` resolves to nothing. This interface has no borders, and one token is
+ * a cheaper guarantee of that than auditing every component we install: a
+ * variant that ships `border border-border` draws a transparent line.
+ */
+
+@theme {
+  --color-background: var(--color-canvas);
+  --color-foreground: var(--color-ink);
+
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-ink);
+  --color-popover: var(--color-panel);
+  --color-popover-foreground: var(--color-ink);
+
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: var(--color-canvas);
+  --color-secondary: var(--color-panel);
+  --color-secondary-foreground: var(--color-ink);
+
+  --color-muted: var(--color-surface);
+  --color-muted-foreground: var(--color-ink-dim);
+
+  --color-accent: var(--color-panel);
+  --color-accent-foreground: var(--color-ink);
+
+  /* Fluid Functionalism's own two surface names, for hovered and held. */
+  --color-hover: var(--color-panel-hover);
+  --color-active: var(--color-panel-active);
+
+  --color-destructive: var(--color-fail);
+  --color-destructive-foreground: var(--color-canvas);
+  --color-success: var(--color-pass);
+  --color-warning: var(--color-busy);
+
+  --color-input: var(--color-panel);
+  --color-ring: var(--color-brand);
+  --color-border: transparent;
+}
+
+/**
+ * Fluid's elevation ladder, restated on our terms. Their components ask for a
+ * surface `offset` above whatever they are sitting on and let the ladder work
+ * out the rest, so the ladder has to exist — but theirs is a light-mode grey
+ * scale, and its shadows carry a hairline ring on every level from three up.
+ *
+ * `:root, .dark` rather than `:root` alone so this outranks the `.dark` block
+ * in fluid.css whether or not that class is ever set.
+ */
+:root,
+.dark {
+  --surface-1: var(--color-canvas);
+  --surface-2: var(--color-surface);
+  --surface-3: var(--color-panel);
+  --surface-4: var(--color-panel-hover);
+  /* Our ramp is five steps because five is all this interface uses. Deeper
+     nesting than a menu on a panel flattens onto the top step rather than
+     inventing lightnesses no screen here asks for. */
+  --surface-5: var(--color-panel-active);
+  --surface-6: var(--color-panel-active);
+  --surface-7: var(--color-panel-active);
+  --surface-8: var(--color-panel-active);
+
+  /* Drop shadow only. Their ladder builds depth from stacked inset rings, which
+     is a border by another name — and the deepest three hardcode an opaque
+     ring, so the whole ladder is replaced rather than re-tinted. Levels one and
+     two are flat: something resting on the page is not floating above it. */
+  --shadow-1: none;
+  --shadow-2: none;
+  --shadow-3: 0 6px 16px -6px oklch(0% 0 0 / 0.55);
+  --shadow-4: var(--shadow-pop);
+  --shadow-5: var(--shadow-pop);
+  --shadow-6: var(--shadow-pop);
+  --shadow-7: var(--shadow-pop);
+  --shadow-8: var(--shadow-pop);
+
+  /* Read directly, rather than through a Tailwind utility, by Fluid's button. */
+  --focus-ring: var(--color-brand);
+  --radius: var(--radius-md);
+}

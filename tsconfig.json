@@ -7,11 +7,13 @@
     "noFallthroughCasesInSwitch": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "types": ["bun"]
+    "types": ["bun"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": [
     "src/**/*",
-    "entrypoints/**/*",
     "tests/**/*",
     "scripts/**/*",
     "wxt.config.ts",
