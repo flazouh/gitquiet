@@ -9,10 +9,12 @@
  * extension URLs, which it could not issue at all — so the diff renderer, which
  * is fetched from one, could not be tested through it.
  *
- * ego's `cdp` helper speaks to a page. `Extensions.loadUnpacked` is a browser
- * command, which is what `sendCDPMessage` sends: a raw protocol message on the
- * browser connection. It replies nothing and reports nothing; whether it worked
- * is answered by the page, below.
+ * `Extensions.loadUnpacked` is a browser command, and ego attaches a page
+ * session to anything it does not recognise as one — a page session has no
+ * Extensions domain, so the call comes back "Method not available". Passing the
+ * session explicitly as null leaves it off and the command lands, returning the
+ * id it assigned. Fixed upstream in citrolabs/ego-lite#160; until that ships,
+ * the null is what makes this work.
  *
  * Run it again after a rebuild and the new build takes over.
  */
@@ -23,14 +25,8 @@ const START = "https://github.com/pulls"
 const task = await useOrCreateTaskSpace("test githubpro extension on real PR")
 await takeOverTaskSpace(task.id)
 
-await sendCDPMessage(
-  JSON.stringify({
-    id: 1,
-    method: "Extensions.loadUnpacked",
-    params: { path: EXTENSION }
-  })
-)
-await wait(2)
+const { id } = await cdp("Extensions.loadUnpacked", { path: EXTENSION }, null)
+cliLog(`loaded ${id}`)
 
 // Reload wherever the tab already is, so this can be run mid-review without
 // losing the pull request being looked at.
