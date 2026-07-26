@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from "react"
 import type { CourtOverride } from "../domain/Attention"
 import type { PullRequestSnapshot } from "../domain/PullRequest"
 import type { PullRequestRef } from "../domain/PullRequestRef"
-import { ChangedFiles } from "./ChangedFiles"
 import { ControlCenter } from "./ControlCenter"
 import { Conversation } from "./Conversation"
+import { FilesView } from "./FilesView"
 import { kindArt } from "./Icon"
 import { Tabs } from "./Tabs"
 
@@ -120,7 +120,7 @@ export const PullRequestScreen = ({
           name: "Files",
           art: kindArt.file,
           count: snapshot.files.length,
-          panel: () => <ChangedFiles files={snapshot.files} />
+          panel: () => <FilesView files={snapshot.files} />
         },
         {
           name: "Conversation",

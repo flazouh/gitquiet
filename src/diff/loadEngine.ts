@@ -1,4 +1,5 @@
 import { Data, Effect } from "effect"
+import { lendCustomElements } from "../ui/customElements"
 import type { DiffHandle, DiffRequest } from "./engine"
 
 /**
@@ -17,33 +18,6 @@ export class DiffEngineUnavailable extends Data.TaggedError("DiffEngineUnavailab
 const ENGINE = "/diff-engine.js"
 
 let loading: Promise<DiffEngine> | undefined
-
-/**
- * Gives the isolated world a custom element registry, because it has none.
- *
- * Chrome exposes `customElements` as null to content scripts — elements defined
- * there could not be upgraded in the page anyway. Pierre's renderer registers a
- * `<diffs-container>` at import time without checking, so the module throws
- * before it exports anything. This is enough for that registration to succeed
- * and be forgotten: nothing is upgraded, and the renderer never needs it to be,
- * because the engine attaches the shadow root and the stylesheet itself.
- */
-const lendCustomElements = (): void => {
-  if ((globalThis as { customElements?: unknown }).customElements != null) return
-
-  const defined = new Map<string, unknown>()
-  Object.defineProperty(globalThis, "customElements", {
-    configurable: true,
-    value: {
-      get: (name: string) => defined.get(name),
-      define: (name: string, constructor: unknown) => {
-        defined.set(name, constructor)
-      },
-      whenDefined: () => Promise.resolve(undefined),
-      upgrade: () => {}
-    }
-  })
-}
 
 /**
  * Fetches the renderer, once.

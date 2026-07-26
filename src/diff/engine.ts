@@ -13,7 +13,28 @@
  * React and no coupling to how the rest of the interface is built.
  */
 
-import { CORE_CSS_ATTRIBUTE, FileDiff, parsePatchFiles, wrapCoreCSS } from "@pierre/diffs"
+import {
+  CORE_CSS_ATTRIBUTE,
+  FileDiff,
+  parsePatchFiles,
+  registerCustomTheme,
+  wrapCoreCSS
+} from "@pierre/diffs"
+
+/**
+ * One Dark, which is the palette GitHub's own dark syntax highlighting is
+ * derived from, so a diff drawn here reads as the code a few hundred pixels
+ * above it. Registered by name; Shiki fetches the grammar-independent theme
+ * once and Pierre keeps it.
+ *
+ * Its light counterpart is Pierre's own: One Dark has no light half, and
+ * GitHub's light syntax colours are close enough to Pierre's that inventing a
+ * third palette would be work spent on the mode nobody in this repository uses.
+ */
+const DARK = "one-dark-pro"
+const LIGHT = "pierre-light"
+
+registerCustomTheme(DARK, () => import("@shikijs/themes/one-dark-pro"))
 
 export type DiffHandle = {
   /** Renders again after the theme flips, since the colours are baked into the DOM. */
@@ -26,18 +47,10 @@ export type DiffRequest = {
   readonly patch: string
   readonly path: string
   readonly theme: "light" | "dark"
-  /** Side by side, or one column with the deletions above the additions. */
-  readonly layout: "split" | "stacked"
+  /** One column with deletions above additions, or the two side by side. */
+  readonly layout: "unified" | "split"
 }
 
-/**
- * Draws one file's diff into `container`, replacing whatever was there.
- *
- * The theme names are Pierre's own light and dark, which read as the page does
- * because their contrast is built on the same idea as Primer's. Matching
- * GitHub's exact syntax colours would mean writing a Shiki theme against their
- * variables — worth doing, later, once the shape of the view has settled.
- */
 /**
  * The element the renderer draws into, dressed as its custom element would have
  * dressed it.
@@ -72,8 +85,8 @@ export const renderDiff = (container: HTMLElement, request: DiffRequest): DiffHa
   if (parsed === undefined) throw new Error(`Nothing to render in the patch for ${request.path}`)
 
   const diff = new FileDiff({
-    diffLayout: request.layout,
-    theme: request.theme === "dark" ? "pierre-dark" : "pierre-light",
+    diffStyle: request.layout,
+    theme: { dark: DARK, light: LIGHT },
     themeType: request.theme,
     disableFileHeader: true
   } as ConstructorParameters<typeof FileDiff>[0])
