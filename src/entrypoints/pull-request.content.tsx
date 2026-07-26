@@ -9,6 +9,7 @@ import { layer as gatewayLayer } from "@/github/GitHubGateway"
 import { readPullRequestHeader } from "@/github/PageHeader"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import { PullRequestScreen } from "@/ui/PullRequestScreen"
+import { installFont } from "@/ui/font"
 import { takeOverPage } from "@/ui/mount"
 import "@/ui/styles.css"
 
@@ -44,6 +45,11 @@ export default defineContentScript({
       )
 
     takeOverPage(document, (container) => {
+      // Declared from in here, not before the takeover: the takeover clears every
+      // stylesheet it did not put there, and only the extension can say where the
+      // font file actually lives.
+      installFont(document, browser.runtime.getURL("/fonts/InterVariable.woff2"))
+
       createRoot(container).render(
         <PullRequestScreen
           reference={reference.value}

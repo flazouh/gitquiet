@@ -11,6 +11,7 @@
     "zip": "wxt zip",
     "compile": "tsc --noEmit",
     "drift": "bun scripts/check-drift.ts",
+    "verify:live": "wxt build && bun scripts/verify-on-github.ts",
     "test": "bun test",
     "test:watch": "bun test --watch"
   },

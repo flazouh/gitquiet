@@ -35,7 +35,8 @@
   --color-fail: oklch(66% 0.19 25);
   --color-busy: oklch(80% 0.13 75);
 
-  /* One family, packaged with the extension (see fonts.css). The system stack
+  /* One family, packaged with the extension and declared at runtime by
+     ui/font.ts, since only the extension knows its own origin. The system stack
      stays behind it: if the font file ever fails to load, the interface renders
      in something close rather than in a serif. */
   --font-sans:
