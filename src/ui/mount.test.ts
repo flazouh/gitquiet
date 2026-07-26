@@ -109,6 +109,19 @@ describe("slotting into GitHub's pull request page", () => {
     expect(page.getElementById(ROOT_ID)).toBeNull()
   })
 
+  test("a second takeover adopts the interface already there rather than hiding it", () => {
+    const page = githubPage()
+    const first = takeOverSlot(page)
+    first!.container.textContent = "our interface"
+
+    const second = takeOverSlot(page)
+
+    expect(page.querySelectorAll(`#${ROOT_ID}`)).toHaveLength(1)
+    expect(second?.container).toBe(first!.container)
+    expect(first!.container.hasAttribute("hidden")).toBe(false)
+    expect(second?.container.textContent).toBe("our interface")
+  })
+
   test("declines rather than guessing when GitHub's layout has moved", () => {
     const page = document.implementation.createHTMLDocument("github")
     page.body.innerHTML = "<div>something else entirely</div>"

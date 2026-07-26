@@ -85,6 +85,16 @@ const preload = `
 })()
 `
 
+/**
+ * How long to hold the session open, in minutes.
+ *
+ * A preload script belongs to the connection that registered it: when this
+ * process exits, Chrome forgets it and the next page load is bare GitHub again.
+ * So this stays running while the interface is being looked at, rather than
+ * arming something that quietly disarms itself.
+ */
+const MINUTES = 60
+
 const task = await useOrCreateTaskSpace("test githubpro extension on real PR")
 await takeOverTaskSpace(task.id)
 
@@ -115,4 +125,28 @@ cliLog(
     1
   )
 )
-cliLog("preview armed: every github.com pull request in this space now renders the interface")
+cliLog(`preview live for ${MINUTES} minutes — open any pull request in this space`)
+
+// Handing control over while this holds the connection open: the point is for
+// someone to browse their own pull requests, not to watch a script do it.
+await handOffTaskSpace(task.id)
+
+let last = ""
+for (let tick = 0; tick < MINUTES * 30; tick++) {
+  await wait(2)
+  try {
+    const seen = await js(String.raw`(() => {
+      const conversation = /^\/[^/]+\/[^/]+\/pull\/\d+\/?$/.test(location.pathname)
+      if (!conversation) return null
+      const root = document.getElementById("githubpro-root")
+      return location.pathname + (root === null ? " — not mounted" : " — mounted")
+    })()`)
+    if (typeof seen === "string" && seen !== last) {
+      last = seen
+      cliLog(seen)
+    }
+  } catch {
+    // Whoever is driving has the tab mid-navigation, or has taken it somewhere
+    // this cannot see. Neither is a reason to stop holding the session open.
+  }
+}

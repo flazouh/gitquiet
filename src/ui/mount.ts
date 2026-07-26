@@ -33,7 +33,10 @@ const HIDDEN = "data-githubpro-hidden"
 
 const hideTheirs = (slot: Element, root: Element): void => {
   for (const child of slot.children) {
-    if (child === root || child.hasAttribute(HIDDEN)) continue
+    // Never ours. A second takeover — a development reload, a script injected
+    // twice — would otherwise hide the interface the first one rendered and
+    // leave the page apparently empty while the DOM insists it is all there.
+    if (child === root || child.id === ROOT_ID || child.hasAttribute(HIDDEN)) continue
     child.setAttribute(HIDDEN, "")
     child.setAttribute("hidden", "")
   }
@@ -92,7 +95,8 @@ export const takeOverSlot = (target: Document): Takeover | null => {
   const slot = findSlot(target)
   if (slot === null) return null
 
-  const container = target.createElement("div")
+  // Whatever ran before us got here first; there is one interface per page.
+  const container = target.getElementById(ROOT_ID) ?? target.createElement("div")
   container.id = ROOT_ID
 
   const settle = (into: Element): void => {

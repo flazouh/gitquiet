@@ -18,6 +18,25 @@ export type ControlCenterProps = {
   readonly onCorrect: (override: CourtOverride) => void
 }
 
+/**
+ * One indent ladder, so the three depths line up rather than nearly lining up.
+ *
+ * A Court's name, a group's name and an item all start where the text of the
+ * line above them starts: 16px in for a header, and each icon and its gap
+ * pushing the next depth 24px further. Written down because the alternative is
+ * four components each guessing, and guessing is what made the last version
+ * look approximate.
+ */
+const EDGE = "px-4"
+const ITEM_INDENT = "pl-16"
+
+/** How GitHub tints the same three states a few hundred pixels above this. */
+const courtTint: Record<Court, string> = {
+  "your-move": "text-ink-accent",
+  "waiting-on-others": "text-busy",
+  settled: "text-pass"
+}
+
 const ItemLine = ({
   item,
   onCorrect
@@ -29,9 +48,11 @@ const ItemLine = ({
   // right, which is how GitHub lists files and checks a few hundred pixels
   // above this. Two lines per item would double the height of a Court for
   // detail nobody reads until they open the thing.
-  <li className="group/item flex min-h-7 items-center gap-3 py-0.5 pr-1 pl-10 hover:bg-hover">
+  <li
+    className={`group/item flex min-h-8 items-center gap-3 py-1 pr-2 ${ITEM_INDENT} hover:bg-hover`}
+  >
     <span className="min-w-0 flex-1 truncate text-sm">{item.title}</span>
-    <span className="shrink-0 text-xs text-ink-muted">{item.detail}</span>
+    <span className="shrink-0 text-xs text-ink-muted tabular-nums">{item.detail}</span>
     <CourtMenu
       label={`Court for ${item.title}`}
       value={item.court}
@@ -66,7 +87,9 @@ const Group = ({
 
   return (
     <details open={open} className="group/details border-b border-line-muted last:border-b-0">
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 hover:bg-hover [&::-webkit-details-marker]:hidden">
+      <summary
+        className={`flex cursor-pointer list-none items-center gap-2 ${EDGE} py-2 hover:bg-hover [&::-webkit-details-marker]:hidden`}
+      >
         <ChevronRightIcon className="shrink-0 text-ink-muted transition-transform duration-150 group-open/details:rotate-90" />
         <Art className="shrink-0 text-ink-muted" />
         <span className="shrink-0 text-sm font-semibold">{rowName(row.kind, row.items.length)}</span>
@@ -79,7 +102,7 @@ const Group = ({
           </span>
         )}
       </summary>
-      <ul className="pb-1">
+      <ul className="pb-2">
         {row.items.map((item) => (
           <ItemLine key={item.id} item={item} onCorrect={onCorrect} />
         ))}
@@ -103,13 +126,19 @@ const CourtSection = ({
 
   return (
     <section aria-label={courtName(court)} className="Box">
-      <div className="flex items-center gap-2 rounded-t-md border-b border-line bg-surface px-3 py-2">
-        <Art className={yourMove && items > 0 ? "text-ink-accent" : "text-ink-muted"} />
+      <div
+        className={`flex items-center gap-2 rounded-t-md border-b border-line bg-surface ${EDGE} py-2.5`}
+      >
+        {/* Tinted only when the Court has something in it: three coloured icons
+            on a page where two of them mean nothing is just decoration. */}
+        <Art className={`shrink-0 ${items === 0 ? "text-ink-muted" : courtTint[court]}`} />
         <h3 className="text-sm font-semibold">{courtName(court)}</h3>
         <span className="Counter">{items}</span>
       </div>
       {rows.length === 0 ? (
-        <p className="px-3 py-2.5 text-sm text-ink-muted">Nothing here</p>
+        <p className={`${EDGE} py-2.5 text-sm text-ink-muted`}>
+          {yourMove ? "Nothing needs you here" : "Nothing here"}
+        </p>
       ) : (
         // Only what needs the Participant is open on arrival. The other two
         // Courts are there to be checked, not read.
@@ -130,13 +159,13 @@ export const ControlCenter = ({ snapshot, overrides, onCorrect }: ControlCenterP
   const attention = deriveAttention(snapshot, overrides)
 
   return (
-    <div className="flex flex-col gap-3 pb-8">
+    <div className="flex flex-col gap-4 pt-1 pb-8">
       <div className="flex items-baseline gap-2">
-        <h2 aria-live="polite" className="text-base font-semibold">
+        <h2 aria-live="polite" className="text-lg font-semibold">
           {yourMoveSummary(attention.yourMoveCount)}
         </h2>
         <p className="text-sm text-ink-muted">
-          {attention.role === "author" ? "— you opened this" : "— you are reviewing"}
+          {attention.role === "author" ? "you opened this" : "you are reviewing"}
         </p>
       </div>
 
