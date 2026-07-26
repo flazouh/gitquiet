@@ -77,6 +77,19 @@ describe("taking over GitHub's page", () => {
     expect(page.querySelector('link[rel="stylesheet"]')).toBeNull()
   })
 
+  test("leaves alone the styles our own components inject while running", async () => {
+    const page = githubPage()
+    takeOverPage(page, () => {})
+
+    // What a scroll lock or a popover library adds when it opens.
+    const injected = page.createElement("style")
+    injected.textContent = "body { overflow: hidden }"
+    page.head.append(injected)
+    await Promise.resolve()
+
+    expect(page.head.contains(injected)).toBe(true)
+  })
+
   test("keeps the font declared through a second takeover of the same page", () => {
     const page = githubPage()
 

@@ -15,6 +15,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 type Connection = {
   readonly send: <A,>(method: string, params?: Record<string, unknown>) => Promise<A>
   readonly once: (method: string) => Promise<void>
+  readonly on: (method: string, handle: (params: Record<string, unknown>) => void) => void
   readonly close: () => void
 }
 
@@ -56,18 +57,49 @@ const connect = async (url: string): Promise<Connection> => {
       socket.addEventListener("message", onMessage)
     })
 
-  return { send, once, close: () => socket.close() }
+  const on = (method: string, handle: (params: Record<string, unknown>) => void): void => {
+    socket.addEventListener("message", (event) => {
+      const message = JSON.parse(String(event.data)) as {
+        method?: string
+        params?: Record<string, unknown>
+      }
+      if (message.method === method) handle(message.params ?? {})
+    })
+  }
+
+  return { send, once, on, close: () => socket.close() }
 }
 
 export type Session = {
   readonly extensionId: string
   readonly evaluate: <A,>(expression: string) => Promise<A>
+  /**
+   * Evaluates in the content script's own world rather than the page's. The two
+   * differ in ways that matter here — fetch credentials, extension APIs — so a
+   * thing that works in one can hang in the other.
+   */
+  readonly evaluateInExtension: <A,>(expression: string) => Promise<A>
   readonly screenshot: (path: string) => Promise<void>
+  /** Everything the page logged as an error, which is how a failure screen explains itself. */
+  readonly problems: () => ReadonlyArray<string>
   readonly stop: () => void
 }
 
+export type Options = {
+  /**
+   * Cookies to install before the first navigation, in the shape
+   * Network.getCookies returns. The profile is a fresh one, so without these the
+   * visit is signed out and the interface only ever reaches its failure screen.
+   */
+  readonly cookies?: ReadonlyArray<Record<string, unknown>>
+}
+
 /** Launches Chrome with the built extension and opens `url` in a fresh profile. */
-export const withExtension = async (url: string, extension: string): Promise<Session> => {
+export const withExtension = async (
+  url: string,
+  extension: string,
+  options: Options = {}
+): Promise<Session> => {
   const chrome = Bun.spawn(
     [
       CHROME,
@@ -114,22 +146,66 @@ export const withExtension = async (url: string, extension: string): Promise<Ses
   ).find((entry) => entry.id === created.targetId)
   if (target === undefined) throw new Error("The page target vanished")
 
+  if (options.cookies !== undefined && options.cookies.length > 0) {
+    await browser.send("Storage.setCookies", { cookies: options.cookies })
+  }
+
   const tab = await connect(target.webSocketDebuggerUrl)
+
+  // The content script reports its own failures through the console, so they are
+  // collected here rather than left for someone to find in a devtools window.
+  const problems: Array<string> = []
+  tab.on("Runtime.exceptionThrown", (params) => {
+    const details = params["exceptionDetails"] as
+      | { text?: string; exception?: { description?: string } }
+      | undefined
+    problems.push(details?.exception?.description ?? details?.text ?? "unknown exception")
+  })
+  tab.on("Runtime.consoleAPICalled", (params) => {
+    if (params["type"] !== "error") return
+    const args = (params["args"] ?? []) as ReadonlyArray<{ value?: unknown; description?: string }>
+    problems.push(
+      args.map((arg) => arg.description ?? JSON.stringify(arg.value ?? null)).join(" ")
+    )
+  })
+  const worlds = new Map<string, number>()
+  tab.on("Runtime.executionContextCreated", (params) => {
+    const context = params["context"] as {
+      id: number
+      origin?: string
+      auxData?: { type?: string }
+    }
+    if ((context.origin ?? "").startsWith("chrome-extension://")) {
+      worlds.set("extension", context.id)
+    }
+  })
+  await tab.send("Runtime.enable")
+
   await tab.send("Page.enable")
   const loaded = tab.once("Page.loadEventFired")
   await tab.send("Page.navigate", { url })
   await loaded
 
-  const evaluate = async <A,>(expression: string): Promise<A> => {
+  const evaluateIn = async <A,>(
+    expression: string,
+    contextId?: number
+  ): Promise<A> => {
     const result = await tab.send<{
       result: { value?: A }
       exceptionDetails?: { text: string; exception?: { description?: string } }
-    }>("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true })
+    }>("Runtime.evaluate", {
+      expression,
+      returnByValue: true,
+      awaitPromise: true,
+      ...(contextId === undefined ? {} : { contextId })
+    })
     if (result.exceptionDetails !== undefined) {
       throw new Error(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text)
     }
     return result.result.value as A
   }
+
+  const evaluate = <A,>(expression: string): Promise<A> => evaluateIn<A>(expression)
 
   // The content script replaces the whole document, so waiting for our own root
   // is the only reliable signal that it ran.
@@ -149,10 +225,16 @@ export const withExtension = async (url: string, extension: string): Promise<Ses
   return {
     extensionId: installed.id,
     evaluate,
+    evaluateInExtension: <A,>(expression: string): Promise<A> => {
+      const world = worlds.get("extension")
+      if (world === undefined) throw new Error("The content script's world never appeared")
+      return evaluateIn<A>(expression, world)
+    },
     screenshot: async (path: string) => {
       const shot = await tab.send<{ data: string }>("Page.captureScreenshot", { format: "png" })
       await Bun.write(path, Buffer.from(shot.data, "base64"))
     },
+    problems: () => problems,
     stop: () => {
       tab.close()
       browser.close()

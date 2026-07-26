@@ -15,6 +15,10 @@ export default defineConfig({
     description:
       "Replaces GitHub's pull request pages with an interface organised by attention.",
     host_permissions: ["*://github.com/*"],
+    // Court corrections are kept in extension storage. Without this the API is
+    // simply absent in the content script, and since a store we cannot read is
+    // treated as empty, every correction is lost with nothing said about it.
+    permissions: ["storage"],
     // The bundled font is fetched by the document once our stylesheet asks for
     // it, so it has to be reachable from the page as well as from the extension.
     web_accessible_resources: [
