@@ -93,9 +93,9 @@ Speed comes from already having the data. The extension holds the Participant's 
 
 ### Delivery
 
-A Chrome MV3 extension built with WXT, replacing GitHub's rendering on pull request routes. The extension takes over the page rather than augmenting it, because GitHub's server latency cannot be improved by client-side work and the information architecture being replaced is the page's structure itself.
+A Chrome MV3 extension built with WXT, replacing the conversation on a pull request's own page. It replaces that region rather than augmenting it, because GitHub's server latency cannot be improved by client-side work and the information architecture being replaced is the region's structure itself. Everything around it — the site header, the repository nav, the pull request title and its Files, Commits and Checks tabs — is GitHub's and stays GitHub's, both because those parts already work and because a page that is half theirs must navigate like theirs.
 
-Rendering is React with shadcn primitives and Tailwind, assembled into a small design system. The Focus and Control Center views need roughly fifteen primitives; they are styled once and reused.
+Rendering is React and Tailwind against GitHub's own design system. Primer Primitives are already declared on the page — about twelve hundred custom properties — so the interface's tokens are aliases onto theirs, its icons are Octicons, its typeface is whatever the page is set in, and its cards and buttons reuse Primer's own classes. This is not thrift: it means every GitHub theme, including the high-contrast and colourblind ones, is supported without a line of code, and it means the interface is recognisable as part of the page it sits in. Tailwind's preflight is not imported, and its utilities are imported unlayered — a layered rule loses to GitHub's unlayered element rules regardless of specificity.
 
 Domain and data layers are written in Effect. Errors are typed rather than thrown, services are provided as Layers, and retry and resubscription policies are expressed as Schedules. No `any`, no `as`, no unsafe assertions — data arriving from GitHub is decoded with `Schema` at the boundary, which is also what turns an unannounced GitHub change into a precise, reportable decode failure instead of a crash deep in a component.
 

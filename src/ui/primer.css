@@ -1,0 +1,97 @@
+/**
+ * The design system, which is GitHub's.
+ *
+ * Every value below is a Primer variable read from the page at runtime, so this
+ * file chooses nothing — it only gives GitHub's vocabulary the names Tailwind
+ * needs. The consequence is the point: light, dark, dark dimmed, both high
+ * contrast themes and the colourblind variants all work without a line of code,
+ * because the Participant's own theme is already answering these names.
+ *
+ * `--fgColor-*`, `--bgColor-*` and friends are Primer Primitives, of which
+ * GitHub's pull request page defines about twelve hundred. The handful named
+ * here are the ones this interface actually spends.
+ */
+
+@theme {
+  /* Surfaces, quietest first. `inset` is the recessed one GitHub uses behind a
+     panel; `muted` is the raised one it uses for a card. */
+  --color-canvas: var(--bgColor-default);
+  --color-inset: var(--bgColor-inset, var(--bgColor-muted));
+  --color-surface: var(--bgColor-muted);
+  --color-raised: var(--overlay-bgColor, var(--bgColor-default));
+  --color-hover: var(--control-transparent-bgColor-hover);
+  --color-active: var(--control-transparent-bgColor-active);
+
+  /* Ink, in the order it recedes. */
+  --color-ink: var(--fgColor-default);
+  --color-ink-muted: var(--fgColor-muted);
+  --color-ink-accent: var(--fgColor-accent);
+  --color-ink-on-emphasis: var(--fgColor-onEmphasis);
+
+  /* Status. GitHub already has an opinion about what a passing check looks
+     like, and the Participant has spent years learning it. */
+  --color-pass: var(--fgColor-success);
+  --color-fail: var(--fgColor-danger);
+  --color-busy: var(--fgColor-attention);
+  --color-done: var(--fgColor-done);
+
+  /* Emphasis fills, for the one thing on screen that is asking for attention. */
+  --color-accent-emphasis: var(--bgColor-accent-emphasis);
+  --color-accent-muted: var(--bgColor-accent-muted);
+  --color-attention-muted: var(--bgColor-attention-muted);
+
+  /* Lines. This interface has borders again: GitHub separates with them
+     everywhere, and a borderless island in the middle of their page reads as a
+     rendering fault rather than as restraint. */
+  --color-line: var(--borderColor-default);
+  --color-line-muted: var(--borderColor-muted);
+  --color-line-accent: var(--borderColor-accent-emphasis);
+
+  /* Type. Mona Sans is already loaded by the page, so this costs no bytes and
+     no flash of the wrong font. */
+  --font-sans: var(--fontStack-sansSerif);
+  --font-mono: var(--fontStack-monospace);
+
+  --text-xs: var(--text-caption-size, 12px);
+  --text-xs--line-height: var(--text-caption-lineHeight, 1.3333);
+  --text-sm: var(--text-body-size-small, 12px);
+  --text-sm--line-height: var(--text-body-lineHeight-small, 1.6666);
+  --text-base: var(--text-body-size-medium, 14px);
+  --text-base--line-height: var(--text-body-lineHeight-medium, 1.4285);
+  --text-lg: var(--text-title-size-medium, 20px);
+  --text-lg--line-height: var(--text-title-lineHeight-medium, 1.6);
+
+  /* Radii and shadow, both theirs. */
+  --radius-sm: var(--borderRadius-small, 3px);
+  --radius-md: var(--borderRadius-medium, 6px);
+  --radius-lg: var(--borderRadius-large, 12px);
+  --shadow-pop: var(--shadow-floating-small);
+}
+
+/**
+ * Tailwind's preflight is deliberately not imported (see styles.css): it resets
+ * every element on the page, and the page is GitHub's. What the interface needs
+ * instead is this one rule, scoped to its own subtree.
+ */
+#githubpro-root {
+  color: var(--fgColor-default);
+  font-family: var(--fontStack-sansSerif);
+  font-size: var(--text-body-size-medium, 14px);
+  /* The region is a flex container holding the conversation and its sidebar.
+     Ours is the only child left showing, and without this it is sized by its
+     contents — a full-width page with a narrow column of interface in it. */
+  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+#githubpro-root *,
+#githubpro-root *::before,
+#githubpro-root *::after {
+  box-sizing: border-box;
+}
+
+#githubpro-root :focus-visible {
+  outline: 2px solid var(--focus-outlineColor, var(--fgColor-accent));
+  outline-offset: -2px;
+}

@@ -21,6 +21,8 @@ const draft: PullRequestRef = { owner: "microsoft", repo: "vscode", number: 3274
 
 type AppLayers = Layer.Layer<GitHubGateway | CourtOverrides>
 
+const asideCalls: Array<number> = []
+
 const mount = (reference: PullRequestRef, layers: AppLayers) => {
   const load = () =>
     Effect.runPromise(loadPullRequest(reference).pipe(Effect.provide(layers)))
@@ -28,15 +30,21 @@ const mount = (reference: PullRequestRef, layers: AppLayers) => {
     Effect.runPromise(correctCourt(reference, override).pipe(Effect.provide(layers)))
 
   return render(
-    <PullRequestScreen reference={reference} load={load} correct={correct} />
+    <PullRequestScreen
+      reference={reference}
+      load={load}
+      correct={correct}
+      onStepAside={() => asideCalls.push(1)}
+    />
   )
 }
 
 const court = (name: string) => screen.getByRole("region", { name })
 
+/** The disclosure per kind of thing, which is what a Court is a handful of. */
 const courtRows = () =>
   ["Your Move", "Waiting On Others", "Settled"].flatMap((name) =>
-    within(court(name)).queryAllByRole("button")
+    within(court(name)).queryAllByRole("group")
   )
 
 const correctCourtOf = async (title: string, to: string) => {
@@ -45,7 +53,7 @@ const correctCourtOf = async (title: string, to: string) => {
 }
 
 const awaitControlCenter = async () => {
-  await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toBeDefined())
+  await waitFor(() => expect(court("Your Move")).toBeDefined())
 }
 
 const recorded = (reference: PullRequestRef) =>
@@ -57,45 +65,11 @@ const recorded = (reference: PullRequestRef) =>
 const constructed = (snapshot: PullRequestSnapshot) =>
   Layer.merge(layerFromSnapshots([snapshot]), layerMemory())
 
-describe("the interface is never left invisible", () => {
-  const snapshot = aSnapshot({ reference: draft, files: [aFile("a.ts")] })
-
-  const revealed = (container: HTMLElement) =>
-    Array.from(container.querySelectorAll(".t-stagger, .t-panel-slide")).map((element) =>
-      element.classList.contains("is-shown") ||
-      element.getAttribute("data-open") === "true"
-    )
-
-  test("everything that enters with an animation arrives even when no frame is ever drawn", async () => {
-    // An occluded window reports itself visible and still draws nothing, so a
-    // frame request can stay pending for seconds. Everything waiting on one
-    // starts at zero opacity, which would be a blank pull request.
-    const realFrame = globalThis.requestAnimationFrame
-    globalThis.requestAnimationFrame = (() => 0) as typeof globalThis.requestAnimationFrame
-
-    try {
-      const { container } = mount(draft, constructed(snapshot))
-      await awaitControlCenter()
-
-      await waitFor(() => {
-        const states = revealed(container)
-        expect(states.length).toBeGreaterThan(0)
-        expect(states.every(Boolean)).toBe(true)
-      })
-    } finally {
-      globalThis.requestAnimationFrame = realFrame
-    }
-  })
-})
-
 describe("opening a pull request as a Reviewer", () => {
   test("shows what needs the Participant, from real GitHub payloads", async () => {
     mount(draft, recorded(draft))
     await awaitControlCenter()
 
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Polish multi-file diffs in Agents window"
-    )
     expect(within(court("Your Move")).getByText("2 bot findings")).toBeDefined()
     expect(within(court("Your Move")).getByText("5 files")).toBeDefined()
   })
@@ -114,6 +88,19 @@ describe("opening a pull request as a Reviewer", () => {
     expect(within(court("Waiting On Others")).getByText("2 checks")).toBeDefined()
     expect(within(court("Waiting On Others")).getByText("3 merge blockers")).toBeDefined()
     expect(within(court("Settled")).getByText("27 checks")).toBeDefined()
+  })
+
+  test("opens what needs the Participant and leaves the rest folded away", async () => {
+    mount(draft, recorded(draft))
+    await awaitControlCenter()
+
+    const open = (name: string) =>
+      within(court(name))
+        .queryAllByRole("group")
+        .map((group) => (group as HTMLDetailsElement).open)
+
+    expect(open("Your Move").every(Boolean)).toBe(true)
+    expect(open("Settled").some(Boolean)).toBe(false)
   })
 })
 
@@ -194,25 +181,30 @@ describe("a pull request large enough to bury the point", () => {
     expect(within(court("Settled")).getByText("100 checks")).toBeDefined()
   })
 
-  test("the page itself does not scroll", async () => {
+  test("a hundred settled checks stay folded away until they are asked for", async () => {
     mount(draft, constructed(large))
     await awaitControlCenter()
 
-    const main = screen.getByRole("main")
-    expect(main.className).toContain("h-screen")
-    expect(main.className).toContain("overflow-hidden")
+    const settled = within(court("Settled")).getAllByRole("group")[0] as HTMLDetailsElement
+    expect(settled.open).toBe(false)
+
+    await userEvent.click(within(settled).getByText("100 checks"))
+
+    expect(settled.open).toBe(true)
   })
 })
 
 describe("when the pull request cannot be read", () => {
-  test("says so and offers GitHub's own page rather than showing half of it", async () => {
+  test("says so and gives GitHub's own conversation back", async () => {
     mount(draft, Layer.merge(layerFromSnapshots([]), layerMemory()))
 
     await waitFor(() =>
       expect(screen.getByText("Something GitHub sends has changed")).toBeDefined()
     )
-    expect(screen.getByRole("link", { name: "Open on GitHub" }).getAttribute("href")).toBe(
-      "https://github.com/microsoft/vscode/pull/327442"
-    )
+
+    const before = asideCalls.length
+    await userEvent.click(screen.getByRole("button", { name: "Show GitHub's conversation" }))
+
+    expect(asideCalls.length).toBe(before + 1)
   })
 })

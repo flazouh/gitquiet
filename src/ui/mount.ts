@@ -1,61 +1,141 @@
 export const ROOT_ID = "githubpro-root"
 
-/** Marks a stylesheet as ours, so the takeover leaves it alone. */
-export const OURS = "data-githubpro"
-
 /**
- * Everything GitHub had styled the page with when we arrived.
+ * Where the interface goes: the region GitHub fills with the conversation,
+ * below their own pull request header.
  *
- * Replacing the body leaves forty-odd of these in the head, and theirs win:
- * rules we ship sit inside Tailwind's layers, and any unlayered rule outranks a
- * layered one however specific. Left alone, GitHub's `body` decides the font and
- * the background of a page that is meant to be ours.
+ * The header above it — title, state, branch, the Conversation / Commits /
+ * Checks / Files tabs — is left exactly as it is, along with the site header
+ * and the repository nav. Those are how someone gets around GitHub, they
+ * already work, and replacing them would only make this page stranger than the
+ * one beside it.
+ *
+ * Primer's class names carry a per-deploy hash — `prc-PageLayout-Content-BneH9`
+ * today, something else next week — so these match on the part that is stable
+ * and fall back to the whole repository content when the layout moves.
  */
-const ON_ARRIVAL = `link[rel="stylesheet"]:not([${OURS}]), style:not([${OURS}])`
+const SLOTS = [
+  'react-app[app-name="pull-requests"] [class*="PageLayoutContent"]',
+  '[class*="PageLayoutContent"]',
+  "#repo-content-pjax-container"
+]
 
-/**
- * What GitHub adds afterwards: their bundles are linked, and they keep arriving
- * for a while. Deliberately narrower than the sweep above, because by then the
- * interface is running and the components in it inject `<style>` elements of
- * their own — scroll locks and the like — that would be swept away with it.
- */
-const ARRIVING_LATER = `link[rel="stylesheet"]:not([${OURS}])`
+export const findSlot = (target: Document): Element | null => {
+  for (const selector of SLOTS) {
+    const found = target.querySelector(selector)
+    if (found !== null) return found
+  }
+  return null
+}
 
-const strip = (target: ParentNode, selector: string): void => {
-  for (const sheet of target.querySelectorAll(selector)) sheet.remove()
+/** Marks what GitHub rendered into the slot, so it can be hidden again if it comes back. */
+const HIDDEN = "data-githubpro-hidden"
+
+const hideTheirs = (slot: Element, root: Element): void => {
+  for (const child of slot.children) {
+    if (child === root || child.hasAttribute(HIDDEN)) continue
+    child.setAttribute(HIDDEN, "")
+    child.setAttribute("hidden", "")
+  }
 }
 
 /**
- * Replaces GitHub's rendered page rather than layering on top of it, so their
- * scripts have nothing left to re-render into and we own the whole surface.
- * Anything the caller needs from the original document must be read first.
+ * How long to wait for GitHub to render the region before giving up on it.
+ *
+ * They render it with React after the document is done, so at the moment a
+ * content script runs the slot reliably does not exist yet. Long enough for a
+ * slow pull request on a slow connection; short enough that a page which is
+ * never going to have one stops holding a listener open.
  */
-export const takeOverPage = (
-  target: Document,
-  render: (container: Element) => void
-): void => {
-  strip(target, ON_ARRIVAL)
+const PATIENCE = 15_000
 
-  // GitHub keeps loading stylesheets after we have taken over — their bundles
-  // arrive lazily and their scripts are still running — so this holds rather
-  // than firing once. The head is watched, not the whole document: that is where
-  // stylesheets appear, and the interface's own subtree changes constantly.
-  new MutationObserver(() => strip(target.head, ARRIVING_LATER)).observe(target.head, {
-    childList: true
+const whenSlotAppears = (target: Document, patience: number): Promise<Element | null> => {
+  const already = findSlot(target)
+  if (already !== null) return Promise.resolve(already)
+
+  return new Promise((resolve) => {
+    const finish = (found: Element | null) => {
+      clearTimeout(timer)
+      watcher.disconnect()
+      resolve(found)
+    }
+    const watcher = new MutationObserver(() => {
+      const found = findSlot(target)
+      if (found !== null) finish(found)
+    })
+    const timer = setTimeout(() => finish(null), patience)
+    watcher.observe(target.documentElement, { childList: true, subtree: true })
   })
+}
+
+export type Takeover = {
+  /** Where to render. Already in the page. */
+  readonly container: Element
+  /** Gives the page back: GitHub's conversation returns and ours leaves. */
+  readonly stepAside: () => void
+}
+
+/**
+ * Puts the interface where GitHub's conversation was.
+ *
+ * Their content is hidden rather than removed. React is still mounted on it and
+ * still updating it; deleting nodes from underneath a live tree earns a crash
+ * at the worst moment, and hiding costs nothing. It also means the conversation
+ * is one attribute away when this has to step aside — which is what it does
+ * when a pull request cannot be read.
+ *
+ * Returns null when the slot cannot be found, which is the honest outcome if
+ * GitHub reorganises the page: better their working conversation than our
+ * interface nailed to the wrong element.
+ */
+export const takeOverSlot = (target: Document): Takeover | null => {
+  const slot = findSlot(target)
+  if (slot === null) return null
 
   const container = target.createElement("div")
   container.id = ROOT_ID
-  target.body.replaceChildren(container)
 
-  // The host page's margins and its scrolling would otherwise leak into ours,
-  // and the Control Center's whole claim is that it does not scroll.
-  for (const element of [target.documentElement, target.body]) {
-    element.style.margin = "0"
-    element.style.padding = "0"
-    element.style.height = "100%"
-    element.style.overflow = "hidden"
+  const settle = (into: Element): void => {
+    into.append(container)
+    hideTheirs(into, container)
   }
+  settle(slot)
 
-  render(container)
+  // React does not re-render this region so much as replace it: the element the
+  // interface was appended to is thrown away and an identical one takes its
+  // place, with our container still attached to the discarded copy. Watching the
+  // slot itself would mean watching a node no longer on the page, so this
+  // watches something above it that survives — and re-finds the slot each time,
+  // rather than trusting the one it started with.
+  const ground = target.querySelector("#repo-content-pjax-container") ?? target.body
+  const watcher = new MutationObserver(() => {
+    if (!container.isConnected) {
+      const fresh = findSlot(target)
+      if (fresh !== null) settle(fresh)
+      return
+    }
+    const parent = container.parentElement
+    if (parent !== null) hideTheirs(parent, container)
+  })
+  watcher.observe(ground, { childList: true, subtree: true })
+
+  return {
+    container,
+    stepAside: () => {
+      watcher.disconnect()
+      const parent = container.parentElement
+      container.remove()
+      for (const theirs of (parent ?? target).querySelectorAll(`[${HIDDEN}]`)) {
+        theirs.removeAttribute("hidden")
+        theirs.removeAttribute(HIDDEN)
+      }
+    }
+  }
 }
+
+/** Takes over as soon as GitHub has rendered somewhere to take over. */
+export const takeOverSlotWhenReady = async (
+  target: Document,
+  patience: number = PATIENCE
+): Promise<Takeover | null> =>
+  (await whenSlotAppears(target, patience)) === null ? null : takeOverSlot(target)

@@ -1,28 +1,22 @@
-import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons"
-import { useState } from "react"
+import { ChevronRightIcon } from "@primer/octicons-react"
 import { deriveAttention } from "../attention/deriveAttention"
-import { COURTS, type AttentionItem, type CourtOverride, type CourtRow } from "../domain/Attention"
+import {
+  COURTS,
+  type AttentionItem,
+  type Court,
+  type CourtOverride,
+  type CourtRow
+} from "../domain/Attention"
 import type { PullRequestSnapshot } from "../domain/PullRequest"
-import { toUrl } from "../domain/PullRequestRef"
-import { Button } from "../components/ui/button"
-import { ScrollArea } from "../components/ui/scroll-area"
-import { Tooltip } from "../components/ui/tooltip"
-import { cn } from "../lib/utils"
 import { CourtMenu } from "./CourtMenu"
-import { Icon, asIcon, courtArt, kindArt, pullRequestArt } from "./Icon"
-import { Kbd } from "./Kbd"
-import { Panel } from "./Panel"
-import { Row } from "./Row"
+import { courtArt, kindArt } from "./Icon"
 import { courtName, rowName, yourMoveSummary } from "./copy"
-import { useRevealed, useTextSwap } from "./motion"
 
 export type ControlCenterProps = {
   readonly snapshot: PullRequestSnapshot
   readonly overrides: ReadonlyArray<CourtOverride>
   readonly onCorrect: (override: CourtOverride) => void
 }
-
-const rowKey = (row: CourtRow): string => `${row.court}:${row.kind}`
 
 const ItemLine = ({
   item,
@@ -31,15 +25,13 @@ const ItemLine = ({
   readonly item: AttentionItem
   readonly onCorrect: (override: CourtOverride) => void
 }) => (
-  <li className="group/item flex items-center justify-between gap-4 rounded-md px-2 py-1.5 transition-colors duration-instant ease-out hover:bg-panel-hover">
-    <span className="min-w-0">
-      {/* Paths and comment summaries are the things most likely to be cut off,
-          and the full text is exactly what decides whether to open the item. */}
-      <Tooltip content={item.title} side="top">
-        <span className="block truncate text-sm text-ink">{item.title}</span>
-      </Tooltip>
-      <span className="block truncate text-xs text-ink-dim">{item.detail}</span>
-    </span>
+  // One line each, with what it is on the left and what it amounts to on the
+  // right, which is how GitHub lists files and checks a few hundred pixels
+  // above this. Two lines per item would double the height of a Court for
+  // detail nobody reads until they open the thing.
+  <li className="group/item flex min-h-7 items-center gap-3 py-0.5 pr-1 pl-10 hover:bg-hover">
+    <span className="min-w-0 flex-1 truncate text-sm">{item.title}</span>
+    <span className="shrink-0 text-xs text-ink-muted">{item.detail}</span>
     <CourtMenu
       label={`Court for ${item.title}`}
       value={item.court}
@@ -49,151 +41,113 @@ const ItemLine = ({
 )
 
 /**
- * What the selected Control Center row contains, one line per Attention Item.
- * Mounted fresh for each row — keyed by the caller — so choosing a different
- * row plays the reveal again rather than silently exchanging the contents.
+ * One kind of thing within one Court, as a group that opens.
+ *
+ * Closed, it is a single line saying how many and giving the first one, which
+ * is the bird's-eye view. Open, it is every item. A pull request with a hundred
+ * and fifty five Attention Items is the case that matters, and it is why the
+ * items are behind a disclosure rather than listed: the wall of comments is the
+ * problem, not the format.
+ *
+ * `<details>` because GitHub uses it everywhere and because it keeps working
+ * before any of our JavaScript does.
  */
-const DetailPanel = ({
+const Group = ({
   row,
+  open,
   onCorrect
 }: {
   readonly row: CourtRow
+  readonly open: boolean
   readonly onCorrect: (override: CourtOverride) => void
 }) => {
-  const revealed = useRevealed()
+  const Art = kindArt[row.kind]
+  const [first] = row.items
 
   return (
-    <div className="t-panel-slide flex min-h-0 flex-1 flex-col" data-open={revealed}>
-      <Panel
-        title={`${rowName(row.kind, row.items.length)} · ${courtName(row.court)}`}
-        art={kindArt[row.kind]}
-        className="min-h-0 flex-1 rounded-lg bg-surface p-3"
-        aside={
-          <span className="flex items-center gap-1.5 text-2xs text-ink-dim">
-            <Kbd>n</Kbd>
-            <span>next</span>
-            <Kbd>esc</Kbd>
-            <span>back</span>
+    <details open={open} className="group/details border-b border-line-muted last:border-b-0">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 hover:bg-hover [&::-webkit-details-marker]:hidden">
+        <ChevronRightIcon className="shrink-0 text-ink-muted transition-transform duration-150 group-open/details:rotate-90" />
+        <Art className="shrink-0 text-ink-muted" />
+        <span className="shrink-0 text-sm font-semibold">{rowName(row.kind, row.items.length)}</span>
+        {/* The first one, so a folded group still says something specific. It
+            disappears once the group is open, where it would be a duplicate of
+            the line directly beneath it. */}
+        {first === undefined ? null : (
+          <span className="truncate text-sm text-ink-muted group-open/details:hidden">
+            {first.title}
           </span>
-        }
-      >
-        <ScrollArea className="min-h-0 flex-1" viewportClassName="pr-1">
-          {/* Two columns, because one line per item across the full width leaves
-              a path stranded from the control that acts on it, and halves how
-              much of a long Queue is on screen at once. */}
-          <ul className="grid grid-cols-2 gap-x-4">
-            {row.items.map((item) => (
-              <ItemLine key={item.id} item={item} onCorrect={onCorrect} />
-            ))}
-          </ul>
-        </ScrollArea>
-      </Panel>
-    </div>
+        )}
+      </summary>
+      <ul className="pb-1">
+        {row.items.map((item) => (
+          <ItemLine key={item.id} item={item} onCorrect={onCorrect} />
+        ))}
+      </ul>
+    </details>
+  )
+}
+
+const CourtSection = ({
+  court,
+  rows,
+  onCorrect
+}: {
+  readonly court: Court
+  readonly rows: ReadonlyArray<CourtRow>
+  readonly onCorrect: (override: CourtOverride) => void
+}) => {
+  const Art = courtArt[court]
+  const items = rows.reduce((total, row) => total + row.items.length, 0)
+  const yourMove = court === "your-move"
+
+  return (
+    <section aria-label={courtName(court)} className="Box">
+      <div className="flex items-center gap-2 rounded-t-md border-b border-line bg-surface px-3 py-2">
+        <Art className={yourMove && items > 0 ? "text-ink-accent" : "text-ink-muted"} />
+        <h3 className="text-sm font-semibold">{courtName(court)}</h3>
+        <span className="Counter">{items}</span>
+      </div>
+      {rows.length === 0 ? (
+        <p className="px-3 py-2.5 text-sm text-ink-muted">Nothing here</p>
+      ) : (
+        // Only what needs the Participant is open on arrival. The other two
+        // Courts are there to be checked, not read.
+        rows.map((row) => (
+          <Group
+            key={`${row.court}:${row.kind}`}
+            row={row}
+            open={yourMove}
+            onCorrect={onCorrect}
+          />
+        ))
+      )}
+    </section>
   )
 }
 
 export const ControlCenter = ({ snapshot, overrides, onCorrect }: ControlCenterProps) => {
   const attention = deriveAttention(snapshot, overrides)
-  const [selected, setSelected] = useState<string | null>(null)
-  const revealed = useRevealed()
-  const summary = useTextSwap(yourMoveSummary(attention.yourMoveCount))
-
-  const selectedRow =
-    attention.rows.find((row) => rowKey(row) === selected) ?? attention.rows[0] ?? null
-
-  const needsYou = attention.yourMoveCount > 0
 
   return (
-    <main className="flex h-screen flex-col gap-4 overflow-hidden bg-canvas p-5 text-ink">
-      <header className="flex shrink-0 items-start justify-between gap-6">
-        {/* The two lines rise in sequence on arrival, so the eye lands on which
-            pull request this is before the title it carries. */}
-        <div className={cn("t-stagger min-w-0", revealed && "is-shown")}>
-          <p className="t-stagger-line t-stagger-line--1 flex items-center gap-1.5 text-xs text-ink-dim">
-            <Icon of={pullRequestArt(snapshot.state)} size="sm" />
-            <span className="tabular-nums">
-              {snapshot.reference.owner}/{snapshot.reference.repo} #{snapshot.reference.number}
-            </span>
-            <span aria-hidden>·</span>
-            <span>{attention.role === "author" ? "you opened this" : "you are reviewing"}</span>
-          </p>
-          <h1 className="t-stagger-line t-stagger-line--2 truncate text-lg font-semibold tracking-[-0.01em]">
-            {snapshot.title}
-          </h1>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <p
-            aria-live="polite"
-            className={cn(
-              "rounded-md px-2 py-1 text-xs font-medium tabular-nums",
-              needsYou ? "bg-brand-quiet text-brand-ink" : "bg-panel text-ink-dim"
-            )}
-          >
-            {/* Swapped in place rather than re-rendered: the count is the one
-                number the Participant is tracking, and a silent change is easy
-                to miss when a correction is what caused it. */}
-            <span ref={summary.ref} className="t-text-swap">
-              {summary.shown}
-            </span>
-          </p>
-          <Button
-            asChild
-            variant="ghost"
-            size="sm"
-            trailingIcon={asIcon(ArrowUpRight01Icon)}
-          >
-            <a href={toUrl(snapshot.reference)}>Open on GitHub</a>
-          </Button>
-        </div>
-      </header>
-
-      <div className="grid shrink-0 grid-cols-3 gap-4">
-        {COURTS.map((court) => {
-          const rows = attention.rows.filter((row) => row.court === court)
-          const items = rows.reduce((total, row) => total + row.items.length, 0)
-          return (
-            <Panel
-              key={court}
-              title={courtName(court)}
-              art={courtArt[court]}
-              count={items}
-              tone={court === "your-move" && needsYou ? "brand" : "default"}
-            >
-              {rows.length === 0 ? (
-                <p className="px-2.5 py-2 text-xs text-ink-dim">Nothing here</p>
-              ) : (
-                <ul className="flex flex-col gap-1">
-                  {rows.map((row) => {
-                    const key = rowKey(row)
-                    const [first] = row.items
-                    return (
-                      <li key={key}>
-                        <Row
-                          art={kindArt[row.kind]}
-                          label={rowName(row.kind, row.items.length)}
-                          meta={first?.title}
-                          tone={court === "your-move" ? "brand" : "default"}
-                          selected={selectedRow !== null && rowKey(selectedRow) === key}
-                          onSelect={() => setSelected(key)}
-                        />
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
-            </Panel>
-          )
-        })}
+    <div className="flex flex-col gap-3 pb-8">
+      <div className="flex items-baseline gap-2">
+        <h2 aria-live="polite" className="text-base font-semibold">
+          {yourMoveSummary(attention.yourMoveCount)}
+        </h2>
+        <p className="text-sm text-ink-muted">
+          {attention.role === "author" ? "— you opened this" : "— you are reviewing"}
+        </p>
       </div>
 
-      {selectedRow === null ? null : (
-        <DetailPanel
-          key={rowKey(selectedRow)}
-          row={selectedRow}
+      {COURTS.map((court) => (
+        <CourtSection
+          key={court}
+          court={court}
+          rows={attention.rows.filter((row) => row.court === court)}
           onCorrect={onCorrect}
         />
-      )}
-    </main>
+      ))}
+    </div>
   )
 }

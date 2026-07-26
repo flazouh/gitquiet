@@ -8,7 +8,12 @@ export const PullRequestRef = Schema.Struct({
 
 export type PullRequestRef = typeof PullRequestRef["Type"]
 
-const PULL_REQUEST_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:\/.*)?$/
+/**
+ * Only the pull request's own page, not the tabs beside it. Files, Commits and
+ * Checks are GitHub's, and they stay GitHub's: this interface replaces the
+ * conversation, which is where knowing what needs you is hard.
+ */
+const PULL_REQUEST_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)\/?$/
 
 export const fromPathname = (pathname: string): Option.Option<PullRequestRef> => {
   const match = PULL_REQUEST_PATH.exec(pathname)

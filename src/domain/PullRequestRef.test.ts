@@ -5,9 +5,7 @@ import { fromPathname, toUrl } from "./PullRequestRef"
 describe("recognising a pull request from a URL", () => {
   const recognised = [
     ["/microsoft/vscode/pull/327442", 327442],
-    ["/microsoft/vscode/pull/327442/files", 327442],
-    ["/microsoft/vscode/pull/327442/commits", 327442],
-    ["/microsoft/vscode/pull/1/commits/abc123", 1]
+    ["/microsoft/vscode/pull/327442/", 327442]
   ] as const
 
   for (const [pathname, number] of recognised) {
@@ -27,11 +25,17 @@ describe("recognising a pull request from a URL", () => {
     "/microsoft/vscode/pulls",
     "/microsoft/vscode/issues/1",
     "/microsoft/vscode/pull/not-a-number",
-    "/microsoft/vscode/pull/"
+    "/microsoft/vscode/pull/",
+    // The tabs beside the conversation are GitHub's own, and they are good: a
+    // diff, a commit list and a check run are all things they already do well.
+    "/microsoft/vscode/pull/327442/files",
+    "/microsoft/vscode/pull/327442/commits",
+    "/microsoft/vscode/pull/327442/checks",
+    "/microsoft/vscode/pull/1/commits/abc123"
   ]
 
   for (const pathname of ignored) {
-    test(`ignores ${pathname}`, () => {
+    test(`leaves ${pathname} to GitHub`, () => {
       expect(Option.isNone(fromPathname(pathname))).toBe(true)
     })
   }

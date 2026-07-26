@@ -1,5 +1,32 @@
-@import "tailwindcss";
-@import "./tokens.css";
-@import "./fluid.css";
+/**
+ * Tailwind, minus its preflight.
+ *
+ * `@import "tailwindcss"` would bring the reset with it, and the reset is
+ * written for a page you own. This one is GitHub's: their header, their
+ * repository nav, their pull request title and tabs are all still on it, and
+ * unsetting every margin, border and font on the document would take those with
+ * it. Importing the two layers we actually use leaves their page untouched and
+ * still gives the interface its utilities.
+ */
+
+@layer theme;
+
+@import "tailwindcss/theme.css" layer(theme);
+
+/**
+ * The utilities are imported without a layer, which is the whole trick.
+ *
+ * A layered rule loses to an unlayered one no matter how specific it is, and
+ * GitHub's stylesheets are entirely unlayered — including plain element rules
+ * like `summary { display: block }`. Put our utilities in a layer and their
+ * element selectors quietly beat our `flex`, which is how a row of things ends
+ * up as a run-on sentence. Unlayered, `.flex` is a class against an element and
+ * wins on specificity as it should.
+ *
+ * Nothing here reaches their page: these rules only apply to class names this
+ * interface writes.
+ */
+@import "tailwindcss/utilities.css";
+
+@import "./primer.css";
 @import "./motion.css";
-@import "./bridge.css";

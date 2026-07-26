@@ -1,13 +1,7 @@
-import { useState } from "react"
-import { Button } from "../components/ui/button"
-import {
-  DropdownContent,
-  DropdownMenu,
-  DropdownTrigger
-} from "../components/ui/dropdown"
-import { MenuItem } from "../components/ui/menu-item"
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu"
+import { CheckIcon } from "@primer/octicons-react"
 import { COURTS, type Court } from "../domain/Attention"
-import { Icon, asIcon, courtArt } from "./Icon"
+import { courtArt } from "./Icon"
 import { courtName } from "./copy"
 
 export type CourtMenuProps = {
@@ -22,39 +16,49 @@ export type CourtMenuProps = {
  * correction is rare, and thirty rows of segmented controls would drown the
  * items they belong to.
  *
- * The trigger is quiet until the row is hovered or focused. A control the
- * Participant needs a few times a week should not be shouting on every line.
+ * Dressed as one of GitHub's own overlays — their surface, their border, their
+ * shadow, their button — so it does not announce itself as coming from
+ * somewhere else.
  */
 export const CourtMenu = ({ label, value, onChange }: CourtMenuProps) => {
-  const [open, setOpen] = useState(false)
+  const Current = courtArt[value]
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownTrigger
-        render={
-          <Button
-            aria-label={label}
-            variant="ghost"
-            size="icon-sm"
-            active={open}
-            className="opacity-40 transition-opacity duration-instant ease-out group-hover/item:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger
+        aria-label={label}
+        className="btn btn-sm btn-invisible flex! items-center px-1.5! text-[var(--fgColor-muted)] opacity-0 group-hover/item:opacity-100 group-focus-within/item:opacity-100 data-[state=open]:opacity-100"
+      >
+        <Current />
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={4}
+          className="z-30 min-w-44 rounded-md border border-line bg-raised py-1 shadow-pop"
+        >
+          <DropdownMenu.RadioGroup
+            value={value}
+            onValueChange={(chosen) => onChange(chosen as Court)}
           >
-            <Icon of={courtArt[value]} size="sm" />
-          </Button>
-        }
-      />
-      <DropdownContent align="end" checkedIndex={COURTS.indexOf(value)}>
-        {COURTS.map((court, index) => (
-          <MenuItem
-            key={court}
-            index={index}
-            label={courtName(court)}
-            icon={asIcon(courtArt[court])}
-            checked={court === value}
-            onSelect={() => onChange(court)}
-          />
-        ))}
-      </DropdownContent>
-    </DropdownMenu>
+            {COURTS.map((court) => {
+              const Art = courtArt[court]
+              return (
+                <DropdownMenu.RadioItem
+                  key={court}
+                  value={court}
+                  className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm outline-hidden select-none data-highlighted:bg-hover"
+                >
+                  <span className="flex w-4 justify-center text-ink-muted">
+                    {court === value ? <CheckIcon /> : <Art />}
+                  </span>
+                  {courtName(court)}
+                </DropdownMenu.RadioItem>
+              )
+            })}
+          </DropdownMenu.RadioGroup>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   )
 }

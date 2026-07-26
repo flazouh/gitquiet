@@ -1,6 +1,6 @@
 # githubpro
 
-A Chrome extension that replaces GitHub's pull request pages with an interface organised by attention rather than by object type, served from a local cache kept current by GitHub's own push notifications.
+A Chrome extension that replaces a pull request's conversation with an interface organised by attention rather than by object type, served from a local cache kept current by GitHub's own push notifications. It sits inside GitHub's page, wearing GitHub's design system: their header, nav and tabs are untouched, and the part that is ours is drawn in Primer tokens and Octicons, so it follows whichever theme you already use.
 
 ## Why
 
@@ -21,7 +21,7 @@ Work is tracked as issues in this repository.
 | --- | --- |
 | Toolchain | Bun for install, scripts and tests |
 | Extension | WXT, Chrome MV3 |
-| UI | React, shadcn, Tailwind |
+| UI | React and Tailwind over GitHub's own Primer tokens, classes and Octicons |
 | Domain and data | Effect v4 (typed errors, Layers, Schema, Schedule) |
 | Local store | Dexie over IndexedDB |
 | Observability | Sentry |

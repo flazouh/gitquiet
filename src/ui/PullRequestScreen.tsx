@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useState } from "react"
 import type { CourtOverride } from "../domain/Attention"
 import type { PullRequestSnapshot } from "../domain/PullRequest"
-import { type PullRequestRef, toUrl } from "../domain/PullRequestRef"
-import { Button } from "../components/ui/button"
+import type { PullRequestRef } from "../domain/PullRequestRef"
 import { ControlCenter } from "./ControlCenter"
-import { Providers } from "./Providers"
 
 export type Loaded = {
   readonly snapshot: PullRequestSnapshot
@@ -15,11 +13,8 @@ export type PullRequestScreenProps = {
   readonly reference: PullRequestRef
   readonly load: () => Promise<Loaded>
   readonly correct: (override: CourtOverride) => Promise<void>
-  /**
-   * Read from the page GitHub already rendered, so the Participant sees which
-   * pull request they are on before the snapshot arrives.
-   */
-  readonly knownTitle?: string | undefined
+  /** Restores GitHub's own conversation, which is still on the page behind this. */
+  readonly onStepAside: () => void
 }
 
 const WORKING = "Working out what needs you…"
@@ -38,10 +33,10 @@ const replacing = (
 ]
 
 export const PullRequestScreen = ({
-  reference,
+  reference: _reference,
   load,
   correct,
-  knownTitle
+  onStepAside
 }: PullRequestScreenProps) => {
   const [screen, setScreen] = useState<Screen>({ status: "loading" })
 
@@ -81,52 +76,34 @@ export const PullRequestScreen = ({
 
   if (screen.status === "loading") {
     return (
-      <Providers>
-        <main className="flex h-screen flex-col gap-1 bg-canvas p-5 text-ink">
-          <p className="text-xs tabular-nums text-ink-dim">
-            {reference.owner}/{reference.repo} #{reference.number}
-          </p>
-          {knownTitle === undefined ? null : (
-            <h1 className="truncate text-lg font-semibold tracking-[-0.01em]">{knownTitle}</h1>
-          )}
-          {/* Shimmer rather than a spinner: the work is a read, and a sweep over
-              the words says "in progress" without claiming a percentage. The
-              string is duplicated into data-text because the sweep is clipped to
-              a second copy of the same glyphs. */}
-          <p className="t-shimmer text-sm" data-text={WORKING}>
-            {WORKING}
-          </p>
-        </main>
-      </Providers>
+      <p className="t-shimmer py-3 text-sm" data-text={WORKING}>
+        {WORKING}
+      </p>
     )
   }
 
   if (screen.status === "failed") {
     return (
-      <Providers>
-        <main className="flex h-screen flex-col items-start gap-3 bg-canvas p-5 text-ink">
-          <h1 className="text-lg font-semibold tracking-[-0.01em]">
-            Something GitHub sends has changed
-          </h1>
-          <p className="max-w-prose text-sm text-ink-muted">
-            This pull request could not be read, so nothing is shown rather than part of it.
-            GitHub's own page still works.
-          </p>
-          <Button asChild variant="secondary" size="md">
-            <a href={toUrl(reference)}>Open on GitHub</a>
-          </Button>
-        </main>
-      </Providers>
+      <div className="Box p-4">
+        <h2 className="mb-1 text-base font-semibold">Something GitHub sends has changed</h2>
+        <p className="mb-3 max-w-prose text-sm text-ink-muted">
+          This pull request could not be read, so nothing is shown rather than part of it. GitHub's
+          own conversation is still here.
+        </p>
+        {/* Not a link back to the same page: their conversation was never
+            removed, only hidden, so this is a button that gives it back. */}
+        <button type="button" className="btn btn-sm" onClick={onStepAside}>
+          Show GitHub's conversation
+        </button>
+      </div>
     )
   }
 
   return (
-    <Providers>
-      <ControlCenter
-        snapshot={screen.loaded.snapshot}
-        overrides={screen.loaded.overrides}
-        onCorrect={onCorrect}
-      />
-    </Providers>
+    <ControlCenter
+      snapshot={screen.loaded.snapshot}
+      overrides={screen.loaded.overrides}
+      onCorrect={onCorrect}
+    />
   )
 }

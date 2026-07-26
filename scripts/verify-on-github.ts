@@ -2,10 +2,14 @@ import { withExtension } from "./chrome"
 
 /**
  * Checks the built extension on github.com itself, which is the only place most
- * of its claims can be tested: that the bundled font loads under GitHub's
- * Content-Security-Policy, that the interface — not GitHub's forty-odd
- * stylesheets — decides how the page looks, and that a real pull request
- * actually reads.
+ * of its claims can be tested.
+ *
+ * The claims changed shape when the interface stopped replacing the page. It now
+ * slots into GitHub's own layout, so what has to hold is the opposite of what
+ * used to: their header, their repository nav and their pull request title and
+ * tabs are all still there and still working, their conversation is hidden
+ * rather than destroyed, and our part of the page is drawn in their typeface,
+ * their surfaces and their borders — whichever theme the reader happens to use.
  *
  * Run it after `bun run build`:
  *
@@ -14,9 +18,8 @@ import { withExtension } from "./chrome"
  *
  * The profile is a throwaway, so the visit is signed out and the interface can
  * only reach its failure screen — which still answers the styling questions,
- * since that screen is drawn from the same stylesheet and the same font as
- * everything else. To see the Control Center instead, hand it a signed-in
- * session:
+ * since that screen is drawn from the same stylesheet as everything else. To see
+ * the Control Center instead, hand it a signed-in session:
  *
  *     bun run verify:live --cookies /tmp/gh-cookies.json
  *
@@ -32,29 +35,38 @@ const argumentAfter = (flag: string): string | undefined => {
 const PULL = argumentAfter("--pull") ?? "https://github.com/microsoft/vscode/pull/327442"
 const COOKIES = argumentAfter("--cookies")
 
-const FAILURES: ReadonlyArray<readonly [string, (found: Measured) => boolean]> = [
-  ["the content script never replaced the page", (found) => !found.tookOverPage],
-  ["GitHub stylesheets survived the takeover", (found) => found.githubStylesheetsLeft > 0],
-  ["the bundled font did not load", (found) => !found.interUsable],
-  ["headings are not rendering in Inter", (found) => found.headingFamily !== "InterVariable"],
-  ["something in the interface draws a border", (found) => found.borderedElements > 0],
-  ["the page scrolls", (found) => found.pageScrolls]
-]
-
 type Measured = {
-  readonly screen: "control-center" | "failure" | "loading"
+  readonly screen: "control-center" | "failure" | "loading" | "absent"
   readonly courts: ReadonlyArray<string>
-  readonly rows: number
-  readonly tookOverPage: boolean
-  readonly githubStylesheetsLeft: number
-  readonly interStatus: ReadonlyArray<string>
-  readonly interUsable: boolean
-  readonly headingFamily: string | null
-  readonly headingText: string | null
-  readonly bodyBackground: string
-  readonly borderedElements: number
-  readonly pageScrolls: boolean
+  readonly groups: number
+  readonly mountedInTheirLayout: boolean
+  readonly theirHeaderStands: boolean
+  readonly theirPullRequestHeaderStands: boolean
+  readonly theirConversationHidden: number
+  readonly theirStylesheets: number
+  readonly ourFont: string | null
+  readonly theirFont: string
+  readonly ourSurface: string | null
+  readonly theirSurface: string
+  readonly ourBorder: string | null
+  readonly theirBorder: string
+  readonly octicons: number
+  readonly ourHeight: number
+  readonly viewportHeight: number
 }
+
+const FAILURES: ReadonlyArray<readonly [string, (found: Measured) => boolean]> = [
+  ["the interface never mounted in GitHub's layout", (found) => !found.mountedInTheirLayout],
+  ["GitHub's site header did not survive", (found) => !found.theirHeaderStands],
+  [
+    "GitHub's pull request header and tabs did not survive",
+    (found) => !found.theirPullRequestHeaderStands
+  ],
+  ["GitHub's own stylesheets were stripped", (found) => found.theirStylesheets < 10],
+  ["GitHub's conversation was destroyed rather than hidden", (found) => found.theirConversationHidden === 0],
+  ["the interface is not rendering in GitHub's typeface", (found) => found.ourFont !== found.theirFont],
+  ["the interface draws no Octicons", (found) => found.octicons === 0]
+]
 
 const session = await withExtension(PULL, `${import.meta.dir}/../.output/chrome-mv3`, {
   cookies:
@@ -68,44 +80,38 @@ const SETTLE_SECONDS = 30
 const look = () =>
   session.evaluate<Measured>(`
   (() => {
-    const faces = [...document.fonts].filter((face) => face.family === "InterVariable")
-    const heading = document.querySelector("#githubpro-root h1")
-    const bordered = [...document.querySelectorAll("#githubpro-root *")].filter((element) => {
-      const style = getComputedStyle(element)
-      const sides = ["Top", "Right", "Bottom", "Left"]
-      if (sides.every((side) => (parseFloat(style["border" + side + "Width"]) || 0) === 0)) return false
-      return sides.some((side) => {
-        const colour = style["border" + side + "Color"]
-        return colour !== "rgba(0, 0, 0, 0)" && colour !== "transparent"
-      })
-    })
-    // A section carries the region role implicitly once it has a name, so the
-    // markup is what to look for rather than a role attribute nobody writes.
+    const root = document.querySelector("#githubpro-root")
+    const slot = document.querySelector('[class*="PageLayoutContent"]')
     const courts = [...document.querySelectorAll("#githubpro-root section[aria-label]")].map(
       (region) => region.getAttribute("aria-label") ?? "?"
     )
+    const failed = (root?.textContent ?? "").startsWith("Something GitHub sends")
+    const read = (element, property) =>
+      element === null ? null : getComputedStyle(element)[property]
+    // The page itself is the fair comparison: whatever theme is on, a card of
+    // ours has to be the colour GitHub paints a card.
+    const ourBox = document.querySelector("#githubpro-root .Box")
+
     return {
       screen:
-        courts.length > 0
-          ? "control-center"
-          : (heading?.textContent ?? "").startsWith("Something GitHub sends")
-            ? "failure"
-            : "loading",
+        root === null ? "absent" : courts.length > 0 ? "control-center" : failed ? "failure" : "loading",
       courts,
-      rows: document.querySelectorAll("#githubpro-root section[aria-label] button").length,
-      tookOverPage: document.querySelector("#githubpro-root") !== null,
-      // Only what is outside the interface counts: components inside it inject
-      // styles of their own, and those are not GitHub's.
-      githubStylesheetsLeft: [
-        ...document.querySelectorAll('link[rel="stylesheet"], style:not([data-githubpro])')
-      ].filter((sheet) => document.querySelector("#githubpro-root")?.contains(sheet) !== true).length,
-      interStatus: faces.map((face) => face.status),
-      interUsable: document.fonts.check("13px InterVariable"),
-      headingFamily: heading === null ? null : getComputedStyle(heading).fontFamily.split(",")[0],
-      headingText: heading?.textContent ?? null,
-      bodyBackground: getComputedStyle(document.body).backgroundColor,
-      borderedElements: bordered.length,
-      pageScrolls: document.documentElement.scrollHeight > window.innerHeight
+      groups: document.querySelectorAll("#githubpro-root details").length,
+      mountedInTheirLayout: root !== null && slot !== null && slot.contains(root),
+      theirHeaderStands: (document.querySelector(".header-wrapper")?.clientHeight ?? 0) > 40,
+      theirPullRequestHeaderStands:
+        (document.querySelector('[class*="PageLayout-Header"]')?.clientHeight ?? 0) > 40,
+      theirConversationHidden: document.querySelectorAll("[data-githubpro-hidden]").length,
+      theirStylesheets: document.querySelectorAll('link[rel="stylesheet"]').length,
+      ourFont: read(root, "fontFamily"),
+      theirFont: getComputedStyle(document.body).fontFamily,
+      ourSurface: read(ourBox, "backgroundColor"),
+      theirSurface: getComputedStyle(document.body).backgroundColor,
+      ourBorder: read(ourBox, "borderTopColor"),
+      theirBorder: getComputedStyle(document.documentElement).getPropertyValue("--borderColor-default").trim(),
+      octicons: document.querySelectorAll("#githubpro-root svg.octicon").length,
+      ourHeight: Math.round(root?.getBoundingClientRect().height ?? 0),
+      viewportHeight: window.innerHeight
     }
   })()
 `)
@@ -118,7 +124,7 @@ const look = () =>
 const settled = async (): Promise<Measured> => {
   const deadline = Date.now() + SETTLE_SECONDS * 1000
   let seen = await look()
-  while (seen.screen === "loading" && Date.now() < deadline) {
+  while ((seen.screen === "loading" || seen.screen === "absent") && Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 500))
     seen = await look()
   }
@@ -149,6 +155,10 @@ const failed = [
         [
           "a real pull request did not reach the Control Center",
           (found: Measured) => found.screen !== "control-center"
+        ],
+        [
+          "the interface is not wearing GitHub's surface colour",
+          (found: Measured) => found.ourSurface !== found.theirSurface
         ]
       ] as const)
     : [])
@@ -159,4 +169,4 @@ if (failed.length > 0) {
   console.error(failed.map((reason) => `✗ ${reason}`).join("\n"))
   process.exit(1)
 }
-console.log("✓ the interface owns the page, in its own font, with no borders and no scroll")
+console.log("✓ the interface sits inside GitHub's page, in GitHub's clothes, with their page intact")

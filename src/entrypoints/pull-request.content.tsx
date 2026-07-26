@@ -6,30 +6,29 @@ import { layer as courtsLayer } from "@/attention/CourtOverrides"
 import type { CourtOverride } from "@/domain/Attention"
 import { fromPathname } from "@/domain/PullRequestRef"
 import { layer as gatewayLayer } from "@/github/GitHubGateway"
-import { readPullRequestHeader } from "@/github/PageHeader"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import { PullRequestScreen } from "@/ui/PullRequestScreen"
-import { installFont } from "@/ui/font"
-import { takeOverPage } from "@/ui/mount"
+import { takeOverSlotWhenReady } from "@/ui/mount"
 import "@/ui/styles.css"
 
 const services = Layer.merge(gatewayLayer, courtsLayer)
 
 export default defineContentScript({
+  // Wider than the interface itself, because GitHub navigates between the tabs
+  // without reloading: the script has to already be running when someone comes
+  // back to the conversation from Files.
   matches: ["*://github.com/*/*/pull/*"],
   runAt: "document_end",
   async main() {
     initialiseErrorReporting("content-script")
 
+    // Only the conversation. Files, Commits and Checks are GitHub's own, and
+    // they are good.
     const reference = fromPathname(window.location.pathname)
     if (Option.isNone(reference)) return
 
-    // Read GitHub's own payload before replacing the page that carries it, so
-    // the Participant sees the title with no network round trip.
-    const header = await Effect.runPromise(
-      readPullRequestHeader(document).pipe(Effect.result)
-    )
-    const knownTitle = header._tag === "Success" ? header.success.title : undefined
+    const takeover = await takeOverSlotWhenReady(document)
+    if (takeover === null) return
 
     const load = () =>
       Effect.runPromise(
@@ -44,20 +43,13 @@ export default defineContentScript({
         correctCourt(reference.value, override).pipe(Effect.provide(services))
       )
 
-    takeOverPage(document, (container) => {
-      // Declared from in here, not before the takeover: the takeover clears every
-      // stylesheet it did not put there, and only the extension can say where the
-      // font file actually lives.
-      installFont(document, browser.runtime.getURL("/fonts/InterVariable.woff2"))
-
-      createRoot(container).render(
-        <PullRequestScreen
-          reference={reference.value}
-          load={load}
-          correct={correct}
-          knownTitle={knownTitle}
-        />
-      )
-    })
+    createRoot(takeover.container).render(
+      <PullRequestScreen
+        reference={reference.value}
+        load={load}
+        correct={correct}
+        onStepAside={takeover.stepAside}
+      />
+    )
   }
 })
