@@ -74,6 +74,16 @@
  * instead is this one rule, scoped to its own subtree.
  */
 #githubpro-root {
+  /* Tailwind sizes every padding, margin and gap as `calc(var(--spacing) * n)`,
+     and the Primer React layout this interface is planted inside sets
+     `--spacing: 0` for its own purposes. Inheritance carried that in and
+     multiplied the whole interface by nothing: every gap, every padding, every
+     fixed width, silently zero, while borders and radii — which do not use it —
+     kept working and made the page look merely badly designed rather than
+     broken. Declared here, at the top of our own subtree, where their value
+     cannot reach. */
+  --spacing: 0.25rem;
+
   color: var(--fgColor-default);
   font-family: var(--fontStack-sansSerif);
   font-size: var(--text-body-size-medium, 14px);
