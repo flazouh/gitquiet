@@ -30,6 +30,28 @@ const gitStatusOf = (change: ChangeType): GitStatus => {
   }
 }
 
+/**
+ * The tree wearing GitHub's colours rather than Pierre's.
+ *
+ * It ships its own palette and takes overrides through these variables, so the
+ * page's theme — dark, dark dimmed, light, high contrast, colourblind — is
+ * answered by naming Primer's variables here and nothing else. The file-type
+ * icon colours are left alone: they are semantic rather than themed, and GitHub
+ * has no opinion about what colour a TypeScript file is.
+ */
+const PRIMER_TREE = {
+  // A real colour rather than `transparent`: the tree fades a too-long name out
+  // with a gradient in its own background, and a transparent one fades to
+  // nothing, which reads as the name running into its extension.
+  "--trees-bg-override": "var(--bgColor-default)",
+  "--trees-bg-muted-override": "var(--bgColor-muted)",
+  "--trees-fg-override": "var(--fgColor-default)",
+  "--trees-fg-muted-override": "var(--fgColor-muted)",
+  "--trees-accent-override": "var(--bgColor-accent-emphasis)",
+  "--trees-border-color-override": "var(--borderColor-default)",
+  "--trees-border-radius-override": "var(--borderRadius-medium, 6px)"
+} as React.CSSProperties
+
 /** Whichever of its two themes GitHub is currently wearing. */
 const preferredTheme = (): "light" | "dark" => {
   const mode = document.documentElement.dataset.colorMode
@@ -149,7 +171,7 @@ export const FilesView = ({ files }: FilesViewProps) => {
     // bottom of a long file should not lose the list.
     <div className="Box flex min-h-0 items-stretch" style={{ height: "min(72vh, 900px)" }}>
       <div className="w-72 shrink-0 overflow-auto border-r border-line py-1">
-        <FileTree model={model} />
+        <FileTree model={model} style={PRIMER_TREE} />
       </div>
       <div className="min-w-0 flex-1 overflow-auto">
         {file === undefined ? null : <Diff file={file} />}
