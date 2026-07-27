@@ -9,6 +9,7 @@
     "dev": "wxt",
     "build": "bun scripts/build-diff-engine.ts && wxt build",
     "build:diff-engine": "bun scripts/build-diff-engine.ts",
+    "reload": "bun run build && ego-browser nodejs < scripts/ego-extension.js",
     "zip": "wxt zip",
     "compile": "tsc --noEmit",
     "drift": "bun scripts/check-drift.ts",

@@ -1,7 +1,10 @@
 /**
  * Loads the built extension into the browser you are already signed into.
  *
- *     bun run build && ego-browser nodejs < scripts/ego-extension.js
+ *     bun run reload
+ *
+ * which builds first and then runs this. Run it after any change; the new build
+ * replaces the old one and the tab reloads where it already was.
  *
  * This replaced a preload shim that pasted the content script into the page and
  * pretended to be Chrome. It was a fair imitation and it lied about the two
