@@ -22,6 +22,7 @@ const AutomatedComment = Schema.Struct({
 const ThreadComment = Schema.Struct({
   author: Schema.NullOr(Author),
   body: Schema.String,
+  bodyHTML: Schema.String,
   createdAt: Schema.String,
   automatedComment: Schema.optional(Schema.NullOr(AutomatedComment))
 })
@@ -70,6 +71,18 @@ const DiffContent = Schema.Struct({
   diffLines: Schema.Array(DiffLine)
 })
 
+/**
+ * The diffs GitHub holds back, asked for by name.
+ *
+ * A pull request page arrives with content for the first few files only — five
+ * of thirty-three on a real one — and their own Files tab fetches the rest in
+ * batches as they are scrolled to. The answer is a bare array of exactly the
+ * shape the page embeds, so the same decoding serves both.
+ */
+export const DiffEntriesRoute = Schema.Array(DiffContent)
+
+export type DiffEntriesRoute = typeof DiffEntriesRoute["Type"]
+
 const Commit = Schema.Struct({
   oid: Schema.String,
   shortOid: Schema.String,
@@ -77,6 +90,73 @@ const Commit = Schema.Struct({
   messageHeadline: Schema.String,
   createdAt: Schema.String
 })
+
+/**
+ * One commit, from the page GitHub serves for it.
+ *
+ * The diff entries are the same shape the pull request embeds, down to the line
+ * records — one route's `status` where the other says `changeType`, and the
+ * rest identical — so everything downstream of here is shared.
+ */
+export const CommitRoute = Schema.Struct({
+  payload: Schema.Struct({
+    commit: Schema.Struct({
+      oid: Schema.String,
+      authoredDate: Schema.String,
+      // Null on some commits, where the headline only exists as the rendered
+      // markdown beside it — a merge commit made through their web interface is
+      // one. Both are optional here and the mapper takes whichever came.
+      shortMessage: Schema.optional(Schema.NullOr(Schema.String)),
+      shortMessageMarkdown: Schema.optional(Schema.NullOr(Schema.String)),
+      bodyMessageHtml: Schema.optional(Schema.NullOr(Schema.String)),
+      authors: Schema.Array(
+        Schema.Struct({
+          login: Schema.optional(Schema.NullOr(Schema.String)),
+          displayName: Schema.optional(Schema.NullOr(Schema.String)),
+          avatarUrl: Schema.optional(Schema.NullOr(Schema.String))
+        })
+      )
+    }),
+    diffEntryData: Schema.Array(
+      Schema.Struct({
+        path: Schema.String,
+        pathDigest: Schema.String,
+        status: Schema.Literals([
+          "ADDED",
+          "MODIFIED",
+          "REMOVED",
+          "DELETED",
+          "RENAMED",
+          "COPIED",
+          "CHANGED"
+        ]),
+        linesAdded: Schema.Number,
+        linesDeleted: Schema.Number,
+        isBinary: Schema.Boolean,
+        isTooBig: Schema.Boolean,
+        truncatedReason: Schema.optional(Schema.NullOr(Schema.String)),
+        diffLines: Schema.Array(DiffLine)
+      })
+    )
+  })
+})
+
+export type CommitRoute = typeof CommitRoute["Type"]
+
+/**
+ * The pull request body, from the route that serves it alone.
+ *
+ * Both forms are kept: the markdown because it is the text the Author wrote,
+ * and GitHub's own rendering of it because reproducing their markdown — task
+ * lists, suggestions, mentions, emoji, the lot — is a project, and they have
+ * already done it.
+ */
+export const DescriptionRoute = Schema.Struct({
+  body: Schema.String,
+  bodyHtml: Schema.String
+})
+
+export type DescriptionRoute = typeof DescriptionRoute["Type"]
 
 export const ChangesRoute = Schema.Struct({
   payload: Schema.Struct({
@@ -144,6 +224,24 @@ export const StatusChecksRoute = Schema.Struct({
 
 export type StatusChecksRoute = typeof StatusChecksRoute["Type"]
 
+/**
+ * The queue half of the merge box, all of it optional.
+ *
+ * Every field here is absent or null on a repository that merges directly, and
+ * both recordings are from one — so a schema that insisted on them would fail
+ * to decode the payloads this route actually returns most of the time. Optional
+ * is not laziness: it is the difference between a repository without a queue
+ * and a payload that changed shape.
+ */
+const MergeQueueEntry = Schema.Struct({
+  position: Schema.optional(Schema.NullOr(Schema.Number)),
+  state: Schema.optional(Schema.NullOr(Schema.String))
+})
+
+const MergeQueue = Schema.Struct({
+  url: Schema.optional(Schema.NullOr(Schema.String))
+})
+
 export const MergeBoxRoute = Schema.Struct({
   pullRequest: Schema.Struct({
     latestOpinionatedReviews: Schema.Array(
@@ -157,7 +255,11 @@ export const MergeBoxRoute = Schema.Struct({
           "PENDING"
         ])
       })
-    )
+    ),
+    isInMergeQueue: Schema.optional(Schema.NullOr(Schema.Boolean)),
+    mergeQueue: Schema.optional(Schema.NullOr(MergeQueue)),
+    mergeQueueEntry: Schema.optional(Schema.NullOr(MergeQueueEntry)),
+    viewerCanAddAndRemoveFromMergeQueue: Schema.optional(Schema.NullOr(Schema.Boolean))
   }),
   mergeRequirements: Schema.Struct({
     state: Schema.String,

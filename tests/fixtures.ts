@@ -4,8 +4,10 @@ export type FixtureName =
   | "changes"
   | "status-checks"
   | "merge-box"
+  | "description"
   | "approved-changes"
   | "approved-status-checks"
+  | "approved-description"
   | "merge-box-approved"
 
 /**
@@ -20,13 +22,15 @@ export const loadFixture = (name: FixtureName): unknown => JSON.parse(loadFixtur
 export const draftWithBotFindings = {
   changes: loadFixture("changes"),
   statusChecks: loadFixture("status-checks"),
-  mergeBox: loadFixture("merge-box")
+  mergeBox: loadFixture("merge-box"),
+  description: loadFixture("description")
 }
 
 export const mergedWithApproval = {
   changes: loadFixture("approved-changes"),
   statusChecks: loadFixture("approved-status-checks"),
-  mergeBox: loadFixture("merge-box-approved")
+  mergeBox: loadFixture("merge-box-approved"),
+  description: loadFixture("approved-description")
 }
 
 /**
@@ -44,5 +48,6 @@ export const withADeletedFile = {
     loadFixtureText("changes").replace('"changeType":"MODIFIED"', '"changeType":"REMOVED"')
   ) as unknown,
   statusChecks: loadFixture("status-checks"),
-  mergeBox: loadFixture("merge-box")
+  mergeBox: loadFixture("merge-box"),
+  description: loadFixture("description")
 }

@@ -18,6 +18,7 @@ export const bot = (login: string): Participant => ({ login, isAutomated: true }
 export const aComment = (author: Participant, body = "a remark"): ThreadComment => ({
   author,
   body,
+  html: `<p>${body}</p>`,
   createdAt: "2026-07-25T00:00:00Z"
 })
 
@@ -61,6 +62,7 @@ export const aSnapshot = (
 ): PullRequestSnapshot => ({
   reference: { owner: "acme", repo: "widgets", number: 7 },
   title: "Make the widget spin",
+  description: { markdown: "It spins now.", html: "<p>It spins now.</p>" },
   state: "open",
   author: person(AUTHOR),
   baseBranch: "main",
@@ -72,7 +74,7 @@ export const aSnapshot = (
   threads: [],
   checks: [],
   reviews: [],
-  merge: { isMergeable: true, blockers: [] },
+  merge: { isMergeable: true, blockers: [], queue: Option.none() },
   ...parts
 })
 

@@ -30,6 +30,22 @@ describe("asking the gateway for a pull request", () => {
     expect(snapshot.checks).toHaveLength(29)
   })
 
+  test("carries the description, which is the first thing anyone reads", async () => {
+    const snapshot = await Effect.runPromise(askFor(draft))
+
+    expect(snapshot.description.markdown).toContain("## Summary")
+    // GitHub renders the markdown itself; taking their HTML is how the
+    // description reads exactly as it does on their own page.
+    expect(snapshot.description.html).toContain("<h2")
+  })
+
+  test("keeps GitHub's rendering of every comment, not just its markdown", async () => {
+    const snapshot = await Effect.runPromise(askFor(draft))
+    const [comment] = snapshot.threads[0]?.comments ?? []
+
+    expect(comment?.html).toContain("<p")
+  })
+
   test("serves each recorded pull request separately", async () => {
     const snapshot = await Effect.runPromise(askFor(merged))
 
@@ -81,6 +97,7 @@ describe("what the gateway sends to GitHub", () => {
   const payloadFor = (url: string): unknown => {
     if (url.includes("/changes")) return draftWithBotFindings.changes
     if (url.includes("status_checks")) return draftWithBotFindings.statusChecks
+    if (url.includes("description")) return draftWithBotFindings.description
     return draftWithBotFindings.mergeBox
   }
 
@@ -89,15 +106,16 @@ describe("what the gateway sends to GitHub", () => {
     return yield* gateway.snapshot(draft)
   }).pipe(Effect.provide(layer))
 
-  test("asks for all three routes as JSON, with the header GitHub demands", async () => {
+  test("asks for every route as JSON, with the header GitHub demands", async () => {
     const calls = intercept((url) => Response.json(payloadFor(url)))
 
     const snapshot = await Effect.runPromise(live)
 
     expect(snapshot.title).toBe("Polish multi-file diffs in Agents window")
-    expect(calls).toHaveLength(3)
+    expect(calls).toHaveLength(4)
     expect(calls.map((call) => new URL(call.url).pathname).sort()).toEqual([
       "/microsoft/vscode/pull/327442/changes",
+      "/microsoft/vscode/pull/327442/page_data/description",
       "/microsoft/vscode/pull/327442/page_data/merge_box",
       "/microsoft/vscode/pull/327442/page_data/status_checks"
     ])
@@ -106,6 +124,40 @@ describe("what the gateway sends to GitHub", () => {
       expect(call.headers.get("Accept")).toBe("application/json")
       expect(call.headers.get("X-Requested-With")).toBe("XMLHttpRequest")
     }
+  })
+
+  test("fetches the diffs GitHub left out of the page it served", async () => {
+    // Their own Files tab holds back all but the first few files and asks for
+    // the rest as they are scrolled to; a file we have no content for is one of
+    // those, not a binary.
+    const entry = {
+      path: "src/spin.ts",
+      isBinary: false,
+      isTooBig: false,
+      truncatedReason: null,
+      diffLines: [
+        { type: "HUNK", text: "@@ -1 +1 @@", left: null, right: null },
+        { type: "ADDITION", text: "+it spins", left: null, right: 1 }
+      ]
+    }
+    const calls = intercept(() => Response.json([entry]))
+
+    const [got] = await Effect.runPromise(
+      Effect.gen(function* () {
+        const gateway = yield* GitHubGateway
+        return yield* gateway.diffs(draft, "abc123", ["src/spin.ts"])
+      }).pipe(Effect.provide(layer))
+    )
+
+    expect(got?.path).toBe("src/spin.ts")
+    expect(got?.diff.lines).toHaveLength(2)
+
+    const asked = new URL(calls[0]?.url ?? "https://example.invalid")
+    expect(asked.pathname).toBe("/microsoft/vscode/pull/327442/page_data/diff_entries")
+    // Doubly encoded, which is how their own page asks for it: the parameter is
+    // a comma-separated list of already-encoded paths.
+    expect(asked.searchParams.get("paths")).toBe("src%2Fspin.ts")
+    expect(asked.searchParams.get("range")).toBe("abc123")
   })
 
   test("reports the status when GitHub turns a request down", async () => {

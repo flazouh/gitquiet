@@ -10,6 +10,27 @@ const merged: PullRequestRef = { owner: "microsoft", repo: "vscode", number: 327
 const snapshotOf = (reference: PullRequestRef, raw: Parameters<typeof toSnapshot>[1]) =>
   Effect.runPromise(toSnapshot(reference, raw))
 
+/** The draft's payloads, with GitHub answering something else about merging. */
+const withMergeState = (state: string) => {
+  const box = draftWithBotFindings.mergeBox as {
+    mergeRequirements: { state: string; conditions: ReadonlyArray<{ result: string }> }
+  }
+  return {
+    ...draftWithBotFindings,
+    mergeBox: {
+      ...box,
+      mergeRequirements: {
+        ...box.mergeRequirements,
+        state,
+        conditions: box.mergeRequirements.conditions.map((condition) => ({
+          ...condition,
+          result: "PASSED"
+        }))
+      }
+    }
+  }
+}
+
 describe("a draft pull request carrying bot findings", () => {
   test("reads the pull request itself", async () => {
     const snapshot = await snapshotOf(draft, draftWithBotFindings)
@@ -94,10 +115,88 @@ describe("a draft pull request carrying bot findings", () => {
     )
   })
 
+  test("lets you merge when the repository re-reads its checks at merge time", async () => {
+    // What a repository with required checks answers even once they have all
+    // passed. Reading it as "not MERGEABLE" is how the button came to be
+    // disabled with nothing said about why.
+    const snapshot = await snapshotOf(draft, withMergeState("MERGEABLE_IF_STATUSES_PASS"))
+
+    expect(snapshot.merge.isMergeable).toBe(true)
+    expect(snapshot.merge.blockers).toEqual([])
+  })
+
+  test("names the state when it cannot merge and GitHub lists no reason", async () => {
+    const snapshot = await snapshotOf(draft, withMergeState("SOMETHING_NEW"))
+
+    expect(snapshot.merge.isMergeable).toBe(false)
+    expect(snapshot.merge.blockers).toHaveLength(1)
+    expect(snapshot.merge.blockers[0]?.explanation).toContain("SOMETHING_NEW")
+  })
+
   test("has no reviews on it", async () => {
     const snapshot = await snapshotOf(draft, draftWithBotFindings)
 
     expect(snapshot.reviews).toEqual([])
+  })
+})
+
+/**
+ * The same payloads, from a repository that merges through a queue.
+ *
+ * Built here rather than recorded: both recordings are from repositories
+ * without one, so every queue field in them is null. The fields themselves are
+ * real — they are in the payload we already fetch — and the shapes below are
+ * the ones GitHub's own schema gives them.
+ */
+const throughAQueue = (
+  queue: { readonly position?: number; readonly waiting?: boolean } = {}
+) => {
+  const box = draftWithBotFindings.mergeBox as { pullRequest: Record<string, unknown> }
+  const waiting = queue.waiting ?? true
+  return {
+    ...draftWithBotFindings,
+    mergeBox: {
+      ...box,
+      pullRequest: {
+        ...box.pullRequest,
+        isInMergeQueue: waiting,
+        mergeQueue: { url: "https://github.com/microsoft/vscode/queue/main" },
+        mergeQueueEntry: waiting
+          ? { position: queue.position ?? 3, state: "QUEUED" }
+          : null,
+        viewerCanAddAndRemoveFromMergeQueue: true
+      }
+    }
+  }
+}
+
+describe("a repository that merges through a queue", () => {
+  test("says there is no queue when GitHub sends none", async () => {
+    const snapshot = await snapshotOf(draft, draftWithBotFindings)
+
+    expect(Option.isNone(snapshot.merge.queue)).toBe(true)
+  })
+
+  test("reads the queue, and where in it this pull request is waiting", async () => {
+    const snapshot = await snapshotOf(draft, throughAQueue({ position: 3 }))
+
+    const queue = snapshot.merge.queue
+    if (Option.isNone(queue)) throw new Error("expected a merge queue")
+    expect(queue.value.waiting).toBe(true)
+    expect(queue.value.position).toEqual(Option.some(3))
+    expect(queue.value.viewerCanQueue).toBe(true)
+    expect(queue.value.url).toEqual(
+      Option.some("https://github.com/microsoft/vscode/queue/main")
+    )
+  })
+
+  test("reads a queue this pull request is not in yet", async () => {
+    const snapshot = await snapshotOf(draft, throughAQueue({ waiting: false }))
+
+    const queue = snapshot.merge.queue
+    if (Option.isNone(queue)) throw new Error("expected a merge queue")
+    expect(queue.value.waiting).toBe(false)
+    expect(Option.isNone(queue.value.position)).toBe(true)
   })
 })
 
