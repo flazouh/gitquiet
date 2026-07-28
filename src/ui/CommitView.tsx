@@ -34,6 +34,15 @@ export type CommitViewProps = {
   readonly fetchDiffs?: DiffFetcher
   readonly diff: DiffChoices
   readonly tree: TreeChoices
+  /**
+   * Drawn as two panels rather than one: what the commit is, then what it
+   * changed, with the gap between them every other pair on this interface has.
+   *
+   * For the page that is only about this commit. Inside a pull request the
+   * commit stands where the branch's file browser was and has to be the same
+   * single panel, or opening one makes the page jump.
+   */
+  readonly apart?: boolean
   readonly menu?: React.ReactNode
   readonly proseAsDocument?: boolean
   /** Whose keys move between the files of this commit. */
@@ -60,6 +69,7 @@ export const CommitView = ({
   held,
   onClose,
   fetchDiffs = NOTHING_HELD_BACK,
+  apart = false,
   diff,
   tree,
   menu,
@@ -101,71 +111,109 @@ export const CommitView = ({
     }
   }, [held, load, sha])
 
-  return (
-    <section
-      aria-label="Commit"
-      className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-line"
-    >
-      <div className="flex items-center gap-2 border-b border-line bg-surface px-3 py-2">
-        {onClose === undefined ? null : (
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-semibold text-ink-muted hover:bg-hover hover:text-ink"
-          >
-            <ArrowLeftIcon size={12} />
-            All changes
-          </button>
-        )}
-        {reading.step === "ready" ? (
-          <>
-            <Who
-              login={reading.commit.author}
-              src={Option.getOrUndefined(reading.commit.avatarUrl)}
-            />
-            <span className="min-w-0 flex-1 truncate text-xs font-semibold">
-              {reading.commit.headline}
-            </span>
-            <span
-              title={momentOf(reading.commit.createdAt)}
-              className="shrink-0 text-xs text-ink-muted tabular-nums"
-            >
-              {ageOf(reading.commit.createdAt)}
-            </span>
-            <code className="shrink-0 font-mono text-xs text-ink-muted">
-              {reading.commit.abbreviatedSha}
-            </code>
-          </>
-        ) : (
-          <span className="min-w-0 flex-1 truncate text-xs text-ink-muted">
-            {reading.step === "loading" ? "Reading the commit…" : reading.said}
-          </span>
-        )}
-      </div>
-      {reading.step === "ready" && Option.isSome(reading.commit.bodyHtml) ? (
-        // The rest of the message, when the author wrote one. Kept short: a
-        // commit body is context for the diff below it, not the thing itself.
-        <div className="max-h-32 overflow-y-auto border-b border-line px-3 py-2">
-          <Markdown html={reading.commit.bodyHtml.value} />
-        </div>
-      ) : null}
+  const meta = (
+    <div className="flex items-center gap-2 bg-surface px-3 py-2">
+      {onClose === undefined ? null : (
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-semibold text-ink-muted hover:bg-hover hover:text-ink"
+        >
+          <ArrowLeftIcon size={12} />
+          All changes
+        </button>
+      )}
       {reading.step === "ready" ? (
-        <FileBrowser
-          // A different commit is a different set of files, and the browser
-          // holds which one is open and which have been seen. Those belong to
-          // the commit being read, not to the panel.
-          key={reading.commit.sha}
-          files={reading.commit.files}
-          fetchDiffs={fetchDiffs}
-          diff={diff}
-          tree={tree}
-          menu={menu}
-          proseAsDocument={proseAsDocument}
-          keys={keys}
-        />
+        <>
+          <Who
+            login={reading.commit.author}
+            src={Option.getOrUndefined(reading.commit.avatarUrl)}
+          />
+          <span className="min-w-0 flex-1 truncate text-xs font-semibold">
+            {reading.commit.headline}
+          </span>
+          <span
+            title={momentOf(reading.commit.createdAt)}
+            className="shrink-0 text-xs text-ink-muted tabular-nums"
+          >
+            {ageOf(reading.commit.createdAt)}
+          </span>
+          <code className="shrink-0 font-mono text-xs text-ink-muted">
+            {reading.commit.abbreviatedSha}
+          </code>
+        </>
       ) : (
-        <div className="flex flex-1 items-center justify-center text-xs text-ink-muted">
-          {reading.step === "loading" ? "Reading the commit…" : "That commit could not be read."}
+        <span className="min-w-0 flex-1 truncate text-xs text-ink-muted">
+          {reading.step === "loading" ? "Reading the commit…" : reading.said}
+        </span>
+      )}
+    </div>
+  )
+
+  // The rest of the message, when the author wrote one. Kept short: a commit
+  // body is context for the diff below it, not the thing itself.
+  const body =
+    reading.step === "ready" && Option.isSome(reading.commit.bodyHtml) ? (
+      <div className="max-h-32 overflow-y-auto px-3 py-2">
+        <Markdown html={reading.commit.bodyHtml.value} />
+      </div>
+    ) : null
+
+  const files =
+    reading.step === "ready" ? (
+      <FileBrowser
+        // A different commit is a different set of files, and the browser
+        // holds which one is open and which have been seen. Those belong to
+        // the commit being read, not to the panel.
+        key={reading.commit.sha}
+        files={reading.commit.files}
+        fetchDiffs={fetchDiffs}
+        diff={diff}
+        tree={tree}
+        menu={menu}
+        proseAsDocument={proseAsDocument}
+        keys={keys}
+      />
+    ) : (
+      <div className="flex flex-1 items-center justify-center text-xs text-ink-muted">
+        {reading.step === "loading" ? "Reading the commit…" : "That commit could not be read."}
+      </div>
+    )
+
+  // Two panels on the page of its own, one panel inside a pull request.
+  //
+  // Beside a pull request this is standing in for the branch's file browser and
+  // has to be the same object as the thing it replaced — one bordered panel,
+  // filling the same half of the screen. On its own page there is nothing to
+  // match, and what the commit is sits above what it changed exactly as the
+  // pull request's own header sits above its files: a card, a gap, the work.
+  if (!apart) {
+    return (
+      <section
+        aria-label="Commit"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-line"
+      >
+        <div className="border-b border-line">{meta}</div>
+        {body === null ? null : <div className="border-b border-line">{body}</div>}
+        {files}
+      </section>
+    )
+  }
+
+  return (
+    <section aria-label="Commit" className="flex min-h-0 flex-1 flex-col">
+      <header className="mb-1.5 shrink-0 overflow-hidden rounded-md border border-line">
+        {meta}
+        {body === null ? null : <div className="border-t border-line bg-inset">{body}</div>}
+      </header>
+      {reading.step === "ready" ? (
+        files
+      ) : (
+        // The browser draws its own panel; what stands in for it while the
+        // commit is being read has to be given one, or the page is a card and
+        // then a sentence lying on the background.
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-line">
+          {files}
         </div>
       )}
     </section>
