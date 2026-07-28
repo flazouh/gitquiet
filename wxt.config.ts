@@ -13,10 +13,18 @@ export default defineConfig({
     description:
       "Replaces a pull request's conversation with a view organised by whose move it is.",
     host_permissions: ["*://github.com/*"],
-    // Court corrections are kept in extension storage. Without this the API is
-    // simply absent in the content script, and since a store we cannot read is
-    // treated as empty, every correction is lost with nothing said about it.
-    permissions: ["storage"],
+    // Display settings are kept in `storage.sync`, so a reader who chose
+    // side-by-side diffs on one machine has them on the next. Without this the
+    // API is simply absent in the content script, and choices last as long as
+    // the tab does.
+    // `unlimitedStorage` because the pull requests kept ready to open instantly
+    // are GitHub's own payloads — around a hundred kilobytes each — and forty of
+    // them would sit uncomfortably against the five megabytes `storage.local`
+    // otherwise allows.
+    // `scripting` because GitHub navigates without loading pages: arriving at a
+    // pull request from a list never matches a content script, so the worker
+    // has to put the interface there itself. See src/app/injection.ts.
+    permissions: ["storage", "unlimitedStorage", "scripting"],
     // The diff renderer is built beside the extension rather than into the
     // content script (scripts/build-diff-engine.ts) and imported the first time
     // someone opens a file. A content script may only import an extension file

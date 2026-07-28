@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/browser"
 
-export type Surface = "content-script" | "service-worker"
+export type Surface = "content-script" | "service-worker" | "prefetch"
 
 const readEnvironmentValue = (key: string): string | undefined => {
   const environment: unknown = import.meta.env

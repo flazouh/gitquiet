@@ -1,0 +1,25 @@
+/**
+ * Holding GitHub's conversation back on a page that was never loaded as one.
+ *
+ * `gate.css` cannot help here. It ships with the interface, and the interface
+ * is not on a page that loaded as a pull request list — that is the whole
+ * problem this is for. This ships with the small script that runs on every
+ * GitHub page, so it is already in force when someone clicks a pull request
+ * from a list, long before the worker has injected anything.
+ *
+ * Keyed on an attribute that is *set* rather than one that is missing, unlike
+ * its counterpart. `gate.css` can hide by default because it is only ever
+ * present on a pull request; this is present on every page of GitHub, and a
+ * rule that hid things by default would hide the whole site.
+ *
+ * Scoped inside GitHub's pull request app, which exists on no other page. So
+ * this may be switched on the moment a pull request is clicked — while the list
+ * is still on the screen — without blanking the list on the way out.
+ */
+html[data-githubpro-gating] react-app[app-name="pull-requests"] [class*="PageLayoutContent"],
+html[data-githubpro-gating] react-app[app-name="pull-requests"] [class*="PullRequestHeader"],
+html[data-githubpro-gating]
+  react-app[app-name="pull-requests"]
+  [aria-label="Pull request navigation tabs"] {
+  display: none;
+}

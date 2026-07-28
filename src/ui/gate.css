@@ -1,0 +1,53 @@
+/**
+ * Keeps GitHub's pull request off the screen until ours is standing in its place.
+ *
+ * Their page is server-rendered: the conversation, the pull request header and
+ * the tab row all arrive in the HTML, so they paint the moment the parser
+ * reaches them. A content script cannot beat that — even at `document_start` it
+ * runs before those elements exist, and by the time it can hide them they have
+ * been on the screen for a frame or more. That flash is what this removes.
+ *
+ * Stylesheets a content script declares in the manifest are applied before the
+ * document is displayed, which is the one hook that runs early enough. So the
+ * hiding is done in CSS, from the first paint, and undone by an attribute once
+ * the interface is mounted.
+ *
+ * These are exactly the elements `mount.ts` hides by attribute afterwards, and
+ * for the same reasons: their conversation because ours replaces it, their
+ * header and tabs because ours says the same things in one band. Everything
+ * else on the page — the site header, the repository nav, the title and state —
+ * is untouched here as it is there.
+ *
+ * `display: none` rather than `visibility: hidden` so the hidden region takes no
+ * space and the page does not reserve a gap for something nobody will see. The
+ * DOM is built either way: the parser does not consult CSS, so the region is
+ * still there for `findSlot` to find.
+ */
+html:not([data-githubpro-revealed]) [class*="PageLayoutContent"],
+html:not([data-githubpro-revealed]) [class*="PullRequestHeader"],
+html:not([data-githubpro-revealed]) [aria-label="Pull request navigation tabs"] {
+  display: none;
+}
+
+/**
+ * And keeps it off the screen for as long as the interface is the one in charge.
+ *
+ * Hiding their conversation once, at the moment of the takeover, is not enough:
+ * GitHub's React goes on re-rendering the region for the whole life of the page,
+ * and every re-render inserts children that no attribute has been put on yet.
+ * `mount.ts` watches for them and hides them, but a MutationObserver runs after
+ * the DOM has changed — so on a first visit, where the interface has nothing to
+ * show for a second or so while GitHub is asked about the pull request, their
+ * conversation reappears underneath and stays until the observer catches up.
+ *
+ * Stated as a rule instead, the answer is already there when the node arrives
+ * and nothing is ever painted that has to be taken back. It is written against
+ * any `PageLayoutContent` rather than the one taken over, because a re-render
+ * does not update that region so much as replace it, and the replacement needs
+ * to arrive under the same rule.
+ */
+html[data-githubpro-taken] [class*="PageLayoutContent"] > *:not(#githubpro-root),
+html[data-githubpro-taken] [class*="PullRequestHeader"],
+html[data-githubpro-taken] [aria-label="Pull request navigation tabs"] {
+  display: none;
+}
