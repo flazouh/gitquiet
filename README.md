@@ -23,7 +23,7 @@ Work is tracked as issues in this repository.
 | Extension | WXT, Chrome MV3 |
 | UI | React and Tailwind over GitHub's own Primer tokens, classes and Octicons |
 | Domain and data | Effect v4 (typed errors, Layers, Schema, Schedule) |
-| Local store | Dexie over IndexedDB |
+| Local store | `storage.local`, reachable from both the content script and the worker |
 | Observability | Sentry |
 | Tests | `bun test`, `effect/testing`, Testing Library, happy-dom |
 

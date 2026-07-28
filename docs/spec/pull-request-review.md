@@ -101,6 +101,8 @@ Domain and data layers are written in Effect. Errors are typed rather than throw
 
 Observability is `@effect/opentelemetry` exporting to Sentry. Because gateway calls and sync operations are written with `Effect.fn`, each carries a span without additional instrumentation.
 
+Pull requests already read are kept in `storage.local` rather than IndexedDB. It belongs to the extension rather than to `github.com`, so GitHub's own code cannot read or clear it; it is reachable from the service worker as well as from a content script on any GitHub page, which is what lets a pull request be warmed from the list someone is about to click through; and a pure cache of forty pages does not justify a schema or a migration story. What is kept is GitHub's payloads rather than the snapshot decoded from them, so a page written before a schema changed fails the decoder and counts as a miss instead of becoming a lie in the right shape.
+
 ### Data access
 
 GitHub's own pull request pages are already JSON-driven internally, and those endpoints authenticate with the Participant's existing session cookie. Requests require both `Accept: application/json` and `X-Requested-With: XMLHttpRequest`; omitting the latter returns HTTP 406. This has been verified against a live pull request.
@@ -157,7 +159,7 @@ Three kinds of test.
 
 **Pure module tests** cover Attention, Findings and Queue directly, since they are pure functions over domain types. These carry the edge cases: a thread whose last comment is the Participant's own, a bot comment anchored to a deleted line, two tools reporting the same defect with different wording, a file reviewed at one SHA and then changed.
 
-**Behaviour tests** render the real application with a fake gateway Layer and drive it as a Participant would, using Testing Library. These cover the user stories above: opening a pull request shows the three Courts; pressing `n` through a Queue advances and records Reviewed State; a channel event pushed into the gateway's event stream updates the Control Center while Focus is open; emptying a Queue returns to the Control Center with the next one primed. Time-dependent behaviour uses Effect's `TestClock`; IndexedDB uses `fake-indexeddb`, since the store is internal rather than a seam.
+**Behaviour tests** render the real application with a fake gateway Layer and drive it as a Participant would, using Testing Library. These cover the user stories above: opening a pull request shows the three Courts; pressing `n` through a Queue advances and records Reviewed State; a channel event pushed into the gateway's event stream updates the Control Center while Focus is open; emptying a Queue returns to the Control Center with the next one primed. Time-dependent behaviour uses Effect's `TestClock`; the store is stood in for at the browser API rather than injected, since it is internal rather than a seam.
 
 **Contract tests** are the early-warning system for the undocumented endpoints. Fixtures are recorded from live GitHub responses and checked into the repository; the same `Schema` definitions that decode production traffic validate them. A scheduled job re-fetches the same routes from live GitHub and decodes them against those Schemas, so an endpoint drifting produces a failing build rather than a broken interface for the Participant. This is the mechanism that makes depending on internal endpoints tenable.
 
