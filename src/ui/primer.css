@@ -37,6 +37,11 @@
 
   /* Emphasis fills, for the one thing on screen that is asking for attention. */
   --color-accent-emphasis: var(--bgColor-accent-emphasis);
+  --color-pass-emphasis: var(--bgColor-success-emphasis);
+  --color-fail-emphasis: var(--bgColor-danger-emphasis);
+  --color-done-emphasis: var(--bgColor-done-emphasis);
+  --color-pass-muted: var(--bgColor-success-muted);
+  --color-fail-muted: var(--bgColor-danger-muted);
   --color-accent-muted: var(--bgColor-accent-muted);
   --color-attention-muted: var(--bgColor-attention-muted);
 
@@ -116,6 +121,23 @@
 :where(#githubpro-root) *::after {
   border-style: solid;
   border-width: 0;
+}
+
+/**
+ * The other half of the preflight this interface actually needs: a button.
+ *
+ * Without it every button in here wears the operating system's own grey face
+ * and the browser's centred, shrunk-down system font — which is what made the
+ * rail read as a column of disabled chips rather than as a list of places to
+ * go. Through `:where` again, so GitHub's `.btn` and our own utilities both
+ * still win over it.
+ */
+:where(#githubpro-root) button {
+  appearance: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
 }
 
 #githubpro-root :focus-visible {

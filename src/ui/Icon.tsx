@@ -1,14 +1,7 @@
 import {
   AlertFillIcon,
-  ArrowRightIcon,
   CheckCircleFillIcon,
-  ChecklistIcon,
-  ClockIcon,
-  CodeReviewIcon,
-  CommentDiscussionIcon,
-  CopilotIcon,
   DotIcon,
-  FileDiffIcon,
   GitMergeIcon,
   GitPullRequestClosedIcon,
   GitPullRequestDraftIcon,
@@ -16,7 +9,6 @@ import {
   SkipFillIcon,
   type Icon as Octicon
 } from "@primer/octicons-react"
-import type { AttentionKind, Court } from "../domain/Attention"
 import type { CheckState, PullRequestState } from "../domain/PullRequest"
 
 export type Art = Octicon
@@ -30,21 +22,6 @@ export type Art = Octicon
  * years. Recognition is worth more than novelty on a page someone opens forty
  * times a day.
  */
-export const kindArt: Record<AttentionKind, Art> = {
-  thread: CommentDiscussionIcon,
-  finding: CopilotIcon,
-  file: FileDiffIcon,
-  check: ChecklistIcon,
-  review: CodeReviewIcon,
-  "merge-blocker": GitMergeIcon
-}
-
-export const courtArt: Record<Court, Art> = {
-  "your-move": ArrowRightIcon,
-  "waiting-on-others": ClockIcon,
-  settled: CheckCircleFillIcon
-}
-
 export const pullRequestArt = (state: PullRequestState): Art => {
   switch (state) {
     case "draft":

@@ -1,0 +1,168 @@
+import { ArrowLeftIcon } from "@primer/octicons-react"
+import { Option } from "effect"
+import { useEffect, useState } from "react"
+import type { CommitDetail } from "../domain/PullRequest"
+import type { DiffChoices, TreeChoices } from "../settings/apply"
+import { FileBrowser } from "./FileBrowser"
+import { Markdown } from "./Markdown"
+import { ageOf, momentOf } from "./when"
+import { Who } from "./Who"
+
+export type CommitViewProps = {
+  readonly sha: string
+  readonly load: (sha: string) => Promise<CommitDetail>
+  /** What has already been read, so a second look does not flash a spinner. */
+  readonly held?: (sha: string) => CommitDetail | undefined
+  readonly onClose: () => void
+  readonly diff: DiffChoices
+  readonly tree: TreeChoices
+  readonly menu?: React.ReactNode
+  readonly proseAsDocument?: boolean
+}
+
+type Reading =
+  | { readonly step: "loading" }
+  | { readonly step: "ready"; readonly commit: CommitDetail }
+  | { readonly step: "failed"; readonly said: string }
+
+/**
+ * One commit, read the way the whole branch is read.
+ *
+ * Not a page of its own and not a dialog: it takes the same half of the screen
+ * the branch's files were in, so the pull request — its description, its CI,
+ * its conversation — is still beside it. Everything below the header is the
+ * same file browser, which means the tree, the diff and every setting over them
+ * behave here exactly as they do there, because they are the same code.
+ */
+export const CommitView = ({
+  sha,
+  load,
+  held,
+  onClose,
+  diff,
+  tree,
+  menu,
+  proseAsDocument
+}: CommitViewProps) => {
+  // Straight to the commit when it is already in hand. Going through loading
+  // first would put a spinner between a click and a thing that was sitting in
+  // memory, which reads as slower than not having cached it at all.
+  const already = held?.(sha)
+  const [reading, setReading] = useState<Reading>(
+    already === undefined ? { step: "loading" } : { step: "ready", commit: already }
+  )
+
+  useEffect(() => {
+    let wanted = true
+
+    const inHand = held?.(sha)
+    if (inHand !== undefined) {
+      setReading({ step: "ready", commit: inHand })
+      return
+    }
+
+    setReading({ step: "loading" })
+
+    load(sha).then(
+      (commit) => {
+        if (wanted) setReading({ step: "ready", commit })
+      },
+      (cause: unknown) => {
+        if (wanted) setReading({ step: "failed", said: saidBy(cause) })
+      }
+    )
+
+    // The reader can open another commit before this one arrives, and the
+    // answer to a commit nobody is looking at any more must not land on screen.
+    return () => {
+      wanted = false
+    }
+  }, [held, load, sha])
+
+  return (
+    <section
+      aria-label="Commit"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-line"
+    >
+      <div className="flex items-center gap-2 border-b border-line bg-surface px-3 py-2">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-semibold text-ink-muted hover:bg-hover hover:text-ink"
+        >
+          <ArrowLeftIcon size={12} />
+          All changes
+        </button>
+        {reading.step === "ready" ? (
+          <>
+            <Who
+              login={reading.commit.author}
+              src={Option.getOrUndefined(reading.commit.avatarUrl)}
+            />
+            <span className="min-w-0 flex-1 truncate text-xs font-semibold">
+              {reading.commit.headline}
+            </span>
+            <span
+              title={momentOf(reading.commit.createdAt)}
+              className="shrink-0 text-xs text-ink-muted tabular-nums"
+            >
+              {ageOf(reading.commit.createdAt)}
+            </span>
+            <code className="shrink-0 font-mono text-xs text-ink-muted">
+              {reading.commit.abbreviatedSha}
+            </code>
+          </>
+        ) : (
+          <span className="min-w-0 flex-1 truncate text-xs text-ink-muted">
+            {reading.step === "loading" ? "Reading the commit…" : reading.said}
+          </span>
+        )}
+      </div>
+      {reading.step === "ready" && Option.isSome(reading.commit.bodyHtml) ? (
+        // The rest of the message, when the author wrote one. Kept short: a
+        // commit body is context for the diff below it, not the thing itself.
+        <div className="max-h-32 overflow-y-auto border-b border-line px-3 py-2">
+          <Markdown html={reading.commit.bodyHtml.value} />
+        </div>
+      ) : null}
+      {reading.step === "ready" ? (
+        <FileBrowser
+          // A different commit is a different set of files, and the browser
+          // holds which one is open and which have been seen. Those belong to
+          // the commit being read, not to the panel.
+          key={reading.commit.sha}
+          files={reading.commit.files}
+          // Every file of a commit arrives with its diff, so there is nothing
+          // left to go back for.
+          fetchDiffs={NOTHING_HELD_BACK}
+          diff={diff}
+          tree={tree}
+          menu={menu}
+          proseAsDocument={proseAsDocument}
+        />
+      ) : (
+        <div className="flex flex-1 items-center justify-center text-xs text-ink-muted">
+          {reading.step === "loading" ? "Reading the commit…" : "That commit could not be read."}
+        </div>
+      )}
+    </section>
+  )
+}
+
+/**
+ * What went wrong, out of whatever the failure arrived wrapped in.
+ *
+ * The gateway's error carries the route and the reason it gave up on it, and
+ * both of those are the difference between a reader knowing GitHub refused and
+ * a reader looking at the word "GatewayError".
+ */
+const saidBy = (cause: unknown): string => {
+  const failure = cause as { route?: unknown; reason?: unknown; detail?: unknown }
+  const detail = typeof failure?.detail === "string" ? failure.detail : undefined
+  const reason = typeof failure?.reason === "string" ? failure.reason : undefined
+  if (detail === undefined && reason === undefined) return String(cause)
+
+  return [reason, detail].filter((part) => part !== undefined).join(": ")
+}
+
+const NOTHING_HELD_BACK = () => Promise.resolve([])

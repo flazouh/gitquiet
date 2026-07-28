@@ -1,82 +1,94 @@
-import { useCallback, useEffect, useState } from "react"
-import type { CourtOverride } from "../domain/Attention"
-import type { PullRequestSnapshot } from "../domain/PullRequest"
+import { Option } from "effect"
+import { useEffect, useState } from "react"
+import type {
+  Check,
+  CheckNote,
+  CommitDetail,
+  FetchedDiff,
+  PullRequestSnapshot
+} from "../domain/PullRequest"
 import type { PullRequestRef } from "../domain/PullRequestRef"
-import { ControlCenter } from "./ControlCenter"
-import { Conversation } from "./Conversation"
-import { FilesView } from "./FilesView"
-import { kindArt } from "./Icon"
-import { Tabs } from "./Tabs"
+import type { MergeActions } from "./Sections"
+import { Shell } from "./Shell"
 
 export type Loaded = {
   readonly snapshot: PullRequestSnapshot
-  readonly overrides: ReadonlyArray<CourtOverride>
 }
 
 export type PullRequestScreenProps = {
   readonly reference: PullRequestRef
   readonly load: () => Promise<Loaded>
-  readonly correct: (override: CourtOverride) => Promise<void>
+  /**
+   * The pull request as it was last time, for the screen to show while
+   * {@link load} finds out what it is now. Answers in about as long as a
+   * storage read, so on any pull request read before there is nothing to wait
+   * for and no loading message to show. Whatever it gives is replaced the
+   * moment the live read lands.
+   */
+  readonly preload?: () => Promise<Option.Option<Loaded>>
+  /** Content for a file the page arrived without, fetched when it is opened. */
+  readonly fetchDiffs: (paths: ReadonlyArray<string>, head: string) => Promise<ReadonlyArray<FetchedDiff>>
   /** Restores GitHub's own conversation, which is still on the page behind this. */
   readonly onStepAside: () => void
+  /** Merging and closing, which reach GitHub rather than the page. */
+  readonly actions?: MergeActions
+  /** Reads one commit of the branch, for the panel that shows it on its own. */
+  readonly loadCommit?: (sha: string) => Promise<CommitDetail>
+  /** Reads what GitHub wrote against a check, for the dialog that shows it. */
+  readonly loadNotes?: (check: Check) => Promise<ReadonlyArray<CheckNote>>
 }
 
-const WORKING = "Working out what needs you…"
+const WORKING = "Reading this pull request…"
 
 type Screen =
   | { readonly status: "loading" }
   | { readonly status: "failed" }
   | { readonly status: "ready"; readonly loaded: Loaded }
 
-const replacing = (
-  overrides: ReadonlyArray<CourtOverride>,
-  override: CourtOverride
-): ReadonlyArray<CourtOverride> => [
-  ...overrides.filter((entry) => entry.itemId !== override.itemId),
-  override
-]
-
 export const PullRequestScreen = ({
   reference: _reference,
   load,
-  correct,
-  onStepAside
+  preload,
+  fetchDiffs,
+  onStepAside,
+  actions,
+  loadCommit,
+  loadNotes
 }: PullRequestScreenProps) => {
   const [screen, setScreen] = useState<Screen>({ status: "loading" })
 
   useEffect(() => {
     let live = true
+    // Whether GitHub has answered. What was remembered is only ever worth
+    // showing before that, and the two are racing: on a fast connection, or a
+    // pull request never read before, the live read wins and nothing
+    // remembered is ever put on the screen.
+    let answered = false
+
+    preload?.().then((remembered) => {
+      if (live && !answered && Option.isSome(remembered)) {
+        setScreen({ status: "ready", loaded: remembered.value })
+      }
+    })
+
     load().then(
       (loaded) => {
+        answered = true
         if (live) setScreen({ status: "ready", loaded })
       },
       () => {
-        if (live) setScreen({ status: "failed" })
+        answered = true
+        // A pull request already on the screen stays there. It is what GitHub
+        // last said rather than what GitHub says now, which is worth less than
+        // the truth and a great deal more than an error page — but the reader
+        // is not yet told which of the two they are looking at.
+        if (live) setScreen((shown) => (shown.status === "ready" ? shown : { status: "failed" }))
       }
     )
     return () => {
       live = false
     }
-  }, [load])
-
-  // Shown immediately so a correction never waits on the store.
-  const onCorrect = useCallback(
-    (override: CourtOverride) => {
-      setScreen((current) =>
-        current.status === "ready"
-          ? {
-              status: "ready",
-              loaded: {
-                snapshot: current.loaded.snapshot,
-                overrides: replacing(current.loaded.overrides, override)
-              }
-            }
-          : current
-      )
-      void correct(override)
-    },
-    [correct]
-  )
+  }, [load, preload])
 
   if (screen.status === "loading") {
     return (
@@ -103,32 +115,13 @@ export const PullRequestScreen = ({
     )
   }
 
-  const { snapshot, overrides } = screen.loaded
-
   return (
-    <Tabs
-      label="This pull request"
-      views={[
-        {
-          name: "Overview",
-          art: kindArt.review,
-          panel: () => (
-            <ControlCenter snapshot={snapshot} overrides={overrides} onCorrect={onCorrect} />
-          )
-        },
-        {
-          name: "Files",
-          art: kindArt.file,
-          count: snapshot.files.length,
-          panel: () => <FilesView files={snapshot.files} />
-        },
-        {
-          name: "Conversation",
-          art: kindArt.thread,
-          count: snapshot.threads.length,
-          panel: () => <Conversation threads={snapshot.threads} />
-        }
-      ]}
+    <Shell
+      snapshot={screen.loaded.snapshot}
+      fetchDiffs={fetchDiffs}
+      actions={actions}
+      loadCommit={loadCommit}
+      loadNotes={loadNotes}
     />
   )
 }
