@@ -13,10 +13,20 @@ stand-ins.
 | `approved-changes.json` | `microsoft/vscode#327417` | Merged, 28 files, added and modified |
 | `approved-status-checks.json` | `microsoft/vscode#327417` | 70 checks, all passing |
 | `merge-box-approved.json` | `microsoft/vscode#327417` | Carries an `APPROVED` review |
+| `commit.json` | `OpenRouterIncubator/ori@c48f531` | A commit page: 22 files, content for 8, the other 14 held back |
+| `commit-extra-diffs.json` | the same commit | The batch that answers for those 14 |
 
 Both pull requests are from a public repository. The payloads contain Alive
 websocket channel tokens, which are signed, short-lived and scoped to public
 topics.
+
+The two commit payloads are from a private repository and are cut down to the
+fields the schemas read, with each file's diff lines truncated to six — enough to
+hold the shape, and nothing that identifies the code. They are here because they
+are the only recording of a payload GitHub deliberately sends incomplete: a
+commit page embeds diffs until it has spent a byte budget and sends every file
+after that as a path, a digest and a status. Insisting on the rest is what used
+to throw away the whole commit.
 
 ## Drift
 

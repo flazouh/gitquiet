@@ -5,6 +5,8 @@ export type FixtureName =
   | "status-checks"
   | "merge-box"
   | "description"
+  | "commit"
+  | "commit-extra-diffs"
   | "approved-changes"
   | "approved-status-checks"
   | "approved-description"

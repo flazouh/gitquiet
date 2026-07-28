@@ -149,7 +149,14 @@ export const interfaceContainer = (target: Document): Element => {
  */
 const THEIR_HEADER = [
   '[class*="PullRequestHeader"]',
-  '[aria-label="Pull request navigation tabs"]'
+  '[aria-label="Pull request navigation tabs"]',
+  // And the same band on a commit's own page, where GitHub says the message,
+  // the parent and how many files changed above the diff — all of which the
+  // panel below repeats. Scoped to the app that renders a commit rather than
+  // written against the layout class alone: a pull request has a header in the
+  // same position, and hiding that one here would take their title row off
+  // every pull request as well.
+  'react-app[app-name="commits"] [class*="PageLayout-Header"]'
 ]
 
 const hide = (element: Element): void => {

@@ -12,6 +12,7 @@ import type {
   CheckState,
   DiffLine,
   DiffLineKind,
+  FetchedDiff,
   FileDiff,
   Participant,
   PullRequestSnapshot,
@@ -23,8 +24,11 @@ import type {
 } from "../domain/PullRequest"
 import type { PullRequestRef } from "../domain/PullRequestRef"
 import {
+  type AsyncDiffLoad,
   CreatedComment,
   ChangesRoute,
+  type CommitDiffEntry,
+  CommitDiffsRoute,
   CommitRoute,
   DescriptionRoute,
   DiffEntriesRoute,
@@ -50,6 +54,7 @@ const decodeDescription = Schema.decodeUnknownEffect(DescriptionRoute)
 const decodeDiffEntries = Schema.decodeUnknownEffect(DiffEntriesRoute)
 const decodeCreated = Schema.decodeUnknownEffect(CreatedComment)
 const decodeCommit = Schema.decodeUnknownEffect(CommitRoute)
+const decodeCommitDiffs = Schema.decodeUnknownEffect(CommitDiffsRoute)
 
 const GHOST = "ghost"
 
@@ -540,11 +545,40 @@ const plainText = (html: string): string =>
     .trim()
 
 /**
+ * A commit's file, whose content GitHub may not have sent.
+ *
+ * The absent case is not a failure and not an empty diff: it is a file whose
+ * content has to be asked for, which is what {@link Option.none} means
+ * everywhere else a file arrives without one.
+ */
+const commitFileOf = (entry: CommitDiffEntry): ChangedFile => ({
+  path: entry.path,
+  digest: entry.pathDigest,
+  changeType: changeTypeOf(entry.status),
+  // GitHub sends no counts with a held-back file. Zero is what the interface
+  // already draws for a file it has nothing to say about, and a guess would be
+  // worse than a blank.
+  linesAdded: entry.linesAdded ?? 0,
+  linesDeleted: entry.linesDeleted ?? 0,
+  readByViewer: false,
+  diff:
+    entry.diffLines === undefined
+      ? Option.none()
+      : Option.some({
+          isBinary: entry.isBinary ?? false,
+          isTruncated: (entry.isTooBig ?? false) || (entry.truncatedReason ?? null) !== null,
+          lines: entry.diffLines.map(diffLineOf)
+        })
+})
+
+/**
  * One commit and its files, in the shapes the rest of the interface reads.
  *
- * Every file arrives with its diff already attached, unlike a pull request
- * where GitHub sends a handful and holds the rest back — a commit is small
- * enough that they send the lot, so nothing here has to be fetched twice.
+ * Only the first few files arrive with their diffs. GitHub embeds content until
+ * it has spent a byte budget — eight of twenty-two on one recorded commit, seven
+ * of five hundred and seventy-five on another — and sends the rest as a name and
+ * a status, to be fetched as they are reached. Which is what a pull request
+ * page does too, so the file browser already knows how to show one.
  */
 export const toCommit = Effect.fn("toCommit")(function* (raw: unknown) {
   const { payload } = yield* decodeCommit(raw)
@@ -552,19 +586,7 @@ export const toCommit = Effect.fn("toCommit")(function* (raw: unknown) {
   const headline =
     payload.commit.shortMessage ?? plainText(payload.commit.shortMessageMarkdown ?? "")
 
-  const files: ReadonlyArray<ChangedFile> = payload.diffEntryData.map((entry) => ({
-    path: entry.path,
-    digest: entry.pathDigest,
-    changeType: changeTypeOf(entry.status),
-    linesAdded: entry.linesAdded,
-    linesDeleted: entry.linesDeleted,
-    readByViewer: false,
-    diff: Option.some({
-      isBinary: entry.isBinary,
-      isTruncated: entry.isTooBig || (entry.truncatedReason ?? null) !== null,
-      lines: entry.diffLines.map(diffLineOf)
-    })
-  }))
+  const files: ReadonlyArray<ChangedFile> = payload.diffEntryData.map(commitFileOf)
 
   const detail: CommitDetail = {
     sha: payload.commit.oid,
@@ -578,6 +600,62 @@ export const toCommit = Effect.fn("toCommit")(function* (raw: unknown) {
   }
 
   return detail
+})
+
+/**
+ * What a commit page says about the files it did not send.
+ *
+ * The two shas are what their route for those files is keyed by, and the cursor
+ * is where to start. All three come off the same page the commit itself was read
+ * from, so nothing here is guessed and nothing is remembered between calls.
+ */
+export type HeldBack = {
+  readonly sha1: string
+  readonly sha2: string
+  readonly from: AsyncDiffLoad
+}
+
+export const toHeldBack = Effect.fn("toHeldBack")(function* (raw: unknown) {
+  const { payload } = yield* decodeCommit(raw)
+  const from = payload.asyncDiffLoadInfo ?? null
+  const sha1 = payload.commit.sha1 ?? null
+  const sha2 = payload.commit.sha2 ?? payload.commit.oid
+
+  // A commit whose files all arrived, and a root commit with nothing to diff
+  // against, both leave nothing to ask for.
+  if (from === null || sha1 === null || payload.moreDiffsToLoad !== true) {
+    return Option.none<HeldBack>()
+  }
+
+  return Option.some<HeldBack>({ sha1, sha2, from })
+})
+
+/**
+ * One batch of the files a commit page held back.
+ *
+ * `from` is where the batch after this one starts, absent once there are none
+ * left — the walk stops on that rather than on counting files, because only
+ * GitHub knows how many it will put in a batch.
+ */
+export type ExtraDiffs = {
+  readonly diffs: ReadonlyArray<FetchedDiff>
+  readonly from: Option.Option<AsyncDiffLoad>
+}
+
+export const toExtraDiffs = Effect.fn("toExtraDiffs")(function* (raw: unknown) {
+  const batch = yield* decodeCommitDiffs(raw)
+
+  const diffs = batch.extraDiffEntries.flatMap((entry) => {
+    const file = commitFileOf(entry)
+    return Option.isNone(file.diff) ? [] : [{ path: file.path, diff: file.diff.value }]
+  })
+
+  const extra: ExtraDiffs = {
+    diffs,
+    from: batch.loadMore ? Option.fromNullOr(batch.asyncDiffLoadInfo ?? null) : Option.none()
+  }
+
+  return extra
 })
 
 const decisionOf = (

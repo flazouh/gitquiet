@@ -45,6 +45,11 @@ export type PullRequestScreenProps = {
   readonly postComment?: (note: NewComment) => Promise<ReviewThread>
   /** Reads one commit of the branch, for the panel that shows it on its own. */
   readonly loadCommit?: (sha: string) => Promise<CommitDetail>
+  /** Content for a file that commit arrived without, fetched when it is opened. */
+  readonly fetchCommitDiffs?: (
+    sha: string,
+    paths: ReadonlyArray<string>
+  ) => Promise<ReadonlyArray<FetchedDiff>>
   /** Reads what GitHub wrote against a check, for the dialog that shows it. */
   readonly loadNotes?: (check: Check) => Promise<ReadonlyArray<CheckNote>>
   /** Reads one step's log, for the note in that dialog that points into it. */
@@ -97,6 +102,7 @@ export const PullRequestScreen = ({
   actions,
   postComment,
   loadCommit,
+  fetchCommitDiffs,
   loadNotes,
   loadLog,
   loadTail,
@@ -226,6 +232,7 @@ export const PullRequestScreen = ({
       actions={acting}
       postComment={postComment}
       loadCommit={loadCommit}
+      fetchCommitDiffs={fetchCommitDiffs}
       loadNotes={loadNotes}
       loadLog={loadLog}
       loadTail={loadTail}

@@ -1,6 +1,7 @@
 import { ArrowLeftIcon } from "@primer/octicons-react"
 import { Option } from "effect"
 import { useEffect, useState } from "react"
+import type { DiffFetcher } from "../diff/library"
 import type { CommitDetail } from "../domain/PullRequest"
 import type { Profile } from "../keys/commands"
 import type { DiffChoices, TreeChoices } from "../settings/apply"
@@ -14,7 +15,23 @@ export type CommitViewProps = {
   readonly load: (sha: string) => Promise<CommitDetail>
   /** What has already been read, so a second look does not flash a spinner. */
   readonly held?: (sha: string) => CommitDetail | undefined
-  readonly onClose: () => void
+  /**
+   * The way back to the whole branch, on the pull request where there is one.
+   *
+   * Absent on GitHub's own page for a commit, which is about this commit and
+   * nothing else: there is no file browser behind it to return to, and a button
+   * offering one would lead somewhere the reader has never been.
+   */
+  readonly onClose?: () => void
+  /**
+   * Content for a file this commit arrived without, fetched when it is opened.
+   *
+   * GitHub embeds diffs until it has spent a byte budget and sends every file
+   * after that as a name, so a commit of any size arrives part-read: this is the
+   * ordinary case rather than an edge of it. Absent where there is nothing to go
+   * back for, which is a test and a commit small enough to have come whole.
+   */
+  readonly fetchDiffs?: DiffFetcher
   readonly diff: DiffChoices
   readonly tree: TreeChoices
   readonly menu?: React.ReactNode
@@ -42,6 +59,7 @@ export const CommitView = ({
   load,
   held,
   onClose,
+  fetchDiffs = NOTHING_HELD_BACK,
   diff,
   tree,
   menu,
@@ -89,14 +107,16 @@ export const CommitView = ({
       className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-line"
     >
       <div className="flex items-center gap-2 border-b border-line bg-surface px-3 py-2">
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-semibold text-ink-muted hover:bg-hover hover:text-ink"
-        >
-          <ArrowLeftIcon size={12} />
-          All changes
-        </button>
+        {onClose === undefined ? null : (
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-semibold text-ink-muted hover:bg-hover hover:text-ink"
+          >
+            <ArrowLeftIcon size={12} />
+            All changes
+          </button>
+        )}
         {reading.step === "ready" ? (
           <>
             <Who
@@ -136,9 +156,7 @@ export const CommitView = ({
           // the commit being read, not to the panel.
           key={reading.commit.sha}
           files={reading.commit.files}
-          // Every file of a commit arrives with its diff, so there is nothing
-          // left to go back for.
-          fetchDiffs={NOTHING_HELD_BACK}
+          fetchDiffs={fetchDiffs}
           diff={diff}
           tree={tree}
           menu={menu}
@@ -170,4 +188,5 @@ const saidBy = (cause: unknown): string => {
   return [reason, detail].filter((part) => part !== undefined).join(": ")
 }
 
+/** For a commit whose files all arrived, and for anything not wired to GitHub. */
 const NOTHING_HELD_BACK = () => Promise.resolve([])

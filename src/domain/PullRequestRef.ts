@@ -1,5 +1,19 @@
 import { Option, Schema } from "effect"
 
+/**
+ * A repository, which is as much as some of GitHub's pages are about.
+ *
+ * A pull request is one of these with a number, and every reference in this
+ * codebase is at least this much: it is what the gateway needs to build a URL
+ * and what a failure needs to say where it happened. Named separately so that
+ * reading a commit — which belongs to the repository — does not have to invent
+ * a pull request to ask about it.
+ */
+export type RepoRef = {
+  readonly owner: string
+  readonly repo: string
+}
+
 export const PullRequestRef = Schema.Struct({
   owner: Schema.String,
   repo: Schema.String,

@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 import { type FixtureName, loadFixture } from "../../tests/fixtures"
-import { ChangesRoute, MergeBoxRoute, StatusChecksRoute } from "./wire"
+import {
+  ChangesRoute,
+  CommitDiffsRoute,
+  CommitRoute,
+  MergeBoxRoute,
+  StatusChecksRoute
+} from "./wire"
 
 /**
  * The early-warning system for undocumented endpoints. These fixtures are
@@ -17,7 +23,9 @@ const contracts: ReadonlyArray<readonly [FixtureName, Decoder]> = [
   ["status-checks", Schema.decodeUnknownEffect(StatusChecksRoute)],
   ["approved-status-checks", Schema.decodeUnknownEffect(StatusChecksRoute)],
   ["merge-box", Schema.decodeUnknownEffect(MergeBoxRoute)],
-  ["merge-box-approved", Schema.decodeUnknownEffect(MergeBoxRoute)]
+  ["merge-box-approved", Schema.decodeUnknownEffect(MergeBoxRoute)],
+  ["commit", Schema.decodeUnknownEffect(CommitRoute)],
+  ["commit-extra-diffs", Schema.decodeUnknownEffect(CommitDiffsRoute)]
 ]
 
 describe("recorded GitHub payloads still match the schemas we decode with", () => {

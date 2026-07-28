@@ -9,16 +9,31 @@ import type {
   PullRequestSnapshot,
   ReviewThread
 } from "../domain/PullRequest"
-import type { PullRequestRef } from "../domain/PullRequestRef"
+import type { PullRequestRef, RepoRef } from "../domain/PullRequestRef"
 import { checkRunIn, notesIn } from "./annotations"
 import { linesIn, tailOf } from "./logs"
 import { recall, remember } from "./cache"
-import { type RawPayloads, toCommit, toCreatedThread, toDiffs, toSnapshot } from "./snapshot"
+import {
+  type HeldBack,
+  type RawPayloads,
+  toCommit,
+  toCreatedThread,
+  toDiffs,
+  toExtraDiffs,
+  toHeldBack,
+  toSnapshot
+} from "./snapshot"
+import type { AsyncDiffLoad } from "./wire"
 
 export type GatewayFailure = "unreachable" | "rejected" | "undecodable" | "not-recorded"
 
 export class GatewayError extends Data.TaggedError("GatewayError")<{
-  readonly reference: PullRequestRef
+  /**
+   * Where it happened. A repository is enough, because the calls that fail
+   * about a commit have no pull request to name and a reader shown the error
+   * is being told which page could not be read, not which number it had.
+   */
+  readonly reference: RepoRef
   readonly route: string
   readonly reason: GatewayFailure
   readonly detail: string
@@ -107,9 +122,28 @@ export class GitHubGateway extends Context.Service<
      * request that happens to carry it.
      */
     readonly commit: (
-      reference: PullRequestRef,
+      reference: RepoRef,
       sha: string
     ) => Effect.Effect<CommitDetail, GatewayError>
+    /**
+     * The content for files a commit page arrived without.
+     *
+     * A commit page embeds diffs until it has spent a byte budget and sends
+     * every file after that as a name and a status, exactly as a pull request
+     * page does. What differs is how the rest are asked for: their route takes
+     * no list of paths — it accepts one and ignores it — and hands out batches
+     * walking forward from a cursor, so reaching a file means passing every file
+     * before it.
+     *
+     * Which is why this answers with everything it walked past rather than only
+     * what was asked for. Whoever asked keeps the lot, so the walk is paid for
+     * once instead of once per file.
+     */
+    readonly commitDiffs: (
+      reference: RepoRef,
+      sha: string,
+      paths: ReadonlyArray<string>
+    ) => Effect.Effect<ReadonlyArray<FetchedDiff>, GatewayError>
     /**
      * Merges the pull request, the way their own merge button does.
      *
@@ -315,6 +349,68 @@ const diffEntriesRoute = (head: string, paths: ReadonlyArray<string>): string =>
  */
 const commitRoute = (sha: string): string =>
   `/commit/${sha}?_pjax=%23repo-content-pjax-container`
+
+/**
+ * One batch of the files a commit page did not send, asked for as their own
+ * page asks for it while being scrolled.
+ *
+ * `start_entry`, `bytes` and `lines` are the cursor GitHub gave with the last
+ * answer, handed straight back. A `paths` parameter is accepted here and
+ * ignored, so there is no asking for a file by name — the walk is the only way.
+ */
+const commitDiffsRoute = (sha: string, held: HeldBack, from: AsyncDiffLoad): string =>
+  `/diffs?commit=${sha}&sha2=${held.sha2}&sha1=${held.sha1}&start_entry=${from.startIndex}&bytes=${from.byteCount}&lines=${from.lineShownCount}`
+
+/**
+ * How far the walk will go before giving up.
+ *
+ * The largest commit on a real pull request — a merge of five hundred and
+ * seventy-five files — was covered in twenty batches. This is above that and
+ * below forever, so a route that answered `loadMore` for ever cannot hang the
+ * panel that asked.
+ */
+const MOST_BATCHES = 30
+
+/**
+ * A repository route read as JSON.
+ *
+ * Beside {@link fetchRoute}, which knows the pull request's number. A commit
+ * belongs to the repository rather than to the pull request carrying it, so its
+ * routes have no number to put in the path.
+ */
+const readRepoRoute = Effect.fn("GitHubGateway.readRepoRoute")(function* (
+  reference: RepoRef,
+  route: string
+) {
+  const url = `https://github.com/${reference.owner}/${reference.repo}${route}`
+
+  const response = yield* Effect.tryPromise({
+    try: (): Promise<Response> => fetch(url, { headers: REQUIRED_HEADERS, credentials: "include" }),
+    catch: (cause) =>
+      new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+  })
+
+  if (!response.ok) {
+    return yield* new GatewayError({
+      reference,
+      route,
+      reason: "rejected",
+      detail: `HTTP ${response.status}`
+    })
+  }
+
+  return yield* Effect.tryPromise({
+    try: (): Promise<unknown> => response.json(),
+    catch: (cause) =>
+      new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
+  })
+})
+
+/** What a payload that would not decode becomes, on the way out of here. */
+const undecodableFrom =
+  (reference: RepoRef, route: string) =>
+  (cause: unknown): Effect.Effect<never, GatewayError> =>
+    Effect.fail(new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) }))
 
 export const layer = Layer.succeed(GitHubGateway, {
     snapshot: Effect.fn("GitHubGateway.snapshot")(function* (reference: PullRequestRef) {
@@ -609,39 +705,48 @@ export const layer = Layer.succeed(GitHubGateway, {
       return linesIn(tail.text, tail.startAt)
     }),
 
-    commit: Effect.fn("GitHubGateway.commit")(function* (reference: PullRequestRef, sha: string) {
+    commit: Effect.fn("GitHubGateway.commit")(function* (reference: RepoRef, sha: string) {
       const route = commitRoute(sha)
-      const url = `https://github.com/${reference.owner}/${reference.repo}${route}`
+      const raw = yield* readRepoRoute(reference, route)
 
-      const response = yield* Effect.tryPromise({
-        try: (): Promise<Response> =>
-          fetch(url, { headers: REQUIRED_HEADERS, credentials: "include" }),
-        catch: (cause) =>
-          new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
-      })
+      return yield* toCommit(raw).pipe(Effect.catch(undecodableFrom(reference, route)))
+    }),
 
-      if (!response.ok) {
-        return yield* new GatewayError({
-          reference,
-          route,
-          reason: "rejected",
-          detail: `HTTP ${response.status}`
-        })
+    commitDiffs: Effect.fn("GitHubGateway.commitDiffs")(function* (
+      reference: RepoRef,
+      sha: string,
+      paths: ReadonlyArray<string>
+    ) {
+      const page = commitRoute(sha)
+      const held = yield* toHeldBack(yield* readRepoRoute(reference, page)).pipe(
+        Effect.catch(undecodableFrom(reference, page))
+      )
+
+      if (Option.isNone(held)) return []
+
+      // Struck off as they arrive. The walk is over once nothing asked for is
+      // still missing, which on most commits is the first batch.
+      const missing = new Set(paths)
+      const found: Array<FetchedDiff> = []
+      let from = Option.some(held.value.from)
+      let batches = 0
+
+      while (Option.isSome(from) && missing.size > 0 && batches < MOST_BATCHES) {
+        const route = commitDiffsRoute(sha, held.value, from.value)
+        const batch = yield* toExtraDiffs(yield* readRepoRoute(reference, route)).pipe(
+          Effect.catch(undecodableFrom(reference, route))
+        )
+        batches += 1
+
+        for (const diff of batch.diffs) {
+          found.push(diff)
+          missing.delete(diff.path)
+        }
+
+        from = batch.from
       }
 
-      const raw = yield* Effect.tryPromise({
-        try: (): Promise<unknown> => response.json(),
-        catch: (cause) =>
-          new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
-      })
-
-      return yield* toCommit(raw).pipe(
-        Effect.catch((cause) =>
-          Effect.fail(
-            new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
-          )
-        )
-      )
+      return found
     }),
 
     diffs: Effect.fn("GitHubGateway.diffs")(function* (
@@ -686,6 +791,15 @@ const notRecorded = (reference: PullRequestRef) =>
     detail: `No recording for ${reference.owner}/${reference.repo}#${reference.number}`
   })
 
+/** The same, for the calls that are about a repository rather than a number. */
+const nothingRecordedFor = (reference: RepoRef) =>
+  new GatewayError({
+    reference,
+    route: CHANGES,
+    reason: "not-recorded",
+    detail: `No recording for ${reference.owner}/${reference.repo}`
+  })
+
 const sameReference = (left: PullRequestRef, right: PullRequestRef): boolean =>
   left.owner === right.owner && left.repo === right.repo && left.number === right.number
 
@@ -710,7 +824,8 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     // A recording is one page as GitHub served it, and the files it held back
     // are exactly the ones no recording contains.
     diffs: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
-    commit: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    commit: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    commitDiffs: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     // A recording is the pull request's own routes, and the Checks tab is not
     // one of them: nothing was written against these checks here.
     notes: () => Effect.succeed([]),
@@ -750,7 +865,8 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
         )
       )
     },
-    commit: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    commit: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    commitDiffs: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     notes: () => Effect.succeed([]),
     log: () => Effect.succeed([]),
     tail: () => Effect.succeed([]),

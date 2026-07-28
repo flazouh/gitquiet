@@ -31,6 +31,26 @@ const githubPage = (): Document => {
   return page
 }
 
+/** Their page for one commit, which is the same layout under another app. */
+const commitPage = (): Document => {
+  const page = document.implementation.createHTMLDocument("github")
+  page.body.innerHTML = `
+    <div class="header-wrapper"><header>site nav</header></div>
+    <div id="repo-content-pjax-container">
+      <react-app app-name="commits">
+        <div class="prc-PageLayout-PageLayoutWrapper-2BhU2">
+          <div class="prc-PageLayout-Header-0of-R">
+            <div class="CommitHeader-module__commitMessageContainer__Nj8bH">the message</div>
+          </div>
+          <div class="prc-PageLayout-PageLayoutContent-BneH9">
+            <div class="js-updatable-content">GitHub's diff</div>
+          </div>
+        </div>
+      </react-app>
+    </div>`
+  return page
+}
+
 const slotOf = (page: Document) => page.querySelector('[class*="PageLayoutContent"]')!
 const theirsIn = (page: Document) => page.querySelector(".js-updatable-content")!
 const theirTabsIn = (page: Document) =>
@@ -174,6 +194,34 @@ describe("slotting into GitHub's pull request page", () => {
     page.body.innerHTML = "<div>something else entirely</div>"
 
     expect(takeOverSlot(page)).toBeNull()
+  })
+})
+
+describe("slotting into GitHub's page for one commit", () => {
+  test("takes the region holding the file tree and the diff", () => {
+    const page = commitPage()
+
+    takeOverSlot(page)
+
+    expect(slotOf(page).querySelector(`#${ROOT_ID}`)).not.toBeNull()
+    expect(theirsIn(page).hasAttribute("hidden")).toBe(true)
+  })
+
+  test("hides the band above it, which says what the panel below already says", () => {
+    const page = commitPage()
+
+    takeOverSlot(page)
+
+    expect(page.querySelector('[class*="PageLayout-Header"]')?.hasAttribute("hidden")).toBe(true)
+  })
+
+  test("gives that band back when it steps aside", () => {
+    const page = commitPage()
+    const takeover = takeOverSlot(page)
+
+    takeover!.stepAside()
+
+    expect(page.querySelector('[class*="PageLayout-Header"]')?.hasAttribute("hidden")).toBe(false)
   })
 })
 

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Option } from "effect"
+import { loadFixture } from "../../tests/fixtures"
 import { toCommit } from "./snapshot"
 
 const payload = (commit: Record<string, unknown>, entries: ReadonlyArray<unknown> = []) => ({
@@ -97,5 +98,32 @@ describe("reading one commit off GitHub's page", () => {
 
   test("refuses a payload that is not a commit page at all", async () => {
     await expect(read({ payload: { commit: {} } })).rejects.toBeDefined()
+  })
+})
+
+describe("a commit whose diffs GitHub holds most of back", () => {
+  /**
+   * GitHub embeds content for the first few files of a commit and sends the
+   * rest as three fields — path, digest, status — exactly as it does on a pull
+   * request. A recorded commit touching twenty-two files arrived with eight.
+   */
+  test("keeps every file, and says which ones arrived without content", async () => {
+    const commit = await read(loadFixture("commit"))
+
+    expect(commit.files).toHaveLength(22)
+    expect(commit.files.filter((file) => Option.isSome(file.diff))).toHaveLength(8)
+    expect(commit.files.filter((file) => Option.isNone(file.diff))).toHaveLength(14)
+  })
+
+  test("gives a held-back file its name and nothing it does not know", async () => {
+    const commit = await read(loadFixture("commit"))
+    const held = commit.files[8]
+
+    expect(held?.path).toBe("framework/builtins/chat-tui/src/pickers/model/use-model-picker.ts")
+    expect(held?.changeType).toBe("modified")
+    expect(Option.isNone(held?.diff ?? Option.none())).toBe(true)
+    // Not a claim that nothing changed: GitHub sends no counts for these, and
+    // an invented number would read as one.
+    expect(held?.linesAdded).toBe(0)
   })
 })

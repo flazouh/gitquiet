@@ -75,6 +75,16 @@ describe("reading one commit", () => {
     expect(closed).toBe(1)
   })
 
+  test("offers no way back on a page that is only ever about this commit", async () => {
+    // GitHub's own commit page, where the branch this came from is not on the
+    // screen and never was. A button leading back to a file browser nobody has
+    // seen would be a promise the page cannot keep.
+    render(view({ onClose: undefined }))
+
+    await waitFor(() => expect(screen.getByText(commit.headline)).toBeDefined())
+    expect(screen.queryByText("All changes")).toBeNull()
+  })
+
   test("says so plainly when the commit cannot be read", async () => {
     render(view({ load: async () => Promise.reject(new Error("HTTP 404")) }))
 
@@ -99,6 +109,56 @@ describe("reading one commit", () => {
     expect(screen.getByText(commit.headline)).toBeDefined()
     expect(screen.queryByText("Reading the commit…")).toBeNull()
     await waitFor(() => expect(reads).toBe(0))
+  })
+
+  /**
+   * GitHub embeds diffs for the first few files of a commit and sends the rest as
+   * names, so opening one of those has to go back for it — exactly as the whole
+   * branch's file browser does. This panel used to be wired to a fetcher that
+   * answered nothing, on the belief that a commit always came whole.
+   *
+   * What is asserted is the asking. Whether the lines then draw is the diff
+   * renderer's business, and it is a built artefact that no test here has.
+   */
+  test("asks GitHub for a file whose content the commit page held back", async () => {
+    const asked: Array<ReadonlyArray<string>> = []
+    render(
+      view({
+        keys: "standard",
+        load: async () => ({
+          ...commit,
+          files: [file("src/one.ts"), { ...file("src/held.ts"), diff: Option.none() }]
+        }),
+        fetchDiffs: async (paths) => {
+          asked.push(paths)
+          return [
+            {
+              path: "src/held.ts",
+              diff: {
+                isBinary: false,
+                isTruncated: false,
+                lines: [
+                  {
+                    kind: "added" as const,
+                    text: "+ it came back",
+                    beforeLine: Option.none(),
+                    afterLine: Option.some(1)
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      })
+    )
+
+    // Onto the second file, which is the one GitHub did not send.
+    await userEvent.keyboard("j")
+
+    await waitFor(() => expect(asked.flat()).toContain("src/held.ts"))
+    // Drawn as a file with content rather than one there is nothing to say
+    // about, which is what the answer arriving does.
+    expect(document.querySelector('[data-file="src/held.ts"]')).not.toBeNull()
   })
 
   test("does not put a late answer on screen after another commit was opened", async () => {

@@ -1,0 +1,1019 @@
+{
+  "extraDiffEntries": [
+    {
+      "path": "framework/builtins/chat-tui/src/pickers/model/use-model-picker.ts",
+      "pathDigest": "a854487526a210686de417567a8bc140b92fa413511cd8f09c77714ee533a35c",
+      "status": "MODIFIED",
+      "linesAdded": 25,
+      "linesDeleted": 46,
+      "isBinary": false,
+      "isTooBig": false,
+      "truncatedReason": null,
+      "diffLines": [
+        {
+          "type": "HUNK",
+          "blobLineNumber": 3,
+          "text": "@@ -4,41 +4,27 @@ import type { ReasoningEffort } from \"ori\";",
+          "html": "@@ -4,41 +4,27 @@ import type { ReasoningEffort } from &quot;ori&quot;;",
+          "displayNoNewLineWarning": false,
+          "position": 0,
+          "left": 3,
+          "right": 3
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 4,
+          "text": " import type { OpenRouterModel, ModelCatalog } from \"ori/openrouter-models\";",
+          "html": " <span class=pl-k>import</span> <span class=pl-k>type</span> <span class=pl-kos>{</span> <span class=pl-v>OpenRouterModel</span><span class=pl-kos>,</span> <span class=pl-v>ModelCatalog</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;ori/openrouter-models&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 1,
+          "left": 4,
+          "right": 4
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 5,
+          "text": " import type { RefObject } from \"react\";",
+          "html": " <span class=pl-k>import</span> <span class=pl-k>type</span> <span class=pl-kos>{</span> <span class=pl-v>RefObject</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;react&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 2,
+          "left": 5,
+          "right": 5
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 6,
+          "text": " ",
+          "html": "<br>",
+          "displayNoNewLineWarning": false,
+          "position": 3,
+          "left": 6,
+          "right": 6
+        },
+        {
+          "type": "DELETION",
+          "blobLineNumber": 7,
+          "text": "-import { DEFAULT_REASONING_EFFORT, REASONING_EFFORTS } from \"ori\";",
+          "html": "-<span class=\"pl-k\">import</span> <span class=\"pl-kos\">{</span> <span class=\"pl-c1\">DEFAULT_REASONING_EFFORT</span><span class=\"pl-kos\">,</span> <span class=\"pl-c1 x x-first x-last\">REASONING_EFFORTS</span> <span class=\"pl-kos\">}</span> <span class=\"pl-k\">from</span> <span class=\"pl-s\">\"ori\"</span><span class=\"pl-kos\">;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 4,
+          "left": 7,
+          "right": 6
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 7,
+          "text": "+import { DEFAULT_REASONING_EFFORT, isReasoningEffort } from \"ori\";",
+          "html": "+<span class=\"pl-k\">import</span> <span class=\"pl-kos\">{</span> <span class=\"pl-c1\">DEFAULT_REASONING_EFFORT</span><span class=\"pl-kos\">,</span> <span class=\"pl-s1 x x-first x-last\">isReasoningEffort</span> <span class=\"pl-kos\">}</span> <span class=\"pl-k\">from</span> <span class=\"pl-s\">\"ori\"</span><span class=\"pl-kos\">;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 5,
+          "left": 7,
+          "right": 7
+        }
+      ]
+    },
+    {
+      "path": "framework/builtins/chat-tui/src/pickers/selection-store.test.ts",
+      "pathDigest": "857f38294348c68aafb1a8f0bcb9e3c0144fd0c3252576120ebe41f5f8a7bfcb",
+      "status": "MODIFIED",
+      "linesAdded": 15,
+      "linesDeleted": 0,
+      "isBinary": false,
+      "isTooBig": false,
+      "truncatedReason": null,
+      "diffLines": [
+        {
+          "type": "HUNK",
+          "blobLineNumber": 10,
+          "text": "@@ -11,6 +11,7 @@ import { memoryStateStore } from \"./selection-test-support.ts\";",
+          "html": "@@ -11,6 +11,7 @@ import { memoryStateStore } from &quot;./selection-test-support.ts&quot;;",
+          "displayNoNewLineWarning": false,
+          "position": 0,
+          "left": 10,
+          "right": 10
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 11,
+          "text": " ",
+          "html": "<br>",
+          "displayNoNewLineWarning": false,
+          "position": 1,
+          "left": 11,
+          "right": 11
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 12,
+          "text": " const failingStore: ChatSelectionStore = {",
+          "html": " <span class=pl-k>const</span> <span class=pl-s1>failingStore</span>: <span class=pl-smi>ChatSelectionStore</span> <span class=pl-c1>=</span> <span class=pl-kos>{</span>",
+          "displayNoNewLineWarning": false,
+          "position": 2,
+          "left": 12,
+          "right": 12
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 13,
+          "text": "   load: () => Promise.reject(new Error(\"read failed\")),",
+          "html": "   <span class=pl-en>load</span>: <span class=pl-kos>(</span><span class=pl-kos>)</span> <span class=pl-c1>=&gt;</span> <span class=pl-v>Promise</span><span class=pl-kos>.</span><span class=pl-en>reject</span><span class=pl-kos>(</span><span class=pl-k>new</span> <span class=pl-v>Error</span><span class=pl-kos>(</span><span class=pl-s>&quot;read failed&quot;</span><span class=pl-kos>)</span><span class=pl-kos>)</span><span class=pl-kos>,</span>",
+          "displayNoNewLineWarning": false,
+          "position": 3,
+          "left": 13,
+          "right": 13
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 14,
+          "text": "+  saveEffort: () => Promise.reject(new Error(\"write failed\")),",
+          "html": "+  <span class=pl-en>saveEffort</span>: <span class=pl-kos>(</span><span class=pl-kos>)</span> <span class=pl-c1>=&gt;</span> <span class=pl-v>Promise</span><span class=pl-kos>.</span><span class=pl-en>reject</span><span class=pl-kos>(</span><span class=pl-k>new</span> <span class=pl-v>Error</span><span class=pl-kos>(</span><span class=pl-s>&quot;write failed&quot;</span><span class=pl-kos>)</span><span class=pl-kos>)</span><span class=pl-kos>,</span>",
+          "displayNoNewLineWarning": false,
+          "position": 4,
+          "left": 13,
+          "right": 14
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 15,
+          "text": "   saveHarness: () => Promise.reject(new Error(\"write failed\")),",
+          "html": "   <span class=pl-en>saveHarness</span>: <span class=pl-kos>(</span><span class=pl-kos>)</span> <span class=pl-c1>=&gt;</span> <span class=pl-v>Promise</span><span class=pl-kos>.</span><span class=pl-en>reject</span><span class=pl-kos>(</span><span class=pl-k>new</span> <span class=pl-v>Error</span><span class=pl-kos>(</span><span class=pl-s>&quot;write failed&quot;</span><span class=pl-kos>)</span><span class=pl-kos>)</span><span class=pl-kos>,</span>",
+          "displayNoNewLineWarning": false,
+          "position": 5,
+          "left": 14,
+          "right": 15
+        }
+      ]
+    },
+    {
+      "path": "framework/builtins/chat-tui/src/pickers/selection-store.ts",
+      "pathDigest": "3cf09f8e09be0269ee462d2bed54b56ff73574e2e1d5567057a92ed7838e2a2d",
+      "status": "MODIFIED",
+      "linesAdded": 7,
+      "linesDeleted": 11,
+      "isBinary": false,
+      "isTooBig": false,
+      "truncatedReason": null,
+      "diffLines": [
+        {
+          "type": "HUNK",
+          "blobLineNumber": 0,
+          "text": "@@ -1,7 +1,7 @@",
+          "html": "@@ -1,7 +1,7 @@",
+          "displayNoNewLineWarning": false,
+          "position": 0,
+          "left": 0,
+          "right": 0
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 1,
+          "text": " import type { ReasoningEffort, StateStore } from \"ori\";",
+          "html": " <span class=pl-k>import</span> <span class=pl-k>type</span> <span class=pl-kos>{</span> <span class=pl-v>ReasoningEffort</span><span class=pl-kos>,</span> <span class=pl-v>StateStore</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;ori&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 1,
+          "left": 1,
+          "right": 1
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 2,
+          "text": " ",
+          "html": "<br>",
+          "displayNoNewLineWarning": false,
+          "position": 2,
+          "left": 2,
+          "right": 2
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 3,
+          "text": " import { Effect, Schema } from \"effect\";",
+          "html": " <span class=pl-k>import</span> <span class=pl-kos>{</span> <span class=pl-v>Effect</span><span class=pl-kos>,</span> <span class=pl-v>Schema</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;effect&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 3,
+          "left": 3,
+          "right": 3
+        },
+        {
+          "type": "DELETION",
+          "blobLineNumber": 4,
+          "text": "-import { REASONING_EFFORTS } from \"ori\";",
+          "html": "-<span class=\"pl-k\">import</span> <span class=\"pl-kos\">{</span> <span class=\"pl-c1 x x-first x-last\">REASONING_EFFORTS</span> <span class=\"pl-kos\">}</span> <span class=\"pl-k\">from</span> <span class=\"pl-s\">\"ori\"</span><span class=\"pl-kos\">;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 4,
+          "left": 4,
+          "right": 3
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 4,
+          "text": "+import { isReasoningEffort } from \"ori\";",
+          "html": "+<span class=\"pl-k\">import</span> <span class=\"pl-kos\">{</span> <span class=\"pl-s1 x x-first x-last\">isReasoningEffort</span> <span class=\"pl-kos\">}</span> <span class=\"pl-k\">from</span> <span class=\"pl-s\">\"ori\"</span><span class=\"pl-kos\">;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 5,
+          "left": 4,
+          "right": 4
+        }
+      ]
+    },
+    {
+      "path": "framework/builtins/chat-tui/src/pickers/use-chat-selection.ts",
+      "pathDigest": "9807f6504148f7847a8aab9e10997c23efe1ee78afda167c11ce51086680ea4e",
+      "status": "MODIFIED",
+      "linesAdded": 26,
+      "linesDeleted": 16,
+      "isBinary": false,
+      "isTooBig": false,
+      "truncatedReason": null,
+      "diffLines": [
+        {
+          "type": "HUNK",
+          "blobLineNumber": 0,
+          "text": "@@ -1,7 +1,7 @@",
+          "html": "@@ -1,7 +1,7 @@",
+          "displayNoNewLineWarning": false,
+          "position": 0,
+          "left": 0,
+          "right": 0
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 1,
+          "text": " import type { ReasoningEffort, StoreResolver } from \"ori\";",
+          "html": " <span class=pl-k>import</span> <span class=pl-k>type</span> <span class=pl-kos>{</span> <span class=pl-v>ReasoningEffort</span><span class=pl-kos>,</span> <span class=pl-v>StoreResolver</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;ori&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 1,
+          "left": 1,
+          "right": 1
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 2,
+          "text": " import type { RefObject } from \"react\";",
+          "html": " <span class=pl-k>import</span> <span class=pl-k>type</span> <span class=pl-kos>{</span> <span class=pl-v>RefObject</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;react&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 2,
+          "left": 2,
+          "right": 2
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 3,
+          "text": " ",
+          "html": "<br>",
+          "displayNoNewLineWarning": false,
+          "position": 3,
+          "left": 3,
+          "right": 3
+        },
+        {
+          "type": "DELETION",
+          "blobLineNumber": 4,
+          "text": "-import { REASONING_EFFORTS } from \"ori\";",
+          "html": "-<span class=\"pl-k\">import</span> <span class=\"pl-kos\">{</span> <span class=\"pl-c1 x x-first x-last\">REASONING_EFFORTS</span> <span class=\"pl-kos\">}</span> <span class=\"pl-k\">from</span> <span class=\"pl-s\">\"ori\"</span><span class=\"pl-kos\">;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 4,
+          "left": 4,
+          "right": 3
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 4,
+          "text": "+import { isReasoningEffort } from \"ori\";",
+          "html": "+<span class=\"pl-k\">import</span> <span class=\"pl-kos\">{</span> <span class=\"pl-s1 x x-first x-last\">isReasoningEffort</span> <span class=\"pl-kos\">}</span> <span class=\"pl-k\">from</span> <span class=\"pl-s\">\"ori\"</span><span class=\"pl-kos\">;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 5,
+          "left": 4,
+          "right": 4
+        }
+      ]
+    },
+    {
+      "path": "framework/cli/src/commands/init/author-contracts-artifacts/index.ts.txt",
+      "pathDigest": "86b1051d797496c2f2e5ee9761de12e6a13b158e2cb2af46bfed1ce336ebed15",
+      "status": "MODIFIED",
+      "linesAdded": 25,
+      "linesDeleted": 23,
+      "isBinary": false,
+      "isTooBig": false,
+      "truncatedReason": null,
+      "diffLines": [
+        {
+          "type": "HUNK",
+          "blobLineNumber": 1459,
+          "text": "@@ -1460,7 +1460,6 @@ export const ORI_OPENROUTER_ATTRIBUTION_HEADERS: readonly (readonly [",
+          "html": "@@ -1460,7 +1460,6 @@ export const ORI_OPENROUTER_ATTRIBUTION_HEADERS: readonly (readonly [",
+          "displayNoNewLineWarning": false,
+          "position": 0,
+          "left": 1459,
+          "right": 1459
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 1460,
+          "text": "     [OPENROUTER_TITLE_HEADER, ORI_APP_TITLE],",
+          "html": "     [OPENROUTER_TITLE_HEADER, ORI_APP_TITLE],",
+          "displayNoNewLineWarning": false,
+          "position": 1,
+          "left": 1460,
+          "right": 1460
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 1461,
+          "text": " ];",
+          "html": " ];",
+          "displayNoNewLineWarning": false,
+          "position": 2,
+          "left": 1461,
+          "right": 1461
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 1462,
+          "text": " // --- openrouter-models.ts ---",
+          "html": " // --- openrouter-models.ts ---",
+          "displayNoNewLineWarning": false,
+          "position": 3,
+          "left": 1462,
+          "right": 1462
+        },
+        {
+          "type": "DELETION",
+          "blobLineNumber": 1463,
+          "text": "-const ReasoningEffortValueSchema = Schema.String;",
+          "html": "-const ReasoningEffortValueSchema = Schema.String;",
+          "displayNoNewLineWarning": false,
+          "position": 4,
+          "left": 1463,
+          "right": 1462
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 1463,
+          "text": " /**",
+          "html": " /**",
+          "displayNoNewLineWarning": false,
+          "position": 5,
+          "left": 1464,
+          "right": 1463
+        }
+      ]
+    },
+    {
+      "path": "framework/contracts/author/src/openrouter-models.ts",
+      "pathDigest": "64782dbaf9b865ec10cfd1dc599e251d2a9266bc77ea8d1cedc8634901b910b8",
+      "status": "MODIFIED",
+      "linesAdded": 9,
+      "linesDeleted": 10,
+      "isBinary": false,
+      "isTooBig": false,
+      "truncatedReason": null,
+      "diffLines": [
+        {
+          "type": "HUNK",
+          "blobLineNumber": 1,
+          "text": "@@ -2,9 +2,7 @@ import { Schema } from \"effect\";",
+          "html": "@@ -2,9 +2,7 @@ import { Schema } from &quot;effect&quot;;",
+          "displayNoNewLineWarning": false,
+          "position": 0,
+          "left": 1,
+          "right": 1
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 2,
+          "text": " ",
+          "html": "<br>",
+          "displayNoNewLineWarning": false,
+          "position": 1,
+          "left": 2,
+          "right": 2
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 3,
+          "text": " import type { ReasoningEffort } from \"@ori-contracts/author/reasoning-effort\";",
+          "html": " <span class=pl-k>import</span> <span class=pl-k>type</span> <span class=pl-kos>{</span> <span class=pl-v>ReasoningEffort</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;@ori-contracts/author/reasoning-effort&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 2,
+          "left": 3,
+          "right": 3
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 4,
+          "text": " ",
+          "html": "<br>",
+          "displayNoNewLineWarning": false,
+          "position": 3,
+          "left": 4,
+          "right": 4
+        },
+        {
+          "type": "DELETION",
+          "blobLineNumber": 5,
+          "text": "-import { REASONING_EFFORTS } from \"@ori-contracts/author/reasoning-effort\";",
+          "html": "-<span class=pl-k>import</span> <span class=pl-kos>{</span> <span class=pl-c1>REASONING_EFFORTS</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;@ori-contracts/author/reasoning-effort&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 4,
+          "left": 5,
+          "right": 4
+        },
+        {
+          "type": "DELETION",
+          "blobLineNumber": 6,
+          "text": "-",
+          "html": "-",
+          "displayNoNewLineWarning": false,
+          "position": 5,
+          "left": 6,
+          "right": 4
+        }
+      ]
+    },
+    {
+      "path": "framework/contracts/author/src/reasoning-effort.ts",
+      "pathDigest": "35b6e9e90bfae6479637ed51467de5c78c92fd422dca159dad0e4df52bb2b8d4",
+      "status": "MODIFIED",
+      "linesAdded": 19,
+      "linesDeleted": 21,
+      "isBinary": false,
+      "isTooBig": false,
+      "truncatedReason": null,
+      "diffLines": [
+        {
+          "type": "HUNK",
+          "blobLineNumber": 0,
+          "text": "@@ -1,24 +1,22 @@",
+          "html": "@@ -1,24 +1,22 @@",
+          "displayNoNewLineWarning": false,
+          "position": 0,
+          "left": 0,
+          "right": 0
+        },
+        {
+          "type": "DELETION",
+          "blobLineNumber": 1,
+          "text": "-export const ReasoningEffort = {",
+          "html": "-<span class=pl-k>export</span> <span class=pl-k>const</span> <span class=pl-v>ReasoningEffort</span> <span class=pl-c1>=</span> <span class=pl-kos>{</span>",
+          "displayNoNewLineWarning": false,
+          "position": 1,
+          "left": 1,
+          "right": 0
+        },
+        {
+          "type": "DELETION",
+          "blobLineNumber": 2,
+          "text": "-  Max: \"max\",",
+          "html": "-  <span class=pl-c1>Max</span>: <span class=pl-s>&quot;max&quot;</span><span class=pl-kos>,</span>",
+          "displayNoNewLineWarning": false,
+          "position": 2,
+          "left": 2,
+          "right": 0
+        },
+        {
+          "type": "DELETION",
+          "blobLineNumber": 3,
+          "text": "-  XHigh: \"xhigh\",",
+          "html": "-  <span class=pl-c1>XHigh</span>: <span class=pl-s>&quot;xhigh&quot;</span><span class=pl-kos>,</span>",
+          "displayNoNewLineWarning": false,
+          "position": 3,
+          "left": 3,
+          "right": 0
+        },
+        {
+          "type": "DELETION",
+          "blobLineNumber": 4,
+          "text": "-  High: \"high\",",
+          "html": "-  <span class=pl-c1>High</span>: <span class=pl-s>&quot;high&quot;</span><span class=pl-kos>,</span>",
+          "displayNoNewLineWarning": false,
+          "position": 4,
+          "left": 4,
+          "right": 0
+        },
+        {
+          "type": "DELETION",
+          "blobLineNumber": 5,
+          "text": "-  Medium: \"medium\",",
+          "html": "-  <span class=pl-c1>Medium</span>: <span class=pl-s>&quot;medium&quot;</span><span class=pl-kos>,</span>",
+          "displayNoNewLineWarning": false,
+          "position": 5,
+          "left": 5,
+          "right": 0
+        }
+      ]
+    },
+    {
+      "path": "framework/contracts/internal/src/author-schemas/reasoning-effort.ts",
+      "pathDigest": "2ca8079745941d1cdd9c354de39e46ccf90eba6e2363079ab828ea095bf8e7f4",
+      "status": "MODIFIED",
+      "linesAdded": 5,
+      "linesDeleted": 10,
+      "isBinary": false,
+      "isTooBig": false,
+      "truncatedReason": null,
+      "diffLines": [
+        {
+          "type": "HUNK",
+          "blobLineNumber": 0,
+          "text": "@@ -1,13 +1,8 @@",
+          "html": "@@ -1,13 +1,8 @@",
+          "displayNoNewLineWarning": false,
+          "position": 0,
+          "left": 0,
+          "right": 0
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 1,
+          "text": " import { Schema } from \"effect\";",
+          "html": " <span class=pl-k>import</span> <span class=pl-kos>{</span> <span class=pl-v>Schema</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;effect&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 1,
+          "left": 1,
+          "right": 1
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 2,
+          "text": " ",
+          "html": "<br>",
+          "displayNoNewLineWarning": false,
+          "position": 2,
+          "left": 2,
+          "right": 2
+        },
+        {
+          "type": "DELETION",
+          "blobLineNumber": 3,
+          "text": "-import type { ReasoningEffort } from \"@ori-contracts/author\";",
+          "html": "-<span class=\"pl-k\">import</span> <span class=\"pl-k x x-first\">type</span><span class=\"x\"> </span><span class=\"pl-kos x\">{</span><span class=\"x\"> </span><span class=\"pl-v x x-last\">ReasoningEffort</span> <span class=\"pl-kos\">}</span> <span class=\"pl-k\">from</span> <span class=\"pl-s\">\"@ori-contracts/author\"</span><span class=\"pl-kos\">;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 3,
+          "left": 3,
+          "right": 2
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 3,
+          "text": "+import { REASONING_EFFORTS } from \"@ori-contracts/author\";",
+          "html": "+<span class=\"pl-k\">import</span> <span class=\"pl-kos x x-first\">{</span><span class=\"x\"> </span><span class=\"pl-c1 x x-last\">REASONING_EFFORTS</span> <span class=\"pl-kos\">}</span> <span class=\"pl-k\">from</span> <span class=\"pl-s\">\"@ori-contracts/author\"</span><span class=\"pl-kos\">;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 4,
+          "left": 3,
+          "right": 3
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 4,
+          "text": " ",
+          "html": "<br>",
+          "displayNoNewLineWarning": false,
+          "position": 5,
+          "left": 4,
+          "right": 4
+        }
+      ]
+    },
+    {
+      "path": "framework/runloop/src/agent-invocation-defaults.ts",
+      "pathDigest": "d1c459c3c09f8a012b7b792f2dab1cac6d2e35e8b19eeb494146fe368cc37384",
+      "status": "ADDED",
+      "linesAdded": 39,
+      "linesDeleted": 0,
+      "isBinary": false,
+      "isTooBig": false,
+      "truncatedReason": null,
+      "diffLines": [
+        {
+          "type": "HUNK",
+          "blobLineNumber": 0,
+          "text": "@@ -0,0 +1,39 @@",
+          "html": "@@ -0,0 +1,39 @@",
+          "displayNoNewLineWarning": false,
+          "position": 0,
+          "left": null,
+          "right": 0
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 1,
+          "text": "+import type { Effect } from \"effect\";",
+          "html": "+<span class=pl-k>import</span> <span class=pl-k>type</span> <span class=pl-kos>{</span> <span class=pl-v>Effect</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;effect&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 1,
+          "left": null,
+          "right": 1
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 2,
+          "text": "+",
+          "html": "+",
+          "displayNoNewLineWarning": false,
+          "position": 2,
+          "left": null,
+          "right": 2
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 3,
+          "text": "+import type { AgentRunnerCommand } from \"@ori-runloop/local/agent-runner-service\";",
+          "html": "+<span class=pl-k>import</span> <span class=pl-k>type</span> <span class=pl-kos>{</span> <span class=pl-v>AgentRunnerCommand</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;@ori-runloop/local/agent-runner-service&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 3,
+          "left": null,
+          "right": 3
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 4,
+          "text": "+import type { FeatureRuntimeShape } from \"@ori-runloop/local/feature-runtime-service\";",
+          "html": "+<span class=pl-k>import</span> <span class=pl-k>type</span> <span class=pl-kos>{</span> <span class=pl-v>FeatureRuntimeShape</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;@ori-runloop/local/feature-runtime-service&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 4,
+          "left": null,
+          "right": 4
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 5,
+          "text": "+",
+          "html": "+",
+          "displayNoNewLineWarning": false,
+          "position": 5,
+          "left": null,
+          "right": 5
+        }
+      ]
+    },
+    {
+      "path": "framework/runloop/src/agent-runner-parameters.test.ts",
+      "pathDigest": "020a049033df02ea9820c73b893cf6a45e615e963c1812c6051c018344e671c3",
+      "status": "ADDED",
+      "linesAdded": 87,
+      "linesDeleted": 0,
+      "isBinary": false,
+      "isTooBig": false,
+      "truncatedReason": null,
+      "diffLines": [
+        {
+          "type": "HUNK",
+          "blobLineNumber": 0,
+          "text": "@@ -0,0 +1,87 @@",
+          "html": "@@ -0,0 +1,87 @@",
+          "displayNoNewLineWarning": false,
+          "position": 0,
+          "left": null,
+          "right": 0
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 1,
+          "text": "+import { Effect, Ref } from \"effect\";",
+          "html": "+<span class=pl-k>import</span> <span class=pl-kos>{</span> <span class=pl-v>Effect</span><span class=pl-kos>,</span> <span class=pl-v>Ref</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;effect&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 1,
+          "left": null,
+          "right": 1
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 2,
+          "text": "+",
+          "html": "+",
+          "displayNoNewLineWarning": false,
+          "position": 2,
+          "left": null,
+          "right": 2
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 3,
+          "text": "+import type {",
+          "html": "+<span class=pl-k>import</span> <span class=pl-k>type</span> <span class=pl-kos>{</span>",
+          "displayNoNewLineWarning": false,
+          "position": 3,
+          "left": null,
+          "right": 3
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 4,
+          "text": "+  RuntimeHarnessInvokeOptions,",
+          "html": "+  <span class=pl-v>RuntimeHarnessInvokeOptions</span><span class=pl-kos>,</span>",
+          "displayNoNewLineWarning": false,
+          "position": 4,
+          "left": null,
+          "right": 4
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 5,
+          "text": "+  TestBootResult,",
+          "html": "+  <span class=pl-v>TestBootResult</span><span class=pl-kos>,</span>",
+          "displayNoNewLineWarning": false,
+          "position": 5,
+          "left": null,
+          "right": 5
+        }
+      ]
+    },
+    {
+      "path": "framework/runloop/src/agent-runner.test.ts",
+      "pathDigest": "46acf58d535b1627c1553660c0dcd34766ea4087120d355574810e15b4bcd840",
+      "status": "MODIFIED",
+      "linesAdded": 9,
+      "linesDeleted": 74,
+      "isBinary": false,
+      "isTooBig": false,
+      "truncatedReason": null,
+      "diffLines": [
+        {
+          "type": "HUNK",
+          "blobLineNumber": 0,
+          "text": "@@ -1,35 +1,23 @@",
+          "html": "@@ -1,35 +1,23 @@",
+          "displayNoNewLineWarning": false,
+          "position": 0,
+          "left": 0,
+          "right": 0
+        },
+        {
+          "type": "DELETION",
+          "blobLineNumber": 1,
+          "text": "-import { Effect, Layer, Ref, Stream } from \"effect\";",
+          "html": "-<span class=\"pl-k\">import</span> <span class=\"pl-kos\">{</span> <span class=\"pl-v\">Effect</span><span class=\"pl-kos\">,</span> <span class=\"pl-v x x-first\">Layer</span><span class=\"pl-kos x\">,</span><span class=\"x x-last\"> </span><span class=\"pl-v\">Ref</span><span class=\"pl-kos x x-first\">,</span><span class=\"x\"> </span><span class=\"pl-v x x-last\">Stream</span> <span class=\"pl-kos\">}</span> <span class=\"pl-k\">from</span> <span class=\"pl-s\">\"effect\"</span><span class=\"pl-kos\">;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 1,
+          "left": 1,
+          "right": 0
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 1,
+          "text": "+import { Effect, Ref } from \"effect\";",
+          "html": "+<span class=\"pl-k\">import</span> <span class=\"pl-kos\">{</span> <span class=\"pl-v\">Effect</span><span class=\"pl-kos\">,</span> <span class=\"pl-v\">Ref</span> <span class=\"pl-kos\">}</span> <span class=\"pl-k\">from</span> <span class=\"pl-s\">\"effect\"</span><span class=\"pl-kos\">;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 2,
+          "left": 1,
+          "right": 1
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 2,
+          "text": " ",
+          "html": "<br>",
+          "displayNoNewLineWarning": false,
+          "position": 3,
+          "left": 2,
+          "right": 2
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 3,
+          "text": " import type { StaticPromptEntry } from \"@ori-contracts/internal/author-schemas/prompt\";",
+          "html": " <span class=pl-k>import</span> <span class=pl-k>type</span> <span class=pl-kos>{</span> <span class=pl-v>StaticPromptEntry</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;@ori-contracts/internal/author-schemas/prompt&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 4,
+          "left": 3,
+          "right": 3
+        },
+        {
+          "type": "DELETION",
+          "blobLineNumber": 4,
+          "text": "-import type { AgentRuntimeEvent } from \"@ori-contracts/internal/runtime/agent-runtime-event-types\";",
+          "html": "-<span class=pl-k>import</span> <span class=pl-k>type</span> <span class=pl-kos>{</span> <span class=pl-v>AgentRuntimeEvent</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;@ori-contracts/internal/runtime/agent-runtime-event-types&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 5,
+          "left": 4,
+          "right": 3
+        }
+      ]
+    },
+    {
+      "path": "framework/runloop/src/agent-runner.ts",
+      "pathDigest": "231220eea5b59d2521bcad82b6a754af0097f8f24519c4dca30defd598fa6d6c",
+      "status": "MODIFIED",
+      "linesAdded": 6,
+      "linesDeleted": 19,
+      "isBinary": false,
+      "isTooBig": false,
+      "truncatedReason": null,
+      "diffLines": [
+        {
+          "type": "HUNK",
+          "blobLineNumber": 6,
+          "text": "@@ -7,6 +7,7 @@ import type {",
+          "html": "@@ -7,6 +7,7 @@ import type {",
+          "displayNoNewLineWarning": false,
+          "position": 0,
+          "left": 6,
+          "right": 6
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 7,
+          "text": "   StoreResolver,",
+          "html": "   <span class=pl-v>StoreResolver</span><span class=pl-kos>,</span>",
+          "displayNoNewLineWarning": false,
+          "position": 1,
+          "left": 7,
+          "right": 7
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 8,
+          "text": " } from \"@ori-contracts/author\";",
+          "html": " <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;@ori-contracts/author&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 2,
+          "left": 8,
+          "right": 8
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 9,
+          "text": " import type { RuntimeHarnessInvokeOptions } from \"@ori-engine/harness/options\";",
+          "html": " <span class=pl-k>import</span> <span class=pl-k>type</span> <span class=pl-kos>{</span> <span class=pl-v>RuntimeHarnessInvokeOptions</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;@ori-engine/harness/options&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 3,
+          "left": 9,
+          "right": 9
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 10,
+          "text": "+import type { FeatureRuntimeBootResult } from \"@ori-runloop/local/agent-invocation-defaults\";",
+          "html": "+<span class=pl-k>import</span> <span class=pl-k>type</span> <span class=pl-kos>{</span> <span class=pl-v>FeatureRuntimeBootResult</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;@ori-runloop/local/agent-invocation-defaults&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 4,
+          "left": 9,
+          "right": 10
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 11,
+          "text": " import type {",
+          "html": " <span class=pl-k>import</span> <span class=pl-k>type</span> <span class=pl-kos>{</span>",
+          "displayNoNewLineWarning": false,
+          "position": 5,
+          "left": 10,
+          "right": 11
+        }
+      ]
+    },
+    {
+      "path": "framework/runloop/src/chat-invoke.ts",
+      "pathDigest": "38c332c031f70b082e056e721a2985703bbe9b479fdd0ad6d83f5771c2c43d6e",
+      "status": "MODIFIED",
+      "linesAdded": 3,
+      "linesDeleted": 26,
+      "isBinary": false,
+      "isTooBig": false,
+      "truncatedReason": null,
+      "diffLines": [
+        {
+          "type": "HUNK",
+          "blobLineNumber": 7,
+          "text": "@@ -8,7 +8,6 @@ import {",
+          "html": "@@ -8,7 +8,6 @@ import {",
+          "displayNoNewLineWarning": false,
+          "position": 0,
+          "left": 7,
+          "right": 7
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 8,
+          "text": " ",
+          "html": "<br>",
+          "displayNoNewLineWarning": false,
+          "position": 1,
+          "left": 8,
+          "right": 8
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 9,
+          "text": " import type {",
+          "html": " <span class=pl-k>import</span> <span class=pl-k>type</span> <span class=pl-kos>{</span>",
+          "displayNoNewLineWarning": false,
+          "position": 2,
+          "left": 9,
+          "right": 9
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 10,
+          "text": "   AgentRuntimeEvent,",
+          "html": "   <span class=pl-v>AgentRuntimeEvent</span><span class=pl-kos>,</span>",
+          "displayNoNewLineWarning": false,
+          "position": 3,
+          "left": 10,
+          "right": 10
+        },
+        {
+          "type": "DELETION",
+          "blobLineNumber": 11,
+          "text": "-  AgentParameters,",
+          "html": "-  <span class=pl-v>AgentParameters</span><span class=pl-kos>,</span>",
+          "displayNoNewLineWarning": false,
+          "position": 4,
+          "left": 11,
+          "right": 10
+        },
+        {
+          "type": "CONTEXT",
+          "blobLineNumber": 11,
+          "text": "   ApiFeatureContext,",
+          "html": "   <span class=pl-v>ApiFeatureContext</span><span class=pl-kos>,</span>",
+          "displayNoNewLineWarning": false,
+          "position": 5,
+          "left": 12,
+          "right": 11
+        }
+      ]
+    },
+    {
+      "path": "framework/runloop/src/test-support/agent-runner-harness.ts",
+      "pathDigest": "d8b0211115738418e4c75c44355abcaa1263cf46bd876935f157ae429f2d653f",
+      "status": "ADDED",
+      "linesAdded": 84,
+      "linesDeleted": 0,
+      "isBinary": false,
+      "isTooBig": false,
+      "truncatedReason": null,
+      "diffLines": [
+        {
+          "type": "HUNK",
+          "blobLineNumber": 0,
+          "text": "@@ -0,0 +1,84 @@",
+          "html": "@@ -0,0 +1,84 @@",
+          "displayNoNewLineWarning": false,
+          "position": 0,
+          "left": null,
+          "right": 0
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 1,
+          "text": "+import { Effect, Layer, Ref, Stream } from \"effect\";",
+          "html": "+<span class=pl-k>import</span> <span class=pl-kos>{</span> <span class=pl-v>Effect</span><span class=pl-kos>,</span> <span class=pl-v>Layer</span><span class=pl-kos>,</span> <span class=pl-v>Ref</span><span class=pl-kos>,</span> <span class=pl-v>Stream</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;effect&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 1,
+          "left": null,
+          "right": 1
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 2,
+          "text": "+",
+          "html": "+",
+          "displayNoNewLineWarning": false,
+          "position": 2,
+          "left": null,
+          "right": 2
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 3,
+          "text": "+import type { AgentRuntimeEvent } from \"@ori-contracts/internal/runtime/agent-runtime-event-types\";",
+          "html": "+<span class=pl-k>import</span> <span class=pl-k>type</span> <span class=pl-kos>{</span> <span class=pl-v>AgentRuntimeEvent</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;@ori-contracts/internal/runtime/agent-runtime-event-types&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 3,
+          "left": null,
+          "right": 3
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 4,
+          "text": "+import type { AgentRunnerCommand } from \"@ori-runloop/local/agent-runner-service\";",
+          "html": "+<span class=pl-k>import</span> <span class=pl-k>type</span> <span class=pl-kos>{</span> <span class=pl-v>AgentRunnerCommand</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;@ori-runloop/local/agent-runner-service&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 4,
+          "left": null,
+          "right": 4
+        },
+        {
+          "type": "ADDITION",
+          "blobLineNumber": 5,
+          "text": "+import type { makeFeatureBootResult } from \"@ori-runloop/local/test-support/feature-runtime\";",
+          "html": "+<span class=pl-k>import</span> <span class=pl-k>type</span> <span class=pl-kos>{</span> <span class=pl-s1>makeFeatureBootResult</span> <span class=pl-kos>}</span> <span class=pl-k>from</span> <span class=pl-s>&quot;@ori-runloop/local/test-support/feature-runtime&quot;</span><span class=pl-kos>;</span>",
+          "displayNoNewLineWarning": false,
+          "position": 5,
+          "left": null,
+          "right": 5
+        }
+      ]
+    }
+  ],
+  "loadMore": false,
+  "asyncDiffLoadInfo": {
+    "startIndex": 22,
+    "truncated": false,
+    "byteCount": 35456,
+    "lineShownCount": 954
+  }
+}

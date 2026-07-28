@@ -1,6 +1,6 @@
 import { Effect, Option } from "effect"
 import type { Check, NewComment } from "../domain/PullRequest"
-import type { PullRequestRef } from "../domain/PullRequestRef"
+import type { PullRequestRef, RepoRef } from "../domain/PullRequestRef"
 import { GitHubGateway, type UpdateMethod } from "../github/GitHubGateway"
 
 /**
@@ -84,11 +84,28 @@ export const loadCheckTail = Effect.fn("loadCheckTail")(function* (
  * One commit of the branch, for the page that shows it on its own.
  */
 export const loadCommit = Effect.fn("loadCommit")(function* (
-  reference: PullRequestRef,
+  reference: RepoRef,
   sha: string
 ) {
   const gateway = yield* GitHubGateway
   return yield* gateway.commit(reference, sha)
+})
+
+/**
+ * The diffs for files a commit page arrived without.
+ *
+ * A commit page embeds content until it has spent a byte budget and sends the
+ * rest as names, so this is how most of a commit of any size is read. Beside
+ * {@link loadDiffs}, which does the same for a pull request through a route that
+ * takes the paths it wants.
+ */
+export const loadCommitDiffs = Effect.fn("loadCommitDiffs")(function* (
+  reference: RepoRef,
+  sha: string,
+  paths: ReadonlyArray<string>
+) {
+  const gateway = yield* GitHubGateway
+  return yield* gateway.commitDiffs(reference, sha, paths)
 })
 
 export const postReviewComment = Effect.fn("postReviewComment")(function* (

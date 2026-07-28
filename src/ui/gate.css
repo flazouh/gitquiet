@@ -25,7 +25,10 @@
  */
 html:not([data-githubpro-revealed]) [class*="PageLayoutContent"],
 html:not([data-githubpro-revealed]) [class*="PullRequestHeader"],
-html:not([data-githubpro-revealed]) [aria-label="Pull request navigation tabs"] {
+html:not([data-githubpro-revealed]) [aria-label="Pull request navigation tabs"],
+html:not([data-githubpro-revealed])
+  react-app[app-name="commits"]
+  [class*="PageLayout-Header"] {
   display: none;
 }
 
@@ -48,6 +51,7 @@ html:not([data-githubpro-revealed]) [aria-label="Pull request navigation tabs"] 
  */
 html[data-githubpro-taken] [class*="PageLayoutContent"] > *:not(#githubpro-root),
 html[data-githubpro-taken] [class*="PullRequestHeader"],
-html[data-githubpro-taken] [aria-label="Pull request navigation tabs"] {
+html[data-githubpro-taken] [aria-label="Pull request navigation tabs"],
+html[data-githubpro-taken] react-app[app-name="commits"] [class*="PageLayout-Header"] {
   display: none;
 }

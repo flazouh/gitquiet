@@ -134,6 +134,54 @@ const Commit = Schema.Struct({
 })
 
 /**
+ * One file of a commit, whether or not its content came with the page.
+ *
+ * GitHub embeds content for as many files as fits a byte budget — six to
+ * fourteen on the commits of one real pull request — and sends every file after
+ * that as these three fields alone. Everything else is optional because a
+ * held-back file has none of it, not even its line counts, and a schema that
+ * insisted would throw away the whole commit over the first file GitHub decided
+ * not to send twice.
+ */
+const CommitDiffEntry = Schema.Struct({
+  path: Schema.String,
+  pathDigest: Schema.String,
+  status: Schema.Literals([
+    "ADDED",
+    "MODIFIED",
+    "REMOVED",
+    "DELETED",
+    "RENAMED",
+    "COPIED",
+    "CHANGED"
+  ]),
+  linesAdded: Schema.optional(Schema.Number),
+  linesDeleted: Schema.optional(Schema.Number),
+  isBinary: Schema.optional(Schema.Boolean),
+  isTooBig: Schema.optional(Schema.Boolean),
+  truncatedReason: Schema.optional(Schema.NullOr(Schema.String)),
+  diffLines: Schema.optional(Schema.Array(DiffLine))
+})
+
+export type CommitDiffEntry = typeof CommitDiffEntry["Type"]
+
+/**
+ * Where GitHub stopped embedding, and what to say to be given more.
+ *
+ * `startIndex` is the first file sent without content, and the byte and line
+ * counts are what has been spent so far — their own page hands all three
+ * straight back on the next request, so they are a cursor rather than a
+ * measurement.
+ */
+const AsyncDiffLoad = Schema.Struct({
+  startIndex: Schema.Number,
+  byteCount: Schema.Number,
+  lineShownCount: Schema.Number
+})
+
+export type AsyncDiffLoad = typeof AsyncDiffLoad["Type"]
+
+/**
  * One commit, from the page GitHub serves for it.
  *
  * The diff entries are the same shape the pull request embeds, down to the line
@@ -145,6 +193,11 @@ export const CommitRoute = Schema.Struct({
     commit: Schema.Struct({
       oid: Schema.String,
       authoredDate: Schema.String,
+      // This commit and the one it is a diff against, which is what their route
+      // for the held-back files is keyed by. Absent on a root commit, which has
+      // nothing before it to compare with.
+      sha1: Schema.optional(Schema.NullOr(Schema.String)),
+      sha2: Schema.optional(Schema.NullOr(Schema.String)),
       // Null on some commits, where the headline only exists as the rendered
       // markdown beside it — a merge commit made through their web interface is
       // one. Both are optional here and the mapper takes whichever came.
@@ -159,31 +212,29 @@ export const CommitRoute = Schema.Struct({
         })
       )
     }),
-    diffEntryData: Schema.Array(
-      Schema.Struct({
-        path: Schema.String,
-        pathDigest: Schema.String,
-        status: Schema.Literals([
-          "ADDED",
-          "MODIFIED",
-          "REMOVED",
-          "DELETED",
-          "RENAMED",
-          "COPIED",
-          "CHANGED"
-        ]),
-        linesAdded: Schema.Number,
-        linesDeleted: Schema.Number,
-        isBinary: Schema.Boolean,
-        isTooBig: Schema.Boolean,
-        truncatedReason: Schema.optional(Schema.NullOr(Schema.String)),
-        diffLines: Schema.Array(DiffLine)
-      })
-    )
+    asyncDiffLoadInfo: Schema.optional(Schema.NullOr(AsyncDiffLoad)),
+    moreDiffsToLoad: Schema.optional(Schema.Boolean),
+    diffEntryData: Schema.Array(CommitDiffEntry)
   })
 })
 
 export type CommitRoute = typeof CommitRoute["Type"]
+
+/**
+ * The files a commit page held back, one batch at a time.
+ *
+ * Their own page asks for these as it is scrolled. There is no way to ask for a
+ * file by name — a `paths` parameter is accepted and ignored — so this walks
+ * forward from the cursor the last answer gave, and `loadMore` says whether
+ * there is another batch behind it.
+ */
+export const CommitDiffsRoute = Schema.Struct({
+  extraDiffEntries: Schema.Array(CommitDiffEntry),
+  loadMore: Schema.Boolean,
+  asyncDiffLoadInfo: Schema.optional(Schema.NullOr(AsyncDiffLoad))
+})
+
+export type CommitDiffsRoute = typeof CommitDiffsRoute["Type"]
 
 /**
  * The pull request body, from the route that serves it alone.

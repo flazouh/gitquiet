@@ -9,6 +9,7 @@ import {
   loadCheckTail,
   loadCheckNotes,
   loadCommit,
+  loadCommitDiffs,
   loadDiffs,
   loadPullRequest,
   mergePullRequest,
@@ -133,6 +134,9 @@ const open = (
 
   const readCommit = (sha: string) =>
     Effect.runPromise(loadCommit(reference, sha).pipe(Effect.provide(gatewayLayer)))
+
+  const readCommitDiffs = (sha: string, paths: ReadonlyArray<string>) =>
+    Effect.runPromise(loadCommitDiffs(reference, sha, paths).pipe(Effect.provide(gatewayLayer)))
 
   const readNotes = (check: Check) =>
     Effect.runPromise(loadCheckNotes(reference, check).pipe(Effect.provide(gatewayLayer)))
@@ -267,6 +271,7 @@ const open = (
       onStepAside={() => stepAside()}
       onUseGitHub={onUseGitHub}
       loadCommit={readCommit}
+      fetchCommitDiffs={readCommitDiffs}
       loadNotes={readNotes}
       loadLog={readLog}
       loadTail={readTail}

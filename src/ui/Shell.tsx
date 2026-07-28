@@ -32,6 +32,11 @@ export type ShellProps = {
   readonly postComment?: (note: NewComment) => Promise<ReviewThread>
   /** Reads one commit of the branch, for the panel that shows it on its own. */
   readonly loadCommit?: (sha: string) => Promise<CommitDetail>
+  /** Content for a file that commit arrived without, which is most of them. */
+  readonly fetchCommitDiffs?: (
+    sha: string,
+    paths: ReadonlyArray<string>
+  ) => Promise<ReadonlyArray<FetchedDiff>>
   /** Reads what GitHub wrote against a check, for the dialog that shows it. */
   readonly loadNotes?: (check: Check) => Promise<ReadonlyArray<CheckNote>>
   /** Reads one step's log, for the note in that dialog that points into it. */
@@ -103,6 +108,7 @@ export const Shell = ({
   actions,
   postComment,
   loadCommit,
+  fetchCommitDiffs,
   loadNotes,
   loadLog,
   loadTail,
@@ -250,6 +256,15 @@ export const Shell = ({
     (paths: ReadonlyArray<string>) => fetchDiffs(paths, snapshot.headSha),
     [fetchDiffs, snapshot.headSha]
   )
+  // The same for the commit being read, whose held-back files are its own
+  // rather than the branch's: a file at this sha is not the file at the head.
+  const forThisCommit = useCallback(
+    (paths: ReadonlyArray<string>) =>
+      reading === undefined || fetchCommitDiffs === undefined
+        ? Promise.resolve([])
+        : fetchCommitDiffs(reading, paths),
+    [fetchCommitDiffs, reading]
+  )
 
   // Read once here and handed down as two settled objects: the diff and the
   // rail should never be looking at different answers to the same question.
@@ -333,6 +348,7 @@ export const Shell = ({
                 load={commits.ask}
                 held={commits.held}
                 onClose={() => setReading(undefined)}
+                fetchDiffs={forThisCommit}
                 diff={diff}
                 tree={tree}
                 proseAsDocument={settings.diff.prose === "on"}
