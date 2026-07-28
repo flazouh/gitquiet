@@ -71,12 +71,49 @@ wanted.add("document")
  * drawn at sixteen, twenty-four or thirty-two, so each one carries its own box
  * to be scaled into.
  */
+/**
+ * What the `<svg>` tag says about painting, which its children are counting on.
+ *
+ * Dropping the tag drops what it declared. Four of these icons — `readme`,
+ * `document`, `changelog`, `settings` — open with a full-box rectangle that is
+ * there to hold the icon's proportions and is drawn only because the root said
+ * `fill="none"`; without that, each one became a solid block in the colour of
+ * the row behind it. Everything structural is left behind, since the symbol
+ * states its own box and is not a document.
+ */
+const STRUCTURAL = new Set([
+  "xmlns",
+  "xmlns:xlink",
+  "version",
+  "viewBox",
+  "width",
+  "height",
+  "x",
+  "y",
+  "id",
+  "class",
+  "data-name",
+  "xml:space",
+  "aria-hidden",
+  "role"
+])
+
+const inherited = (svg: string): string => {
+  const tag = /<svg[^>]*>/.exec(svg)?.[0] ?? ""
+
+  return [...tag.matchAll(/([a-zA-Z_:][\w.:-]*)="([^"]*)"/g)]
+    .filter(([, name = ""]) => !STRUCTURAL.has(name))
+    .map(([, name, value]) => `${name}="${value}"`)
+    .join(" ")
+}
+
 const viewBoxes = new Map<string, string>()
 const hoisted: Array<string> = []
 const symbols = [...wanted].sort().map((icon) => {
   const svg = readFileSync(new URL(`icons/${icon}.svg`, root), "utf8")
   const declared = /viewBox="([^"]+)"/.exec(svg)?.[1] ?? "0 0 24 24"
   const [minX = 0, minY = 0, width = 24, height = 24] = declared.split(/[\s,]+/).map(Number)
+  const carried = inherited(svg)
 
   let body = svg
     .replace(/<\?xml[\s\S]*?\?>/g, "")
@@ -99,7 +136,9 @@ const symbols = [...wanted].sort().map((icon) => {
   // starts anywhere but zero draws the icon off its own edge: `json` and
   // `kotlin` rendered as nothing at all.
   const viewBox = `0 0 ${width} ${height}`
-  if (minX !== 0 || minY !== 0) body = `<g transform="translate(${-minX} ${-minY})">${body}</g>`
+  const shift = minX === 0 && minY === 0 ? "" : `transform="translate(${-minX} ${-minY})"`
+  const dressing = [carried, shift].filter((part) => part !== "").join(" ")
+  if (dressing !== "") body = `<g ${dressing}>${body}</g>`
 
   // Gradients and masks live at the top of the sheet, not inside the symbol
   // that paints with them: a `use` clones a symbol into a shadow tree, and a

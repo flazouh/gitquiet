@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
+import { Option } from "effect"
 import type { Check } from "../domain/PullRequest"
-import { checkRunIn, notesIn } from "./annotations"
+import { checkRunIn, notesIn, spotIn } from "./annotations"
 
 const real = await Bun.file("tests/fixtures/checkAnnotations.html").text()
 
@@ -67,5 +68,20 @@ describe("reading what GitHub wrote against a check", () => {
   test("comes back empty, not wrong, when the page stops looking like this", () => {
     expect(notesIn("<html><body><p>Something else entirely</p></body></html>")).toEqual([])
     expect(notesIn("")).toEqual([])
+  })
+})
+
+describe("the place in the log a note points at", () => {
+  test("is the step and the line GitHub linked to", () => {
+    expect(Option.getOrThrow(spotIn("#annotation:4:43"))).toEqual({ step: 4, line: 43 })
+  })
+
+  test("comes off the real page along with the message", () => {
+    expect(Option.getOrThrow(notesIn(real)[0]!.at)).toEqual({ step: 4, line: 43 })
+  })
+
+  test("is nothing when the link is not one of those", () => {
+    expect(Option.isNone(spotIn("/OpenRouterIncubator/ori/actions/runs/1/job/2"))).toBe(true)
+    expect(Option.isNone(spotIn(""))).toBe(true)
   })
 })

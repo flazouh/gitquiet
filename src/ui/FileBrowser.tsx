@@ -4,11 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { diffLibrary, type DiffFetcher } from "../diff/library"
 import { readingOrder } from "../diff/readingOrder"
 import type { DiffChoices, TreeChoices } from "../settings/apply"
-import type { ChangedFile } from "../domain/PullRequest"
+import type { ChangedFile, ReviewThread } from "../domain/PullRequest"
+import { chordFor, DEFAULT_PROFILE, type Profile } from "../keys/commands"
+import { Cap } from "./Cap"
 import { draftsIn, dropDraft, saveDraft, type Draft } from "./drafts"
 import { FileDiffPane, FileTreePane } from "./Files"
 import { FileHeading } from "./FileHeading"
 import { seenFiles } from "./rowMarks"
+import { useKeys } from "./useKeys"
 
 export type FileBrowserProps = {
   readonly files: ReadonlyArray<ChangedFile>
@@ -19,6 +22,27 @@ export type FileBrowserProps = {
   readonly menu?: React.ReactNode
   /** Markdown files open as documents unless the reader turned that off. */
   readonly proseAsDocument?: boolean
+  /** Whose keys move between files, and reach the tree's filter. */
+  readonly keys?: Profile
+  /**
+   * A file somewhere else asked for, such as one named in a failing log.
+   *
+   * Carried as a whole object rather than a path so that asking twice for the
+   * same file still counts as asking: a reader who clicks the same line in a
+   * log again means it, and a path compared against itself would ignore them.
+   */
+  readonly wanted?: { readonly path: string }
+  /** Everything said on the pull request, so a remark can sit on its own line. */
+  readonly threads?: ReadonlyArray<ReviewThread>
+  /** Sends a remark on some lines of a file to GitHub. */
+  readonly onPost?: (note: {
+    readonly path: string
+    readonly from: number
+    readonly to: number
+    readonly body: string
+  }) => Promise<void>
+  /** Whoever is writing, so the box is signed the way the remark will be. */
+  readonly viewer?: { readonly login: string; readonly faceUrl?: string }
 }
 
 /**
@@ -27,6 +51,39 @@ export type FileBrowserProps = {
  * whoever's connection it is.
  */
 const WARM_LIMIT = 120
+
+/**
+ * Drawing a file the reader has not asked for yet, once they have stopped
+ * asking for things.
+ *
+ * Opening a file costs a parse, a highlight and a few thousand elements — a
+ * third of a second on a pull request of any size, and every millisecond of it
+ * inside the keypress that asked for the file, where it is felt as the page
+ * going away for a moment. The work does not get smaller by being moved, it
+ * gets invisible: done while the reader is reading, `j` has nothing left to do
+ * but show what is already there.
+ *
+ * Idle time rather than a timer, so it never competes with the reader; the
+ * deadline is there because a page that is never idle would otherwise never
+ * read ahead at all.
+ */
+const whenIdle = (act: () => void): (() => void) => {
+  const later = globalThis.requestIdleCallback
+  if (later === undefined) {
+    const soon = setTimeout(act, 200)
+    return () => clearTimeout(soon)
+  }
+
+  const asked = later(() => act(), { timeout: 1_000 })
+  return () => globalThis.cancelIdleCallback?.(asked)
+}
+
+/** The files worth holding drawn: the one being read, and the two a key reaches. */
+const withinReach = (
+  paths: ReadonlyArray<string | undefined>
+): ReadonlyArray<string> => [
+  ...new Set(paths.filter((path): path is string => path !== undefined))
+]
 
 const total = (files: ReadonlyArray<ChangedFile>, of: "linesAdded" | "linesDeleted"): number =>
   files.reduce((sum, file) => sum + file[of], 0)
@@ -69,7 +126,12 @@ export const FileBrowser = ({
   diff,
   tree,
   menu,
-  proseAsDocument = true
+  proseAsDocument = true,
+  keys = DEFAULT_PROFILE,
+  wanted,
+  threads = [],
+  onPost,
+  viewer
 }: FileBrowserProps) => {
   const [chosen, setChosen] = useState<string | undefined>(files[0]?.path)
   // A README opens as the document it is; a source file opens as a diff. Both
@@ -84,11 +146,23 @@ export const FileBrowser = ({
     files[0] === undefined ? new Set() : new Set([files[0].path])
   )
 
+  // Which files are drawn, whether or not they are the one on screen. The one
+  // being read is always among them; the rest are how Next and Previous become
+  // a change of what is visible rather than a file built from scratch.
+  const [drawn, setDrawn] = useState<ReadonlyArray<string>>(() =>
+    files[0] === undefined ? [] : [files[0].path]
+  )
+
   const onSelect = useCallback((path: string) => {
     setChosen(path)
     setReading(proseAsDocument && isProse(path))
     setOpened((held) => (held.has(path) ? held : new Set([...held, path])))
   }, [proseAsDocument])
+
+  useEffect(() => {
+    if (wanted === undefined) return
+    if (files.some((file) => file.path === wanted.path)) onSelect(wanted.path)
+  }, [files, onSelect, wanted])
 
   const seen = useMemo(() => seenFiles(files, opened), [files, opened])
 
@@ -126,6 +200,44 @@ export const FileBrowser = ({
   }, [library, files, index])
   const previous = index > 0 ? files[index - 1] : undefined
   const next = files[index + 1]
+
+  // Two passes, and the order of them is the point. The file asked for joins
+  // whatever is already drawn, immediately, so that arriving somewhere never
+  // waits; then, once the page is idle, the set is cut back to what a key can
+  // reach and the file on the other side of the reader is drawn as well.
+  const here = file?.path
+  useEffect(() => {
+    if (here === undefined) return
+    setDrawn((held) => (held.includes(here) ? held : [...held, here]))
+  }, [here])
+
+  useEffect(() => {
+    if (here === undefined) return
+    return whenIdle(() => setDrawn(withinReach([previous?.path, here, next?.path])))
+  }, [here, previous?.path, next?.path])
+
+  // A file that has since been dropped from the pull request cannot be drawn.
+  const showing = useMemo(
+    () =>
+      withinReach([here, ...drawn])
+        .map((path) => files.find((one) => one.path === path))
+        .filter((one): one is ChangedFile => one !== undefined),
+    [drawn, files, here]
+  )
+  const on = chordFor(keys, "nextFile")
+  const back = chordFor(keys, "previousFile")
+
+  // The review loop, off the keyboard. Nothing happens at either end rather
+  // than wrapping around: a reader who holds j down should stop at the last
+  // file, not find themselves back at the first one wondering how.
+  useKeys(keys, {
+    nextFile: () => {
+      if (next !== undefined) onSelect(next.path)
+    },
+    previousFile: () => {
+      if (previous !== undefined) onSelect(previous.path)
+    }
+  })
 
   if (files.length === 0) {
     return (
@@ -187,24 +299,32 @@ export const FileBrowser = ({
         ) : null}
         {/* Both directions, side by side: reading a review is as much going
             back over a file as moving on from one, and a lone Next makes the
-            way back a hunt through the tree. */}
+            way back a hunt through the tree.
+
+            Each wears its key. The two buttons are pressed dozens of times in
+            one review, which is exactly the place to be told there is a letter
+            that does the same thing without the trip to the pointer. */}
         <span className="flex shrink-0 items-center gap-1.5">
           <button
             type="button"
             disabled={previous === undefined}
+            aria-keyshortcuts={back ?? undefined}
             onClick={() => previous !== undefined && onSelect(previous.path)}
             className="flex items-center gap-1.5 rounded-md bg-surface px-2.5 py-1 text-xs font-semibold text-ink-muted disabled:opacity-40"
           >
             <ArrowLeftIcon size={12} />
             Previous
+            {back === null ? null : <Cap chord={back} />}
           </button>
           <button
             type="button"
             disabled={next === undefined}
+            aria-keyshortcuts={on ?? undefined}
             onClick={() => next !== undefined && onSelect(next.path)}
             className="flex items-center gap-1.5 rounded-md bg-pass-emphasis px-2.5 py-1 text-xs font-semibold text-ink-on-emphasis disabled:opacity-40"
           >
             Next file
+            {on === null ? null : <Cap chord={on} tone="onEmphasis" />}
             <ArrowRightIcon size={12} />
           </button>
         </span>
@@ -230,23 +350,53 @@ export const FileBrowser = ({
             onSelect={onSelect}
             seen={seen}
             choices={tree}
+            keys={keys}
           />
         </div>
-        <div className="min-w-0 flex-1 overflow-auto">
-          {file === undefined ? null : (
-            <>
-              <FileHeading file={file} icons={tree.icons} />
-              <FileDiffPane
-                file={file}
-                ask={library.ask}
-                reading={reading}
-                choices={diff}
-                drafts={mine}
-                onSaveDraft={onSaveDraft}
-                onDropDraft={onDropDraft}
-              />
-            </>
-          )}
+        {/* One heading above the stack rather than one per drawing: which file
+            is open is a fact about the panel, and it was already pinned to the
+            top of the scroll while the code moved under it. */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {file === undefined ? null : <FileHeading file={file} icons={tree.icons} />}
+          {/* The drawings sit on top of one another, all of them laid out and
+              only one of them visible. Laid out matters: a diff built inside a
+              hidden box has no width to measure and draws nothing, so the ones
+              waiting their turn are merely invisible — and, incidentally, keep
+              their own scroll, so going back to a file returns to the part of
+              it that was being read. */}
+          <div className="relative min-h-0 flex-1">
+            {showing.map((one) => {
+              const open = one.path === file?.path
+              return (
+                <div
+                  key={one.path}
+                  data-file={one.path}
+                  aria-hidden={open ? "false" : "true"}
+                  className="absolute inset-0 overflow-auto"
+                  style={
+                    open ? undefined : { visibility: "hidden", pointerEvents: "none" }
+                  }
+                >
+                  <FileDiffPane
+                    file={one}
+                    ask={library.ask}
+                    reading={open ? reading : proseAsDocument && isProse(one.path)}
+                    choices={diff}
+                    drafts={open ? mine : draftsIn(drafts, one.path)}
+                    onSaveDraft={onSaveDraft}
+                    onDropDraft={onDropDraft}
+                    threads={threads}
+                    viewer={viewer}
+                    onPost={
+                      onPost === undefined
+                        ? undefined
+                        : (note) => onPost({ path: one.path, ...note })
+                    }
+                  />
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
     </section>

@@ -1,4 +1,5 @@
-import type { Check, CheckNote, CheckNoteLevel } from "../domain/PullRequest"
+import { Option } from "effect"
+import type { Check, CheckNote, CheckNoteLevel, LogSpot } from "../domain/PullRequest"
 
 /**
  * The check run behind a check's link.
@@ -43,10 +44,25 @@ export const notesIn = (html: string): ReadonlyArray<CheckNote> => {
       {
         level: levelOf(one),
         where: text(one.querySelector("strong")),
-        message
+        message,
+        at: spotIn(one.querySelector("a")?.getAttribute("href") ?? "")
       }
     ]
   })
+}
+
+/**
+ * The place in the log a note points at, out of the link GitHub puts on it.
+ *
+ * Their link reads `#annotation:4:43`, which is step four, line forty-three —
+ * the same step number their own log route is fetched by. A note with no link
+ * of that shape belongs to no line we can find, and says so.
+ */
+export const spotIn = (href: string): Option.Option<LogSpot> => {
+  const found = /#annotation:(\d+):(\d+)/.exec(href)
+  if (found === null) return Option.none()
+
+  return Option.some({ step: Number(found[1]), line: Number(found[2]) })
 }
 
 const text = (node: Element | null): string => (node?.textContent ?? "").trim()

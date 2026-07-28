@@ -1,7 +1,7 @@
 import { Effect, Option } from "effect"
-import type { Check } from "../domain/PullRequest"
+import type { Check, NewComment } from "../domain/PullRequest"
 import type { PullRequestRef } from "../domain/PullRequestRef"
-import { GitHubGateway } from "../github/GitHubGateway"
+import { GitHubGateway, type UpdateMethod } from "../github/GitHubGateway"
 
 /**
  * Everything the page needs to render, gathered in one place so the React layer
@@ -55,6 +55,32 @@ export const loadCheckNotes = Effect.fn("loadCheckNotes")(function* (
 })
 
 /**
+ * One step's log, for the note in the dialog that points into it.
+ */
+export const loadCheckLog = Effect.fn("loadCheckLog")(function* (
+  reference: PullRequestRef,
+  sha: string,
+  check: Check,
+  step: number
+) {
+  const gateway = yield* GitHubGateway
+  return yield* gateway.log(reference, sha, check, step)
+})
+
+/**
+ * The end of a check's log, for a dialog with no note to point the way.
+ */
+export const loadCheckTail = Effect.fn("loadCheckTail")(function* (
+  reference: PullRequestRef,
+  sha: string,
+  check: Check,
+  keep: number
+) {
+  const gateway = yield* GitHubGateway
+  return yield* gateway.tail(reference, sha, check, keep)
+})
+
+/**
  * One commit of the branch, for the page that shows it on its own.
  */
 export const loadCommit = Effect.fn("loadCommit")(function* (
@@ -65,12 +91,68 @@ export const loadCommit = Effect.fn("loadCommit")(function* (
   return yield* gateway.commit(reference, sha)
 })
 
+export const postReviewComment = Effect.fn("postReviewComment")(function* (
+  reference: PullRequestRef,
+  note: NewComment
+) {
+  const gateway = yield* GitHubGateway
+  return yield* gateway.comment(reference, note)
+})
+
 export const mergePullRequest = Effect.fn("mergePullRequest")(function* (
   reference: PullRequestRef
 ) {
   const gateway = yield* GitHubGateway
 
   yield* gateway.merge(reference, "SQUASH")
+})
+
+/**
+ * Joins the queue, batched, which is what their own button does.
+ *
+ * `SOLO` is not offered: it asks GitHub to test and land this pull request by
+ * itself, which delays everything behind it, and it is a choice nobody makes
+ * from a card that has no room to explain the cost.
+ */
+export const enqueuePullRequest = Effect.fn("enqueuePullRequest")(function* (
+  reference: PullRequestRef
+) {
+  const gateway = yield* GitHubGateway
+
+  yield* gateway.enqueue(reference, "GROUP")
+})
+
+export const dequeuePullRequest = Effect.fn("dequeuePullRequest")(function* (
+  reference: PullRequestRef
+) {
+  const gateway = yield* GitHubGateway
+
+  yield* gateway.dequeue(reference)
+})
+
+/**
+ * Catches the branch up with the one it would land on.
+ *
+ * How is GitHub's own verdict, carried on the pull request, rather than a
+ * choice made here: a rebase it has already said it cannot generate comes back
+ * refused, and the merge it offers instead always works.
+ */
+export const updatePullRequestBranch = Effect.fn("updatePullRequestBranch")(function* (
+  reference: PullRequestRef,
+  how: UpdateMethod
+) {
+  const gateway = yield* GitHubGateway
+
+  yield* gateway.updateBranch(reference, how)
+})
+
+/** Calls off the merge GitHub is holding, queue or no queue. */
+export const cancelAutoMerge = Effect.fn("cancelAutoMerge")(function* (
+  reference: PullRequestRef
+) {
+  const gateway = yield* GitHubGateway
+
+  yield* gateway.cancelAutoMerge(reference)
 })
 
 /**

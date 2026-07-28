@@ -6,6 +6,8 @@ import { loadPullRequest } from "@/app/pullRequest"
 import { fromPathname, type PullRequestRef } from "@/domain/PullRequestRef"
 import { layer as gatewayLayer } from "@/github/GitHubGateway"
 import { initialiseErrorReporting } from "@/observability/sentry"
+import type { View } from "@/settings/Settings"
+import { browserSettings } from "@/settings/store"
 import { ROOT_ID } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import "@/ui/softgate.css"
@@ -61,6 +63,19 @@ export default defineContentScript({
   main() {
     initialiseErrorReporting("prefetch")
 
+    // Everything below is in aid of an interface that a reader can turn off,
+    // and none of it is worth a single request when they have. Watched as well
+    // as read, so that turning it off in this tab stops the next press here
+    // rather than the next press after a reload.
+    const settings = browserSettings()
+    let view: View = "ours"
+    void settings.read().then((stored) => {
+      view = stored.page.view
+    })
+    settings.watch((stored) => {
+      view = stored.page.view
+    })
+
     // The one already open. Reading it ahead would be a race with the page
     // reading it for real, for a result nobody is going to wait for.
     const here = fromPathname(window.location.pathname)
@@ -103,6 +118,7 @@ export default defineContentScript({
     document.addEventListener(
       "pointerover",
       (event) => {
+        if (view === "github") return
         if (asked.size >= AT_MOST) return
 
         const reference = wanted(event.target)
@@ -143,6 +159,11 @@ export default defineContentScript({
      * while GitHub is still assembling the page.
      */
     const open = (going?: string): void => {
+      // Their page is the one being opened, so there is nothing to hold back
+      // and nothing to inject. Leaving the gate alone here is the whole of it:
+      // a reader who has turned this off never sees a frame of it.
+      if (view === "github") return
+
       // Already up, and following GitHub around by itself. Gating now would
       // hide the region the interface is standing in, which is to say the
       // interface — and nothing would lift it, because the give-up below sees

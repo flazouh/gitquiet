@@ -42,6 +42,28 @@ const onOff = [
 ] as const satisfies ReadonlyArray<Choice<"on" | "off">>
 
 /**
+ * Whose pull request page this is — the one choice that decides whether any of
+ * the others are ever read.
+ *
+ * Kept out of the menu below deliberately. The menu is inside our page, so a
+ * row in it that takes our page away would be the one control in there that
+ * closes the thing you are using; the switch lives in the header instead, and
+ * its twin sits on GitHub's own tab row for the way back.
+ */
+export const PAGE_KNOBS = [
+  knob(
+    "view",
+    "Pull request page",
+    "Which page a pull request opens as. Ours puts the shell, the sections and the diff on one screen in place of the conversation. GitHub's leaves their page untouched and adds nothing to it but a way back, so nothing here is hidden from you on a day when their page is the one you want.",
+    [
+      { value: "ours", label: "This extension" },
+      { value: "github", label: "GitHub's" }
+    ],
+    "ours"
+  )
+] as const
+
+/**
  * The diff's own knobs, in the order they matter.
  *
  * Every value is a word rather than a boolean or a number, because the menu
@@ -263,10 +285,15 @@ type Values<Knobs extends ReadonlyArray<Knob<string, string>>> = {
   readonly [K in Knobs[number] as K["key"]]: K["choices"][number]["value"]
 }
 
+export type PageSettings = Values<typeof PAGE_KNOBS>
 export type DiffSettings = Values<typeof DIFF_KNOBS>
 export type TreeSettings = Values<typeof TREE_KNOBS>
 
+/** Which page a pull request opens as, named so the two sides read as words. */
+export type View = PageSettings["view"]
+
 export type Settings = {
+  readonly page: PageSettings
   readonly diff: DiffSettings
   readonly tree: TreeSettings
 }
@@ -279,6 +306,7 @@ const fallbacks = <Knobs extends ReadonlyArray<Knob<string, string>>>(
   ) as Values<Knobs>
 
 export const DEFAULTS: Settings = {
+  page: fallbacks(PAGE_KNOBS),
   diff: fallbacks(DIFF_KNOBS),
   tree: fallbacks(TREE_KNOBS),
 }
@@ -314,6 +342,7 @@ export const readSettings = (stored: unknown): Settings => {
       ? (stored as Record<string, unknown>)
       : {}
   return {
+    page: readGroup(PAGE_KNOBS, held["page"]),
     diff: readGroup(DIFF_KNOBS, held["diff"]),
     tree: readGroup(TREE_KNOBS, held["tree"]),
   }

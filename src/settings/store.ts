@@ -1,4 +1,4 @@
-import { DEFAULTS, readSettings, type Settings } from "./Settings"
+import { DEFAULTS, readSettings, type Settings, type View } from "./Settings"
 
 /**
  * The slice of the extension storage API this needs, named so a test can stand
@@ -73,6 +73,19 @@ export const settingsStore = (area: Area | undefined): Store => {
       return () => area.onChanged?.removeListener(listener)
     }
   }
+}
+
+/**
+ * Writes down which page to open, leaving every other choice as it was.
+ *
+ * Read then write rather than write alone, because this is called from a page
+ * that may have been open since before the reader changed something in another
+ * tab, and writing the whole settings object from a stale copy would quietly
+ * undo it.
+ */
+export const rememberView = async (store: Store, view: View): Promise<void> => {
+  const held = await store.read()
+  await store.write({ ...held, page: { ...held.page, view } })
 }
 
 /**

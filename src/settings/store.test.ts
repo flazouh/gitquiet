@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test"
 import { DEFAULTS } from "./Settings"
-import { settingsStore, type Area } from "./store"
+import { rememberView, settingsStore, type Area } from "./store"
 
 const fake = (): Area & { held: Record<string, unknown>; fire: (value: unknown) => void } => {
   const listeners: Array<(changes: Record<string, { newValue?: unknown }>) => void> = []
@@ -75,5 +75,31 @@ describe("where settings are kept", () => {
     await store.write({ ...DEFAULTS, tree: { ...DEFAULTS.tree, width: "wide" } })
 
     expect((await store.read()).tree.width).toBe("wide")
+  })
+})
+
+describe("remembering whose page to open", () => {
+  it("keeps the choice for the next pull request", async () => {
+    const store = settingsStore(fake())
+    await rememberView(store, "github")
+
+    expect((await store.read()).page.view).toBe("github")
+  })
+
+  it("changes nothing else on the way past", async () => {
+    const store = settingsStore(fake())
+    await store.write({ ...DEFAULTS, diff: { ...DEFAULTS.diff, layout: "split" } })
+
+    await rememberView(store, "github")
+
+    expect((await store.read()).diff.layout).toBe("split")
+  })
+
+  it("comes back, without having to be reinstalled to do it", async () => {
+    const store = settingsStore(fake())
+    await rememberView(store, "github")
+    await rememberView(store, "ours")
+
+    expect((await store.read()).page.view).toBe("ours")
   })
 })

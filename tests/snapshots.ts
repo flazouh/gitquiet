@@ -6,14 +6,23 @@ import type {
   PullRequestSnapshot,
   Review,
   ReviewThread,
+  ThreadAnchor,
   ThreadComment
 } from "../src/domain/PullRequest"
 
 export const VIEWER = "viewer-person"
 export const AUTHOR = "author-person"
 
-export const person = (login: string): Participant => ({ login, isAutomated: false })
-export const bot = (login: string): Participant => ({ login, isAutomated: true })
+export const person = (login: string): Participant => ({
+  login,
+  isAutomated: false,
+  faceUrl: Option.none()
+})
+export const bot = (login: string): Participant => ({
+  login,
+  isAutomated: true,
+  faceUrl: Option.none()
+})
 
 export const aComment = (author: Participant, body = "a remark"): ThreadComment => ({
   author,
@@ -25,8 +34,13 @@ export const aComment = (author: Participant, body = "a remark"): ThreadComment 
 export const aThread = (
   id: string,
   comments: ReadonlyArray<ThreadComment>,
-  isResolved = false
-): ReviewThread => ({ id, isResolved, comments })
+  isResolved = false,
+  at: Option.Option<ThreadAnchor> = Option.none()
+): ReviewThread => ({ id, isResolved, at, comments })
+
+/** A thread hung off one line of a file, for the diff to draw it beside. */
+export const anchoredAt = (path: string, line: number): Option.Option<ThreadAnchor> =>
+  Option.some({ path, side: "after", line, startLine: line })
 
 export const aFile = (path: string, readByViewer = false): ChangedFile => ({
   path,
@@ -68,13 +82,22 @@ export const aSnapshot = (
   baseBranch: "main",
   headBranch: "spin",
   headSha: "headsha",
+  baseSha: "basesha",
   viewer: { login: VIEWER, lastReviewPoint: Option.none() },
   files: [],
   commits: [],
   threads: [],
   checks: [],
   reviews: [],
-  merge: { isMergeable: true, blockers: [], queue: Option.none() },
+  merge: {
+    isMergeable: true,
+    blockers: [],
+    queue: Option.none(),
+    autoMerge: Option.none(),
+    mayBypass: false,
+    update: Option.none(),
+    channels: []
+  },
   ...parts
 })
 

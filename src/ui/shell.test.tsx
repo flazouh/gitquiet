@@ -30,6 +30,12 @@ const showing = (
 
 const section = (name: string) => screen.getByRole("region", { name })
 
+/** Every height a panel holds its contents to, which is how anything here hides. */
+const ceilings = (panel: HTMLElement) =>
+  [...panel.querySelectorAll<HTMLElement>("*")]
+    .map((held) => held.style.maxHeight)
+    .filter((height) => height !== "")
+
 const awaitPage = async () => {
   await waitFor(() => expect(section("Description")).toBeDefined())
 }
@@ -55,10 +61,56 @@ const aPullRequest = () =>
     ],
     merge: {
       isMergeable: false,
-      blockers: [{ name: "Repo rules", explanation: "a passing build is required" }],
-      queue: Option.none()
+      blockers: [
+        {
+          name: "Repo rules",
+          explanation: "a passing build is required",
+          bypassable: false,
+          about: Option.some("checks" as const)
+        }
+      ],
+      queue: Option.none(),
+      autoMerge: Option.none(),
+      mayBypass: false,
+      update: Option.none(),
+      channels: []
     }
   })
+
+describe("a blocker with somewhere to send the reader", () => {
+  test("puts the section that answers it in front of them", async () => {
+    // "A passing build is required" beside a merge button, with the checks two
+    // scrolls away, leaves the reader to go and find what failed. This is the
+    // half of the sentence GitHub's own card leaves out.
+    const went: Array<Element> = []
+    const scrolling = Element.prototype.scrollIntoView
+    Element.prototype.scrollIntoView = function (this: Element) {
+      went.push(this)
+    }
+
+    // GitHub's own page is still underneath ours, hidden rather than removed,
+    // and it labels its regions the same words we do. Whichever of the two
+    // comes first in the document is not a detail: theirs is display:none, and
+    // scrolling to something invisible looks exactly like a dead button.
+    const theirs = document.createElement("section")
+    theirs.setAttribute("aria-label", "Checks")
+    document.body.prepend(theirs)
+
+    try {
+      const view = showing(aPullRequest())
+      await awaitPage()
+
+      await userEvent.click(screen.getByRole("button", { name: "Repo rules" }))
+
+      expect(went).toHaveLength(1)
+      expect(went[0]?.getAttribute("aria-label")).toBe("Checks")
+      expect(view.container.contains(went[0] ?? null)).toBe(true)
+    } finally {
+      Element.prototype.scrollIntoView = scrolling
+      theirs.remove()
+    }
+  })
+})
 
 describe("the header, which says which pull request this is", () => {
   test("says the title, the number, the state and the branches once each", async () => {
@@ -83,13 +135,121 @@ describe("the header, which says which pull request this is", () => {
   })
 })
 
-describe("what the pull request is, in four sections", () => {
-  test("shows the description as GitHub renders it, and offers the rest of it", async () => {
+describe("the keyboard", () => {
+  const sheet = () => screen.queryByRole("dialog", { name: "Keyboard shortcuts" })
+
+  /** GitHub's own page, which this interface is a guest on rather than a replacement for. */
+  const gitHubsOwnMarkup = () => {
+    const theirs = document.createElement("div")
+    theirs.dataset.theirs = "yes"
+    theirs.innerHTML = '<details-menu role="menu">Copy link</details-menu>'
+    document.body.append(theirs)
+  }
+
+  afterEach(() => {
+    for (const one of document.querySelectorAll("[data-theirs]")) one.remove()
+  })
+
+  test("still answers on a page carrying thirty menus of GitHub's own", async () => {
+    // A pull request page keeps its dropdowns in the document whether they are
+    // showing or not, every one of them marked as a menu. Looking at the whole
+    // page for something open finds them, decides the reader is in a menu, and
+    // the keyboard is silent for the length of the review.
+    gitHubsOwnMarkup()
     showing(aPullRequest())
     await awaitPage()
 
-    expect(section("Description").querySelector(".markdown-body h2")?.textContent).toBe("Why")
-    expect(within(section("Description")).getByRole("button").textContent).toContain("Show all")
+    await userEvent.keyboard("j")
+
+    expect(screen.getByLabelText("Open file").textContent).toContain("README.md")
+  })
+
+  test("opens and closes its own sheet there too, not only the file keys", async () => {
+    // The page's own two commands live a level above the ones the file browser
+    // owns, and are as easy to leave outside whatever decides which menus are
+    // ours to answer to.
+    gitHubsOwnMarkup()
+    showing(aPullRequest())
+    await awaitPage()
+
+    await userEvent.keyboard("?")
+    expect(sheet()).not.toBeNull()
+
+    await userEvent.keyboard("{Escape}")
+    expect(sheet()).toBeNull()
+  })
+
+  test("lists every shortcut under a question mark, and takes Escape as the way out", async () => {
+    showing(aPullRequest())
+    await awaitPage()
+
+    await userEvent.keyboard("?")
+
+    const shown = sheet()
+    if (shown === null) throw new Error("expected the shortcut sheet")
+    expect(shown.textContent).toContain("Next file")
+    expect(within(shown).getAllByText("j")).toHaveLength(1)
+
+    await userEvent.keyboard("{Escape}")
+    expect(sheet()).toBeNull()
+  })
+
+  test("offers the list to a reader who does not know the key for it yet", async () => {
+    showing(aPullRequest())
+    await awaitPage()
+
+    await userEvent.click(screen.getByRole("button", { name: "Keyboard shortcuts" }))
+
+    expect(sheet()).not.toBeNull()
+  })
+
+  test("leaves out a shortcut the reader's settings have unbound", async () => {
+    // The tree's filter is only reachable while the search box is on, which it
+    // is not by default. A sheet that promised it anyway would teach a key that
+    // does nothing here and lands in GitHub's own search instead.
+    showing(aPullRequest())
+    await awaitPage()
+
+    await userEvent.keyboard("?")
+
+    const shown = sheet()
+    if (shown === null) throw new Error("expected the shortcut sheet")
+    expect(shown.textContent).not.toContain("Filter the file tree")
+  })
+
+  test("moves between files from the page, not only from inside the browser", async () => {
+    showing(aPullRequest())
+    await awaitPage()
+
+    await userEvent.keyboard("j")
+
+    expect(screen.getByLabelText("Open file").textContent).toContain("README.md")
+  })
+})
+
+describe("what the pull request is, in four sections", () => {
+  test("shows the top of the description as GitHub renders it, and offers the rest", async () => {
+    showing(aPullRequest())
+    await awaitPage()
+
+    const about = section("Description")
+    expect(about.querySelector(".markdown-body h2")?.textContent).toBe("Why")
+    expect(ceilings(about)).toEqual(["13rem"])
+    expect(within(about).getByRole("button").textContent).toContain("Show all")
+  })
+
+  test("opens the description to all of it, with no second window onto it", async () => {
+    showing(aPullRequest())
+    await awaitPage()
+
+    await userEvent.click(within(section("Description")).getByText("Show all of it"))
+
+    const about = section("Description")
+    expect(about.textContent).toContain("The widget stood still.")
+    // What the ceiling used to become: opened, it was a shorter box that
+    // scrolled inside the card, which is the hiding this was meant to end.
+    expect(ceilings(about)).toEqual([])
+    expect(within(about).getByRole("button").textContent).toContain("Show less")
   })
 
   test("says that CI is red, and names what failed", async () => {

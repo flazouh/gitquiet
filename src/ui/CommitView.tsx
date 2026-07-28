@@ -2,6 +2,7 @@ import { ArrowLeftIcon } from "@primer/octicons-react"
 import { Option } from "effect"
 import { useEffect, useState } from "react"
 import type { CommitDetail } from "../domain/PullRequest"
+import type { Profile } from "../keys/commands"
 import type { DiffChoices, TreeChoices } from "../settings/apply"
 import { FileBrowser } from "./FileBrowser"
 import { Markdown } from "./Markdown"
@@ -18,6 +19,8 @@ export type CommitViewProps = {
   readonly tree: TreeChoices
   readonly menu?: React.ReactNode
   readonly proseAsDocument?: boolean
+  /** Whose keys move between the files of this commit. */
+  readonly keys?: Profile
 }
 
 type Reading =
@@ -42,7 +45,8 @@ export const CommitView = ({
   diff,
   tree,
   menu,
-  proseAsDocument
+  proseAsDocument,
+  keys
 }: CommitViewProps) => {
   // Straight to the commit when it is already in hand. Going through loading
   // first would put a spinner between a click and a thing that was sitting in
@@ -139,6 +143,7 @@ export const CommitView = ({
           tree={tree}
           menu={menu}
           proseAsDocument={proseAsDocument}
+          keys={keys}
         />
       ) : (
         <div className="flex flex-1 items-center justify-center text-xs text-ink-muted">

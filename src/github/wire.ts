@@ -12,7 +12,8 @@ import { Schema } from "effect"
 
 const Author = Schema.Struct({
   login: Schema.String,
-  isAgent: Schema.optional(Schema.NullOr(Schema.Boolean))
+  isAgent: Schema.optional(Schema.NullOr(Schema.Boolean)),
+  avatarUrl: Schema.optional(Schema.NullOr(Schema.String))
 })
 
 const AutomatedComment = Schema.Struct({
@@ -27,6 +28,26 @@ const ThreadComment = Schema.Struct({
   automatedComment: Schema.optional(Schema.NullOr(AutomatedComment))
 })
 
+export const CreatedComment = Schema.Struct({
+  thread: Schema.Struct({
+    id: Schema.String,
+    isResolved: Schema.Boolean,
+    commentsData: Schema.Struct({
+      comments: Schema.Array(
+        Schema.Struct({
+          author: Schema.Struct({
+            login: Schema.String,
+            avatarUrl: Schema.optional(Schema.NullOr(Schema.String))
+          }),
+          body: Schema.String,
+          bodyHTML: Schema.String,
+          createdAt: Schema.String
+        })
+      )
+    })
+  })
+})
+
 const Thread = Schema.Struct({
   id: Schema.String,
   isResolved: Schema.Boolean,
@@ -35,9 +56,30 @@ const Thread = Schema.Struct({
   })
 })
 
+/**
+ * Where a file's review threads hang, keyed by the line they hang from.
+ *
+ * The key is a side and a line together — `R105` is line 105 of the new file,
+ * `L27` line 27 of the old — and `start` names the first line when the remark
+ * covers a range. This is the only place in the payload that says which file a
+ * thread belongs to: the threads themselves, over in `markers`, do not.
+ */
+const Markers = Schema.Record(
+  Schema.String,
+  Schema.Struct({
+    threads: Schema.Array(
+      Schema.Struct({
+        id: Schema.Number,
+        start: Schema.optional(Schema.NullOr(Schema.String))
+      })
+    )
+  })
+)
+
 const DiffSummary = Schema.Struct({
   path: Schema.String,
   pathDigest: Schema.String,
+  markersMap: Schema.optional(Markers),
   // REMOVED is what GitHub actually sends for a deleted file on this route.
   // DELETED is kept beside it because it is the name their GraphQL schema uses
   // for the same thing, and one of the two routes changing its mind is likelier
@@ -242,6 +284,73 @@ const MergeQueue = Schema.Struct({
   url: Schema.optional(Schema.NullOr(Schema.String))
 })
 
+/**
+ * GitHub's own verdict on each way of merging, which is not the same question
+ * as whether the Participant is allowed to merge.
+ *
+ * One entry per way in — `MERGE_QUEUE`, `DIRECT_MERGE`, `AUTO_MERGE` — each
+ * carrying `ALLOWED` or `BLOCKED` and the methods it would accept. A repository
+ * with a queue answers `MERGE_QUEUE: ALLOWED` and `DIRECT_MERGE: BLOCKED`, and
+ * a pull request that cannot go into that queue yet answers `BLOCKED` for both.
+ * It is the field their own button reads, and it says in one place what would
+ * otherwise be assembled from a permission flag and a pile of conditions.
+ */
+const MergeAction = Schema.Struct({
+  name: Schema.String,
+  allowableStatus: Schema.optional(Schema.NullOr(Schema.String))
+})
+
+/**
+ * The signed tokens GitHub's own page subscribes to for this merge box.
+ *
+ * One per topic, and null for the ones that do not apply — a repository
+ * without a queue has no queue channel. Only the ones this card would act on
+ * are named; the payload carries several more.
+ */
+const AliveChannels = Schema.Struct({
+  mergeQueueChannel: Schema.optional(Schema.NullOr(Schema.String)),
+  gitMergeStateChannel: Schema.optional(Schema.NullOr(Schema.String)),
+  reviewStateChannel: Schema.optional(Schema.NullOr(Schema.String))
+})
+
+/**
+ * One way of catching a branch up with its base, and GitHub's verdict on it.
+ *
+ * Shaped like a merge action, and read the same way: the name is what the
+ * write would send, and the reason is why it would be refused.
+ */
+const UpdateMethod = Schema.Struct({
+  name: Schema.String,
+  allowableStatus: Schema.optional(Schema.NullOr(Schema.String)),
+  isDefault: Schema.optional(Schema.NullOr(Schema.Boolean)),
+  failureReason: Schema.optional(Schema.NullOr(Schema.String))
+})
+
+/**
+ * A merge GitHub is holding until the pull request is allowed to take it.
+ *
+ * Present on a repository with a queue as well as one without: "merge when
+ * ready" and "enable auto-merge" are the same request, and this is what both
+ * leave behind.
+ */
+const AutoMergeRequest = Schema.Struct({
+  mergeMethod: Schema.optional(Schema.NullOr(Schema.String))
+})
+
+/**
+ * One rule inside a failed condition, which is where `bypassable` lives.
+ *
+ * GitHub reports whether a rule may be gone past per rule, not per condition,
+ * because a repository can have one ruleset an administrator may override and
+ * another nobody may.
+ */
+const RuleRollup = Schema.Struct({
+  result: Schema.String,
+  /** Which rule it is, e.g. `REQUIRED_STATUS_CHECKS`. */
+  ruleType: Schema.optional(Schema.NullOr(Schema.String)),
+  bypassable: Schema.optional(Schema.NullOr(Schema.Boolean))
+})
+
 export const MergeBoxRoute = Schema.Struct({
   pullRequest: Schema.Struct({
     latestOpinionatedReviews: Schema.Array(
@@ -259,7 +368,14 @@ export const MergeBoxRoute = Schema.Struct({
     isInMergeQueue: Schema.optional(Schema.NullOr(Schema.Boolean)),
     mergeQueue: Schema.optional(Schema.NullOr(MergeQueue)),
     mergeQueueEntry: Schema.optional(Schema.NullOr(MergeQueueEntry)),
-    viewerCanAddAndRemoveFromMergeQueue: Schema.optional(Schema.NullOr(Schema.Boolean))
+    viewerCanAddAndRemoveFromMergeQueue: Schema.optional(Schema.NullOr(Schema.Boolean)),
+    viewerMergeActions: Schema.optional(Schema.NullOr(Schema.Array(MergeAction))),
+    autoMergeRequest: Schema.optional(Schema.NullOr(AutoMergeRequest)),
+    mergeStateStatus: Schema.optional(Schema.NullOr(Schema.String)),
+    mergeBoxAliveChannels: Schema.optional(Schema.NullOr(AliveChannels)),
+    viewerUpdateMethods: Schema.optional(Schema.NullOr(Schema.Array(UpdateMethod))),
+    viewerCanDisableAutoMerge: Schema.optional(Schema.NullOr(Schema.Boolean)),
+    viewerCanAdminBypassMergeRequirements: Schema.optional(Schema.NullOr(Schema.Boolean))
   }),
   mergeRequirements: Schema.Struct({
     state: Schema.String,
@@ -267,7 +383,19 @@ export const MergeBoxRoute = Schema.Struct({
       Schema.Struct({
         displayName: Schema.String,
         description: Schema.String,
-        result: Schema.String
+        result: Schema.String,
+        /** GitHub's own name for the kind of condition, e.g. `PULL_REQUEST_RULES`. */
+        type: Schema.optional(Schema.NullOr(Schema.String)),
+        /**
+         * What GitHub decided, as against what the rule requires.
+         *
+         * `description` is fixed text belonging to the rule — "Pull request
+         * repository rules" — and reads identically on every pull request that
+         * ever failed it. This is the sentence naming the thing that is
+         * actually wrong, and it arrives as a fragment of HTML.
+         */
+        message: Schema.optional(Schema.NullOr(Schema.String)),
+        ruleRollups: Schema.optional(Schema.NullOr(Schema.Array(RuleRollup)))
       })
     )
   })

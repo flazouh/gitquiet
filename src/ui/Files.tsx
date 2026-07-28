@@ -10,12 +10,16 @@ import { createPortal } from "react-dom"
 import type { DiffHandle, Note as NoteAt, Picked } from "../diff/engine"
 import { loadDiffEngine, type DiffEngine } from "../diff/loadEngine"
 import { toPatch } from "../diff/toPatch"
-import type { ChangedFile, ChangeType, FileDiff } from "../domain/PullRequest"
+import type { ChangedFile, ChangeType, FileDiff, ReviewThread } from "../domain/PullRequest"
+import { DEFAULT_PROFILE, type Profile } from "../keys/commands"
 import type { DiffChoices, TreeChoices } from "../settings/apply"
+import { useKeys } from "./useKeys"
 import { draftKey, type Draft } from "./drafts"
 import { Note } from "./Note"
 import { ProseDiff } from "./ProseDiff"
 import { rowMarks, shortCount, type RowMark } from "./rowMarks"
+import { ThreadInDiff } from "./ThreadView"
+import { threadKey, threadNotes, threadsIn } from "./threads"
 import {
   MATERIAL_BY_EXTENSION,
   MATERIAL_BY_FILE_NAME,
@@ -114,6 +118,8 @@ export type FileTreePaneProps = {
   readonly seen?: ReadonlySet<string>
   /** How the reader has asked for the rail to be drawn. */
   readonly choices: TreeChoices
+  /** Whose keys open the filter. */
+  readonly keys?: Profile
 }
 
 /**
@@ -156,7 +162,8 @@ export const FileTreePane = ({
   selected,
   onSelect,
   seen = EMPTY,
-  choices
+  choices,
+  keys = DEFAULT_PROFILE
 }: FileTreePaneProps) => {
   const paths = useMemo(() => files.map((file) => file.path), [files])
   const gitStatus = useMemo(
@@ -220,6 +227,11 @@ export const FileTreePane = ({
 
   const { model } = useFileTree(options)
 
+  // The filter is the tree's own, in its shadow root, and nothing outside could
+  // reach it before. Bound only when the reader has the filter turned on: a key
+  // that silently does nothing is worse than one that was never mentioned.
+  useKeys(choices.search ? keys : "off", { search: () => model.openSearch() })
+
   // Rows are drawn once and left alone, so a file being marked off has to ask
   // for them again. Handing back the same icons is the only call in the tree's
   // API that redraws every row while leaving the selection, the scroll and what
@@ -274,6 +286,15 @@ export type FileDiffPaneProps = {
   readonly drafts?: ReadonlyArray<Draft>
   readonly onSaveDraft?: (draft: Draft) => void
   readonly onDropDraft?: (key: string) => void
+  /**
+   * Every review thread on the pull request. The ones hung off a line of this
+   * file are drawn against that line; the rest are the column's business.
+   */
+  readonly threads?: ReadonlyArray<ReviewThread>
+  /** Sends a remark to GitHub. Absent where nothing is wired up to. */
+  readonly onPost?: (note: { readonly from: number; readonly to: number; readonly body: string }) => Promise<void>
+  /** Whoever is writing, so the box is signed the way the remark will be. */
+  readonly viewer?: { readonly login: string; readonly faceUrl?: string }
 }
 
 /** Long enough that a cached answer or a quick one never flashes a message. */
@@ -289,7 +310,10 @@ export const FileDiffPane = ({
   choices,
   drafts = [],
   onSaveDraft,
-  onDropDraft
+  onDropDraft,
+  threads = [],
+  onPost,
+  viewer
 }: FileDiffPaneProps) => {
   const host = useRef<HTMLDivElement | null>(null)
   const [engine, setEngine] = useState<DiffEngine | null>(null)
@@ -358,22 +382,29 @@ export const FileDiffPane = ({
     }
   }, [])
 
-  // Every note that should be hanging in the diff: what has been written about
-  // this file, and the lines being written about right now.
+  // The threads GitHub already holds against lines of this file. Read here
+  // rather than passed in already filtered, so a caller cannot hand this file
+  // another file's remarks.
+  const hung = useMemo(() => threadsIn(threads, file.path), [threads, file.path])
+
+  // Every note that should be hanging in the diff: what has been said about
+  // this file, what has been written about it, and the lines being written
+  // about right now.
   const notes = useMemo((): ReadonlyArray<NoteAt> => {
+    const said = threadNotes(threads, file.path)
     const written = drafts.map((draft) => ({
       key: draftKey(draft),
       side: draft.side,
       line: draft.to
     }))
-    if (picked === null) return written
+    if (picked === null) return [...said, ...written]
 
     // Marking lines that already carry a draft opens that draft rather than a
     // second box beneath it.
     const at = draftKey({ path: file.path, ...picked })
-    if (written.some((note) => note.key === at)) return written
-    return [...written, { key: WRITING, side: picked.side, line: picked.to }]
-  }, [drafts, picked, file.path])
+    if (written.some((note) => note.key === at)) return [...said, ...written]
+    return [...said, ...written, { key: WRITING, side: picked.side, line: picked.to }]
+  }, [threads, drafts, picked, file.path])
 
   // One element per note, made here and kept: the renderer asks for a row's
   // contents while it is drawing, which is no time to be creating React roots,
@@ -448,9 +479,16 @@ export const FileDiffPane = ({
       {/* The rows live in the renderer's shadow DOM, under the lines they are
           about. React fills them from out here, so a comment box is a component
           like any other and keeps what is typed into it. */}
+      {hung.map(({ thread }) => {
+        const node = rows.current.get(threadKey(thread))
+        return node === undefined
+          ? null
+          : createPortal(<ThreadInDiff thread={thread} />, node, threadKey(thread))
+      })}
       {notes.map((note) => {
         const node = rows.current.get(note.key)
         if (node === undefined) return null
+        if (note.key.startsWith("thread:")) return null
 
         if (note.key === WRITING) {
           if (picked === null) return null
@@ -459,6 +497,15 @@ export const FileDiffPane = ({
               from={picked.from}
               to={picked.to}
               body=""
+              viewer={viewer}
+              onPost={
+                onPost === undefined
+                  ? undefined
+                  : async (body) => {
+                      await onPost({ ...picked, body })
+                      letGo()
+                    }
+              }
               onSave={(body) => {
                 onSaveDraft?.({ path: file.path, ...picked, body })
                 letGo()
@@ -477,6 +524,15 @@ export const FileDiffPane = ({
             from={draft.from}
             to={draft.to}
             body={draft.body}
+            viewer={viewer}
+            onPost={
+              onPost === undefined
+                ? undefined
+                : async (body) => {
+                    await onPost({ from: draft.from, to: draft.to, body })
+                    onDropDraft?.(note.key)
+                  }
+            }
             onSave={(body) => onSaveDraft?.({ ...draft, body })}
             onDiscard={() => onDropDraft?.(note.key)}
           />,

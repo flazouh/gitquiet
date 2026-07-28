@@ -15,7 +15,22 @@
 #githubpro-root {
   --duration-quick: 150ms;
   --duration-shimmer: 1.4s;
+  --duration-turn: 1s;
   --ease-linear: linear;
+}
+
+/* A check that is still running, turning at GitHub's own rate. Their spinner
+   wears `.anim-rotate`, which is `rotate-keyframes 1s linear infinite`; this is
+   the same second, under a name we own — so that the preference below can stop
+   it, which theirs does not. */
+#githubpro-root .t-rotate {
+  animation: t-rotate var(--duration-turn) var(--ease-linear) infinite;
+}
+
+@keyframes t-rotate {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* transitions.dev — shimmer text, tuned to Primer's own foreground colours so
@@ -50,6 +65,11 @@
     animation: none;
     background: none;
     color: var(--fgColor-muted);
+  }
+
+  /* Still, but not gone: the broken ring still reads as work in progress. */
+  #githubpro-root .t-rotate {
+    animation: none;
   }
 
   #githubpro-root *,

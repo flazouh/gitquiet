@@ -15,7 +15,7 @@ const SPRITE_ID = "githubpro-material-sprite"
  * is written in. So the heading brings its own, and brings it once: sixty
  * symbols parsed per open file would be sixty symbols parsed per click.
  */
-const mountSprite = (target: Document): void => {
+export const mountSprite = (target: Document): void => {
   if (target.getElementById(SPRITE_ID) !== null) return
 
   const holder = target.createElement("div")
@@ -23,7 +23,12 @@ const mountSprite = (target: Document): void => {
   holder.setAttribute("aria-hidden", "true")
   holder.style.display = "none"
   holder.innerHTML = MATERIAL_SPRITE
-  target.body.append(holder)
+  // Not `body`, which GitHub's streamed page does not always have by the time
+  // this runs — and a throw here happens inside React's commit, which unmounts
+  // the whole interface and leaves the reader an empty column. The symbols only
+  // have to be in the document for a `use` to resolve against them; where in it
+  // is nobody's business, since the holder is hidden either way.
+  ;(target.body ?? target.documentElement).append(holder)
 }
 
 /** The word for what happened, for the five cases that are not just an edit. */

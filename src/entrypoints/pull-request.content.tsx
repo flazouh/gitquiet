@@ -2,21 +2,32 @@ import { Effect, Option } from "effect"
 import { createRoot } from "react-dom/client"
 import { defineContentScript } from "wxt/utils/define-content-script"
 import {
+  cancelAutoMerge,
+  dequeuePullRequest,
+  enqueuePullRequest,
+  loadCheckLog,
+  loadCheckTail,
   loadCheckNotes,
   loadCommit,
   loadDiffs,
   loadPullRequest,
   mergePullRequest,
-  rememberedPullRequest
+  postReviewComment,
+  rememberedPullRequest,
+  updatePullRequestBranch
 } from "@/app/pullRequest"
 import { forgetIntent, intendedPath } from "@/app/intent"
-import type { Check } from "@/domain/PullRequest"
+import type { Check, NewComment } from "@/domain/PullRequest"
 import { fromPathname, type PullRequestRef } from "@/domain/PullRequestRef"
+import { listen, socketUrl } from "@/github/alive"
 import { layer as gatewayLayer } from "@/github/GitHubGateway"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import type { View } from "@/settings/Settings"
+import { browserSettings, rememberView, type Store } from "@/settings/store"
 import { PullRequestScreen } from "@/ui/PullRequestScreen"
 import { gate, interfaceContainer, reveal, takeOverSlotWhenReady, ungate } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
+import { offerOurPage } from "@/ui/theirTabs"
 import "@/ui/styles.css"
 
 /**
@@ -64,7 +75,32 @@ const ABANDON = 6_000
  */
 const GLANCE = 100
 
-const open = (reference: PullRequestRef, ahead = false): (() => void) => {
+/**
+ * How long to wait for the stored choice of page before assuming it is ours.
+ *
+ * The choice has to be read before anything is drawn, because drawing first
+ * and retreating on the answer would mean a reader who wants GitHub's page
+ * paying four requests to this extension on every pull request they open, for
+ * an interface they then never see.
+ *
+ * A read of extension storage is a few milliseconds, so this number is not a
+ * wait anybody experiences: it is what happens if storage never answers at
+ * all. Ours is the right thing to assume then — it is what all but a few
+ * readers have chosen, and the header has the way out of it.
+ */
+const CHOICE = 250
+
+const chosenView = (store: Store): Promise<View> =>
+  Promise.race([
+    store.read().then((settings) => settings.page.view),
+    new Promise<View>((wake) => setTimeout(() => wake("ours"), CHOICE))
+  ])
+
+const open = (
+  reference: PullRequestRef,
+  ahead = false,
+  onUseGitHub?: () => void
+): (() => void) => {
   // On a page load this changes nothing — the rule is already in force. On a
   // soft navigation it is the difference between arriving in our hand and
   // arriving in GitHub's and being replaced a moment later.
@@ -101,6 +137,23 @@ const open = (reference: PullRequestRef, ahead = false): (() => void) => {
   const readNotes = (check: Check) =>
     Effect.runPromise(loadCheckNotes(reference, check).pipe(Effect.provide(gatewayLayer)))
 
+  // The head commit is what the checks ran against, and what their logs are
+  // filed under; it is read from the snapshot rather than from the page, which
+  // may have been left open across a push.
+  const readLog = (check: Check, step: number) =>
+    reading.then(({ snapshot }) =>
+      Effect.runPromise(
+        loadCheckLog(reference, snapshot.headSha, check, step).pipe(Effect.provide(gatewayLayer))
+      )
+    )
+
+  const readTail = (check: Check, keep: number) =>
+    reading.then(({ snapshot }) =>
+      Effect.runPromise(
+        loadCheckTail(reference, snapshot.headSha, check, keep).pipe(Effect.provide(gatewayLayer))
+      )
+    )
+
   const merge = () =>
     Effect.runPromise(mergePullRequest(reference).pipe(Effect.provide(gatewayLayer))).catch(
       (error: unknown) => {
@@ -108,6 +161,90 @@ const open = (reference: PullRequestRef, ahead = false): (() => void) => {
         throw error
       }
     )
+
+  const enqueue = () =>
+    Effect.runPromise(enqueuePullRequest(reference).pipe(Effect.provide(gatewayLayer))).catch(
+      (error: unknown) => {
+        reportError(error)
+        throw error
+      }
+    )
+
+  const dequeue = () =>
+    Effect.runPromise(dequeuePullRequest(reference).pipe(Effect.provide(gatewayLayer))).catch(
+      (error: unknown) => {
+        reportError(error)
+        throw error
+      }
+    )
+
+  const cancel = () =>
+    Effect.runPromise(cancelAutoMerge(reference).pipe(Effect.provide(gatewayLayer))).catch(
+      (error: unknown) => {
+        reportError(error)
+        throw error
+      }
+    )
+
+  // How is GitHub's own verdict, read off the snapshot the card is showing:
+  // it says which of the two it would use, and a rebase it has already ruled
+  // out comes back refused.
+  const update = () =>
+    latest
+      .then(({ snapshot }) =>
+        Effect.runPromise(
+          updatePullRequestBranch(
+            reference,
+            Option.isSome(snapshot.merge.update) ? snapshot.merge.update.value.how : "MERGE"
+          ).pipe(Effect.provide(gatewayLayer))
+        )
+      )
+      .catch((error: unknown) => {
+        reportError(error)
+        throw error
+      })
+
+  // The read above was started before this function had anything to render
+  // into, so the first ask is given what is already in flight. Every ask after
+  // it is somebody saying the pull request has changed, and handing them that
+  // same settled promise would answer with the page they are trying to leave.
+  let started = false
+  // The newest answer, for the writes that need to know what they are acting
+  // on. Which way a branch is caught up is decided by the pull request as it
+  // is now, and after a re-read that is no longer the first read.
+  let latest = reading
+  const read = () => {
+    if (!started) {
+      started = true
+      return reading
+    }
+
+    latest = Effect.runPromise(loadPullRequest(reference).pipe(Effect.provide(gatewayLayer)))
+    return latest
+  }
+
+  const postComment = (note: NewComment) =>
+    Effect.runPromise(
+      postReviewComment(reference, note).pipe(Effect.provide(gatewayLayer))
+    ).catch((error: unknown) => {
+      reportError(error)
+      throw error
+    })
+
+  /**
+   * Listens on GitHub's own socket for the channels this pull request carries.
+   *
+   * The socket's address is signed per session and printed in their markup, so
+   * a page that has none — signed out, or a GitHub that stopped publishing it
+   * — simply is not listened to. Nothing else changes: the pull request is
+   * read on arrival and after every write either way.
+   */
+  const watch = (channels: ReadonlyArray<string>, onFire: () => void) => {
+    const url = socketUrl(document)
+    if (url === undefined) return () => {}
+
+    return listen({ open: () => new WebSocket(url), channels, onFire })
+  }
 
   // Assigned once there is a page to step aside from. Until then the button
   // that calls it cannot be on the screen, because nothing is.
@@ -124,14 +261,23 @@ const open = (reference: PullRequestRef, ahead = false): (() => void) => {
   root.render(
     <PullRequestScreen
       reference={reference}
-      load={() => reading}
+      load={read}
       preload={() => remembered}
       fetchDiffs={fetchDiffs}
       onStepAside={() => stepAside()}
+      onUseGitHub={onUseGitHub}
       loadCommit={readCommit}
       loadNotes={readNotes}
+      loadLog={readLog}
+      loadTail={readTail}
+      postComment={postComment}
+      watch={watch}
       actions={{
         merge,
+        enqueue,
+        dequeue,
+        cancel,
+        update,
         // Everything on the page describes a pull request that is now merged —
         // the checks, the merge card, GitHub's own header behind ours — and
         // reading it again is both simpler and more honest than patching a
@@ -198,14 +344,63 @@ export default defineContentScript({
 
     initialiseErrorReporting("content-script")
 
+    const store = browserSettings()
+
     let close = (): void => {}
+    /** Takes the way back off GitHub's tab row, when one is on it. */
+    let unoffer = (): void => {}
     /** The pull request drawn ahead of the address, if this is one. */
     let promised: string | null = null
     let abandoning: ReturnType<typeof setTimeout> | undefined
+    /**
+     * Whose page this reader wants. Assumed until storage answers, which it
+     * does before the first of these functions is called.
+     */
+    let view: View = "ours"
 
-    const show = (path: string, ahead = false): void => {
+    // Declared rather than assigned, because the three of them call each other
+    // in a ring — showing a page can hand it over, handing it over leaves the
+    // way back, and the way back shows a page — and a ring of consts is a ring
+    // of variables used before they exist.
+
+    /**
+     * Leaves GitHub to it, putting one control on their own tab row so this is
+     * a choice rather than a trapdoor.
+     *
+     * Not a reload. Their conversation was only ever hidden, so handing it back
+     * is lifting two attributes, and a reader who changes their mind twice in a
+     * row never waits for the network to agree with them.
+     */
+    function handOver(): void {
       close()
       close = () => {}
+      clearTimeout(abandoning)
+      promised = null
+      reveal(document)
+      ungate(document)
+      unoffer()
+      unoffer = offerOurPage(document, takeBack)
+    }
+
+    /** Pressed on GitHub's page: ours from here on, starting with this one. */
+    function takeBack(): void {
+      view = "ours"
+      void rememberView(store, "ours")
+      show(window.location.pathname)
+    }
+
+    /** Pressed in our header: theirs from here on, starting with this one. */
+    function useGitHub(): void {
+      view = "github"
+      void rememberView(store, "github")
+      handOver()
+    }
+
+    function show(path: string, ahead = false): void {
+      close()
+      close = () => {}
+      unoffer()
+      unoffer = () => {}
       clearTimeout(abandoning)
       promised = null
 
@@ -225,7 +420,14 @@ export default defineContentScript({
         return
       }
 
-      close = open(reference.value, ahead)
+      // Their page, because that is what was asked for last time. Nothing is
+      // read, nothing is drawn, and the gate comes off at once.
+      if (view === "github") {
+        handOver()
+        return
+      }
+
+      close = open(reference.value, ahead, useGitHub)
 
       if (!ahead) return
       promised = path
@@ -251,14 +453,21 @@ export default defineContentScript({
       show(path)
     })
 
-    // What the address says, or — while GitHub is still fetching and the
-    // address still names the page being left — what the reader pressed.
-    const here = window.location.pathname
-    const promise = intendedPath(window)
-    forgetIntent(window)
+    // Nothing is drawn until the choice is known, so that a reader who wants
+    // GitHub's page is not charged four requests for an interface they have
+    // already turned off.
+    void chosenView(store).then((chosen) => {
+      view = chosen
 
-    if (Option.isSome(fromPathname(here))) show(here)
-    else if (promise !== null && Option.isSome(fromPathname(promise))) show(promise, true)
-    else reveal(document)
+      // What the address says, or — while GitHub is still fetching and the
+      // address still names the page being left — what the reader pressed.
+      const here = window.location.pathname
+      const promise = intendedPath(window)
+      forgetIntent(window)
+
+      if (Option.isSome(fromPathname(here))) show(here)
+      else if (promise !== null && Option.isSome(fromPathname(promise))) show(promise, true)
+      else reveal(document)
+    })
   }
 })

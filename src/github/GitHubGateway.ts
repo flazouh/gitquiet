@@ -2,14 +2,18 @@ import { Context, Data, Effect, Layer, Option } from "effect"
 import type {
   Check,
   CheckNote,
+  LogLine,
   CommitDetail,
   FetchedDiff,
-  PullRequestSnapshot
+  NewComment,
+  PullRequestSnapshot,
+  ReviewThread
 } from "../domain/PullRequest"
 import type { PullRequestRef } from "../domain/PullRequestRef"
 import { checkRunIn, notesIn } from "./annotations"
+import { linesIn, tailOf } from "./logs"
 import { recall, remember } from "./cache"
-import { type RawPayloads, toCommit, toDiffs, toSnapshot } from "./snapshot"
+import { type RawPayloads, toCommit, toCreatedThread, toDiffs, toSnapshot } from "./snapshot"
 
 export type GatewayFailure = "unreachable" | "rejected" | "undecodable" | "not-recorded"
 
@@ -71,6 +75,31 @@ export class GitHubGateway extends Context.Service<
       check: Check
     ) => Effect.Effect<ReadonlyArray<CheckNote>, GatewayError>
     /**
+     * One step's log, for the note that points into it.
+     *
+     * A step at a time rather than the whole job: a job's log runs to
+     * megabytes and a step's to a few kilobytes, and a note names its step.
+     */
+    readonly log: (
+      reference: PullRequestRef,
+      sha: string,
+      check: Check,
+      step: number
+    ) => Effect.Effect<ReadonlyArray<LogLine>, GatewayError>
+    /**
+     * The end of a check's whole log, for a check that pointed at no line.
+     *
+     * A check that passed, and a check that failed without writing anything
+     * against itself, both leave the dialog with nothing to show. The end of
+     * the log is where both of them say what happened.
+     */
+    readonly tail: (
+      reference: PullRequestRef,
+      sha: string,
+      check: Check,
+      keep: number
+    ) => Effect.Effect<ReadonlyArray<LogLine>, GatewayError>
+    /**
      * One commit of the branch, with everything it changed.
      *
      * Read from the page GitHub serves for a commit rather than from the pull
@@ -88,9 +117,51 @@ export class GitHubGateway extends Context.Service<
      * whose failure a reader has to be told about: everything else can be
      * retried by looking again.
      */
+    /**
+     * Writes a comment against some lines, the way their own box does.
+     *
+     * Posted at once rather than held as part of a review: a remark typed into
+     * a diff is a remark meant to be read, and a batch that has to be submitted
+     * somewhere else is how comments end up sitting unsent for a day.
+     */
+    readonly comment: (
+      reference: PullRequestRef,
+      note: NewComment
+    ) => Effect.Effect<ReviewThread, GatewayError>
     readonly merge: (
       reference: PullRequestRef,
       method: MergeMethod
+    ) => Effect.Effect<void, GatewayError>
+    /**
+     * Puts it in the queue, on the repositories that land through one.
+     *
+     * Their own route for this is `enable_auto_merge`, which on a queue
+     * repository takes neither a merge method nor a commit message: `GROUP` or
+     * `SOLO`, and GitHub does the rest when this pull request's turn comes.
+     */
+    readonly enqueue: (
+      reference: PullRequestRef,
+      how: QueueMethod
+    ) => Effect.Effect<void, GatewayError>
+    /** Takes it back out of the queue, which is a route of its own. */
+    readonly dequeue: (reference: PullRequestRef) => Effect.Effect<void, GatewayError>
+    /**
+     * Calls off a merge GitHub is holding.
+     *
+     * Undoes {@link enqueue} on a repository with a queue and an ordinary
+     * auto-merge on one without, because to GitHub those were the same request.
+     */
+    readonly cancelAutoMerge: (reference: PullRequestRef) => Effect.Effect<void, GatewayError>
+    /**
+     * Brings the branch up to date with the one it would land on.
+     *
+     * `MERGE` puts the base into the branch and always works; `REBASE` rewrites
+     * the branch and often cannot. Which is asked for is GitHub's own verdict,
+     * read off the pull request, rather than a choice made here.
+     */
+    readonly updateBranch: (
+      reference: PullRequestRef,
+      how: UpdateMethod
     ) => Effect.Effect<void, GatewayError>
   }
 >()("GitHubGateway") {}
@@ -98,11 +169,28 @@ export class GitHubGateway extends Context.Service<
 /** The three ways GitHub will put a branch into another one. */
 export type MergeMethod = "MERGE" | "SQUASH" | "REBASE"
 
+/**
+ * The two ways into a merge queue.
+ *
+ * `GROUP` is what their own button sends: batched with whatever else is
+ * waiting. `SOLO` asks to be tested and merged alone, and is a separate
+ * permission.
+ */
+export type QueueMethod = "GROUP" | "SOLO"
+
+/** The two ways of catching a branch up with its base. */
+export type UpdateMethod = "MERGE" | "REBASE"
+
 const CHANGES = "/changes"
 const STATUS_CHECKS = "/page_data/status_checks"
 const MERGE_BOX = "/page_data/merge_box?merge_method=MERGE&bypass_requirements=false"
 const DESCRIPTION = "/page_data/description"
 const MERGE = "/page_data/merge"
+const COMMENT = "/page_data/create_review_comment"
+const ENQUEUE = "/page_data/enable_auto_merge"
+const DEQUEUE = "/page_data/dequeue_pull_request"
+const CANCEL_AUTO_MERGE = "/page_data/disable_auto_merge"
+const UPDATE_BRANCH = "/page_data/update_pull_request_branch"
 
 // GitHub answers 406 to these routes without the XMLHttpRequest header.
 const REQUIRED_HEADERS = {
@@ -168,6 +256,45 @@ const fetchRoute = Effect.fn("fetchRoute")(function* (
 })
 
 /**
+ * A write whose answer is only whether it worked.
+ *
+ * The queue routes return a sentence and nothing else, so there is nothing to
+ * decode and one thing to report: what GitHub said when it said no. Routes that
+ * hand back an object worth reading — a merge, a posted comment — keep their
+ * own bodies rather than pretending this shape fits them.
+ */
+const posting = Effect.fn("posting")(function* (
+  reference: PullRequestRef,
+  route: string,
+  body?: Readonly<Record<string, string>>
+) {
+  const url = `https://github.com/${reference.owner}/${reference.repo}/pull/${reference.number}${route}`
+
+  const response = yield* Effect.tryPromise({
+    try: (): Promise<Response> =>
+      fetch(url, {
+        method: "POST",
+        headers: WRITING_HEADERS,
+        credentials: "include",
+        ...(body === undefined ? {} : { body: JSON.stringify(body) })
+      }),
+    catch: (cause) =>
+      new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+  })
+
+  const said = yield* Effect.promise(() => response.text().catch(() => ""))
+
+  if (!response.ok) {
+    return yield* new GatewayError({
+      reference,
+      route,
+      reason: "rejected",
+      detail: reasonGiven(said) ?? `HTTP ${response.status}`
+    })
+  }
+})
+
+/**
  * The route their own Files tab uses for the diffs it was not given.
  *
  * The paths are encoded twice on purpose: the parameter is a comma-separated
@@ -225,6 +352,83 @@ export const layer = Layer.succeed(GitHubGateway, {
       )
     }),
 
+    comment: Effect.fn("GitHubGateway.comment")(function* (
+      reference: PullRequestRef,
+      note: NewComment
+    ) {
+      const url = `https://github.com/${reference.owner}/${reference.repo}/pull/${reference.number}${COMMENT}`
+      // Their own box sends the range twice — once flat, once inside the
+      // positioning it wants back — and refuses a body that carries only one
+      // of them. A single line is a range whose ends agree.
+      const range = note.startLine === note.line ? {} : { startLine: note.startLine, startSide: "right" }
+      const body = {
+        comparisonStartOid: note.baseSha,
+        comparisonEndOid: note.headSha,
+        text: note.body,
+        submitBatch: true,
+        path: note.path,
+        line: note.line,
+        side: "right",
+        subjectType: "line",
+        ...range,
+        positioning: {
+          type: "line",
+          baseCommitOid: note.baseSha,
+          headCommitOid: note.headSha,
+          commitOid: note.headSha,
+          path: note.path,
+          line: note.line,
+          ...range
+        }
+      }
+
+      const response = yield* Effect.tryPromise({
+        try: (): Promise<Response> =>
+          fetch(url, {
+            method: "POST",
+            headers: WRITING_HEADERS,
+            credentials: "include",
+            body: JSON.stringify(body)
+          }),
+        catch: (cause) =>
+          new GatewayError({
+            reference,
+            route: COMMENT,
+            reason: "unreachable",
+            detail: String(cause)
+          })
+      })
+
+      const said = yield* Effect.promise(() => response.text().catch(() => ""))
+
+      if (!response.ok) {
+        return yield* new GatewayError({
+          reference,
+          route: COMMENT,
+          reason: "rejected",
+          detail: reasonGiven(said) ?? `HTTP ${response.status}`
+        })
+      }
+
+      return yield* toCreatedThread(JSON.parse(said), {
+        path: note.path,
+        side: "after",
+        line: note.line,
+        startLine: note.startLine
+      }).pipe(
+        Effect.catch((cause) =>
+          Effect.fail(
+            new GatewayError({
+              reference,
+              route: COMMENT,
+              reason: "undecodable",
+              detail: String(cause)
+            })
+          )
+        )
+      )
+    }),
+
     merge: Effect.fn("GitHubGateway.merge")(function* (
       reference: PullRequestRef,
       method: MergeMethod
@@ -257,6 +461,34 @@ export const layer = Layer.succeed(GitHubGateway, {
           detail: reasonGiven(said) ?? `HTTP ${response.status}`
         })
       }
+    }),
+
+    enqueue: Effect.fn("GitHubGateway.enqueue")(function* (
+      reference: PullRequestRef,
+      how: QueueMethod
+    ) {
+      // Their own button sends `GROUP` here, in the field a repository without
+      // a queue uses for SQUASH or REBASE. The route is not fussy about it —
+      // a value it cannot read is ignored rather than refused, and the request
+      // succeeds having done something else — so nothing else goes in the body.
+      yield* posting(reference, ENQUEUE, { mergeMethod: how })
+    }),
+
+    dequeue: Effect.fn("GitHubGateway.dequeue")(function* (reference: PullRequestRef) {
+      yield* posting(reference, DEQUEUE)
+    }),
+
+    cancelAutoMerge: Effect.fn("GitHubGateway.cancelAutoMerge")(function* (
+      reference: PullRequestRef
+    ) {
+      yield* posting(reference, CANCEL_AUTO_MERGE)
+    }),
+
+    updateBranch: Effect.fn("GitHubGateway.updateBranch")(function* (
+      reference: PullRequestRef,
+      how: UpdateMethod
+    ) {
+      yield* posting(reference, UPDATE_BRANCH, { updateMethod: how })
     }),
 
     notes: Effect.fn("GitHubGateway.notes")(function* (reference: PullRequestRef, check: Check) {
@@ -294,6 +526,87 @@ export const layer = Layer.succeed(GitHubGateway, {
       })
 
       return notesIn(html)
+    }),
+
+    log: Effect.fn("GitHubGateway.log")(function* (
+      reference: PullRequestRef,
+      sha: string,
+      check: Check,
+      step: number
+    ) {
+      const run = checkRunIn(check)
+      if (run === undefined) return []
+
+      const route = `/checks/${run}/logs/${step}`
+      const url = `https://github.com/${reference.owner}/${reference.repo}/commit/${sha}${route}`
+
+      const response = yield* Effect.tryPromise({
+        try: (): Promise<Response> =>
+          // Credentials deliberately left at their default. This route answers
+          // with a redirect to the cloud storage the log actually lives in,
+          // which allows any origin to read it but not to send anything of its
+          // own: asking for cookies to be included makes that allowance void
+          // and the read fails outright. The default sends them to GitHub,
+          // which needs them, and drops them at the redirect, which does not.
+          fetch(url, { headers: { Accept: "text/plain" } }),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+      })
+
+      if (!response.ok) {
+        return yield* new GatewayError({
+          reference,
+          route,
+          reason: "rejected",
+          detail: `HTTP ${response.status}`
+        })
+      }
+
+      const log = yield* Effect.tryPromise({
+        try: (): Promise<string> => response.text(),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
+      })
+
+      return linesIn(log)
+    }),
+
+    tail: Effect.fn("GitHubGateway.tail")(function* (
+      reference: PullRequestRef,
+      sha: string,
+      check: Check,
+      keep: number
+    ) {
+      const run = checkRunIn(check)
+      if (run === undefined) return []
+
+      const route = `/checks/${run}/logs`
+      const url = `https://github.com/${reference.owner}/${reference.repo}/commit/${sha}${route}`
+
+      const response = yield* Effect.tryPromise({
+        try: (): Promise<Response> => fetch(url, { headers: { Accept: "text/plain" } }),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+      })
+
+      if (!response.ok || response.body === null) {
+        return yield* new GatewayError({
+          reference,
+          route,
+          reason: "rejected",
+          detail: `HTTP ${response.status}`
+        })
+      }
+
+      // Read in pieces and thrown away as it goes. A whole job's log has no
+      // upper bound worth trusting, and the end is the part being asked for.
+      const tail = yield* Effect.tryPromise({
+        try: () => tailOf(response.body as ReadableStream<Uint8Array>, keep),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
+      })
+
+      return linesIn(tail.text, tail.startAt)
     }),
 
     commit: Effect.fn("GitHubGateway.commit")(function* (reference: PullRequestRef, sha: string) {
@@ -401,7 +714,14 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     // A recording is the pull request's own routes, and the Checks tab is not
     // one of them: nothing was written against these checks here.
     notes: () => Effect.succeed([]),
-    merge: (reference: PullRequestRef) => Effect.fail(notRecorded(reference))
+    log: () => Effect.succeed([]),
+    tail: () => Effect.succeed([]),
+    comment: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    merge: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    enqueue: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    dequeue: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    cancelAutoMerge: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    updateBranch: (reference: PullRequestRef) => Effect.fail(notRecorded(reference))
   })
 
 /**
@@ -432,7 +752,14 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     },
     commit: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
     notes: () => Effect.succeed([]),
+    log: () => Effect.succeed([]),
+    tail: () => Effect.succeed([]),
     // Nothing to merge into: these snapshots are made up, and a test that wants
     // to watch a merge should say so with its own gateway.
-    merge: (reference: PullRequestRef) => Effect.fail(notRecorded(reference))
+    comment: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    merge: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    enqueue: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    dequeue: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    cancelAutoMerge: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    updateBranch: (reference: PullRequestRef) => Effect.fail(notRecorded(reference))
   })

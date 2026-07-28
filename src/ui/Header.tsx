@@ -1,4 +1,9 @@
-import { ArrowRightIcon, CopyIcon, LinkExternalIcon } from "@primer/octicons-react"
+import {
+  ArrowRightIcon,
+  ArrowSwitchIcon,
+  CopyIcon,
+  LinkExternalIcon
+} from "@primer/octicons-react"
 import { useState } from "react"
 import type { PullRequestSnapshot, PullRequestState } from "../domain/PullRequest"
 import { toUrl } from "../domain/PullRequestRef"
@@ -59,7 +64,17 @@ const Action = ({
  * surfaces, two strips: what it is called, and then the facts about it —
  * author, branches, size — on the recessed one, where the eye goes second.
  */
-export const Header = ({ snapshot }: { readonly snapshot: PullRequestSnapshot }) => {
+export const Header = ({
+  snapshot,
+  onUseGitHub
+}: {
+  readonly snapshot: PullRequestSnapshot
+  /**
+   * Hands the page back to GitHub and remembers that this is what was wanted.
+   * Absent in a test, and in any other place that has no page to hand back.
+   */
+  readonly onUseGitHub?: () => void
+}) => {
   const Art = pullRequestArt(snapshot.state)
   const added = snapshot.files.reduce((sum, file) => sum + file.linesAdded, 0)
   const deleted = snapshot.files.reduce((sum, file) => sum + file.linesDeleted, 0)
@@ -94,6 +109,15 @@ export const Header = ({ snapshot }: { readonly snapshot: PullRequestSnapshot })
           <LinkExternalIcon size={12} />
           GitHub
         </Action>
+        {/* Beside the link to GitHub rather than in the settings menu: this is
+            the one control that takes the interface away, and burying the exit
+            inside the thing being exited is how software earns a bad name. */}
+        {onUseGitHub === undefined ? null : (
+          <Action label="Read GitHub's own page instead" onClick={onUseGitHub}>
+            <ArrowSwitchIcon size={12} />
+            GitHub's page
+          </Action>
+        )}
       </div>
 
       <div className="flex items-center gap-2 border-t border-line bg-inset px-3 py-1.5 text-xs text-ink-muted">

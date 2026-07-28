@@ -76,10 +76,20 @@ export const createHighlighter = (options: {
   } as Parameters<typeof createHighlighterCore>[0])
 
 /**
- * The WASM engine, declined. It would pull Oniguruma's binary into the same
- * file as everything else, and the JavaScript engine highlights a diff quickly
- * enough that nobody has ever asked which one drew it.
+ * The WASM engine, declined — and not for its size.
+ *
+ * Oniguruma is the engine these grammars were written for and it highlights a
+ * file in a fraction of the time: measured on a 33-file pull request, 455ms of
+ * main-thread work per file opened became 96ms. It cannot be used here. GitHub
+ * serves `script-src github.githubassets.com`, a content script's isolated
+ * world is held to the page's policy for WebAssembly, and so every compile is
+ * refused — silently, inside the highlighter, leaving a diff that renders
+ * nothing at all. Declaring `wasm-unsafe-eval` in our own manifest does not
+ * change it: the policy that applies is theirs.
+ *
+ * A worker started from an extension URL is a different origin with a different
+ * policy, and is where this goes if the second is ever worth chasing.
  */
 export const createOnigurumaEngine = (): never => {
-  throw new Error("githubpro highlights with the JavaScript engine; WASM is not bundled")
+  throw new Error("githubpro highlights with the JavaScript engine; GitHub's CSP refuses WASM")
 }

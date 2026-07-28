@@ -12,7 +12,12 @@ export default defineConfig({
     name: "githubpro",
     description:
       "Replaces a pull request's conversation with a view organised by whose move it is.",
-    host_permissions: ["*://github.com/*"],
+    // `alive.github.com` is the socket GitHub's own page holds open to hear
+    // that something changed. A content script's requests are the extension's,
+    // not the page's, so listening on it has to be asked for by name.
+    // Written `https` rather than `wss`, which Chrome does not accept as a
+    // scheme here: permission to a host covers its websocket.
+    host_permissions: ["*://github.com/*", "https://alive.github.com/*"],
     // Display settings are kept in `storage.sync`, so a reader who chose
     // side-by-side diffs on one machine has them on the next. Without this the
     // API is simply absent in the content script, and choices last as long as

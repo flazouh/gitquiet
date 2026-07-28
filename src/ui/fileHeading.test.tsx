@@ -6,6 +6,7 @@ import type { ChangedFile } from "../domain/PullRequest"
 import { diffChoices, treeChoices } from "../settings/apply"
 import { DEFAULTS } from "../settings/Settings"
 import { FileBrowser } from "./FileBrowser"
+import { mountSprite } from "./FileHeading"
 
 afterEach(cleanup)
 
@@ -72,5 +73,19 @@ describe("naming the file above its diff", () => {
 
     expect(heading().textContent).toContain("README.md")
     expect(heading().textContent).not.toContain("/")
+  })
+
+  test("puts the symbols somewhere even on a page whose body has not arrived", () => {
+    // GitHub streams their page, and this extension is mounted as soon as the
+    // slot exists rather than at the end. Reaching for a body that is not there
+    // yet threw inside React's commit, which takes the whole interface down
+    // with it and leaves the reader an empty column.
+    const page = new DOMParser().parseFromString("<html><head></head><body></body></html>", "text/html")
+    page.documentElement.removeChild(page.body)
+    expect(page.body).toBeNull()
+
+    mountSprite(page)
+
+    expect(page.getElementById("githubpro-material-sprite")).not.toBeNull()
   })
 })

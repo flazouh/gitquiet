@@ -47,9 +47,25 @@
 
   /* Lines. This interface has borders again: GitHub separates with them
      everywhere, and a borderless island in the middle of their page reads as a
-     rendering fault rather than as restraint. */
-  --color-line: var(--borderColor-default);
-  --color-line-muted: var(--borderColor-muted);
+     rendering fault rather than as restraint.
+
+     One deliberate departure from Primer, and the reason for the blend below. A
+     1px border cannot cover a whole pixel where it curves, so a rounded corner
+     is painted at partial strength — and `--borderColor-default` is quiet
+     enough that the corners of every panel here faded out on a display without
+     a retina's worth of pixels to hide it in. GitHub's own boxes do the same
+     thing; theirs are small and sit on busy pages, ours are large and sit alone,
+     so what they get away with reads as a broken outline here. Mixing halfway
+     to their emphasised line lifts the faint part of the curve back into view
+     while keeping the straight runs calm, and because both ends of the mix are
+     the Participant's own theme, it still follows them into dark, dimmed and
+     high contrast. */
+  --color-line: color-mix(
+    in srgb,
+    var(--borderColor-default) 50%,
+    var(--borderColor-emphasis)
+  );
+  --color-line-muted: var(--borderColor-default);
   --color-line-accent: var(--borderColor-accent-emphasis);
 
   /* Type. Mona Sans is already loaded by the page, so this costs no bytes and
@@ -121,6 +137,29 @@
 :where(#githubpro-root) *::after {
   border-style: solid;
   border-width: 0;
+}
+
+/**
+ * Taking the colour of our own borders back from GitHub.
+ *
+ * Tailwind spells a 1px box as `border`, and so does Primer — except Primer's
+ * version is `border: 1px solid var(--borderColor-default) !important`, and it
+ * is on the page before this file is. Every panel in this interface carries
+ * that class name, so GitHub has been painting all of them: `--color-line`
+ * reached the dividers, which are `border-t`, and nothing else. The blend above
+ * changed no panel on screen until this rule existed, and any future change to
+ * the token would have gone the same quiet way.
+ *
+ * An `!important` declaration is only answerable by another one, so this is a
+ * rare place where the interface has to raise its voice. It says nothing new —
+ * only the colour the utility already asked for, loudly enough to be heard.
+ */
+#githubpro-root .border-line {
+  border-color: var(--color-line) !important;
+}
+
+#githubpro-root .border-line-muted {
+  border-color: var(--color-line-muted) !important;
 }
 
 /**
