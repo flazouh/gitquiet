@@ -377,28 +377,36 @@ export const MergeBoxRoute = Schema.Struct({
     viewerCanDisableAutoMerge: Schema.optional(Schema.NullOr(Schema.Boolean)),
     viewerCanAdminBypassMergeRequirements: Schema.optional(Schema.NullOr(Schema.Boolean))
   }),
-  mergeRequirements: Schema.Struct({
-    state: Schema.String,
-    conditions: Schema.Array(
-      Schema.Struct({
-        displayName: Schema.String,
-        description: Schema.String,
-        result: Schema.String,
-        /** GitHub's own name for the kind of condition, e.g. `PULL_REQUEST_RULES`. */
-        type: Schema.optional(Schema.NullOr(Schema.String)),
-        /**
-         * What GitHub decided, as against what the rule requires.
-         *
-         * `description` is fixed text belonging to the rule — "Pull request
-         * repository rules" — and reads identically on every pull request that
-         * ever failed it. This is the sentence naming the thing that is
-         * actually wrong, and it arrives as a fragment of HTML.
-         */
-        message: Schema.optional(Schema.NullOr(Schema.String)),
-        ruleRollups: Schema.optional(Schema.NullOr(Schema.Array(RuleRollup)))
-      })
-    )
-  })
+  /**
+   * Null once the pull request has landed, which is GitHub saying there is
+   * nothing left to require rather than that they forgot. Refusing the payload
+   * over it failed the whole read, and a failed read shows whatever was last
+   * remembered — a merged pull request still calling itself open.
+   */
+  mergeRequirements: Schema.NullOr(
+    Schema.Struct({
+      state: Schema.String,
+      conditions: Schema.Array(
+        Schema.Struct({
+          displayName: Schema.String,
+          description: Schema.String,
+          result: Schema.String,
+          /** GitHub's own name for the kind of condition, e.g. `PULL_REQUEST_RULES`. */
+          type: Schema.optional(Schema.NullOr(Schema.String)),
+          /**
+           * What GitHub decided, as against what the rule requires.
+           *
+           * `description` is fixed text belonging to the rule — "Pull request
+           * repository rules" — and reads identically on every pull request
+           * that ever failed it. This is the sentence naming the thing that is
+           * actually wrong, and it arrives as a fragment of HTML.
+           */
+          message: Schema.optional(Schema.NullOr(Schema.String)),
+          ruleRollups: Schema.optional(Schema.NullOr(Schema.Array(RuleRollup)))
+        })
+      )
+    })
+  )
 })
 
 export type MergeBoxRoute = typeof MergeBoxRoute["Type"]

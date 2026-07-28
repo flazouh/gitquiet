@@ -597,4 +597,23 @@ describe("a merged pull request that was approved", () => {
     expect(snapshot.checks).toHaveLength(70)
     expect(snapshot.checks.every((check) => check.state === "succeeded")).toBe(true)
   })
+
+  test("reads one GitHub has stopped saying anything about requirements for", async () => {
+    // What their route answers today for a pull request that has landed:
+    // `mergeRequirements: null`, because there is nothing left to require.
+    // Refusing that payload failed the whole read, and a failed read leaves
+    // whatever was last remembered on the screen — which is how a merged pull
+    // request goes on calling itself open.
+    const box = mergedWithApproval.mergeBox as { pullRequest: Record<string, unknown> }
+    const landed = {
+      ...mergedWithApproval,
+      mergeBox: { pullRequest: box.pullRequest, mergeRequirements: null }
+    }
+
+    const snapshot = await snapshotOf(merged, landed)
+
+    expect(snapshot.state).toBe("merged")
+    expect(snapshot.merge.isMergeable).toBe(false)
+    expect(snapshot.merge.blockers).toEqual([])
+  })
 })

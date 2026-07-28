@@ -220,13 +220,20 @@ const mergeState = (
         | null
         | undefined
     }>
-  },
+  } | null,
   queue: Option.Option<MergeQueue>,
   autoMerge: Option.Option<AutoMerge>,
   mayBypass: boolean,
   update: Option.Option<BranchUpdate>,
   channels: ReadonlyArray<string>
 ): MergeState => {
+  // Null once it has landed. Nothing is required of a pull request that is
+  // already in, and saying "not ready to merge" over one would be this reading
+  // an absence as a refusal.
+  if (requirements === null) {
+    return { isMergeable: false, blockers: [], queue, autoMerge, mayBypass, update, channels }
+  }
+
   const isMergeable =
     requirements.state === "MERGEABLE" || requirements.state === "MERGEABLE_IF_STATUSES_PASS"
   const failed = requirements.conditions

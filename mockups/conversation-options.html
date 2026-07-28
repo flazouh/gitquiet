@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Conversation panel — options</title>
+    <style>
+      /*
+       * GitHub's dark theme Primer primitives, the same names src/ui/primer.css
+       * reads off the live page. Hardcoded here only because this file is opened
+       * on its own rather than injected into a pull request.
+       */
+      :root {
+        --bgColor-default: #0d1117;
+        --bgColor-muted: #151b23;
+        --bgColor-inset: #010409;
+        --fgColor-default: #f0f6fc;
+        --fgColor-muted: #9198a1;
+        --fgColor-accent: #4493f8;
+        --fgColor-success: #3fb950;
+        --fgColor-danger: #f85149;
+        --fgColor-onEmphasis: #ffffff;
+        --bgColor-success-emphasis: #238636;
+        --borderColor-default: #3d444d;
+        --borderColor-muted: #3d444db3;
+
+        --canvas: var(--bgColor-default);
+        --surface: var(--bgColor-muted);
+        --inset: var(--bgColor-inset);
+        --ink: var(--fgColor-default);
+        --ink-muted: var(--fgColor-muted);
+        --line: var(--borderColor-default);
+        --line-muted: var(--borderColor-muted);
+
+        /* Tailwind --spacing: 0.25rem, so px-3 = 12px, py-2 = 8px, gap-2 = 8px. */
+        --sp: 4px;
+      }
+
+      * {
+        box-sizing: border-box;
+        border: 0 solid var(--line);
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background: #010409;
+        color: var(--ink);
+        font-family: "Mona Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          "Noto Sans", Helvetica, Arial, sans-serif;
+        font-size: 14px;
+        padding: 32px;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 40px 32px;
+        align-items: flex-start;
+      }
+
+      .plate {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .plate > .caption {
+        font-size: 12px;
+        color: var(--ink-muted);
+        max-width: 416px;
+        line-height: 1.5;
+      }
+
+      .plate > .tag {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--fgColor-accent);
+      }
+
+      .plate > .tag.now { color: var(--ink-muted); }
+      .plate > .tag.shipped { color: var(--fgColor-success); }
+
+      /* The column the panel actually lives in: w-[26rem]. */
+      .column {
+        width: 416px;
+        background: var(--canvas);
+        padding: 6px;
+      }
+
+      /* Section: rounded-md border border-line */
+      .section {
+        border-radius: 6px;
+        border: 1px solid var(--line);
+        overflow: hidden;
+        background: var(--canvas);
+      }
+
+      /* Section header: flex items-center gap-2 border-b px-3 py-2 bg-surface */
+      .section > header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 1px solid var(--line);
+        background: var(--surface);
+        padding: 8px 12px;
+      }
+
+      .section > header h2 {
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.3333;
+      }
+
+      .section > header .summary {
+        min-width: 0;
+        flex: 1;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-size: 12px;
+        color: var(--ink-muted);
+      }
+
+      /* Thread row: border-b border-line-muted, summary px-3 py-2 gap-2 */
+      .thread {
+        border-bottom: 1px solid var(--line-muted);
+      }
+      .thread:last-child { border-bottom: 0; }
+
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        cursor: pointer;
+      }
+      .row:hover { background: #656c7633; }
+
+      .chev {
+        flex-shrink: 0;
+        color: var(--ink-muted);
+      }
+      .chev.open { transform: rotate(90deg); }
+
+      /* The old treatment: a login, text-xs font-semibold shrink-0 */
+      .login {
+        flex-shrink: 0;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.3333;
+      }
+
+      /* The new treatment: overlapped faces */
+      .faces {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+      }
+      .faces > span {
+        margin-left: -6px;
+        border-radius: 9999px;
+        box-shadow: 0 0 0 2px var(--canvas);
+      }
+      .faces > span:first-child { margin-left: 0; }
+      .faces .more {
+        padding-left: 4px;
+        font-size: 12px;
+        color: var(--ink-muted);
+        font-variant-numeric: tabular-nums;
+        box-shadow: none;
+        margin-left: 0;
+      }
+
+      /* Who: 16px circle, letter fallback at 9px */
+      .face {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border-radius: 9999px;
+        background: var(--surface);
+        color: var(--ink-muted);
+        font-size: 9px;
+        font-weight: 600;
+        text-transform: uppercase;
+        width: 16px;
+        height: 16px;
+      }
+      .face img { width: 16px; height: 16px; display: block; }
+
+      .said {
+        min-width: 0;
+        flex: 1;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-size: 12px;
+        color: var(--ink-muted);
+        line-height: 1.3333;
+      }
+
+      .count {
+        flex-shrink: 0;
+        font-size: 12px;
+        color: var(--ink-muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* An opened thread: divide-y, article px-3 py-2.5 gap-1.5 */
+      .comments {
+        border-top: 1px solid var(--line-muted);
+      }
+      .comment {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 10px 12px;
+        border-top: 1px solid var(--line-muted);
+      }
+      .comment:first-child { border-top: 0; }
+      .comment .who {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--ink-muted);
+      }
+      .comment .body {
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--ink);
+      }
+
+      .label {
+        border: 1px solid var(--line);
+        border-radius: 2em;
+        padding: 0 7px;
+        font-size: 11px;
+        font-weight: 500;
+        line-height: 18px;
+        color: var(--ink-muted);
+      }
+
+      /* The folded "resolved" line, same shape as Checks' "24 passed" */
+      .folded {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        font-size: 12px;
+        color: var(--ink-muted);
+        border-top: 1px solid var(--line-muted);
+        cursor: pointer;
+      }
+      .folded:hover { background: #656c7633; }
+
+      .resolved-row .said,
+      .resolved-row .count { opacity: 0.55; }
+
+      /* Merge card bits */
+      .merge-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+      }
+      .btn-primary {
+        border-radius: 6px;
+        background: var(--bgColor-success-emphasis);
+        color: var(--fgColor-onEmphasis);
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .btn-quiet {
+        margin-left: auto;
+        border-radius: 6px;
+        background: var(--surface);
+        color: var(--fgColor-danger);
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .approval {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        font-size: 12px;
+        color: var(--ink-muted);
+        border-bottom: 1px solid var(--line-muted);
+      }
+      .approval .name { color: var(--ink); font-weight: 600; }
+      .tick { color: var(--fgColor-success); flex-shrink: 0; }
+
+      /* Inline-in-the-diff mock */
+      .diff {
+        width: 560px;
+        border-radius: 6px;
+        border: 1px solid var(--line);
+        overflow: hidden;
+        background: var(--canvas);
+      }
+      .diff .file {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 1px solid var(--line);
+        background: var(--surface);
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .code {
+        display: flex;
+        gap: 12px;
+        padding: 0 12px;
+        font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .code .n {
+        width: 3.5ch;
+        flex-shrink: 0;
+        text-align: right;
+        color: #6e7681;
+        user-select: none;
+      }
+      .code.add { background: #12261e; }
+      .code.add .t { color: var(--ink); }
+      .inline-thread {
+        margin: 6px 12px 6px 44px;
+        border-radius: 6px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+      }
+      .inline-thread .comment { border-top: 1px solid var(--line-muted); }
+      .inline-thread .comment:first-child { border-top: 0; }
+      .reply {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-top: 1px solid var(--line-muted);
+        font-size: 12px;
+        color: var(--ink-muted);
+      }
+      .reply .box {
+        flex: 1;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 5px 8px;
+        background: var(--canvas);
+      }
+
+      h1 {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+      .lede {
+        font-size: 13px;
+        color: var(--ink-muted);
+        margin-bottom: 28px;
+        max-width: 900px;
+        line-height: 1.6;
+      }
+      .rule {
+        width: 100%;
+        height: 1px;
+        background: var(--line);
+        margin: 8px 0 28px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Conversation panel — what exists, what shipped, what's proposed</h1>
+    <p class="lede">
+      Rendered at the real column width (416px) with GitHub's dark-theme Primer
+      values and the same paddings, type sizes and radii as
+      <code>src/ui/Sections.tsx</code>. Avatars and logins are real
+      (microsoft/vscode #327442); the remark text is illustrative.
+    </p>
+    <div class="rule"></div>
+
+    <div class="grid">
+      <!-- A ─ before -->
+      <div class="plate">
+        <div class="tag now">A · before</div>
+        <div class="column">
+          <div class="section">
+            <header><h2>Conversation</h2></header>
+            <div class="thread">
+              <div class="row">
+                <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4.7 10c-.2 0-.4-.1-.5-.2-.3-.3-.3-.8 0-1.1L6.9 6 4.2 3.3c-.3-.3-.3-.8 0-1.1.3-.3.8-.3 1.1 0l3.3 3.2c.3.3.3.8 0 1.1L5.3 9.7c-.2.2-.4.3-.6.3Z"/></svg>
+                <span class="login">Copilot</span>
+                <span class="said">Consider extracting this into a helper</span>
+                <span class="count">2</span>
+              </div>
+            </div>
+            <div class="thread">
+              <div class="row">
+                <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4.7 10c-.2 0-.4-.1-.5-.2-.3-.3-.3-.8 0-1.1L6.9 6 4.2 3.3c-.3-.3-.3-.8 0-1.1.3-.3.8-.3 1.1 0l3.3 3.2c.3.3.3.8 0 1.1L5.3 9.7c-.2.2-.4.3-.6.3Z"/></svg>
+                <span class="login">romalpani</span>
+                <span class="said">this breaks when the list is empty</span>
+                <span class="count">4</span>
+              </div>
+            </div>
+            <div class="thread">
+              <div class="row">
+                <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4.7 10c-.2 0-.4-.1-.5-.2-.3-.3-.3-.8 0-1.1L6.9 6 4.2 3.3c-.3-.3-.3-.8 0-1.1.3-.3.8-.3 1.1 0l3.3 3.2c.3.3.3.8 0 1.1L5.3 9.7c-.2.2-.4.3-.6.3Z"/></svg>
+                <span class="login">vijayupadya</span>
+                <span class="said">nit: spacing here is off by one</span>
+                <span class="count">1</span>
+              </div>
+            </div>
+            <div class="thread">
+              <div class="row">
+                <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4.7 10c-.2 0-.4-.1-.5-.2-.3-.3-.3-.8 0-1.1L6.9 6 4.2 3.3c-.3-.3-.3-.8 0-1.1.3-.3.8-.3 1.1 0l3.3 3.2c.3.3.3.8 0 1.1L5.3 9.7c-.2.2-.4.3-.6.3Z"/></svg>
+                <span class="login">Copilot</span>
+                <span class="said">This variable name could be clearer</span>
+                <span class="count">1</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="caption">
+          The login eats 60–110px before the remark starts, and the remarks are
+          left-ragged because every name is a different length. No summary in
+          the header. Resolved threads look identical to open ones.
+        </p>
+      </div>
+
+      <!-- B ─ shipped -->
+      <div class="plate">
+        <div class="tag shipped">B · shipped today</div>
+        <div class="column">
+          <div class="section">
+            <header><h2>Conversation</h2></header>
+            <div class="thread">
+              <div class="row">
+                <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4.7 10c-.2 0-.4-.1-.5-.2-.3-.3-.3-.8 0-1.1L6.9 6 4.2 3.3c-.3-.3-.3-.8 0-1.1.3-.3.8-.3 1.1 0l3.3 3.2c.3.3.3.8 0 1.1L5.3 9.7c-.2.2-.4.3-.6.3Z"/></svg>
+                <span class="faces">
+                  <span><span class="face" title="Copilot"><img src="https://avatars.githubusercontent.com/in/946600?v=4" alt="" onerror="this.replaceWith(document.createTextNode('C'))" /></span></span>
+                  <span><span class="face" title="romalpani"><img src="https://avatars.githubusercontent.com/u/48927690?v=4" alt="" onerror="this.replaceWith(document.createTextNode('R'))" /></span></span>
+                </span>
+                <span class="said">Consider extracting this into a helper</span>
+                <span class="count">2</span>
+              </div>
+            </div>
+            <div class="thread">
+              <div class="row">
+                <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4.7 10c-.2 0-.4-.1-.5-.2-.3-.3-.3-.8 0-1.1L6.9 6 4.2 3.3c-.3-.3-.3-.8 0-1.1.3-.3.8-.3 1.1 0l3.3 3.2c.3.3.3.8 0 1.1L5.3 9.7c-.2.2-.4.3-.6.3Z"/></svg>
+                <span class="faces">
+                  <span><span class="face" title="romalpani"><img src="https://avatars.githubusercontent.com/u/48927690?v=4" alt="" onerror="this.replaceWith(document.createTextNode('R'))" /></span></span>
+                  <span><span class="face" title="vijayupadya"><img src="https://avatars.githubusercontent.com/u/41652029?v=4" alt="" onerror="this.replaceWith(document.createTextNode('V'))" /></span></span>
+                  <span><span class="face" title="Copilot"><img src="https://avatars.githubusercontent.com/in/946600?v=4" alt="" onerror="this.replaceWith(document.createTextNode('C'))" /></span></span>
+                  <span class="more">+2</span>
+                </span>
+                <span class="said">this breaks when the list is empty</span>
+                <span class="count">6</span>
+              </div>
+            </div>
+            <div class="thread">
+              <div class="row">
+                <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4.7 10c-.2 0-.4-.1-.5-.2-.3-.3-.3-.8 0-1.1L6.9 6 4.2 3.3c-.3-.3-.3-.8 0-1.1.3-.3.8-.3 1.1 0l3.3 3.2c.3.3.3.8 0 1.1L5.3 9.7c-.2.2-.4.3-.6.3Z"/></svg>
+                <span class="faces">
+                  <span><span class="face" title="vijayupadya"><img src="https://avatars.githubusercontent.com/u/41652029?v=4" alt="" onerror="this.replaceWith(document.createTextNode('V'))" /></span></span>
+                </span>
+                <span class="said">nit: spacing here is off by one</span>
+                <span class="count">1</span>
+              </div>
+            </div>
+            <div class="thread">
+              <div class="row">
+                <svg class="chev open" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4.7 10c-.2 0-.4-.1-.5-.2-.3-.3-.3-.8 0-1.1L6.9 6 4.2 3.3c-.3-.3-.3-.8 0-1.1.3-.3.8-.3 1.1 0l3.3 3.2c.3.3.3.8 0 1.1L5.3 9.7c-.2.2-.4.3-.6.3Z"/></svg>
+                <span class="faces">
+                  <span><span class="face" title="Copilot"><img src="https://avatars.githubusercontent.com/in/946600?v=4" alt="" onerror="this.replaceWith(document.createTextNode('C'))" /></span></span>
+                </span>
+                <span class="said">This variable name could be clearer</span>
+                <span class="count">1</span>
+              </div>
+              <div class="comments">
+                <div class="comment">
+                  <div class="who">
+                    <span class="face" title="Copilot"><img src="https://avatars.githubusercontent.com/in/946600?v=4" alt="" onerror="this.replaceWith(document.createTextNode('C'))" /></span>
+                    <span class="label">bot</span>
+                    <span title="25 Jul 2026, 09:14">3d ago</span>
+                  </div>
+                  <div class="body">This variable name could be clearer — <code>x</code> holds the resolved diff, so <code>resolved</code> would read better at the call site.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="caption">
+          Faces replace logins: ~28px instead of ~110px, every speaker shown
+          rather than only the first, remarks start on one clean left edge.
+          Opened comments show a face, the bot label and a relative age.
+        </p>
+      </div>
+
+      <!-- C ─ option 1 -->
+      <div class="plate">
+        <div class="tag">C · option 1 — fold the resolved away</div>
+        <div class="column">
+          <div class="section">
+            <header>
+              <h2>Conversation</h2>
+              <span class="summary">2 open, 6 resolved</span>
+            </header>
+            <div class="thread">
+              <div class="row">
+                <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4.7 10c-.2 0-.4-.1-.5-.2-.3-.3-.3-.8 0-1.1L6.9 6 4.2 3.3c-.3-.3-.3-.8 0-1.1.3-.3.8-.3 1.1 0l3.3 3.2c.3.3.3.8 0 1.1L5.3 9.7c-.2.2-.4.3-.6.3Z"/></svg>
+                <span class="faces">
+                  <span><span class="face" title="romalpani"><img src="https://avatars.githubusercontent.com/u/48927690?v=4" alt="" onerror="this.replaceWith(document.createTextNode('R'))" /></span></span>
+                  <span><span class="face" title="vijayupadya"><img src="https://avatars.githubusercontent.com/u/41652029?v=4" alt="" onerror="this.replaceWith(document.createTextNode('V'))" /></span></span>
+                </span>
+                <span class="said">this breaks when the list is empty</span>
+                <span class="count">6</span>
+              </div>
+            </div>
+            <div class="thread">
+              <div class="row">
+                <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4.7 10c-.2 0-.4-.1-.5-.2-.3-.3-.3-.8 0-1.1L6.9 6 4.2 3.3c-.3-.3-.3-.8 0-1.1.3-.3.8-.3 1.1 0l3.3 3.2c.3.3.3.8 0 1.1L5.3 9.7c-.2.2-.4.3-.6.3Z"/></svg>
+                <span class="faces">
+                  <span><span class="face" title="Copilot"><img src="https://avatars.githubusercontent.com/in/946600?v=4" alt="" onerror="this.replaceWith(document.createTextNode('C'))" /></span></span>
+                </span>
+                <span class="said">Consider extracting this into a helper</span>
+                <span class="count">2</span>
+              </div>
+            </div>
+            <div class="folded">
+              <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4.7 10c-.2 0-.4-.1-.5-.2-.3-.3-.3-.8 0-1.1L6.9 6 4.2 3.3c-.3-.3-.3-.8 0-1.1.3-.3.8-.3 1.1 0l3.3 3.2c.3.3.3.8 0 1.1L5.3 9.7c-.2.2-.4.3-.6.3Z"/></svg>
+              6 resolved
+            </div>
+          </div>
+        </div>
+        <p class="caption">
+          Same move the Checks panel already makes with "24 passed". Header gains
+          a summary. Eight rows become two plus one line, and what's left is
+          exactly what still needs an answer. Uses <code>thread.isResolved</code>,
+          which is already decoded and currently ignored. ~30 min.
+        </p>
+      </div>
+
+      <!-- C alt ─ dimmed instead of folded -->
+      <div class="plate">
+        <div class="tag">C-alt · option 1, dimmed instead of hidden</div>
+        <div class="column">
+          <div class="section">
+            <header>
+              <h2>Conversation</h2>
+              <span class="summary">2 open, 2 resolved</span>
+            </header>
+            <div class="thread">
+              <div class="row">
+                <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4.7 10c-.2 0-.4-.1-.5-.2-.3-.3-.3-.8 0-1.1L6.9 6 4.2 3.3c-.3-.3-.3-.8 0-1.1.3-.3.8-.3 1.1 0l3.3 3.2c.3.3.3.8 0 1.1L5.3 9.7c-.2.2-.4.3-.6.3Z"/></svg>
+                <span class="faces">
+                  <span><span class="face" title="romalpani"><img src="https://avatars.githubusercontent.com/u/48927690?v=4" alt="" onerror="this.replaceWith(document.createTextNode('R'))" /></span></span>
+                  <span><span class="face" title="vijayupadya"><img src="https://avatars.githubusercontent.com/u/41652029?v=4" alt="" onerror="this.replaceWith(document.createTextNode('V'))" /></span></span>
+                </span>
+                <span class="said">this breaks when the list is empty</span>
+                <span class="count">6</span>
+              </div>
+            </div>
+            <div class="thread">
+              <div class="row">
+                <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M4.7 10c-.2 0-.4-.1-.5-.2-.3-.3-.3-.8 0-1.1L6.9 6 4.2 3.3c-.3-.3-.3-.8 0-1.1.3-.3.8-.3 1.1 0l3.3 3.2c.3.3.3.8 0 1.1L5.3 9.7c-.2.2-.4.3-.6.3Z"/></svg>
+                <span class="faces">
+                  <span><span class="face" title="Copilot"><img src="https://avatars.githubusercontent.com/in/946600?v=4" alt="" onerror="this.replaceWith(document.createTextNode('C'))" /></span></span>
+                </span>
+                <span class="said">Consider extracting this into a helper</span>
+                <span class="count">2</span>
+              </div>
+            </div>
+            <div class="thread resolved-row">
+              <div class="row">
+                <svg class="tick" width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+                <span class="faces">
+                  <span><span class="face" title="vijayupadya"><img src="https://avatars.githubusercontent.com/u/41652029?v=4" alt="" onerror="this.replaceWith(document.createTextNode('V'))" /></span></span>
+                </span>
+                <span class="said">nit: spacing here is off by one</span>
+                <span class="count">1</span>
+              </div>
+            </div>
+            <div class="thread resolved-row">
+              <div class="row">
+                <svg class="tick" width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+                <span class="faces">
+                  <span><span class="face" title="Copilot"><img src="https://avatars.githubusercontent.com/in/946600?v=4" alt="" onerror="this.replaceWith(document.createTextNode('C'))" /></span></span>
+                </span>
+                <span class="said">This variable name could be clearer</span>
+                <span class="count">1</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="caption">
+          The softer version: resolved threads stay visible but swap the chevron
+          for a green tick and drop to 55% opacity. Keeps them scannable at the
+          cost of the rows they occupy. Pick this if you re-read settled threads
+          often; pick C if you never do.
+        </p>
+      </div>
+
+      <!-- D ─ option 2 -->
+      <div class="plate">
+        <div class="tag">D · option 2 — show the review verdict</div>
+        <div class="column">
+          <div class="section">
+            <header>
+              <h2>Merge</h2>
+              <span class="summary">ready to merge</span>
+            </header>
+            <div class="approval">
+              <svg class="tick" width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>
+              <span class="face" title="vijayupadya"><img src="https://avatars.githubusercontent.com/u/41652029?v=4" alt="" onerror="this.replaceWith(document.createTextNode('V'))" /></span>
+              <span><span class="name">vijayupadya</span> approved</span>
+            </div>
+            <div class="merge-actions">
+              <span class="btn-primary">Squash and merge</span>
+              <span class="btn-quiet">Close pull request</span>
+            </div>
+          </div>
+        </div>
+        <p class="caption">
+          One row, currently absent entirely. <code>snapshot.reviews</code> is
+          decoded from GitHub and rendered nowhere, so the interface cannot today
+          answer "is this approved". Real data:
+          <code>{ reviewer: "vijayupadya", decision: "approved" }</code>. ~45 min.
+        </p>
+      </div>
+
+      <!-- E ─ option 3 -->
+      <div class="plate">
+        <div class="tag">E · option 3 — threads at their line</div>
+        <div class="diff">
+          <div class="file">src/vs/workbench/contrib/agents/diffView.ts</div>
+          <div class="code"><span class="n">40</span><span class="t">  const entries = await readDiff(sha)</span></div>
+          <div class="code add"><span class="n">41</span><span class="t">+ const x = compute(entries)</span></div>
+          <div class="code add"><span class="n">42</span><span class="t">+ return x.value</span></div>
+          <div class="inline-thread">
+            <div class="comment">
+              <div class="who">
+                <span class="face" title="romalpani"><img src="https://avatars.githubusercontent.com/u/48927690?v=4" alt="" onerror="this.replaceWith(document.createTextNode('R'))" /></span>
+                <span title="25 Jul 2026, 09:14">3d ago</span>
+              </div>
+              <div class="body">this breaks when the list is empty — <code>compute</code> returns undefined and <code>.value</code> throws.</div>
+            </div>
+            <div class="comment">
+              <div class="who">
+                <span class="face" title="vijayupadya"><img src="https://avatars.githubusercontent.com/u/41652029?v=4" alt="" onerror="this.replaceWith(document.createTextNode('V'))" /></span>
+                <span title="26 Jul 2026, 11:02">2d ago</span>
+              </div>
+              <div class="body">Good catch. Guarding it now.</div>
+            </div>
+            <div class="reply">
+              <span class="face" title="flazouh">F</span>
+              <span class="box">Reply…</span>
+            </div>
+          </div>
+          <div class="code"><span class="n">43</span><span class="t">}</span></div>
+        </div>
+        <p class="caption">
+          The remark sits on the line it is about, so nothing has to be carried
+          across the screen. Every thread already says
+          <code>"subjectType": "LINE"</code> and <code>viewerCanReply: true</code>,
+          so the reply box is feasible too — but this payload does not carry the
+          file path, so locating the thread needs investigation first. Days, not
+          hours.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
