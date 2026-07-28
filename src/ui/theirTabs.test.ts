@@ -34,6 +34,30 @@ const githubPage = (tabs = TABS): Document => {
   return page
 }
 
+/**
+ * A commit's own page, which has no tab row at all: what it has above the diff
+ * is a header with one action in it, the link off to the tree at this commit.
+ */
+const commitPage = (header = COMMIT_HEADER): Document => {
+  const page = document.implementation.createHTMLDocument("github")
+  page.body.innerHTML = `
+    <div id="repo-content-pjax-container">
+      <react-app app-name="commits">
+        <header class="prc-PageLayout-Header-0of-R">${header}</header>
+      </react-app>
+    </div>`
+  return page
+}
+
+const COMMIT_HEADER = `
+  <div class="CommitHeader-module__commitHeader--pnHqO">
+    <h2>Commit 523d785</h2>
+    <div class="d-flex">
+      <a class="prc-Button-ButtonBase-9n-Xk CommitHeader-module__browseFiles--f8Hcv"
+         href="/o/r/tree/523d785">Browse files</a>
+    </div>
+  </div>`
+
 const switchIn = (page: Document) => page.getElementById(SWITCH_ID)
 const rowIn = (page: Document) => page.querySelector('[aria-label="Pull request navigation tabs"]')
 const stripIn = (page: Document) => page.querySelector('[class*="TabNavTabList"]')!
@@ -157,6 +181,53 @@ describe("the way back to our page, on GitHub's own tab row", () => {
     }
     await settle()
 
+    expect(page.querySelectorAll(`#${SWITCH_ID}`).length).toBe(1)
+  })
+
+  test("stands beside the one action a commit's page has, there being no tabs", () => {
+    // Pressing "GitHub's page" on a commit wrote down a choice that holds for
+    // every commit after it, and their page has no tab row to offer the way
+    // back on. Without this the only way out was to find a pull request and
+    // change your mind there.
+    const page = commitPage()
+
+    offerOurPage(page, () => {})
+
+    const browse = page.querySelector('[class*="browseFiles"]')!
+    expect(switchIn(page)).not.toBeNull()
+    expect(switchIn(page)!.parentElement).toBe(browse.parentElement)
+  })
+
+  test("says what it will show, which on a commit is not a pull request", () => {
+    const page = commitPage()
+
+    offerOurPage(page, () => {})
+
+    expect(switchIn(page)!.title).toBe("Read this commit in the extension's own page")
+  })
+
+  test("hands the commit page over when it is pressed", () => {
+    const page = commitPage()
+    let asked = 0
+
+    offerOurPage(page, () => {
+      asked += 1
+    })
+    switchIn(page)!.dispatchEvent(new Event("click", { bubbles: true }))
+
+    expect(asked).toBe(1)
+  })
+
+  test("waits for a commit header GitHub has not rendered yet", async () => {
+    const page = commitPage("")
+
+    offerOurPage(page, () => {})
+    expect(switchIn(page)).toBeNull()
+
+    page.querySelector("header")!.innerHTML = COMMIT_HEADER
+    await settle()
+
+    expect(switchIn(page)).not.toBeNull()
     expect(page.querySelectorAll(`#${SWITCH_ID}`).length).toBe(1)
   })
 

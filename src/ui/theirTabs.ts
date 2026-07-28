@@ -17,6 +17,17 @@ export const SWITCH_ID = "githubpro-switch"
 
 const THEIR_TABS = '[aria-label="Pull request navigation tabs"]'
 
+/**
+ * Where this stands on a commit's own page, which has no tab row.
+ *
+ * Their header there holds one action, the link off to the tree as it was at
+ * this commit, and this goes beside it: the same reasoning as the tab row, in
+ * the only place on that page where the reader is already offered somewhere
+ * else to go. Matched on the module name in the class rather than the whole of
+ * it, because the tail of it changes with every deploy.
+ */
+const THEIR_COMMIT_ACTION = '[class*="CommitHeader-module__browseFiles"]'
+
 const LABEL = "Enhanced view"
 
 /**
@@ -70,12 +81,12 @@ const DRESS = [
 /** The whole of it, in one of its two states. */
 const dressed = (lit: boolean): string => (lit ? DRESS.replace(REST, LIT) : DRESS)
 
-const make = (target: Document, onChoose: () => void): HTMLElement => {
+const make = (target: Document, onChoose: () => void, subject: string): HTMLElement => {
   const control = target.createElement("button")
   control.id = SWITCH_ID
   control.type = "button"
   control.innerHTML = `${MARK}<span>${LABEL}</span>`
-  control.title = "Read this pull request in the extension's own page"
+  control.title = `Read this ${subject} in the extension's own page`
   control.setAttribute("style", dressed(false))
 
   // Inline style beats a stylesheet, so the hover a class would have given it
@@ -132,10 +143,23 @@ export const offerOurPage = (target: Document, onChoose: () => void): (() => voi
     if (planted !== null && planted.isConnected) return
 
     const row = target.querySelector(THEIR_TABS)
-    if (row === null) return
+
+    // No tab row means a commit's page, where the way back goes next to the one
+    // action their header carries. Nowhere at all means a page that has not
+    // finished arriving, and the observer below asks again when it has.
+    if (row === null) {
+      const action = target.querySelector(THEIR_COMMIT_ACTION)
+      const beside = action?.parentElement
+      if (beside === null || beside === undefined) return
+
+      const control = make(target, onChoose, "commit")
+      beside.append(control)
+      planted = control
+      return
+    }
 
     const holder = stripOf(row)
-    const control = make(target, onChoose)
+    const control = make(target, onChoose, "pull request")
 
     if (holder.tagName !== "UL" && holder.tagName !== "OL") {
       holder.append(control)

@@ -9,6 +9,7 @@ import type { View } from "@/settings/Settings"
 import { browserSettings, rememberView, type Store } from "@/settings/store"
 import { CommitScreen } from "@/ui/CommitScreen"
 import { gate, interfaceContainer, reveal, takeOverSlotWhenReady, ungate } from "@/ui/mount"
+import { offerOurPage } from "@/ui/theirTabs"
 import { whenLocationChanges } from "@/ui/navigation"
 import "@/ui/styles.css"
 
@@ -114,21 +115,31 @@ export default defineContentScript({
     const store = browserSettings()
 
     let close = (): void => {}
+    let unoffer = (): void => {}
     let view: View = "ours"
 
     /**
-     * Leaves GitHub to it.
+     * Leaves GitHub to it, putting one control beside the action in their own
+     * header so this is a choice rather than a trapdoor.
      *
-     * No control is planted on their page to come back with, as there is on a
-     * pull request: a commit's page has no tab row to put one in, and the
-     * choice is the same one either way — it is made again, and undone, from
-     * the header of any pull request this opens.
+     * The preference this writes down holds for every commit after it, so a
+     * page that took the interface away and offered nothing to bring it back
+     * would be a door that only opens one way.
      */
     function handOver(): void {
       close()
       close = () => {}
       reveal(document)
       ungate(document)
+      unoffer()
+      unoffer = offerOurPage(document, takeBack)
+    }
+
+    /** Pressed on GitHub's page: ours from here on, starting with this one. */
+    function takeBack(): void {
+      view = "ours"
+      void rememberView(store, "ours")
+      show(window.location.pathname)
     }
 
     function useGitHub(): void {
@@ -140,6 +151,8 @@ export default defineContentScript({
     function show(path: string): void {
       close()
       close = () => {}
+      unoffer()
+      unoffer = () => {}
 
       const reference = fromPathname(path)
       if (Option.isNone(reference)) {
