@@ -12,6 +12,7 @@
     "reload": "bun run build && ego-browser nodejs < scripts/ego-extension.js",
     "zip": "wxt zip",
     "compile": "tsc --noEmit",
+    "bench": "bun scripts/benchmark-pull-request.ts",
     "drift": "bun scripts/check-drift.ts",
     "verify:live": "wxt build && bun scripts/verify-on-github.ts",
     "test": "bun test",

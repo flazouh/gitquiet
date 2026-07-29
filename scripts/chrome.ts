@@ -14,7 +14,7 @@
  * Chrome for Testing, which lands in the Puppeteer cache, does the job equally
  * well and is what continuous integration would have anyway.
  */
-const findChrome = (): string => {
+export const findChrome = (): string => {
   const candidates = [
     process.env["CHROME_PATH"],
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
@@ -37,14 +37,14 @@ const PROFILE = "/tmp/githubpro-csp-profile"
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-type Connection = {
+export type Connection = {
   readonly send: <A,>(method: string, params?: Record<string, unknown>) => Promise<A>
   readonly once: (method: string) => Promise<void>
   readonly on: (method: string, handle: (params: Record<string, unknown>) => void) => void
   readonly close: () => void
 }
 
-const connect = async (url: string): Promise<Connection> => {
+export const connect = async (url: string): Promise<Connection> => {
   const socket = new WebSocket(url)
   await new Promise((resolve, reject) => {
     socket.addEventListener("open", resolve, { once: true })
