@@ -1429,7 +1429,7 @@ const MergeCard = ({
         split over two lines beside "Close pull request" split over two lines
         was four lines of button and no way to tell which word belonged to
         which. */}
-    <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
+    <div className="@container flex flex-wrap items-center gap-2 px-3 py-2.5">
       {/* One way in, never two. A queue makes the direct merge something GitHub
           refuses, so the button for it is absent rather than greyed out: the
           paragraph above has already said why, and this column has room for
@@ -1503,9 +1503,13 @@ const MergeCard = ({
           actions?.close === undefined || merging.step === "working" || merging.step === "done"
         }
         onClick={() => press("close")}
-        // Pushed to the far edge: the one that ends the pull request should not
-        // sit a thumb's width from the one that lands it.
-        className="ml-auto whitespace-nowrap rounded-md bg-surface px-3 py-1.5 text-xs font-semibold text-fail disabled:opacity-50"
+        // Pushed to the far edge, but only while there is an edge to push to.
+        // An automatic margin does not stop this row wrapping, it only decides
+        // where the wrapped button lands, and what it decided was the far right
+        // of a line of its own — a button stranded in the corner under two that
+        // start at the left. Below the width that holds them all, it wraps into
+        // line with the rest instead.
+        className="whitespace-nowrap rounded-md bg-surface px-3 py-1.5 text-xs font-semibold text-fail disabled:opacity-50 @[27rem]:ml-auto"
       >
         {merging.step === "idle" || merging.step === "refused" || merging.doing !== "close"
           ? "Close pull request"
