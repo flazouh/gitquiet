@@ -10,7 +10,15 @@ import type {
   ReviewThread
 } from "../domain/PullRequest"
 import type { PullRequestRef, RepoRef } from "../domain/PullRequestRef"
+import type { InvolvedPullRequest, Shelf } from "../domain/workingSet"
 import { checkRunIn, notesIn } from "./annotations"
+import {
+  type Standings,
+  decodeDeferred,
+  decodeShelf,
+  involvedIn,
+  standingsIn
+} from "./involved"
 import { linesIn, tailOf } from "./logs"
 import { recall, remember } from "./cache"
 import {
@@ -34,6 +42,20 @@ export class GatewayError extends Data.TaggedError("GatewayError")<{
    * is being told which page could not be read, not which number it had.
    */
   readonly reference: RepoRef
+  readonly route: string
+  readonly reason: GatewayFailure
+  readonly detail: string
+}> {}
+
+/**
+ * A Working Set read that failed, which has no repository to blame.
+ *
+ * Its own error rather than a {@link GatewayError} with the reference left out:
+ * every one of those names a page somebody was trying to read, and the routes
+ * behind a Working Set are about the Participant instead. Widening that field to
+ * nothing-in-particular would make it meaningless everywhere it is already used.
+ */
+export class WorkingSetError extends Data.TaggedError("WorkingSetError")<{
   readonly route: string
   readonly reason: GatewayFailure
   readonly detail: string
@@ -217,6 +239,31 @@ export class GitHubGateway extends Context.Service<
     readonly markReady: (reference: PullRequestRef) => Effect.Effect<void, GatewayError>
     /** Puts it back, for a pull request opened before it was meant to be read. */
     readonly toDraft: (reference: PullRequestRef) => Effect.Effect<void, GatewayError>
+    /**
+     * One shelf of the Participant's Working Set.
+     *
+     * A shelf at a time because that is how GitHub serves them — six routes,
+     * one per grouping — and because it is what makes the Court free: GitHub
+     * has already decided which pull requests belong on which, so nothing here
+     * has to work it out from checks and reviews.
+     *
+     * The rows arrive without check or review state. {@link standingsFor} is
+     * the other half, and a row is worth drawing before it has arrived.
+     */
+    readonly workingSet: (
+      shelf: Shelf
+    ) => Effect.Effect<ReadonlyArray<InvolvedPullRequest>, WorkingSetError>
+    /**
+     * How the checks and reviews stand, for pull requests already listed.
+     *
+     * Keyed by GitHub's numeric id, which is the only thing their route accepts
+     * and the reason {@link InvolvedPullRequest} carries one. Batched: their own
+     * dashboard asks about nine at a time, and asking per pull request would
+     * undo the whole point of a listing that costs two requests.
+     */
+    readonly standingsFor: (
+      ids: ReadonlyArray<number>
+    ) => Effect.Effect<Standings, WorkingSetError>
   }
 >()("GitHubGateway") {}
 
@@ -248,6 +295,35 @@ const UPDATE_BRANCH = "/page_data/update_pull_request_branch"
 const CLOSE = "/page_data/close_pull_request"
 const MARK_READY = "/page_data/mark_ready_for_review"
 const TO_DRAFT = "/page_data/convert_to_draft"
+
+/**
+ * One shelf of the Working Set.
+ *
+ * `max_pr_age` is theirs and their own dashboard sends `1m`, which is a month.
+ * Sent identically here: a shelf read with a different window is a different
+ * question, and answering a slightly different one than GitHub's own page does
+ * is how two views of the same Working Set come to disagree.
+ */
+const shelfRoute = (shelf: Shelf): string =>
+  `/pulls/inbox/queries?filter=${shelf}&max_pr_age=1m`
+
+/**
+ * How the checks and reviews stand for pull requests already listed.
+ *
+ * The ids go in repeated square-bracket parameters, which is Rails' way of
+ * spelling an array and not something to tidy: their route reads no other form.
+ */
+const deferredRoute = (ids: ReadonlyArray<number>): string =>
+  `/pulls/inbox/deferred?page=1&${ids.map((id) => `pr_ids%5B%5D=${id}`).join("&")}`
+
+/**
+ * How many pull requests one deferred read asks about.
+ *
+ * Nine, because that is what GitHub's own dashboard sends. A longer URL may well
+ * be accepted, but a batch size nobody has served is a batch size nobody has
+ * tested, and the cost of being wrong is the whole listing's second half.
+ */
+const PER_BATCH = 9
 
 // GitHub answers 406 to these routes without the XMLHttpRequest header.
 const REQUIRED_HEADERS = {
@@ -311,6 +387,48 @@ const fetchRoute = Effect.fn("fetchRoute")(function* (
       new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
   })
 })
+
+/**
+ * A read about the Participant rather than about one pull request.
+ *
+ * The same two headers and the same cookies as {@link fetchRoute}, and a
+ * different failure: there is no pull request to name when a Working Set will
+ * not load.
+ */
+const fetchViewerRoute = Effect.fn("fetchViewerRoute")(function* (route: string) {
+  const response = yield* Effect.tryPromise({
+    try: (): Promise<Response> =>
+      fetch(`https://github.com${route}`, {
+        headers: REQUIRED_HEADERS,
+        credentials: "include"
+      }),
+    catch: (cause) =>
+      new WorkingSetError({ route, reason: "unreachable", detail: String(cause) })
+  })
+
+  if (!response.ok) {
+    return yield* new WorkingSetError({
+      route,
+      reason: "rejected",
+      detail: `HTTP ${response.status}`
+    })
+  }
+
+  return yield* Effect.tryPromise({
+    try: (): Promise<unknown> => response.json(),
+    catch: (cause) =>
+      new WorkingSetError({ route, reason: "undecodable", detail: String(cause) })
+  })
+})
+
+/** Ids in the batches GitHub's own dashboard asks in. */
+const inBatches = (ids: ReadonlyArray<number>): ReadonlyArray<ReadonlyArray<number>> => {
+  const batches: Array<ReadonlyArray<number>> = []
+  for (let at = 0; at < ids.length; at += PER_BATCH) {
+    batches.push(ids.slice(at, at + PER_BATCH))
+  }
+  return batches
+}
 
 /**
  * A write whose answer is only whether it worked.
@@ -622,6 +740,50 @@ export const layer = Layer.succeed(GitHubGateway, {
       yield* posting(reference, TO_DRAFT)
     }),
 
+    workingSet: Effect.fn("GitHubGateway.workingSet")(function* (shelf: Shelf) {
+      const route = shelfRoute(shelf)
+      const raw = yield* fetchViewerRoute(route)
+      const decoded = yield* decodeShelf(raw).pipe(
+        Effect.catch((cause) =>
+          Effect.fail(
+            new WorkingSetError({ route, reason: "undecodable", detail: String(cause) })
+          )
+        )
+      )
+      return involvedIn(shelf, decoded.payload.pullsInboxSurfaceContentRoute.results)
+    }),
+
+    standingsFor: Effect.fn("GitHubGateway.standingsFor")(function* (ids: ReadonlyArray<number>) {
+      if (ids.length === 0) return new Map() as Standings
+
+      // Concurrently, because the batches are independent and a Working Set of
+      // forty is five round trips that would otherwise be taken one at a time
+      // while the reader looks at rows with no checks on them.
+      const batches = yield* Effect.all(
+        inBatches(ids).map((batch) =>
+          Effect.gen(function* () {
+            const route = deferredRoute(batch)
+            const raw = yield* fetchViewerRoute(route)
+            const decoded = yield* decodeDeferred(raw).pipe(
+              Effect.catch((cause) =>
+                Effect.fail(
+                  new WorkingSetError({ route, reason: "undecodable", detail: String(cause) })
+                )
+              )
+            )
+            return standingsIn(decoded)
+          })
+        ),
+        { concurrency: "unbounded" }
+      )
+
+      const joined = new Map<number, ReturnType<Standings["get"]> & {}>()
+      for (const batch of batches) {
+        for (const [id, standing] of batch) joined.set(id, standing)
+      }
+      return joined as Standings
+    }),
+
     notes: Effect.fn("GitHubGateway.notes")(function* (reference: PullRequestRef, check: Check) {
       const run = checkRunIn(check)
       // Only Actions checks have one of these pages. A check from anything
@@ -874,7 +1036,12 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     updateBranch: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
     close: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
     markReady: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
-    toDraft: (reference: PullRequestRef) => Effect.fail(notRecorded(reference))
+    toDraft: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    // One pull request stood in for here, never the Participant's Working Set.
+    // An empty shelf is what "nothing was listed" looks like, and a test that
+    // wants a Working Set says so with a layer of its own.
+    workingSet: () => Effect.succeed([]),
+    standingsFor: () => Effect.succeed(new Map() as Standings)
   })
 
 /**
@@ -918,5 +1085,10 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     updateBranch: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
     close: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
     markReady: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
-    toDraft: (reference: PullRequestRef) => Effect.fail(notRecorded(reference))
+    toDraft: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    // One pull request stood in for here, never the Participant's Working Set.
+    // An empty shelf is what "nothing was listed" looks like, and a test that
+    // wants a Working Set says so with a layer of its own.
+    workingSet: () => Effect.succeed([]),
+    standingsFor: () => Effect.succeed(new Map() as Standings)
   })

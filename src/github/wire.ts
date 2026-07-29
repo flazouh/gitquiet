@@ -461,3 +461,142 @@ export const MergeBoxRoute = Schema.Struct({
 })
 
 export type MergeBoxRoute = typeof MergeBoxRoute["Type"]
+
+/**
+ * One pull request of the Working Set, as the dashboard's own routes serve it.
+ *
+ * Twenty-six fields arrive and these are the ones worth reading. Two of the
+ * absent ones are worth naming, because they look like the answer to stacking
+ * and are not: `stackPosition` and `stackSize` come back null even for a real
+ * three-deep chain, so they describe a stacking of GitHub's own rather than the
+ * ordinary kind. Stacks are found from base and head branches instead, which
+ * this row does not carry at all — see `src/domain/stacks.ts`.
+ */
+const WorkingSetRow = Schema.Struct({
+  /** GitHub's own numeric id, which is what the deferred route is keyed by. */
+  id: Schema.Number,
+  number: Schema.Number,
+  title: Schema.String,
+  /** `owner/repo`, since the Working Set crosses repositories. */
+  repoNameWithOwner: Schema.String,
+  permalink: Schema.String,
+  /**
+   * Only the login arrives, not the avatar. That is enough: an avatar URL is
+   * built from a login, which `faceOf` already does for every other face here.
+   */
+  author: Schema.NullOr(Schema.Struct({ displayLogin: Schema.String })),
+  /** Whether an agent opened it, which is what a Participant's automated flag is. */
+  authoredByAgent: Schema.optional(Schema.NullOr(Schema.Boolean)),
+  state: Schema.Literals(["OPEN", "CLOSED", "MERGED", "DRAFT"]),
+  isDraft: Schema.Boolean,
+  isReadByCurrentUser: Schema.Boolean,
+  commentCount: Schema.Number,
+  createdAt: Schema.String,
+  updatedAt: Schema.String,
+  headSha: Schema.String,
+  /**
+   * Why GitHub thinks this needs attention — `CI_FAILING`, `MERGE_CONFLICTS`,
+   * `WAITING_FOR_REVIEW`, `CI_RUNNING`, `READY_TO_MERGE` are the five seen so
+   * far, and only on the shelf routes: a plain query leaves it null.
+   *
+   * A string rather than a union, against the rule at the top of this file, and
+   * for a reason the rule allows. Five distinct values turned up in sixteen
+   * rows, so the set is certainly larger than anything observation can close,
+   * and an unrecognised one here hides nothing: the Court is decided by which
+   * shelf the row came from, never by this. Refusing the payload over it would
+   * blank the entire Working Set rather than one field of one row.
+   */
+  category: Schema.optional(Schema.NullOr(Schema.String)),
+  /** Alive token for this row's head commit, for watching a list go green. */
+  commitHeadShaChannel: Schema.optional(Schema.NullOr(Schema.String)),
+  /**
+   * Both were empty in every row observed, so their element shape is unknown
+   * and nothing here reads it. Counted, not decoded: guessing the shape is how
+   * the first pull request carrying a label would fail the whole read.
+   */
+  labels: Schema.Array(Schema.Unknown),
+  assignees: Schema.Array(Schema.Unknown)
+})
+
+export type WorkingSetRow = typeof WorkingSetRow["Type"]
+
+const Listing = Schema.Struct({
+  results: Schema.Array(WorkingSetRow),
+  pageInfo: Schema.optional(
+    Schema.NullOr(
+      Schema.Struct({
+        currentPage: Schema.Number,
+        totalPages: Schema.Number,
+        totalCount: Schema.Number
+      })
+    )
+  )
+})
+
+/**
+ * One of GitHub's six shelves, from `/pulls/inbox/queries?filter=…`.
+ *
+ * The same rows as {@link QueryRoute} under a different key, which is GitHub's
+ * arrangement and not one worth hiding: the shelf route is the only one that
+ * fills in `category`, so which key a payload came under says what is in it.
+ */
+export const ShelfRoute = Schema.Struct({
+  payload: Schema.Struct({ pullsInboxSurfaceContentRoute: Listing })
+})
+
+export type ShelfRoute = typeof ShelfRoute["Type"]
+
+/** An arbitrary search, from `/pulls?q=…`. Carries no `category`. */
+export const QueryRoute = Schema.Struct({
+  payload: Schema.Struct({ pullsDashboardSurfaceContentRoute: Listing })
+})
+
+export type QueryRoute = typeof QueryRoute["Type"]
+
+/**
+ * What the rows arrive without: how the checks stand, and how the reviews did.
+ *
+ * GitHub's own dashboard fetches this straight after the rows, batched nine ids
+ * at a time, because neither fact is on a row. Which makes an attention-aware
+ * Working Set two requests rather than one per pull request.
+ */
+export const DeferredRoute = Schema.Struct({
+  payload: Schema.Struct({
+    pullsInboxSurfaceContentDeferredData: Schema.Struct({
+      results: Schema.Array(
+        Schema.Struct({
+          id: Schema.Number,
+          /**
+           * Absent altogether on a pull request with no checks at all, which one
+           * observed row was — hence optional rather than merely nullable.
+           */
+          statusCheckRollup: Schema.optional(
+            Schema.NullOr(
+              Schema.Struct({
+                /**
+                 * `SUCCESS` and `FAILURE` are the two observed. The rest are
+                 * GitHub's published `StatusState`, which this field is typed as
+                 * in their own schema, and `CI_RUNNING` turning up as a category
+                 * says `PENDING` is reachable.
+                 */
+                state: Schema.Literals(["SUCCESS", "FAILURE", "PENDING", "ERROR", "EXPECTED"]),
+                totalCount: Schema.Number,
+                successCount: Schema.Number
+              })
+            )
+          ),
+          /** Null until anybody has given an opinion, which is most of them. */
+          reviewDecisionState: Schema.optional(
+            Schema.NullOr(
+              Schema.Literals(["APPROVED", "CHANGES_REQUESTED", "REVIEW_REQUIRED"])
+            )
+          ),
+          approvedReviewsCount: Schema.optional(Schema.NullOr(Schema.Number)),
+          changesRequestedReviewsCount: Schema.optional(Schema.NullOr(Schema.Number))
+        })
+      )
+    })
+  })
+})
+
+export type DeferredRoute = typeof DeferredRoute["Type"]
