@@ -11,7 +11,7 @@ import type {
   ReviewThread
 } from "../domain/PullRequest"
 import type { PullRequestRef } from "../domain/PullRequestRef"
-import type { MergeActions } from "./Sections"
+import type { MergeActions } from "./Merge"
 import { Shell } from "./Shell"
 
 export type Loaded = {

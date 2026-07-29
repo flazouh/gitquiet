@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event"
 import { Option } from "effect"
 import { aReview } from "../../tests/snapshots"
 import type { MergeQueue, MergeState } from "../domain/PullRequest"
-import { Merge } from "./Sections"
+import { Merge } from "./Merge"
 
 afterEach(cleanup)
 
@@ -31,6 +31,8 @@ const catchUp = ({
   readonly refusal?: string
 }) => Option.some({ how, mayUpdate, refusal: Option.fromNullishOr(refusal) })
 
+const behind: MergeState = { ...ready, update: catchUp({}) }
+
 const inA = (queue: Partial<MergeQueue>): MergeState => ({
   ...ready,
   queue: Option.some({
@@ -46,7 +48,7 @@ const inA = (queue: Partial<MergeQueue>): MergeState => ({
 describe("the merge card", () => {
   test("asks a second time before it merges anything", async () => {
     let merges = 0
-    render(<Merge merge={ready} actions={{ merge: async () => void (merges += 1) }} />)
+    render(<Merge state="open" merge={ready} actions={{ merge: async () => void (merges += 1) }} />)
 
     await userEvent.click(button(/Squash and merge/))
 
@@ -75,7 +77,7 @@ describe("the merge card", () => {
 
   test("asks where the button already was, rather than in a card of its own", async () => {
     render(
-      <Merge merge={ready} actions={{ merge: async () => {}, close: async () => {} }} />
+      <Merge state="open" merge={ready} actions={{ merge: async () => {}, close: async () => {} }} />
     )
 
     await userEvent.click(button(/Close pull request/))
@@ -93,7 +95,7 @@ describe("the merge card", () => {
 
   test("merges on the second press", async () => {
     let merges = 0
-    render(<Merge merge={ready} actions={{ merge: async () => void (merges += 1) }} />)
+    render(<Merge state="open" merge={ready} actions={{ merge: async () => void (merges += 1) }} />)
 
     await userEvent.click(button(/Squash and merge/))
     await userEvent.click(button(/Confirm squash and merge/))
@@ -105,7 +107,7 @@ describe("the merge card", () => {
   test("lets the page be read again once it lands", async () => {
     let read = 0
     render(
-      <Merge merge={ready} actions={{ merge: async () => {}, onMerged: () => void (read += 1) }} />
+      <Merge state="open" merge={ready} actions={{ merge: async () => {}, onMerged: () => void (read += 1) }} />
     )
 
     await userEvent.click(button(/Squash and merge/))
@@ -116,7 +118,7 @@ describe("the merge card", () => {
 
   test("backs out without merging", async () => {
     let merges = 0
-    render(<Merge merge={ready} actions={{ merge: async () => void (merges += 1) }} />)
+    render(<Merge state="open" merge={ready} actions={{ merge: async () => void (merges += 1) }} />)
 
     await userEvent.click(button(/Squash and merge/))
     await userEvent.click(button(/Do not squash and merge/))
@@ -127,7 +129,7 @@ describe("the merge card", () => {
 
   test("says what GitHub said when it refuses", async () => {
     render(
-      <Merge
+      <Merge state="open"
         merge={ready}
         actions={{
           merge: () => Promise.reject({ detail: "Required status check is failing." })
@@ -144,7 +146,7 @@ describe("the merge card", () => {
   })
 
   test("says something plain when the failure carries no sentence", async () => {
-    render(<Merge merge={ready} actions={{ merge: () => Promise.reject(new Error("boom")) }} />)
+    render(<Merge state="open" merge={ready} actions={{ merge: () => Promise.reject(new Error("boom")) }} />)
 
     await userEvent.click(button(/Squash and merge/))
     await userEvent.click(button(/Confirm squash and merge/))
@@ -154,7 +156,7 @@ describe("the merge card", () => {
 
   test("cannot be pressed while GitHub is blocking the merge", () => {
     render(
-      <Merge
+      <Merge state="open"
         merge={{
           ...ready,
           isMergeable: false,
@@ -178,7 +180,7 @@ describe("the merge card", () => {
 
   test("says what is in the way even where a queue is what would be joined", () => {
     render(
-      <Merge
+      <Merge state="open"
         merge={{
           ...inA({ mayJoin: false }),
           isMergeable: false,
@@ -203,7 +205,7 @@ describe("the merge card", () => {
     let updated = 0
     let reread = 0
     render(
-      <Merge
+      <Merge state="open"
         merge={{ ...ready, update: catchUp({}) }}
         actions={{
           update: async () => void (updated += 1),
@@ -223,14 +225,14 @@ describe("the merge card", () => {
   })
 
   test("says nothing about updating a branch that is level with its base", () => {
-    render(<Merge merge={ready} actions={{ update: async () => {} }} />)
+    render(<Merge state="open" merge={ready} actions={{ update: async () => {} }} />)
 
     expect(screen.queryByRole("button", { name: /Update branch/ })).toBeNull()
   })
 
   test("gives GitHub's reason rather than a grey button with no explanation", () => {
     render(
-      <Merge
+      <Merge state="open"
         merge={{
           ...ready,
           update: catchUp({ mayUpdate: false, refusal: "You have no write access to that fork." })
@@ -245,7 +247,7 @@ describe("the merge card", () => {
 
   test("says which blocker the reader's own permissions could go past", () => {
     render(
-      <Merge
+      <Merge state="open"
         merge={{
           ...ready,
           isMergeable: false,
@@ -263,7 +265,7 @@ describe("the merge card", () => {
 
   test("keeps quiet about bypassable rules when the reader may not bypass them", () => {
     render(
-      <Merge
+      <Merge state="open"
         merge={{
           ...ready,
           isMergeable: false,
@@ -324,7 +326,7 @@ describe("the merge card", () => {
 
   test("asks a second time before it closes the pull request", async () => {
     let closes = 0
-    render(<Merge merge={ready} actions={{ close: async () => void (closes += 1) }} />)
+    render(<Merge state="open" merge={ready} actions={{ close: async () => void (closes += 1) }} />)
 
     await userEvent.click(button(/Close pull request/))
 
@@ -336,7 +338,7 @@ describe("the merge card", () => {
     let closes = 0
     let reread = 0
     render(
-      <Merge
+      <Merge state="open"
         merge={ready}
         actions={{
           close: async () => void (closes += 1),
@@ -357,7 +359,7 @@ describe("the merge card", () => {
 
   test("says what GitHub said when it refuses to close it", async () => {
     render(
-      <Merge
+      <Merge state="open"
         merge={ready}
         actions={{
           close: () => Promise.reject(new Error("nope")).then(() => {}),
@@ -373,7 +375,7 @@ describe("the merge card", () => {
   })
 
   test("cannot be pressed when nothing is wired to it", () => {
-    render(<Merge merge={ready} />)
+    render(<Merge state="open" merge={ready} />)
 
     expect(button(/Squash and merge/)).toHaveProperty("disabled", true)
     expect(button(/Close pull request/)).toHaveProperty("disabled", true)
@@ -381,9 +383,59 @@ describe("the merge card", () => {
 
 })
 
+describe("a pull request that is past deciding", () => {
+  test("offers nothing to press once it has been merged", () => {
+    // The one that sent us looking: the card said "Merged" at the top and
+    // "Merge when ready" at the bottom, because each button worked its own
+    // answer out of the merge state and none of them asked whether there was
+    // still a decision to make.
+    render(
+      <Merge
+        merge={inA({})}
+        state="merged"
+        actions={{ merge: async () => {}, enqueue: async () => {}, close: async () => {} }}
+      />
+    )
+
+    expect(screen.queryAllByRole("button")).toHaveLength(0)
+  })
+
+  test("says which way it went, rather than going quiet", () => {
+    render(<Merge merge={ready} state="merged" />)
+
+    expect(screen.getByText(/merged/i)).toBeDefined()
+  })
+
+  test("says the same of a closed one", () => {
+    render(<Merge merge={behind} state="closed" actions={{ update: async () => {} }} />)
+
+    expect(screen.getByText(/closed/i)).toBeDefined()
+    expect(screen.queryAllByRole("button")).toHaveLength(0)
+  })
+
+  test("keeps the queue's explanation off a pull request that has already landed", () => {
+    render(<Merge merge={inA({ waiting: true })} state="merged" />)
+
+    expect(screen.queryByText(/its turn comes/)).toBeNull()
+    expect(screen.queryByText(/position/)).toBeNull()
+  })
+
+  test("says nothing about catching up a branch that has landed", () => {
+    render(<Merge merge={behind} state="merged" />)
+
+    expect(screen.queryByText(/base branch has moved on/)).toBeNull()
+  })
+
+  test("still says who reviewed it, which is a fact about the reading", () => {
+    render(<Merge merge={ready} state="merged" reviews={[aReview("vijayupadya", "approved")]} />)
+
+    expect(screen.getByText("vijayupadya")).toBeDefined()
+  })
+})
+
 describe("what the reviewers decided", () => {
   test("says who approved it, since nothing else on this screen does", () => {
-    render(<Merge merge={ready} reviews={[aReview("vijayupadya", "approved")]} />)
+    render(<Merge state="open" merge={ready} reviews={[aReview("vijayupadya", "approved")]} />)
 
     expect(screen.getByText("vijayupadya")).toBeDefined()
     expect(screen.getByText("approved")).toBeDefined()
@@ -391,14 +443,14 @@ describe("what the reviewers decided", () => {
   })
 
   test("names a blocking review in the words GitHub uses for it", () => {
-    render(<Merge merge={ready} reviews={[aReview("romalpani", "changes-requested")]} />)
+    render(<Merge state="open" merge={ready} reviews={[aReview("romalpani", "changes-requested")]} />)
 
     expect(screen.getByText("requested changes")).toBeDefined()
   })
 
   test("puts the objection above the approval, because it is the one that decides", () => {
     render(
-      <Merge
+      <Merge state="open"
         merge={ready}
         reviews={[aReview("vijayupadya", "approved"), aReview("romalpani", "changes-requested")]}
       />
@@ -410,7 +462,7 @@ describe("what the reviewers decided", () => {
   })
 
   test("adds no empty row when nobody has reviewed it", () => {
-    render(<Merge merge={ready} reviews={[]} />)
+    render(<Merge state="open" merge={ready} reviews={[]} />)
 
     expect(screen.queryByText(/approved|requested changes/)).toBeNull()
   })
@@ -418,7 +470,7 @@ describe("what the reviewers decided", () => {
 
 describe("a repository that merges through a queue", () => {
   test("offers the queue rather than a merge that would jump it", () => {
-    render(<Merge merge={inA({})} actions={{ merge: async () => {}, enqueue: async () => {} }} />)
+    render(<Merge state="open" merge={inA({})} actions={{ merge: async () => {}, enqueue: async () => {} }} />)
 
     expect(button(/Merge when ready/)).toBeDefined()
     expect(screen.queryByRole("button", { name: /Squash and merge/ })).toBeNull()
@@ -426,7 +478,7 @@ describe("a repository that merges through a queue", () => {
 
   test("joins the queue on the second press, as merging does", async () => {
     let joined = 0
-    render(<Merge merge={inA({})} actions={{ enqueue: async () => void (joined += 1) }} />)
+    render(<Merge state="open" merge={inA({})} actions={{ enqueue: async () => void (joined += 1) }} />)
 
     await userEvent.click(button(/Merge when ready/))
     expect(joined).toBe(0)
@@ -441,7 +493,7 @@ describe("a repository that merges through a queue", () => {
     // queue" about a pull request that is now third in it.
     let reread = 0
     render(
-      <Merge
+      <Merge state="open"
         merge={inA({})}
         actions={{ enqueue: async () => {}, onChanged: () => void (reread += 1) }}
       />
@@ -456,7 +508,7 @@ describe("a repository that merges through a queue", () => {
   test("asks for it again when it is taken back out", async () => {
     let reread = 0
     render(
-      <Merge
+      <Merge state="open"
         merge={inA({ waiting: true })}
         actions={{ dequeue: async () => {}, onChanged: () => void (reread += 1) }}
       />
@@ -471,7 +523,7 @@ describe("a repository that merges through a queue", () => {
   test("does not ask for a re-read when GitHub refused", async () => {
     let reread = 0
     render(
-      <Merge
+      <Merge state="open"
         merge={inA({})}
         actions={{
           enqueue: () => Promise.reject({ detail: "no" }),
@@ -489,7 +541,7 @@ describe("a repository that merges through a queue", () => {
 
   test("says what GitHub said when it refuses to queue it", async () => {
     render(
-      <Merge
+      <Merge state="open"
         merge={inA({})}
         actions={{ enqueue: () => Promise.reject({ detail: "Base branch was modified." }) }}
       />
@@ -503,13 +555,13 @@ describe("a repository that merges through a queue", () => {
   })
 
   test("cannot be joined while GitHub says this one may not go in", () => {
-    render(<Merge merge={inA({ mayJoin: false })} actions={{ enqueue: async () => {} }} />)
+    render(<Merge state="open" merge={inA({ mayJoin: false })} actions={{ enqueue: async () => {} }} />)
 
     expect(button(/Merge when ready/)).toHaveProperty("disabled", true)
   })
 
   test("cannot be joined by someone who may not queue anything", () => {
-    render(<Merge merge={inA({ viewerCanQueue: false })} actions={{ enqueue: async () => {} }} />)
+    render(<Merge state="open" merge={inA({ viewerCanQueue: false })} actions={{ enqueue: async () => {} }} />)
 
     expect(button(/Merge when ready/)).toHaveProperty("disabled", true)
   })
@@ -517,7 +569,7 @@ describe("a repository that merges through a queue", () => {
   test("takes it back out again when it is already waiting", async () => {
     let left = 0
     render(
-      <Merge
+      <Merge state="open"
         merge={inA({ waiting: true, position: Option.some(3) })}
         actions={{ dequeue: async () => void (left += 1) }}
       />
@@ -531,7 +583,7 @@ describe("a repository that merges through a queue", () => {
 
   test("offers no way in while it is already standing in the line", () => {
     render(
-      <Merge merge={inA({ waiting: true })} actions={{ enqueue: async () => {}, dequeue: async () => {} }} />
+      <Merge state="open" merge={inA({ waiting: true })} actions={{ enqueue: async () => {}, dequeue: async () => {} }} />
     )
 
     expect(screen.queryByRole("button", { name: /Merge when ready/ })).toBeNull()
@@ -540,7 +592,7 @@ describe("a repository that merges through a queue", () => {
   test("offers to call off an auto-merge already armed, rather than arming it twice", async () => {
     let called = 0
     render(
-      <Merge
+      <Merge state="open"
         merge={{ ...inA({}), autoMerge: armed }}
         actions={{ enqueue: async () => {}, cancel: async () => void (called += 1) }}
       />
@@ -555,26 +607,26 @@ describe("a repository that merges through a queue", () => {
   })
 
   test("says it is armed, so a pull request that has not moved still reads as done", () => {
-    render(<Merge merge={{ ...inA({}), autoMerge: armed }} />)
+    render(<Merge state="open" merge={{ ...inA({}), autoMerge: armed }} />)
 
     expect(screen.getByText(/merges when it is ready/i)).toBeDefined()
   })
 
   test("still links to the queue GitHub keeps, for what is ahead of this", () => {
-    render(<Merge merge={inA({})} actions={{ enqueue: async () => {} }} />)
+    render(<Merge state="open" merge={inA({})} actions={{ enqueue: async () => {} }} />)
 
     const link = screen.getByRole("link", { name: /merge queue/i })
     expect(link.getAttribute("href")).toBe("https://github.com/o/r/queue/main")
   })
 
   test("says where in the line it is already waiting", () => {
-    render(<Merge merge={inA({ waiting: true, position: Option.some(3) })} />)
+    render(<Merge state="open" merge={inA({ waiting: true, position: Option.some(3) })} />)
 
     expect(screen.getByText(/position 3/)).toBeDefined()
   })
 
   test("says it is waiting even when GitHub does not say where", () => {
-    render(<Merge merge={inA({ waiting: true })} />)
+    render(<Merge state="open" merge={inA({ waiting: true })} />)
 
     expect(screen.getByText(/waiting in the merge queue/i)).toBeDefined()
     expect(screen.queryByText(/position/)).toBeNull()

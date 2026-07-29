@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import type { Commit } from "../domain/PullRequest"
 import { type Box, NEAR } from "./near"
-import { Commits } from "./Sections"
+import { Commits } from "./Commits"
 
 afterEach(cleanup)
 

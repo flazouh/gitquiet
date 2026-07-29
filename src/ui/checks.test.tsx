@@ -6,7 +6,8 @@ import { keptReads } from "../app/kept"
 import { linesIn } from "../github/logs"
 import type { Check, CheckNote, LogLine } from "../domain/PullRequest"
 import { type Box, NEAR } from "./near"
-import { Checks, logKey } from "./Sections"
+import { logKey } from "./CheckDialog"
+import { Checks } from "./Checks"
 
 afterEach(cleanup)
 
@@ -296,6 +297,35 @@ describe("a check that has not finished", () => {
     render(<Checks checks={[check("ci / build", "queued")]} />)
 
     expect(screen.queryByLabelText("Running")).toBeNull()
+  })
+})
+
+describe("the line above the checks", () => {
+  test("does not call a run passed while most of it has not finished", () => {
+    render(
+      <Checks
+        checks={[
+          check("ci / build", "succeeded"),
+          check("ci / lint", "succeeded"),
+          check("ci / test", "running"),
+          check("ci / e2e", "queued")
+        ]}
+      />
+    )
+
+    expect(screen.queryByText("All 4 checks passed")).toBeNull()
+  })
+
+  test("says so plainly when every one of them is in fact green", () => {
+    render(<Checks checks={[check("ci / build", "succeeded"), check("ci / lint", "succeeded")]} />)
+
+    expect(screen.queryByText("All 2 checks passed")).not.toBeNull()
+  })
+
+  test("counts a skipped check as green, the way GitHub's own summary does", () => {
+    render(<Checks checks={[check("ci / build", "succeeded"), check("ci / docs", "skipped")]} />)
+
+    expect(screen.queryByText("All 2 checks passed")).not.toBeNull()
   })
 })
 

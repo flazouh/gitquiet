@@ -82,6 +82,24 @@ export const pullRequestArt = (state: PullRequestState): Art => {
   }
 }
 
+/**
+ * The colour a check state is drawn in, beside the glyph it is drawn as.
+ *
+ * Here rather than in the panel that reads it, so that the two halves of how a
+ * state looks cannot drift apart: they are one decision, and one of them lived
+ * a thousand lines away from the other for long enough to go wrong quietly.
+ * `busy` is `--fgColor-attention`, the yellow GitHub gives to work in hand.
+ */
+export const CHECK_TONE: Record<CheckState, string> = {
+  succeeded: "text-pass",
+  failed: "text-fail",
+  running: "text-busy",
+  queued: "text-busy",
+  cancelled: "text-ink-muted",
+  skipped: "text-ink-muted",
+  neutral: "text-ink-muted"
+}
+
 export const checkArt = (state: CheckState): Art => {
   switch (state) {
     case "succeeded":
