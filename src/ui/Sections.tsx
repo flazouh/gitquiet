@@ -5,14 +5,14 @@ import {
   ChevronRightIcon,
   GitMergeIcon,
   LinkExternalIcon,
-  XCircleFillIcon
+  XCircleFillIcon,
+  XIcon
 } from "@primer/octicons-react"
 import { Option } from "effect"
 import { useEffect, useRef, useState } from "react"
 import type {
   AutoMerge,
   BlockerAbout,
-  BranchUpdate,
   Check,
   CheckNote,
   FileRef,
@@ -134,6 +134,16 @@ export const Description = ({ html }: { readonly html: string }) => {
 }
 
 const failing = (checks: ReadonlyArray<Check>) => checks.filter((check) => check.state === "failed")
+
+/**
+ * A check that is finished and is not a complaint.
+ *
+ * Skipped and neutral count with the green ones because that is what GitHub's
+ * own summary counts them as: a job the workflow decided not to run is not a
+ * job anybody is waiting on.
+ */
+const isGreen = (check: Check) =>
+  check.state === "succeeded" || check.state === "skipped" || check.state === "neutral"
 
 const CHECK_TONE: Record<Check["state"], string> = {
   succeeded: "text-pass",
@@ -489,7 +499,9 @@ export const Checks = ({
 
   const red = failing(checks)
   const rest = checks.filter((check) => check.state !== "failed")
-  const passed = rest.filter((check) => check.state === "succeeded").length
+  // Counted the same way the line above the fold counts, so the two cannot
+  // disagree about the same set of checks.
+  const passed = rest.filter(isGreen).length
 
   if (checks.length === 0) {
     return (
@@ -499,18 +511,48 @@ export const Checks = ({
     )
   }
 
-  const summary =
-    red.length === 0 ? (
+  // Nothing failing is not the same as everything passing, and this line said
+  // it was: a run two minutes old, with ten of its twelve checks still going,
+  // read "All 12 checks passed" while the fold directly beneath it read "2
+  // passed, 10 other". A reader who trusts the first one merges on a run that
+  // has not finished.
+  const summary = (() => {
+    if (red.length > 0) {
+      return (
+        <span className="flex items-center gap-1.5 text-fail">
+          <AlertFillIcon size={12} />
+          {`CI is red — ${red.length} of ${checks.length} failing`}
+        </span>
+      )
+    }
+
+    const waiting = stillRunning(checks)
+    if (waiting > 0) {
+      // Turning only while something is actually turning. A run whose every
+      // check is merely queued has not begun, and a spinner over it is the same
+      // kind of small lie as calling it passed.
+      const Art = checkArt(checks.some((check) => check.state === "running") ? "running" : "queued")
+      return (
+        <span className={`flex items-center gap-1.5 ${CHECK_TONE.running}`}>
+          {/* Named apart from the rows' own spinners: this one stands for the
+              whole run, and sharing their label would make the section read as
+              having one more running check than it has. */}
+          <Art size={12} aria-label="Checks still running" />
+          {`${waiting} of ${checks.length} still running`}
+        </span>
+      )
+    }
+
+    const green = checks.filter(isGreen).length
+    return (
       <span className="flex items-center gap-1.5">
-        <CheckCircleFillIcon size={12} className="text-pass" />
-        {`All ${checks.length} ${checks.length === 1 ? "check" : "checks"} passed`}
-      </span>
-    ) : (
-      <span className="flex items-center gap-1.5 text-fail">
-        <AlertFillIcon size={12} />
-        {`CI is red — ${red.length} of ${checks.length} failing`}
+        <CheckCircleFillIcon size={12} className={green === checks.length ? "text-pass" : ""} />
+        {green === checks.length
+          ? `All ${checks.length} ${checks.length === 1 ? "check" : "checks"} passed`
+          : `${green} of ${checks.length} passed, none failing`}
       </span>
     )
+  })()
 
   return (
     <Section name="Checks" tone={red.length === 0 ? "plain" : "bad"} summary={summary}>
@@ -870,8 +912,6 @@ type Merging =
  */
 export const Merge = ({
   merge,
-  base,
-  commits = 0,
   running = 0,
   url,
   reviews = [],
@@ -879,10 +919,6 @@ export const Merge = ({
   actions
 }: {
   readonly merge: MergeState
-  /** The branch this would land on, named rather than called "the base branch". */
-  readonly base?: string
-  /** How many commits the squash would flatten into one. */
-  readonly commits?: number
   /** Checks that have not finished, which merging now would not wait for. */
   readonly running?: number
   /** This pull request on GitHub, where the queue is joined. */
@@ -924,23 +960,9 @@ export const Merge = ({
     )
   }
 
-  const about = (doing: Doing): string =>
-    doing === "merge"
-      ? whatHappens({ base, commits, running })
-      : doing === "update"
-        ? whatCatchingUp(merge.update, base)
-        : doing === "close"
-          ? WHAT_CLOSING_DOES
-          : doing === "markReady"
-            ? WHAT_MARKING_READY_DOES
-            : doing === "toDraft"
-              ? WHAT_DRAFTING_DOES
-              : whatQueueing(doing, base)
-
   return (
     <MergeCard
       merge={merge}
-      about={about}
       running={running}
       merging={merging}
       url={url}
@@ -966,40 +988,6 @@ const reasonFor = (cause: unknown): string => {
 }
 
 /**
- * The sentence the second press is agreeing to.
- *
- * Named branch and counted commits, because "this squashes the branch into the
- * base branch" describes every squash merge ever made and so tells the reader
- * nothing about theirs. The checks clause appears only when a check is actually
- * unfinished — a warning that is always there stops being read.
- */
-export const whatHappens = ({
-  base,
-  commits,
-  running
-}: {
-  readonly base?: string
-  readonly commits: number
-  readonly running: number
-}): string => {
-  const onto = base === undefined || base === "" ? "the base branch" : base
-  const landing =
-    commits === 1
-      ? `Adds this branch's one commit to ${onto}.`
-      : commits > 1
-        ? `Combines ${commits} commits into one and adds it to ${onto}.`
-        : `Squashes this branch into ${onto}.`
-  const waiting =
-    running === 0
-      ? ""
-      : running === 1
-        ? " One check has not finished, and merging now does not wait for it."
-        : ` ${running} checks have not finished, and merging now does not wait for them.`
-
-  return `${landing} Undoing it means opening a revert on GitHub.${waiting}`
-}
-
-/**
  * What the summary line says on a repository with a queue.
  *
  * The queue outranks everything else that could be said there. "ready to merge"
@@ -1018,48 +1006,6 @@ const queueWord = (queue: MergeQueue, armed: boolean): string =>
         // Without saying so, the card reads as if the press did nothing.
         "merges when it is ready"
       : "merges through a merge queue"
-
-/**
- * The sentence the second press agrees to, for the two queue verbs.
- *
- * Joining a queue is the thing readers get wrong, because the button their
- * hand knows says "merge" and this one does not merge: it hands the pull
- * request to GitHub, which decides when. Saying so is the whole point of
- * asking twice.
- */
-const whatQueueing = (doing: Doing, base?: string): string => {
-  const onto = base === undefined || base === "" ? "the base branch" : base
-  if (doing === "enqueue") {
-    return `Adds this to the merge queue. GitHub tests it against whatever is ahead of it and merges it into ${onto} when its turn comes, which may be a while. Nothing lands now.`
-  }
-  if (doing === "cancel") {
-    return "Calls off the merge GitHub is holding. Nothing is merged, and this stays open until somebody asks again."
-  }
-  return "Takes this out of the line. Whatever is queued behind it is tested again without it."
-}
-
-/**
- * The sentence the second press agrees to, for closing it.
- *
- * Said in terms of what survives rather than what stops, because the word
- * "close" reads like "delete" to anyone who has not tried it: the branch, the
- * comments and the diff all stay, and whoever closed it can open it again.
- */
-const WHAT_CLOSING_DOES =
-  "Closes this without merging. The branch, the commits and every comment stay where they are, and it can be reopened on GitHub."
-
-/**
- * The sentence the second press agrees to, for the two draft doors.
- *
- * Marking ready is the louder of the two: it tells everyone whose review was
- * requested that there is something to read, which is a notification that
- * cannot be recalled even though the draft state itself can.
- */
-const WHAT_MARKING_READY_DOES =
-  "Takes this out of draft, so it can be merged and everyone whose review was asked for hears about it. It can be made a draft again, but the notification cannot be taken back."
-
-const WHAT_DRAFTING_DOES =
-  "Puts this back into draft. GitHub will not let it be merged while it is one, and nothing else about it changes."
 
 /** Which section on this page answers a blocker of each kind. */
 const SECTION_FOR: Record<BlockerAbout, string> = {
@@ -1095,23 +1041,6 @@ const jumpTo = (about: Option.Option<BlockerAbout>, from: Element): void => {
     // one that does.
     if (section !== null) return void section.scrollIntoView?.({ block: "start" })
   }
-}
-
-/**
- * The sentence the second press agrees to, for catching a branch up.
- *
- * The two ways of doing it are not the same promise: a merge leaves the
- * branch's history alone and adds a commit to it, a rebase replaces every
- * commit on it with a new one. Anybody with the branch checked out feels the
- * difference, so the button says which it is about to do.
- */
-const whatCatchingUp = (update: Option.Option<BranchUpdate>, base?: string): string => {
-  const from = base === undefined || base === "" ? "the base branch" : base
-  const how = Option.isSome(update) ? update.value.how : "MERGE"
-
-  return how === "REBASE"
-    ? `Replays this branch on top of ${from}, which rewrites every commit on it. Anybody who has it checked out has to fetch it again. The checks run once more against the new head.`
-    : `Merges ${from} into this branch, adding a merge commit. The checks run once more against the new head.`
 }
 
 /**
@@ -1155,26 +1084,22 @@ const QUEUE_WORDS: Record<
   "enqueue" | "dequeue" | "cancel",
   {
     readonly rest: string
-    readonly asking: string
     readonly working: string
     readonly done: string
   }
 > = {
   enqueue: {
     rest: "Merge when ready",
-    asking: "Confirm merge when ready",
     working: "Joining the queue…",
     done: "Queued"
   },
   dequeue: {
     rest: "Remove from the queue",
-    asking: "Confirm remove from the queue",
     working: "Removing…",
     done: "Removed"
   },
   cancel: {
     rest: "Cancel merge when ready",
-    asking: "Confirm cancel merge when ready",
     working: "Cancelling…",
     done: "Cancelled"
   }
@@ -1185,13 +1110,15 @@ const QueueButton = ({
   autoMerge,
   merging,
   actions,
-  press
+  press,
+  onCancel
 }: {
   readonly queue: MergeQueue
   readonly autoMerge: Option.Option<AutoMerge>
   readonly merging: Merging
   readonly actions?: MergeActions
   readonly press: (doing: Doing) => void
+  readonly onCancel: () => void
 }) => {
   // Three states, one after the other: armed, then standing in the line, then
   // merged. Offering "merge when ready" to a pull request already armed asks
@@ -1202,40 +1129,27 @@ const QueueButton = ({
       ? "cancel"
       : "enqueue"
   const busy = merging.step === "working" || merging.step === "done"
-  const asking = merging.step === "asking" && merging.doing === doing
 
   const words = QUEUE_WORDS[doing]
-  const label = busy
-    ? merging.step === "done"
-      ? words.done
-      : words.working
-    : asking
-      ? words.asking
-      : words.rest
-
   const leaving = doing !== "enqueue"
 
   return (
-    <button
-      type="button"
+    <Ask
+      verb={words.rest}
+      label={labelFor(merging, doing, words.rest, words.working, words.done)}
+      doing={doing}
+      merging={merging}
+      tone={leaving ? "bg-surface text-fail" : "bg-pass-emphasis text-ink-on-emphasis"}
       disabled={
         actions?.[doing] === undefined ||
         !queue.viewerCanQueue ||
         (doing === "enqueue" && !queue.mayJoin) ||
-        (doing === "cancel" &&
-          Option.isSome(autoMerge) &&
-          !autoMerge.value.viewerCanCancel) ||
+        (doing === "cancel" && Option.isSome(autoMerge) && !autoMerge.value.viewerCanCancel) ||
         busy
       }
-      onClick={() => press(doing)}
-      className={
-        leaving
-          ? "whitespace-nowrap rounded-md bg-surface px-3 py-1.5 text-xs font-semibold text-fail disabled:opacity-50"
-          : "whitespace-nowrap rounded-md bg-pass-emphasis px-3 py-1.5 text-xs font-semibold text-ink-on-emphasis disabled:opacity-50"
-      }
-    >
-      {label}
-    </button>
+      press={press}
+      onCancel={onCancel}
+    />
   )
 }
 
@@ -1305,7 +1219,6 @@ const Verdicts = ({ reviews }: { readonly reviews: ReadonlyArray<Review> }) => {
 
 const MergeCard = ({
   merge,
-  about,
   running,
   merging,
   url,
@@ -1316,7 +1229,6 @@ const MergeCard = ({
   onCancel
 }: {
   readonly merge: MergeState
-  readonly about: (doing: Doing) => string
   readonly running: number
   readonly merging: Merging
   readonly url?: string
@@ -1421,9 +1333,6 @@ const MergeCard = ({
         {merging.said}
       </p>
     ) : null}
-    {merging.step === "asking" ? (
-      <p className="px-3 py-2 text-xs leading-snug text-ink-muted">{about(merging.doing)}</p>
-    ) : null}
     {/* Wrapping rather than shrinking, and no label allowed to break inside
         itself: this column is four hundred pixels wide, and "Squash and merge"
         split over two lines beside "Close pull request" split over two lines
@@ -1441,87 +1350,169 @@ const MergeCard = ({
           merging={merging}
           actions={actions}
           press={press}
+          onCancel={onCancel}
         />
       ) : (
-        <button
-          type="button"
+        <Ask
+          verb="Squash and merge"
+          label={labelFor(merging, "merge", "Squash and merge", "Merging…", "Merged")}
+          doing="merge"
+          merging={merging}
+          tone="bg-pass-emphasis text-ink-on-emphasis"
           disabled={
             !merge.isMergeable ||
             actions?.merge === undefined ||
             merging.step === "working" ||
             merging.step === "done"
           }
-          onClick={() => press("merge")}
-          className="whitespace-nowrap rounded-md bg-pass-emphasis px-3 py-1.5 text-xs font-semibold text-ink-on-emphasis disabled:opacity-50"
-        >
-          {merging.step === "asking"
-            ? "Confirm squash and merge"
-            : merging.step === "working"
-              ? "Merging…"
-              : merging.step === "done"
-                ? "Merged"
-                : "Squash and merge"}
-        </button>
+          press={press}
+          onCancel={onCancel}
+        />
       )}
       {Option.isSome(merge.update) ? (
-        <button
-          type="button"
+        <Ask
+          verb="Update branch"
+          label={labelFor(merging, "update", "Update branch", "Updating…", "Updated")}
+          doing="update"
+          merging={merging}
+          tone="bg-surface text-ink"
           disabled={
             actions?.update === undefined ||
             !merge.update.value.mayUpdate ||
             merging.step === "working" ||
             merging.step === "done"
           }
-          onClick={() => press("update")}
-          className="whitespace-nowrap rounded-md bg-surface px-3 py-1.5 text-xs font-semibold text-ink disabled:opacity-50"
-        >
-          {merging.step === "asking" && merging.doing === "update"
-            ? "Confirm update branch"
-            : merging.step === "working" && merging.doing === "update"
-              ? "Updating…"
-              : merging.step === "done" && merging.doing === "update"
-                ? "Updated"
-                : "Update branch"}
-        </button>
+          press={press}
+          onCancel={onCancel}
+        />
       ) : null}
-      <DraftDoor state={state} merging={merging} actions={actions} press={press} />
-      {/* The way out of whatever was just asked for. Beside the button that
-          asked rather than in place of anything, because the thing being
-          agreed to should stay on the screen while it is being considered. */}
-      {merging.step === "asking" ? (
-        <button
-          type="button"
-          onClick={onCancel}
-          className="whitespace-nowrap rounded-md bg-surface px-3 py-1.5 text-xs font-semibold text-ink-muted"
-        >
-          Cancel
-        </button>
-      ) : null}
-      <button
-        type="button"
+      <DraftDoor
+        state={state}
+        merging={merging}
+        actions={actions}
+        press={press}
+        onCancel={onCancel}
+      />
+      <Ask
+        verb="Close pull request"
+        label={labelFor(merging, "close", "Close pull request", "Closing…", "Closed")}
+        doing="close"
+        merging={merging}
+        tone="bg-surface text-fail"
         disabled={
           actions?.close === undefined || merging.step === "working" || merging.step === "done"
         }
-        onClick={() => press("close")}
+        press={press}
+        onCancel={onCancel}
         // Pushed to the far edge, but only while there is an edge to push to.
         // An automatic margin does not stop this row wrapping, it only decides
         // where the wrapped button lands, and what it decided was the far right
         // of a line of its own — a button stranded in the corner under two that
         // start at the left. Below the width that holds them all, it wraps into
         // line with the rest instead.
-        className="whitespace-nowrap rounded-md bg-surface px-3 py-1.5 text-xs font-semibold text-fail disabled:opacity-50 @[27rem]:ml-auto"
-      >
-        {merging.step === "idle" || merging.step === "refused" || merging.doing !== "close"
-          ? "Close pull request"
-          : merging.step === "asking"
-            ? "Confirm close pull request"
-            : merging.step === "working"
-              ? "Closing…"
-              : "Closed"}
-      </button>
+        className="@[27rem]:ml-auto"
+      />
     </div>
   </Section>
 )
+
+/**
+ * A button that asks before it acts, without becoming somewhere else.
+ *
+ * The asking used to happen around the button rather than in it: the label grew
+ * a "Confirm" in front of it, a Cancel appeared at the end of the row, and a
+ * sentence arrived above the whole card. Three changes to read, none of them
+ * where the finger already was, for one press.
+ *
+ * So it splits in place instead. The verb stays exactly where it was and keeps
+ * saying what it does, and a cross grows onto its edge as the way out. The
+ * accessible names carry what the shape shows a sighted reader — that this press
+ * is the one that acts, and that one is the one that does not — because
+ * "Convert to draft" said twice would be two buttons nobody could tell apart.
+ */
+/**
+ * What a button says: its verb, unless the thing being done is its own.
+ *
+ * Every button on this row shares one state machine, and each used to read that
+ * machine's step without checking whose it was — so asking to close said
+ * "Merging…" on the button beside it.
+ */
+const labelFor = (
+  merging: Merging,
+  doing: Doing,
+  rest: string,
+  working: string,
+  done: string
+): string => {
+  if (merging.step === "working" && merging.doing === doing) return working
+  if (merging.step === "done" && merging.doing === doing) return done
+  return rest
+}
+
+const Ask = ({
+  verb,
+  label,
+  doing,
+  merging,
+  tone,
+  disabled,
+  press,
+  onCancel,
+  className = ""
+}: {
+  /** What the button does, at rest: the word the confirming half keeps. */
+  readonly verb: string
+  /** What it says now, which while it is working or done is not the verb. */
+  readonly label: string
+  readonly doing: Doing
+  readonly merging: Merging
+  /** Background and text, the same for both halves so they read as one. */
+  readonly tone: string
+  readonly disabled: boolean
+  readonly press: (doing: Doing) => void
+  readonly onCancel: () => void
+  readonly className?: string
+}) => {
+  const named = `${verb.charAt(0).toLowerCase()}${verb.slice(1)}`
+
+  if (merging.step === "asking" && merging.doing === doing) {
+    return (
+      // A one-pixel gap rather than a border, so the seam is the card showing
+      // through and needs no colour of its own on a green button or a grey one.
+      // Ringed, because on a quiet button the cross arriving is a small change
+      // to notice, and what has changed is that a press will now do something.
+      <span className={`inline-flex gap-px rounded-md ring-1 ring-line-accent ${className}`}>
+        <button
+          type="button"
+          aria-label={`Confirm ${named}`}
+          onClick={() => press(doing)}
+          className={`whitespace-nowrap rounded-l-md px-3 py-1.5 text-xs font-semibold ${tone}`}
+        >
+          {verb}
+        </button>
+        <button
+          type="button"
+          aria-label={`Do not ${named}`}
+          onClick={onCancel}
+          className={`flex items-center rounded-r-md px-2 py-1.5 ${tone}`}
+        >
+          <XIcon size={12} />
+        </button>
+      </span>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => press(doing)}
+      className={`whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${tone} ${className}`}
+    >
+      {label}
+    </button>
+  )
+}
 
 /**
  * The draft state, as a control rather than a condition.
@@ -1536,51 +1527,38 @@ const DraftDoor = ({
   state,
   merging,
   actions,
-  press
+  press,
+  onCancel
 }: {
   readonly state?: PullRequestState
   readonly merging: Merging
   readonly actions?: MergeActions
   readonly press: (doing: Doing) => void
+  readonly onCancel: () => void
 }) => {
   if (state !== "draft" && state !== "open") return null
 
   const doing: Doing = state === "draft" ? "markReady" : "toDraft"
-  const asked = merging.step !== "idle" && merging.step !== "refused" && merging.doing === doing
   const words =
     state === "draft"
-      ? {
-          idle: "Mark ready for review",
-          asking: "Confirm mark ready for review",
-          working: "Marking ready…",
-          done: "Ready for review"
-        }
-      : {
-          idle: "Convert to draft",
-          asking: "Confirm convert to draft",
-          working: "Converting…",
-          done: "Draft"
-        }
+      ? { verb: "Mark ready for review", working: "Marking ready…", done: "Ready for review" }
+      : { verb: "Convert to draft", working: "Converting…", done: "Draft" }
 
   return (
-    <button
-      type="button"
+    <Ask
+      verb={words.verb}
+      label={labelFor(merging, doing, words.verb, words.working, words.done)}
+      doing={doing}
+      merging={merging}
+      tone={
+        state === "draft" ? "bg-accent-emphasis text-ink-on-emphasis" : "bg-surface text-ink-muted"
+      }
       disabled={
         actions?.[doing] === undefined || merging.step === "working" || merging.step === "done"
       }
-      onClick={() => press(doing)}
-      className={`whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
-        state === "draft" ? "bg-accent-emphasis text-ink-on-emphasis" : "bg-surface text-ink-muted"
-      }`}
-    >
-      {asked && merging.step === "asking"
-        ? words.asking
-        : asked && merging.step === "working"
-          ? words.working
-          : asked && merging.step === "done"
-            ? words.done
-            : words.idle}
-    </button>
+      press={press}
+      onCancel={onCancel}
+    />
   )
 }
 
@@ -1631,9 +1609,7 @@ export const About = ({
     />
     <Merge
       merge={snapshot.merge}
-      base={snapshot.baseBranch}
       reviews={snapshot.reviews}
-      commits={snapshot.commits.length}
       running={stillRunning(snapshot.checks)}
       url={toUrl(snapshot.reference)}
       state={snapshot.state}

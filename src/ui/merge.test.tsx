@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event"
 import { Option } from "effect"
 import { aReview } from "../../tests/snapshots"
 import type { MergeQueue, MergeState } from "../domain/PullRequest"
-import { Merge, whatHappens } from "./Sections"
+import { Merge } from "./Sections"
 
 afterEach(cleanup)
 
@@ -52,7 +52,24 @@ describe("the merge card", () => {
 
     expect(merges).toBe(0)
     expect(button(/Confirm squash and merge/)).toBeDefined()
-    expect(screen.getByText(/Undoing it means opening a revert on GitHub/)).toBeDefined()
+    expect(button(/Do not squash and merge/)).toBeDefined()
+  })
+
+  test("asks where the button already was, rather than in a card of its own", async () => {
+    render(
+      <Merge merge={ready} actions={{ merge: async () => {}, close: async () => {} }} />
+    )
+
+    await userEvent.click(button(/Close pull request/))
+
+    const yes = button(/Confirm close pull request/)
+    const no = button(/Do not close pull request/)
+    // The pair is one control in the place the single button stood: both halves
+    // share a parent, and that parent is not the row every other button sits in.
+    expect(yes.parentElement).toBe(no.parentElement)
+    expect(yes.parentElement).not.toBe(button(/Squash and merge/).parentElement)
+    // And the buttons it stands beside are left alone, still saying what they do.
+    expect(button(/Squash and merge/)).toBeDefined()
   })
 
   test("merges on the second press", async () => {
@@ -83,7 +100,7 @@ describe("the merge card", () => {
     render(<Merge merge={ready} actions={{ merge: async () => void (merges += 1) }} />)
 
     await userEvent.click(button(/Squash and merge/))
-    await userEvent.click(button(/Cancel/))
+    await userEvent.click(button(/Do not squash and merge/))
 
     expect(merges).toBe(0)
     expect(button(/Squash and merge/)).toBeDefined()
@@ -169,7 +186,6 @@ describe("the merge card", () => {
     render(
       <Merge
         merge={{ ...ready, update: catchUp({}) }}
-        base="main"
         actions={{
           update: async () => void (updated += 1),
           onChanged: () => void (reread += 1)
@@ -178,7 +194,6 @@ describe("the merge card", () => {
     )
 
     await userEvent.click(button(/Update branch/))
-    expect(screen.getByText(/Merges main into this branch/)).toBeDefined()
 
     await userEvent.click(button(/Confirm update branch/))
 
@@ -345,21 +360,6 @@ describe("the merge card", () => {
     expect(button(/Close pull request/)).toHaveProperty("disabled", true)
   })
 
-  test("names the branch and counts the commits it would flatten", async () => {
-    render(<Merge merge={ready} base="main" commits={4} actions={{ merge: async () => {} }} />)
-
-    await userEvent.click(button(/Squash and merge/))
-
-    expect(screen.getByText(/Combines 4 commits into one and adds it to main/)).toBeDefined()
-  })
-
-  test("says nothing about checks when they have all finished", async () => {
-    render(<Merge merge={ready} actions={{ merge: async () => {} }} />)
-
-    await userEvent.click(button(/Squash and merge/))
-
-    expect(screen.queryByText(/not finished/)).toBeNull()
-  })
 })
 
 describe("what the reviewers decided", () => {
@@ -468,14 +468,6 @@ describe("a repository that merges through a queue", () => {
     expect(reread).toBe(0)
   })
 
-  test("says what joining the queue actually does", async () => {
-    render(<Merge merge={inA({})} base="main" actions={{ enqueue: async () => {} }} />)
-
-    await userEvent.click(button(/Merge when ready/))
-
-    expect(screen.getByText(/tests it against whatever is ahead of it/)).toBeDefined()
-  })
-
   test("says what GitHub said when it refuses to queue it", async () => {
     render(
       <Merge
@@ -567,31 +559,5 @@ describe("a repository that merges through a queue", () => {
 
     expect(screen.getByText(/waiting in the merge queue/i)).toBeDefined()
     expect(screen.queryByText(/position/)).toBeNull()
-  })
-})
-
-describe("what the second press agrees to", () => {
-  test("counts one commit as one, not as a combination", () => {
-    expect(whatHappens({ base: "main", commits: 1, running: 0 })).toStartWith(
-      "Adds this branch's one commit to main."
-    )
-  })
-
-  test("falls back to the base branch when its name has not arrived", () => {
-    expect(whatHappens({ commits: 0, running: 0 })).toStartWith(
-      "Squashes this branch into the base branch."
-    )
-  })
-
-  test("warns about the checks that have not finished, and counts them", () => {
-    expect(whatHappens({ base: "main", commits: 2, running: 2 })).toEndWith(
-      "2 checks have not finished, and merging now does not wait for them."
-    )
-  })
-
-  test("warns about a single unfinished check in the singular", () => {
-    expect(whatHappens({ base: "main", commits: 2, running: 1 })).toEndWith(
-      "One check has not finished, and merging now does not wait for it."
-    )
   })
 })
