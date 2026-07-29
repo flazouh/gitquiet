@@ -79,9 +79,7 @@ const whenIdle = (act: () => void): (() => void) => {
 }
 
 /** The files worth holding drawn: the one being read, and the two a key reaches. */
-const withinReach = (
-  paths: ReadonlyArray<string | undefined>
-): ReadonlyArray<string> => [
+const withinReach = (paths: ReadonlyArray<string | undefined>): ReadonlyArray<string> => [
   ...new Set(paths.filter((path): path is string => path !== undefined))
 ]
 
@@ -153,11 +151,14 @@ export const FileBrowser = ({
     files[0] === undefined ? [] : [files[0].path]
   )
 
-  const onSelect = useCallback((path: string) => {
-    setChosen(path)
-    setReading(proseAsDocument && isProse(path))
-    setOpened((held) => (held.has(path) ? held : new Set([...held, path])))
-  }, [proseAsDocument])
+  const onSelect = useCallback(
+    (path: string) => {
+      setChosen(path)
+      setReading(proseAsDocument && isProse(path))
+      setOpened((held) => (held.has(path) ? held : new Set([...held, path])))
+    },
+    [proseAsDocument]
+  )
 
   useEffect(() => {
     if (wanted === undefined) return
@@ -180,8 +181,17 @@ export const FileBrowser = ({
   }, [])
   const mine = useMemo(() => draftsIn(drafts, chosen ?? ""), [drafts, chosen])
 
-  const index = files.findIndex((file) => file.path === chosen)
-  const file = files[index] ?? files[0]
+  // Where the reader is, which is the first file until they say otherwise.
+  //
+  // Not "whatever was chosen", because on a page whose files arrived after the
+  // panel did nothing was ever chosen: the first file is shown because it is
+  // what a panel with nothing chosen shows. Reading the position off the choice
+  // alone made the file after the chosen one the first file itself, so the
+  // first press of Next moved from the file on screen to the file on screen and
+  // the reader pressed it again.
+  const chose = files.findIndex((candidate) => candidate.path === chosen)
+  const index = chose === -1 ? 0 : chose
+  const file = files[index]
 
   // Read ahead of the reader. Only the files GitHub held back are worth asking
   // for, in the order they are likely to be opened; the library skips whatever
@@ -209,6 +219,11 @@ export const FileBrowser = ({
   useEffect(() => {
     if (here === undefined) return
     setDrawn((held) => (held.includes(here) ? held : [...held, here]))
+    // And counted as read. Opening a file is what counts as having looked at
+    // it, and the file a panel shows because nothing was chosen has been looked
+    // at as much as any other — on a page whose files arrived late, the count
+    // said none of them had while one was on the screen.
+    setOpened((held) => (held.has(here) ? held : new Set([...held, here])))
   }, [here])
 
   useEffect(() => {
@@ -331,7 +346,11 @@ export const FileBrowser = ({
         {menu}
       </div>
 
-      <div className="flex min-h-0 flex-1 items-stretch">
+      {/* What the rail's width is a share of. Named as a container so the tree
+          can be told to take a fifth of the room the files have rather than a
+          fifth of the window: the window also holds a pull request's
+          conversation, and a commit's page does not. */}
+      <div className="@container flex min-h-0 flex-1 items-stretch">
         {/* Wide enough that a nested path still reads: every level of nesting
             spends indentation, and a repository's files are five deep before
             the name even starts. */}
@@ -373,9 +392,7 @@ export const FileBrowser = ({
                   data-file={one.path}
                   aria-hidden={open ? "false" : "true"}
                   className="absolute inset-0 overflow-auto"
-                  style={
-                    open ? undefined : { visibility: "hidden", pointerEvents: "none" }
-                  }
+                  style={open ? undefined : { visibility: "hidden", pointerEvents: "none" }}
                 >
                   <FileDiffPane
                     file={one}

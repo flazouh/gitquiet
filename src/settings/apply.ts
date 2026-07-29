@@ -65,10 +65,23 @@ export type TreeChoices = {
   readonly sticky: boolean
 }
 
+/**
+ * How wide the rail is, as a share of the panel it lives in.
+ *
+ * Fixed pixels made a tree that was right on a laptop and wrong on anything
+ * larger: the same two hundred and fifty on a five-thousand-pixel screen, every
+ * path in it cut in the middle while a third of the window stood empty.
+ *
+ * `cqi` and not `vw`, because what the rail has to share is the panel and not
+ * the window — a pull request keeps a column for its conversation, and a commit
+ * does not. The floor is what each of these used to be, so nothing narrows on
+ * the screens they were chosen for; the ceiling is where a rail stops being a
+ * rail and starts being the other half of a split.
+ */
 const WIDTH: Readonly<Record<string, string>> = {
-  narrow: "w-52",
-  medium: "w-64",
-  wide: "w-80"
+  narrow: "w-[clamp(13rem,18cqi,20rem)]",
+  medium: "w-[clamp(16rem,22cqi,26rem)]",
+  wide: "w-[clamp(20rem,28cqi,34rem)]"
 }
 
 export const treeChoices = (settings: TreeSettings): TreeChoices => ({

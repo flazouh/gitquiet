@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Option } from "effect"
 import { useEffect, useRef, useState } from "react"
@@ -8,6 +8,7 @@ import type { Profile } from "../keys/commands"
 import { diffChoices, treeChoices } from "../settings/apply"
 import { DEFAULTS } from "../settings/Settings"
 import { FileBrowser } from "./FileBrowser"
+import { ROOT_ID } from "./mount"
 import { SettingsMenu } from "./SettingsMenu"
 import { useKeys } from "./useKeys"
 
@@ -129,6 +130,32 @@ describe("the keyboard, over the whole page", () => {
     expect(screen.queryByRole("menu") === null).toBe(true)
   })
 
+  test("answers a key pressed before the interface has said where it is", async () => {
+    // The scope arrives one render late: it is an element, and an element is
+    // only known once React has put it on the screen. Until then this fell back
+    // to asking the whole page whether anything was open, and GitHub's page
+    // carries two dozen menus at all times whether or not any is showing — so a
+    // key pressed in the first moments of a page went nowhere, and the press
+    // that "worked" was the second one.
+    const theirs = document.createElement("div")
+    theirs.innerHTML = '<details-menu role="menu">Copy link</details-menu>'
+    document.body.append(theirs)
+
+    const ours = document.createElement("div")
+    ours.id = ROOT_ID
+    document.body.append(ours)
+
+    try {
+      render(<Harness />, { container: ours })
+      await userEvent.keyboard("j")
+
+      expect(said()).toBe("moved 1, dismissed 0")
+    } finally {
+      theirs.remove()
+      ours.remove()
+    }
+  })
+
   test("does nothing for a command nothing was wired to", async () => {
     render(<Harness />)
 
@@ -154,6 +181,64 @@ const file = (path: string): ChangedFile => ({
   linesDeleted: 1,
   readByViewer: false,
   diff: Option.some({ isBinary: false, isTruncated: false, lines: [] })
+})
+
+describe("moving through files that arrived after the panel did", () => {
+  test("goes to the second file on the first press, not the one already open", async () => {
+    // The panel is drawn before GitHub has answered about the pull request, so
+    // its first render has no files in it at all. Nothing chose the first file
+    // — it is simply what is shown when nothing is chosen — and "the one after
+    // the chosen one" was then the first file itself: the press did happen, and
+    // moved from the file on screen to the file on screen.
+    const { rerender } = render(
+      <FileBrowser
+        files={[]}
+        fetchDiffs={async () => []}
+        diff={diffChoices(DEFAULTS.diff)}
+        tree={treeChoices(DEFAULTS.tree)}
+        keys="standard"
+      />
+    )
+
+    rerender(
+      <FileBrowser
+        files={[file("src/one.ts"), file("src/two.ts")]}
+        fetchDiffs={async () => []}
+        diff={diffChoices(DEFAULTS.diff)}
+        tree={treeChoices(DEFAULTS.tree)}
+        keys="standard"
+      />
+    )
+    await waitFor(() => expect(screen.getByLabelText("Open file").textContent).toContain("one.ts"))
+
+    await userEvent.keyboard("j")
+
+    expect(screen.getByLabelText("Open file").textContent).toContain("two.ts")
+  })
+
+  test("counts the file it is showing as read, nobody having chosen it", async () => {
+    const { rerender } = render(
+      <FileBrowser
+        files={[]}
+        fetchDiffs={async () => []}
+        diff={diffChoices(DEFAULTS.diff)}
+        tree={treeChoices(DEFAULTS.tree)}
+        keys="standard"
+      />
+    )
+
+    rerender(
+      <FileBrowser
+        files={[file("src/one.ts"), file("src/two.ts")]}
+        fetchDiffs={async () => []}
+        diff={diffChoices(DEFAULTS.diff)}
+        tree={treeChoices(DEFAULTS.tree)}
+        keys="standard"
+      />
+    )
+
+    await waitFor(() => expect(screen.getByText("1 of 2 seen")).toBeDefined())
+  })
 })
 
 const browsing = (keys: Profile = "standard") =>

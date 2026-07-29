@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef } from "react"
 import type { Command, Profile } from "../keys/commands"
 import { commandFor } from "../keys/match"
+import { ROOT_ID } from "./mount"
 
 /**
  * The part of the page that is ours.
@@ -35,12 +36,7 @@ const beingTypedIn = (event: KeyboardEvent): boolean => {
   if (element === null) return false
 
   const name = element.tagName
-  return (
-    name === "INPUT" ||
-    name === "TEXTAREA" ||
-    name === "SELECT" ||
-    element.isContentEditable
-  )
+  return name === "INPUT" || name === "TEXTAREA" || name === "SELECT" || element.isContentEditable
 }
 
 /**
@@ -58,6 +54,23 @@ const beingTypedIn = (event: KeyboardEvent): boolean => {
  */
 const somethingIsUp = (within: ParentNode): boolean =>
   within.querySelector('dialog[open], [role="menu"]') !== null
+
+/**
+ * Which part of the page to ask, before the interface has said where it is.
+ *
+ * The scope is an element, so it is only known once React has put one on the
+ * screen — one render after the first. Asking the whole document in the
+ * meantime meant asking GitHub's, whose two dozen permanently-present menus
+ * always answer yes, so a key pressed in the first moments of a page did
+ * nothing and the press that appeared to work was the second one.
+ *
+ * The container the interface is drawn into exists before any of that: the
+ * content script makes it, names it, and hands it to React. Finding it by name
+ * is therefore an answer about our own markup at a time when nothing else is.
+ * Where there is no such element — a test, a page this was never mounted on —
+ * the document is still the honest answer.
+ */
+const scopeIn = (target: Document): ParentNode => target.getElementById(ROOT_ID) ?? target
 
 /**
  * The keyboard, for as long as the component asking is on screen.
@@ -89,7 +102,7 @@ export const useKeys = (
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.repeat) return
       if (beingTypedIn(event)) return
-      if (somethingIsUp(ours ?? target)) return
+      if (somethingIsUp(ours ?? scopeIn(target))) return
 
       const command = commandFor(
         {

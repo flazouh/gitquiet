@@ -41,9 +41,26 @@ describe("turning choices into what the diff takes", () => {
 
 describe("turning choices into what the rail takes", () => {
   it("gives every width a class", () => {
-    expect(tree({ width: "narrow" }).width).toBe("w-52")
-    expect(tree({ width: "medium" }).width).toBe("w-64")
-    expect(tree({ width: "wide" }).width).toBe("w-80")
+    expect(tree({ width: "narrow" }).width).toContain("clamp(13rem")
+    expect(tree({ width: "medium" }).width).toContain("clamp(16rem")
+    expect(tree({ width: "wide" }).width).toContain("clamp(20rem")
+  })
+
+  it("lets each of them grow with the panel they are in", () => {
+    // The three widths were fixed pixels, so a tree on a five-thousand-pixel
+    // screen was the same two hundred and fifty as on a laptop, with every
+    // path in it cut in the middle while a third of the window sat empty.
+    // A share of the panel rather than of the window: the rail is beside a
+    // diff, and on a pull request there is a conversation taking a column too.
+    for (const width of ["narrow", "medium", "wide"] as const) {
+      expect(tree({ width }).width).toContain("cqi")
+    }
+  })
+
+  it("stops each of them growing before the diff is the smaller half", () => {
+    expect(tree({ width: "narrow" }).width).toContain("20rem)")
+    expect(tree({ width: "medium" }).width).toContain("26rem)")
+    expect(tree({ width: "wide" }).width).toContain("34rem)")
   })
 
   it("reads the marks as booleans", () => {

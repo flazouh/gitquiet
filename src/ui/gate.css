@@ -55,3 +55,23 @@ html[data-githubpro-taken] [aria-label="Pull request navigation tabs"],
 html[data-githubpro-taken] react-app[app-name="commits"] [class*="PageLayout-Header"] {
   display: none;
 }
+
+/**
+ * And lets the interface have the whole window on a screen wide enough for it.
+ *
+ * GitHub holds a pull request's conversation to 1280 pixels and centres it,
+ * which is right for a column of prose and comments — it is a measure, and a
+ * line of text that runs the width of a five-thousand-pixel screen is a line
+ * nobody can follow back to its start. What this page shows in that region is
+ * not prose: it is a tree, a diff and a conversation side by side, and every
+ * pixel taken away from it is a column of code wrapped or a file name cut. On
+ * their own "Files changed" page they take the same view and let it run to
+ * both edges.
+ *
+ * Only while the interface is the page. Lifted the moment it hands back, so a
+ * reader who asked for GitHub's conversation gets GitHub's conversation at the
+ * width they chose for it.
+ */
+html[data-githubpro-taken] #diff-comparison-viewer-container {
+  max-width: none;
+}
