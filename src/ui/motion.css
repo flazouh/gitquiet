@@ -14,9 +14,119 @@
 
 #githubpro-root {
   --duration-quick: 150ms;
+  --duration-fast: 250ms;
   --duration-shimmer: 1.4s;
   --duration-turn: 1s;
   --ease-linear: linear;
+  --ease-in-out: ease-in-out;
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* transitions.dev — card resize, and text states swap. */
+  --resize-dur: var(--duration-fast);
+  --resize-ease: var(--ease-smooth-out);
+  --text-swap-dur: var(--duration-quick);
+  --text-swap-translate-y: 4px;
+  --text-swap-blur: 2px;
+  --text-swap-ease: var(--ease-in-out);
+}
+
+/**
+ * A button that asks before it acts.
+ *
+ * Two transitions.dev patterns on one control. The cancelling half is a grid
+ * column that opens from `0fr`, which is the card resize done on a track rather
+ * than on a width — nothing here knows how wide a cross is, and this way
+ * nothing has to. The word swaps in place: the verb rises out with a blur as
+ * "Confirm" rises in under it, both of them always present so the pair can go
+ * back the way it came.
+ */
+#githubpro-root .t-ask {
+  display: inline-grid;
+  grid-template-columns: auto 0fr;
+  align-items: stretch;
+  border-radius: 6px;
+  /* The seam between the halves is the card showing through, so neither half
+     needs a border of its own on a green button or on a grey one. */
+  gap: 0;
+  transition: grid-template-columns var(--resize-dur) var(--resize-ease);
+  will-change: grid-template-columns;
+}
+
+#githubpro-root .t-ask[data-asking] {
+  grid-template-columns: auto 1fr;
+  gap: 1px;
+}
+
+#githubpro-root .t-ask-yes {
+  border-radius: 6px 0 0 6px;
+  padding: 0.375rem 0.75rem;
+  white-space: nowrap;
+  transition:
+    background-color var(--duration-quick) var(--ease-in-out),
+    color var(--duration-quick) var(--ease-in-out),
+    border-radius var(--resize-dur) var(--resize-ease);
+}
+
+/* Square only on the side the cross arrives at, and round again the moment it
+   leaves — a button left with one flat edge and nothing beside it reads as
+   half of something missing. */
+#githubpro-root .t-ask:not([data-asking]) .t-ask-yes {
+  border-radius: 6px;
+}
+
+#githubpro-root .t-ask-out {
+  display: grid;
+  overflow: hidden;
+}
+
+#githubpro-root .t-ask-no {
+  display: flex;
+  align-items: center;
+  border-radius: 0 6px 6px 0;
+  padding: 0.375rem 0.5rem;
+  animation: t-ask-in var(--duration-fast) var(--ease-smooth-out) both;
+}
+
+@keyframes t-ask-in {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+}
+
+/* One cell, both words in it, so the half is as wide as the wider of the two
+   and nothing moves sideways when they swap. Centred, because the shorter word
+   left-aligned in a slot cut for the longer one reads as a label that slipped. */
+#githubpro-root .t-ask-words {
+  display: inline-grid;
+  grid-template-areas: "word";
+  justify-items: center;
+}
+
+#githubpro-root .t-ask-word {
+  grid-area: word;
+  transition:
+    transform var(--text-swap-dur) var(--text-swap-ease),
+    filter var(--text-swap-dur) var(--text-swap-ease),
+    opacity var(--text-swap-dur) var(--text-swap-ease);
+  will-change: transform, filter, opacity;
+}
+
+/* The word that is not being shown waits below, blurred and gone. The resting
+   one leaves upward, which is the direction the incoming word arrives from. */
+#githubpro-root .t-ask:not([data-asking]) .t-ask-word:last-child,
+#githubpro-root .t-ask[data-asking] .t-ask-word:first-child {
+  opacity: 0;
+  filter: blur(var(--text-swap-blur));
+  pointer-events: none;
+}
+
+#githubpro-root .t-ask:not([data-asking]) .t-ask-word:last-child {
+  transform: translateY(var(--text-swap-translate-y));
+}
+
+#githubpro-root .t-ask[data-asking] .t-ask-word:first-child {
+  transform: translateY(calc(var(--text-swap-translate-y) * -1));
 }
 
 /* A check that is still running, turning at GitHub's own rate. Their spinner
@@ -61,6 +171,16 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  #githubpro-root .t-ask,
+  #githubpro-root .t-ask-yes,
+  #githubpro-root .t-ask-word {
+    transition: none !important;
+  }
+
+  #githubpro-root .t-ask-no {
+    animation: none;
+  }
+
   #githubpro-root .t-shimmer {
     animation: none;
     background: none;

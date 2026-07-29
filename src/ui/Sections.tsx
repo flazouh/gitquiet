@@ -28,8 +28,9 @@ import type {
   ReviewDecision,
   ReviewThread
 } from "../domain/PullRequest"
+import { failing, isGreen, standingOf, stillRunning, type Standing } from "../domain/checks"
 import { toUrl, type PullRequestRef } from "../domain/PullRequestRef"
-import { checkArt } from "./Icon"
+import { CHECK_TONE, checkArt } from "./Icon"
 import { Markdown } from "./Markdown"
 import type { Kept } from "../app/kept"
 import { around } from "../github/logs"
@@ -133,29 +134,53 @@ export const Description = ({ html }: { readonly html: string }) => {
   )
 }
 
-const failing = (checks: ReadonlyArray<Check>) => checks.filter((check) => check.state === "failed")
-
 /**
- * A check that is finished and is not a complaint.
+ * The one line above the checks, which is the standing put into words.
  *
- * Skipped and neutral count with the green ones because that is what GitHub's
- * own summary counts them as: a job the workflow decided not to run is not a
- * job anybody is waiting on.
+ * A branch per standing and nothing else: which of them applies is no longer a
+ * question this file answers. It used to be, and it answered wrong — a run with
+ * ten of its twelve checks still going read "All 12 checks passed" because the
+ * only thing counted here was how many had failed.
  */
-const isGreen = (check: Check) =>
-  check.state === "succeeded" || check.state === "skipped" || check.state === "neutral"
-
-const CHECK_TONE: Record<Check["state"], string> = {
-  succeeded: "text-pass",
-  failed: "text-fail",
-  // `busy` is `--fgColor-attention`, the yellow GitHub gives to work in hand.
-  // This said `text-attention` for a long time, which is not a colour this
-  // interface has: both states have been rendering in plain body text.
-  running: "text-busy",
-  queued: "text-busy",
-  cancelled: "text-ink-muted",
-  skipped: "text-ink-muted",
-  neutral: "text-ink-muted"
+const ChecksSummary = ({ standing }: { readonly standing: Standing }) => {
+  switch (standing.kind) {
+    case "red":
+      return (
+        <span className={`flex items-center gap-1.5 ${CHECK_TONE.failed}`}>
+          <AlertFillIcon size={12} />
+          {`CI is red — ${standing.failed} of ${standing.total} failing`}
+        </span>
+      )
+    case "running": {
+      // Turning only while something is actually turning. A run whose every
+      // check is merely queued has not begun, and a spinner over it is the same
+      // kind of small lie as calling it passed.
+      const Art = checkArt(standing.started ? "running" : "queued")
+      return (
+        <span className={`flex items-center gap-1.5 ${CHECK_TONE.running}`}>
+          {/* Named apart from the rows' own spinners: this one stands for the
+              whole run, and sharing their label would make the section read as
+              having one more running check than it has. */}
+          <Art size={12} aria-label="Checks still running" />
+          {`${standing.waiting} of ${standing.total} still running`}
+        </span>
+      )
+    }
+    case "passed":
+      return (
+        <span className="flex items-center gap-1.5">
+          <CheckCircleFillIcon size={12} className={CHECK_TONE.succeeded} />
+          {`All ${standing.total} ${standing.total === 1 ? "check" : "checks"} passed`}
+        </span>
+      )
+    case "stopped":
+      return (
+        <span className="flex items-center gap-1.5">
+          <CheckCircleFillIcon size={12} />
+          {`${standing.green} of ${standing.total} passed, none failing`}
+        </span>
+      )
+  }
 }
 
 const CheckRow = ({ check, onOpen }: { readonly check: Check; readonly onOpen: () => void }) => {
@@ -172,296 +197,6 @@ const CheckRow = ({ check, onOpen }: { readonly check: Check; readonly onOpen: (
       <span className="shrink-0 text-xs font-semibold">{check.name}</span>
       <span className="min-w-0 flex-1 truncate text-xs text-ink-muted">{check.summary}</span>
     </button>
-  )
-}
-
-/**
- * Something being read from GitHub: not here yet, here, or it went wrong.
- *
- * One shape for every panel that waits on a request, so waiting looks the same
- * wherever it happens rather than each place inventing its own three states.
- */
-export type Reading<Value> =
-  | { readonly step: "loading" }
-  | { readonly step: "ready"; readonly value: Value }
-  | { readonly step: "failed" }
-
-/**
- * One check, in front of everything else, because a red build is read before it
- * is acted on.
- *
- * Their own account of the failure and a way to the log: GitHub redirects the
- * log itself to storage on another origin, which a page cannot read, so the
- * link goes to the run — which is where anyone reading a stack trace ends up
- * anyway.
- */
-const CheckDialog = ({
-  check,
-  library,
-  logs,
-  tails,
-  reach,
-  onClose
-}: {
-  readonly check: Check
-  readonly library?: CheckNotes
-  readonly logs?: CheckLogs
-  readonly tails?: CheckTails
-  readonly reach?: LogReach
-  readonly onClose: () => void
-}) => {
-  const frame = useRef<HTMLDialogElement | null>(null)
-  const Art = checkArt(check.state)
-  const notes = useReading(library, check.name)
-
-  useEffect(() => {
-    const box = frame.current
-    if (box === null) return
-
-    // Modal rather than merely visible: it takes the focus and the page behind
-    // it goes inert.
-    box.showModal()
-
-    // Escape is answered here rather than left to the browser. This interface
-    // lives inside GitHub's page, among their handlers and our own, and the
-    // browser's way out of a dialog is cancelled by anything upstream that
-    // calls preventDefault on the keypress first — which is a way out that
-    // works until the day someone adds a shortcut, and then silently does not.
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.repeat) return
-      event.preventDefault()
-      event.stopPropagation()
-      box.close()
-    }
-
-    document.addEventListener("keydown", onKey, true)
-    return () => document.removeEventListener("keydown", onKey, true)
-  }, [])
-
-  return (
-    <dialog
-      ref={frame}
-      onClose={onClose}
-      // A press on the dialog element itself is a press on the backdrop: the
-      // card fills its box, so anything landing on the box landed beside the
-      // card. The reader who clicks away from a thing expects it to go.
-      onClick={(event) => {
-        if (event.target === event.currentTarget) frame.current?.close()
-      }}
-      aria-label={check.name}
-      // Wide enough for a log line. Compiler and stack output runs long, and a
-      // narrow dialog turns every line into three.
-      className="w-[56rem] max-w-[92vw] rounded-md border border-line bg-canvas p-0 text-ink backdrop:bg-black/50"
-    >
-      <div className="flex items-center gap-2 border-b border-line bg-surface px-4 py-2.5">
-        <Art size={14} className={`shrink-0 ${CHECK_TONE[check.state]}`} />
-        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">{check.name}</h2>
-        <button
-          type="button"
-          onClick={() => frame.current?.close()}
-          className="text-xs text-ink-muted"
-        >
-          Close
-        </button>
-      </div>
-      <div className="flex flex-col gap-3 px-4 py-3">
-        <p className="text-sm text-ink-muted">
-          {check.summary === "" ? `${check.state} after ${check.durationSeconds}s` : check.summary}
-        </p>
-        <Notes check={check} notes={notes} logs={logs} reach={reach} />
-        {notes.step === "ready" && !notes.value.some((note) => Option.isSome(note.at)) ? (
-          <LogTail check={check} tails={tails} reach={reach} />
-        ) : null}
-        <a
-          href={check.url}
-          target="_blank"
-          rel="noreferrer"
-          className="flex w-fit items-center gap-1.5 rounded-md bg-surface px-3 py-1.5 text-xs font-semibold text-ink-accent"
-        >
-          <LinkExternalIcon size={12} />
-          Open the full log on GitHub
-        </a>
-      </div>
-    </dialog>
-  )
-}
-
-/** Everything read from a check page, held so a second look is free. */
-export type CheckNotes = Kept<string, ReadonlyArray<CheckNote>>
-
-/** A step's log, held under `check name:step`. */
-export type CheckLogs = Kept<string, ReadonlyArray<LogLine>>
-
-/** The end of a check's whole log, held under the check's name. */
-export type CheckTails = Kept<string, ReadonlyArray<LogLine>>
-
-/** The key a whole log is held under, as against the tail of the same one. */
-export const wholeKey = (check: Check): string => `${check.name}:whole`
-
-/** What a log can reach out to: the files this pull request touches. */
-export type LogReach = {
-  readonly paths?: ReadonlyArray<string>
-  readonly onOpenFile?: (path: string, line: number) => void
-  readonly hrefFor?: (ref: FileRef) => string
-}
-
-/** The key a step's log is held under, so both sides agree on one spelling. */
-export const logKey = (check: Check, step: number): string => `${check.name}:${step}`
-
-const NOTE_TONE: Record<CheckNote["level"], string> = {
-  failure: "text-fail",
-  warning: "text-busy",
-  notice: "text-ink-muted"
-}
-
-/**
- * What GitHub wrote against the check, in the dialog rather than a tab away.
- *
- * Silent when there is nothing: a check often fails with no annotation at all,
- * and an empty box saying "no annotations" is noise in front of the link that
- * actually helps. Silent too when the reading failed — the link below it is
- * still there, and it is what a reader would have used anyway.
- */
-const Notes = ({
-  check,
-  notes,
-  logs,
-  reach
-}: {
-  readonly check: Check
-  readonly notes: Reading<ReadonlyArray<CheckNote>>
-  readonly logs?: CheckLogs
-  readonly reach?: LogReach
-}) => {
-  if (notes.step === "loading") {
-    return <p className="text-xs text-ink-muted">Reading what GitHub said…</p>
-  }
-  if (notes.step === "failed" || notes.value.length === 0) return null
-
-  return (
-    <ul className="flex flex-col divide-y divide-line-muted overflow-hidden rounded-md border border-line">
-      {notes.value.map((note, at) => (
-        <li key={`${note.where}:${at}`} className="flex flex-col gap-1 px-3 py-2">
-          <span className={`text-xs font-semibold ${NOTE_TONE[note.level]}`}>{note.where}</span>
-          {/* Their words, wrapped and monospaced: these are compiler and test
-              output, where a broken line break changes what it says. */}
-          <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono text-xs leading-snug text-ink">
-            {note.message}
-          </pre>
-          {Option.isNone(note.at) ? null : (
-            <LogPeek check={check} spot={note.at.value} logs={logs} reach={reach} />
-          )}
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-/**
- * Something read from GitHub, waited on only when it is not already here.
- *
- * A pointer that passed over the row has usually finished this before the
- * click, in which case there is no waiting at all and no spinner to see.
- */
-const useReading = <Value,>(
-  library: Kept<string, ReadonlyArray<Value>> | undefined,
-  name: string
-): Reading<ReadonlyArray<Value>> => {
-  const held = library?.held(name)
-  const [reading, setReading] = useState<Reading<ReadonlyArray<Value>>>(
-    library === undefined
-      ? { step: "ready", value: [] }
-      : held === undefined
-        ? { step: "loading" }
-        : { step: "ready", value: held }
-  )
-
-  useEffect(() => {
-    if (library === undefined) return
-    let wanted = true
-
-    library.ask(name).then(
-      (value) => {
-        if (wanted) setReading({ step: "ready", value })
-      },
-      () => {
-        if (wanted) setReading({ step: "failed" })
-      }
-    )
-
-    return () => {
-      wanted = false
-    }
-  }, [library, name])
-
-  return reading
-}
-
-/**
- * The log around the line the note points at.
- *
- * A window rather than the whole step: the note names a line, the lines that
- * led to it are the context, and everything before that is the runner setting
- * itself up. The panel takes it from there — folding, errors, files and all.
- */
-const LogPeek = ({
-  check,
-  spot,
-  logs,
-  reach
-}: {
-  readonly check: Check
-  readonly spot: LogSpot
-  readonly logs?: CheckLogs
-  readonly reach?: LogReach
-}) => {
-  const reading = useReading(logs, logKey(check, spot.step))
-
-  if (logs === undefined || reading.step === "failed") return null
-  if (reading.step === "loading") {
-    return <p className="text-xs text-ink-muted">Reading the log…</p>
-  }
-  if (reading.value.length === 0) return null
-
-  return <LogPanel lines={around(reading.value, spot.line)} mark={spot.line} {...reach} />
-}
-
-/**
- * The end of the whole log, for a check that pointed at no line of it.
- *
- * Read as soon as the dialog opens, green or red. Opening a check is the ask —
- * there is nothing else in here for a check GitHub wrote no annotation against,
- * and a button in front of the only content is a click that exists to be
- * clicked. It costs one request for the last couple of hundred lines, which is
- * already how the panel reads a failing check.
- */
-const LogTail = ({
-  check,
-  tails,
-  reach
-}: {
-  readonly check: Check
-  readonly tails?: CheckTails
-  readonly reach?: LogReach
-}) => {
-  const [whole, setWhole] = useState(false)
-  const reading = useReading(tails, whole ? wholeKey(check) : check.name)
-
-  if (tails === undefined) return null
-  if (reading.step === "loading") return <p className="text-xs text-ink-muted">Reading the log…</p>
-  if (reading.step === "failed") {
-    return <p className="text-xs text-ink-muted">That log could not be read from here.</p>
-  }
-  if (reading.value.length === 0) {
-    return <p className="text-xs text-ink-muted">GitHub keeps no log for this check.</p>
-  }
-
-  return (
-    <LogPanel
-      lines={reading.value}
-      onWhole={whole ? undefined : () => setWhole(true)}
-      {...reach}
-    />
   )
 }
 
@@ -497,10 +232,11 @@ export const Checks = ({
     enabled: library !== undefined
   })
 
+  const standing = standingOf(checks)
   const red = failing(checks)
   const rest = checks.filter((check) => check.state !== "failed")
-  // Counted the same way the line above the fold counts, so the two cannot
-  // disagree about the same set of checks.
+  // Counted with the domain's own predicate, so the fold and the line above it
+  // cannot come to two answers about the same checks. They used to.
   const passed = rest.filter(isGreen).length
 
   if (checks.length === 0) {
@@ -511,51 +247,12 @@ export const Checks = ({
     )
   }
 
-  // Nothing failing is not the same as everything passing, and this line said
-  // it was: a run two minutes old, with ten of its twelve checks still going,
-  // read "All 12 checks passed" while the fold directly beneath it read "2
-  // passed, 10 other". A reader who trusts the first one merges on a run that
-  // has not finished.
-  const summary = (() => {
-    if (red.length > 0) {
-      return (
-        <span className="flex items-center gap-1.5 text-fail">
-          <AlertFillIcon size={12} />
-          {`CI is red — ${red.length} of ${checks.length} failing`}
-        </span>
-      )
-    }
-
-    const waiting = stillRunning(checks)
-    if (waiting > 0) {
-      // Turning only while something is actually turning. A run whose every
-      // check is merely queued has not begun, and a spinner over it is the same
-      // kind of small lie as calling it passed.
-      const Art = checkArt(checks.some((check) => check.state === "running") ? "running" : "queued")
-      return (
-        <span className={`flex items-center gap-1.5 ${CHECK_TONE.running}`}>
-          {/* Named apart from the rows' own spinners: this one stands for the
-              whole run, and sharing their label would make the section read as
-              having one more running check than it has. */}
-          <Art size={12} aria-label="Checks still running" />
-          {`${waiting} of ${checks.length} still running`}
-        </span>
-      )
-    }
-
-    const green = checks.filter(isGreen).length
-    return (
-      <span className="flex items-center gap-1.5">
-        <CheckCircleFillIcon size={12} className={green === checks.length ? "text-pass" : ""} />
-        {green === checks.length
-          ? `All ${checks.length} ${checks.length === 1 ? "check" : "checks"} passed`
-          : `${green} of ${checks.length} passed, none failing`}
-      </span>
-    )
-  })()
-
   return (
-    <Section name="Checks" tone={red.length === 0 ? "plain" : "bad"} summary={summary}>
+    <Section
+      name="Checks"
+      tone={standing.kind === "red" ? "bad" : "plain"}
+      summary={<ChecksSummary standing={standing} />}
+    >
       <div ref={nearby}>
       {/* Failures open, everything else behind one line: a green check has
           nothing to say, and thirty of them said at once are a wall. */}
@@ -1140,6 +837,9 @@ const QueueButton = ({
       doing={doing}
       merging={merging}
       tone={leaving ? "bg-surface text-fail" : "bg-pass-emphasis text-ink-on-emphasis"}
+      armed={
+        leaving ? "bg-fail-emphasis text-ink-on-emphasis" : "bg-pass-emphasis text-ink-on-emphasis"
+      }
       disabled={
         actions?.[doing] === undefined ||
         !queue.viewerCanQueue ||
@@ -1359,6 +1059,7 @@ const MergeCard = ({
           doing="merge"
           merging={merging}
           tone="bg-pass-emphasis text-ink-on-emphasis"
+          armed="bg-pass-emphasis text-ink-on-emphasis"
           disabled={
             !merge.isMergeable ||
             actions?.merge === undefined ||
@@ -1376,6 +1077,7 @@ const MergeCard = ({
           doing="update"
           merging={merging}
           tone="bg-surface text-ink"
+          armed="bg-accent-emphasis text-ink-on-emphasis"
           disabled={
             actions?.update === undefined ||
             !merge.update.value.mayUpdate ||
@@ -1399,6 +1101,7 @@ const MergeCard = ({
         doing="close"
         merging={merging}
         tone="bg-surface text-fail"
+        armed="bg-fail-emphasis text-ink-on-emphasis"
         disabled={
           actions?.close === undefined || merging.step === "working" || merging.step === "done"
         }
@@ -1455,62 +1158,78 @@ const Ask = ({
   doing,
   merging,
   tone,
+  armed,
   disabled,
   press,
   onCancel,
   className = ""
 }: {
-  /** What the button does, at rest: the word the confirming half keeps. */
+  /** What the button does, at rest: also the word that leaves when it is armed. */
   readonly verb: string
   /** What it says now, which while it is working or done is not the verb. */
   readonly label: string
   readonly doing: Doing
   readonly merging: Merging
-  /** Background and text, the same for both halves so they read as one. */
+  /** Background and text at rest. */
   readonly tone: string
+  /**
+   * Background and text once it is armed, which is never the resting pair.
+   *
+   * A control that looks the same before and after a press has not told anybody
+   * anything. Filling it with the colour of what it is about to do — green for
+   * a merge, red for the end of a pull request, blue for the rest — says which
+   * press is the one that acts, at a glance and from the corner of an eye.
+   */
+  readonly armed: string
   readonly disabled: boolean
   readonly press: (doing: Doing) => void
   readonly onCancel: () => void
   readonly className?: string
 }) => {
   const named = `${verb.charAt(0).toLowerCase()}${verb.slice(1)}`
-
-  if (merging.step === "asking" && merging.doing === doing) {
-    return (
-      // A one-pixel gap rather than a border, so the seam is the card showing
-      // through and needs no colour of its own on a green button or a grey one.
-      // Ringed, because on a quiet button the cross arriving is a small change
-      // to notice, and what has changed is that a press will now do something.
-      <span className={`inline-flex gap-px rounded-md ring-1 ring-line-accent ${className}`}>
-        <button
-          type="button"
-          aria-label={`Confirm ${named}`}
-          onClick={() => press(doing)}
-          className={`whitespace-nowrap rounded-l-md px-3 py-1.5 text-xs font-semibold ${tone}`}
-        >
-          {verb}
-        </button>
-        <button
-          type="button"
-          aria-label={`Do not ${named}`}
-          onClick={onCancel}
-          className={`flex items-center rounded-r-md px-2 py-1.5 ${tone}`}
-        >
-          <XIcon size={12} />
-        </button>
-      </span>
-    )
-  }
+  const asking = merging.step === "asking" && merging.doing === doing
+  // Only the verb has a second word to swap to. "Merging…" and "Merged" arrive
+  // after the asking is over, and neither is a state anybody can back out of.
+  const swapping = label === verb
 
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={() => press(doing)}
-      className={`whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${tone} ${className}`}
-    >
-      {label}
-    </button>
+    <span className={`t-ask ${className}`} data-asking={asking ? "" : undefined}>
+      <button
+        type="button"
+        disabled={disabled && !asking}
+        aria-label={asking ? `Confirm ${named}` : undefined}
+        onClick={() => press(doing)}
+        className={`t-ask-yes text-xs font-semibold disabled:opacity-50 ${asking ? armed : tone}`}
+      >
+        {swapping ? (
+          <span className="t-ask-words">
+            <span className="t-ask-word" aria-hidden={asking || undefined}>
+              {verb}
+            </span>
+            <span className="t-ask-word" aria-hidden={asking ? undefined : true}>
+              Confirm
+            </span>
+          </span>
+        ) : (
+          label
+        )}
+      </button>
+      {/* Mounted only while it is wanted, and grown from nothing rather than
+          dropped in: the cell it lives in opens from no width at all, so the
+          control gains a half instead of the row gaining a button. */}
+      {asking ? (
+        <span className="t-ask-out">
+          <button
+            type="button"
+            aria-label={`Do not ${named}`}
+            onClick={onCancel}
+            className="t-ask-no bg-surface text-ink-muted hover:text-ink"
+          >
+            <XIcon size={12} />
+          </button>
+        </span>
+      ) : null}
+    </span>
   )
 }
 
@@ -1553,6 +1272,7 @@ const DraftDoor = ({
       tone={
         state === "draft" ? "bg-accent-emphasis text-ink-on-emphasis" : "bg-surface text-ink-muted"
       }
+      armed="bg-accent-emphasis text-ink-on-emphasis"
       disabled={
         actions?.[doing] === undefined || merging.step === "working" || merging.step === "done"
       }
@@ -1561,10 +1281,6 @@ const DraftDoor = ({
     />
   )
 }
-
-/** Checks that have not reached a verdict yet. */
-const stillRunning = (checks: ReadonlyArray<Check>): number =>
-  checks.filter((check) => check.state === "running" || check.state === "queued").length
 
 /**
  * The column that answers "what is this pull request, and can it land".

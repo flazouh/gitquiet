@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen, waitFor } from "@testing-library/react"
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Option } from "effect"
 import { aReview } from "../../tests/snapshots"
@@ -55,6 +55,24 @@ describe("the merge card", () => {
     expect(button(/Do not squash and merge/)).toBeDefined()
   })
 
+  test("changes the word on the half that acts, so being armed looks like something", async () => {
+    render(<Merge merge={ready} state="open" actions={{ toDraft: async () => {} }} />)
+
+    // Both words are there the whole time — the swap is one rising as the other
+    // leaves — so which is shown is the one not hidden from a reader.
+    const word = (name: RegExp, said: string) => within(button(name)).getByText(said)
+
+    expect(word(/Convert to draft/, "Confirm").getAttribute("aria-hidden")).toBe("true")
+    expect(word(/Convert to draft/, "Convert to draft").getAttribute("aria-hidden")).toBeNull()
+
+    await userEvent.click(button(/Convert to draft/))
+
+    expect(word(/Confirm convert to draft/, "Confirm").getAttribute("aria-hidden")).toBeNull()
+    expect(word(/Confirm convert to draft/, "Convert to draft").getAttribute("aria-hidden")).toBe(
+      "true"
+    )
+  })
+
   test("asks where the button already was, rather than in a card of its own", async () => {
     render(
       <Merge merge={ready} actions={{ merge: async () => {}, close: async () => {} }} />
@@ -64,10 +82,11 @@ describe("the merge card", () => {
 
     const yes = button(/Confirm close pull request/)
     const no = button(/Do not close pull request/)
-    // The pair is one control in the place the single button stood: both halves
-    // share a parent, and that parent is not the row every other button sits in.
-    expect(yes.parentElement).toBe(no.parentElement)
-    expect(yes.parentElement).not.toBe(button(/Squash and merge/).parentElement)
+    // The pair is one control in the place the single button stood: the way out
+    // is inside it, and the buttons beside it are not.
+    const control = yes.parentElement
+    expect(control?.contains(no)).toBe(true)
+    expect(control?.contains(button(/Squash and merge/))).toBe(false)
     // And the buttons it stands beside are left alone, still saying what they do.
     expect(button(/Squash and merge/)).toBeDefined()
   })
