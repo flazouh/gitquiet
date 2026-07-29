@@ -197,6 +197,26 @@ export class GitHubGateway extends Context.Service<
       reference: PullRequestRef,
       how: UpdateMethod
     ) => Effect.Effect<void, GatewayError>
+    /**
+     * Closes it without merging, the way their own button at the foot of the
+     * conversation does.
+     *
+     * Nothing is lost by it — a closed pull request keeps its branch, its
+     * comments and its diff, and GitHub will reopen it — but it is still the
+     * one control here that ends the reading, so its refusals are worth
+     * repeating word for word.
+     */
+    readonly close: (reference: PullRequestRef) => Effect.Effect<void, GatewayError>
+    /**
+     * Takes it out of draft, which is the whole of what a draft is stopping.
+     *
+     * GitHub refuses to merge a draft and says so as a condition about the
+     * pull request's state, so this is the one write here that turns a blocker
+     * into no blocker rather than changing what is being reviewed.
+     */
+    readonly markReady: (reference: PullRequestRef) => Effect.Effect<void, GatewayError>
+    /** Puts it back, for a pull request opened before it was meant to be read. */
+    readonly toDraft: (reference: PullRequestRef) => Effect.Effect<void, GatewayError>
   }
 >()("GitHubGateway") {}
 
@@ -225,6 +245,9 @@ const ENQUEUE = "/page_data/enable_auto_merge"
 const DEQUEUE = "/page_data/dequeue_pull_request"
 const CANCEL_AUTO_MERGE = "/page_data/disable_auto_merge"
 const UPDATE_BRANCH = "/page_data/update_pull_request_branch"
+const CLOSE = "/page_data/close_pull_request"
+const MARK_READY = "/page_data/mark_ready_for_review"
+const TO_DRAFT = "/page_data/convert_to_draft"
 
 // GitHub answers 406 to these routes without the XMLHttpRequest header.
 const REQUIRED_HEADERS = {
@@ -587,6 +610,18 @@ export const layer = Layer.succeed(GitHubGateway, {
       yield* posting(reference, UPDATE_BRANCH, { updateMethod: how })
     }),
 
+    close: Effect.fn("GitHubGateway.close")(function* (reference: PullRequestRef) {
+      yield* posting(reference, CLOSE)
+    }),
+
+    markReady: Effect.fn("GitHubGateway.markReady")(function* (reference: PullRequestRef) {
+      yield* posting(reference, MARK_READY)
+    }),
+
+    toDraft: Effect.fn("GitHubGateway.toDraft")(function* (reference: PullRequestRef) {
+      yield* posting(reference, TO_DRAFT)
+    }),
+
     notes: Effect.fn("GitHubGateway.notes")(function* (reference: PullRequestRef, check: Check) {
       const run = checkRunIn(check)
       // Only Actions checks have one of these pages. A check from anything
@@ -836,7 +871,10 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     enqueue: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
     dequeue: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
     cancelAutoMerge: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
-    updateBranch: (reference: PullRequestRef) => Effect.fail(notRecorded(reference))
+    updateBranch: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    close: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    markReady: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    toDraft: (reference: PullRequestRef) => Effect.fail(notRecorded(reference))
   })
 
 /**
@@ -877,5 +915,8 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     enqueue: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
     dequeue: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
     cancelAutoMerge: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
-    updateBranch: (reference: PullRequestRef) => Effect.fail(notRecorded(reference))
+    updateBranch: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    close: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    markReady: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    toDraft: (reference: PullRequestRef) => Effect.fail(notRecorded(reference))
   })

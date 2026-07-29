@@ -283,6 +283,74 @@ describe("what the gateway sends to GitHub", () => {
     })
   })
 
+  describe("closing a pull request", () => {
+    const closing = Effect.gen(function* () {
+      const gateway = yield* GitHubGateway
+      return yield* gateway.close(draft)
+    }).pipe(Effect.provide(layer))
+
+    test("posts to the route their own button posts to", async () => {
+      const calls = intercept(() => Response.json({}))
+
+      await Effect.runPromise(closing)
+
+      expect(calls).toHaveLength(1)
+      expect(new URL(calls[0]!.url).pathname).toBe(
+        "/microsoft/vscode/pull/327442/page_data/close_pull_request"
+      )
+      // The header that stands in for a CSRF token on the writing routes. A
+      // request without it comes back refused however good the cookies are.
+      expect(calls[0]!.headers.get("GitHub-Verified-Fetch")).toBe("true")
+    })
+
+    test("hands back the sentence GitHub refused with, for the card to show", async () => {
+      intercept(() =>
+        Response.json({ message: "You can't close this pull request" }, { status: 403 })
+      )
+
+      const error = await Effect.runPromise(Effect.flip(closing))
+
+      expect(error.reason).toBe("rejected")
+      expect(error.detail).toBe("You can't close this pull request")
+    })
+  })
+
+  describe("the draft it is or is not", () => {
+    const asking = (what: "markReady" | "toDraft") =>
+      Effect.gen(function* () {
+        const gateway = yield* GitHubGateway
+        return yield* gateway[what](draft)
+      }).pipe(Effect.provide(layer))
+
+    test("marks a draft ready on the route their own button uses", async () => {
+      const calls = intercept(() => Response.json({}))
+
+      await Effect.runPromise(asking("markReady"))
+
+      expect(new URL(calls[0]!.url).pathname).toBe(
+        "/microsoft/vscode/pull/327442/page_data/mark_ready_for_review"
+      )
+    })
+
+    test("puts one back into draft on the route that undoes it", async () => {
+      const calls = intercept(() => Response.json({}))
+
+      await Effect.runPromise(asking("toDraft"))
+
+      expect(new URL(calls[0]!.url).pathname).toBe(
+        "/microsoft/vscode/pull/327442/page_data/convert_to_draft"
+      )
+    })
+
+    test("repeats what GitHub said when it will not have it", async () => {
+      intercept(() => Response.json({ message: "Only the author may do that" }, { status: 403 }))
+
+      const error = await Effect.runPromise(Effect.flip(asking("markReady")))
+
+      expect(error.detail).toBe("Only the author may do that")
+    })
+  })
+
   test("reports the status when GitHub turns a request down", async () => {
     intercept(() => new Response("not acceptable", { status: 406 }))
 

@@ -244,6 +244,100 @@ describe("the merge card", () => {
     expect(screen.queryByText(/merge past this one/)).toBeNull()
   })
 
+  test("offers to mark a draft ready, that being what is holding it up", async () => {
+    let marked = 0
+    let reread = 0
+    render(
+      <Merge
+        merge={ready}
+        state="draft"
+        actions={{
+          markReady: async () => void (marked += 1),
+          onChanged: () => void (reread += 1)
+        }}
+      />
+    )
+
+    await userEvent.click(button(/Mark ready for review/))
+    expect(marked).toBe(0)
+
+    await userEvent.click(button(/Confirm mark ready for review/))
+
+    await waitFor(() => expect(marked).toBe(1))
+    await waitFor(() => expect(reread).toBe(1))
+  })
+
+  test("offers to put an open one back into draft, which is the same door", async () => {
+    // The state a draft is stuck in is one somebody chose, and a control that
+    // only goes one way turns a mistake into a trip to GitHub.
+    let drafted = 0
+    render(
+      <Merge merge={ready} state="open" actions={{ toDraft: async () => void (drafted += 1) }} />
+    )
+
+    await userEvent.click(button(/Convert to draft/))
+    await userEvent.click(button(/Confirm convert to draft/))
+
+    await waitFor(() => expect(drafted).toBe(1))
+  })
+
+  test("says nothing about drafts once it has been merged", () => {
+    render(<Merge merge={ready} state="merged" actions={{ markReady: async () => {} }} />)
+
+    expect(screen.queryByText(/Mark ready for review/)).toBeNull()
+    expect(screen.queryByText(/Convert to draft/)).toBeNull()
+  })
+
+  test("asks a second time before it closes the pull request", async () => {
+    let closes = 0
+    render(<Merge merge={ready} actions={{ close: async () => void (closes += 1) }} />)
+
+    await userEvent.click(button(/Close pull request/))
+
+    expect(closes).toBe(0)
+    expect(button(/Confirm close pull request/)).toBeDefined()
+  })
+
+  test("closes it on the second press, and asks for the page again", async () => {
+    let closes = 0
+    let reread = 0
+    render(
+      <Merge
+        merge={ready}
+        actions={{
+          close: async () => void (closes += 1),
+          onChanged: () => void (reread += 1)
+        }}
+      />
+    )
+
+    await userEvent.click(button(/Close pull request/))
+    await userEvent.click(button(/Confirm close pull request/))
+
+    await waitFor(() => expect(closes).toBe(1))
+    // What is on the page — the merge card, the state in the header — describes
+    // a pull request that is now closed, and only GitHub can say what it says
+    // about a closed one.
+    await waitFor(() => expect(reread).toBe(1))
+  })
+
+  test("says what GitHub said when it refuses to close it", async () => {
+    render(
+      <Merge
+        merge={ready}
+        actions={{
+          close: () => Promise.reject(new Error("nope")).then(() => {}),
+          onChanged: () => {}
+        }}
+      />
+    )
+
+    await userEvent.click(button(/Close pull request/))
+    await userEvent.click(button(/Confirm close pull request/))
+
+    await waitFor(() => expect(screen.getByText("GitHub could not be reached.")).toBeDefined())
+  })
+
   test("cannot be pressed when nothing is wired to it", () => {
     render(<Merge merge={ready} />)
 
@@ -252,9 +346,7 @@ describe("the merge card", () => {
   })
 
   test("names the branch and counts the commits it would flatten", async () => {
-    render(
-      <Merge merge={ready} base="main" commits={4} actions={{ merge: async () => {} }} />
-    )
+    render(<Merge merge={ready} base="main" commits={4} actions={{ merge: async () => {} }} />)
 
     await userEvent.click(button(/Squash and merge/))
 

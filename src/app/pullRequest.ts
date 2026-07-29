@@ -7,9 +7,7 @@ import { GitHubGateway, type UpdateMethod } from "../github/GitHubGateway"
  * Everything the page needs to render, gathered in one place so the React layer
  * stays ignorant of the gateway.
  */
-export const loadPullRequest = Effect.fn("loadPullRequest")(function* (
-  reference: PullRequestRef
-) {
+export const loadPullRequest = Effect.fn("loadPullRequest")(function* (reference: PullRequestRef) {
   const gateway = yield* GitHubGateway
 
   const snapshot = yield* gateway.snapshot(reference)
@@ -83,10 +81,7 @@ export const loadCheckTail = Effect.fn("loadCheckTail")(function* (
 /**
  * One commit of the branch, for the page that shows it on its own.
  */
-export const loadCommit = Effect.fn("loadCommit")(function* (
-  reference: RepoRef,
-  sha: string
-) {
+export const loadCommit = Effect.fn("loadCommit")(function* (reference: RepoRef, sha: string) {
   const gateway = yield* GitHubGateway
   return yield* gateway.commit(reference, sha)
 })
@@ -164,12 +159,35 @@ export const updatePullRequestBranch = Effect.fn("updatePullRequestBranch")(func
 })
 
 /** Calls off the merge GitHub is holding, queue or no queue. */
-export const cancelAutoMerge = Effect.fn("cancelAutoMerge")(function* (
+export const cancelAutoMerge = Effect.fn("cancelAutoMerge")(function* (reference: PullRequestRef) {
+  const gateway = yield* GitHubGateway
+
+  yield* gateway.cancelAutoMerge(reference)
+})
+
+/** Closes it without merging, which GitHub lets whoever did it undo. */
+export const closePullRequest = Effect.fn("closePullRequest")(function* (
   reference: PullRequestRef
 ) {
   const gateway = yield* GitHubGateway
 
-  yield* gateway.cancelAutoMerge(reference)
+  yield* gateway.close(reference)
+})
+
+/** Takes it out of draft, so that everything about merging becomes possible. */
+export const markReadyForReview = Effect.fn("markReadyForReview")(function* (
+  reference: PullRequestRef
+) {
+  const gateway = yield* GitHubGateway
+
+  yield* gateway.markReady(reference)
+})
+
+/** Puts it back into draft, undoing the above. */
+export const convertToDraft = Effect.fn("convertToDraft")(function* (reference: PullRequestRef) {
+  const gateway = yield* GitHubGateway
+
+  yield* gateway.toDraft(reference)
 })
 
 /**

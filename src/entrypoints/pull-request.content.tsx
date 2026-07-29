@@ -3,8 +3,11 @@ import { createRoot } from "react-dom/client"
 import { defineContentScript } from "wxt/utils/define-content-script"
 import {
   cancelAutoMerge,
+  closePullRequest,
+  convertToDraft,
   dequeuePullRequest,
   enqueuePullRequest,
+  markReadyForReview,
   loadCheckLog,
   loadCheckTail,
   loadCheckNotes,
@@ -97,11 +100,7 @@ const chosenView = (store: Store): Promise<View> =>
     new Promise<View>((wake) => setTimeout(() => wake("ours"), CHOICE))
   ])
 
-const open = (
-  reference: PullRequestRef,
-  ahead = false,
-  onUseGitHub?: () => void
-): (() => void) => {
+const open = (reference: PullRequestRef, ahead = false, onUseGitHub?: () => void): (() => void) => {
   // On a page load this changes nothing — the rule is already in force. On a
   // soft navigation it is the difference between arriving in our hand and
   // arriving in GitHub's and being replaced a moment later.
@@ -190,6 +189,30 @@ const open = (
       }
     )
 
+  const closeIt = () =>
+    Effect.runPromise(closePullRequest(reference).pipe(Effect.provide(gatewayLayer))).catch(
+      (error: unknown) => {
+        reportError(error)
+        throw error
+      }
+    )
+
+  const markReady = () =>
+    Effect.runPromise(markReadyForReview(reference).pipe(Effect.provide(gatewayLayer))).catch(
+      (error: unknown) => {
+        reportError(error)
+        throw error
+      }
+    )
+
+  const toDraft = () =>
+    Effect.runPromise(convertToDraft(reference).pipe(Effect.provide(gatewayLayer))).catch(
+      (error: unknown) => {
+        reportError(error)
+        throw error
+      }
+    )
+
   // How is GitHub's own verdict, read off the snapshot the card is showing:
   // it says which of the two it would use, and a rebase it has already ruled
   // out comes back refused.
@@ -228,12 +251,12 @@ const open = (
   }
 
   const postComment = (note: NewComment) =>
-    Effect.runPromise(
-      postReviewComment(reference, note).pipe(Effect.provide(gatewayLayer))
-    ).catch((error: unknown) => {
-      reportError(error)
-      throw error
-    })
+    Effect.runPromise(postReviewComment(reference, note).pipe(Effect.provide(gatewayLayer))).catch(
+      (error: unknown) => {
+        reportError(error)
+        throw error
+      }
+    )
 
   /**
    * Listens on GitHub's own socket for the channels this pull request carries.
@@ -283,6 +306,9 @@ const open = (
         dequeue,
         cancel,
         update,
+        close: closeIt,
+        markReady,
+        toDraft,
         // Everything on the page describes a pull request that is now merged —
         // the checks, the merge card, GitHub's own header behind ours — and
         // reading it again is both simpler and more honest than patching a

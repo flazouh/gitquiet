@@ -23,6 +23,7 @@ import type {
   MergeState,
   Participant,
   PullRequestSnapshot,
+  PullRequestState,
   Review,
   ReviewDecision,
   ReviewThread
@@ -817,7 +818,26 @@ export type MergeActions = {
    * be told again rather than guessing at the state it just caused.
    */
   readonly onChanged?: () => void
-  readonly close?: () => void
+  /**
+   * Closes it without merging.
+   *
+   * Asked for twice, like the merge, and for the same reason: it is the other
+   * control here that ends the reading. Nothing is destroyed by it — GitHub
+   * keeps the branch, the comments and the diff, and will reopen it — so what
+   * the second press agrees to says so.
+   */
+  readonly close?: () => Promise<void>
+  /**
+   * Takes it out of draft.
+   *
+   * The one blocker on this card that is nobody's rule: a draft is a state its
+   * author chose and can unchoose, and GitHub's own words for it — the pull
+   * request must not be in draft mode — read like a condition being reported
+   * rather than a switch being offered.
+   */
+  readonly markReady?: () => Promise<void>
+  /** Puts it back into draft, so the offer above is a door both ways. */
+  readonly toDraft?: () => Promise<void>
 }
 
 /**
@@ -827,7 +847,8 @@ export type MergeActions = {
  * request being queued is not also being merged, and a second machine would
  * only make that expressible.
  */
-type Doing = "merge" | "enqueue" | "dequeue" | "cancel" | "update"
+type Doing =
+  "merge" | "enqueue" | "dequeue" | "cancel" | "update" | "close" | "markReady" | "toDraft"
 
 type Merging =
   | { readonly step: "idle" }
@@ -854,6 +875,7 @@ export const Merge = ({
   running = 0,
   url,
   reviews = [],
+  state,
   actions
 }: {
   readonly merge: MergeState
@@ -867,6 +889,14 @@ export const Merge = ({
   readonly url?: string
   /** Everyone who has given a verdict, so the card says whether it has one. */
   readonly reviews?: ReadonlyArray<Review>
+  /**
+   * Open, draft, closed or merged — which decides what the draft control says.
+   *
+   * The one fact on this card that comes from outside the merge itself. Without
+   * it the card can tell a reader that a draft may not be merged, which is
+   * where GitHub leaves them, but not that they are one press from changing it.
+   */
+  readonly state?: PullRequestState
   readonly actions?: MergeActions
 }) => {
   const [merging, setMerging] = useState<Merging>({ step: "idle" })
@@ -884,7 +914,9 @@ export const Merge = ({
       () => {
         setMerging({ step: "done", doing })
         // A merge ends the reading; the queue verbs only change what this card
-        // has to say, and the page around it stays worth looking at.
+        // has to say, and the page around it stays worth looking at. Closing is
+        // in between: the pull request is still there to read, and everything
+        // that says whether it is open has just become wrong.
         if (doing === "merge") actions?.onMerged?.()
         else actions?.onChanged?.()
       },
@@ -897,7 +929,13 @@ export const Merge = ({
       ? whatHappens({ base, commits, running })
       : doing === "update"
         ? whatCatchingUp(merge.update, base)
-        : whatQueueing(doing, base)
+        : doing === "close"
+          ? WHAT_CLOSING_DOES
+          : doing === "markReady"
+            ? WHAT_MARKING_READY_DOES
+            : doing === "toDraft"
+              ? WHAT_DRAFTING_DOES
+              : whatQueueing(doing, base)
 
   return (
     <MergeCard
@@ -907,6 +945,7 @@ export const Merge = ({
       merging={merging}
       url={url}
       reviews={reviews}
+      state={state}
       actions={actions}
       press={press}
       onCancel={() => setMerging({ step: "idle" })}
@@ -999,6 +1038,29 @@ const whatQueueing = (doing: Doing, base?: string): string => {
   return "Takes this out of the line. Whatever is queued behind it is tested again without it."
 }
 
+/**
+ * The sentence the second press agrees to, for closing it.
+ *
+ * Said in terms of what survives rather than what stops, because the word
+ * "close" reads like "delete" to anyone who has not tried it: the branch, the
+ * comments and the diff all stay, and whoever closed it can open it again.
+ */
+const WHAT_CLOSING_DOES =
+  "Closes this without merging. The branch, the commits and every comment stay where they are, and it can be reopened on GitHub."
+
+/**
+ * The sentence the second press agrees to, for the two draft doors.
+ *
+ * Marking ready is the louder of the two: it tells everyone whose review was
+ * requested that there is something to read, which is a notification that
+ * cannot be recalled even though the draft state itself can.
+ */
+const WHAT_MARKING_READY_DOES =
+  "Takes this out of draft, so it can be merged and everyone whose review was asked for hears about it. It can be made a draft again, but the notification cannot be taken back."
+
+const WHAT_DRAFTING_DOES =
+  "Puts this back into draft. GitHub will not let it be merged while it is one, and nothing else about it changes."
+
 /** Which section on this page answers a blocker of each kind. */
 const SECTION_FOR: Record<BlockerAbout, string> = {
   checks: "Checks",
@@ -1059,13 +1121,7 @@ const whatCatchingUp = (update: Option.Option<BranchUpdate>, base?: string): str
  * pull request otherwise, where their own controls live. Nothing at all if
  * neither is known: a link to nowhere is worse than no link.
  */
-const QueueLink = ({
-  queue,
-  url
-}: {
-  readonly queue: MergeQueue
-  readonly url?: string
-}) => {
+const QueueLink = ({ queue, url }: { readonly queue: MergeQueue; readonly url?: string }) => {
   const target = Option.getOrUndefined(queue.url) ?? url
   if (target === undefined) return <>the merge queue</>
 
@@ -1097,7 +1153,12 @@ const QueueLink = ({
 /** What each verb calls itself, at rest, while asking, and while running. */
 const QUEUE_WORDS: Record<
   "enqueue" | "dequeue" | "cancel",
-  { readonly rest: string; readonly asking: string; readonly working: string; readonly done: string }
+  {
+    readonly rest: string
+    readonly asking: string
+    readonly working: string
+    readonly done: string
+  }
 > = {
   enqueue: {
     rest: "Merge when ready",
@@ -1216,9 +1277,7 @@ const RANK: Record<ReviewDecision, number> = {
 const Verdicts = ({ reviews }: { readonly reviews: ReadonlyArray<Review> }) => {
   if (reviews.length === 0) return null
 
-  const ordered = [...reviews].sort(
-    (one, other) => RANK[one.decision] - RANK[other.decision]
-  )
+  const ordered = [...reviews].sort((one, other) => RANK[one.decision] - RANK[other.decision])
 
   return (
     <ul className="divide-y divide-line-muted border-b border-line-muted">
@@ -1251,6 +1310,7 @@ const MergeCard = ({
   merging,
   url,
   reviews,
+  state,
   actions,
   press,
   onCancel
@@ -1261,6 +1321,7 @@ const MergeCard = ({
   readonly merging: Merging
   readonly url?: string
   readonly reviews: ReadonlyArray<Review>
+  readonly state?: PullRequestState
   readonly actions?: MergeActions
   readonly press: (doing: Doing) => void
   readonly onCancel: () => void
@@ -1423,6 +1484,10 @@ const MergeCard = ({
                 : "Update branch"}
         </button>
       ) : null}
+      <DraftDoor state={state} merging={merging} actions={actions} press={press} />
+      {/* The way out of whatever was just asked for. Beside the button that
+          asked rather than in place of anything, because the thing being
+          agreed to should stay on the screen while it is being considered. */}
       {merging.step === "asking" ? (
         <button
           type="button"
@@ -1431,21 +1496,89 @@ const MergeCard = ({
         >
           Cancel
         </button>
-      ) : (
-        <button
-          type="button"
-          disabled={actions?.close === undefined}
-          onClick={actions?.close}
-          // Pushed to the far edge: the destructive one should not sit a
-          // thumb's width from the one that lands the change.
-          className="ml-auto whitespace-nowrap rounded-md bg-surface px-3 py-1.5 text-xs font-semibold text-fail disabled:opacity-50"
-        >
-          Close pull request
-        </button>
-      )}
+      ) : null}
+      <button
+        type="button"
+        disabled={
+          actions?.close === undefined || merging.step === "working" || merging.step === "done"
+        }
+        onClick={() => press("close")}
+        // Pushed to the far edge: the one that ends the pull request should not
+        // sit a thumb's width from the one that lands it.
+        className="ml-auto whitespace-nowrap rounded-md bg-surface px-3 py-1.5 text-xs font-semibold text-fail disabled:opacity-50"
+      >
+        {merging.step === "idle" || merging.step === "refused" || merging.doing !== "close"
+          ? "Close pull request"
+          : merging.step === "asking"
+            ? "Confirm close pull request"
+            : merging.step === "working"
+              ? "Closing…"
+              : "Closed"}
+      </button>
     </div>
   </Section>
 )
+
+/**
+ * The draft state, as a control rather than a condition.
+ *
+ * One button, not two, because there is only ever one direction to go: a draft
+ * can be marked ready and an open one can be made a draft, and a merged or
+ * closed one is past the question entirely, so it says nothing at all. Marked
+ * out as the action to take while it is a draft, because in that state it is
+ * the only press on this card that changes whether merging is possible.
+ */
+const DraftDoor = ({
+  state,
+  merging,
+  actions,
+  press
+}: {
+  readonly state?: PullRequestState
+  readonly merging: Merging
+  readonly actions?: MergeActions
+  readonly press: (doing: Doing) => void
+}) => {
+  if (state !== "draft" && state !== "open") return null
+
+  const doing: Doing = state === "draft" ? "markReady" : "toDraft"
+  const asked = merging.step !== "idle" && merging.step !== "refused" && merging.doing === doing
+  const words =
+    state === "draft"
+      ? {
+          idle: "Mark ready for review",
+          asking: "Confirm mark ready for review",
+          working: "Marking ready…",
+          done: "Ready for review"
+        }
+      : {
+          idle: "Convert to draft",
+          asking: "Confirm convert to draft",
+          working: "Converting…",
+          done: "Draft"
+        }
+
+  return (
+    <button
+      type="button"
+      disabled={
+        actions?.[doing] === undefined || merging.step === "working" || merging.step === "done"
+      }
+      onClick={() => press(doing)}
+      className={`whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
+        state === "draft" ? "bg-accent-emphasis text-ink-on-emphasis" : "bg-surface text-ink-muted"
+      }`}
+    >
+      {asked && merging.step === "asking"
+        ? words.asking
+        : asked && merging.step === "working"
+          ? words.working
+          : asked && merging.step === "done"
+            ? words.done
+            : words.idle}
+    </button>
+  )
+}
 
 /** Checks that have not reached a verdict yet. */
 const stillRunning = (checks: ReadonlyArray<Check>): number =>
@@ -1499,6 +1632,7 @@ export const About = ({
       commits={snapshot.commits.length}
       running={stillRunning(snapshot.checks)}
       url={toUrl(snapshot.reference)}
+      state={snapshot.state}
       actions={actions}
     />
   </div>
