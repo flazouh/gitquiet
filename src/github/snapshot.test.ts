@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { Effect, Option } from "effect"
 import { draftWithBotFindings, mergedWithApproval } from "../../tests/fixtures"
 import type { PullRequestRef } from "../domain/PullRequestRef"
+import { whatCanBeDone } from "../domain/doable"
 import { toSnapshot } from "./snapshot"
 
 const draft: PullRequestRef = { owner: "microsoft", repo: "vscode", number: 327442 }
@@ -29,6 +30,23 @@ const withMergeState = (state: string) => {
       }
     }
   }
+}
+
+/** A channel about the pull request as a whole, rather than one topic of it. */
+const EVERYTHING = ""
+
+/**
+ * Which topic of a pull request a channel token is a channel for.
+ *
+ * GitHub signs the subject into the token rather than naming it beside one, so
+ * the topic in `pull_request:413097055:workflow_run` is read back out of the
+ * base64 half rather than matched against a string the fixture happens to
+ * carry. A subject with no topic on the end is the pull request itself.
+ */
+const topicOf = (channel: string): string => {
+  const { c } = JSON.parse(atob(channel.split("--")[0] ?? "")) as { readonly c: string }
+  const [, , ...topic] = c.split(":")
+  return topic.join(":")
 }
 
 describe("a draft pull request carrying bot findings", () => {
@@ -438,6 +456,21 @@ describe("a repository that merges through a queue", () => {
     expect(snapshot.merge.channels.every((channel) => channel.includes("--"))).toBe(true)
   })
 
+  test("watches every topic that changes what this page says", async () => {
+    // A draft becoming open, a workflow finishing and a remark being left are
+    // the three things that happen to a pull request while it is being read,
+    // and none of them fires on the merge, queue or review channels. Missing
+    // them is how a page sits there for half an hour calling a pull request a
+    // draft that nobody can merge for an entirely different reason.
+    const snapshot = await snapshotOf(draft, draftWithBotFindings)
+
+    const topics = snapshot.merge.channels.map(topicOf)
+
+    expect(topics).toContain("state")
+    expect(topics).toContain("workflow_run")
+    expect(topics).toContain(EVERYTHING)
+  })
+
   test("knows a blocker about the checks from one about the conversation", async () => {
     const snapshot = await snapshotOf(
       draft,
@@ -564,6 +597,16 @@ describe("a merged pull request that was approved", () => {
     expect(new Set(snapshot.files.map((file) => file.changeType))).toEqual(
       new Set(["modified", "added"])
     )
+  })
+
+  test("offers nothing to be done to it, GitHub having already landed it", async () => {
+    // From GitHub's own recorded payload rather than a fixture written to make
+    // the point: their merge box still describes a mergeable pull request with a
+    // queue on this repository, which is exactly how the card came to offer a
+    // merged change a place in the line.
+    const snapshot = await snapshotOf(merged, mergedWithApproval)
+
+    expect([...whatCanBeDone(snapshot)]).toEqual([])
   })
 
   test("leaves the diff absent for the files GitHub sent no content for", async () => {

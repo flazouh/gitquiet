@@ -361,7 +361,10 @@ const MergeAction = Schema.Struct({
 const AliveChannels = Schema.Struct({
   mergeQueueChannel: Schema.optional(Schema.NullOr(Schema.String)),
   gitMergeStateChannel: Schema.optional(Schema.NullOr(Schema.String)),
-  reviewStateChannel: Schema.optional(Schema.NullOr(Schema.String))
+  reviewStateChannel: Schema.optional(Schema.NullOr(Schema.String)),
+  stateChannel: Schema.optional(Schema.NullOr(Schema.String)),
+  workflowsChannel: Schema.optional(Schema.NullOr(Schema.String)),
+  pullRequestChannel: Schema.optional(Schema.NullOr(Schema.String))
 })
 
 /**

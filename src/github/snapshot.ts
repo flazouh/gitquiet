@@ -268,11 +268,17 @@ const mergeState = (
 }
 
 /**
- * The channels whose firing would change what the merge card says.
+ * The channels whose firing would change what this page says.
  *
- * Three of the nine GitHub publishes for a pull request. Subscribing to all
- * nine would re-read the whole thing every time a deployment finished, which
- * costs the reader four requests to say nothing new.
+ * Six of the nine GitHub publishes for a pull request. The three left out say
+ * nothing this page shows — a deployment finishing costs four requests to
+ * redraw the same words — and everything else is in, because a page that is
+ * wrong is worse than a page that asked twice. A draft marked ready changes the
+ * badge, the blocker and both buttons at once; a workflow finishing changes
+ * every line of the checks; a remark left changes the conversation. Watching
+ * only the merge, queue and review topics is how a page sits there for half an
+ * hour calling a pull request a draft that nobody can merge for an entirely
+ * different reason.
  */
 const worthWatching = (
   channels?:
@@ -280,6 +286,9 @@ const worthWatching = (
       readonly mergeQueueChannel?: string | null
       readonly gitMergeStateChannel?: string | null
       readonly reviewStateChannel?: string | null
+      readonly stateChannel?: string | null
+      readonly workflowsChannel?: string | null
+      readonly pullRequestChannel?: string | null
     }
     | null
     | undefined
@@ -287,7 +296,10 @@ const worthWatching = (
   [
     channels?.mergeQueueChannel,
     channels?.gitMergeStateChannel,
-    channels?.reviewStateChannel
+    channels?.reviewStateChannel,
+    channels?.stateChannel,
+    channels?.workflowsChannel,
+    channels?.pullRequestChannel
   ].filter((channel): channel is string => typeof channel === "string" && channel.length > 0)
 
 /**

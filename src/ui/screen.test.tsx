@@ -121,6 +121,87 @@ describe("a pull request GitHub says has changed", () => {
   })
 })
 
+describe("a pull request left open while the reader was elsewhere", () => {
+  /** What the browser does when a tab is shown or hidden. */
+  const tabBecomes = (state: "visible" | "hidden") => {
+    Object.defineProperty(document, "visibilityState", { value: state, configurable: true })
+    document.dispatchEvent(new Event("visibilitychange"))
+  }
+
+  test("reads it again on the way back, since anything at all may have happened", async () => {
+    // A channel that never fired, a socket that quietly dropped, a laptop that
+    // slept: every one of them ends with a card saying something GitHub stopped
+    // agreeing with, and none of them can be told apart from here. Coming back
+    // to the tab is the one moment the reader is about to trust what it says.
+    let reads = 0
+
+    render(
+      <PullRequestScreen
+        reference={reference}
+        load={() => {
+          reads += 1
+          return Promise.resolve({ snapshot: queued() })
+        }}
+        fetchDiffs={async () => []}
+        onStepAside={() => {}}
+      />
+    )
+
+    await waitFor(() => expect(reads).toBe(1))
+
+    tabBecomes("hidden")
+    tabBecomes("visible")
+
+    await waitFor(() => expect(reads).toBe(2))
+  })
+
+  test("does not read it again while it is being hidden", async () => {
+    let reads = 0
+
+    render(
+      <PullRequestScreen
+        reference={reference}
+        load={() => {
+          reads += 1
+          return Promise.resolve({ snapshot: queued() })
+        }}
+        fetchDiffs={async () => []}
+        onStepAside={() => {}}
+      />
+    )
+
+    await waitFor(() => expect(reads).toBe(1))
+
+    tabBecomes("hidden")
+
+    expect(reads).toBe(1)
+  })
+})
+
+describe("a pull request GitHub would not answer for a second time", () => {
+  test("says so rather than leaving what was remembered standing as the truth", async () => {
+    // Remembered payloads are worth showing for the half second before GitHub
+    // answers. They are not worth resting on: a merge card is read to decide
+    // whether to merge, and one that quietly went half an hour out of date
+    // answers that question wrongly with no way for the reader to notice.
+    render(
+      <PullRequestScreen
+        reference={reference}
+        load={() => Promise.reject(new Error("HTTP 500"))}
+        preload={() => Promise.resolve(Option.some({ snapshot: queued() }))}
+        fetchDiffs={async () => []}
+        onStepAside={() => {}}
+        signedIn={() => true}
+      />
+    )
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading").textContent).toContain("Something GitHub sends")
+    )
+    expect(screen.queryByRole("region", { name: "Merge" })).toBeNull()
+  })
+})
+
 describe("a pull request that could not be read", () => {
   test("blames the signed-out session rather than GitHub, when that is what it is", async () => {
     // Every route answers 404 to a signed-out reader on a private repository,

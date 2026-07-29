@@ -25,8 +25,9 @@ export type PullRequestScreenProps = {
    * The pull request as it was last time, for the screen to show while
    * {@link load} finds out what it is now. Answers in about as long as a
    * storage read, so on any pull request read before there is nothing to wait
-   * for and no loading message to show. Whatever it gives is replaced the
-   * moment the live read lands.
+   * for and no loading message to show. Whatever it gives goes the moment the
+   * live read answers, either way: a read that failed leaves the failure rather
+   * than what was remembered, which is the only age nothing here can bound.
    */
   readonly preload?: () => Promise<Option.Option<Loaded>>
   /** Content for a file the page arrived without, fetched when it is opened. */
@@ -160,17 +161,34 @@ export const PullRequestScreen = ({
       },
       () => {
         answered = true
-        // A pull request already on the screen stays there. It is what GitHub
-        // last said rather than what GitHub says now, which is worth less than
-        // the truth and a great deal more than an error page — but the reader
-        // is not yet told which of the two they are looking at.
-        if (live) setScreen((shown) => (shown.status === "ready" ? shown : { status: "failed" }))
+        // What was remembered does not stand in for an answer. It was worth
+        // showing for the half second before GitHub replied; it is not worth
+        // resting on, because it came out of another session and there is no
+        // bound on its age. This card is read to decide whether to merge, and
+        // one quietly half an hour out of date answers that wrongly while
+        // looking exactly like one that is right.
+        if (live) setScreen({ status: "failed" })
       }
     )
     return () => {
       live = false
     }
   }, [load, preload])
+
+  // Coming back to the tab is a re-read, every time. The ways a page goes stale
+  // while nobody is looking at it — a channel GitHub never published, a socket
+  // that dropped without saying so, a machine that slept — are indistinguishable
+  // from in here, and none of them can be listened for. What they have in common
+  // is the moment they stop mattering: the reader is looking again, and about to
+  // act on whatever this says.
+  useEffect(() => {
+    const back = () => {
+      if (document.visibilityState === "visible") reread()
+    }
+
+    document.addEventListener("visibilitychange", back)
+    return () => document.removeEventListener("visibilitychange", back)
+  }, [reread])
 
   const channels = screen.status === "ready" ? screen.loaded.snapshot.merge.channels : undefined
 
