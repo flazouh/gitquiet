@@ -1,0 +1,286 @@
+/**
+ * The colour vocabulary shared screens spend.
+ *
+ * Defaults below are Gitquiet light — the product pack — so Tailwind emits the
+ * utilities and a frame painted before JS runs already looks like ours rather
+ * than like Primer. `Theme` / `paintTheme` overwrite these on `#gitquiet-root`
+ * (and the desktop document element) from the reader's Appearance × Pack choice.
+ *
+ * Size scale stays at GitHub's numbers: the screens were laid out against 12px
+ * `text-sm`, and switching to Tailwind's 14px would loosen every measured row.
+ */
+
+@theme {
+  --color-canvas: #fafafa;
+  --color-inset: #fafafa;
+  --color-surface: #ffffff;
+  --color-raised: #ffffff;
+  --color-hover: #0000000a;
+  --color-active: #00000012;
+
+  --color-ink: #171717;
+  --color-ink-muted: #737373;
+  --color-ink-accent: #0969da;
+  --color-ink-on-emphasis: #ffffff;
+
+  --color-pass: #1a7f37;
+  --color-fail: #d1242f;
+  --color-busy: #9a6700;
+  --color-done: #8250df;
+
+  --color-accent-emphasis: #0969da;
+  --color-pass-emphasis: #1f883d;
+  --color-fail-emphasis: #cf222e;
+  --color-done-emphasis: #8250df;
+  --color-pass-muted: #1f883d26;
+  --color-fail-muted: #cf222e26;
+  --color-accent-muted: #0969da26;
+  --color-attention-muted: #9a670026;
+  --color-done-muted: #8250df26;
+
+  --color-line: #1717171f;
+  --color-line-muted: #17171712;
+  --color-line-accent: #0969da;
+
+  --font-sans: "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --text-xs: 12px;
+  --text-xs--line-height: 1.3333;
+  --text-sm: 12px;
+  --text-sm--line-height: 1.6666;
+  --text-base: 14px;
+  --text-base--line-height: 1.4285;
+  --text-lg: 20px;
+  --text-lg--line-height: 1.6;
+
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 12px;
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/**
+ * Tailwind's preflight is deliberately not imported (see styles.css): it resets
+ * every element on the page, and the page is GitHub's. What the interface needs
+ * instead is this one rule, scoped to its own subtree.
+ */
+#gitquiet-root {
+  /* Tailwind sizes every padding, margin and gap as `calc(var(--spacing) * n)`,
+     and the Primer React layout this interface is planted inside sets
+     `--spacing: 0` for its own purposes. Inheritance carried that in and
+     multiplied the whole interface by nothing: every gap, every padding, every
+     fixed width, silently zero, while borders and radii — which do not use it —
+     kept working and made the page look merely badly designed rather than
+     broken. Declared here, at the top of our own subtree, where their value
+     cannot reach. */
+  --spacing: 0.25rem;
+
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  /* The region is a flex container holding the conversation and its sidebar.
+     Ours is the only child left showing, and without this it is sized by its
+     contents — a full-width page with a narrow column of interface in it. */
+  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+#gitquiet-root *,
+#gitquiet-root *::before,
+#gitquiet-root *::after,
+[data-gitquiet-outside],
+[data-gitquiet-outside] *,
+[data-gitquiet-outside] *::before,
+[data-gitquiet-outside] *::after {
+  box-sizing: border-box;
+}
+
+/**
+ * The border half of the preflight, scoped to this interface.
+ *
+ * A width with no style draws nothing, which is why every `border-b` here was
+ * invisible; a style with no reset width draws everything, which is what the
+ * first attempt at this did to a page full of elements carrying a width they
+ * never meant to show. Both halves, then — and through `:where`, which costs no
+ * specificity, so a `border-b` utility and GitHub's own `.Box` both still win
+ * over it.
+ */
+:where(#gitquiet-root) *,
+:where(#gitquiet-root) *::before,
+:where(#gitquiet-root) *::after,
+:where([data-gitquiet-outside]) *,
+:where([data-gitquiet-outside]) *::before,
+:where([data-gitquiet-outside]) *::after {
+  border-style: solid;
+  border-width: 0;
+}
+
+/**
+ * The margin half of the preflight, and the one rule here whose weight had to be
+ * counted rather than reasoned about.
+ *
+ * GitHub's sheet carries `p { margin-top: 0; margin-bottom: 10px }`, ours is
+ * linked before theirs, and two rules of equal weight are settled by whichever
+ * came last — so every paragraph this interface writes has been carrying ten
+ * pixels nobody asked for. It showed on the repository's About row: the heading
+ * sat five pixels above the centre of a row `items-center` had lined up, because
+ * flexbox centres a margin box and not the text inside it.
+ *
+ * The weight is the whole of the design. `html` in front makes this two element
+ * selectors where theirs is one, which is enough to win and is all it needs to
+ * win by. It is still lighter than any class, so `mb-4` on one of ours takes it
+ * back, and `.markdown-body p` — GitHub's own sixteen pixels between the
+ * paragraphs of a README we insert whole — never hears this at all.
+ */
+html
+  :where(#gitquiet-root, [data-gitquiet-outside])
+  :is(p, h1, h2, h3, h4, h5, h6, ul, ol, dl, dd, figure, blockquote, pre) {
+  margin: 0;
+}
+
+/**
+ * The rest of the button reset, for the elements of ours outside the root.
+ *
+ * A `<button>` with no author styles wears the platform's: a two-pixel white `outset` border,
+ * a grey face and the system font. Inside `#gitquiet-root` the rules above take those off; the
+ * bar and the hover cards are in `document.body`, where they showed up as white boxes drawn
+ * around our own controls. Buttons and inputs only — this must not reach GitHub's own page,
+ * which is why the selector carries the mark.
+ *
+ * The mark sits in `:where` for the same reason the border reset above does, and here it was
+ * not optional. Written plainly, `[data-gitquiet-outside] button` is an attribute and an
+ * element, which outweighs a class — so `background: none` beat every `bg-*` a button out here
+ * asked for, and `font: inherit` beat every `text-*`. The bar's search field is the one that
+ * showed it: `bg-active` on the control that opens the palette, painting nothing, a field with
+ * no fill on a dark strip. Through `:where` the reset costs the element alone and any utility
+ * wins, while a button nobody dressed still gets the platform's styling taken off it.
+ */
+:where([data-gitquiet-outside]) :is(button, input, select, textarea) {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  appearance: none;
+}
+
+/**
+ * Taking the colour of our own borders back from GitHub.
+ *
+ * Tailwind spells a 1px box as `border`, and so does Primer — except Primer's
+ * version is `border: 1px solid var(--borderColor-default) !important`, and it
+ * is on the page before this file is. Every panel in this interface carries
+ * that class name, so GitHub has been painting all of them: `--color-line`
+ * reached the dividers, which are `border-t`, and nothing else. The blend above
+ * changed no panel on screen until this rule existed, and any future change to
+ * the token would have gone the same quiet way.
+ *
+ * An `!important` declaration is only answerable by another one, so this is a
+ * rare place where the interface has to raise its voice. It says nothing new —
+ * only the colour the utility already asked for, loudly enough to be heard.
+ *
+ * The mark as well as the root, because not all of this interface is in the root any more: the
+ * settings sheet, the toaster and the hover cards hang in `document.body` — see `outside.ts` —
+ * and out there GitHub was painting the sheet's outline in `--borderColor-default`. On a page
+ * their own chrome is drawing light while the reader has asked us for dark, that is a white line
+ * around a dark card, and it was there in every dark pack.
+ */
+#gitquiet-root .border-line,
+[data-gitquiet-outside] .border-line {
+  border-color: var(--color-line) !important;
+}
+
+#gitquiet-root .border-line-muted,
+[data-gitquiet-outside] .border-line-muted {
+  border-color: var(--color-line-muted) !important;
+}
+
+/**
+ * The same rescue for the borders that carry a status.
+ *
+ * These were losing the same argument, and losing it invisibly: a Court that says
+ * the reader is holding a pull request up has been outlined in GitHub's ordinary
+ * grey since the day it was written, because `border` and `border-fail` are both
+ * on the panel and only one of them shouts. A colour that means something is worth
+ * raising our voice for.
+ */
+#gitquiet-root .border-fail,
+[data-gitquiet-outside] .border-fail {
+  border-color: var(--color-fail) !important;
+}
+
+#gitquiet-root .border-busy,
+[data-gitquiet-outside] .border-busy {
+  border-color: var(--color-busy) !important;
+}
+
+#gitquiet-root .border-done,
+[data-gitquiet-outside] .border-done {
+  border-color: var(--color-done) !important;
+}
+
+/**
+ * The corner, for the same reason and out in the same place.
+ *
+ * Primer's `.rounded-lg` is six pixels and declared `!important`, so the settings sheet had their
+ * corner while every card on the page behind it had ours: `quiet.css` takes the cards to
+ * `--radius-lg` and the sheet, being outside the root, never heard it. A sheet standing over a
+ * column of twelve-pixel cards with a six-pixel corner of its own reads as something belonging to
+ * the page rather than to this interface.
+ *
+ * The token rather than the number, so a pack that retunes its corners retunes this one with it.
+ * Scoped to the mark, so nothing here reaches GitHub's own page.
+ */
+[data-gitquiet-outside] .rounded-lg {
+  border-radius: var(--radius-lg) !important;
+}
+
+[data-gitquiet-outside] .rounded-md {
+  border-radius: var(--radius-md) !important;
+}
+
+/**
+ * The other half of the preflight this interface actually needs: a button.
+ *
+ * Without it every button in here wears the operating system's own grey face
+ * and the browser's centred, shrunk-down system font — which is what made the
+ * rail read as a column of disabled chips rather than as a list of places to
+ * go. Through `:where` again, so GitHub's `.btn` and our own utilities both
+ * still win over it.
+ */
+:where(#gitquiet-root) button {
+  appearance: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+}
+
+/**
+ * Where the keyboard is, which is the only mark a reader who never touches the
+ * pointer gets.
+ *
+ * Two mistakes that hid each other. The ring was pulled two pixels inside the
+ * border box, so it was painted on whatever the control is filled with, and it
+ * was painted in the accent — and `accent` and `accentFill` are the same hex in
+ * seven of the hand-written packs and in every generated one, because `fromCore`
+ * fills from the accent. On the filled accent controls, which are the strip's
+ * press, the merge button and `Mark ready for review`, that is a ring the colour
+ * of the fill under it: nothing on the screen at all.
+ *
+ * So it is drawn outside the control, on the surface the control stands on,
+ * where no fill of the control's own can reach it, and with two pixels of that
+ * surface left between the two so it reads as a ring rather than as an edge.
+ *
+ * The ink rather than the accent, which makes it exactly as visible as the words
+ * on the same surface are — and which is what this interface already says about
+ * colour: `dress.ts` keeps the accent for a link, a notice, a number worth
+ * reading, and marks where the reader is standing in full-strength ink. Measured
+ * over every pack and both faces in `focusRing.test.ts`.
+ */
+#gitquiet-root :focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}

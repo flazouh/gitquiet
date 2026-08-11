@@ -1,0 +1,194 @@
+import { afterEach, describe, expect, test } from "bun:test"
+import { cleanup, render, screen, within } from "@testing-library/react"
+import { Effect, Option } from "effect"
+import type { Entry, Footing, Front } from "../domain/repoHome"
+import { RepoHomeScreen } from "./RepoHomeScreen"
+import type { Load } from "./useLive"
+
+/**
+ * What a repository's front page shows, in what order, and for whom.
+ *
+ * The order is the only thing this screen decides. Everything else on it is on it
+ * for every reader, and the tests that matter most here are the ones that say so.
+ */
+
+afterEach(cleanup)
+
+const entry = (name: string, over: Partial<Entry> = {}): Entry => ({
+  name,
+  path: name,
+  kind: "file",
+  touched: Option.none(),
+  ...over
+})
+
+const front = (footing: Footing, over: Partial<Front> = {}): Front => ({
+  repo: { owner: "flowline-labs", repo: "flowline" },
+  footing,
+  branch: "main",
+  head: "abc123",
+  entries: [
+    entry("src", { kind: "directory", path: "src" }),
+    entry("README.md", {
+      touched: Option.some({
+        at: "2026-07-30T12:00:00Z",
+        said: "Say what this is for",
+        url: "/flowline-labs/flowline/commit/def"
+      })
+    })
+  ],
+  welcome: Option.some({
+    name: "README.md",
+    html: "<h1>Flowline</h1><p>A queue, a worker and somewhere to watch them.</p>",
+    timedOut: false
+  }),
+  about: {
+    description: Option.some("Speak a language by speaking it."),
+    stars: Option.some(1204),
+    forks: Option.some(38),
+    topics: ["speech", "language"],
+    starring: "unstarred"
+  },
+  commits: Option.some(140),
+  ...over
+})
+
+const showing = (load: Load<Front>, over: Partial<Parameters<typeof RepoHomeScreen>[0]> = {}) =>
+  render(
+    <RepoHomeScreen
+      repo={{ owner: "flowline-labs", repo: "flowline" }}
+      load={load}
+      onStepAside={() => {}}
+      signedIn={() => true}
+      {...over}
+    />
+  )
+
+/**
+ * Which of the two blocks the reader meets first, by where they sit in the page.
+ *
+ * The two, and not the card of facts above them. That one is always first and is
+ * not what any of this decides, so counting it would make every one of these
+ * tests fail the day it was added — which is what it did.
+ */
+const BLOCKS: ReadonlyArray<string> = ["Readme", "Files"]
+
+const orderOf = (): ReadonlyArray<string> =>
+  Array.from(document.querySelectorAll("section[aria-label]"))
+    .map((block) => block.getAttribute("aria-label") ?? "")
+    .filter((label) => BLOCKS.includes(label))
+
+describe("a repository's front page", () => {
+  test("says it is reading before it has anything to show", async () => {
+    showing(() => Effect.never as Effect.Effect<Front>)
+
+    expect(await screen.findByText(/Reading this repository/)).toBeTruthy()
+  })
+
+  test("gives a caller the README first, which is what they came to read", async () => {
+    showing(() => Effect.succeed(front("caller")))
+
+    await screen.findByText("Flowline")
+    expect(orderOf()).toEqual(["Readme", "Files"])
+  })
+
+  test("gives a keeper the files first, which is what they came to open", async () => {
+    showing(() => Effect.succeed(front("keeper")))
+
+    await screen.findByText("Flowline")
+    expect(orderOf()).toEqual(["Files", "Readme"])
+  })
+
+  test("keeps the files on the page for a caller as well", async () => {
+    // The one rule the six extensions that tried this broke. A file list behind a
+    // toggle reads as a page that failed to load, so the order changes and the
+    // contents do not.
+    //
+    // Said of the section rather than of the rows: the tree draws itself into a
+    // shadow root of its own and there is nothing in this document to read. What
+    // it is given is checked in `repoTree.test.ts`.
+    showing(() => Effect.succeed(front("caller")))
+
+    await screen.findByText("Flowline")
+    expect(screen.getByLabelText("Files")).toBeTruthy()
+  })
+
+  test("keeps the README on the page for a keeper as well", async () => {
+    showing(() => Effect.succeed(front("keeper")))
+
+    expect(await screen.findByText("Flowline")).toBeTruthy()
+  })
+
+  test("puts the branch and the history over the tree they are about", async () => {
+    // Not on the card above it, where they read as two stray words beside a
+    // description. GitHub keeps them here and the reason holds: which branch
+    // this is only becomes a question once the files are in front of you.
+    showing(() => Effect.succeed(front("caller")))
+
+    const files = within(await screen.findByLabelText("Files"))
+    expect(files.getByRole("button", { name: "Branch: main" })).toBeTruthy()
+    expect(files.getByText("140 commits").getAttribute("href")).toBe(
+      "/flowline-labs/flowline/commits/main"
+    )
+  })
+
+  test("offers the other branches from that control rather than only naming this one", async () => {
+    showing(() => Effect.succeed(front("caller")))
+
+    const files = within(await screen.findByLabelText("Files"))
+    const picker = files.getByRole("button", { name: "Branch: main" })
+
+    expect(picker.getAttribute("aria-expanded")).toBe("false")
+  })
+
+  test("shows what the repository says it is, and the numbers people judge it by", async () => {
+    showing(() => Effect.succeed(front("caller")))
+
+    expect(await screen.findByText("Speak a language by speaking it.")).toBeTruthy()
+    expect(screen.getByText("140 commits")).toBeTruthy()
+    // The star's own count is on its button, beside the press that changes it,
+    // rather than said twice on one card.
+    const star = within(screen.getByLabelText("About")).getByRole("button")
+    expect(within(star).getByText("1,204")).toBeTruthy()
+  })
+
+  test("leaves a count of nothing off the line rather than drawing a zero", async () => {
+    // Every private repository reads "0 stars 0 forks", which is three words
+    // saying that nobody starred something nobody outside the company can see.
+    showing(() =>
+      Effect.succeed(
+        front("keeper", {
+          about: {
+            description: Option.none(),
+            stars: Option.some(0),
+            forks: Option.some(0),
+            topics: [],
+            starring: "unstarred"
+          }
+        })
+      )
+    )
+
+    await screen.findByText("Flowline")
+    expect(screen.queryByText("0 stars")).toBeNull()
+    expect(screen.queryByText("0 forks")).toBeNull()
+  })
+
+  test("says so plainly when GitHub gave up on rendering the README", async () => {
+    showing(() =>
+      Effect.succeed(
+        front("caller", {
+          welcome: Option.some({ name: "README.md", html: "", timedOut: true })
+        })
+      )
+    )
+
+    expect(await screen.findByText(/could not render this README/)).toBeTruthy()
+  })
+
+  test("offers GitHub's own page back when the read fails", async () => {
+    showing(() => Effect.fail(new Error("no")) as unknown as Effect.Effect<Front>)
+
+    expect(await screen.findByText(/Show GitHub's page/)).toBeTruthy()
+  })
+})

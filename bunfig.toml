@@ -1,0 +1,12 @@
+[install]
+# Bun links a workspace in isolation by default, which symlinks only the
+# dependencies a package declares and leaves the rest in its store. That is the
+# better default and this repository does not currently pass it: `src/diff/shiki.ts`
+# imports `@shikijs/langs/*` without anything declaring it, and it resolved only
+# because hoisting put it where a bare import could find it. Hoisted keeps that
+# working; the honest fix is to declare what the code imports, and that is worth
+# its own change rather than being buried in one about a desktop app.
+linker = "hoisted"
+
+[test]
+preload = ["./tests/setup.ts"]

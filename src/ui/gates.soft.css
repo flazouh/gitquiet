@@ -1,0 +1,84 @@
+/*
+ * Generated from src/ui/place.ts by scripts/build-gates.ts. Do not edit.
+ *
+ * Every selector here is one an interface also uses to find where to stand, and
+ * the two must never drift: a rule naming a region the interface no longer looks
+ * in hides nothing, which a reader sees as GitHub's own page for as long as the
+ * takeover takes.
+ *
+ * Run `bun scripts/build-gates.ts` after changing that table. `bun test` fails
+ * if this file is out of date.
+ */
+
+/* conversation: swapped in without a load. */
+html[data-gitquiet-gating] react-app[app-name="pull-requests"] [class*="PageLayoutContent"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-gating] react-app[app-name="pull-requests"] [class*="PullRequestHeader"],
+html[data-gitquiet-gating] react-app[app-name="pull-requests"] [aria-label="Pull request navigation tabs"],
+html[data-gitquiet-gating] react-app[app-name="pull-requests"] [data-component="Banner"][aria-label="Can Stack Banner"] {
+  display: none;
+}
+
+/* commits: swapped in without a load. */
+html[data-gitquiet-gating] #repo-content-pjax-container:has([data-testid="commit-row-item"]) > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has([data-testid="commit-row-item"]) > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* dashboard: swapped in without a load. */
+html[data-gitquiet-gating] [data-testid="pulls-dashboard-surface-layout"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* repo-pulls: swapped in without a load. */
+html[data-gitquiet-gating] #repo-content-pjax-container:has(.js-issue-row) > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has(.js-issue-row) > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* raise: swapped in without a load. */
+html[data-gitquiet-gating] react-app[app-name="issues-react"] #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-gating] react-app[app-name="issues-react"] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* repo-issues: swapped in without a load. */
+html[data-gitquiet-gating] react-app[app-name="issues-react"] #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-gating] react-app[app-name="issues-react"] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* repo-home: swapped in without a load. */
+html[data-gitquiet-gating] react-app[app-name="code-view"] #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-gating] react-app[app-name="code-view"] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* issue: swapped in without a load. */
+html[data-gitquiet-gating] react-app[app-name="issues-react"] [data-testid="issue-viewer-container"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* issues: swapped in without a load. */
+html[data-gitquiet-gating] react-app[app-name="issues-react"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* run: swapped in without a load. */
+html[data-gitquiet-gating] run-summary turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* actions: swapped in without a load. */
+html[data-gitquiet-gating] #repo-content-pjax-container:has([id^="check_suite_"]) > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has([id^="check_suite_"]) > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* home: swapped in without a load. */
+html[data-gitquiet-gating] #dashboard.dashboard > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-gating] div.copilotPreview__container,
+html[data-gitquiet-gating] div.feed-background:has(#dashboard.dashboard) aside.feed-left-sidebar[aria-label="Account"],
+html[data-gitquiet-gating] div.feed-content:has(#dashboard.dashboard) div.feed-main__universe--spinner,
+html[data-gitquiet-gating] div.feed-content:has(#dashboard.dashboard) aside.feed-right-column[aria-label="Explore"] {
+  display: none;
+}

@@ -1,0 +1,16 @@
+/*
+ * The extension's own stylesheet, plus the one thing it cannot say for itself.
+ *
+ * Tailwind 4 generates a utility only when it finds the class name in a file it
+ * scanned, and it decides what to scan from where the stylesheet lives. Inside the
+ * extension that lands on `src` and everything works. Here the stage is the root, so
+ * automatic detection found `shots/` — twelve screens' worth of class names were
+ * never seen, and every view drew as unstyled markup.
+ *
+ * Named rather than guessed at, which is also a statement worth having in writing:
+ * the classes these captures depend on are the interface's, and if `src` moves this
+ * file is the thing that should fail.
+ */
+@source "../src";
+
+@import "../src/ui/styles.css";

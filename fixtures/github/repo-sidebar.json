@@ -1,0 +1,246 @@
+{
+ "releases": {
+  "latestRelease": {
+   "name": "19.2.8 (July 21st, 2026)",
+   "path": "/react/react/releases/tag/v19.2.8",
+   "publishedAt": "2026-07-21T15:49:09Z"
+  },
+  "releasesPath": "/react/react/releases",
+  "tagsPath": "/react/react/tags",
+  "canWrite": false
+ },
+ "deployments": {
+  "environments": [
+   {
+    "name": "Preview",
+    "state": "failure",
+    "createdAt": "2025-05-07T19:21:52+02:00",
+    "path": "/react/react/deployments/Preview"
+   },
+   {
+    "name": "npm",
+    "state": "active",
+    "createdAt": "2026-08-03T20:37:05+02:00",
+    "path": "/react/react/deployments/npm"
+   },
+   {
+    "name": "Production",
+    "state": "active",
+    "createdAt": "2025-05-07T19:16:57+02:00",
+    "path": "/react/react/deployments/Production"
+   },
+   {
+    "name": "Preview – react-compiler-playground",
+    "state": "active",
+    "createdAt": "2025-05-06T05:49:29+02:00",
+    "path": "/react/react/deployments/Preview%20%E2%80%93%20react-compiler-playground"
+   },
+   {
+    "name": "Preview – react-fixture-view-transition",
+    "state": "failure",
+    "createdAt": "2025-05-06T05:39:04+02:00",
+    "path": "/react/react/deployments/Preview%20%E2%80%93%20react-fixture-view-transition"
+   },
+   {
+    "name": "github-pages",
+    "state": "active",
+    "createdAt": "2026-06-09T19:35:32+02:00",
+    "path": "/react/react/deployments/github-pages"
+   },
+   {
+    "name": "Production – react-compiler-playground",
+    "state": "active",
+    "createdAt": "2025-05-05T23:49:15+02:00",
+    "path": "/react/react/deployments/Production%20%E2%80%93%20react-compiler-playground"
+   },
+   {
+    "name": "Production – react-fixture-view-transition",
+    "state": "failure",
+    "createdAt": "2025-05-05T23:48:56+02:00",
+    "path": "/react/react/deployments/Production%20%E2%80%93%20react-fixture-view-transition"
+   }
+  ],
+  "deploymentsPath": "/react/react/deployments",
+  "totalDeploymentCount": 501
+ },
+ "usedBy": {
+  "dependentCount": 30052750,
+  "dependents": [
+   {
+    "ownerLogin": "PiConsulting",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/14185940?s=64&v=4"
+   },
+   {
+    "ownerLogin": "goldwav",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/153404465?s=64&v=4"
+   },
+   {
+    "ownerLogin": "Edchy",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/123310716?s=64&v=4"
+   },
+   {
+    "ownerLogin": "rayenmk",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/148808533?s=64&v=4"
+   },
+   {
+    "ownerLogin": "meircohen",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/5362113?s=64&v=4"
+   },
+   {
+    "ownerLogin": "Xenonesis",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/115968670?s=64&v=4"
+   },
+   {
+    "ownerLogin": "IASolutionOrg",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/160133105?s=64&v=4"
+   },
+   {
+    "ownerLogin": "FewGoodCoins",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/260510887?s=64&v=4"
+   }
+  ],
+  "dependentsPath": "/react/react/network/dependents"
+ },
+ "contributors": {
+  "contributorCount": 1760,
+  "contributors": [
+   {
+    "login": "sebmarkbage",
+    "profileName": "Sebastian Markbåge",
+    "profilePath": "/sebmarkbage",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/63648?s=64&v=4"
+   },
+   {
+    "login": "zpao",
+    "profileName": "Paul O’Shannessy",
+    "profilePath": "/zpao",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/8445?s=64&v=4"
+   },
+   {
+    "login": "gaearon",
+    "profileName": "dan",
+    "profilePath": "/gaearon",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/810438?s=64&v=4"
+   },
+   {
+    "login": "acdlite",
+    "profileName": "Andrew Clark",
+    "profilePath": "/acdlite",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/3624098?s=64&v=4"
+   },
+   {
+    "login": "sophiebits",
+    "profileName": "Sophie Alpert",
+    "profilePath": "/sophiebits",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/6820?s=64&v=4"
+   },
+   {
+    "login": "josephsavona",
+    "profileName": "Joseph Savona",
+    "profilePath": "/josephsavona",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/6425824?s=64&v=4"
+   },
+   {
+    "login": "poteto",
+    "profileName": "lauren",
+    "profilePath": "/poteto",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/1390709?s=64&v=4"
+   },
+   {
+    "login": "eps1lon",
+    "profileName": "Sebastian \"Sebbie\" Silbermann",
+    "profilePath": "/eps1lon",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/12292047?s=64&v=4"
+   },
+   {
+    "login": "jimfb",
+    "profileName": "Jim",
+    "profilePath": "/jimfb",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/9595985?s=64&v=4"
+   },
+   {
+    "login": "trueadm",
+    "profileName": "Dominic Gannaway",
+    "profilePath": "/trueadm",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/1519870?s=64&v=4"
+   },
+   {
+    "login": "bvaughn",
+    "profileName": "Brian Vaughn",
+    "profilePath": "/bvaughn",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/29597?s=64&v=4"
+   },
+   {
+    "login": "mofeiZ",
+    "profilePath": "/mofeiZ",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/34200447?s=64&v=4"
+   },
+   {
+    "login": "gsathya",
+    "profileName": "Sathya Gunasekaran",
+    "profilePath": "/gsathya",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/565765?s=64&v=4"
+   },
+   {
+    "login": "kassens",
+    "profileName": "Jan Kassens",
+    "profilePath": "/kassens",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/11849?s=64&v=4"
+   }
+  ],
+  "contributorsPath": "/react/react/graphs/contributors"
+ },
+ "languages": {
+  "languages": [
+   {
+    "name": "JavaScript",
+    "percentage": 49.5,
+    "color": "#f1e05a",
+    "searchAlias": "javascript"
+   },
+   {
+    "name": "Rust",
+    "percentage": 25.9,
+    "color": "#dea584",
+    "searchAlias": "rust"
+   },
+   {
+    "name": "TypeScript",
+    "percentage": 22.4,
+    "color": "#3178c6",
+    "searchAlias": "typescript"
+   },
+   {
+    "name": "HTML",
+    "percentage": 1,
+    "color": "#e34c26",
+    "searchAlias": "html"
+   },
+   {
+    "name": "CSS",
+    "percentage": 0.9,
+    "color": "#663399",
+    "searchAlias": "css"
+   },
+   {
+    "name": "CoffeeScript",
+    "percentage": 0.2,
+    "color": "#244776",
+    "searchAlias": "coffeescript"
+   },
+   {
+    "name": "Shell",
+    "percentage": 0.1,
+    "color": "#89e051",
+    "searchAlias": "shell"
+   }
+  ],
+  "isFork": false,
+  "ownerLogin": "react",
+  "repoName": "react"
+ },
+ "sponsors": null,
+ "packages": null,
+ "suggestedWorkflows": null,
+ "configCallToAction": null
+}

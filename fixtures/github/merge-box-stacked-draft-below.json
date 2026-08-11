@@ -1,0 +1,241 @@
+{
+  "pullRequest": {
+    "advisoryWorkspace": null,
+    "autoMergeRequest": null,
+    "baseRefName": "feat-b",
+    "deprovisionableCodespaces": null,
+    "headRefName": "feat-c",
+    "headRefOid": "09fa4f4163f5438023eb41388984b4f5773b2425",
+    "headRepository": {
+      "ownerLogin": "flazouh",
+      "name": "stack-probe",
+      "url": "https://github.com/flazouh/stack-probe"
+    },
+    "baseRepository": {
+      "ownerLogin": "flazouh",
+      "name": "stack-probe",
+      "url": "https://github.com/flazouh/stack-probe"
+    },
+    "id": "PR_kwDOTndREM76bnBA",
+    "isDraft": false,
+    "isInMergeQueue": false,
+    "isCrossRepo": false,
+    "latestOpinionatedReviews": [],
+    "mergeBoxAliveChannels": {
+      "stateChannel": "eyJjIjoiaXNzdWU6NTA1ODM2NjQwNDpzdGF0ZSIsInQiOjE3ODU4MzI2NTh9--116ab0dd1a5ce7bac1bde76b716c6c69e096e89bd943b65532e3a58e74252995",
+      "deployedChannel": "eyJjIjoicHVsbF9yZXF1ZXN0OjQyMDE1NDE2OTY6ZGVwbG95ZWQiLCJ0IjoxNzg1ODMyNjU4fQ==--931204eab6cea79ecf0f4cf2c809ff3dae582349df7364db9327eab356596c40",
+      "reviewStateChannel": "eyJjIjoicHVsbF9yZXF1ZXN0OjQyMDE1NDE2OTY6cmV2aWV3X3N0YXRlIiwidCI6MTc4NTgzMjY1OH0=--ae49c340de371243854533a64b7a4f7ef0f29eca8f0521216598e7124e770d4a",
+      "workflowsChannel": "eyJjIjoicHVsbF9yZXF1ZXN0OjQyMDE1NDE2OTY6d29ya2Zsb3dfcnVuIiwidCI6MTc4NTgzMjY1OH0=--8c61a19e6458977a495ba085806d8223eb360e5d49a6df5395daec397588d8b7",
+      "codeScanningChannel": null,
+      "mergeQueueChannel": "eyJjIjoicHVsbF9yZXF1ZXN0OjQyMDE1NDE2OTY6bWVyZ2VfcXVldWVfZW50cnlfc3RhdGUiLCJ0IjoxNzg1ODMyNjU4fQ==--1d01363cd6c93c8d795ba9a73825e884bbbfcdcc4286cd407052f14ce3e28975",
+      "headRefChannel": "eyJjIjoicmVwbzoxMzE2NDQyMzg0OmJyYW5jaDpmZWF0LWMiLCJ0IjoxNzg1ODMyNjU4fQ==--babfda999d61de464dc028ff08ba75908adfdf0fb07d9f404d4092c4875b2167",
+      "baseRefChannel": "eyJjIjoicmVwbzoxMzE2NDQyMzg0OmJyYW5jaDpmZWF0LWIiLCJ0IjoxNzg1ODMyNjU4fQ==--18f508c8c022d9f28b2405cb7c2987c20476678d03bcea72155aa4bdc687d9c0",
+      "gitMergeStateChannel": "eyJjIjoicHVsbF9yZXF1ZXN0OjQyMDE1NDE2OTY6Z2l0X21lcmdlX3N0YXRlIiwidCI6MTc4NTgzMjY1OH0=--b768039d834e0ecfd49c3b5f8b21b53ef8d667325242cb8d2ea7ff3b17aa5dce",
+      "pullRequestChannel": "eyJjIjoicHVsbF9yZXF1ZXN0OjQyMDE1NDE2OTYiLCJ0IjoxNzg1ODMyNjU4fQ==--2b11558d37b04bc30aff8d74f1af089e779980d2166a6d9e8a32eb870132713d"
+    },
+    "mergeBoxUserPreferences": {
+      "statusChecksGrouping": "grouped_by_status"
+    },
+    "mergeQueue": null,
+    "mergeQueueEntry": null,
+    "mergeStateStatus": "CLEAN",
+    "numberOfCommits": 1,
+    "pendingReviewRequests": [],
+    "resourcePath": "https://github.com/flazouh/stack-probe/pull/10",
+    "anyStackBranchOutdated": false,
+    "stackBaseRefRequiresSignatures": false,
+    "stackedBaseRefName": "main",
+    "state": "OPEN",
+    "viewerCanAddAndRemoveFromMergeQueue": false,
+    "viewerCanAdminBypassMergeRequirements": false,
+    "viewerCanAddToMergeQueueSolo": false,
+    "viewerCanClose": true,
+    "viewerCanConvertToDraft": true,
+    "viewerCanDeleteHeadRef": false,
+    "viewerCanDisableAutoMerge": false,
+    "viewerCanEnableAutoMerge": false,
+    "viewerCanRestoreHeadRef": false,
+    "viewerCanUpdateBranch": false,
+    "viewerCanUpdate": true,
+    "viewerDidAuthor": true,
+    "viewerMergeActions": [
+      {
+        "allowableStatus": "BLOCKED",
+        "mergeMethods": [
+          {
+            "allowableStatus": "BLOCKED",
+            "isDefault": true,
+            "name": "MERGE"
+          },
+          {
+            "allowableStatus": "BLOCKED",
+            "isDefault": false,
+            "name": "SQUASH"
+          },
+          {
+            "allowableStatus": "BLOCKED",
+            "isDefault": false,
+            "name": "REBASE"
+          }
+        ],
+        "name": "MERGE_QUEUE"
+      },
+      {
+        "allowableStatus": "ALLOWED",
+        "mergeMethods": [
+          {
+            "allowableStatus": "ALLOWED",
+            "isDefault": true,
+            "name": "MERGE"
+          },
+          {
+            "allowableStatus": "ALLOWED",
+            "isDefault": false,
+            "name": "SQUASH"
+          },
+          {
+            "allowableStatus": "ALLOWED",
+            "isDefault": false,
+            "name": "REBASE"
+          }
+        ],
+        "name": "DIRECT_MERGE"
+      }
+    ],
+    "viewerCanDismissReviews": true,
+    "viewerCanReRequestReviews": true,
+    "viewerCanUseCopilotCodingAgent": false,
+    "viewerHasCEOrCBAccess": false,
+    "viewerUpdateMethods": [
+      {
+        "allowableStatus": "BLOCKED",
+        "isDefault": false,
+        "name": "MERGE",
+        "failureReason": "This branch is up to date."
+      },
+      {
+        "allowableStatus": "UNAVAILABLE",
+        "isDefault": false,
+        "name": "REBASE",
+        "failureReason": "There was a problem generating the rebase commit."
+      }
+    ],
+    "viewerPrCreationLimitInfo": null
+  },
+  "mergeRequirements": {
+    "state": "MERGEABLE",
+    "conditions": [
+      {
+        "type": "PULL_REQUEST_STATE",
+        "displayName": "Pull request state",
+        "description": "Pull request must be open and not in draft mode in order to be merged",
+        "message": null,
+        "result": "PASSED"
+      },
+      {
+        "type": "PULL_REQUEST_REPO_STATE",
+        "displayName": "Pull request repository state",
+        "description": "The repository must be not archived or locked",
+        "message": null,
+        "result": "PASSED"
+      },
+      {
+        "type": "PULL_REQUEST_USER_STATE",
+        "displayName": "Pull request user state",
+        "description": "The user must have push access to the repo and a verified email",
+        "message": null,
+        "result": "PASSED",
+        "failedSubConditions": []
+      },
+      {
+        "type": "PULL_REQUEST_RULES",
+        "displayName": "Repo rules",
+        "description": "Pull request repository rules",
+        "message": null,
+        "result": "PASSED",
+        "ruleRollups": []
+      },
+      {
+        "type": "PULL_REQUEST_MERGE_CONFLICT_STATE",
+        "displayName": "Pull request merge conflict state",
+        "description": "The pull request must not have any unresolved merge conflicts",
+        "message": null,
+        "result": "PASSED",
+        "conflicts": null,
+        "isConflictResolvableInWeb": null,
+        "webEditorConflictResolution": null
+      },
+      {
+        "type": "PULL_REQUEST_MERGE_METHOD",
+        "displayName": "Pull request merge method",
+        "description": "The selected merge method must be valid for the base repository.",
+        "message": null,
+        "result": "PASSED"
+      },
+      {
+        "type": "STACK",
+        "displayName": "Stacked PR conditions",
+        "description": "Stacked pull requests must be up-to-date to merge",
+        "message": null,
+        "result": "PASSED",
+        "stack": {
+          "id": 136895,
+          "number": 11,
+          "createdAt": "2026-08-04T10:27:48+02:00"
+        },
+        "isStacked": true,
+        "entries": [
+          {
+            "pull": {
+              "isUnstackable": true,
+              "title": "add module c",
+              "number": 10,
+              "state": "OPEN",
+              "url": "/flazouh/stack-probe/pull/10",
+              "headBranch": "feat-c",
+              "headOid": "09fa4f4163f5438023eb41388984b4f5773b2425"
+            },
+            "position": "CURRENT",
+            "failedSubConditions": null,
+            "status": "NEEDS_MERGE_STATE"
+          },
+          {
+            "pull": {
+              "isUnstackable": true,
+              "title": "add module b",
+              "number": 9,
+              "state": "DRAFT",
+              "url": "/flazouh/stack-probe/pull/9",
+              "headBranch": "feat-b",
+              "headOid": "664da2eabd6f8cd7b09783cb2f0f4d649dd2904f"
+            },
+            "position": "BEFORE",
+            "failedSubConditions": null,
+            "status": "IRRELEVANT_DRAFT"
+          },
+          {
+            "pull": {
+              "isUnstackable": true,
+              "title": "add module a",
+              "number": 8,
+              "state": "OPEN",
+              "url": "/flazouh/stack-probe/pull/8",
+              "headBranch": "feat-a",
+              "headOid": "c050a088eedcc3f76a1faf53ac5104cebbb18586"
+            },
+            "position": "BEFORE",
+            "failedSubConditions": null,
+            "status": "NEEDS_MERGE_STATE"
+          }
+        ]
+      }
+    ],
+    "defaultCommitAuthorEmail": "maintainer@example.com",
+    "commitMessageHeadline": "Merge pull request #10 from flazouh/feat-c",
+    "commitMessageBody": "add module c",
+    "possibleCommitAuthorEmails": [
+      "maintainer@example.com",
+      "maintainer@example.com"
+    ]
+  }
+}

@@ -1,0 +1,1065 @@
+/**
+ * The page this app owns, and the source Tailwind compiles.
+ *
+ * This file is written by hand and by `shadcn add`: the `@theme` and `:root`
+ * blocks below the base rules are the Fluid Functionalism surface ladder, added
+ * from its registry rather than transcribed, so that `shadcn add` can update
+ * them later without a merge by hand. Compiled output is `index.css`, which is
+ * generated and not read by anybody.
+ *
+ * The extension's stylesheet deliberately ships no reset, because it lands on
+ * GitHub's document and unsetting every margin and font would take their header
+ * with it. Here there is no host page to be careful of, so the few lines a real
+ * reset needs are written out.
+ */
+
+/*
+ * `source(none)` and then say where, because automatic detection starts at the
+ * repository root: it would scan the extension's `src/ui` whether or not this
+ * app draws any of it, and a class only GitHub's page uses would end up in a
+ * desktop bundle. The second path is not speculative — the Working Set screen
+ * this window is being built around lives there.
+ */
+@import "tailwindcss" source(none);
+@source "../";
+@source "../../../src/ui";
+/*
+ * `choices.ts` writes the rail's width as a class rather than a style, and it is
+ * the one class the interface holds outside `src/ui`. Unscanned, Tailwind never
+ * emitted `w-[clamp(16rem,22cqi,26rem)]`, so the rail fell back to the width of
+ * its longest path — four hundred and seventy pixels of folder names taken from
+ * the diff, and no setting that changed it.
+ */
+@source "../../../src/domain/choices.ts";
+
+/**
+ * Inter, variable, and not as decoration.
+ *
+ * A desktop app that ships its own font usually looks like a website, and the
+ * system font was the right default until the moment we took a design system
+ * whose type is load-bearing: its weight tokens animate `wght` and correct the
+ * advance width with `opsz`, so a hover can thicken a label without the row
+ * reflowing. `-apple-system` exposes no `opsz` axis, which would leave every
+ * weight transition shifting the text beside it. The font is the mechanism.
+ *
+ * The `files/` directory beside the compiled stylesheet is a copy of this
+ * package's own, made by `bun run fonts`, and its name is not ours to choose:
+ * Tailwind inlines these `@font-face` rules without rewriting their
+ * `url(./files/…)`, so next to the output is the only place the browser will
+ * look. Copying rather than committing means `bun update` updates the font.
+ */
+@import "@fontsource-variable/inter";
+
+@import "../../../src/ui/motion.css";
+@import "../../../src/ui/stack.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Mirror motion.css tokens so Tailwind's default transition lanes land on
+     the same scale (surface motion → smooth-out + quick). */
+  --duration-micro: 80ms;
+  --duration-quick: 150ms;
+  --duration-press: 160ms;
+  --ease-smooth-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --scale-small: 0.98;
+  /* Chrome lives outside `#gitquiet-root`, where motion.css scopes its tokens,
+     so the press scale is mirrored here to reach the window's own buttons. */
+  --scale-press: 0.97;
+  --default-transition-duration: var(--duration-quick);
+  --default-transition-timing-function: var(--ease-smooth-out);
+
+  /* The semantic half of the palette. `surfaces` ships the substrate ladder and
+     nothing else, because a registry cannot know what `foreground` means in an
+     app it has never seen — so these names are the ones its components reach
+     for (`bg-hover`, `border-border`, `text-muted-foreground`) and the values
+     are read from the compiled stylesheet the components were designed
+     against, rather than guessed at. */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  /* A menu is a surface that floats over the one under it, so it takes a rung
+     further up the ladder than a card does — the names are shadcn's, because
+     their components ask for them by these names and a component that asks for
+     a colour nobody defined draws as nothing at all. */
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-selected: var(--selected);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-destructive-light: var(--destructive-light);
+  --color-hover: var(--hover);
+  --color-active: var(--active);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-4: var(--surface-4);
+  --color-surface-5: var(--surface-5);
+  --color-surface-6: var(--surface-6);
+  --color-surface-7: var(--surface-7);
+  --color-surface-8: var(--surface-8);
+  --shadow-surface-1: var(--shadow-1);
+  --shadow-surface-2: var(--shadow-2);
+  --shadow-surface-3: var(--shadow-3);
+  --shadow-surface-4: var(--shadow-4);
+  --shadow-surface-5: var(--shadow-5);
+  --shadow-surface-6: var(--shadow-6);
+  --shadow-surface-7: var(--shadow-7);
+  --shadow-surface-8: var(--shadow-8);
+  --color-dm-drop: var(--dm-drop);
+  --color-dm-ring-high: var(--dm-ring-high);
+  --color-dm-ring-mid: var(--dm-ring-mid);
+  --color-dm-ring-base: var(--dm-ring-base);
+  --color-dm-hi-peak: var(--dm-hi-peak);
+  --color-dm-hi-high: var(--dm-hi-high);
+  --color-dm-hi-mid: var(--dm-hi-mid);
+  --color-dm-hi-base: var(--dm-hi-base);
+  --shadow-8: var(--shadow-8);
+  --shadow-7: var(--shadow-7);
+  --shadow-6: var(--shadow-6);
+  --shadow-5: var(--shadow-5);
+  --shadow-4: var(--shadow-4);
+  --shadow-3: var(--shadow-3);
+  --shadow-2: var(--shadow-2);
+  --shadow-1: var(--shadow-1);
+  --color-shadow-color: var(--shadow-color);
+  @keyframes spinner-move {
+  to {
+    stroke-dashoffset: -100;
+    }
+  }
+  @keyframes spinner-dash {
+  0%, 100% {
+    stroke-dasharray: 15 85;
+    }
+  50% {
+    stroke-dasharray: 40 60;
+    }
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--foreground);
+  /* `surface-1` is the substrate everything else is measured against, and `body`
+     is what paints the strip under the traffic lights. A variable declared on a
+     child of `body` is a variable `body` cannot see, which read as a transparent
+     window with the webview's own grey showing through. */
+  background: var(--surface-1);
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+}
+
+#gitquiet-root {
+  height: 100%;
+}
+
+/*
+ * How much room a dialog leaves around itself in this window.
+ *
+ * The shared interface centres its sheets and asks the shell how much of the edge
+ * is already taken. In a page the answer is a margin; here the top-left corner of
+ * the window holds the traffic lights, and a sheet centred in 86% of the window
+ * put its own first heading directly under them — a heading nobody could read and
+ * three buttons nobody could press. Twice the strip's height, since centring
+ * gives half of it to each edge.
+ */
+:root {
+  --sheet-away: 76px;
+  /* The strip's own height, which three rules below and one above need to agree
+     on: the two layouts take it off the window, and the wait takes it off the
+     window as well to find the middle of what is left. */
+  --chrome: 38px;
+}
+
+/* The strip the traffic lights sit in. Nothing is drawn in it and nothing may
+   be: a window whose title bar is covered in buttons is a window nobody can
+   drag. */
+.chrome {
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: var(--chrome);
+  padding-right: 8px;
+}
+
+/* Given back, and only here: everything in this corner is meant to be pressed,
+   and a drag region over a button is a button that moves the window. */
+.chrome-end {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/*
+ * The way back, at the left of the strip and clear of the traffic lights.
+ *
+ * `margin-right: auto` rather than `justify-content: space-between` on the strip,
+ * because there is usually nothing here at all — the list has nowhere to go back
+ * to — and a strip that changes how it distributes what is in it depending on
+ * whether a button exists moves the signed-in name every time a card is opened.
+ */
+.chrome-start {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  margin-left: 78px;
+  margin-right: auto;
+}
+
+.middle {
+  display: grid;
+  place-items: center;
+  height: calc(100% - var(--chrome));
+  padding: 0 24px 38px;
+}
+
+/* The list, which wants the window rather than the middle of it. */
+.page {
+  /* Named because the wait has to take it off the window too, and a wait that
+     centred itself in the window while the page it stands in is shorter by this
+     much would sit low by half of it. */
+  --page-away: 32px;
+  height: calc(100% - var(--chrome));
+  overflow-y: auto;
+  padding: 0 20px var(--page-away);
+}
+
+/*
+ * The wait that stands in for a list, given the room this window has.
+ *
+ * `room="list"` holds eighteen rems, which is the right answer on GitHub's page:
+ * their list is a column near the top of a document that carries on below it, and
+ * a wait as tall as the viewport would push their footer off the screen. Here the
+ * list is the window, so eighteen rems is a box at the top of an empty window with
+ * the words centred in the box rather than in the window — which reads as words
+ * that landed high rather than as a page being read.
+ *
+ * Only while it is still waiting. On the way out it is taken out of flow and laid
+ * over the list that has arrived, and that is the list's height to decide.
+ */
+.page .t-waiting:not([data-leaving]) {
+  min-height: calc(100vh - var(--chrome) - var(--page-away));
+}
+/*---break---
+ */
+:root {
+  --surface-1: #FAFAFA;
+  --surface-2: #FCFCFC;
+  --surface-3: #FFFFFF;
+  --surface-4: #FFFFFF;
+  --surface-5: #FFFFFF;
+  --surface-6: #FFFFFF;
+  --surface-7: #FFFFFF;
+  --surface-8: #FFFFFF;
+  --shadow-color: rgb(0 0 0 / 0.06);
+  --shadow-1: 0 0 0 1px var(--shadow-color);
+  --shadow-2: 0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color);
+  --shadow-3: 0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color);
+  --shadow-4: 0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color), 0 6px 6px -3px var(--shadow-color);
+  --shadow-5: 0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color), 0 6px 6px -3px var(--shadow-color), 0 12px 12px -6px var(--shadow-color);
+  --shadow-6: 0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color), 0 6px 6px -3px var(--shadow-color), 0 12px 12px -6px var(--shadow-color), 0 24px 24px -12px var(--shadow-color);
+  --shadow-7: 0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color), 0 6px 6px -3px var(--shadow-color), 0 12px 12px -6px var(--shadow-color), 0 24px 24px -12px var(--shadow-color), 0 48px 48px -24px var(--shadow-color);
+  --shadow-8: 0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color), 0 6px 6px -3px var(--shadow-color), 0 12px 12px -6px var(--shadow-color), 0 24px 24px -12px var(--shadow-color), 0 48px 48px -24px var(--shadow-color), 0 96px 96px -48px var(--shadow-color);
+}
+/*---break---
+ */
+.dark {
+  --surface-1: #171717;
+  --surface-2: #1E1E1E;
+  --surface-3: #252525;
+  --surface-4: #2C2C2C;
+  --surface-5: #333333;
+  --surface-6: #3A3A3A;
+  --surface-7: #414141;
+  --surface-8: #484848;
+  --dm-hi-base: rgba(255,255,255,0.01);
+  --dm-hi-mid: rgba(255,255,255,0.02);
+  --dm-hi-high: rgba(255,255,255,0.04);
+  --dm-hi-peak: rgba(255,255,255,0.06);
+  --dm-ring-base: rgba(255,255,255,0.02);
+  --dm-ring-mid: rgba(255,255,255,0.04);
+  --dm-ring-high: rgba(255,255,255,0.06);
+  --dm-drop: rgba(0,0,0,0.18);
+  --shadow-1: inset 0 0 0 1px var(--dm-ring-base);
+  --shadow-2: inset 0 1px 0 0 var(--dm-hi-base), inset 0 0 0 1px var(--dm-ring-base), 0 1px 1px -0.5px var(--dm-drop);
+  --shadow-3: inset 0 1px 0 0 var(--dm-hi-mid), inset 0 0 0 1px var(--dm-ring-base), 0 0 0 1px rgba(0,0,0,0.12), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop);
+  --shadow-4: inset 0 1px 0 0 var(--dm-hi-mid), inset 0 0 0 1px var(--dm-ring-mid), 0 0 0 1px rgba(0,0,0,0.14), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop);
+  --shadow-5: inset 0 1px 0 0 var(--dm-hi-high), inset 0 0 0 1px var(--dm-ring-mid), 0 0 0 1px rgba(0,0,0,0.16), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop), 0 12px 12px -6px var(--dm-drop);
+  --shadow-6: inset 0 1px 0 0 var(--dm-hi-high), inset 0 0 0 1px var(--dm-ring-high), 0 0 0 1px rgba(0,0,0,0.18), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop), 0 12px 12px -6px var(--dm-drop), 0 24px 24px -12px var(--dm-drop);
+  --shadow-7: inset 0 1px 0 0 var(--dm-hi-peak), inset 0 0 0 1px var(--dm-ring-high), 0 0 0 1px rgba(0,0,0,0.20), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop), 0 12px 12px -6px var(--dm-drop), 0 24px 24px -12px var(--dm-drop), 0 48px 48px -24px var(--dm-drop);
+  --shadow-8: inset 0 1px 0 0 var(--dm-hi-peak), inset 0 0 0 1px var(--dm-ring-high), 0 0 0 1px rgba(0,0,0,0.22), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop), 0 12px 12px -6px var(--dm-drop), 0 24px 24px -12px var(--dm-drop), 0 48px 48px -24px var(--dm-drop), 0 96px 96px -48px var(--dm-drop);
+}
+
+/**
+ * The semantic values, above the substrate.
+ *
+ * Split light and dark the way the registry splits its own blocks, rather than
+ * the `light-dark()` pairs the source stylesheet uses, so the whole file reads
+ * one way and `shadcn add` can keep merging into the blocks above without
+ * meeting a form it did not write. The values are the same either way.
+ *
+ * `background`, `card` and `border` are absent from both blocks on purpose:
+ * they are derived, so they resolve correctly in either scheme from one
+ * declaration.
+ */
+:root {
+  --background: var(--surface-1);
+  --card: var(--surface-3);
+  /* One rung above a card, because a menu is over the card rather than in the
+     page: the same ladder that makes a card read as raised makes a menu read as
+     floating, without a heavier border to say so. */
+  --popover: var(--surface-5);
+  --popover-foreground: var(--card-foreground);
+  --border: color-mix(in oklab, var(--foreground) 12%, transparent);
+  --focus-ring: #6b97ff;
+
+  /*
+   * What a control is made of, now that nothing here is made of lines.
+   *
+   * Hex-alpha rather than `color-mix` against `--foreground`: Tailwind rewrites
+   * mixes into a fallback plus a nested `@supports`, and Electrobun's WebKit
+   * keeps only the first nested `@supports` in this `:root` block — so
+   * `--control` used to stick on the solid `var(--foreground)` fallback and the
+   * filter wells painted near-white on a dark window. Light ink at 5% / 8%.
+   */
+  --control: #0000000d;
+  --control-hover: #00000014;
+
+  /*
+   * The four colours `motion.css` reads by Primer's own name.
+   *
+   * Everything else the screens ask for is a Tailwind utility, and the block
+   * below teaches Tailwind those names. These four are different: they are read
+   * inside `color-mix()` in a stylesheet written for GitHub's page, where they
+   * arrive with the page. Undeclared here, `color-mix(in srgb, var(--fgColor-muted)
+   * 14%, transparent)` is not a paler colour but an invalid one, so it computes to
+   * nothing — which is why the skeleton over the Working Set drew its cards and
+   * their names with every bar inside them invisible, and read as a list that had
+   * loaded empty.
+   *
+   * Derived rather than declared twice: one line each, following the ladder into
+   * dark the way `--card` and `--border` above already do.
+   */
+  --fgColor-default: var(--foreground);
+  --fgColor-muted: var(--muted-foreground);
+  --fgColor-success: var(--pass);
+  --fgColor-danger: var(--fail);
+
+  /*
+   * Surfaces the screens still ask for by Primer's name — the description's
+   * fold fade, the diff engine, the file tree. Without these, `var(--bgColor-default)`
+   * is invalid and a gradient to it paints nothing, so the fold under a long
+   * description was invisible and the prose just stopped.
+   */
+  --bgColor-default: var(--background);
+  --bgColor-muted: var(--surface-3);
+  --bgColor-inset: var(--surface-1);
+
+  --foreground: #171717;
+  --card-foreground: #171717;
+  --muted: #f4f4f5;
+  --muted-foreground: #737373;
+  --accent: #e5e5e5;
+  --accent-foreground: #171717;
+  --selected: #d4d4d4;
+  --input: #e5e5e5;
+  --ring: #e5e5e5;
+  --destructive: #ef4444;
+  --destructive-light: #fef2f2;
+  --hover: #0000000a;
+  --active: #00000012;
+
+  --ink-accent: #0969da;
+  --pass: #1a7f37;
+  --fail: #d1242f;
+  --busy: #9a6700;
+  --done: #8250df;
+  --accent-emphasis: #0969da;
+  --pass-emphasis: #1f883d;
+  --fail-emphasis: #cf222e;
+  --done-emphasis: #8250df;
+  --pass-muted: #1f883d26;
+  --fail-muted: #cf222e26;
+  --accent-muted: #0969da26;
+  --attention-muted: #9a670026;
+  --done-muted: #8250df26;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --foreground: #f5f5f5;
+  --card-foreground: #f5f5f5;
+  --muted: #1e1e1e;
+  --muted-foreground: #a3a3a3;
+  --accent: #525252;
+  --accent-foreground: #f5f5f5;
+  --selected: #525252;
+  --input: #404040;
+  --ring: #404040;
+  --destructive: #f87171;
+  --destructive-light: #450a0a;
+  --hover: #ffffff0f;
+  --active: #ffffff1a;
+  --control: #ffffff0d;
+  --control-hover: #ffffff14;
+
+  --ink-accent: #6b97ff;
+  --pass: #3fb950;
+  --fail: #f87171;
+  --busy: #d29922;
+  --done: #a371f7;
+  --accent-emphasis: #1f6feb;
+  --pass-emphasis: #238636;
+  --fail-emphasis: #da3633;
+  --done-emphasis: #8957e5;
+  --pass-muted: #3fb95026;
+  --fail-muted: #f8517126;
+  --accent-muted: #388bfd26;
+  --attention-muted: #d2992226;
+  --done-muted: #a371f726;
+}
+
+/**
+ * The vocabulary the screens are written in.
+ *
+ * `src/ui` spells its colours as `text-ink-muted`, `bg-canvas`, `border-line` —
+ * names the extension's own stylesheet answers with Primer variables read from
+ * GitHub's page. There is no such page here, and an undeclared token is not a
+ * wrong colour but no utility at all: Tailwind never learns `text-ink-muted`
+ * names a colour, generates nothing, and the class does nothing. That is what
+ * left the Working Set drawing as unstyled text in a dark window.
+ *
+ * So the same names, answered from the ladder above instead. This is the whole
+ * cost of moving these screens to a desktop: one block of colour, no component
+ * touched, because they only ever asked for meanings.
+ *
+ * Status keeps GitHub's hues rather than being restyled to match the rest. A
+ * passing check is green because years of GitHub have made it green, and the
+ * one thing a reader must never have to re-learn is what red means.
+ */
+@theme inline {
+  /* Surfaces. The ladder is elevation, so a recessed panel is drawn by leaving
+     it on the substrate and lifting what surrounds it, not by going darker. */
+  --color-canvas: var(--surface-1);
+  --color-inset: var(--surface-1);
+  --color-surface: var(--surface-3);
+  --color-raised: var(--surface-4);
+
+  --color-ink: var(--foreground);
+  --color-ink-muted: var(--muted-foreground);
+  --color-ink-accent: var(--ink-accent);
+  --color-ink-on-emphasis: #ffffff;
+
+  --color-pass: var(--pass);
+  --color-fail: var(--fail);
+  --color-busy: var(--busy);
+  --color-done: var(--done);
+
+  --color-accent-emphasis: var(--accent-emphasis);
+  --color-pass-emphasis: var(--pass-emphasis);
+  --color-fail-emphasis: var(--fail-emphasis);
+  --color-done-emphasis: var(--done-emphasis);
+  --color-pass-muted: var(--pass-muted);
+  --color-fail-muted: var(--fail-muted);
+  --color-accent-muted: var(--accent-muted);
+  --color-attention-muted: var(--attention-muted);
+  --color-done-muted: var(--done-muted);
+
+  /* Lines. `border` is the registry's own derived value, and the quieter one is
+     the same mix at less strength, so both follow the scheme. */
+  --color-line: var(--border);
+  --color-line-muted: color-mix(in oklab, var(--foreground) 7%, transparent);
+  --color-line-accent: var(--ink-accent);
+
+  /* The scale these screens were laid out against, which is GitHub's and not
+     Tailwind's: `text-sm` there is 12px, and taking Tailwind's 14px instead
+     would quietly loosen every row that was measured at the smaller size. */
+  --text-xs: 12px;
+  --text-xs--line-height: 1.3333;
+  --text-sm: 12px;
+  --text-sm--line-height: 1.6666;
+  --text-base: 14px;
+  --text-base--line-height: 1.4285;
+  --text-lg: 20px;
+  --text-lg--line-height: 1.6;
+
+  /*
+   * A hair softer than the extension, not a redesign. GitHub's page uses six on
+   * tight boxes; eight here is readable as round without the whole window going
+   * soft. Fourteen was too much — every chip and button started to look padded.
+   *
+   * `--radius` is what bare `rounded` reads (filter menu rows, a few chips).
+   * Left unset it stayed on Tailwind's 4px default, so those rows looked square
+   * next to everything else on eight.
+   */
+  --radius: 8px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --shadow-pop: var(--shadow-4);
+}
+
+/* The same ring `src/ui/primer.css` draws, for the same reasons, because the
+   window runs the same screens and paints them from the same packs. The
+   registry's `--focus-ring` is one fixed blue against twenty-six packs, and a
+   ring inside the control is a ring on the control's own fill; both of those are
+   how a filled accent button came to answer the keyboard with nothing. */
+#gitquiet-root :focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+/**
+ * Borderless: nothing on this page is a box.
+ *
+ * The extension draws bordered panels for a reason it states plainly — it lands
+ * in the middle of GitHub's page, where an island with no edge reads as a
+ * rendering fault rather than as restraint. This window is not in the middle of
+ * anything, and the same borders here are five nested rectangles around a list
+ * that was already legible: the shelf, its header, the rule under the header,
+ * a rule between every row, and a box around the filter.
+ *
+ * So they come off, and what separates things instead is space, weight and ink —
+ * which is what a list looks like in the applications this is meant to sit
+ * beside. The rules below only ever take something away or move it; nothing new
+ * is drawn.
+ *
+ * This is a change of mind about the ladder above, and worth admitting as one:
+ * a shelf was a card at surface 2 with the header a step above it at 3, which is
+ * the ladder used exactly as intended and still one rectangle too many. What the
+ * ladder is kept for is the thing it is actually needed for — a menu floating
+ * over the list, which has to detach from what it covers, and cannot do it with
+ * whitespace.
+ */
+
+/*
+ * The shelf, which is a card with nothing drawn around it.
+ *
+ * Borderless is not flat. A shelf is a group and should look like one, and the
+ * question is only what says so. A 1px line is the crudest answer available: it
+ * draws the boundary at full strength whether or not anybody needs to see it. A
+ * fill one step up the ladder says the same thing more quietly, and it says it
+ * without putting an edge back on the card. The ring inside `--shadow-2` was
+ * that same 1px line under another name, so it goes with the border.
+ *
+ * A wider corner than the component asks for. `rounded-md` is eight here; ten on
+ * the shelf itself is one step up without becoming the shape of the thing. The
+ * padding is a hair of inset so the hover on the first and last rows does not
+ * touch the card's edge — any more and it reads as a frame around the list,
+ * which is what came off.
+ */
+.page section {
+  border-width: 0;
+  border-radius: 10px;
+  padding: 3px;
+  background: var(--surface-3);
+}
+
+/* Its header, which is a label rather than a strip: no rule beneath it and no
+   tint behind it, because it is already on its own surface. */
+.page section > div:first-child {
+  border-bottom-width: 0;
+  background: none;
+  padding: 7px 9px 5px;
+}
+
+/*
+ * The pull-request title card, which is a <header> rather than a <section>.
+ *
+ * The rules above never reached it, so it kept the extension's translucent
+ * border — and on this window that border painted over canvas on the recessed
+ * half and over surface on the other, reading as a broken edge. Same treatment
+ * as a shelf: the outline comes off and the fill is all that says where the card
+ * is. Padding and the rounded well are the component's; overriding them here is
+ * how a square fill ended up sitting in a round frame.
+ */
+.page header.rounded-md {
+  border-width: 0;
+  border-radius: 10px;
+  margin-bottom: var(--gap);
+  background: var(--surface-3);
+}
+
+/*
+ * How far apart two things on the substrate sit — one number, everywhere.
+ *
+ * On GitHub's page a gap is holding an island off somebody else's layout, so the
+ * components ask for whatever each spot needed: twelve between shelves, eight
+ * between the filter and its chips, six between panels. Here it is all one
+ * surface with our own cards on it, and three different gaps in one window read
+ * as three different opinions. Four says "not the same card" and nothing more;
+ * the fill and the shadow are already saying the rest.
+ *
+ * Declared rather than repeated, because the next thing added to this page
+ * should not have to guess which of the three it was.
+ */
+.page {
+  --gap: 4px;
+}
+
+/* Both columns the app draws — the Working Set's shelves and a pull request's
+   panels — and the wait that stands in for either. */
+.page .t-panels,
+.page .t-skel-col {
+  gap: var(--gap);
+}
+
+/* The rows that hold those columns: a card beside the files is the same
+   question one level up. Named by what they contain, since they carry no class
+   of their own. */
+.page :has(> .t-panels),
+.page :has(> .t-skel-col) {
+  gap: var(--gap);
+}
+
+/* The filter and its chips, which are one control read left to right rather
+   than a row of separate ones. */
+.page :has(> input[type="search"]) {
+  gap: var(--gap);
+}
+
+/*
+ * What a shelf's tone used to say with its edge, said in ink.
+ *
+ * The amber outline around Your Move was carrying real meaning and cannot simply
+ * be deleted with the rest of them. It moves into the heading: the four tones the
+ * component knows are legible on the section as class names, so the colour lands
+ * on the two words that name the shelf. Quieter than an outline around six rows,
+ * and in the one place a reader is already looking to find out what the shelf is.
+ */
+.page section.border-busy h2 {
+  color: var(--busy);
+}
+
+.page section.border-fail h2 {
+  color: var(--fail);
+}
+
+.page section.border-done h2 {
+  color: var(--done);
+}
+
+/*
+ * The rows, with nothing ruled between them.
+ *
+ * Twenty rows separated by twenty lines is nineteen more marks than the question
+ * needs: they are already one per line, in a column, at a fixed height. What the
+ * lines were doing is done by the hover instead — which is the only moment a
+ * reader is actually asking where one row ends.
+ *
+ * Corners on that hover, because a highlight running the full width of the card
+ * is a band across the window rather than a row under the pointer.
+ */
+.page .divide-y > * {
+  border-bottom-width: 0;
+}
+
+.page [data-row] > a {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+/*
+ * Interactive rows inside a shelf — list links, stacked piles, check buttons,
+ * disclosure summaries. A stacked pull request wraps its link in a `role=tree`,
+ * so `> a` alone left those square while the unstacked ones rounded. One rule
+ * for every row that lights up under the pointer.
+ *
+ * A Working Set row is the wrapper rather than the link now — it holds the menu
+ * at its end as well as the link — so the corners are asked of what lights.
+ */
+.page [data-row],
+.page .divide-y a,
+.page summary,
+.page section button.w-full,
+.page .t-menu button,
+.page .t-dropdown [role="menuitem"],
+.page [role="menu"] [role="menuitem"] {
+  border-radius: 8px;
+}
+
+/*
+ * The same argument, carried into the card's own panels.
+ *
+ * A check, a thread, a commit and a review each drew a rule above or below
+ * itself, so a panel with four things in it was four rows and five lines. The
+ * hover already says where a row is, and the panels are small enough that the
+ * spacing does the rest.
+ *
+ * Only the quiet line goes. `border-line` is still doing structural work here —
+ * the Files pane's header and its tree divider are the two edges left on this
+ * page that separate one region from another rather than one row from the next.
+ */
+.page .border-line-muted {
+  border-color: transparent;
+}
+
+/*
+ * The filter, which asks rather than encloses.
+ *
+ * A field is still a place to type and has to look like one, so the outline
+ * becomes a tint. This is where a control and a card part company: a card only
+ * has to read as a group and the fill under it says so, while a field has to read
+ * as somewhere a cursor goes, and on a substrate it matches it reads as text
+ * floating on the page.
+ *
+ * The ring these carried is gone with the cards' one. It was a border spelled as
+ * a shadow, and a window where the only 1px lines left are the ones on the things
+ * you press is a window that still has 1px lines.
+ *
+ * Every control that asked to be seen, rather than every control: a row, a
+ * summary and the kebab at the end of a row are pressable too and have no fill,
+ * because they are inside a card that has one and the hover says the rest. What
+ * these have in common is the `border-line` the components gave them, which is a
+ * component saying it expects to be looked at before it is used.
+ */
+.page input[type="search"],
+.page input.border-line,
+.page textarea.border-line,
+.page select.border-line,
+.page button.border-line,
+.page button[aria-haspopup="true"] {
+  border-color: transparent;
+  background: var(--control);
+  box-shadow: none;
+}
+
+.page button.border-line:hover,
+.page button[aria-haspopup="true"]:hover {
+  background: var(--control-hover);
+}
+
+/* A chip with a term in it, which said so with a blue outline and now says it in
+   blue. The fill is the component's `bg-accent-muted`; the line comes off and the
+   words take the colour it was carrying, so the one chip that matters in a row of
+   six is the one that is a different colour rather than the one drawn twice. */
+.page button[aria-haspopup="true"].border-line-accent {
+  border-color: transparent;
+  color: var(--ink-accent);
+}
+
+/*
+ * Anything that covers the list, which is where a shadow earns its keep.
+ *
+ * This is the one place the argument runs the other way. Whitespace cannot
+ * separate what is on top of something else, so a layer over the page has to say
+ * how far off it is, and only a shadow says that. The line still comes off: the
+ * ladder and the shadow together are enough, and a menu with all three was
+ * wearing a belt, braces and a rope.
+ *
+ * Scoped to the root rather than to the page, which is the bug this rule had all
+ * along. `src/ui` portals its menus into `#gitquiet-root` and the registry's own
+ * portal to the body, so both sat outside `.page` and kept their component
+ * borders: the menu at the end of a row was the last 1px line in the window, four
+ * rules after the rest of them came off.
+ */
+#gitquiet-root [role="menu"],
+#gitquiet-root [data-origin],
+#gitquiet-root .t-modal,
+#gitquiet-root .t-card,
+[data-slot="dropdown-menu-content"],
+[data-slot="dropdown-menu-sub-content"] {
+  border-color: transparent;
+  background: var(--surface-4);
+  box-shadow: var(--shadow-5);
+}
+
+/* The toast, which asks with `!important` and so has to be answered in kind.
+   Sonner's own classes are overridden by weight rather than by order, and the
+   shared component sets its dress that way for the extension's benefit. */
+[data-sonner-toast] {
+  border-color: transparent !important;
+  box-shadow: var(--shadow-5) !important;
+}
+
+/*
+ * The wait, quieted.
+ *
+ * `motion.css` waits with a band of light crossing every bar, once every 1.4s, at
+ * 14% of the muted foreground rising to 28%. On GitHub's page that is about right:
+ * it is a white page with rules and borders on it, and a skeleton has to hold its
+ * own against them. In this window it is the loudest thing that ever appears —
+ * borderless cards on a near-white or near-black substrate, and then a light
+ * sweeping across them at twice the contrast of the text they are standing in for.
+ * It read as flashing rather than as waiting.
+ *
+ * So the same skeleton, at a whisper: one still fill at 6% of the foreground, and
+ * a slow breathe of the whole bar instead of a band travelling along it. Nothing
+ * moves across anything; the column simply is not settled yet. Two and a half
+ * seconds is deliberately slower than a heartbeat, which is where a pulse stops
+ * reading as urgency.
+ *
+ * The frame stays exactly as it was. What a reader gets from a skeleton is the
+ * shape of the answer, and that was never the noisy part.
+ */
+#gitquiet-root .t-bone {
+  --bone-rest: color-mix(in oklab, var(--foreground) 6%, transparent);
+
+  background-image: none;
+  animation: bone-breathe 2.5s var(--ease-linear) infinite;
+}
+
+/*
+ * The skeleton's own cards, which have to be the cards they are standing in for.
+ *
+ * A skeleton is a promise about what is arriving, and a wait drawn in outlines
+ * followed by an answer drawn in fills is a promise broken twice over: it shows an
+ * interface this window no longer has, and then it dissolves into a different one.
+ * The overrides above could not reach these, because a shelf is a `section` and its
+ * placeholder is a `div[data-frame]` — the same picture in different markup.
+ *
+ * Same treatment, then: no edge, no shadow, a step up the ladder, and the rules
+ * between rows gone. Not the section rules restated — these are one block that
+ * names both, so the next change to the shelf cannot forget the wait.
+ */
+.page [data-frame] {
+  border-width: 0;
+  border-radius: 10px;
+  padding: 3px;
+  background: var(--surface-3);
+}
+
+.page [data-frame] > div:first-child {
+  border-bottom-width: 0;
+  background: none;
+  padding: 7px 9px 5px;
+}
+
+/* The two bars that carried a colour — what a diff adds and what it takes away —
+   drawn as bars. Green and red on something with no content in it yet is a claim
+   about an answer that has not arrived. */
+#gitquiet-root .t-bone-add,
+#gitquiet-root .t-bone-del {
+  --bone-rest: color-mix(in oklab, var(--foreground) 6%, transparent);
+}
+
+@keyframes bone-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/*
+ * Prose GitHub already rendered, which still needs a face.
+ *
+ * The extension lands on a page that already styles `.markdown-body` — task
+ * lists, alerts, suggestion blocks, the lot. This window has no such page, and
+ * Tailwind's preflight has already zeroed headings, lists and margins, so the
+ * description arrived as one flat run of 14px text: an h2 the same weight as a
+ * paragraph, bullets with no indent, code with no fill. The HTML is theirs; the
+ * missing half was the stylesheet that makes it read as prose.
+ *
+ * Scoped to the class the component already puts on the HTML, and painted from
+ * the ladder above rather than from a second palette, so light and dark stay
+ * one decision.
+ */
+#gitquiet-root .markdown-body {
+  color: var(--foreground);
+  font-size: 14px;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+#gitquiet-root .markdown-body > :first-child {
+  margin-top: 0;
+}
+
+#gitquiet-root .markdown-body > :last-child {
+  margin-bottom: 0;
+}
+
+#gitquiet-root .markdown-body h1,
+#gitquiet-root .markdown-body h2,
+#gitquiet-root .markdown-body h3,
+#gitquiet-root .markdown-body h4,
+#gitquiet-root .markdown-body h5,
+#gitquiet-root .markdown-body h6 {
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+#gitquiet-root .markdown-body h1 {
+  font-size: 1.5em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border);
+}
+
+#gitquiet-root .markdown-body h2 {
+  font-size: 1.25em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border);
+}
+
+#gitquiet-root .markdown-body h3 {
+  font-size: 1.1em;
+}
+
+#gitquiet-root .markdown-body h4,
+#gitquiet-root .markdown-body h5,
+#gitquiet-root .markdown-body h6 {
+  font-size: 1em;
+}
+
+#gitquiet-root .markdown-body p,
+#gitquiet-root .markdown-body blockquote,
+#gitquiet-root .markdown-body ul,
+#gitquiet-root .markdown-body ol,
+#gitquiet-root .markdown-body dl,
+#gitquiet-root .markdown-body table,
+#gitquiet-root .markdown-body pre,
+#gitquiet-root .markdown-body details {
+  margin-top: 0;
+  margin-bottom: 0.8em;
+}
+
+#gitquiet-root .markdown-body ul,
+#gitquiet-root .markdown-body ol {
+  padding-left: 2em;
+}
+
+#gitquiet-root .markdown-body ul {
+  list-style-type: disc;
+}
+
+#gitquiet-root .markdown-body ol {
+  list-style-type: decimal;
+}
+
+#gitquiet-root .markdown-body ul ul {
+  list-style-type: circle;
+}
+
+#gitquiet-root .markdown-body ul ul ul {
+  list-style-type: square;
+}
+
+#gitquiet-root .markdown-body li + li {
+  margin-top: 0.25em;
+}
+
+#gitquiet-root .markdown-body li > p {
+  margin-top: 0.5em;
+}
+
+#gitquiet-root .markdown-body blockquote {
+  padding: 0 1em;
+  color: var(--muted-foreground);
+  border-left: 0.25em solid var(--border);
+}
+
+#gitquiet-root .markdown-body code,
+#gitquiet-root .markdown-body tt {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  white-space: break-spaces;
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+  border-radius: 4px;
+}
+
+#gitquiet-root .markdown-body pre {
+  padding: 0.75em 1em;
+  overflow: auto;
+  font-size: 85%;
+  line-height: 1.45;
+  background: var(--surface-1);
+  border-radius: 6px;
+}
+
+#gitquiet-root .markdown-body pre code {
+  padding: 0;
+  margin: 0;
+  font-size: 100%;
+  white-space: pre;
+  background: transparent;
+  border-radius: 0;
+}
+
+#gitquiet-root .markdown-body a {
+  color: var(--ink-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+#gitquiet-root .markdown-body a:hover {
+  text-decoration-thickness: 2px;
+}
+
+#gitquiet-root .markdown-body hr {
+  height: 1px;
+  margin: 1.5em 0;
+  background: var(--border);
+  border: 0;
+}
+
+#gitquiet-root .markdown-body table {
+  width: max-content;
+  max-width: 100%;
+  overflow: auto;
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+
+#gitquiet-root .markdown-body table th,
+#gitquiet-root .markdown-body table td {
+  padding: 0.4em 0.75em;
+  border: 1px solid var(--border);
+}
+
+#gitquiet-root .markdown-body table th {
+  font-weight: 600;
+  background: color-mix(in oklab, var(--foreground) 4%, transparent);
+}
+
+#gitquiet-root .markdown-body img {
+  max-width: 100%;
+  box-sizing: content-box;
+}
+
+#gitquiet-root .markdown-body input[type="checkbox"] {
+  margin: 0 0.4em 0.15em 0;
+  vertical-align: middle;
+}
+
+/* Still, for anybody who asked for still. The bars stay: they are the shape of
+   the answer, and that is the half of a skeleton that is not motion. */
+@media (prefers-reduced-motion: reduce) {
+  #gitquiet-root .t-bone {
+    animation: none;
+  }
+}

@@ -1,0 +1,63 @@
+{
+ "releases": {
+  "releasesPath": "/flazouh/githubpro/releases",
+  "tagsPath": "/flazouh/githubpro/tags",
+  "canWrite": true,
+  "newReleasePath": "/flazouh/githubpro/releases/new"
+ },
+ "packages": {
+  "packageCount": 0,
+  "packages": [],
+  "packagesPath": "/users/flazouh/packages?repo_name=githubpro",
+  "canWrite": true,
+  "publishPath": "/flazouh/githubpro/packages"
+ },
+ "contributors": {
+  "contributorCount": 1,
+  "contributors": [
+   {
+    "login": "flazouh",
+    "profileName": "Alex",
+    "profilePath": "/flazouh",
+    "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?s=64&v=4"
+   }
+  ],
+  "contributorsPath": "/flazouh/githubpro/graphs/contributors"
+ },
+ "languages": {
+  "languages": [
+   {
+    "name": "TypeScript",
+    "percentage": 90.1,
+    "color": "#3178c6",
+    "searchAlias": "typescript"
+   },
+   {
+    "name": "JavaScript",
+    "percentage": 4.9,
+    "color": "#f1e05a",
+    "searchAlias": "javascript"
+   },
+   {
+    "name": "CSS",
+    "percentage": 3.9,
+    "color": "#663399",
+    "searchAlias": "css"
+   },
+   {
+    "name": "HTML",
+    "percentage": 1.1,
+    "color": "#e34c26",
+    "searchAlias": "html"
+   }
+  ],
+  "isFork": false,
+  "ownerLogin": "flazouh",
+  "repoName": "githubpro"
+ },
+ "sponsors": null,
+ "deployments": null,
+ "usedBy": null,
+ "suggestedWorkflows": null,
+ "configCallToAction": null
+}

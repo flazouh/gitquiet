@@ -1,0 +1,180 @@
+{
+  "entries": {
+    ".agents/skills/remocn": {
+      "oid": "74222cc56d04b0d5f670baa2c65373f1bbd69487",
+      "url": "/flazouh/githubpro/commit/74222cc56d04b0d5f670baa2c65373f1bbd69487",
+      "date": "2026-08-01T01:35:25.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"Checkpoint before Emil Kowalski animation pass.\n\nOptimistic reads (useLive), branded toasts, merge/list confirmations,\ntheme and desktop polish land together so the motion rewrite can be\nreverted cleanly against one tree.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/74222cc56d04b0d5f670baa2c65373f1bbd69487\">Checkpoint before Emil Kowalski animation pass.</a>"
+      }
+    },
+    "desktop": {
+      "oid": "cedbf7cba144287d32c8648f71cdcda4fd4deaf7",
+      "url": "/flazouh/githubpro/commit/cedbf7cba144287d32c8648f71cdcda4fd4deaf7",
+      "date": "2026-08-03T00:32:13.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"The icon test moves beside the icons it tests\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/cedbf7cba144287d32c8648f71cdcda4fd4deaf7\">The icon test moves beside the icons it tests</a>"
+      }
+    },
+    ".sentrux": {
+      "oid": "3cd3cfeae3835e74b8c2c2175c9bc43f5eac9d96",
+      "url": "/flazouh/githubpro/commit/3cd3cfeae3835e74b8c2c2175c9bc43f5eac9d96",
+      "date": "2026-07-30T21:13:33.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"Turn the last two contracts into ports, and delete the layer that excused them\n\nBoth contracts could only be excused as core while they named something\noutside the domain. Settings and DiffChoices moved there in the last two\ncommits, so neither excuse is left.\n\nports/Settings.ts is the Store and nothing else: read, write, be told when\nanother tab wrote. The work over it went to app/settings.ts, which is where\na use case belongs — forgetful(), the store that keeps choices for as long\nas the page is open, rememberView, and chosenView with its quarter-second\npatience.\n\nports/Renderer.ts is what a diff renderer is, moved from src/diff whole.\nsrc/diff is now three files that each know something outside: the renderer\nand the two halves of Shiki. src/settings is two: Chrome&#39;s synced storage\nand its test.\n\nWhich means the `core` layer is gone from .sentrux/rules.toml. Eight named\nexceptions this afternoon, then four, then two, now none — the file\ndescribes a hexagon in globs alone, with no list of files that are somehow\nnot what their directory says.\n\nVerified: 971 tests pass, tsc --noEmit clean, oxlint clean, and no layer or\nboundary violation with the core layer removed, which is the part that\ncould have quietly gone wrong.\n\nThe one violation sentrux reports is still the four screens fanning out\npast fifteen. Measured before and after: 22, 18, 17, 17 either way, so\nsplitting one import into two did not move it.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/3cd3cfeae3835e74b8c2c2175c9bc43f5eac9d96\">Turn the last two contracts into ports, and delete the layer that exc…</a>"
+      }
+    },
+    ".oxlintrc.json": {
+      "oid": "a72509cc9249b63eaffaf4c6fd2af25a3a497869",
+      "url": "/flazouh/githubpro/commit/a72509cc9249b63eaffaf4c6fd2af25a3a497869",
+      "date": "2026-07-30T21:15:26.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"Let the linter keep quiet about a name that is there to be dropped, and one escape that is the subject\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/a72509cc9249b63eaffaf4c6fd2af25a3a497869\">Let the linter keep quiet about a name that is there to be dropped, a…</a>"
+      }
+    },
+    "lefthook.yml": {
+      "oid": "984c7a66710fba21bcd04dabacf4106a5cdf4a5a",
+      "url": "/flazouh/githubpro/commit/984c7a66710fba21bcd04dabacf4106a5cdf4a5a",
+      "date": "2026-08-02T00:00:04.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"Say what the pre-push run actually costs\n\nTwenty seconds on a clean tree, measured, rather than the six minutes I wrote\nfrom a run that was slow for a reason of its own.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/984c7a66710fba21bcd04dabacf4106a5cdf4a5a\">Say what the pre-push run actually costs</a>"
+      }
+    },
+    "video": {
+      "oid": "74222cc56d04b0d5f670baa2c65373f1bbd69487",
+      "url": "/flazouh/githubpro/commit/74222cc56d04b0d5f670baa2c65373f1bbd69487",
+      "date": "2026-08-01T01:35:25.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"Checkpoint before Emil Kowalski animation pass.\n\nOptimistic reads (useLive), branded toasts, merge/list confirmations,\ntheme and desktop polish land together so the motion rewrite can be\nreverted cleanly against one tree.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/74222cc56d04b0d5f670baa2c65373f1bbd69487\">Checkpoint before Emil Kowalski animation pass.</a>"
+      }
+    },
+    "tests": {
+      "oid": "085c9d68839fa057cf1d80af78a44d4b630145ff",
+      "url": "/flazouh/githubpro/commit/085c9d68839fa057cf1d80af78a44d4b630145ff",
+      "date": "2026-08-02T00:30:50.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"The reads behind repositories, activity and issues\n\nThree new reads, each as a domain module with the shape and a github module with\nthe request: the repositories a reader has, the activity on them, and the issues\nthey are involved in. The gateway and its port grow the three methods, and the\nworking set and the intent that routes to it are widened to carry issues beside\npull requests.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/085c9d68839fa057cf1d80af78a44d4b630145ff\">The reads behind repositories, activity and issues</a>"
+      }
+    },
+    "bun.lock": {
+      "oid": "15a0d74d4e1056e9ca83676f9e8ef58e0dafee42",
+      "url": "/flazouh/githubpro/commit/15a0d74d4e1056e9ca83676f9e8ef58e0dafee42",
+      "date": "2026-08-02T00:33:41.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"The product is called gitquiet, and it has icons\n\nThe root package takes the name the interface already uses everywhere. Hugeicons\narrives for the bar&#39;s glyphs, and the desktop workspace takes Vite so the window\ncan be developed with a reload rather than a rebuild.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/15a0d74d4e1056e9ca83676f9e8ef58e0dafee42\">The product is called gitquiet, and it has icons</a>"
+      }
+    },
+    "wxt.config.ts": {
+      "oid": "af240e0e24d841f0c6920cea222e1c821b78ea02",
+      "url": "/flazouh/githubpro/commit/af240e0e24d841f0c6920cea222e1c821b78ea02",
+      "date": "2026-08-02T00:33:41.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"The benchmarks and live checks follow the interface they drive\n\nEvery script that opens a real page had a selector or an address that the bar,\nHome and the renamed root moved. The checks are only worth keeping if they fail\nfor the right reason.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/af240e0e24d841f0c6920cea222e1c821b78ea02\">The benchmarks and live checks follow the interface they drive</a>"
+      }
+    },
+    ".github/workflows": {
+      "oid": "56394946bb8b5006cad915e4bc2b29579f4c6563",
+      "url": "/flazouh/githubpro/commit/56394946bb8b5006cad915e4bc2b29579f4c6563",
+      "date": "2026-07-30T20:12:14.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"Write the WXT types on both sides of the engine build, as CI needs\n\nThe build reads the tsconfig `wxt prepare` writes, so it cannot run first;\nthe typecheck reads types written after the engine lands in `public`, so\none run cannot serve both.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/56394946bb8b5006cad915e4bc2b29579f4c6563\">Write the WXT types on both sides of the engine build, as CI needs</a>"
+      }
+    },
+    "CONTEXT.md": {
+      "oid": "28268590871883f75f2603a15e3803ee13a57fa4",
+      "url": "/flazouh/githubpro/commit/28268590871883f75f2603a15e3803ee13a57fa4",
+      "date": "2026-08-02T00:30:41.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"The payloads and the pages these screens are built on\n\nSeven probes that ask a live GitHub page what it sends, and three payloads saved\nfrom what came back. The screens below are written against these rather than\nagainst a guess at the shape, and the probes are kept so the guess can be checked\nagain when GitHub changes it.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/28268590871883f75f2603a15e3803ee13a57fa4\">The payloads and the pages these screens are built on</a>"
+      }
+    },
+    "src": {
+      "oid": "7f15cd3850ed6d3ae28a0a49c33bf1955321f5e8",
+      "url": "/flazouh/githubpro/commit/7f15cd3850ed6d3ae28a0a49c33bf1955321f5e8",
+      "date": "2026-08-03T01:26:47.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"The reader&#39;s settings live in the bar, on every page\n\nThe way into them was a small button at the right end of the files band, which\nput them on the one screen that has a files band and left Home, a repository&#39;s\npull requests and the history without any. The bar is the one thing on every\npage this extension draws, so the tray is where a setting belongs: `TheBar`\nreads the store and hands the sheet in, and the strip keeps a slot rather than\nknowing what a settings sheet needs.\n\nThe pane is tighter with it. Eight pixels either side instead of twelve, which\nis the gutter the bar itself floats in, and six-pixel corners instead of\ntwelve: a quarter of a forty pixel strip turned at each corner read as a pill\nwith tabs inside it.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/7f15cd3850ed6d3ae28a0a49c33bf1955321f5e8\">The reader's settings live in the bar, on every page</a>"
+      }
+    },
+    "tsconfig.json": {
+      "oid": "3e9309fb7a4e451db370f0af1209650dae356372",
+      "url": "/flazouh/githubpro/commit/3e9309fb7a4e451db370f0af1209650dae356372",
+      "date": "2026-07-26T02:14:49.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"Build the interface from registry components and a real motion scale\n\nThe primitives were ours and the motion was two durations picked by hand.\nBoth are now taken from places that have thought harder about them: Fluid\nFunctionalism for the components, transitions.dev for the scale.\n\nNeither registry is edited to fit. shadcn&#39;s colour vocabulary is restated in\nterms of our surface ramp in bridge.css, so anything installed later arrives\nin this palette already, and `--color-border: transparent` keeps the\nno-borders rule as one token rather than a promise to audit every variant.\nTheir elevation ladder is replaced there too: it builds depth from stacked\ninset rings, which is a border by another name.\n\ntransitions.dev&#39;s scale replaces the durations tokens.css used to declare,\nso there is one answer to how long &quot;quick&quot; is. The two motion systems divide\nby what they are for: springs for feedback under the pointer, because a menu\nre-closed before it opened must not finish opening first; fixed durations for\nchoreography, because nothing interrupts a surface arriving.\n\nThe snippets live in `@layer components`. Unlayered they outrank Tailwind, and\n`.t-stagger-line { display: block }` was quietly restacking the header.\n\nAn entrance also has to survive a window that draws no frames. An occluded\nwindow reports itself visible, leaves a frame request pending for seconds, and\neverything waiting on one sits at zero opacity. A timer backstop reveals it\nregardless — the test stubs the frame callback out entirely to prove it.\n\nCloses #18\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/3e9309fb7a4e451db370f0af1209650dae356372\">Build the interface from registry components and a real motion scale</a>"
+      }
+    },
+    "bunfig.toml": {
+      "oid": "6d94c4e19634ba3dccd5e2ae451633e53201329d",
+      "url": "/flazouh/githubpro/commit/6d94c4e19634ba3dccd5e2ae451633e53201329d",
+      "date": "2026-07-31T03:06:17.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"One copy of Effect, so two of it cannot disagree\n\nThe desktop app installed its own Effect and its own React beside the ones the\nextension uses. Two copies of Effect means two `Option`s, and a `Some` built by\none is not a `Some` the other will match; the compiler said so about a symbol\nnobody wrote, and the running app would have said nothing at all and behaved\nstrangely.\n\nThe desktop becomes a workspace of this package, and stops declaring what the\nroot already declares. Bun&#39;s isolated linker, which a workspace turns on, then\nfound that `src/diff/shiki.ts` imports a package nothing declares — noted in\nbunfig for a change of its own, hoisted until then.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/6d94c4e19634ba3dccd5e2ae451633e53201329d\">One copy of Effect, so two of it cannot disagree</a>"
+      }
+    },
+    "docs": {
+      "oid": "73e0940daa989087596534f0cdbe503c92f3dce1",
+      "url": "/flazouh/githubpro/commit/73e0940daa989087596534f0cdbe503c92f3dce1",
+      "date": "2026-08-02T00:33:00.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"The panels, the waits and the motion, carried to the new shell\n\nWhat the bar and Home changed around them: the sections and the file browser\nunder a header that is no longer theirs, the waits sized to the room they are\ndrawn in rather than to a page height that moved, and the motion and widths that\ngo with it.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/73e0940daa989087596534f0cdbe503c92f3dce1\">The panels, the waits and the motion, carried to the new shell</a>"
+      }
+    },
+    ".gitignore": {
+      "oid": "df15b085c0852ad30c40dfe3431851c034d592dc",
+      "url": "/flazouh/githubpro/commit/df15b085c0852ad30c40dfe3431851c034d592dc",
+      "date": "2026-07-30T20:54:56.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"Import the screen for a page, rather than ask a worker to inject it\n\nA content script runs when a document loads that matches it, and GitHub loads no\ndocuments: a pull request pressed on a list, their own &quot;Pull requests&quot; nav, a\nrepository&#39;s own tab are all swapped in place. So four of these five pages could\nnever be caught by a match, and the way an interface arrived was a message to the\nworker asking it to inject one — which costs whatever the worker takes to wake.\nAsleep, that was 587 milliseconds of GitHub&#39;s own list on the screen, measured on\na live page, and it came and went with whether the reader&#39;s last press had\nhappened to warm it.\n\nThe screens are extension files now, built by scripts/build-screens.ts and\npublished in the manifest, and the shell that runs on every GitHub page imports\nthe one the address calls for. Nobody to wake, nobody to ask. It also shares one\nchunk between them instead of bundling React and Effect four times, which is two\nmegabytes of the build, and carries only the gate stylesheet itself — so\nTailwind&#39;s utilities are no longer on pages this extension leaves alone, where\ntheir `.px-3` and ours disagree by four pixels.\n\nWith that gone: askToOpen, BUNDLE, claim, the worker&#39;s injection listener and the\n`scripting` permission it needed.\n\nTwo things this cost, both found in the browser and fixed here. There is no\n`document.head` at document_start, so appending a screen&#39;s stylesheet threw and\nleft three of four pages blank — and a screen that fails to load now hands the\npage back rather than leaving it gated behind a name nothing will lift. And the\nrules that hold a takeover no longer name the page, because the shell renames it\nthe instant a press lands: keyed, they let GitHub&#39;s conversation back up\nunderneath a card that was still standing on the screen.\n\nVerified with the worker asleep for forty seconds: all four pages taken over on a\nload with nothing of theirs painted, and a soft journey through a pull request,\ntheir tab, a row on the list and the back button with nothing of theirs painted\neither. The card arrives a second and a half after a press, before the address\nhas caught up.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/df15b085c0852ad30c40dfe3431851c034d592dc\">Import the screen for a page, rather than ask a worker to inject it</a>"
+      }
+    },
+    "README.md": {
+      "oid": "28268590871883f75f2603a15e3803ee13a57fa4",
+      "url": "/flazouh/githubpro/commit/28268590871883f75f2603a15e3803ee13a57fa4",
+      "date": "2026-08-02T00:30:41.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"The payloads and the pages these screens are built on\n\nSeven probes that ask a live GitHub page what it sends, and three payloads saved\nfrom what came back. The screens below are written against these rather than\nagainst a guess at the shape, and the probes are kept so the guess can be checked\nagain when GitHub changes it.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/28268590871883f75f2603a15e3803ee13a57fa4\">The payloads and the pages these screens are built on</a>"
+      }
+    },
+    "package.json": {
+      "oid": "15a0d74d4e1056e9ca83676f9e8ef58e0dafee42",
+      "url": "/flazouh/githubpro/commit/15a0d74d4e1056e9ca83676f9e8ef58e0dafee42",
+      "date": "2026-08-02T00:33:41.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"The product is called gitquiet, and it has icons\n\nThe root package takes the name the interface already uses everywhere. Hugeicons\narrives for the bar&#39;s glyphs, and the desktop workspace takes Vite so the window\ncan be developed with a reload rather than a rebuild.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/15a0d74d4e1056e9ca83676f9e8ef58e0dafee42\">The product is called gitquiet, and it has icons</a>"
+      }
+    },
+    "fixtures": {
+      "oid": "28268590871883f75f2603a15e3803ee13a57fa4",
+      "url": "/flazouh/githubpro/commit/28268590871883f75f2603a15e3803ee13a57fa4",
+      "date": "2026-08-02T00:30:41.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"The payloads and the pages these screens are built on\n\nSeven probes that ask a live GitHub page what it sends, and three payloads saved\nfrom what came back. The screens below are written against these rather than\nagainst a guess at the shape, and the probes are kept so the guess can be checked\nagain when GitHub changes it.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/28268590871883f75f2603a15e3803ee13a57fa4\">The payloads and the pages these screens are built on</a>"
+      }
+    },
+    "mockups": {
+      "oid": "9f0c4c676740322ac77473dff5c5df5c156a8649",
+      "url": "/flazouh/githubpro/commit/9f0c4c676740322ac77473dff5c5df5c156a8649",
+      "date": "2026-07-28T22:16:45.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"Read a merged pull request GitHub requires nothing of\n\nTheir merge box answers `mergeRequirements: null` once a pull request has\nlanded. Refusing that payload failed the whole read, and a failed read\nleaves the last snapshot on screen, so a merged pull request went on\ncalling itself open.\n\nAlso lands the write-API notes, the conversation mockup, and the\npull-request diagnosis script used to find this.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/9f0c4c676740322ac77473dff5c5df5c156a8649\">Read a merged pull request GitHub requires nothing of</a>"
+      }
+    },
+    "scripts": {
+      "oid": "af240e0e24d841f0c6920cea222e1c821b78ea02",
+      "url": "/flazouh/githubpro/commit/af240e0e24d841f0c6920cea222e1c821b78ea02",
+      "date": "2026-08-02T00:33:41.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"The benchmarks and live checks follow the interface they drive\n\nEvery script that opens a real page had a selector or an address that the bar,\nHome and the renamed root moved. The checks are only worth keeping if they fail\nfor the right reason.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/af240e0e24d841f0c6920cea222e1c821b78ea02\">The benchmarks and live checks follow the interface they drive</a>"
+      }
+    },
+    "skills-lock.json": {
+      "oid": "74222cc56d04b0d5f670baa2c65373f1bbd69487",
+      "url": "/flazouh/githubpro/commit/74222cc56d04b0d5f670baa2c65373f1bbd69487",
+      "date": "2026-08-01T01:35:25.000+02:00",
+      "shortMessageHtmlLink": {
+        "value": "<a data-pjax=\"true\" title=\"Checkpoint before Emil Kowalski animation pass.\n\nOptimistic reads (useLive), branded toasts, merge/list confirmations,\ntheme and desktop polish land together so the motion rewrite can be\nreverted cleanly against one tree.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"Link--secondary\" href=\"/flazouh/githubpro/commit/74222cc56d04b0d5f670baa2c65373f1bbd69487\">Checkpoint before Emil Kowalski animation pass.</a>"
+      }
+    }
+  }
+}

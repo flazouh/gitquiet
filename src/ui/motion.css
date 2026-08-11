@@ -1,0 +1,1122 @@
+/**
+ * What little motion this interface has.
+ *
+ * It used to have a great deal more. Standing on GitHub's own page, most of it
+ * was wrong: their conversation does not slide in, their checks do not stagger,
+ * and an interface that announces itself with choreography in the middle of a
+ * page that does not reads as a different site rather than a better one. What
+ * survives is the one moment with nothing to show yet.
+ *
+ * Everything is scoped to our subtree. A `:root` block here would redefine
+ * duration and easing names across the whole of github.com, and their page has
+ * animations of its own.
+ *
+ * The block below is the whole vocabulary, and anything added here spends it
+ * rather than inventing a number: a new motion names the token whose documented
+ * use matches — a close is `--duration-quick`, a placeholder giving way to
+ * content is `--duration-slow` — and builds its own semantic names out of those.
+ * That is why two features written a day apart look related, and why retuning the
+ * interface is an edit to one block instead of a search for milliseconds.
+ */
+
+/*
+ * On the root and on every host of ours that had to stand outside it — the bar, the palette, the
+ * hover cards. These are custom properties, so nothing inherits across that gap: widening the
+ * rules below without widening this block would leave them reading `var(--menu-open-dur)` as
+ * nothing at all, which is a transition with no duration. See `outside.ts`.
+ */
+#gitquiet-root,
+[data-gitquiet-outside] {
+  /*
+   * Emil Kowalski's scale for UI that people live in.
+   *
+   * Strong curves rather than the browser's weak `ease-out` / `ease-in-out`.
+   * Press feedback under 160ms. Surfaces under 300ms. Bounce kept off the
+   * everyday path — it belongs to drag-to-dismiss and play, not a merge card.
+   */
+  --duration-stagger: 40ms;
+  --duration-micro: 80ms;
+  --duration-press: 160ms;
+  --duration-quick: 150ms;
+  --duration-fast: 250ms;
+  --duration-medium: 300ms;
+  --duration-slow: 300ms;
+  --duration-shimmer: 1.4s;
+  --duration-turn: 1s;
+  --ease-linear: linear;
+  /* Strong ease-out: UI enter, press, hover colour. Never ease-in. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-smooth-out: var(--ease-out);
+  /* Strong ease-in-out: on-screen morphs (text swap, reveal cross-fade). */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  /* Reserved. Not spent by chrome below — bounce reads as play. */
+  --ease-bounce: cubic-bezier(0.34, 1.36, 0.64, 1);
+  --distance-micro: 4px;
+  --distance-small: 6px;
+  --distance-base: 8px;
+  --distance-medium: 12px;
+  --distance-large: 30px;
+  --blur-small: 2px;
+  --blur-medium: 3px;
+  --blur-large: 8px;
+  --scale-press: 0.97;
+  --scale-large: 0.96;
+  --scale-medium: 0.97;
+  --scale-small: 0.98;
+  --scale-tiny: 0.99;
+  /*
+   * A mark growing out of the corner it points from, rather than a surface.
+   *
+   * The four scales above are the surface row of this scale — a modal, a menu, a
+   * tooltip — and every one of them is within four percent of rest, because a
+   * card that starts much smaller reads as a zoom rather than as an opening.
+   * None of them survives being applied to a twelve-pixel glyph: four percent of
+   * twelve pixels is half a pixel, which is a mark that appears rather than one
+   * that grows. Half is the smallest a glyph can start from and still be read as
+   * the same glyph on the way in, and it is the only place in this vocabulary
+   * where the thing being scaled is a stroke instead of a box.
+   */
+  --scale-mark: 0.5;
+
+  --resize-dur: var(--duration-fast);
+  --resize-ease: var(--ease-out);
+  --text-swap-dur: var(--duration-quick);
+  --text-swap-translate-y: var(--distance-micro);
+  --text-swap-blur: var(--blur-small);
+  --text-swap-ease: var(--ease-in-out);
+
+  /* Wait → content: under 300ms so the load feels faster than it is. */
+  --wait-reveal-dur: var(--duration-fast);
+  --wait-reveal-blur: var(--blur-small);
+  --wait-reveal-ease: var(--ease-in-out);
+
+  --row-in-dur: var(--duration-fast);
+  --row-in-ease: var(--ease-out);
+  --row-in-rise: var(--text-swap-translate-y);
+  --row-in-blur: var(--blur-small);
+  --row-in-stagger: var(--duration-stagger);
+
+  --panel-in-dur: var(--duration-fast);
+  --panel-in-ease: var(--ease-out);
+  --panel-in-rise: var(--distance-base);
+  --panel-in-blur: var(--blur-small);
+  --panel-in-stagger: var(--duration-stagger);
+
+  /* Open invitation, close gets out of the way. */
+  --menu-open-dur: var(--duration-fast);
+  --menu-close-dur: var(--duration-quick);
+  --menu-ease: var(--ease-out);
+  --menu-pre-scale: var(--scale-medium);
+  --menu-closing-scale: var(--scale-tiny);
+
+  /* Colour only. Hover fires dozens of times a day — no travel, no bounce. */
+  --hover-dur: var(--duration-micro);
+  --hover-ease: var(--ease-out);
+}
+
+/**
+ * Interactive chrome that would otherwise snap between rest and hover.
+ *
+ * Colour lanes only, and only where a fine pointer can hover. Touch fires
+ * `:hover` on tap; gating it here stops the false positives on github.com.
+ * `:where` keeps this below utilities so a `transition-transform` still wins.
+ */
+@media (hover: hover) and (pointer: fine) {
+  :where(#gitquiet-root, [data-gitquiet-outside]) :is(button, a, summary, [role="button"], [role="menuitem"], [role="option"]) {
+    transition-property: background-color, color, opacity, border-color;
+    transition-duration: var(--hover-dur);
+    transition-timing-function: var(--hover-ease);
+  }
+}
+
+/**
+ * Every button in this interface answers a press.
+ *
+ * The one rule that covers forty-three of them. There is no shared button
+ * component here — the card and the list are raw `<button>`s with utilities on
+ * them, shared with the extension — so a component would have meant twenty
+ * files edited to say the same thing, and the forty-fourth button written next
+ * month would still have said nothing.
+ *
+ * Ninety-seven percent for a hundred and sixty milliseconds. Scale is the one
+ * feedback that reads as the control hearing you, and it costs no layout: the
+ * label and any icon scale with the box, which is what makes it read as the
+ * whole button giving rather than its paint changing.
+ *
+ * What is left out is as deliberate as what is in. A menu item, an option, a
+ * tab, a tree item or anything spanning its container is a place in a list
+ * rather than a control, and 3% of a wide row is several pixels of text sliding
+ * sideways under the pointer — which reads as a glitch, not as feedback. That
+ * is what the `.w-full` exclusion is for: in this codebase a button that fills
+ * its container is always a row. A list row itself is an anchor rather than a
+ * button and never reaches this rule, so the small controls sitting inside one
+ * — the kebab that asks what to do with a pull request — are included, which is
+ * right: they are controls in a row rather than the row. `:where` keeps the
+ * whole thing at zero
+ * specificity, so anything wanting its own press (the ask buttons below, the
+ * window's chrome button) simply names itself and wins.
+ */
+:where(#gitquiet-root, [data-gitquiet-outside])
+  :is(button, [role="button"]):not(
+    :disabled,
+    [aria-disabled="true"],
+    [role="menuitem"],
+    [role="menuitemcheckbox"],
+    [role="menuitemradio"],
+    [role="option"],
+    [role="treeitem"],
+    [role="tab"],
+    .w-full,
+    [data-no-press]
+  ) {
+  /* The colour lanes come along because this rule sits after the hover block
+     above and a second `transition-property` replaces the first rather than
+     adding to it. Same lanes, same duration; only transform is new. */
+  transition-property: background-color, color, opacity, border-color, transform;
+  transition-duration: var(--hover-dur), var(--hover-dur), var(--hover-dur), var(--hover-dur),
+    var(--duration-press);
+  transition-timing-function: var(--ease-out);
+}
+
+:where(#gitquiet-root, [data-gitquiet-outside])
+  :is(button, [role="button"]):not(
+    :disabled,
+    [aria-disabled="true"],
+    [role="menuitem"],
+    [role="menuitemcheckbox"],
+    [role="menuitemradio"],
+    [role="option"],
+    [role="treeitem"],
+    [role="tab"],
+    .w-full,
+    [data-no-press]
+  ):active {
+  transform: scale(var(--scale-press));
+}
+
+/**
+ * A button that asks before it acts.
+ *
+ * Two transitions.dev patterns on one control. The cancelling half is a grid
+ * column that opens from `0fr`, which is the card resize done on a track rather
+ * than on a width — nothing here knows how wide a cross is, and this way
+ * nothing has to. The words swap in place, in the cell below that holds all four
+ * of them: the verb rises out with a blur as "Confirm" rises in under it, and
+ * every one of them is present the whole time so the pair can go back the way it
+ * came.
+ */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-ask {
+  display: inline-grid;
+  grid-template-columns: auto 0fr;
+  align-items: stretch;
+  border-radius: 6px;
+  /* The seam between the halves is the card showing through, so neither half
+     needs a border of its own on a green button or on a grey one. */
+  gap: 0;
+  transition: grid-template-columns var(--resize-dur) var(--resize-ease);
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-ask[data-asking] {
+  grid-template-columns: auto 1fr;
+  gap: 1px;
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-yes {
+  position: relative;
+  /* Stacking context: without it, `::after` at z-index -1 paints behind the
+     whole button in the parent context — which is why the first veil was
+     invisible on the green merge control. */
+  isolation: isolate;
+  border-radius: 6px 0 0 6px;
+  padding: 0.375rem 0.75rem;
+  white-space: nowrap;
+  transition:
+    background-color var(--duration-quick) var(--ease-out),
+    color var(--duration-quick) var(--ease-out),
+    border-radius var(--resize-dur) var(--resize-ease),
+    transform var(--duration-press) var(--ease-out);
+}
+
+/**
+ * What these buttons say under the pointer, and under a press.
+ *
+ * Hover is colour only: a veil of `--color-hover`, gated to fine pointers so a
+ * tap on a phone does not leave a button looking hovered. No lift — these fire
+ * dozens of times a day while somebody reads the card.
+ *
+ * The veil is a `::after` inside an `isolation: isolate` context, so z-index -1
+ * sits above the fill and under the label. (A 999px inset box-shadow was tried
+ * and rejected: this WebKit resolves its colour to transparent.)
+ *
+ * Press is `scale(0.97)` in 160ms — the feedback that makes a control feel like
+ * it is listening. The veil deepens to `--color-active` with it.
+ */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-yes::after,
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-no::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  /* Solid ink, carried to 14% by the opacity below rather than by `color-mix`.
+     Tailwind compiles a mix into a plain fallback plus a nested `@supports`
+     override, and this WebKit applies the plain one last — which painted these
+     buttons opaque white. One animatable property, no fallback to lose. */
+  background: var(--color-ink);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-press) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-yes:not(:disabled):hover::after,
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-no:hover::after {
+    opacity: 0.12;
+  }
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-yes:not(:disabled):active {
+  transform: scale(var(--scale-press));
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-yes:not(:disabled):active::after,
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-no:active::after {
+  opacity: 0.2;
+}
+
+/* Square only on the side the cross arrives at, and round again the moment it
+   leaves — a button left with one flat edge and nothing beside it reads as
+   half of something missing. */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-ask:not([data-asking]) .t-ask-yes {
+  border-radius: 6px;
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-out {
+  display: grid;
+  overflow: hidden;
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-no {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  border-radius: 0 6px 6px 0;
+  padding: 0.375rem 0.5rem;
+  /* Quick in: the cross is a response, not a surface opening. */
+  animation: t-ask-in var(--duration-quick) var(--ease-out) both;
+}
+
+@keyframes t-ask-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--distance-micro) * -1));
+  }
+}
+
+/* Same arrival on the row menu's cancel cross. */
+/* Armed by a key: see `data-snap` in `Doings.tsx`. The cross is a target, and a target that
+   is still arriving is one the second keypress can miss. */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-doing-out[data-snap] {
+  animation: none;
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-doing-out {
+  animation: t-ask-in var(--duration-quick) var(--ease-out) both;
+}
+
+/**
+ * Every word a button can say, in one cell.
+ *
+ * One cell, so the button is as wide as the widest thing it will ever say and no
+ * press changes the size of the target it was pressed on. It began as the two
+ * words the merge card swaps between, a verb and "Confirm", and holds four now —
+ * see `says.tsx`, which is where the words come from and which surfaces spend it.
+ * Centred, because the shorter word left-aligned in a slot cut for the longer one
+ * reads as a label that slipped.
+ *
+ * `aria-hidden` marks the words that are not being said, and it is the component's
+ * own mark rather than one invented for the sheet: a word nobody can see and a
+ * word nobody is told about are the same word, and a second attribute saying so
+ * would be the one that goes stale.
+ */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-says {
+  display: inline-grid;
+  grid-template-areas: "word";
+  justify-items: center;
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-say {
+  grid-area: word;
+  transition:
+    transform var(--text-swap-dur) var(--text-swap-ease),
+    filter var(--text-swap-dur) var(--text-swap-ease),
+    opacity var(--text-swap-dur) var(--text-swap-ease);
+}
+
+/* A word not being said waits below, blurred and gone. */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-say[aria-hidden] {
+  opacity: 0;
+  filter: blur(var(--text-swap-blur));
+  transform: translateY(var(--text-swap-translate-y));
+  pointer-events: none;
+}
+
+/* Except one already said, which left upward — the direction the next arrives from. */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-say[aria-hidden][data-past] {
+  transform: translateY(calc(var(--text-swap-translate-y) * -1));
+}
+
+/* A check that is still running, turning at GitHub's own rate. Their spinner
+   wears `.anim-rotate`, which is `rotate-keyframes 1s linear infinite`; this is
+   the same second, under a name we own — so that the preference below can stop
+   it, which theirs does not. */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-rotate {
+  animation: t-rotate var(--duration-turn) var(--ease-linear) infinite;
+}
+
+@keyframes t-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/*
+ * The check that answers the spinner: the ring closes, then the tick is written into it.
+ *
+ * Both strokes carry `pathLength="1"`, so one dash length covers a circle and a tick without
+ * this rule knowing either geometry. The tick waits for the ring, which is what makes it read as
+ * one gesture finishing rather than two marks appearing at once.
+ *
+ * `forwards`, because what is being drawn is a state and not an event: the mark has to still be
+ * there when the animation has run, for as long as the toast stands.
+ */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-drawn > path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: t-draw var(--duration-fast) var(--ease-out) forwards;
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-drawn > path + path {
+  animation-delay: var(--duration-quick);
+}
+
+@keyframes t-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* transitions.dev — shimmer text, tuned to Primer's own foreground colours so
+   the sweep reads as GitHub's text catching light rather than as a gradient. */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--fgColor-muted) 0%,
+    var(--fgColor-muted) 40%,
+    var(--fgColor-default) 50%,
+    var(--fgColor-muted) 60%,
+    var(--fgColor-muted) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: t-shimmer var(--duration-shimmer) var(--ease-linear) infinite;
+}
+
+@keyframes t-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+/**
+ * The wait leaving, over a page that is already there.
+ *
+ * Only this half of the cross-fade is animated. What was being read arrives at
+ * full strength the instant GitHub answers — fading it in would spend four
+ * hundred milliseconds of exactly the wait this extension exists to remove — so
+ * the dissolve is the wait going, blurring as it goes, with the finished page
+ * showing through it.
+ */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-waiting {
+  transition:
+    opacity var(--wait-reveal-dur) var(--wait-reveal-ease),
+    filter var(--wait-reveal-dur) var(--wait-reveal-ease);
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-waiting[data-leaving] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  filter: blur(var(--wait-reveal-blur));
+  /* Nothing here was ever clickable, but for the moment it is lying over the
+     page, it must not be in the way of anything that is. */
+  pointer-events: none;
+}
+
+/*
+ * A wait that was already over the window stays there while it goes.
+ *
+ * The card's wait is centred on the screen rather than on the region, so pulling it
+ * into the region to dissolve would start the fade by jumping it to the middle of a
+ * card several screens tall — the reader would see it move rather than go.
+ */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-waiting.t-over-window[data-leaving] {
+  position: fixed;
+}
+
+/**
+ * A row landing in a list that is still filling up.
+ *
+ * A repository's pull requests arrive in stages — the list itself in one read,
+ * then whose move it is, then the checks, then the branches that fold rows into
+ * stacks — and this is what makes the first stage read as an answer rather than
+ * as a page half drawn. Only rows appearing for the first time carry the class,
+ * so a row still on screen when the next stage lands does not enter twice.
+ *
+ * The stagger is capped by the caller rather than here: a row's `--row-at` stops
+ * climbing after a handful, which holds the whole run under a quarter of a
+ * second no matter how many pull requests the repository has open.
+ */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-row-in {
+  animation: t-row-in var(--row-in-dur) var(--row-in-ease) both;
+  animation-delay: calc(var(--row-at, 0) * var(--row-in-stagger));
+}
+
+@keyframes t-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--row-in-rise));
+    filter: blur(var(--row-in-blur));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+/**
+ * The panels a wait was drawn in place of, arriving.
+ *
+ * The other half of the cross-fade above. The skeleton fades and blurs off the
+ * top of the card; underneath, each panel rises the last eight pixels into
+ * place over the same four hundred milliseconds — so what the reader sees is one
+ * exchange rather than bars vanishing and a page appearing where they were.
+ *
+ * Staggered down the column, forty milliseconds a panel, and stopped after six:
+ * the run is a quarter of a second end to end, which is long enough to read as
+ * the page assembling itself and short of the point where the last panel looks
+ * like it is waiting its turn. Delays are written as `nth-child` rather than
+ * carried in a prop, which is what the skeleton's own sweep already does — the
+ * column decides the order, and no panel has to be told where it is.
+ *
+ * Filled backwards rather than both ways, and with nothing promised to the
+ * compositor. A panel that keeps its finished frame keeps `filter: blur(0)` with
+ * it, and a filter — even one that blurs by nothing — makes the element a
+ * stacking context for good. `will-change` does the same. The column then paints
+ * panel by panel in the order they are written, and the filter chip's menu, which
+ * hangs out of the first of them, ends up underneath every Court below it: rows
+ * showing through a menu that is supposedly on top. Backwards holds the panel
+ * hidden through its delay and hands every property back the moment it lands.
+ */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-panels > * {
+  animation: t-panel-in var(--panel-in-dur) var(--panel-in-ease) backwards;
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-panels > *:nth-child(2) {
+  animation-delay: var(--panel-in-stagger);
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-panels > *:nth-child(3) {
+  animation-delay: calc(var(--panel-in-stagger) * 2);
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-panels > *:nth-child(4) {
+  animation-delay: calc(var(--panel-in-stagger) * 3);
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-panels > *:nth-child(5) {
+  animation-delay: calc(var(--panel-in-stagger) * 4);
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-panels > *:nth-child(n + 6) {
+  animation-delay: calc(var(--panel-in-stagger) * 5);
+}
+
+/**
+ * The palette arriving.
+ *
+ * It wore `t-panel-in` for a while, which is not a class: those keyframes are only ever reached
+ * through `.t-panels > *`, so the dialog appeared in one frame with no entrance at all — the one
+ * surface in this interface that opens on a keypress over whatever the reader was reading, and the
+ * one that most needs a moment to say where it came from.
+ *
+ * Down from the top edge, because that is where the search it belongs to stands, and only four
+ * pixels of it: the reader pressed a key, so the answer is already theirs — this is orientation,
+ * not an announcement. The veil behind it fades on the same clock so the pair reads as one thing.
+ */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-palette {
+  transform-origin: top center;
+  animation: t-palette-in var(--menu-open-dur) var(--menu-ease) both;
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-palette-veil {
+  animation: t-veil-in var(--menu-open-dur) var(--menu-ease) both;
+}
+
+@keyframes t-palette-in {
+  from {
+    opacity: 0;
+    transform: scale(var(--menu-pre-scale)) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes t-veil-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes t-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--panel-in-rise));
+    filter: blur(var(--panel-in-blur));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+/**
+ * The same arrival, without the travel.
+ *
+ * For the two surfaces that are too big to move: the title card at the top of
+ * the page and the full-height column the diff is read in. Eight pixels under a
+ * panel that reaches the bottom of the window reads as the layout settling —
+ * as though the page were still deciding — rather than as the code arriving.
+ * They fade and unblur on the same clock as everything else instead.
+ */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-panel-fade {
+  animation: t-panel-fade var(--panel-in-dur) var(--panel-in-ease) backwards;
+}
+
+@keyframes t-panel-fade {
+  from {
+    opacity: 0;
+    filter: blur(var(--panel-in-blur));
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+/**
+ * A filter chip's menu, growing out of the chip that opened it.
+ *
+ * The origin is the corner the menu is pinned to, so the growth reads as coming
+ * from the chip rather than from the middle of the page — `top left` for a menu
+ * hanging below its chip, `top right` for one that had to be pulled leftwards to
+ * stay on screen.
+ *
+ * Closing is quicker than opening and travels less far: an invitation can take its
+ * time, a dismissal is in the way. It also stops being a menu the moment it starts
+ * leaving — the keyboard walk through the list pauses while one is up, and a ghost
+ * fading out is not something anybody can point at.
+ */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-menu {
+  transform-origin: top left;
+  transform: scale(var(--menu-pre-scale));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--menu-open-dur) var(--menu-ease),
+    opacity var(--menu-open-dur) var(--menu-ease);
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-menu[data-origin="top-right"] {
+  transform-origin: top right;
+}
+
+/* The Rail's own two menus, whose controls sit at the foot of a full-height strip and
+   whose surfaces therefore open upwards over it. */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-menu[data-origin="bottom-left"] {
+  transform-origin: bottom left;
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-menu.is-open {
+  transform: scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-menu.is-closing {
+  transform: scale(var(--menu-closing-scale));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--menu-close-dur) var(--menu-ease),
+    opacity var(--menu-close-dur) var(--menu-ease);
+}
+
+/**
+ * The Rail changing width, and its words going with it.
+ *
+ * The one place in this interface that animates a layout property, and it is a considered
+ * exception rather than an oversight. Width is the whole of what happens here — a reader
+ * narrows the strip a handful of times a week, on one element, with a page beside it that
+ * reflows either way — and the alternatives are worse: a transform would slide the words
+ * out from under the page rather than give the space back, and a grid track on the parent
+ * moves the same layout under a different name.
+ *
+ * The words are the reason this is animated at all. Removing them on the same frame the
+ * box starts moving reads as two separate events, the label vanishing and then the strip
+ * catching up. Blurred and faded on the same clock, the pair reads as one exchange: the
+ * words dissolve into the edge as it arrives. They stay in the document either way, so
+ * nothing reflows twice, and every control here carries its own `aria-label` — the visible
+ * word is decoration a screen reader was already ignoring.
+ */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-rail {
+  transition: width var(--resize-dur) var(--resize-ease);
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-rail-word {
+  transition:
+    opacity var(--text-swap-dur) var(--text-swap-ease),
+    filter var(--text-swap-dur) var(--text-swap-ease);
+}
+
+/*
+ * Except when a key asked for the width.
+ *
+ * `/` widens the strip and then puts the caret in the filter, and the reader who pressed it is
+ * already typing. The considered exception above is about a hand on the widen control, which has
+ * time to watch; a keypress does not, and a box still travelling under the first letters of a
+ * repository name is the animation charging the reader for its own arrival. The Rail wears this
+ * for the one frame of that change — see `atOnce` in `Rail.tsx`.
+ */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-rail[data-snap],
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-rail[data-snap] .t-rail-word {
+  transition: none;
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-rail[data-narrow] .t-rail-word {
+  opacity: 0;
+  filter: blur(var(--text-swap-blur));
+  /* Out of flow once it cannot be read.
+     
+     In the document is the point — a word removed on the frame the width starts moving reads
+     as two events — but in the *layout* it is a fourteen-pixel passenger in a strip forty
+     pixels wide, and it was pushing every face off the axis the Destination glyphs stand on.
+     Measured on the page: faces at 41, glyphs at 49. Absolute keeps the word exactly where a
+     screen reader and the next widening expect it, and gives the row back to the glyph. */
+  position: absolute;
+}
+
+/**
+ * A chevron saying which way the surface it belongs to will go.
+ *
+ * Its own class rather than a `transition-transform` utility, because the glyph that needs
+ * to turn is often also the glyph that goes with a width — and `.t-rail-word` above owns
+ * `transition-property`, so a utility on the same element loses and the turn snaps. Half a
+ * turn on the hover clock: the menu is already opening, and a chevron that arrives after it
+ * is a second event for one press.
+ */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-turn {
+  transition: transform var(--duration-quick) var(--ease-out);
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-turn.is-turned {
+  transform: rotate(180deg);
+}
+
+/* The cell that held a Destination's name and its initial is gone: the narrow Rail shows
+   each Destination's own glyph now, which is beside the word at every width and therefore
+   has nothing to swap with. */
+
+/**
+ * The card behind a face.
+ *
+ * Its own three tokens rather than the ones at the top of this file: a hover card
+ * is portalled to the end of the document, so it stands outside `#gitquiet-root`
+ * and inherits nothing from it. The values are the tooltip row of the same scale —
+ * quick, eased out, and barely scaled, because a hint that announces itself is a
+ * hint in the way.
+ */
+.t-card {
+  --duration-quick: 150ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --scale-small: 0.98;
+  --card-dur: var(--duration-quick);
+  --card-ease: var(--ease-out);
+  --card-scale: var(--scale-small);
+}
+
+/**
+ * A portalled dropdown (Radix), same scale as `.t-menu` but outside the root.
+ *
+ * Open invitation, close gets out of the way: 250ms in, 150ms out. Close leaves
+ * from nearer rest than the open arrived from.
+ */
+.t-dropdown {
+  --duration-fast: 250ms;
+  --duration-quick: 150ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --scale-medium: 0.97;
+  --scale-tiny: 0.99;
+  --menu-open-dur: var(--duration-fast);
+  --menu-close-dur: var(--duration-quick);
+  --menu-ease: var(--ease-out);
+  --menu-pre-scale: var(--scale-medium);
+  --menu-closing-scale: var(--scale-tiny);
+}
+
+.t-dropdown[data-state="open"] {
+  animation: t-dropdown-in var(--menu-open-dur) var(--menu-ease) both;
+}
+
+/*
+ * Except when a key shut it.
+ *
+ * See `data-snap` in `Doings.tsx`: a typed letter both lands a verb and shuts the menu, and the
+ * toast answering that verb was arriving underneath a menu still on its way out. Dropping the
+ * keyframe rather than shortening it also drops the wait — Radix holds the content mounted until
+ * an animation it can see has finished, and there is none to see here.
+ */
+.t-dropdown[data-snap] {
+  animation: none;
+}
+
+.t-dropdown[data-state="closed"] {
+  animation: t-dropdown-out var(--menu-close-dur) var(--menu-ease) both;
+}
+
+@keyframes t-dropdown-in {
+  from {
+    opacity: 0;
+    transform: scale(var(--menu-pre-scale));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes t-dropdown-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: scale(var(--menu-closing-scale));
+  }
+}
+
+/**
+ * A modal surface — check dialog, settings, keyboard sheet.
+ *
+ * Own tokens: a `<dialog>` and a portalled sheet can sit outside `#gitquiet-root`.
+ * Open is the invitation (250ms from `--scale-large`); close is not animated here
+ * because these mounts are torn down the moment they shut — dismissal stays
+ * instant, which is what a close wants.
+ *
+ * `margin: auto` is load-bearing. A modal `<dialog>` is centred by the browser
+ * via auto margins; our resets zero every margin, so without this the sheet
+ * sits in the top-left (settings once, check dialog after). Kept on the class
+ * rather than on each caller so the next dialog cannot forget it.
+ */
+.t-modal {
+  --duration-fast: 250ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --scale-large: 0.96;
+  margin: auto;
+  animation: t-modal-in var(--duration-fast) var(--ease-out) both;
+}
+
+.t-modal::backdrop {
+  animation: t-modal-backdrop-in var(--duration-quick) var(--ease-out) both;
+}
+
+.t-modal-backdrop {
+  --duration-fast: 250ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  animation: t-modal-backdrop-in var(--duration-fast) var(--ease-out) both;
+}
+
+@keyframes t-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(var(--scale-large));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes t-modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Open, plainly, rather than a tooltip's delayed and instant kinds of open. */
+.t-card[data-state="open"] {
+  animation: t-card-in var(--card-dur) var(--card-ease) both;
+}
+
+@keyframes t-card-in {
+  from {
+    opacity: 0;
+    transform: scale(var(--card-scale));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * The star.
+ *
+ * The one control in this interface that is allowed to be pleased with itself.
+ * Everywhere else motion is there to say where something came from; here it is
+ * the acknowledgement, and the star is given rather than read.
+ *
+ * Three parts, and only the first survives `prefers-reduced-motion`: the mark
+ * fills and overshoots, six sparks leave it, and the whole button settles. All
+ * of it is transform and opacity, so none of it touches layout, and the sparks
+ * are six spans that exist for four hundred milliseconds after a press and are
+ * not in the document before one.
+ */
+/*
+ * The one place `--ease-bounce` is spent.
+ *
+ * It has sat at the top of this file marked reserved, on the grounds that bounce
+ * reads as play and a merge card is not play. A star is play. It is the only
+ * control here that gives something rather than opening something.
+ */
+.t-star {
+  --star-dur: var(--duration-fast);
+  --star-ease: var(--ease-bounce);
+  --star-throw: var(--distance-medium);
+}
+
+.t-star-mark[data-starred="yes"] {
+  animation: t-star-pop var(--star-dur) var(--star-ease) both;
+}
+
+@keyframes t-star-pop {
+  0% {
+    transform: scale(0.7) rotate(-24deg);
+  }
+  45% {
+    transform: scale(1.35) rotate(6deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+.t-star-sparks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/*
+ * Six of them, around the mark, each one turned a sixth of the way further and
+ * thrown a little further out than a plain circle would be. The angle comes in
+ * as a number rather than a length so one rule can serve all six.
+ */
+.t-star-spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  margin: -1.5px 0 0 -1.5px;
+  border-radius: 9999px;
+  /*
+   * The amber the mark itself takes. Primer calls this colour attention and puts
+   * their own star in it; this vocabulary calls the same value busy, which is a
+   * worse name for it and the right colour.
+   */
+  background: var(--color-busy, currentColor);
+  transform: rotate(calc(var(--spark) * 60deg)) translateY(0) scale(1);
+  animation: t-star-spark var(--star-dur) var(--ease-out) both;
+}
+
+@keyframes t-star-spark {
+  0% {
+    opacity: 0;
+    transform: rotate(calc(var(--spark) * 60deg)) translateY(0) scale(0.4);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(calc(var(--spark) * 60deg)) translateY(calc(var(--star-throw) * -1)) scale(0.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The row is there either way. What goes is the arriving. */
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-row-in {
+    animation: none;
+  }
+
+  /* Same for the panels: the card is the answer, and the answer is not motion. */
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-panels > *,
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-panel-fade {
+    animation: none;
+  }
+
+  /* The palette is on the screen either way. What goes is the arriving. */
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-palette,
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-palette-veil {
+    animation: none;
+  }
+
+  /* The menu still opens and shuts. It simply does it between two frames. */
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-menu {
+    transition: none;
+  }
+
+  /* The Rail still narrows. It is simply the width it asked for on the next frame. */
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-rail,
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-rail-word {
+    transition: none;
+  }
+
+  .t-card[data-state],
+  .t-dropdown[data-state],
+  .t-modal,
+  .t-modal::backdrop,
+  .t-modal-backdrop {
+    animation: none;
+  }
+
+  /*
+   * The star still fills, and it does it without moving.
+   *
+   * The fill is the answer to the press and cannot go. The overshoot is travel
+   * and the sparks are travel in six directions at once, which is the shape of
+   * motion this setting exists to refuse.
+   */
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-star-mark,
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-star-spark {
+    animation: none;
+  }
+
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-star-sparks {
+    display: none;
+  }
+
+  /*
+   * Controls keep their colour and lose their movement.
+   *
+   * This said `transition: none`, which is not what the comments in this block claim and not what
+   * the setting asks for. `prefers-reduced-motion` is about travel — the thing that makes a
+   * vestibular reader ill is a surface sliding or scaling under their eyes, not a row that warms
+   * up under the pointer. Taking the colour with it left a menu whose hover state teleported: the
+   * one piece of feedback that says "this is the row you are on" arriving with no relationship to
+   * the hand that caused it.
+   */
+  :where(#gitquiet-root, [data-gitquiet-outside]) :is(button, a, summary, [role="button"], [role="menuitem"], [role="option"]) {
+    transition-property: color, background-color, border-color, box-shadow !important;
+  }
+
+  /* The words still swap. They simply do it between two frames, which leaves the
+     one being said in the cell and the rest of them out of sight where they were. */
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask,
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-yes,
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-say {
+    transition: none !important;
+  }
+
+  /* Veil (colour) stays; press scale goes. Colour aids comprehension;
+     movement is what reduced motion asks us not to do. */
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-yes:active,
+  :is(#gitquiet-root, [data-gitquiet-outside]) :is(button, [role="button"]):active {
+    transform: none;
+  }
+
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-yes::after,
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-no::after {
+    transition: none !important;
+  }
+
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-no,
+  /* Armed by a key: see `data-snap` in `Doings.tsx`. The cross is a target, and a target that
+   is still arriving is one the second keypress can miss. */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-doing-out[data-snap] {
+  animation: none;
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-doing-out {
+    animation: none;
+  }
+
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-shimmer {
+    animation: none;
+    background: none;
+    color: var(--fgColor-muted);
+  }
+
+  /* Still, but not gone: the broken ring still reads as work in progress. */
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-rotate {
+    animation: none;
+  }
+
+  /* The finished mark, not a missing one. Drawing is the part a reader asked to be
+     spared; a check with the tick still undrawn would be a ring saying nothing. */
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-drawn > path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  /* The words and the ring stay — they are what says the page is being read.
+     What goes is the dissolve: the wait simply stops being there. */
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-waiting {
+    transition: none !important;
+  }
+
+  /*
+   * The floor, for everything this block has not named.
+   *
+   * It used to pin every duration in the interface to a hundredth of a millisecond, which is a
+   * blunt instrument that reaches past movement into every crossfade of colour there is — hover,
+   * focus rings, the merge button warming as it becomes pressable. What is wanted is narrower and
+   * says itself: these four properties may still change over time, and nothing else may. Width,
+   * transform, filter and opacity are therefore instant here without a duration being touched,
+   * so anything added to the sheet later is still and legible by default rather than by having
+   * remembered to add a rule.
+   */
+  :is(#gitquiet-root, [data-gitquiet-outside]) *,
+  :is(#gitquiet-root, [data-gitquiet-outside]) *::before,
+  :is(#gitquiet-root, [data-gitquiet-outside]) *::after {
+    transition-property: color, background-color, border-color, box-shadow !important;
+  }
+}

@@ -1,0 +1,686 @@
+{
+  "payload": {
+    "commit": {
+      "oid": "c48f531a3b9bea9d6f1d153b26bc5bcb0555ee9f",
+      "authoredDate": "2026-07-28T18:39:28.000+02:00",
+      "shortMessage": null,
+      "shortMessageMarkdown": "<div>fix(reasoning): resolve effort in the runtime and stop offering rejected values</div>",
+      "bodyMessageHtml": "Review pass over the APP-685 branch.\n\nBehavior:\n\n- The bundled effort is resolved in the agent runner instead of the chat TUI, so\n  evals, Slack, the API, and scheduled runs get it too. Previously only the TUI\n  applied it, which left the eval-consistency argument in the ticket unmet. A\n  command carrying any parameters keeps them verbatim; only a command with none\n  gets the default, so the TUI can send an empty `reasoning` for a model that\n  publishes no usable effort without the runtime refilling it.\n- The picker no longer falls back to the full enum when a model publishes a\n  supported-efforts list that decoded to nothing. That fallback put\n  provider-rejected values back in front of the user, which is the failure the\n  catalog lookup was added to prevent.\n- `reasoning.mandatory` is now read rather than merely decoded: `none` is not\n  offered for a model that cannot run with reasoning disabled.\n\nStructure:\n\n- Deleted `ChatOptions.parameters`, which no caller set, along with the merge\n  block duplicated across the invoke and spawn commands.\n- The effort enum is one tuple; the internal schema and every membership guard\n  derive from it. A hand-written `satisfies` list accepted a subset, so a new\n  level would have decode-failed at the boundary with typecheck green.\n- Broke the model-picker/use-model-picker import cycle, dropped a pass-through\n  hook, made `useModelPicker` take an options object, made `saveEffort`\n  required, and restored the picker comments the split had removed.\n\nVerified: bun run check, bun run typecheck, bun test (4245 pass; the 2 failures\nare pre-existing on the PR head - a sandbox process.execve limit and a local env\nkey). sentrux drops from 3 violations to 1, and that one predates this branch.\n\nCo-Authored-By: Claude Opus 5 &lt;noreply@anthropic.com&gt;",
+      "authors": [
+        {
+          "login": "flazouh",
+          "displayName": "flazouh",
+          "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?v=4",
+          "path": "/flazouh",
+          "profileName": "Alex",
+          "isGitHub": false
+        },
+        {
+          "login": "claude",
+          "displayName": "Claude Opus 5",
+          "avatarUrl": "https://avatars.githubusercontent.com/u/81847?v=4",
+          "path": "/claude",
+          "profileName": "Claude",
+          "isGitHub": false
+        }
+      ],
+      "sha1": "2855fd36b898f24d098b12f337acf6a26dd81242",
+      "sha2": "c48f531a3b9bea9d6f1d153b26bc5bcb0555ee9f"
+    },
+    "asyncDiffLoadInfo": {
+      "startIndex": 8,
+      "truncated": false,
+      "byteCount": 12664,
+      "lineShownCount": 317
+    },
+    "moreDiffsToLoad": true,
+    "diffEntryData": [
+      {
+        "path": "docs/rfcs/0003-architecture/composition.md",
+        "pathDigest": "a1f9ec5e8ce2bc3e731883aa56fa878afd324591db6e0029f772f2f735551168",
+        "status": "MODIFIED",
+        "linesAdded": 8,
+        "linesDeleted": 1,
+        "isBinary": false,
+        "isTooBig": false,
+        "truncatedReason": null,
+        "diffLines": [
+          {
+            "type": "HUNK",
+            "blobLineNumber": 26,
+            "text": "@@ -27,7 +27,7 @@",
+            "html": "@@ -27,7 +27,7 @@",
+            "displayNoNewLineWarning": false,
+            "position": 0,
+            "left": 26,
+            "right": 26
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 27,
+            "text": " ",
+            "html": "<br>",
+            "displayNoNewLineWarning": false,
+            "position": 1,
+            "left": 27,
+            "right": 27
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 28,
+            "text": " const value2 = compute(input2);",
+            "html": " const value2 = compute(input2);",
+            "displayNoNewLineWarning": false,
+            "position": 2,
+            "left": 28,
+            "right": 28
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 29,
+            "text": " ",
+            "html": "<br>",
+            "displayNoNewLineWarning": false,
+            "position": 3,
+            "left": 29,
+            "right": 29
+          },
+          {
+            "type": "DELETION",
+            "blobLineNumber": 30,
+            "text": "-const value4 = previous(input4);",
+            "html": "-const value4 = previous(input4);",
+            "displayNoNewLineWarning": false,
+            "position": 4,
+            "left": 30,
+            "right": 29
+          },
+          {
+            "type": "ADDITION",
+            "blobLineNumber": 30,
+            "text": "+const value5 = compute(input5);",
+            "html": "+const value5 = compute(input5);",
+            "displayNoNewLineWarning": false,
+            "position": 5,
+            "left": 30,
+            "right": 30
+          }
+        ]
+      },
+      {
+        "path": "packages/ui-shell/src/app-hooks.ts",
+        "pathDigest": "5fddfa1d2ec252d34c9397e9943cf7bd891e9af9528332a7d59d0839b3695239",
+        "status": "MODIFIED",
+        "linesAdded": 11,
+        "linesDeleted": 11,
+        "isBinary": false,
+        "isTooBig": false,
+        "truncatedReason": null,
+        "diffLines": [
+          {
+            "type": "HUNK",
+            "blobLineNumber": 208,
+            "text": "@@ -209,13 +209,13 @@",
+            "html": "@@ -209,13 +209,13 @@",
+            "displayNoNewLineWarning": false,
+            "position": 0,
+            "left": 208,
+            "right": 208
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 209,
+            "text": " const value1 = compute(input1);",
+            "html": " const value1 = compute(input1);",
+            "displayNoNewLineWarning": false,
+            "position": 1,
+            "left": 209,
+            "right": 209
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 210,
+            "text": " const value2 = compute(input2);",
+            "html": " const value2 = compute(input2);",
+            "displayNoNewLineWarning": false,
+            "position": 2,
+            "left": 210,
+            "right": 210
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 211,
+            "text": " const value3 = compute(input3);",
+            "html": " const value3 = compute(input3);",
+            "displayNoNewLineWarning": false,
+            "position": 3,
+            "left": 211,
+            "right": 211
+          },
+          {
+            "type": "DELETION",
+            "blobLineNumber": 212,
+            "text": "-const value4 = previous(input4);",
+            "html": "-const value4 = previous(input4);",
+            "displayNoNewLineWarning": false,
+            "position": 4,
+            "left": 212,
+            "right": 211
+          },
+          {
+            "type": "DELETION",
+            "blobLineNumber": 213,
+            "text": "-const value5 = previous(input5);",
+            "html": "-const value5 = previous(input5);",
+            "displayNoNewLineWarning": false,
+            "position": 5,
+            "left": 213,
+            "right": 211
+          }
+        ]
+      },
+      {
+        "path": "packages/ui-shell/src/pickers/item/item-picker-actions.ts",
+        "pathDigest": "a2c62b69c2bd609a09773a8b8d5358ea76add6220efffebe1c3f6fbd746f4efb",
+        "status": "MODIFIED",
+        "linesAdded": 1,
+        "linesDeleted": 1,
+        "isBinary": false,
+        "isTooBig": false,
+        "truncatedReason": null,
+        "diffLines": [
+          {
+            "type": "HUNK",
+            "blobLineNumber": 14,
+            "text": "@@ -15,7 +15,7 @@",
+            "html": "@@ -15,7 +15,7 @@",
+            "displayNoNewLineWarning": false,
+            "position": 0,
+            "left": 14,
+            "right": 14
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 15,
+            "text": " const value1 = compute(input1);",
+            "html": " const value1 = compute(input1);",
+            "displayNoNewLineWarning": false,
+            "position": 1,
+            "left": 15,
+            "right": 15
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 16,
+            "text": " const value2 = compute(input2);",
+            "html": " const value2 = compute(input2);",
+            "displayNoNewLineWarning": false,
+            "position": 2,
+            "left": 16,
+            "right": 16
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 17,
+            "text": " const value3 = compute(input3);",
+            "html": " const value3 = compute(input3);",
+            "displayNoNewLineWarning": false,
+            "position": 3,
+            "left": 17,
+            "right": 17
+          },
+          {
+            "type": "DELETION",
+            "blobLineNumber": 18,
+            "text": "-const value4 = previous(input4);",
+            "html": "-const value4 = previous(input4);",
+            "displayNoNewLineWarning": false,
+            "position": 4,
+            "left": 18,
+            "right": 17
+          },
+          {
+            "type": "ADDITION",
+            "blobLineNumber": 18,
+            "text": "+const value5 = compute(input5);",
+            "html": "+const value5 = compute(input5);",
+            "displayNoNewLineWarning": false,
+            "position": 5,
+            "left": 18,
+            "right": 18
+          }
+        ]
+      },
+      {
+        "path": "packages/ui-shell/src/pickers/item/item-picker-types.ts",
+        "pathDigest": "285d99fb925586c10f6a8e8fa045fa11992bb48495f12ef75c55792e5de9db27",
+        "status": "ADDED",
+        "linesAdded": 27,
+        "linesDeleted": 0,
+        "isBinary": false,
+        "isTooBig": false,
+        "truncatedReason": null,
+        "diffLines": [
+          {
+            "type": "HUNK",
+            "blobLineNumber": 0,
+            "text": "@@ -0,0 +1,27 @@",
+            "html": "@@ -0,0 +1,27 @@",
+            "displayNoNewLineWarning": false,
+            "position": 0,
+            "left": null,
+            "right": 0
+          },
+          {
+            "type": "ADDITION",
+            "blobLineNumber": 1,
+            "text": "+const value1 = compute(input1);",
+            "html": "+const value1 = compute(input1);",
+            "displayNoNewLineWarning": false,
+            "position": 1,
+            "left": null,
+            "right": 1
+          },
+          {
+            "type": "ADDITION",
+            "blobLineNumber": 2,
+            "text": "+const value2 = compute(input2);",
+            "html": "+const value2 = compute(input2);",
+            "displayNoNewLineWarning": false,
+            "position": 2,
+            "left": null,
+            "right": 2
+          },
+          {
+            "type": "ADDITION",
+            "blobLineNumber": 3,
+            "text": "+const value3 = compute(input3);",
+            "html": "+const value3 = compute(input3);",
+            "displayNoNewLineWarning": false,
+            "position": 3,
+            "left": null,
+            "right": 3
+          },
+          {
+            "type": "ADDITION",
+            "blobLineNumber": 4,
+            "text": "+const value4 = compute(input4);",
+            "html": "+const value4 = compute(input4);",
+            "displayNoNewLineWarning": false,
+            "position": 4,
+            "left": null,
+            "right": 4
+          },
+          {
+            "type": "ADDITION",
+            "blobLineNumber": 5,
+            "text": "+",
+            "html": "+",
+            "displayNoNewLineWarning": false,
+            "position": 5,
+            "left": null,
+            "right": 5
+          }
+        ]
+      },
+      {
+        "path": "packages/ui-shell/src/pickers/item/item-picker.tsx",
+        "pathDigest": "3db76b69076802dab74bf859e94610545ff6d71ecc37ff6d18dcc03da5160066",
+        "status": "MODIFIED",
+        "linesAdded": 15,
+        "linesDeleted": 10,
+        "isBinary": false,
+        "isTooBig": false,
+        "truncatedReason": null,
+        "diffLines": [
+          {
+            "type": "HUNK",
+            "blobLineNumber": 3,
+            "text": "@@ -4,7 +4,7 @@",
+            "html": "@@ -4,7 +4,7 @@",
+            "displayNoNewLineWarning": false,
+            "position": 0,
+            "left": 3,
+            "right": 3
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 4,
+            "text": " const value1 = compute(input1);",
+            "html": " const value1 = compute(input1);",
+            "displayNoNewLineWarning": false,
+            "position": 1,
+            "left": 4,
+            "right": 4
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 5,
+            "text": " ",
+            "html": "<br>",
+            "displayNoNewLineWarning": false,
+            "position": 2,
+            "left": 5,
+            "right": 5
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 6,
+            "text": " const value3 = compute(input3);",
+            "html": " const value3 = compute(input3);",
+            "displayNoNewLineWarning": false,
+            "position": 3,
+            "left": 6,
+            "right": 6
+          },
+          {
+            "type": "DELETION",
+            "blobLineNumber": 7,
+            "text": "-const value4 = previous(input4);",
+            "html": "-const value4 = previous(input4);",
+            "displayNoNewLineWarning": false,
+            "position": 4,
+            "left": 7,
+            "right": 6
+          },
+          {
+            "type": "ADDITION",
+            "blobLineNumber": 7,
+            "text": "+const value5 = compute(input5);",
+            "html": "+const value5 = compute(input5);",
+            "displayNoNewLineWarning": false,
+            "position": 5,
+            "left": 7,
+            "right": 7
+          }
+        ]
+      },
+      {
+        "path": "packages/ui-shell/src/pickers/item/item-effort.test.ts",
+        "pathDigest": "419e99e35877ad374352fb4d710ae8d646ee89e03e3a434022e8462e9b3c6601",
+        "status": "MODIFIED",
+        "linesAdded": 50,
+        "linesDeleted": 0,
+        "isBinary": false,
+        "isTooBig": false,
+        "truncatedReason": null,
+        "diffLines": [
+          {
+            "type": "HUNK",
+            "blobLineNumber": 23,
+            "text": "@@ -24,6 +24,25 @@",
+            "html": "@@ -24,6 +24,25 @@",
+            "displayNoNewLineWarning": false,
+            "position": 0,
+            "left": 23,
+            "right": 23
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 24,
+            "text": " const value1 = compute(input1);",
+            "html": " const value1 = compute(input1);",
+            "displayNoNewLineWarning": false,
+            "position": 1,
+            "left": 24,
+            "right": 24
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 25,
+            "text": " const value2 = compute(input2);",
+            "html": " const value2 = compute(input2);",
+            "displayNoNewLineWarning": false,
+            "position": 2,
+            "left": 25,
+            "right": 25
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 26,
+            "text": " ",
+            "html": "<br>",
+            "displayNoNewLineWarning": false,
+            "position": 3,
+            "left": 26,
+            "right": 26
+          },
+          {
+            "type": "ADDITION",
+            "blobLineNumber": 27,
+            "text": "+const value4 = compute(input4);",
+            "html": "+const value4 = compute(input4);",
+            "displayNoNewLineWarning": false,
+            "position": 4,
+            "left": 26,
+            "right": 27
+          },
+          {
+            "type": "ADDITION",
+            "blobLineNumber": 28,
+            "text": "+const value5 = compute(input5);",
+            "html": "+const value5 = compute(input5);",
+            "displayNoNewLineWarning": false,
+            "position": 5,
+            "left": 26,
+            "right": 28
+          }
+        ]
+      },
+      {
+        "path": "packages/ui-shell/src/pickers/item/item-effort.ts",
+        "pathDigest": "f468dc37831bd4598393240b2f16159a155b47f4911de6f99df2522d1eedc773",
+        "status": "MODIFIED",
+        "linesAdded": 25,
+        "linesDeleted": 11,
+        "isBinary": false,
+        "isTooBig": false,
+        "truncatedReason": null,
+        "diffLines": [
+          {
+            "type": "HUNK",
+            "blobLineNumber": 0,
+            "text": "@@ -1,19 +1,34 @@",
+            "html": "@@ -1,19 +1,34 @@",
+            "displayNoNewLineWarning": false,
+            "position": 0,
+            "left": 0,
+            "right": 0
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 1,
+            "text": " const value1 = compute(input1);",
+            "html": " const value1 = compute(input1);",
+            "displayNoNewLineWarning": false,
+            "position": 1,
+            "left": 1,
+            "right": 1
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 2,
+            "text": " const value2 = compute(input2);",
+            "html": " const value2 = compute(input2);",
+            "displayNoNewLineWarning": false,
+            "position": 2,
+            "left": 2,
+            "right": 2
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 3,
+            "text": " ",
+            "html": "<br>",
+            "displayNoNewLineWarning": false,
+            "position": 3,
+            "left": 3,
+            "right": 3
+          },
+          {
+            "type": "DELETION",
+            "blobLineNumber": 4,
+            "text": "-const value4 = previous(input4);",
+            "html": "-const value4 = previous(input4);",
+            "displayNoNewLineWarning": false,
+            "position": 4,
+            "left": 4,
+            "right": 3
+          },
+          {
+            "type": "ADDITION",
+            "blobLineNumber": 4,
+            "text": "+const value5 = compute(input5);",
+            "html": "+const value5 = compute(input5);",
+            "displayNoNewLineWarning": false,
+            "position": 5,
+            "left": 4,
+            "right": 4
+          }
+        ]
+      },
+      {
+        "path": "packages/ui-shell/src/pickers/item/use-item-picker.test.ts",
+        "pathDigest": "f11d04be87e2147388f78a0e2e3d5a4ba417656a52fcaecd631f9aac8bd9cd91",
+        "status": "MODIFIED",
+        "linesAdded": 11,
+        "linesDeleted": 11,
+        "isBinary": false,
+        "isTooBig": false,
+        "truncatedReason": null,
+        "diffLines": [
+          {
+            "type": "HUNK",
+            "blobLineNumber": 51,
+            "text": "@@ -52,12 +52,12 @@",
+            "html": "@@ -52,12 +52,12 @@",
+            "displayNoNewLineWarning": false,
+            "position": 0,
+            "left": 51,
+            "right": 51
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 52,
+            "text": " const value1 = compute(input1);",
+            "html": " const value1 = compute(input1);",
+            "displayNoNewLineWarning": false,
+            "position": 1,
+            "left": 52,
+            "right": 52
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 53,
+            "text": " const value2 = compute(input2);",
+            "html": " const value2 = compute(input2);",
+            "displayNoNewLineWarning": false,
+            "position": 2,
+            "left": 53,
+            "right": 53
+          },
+          {
+            "type": "CONTEXT",
+            "blobLineNumber": 54,
+            "text": " const value3 = compute(input3);",
+            "html": " const value3 = compute(input3);",
+            "displayNoNewLineWarning": false,
+            "position": 3,
+            "left": 54,
+            "right": 54
+          },
+          {
+            "type": "DELETION",
+            "blobLineNumber": 55,
+            "text": "-const value4 = previous(input4);",
+            "html": "-const value4 = previous(input4);",
+            "displayNoNewLineWarning": false,
+            "position": 4,
+            "left": 55,
+            "right": 54
+          },
+          {
+            "type": "DELETION",
+            "blobLineNumber": 56,
+            "text": "-const value5 = previous(input5);",
+            "html": "-const value5 = previous(input5);",
+            "displayNoNewLineWarning": false,
+            "position": 5,
+            "left": 56,
+            "right": 54
+          }
+        ]
+      },
+      {
+        "path": "packages/ui-shell/src/pickers/item/use-item-picker.ts",
+        "pathDigest": "a854487526a210686de417567a8bc140b92fa413511cd8f09c77714ee533a35c",
+        "status": "MODIFIED"
+      },
+      {
+        "path": "packages/ui-shell/src/pickers/selection-store.test.ts",
+        "pathDigest": "857f38294348c68aafb1a8f0bcb9e3c0144fd0c3252576120ebe41f5f8a7bfcb",
+        "status": "MODIFIED"
+      },
+      {
+        "path": "packages/ui-shell/src/pickers/selection-store.ts",
+        "pathDigest": "3cf09f8e09be0269ee462d2bed54b56ff73574e2e1d5567057a92ed7838e2a2d",
+        "status": "MODIFIED"
+      },
+      {
+        "path": "packages/ui-shell/src/pickers/use-selection.ts",
+        "pathDigest": "9807f6504148f7847a8aab9e10997c23efe1ee78afda167c11ce51086680ea4e",
+        "status": "MODIFIED"
+      },
+      {
+        "path": "packages/cli/src/commands/init/contract-artifacts/index.ts.txt",
+        "pathDigest": "86b1051d797496c2f2e5ee9761de12e6a13b158e2cb2af46bfed1ce336ebed15",
+        "status": "MODIFIED"
+      },
+      {
+        "path": "packages/schema/src/provider-models.ts",
+        "pathDigest": "64782dbaf9b865ec10cfd1dc599e251d2a9266bc77ea8d1cedc8634901b910b8",
+        "status": "MODIFIED"
+      },
+      {
+        "path": "packages/schema/src/effort-level.ts",
+        "pathDigest": "35b6e9e90bfae6479637ed51467de5c78c92fd422dca159dad0e4df52bb2b8d4",
+        "status": "MODIFIED"
+      },
+      {
+        "path": "packages/schema-internal/src/author-schemas/effort-level.ts",
+        "pathDigest": "2ca8079745941d1cdd9c354de39e46ccf90eba6e2363079ab828ea095bf8e7f4",
+        "status": "MODIFIED"
+      },
+      {
+        "path": "packages/engine/src/job-defaults.ts",
+        "pathDigest": "d1c459c3c09f8a012b7b792f2dab1cac6d2e35e8b19eeb494146fe368cc37384",
+        "status": "ADDED"
+      },
+      {
+        "path": "packages/engine/src/job-runner-parameters.test.ts",
+        "pathDigest": "020a049033df02ea9820c73b893cf6a45e615e963c1812c6051c018344e671c3",
+        "status": "ADDED"
+      },
+      {
+        "path": "packages/engine/src/job-runner.test.ts",
+        "pathDigest": "46acf58d535b1627c1553660c0dcd34766ea4087120d355574810e15b4bcd840",
+        "status": "MODIFIED"
+      },
+      {
+        "path": "packages/engine/src/job-runner.ts",
+        "pathDigest": "231220eea5b59d2521bcad82b6a754af0097f8f24519c4dca30defd598fa6d6c",
+        "status": "MODIFIED"
+      },
+      {
+        "path": "packages/engine/src/stream-invoke.ts",
+        "pathDigest": "38c332c031f70b082e056e721a2985703bbe9b479fdd0ad6d83f5771c2c43d6e",
+        "status": "MODIFIED"
+      },
+      {
+        "path": "packages/engine/src/test-support/job-runner-harness.ts",
+        "pathDigest": "d8b0211115738418e4c75c44355abcaa1263cf46bd876935f157ae429f2d653f",
+        "status": "ADDED"
+      }
+    ]
+  }
+}

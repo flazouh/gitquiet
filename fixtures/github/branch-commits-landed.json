@@ -1,0 +1,290 @@
+{
+  "payload": {
+    "commitGroups": [
+      {
+        "title": "Jul 31, 2026",
+        "commits": [
+          {
+            "oid": "3a717e42438afac81020cdec297dadb5613a4304",
+            "url": "/react/react/commit/3a717e42438afac81020cdec297dadb5613a4304",
+            "authoredDate": "2026-07-31T15:20:20.000-04:00",
+            "committedDate": "2026-07-31T15:20:20.000-04:00",
+            "shortMessage": "[Fiber] Collect Host Singleton children of Fragments (#37063)",
+            "shortMessageMarkdown": null,
+            "shortMessageMarkdownLink": "<a data-pjax=\"true\" title=\"[Fiber] Collect Host Singleton children of Fragments (#37063)\n\n\nCo-authored-by: Claude Fable 5 &lt;noreply@anthropic.com&gt;\" class=\"color-fg-default\" href=\"/react/react/commit/3a717e42438afac81020cdec297dadb5613a4304\">[Fiber] Collect Host Singleton children of Fragments (</a><a class=\"issue-link js-issue-link\" data-error-text=\"Failed to load title\" data-id=\"4922257439\" data-permission-text=\"Title is private\" data-url=\"https://github.com/react/react/issues/37063\" data-hovercard-type=\"pull_request\" data-hovercard-url=\"/react/react/pull/37063/hovercard\" href=\"https://github.com/react/react/pull/37063\">#37063</a><a data-pjax=\"true\" title=\"[Fiber] Collect Host Singleton children of Fragments (#37063)\n\n\nCo-authored-by: Claude Fable 5 &lt;noreply@anthropic.com&gt;\" class=\"color-fg-default\" href=\"/react/react/commit/3a717e42438afac81020cdec297dadb5613a4304\">)</a>",
+            "bodyMessageHtml": "Co-authored-by: Claude Fable 5 &lt;noreply@anthropic.com&gt;",
+            "authors": [
+              {
+                "login": "eps1lon",
+                "displayName": "Sebastian \"Sebbie\" Silbermann",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/12292047?v=4",
+                "path": "/eps1lon",
+                "profileName": "Sebastian \"Sebbie\" Silbermann",
+                "isGitHub": false
+              },
+              {
+                "login": "claude",
+                "displayName": "Claude Fable 5",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/81847?v=4",
+                "path": "/claude",
+                "profileName": "Claude",
+                "isGitHub": false
+              }
+            ],
+            "committerAttribution": false,
+            "committer": {
+              "login": "web-flow",
+              "displayName": "GitHub",
+              "avatarUrl": "https://avatars.githubusercontent.com/u/19864447?v=4",
+              "path": "/web-flow",
+              "profileName": "GitHub Web Flow",
+              "isGitHub": true
+            },
+            "pusher": null,
+            "pushedDate": null
+          },
+          {
+            "oid": "9b5b4d51e5be870d396a9568701259e5eb053668",
+            "url": "/react/react/commit/9b5b4d51e5be870d396a9568701259e5eb053668",
+            "authoredDate": "2026-07-31T13:22:30.000-04:00",
+            "committedDate": "2026-07-31T13:22:30.000-04:00",
+            "shortMessage": "[Flight] Add 'pending_weak' to Flight thenable protocol (#37154)",
+            "shortMessageMarkdown": null,
+            "shortMessageMarkdownLink": "<a data-pjax=\"true\" title=\"[Flight] Add 'pending_weak' to Flight thenable protocol (#37154)\n\nAdded behind a new experimental flag, `enableFlightWeakThenables`.\n\nAdds a new thenable status to the Flight protocol: `'pending_weak'`.\nUnlike a regular pending thenable, a weak thenable does not block the\nstream from closing. If it settles while the stream is still open, its\nvalue is emitted like a normal pending thenable. Otherwise its reference\nis left unfulfilled and on the client it stays forever pending, without\nerroring, even when the connection closes. It's up to the client to\nhandle the unresolved promise in an appropriate way.\n\nThe motivating use case is being able to encode metadata about a Flight\nstream into the response itself. For example, a framework might want to\ntrack whether a page varies by search params. It could represent this in\nthe response as a `Promise&lt;boolean&gt;` that resolves to `true` as soon as\nthe component being rendered in the stream accesses search params. If\nthe thenable never resolves by the time the stream closes, then the\nclient knows that no search params were ever accessed.\n\nIn the future we could add a higher-level API for encoding this kind of\ninformation. For now, we intentionally start with the low-level\nprimitive so frameworks can experiment in userspace without adding\nsignificantly to React's surface area.\n\nInternally, Flight already uses its own private thenable statuses, like\n`'resolved_model'`, and the protocol is designed to treat any status\nbesides `'fulfilled'` and `'rejected'` as equivalent to `'pending'`, so\n`'pending_weak'` slots into the existing machinery. On the wire, a weak\nreference is encoded as `$w&lt;id&gt;`, next to `$@&lt;id&gt;` for regular promises,\nso the client knows its row may intentionally never arrive. On the\nclient, a weak reference behaves like any other pending promise until\nthe response closes; then, instead of erroring, it is left forever\npending.\" class=\"color-fg-default\" href=\"/react/react/commit/9b5b4d51e5be870d396a9568701259e5eb053668\">[Flight] Add 'pending_weak' to Flight thenable protocol (</a><a class=\"issue-link js-issue-link\" data-error-text=\"Failed to load title\" data-id=\"5021495627\" data-permission-text=\"Title is private\" data-url=\"https://github.com/react/react/issues/37154\" data-hovercard-type=\"pull_request\" data-hovercard-url=\"/react/react/pull/37154/hovercard\" href=\"https://github.com/react/react/pull/37154\">#37154</a><a data-pjax=\"true\" title=\"[Flight] Add 'pending_weak' to Flight thenable protocol (#37154)\n\nAdded behind a new experimental flag, `enableFlightWeakThenables`.\n\nAdds a new thenable status to the Flight protocol: `'pending_weak'`.\nUnlike a regular pending thenable, a weak thenable does not block the\nstream from closing. If it settles while the stream is still open, its\nvalue is emitted like a normal pending thenable. Otherwise its reference\nis left unfulfilled and on the client it stays forever pending, without\nerroring, even when the connection closes. It's up to the client to\nhandle the unresolved promise in an appropriate way.\n\nThe motivating use case is being able to encode metadata about a Flight\nstream into the response itself. For example, a framework might want to\ntrack whether a page varies by search params. It could represent this in\nthe response as a `Promise&lt;boolean&gt;` that resolves to `true` as soon as\nthe component being rendered in the stream accesses search params. If\nthe thenable never resolves by the time the stream closes, then the\nclient knows that no search params were ever accessed.\n\nIn the future we could add a higher-level API for encoding this kind of\ninformation. For now, we intentionally start with the low-level\nprimitive so frameworks can experiment in userspace without adding\nsignificantly to React's surface area.\n\nInternally, Flight already uses its own private thenable statuses, like\n`'resolved_model'`, and the protocol is designed to treat any status\nbesides `'fulfilled'` and `'rejected'` as equivalent to `'pending'`, so\n`'pending_weak'` slots into the existing machinery. On the wire, a weak\nreference is encoded as `$w&lt;id&gt;`, next to `$@&lt;id&gt;` for regular promises,\nso the client knows its row may intentionally never arrive. On the\nclient, a weak reference behaves like any other pending promise until\nthe response closes; then, instead of erroring, it is left forever\npending.\" class=\"color-fg-default\" href=\"/react/react/commit/9b5b4d51e5be870d396a9568701259e5eb053668\">)</a>",
+            "bodyMessageHtml": "Added behind a new experimental flag, `enableFlightWeakThenables`.\n\nAdds a new thenable status to the Flight protocol: `'pending_weak'`.\nUnlike a regular pending thenable, a weak thenable does not block the\nstream from closing. If it settles while the stream is still open, its\nvalue is emitted like a normal pending thenable. Otherwise its reference\nis left unfulfilled and on the client it stays forever pending, without\nerroring, even when the connection closes. It's up to the client to\nhandle the unresolved promise in an appropriate way.\n\nThe motivating use case is being able to encode metadata about a Flight\nstream into the response itself. For example, a framework might want to\ntrack whether a page varies by search params. It could represent this in\nthe response as a `Promise&lt;boolean&gt;` that resolves to `true` as soon as\nthe component being rendered in the stream accesses search params. If\nthe thenable never resolves by the time the stream closes, then the\nclient knows that no search params were ever accessed.\n\nIn the future we could add a higher-level API for encoding this kind of\ninformation. For now, we intentionally start with the low-level\nprimitive so frameworks can experiment in userspace without adding\nsignificantly to React's surface area.\n\nInternally, Flight already uses its own private thenable statuses, like\n`'resolved_model'`, and the protocol is designed to treat any status\nbesides `'fulfilled'` and `'rejected'` as equivalent to `'pending'`, so\n`'pending_weak'` slots into the existing machinery. On the wire, a weak\nreference is encoded as `$w&lt;id&gt;`, next to `$@&lt;id&gt;` for regular promises,\nso the client knows its row may intentionally never arrive. On the\nclient, a weak reference behaves like any other pending promise until\nthe response closes; then, instead of erroring, it is left forever\npending.",
+            "authors": [
+              {
+                "login": "acdlite",
+                "displayName": "Andrew Clark",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/3624098?v=4",
+                "path": "/acdlite",
+                "profileName": "Andrew Clark",
+                "isGitHub": false
+              }
+            ],
+            "committerAttribution": false,
+            "committer": {
+              "login": "web-flow",
+              "displayName": "GitHub",
+              "avatarUrl": "https://avatars.githubusercontent.com/u/19864447?v=4",
+              "path": "/web-flow",
+              "profileName": "GitHub Web Flow",
+              "isGitHub": true
+            },
+            "pusher": null,
+            "pushedDate": null
+          },
+          {
+            "oid": "cbb046ab92b66dfc4ad1e1ea30d4b8beae6f2c24",
+            "url": "/react/react/commit/cbb046ab92b66dfc4ad1e1ea30d4b8beae6f2c24",
+            "authoredDate": "2026-07-31T15:24:10.000+01:00",
+            "committedDate": "2026-07-31T15:24:10.000+01:00",
+            "shortMessage": "[Fiber] Warn for Conditional Use of use() Based on Cache (#37104)",
+            "shortMessageMarkdown": null,
+            "shortMessageMarkdownLink": "<a data-pjax=\"true\" title=\"[Fiber] Warn for Conditional Use of use() Based on Cache (#37104)\n\nThis is a cherry-pick of https://github.com/react/react/pull/34030, with\na feature flag gating and a test coverage.\n\nThe flag is disabled by default and dynamic for FB builds to understand\nfirst how noisy this warning can be.\n\n---\n\nSee https://github.com/react/react/pull/34030 for more context on the\nchange.\" class=\"color-fg-default\" href=\"/react/react/commit/cbb046ab92b66dfc4ad1e1ea30d4b8beae6f2c24\">[Fiber] Warn for Conditional Use of use() Based on Cache (</a><a class=\"issue-link js-issue-link\" data-error-text=\"Failed to load title\" data-id=\"4958876326\" data-permission-text=\"Title is private\" data-url=\"https://github.com/react/react/issues/37104\" data-hovercard-type=\"pull_request\" data-hovercard-url=\"/react/react/pull/37104/hovercard\" href=\"https://github.com/react/react/pull/37104\">#37104</a><a data-pjax=\"true\" title=\"[Fiber] Warn for Conditional Use of use() Based on Cache (#37104)\n\nThis is a cherry-pick of https://github.com/react/react/pull/34030, with\na feature flag gating and a test coverage.\n\nThe flag is disabled by default and dynamic for FB builds to understand\nfirst how noisy this warning can be.\n\n---\n\nSee https://github.com/react/react/pull/34030 for more context on the\nchange.\" class=\"color-fg-default\" href=\"/react/react/commit/cbb046ab92b66dfc4ad1e1ea30d4b8beae6f2c24\">)</a>",
+            "bodyMessageHtml": "This is a cherry-pick of <a class=\"issue-link js-issue-link\" data-error-text=\"Failed to load title\" data-id=\"3271748862\" data-permission-text=\"Title is private\" data-url=\"https://github.com/react/react/issues/34030\" data-hovercard-type=\"pull_request\" data-hovercard-url=\"/react/react/pull/34030/hovercard\" href=\"https://github.com/react/react/pull/34030\">#34030</a>, with\na feature flag gating and a test coverage.\n\nThe flag is disabled by default and dynamic for FB builds to understand\nfirst how noisy this warning can be.\n\n---\n\nSee <a class=\"issue-link js-issue-link\" data-error-text=\"Failed to load title\" data-id=\"3271748862\" data-permission-text=\"Title is private\" data-url=\"https://github.com/react/react/issues/34030\" data-hovercard-type=\"pull_request\" data-hovercard-url=\"/react/react/pull/34030/hovercard\" href=\"https://github.com/react/react/pull/34030\">#34030</a> for more context on the\nchange.",
+            "authors": [
+              {
+                "login": "hoxyq",
+                "displayName": "Ruslan Lesiutin",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/28902667?v=4",
+                "path": "/hoxyq",
+                "profileName": "Ruslan Lesiutin",
+                "isGitHub": false
+              }
+            ],
+            "committerAttribution": false,
+            "committer": {
+              "login": "web-flow",
+              "displayName": "GitHub",
+              "avatarUrl": "https://avatars.githubusercontent.com/u/19864447?v=4",
+              "path": "/web-flow",
+              "profileName": "GitHub Web Flow",
+              "isGitHub": true
+            },
+            "pusher": null,
+            "pushedDate": null
+          }
+        ]
+      },
+      {
+        "title": "Jul 30, 2026",
+        "commits": [
+          {
+            "oid": "0f42eac25e44090837e92304ac08d8d430ceef0a",
+            "url": "/react/react/commit/0f42eac25e44090837e92304ac08d8d430ceef0a",
+            "authoredDate": "2026-07-30T21:17:49.000+01:00",
+            "committedDate": "2026-07-30T21:17:49.000+01:00",
+            "shortMessage": "[DevTools] Reset extension backend on pagehide (#37155)",
+            "shortMessageMarkdown": null,
+            "shortMessageMarkdownLink": "<a data-pjax=\"true\" title=\"[DevTools] Reset extension backend on pagehide (#37155)\n\nI have noticed inconsistency errors being thrown during browser\nnavigations that involve entries from BFCache. The main argument on why\nthis could be affecting React DevTools backend lifecycle is the fact\nthat Chrome kills the port manually, while freezing and preserving the\nJavaScript heap -\nhttps://developer.chrome.com/blog/bfcache-extension-messaging-changes.\n\nBasically, we could end up in a permutation, where port is dead, but\nBackend / Agent are alive. Such setup is not expected by React DevTools.\n\nOn `main`:\n\n\nhttps://github.com/user-attachments/assets/9ca10286-b545-4384-bd6b-33d9a4ddde3d\n\n\nWith these changes:\n\n\nhttps://github.com/user-attachments/assets/c4639c4a-6385-4248-a5c4-a39895d7fff6\n\n\nI couldn't come up with a good test for this yet, but I will try to add\nsomething. I am not convinced yet that emulating `pagehide` / `pageshow`\nwould be sufficient to reproduce browser environment during BFCache\nentries.\" class=\"color-fg-default\" href=\"/react/react/commit/0f42eac25e44090837e92304ac08d8d430ceef0a\">[DevTools] Reset extension backend on pagehide (</a><a class=\"issue-link js-issue-link\" data-error-text=\"Failed to load title\" data-id=\"5021573725\" data-permission-text=\"Title is private\" data-url=\"https://github.com/react/react/issues/37155\" data-hovercard-type=\"pull_request\" data-hovercard-url=\"/react/react/pull/37155/hovercard\" href=\"https://github.com/react/react/pull/37155\">#37155</a><a data-pjax=\"true\" title=\"[DevTools] Reset extension backend on pagehide (#37155)\n\nI have noticed inconsistency errors being thrown during browser\nnavigations that involve entries from BFCache. The main argument on why\nthis could be affecting React DevTools backend lifecycle is the fact\nthat Chrome kills the port manually, while freezing and preserving the\nJavaScript heap -\nhttps://developer.chrome.com/blog/bfcache-extension-messaging-changes.\n\nBasically, we could end up in a permutation, where port is dead, but\nBackend / Agent are alive. Such setup is not expected by React DevTools.\n\nOn `main`:\n\n\nhttps://github.com/user-attachments/assets/9ca10286-b545-4384-bd6b-33d9a4ddde3d\n\n\nWith these changes:\n\n\nhttps://github.com/user-attachments/assets/c4639c4a-6385-4248-a5c4-a39895d7fff6\n\n\nI couldn't come up with a good test for this yet, but I will try to add\nsomething. I am not convinced yet that emulating `pagehide` / `pageshow`\nwould be sufficient to reproduce browser environment during BFCache\nentries.\" class=\"color-fg-default\" href=\"/react/react/commit/0f42eac25e44090837e92304ac08d8d430ceef0a\">)</a>",
+            "bodyMessageHtml": "I have noticed inconsistency errors being thrown during browser\nnavigations that involve entries from BFCache. The main argument on why\nthis could be affecting React DevTools backend lifecycle is the fact\nthat Chrome kills the port manually, while freezing and preserving the\nJavaScript heap -\n<a href=\"https://developer.chrome.com/blog/bfcache-extension-messaging-changes\" rel=\"nofollow\">https://developer.chrome.com/blog/bfcache-extension-messaging-changes</a>.\n\nBasically, we could end up in a permutation, where port is dead, but\nBackend / Agent are alive. Such setup is not expected by React DevTools.\n\nOn `main`:\n\n\n<a href=\"https://github.com/user-attachments/assets/9ca10286-b545-4384-bd6b-33d9a4ddde3d\">https://github.com/user-attachments/assets/9ca10286-b545-4384-bd6b-33d9a4ddde3d</a>\n\n\nWith these changes:\n\n\n<a href=\"https://github.com/user-attachments/assets/c4639c4a-6385-4248-a5c4-a39895d7fff6\">https://github.com/user-attachments/assets/c4639c4a-6385-4248-a5c4-a39895d7fff6</a>\n\n\nI couldn't come up with a good test for this yet, but I will try to add\nsomething. I am not convinced yet that emulating `pagehide` / `pageshow`\nwould be sufficient to reproduce browser environment during BFCache\nentries.",
+            "authors": [
+              {
+                "login": "hoxyq",
+                "displayName": "Ruslan Lesiutin",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/28902667?v=4",
+                "path": "/hoxyq",
+                "profileName": "Ruslan Lesiutin",
+                "isGitHub": false
+              }
+            ],
+            "committerAttribution": false,
+            "committer": {
+              "login": "web-flow",
+              "displayName": "GitHub",
+              "avatarUrl": "https://avatars.githubusercontent.com/u/19864447?v=4",
+              "path": "/web-flow",
+              "profileName": "GitHub Web Flow",
+              "isGitHub": true
+            },
+            "pusher": null,
+            "pushedDate": null
+          },
+          {
+            "oid": "7acf00566e35c40817342654438a5757c6c41d0e",
+            "url": "/react/react/commit/7acf00566e35c40817342654438a5757c6c41d0e",
+            "authoredDate": "2026-07-30T21:17:48.000+01:00",
+            "committedDate": "2026-07-30T21:17:48.000+01:00",
+            "shortMessage": "[DevTools] Create extension panels before React detection (#37151)",
+            "shortMessageMarkdown": null,
+            "shortMessageMarkdownLink": "<a data-pjax=\"true\" title=\"[DevTools] Create extension panels before React detection (#37151)\n\nThe main reason why I am doing this is because there is no API in the\nbrowser to &quot;unmount&quot; the created panel.\n\nIf you have React DevTools installed, we should always create a panel,\nbut the contents of the panel should be dynamically populated based on\nthe target. If it is not a React app, we will continue showing the stub\nmessage.\n\nPreviously, we wouldn't mount a panel at all, and historically we've\nreceived a few reports of this as a bug.\" class=\"color-fg-default\" href=\"/react/react/commit/7acf00566e35c40817342654438a5757c6c41d0e\">[DevTools] Create extension panels before React detection (</a><a class=\"issue-link js-issue-link\" data-error-text=\"Failed to load title\" data-id=\"5020451264\" data-permission-text=\"Title is private\" data-url=\"https://github.com/react/react/issues/37151\" data-hovercard-type=\"pull_request\" data-hovercard-url=\"/react/react/pull/37151/hovercard\" href=\"https://github.com/react/react/pull/37151\">#37151</a><a data-pjax=\"true\" title=\"[DevTools] Create extension panels before React detection (#37151)\n\nThe main reason why I am doing this is because there is no API in the\nbrowser to &quot;unmount&quot; the created panel.\n\nIf you have React DevTools installed, we should always create a panel,\nbut the contents of the panel should be dynamically populated based on\nthe target. If it is not a React app, we will continue showing the stub\nmessage.\n\nPreviously, we wouldn't mount a panel at all, and historically we've\nreceived a few reports of this as a bug.\" class=\"color-fg-default\" href=\"/react/react/commit/7acf00566e35c40817342654438a5757c6c41d0e\">)</a>",
+            "bodyMessageHtml": "The main reason why I am doing this is because there is no API in the\nbrowser to \"unmount\" the created panel.\n\nIf you have React DevTools installed, we should always create a panel,\nbut the contents of the panel should be dynamically populated based on\nthe target. If it is not a React app, we will continue showing the stub\nmessage.\n\nPreviously, we wouldn't mount a panel at all, and historically we've\nreceived a few reports of this as a bug.",
+            "authors": [
+              {
+                "login": "hoxyq",
+                "displayName": "Ruslan Lesiutin",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/28902667?v=4",
+                "path": "/hoxyq",
+                "profileName": "Ruslan Lesiutin",
+                "isGitHub": false
+              }
+            ],
+            "committerAttribution": false,
+            "committer": {
+              "login": "web-flow",
+              "displayName": "GitHub",
+              "avatarUrl": "https://avatars.githubusercontent.com/u/19864447?v=4",
+              "path": "/web-flow",
+              "profileName": "GitHub Web Flow",
+              "isGitHub": true
+            },
+            "pusher": null,
+            "pushedDate": null
+          },
+          {
+            "oid": "c56a44903f91d41dce51107f34491daabdcb6a70",
+            "url": "/react/react/commit/c56a44903f91d41dce51107f34491daabdcb6a70",
+            "authoredDate": "2026-07-30T21:17:48.000+01:00",
+            "committedDate": "2026-07-30T21:17:48.000+01:00",
+            "shortMessage": "[DevTools] Remove FlowFixMe from extension lifecycle (#37152)",
+            "shortMessageMarkdown": null,
+            "shortMessageMarkdownLink": "<a data-pjax=\"true\" title=\"[DevTools] Remove FlowFixMe from extension lifecycle (#37152)\n\nI've been triaging some lifecycle races during sessions with BFCache\ninvolved and noticed a few type errors in real world scenario. These\nobjects were not properly typed, fixing in this PR.\" class=\"color-fg-default\" href=\"/react/react/commit/c56a44903f91d41dce51107f34491daabdcb6a70\">[DevTools] Remove FlowFixMe from extension lifecycle (</a><a class=\"issue-link js-issue-link\" data-error-text=\"Failed to load title\" data-id=\"5020463462\" data-permission-text=\"Title is private\" data-url=\"https://github.com/react/react/issues/37152\" data-hovercard-type=\"pull_request\" data-hovercard-url=\"/react/react/pull/37152/hovercard\" href=\"https://github.com/react/react/pull/37152\">#37152</a><a data-pjax=\"true\" title=\"[DevTools] Remove FlowFixMe from extension lifecycle (#37152)\n\nI've been triaging some lifecycle races during sessions with BFCache\ninvolved and noticed a few type errors in real world scenario. These\nobjects were not properly typed, fixing in this PR.\" class=\"color-fg-default\" href=\"/react/react/commit/c56a44903f91d41dce51107f34491daabdcb6a70\">)</a>",
+            "bodyMessageHtml": "I've been triaging some lifecycle races during sessions with BFCache\ninvolved and noticed a few type errors in real world scenario. These\nobjects were not properly typed, fixing in this PR.",
+            "authors": [
+              {
+                "login": "hoxyq",
+                "displayName": "Ruslan Lesiutin",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/28902667?v=4",
+                "path": "/hoxyq",
+                "profileName": "Ruslan Lesiutin",
+                "isGitHub": false
+              }
+            ],
+            "committerAttribution": false,
+            "committer": {
+              "login": "web-flow",
+              "displayName": "GitHub",
+              "avatarUrl": "https://avatars.githubusercontent.com/u/19864447?v=4",
+              "path": "/web-flow",
+              "profileName": "GitHub Web Flow",
+              "isGitHub": true
+            },
+            "pusher": null,
+            "pushedDate": null
+          },
+          {
+            "oid": "32b1fbad6fd1fc34ef361dcf06bcfb1ae3fed5f3",
+            "url": "/react/react/commit/32b1fbad6fd1fc34ef361dcf06bcfb1ae3fed5f3",
+            "authoredDate": "2026-07-22T14:56:50.000-07:00",
+            "committedDate": "2026-07-22T23:56:50.000+02:00",
+            "shortMessage": "[react-server-dom-turbopack] Support experimental array format for chunks (#37095)",
+            "shortMessageMarkdown": null,
+            "shortMessageMarkdownLink": "<a data-pjax=\"true\" title='[react-server-dom-turbopack] Support experimental array format for chunks (#37095)\n\n\n\nTurbopack has introduced a new format for chunks (experimental):\n\n```typescript\ntype ChunkUrlOrMerged = ChunkUrl | [ChunkUrl, ChunkPath[], number[]]\n```\n\nThis will allow us to dynamically choose to merge / unmerge chunks based\non already loaded chunks. See\nhttps://github.com/vercel/next.js/pull/95261 for more context behind\nthese feature.\n\nHowever, we noticed that this breaks `prepareDestinationWithChunks()` on\nserver-side renders. The prepared chunk script tags were a stringified\nversion of this array:\n\n&lt;img width=\"1758\" height=\"474\" alt=\"Screenshot 2026-07-22 at 9 37 06 am\"\nsrc=\"https://github.com/user-attachments/assets/fa273b44-5942-4037-b955-4338472242fe\"\n/&gt;\n\nInstead, we should prepare the merged chunk as these SSR-d pages would\nnot have any loaded chunks tracked in memory (that happens on the\nclient).\n\nThis PR brings back this optimisation and also would remove the\nconsole-logged errors associated with them.\n\n\n---------\n\nCo-authored-by: Sebastian \"Sebbie\" Silbermann &lt;sebbie@users.noreply.github.com&gt;' class=\"color-fg-default\" href=\"/react/react/commit/32b1fbad6fd1fc34ef361dcf06bcfb1ae3fed5f3\">[react-server-dom-turbopack] Support experimental array format for chunks (</a><a class=\"issue-link js-issue-link\" data-error-text=\"Failed to load title\" data-id=\"4952057750\" data-permission-text=\"Title is private\" data-url=\"https://github.com/react/react/issues/37095\" data-hovercard-type=\"pull_request\" data-hovercard-url=\"/react/react/pull/37095/hovercard\" href=\"https://github.com/react/react/pull/37095\">#37095</a><a data-pjax=\"true\" title='[react-server-dom-turbopack] Support experimental array format for chunks (#37095)\n\n\n\nTurbopack has introduced a new format for chunks (experimental):\n\n```typescript\ntype ChunkUrlOrMerged = ChunkUrl | [ChunkUrl, ChunkPath[], number[]]\n```\n\nThis will allow us to dynamically choose to merge / unmerge chunks based\non already loaded chunks. See\nhttps://github.com/vercel/next.js/pull/95261 for more context behind\nthese feature.\n\nHowever, we noticed that this breaks `prepareDestinationWithChunks()` on\nserver-side renders. The prepared chunk script tags were a stringified\nversion of this array:\n\n&lt;img width=\"1758\" height=\"474\" alt=\"Screenshot 2026-07-22 at 9 37 06 am\"\nsrc=\"https://github.com/user-attachments/assets/fa273b44-5942-4037-b955-4338472242fe\"\n/&gt;\n\nInstead, we should prepare the merged chunk as these SSR-d pages would\nnot have any loaded chunks tracked in memory (that happens on the\nclient).\n\nThis PR brings back this optimisation and also would remove the\nconsole-logged errors associated with them.\n\n\n---------\n\nCo-authored-by: Sebastian \"Sebbie\" Silbermann &lt;sebbie@users.noreply.github.com&gt;' class=\"color-fg-default\" href=\"/react/react/commit/32b1fbad6fd1fc34ef361dcf06bcfb1ae3fed5f3\">)</a>",
+            "bodyMessageHtml": "Turbopack has introduced a new format for chunks (experimental):\n\n```typescript\ntype ChunkUrlOrMerged = ChunkUrl | [ChunkUrl, ChunkPath[], number[]]\n```\n\nThis will allow us to dynamically choose to merge / unmerge chunks based\non already loaded chunks. See\n<a class=\"issue-link js-issue-link\" data-error-text=\"Failed to load title\" data-id=\"4765797369\" data-permission-text=\"Title is private\" data-url=\"https://github.com/vercel/next.js/issues/95261\" data-hovercard-type=\"pull_request\" data-hovercard-url=\"/vercel/next.js/pull/95261/hovercard\" href=\"https://github.com/vercel/next.js/pull/95261\">vercel/next.js#95261</a> for more context behind\nthese feature.\n\nHowever, we noticed that this breaks `prepareDestinationWithChunks()` on\nserver-side renders. The prepared chunk script tags were a stringified\nversion of this array:\n\n&lt;img width=\"1758\" height=\"474\" alt=\"Screenshot 2026-07-22 at 9 37 06 am\"\nsrc=\"<a href=\"https://github.com/user-attachments/assets/fa273b44-5942-4037-b955-4338472242fe\">https://github.com/user-attachments/assets/fa273b44-5942-4037-b955-4338472242fe</a>\"\n/&gt;\n\nInstead, we should prepare the merged chunk as these SSR-d pages would\nnot have any loaded chunks tracked in memory (that happens on the\nclient).\n\nThis PR brings back this optimisation and also would remove the\nconsole-logged errors associated with them.\n\n\n---------\n\nCo-authored-by: Sebastian \"Sebbie\" Silbermann &lt;sebbie@users.noreply.github.com&gt;",
+            "authors": [
+              {
+                "login": "sampoder",
+                "displayName": "Sam Poder",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/39828164?v=4",
+                "path": "/sampoder",
+                "profileName": "Sam Poder",
+                "isGitHub": false
+              },
+              {
+                "login": "eps1lon",
+                "displayName": "Sebastian \"Sebbie\" Silbermann",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/12292047?v=4",
+                "path": "/eps1lon",
+                "profileName": "Sebastian \"Sebbie\" Silbermann",
+                "isGitHub": false
+              }
+            ],
+            "committerAttribution": false,
+            "committer": {
+              "login": "web-flow",
+              "displayName": "GitHub",
+              "avatarUrl": "https://avatars.githubusercontent.com/u/19864447?v=4",
+              "path": "/web-flow",
+              "profileName": "GitHub Web Flow",
+              "isGitHub": true
+            },
+            "pusher": null,
+            "pushedDate": null
+          }
+        ]
+      }
+    ],
+    "refInfo": {
+      "name": "main",
+      "listCacheKey": "v0:1785555321.0",
+      "refType": "branch",
+      "currentOid": "3a717e42438afac81020cdec297dadb5613a4304"
+    },
+    "metadata": {
+      "browsingRenameHistory": null,
+      "showProfileHelp": false,
+      "deferredDataUrl": "/react/react/commits/deferred_commit_data/main?original_branch=main",
+      "deferredContributorUrl": "/react/react/commits/deferred_commit_contributors",
+      "softNavToCommit": true
+    },
+    "filters": {
+      "since": null,
+      "until": null,
+      "author": null,
+      "newPath": null,
+      "originalBranch": null,
+      "currentBlobPath": null,
+      "pagination": {
+        "startCursor": "3a717e42438afac81020cdec297dadb5613a4304 0",
+        "endCursor": "3a717e42438afac81020cdec297dadb5613a4304 34",
+        "hasNextPage": true,
+        "hasPreviousPage": false
+      }
+    },
+    "repo": {
+      "id": 10270250,
+      "defaultBranch": "main",
+      "name": "react",
+      "ownerLogin": "react",
+      "currentUserCanPush": false,
+      "isFork": false,
+      "isEmpty": false,
+      "createdAt": "2013-05-24T16:15:54.000Z",
+      "ownerAvatar": "https://avatars.githubusercontent.com/u/102812?v=4",
+      "public": true,
+      "private": false,
+      "isOrgOwned": true
+    }
+  }
+}

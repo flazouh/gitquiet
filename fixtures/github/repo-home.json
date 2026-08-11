@@ -1,0 +1,410 @@
+{
+  "payload": {
+    "codeViewRepoRoute": {
+      "path": "/",
+      "refInfo": {
+        "name": "main",
+        "listCacheKey": "v0:1785252485.0",
+        "canEdit": true,
+        "refType": "branch",
+        "currentOid": "7f15cd3850ed6d3ae28a0a49c33bf1955321f5e8"
+      },
+      "tree": {
+        "items": [
+          {
+            "name": ".agents/skills/remocn",
+            "path": ".agents/skills/remocn",
+            "contentType": "directory",
+            "hasSimplifiedPath": true
+          },
+          {
+            "name": ".github/workflows",
+            "path": ".github/workflows",
+            "contentType": "directory",
+            "hasSimplifiedPath": true
+          },
+          {
+            "name": ".sentrux",
+            "path": ".sentrux",
+            "contentType": "directory"
+          },
+          {
+            "name": "desktop",
+            "path": "desktop",
+            "contentType": "directory"
+          },
+          {
+            "name": "docs",
+            "path": "docs",
+            "contentType": "directory"
+          },
+          {
+            "name": "fixtures",
+            "path": "fixtures",
+            "contentType": "directory"
+          },
+          {
+            "name": "mockups",
+            "path": "mockups",
+            "contentType": "directory"
+          },
+          {
+            "name": "scripts",
+            "path": "scripts",
+            "contentType": "directory"
+          },
+          {
+            "name": "src",
+            "path": "src",
+            "contentType": "directory"
+          },
+          {
+            "name": "tests",
+            "path": "tests",
+            "contentType": "directory"
+          },
+          {
+            "name": "video",
+            "path": "video",
+            "contentType": "directory"
+          },
+          {
+            "name": ".gitignore",
+            "path": ".gitignore",
+            "contentType": "file"
+          },
+          {
+            "name": ".oxlintrc.json",
+            "path": ".oxlintrc.json",
+            "contentType": "file"
+          },
+          {
+            "name": "CONTEXT.md",
+            "path": "CONTEXT.md",
+            "contentType": "file"
+          },
+          {
+            "name": "README.md",
+            "path": "README.md",
+            "contentType": "file"
+          },
+          {
+            "name": "bun.lock",
+            "path": "bun.lock",
+            "contentType": "file"
+          },
+          {
+            "name": "bunfig.toml",
+            "path": "bunfig.toml",
+            "contentType": "file"
+          },
+          {
+            "name": "lefthook.yml",
+            "path": "lefthook.yml",
+            "contentType": "file"
+          },
+          {
+            "name": "package.json",
+            "path": "package.json",
+            "contentType": "file"
+          },
+          {
+            "name": "skills-lock.json",
+            "path": "skills-lock.json",
+            "contentType": "file"
+          },
+          {
+            "name": "tsconfig.json",
+            "path": "tsconfig.json",
+            "contentType": "file"
+          },
+          {
+            "name": "wxt.config.ts",
+            "path": "wxt.config.ts",
+            "contentType": "file"
+          }
+        ],
+        "totalCount": 22,
+        "templateDirectorySuggestionUrl": null,
+        "readme": null,
+        "showBranchInfobar": false
+      },
+      "userNameDisplayConfiguration": null,
+      "treeExpanded": false,
+      "symbolsExpanded": false,
+      "copilotSWEAgentEnabled": false,
+      "copilotAccessAllowed": false,
+      "isOverview": true,
+      "overview": {
+        "banners": {
+          "shouldRecommendReadme": true,
+          "isPersonalRepo": true,
+          "showUseActionBanner": false,
+          "actionSlug": null,
+          "actionId": null,
+          "showProtectBranchBanner": false,
+          "requiredCustomPropertyValuesMissingCount": 0,
+          "transactionalMessageBanner": null,
+          "publishBannersInfo": {
+            "dismissActionNoticePath": "/settings/dismiss-notice/publish_action_from_repo",
+            "releasePath": "/flazouh/githubpro/releases/new?marketplace=true",
+            "showPublishActionBanner": false
+          },
+          "interactionLimitBanner": null,
+          "showInvitationBanner": false,
+          "inviterName": null,
+          "actionsMigrationBannerInfo": {
+            "releaseTags": [],
+            "showImmutableActionsMigrationBanner": false,
+            "initialMigrationStatus": null
+          },
+          "copilotSurveyBanner": null,
+          "showSpammyBanner": false,
+          "blockedContributorsBanner": null
+        },
+        "codeButton": {
+          "contactPath": "/contact",
+          "isEnterprise": false,
+          "local": {
+            "protocolInfo": {
+              "httpAvailable": true,
+              "sshAvailable": true,
+              "httpUrl": "https://github.com/flazouh/githubpro.git",
+              "showCloneWarning": false,
+              "sshUrl": "git@github.com:flazouh/githubpro.git",
+              "sshCertificatesRequired": false,
+              "sshCertificatesAvailable": null,
+              "ghCliUrl": "gh repo clone flazouh/githubpro",
+              "defaultProtocol": "http",
+              "newSshKeyUrl": "/settings/ssh/new",
+              "setProtocolPath": "/users/set_protocol?protocol_type=push"
+            },
+            "platformInfo": {
+              "cloneUrl": "x-github-client://openRepo/https://github.com/flazouh/githubpro?branch=main",
+              "showVisualStudioCloneButton": false,
+              "visualStudioCloneUrl": "https://windows.github.com",
+              "showXcodeCloneButton": false,
+              "xcodeCloneUrl": "xcode://clone?repo=https%3A%2F%2Fgithub.com%2Fflazouh%2Fgithubpro",
+              "zipballUrl": "/flazouh/githubpro/archive/refs/heads/main.zip"
+            }
+          },
+          "repoPolicyInfo": {
+            "allowed": true,
+            "canBill": true,
+            "changesWouldBeSafe": true,
+            "disabledByBusiness": false,
+            "disabledByOrganization": false,
+            "hasIpAllowLists": false
+          },
+          "currentUserIsEnterpriseManaged": false,
+          "enterpriseManagedBusinessName": null,
+          "codespacesEnabled": true,
+          "hasAccessToCodespaces": true
+        },
+        "popovers": {
+          "rename": null,
+          "renamedParentRepo": null
+        },
+        "commitCount": "140",
+        "overviewFiles": [
+          {
+            "displayName": "README.md",
+            "repoName": "githubpro",
+            "refName": "main",
+            "path": "README.md",
+            "preferredFileType": "readme",
+            "tabName": "README",
+            "richText": "<article class=\"markdown-body entry-content container-lg\" itemprop=\"text\"><div class=\"markdown-heading\" dir=\"auto\"><h1 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\">GitQuiet</h1><a id=\"user-content-gitquiet\" class=\"anchor\" aria-label=\"Permalink: GitQuiet\" href=\"#gitquiet\"><svg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"><path d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"></path></svg></a></div>\n<p dir=\"auto\">A Chrome extension that replaces a pull request's conversation with an interface organised by attention rather than by object type, served from a local cache kept current by GitHub's own push notifications. It sits inside GitHub's page, wearing GitHub's design system: their header, nav and tabs are untouched, and the part that is ours is drawn in Primer tokens and Octicons, so it follows whichever theme you already use.</p>\n<div class=\"markdown-heading\" dir=\"auto\"><h2 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\">Why</h2><a id=\"user-content-why\" class=\"anchor\" aria-label=\"Permalink: Why\" href=\"#why\"><svg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"><path d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"></path></svg></a></div>\n<p dir=\"auto\">GitHub's pull request pages are slow to load and slow to comprehend. Measured on <code>microsoft/vscode#327442</code>: 1,537 ms to first byte, 3,323 ms to load, 230 requests. The same data is available as a single 111 KB JSON payload. Meanwhile the page is organised into Conversation / Commits / Checks / Files tabs — by record type, never by whether something needs you.</p>\n<p dir=\"auto\">This extension inverts that. One screen shows every item that needs attention, grouped by who owes the next move. Drilling into any row gives a keyboard-driven queue you traverse one item at a time.</p>\n<div class=\"markdown-heading\" dir=\"auto\"><h2 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\">Documents</h2><a id=\"user-content-documents\" class=\"anchor\" aria-label=\"Permalink: Documents\" href=\"#documents\"><svg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"><path d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"></path></svg></a></div>\n<ul dir=\"auto\">\n<li><a href=\"/flazouh/githubpro/blob/main/CONTEXT.md\"><code>CONTEXT.md</code></a> — the domain glossary. Read this first; the code uses these terms exactly.</li>\n<li><a href=\"/flazouh/githubpro/blob/main/docs/spec/pull-request-review.md\"><code>docs/spec/pull-request-review.md</code></a> — the spec.</li>\n</ul>\n<p dir=\"auto\">Work is tracked as issues in this repository.</p>\n<div class=\"markdown-heading\" dir=\"auto\"><h2 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\">Stack</h2><a id=\"user-content-stack\" class=\"anchor\" aria-label=\"Permalink: Stack\" href=\"#stack\"><svg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"><path d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"></path></svg></a></div>\n<markdown-accessiblity-table><table>\n<thead>\n<tr>\n<th>Concern</th>\n<th>Choice</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>Toolchain</td>\n<td>Bun for install, scripts and tests</td>\n</tr>\n<tr>\n<td>Extension</td>\n<td>WXT, Chrome MV3</td>\n</tr>\n<tr>\n<td>UI</td>\n<td>React and Tailwind over GitHub's own Primer tokens, classes and Octicons</td>\n</tr>\n<tr>\n<td>Domain and data</td>\n<td>Effect v4 (typed errors, Layers, Schema, Schedule)</td>\n</tr>\n<tr>\n<td>Local store</td>\n<td><code>storage.local</code>, reachable from both the content script and the worker</td>\n</tr>\n<tr>\n<td>Observability</td>\n<td>Sentry</td>\n</tr>\n<tr>\n<td>Tests</td>\n<td><code>bun test</code>, <code>effect/testing</code>, Testing Library, happy-dom</td>\n</tr>\n</tbody>\n</table></markdown-accessiblity-table>\n<p dir=\"auto\">Effect v4 differs from v3 in ways worth knowing before writing code: <code>Either</code> is\n<code>Result</code>, <code>Effect.catchAll</code> and <code>Effect.orElse</code> are gone in favour of\n<code>Effect.catch</code>, and <code>@effect/vitest</code> is v3-only. Test clocks and property\ntesting come from <code>effect/testing</code> instead.</p>\n<div class=\"markdown-heading\" dir=\"auto\"><h2 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\">Setup</h2><a id=\"user-content-setup\" class=\"anchor\" aria-label=\"Permalink: Setup\" href=\"#setup\"><svg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"><path d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"></path></svg></a></div>\n<div class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"bun install          # also clones the Effect source and generates WXT types\nbun run compile      # typecheck\nbun test             # unit and behaviour tests\nbun run dev          # load the extension in a dev browser\nbun run build        # production build into .output/chrome-mv3\nbun run drift        # re-check GitHub's live payloads against our schemas\"><pre>bun install          <span class=\"pl-c\"><span class=\"pl-c\">#</span> also clones the Effect source and generates WXT types</span>\nbun run compile      <span class=\"pl-c\"><span class=\"pl-c\">#</span> typecheck</span>\nbun <span class=\"pl-c1\">test</span>             <span class=\"pl-c\"><span class=\"pl-c\">#</span> unit and behaviour tests</span>\nbun run dev          <span class=\"pl-c\"><span class=\"pl-c\">#</span> load the extension in a dev browser</span>\nbun run build        <span class=\"pl-c\"><span class=\"pl-c\">#</span> production build into .output/chrome-mv3</span>\nbun run drift        <span class=\"pl-c\"><span class=\"pl-c\">#</span> re-check GitHub's live payloads against our schemas</span></pre></div>\n<p dir=\"auto\"><code>bun run drift</code> needs a session cookie and is not part of CI; see\n<a href=\"/flazouh/githubpro/blob/main/fixtures/README.md\"><code>fixtures/README.md</code></a> for why.</p>\n<p dir=\"auto\"><code>bun install</code> clones the Effect source to <code>.repos/effect</code> for local research. It\nis gitignored and exists only so the Effect API can be checked against source\nrather than guessed.</p>\n<p dir=\"auto\">To load the extension by hand: <code>bun run build</code>, then in Chrome open\n<code>chrome://extensions</code>, enable Developer mode, choose Load unpacked and select\n<code>.output/chrome-mv3</code>. Open any pull request to see it take over the page.</p>\n</article>",
+            "loaded": true,
+            "timedOut": false,
+            "errorMessage": null,
+            "headerInfo": {
+              "toc": [
+                {
+                  "level": 1,
+                  "text": "GitQuiet",
+                  "anchor": "gitquiet",
+                  "htmlText": "GitQuiet"
+                },
+                {
+                  "level": 2,
+                  "text": "Why",
+                  "anchor": "why",
+                  "htmlText": "Why"
+                },
+                {
+                  "level": 2,
+                  "text": "Documents",
+                  "anchor": "documents",
+                  "htmlText": "Documents"
+                },
+                {
+                  "level": 2,
+                  "text": "Stack",
+                  "anchor": "stack",
+                  "htmlText": "Stack"
+                },
+                {
+                  "level": 2,
+                  "text": "Setup",
+                  "anchor": "setup",
+                  "htmlText": "Setup"
+                }
+              ],
+              "siteNavLoginPath": "/login?return_to=https%3A%2F%2Fgithub.com%2Fflazouh%2Fgithubpro"
+            }
+          }
+        ],
+        "overviewFilesProcessingTime": 0,
+        "copilotSWEAgentEnabled": false,
+        "createFromTemplatePath": "/new?template_name=githubpro&template_owner=flazouh"
+      }
+    },
+    "codeViewLayoutRoute": {
+      "repo": {
+        "id": 1312108000,
+        "defaultBranch": "main",
+        "name": "githubpro",
+        "ownerLogin": "flazouh",
+        "currentUserCanPush": true,
+        "isFork": false,
+        "isEmpty": false,
+        "createdAt": "2026-07-25T17:52:05.000+02:00",
+        "ownerAvatar": "https://avatars.githubusercontent.com/u/25705704?v=4",
+        "public": false,
+        "private": true,
+        "isOrgOwned": false
+      },
+      "currentUser": {
+        "id": 25705704,
+        "login": "flazouh",
+        "userEmail": "maintainer@example.com"
+      },
+      "uploadToken": "udZSP0yLRjLiNpVn2YIa2UMntJh7zslt-KiL9qWITNZCxzpiR2oXw7IPLoPcRPyi6QGmEMyD-yJDzzzixNnAWg",
+      "allShortcutsEnabled": true,
+      "treeExpanded": false,
+      "path": "/",
+      "symbolsExpanded": false,
+      "refInfo": {
+        "name": "main",
+        "listCacheKey": "v0:1785252485.0",
+        "canEdit": false,
+        "currentOid": "7f15cd3850ed6d3ae28a0a49c33bf1955321f5e8"
+      },
+      "helpUrl": "https://docs.github.com",
+      "findFileWorkerPath": "/assets-cdn/worker/find-file-worker-335389ad12f5e105.js",
+      "findInFileWorkerPath": "/assets-cdn/worker/find-in-file-worker-865b73163ef9cf93.js",
+      "githubDevUrl": "https://github.dev/"
+    },
+    "sidebarAbout": {
+      "topics": [],
+      "showInsights": true,
+      "stargazerCount": 0,
+      "watcherCount": 0,
+      "forksCount": 0,
+      "stargazersPath": "/flazouh/githubpro/stargazers",
+      "watchersPath": "/flazouh/githubpro/watchers",
+      "forkNetworkPath": "/flazouh/githubpro/forks",
+      "activityPath": "/flazouh/githubpro/activity",
+      "canEditMetadata": true,
+      "ownerLogin": "flazouh",
+      "repoName": "githubpro",
+      "isOrg": false,
+      "sections": {
+        "releases": {
+          "releaseCount": 0,
+          "tagCount": 0
+        },
+        "sponsors": false,
+        "deployments": false,
+        "packages": true,
+        "usedBy": false,
+        "contributors": true,
+        "languages": true,
+        "cta": false,
+        "suggestedWorkflows": true
+      },
+      "hasCitation": false,
+      "repo": {
+        "ownerAvatarUrl": "https://avatars.githubusercontent.com/u/25705704?s=60&v=4",
+        "ownerId": 25705704,
+        "isPrivate": true,
+        "isTemplate": false,
+        "isFork": false,
+        "isMirror": false,
+        "isArchived": false,
+        "visibilityLabel": "Private",
+        "isAdvisoryWorkspace": false
+      },
+      "star": {
+        "viewerHasStarred": false,
+        "canStar": true
+      },
+      "fork": {
+        "canFork": true
+      },
+      "pin": {
+        "canPin": true,
+        "isPinned": false,
+        "isOrgOwned": false,
+        "pinItemsRemaining": 5
+      },
+      "watch": {
+        "canWatch": true,
+        "watchData": {
+          "repositoryId": "1312108000",
+          "repositoryName": "flazouh/githubpro",
+          "watchersCount": 0,
+          "subscriptionType": "none",
+          "subscribableThreadTypes": [
+            {
+              "name": "Issue",
+              "enabled": true,
+              "subscribed": false
+            },
+            {
+              "name": "PullRequest",
+              "enabled": true,
+              "subscribed": false
+            },
+            {
+              "name": "Release",
+              "enabled": true,
+              "subscribed": false
+            },
+            {
+              "name": "Discussion",
+              "enabled": false,
+              "subscribed": false
+            },
+            {
+              "name": "SecurityAlert",
+              "enabled": true,
+              "subscribed": false
+            }
+          ],
+          "showLabelSubscriptions": false,
+          "subscribedLabels": []
+        }
+      },
+      "viewer": {
+        "isLoggedIn": true,
+        "isSiteAdmin": false,
+        "emuContributionBlocked": false
+      },
+      "showSponsorButton": false,
+      "showTemplateButton": false,
+      "showDemoNotification": false
+    },
+    "csrf_tokens": {
+      "/flazouh/githubpro/branches": {
+        "post": "d8X_xf41ga3mk9HJg7eGdbAL6e5YkQRsVgeNwpdoS455D3Q9xrNKNvuwJSfMWeSvRVhxcuUd0VlinzHtatrhKw"
+      }
+    }
+  },
+  "title": "flazouh/githubpro",
+  "appPayload": {},
+  "meta": {
+    "title": "flazouh/githubpro"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "target": "ESNext",
+    "module": "Preserve",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "types": ["bun"],
+
+    "strict": true,
+    // Off, and not by preference: Electrobun ships TypeScript rather than
+    // declarations, so its own source is compiled as part of this program, and
+    // its options objects are written the pre-exactOptional way.
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "skipLibCheck": true,
+
+    "noEmit": true,
+    "verbatimModuleSyntax": true,
+
+    // `@/` is the shared code the extension also runs. `~/` is this app's own,
+    // and the split is what keeps a desktop-only component out of a content
+    // script: anything under `~/` is unreachable from `src/`.
+    "paths": {
+      "@/*": ["../src/*"],
+      "~/*": ["./src/*"]
+    }
+  },
+  "include": ["src", "electrobun.config.ts"]
+}

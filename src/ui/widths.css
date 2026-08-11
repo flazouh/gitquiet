@@ -1,0 +1,220 @@
+/**
+ * Lets the interface have the width of the window on the two pages where GitHub
+ * holds their own content to a measure.
+ *
+ * The only rules about their pages left written by hand. Everything else that was
+ * in `gate.css`, `pulls.css` and `repoPulls.css` said which regions to hide, and
+ * those regions are named in `place.ts` — so they are generated from it now, into
+ * `gates.load.css`. These two are not about hiding anything, and there is nothing
+ * in that table for them to drift from.
+ *
+ * Each says which page it is for, for the same reason the generated sheet does: one
+ * stylesheet now ships with every interface, so a rule that did not say would be a
+ * rule on all of them.
+ *
+ * By the surface rather than by the page the document is about, which is the one way
+ * these differ from the generated sheet. That sheet hides GitHub's regions and has to
+ * speak for the page being arrived at from the instant of the press. These take a
+ * measure off a region of theirs, and the only thing that says whether to is whether a
+ * screen of ours is standing in it — so each names `#gitquiet-root` inside the region
+ * it measures, and says nothing anywhere else.
+ *
+ * The screen's own name was the answer before this and was wrong wherever two screens
+ * share a surface, which is every press this extension answers itself: a card pressed
+ * on the Working Set stands where the list stood, and the name flipped under it.
+ *
+ * The takeover attribute all the same, and it is not redundant. Several of these have
+ * to outweigh a rule of GitHub's, and an override that loses on specificity is not an
+ * override: naming one attribute where they name a class and an element put the
+ * interface back inside their 900-pixel column.
+ */
+
+/**
+ * The frame the interface stands in, which is one number.
+ *
+ * The bar floats in it and the columns under the bar start on it, so a reader sees one left
+ * edge down the whole window rather than a bar at one inset and a Rail at another. It was two
+ * numbers and they disagreed by twenty-eight pixels: twelve for the bar, and sixteen of ours on
+ * top of twenty-four of theirs for the columns.
+ *
+ * GitHub's own three, rather than a number of ours. On a pull request the body of the page is
+ * inset by their `container-xl`, which is sixteen pixels on a narrow window, twenty-four from
+ * seven hundred and sixty-eight, and thirty-two from a thousand and twelve — measured on
+ * `#diff-comparison-viewer-container` at eleven widths. That inset is the one a reader is
+ * already looking at, and it is the only one on the page this extension cannot restate: it
+ * wraps the region we draw into rather than anything of ours. So the frame follows it, and the
+ * bar, the Courts and their body sit on one edge at every width instead of at three.
+ *
+ * A fixed eight was the earlier answer, which lined the bar up with nothing: their body stayed
+ * at thirty-two, so a wide window showed a bar starting a full twenty-four pixels left of every
+ * card under it.
+ *
+ * Declared for the page rather than for the interface, because the bar is deliberately not
+ * inside `#gitquiet-root` — it stands above the region we replaced — so a value on the root
+ * could not reach it. Our own name, like `--gitquiet-floor`, so nothing of theirs reads it.
+ *
+ * The window does not declare this, and `WorkingSetScreen` falls back to the sixteen pixels it
+ * always had there: a window has an edge of its own and its bar spans it, and sixteen is the
+ * narrow end of this same scale.
+ */
+:root {
+  --gitquiet-gutter: 16px;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --gitquiet-gutter: 24px;
+  }
+}
+
+@media (min-width: 1012px) {
+  :root {
+    --gitquiet-gutter: 32px;
+  }
+}
+
+/**
+ * And the interface stands in it, on every screen, from here.
+ *
+ * One rule rather than one per screen, and deliberately not keyed on a page: measured on seven
+ * of them, only a pull request had an inset at all. `repo-home`, a repository's pull requests,
+ * its commits, its issues and the dashboard all ran their first card flush to the window edge
+ * while the bar above floated in thirty-two pixels, and Home was inset by the screen component
+ * instead — three answers to one question.
+ *
+ * The container is the one thing every screen has, so it is where the frame belongs. A screen
+ * that adds its own is a screen that disagrees with the bar the moment either number changes,
+ * which is what `WorkingSetScreen` did until this rule took the inset off it.
+ *
+ * It cannot reach anything of GitHub's: they have no element with this id, and the takeover
+ * attribute means it says nothing at all on a page this extension left alone.
+ */
+html[data-gitquiet-taken] #gitquiet-root {
+  padding-inline: var(--gitquiet-gutter);
+}
+
+/**
+ * A pull request, where GitHub holds the conversation to 1280 pixels and centres
+ * it.
+ *
+ * Which is right for a column of prose and comments — it is a measure, and a line
+ * of text that runs the width of a five-thousand-pixel screen is a line nobody can
+ * follow back to its start. What this page shows in that region is not prose: it is
+ * a tree, a diff and a conversation side by side, and every pixel taken away from
+ * it is a column of code wrapped or a file name cut. On their own "Files changed"
+ * page they take the same view and let it run to both edges.
+ *
+ * Only while a screen of ours is standing in that region. Lifted the moment it
+ * hands back, so a reader who asked for GitHub's conversation gets it at the width
+ * they chose.
+ *
+ * Their inset goes with their measure. It is the frame this page was read in and
+ * it was the right number — sixteen, twenty-four and thirty-two by width, which
+ * is where `--gitquiet-gutter` comes from — but a frame owned by the region we
+ * draw into is a frame only this one screen has. Ours is on the container now, so
+ * theirs would be counted twice: sixty-four pixels on a wide window, and the code
+ * pays for every one of them.
+ *
+ * `!important` because theirs is. The number arrives from three Primer utilities
+ * on that element — `tmp-px-3 tmp-px-md-4 tmp-px-lg-5` — and a utility class in
+ * their system carries the flag, so no selector of ours outweighs it. Measured
+ * without it: their thirty-two stood and the first card sat at sixty-four.
+ */
+html[data-gitquiet-taken] #diff-comparison-viewer-container:has(#gitquiet-root) {
+  max-width: none;
+  padding-inline: 0 !important;
+}
+
+/**
+ * The dashboard, where GitHub holds the list to 1200 pixels beside a 296-pixel
+ * filter pane.
+ *
+ * That is right for their rows, which are two lines of text each; it is wrong for
+ * these, which put a title, a number, an address, a reason, a review, a check
+ * count, a face and a time on one line. Every pixel taken away is a title
+ * truncated earlier.
+ */
+html[data-gitquiet-taken]
+  [data-testid="pulls-dashboard-surface-layout"]:has(#gitquiet-root) {
+  max-width: none;
+}
+
+/**
+ * Home, where GitHub gives their centre column two thirds of the row and their
+ * repository sidebar the rest.
+ *
+ * That sidebar is hidden here — it is one of the two lists their own readers asked to
+ * have replaced rather than duplicated, and the Rail is what replaces it. So the third
+ * of the row it was holding is empty, and the Rail then takes its width out of what is
+ * left rather than out of that: the Courts were measured at 680 pixels on this page, and
+ * a strip out of 680 is a title truncated earlier on every row.
+ *
+ * Five rules in one, because the measure is set five times on the way down: the flex
+ * child of the row, the centred content band, the route's own 900-pixel cap, their `main`,
+ * and their column itself. Each asks the same question — is one of our screens standing in
+ * their dashboard — because whichever screen it is, it is the page. Measured that way rather than guessed — lifting the outer one
+ * alone left the interface at 898 pixels inside a 1512-pixel window. Each is named by what
+ * it contains rather than by Primer's class names, which carry a per-deploy hash and are
+ * nobody's contract, and each is proved against this page's own column so that `/feed`,
+ * which shares this layout, keeps its measure.
+ *
+ * `main` is the one that hides. Its parent is a column flex box with `align-items: center`,
+ * where `flex: 1` buys height and nothing at all across — so `main` took the width of
+ * whatever was inside it and sat in the middle of a 1825-pixel row at 699. `width: 100%`
+ * is not enough against a centred cross axis; `align-self: stretch` is the line that
+ * answers it.
+ */
+html[data-gitquiet-taken] div.feed-background > div:has(#dashboard.dashboard #gitquiet-root),
+html[data-gitquiet-taken] div.feed-content:has(#dashboard.dashboard #gitquiet-root),
+html[data-gitquiet-taken]
+  div.dashboard-route.feed-main__universe:has(#dashboard.dashboard #gitquiet-root),
+html[data-gitquiet-taken] main:has(#dashboard.dashboard #gitquiet-root),
+html[data-gitquiet-taken]
+  main:has(#dashboard.dashboard #gitquiet-root)
+  > div:has(#dashboard.dashboard #gitquiet-root),
+html[data-gitquiet-taken] #dashboard.dashboard:has(#gitquiet-root) {
+  max-width: none;
+  width: 100%;
+}
+
+html[data-gitquiet-taken] main:has(#dashboard.dashboard #gitquiet-root) {
+  align-self: stretch;
+}
+
+/**
+ * And their own twenty-four pixels of gutter, which is the rest of that disagreement.
+ *
+ * It is the band their feed sits in, and their feed is not on this page any more: everything in
+ * it is hidden and the only thing left inside those twenty-four pixels is our two columns. The
+ * inset that matters is the one the bar keeps, and this is measured on top of it.
+ *
+ * The same element the measure rule above names, and by the same class rather than by the
+ * `tmp-` one beside it, which is theirs to delete.
+ */
+html[data-gitquiet-taken] div.feed-content:has(#dashboard.dashboard #gitquiet-root) {
+  padding-inline: 0;
+}
+
+/**
+ * And the rule of theirs that would otherwise hide the interface itself.
+ *
+ * GitHub holds this page's `main` at `display: none` until one of their partials is
+ * marked loaded, showing a spinner in its place. Our container is inside that `main`, so
+ * their rule takes our whole takeover off the screen — measured, on a real page: eighteen
+ * rows drawn, the Rail with them, every box zero pixels wide.
+ *
+ * And it is not a wait that ends, because their partials are inside the region this
+ * extension hid: the loader that would set that class has nothing to observe, so the
+ * class need never arrive. Which makes this the one rule of theirs we have to answer
+ * rather than wait out.
+ *
+ * Their own condition is repeated here so this only speaks where they do, and so that a
+ * page of theirs that has finished loading is left entirely alone. It is written long
+ * enough to outweigh theirs: an override that loses on specificity is not an override.
+ */
+html[data-gitquiet-taken]
+  .feed-content
+  .dashboard-route.feed-main__universe:not(:has([partial-name].loaded))
+  main:has(#dashboard.dashboard #gitquiet-root) {
+  display: block;
+}

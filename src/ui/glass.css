@@ -1,0 +1,267 @@
+/**
+ * The bar, floating over the page instead of sitting on it.
+ *
+ * A bar that spans the viewport edge to edge and meets the top of the screen is the page's own
+ * chrome, which is exactly what it was replacing: GitHub's was that shape, and ours took the
+ * same band. Lifting it off all three edges says the opposite thing — this is a piece of our
+ * interface standing over their document, the same claim the cards below it make by carrying
+ * their own fill.
+ *
+ * Glass rather than a fill, because a floating pane has to answer what is behind it. An opaque
+ * strip with a gap around it reads as a bar that failed to reach the edges; the same strip with
+ * the page blurred through it reads as a layer, and the reader can see their own content moving
+ * under it as they scroll, which is the only honest way to say "this stays".
+ *
+ * Everything here is scoped to the bar, and the shape lives in this file rather than in
+ * `Bar.tsx` for the reason `quiet.css` gives about the components: the bar is shared with the
+ * window, where there is no page to blur and no reason to float over one.
+ */
+
+/*
+ * The gap the bar floats in.
+ *
+ * On the slot rather than on the bar, so the sticky element still fills the band it holds open
+ * in the flow: their header is hidden while ours is on the page, and nothing else is holding
+ * that space. The bar stops short of the top when stuck, and the reader's content scrolls
+ * through the gap.
+ *
+ * The same `--gitquiet-gutter` the columns under it read — see `widths.css` — because a bar at
+ * one inset above a Rail at another is two left edges in one window.
+ *
+ * Across only. The gutter is thirty-two pixels on a wide window, which is the frame the page is
+ * read in and is right at the sides; above the bar it would be thirty-two pixels of nothing,
+ * pushing every card down the screen to say something the sides have already said. Eight is
+ * what the bar has always floated on, and it is the same eight `Shell` puts above the first
+ * card.
+ */
+:is(#gitquiet-bar, [data-gitquiet-bar]) {
+  padding: 8px var(--gitquiet-gutter) 0;
+}
+
+/*
+ * One pane in the slot, whatever the handover is doing.
+ *
+ * The screen arriving draws its bar on the turn it takes the page, and the screen leaving
+ * takes its own down a frame later — see `standDown` in `shell/screen.tsx` — so that the
+ * page is never left with a bar-shaped hole in it. For that one frame there are two, and
+ * two stacked is a bar of double height that shoves the page down and pulls it back.
+ *
+ * The last one is the one that arrived. Also the floor under the fault this pair replaced:
+ * a tree that outlived its screen used to keep its bar here for good, and the worst that
+ * can now do is nothing at all.
+ */
+:is(#gitquiet-bar, [data-gitquiet-bar]) > header:not(:last-child) {
+  display: none;
+}
+
+/*
+ * The pane, with the glass on a layer of its own.
+ *
+ * The same corner as the cards under it, and the cards are `--radius-lg`. Not the component's class:
+ * `Section.tsx` writes `rounded-md`, and `quiet.css` then takes every card on this page to
+ * `--radius-lg` with `!important`, so the class is a number nobody sees. Matching it instead of the
+ * drawn corner is exactly the mistake made here once, which left the bar at six over a column of
+ * twelve and called it parity.
+ *
+ * Twelve was argued down before, on the grounds that a quarter of a forty pixel pane in each corner
+ * reads as a pill with tabs inside it. That objection weighed the pane on its own, and the pane is
+ * never seen on its own: it sits ten pixels above the first card, in the same column, and a corner
+ * that disagrees with the card below it is the louder mistake.
+ *
+ * The rest of the history, so nobody starts it over: an actual pill read as a toolbar, and three
+ * pixels read as a strip that had lost its shape. Every reference for the effect turns twenty or
+ * more — sixty in `archisvaze/liquid-glass`, two rem in `lucasromerodb/liquid-glass-effect-macos` —
+ * and every one of them is dressing a floating control on a photograph rather than a bar over text.
+ * The lens does not come from the corner anyway: it needs a small blur and the bend.
+ *
+ * Nothing filtered on this element. A `backdrop-filter` makes its element the containing block for
+ * everything positioned inside it, the top layer included, and the settings sheet stands in this
+ * pane: with the glass here, pressing it opened a dimmed page with no sheet on it. On a
+ * pseudo-element it cannot happen, because a pseudo-element is nobody's ancestor.
+ *
+ * `isolation` so the layer below has a stacking context of its own to sit in, and `position` so it
+ * has something to be absolute against. No `overflow: hidden`: every menu in this bar opens
+ * downward out of it.
+ */
+:is(#gitquiet-bar, [data-gitquiet-bar]) > header {
+  position: relative;
+  isolation: isolate;
+  border-radius: var(--radius-lg);
+  background-color: transparent;
+  /*
+   * One shadow, and it is separation.
+   *
+   * There were two: a tight dark one for contact and a wide one for height. Contact is the wrong
+   * claim about this pane — it is floating over the page, not resting on it — and a one pixel
+   * shadow at sixteen percent under a forty pixel strip is a rule drawn under a bar, which is the
+   * shape lifting it off the edges was meant to get away from. The references keep one soft cast:
+   * `0 4px 24px rgba(0, 0, 0, 0.18)` in the iOS 26 demo, and this is that.
+   *
+   * Giving the pane an edge is not this shadow's job any more. The light on the inside of the edge
+   * does it, below, where the pack says which way is away.
+   */
+  box-shadow: 0 4px 20px -8px rgb(0 0 0 / 0.18);
+}
+
+/*
+ * The lens.
+ *
+ * The layer that reads the page and hands it back bent. Everything that touches the backdrop is
+ * here and only here, in the order it has to be in: the bend and the fill on one element, because
+ * a `backdrop-filter` samples everything painted beneath it — a fill on the pane under this layer
+ * would be the thing that got bent, and the page would never come through at all.
+ *
+ * Three pixels of blur, not twenty-eight. That was the mistake in the first attempt: a heavy blur
+ * is frosted glass, which takes the page away and returns a soft grey, and no amount of edge
+ * lighting rescues it. The references all blur by about this much and spend the rest on the bend —
+ * see `refraction.ts` for the filter and the four repositories it follows.
+ *
+ * `saturate` because blur greys what it samples: GitHub's green checks and red diffs go to mud
+ * behind an unsaturated blur, and the point of glass is that the page stays recognisable.
+ *
+ * Fifty-five percent of the pack's surface, down from seventy-two. `color-mix` on the token rather
+ * than a colour, so all twenty-six packs get their own glass. The old number was set to keep the
+ * muted labels legible over a busy page, and it turns out not to be the thing that decides that:
+ * computed across every pack over its own floor and over that floor plus a band of real colour,
+ * `--color-ink-muted` against this pane reads 1.91:1 at seventy-two percent and 1.91:1 at
+ * fifty-five, because what binds is each pack's own choice of muted ink against its own surface.
+ * The mix was free to move, so it moved to where the bend can be seen.
+ *
+ * No `-webkit-` twin: the prefixed property does not accept `url()`, and a declaration Chrome
+ * cannot parse takes the whole layer with it.
+ */
+:is(#gitquiet-bar, [data-gitquiet-bar]) > header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background-color: color-mix(in oklab, var(--color-surface) 55%, transparent);
+  backdrop-filter: blur(3px) url(#gitquiet-refraction) saturate(1.8);
+}
+
+/*
+ * Where the blur cannot happen, the pane is solid.
+ *
+ * A translucent bar with nothing blurring behind it is not a subtler bar, it is unreadable text
+ * over a diff. The same fill the component asked for in the first place.
+ */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :is(#gitquiet-bar, [data-gitquiet-bar]) > header {
+    background-color: var(--color-surface);
+  }
+
+  /* And the lens comes off, rather than sitting over a solid pane as a wash of nothing. */
+  :is(#gitquiet-bar, [data-gitquiet-bar]) > header::before {
+    content: none;
+  }
+}
+
+/*
+ * Glass that pushes the page away from the ink it is under.
+ *
+ * Seventy-two percent of a dark surface is legible over a diff and thin over a screenshot, a
+ * marketing banner or a red and green file: measured on a page with real colour in it, the muted
+ * labels — Code, Issues — came out weaker than the ones beside them. Rather than making the pane
+ * more opaque and losing the point of it, the filter takes the backdrop the other way from the
+ * text, which is what a vibrancy layer does on a desktop.
+ *
+ * Sampled off a screenshot of the pane over a saturated gradient, which is worse than anything
+ * GitHub serves: `--color-ink-muted` reads 5.0:1 against the glass and 2.0:1 against the page
+ * without it. The point of the term is that number, not the mood.
+ *
+ * `.dark` is on the slot because the theme paints it there — the bar is one of the hosts outside
+ * the root, see `Theme.tsx` — so this asks the pack which way is away rather than guessing from
+ * a media query the reader may have overridden.
+ */
+/*
+ * The light on the inside of the edge, which is the other half of it.
+ *
+ * A glow pulled inward rather than a line drawn round, and it has to stay a rim. The iOS 26 demo's
+ * `inset 0 0 20px -5px` is a rim on the card it lights and a wash on this pane: measured across the
+ * left edge, twenty pixels of blur on a forty pixel strip ramped from 38 down to 23 over thirteen
+ * pixels and never arrived at a fill, so the pane read as a thick grey border with a gradient in it
+ * rather than as a lit edge. Six pixels pulled in by four falls off inside three and leaves the rest
+ * of the pane flat, which is what glass looks like: even, with light caught at the edge.
+ *
+ * The flatness is the thing to hold on to if these numbers are touched. Sample a row across the edge
+ * and the interior should not move.
+ *
+ * One ring, from a spread and not from an offset. The macOS demo lights two opposite edges with a
+ * pair of offset shadows — `inset 2px 2px` and `inset -1px -1px` — which is a real lens: the edge
+ * facing the light and the edge the light leaves through. It cannot be made even on a rounded
+ * rectangle, and this was measured before it was believed. Sampling the luminance across the
+ * boundary at eight places, four straights and the four corners along the normal:
+ *
+ *   offset pair   top 63  left 63  bottom 49  right 50   corners 65, 83, 83, 51
+ *                 width 0.95px on every straight, 1.40px at two corners, 0.10px at the other two
+ *   spread ring   58 on all four straights, 60 at all four corners, 0.95px wide everywhere
+ *
+ * An offset crosses a curve at an angle, so where the offset points along the corner's normal the
+ * band comes out √2 times wider, and at the two corners where the pair hands over from one shadow to
+ * the other the light pinches to nothing. That is four corners lit four different ways on a shape
+ * whose four corners are the same. A spread has no direction, so it is the same width all the way
+ * round by construction.
+ *
+ * What that loses is the light having a direction, which the sheen would have to carry instead: a
+ * gradient down the fill rather than a brighter edge. Not done, because a gradient in a forty pixel
+ * fill is the thing that read as a border in the first place.
+ *
+ * And the ring is faint, because this interface does not draw borders. Fourteen percent white put
+ * the ring at 58 against a fill of 20 and a page of 16, which is a line round the pane, and a line
+ * round a pane is the border every other surface here goes without. Five percent puts it at 36, so
+ * the edge lifts and stops short of being drawn. The measurements, ring against fill on a dark pack:
+ *
+ *   0.14 → 58   0.10 → 49   0.07 → 42   0.05 → 36   0.03 → 33   (the fill is 20)
+ *
+ * Three percent is the floor rather than a subtler choice: the rim glow alone already reaches about
+ * thirty at the boundary, so below that the ring is paying for nothing.
+ *
+ * The strengths differ by scheme and have to. On a light pack the page behind the pane is already
+ * near white, so the light has to be brighter than it to show at all; on a dark pack the same
+ * strength is a lit tube. Both came down by the same share.
+ */
+:is(#gitquiet-bar, [data-gitquiet-bar]).dark > header::before {
+  backdrop-filter: blur(3px) url(#gitquiet-refraction) saturate(1.8) brightness(0.74);
+  box-shadow:
+    inset 0 0 6px -4px rgb(255 255 255 / 0.28),
+    inset 0 0 0 1px rgb(255 255 255 / 0.05);
+}
+
+:is(#gitquiet-bar, [data-gitquiet-bar]):not(.dark) > header::before {
+  backdrop-filter: blur(3px) url(#gitquiet-refraction) saturate(1.8) brightness(1.18);
+  box-shadow:
+    inset 0 0 6px -4px rgb(255 255 255 / 0.45),
+    inset 0 0 0 1px rgb(255 255 255 / 0.18);
+}
+
+/*
+ * Nothing above the bar may be filtered, which is a constraint rather than a preference.
+ *
+ * `backdrop-filter` makes an element the containing block for `position: fixed` inside it. The
+ * palette is rendered into this slot — see `TheBar.tsx` — and a fixed overlay inside a filtered
+ * ancestor stops covering the viewport and starts covering the bar. So the glass goes on the
+ * pane itself and the slot around it stays a plain sticky box.
+ */
+:is(#gitquiet-bar, [data-gitquiet-bar]) {
+  backdrop-filter: none;
+}
+
+/*
+ * A toast sits at the same inset as everything else on the page.
+ *
+ * The corner it stands in is the one the columns end at, so twelve against their eight was a
+ * sentence hanging a little further out than the interface it belongs to. The same
+ * `--gitquiet-gutter` the bar and the columns read, so the three move together.
+ *
+ * `!important` because Sonner writes these offsets inline from its own prop, and an important
+ * declaration is the one thing that answers an inline one. `:has(#gitquiet-bar)` and not the
+ * attribute this file's other rules also accept, because this one is a claim about the page:
+ * it is only true where our bar took GitHub's page over. A screen mounted inside a page of
+ * ours has a bar too and must not move that page's toasts. The window keeps the twelve the
+ * component asks for.
+ */
+html:has(#gitquiet-bar) [data-sonner-toaster] {
+  --offset-right: var(--gitquiet-gutter) !important;
+  --offset-bottom: var(--gitquiet-gutter) !important;
+}

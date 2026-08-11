@@ -1,0 +1,222 @@
+/**
+ * The pack's own look, on GitHub's page: nothing here is a box.
+ *
+ * The window arrived at this first — `desktop/src/view/style.css` takes every border off the
+ * same components and separates them with fill, space and ink instead — and the reason it was
+ * kept out of the extension no longer holds. The argument was that a card with no edge, alone
+ * in the middle of somebody else's page, reads as a rendering fault rather than as restraint.
+ * That was true while our screens were islands. On Home they are not: their sidebar, their
+ * feed and their repository list are hidden, our column is what the reader is looking at, and
+ * the only borders left were five nested rectangles around a list that was already legible —
+ * the card, its header, the rule under the header, a rule between every row, and a box around
+ * the filter.
+ *
+ * What separates things instead is the pack's own ladder — surface for a card, raised for what
+ * floats over one — so every one of the twenty-odd packs gets this for free and none of the
+ * values below is a colour.
+ *
+ * The floor is ours now, which it was not when this file was written. Painting our canvas
+ * across the takeover had been tried and taken back out, and the argument was the seam: our
+ * dark ending where their header began reads as a panel bolted over the site rather than as
+ * part of it. Our own bar removed that seam — `gates.bar.css` hides `header.GlobalNav` the
+ * moment `#gitquiet-bar` is on the page — so the only thing left above our column was their
+ * colour behind it, with our cards floating on a grey that belongs to nobody here.
+ *
+ * Overrides rather than edits to the components, and deliberately so: the components are
+ * shared with the window, they carry the borders the window also overrides, and one file that
+ * only ever takes something away is one file to drop if this is the wrong answer.
+ */
+
+/*
+ * The floor, which is the one rule here that puts something on their page rather than taking
+ * something off ours.
+ *
+ * `--gitquiet-floor` is written onto `<html>` by `Theme.tsx`, and it is one value under a name
+ * nothing of theirs reads: the token set stays on `#gitquiet-root`, because their chrome reads
+ * Primer's names and ours would restyle it. The fallback is their own variable, so the moment
+ * between their paint and ours is their colour rather than no colour.
+ *
+ * Two flags, and they are not the same claim. `[data-gitquiet-taken]` is a screen that is up.
+ * `[data-gitquiet-gating]` is a screen on its way: set on the press, lifted when that screen is
+ * in place or gives up. A soft navigation to a page we do not draw carries neither — `mount.ts`
+ * takes them off — and their floor comes back with them, so nothing here has to be undone.
+ *
+ * Gating is here because of the gap between two of these screens. Pressing Issues on a
+ * repository's pull request list takes the first screen down and puts the second up most of a
+ * second later, and with only `taken` in this selector the second between them painted GitHub's
+ * default: a white flash between two dark pages, on the recording that found it.
+ *
+ * Measured on a pull request and on Home: everything between the region and `body` is already
+ * transparent, so `body` is the whole of it in one place and the two extra layers below are
+ * Home's alone, where the feed sits on their inset inside a wrapper of their default.
+ */
+html[data-gitquiet-taken],
+html[data-gitquiet-taken] body,
+html[data-gitquiet-gating],
+html[data-gitquiet-gating] body {
+  background-color: var(--gitquiet-floor, var(--bgColor-default)) !important;
+}
+
+html[data-gitquiet-taken] div.color-bg-default:has(#gitquiet-root),
+html[data-gitquiet-taken] div.feed-background:has(#gitquiet-root) {
+  background-color: var(--gitquiet-floor, var(--bgColor-default)) !important;
+}
+
+/*
+ * Review Mode owns every viewport pixel. The bar is in a separate stacking
+ * context above the screen root, so a larger z-index inside the root cannot
+ * cover it.
+ */
+html[data-gitquiet-reviewing] :is(#gitquiet-bar, [data-gitquiet-bar]) {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/*
+ * A card, which is a fill rather than an outline.
+ *
+ * A wider corner than the component asks for — `--radius-lg` where it wrote `--radius-md` —
+ * because a fill needs a shape to be, and the shape is the only thing left saying "one group".
+ */
+/*
+ * `!important`, like the tone rules in `primer.css` above it, and for the same reason: this
+ * page is GitHub's and their own utilities are declared that way — `.rounded-md` among them —
+ * so a rule that only out-specifies them loses anyway. Measured on the page: without it the
+ * radius stayed at their six pixels and the edge stayed on.
+ */
+#gitquiet-root section[aria-label],
+#gitquiet-root header.rounded-md {
+  border-width: 0 !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--color-surface);
+}
+
+/*
+ * The one card on the column that is not about the pull request being read.
+ *
+ * Everything else here is a surface, and that is the point of the rule above: a page of cards
+ * that all share one fill reads as one page. The strip proposing a stack is the exception,
+ * because it is not part of the pull request at all — it is a notice about other pull requests,
+ * standing where GitHub's own blue banner about them used to stand, directly on top of the
+ * header card. Sharing the header's fill left the two reading as one card with a sentence
+ * floating above the title. Measured on the Cursor dark pack, the seam between them was 1.03:1,
+ * and no pack did better than 1.25:1.
+ *
+ * The accent tint rather than another rung of the ladder. The rungs are lightness, and two of
+ * the packs put `inset` and `surface` at the same value, so a fill taken from them is invisible
+ * on the very packs the seam was worst on. This one changes hue, which is the only difference
+ * the ladder cannot flatten, and it is the colour GitHub's banner already taught the reader to
+ * read as a notice about this pull request's neighbours. It is still a tint and not a ratio: no
+ * pair of fills in this token set reaches 3:1 against the surface, which is why the gap under
+ * the strip is wider than any other gap on the column.
+ *
+ * Here rather than as a class on the card, because the rule above sets the fill of every named
+ * section at a specificity a utility class cannot beat.
+ */
+#gitquiet-root section.t-proposed[aria-label] {
+  background: var(--color-accent-muted);
+}
+
+/* Its header, which is a label rather than a strip: no rule beneath it and no tint behind it,
+   because it is already standing on its own fill. */
+#gitquiet-root section[aria-label] > div:first-child {
+  border-bottom-width: 0 !important;
+  background: none !important;
+}
+
+/*
+ * What a Court's tone used to say with its edge, said in ink.
+ *
+ * The amber around Your Move is carrying real meaning and cannot go with the rest of them, so
+ * it moves to the two words that name the shelf: quieter than an outline around six rows, and
+ * in the one place a reader is already looking to find out what the shelf is.
+ */
+#gitquiet-root section.border-busy h2 {
+  color: var(--color-busy);
+}
+
+#gitquiet-root section.border-fail h2 {
+  color: var(--color-fail);
+}
+
+#gitquiet-root section.border-done h2 {
+  color: var(--color-done);
+}
+
+/*
+ * The rows, with nothing ruled between them.
+ *
+ * Twenty rows separated by twenty lines is nineteen more marks than the question needs: they
+ * are one per line, in a column, at a fixed height. What the lines were doing, the hover does
+ * — at the only moment a reader is actually asking where one row ends.
+ */
+#gitquiet-root .divide-y > * {
+  border-bottom-width: 0 !important;
+}
+
+/* The Rail is a card like any other, and was the loudest of them: a raised fill *and* a line,
+   against a floor that was not ours. */
+#gitquiet-root .t-rail {
+  border-color: transparent !important;
+  /* The same corner as the cards beside it. Their `.rounded-lg` is `!important` too, and
+     without this the strip kept their six pixels while the Courts took our twelve. */
+  border-radius: var(--radius-lg) !important;
+  background: var(--color-surface);
+}
+
+/*
+ * A field is still somewhere a cursor goes, so its outline becomes a tint.
+ *
+ * This is where a control and a card part company. A card only has to read as a group, and the
+ * fill under it says so; a field has to read as a place to type, and on a surface it matches
+ * it reads as text floating on the page. Every control that asked to be seen — which is the
+ * ones the components gave `border-line` — rather than every control: a row, a summary and the
+ * kebab at the end of a row are pressable too and have no fill, because they sit inside a card
+ * that does and the hover says the rest.
+ */
+#gitquiet-root input[type="search"],
+#gitquiet-root input.border-line,
+#gitquiet-root input.border-line-muted,
+#gitquiet-root textarea.border-line,
+#gitquiet-root select.border-line,
+#gitquiet-root button.border-line {
+  border-color: transparent !important;
+  background: var(--color-hover);
+}
+
+#gitquiet-root button.border-line:hover {
+  background: var(--color-active);
+}
+
+/*
+ * Anything that covers the list, where a shadow earns its keep.
+ *
+ * The one place the argument runs the other way: whitespace cannot separate what is on top of
+ * something else, so a layer over the page has to say how far off it is, and only a shadow
+ * says that. The line still comes off — the ladder and the shadow together are enough, and a
+ * menu with all three is wearing a belt, braces and a rope.
+ */
+#gitquiet-root [role="menu"],
+#gitquiet-root [data-origin],
+#gitquiet-root .t-modal,
+#gitquiet-root .t-card {
+  border-color: transparent !important;
+  background: var(--color-raised);
+  box-shadow: var(--shadow-pop);
+}
+
+/*
+ * The palette, which stands outside our own root.
+ *
+ * It is portalled to the body so that nothing on the page can clip it, and the price of that is
+ * that GitHub's own input styling reaches it — a light rounded box inside our dark field, with
+ * their border and their inset shadow. Named rather than reset globally: this is the one input
+ * of ours that lives on their side of the fence.
+ */
+.t-palette input {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: inherit !important;
+  outline: none !important;
+}

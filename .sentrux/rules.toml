@@ -1,0 +1,114 @@
+# The hexagon, as something a machine can refuse.
+#
+# The shape this codebase is held to: a pure core, use cases that know the core
+# and nothing else, adapters that each know one outside thing, an interface that
+# knows neither, and a shell that decides which adapters are in play. Written
+# down rather than remembered because the same interface is meant to run as an
+# extension inside GitHub's page, as a website, as a desktop app and eventually
+# on a phone — and every one of those is a new shell around this same core. One
+# import from the interface into the GitHub adapter is what quietly ends that.
+#
+# `sentrux check .` is the enforcement.
+#
+# Three things about the tool, each established by running it rather than by
+# reading its documentation. It reads `git ls-files`, so an untracked file is
+# invisible and a rule can look satisfied because the work in progress has not
+# been added yet. `order` runs the opposite way to the documentation: a layer may
+# depend on layers of *higher* order and never on lower, so the core carries the
+# largest number. And the first layer whose paths match a file claims it, which is
+# why the narrow lists below are declared before the broad ones.
+
+[constraints]
+# A cycle between two modules means neither can be lifted into a package on its
+# own, which is all that porting this to another platform is.
+max_cycles = 0
+
+# Over five hundred lines, or fanning out past fifteen. In this codebase that is
+# usually a port and its adapter that have not been told apart yet.
+#
+# One thing to know before `src/screens` is committed: measured with those four
+# files visible, every one of them trips this — pullRequest at twenty-two,
+# commit at eighteen, workingSet and repoPulls at seventeen. Wiring fans out by
+# definition, and the threshold is the language plugin's rather than something
+# this file can scope to a layer, so the choice when it goes red is to split the
+# wiring or to raise the plugin's threshold, and not to turn this off.
+no_god_files = true
+
+# Tests reach wherever they need to, and say so here rather than by exception.
+# A test is not part of the shape; it is how the shape is checked.
+[[layers]]
+name = "tests"
+paths = ["**/*.test.ts", "**/*.test.tsx", "tests/*", "scripts/*"]
+order = 0
+
+# What the core needs of the outside, declared and not implemented.
+#
+# The layer that makes the rest of this a hexagon rather than a stack: `app` can
+# name a gateway without naming the thing that reaches GitHub, and an adapter can
+# satisfy one without anything above it changing. Depends on the domain and on
+# nothing else, ever — a port that imports an adapter is not a port.
+[[layers]]
+name = "ports"
+paths = ["src/ports/*"]
+order = 6
+
+# The core. The vocabulary in CONTEXT.md and the rules over it, depending on
+# nothing here.
+[[layers]]
+name = "domain"
+paths = ["src/domain/*"]
+order = 7
+
+# The use cases. Read the core, and ask a port for whatever they cannot compute.
+[[layers]]
+name = "app"
+paths = ["src/app/*"]
+order = 4
+
+# The interface. The part meant to outlive this extension, so it is held to
+# knowing the core and nothing about how the core is fed.
+[[layers]]
+name = "interface"
+paths = ["src/ui/*", "src/keys/*"]
+order = 3
+
+# One outside thing each: GitHub's routes, the diff engine's loader and its
+# highlighter, stored settings, the error reporter.
+[[layers]]
+name = "adapters"
+paths = ["src/github/*", "src/diff/*", "src/settings/*", "src/observability/*"]
+order = 2
+
+# The wiring, and the only place that knows which adapter is in play. A second
+# platform is a second one of these and nothing else.
+#
+# `src/screens` is here rather than with the interface despite what it renders:
+# each file mounts one screen into a page it did not write, and to do that it
+# names the GitHub gateway, the settings store, the error reporter and the two
+# shell reads. Deciding which adapters are in play is the definition of this
+# layer, and a screen that does it belongs in it.
+[[layers]]
+name = "shell"
+paths = ["src/shell/*", "src/entrypoints/*", "src/screens/*"]
+order = 1
+
+# An adapter may not know the interface.
+#
+# The direction layers cannot express, because an adapter is allowed to reach
+# inward and the interface sits between it and the core. A diff engine that
+# registers the interface's custom elements is the interface's business, handed
+# to it, rather than something it reaches out for.
+[[boundaries]]
+from = "src/diff/*"
+to = "src/ui/*"
+reason = "An adapter is driven, never drawn. Whatever the engine needs from the interface should be handed to it by the shell."
+
+[[boundaries]]
+from = "src/github/*"
+to = "src/ui/*"
+reason = "An adapter is driven, never drawn."
+
+[[boundaries]]
+from = "src/settings/*"
+to = "src/ui/*"
+reason = "An adapter is driven, never drawn."

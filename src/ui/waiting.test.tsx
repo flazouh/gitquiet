@@ -1,0 +1,157 @@
+import { afterEach, describe, expect, test } from "bun:test"
+import { cleanup, render, screen, waitFor } from "@testing-library/react"
+import { Effect } from "effect"
+import { aSnapshot } from "../../tests/snapshots"
+import type { PullRequestRef } from "../domain/PullRequestRef"
+import { PullRequestScreen } from "./PullRequestScreen"
+
+afterEach(cleanup)
+
+const reference: PullRequestRef = { owner: "acme", repo: "widgets", number: 7 }
+
+const wait = (): HTMLElement | null => document.querySelector("[data-gitquiet-loading]")
+
+/** Waits for it to appear, since it is held back until a wait is worth drawing. */
+const drawn = async (): Promise<HTMLElement> => {
+  await waitFor(() => expect(wait()).not.toBeNull())
+  return wait()!
+}
+
+/** A read that never answers, so the wait itself can be looked at. */
+const waiting = async () => {
+  const rendered = render(
+    <PullRequestScreen
+      reference={reference}
+      load={() => Effect.never}
+      fetchDiffs={() => Effect.succeed([])}
+      onStepAside={() => {}}
+    />
+  )
+  await drawn()
+  return rendered
+}
+
+/**
+ * A read that answers after long enough to have been watched.
+ *
+ * The dissolve is for a wait the reader sat through — long enough for it to have
+ * gone up and been read. A read that answers in the same breath as the question is
+ * a different case, tested on its own below.
+ */
+const arriving = (after = 400) =>
+  render(
+    <PullRequestScreen
+      reference={reference}
+      load={() =>
+        Effect.succeed({ snapshot: aSnapshot({ reference }) }).pipe(Effect.delay(after))
+      }
+      fetchDiffs={() => Effect.succeed([])}
+      onStepAside={() => {}}
+    />
+  )
+
+describe("the wait before a pull request has been read", () => {
+  test("says what it is doing, out loud and on the screen", async () => {
+    // The one thing that is true before GitHub has answered. It used to be said
+    // only to a screen reader, because a page-sized skeleton was saying it to
+    // everyone else; with the bars gone, the sentence is the answer.
+    await waiting()
+
+    expect(screen.getByRole("status").textContent).toContain("Reading this pull request")
+  })
+
+  test("names the pull request, so the wait is plainly about what was pressed", async () => {
+    const { container } = await waiting()
+
+    expect(container.textContent).toContain("acme/widgets #7")
+  })
+
+  test("turns something, so a wait that is taking a while still reads as work", async () => {
+    const { container } = await waiting()
+
+    expect(container.querySelector(".t-rotate")).not.toBeNull()
+  })
+
+  test("offers nothing to press, since there is nothing yet to press", async () => {
+    const { container } = await waiting()
+
+    expect(container.querySelectorAll("button, a, input, [tabindex]")).toHaveLength(0)
+  })
+})
+
+describe("the moment the pull request arrives", () => {
+  test("puts the card on the page and lets the wait leave over it", async () => {
+    // The card is not waited for: it is in the page the moment GitHub answers, at
+    // full strength, and the wait dissolves on top of it. Fading the card in
+    // instead would spend four hundred milliseconds of a read this whole extension
+    // exists to make quick.
+    arriving()
+
+    await waitFor(() => expect(screen.getByRole("region", { name: "Merge" })).toBeDefined())
+    expect(wait()?.hasAttribute("data-leaving")).toBe(true)
+  })
+
+  test("keeps the very element that was on the page, so it has something to fade from", async () => {
+    // A transition needs the element to have been on the page in its resting
+    // state. Drawing the card wrapped in something the wait was not wrapped in
+    // makes React throw the wait away and mount a second one already faded out —
+    // which passes every test about attributes and shows the reader nothing.
+    arriving()
+
+    const shown = await drawn()
+
+    await waitFor(() => expect(screen.getByRole("region", { name: "Merge" })).toBeDefined())
+    expect(wait() === shown).toBe(true)
+  })
+
+  test("takes it off the page once it has gone", async () => {
+    arriving()
+
+    await drawn()
+    await waitFor(() => expect(wait() === null).toBe(true), { timeout: 2000 })
+  })
+
+  test("draws nothing at all for a wait that is over before it could be read", async () => {
+    // A cold load lands the pull request about sixty milliseconds after the
+    // interface reaches the page. A wait drawn and taken away inside that window
+    // is not a wait being explained — it is a flash between an empty page and a
+    // full one, and the reader reads it as the page changing its mind.
+    let flashed = false
+    render(
+      <PullRequestScreen
+        reference={reference}
+        load={() =>
+          Effect.succeed({ snapshot: aSnapshot({ reference }) }).pipe(Effect.delay(60))
+        }
+        fetchDiffs={() => Effect.succeed([])}
+        onStepAside={() => {}}
+      />
+    )
+
+    await waitFor(
+      () => {
+        if (wait() !== null) flashed = true
+        expect(screen.queryByRole("region", { name: "Merge" })).not.toBeNull()
+      },
+      { interval: 1, timeout: 2000 }
+    )
+
+    expect(flashed).toBe(false)
+  })
+
+  test("does not dissolve a wait nobody was around for", async () => {
+    // A remembered pull request answers in tens of milliseconds. Fading anything
+    // over it for four hundred of them spends the whole saving on an apology for a
+    // wait that never happened.
+    render(
+      <PullRequestScreen
+        reference={reference}
+        load={() => Effect.succeed({ snapshot: aSnapshot({ reference }) })}
+        fetchDiffs={() => Effect.succeed([])}
+        onStepAside={() => {}}
+      />
+    )
+
+    await waitFor(() => expect(wait() === null).toBe(true), { timeout: 250 })
+  })
+})

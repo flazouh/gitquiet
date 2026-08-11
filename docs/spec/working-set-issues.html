@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="en" data-shape="a">
+  <head>
+    <meta charset="utf-8" />
+    <title>Working Set — issues inside the Courts</title>
+    <style>
+      /*
+       * Gitquiet's own tokens, read off the live page rather than guessed:
+       * getComputedStyle(#gitquiet-root) on github.com, dark.
+       */
+      :root {
+        --canvas: #171717;
+        --surface: #252525;
+        --raised: #2c2c2c;
+        --hover: #ffffff0f;
+        --line: #f5f5f51f;
+        --line-muted: #f5f5f512;
+        --ink: #f5f5f5;
+        --ink-muted: #a3a3a3;
+        --ink-accent: #6b97ff;
+        --busy: #d29922;
+        --ok: #3fb950;
+        --danger: #f85149;
+        --radius: 10px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 40px 32px 96px;
+        background: var(--canvas);
+        color: var(--ink);
+        font:
+          13px/1.45 Inter,
+          system-ui,
+          -apple-system,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .sheet {
+        max-width: 1180px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0 0 6px;
+        letter-spacing: -0.01em;
+      }
+
+      .lede {
+        color: var(--ink-muted);
+        max-width: 74ch;
+        margin: 0 0 8px;
+      }
+
+      .lede b {
+        color: var(--ink);
+        font-weight: 500;
+      }
+
+      /* Each option, as a slab on the canvas. Borderless: told apart by fill. */
+      .option {
+        margin-top: 44px;
+      }
+
+      .option > header {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin-bottom: 4px;
+      }
+
+      .option h2 {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 0;
+      }
+
+      .tag {
+        font-size: 11px;
+        color: var(--ink-muted);
+        background: var(--hover);
+        padding: 2px 7px;
+        border-radius: 999px;
+      }
+
+      .tag[data-now] {
+        color: var(--busy);
+      }
+
+      .tag[data-pick] {
+        color: var(--ok);
+      }
+
+      .why {
+        color: var(--ink-muted);
+        margin: 0 0 14px;
+        max-width: 88ch;
+      }
+
+      /* ---- the Working Set itself ---- */
+
+      .courts {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .court {
+        background: var(--surface);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+
+      .court > h3 {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+        padding: 10px 14px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .court > h3 .glyph {
+        color: var(--ink-muted);
+      }
+
+      .court > h3 .count {
+        color: var(--ink-muted);
+        font-variant-numeric: tabular-nums;
+        font-weight: 400;
+      }
+
+      .rows > * + * {
+        border-top: 1px solid var(--line-muted);
+      }
+
+      /*
+       * The row grid. Ten tracks, which is what a pull request needs: face, state,
+       * title, repository, review, checks, comments, diff, age, menu.
+       */
+      .row {
+        display: grid;
+        grid-template-columns: 22px 18px minmax(0, 1fr) 92px 116px 58px 42px 104px 62px 18px;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 14px;
+        min-height: 34px;
+      }
+
+      .row:hover {
+        background: var(--hover);
+      }
+
+      .face {
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        background: linear-gradient(140deg, #4b5563, #1f2937);
+      }
+
+      .state {
+        font-size: 12px;
+        text-align: center;
+      }
+
+      .state[data-open] {
+        color: var(--ok);
+      }
+
+      .state[data-issue] {
+        color: var(--ink-accent);
+      }
+
+      .num {
+        color: var(--ink-muted);
+        font-variant-numeric: tabular-nums;
+        margin-right: 6px;
+      }
+
+      .title {
+        display: flex;
+        min-width: 0;
+        align-items: baseline;
+      }
+
+      .title span.words {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .repo {
+        color: var(--ink-muted);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        overflow: hidden;
+      }
+
+      .repo i {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        background: #6366f1;
+        flex: none;
+      }
+
+      .review,
+      .checks,
+      .talk,
+      .diff,
+      .age,
+      .kebab {
+        color: var(--ink-muted);
+        font-size: 12px;
+      }
+
+      .diff {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      .diff b {
+        color: var(--ok);
+        font-weight: 400;
+      }
+
+      .diff i {
+        color: var(--danger);
+        font-style: normal;
+      }
+
+      .age {
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .kebab {
+        text-align: center;
+        opacity: 0.6;
+      }
+
+      .chip {
+        font-size: 11px;
+        padding: 2px 7px;
+        border-radius: 999px;
+        background: var(--hover);
+        white-space: nowrap;
+      }
+
+      .chip[data-bad] {
+        color: var(--danger);
+        background: #f8514920;
+      }
+
+      .chip[data-draft] {
+        color: var(--ink-muted);
+      }
+
+      /* The hole this page is about: a track a pull request fills and an issue cannot. */
+      .empty::after {
+        content: "";
+        display: block;
+        height: 1px;
+      }
+
+      body[data-holes="show"] .empty {
+        background: repeating-linear-gradient(
+          -45deg,
+          #f8514918,
+          #f8514918 3px,
+          transparent 3px,
+          transparent 7px
+        );
+        border-radius: 3px;
+        height: 14px;
+      }
+
+      /* ---- B: the lean issue row ---- */
+
+      /*
+       * One grid for both kinds, which is the whole trick.
+       *
+       * A shorter template widens the title track, and the repository chip then lands at a
+       * different x than the pull request above it — the mockup did exactly that, and the column
+       * wandering down the list looked worse than the empty tracks it was meant to fix. So the
+       * issue keeps all ten tracks and its labels simply span the four it has no answer for.
+       */
+      .labels {
+        grid-column: 5 / 9;
+        display: flex;
+        gap: 4px;
+        justify-content: flex-end;
+        overflow: hidden;
+      }
+
+      /* ---- C: issues gathered inside the Court ---- */
+
+      .within {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 14px 5px;
+        color: var(--ink-muted);
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .within .rule {
+        flex: 1;
+        height: 1px;
+        background: var(--line-muted);
+      }
+
+      .more {
+        padding: 8px 14px;
+        color: var(--ink-muted);
+        font-size: 12px;
+      }
+
+      /* ---- the notes under each option ---- */
+
+      .notes {
+        display: flex;
+        gap: 28px;
+        margin-top: 12px;
+        color: var(--ink-muted);
+        font-size: 12px;
+      }
+
+      .notes > div {
+        flex: 1;
+      }
+
+      .notes h4 {
+        margin: 0 0 4px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink);
+      }
+
+      .notes li {
+        margin-bottom: 3px;
+      }
+
+      .notes ul {
+        margin: 0;
+        padding-left: 16px;
+      }
+
+      .switch {
+        position: fixed;
+        right: 20px;
+        bottom: 18px;
+        background: var(--raised);
+        border-radius: 999px;
+        padding: 8px 14px;
+        color: var(--ink-muted);
+        font-size: 12px;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .switch:hover {
+        color: var(--ink);
+      }
+    </style>
+  </head>
+  <body data-holes="show">
+    <div class="sheet">
+      <h1>Issues inside the Courts</h1>
+      <p class="lede">
+        Shape <b>A</b> is settled: the top level stays <b>whose move is it</b>, and both kinds of
+        work live inside it. What is open is how an issue row is drawn there. Every row below is
+        real — scraped from your Working Set on github.com, dark theme, live tokens.
+      </p>
+      <p class="lede">
+        Your Move holds <b>1 pull request and 3 issues</b>; Waiting On Others holds
+        <b>9 and 15</b>. So this is not a corner: most of what the Courts count is already issues.
+      </p>
+
+      <!-- ============================= A ============================= -->
+      <section class="option">
+        <header>
+          <h2>A — as built today</h2>
+          <span class="tag" data-now>shipping</span>
+        </header>
+        <p class="why">
+          The issue takes the pull request's grid and leaves four tracks empty: review, checks,
+          comments, diff. The hatching marks them. Nothing is wrong per row, but the column
+          nobody fills reads as missing data rather than as a different kind of thing.
+        </p>
+
+        <div class="courts">
+          <div class="court">
+            <h3><span class="glyph">▾</span> Your Move <span class="count">4</span></h3>
+            <div class="rows">
+              <div class="row">
+                <div class="face"></div>
+                <div class="state" data-open>◍</div>
+                <div class="title">
+                  <span class="num">#1934</span>
+                  <span class="words">feat(design-system): canonical component library + auth…</span>
+                </div>
+                <div class="repo"><i></i> flowline</div>
+                <div class="review"><span class="chip" data-bad>CI failing</span></div>
+                <div class="checks">⚠ 10/11</div>
+                <div class="talk">◔ 1</div>
+                <div class="diff"><b>+98198</b> <i>−82638</i></div>
+                <div class="age">13h</div>
+                <div class="kebab">···</div>
+              </div>
+
+              <div class="row">
+                <div class="face"></div>
+                <div class="state" data-issue>◉</div>
+                <div class="title">
+                  <span class="num">#1267</span>
+                  <span class="words">✨ feature(playlists): improve the playlist experience</span>
+                </div>
+                <div class="repo"><i></i> flowline</div>
+                <div class="review empty"></div>
+                <div class="checks empty"></div>
+                <div class="talk">◔ 5</div>
+                <div class="diff empty"></div>
+                <div class="age">20 May</div>
+                <div class="kebab empty"></div>
+              </div>
+
+              <div class="row">
+                <div class="face"></div>
+                <div class="state" data-issue>◉</div>
+                <div class="title">
+                  <span class="num">#1248</span>
+                  <span class="words">🐛 bug(caption-export): keep the detected caption language</span>
+                </div>
+                <div class="repo"><i></i> flowline</div>
+                <div class="review empty"></div>
+                <div class="checks empty"></div>
+                <div class="talk empty"></div>
+                <div class="diff empty"></div>
+                <div class="age">18 May</div>
+                <div class="kebab empty"></div>
+              </div>
+
+              <div class="row">
+                <div class="face"></div>
+                <div class="state" data-issue>◉</div>
+                <div class="title">
+                  <span class="num">#146</span>
+                  <span class="words">Architecture: consolidate Claude SDK code into one source of truth</span>
+                </div>
+                <div class="repo"><i></i> acepe</div>
+                <div class="review empty"></div>
+                <div class="checks empty"></div>
+                <div class="talk empty"></div>
+                <div class="diff empty"></div>
+                <div class="age">18 Apr</div>
+                <div class="kebab empty"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="notes">
+          <div>
+            <h4>Holds</h4>
+            <ul>
+              <li>One Court, one count, one read.</li>
+              <li>Nothing to learn: it is one list.</li>
+            </ul>
+          </div>
+          <div>
+            <h4>Costs</h4>
+            <ul>
+              <li>Four empty tracks per issue row.</li>
+              <li>Labels have nowhere to go, so "1 label" hides in the comments track.</li>
+              <li>The kebab is absent without saying so — the row looks disabled.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================= B ============================= -->
+      <section class="option">
+        <header>
+          <h2>B — the issue row stops pretending</h2>
+          <span class="tag" data-pick>recommended</span>
+        </header>
+        <p class="why">
+          Same Court, same order, same count. The issue keeps the first four tracks it shares with
+          a pull request — face, state, title, repository — and then spends the rest of the row on
+          what an issue actually has: its labels, and its age. Nothing is blank, because nothing is
+          missing. The blue ring says issue at the same place the green one says pull request.
+        </p>
+
+        <div class="courts">
+          <div class="court">
+            <h3><span class="glyph">▾</span> Your Move <span class="count">4</span></h3>
+            <div class="rows">
+              <div class="row">
+                <div class="face"></div>
+                <div class="state" data-open>◍</div>
+                <div class="title">
+                  <span class="num">#1934</span>
+                  <span class="words">feat(design-system): canonical component library + auth…</span>
+                </div>
+                <div class="repo"><i></i> flowline</div>
+                <div class="review"><span class="chip" data-bad>CI failing</span></div>
+                <div class="checks">⚠ 10/11</div>
+                <div class="talk">◔ 1</div>
+                <div class="diff"><b>+98198</b> <i>−82638</i></div>
+                <div class="age">13h</div>
+                <div class="kebab">···</div>
+              </div>
+
+              <div class="row" data-lean>
+                <div class="face"></div>
+                <div class="state" data-issue>◉</div>
+                <div class="title">
+                  <span class="num">#1267</span>
+                  <span class="words">✨ feature(playlists): improve the playlist experience</span>
+                </div>
+                <div class="repo"><i></i> flowline</div>
+                <div class="labels"><span class="chip">◔ 5</span></div>
+                <div class="age">20 May</div>
+                <div class="kebab">···</div>
+              </div>
+
+              <div class="row" data-lean>
+                <div class="face"></div>
+                <div class="state" data-issue>◉</div>
+                <div class="title">
+                  <span class="num">#1248</span>
+                  <span class="words">🐛 bug(caption-export): keep the detected caption language</span>
+                </div>
+                <div class="repo"><i></i> flowline</div>
+                <div class="labels"><span class="chip">bug</span></div>
+                <div class="age">18 May</div>
+                <div class="kebab">···</div>
+              </div>
+
+              <div class="row" data-lean>
+                <div class="face"></div>
+                <div class="state" data-issue>◉</div>
+                <div class="title">
+                  <span class="num">#146</span>
+                  <span class="words">Architecture: consolidate Claude SDK code into one source of truth</span>
+                </div>
+                <div class="repo"><i></i> acepe</div>
+                <div class="labels">
+                  <span class="chip">architecture</span><span class="chip">+3</span>
+                </div>
+                <div class="age">18 Apr</div>
+                <div class="kebab">···</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="court">
+            <h3><span class="glyph">▾</span> Waiting On Others <span class="count">24</span></h3>
+            <div class="rows">
+              <div class="row">
+                <div class="face"></div>
+                <div class="state" data-open>◍</div>
+                <div class="title">
+                  <span class="num">#2125</span>
+                  <span class="words">Backend: cancel abandoned LLM work, coalesce identical inference calls…</span>
+                </div>
+                <div class="repo"><i></i> flowline</div>
+                <div class="review">Waiting for review</div>
+                <div class="checks">◍</div>
+                <div class="talk">◔ 1</div>
+                <div class="diff"><b>+1292</b> <i>−28</i></div>
+                <div class="age">2h</div>
+                <div class="kebab">···</div>
+              </div>
+              <div class="row">
+                <div class="face"></div>
+                <div class="state" data-open>◍</div>
+                <div class="title">
+                  <span class="num">#1375</span>
+                  <span class="words">feat(pi): give ask_user choices a preview description</span>
+                </div>
+                <div class="repo"><i></i> octo-repo</div>
+                <div class="review"><span class="chip" data-bad>Merge conflicts</span></div>
+                <div class="checks">◍</div>
+                <div class="talk">◔ 23</div>
+                <div class="diff"><b>+1581</b> <i>−101</i></div>
+                <div class="age">2d</div>
+                <div class="kebab">···</div>
+              </div>
+              <div class="row" data-lean>
+                <div class="face"></div>
+                <div class="state" data-issue>◉</div>
+                <div class="title">
+                  <span class="num">#2127</span>
+                  <span class="words">Root-run bun test skips the extension DOM preload, failing DOM suites</span>
+                </div>
+                <div class="repo"><i></i> flowline</div>
+                <div class="labels"><span class="chip">bug</span></div>
+                <div class="age">2h</div>
+                <div class="kebab">···</div>
+              </div>
+              <div class="row" data-lean>
+                <div class="face"></div>
+                <div class="state" data-issue>◉</div>
+                <div class="title">
+                  <span class="num">#2123</span>
+                  <span class="words">Scheduler 8/8: interleaving fuzzing, cost-contract QA scenario, ADR</span>
+                </div>
+                <div class="repo"><i></i> flowline</div>
+                <div class="labels"><span class="chip">◔ 1</span><span class="chip">scheduler</span></div>
+                <div class="age">5h</div>
+                <div class="kebab">···</div>
+              </div>
+              <div class="more">10 more issues</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="notes">
+          <div>
+            <h4>Holds</h4>
+            <ul>
+              <li>One Court, one count — A's whole benefit, kept.</li>
+              <li>No empty tracks: the row says what it is by its shape.</li>
+              <li>Labels finally have a place, right-aligned where the diff was.</li>
+            </ul>
+          </div>
+          <div>
+            <h4>Costs</h4>
+            <ul>
+              <li>Two row shapes in one box, so the eye reads two rhythms.</li>
+              <li>The age column is the only track that still lines up down the list.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================= C ============================= -->
+      <section class="option">
+        <header>
+          <h2>C — issues gathered at the foot of each Court</h2>
+          <span class="tag">alternative</span>
+        </header>
+        <p class="why">
+          Shape A still, and the Court's count still covers everything owed — but the two kinds stop
+          interleaving. Pull requests first, then a quiet rule and the issues below it, inside the
+          same Court. The lean row from B, plus one line that says which is which.
+        </p>
+
+        <div class="courts">
+          <div class="court">
+            <h3><span class="glyph">▾</span> Your Move <span class="count">4</span></h3>
+            <div class="rows">
+              <div class="row">
+                <div class="face"></div>
+                <div class="state" data-open>◍</div>
+                <div class="title">
+                  <span class="num">#1934</span>
+                  <span class="words">feat(design-system): canonical component library + auth…</span>
+                </div>
+                <div class="repo"><i></i> flowline</div>
+                <div class="review"><span class="chip" data-bad>CI failing</span></div>
+                <div class="checks">⚠ 10/11</div>
+                <div class="talk">◔ 1</div>
+                <div class="diff"><b>+98198</b> <i>−82638</i></div>
+                <div class="age">13h</div>
+                <div class="kebab">···</div>
+              </div>
+              <div class="within"><span>Issues 3</span><span class="rule"></span></div>
+              <div class="row" data-lean>
+                <div class="face"></div>
+                <div class="state" data-issue>◉</div>
+                <div class="title">
+                  <span class="num">#1267</span>
+                  <span class="words">✨ feature(playlists): improve the playlist experience</span>
+                </div>
+                <div class="repo"><i></i> flowline</div>
+                <div class="labels"><span class="chip">◔ 5</span></div>
+                <div class="age">20 May</div>
+                <div class="kebab">···</div>
+              </div>
+              <div class="row" data-lean>
+                <div class="face"></div>
+                <div class="state" data-issue>◉</div>
+                <div class="title">
+                  <span class="num">#1248</span>
+                  <span class="words">🐛 bug(caption-export): keep the detected caption language</span>
+                </div>
+                <div class="repo"><i></i> flowline</div>
+                <div class="labels"><span class="chip">bug</span></div>
+                <div class="age">18 May</div>
+                <div class="kebab">···</div>
+              </div>
+              <div class="row" data-lean>
+                <div class="face"></div>
+                <div class="state" data-issue>◉</div>
+                <div class="title">
+                  <span class="num">#146</span>
+                  <span class="words">Architecture: consolidate Claude SDK code into one source of truth</span>
+                </div>
+                <div class="repo"><i></i> acepe</div>
+                <div class="labels">
+                  <span class="chip">architecture</span><span class="chip">+3</span>
+                </div>
+                <div class="age">18 Apr</div>
+                <div class="kebab">···</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="notes">
+          <div>
+            <h4>Holds</h4>
+            <ul>
+              <li>One count per Court, and each kind reads with its own rhythm.</li>
+              <li>Scales: fifteen issues under nine pulls stay legible.</li>
+            </ul>
+          </div>
+          <div>
+            <h4>Costs</h4>
+            <ul>
+              <li>A seam across the Court, which the current code comment argues against —
+                a reader may read the half above and stop.</li>
+              <li>Strict recency inside a Court is gone: an issue from an hour ago sits under a
+                pull request from three days ago.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div
+      class="switch"
+      onclick="document.body.dataset.holes = document.body.dataset.holes === 'show' ? 'hide' : 'show'"
+    >
+      toggle the empty-track hatching
+    </div>
+  </body>
+</html>

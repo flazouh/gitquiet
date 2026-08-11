@@ -1,0 +1,413 @@
+{
+  "payload": {
+    "commitGroups": [
+      {
+        "title": "Aug 2, 2026",
+        "commits": [
+          {
+            "oid": "3f129342dd97adb96cdf2bd2e2f9e815812213dd",
+            "url": "/flazouh/githubpro/commit/3f129342dd97adb96cdf2bd2e2f9e815812213dd",
+            "authoredDate": "2026-08-02T00:34:19.000+02:00",
+            "committedDate": "2026-08-02T00:34:19.000+02:00",
+            "shortMessage": "The window's view follows the interface it shares",
+            "shortMessageMarkdown": null,
+            "shortMessageMarkdownLink": "<a data-pjax=\"true\" title=\"The window&#39;s view follows the interface it shares\n\nThe same packs, the same borderless controls and the same reads the extension\nuses, so the two surfaces do not drift into two products. The window keeps only\nwhat is its own: the sign-in, the chrome around the page, and the springs.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"color-fg-default\" href=\"/flazouh/githubpro/commit/3f129342dd97adb96cdf2bd2e2f9e815812213dd\">The window's view follows the interface it shares</a>",
+            "bodyMessageHtml": "The same packs, the same borderless controls and the same reads the extension\nuses, so the two surfaces do not drift into two products. The window keeps only\nwhat is its own: the sign-in, the chrome around the page, and the springs.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;",
+            "authors": [
+              {
+                "login": "flazouh",
+                "displayName": "flazouh",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?v=4",
+                "path": "/flazouh",
+                "profileName": "Alex",
+                "isGitHub": false
+              },
+              {
+                "login": "cursoragent",
+                "displayName": "Cursor",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/199161495?v=4",
+                "path": "/cursoragent",
+                "profileName": "Cursor Agent",
+                "isGitHub": false
+              }
+            ],
+            "committerAttribution": false,
+            "committer": {
+              "login": "flazouh",
+              "displayName": "flazouh",
+              "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?v=4",
+              "path": "/flazouh",
+              "profileName": "Alex",
+              "isGitHub": false
+            },
+            "pusher": null,
+            "pushedDate": null
+          },
+          {
+            "oid": "4c84c54779112f6f592559f7e023dd540866fcc0",
+            "url": "/flazouh/githubpro/commit/4c84c54779112f6f592559f7e023dd540866fcc0",
+            "authoredDate": "2026-08-02T00:34:18.000+02:00",
+            "committedDate": "2026-08-02T00:34:18.000+02:00",
+            "shortMessage": "The window's storage, reached once and guarded once",
+            "shortMessageMarkdown": null,
+            "shortMessageMarkdownLink": "<a data-pjax=\"true\" title=\"The window&#39;s storage, reached once and guarded once\n\nThree places in the view each did this differently: the read cache wrapped its\nwrites and not its reads, the scheme hook kept its own pair of guards, and the\nsettings store had none, so a window over quota answered a changed setting with a\nrejected promise. All three want storage that cannot throw, because none of the\nways it fails is a reason to refuse to draw a pull request.\n\n`opensInside.ts` decides which links the window keeps and which it hands to a\nbrowser.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"color-fg-default\" href=\"/flazouh/githubpro/commit/4c84c54779112f6f592559f7e023dd540866fcc0\">The window's storage, reached once and guarded once</a>",
+            "bodyMessageHtml": "Three places in the view each did this differently: the read cache wrapped its\nwrites and not its reads, the scheme hook kept its own pair of guards, and the\nsettings store had none, so a window over quota answered a changed setting with a\nrejected promise. All three want storage that cannot throw, because none of the\nways it fails is a reason to refuse to draw a pull request.\n\n`opensInside.ts` decides which links the window keeps and which it hands to a\nbrowser.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;",
+            "authors": [
+              {
+                "login": "flazouh",
+                "displayName": "flazouh",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?v=4",
+                "path": "/flazouh",
+                "profileName": "Alex",
+                "isGitHub": false
+              },
+              {
+                "login": "cursoragent",
+                "displayName": "Cursor",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/199161495?v=4",
+                "path": "/cursoragent",
+                "profileName": "Cursor Agent",
+                "isGitHub": false
+              }
+            ],
+            "committerAttribution": false,
+            "committer": {
+              "login": "flazouh",
+              "displayName": "flazouh",
+              "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?v=4",
+              "path": "/flazouh",
+              "profileName": "Alex",
+              "isGitHub": false
+            },
+            "pusher": null,
+            "pushedDate": null
+          },
+          {
+            "oid": "b7988b0b5b7c849b4ab98afa2efeaac74c350751",
+            "url": "/flazouh/githubpro/commit/b7988b0b5b7c849b4ab98afa2efeaac74c350751",
+            "authoredDate": "2026-08-02T00:34:05.000+02:00",
+            "committedDate": "2026-08-02T00:34:05.000+02:00",
+            "shortMessage": "Zoom that survives a launch, and the menu that offers it",
+            "shortMessageMarkdown": null,
+            "shortMessageMarkdownLink": "<a data-pjax=\"true\" title=\"Zoom that survives a launch, and the menu that offers it\n\n`pageZoom.ts` holds the ladder and the bounds once, so the key handler and the\nmain-process RPC cannot invent two of them. `acrossRuns.ts` keeps the few facts\nabout the window that outlive a run: zoom is a property of the window rather than\nof the page, and it has to be known before the first paint or every launch draws\none frame at the wrong size.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"color-fg-default\" href=\"/flazouh/githubpro/commit/b7988b0b5b7c849b4ab98afa2efeaac74c350751\">Zoom that survives a launch, and the menu that offers it</a>",
+            "bodyMessageHtml": "`pageZoom.ts` holds the ladder and the bounds once, so the key handler and the\nmain-process RPC cannot invent two of them. `acrossRuns.ts` keeps the few facts\nabout the window that outlive a run: zoom is a property of the window rather than\nof the page, and it has to be known before the first paint or every launch draws\none frame at the wrong size.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;",
+            "authors": [
+              {
+                "login": "flazouh",
+                "displayName": "flazouh",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?v=4",
+                "path": "/flazouh",
+                "profileName": "Alex",
+                "isGitHub": false
+              },
+              {
+                "login": "cursoragent",
+                "displayName": "Cursor",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/199161495?v=4",
+                "path": "/cursoragent",
+                "profileName": "Cursor Agent",
+                "isGitHub": false
+              }
+            ],
+            "committerAttribution": false,
+            "committer": {
+              "login": "flazouh",
+              "displayName": "flazouh",
+              "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?v=4",
+              "path": "/flazouh",
+              "profileName": "Alex",
+              "isGitHub": false
+            },
+            "pusher": null,
+            "pushedDate": null
+          }
+        ]
+      },
+      {
+        "title": "Aug 1, 2026",
+        "commits": [
+          {
+            "oid": "2693988dbfe2aa7453a11aaae56e0946c5c1bd0a",
+            "url": "/flazouh/githubpro/commit/2693988dbfe2aa7453a11aaae56e0946c5c1bd0a",
+            "authoredDate": "2026-08-01T23:58:44.000+02:00",
+            "committedDate": "2026-08-01T23:58:44.000+02:00",
+            "shortMessage": "The push runs CI's gates first, and storage stops throwing",
+            "shortMessageMarkdown": null,
+            "shortMessageMarkdownLink": "<a data-pjax=\"true\" title=\"The push runs CI&#39;s gates first, and storage stops throwing\n\nCI went red on a rule this repo has held for a long time: no try/catch, because\nEffect turns a throw into a failure the type shows. The two that were left both\nwrapped `localStorage`, and they become the same `UndefinedOr.liftThrowable` that\n`remembered.ts` already uses for the same three cases, a private window, storage\nturned off, and a spent quota. The behaviour is what it was, and the reason it is\nsafe is now in the signature rather than in a comment.\n\n`lefthook.yml` runs the linter, the typecheck and the tests before a push, in the\norder `.github/workflows/ci.yml` runs them, piped so the first failure stops the\nrest. Nothing new is being checked. The check only moves to where it can still be\nacted on, which is a second of linting against a red branch and a run of CI spent\nsaying so. Lefthook itself comes from Homebrew rather than from `package.json`,\nwhich keeps the workspace lockfile out of it. `LEFTHOOK=0 git push` goes past it.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"color-fg-default\" href=\"/flazouh/githubpro/commit/2693988dbfe2aa7453a11aaae56e0946c5c1bd0a\">The push runs CI's gates first, and storage stops throwing</a>",
+            "bodyMessageHtml": "CI went red on a rule this repo has held for a long time: no try/catch, because\nEffect turns a throw into a failure the type shows. The two that were left both\nwrapped `localStorage`, and they become the same `UndefinedOr.liftThrowable` that\n`remembered.ts` already uses for the same three cases, a private window, storage\nturned off, and a spent quota. The behaviour is what it was, and the reason it is\nsafe is now in the signature rather than in a comment.\n\n`lefthook.yml` runs the linter, the typecheck and the tests before a push, in the\norder `.github/workflows/ci.yml` runs them, piped so the first failure stops the\nrest. Nothing new is being checked. The check only moves to where it can still be\nacted on, which is a second of linting against a red branch and a run of CI spent\nsaying so. Lefthook itself comes from Homebrew rather than from `package.json`,\nwhich keeps the workspace lockfile out of it. `LEFTHOOK=0 git push` goes past it.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;",
+            "authors": [
+              {
+                "login": "flazouh",
+                "displayName": "flazouh",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?v=4",
+                "path": "/flazouh",
+                "profileName": "Alex",
+                "isGitHub": false
+              },
+              {
+                "login": "cursoragent",
+                "displayName": "Cursor",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/199161495?v=4",
+                "path": "/cursoragent",
+                "profileName": "Cursor Agent",
+                "isGitHub": false
+              }
+            ],
+            "committerAttribution": false,
+            "committer": {
+              "login": "flazouh",
+              "displayName": "flazouh",
+              "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?v=4",
+              "path": "/flazouh",
+              "profileName": "Alex",
+              "isGitHub": false
+            },
+            "pusher": null,
+            "pushedDate": null
+          },
+          {
+            "oid": "2e4fa15a3587394c0bf905d6e9be5cddc813415e",
+            "url": "/flazouh/githubpro/commit/2e4fa15a3587394c0bf905d6e9be5cddc813415e",
+            "authoredDate": "2026-08-01T23:44:17.000+02:00",
+            "committedDate": "2026-08-01T23:44:17.000+02:00",
+            "shortMessage": "The header's badge matches the well, and the author gets a face",
+            "shortMessageMarkdown": null,
+            "shortMessageMarkdownLink": "<a data-pjax=\"true\" title=\"The header&#39;s badge matches the well, and the author gets a face\n\nThe badge was a pill above a rectangle, and it began eight pixels to the right of the\nwell beneath it because the row holding it carried padding of its own. It is cut to\nthe same corner and the same padding as the well now, and that row has no padding\nleft: the card&#39;s own inset is what holds both blocks off the border, so the two fills\nstart at the same edge. The controls beside the badge take the same height, since a\nrow of buttons shorter than the badge is the old mismatch moved rather than removed.\n\nThe author&#39;s login gets the face the list already draws for them, from the same `Who`\nas every other person in the interface, so the profile card behind it comes along.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"color-fg-default\" href=\"/flazouh/githubpro/commit/2e4fa15a3587394c0bf905d6e9be5cddc813415e\">The header's badge matches the well, and the author gets a face</a>",
+            "bodyMessageHtml": "The badge was a pill above a rectangle, and it began eight pixels to the right of the\nwell beneath it because the row holding it carried padding of its own. It is cut to\nthe same corner and the same padding as the well now, and that row has no padding\nleft: the card's own inset is what holds both blocks off the border, so the two fills\nstart at the same edge. The controls beside the badge take the same height, since a\nrow of buttons shorter than the badge is the old mismatch moved rather than removed.\n\nThe author's login gets the face the list already draws for them, from the same `Who`\nas every other person in the interface, so the profile card behind it comes along.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;",
+            "authors": [
+              {
+                "login": "flazouh",
+                "displayName": "flazouh",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?v=4",
+                "path": "/flazouh",
+                "profileName": "Alex",
+                "isGitHub": false
+              },
+              {
+                "login": "cursoragent",
+                "displayName": "Cursor",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/199161495?v=4",
+                "path": "/cursoragent",
+                "profileName": "Cursor Agent",
+                "isGitHub": false
+              }
+            ],
+            "committerAttribution": false,
+            "committer": {
+              "login": "flazouh",
+              "displayName": "flazouh",
+              "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?v=4",
+              "path": "/flazouh",
+              "profileName": "Alex",
+              "isGitHub": false
+            },
+            "pusher": null,
+            "pushedDate": null
+          },
+          {
+            "oid": "cdce3507ff52c93216a3f4b0ae829ffb2a643f5e",
+            "url": "/flazouh/githubpro/commit/cdce3507ff52c93216a3f4b0ae829ffb2a643f5e",
+            "authoredDate": "2026-08-01T22:23:35.000+02:00",
+            "committedDate": "2026-08-01T22:23:35.000+02:00",
+            "shortMessage": "The settings preview stops showing an app with borders",
+            "shortMessageMarkdown": null,
+            "shortMessageMarkdownLink": "<a data-pjax=\"true\" title=\"The settings preview stops showing an app with borders\n\nThese tiles are pictures of the interface, so a preview still wearing outlines is a\npreview telling a reader the app has them. Each tile becomes a fill on the figure&#39;s\ninset, and the strips inside the tree picture sit on the lighter surface the real\nones sit on.\n\nThe theme swatches keep an edge, and it is deliberate: they are painted in another\npack&#39;s canvas, which on a light appearance is close enough to the figure behind them\nthat a swatch with no edge is a swatch you cannot find. The line they draw is the one\nthat pack declares, so it is showing you the theme rather than our own chrome.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"color-fg-default\" href=\"/flazouh/githubpro/commit/cdce3507ff52c93216a3f4b0ae829ffb2a643f5e\">The settings preview stops showing an app with borders</a>",
+            "bodyMessageHtml": "These tiles are pictures of the interface, so a preview still wearing outlines is a\npreview telling a reader the app has them. Each tile becomes a fill on the figure's\ninset, and the strips inside the tree picture sit on the lighter surface the real\nones sit on.\n\nThe theme swatches keep an edge, and it is deliberate: they are painted in another\npack's canvas, which on a light appearance is close enough to the figure behind them\nthat a swatch with no edge is a swatch you cannot find. The line they draw is the one\nthat pack declares, so it is showing you the theme rather than our own chrome.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;",
+            "authors": [
+              {
+                "login": "flazouh",
+                "displayName": "flazouh",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?v=4",
+                "path": "/flazouh",
+                "profileName": "Alex",
+                "isGitHub": false
+              },
+              {
+                "login": "cursoragent",
+                "displayName": "Cursor",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/199161495?v=4",
+                "path": "/cursoragent",
+                "profileName": "Cursor Agent",
+                "isGitHub": false
+              }
+            ],
+            "committerAttribution": false,
+            "committer": {
+              "login": "flazouh",
+              "displayName": "flazouh",
+              "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?v=4",
+              "path": "/flazouh",
+              "profileName": "Alex",
+              "isGitHub": false
+            },
+            "pusher": null,
+            "pushedDate": null
+          }
+        ]
+      },
+      {
+        "title": "Jul 31, 2026",
+        "commits": [
+          {
+            "oid": "b39998173cf44ed694a984537121dd3c11c45589",
+            "url": "/flazouh/githubpro/commit/b39998173cf44ed694a984537121dd3c11c45589",
+            "authoredDate": "2026-07-31T18:44:24.000+02:00",
+            "committedDate": "2026-07-31T18:44:24.000+02:00",
+            "shortMessage": "Settings from the account menu, and a sheet that sits where it should",
+            "shortMessageMarkdown": null,
+            "shortMessageMarkdownLink": "<a data-pjax=\"true\" title=\"Settings from the account menu, and a sheet that sits where it should\n\nThree things were wrong with the sheet in the app&#39;s window, and the first is the\none that made it look broken: it was pinned to the top-left corner with its own\nfirst heading under the traffic lights. The browser does centre a modal dialog —\nwith `margin: auto` — and both of these interfaces are built on a reset that sets\nevery margin to zero, so it never centred at all. Centred here instead, where it\ncan be seen and tested.\n\nSecond, it was sized in viewport percentages, which know nothing about what a\nshell keeps in its corners. It now asks: `--sheet-away` is how much room the\nfurniture needs, 76px in a window whose title strip is 38px and nothing on a page\nthat has no strip at all.\n\nThird, `Charac…` beside `Words` and `Off` is a choice a reader has to guess at.\nThe row of choices is wide enough for the longest word any knob offers.\n\nAnd the way in. The sheet came with its own small button, which is right on a\npull request card — the knobs are about how a diff is drawn, and the card is\nwhere a diff is — and left the Working Set, the screen this app opens on, with no\nway into the settings whatsoever. The window holds the sheet now and the account\nmenu opens it, a corner that already answers who you are being where anybody\nlooks for what you have chosen.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"color-fg-default\" href=\"/flazouh/githubpro/commit/b39998173cf44ed694a984537121dd3c11c45589\">Settings from the account menu, and a sheet that sits where it should</a>",
+            "bodyMessageHtml": "Three things were wrong with the sheet in the app's window, and the first is the\none that made it look broken: it was pinned to the top-left corner with its own\nfirst heading under the traffic lights. The browser does centre a modal dialog —\nwith `margin: auto` — and both of these interfaces are built on a reset that sets\nevery margin to zero, so it never centred at all. Centred here instead, where it\ncan be seen and tested.\n\nSecond, it was sized in viewport percentages, which know nothing about what a\nshell keeps in its corners. It now asks: `--sheet-away` is how much room the\nfurniture needs, 76px in a window whose title strip is 38px and nothing on a page\nthat has no strip at all.\n\nThird, `Charac…` beside `Words` and `Off` is a choice a reader has to guess at.\nThe row of choices is wide enough for the longest word any knob offers.\n\nAnd the way in. The sheet came with its own small button, which is right on a\npull request card — the knobs are about how a diff is drawn, and the card is\nwhere a diff is — and left the Working Set, the screen this app opens on, with no\nway into the settings whatsoever. The window holds the sheet now and the account\nmenu opens it, a corner that already answers who you are being where anybody\nlooks for what you have chosen.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;",
+            "authors": [
+              {
+                "login": "flazouh",
+                "displayName": "flazouh",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?v=4",
+                "path": "/flazouh",
+                "profileName": "Alex",
+                "isGitHub": false
+              },
+              {
+                "login": "cursoragent",
+                "displayName": "Cursor",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/199161495?v=4",
+                "path": "/cursoragent",
+                "profileName": "Cursor Agent",
+                "isGitHub": false
+              }
+            ],
+            "committerAttribution": false,
+            "committer": {
+              "login": "flazouh",
+              "displayName": "flazouh",
+              "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?v=4",
+              "path": "/flazouh",
+              "profileName": "Alex",
+              "isGitHub": false
+            },
+            "pusher": null,
+            "pushedDate": null
+          },
+          {
+            "oid": "3cd1b72679675ca038ef9312efa895a5e863ef7e",
+            "url": "/flazouh/githubpro/commit/3cd1b72679675ca038ef9312efa895a5e863ef7e",
+            "authoredDate": "2026-07-31T18:20:23.000+02:00",
+            "committedDate": "2026-07-31T18:20:23.000+02:00",
+            "shortMessage": "Columns in the list, so a row is read down the page and not across it",
+            "shortMessageMarkdown": null,
+            "shortMessageMarkdownLink": "<a data-pjax=\"true\" title=\"Columns in the list, so a row is read down the page and not across it\n\nA row was a line of flexbox: every fact sized to its own contents, a spacer in\nthe middle, the halves pushed apart. Read one row at a time that is correct, and\nnobody reads a list one row at a time — so the checks landed wherever the title\nran out, the addresses started somewhere new on every line, and a column of facts\nthat all mean the same thing zig-zagged down the page.\n\nFixed tracks instead, measured off a real Working Set rather than guessed, with\nevery cell drawn on every row whether or not it holds anything: a row that skips\nits empty cells slides the ones after it into the wrong track, which is the ragged\nedge this is here to fix. The title takes what is left, because it is the part\nworth the width.\n\nTwo of the columns are only reserved when the list has something to put in them.\nA Working Set where no row has a reason should not hold seven rems open on every\nline for the reason none of them has, and the decision is taken from every row\nrather than the filtered ones, so typing in the filter box does not re-cut the\ncolumns under the reader&#39;s eyes.\n\nWhere it stands is now one column rather than two: GitHub&#39;s reason if they gave\none, the review decision otherwise. Both answer the same question, and holding\nfourteen rems for a pair that rarely arrive together is width taken from titles.\n\nThe repository is its own name now, not the whole address — `octo-org/\nori` was twelve rems of monospace to say `octo-repo`, and the owner is in the picture\nbeside it. The address in full is on the row for a pointer that rests there and\nfor anything reading it aloud.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"color-fg-default\" href=\"/flazouh/githubpro/commit/3cd1b72679675ca038ef9312efa895a5e863ef7e\">Columns in the list, so a row is read down the page and not across it</a>",
+            "bodyMessageHtml": "A row was a line of flexbox: every fact sized to its own contents, a spacer in\nthe middle, the halves pushed apart. Read one row at a time that is correct, and\nnobody reads a list one row at a time — so the checks landed wherever the title\nran out, the addresses started somewhere new on every line, and a column of facts\nthat all mean the same thing zig-zagged down the page.\n\nFixed tracks instead, measured off a real Working Set rather than guessed, with\nevery cell drawn on every row whether or not it holds anything: a row that skips\nits empty cells slides the ones after it into the wrong track, which is the ragged\nedge this is here to fix. The title takes what is left, because it is the part\nworth the width.\n\nTwo of the columns are only reserved when the list has something to put in them.\nA Working Set where no row has a reason should not hold seven rems open on every\nline for the reason none of them has, and the decision is taken from every row\nrather than the filtered ones, so typing in the filter box does not re-cut the\ncolumns under the reader's eyes.\n\nWhere it stands is now one column rather than two: GitHub's reason if they gave\none, the review decision otherwise. Both answer the same question, and holding\nfourteen rems for a pair that rarely arrive together is width taken from titles.\n\nThe repository is its own name now, not the whole address — `octo-org/\nori` was twelve rems of monospace to say `octo-repo`, and the owner is in the picture\nbeside it. The address in full is on the row for a pointer that rests there and\nfor anything reading it aloud.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;",
+            "authors": [
+              {
+                "login": "flazouh",
+                "displayName": "flazouh",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?v=4",
+                "path": "/flazouh",
+                "profileName": "Alex",
+                "isGitHub": false
+              },
+              {
+                "login": "cursoragent",
+                "displayName": "Cursor",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/199161495?v=4",
+                "path": "/cursoragent",
+                "profileName": "Cursor Agent",
+                "isGitHub": false
+              }
+            ],
+            "committerAttribution": false,
+            "committer": {
+              "login": "flazouh",
+              "displayName": "flazouh",
+              "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?v=4",
+              "path": "/flazouh",
+              "profileName": "Alex",
+              "isGitHub": false
+            },
+            "pusher": null,
+            "pushedDate": null
+          },
+          {
+            "oid": "45495a6bcf4e9ff36ad682ae6e31351ee78154b5",
+            "url": "/flazouh/githubpro/commit/45495a6bcf4e9ff36ad682ae6e31351ee78154b5",
+            "authoredDate": "2026-07-31T17:55:58.000+02:00",
+            "committedDate": "2026-07-31T17:55:58.000+02:00",
+            "shortMessage": "The owner's picture beside a repository's name in the list",
+            "shortMessageMarkdown": null,
+            "shortMessageMarkdownLink": "<a data-pjax=\"true\" title=\"The owner&#39;s picture beside a repository&#39;s name in the list\n\nA row already names the repository it is in, and the name is the part that has\nto be read: flowline-labs/flowline, octo-org/octo-repo, flazouh/stack-probe\nare twenty characters of monospace that all begin differently and end the same.\nA reader scanning a mixed Working Set for one project&#39;s work was reading every\none of them.\n\nGitHub&#39;s redirect from a login to an avatar answers for an organisation exactly\nas it does for a person, so the picture costs no lookup — the row already knows\nthe owner. Rounded square rather than circle, which is their own distinction and\na useful one on a line that already carries a round face: the circle at the left\nis a person, this is a place. Where they have nothing to serve, the initial\nstands in, because a broken image reads as a fault rather than as an absence.\n\nNot drawn on a single repository&#39;s list, which names itself above its rows.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;\" class=\"color-fg-default\" href=\"/flazouh/githubpro/commit/45495a6bcf4e9ff36ad682ae6e31351ee78154b5\">The owner's picture beside a repository's name in the list</a>",
+            "bodyMessageHtml": "A row already names the repository it is in, and the name is the part that has\nto be read: flowline-labs/flowline, octo-org/octo-repo, flazouh/stack-probe\nare twenty characters of monospace that all begin differently and end the same.\nA reader scanning a mixed Working Set for one project's work was reading every\none of them.\n\nGitHub's redirect from a login to an avatar answers for an organisation exactly\nas it does for a person, so the picture costs no lookup — the row already knows\nthe owner. Rounded square rather than circle, which is their own distinction and\na useful one on a line that already carries a round face: the circle at the left\nis a person, this is a place. Where they have nothing to serve, the initial\nstands in, because a broken image reads as a fault rather than as an absence.\n\nNot drawn on a single repository's list, which names itself above its rows.\n\nCo-authored-by: Cursor &lt;cursoragent@cursor.com&gt;",
+            "authors": [
+              {
+                "login": "flazouh",
+                "displayName": "flazouh",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?v=4",
+                "path": "/flazouh",
+                "profileName": "Alex",
+                "isGitHub": false
+              },
+              {
+                "login": "cursoragent",
+                "displayName": "Cursor",
+                "avatarUrl": "https://avatars.githubusercontent.com/u/199161495?v=4",
+                "path": "/cursoragent",
+                "profileName": "Cursor Agent",
+                "isGitHub": false
+              }
+            ],
+            "committerAttribution": false,
+            "committer": {
+              "login": "flazouh",
+              "displayName": "flazouh",
+              "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?v=4",
+              "path": "/flazouh",
+              "profileName": "Alex",
+              "isGitHub": false
+            },
+            "pusher": null,
+            "pushedDate": null
+          }
+        ]
+      }
+    ],
+    "filters": {
+      "since": null,
+      "until": null,
+      "author": null,
+      "newPath": null,
+      "originalBranch": null,
+      "currentBlobPath": null,
+      "pagination": {
+        "startCursor": "3f129342dd97adb96cdf2bd2e2f9e815812213dd 0",
+        "endCursor": "3f129342dd97adb96cdf2bd2e2f9e815812213dd 34",
+        "hasNextPage": true,
+        "hasPreviousPage": false
+      }
+    },
+    "refInfo": {
+      "name": "main",
+      "listCacheKey": "v0:1785252485.0",
+      "refType": "branch",
+      "currentOid": "3f129342dd97adb96cdf2bd2e2f9e815812213dd"
+    },
+    "metadata": {
+      "browsingRenameHistory": null,
+      "deferredDataUrl": "/flazouh/githubpro/commits/deferred_commit_data/main?original_branch=main",
+      "deferredContributorUrl": "/flazouh/githubpro/commits/deferred_commit_contributors",
+      "softNavToCommit": true
+    },
+    "repo": {
+      "id": 1312108000,
+      "defaultBranch": "main",
+      "name": "githubpro",
+      "ownerLogin": "flazouh",
+      "currentUserCanPush": true,
+      "isFork": false,
+      "isEmpty": false,
+      "createdAt": "2026-07-25T17:52:05.000+02:00",
+      "ownerAvatar": "https://avatars.githubusercontent.com/u/25705704?v=4",
+      "public": false,
+      "private": true,
+      "isOrgOwned": false
+    },
+    "timedOutMessage": ""
+  }
+}

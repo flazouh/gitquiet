@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>The pull request number — ten places to put it</title>
+    <style>
+      /*
+       * GitHub dark, copied from src/domain/theme.ts, because that is the pack the screenshot
+       * this page answers was taken in. Every mock below is the real header: the same corner,
+       * the same fills, the same sizes as src/ui/Header.tsx renders.
+       */
+      :root {
+        --canvas: #0d1117;
+        --inset: #010409;
+        --surface: #161b22;
+        --raised: #21262d;
+        --hover: #b1bac41f;
+        --active: #b1bac433;
+        --ink: #e6edf3;
+        --muted: #9198a1;
+        --pass: #3fb950;
+        --fail: #f85149;
+        --line: #3d444d;
+        --font: ui-sans-serif, -apple-system, "Segoe UI", Inter, sans-serif;
+        --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 40px 32px 96px;
+        background: var(--canvas);
+        color: var(--ink);
+        font-family: var(--font);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .page {
+        max-width: 1088px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 36px;
+      }
+
+      h1 {
+        margin: 0 0 6px;
+        font-size: 20px;
+        font-weight: 600;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      p {
+        margin: 0;
+        max-width: 80ch;
+        color: var(--muted);
+      }
+
+      .rules {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        border-radius: 6px;
+        background: var(--surface);
+        padding: 16px 18px;
+      }
+
+      .rules p {
+        max-width: none;
+      }
+
+      .option {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .n {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ---- the header card, as the product draws it ---- */
+
+      .card {
+        width: 1024px;
+        border-radius: 6px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        padding: 4px;
+      }
+
+      .head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 4px;
+      }
+
+      .state {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        gap: 6px;
+        border-radius: 6px;
+        background: var(--surface);
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+      }
+
+      .age {
+        font-weight: 400;
+        opacity: 0.8;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .title {
+        margin: 0;
+        min-width: 0;
+        flex: 1;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      /* A number tied to the title: one flex child, so the pair takes the row's gap once. */
+      .bound {
+        display: flex;
+        min-width: 0;
+        flex: 1;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .bound .title {
+        flex: 0 1 auto;
+      }
+
+      .acts {
+        display: flex;
+        flex-shrink: 0;
+        gap: 4px;
+      }
+
+      .act {
+        display: grid;
+        width: 28px;
+        height: 28px;
+        place-items: center;
+        border-radius: 6px;
+        background: var(--hover);
+        color: var(--ink);
+      }
+
+      .well {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 6px;
+        background: var(--inset);
+        padding: 6px 10px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .who {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .face {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+        border-radius: 999px;
+        background: #30363d;
+      }
+
+      .login {
+        font-weight: 600;
+        color: var(--ink);
+      }
+
+      .branch {
+        max-width: 340px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        border-radius: 6px;
+        background: var(--hover);
+        padding: 2px 6px;
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--ink);
+      }
+
+      .counts {
+        margin-left: auto;
+        flex-shrink: 0;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ---- the ten ways of drawing the number ---- */
+
+      /* 1. What ships today: a filled chip at the title's own size and weight. */
+      .today {
+        flex-shrink: 0;
+        border-radius: 6px;
+        background: var(--hover);
+        padding: 2px 6px;
+        font-family: var(--mono);
+        font-size: 16px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        color: var(--ink);
+      }
+
+      /* 2 and 3. No fill: the number is a word in the heading, muted or in full ink. */
+      .plain {
+        flex-shrink: 0;
+        font-family: var(--mono);
+        font-size: 16px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .plain.muted {
+        color: var(--muted);
+      }
+
+      /* 4. A chip, but the size of a chip rather than the size of a heading. */
+      .chipsm {
+        flex-shrink: 0;
+        border-radius: 6px;
+        background: var(--hover);
+        padding: 1px 5px;
+        font-family: var(--mono);
+        font-size: 12px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        color: var(--muted);
+      }
+
+      /* 5. Small and muted, riding at the title's cap height rather than beside it. */
+      .small {
+        flex-shrink: 0;
+        font-family: var(--mono);
+        font-size: 12px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        color: var(--muted);
+      }
+
+      .dot {
+        color: var(--muted);
+        opacity: 0.7;
+      }
+
+      /* 10. The bar above the card, where the address is. */
+      .bar {
+        display: flex;
+        width: 1024px;
+        align-items: center;
+        gap: 8px;
+        border-radius: 6px;
+        background: var(--surface);
+        padding: 8px 12px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .bar .here {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div>
+        <h1>The pull request number: ten places to put it</h1>
+        <p>
+          Every card below is the real header at the width of the screenshot, in the GitHub dark
+          pack. Each option is drawn twice: once with the title as it came, once with a title long
+          enough to run out of room, because that is the case that decided the current position.
+        </p>
+      </div>
+
+      <div class="rules">
+        <p><strong>What any answer has to keep</strong></p>
+        <p>
+          1. The number cannot live inside the element that truncates. It rode at the end of the
+          heading once, and on a long title it was the first thing cut, down to <span class="n"
+            >#2…</span
+          >.
+        </p>
+        <p>
+          2. It has to land in the same place on every pull request, so it can be found without
+          reading the line.
+        </p>
+        <p>
+          3. It is the fact a reader says out loud and pastes into a message, so it cannot be so
+          quiet that it has to be hunted for.
+        </p>
+      </div>
+
+      <!-- 1 -->
+      <div class="option">
+        <h2><span class="n">1.</span> Today: a filled chip at the heading's size</h2>
+        <p>
+          Three filled objects on one line, and the second heaviest thing on the card is a number.
+          The badge and the chip carry the same weight, so the eye reads badge, badge, then title.
+        </p>
+        <div class="stack">
+          <div class="card">
+            <div class="head">
+              <span class="state"><span>◌</span>Draft<span class="age">19h ago</span></span>
+              <span class="today">#1737</span>
+              <h1 class="title">
+                feat(engine): transport the full adapter observation union across the seam APP-995
+              </h1>
+              <div class="acts"><span class="act">⧉</span></div>
+            </div>
+            <div class="well">
+              <span class="who"
+                ><span class="face"></span><span class="login">devin-ai-integration[bot]</span></span
+              >
+              <span class="branch">contributor/app-995-transport-event-union</span>
+              <span>›</span>
+              <span class="branch">contributor/octo-repo-994-typed-usage-variants</span>
+              <span class="counts">14 files <span style="color: var(--pass)">+820</span> <span style="color: var(--fail)">−96</span></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head">
+              <span class="state"><span>◌</span>Draft<span class="age">19h ago</span></span>
+              <span class="today">#1737</span>
+              <h1 class="title">
+                feat(engine): transport the full adapter observation union across the seam and keep
+                the typed usage variants aligned with the deferred contributor payloads APP-995
+              </h1>
+              <div class="acts"><span class="act">⧉</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 -->
+      <div class="option">
+        <h2><span class="n">2.</span> No fill, muted, tied to the title</h2>
+        <p>
+          The same place and the same size, with the chip taken off and the gap to the title closed
+          to six pixels, so the two read as one heading: <span class="n">#1737 feat(engine): …</span>
+          The line then has one filled object on it, the state badge.
+        </p>
+        <div class="stack">
+          <div class="card">
+            <div class="head">
+              <span class="state"><span>◌</span>Draft<span class="age">19h ago</span></span>
+              <div class="bound">
+                <span class="plain muted">#1737</span>
+                <h1 class="title">
+                  feat(engine): transport the full adapter observation union across the seam APP-995
+                </h1>
+              </div>
+              <div class="acts"><span class="act">⧉</span></div>
+            </div>
+            <div class="well">
+              <span class="who"
+                ><span class="face"></span><span class="login">devin-ai-integration[bot]</span></span
+              >
+              <span class="branch">contributor/app-995-transport-event-union</span>
+              <span>›</span>
+              <span class="branch">contributor/octo-repo-994-typed-usage-variants</span>
+              <span class="counts">14 files <span style="color: var(--pass)">+820</span> <span style="color: var(--fail)">−96</span></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head">
+              <span class="state"><span>◌</span>Draft<span class="age">19h ago</span></span>
+              <div class="bound">
+                <span class="plain muted">#1737</span>
+                <h1 class="title">
+                  feat(engine): transport the full adapter observation union across the seam and keep
+                  the typed usage variants aligned with the deferred contributor payloads APP-995
+                </h1>
+              </div>
+              <div class="acts"><span class="act">⧉</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 -->
+      <div class="option">
+        <h2><span class="n">3.</span> No fill, full ink, tied to the title</h2>
+        <p>
+          The same as two, with the number in the heading's own colour. It is part of the name of the
+          thing rather than a note about it, which is how a reader says it.
+        </p>
+        <div class="stack">
+          <div class="card">
+            <div class="head">
+              <span class="state"><span>◌</span>Draft<span class="age">19h ago</span></span>
+              <div class="bound">
+                <span class="plain">#1737</span>
+                <h1 class="title">
+                  feat(engine): transport the full adapter observation union across the seam APP-995
+                </h1>
+              </div>
+              <div class="acts"><span class="act">⧉</span></div>
+            </div>
+            <div class="well">
+              <span class="who"
+                ><span class="face"></span><span class="login">devin-ai-integration[bot]</span></span
+              >
+              <span class="branch">contributor/app-995-transport-event-union</span>
+              <span>›</span>
+              <span class="branch">contributor/octo-repo-994-typed-usage-variants</span>
+              <span class="counts">14 files <span style="color: var(--pass)">+820</span> <span style="color: var(--fail)">−96</span></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head">
+              <span class="state"><span>◌</span>Draft<span class="age">19h ago</span></span>
+              <div class="bound">
+                <span class="plain">#1737</span>
+                <h1 class="title">
+                  feat(engine): transport the full adapter observation union across the seam and keep
+                  the typed usage variants aligned with the deferred contributor payloads APP-995
+                </h1>
+              </div>
+              <div class="acts"><span class="act">⧉</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 -->
+      <div class="option">
+        <h2><span class="n">4.</span> Keep the chip, drop it to a chip's size</h2>
+        <p>
+          The fill stays, at twelve pixels and in muted ink, so it matches the branch chips in the
+          well rather than the badge beside it. A chip and not a badge.
+        </p>
+        <div class="stack">
+          <div class="card">
+            <div class="head">
+              <span class="state"><span>◌</span>Draft<span class="age">19h ago</span></span>
+              <span class="chipsm">#1737</span>
+              <h1 class="title">
+                feat(engine): transport the full adapter observation union across the seam APP-995
+              </h1>
+              <div class="acts"><span class="act">⧉</span></div>
+            </div>
+            <div class="well">
+              <span class="who"
+                ><span class="face"></span><span class="login">devin-ai-integration[bot]</span></span
+              >
+              <span class="branch">contributor/app-995-transport-event-union</span>
+              <span>›</span>
+              <span class="branch">contributor/octo-repo-994-typed-usage-variants</span>
+              <span class="counts">14 files <span style="color: var(--pass)">+820</span> <span style="color: var(--fail)">−96</span></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head">
+              <span class="state"><span>◌</span>Draft<span class="age">19h ago</span></span>
+              <span class="chipsm">#1737</span>
+              <h1 class="title">
+                feat(engine): transport the full adapter observation union across the seam and keep
+                the typed usage variants aligned with the deferred contributor payloads APP-995
+              </h1>
+              <div class="acts"><span class="act">⧉</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5 -->
+      <div class="option">
+        <h2><span class="n">5.</span> First on the line, before the state badge</h2>
+        <p>
+          Identity, then state, then name. The line starts with the thing that never changes place
+          and never changes length, which is the strongest form of findable.
+        </p>
+        <div class="stack">
+          <div class="card">
+            <div class="head">
+              <span class="plain muted">#1737</span>
+              <span class="state"><span>◌</span>Draft<span class="age">19h ago</span></span>
+              <h1 class="title">
+                feat(engine): transport the full adapter observation union across the seam APP-995
+              </h1>
+              <div class="acts"><span class="act">⧉</span></div>
+            </div>
+            <div class="well">
+              <span class="who"
+                ><span class="face"></span><span class="login">devin-ai-integration[bot]</span></span
+              >
+              <span class="branch">contributor/app-995-transport-event-union</span>
+              <span>›</span>
+              <span class="branch">contributor/octo-repo-994-typed-usage-variants</span>
+              <span class="counts">14 files <span style="color: var(--pass)">+820</span> <span style="color: var(--fail)">−96</span></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head">
+              <span class="plain muted">#1737</span>
+              <span class="state"><span>◌</span>Draft<span class="age">19h ago</span></span>
+              <h1 class="title">
+                feat(engine): transport the full adapter observation union across the seam and keep
+                the typed usage variants aligned with the deferred contributor payloads APP-995
+              </h1>
+              <div class="acts"><span class="act">⧉</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6 -->
+      <div class="option">
+        <h2><span class="n">6.</span> Inside the state badge, after the age</h2>
+        <p>
+          One filled object instead of two. It puts three unrelated facts in one label, and the badge
+          changes width with the number, so neither the badge nor the number sits still.
+        </p>
+        <div class="stack">
+          <div class="card">
+            <div class="head">
+              <span class="state"
+                ><span>◌</span>Draft<span class="age">19h ago</span><span class="dot">·</span
+                ><span style="font-family: var(--mono); color: var(--ink)">#1737</span></span
+              >
+              <h1 class="title">
+                feat(engine): transport the full adapter observation union across the seam APP-995
+              </h1>
+              <div class="acts"><span class="act">⧉</span></div>
+            </div>
+            <div class="well">
+              <span class="who"
+                ><span class="face"></span><span class="login">devin-ai-integration[bot]</span></span
+              >
+              <span class="branch">contributor/app-995-transport-event-union</span>
+              <span>›</span>
+              <span class="branch">contributor/octo-repo-994-typed-usage-variants</span>
+              <span class="counts">14 files <span style="color: var(--pass)">+820</span> <span style="color: var(--fail)">−96</span></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head">
+              <span class="state"
+                ><span>◌</span>Draft<span class="age">19h ago</span><span class="dot">·</span
+                ><span style="font-family: var(--mono); color: var(--ink)">#1737</span></span
+              >
+              <h1 class="title">
+                feat(engine): transport the full adapter observation union across the seam and keep
+                the typed usage variants aligned with the deferred contributor payloads APP-995
+              </h1>
+              <div class="acts"><span class="act">⧉</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7 -->
+      <div class="option">
+        <h2><span class="n">7.</span> After the title, before the buttons</h2>
+        <p>
+          GitHub's own order, without GitHub's bug: the number is its own flex child, so a long title
+          gives way to it instead of eating it. Its place on the line moves with the title's length.
+        </p>
+        <div class="stack">
+          <div class="card">
+            <div class="head">
+              <span class="state"><span>◌</span>Draft<span class="age">19h ago</span></span>
+              <h1 class="title" style="flex: 0 1 auto">
+                feat(engine): transport the full adapter observation union across the seam APP-995
+              </h1>
+              <span class="plain muted" style="margin-right: auto">#1737</span>
+              <div class="acts"><span class="act">⧉</span></div>
+            </div>
+            <div class="well">
+              <span class="who"
+                ><span class="face"></span><span class="login">devin-ai-integration[bot]</span></span
+              >
+              <span class="branch">contributor/app-995-transport-event-union</span>
+              <span>›</span>
+              <span class="branch">contributor/octo-repo-994-typed-usage-variants</span>
+              <span class="counts">14 files <span style="color: var(--pass)">+820</span> <span style="color: var(--fail)">−96</span></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head">
+              <span class="state"><span>◌</span>Draft<span class="age">19h ago</span></span>
+              <h1 class="title" style="flex: 0 1 auto">
+                feat(engine): transport the full adapter observation union across the seam and keep
+                the typed usage variants aligned with the deferred contributor payloads APP-995
+              </h1>
+              <span class="plain muted" style="margin-right: auto">#1737</span>
+              <div class="acts"><span class="act">⧉</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8 -->
+      <div class="option">
+        <h2><span class="n">8.</span> Down into the well, leading the facts</h2>
+        <p>
+          The heading becomes state and name only. The number joins the row of facts, at that row's
+          size, where the branches and the counts already live.
+        </p>
+        <div class="stack">
+          <div class="card">
+            <div class="head">
+              <span class="state"><span>◌</span>Draft<span class="age">19h ago</span></span>
+              <h1 class="title">
+                feat(engine): transport the full adapter observation union across the seam APP-995
+              </h1>
+              <div class="acts"><span class="act">⧉</span></div>
+            </div>
+            <div class="well">
+              <span class="small">#1737</span>
+              <span class="who"
+                ><span class="face"></span><span class="login">devin-ai-integration[bot]</span></span
+              >
+              <span class="branch">contributor/app-995-transport-event-union</span>
+              <span>›</span>
+              <span class="branch">contributor/octo-repo-994-typed-usage-variants</span>
+              <span class="counts">14 files <span style="color: var(--pass)">+820</span> <span style="color: var(--fail)">−96</span></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head">
+              <span class="state"><span>◌</span>Draft<span class="age">19h ago</span></span>
+              <h1 class="title">
+                feat(engine): transport the full adapter observation union across the seam and keep
+                the typed usage variants aligned with the deferred contributor payloads APP-995
+              </h1>
+              <div class="acts"><span class="act">⧉</span></div>
+            </div>
+            <div class="well">
+              <span class="small">#1737</span>
+              <span class="who"
+                ><span class="face"></span><span class="login">devin-ai-integration[bot]</span></span
+              >
+              <span class="branch">contributor/app-995-transport-event-union</span>
+              <span>›</span>
+              <span class="branch">contributor/octo-repo-994-typed-usage-variants</span>
+              <span class="counts">14 files <span style="color: var(--pass)">+820</span> <span style="color: var(--fail)">−96</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 9 -->
+      <div class="option">
+        <h2><span class="n">9.</span> Down into the well, at the far end with the counts</h2>
+        <p>
+          The right corner of the card, which is a fixed place and an empty one. It is the furthest
+          the number can be from the title while staying on the card.
+        </p>
+        <div class="stack">
+          <div class="card">
+            <div class="head">
+              <span class="state"><span>◌</span>Draft<span class="age">19h ago</span></span>
+              <h1 class="title">
+                feat(engine): transport the full adapter observation union across the seam APP-995
+              </h1>
+              <div class="acts"><span class="act">⧉</span></div>
+            </div>
+            <div class="well">
+              <span class="who"
+                ><span class="face"></span><span class="login">devin-ai-integration[bot]</span></span
+              >
+              <span class="branch">contributor/app-995-transport-event-union</span>
+              <span>›</span>
+              <span class="branch">contributor/octo-repo-994-typed-usage-variants</span>
+              <span class="counts"
+                >14 files <span style="color: var(--pass)">+820</span>
+                <span style="color: var(--fail)">−96</span> <span class="dot">·</span>
+                <span class="small">#1737</span></span
+              >
+            </div>
+          </div>
+          <div class="card">
+            <div class="head">
+              <span class="state"><span>◌</span>Draft<span class="age">19h ago</span></span>
+              <h1 class="title">
+                feat(engine): transport the full adapter observation union across the seam and keep
+                the typed usage variants aligned with the deferred contributor payloads APP-995
+              </h1>
+              <div class="acts"><span class="act">⧉</span></div>
+            </div>
+            <div class="well">
+              <span class="who"
+                ><span class="face"></span><span class="login">devin-ai-integration[bot]</span></span
+              >
+              <span class="branch">contributor/app-995-transport-event-union</span>
+              <span>›</span>
+              <span class="branch">contributor/octo-repo-994-typed-usage-variants</span>
+              <span class="counts"
+                >14 files <span style="color: var(--pass)">+820</span>
+                <span style="color: var(--fail)">−96</span> <span class="dot">·</span>
+                <span class="small">#1737</span></span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 10 -->
+      <div class="option">
+        <h2><span class="n">10.</span> Off the card, into the bar with the address</h2>
+        <p>
+          The number is part of where this page is, and the bar is what says where this page is. It
+          leaves the heading with two objects on it. It also puts the number in the one strip that is
+          shared with the other screens, which have no number to show.
+        </p>
+        <div class="stack">
+          <div class="bar">
+            <span>flazouh</span><span class="dot">/</span><span class="here">orion</span>
+            <span class="dot">·</span><span style="font-family: var(--mono)" class="here">#1737</span>
+          </div>
+          <div class="card">
+            <div class="head">
+              <span class="state"><span>◌</span>Draft<span class="age">19h ago</span></span>
+              <h1 class="title">
+                feat(engine): transport the full adapter observation union across the seam APP-995
+              </h1>
+              <div class="acts"><span class="act">⧉</span></div>
+            </div>
+            <div class="well">
+              <span class="who"
+                ><span class="face"></span><span class="login">devin-ai-integration[bot]</span></span
+              >
+              <span class="branch">contributor/app-995-transport-event-union</span>
+              <span>›</span>
+              <span class="branch">contributor/octo-repo-994-typed-usage-variants</span>
+              <span class="counts">14 files <span style="color: var(--pass)">+820</span> <span style="color: var(--fail)">−96</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

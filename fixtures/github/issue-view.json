@@ -1,0 +1,1161 @@
+{
+  "data": {
+    "repository": {
+      "id": "MDEwOlJlcG9zaXRvcnkxMDI3MDI1MA==",
+      "isOwnerEnterpriseManaged": false,
+      "owner": {
+        "__typename": "Organization",
+        "userNameDisplayConfiguration": "HANDLE",
+        "id": "MDEyOk9yZ2FuaXphdGlvbjEwMjgxMg=="
+      },
+      "issue": {
+        "id": "I_kwDOAJy2Ks7UQx_c",
+        "number": 35000,
+        "viewerCanUpdateMetadata": false,
+        "repository": {
+          "id": "MDEwOlJlcG9zaXRvcnkxMDI3MDI1MA==",
+          "databaseId": 10270250,
+          "name": "react",
+          "isArchived": false,
+          "nameWithOwner": "react/react",
+          "viewerCanInteract": true,
+          "viewerInteractionLimitReasonHTML": "",
+          "slashCommandsEnabled": true,
+          "visibility": "PUBLIC",
+          "viewerCanPush": false,
+          "owner": {
+            "__typename": "Organization",
+            "login": "react",
+            "id": "MDEyOk9yZ2FuaXphdGlvbjEwMjgxMg==",
+            "url": "https://github.com/react",
+            "databaseId": 102812,
+            "issueFieldsEnabled": true,
+            "issueFields": {
+              "totalCount": 0
+            },
+            "pinnedIssueFields": {
+              "nodes": []
+            }
+          },
+          "isWritable": true,
+          "isPrivate": false,
+          "isCopilotAgentEnabled": false,
+          "issueTypes": {
+            "edges": [
+              {
+                "node": {
+                  "id": "IT_kwDOAAGRnM4AAXWN"
+                }
+              },
+              {
+                "node": {
+                  "id": "IT_kwDOAAGRnM4AAXWR"
+                }
+              },
+              {
+                "node": {
+                  "id": "IT_kwDOAAGRnM4AAXWU"
+                }
+              }
+            ]
+          },
+          "pinnedIssues": {
+            "totalCount": 0
+          },
+          "viewerCanPinIssues": false,
+          "viewerIssueCreationPermissions": {
+            "triageable": false
+          },
+          "isOwnerEnterpriseManaged": false
+        },
+        "updatedAt": "2025-11-10T19:39:41Z",
+        "title": "Activity mode=“hidden” does not hide nested portals",
+        "titleHTML": "Activity mode=“hidden” does not hide nested portals",
+        "url": "https://github.com/react/react/issues/35000",
+        "viewerCanUpdateNext": false,
+        "issueType": null,
+        "subIssuesSummary": {
+          "total": 0,
+          "completed": 0
+        },
+        "state": "CLOSED",
+        "stateReason": "COMPLETED",
+        "duplicateOf": null,
+        "linkedPullRequests": {
+          "nodes": [
+            {
+              "repository": {
+                "name": "react",
+                "nameWithOwner": "react/react",
+                "owner": {
+                  "__typename": "Organization",
+                  "login": "react",
+                  "id": "MDEyOk9yZ2FuaXphdGlvbjEwMjgxMg=="
+                },
+                "id": "MDEwOlJlcG9zaXRvcnkxMDI3MDI1MA=="
+              },
+              "url": "https://github.com/react/react/pull/35091",
+              "number": 35091,
+              "state": "MERGED",
+              "isDraft": false,
+              "id": "PR_kwDOAJy2Ks6ycgpg"
+            }
+          ]
+        },
+        "agentAssignments": [],
+        "closedByPullRequestsReferences": {
+          "nodes": [
+            {
+              "id": "PR_kwDOAJy2Ks6ycgpg",
+              "number": 35091,
+              "url": "https://github.com/react/react/pull/35091",
+              "state": "MERGED",
+              "databaseId": 2993818208
+            }
+          ]
+        },
+        "labels": {
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": "MQ"
+          },
+          "edges": [
+            {
+              "node": {
+                "id": "MDU6TGFiZWwxNTU5ODQxNjA=",
+                "color": "d4c5f9",
+                "name": "Status: Unconfirmed",
+                "nameHTML": "Status: Unconfirmed",
+                "description": "A potential issue that we haven't yet confirmed as a bug",
+                "url": "https://github.com/react/react/labels/Status%3A%20Unconfirmed"
+              }
+            }
+          ]
+        },
+        "milestone": null,
+        "assignedActors": {
+          "nodes": []
+        },
+        "locked": false,
+        "viewerCanComment": true,
+        "databaseId": 3561168860,
+        "createdAt": "2025-10-28T11:41:56Z",
+        "viewerDidAuthor": false,
+        "author": {
+          "avatarUrl": "https://avatars.githubusercontent.com/u/4393133?u=98cbf7ad4b7d39c91c374791b98bedd9fc7bd58e&v=4",
+          "login": "ceolinwill",
+          "id": "MDQ6VXNlcjQzOTMxMzM=",
+          "profileUrl": "https://github.com/ceolinwill",
+          "name": "Will Ceolin",
+          "__typename": "User"
+        },
+        "body": "React's `<Activity>` component does not hide portals when they are nested under another element. Only direct portal children are hidden, causing inconsistent behavior.\n\nReact version: 19.2.0\n\n## Steps To Reproduce\n\n1. Wrap a parent `<div>` inside `<Activity mode=\"hidden\">`\n2. Inside that `<div>`, render any regular child and a portal via `createPortal(...)`\n3. Observe: regular child is hidden but the portal remains visible\n4. Remove the additional wrapper and observe that the portal is now hidden correctly\n\nLink to code example: https://codesandbox.io/p/sandbox/hwt3pl\n\nMinimal reproduction:\n\n```jsx\nimport { createPortal } from \"react-dom\";\nimport { Activity } from \"react\";\n\nexport default function App() {\n  return (\n    <Activity mode=\"hidden\">\n      <div>\n        <h1>Hello</h1>\n        {createPortal(<p>Portal child (should be hidden)</p>, document.body)}\n      </div>\n    </Activity>\n  );\n}\n```\n\n## The current behavior\n\nPortals nested within another element inside  remain visible when Activity is in “hidden” mode.\n\n## The expected behavior\n\nAll children of an element, including portals nested at any depth, should be hidden and restored consistently when using “hidden” mode.\n\n---\n\n## Notes\n\nNot sure if this is a bug or expected behavior, though. But I feel like we should either find a way to hide the portal or update the docs to mention this on the \"unwanted side effects\" section. Thoughts?",
+        "bodyHTML": "<p dir=\"auto\">React's <code class=\"notranslate\">&lt;Activity&gt;</code> component does not hide portals when they are nested under another element. Only direct portal children are hidden, causing inconsistent behavior.</p>\n<p dir=\"auto\">React version: 19.2.0</p>\n<h2 dir=\"auto\">Steps To Reproduce</h2>\n<ol dir=\"auto\">\n<li>Wrap a parent <code class=\"notranslate\">&lt;div&gt;</code> inside <code class=\"notranslate\">&lt;Activity mode=\"hidden\"&gt;</code></li>\n<li>Inside that <code class=\"notranslate\">&lt;div&gt;</code>, render any regular child and a portal via <code class=\"notranslate\">createPortal(...)</code></li>\n<li>Observe: regular child is hidden but the portal remains visible</li>\n<li>Remove the additional wrapper and observe that the portal is now hidden correctly</li>\n</ol>\n<p dir=\"auto\">Link to code example: <a href=\"https://codesandbox.io/p/sandbox/hwt3pl\" rel=\"nofollow\">https://codesandbox.io/p/sandbox/hwt3pl</a></p>\n<p dir=\"auto\">Minimal reproduction:</p>\n<div class=\"highlight highlight-source-js notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"import { createPortal } from &quot;react-dom&quot;;\nimport { Activity } from &quot;react&quot;;\n\nexport default function App() {\n  return (\n    &lt;Activity mode=&quot;hidden&quot;&gt;\n      &lt;div&gt;\n        &lt;h1&gt;Hello&lt;/h1&gt;\n        {createPortal(&lt;p&gt;Portal child (should be hidden)&lt;/p&gt;, document.body)}\n      &lt;/div&gt;\n    &lt;/Activity&gt;\n  );\n}\"><pre class=\"notranslate\"><span class=\"pl-k\">import</span> <span class=\"pl-kos\">{</span> <span class=\"pl-s1\">createPortal</span> <span class=\"pl-kos\">}</span> <span class=\"pl-k\">from</span> <span class=\"pl-s\">\"react-dom\"</span><span class=\"pl-kos\">;</span>\n<span class=\"pl-k\">import</span> <span class=\"pl-kos\">{</span> <span class=\"pl-v\">Activity</span> <span class=\"pl-kos\">}</span> <span class=\"pl-k\">from</span> <span class=\"pl-s\">\"react\"</span><span class=\"pl-kos\">;</span>\n\n<span class=\"pl-k\">export</span> <span class=\"pl-k\">default</span> <span class=\"pl-k\">function</span> <span class=\"pl-v\">App</span><span class=\"pl-kos\">(</span><span class=\"pl-kos\">)</span> <span class=\"pl-kos\">{</span>\n  <span class=\"pl-k\">return</span> <span class=\"pl-kos\">(</span>\n    <span class=\"pl-c1\">&lt;</span><span class=\"pl-v\">Activity</span> <span class=\"pl-c1\">mode</span><span class=\"pl-c1\">=</span><span class=\"pl-s\">\"hidden\"</span><span class=\"pl-c1\">&gt;</span>\n      <span class=\"pl-c1\">&lt;</span><span class=\"pl-s1\">div</span><span class=\"pl-c1\">&gt;</span>\n        <span class=\"pl-c1\">&lt;</span><span class=\"pl-s1\">h1</span><span class=\"pl-c1\">&gt;</span>Hello<span class=\"pl-kos\">&lt;/</span><span class=\"pl-s1\">h1</span><span class=\"pl-c1\">&gt;</span>\n        <span class=\"pl-kos\">{</span><span class=\"pl-en\">createPortal</span><span class=\"pl-kos\">(</span><span class=\"pl-c1\">&lt;</span><span class=\"pl-s1\">p</span><span class=\"pl-c1\">&gt;</span>Portal child (should be hidden)<span class=\"pl-kos\">&lt;/</span><span class=\"pl-s1\">p</span><span class=\"pl-c1\">&gt;</span><span class=\"pl-kos\">,</span> <span class=\"pl-smi\">document</span><span class=\"pl-kos\">.</span><span class=\"pl-c1\">body</span><span class=\"pl-kos\">)</span><span class=\"pl-kos\">}</span>\n      <span class=\"pl-kos\">&lt;/</span><span class=\"pl-s1\">div</span><span class=\"pl-c1\">&gt;</span>\n    <span class=\"pl-kos\">&lt;/</span><span class=\"pl-v\">Activity</span><span class=\"pl-c1\">&gt;</span>\n  <span class=\"pl-kos\">)</span><span class=\"pl-kos\">;</span>\n<span class=\"pl-kos\">}</span></pre></div>\n<h2 dir=\"auto\">The current behavior</h2>\n<p dir=\"auto\">Portals nested within another element inside  remain visible when Activity is in “hidden” mode.</p>\n<h2 dir=\"auto\">The expected behavior</h2>\n<p dir=\"auto\">All children of an element, including portals nested at any depth, should be hidden and restored consistently when using “hidden” mode.</p>\n<hr>\n<h2 dir=\"auto\">Notes</h2>\n<p dir=\"auto\">Not sure if this is a bug or expected behavior, though. But I feel like we should either find a way to hide the portal or update the docs to mention this on the \"unwanted side effects\" section. Thoughts?</p>",
+        "bodyVersion": "afa5b7d3dffe6cbbcceedd57dfdb984442eedd7cc0739a0b9c00464efe639b5f",
+        "reactionGroups": [
+          {
+            "content": "THUMBS_UP",
+            "viewerHasReacted": false,
+            "reactors": {
+              "totalCount": 11,
+              "nodes": [
+                {
+                  "__typename": "User",
+                  "login": "SorooshGb",
+                  "__isNode": "User",
+                  "id": "U_kgDOCIRDWA"
+                },
+                {
+                  "__typename": "User",
+                  "login": "HappyEmu",
+                  "__isNode": "User",
+                  "id": "MDQ6VXNlcjExMTIxNDk="
+                },
+                {
+                  "__typename": "User",
+                  "login": "billyjanitsch",
+                  "__isNode": "User",
+                  "id": "MDQ6VXNlcjExNTg3MzM="
+                },
+                {
+                  "__typename": "User",
+                  "login": "nikhilsnayak",
+                  "__isNode": "User",
+                  "id": "MDQ6VXNlcjc3MDQ5ODUy"
+                },
+                {
+                  "__typename": "User",
+                  "login": "brian-bourdon",
+                  "__isNode": "User",
+                  "id": "MDQ6VXNlcjIyNzQ4MDYy"
+                }
+              ]
+            }
+          },
+          {
+            "content": "THUMBS_DOWN",
+            "viewerHasReacted": false,
+            "reactors": {
+              "totalCount": 0,
+              "nodes": []
+            }
+          },
+          {
+            "content": "LAUGH",
+            "viewerHasReacted": false,
+            "reactors": {
+              "totalCount": 0,
+              "nodes": []
+            }
+          },
+          {
+            "content": "HOORAY",
+            "viewerHasReacted": false,
+            "reactors": {
+              "totalCount": 0,
+              "nodes": []
+            }
+          },
+          {
+            "content": "CONFUSED",
+            "viewerHasReacted": false,
+            "reactors": {
+              "totalCount": 0,
+              "nodes": []
+            }
+          },
+          {
+            "content": "HEART",
+            "viewerHasReacted": false,
+            "reactors": {
+              "totalCount": 2,
+              "nodes": [
+                {
+                  "__typename": "User",
+                  "login": "iamriyasaryam",
+                  "__isNode": "User",
+                  "id": "U_kgDOCQn1nA"
+                },
+                {
+                  "__typename": "User",
+                  "login": "khuezy",
+                  "__isNode": "User",
+                  "id": "MDQ6VXNlcjgxMTI5OA=="
+                }
+              ]
+            }
+          },
+          {
+            "content": "ROCKET",
+            "viewerHasReacted": false,
+            "reactors": {
+              "totalCount": 0,
+              "nodes": []
+            }
+          },
+          {
+            "content": "EYES",
+            "viewerHasReacted": false,
+            "reactors": {
+              "totalCount": 0,
+              "nodes": []
+            }
+          }
+        ],
+        "pinnedIssueComment": null,
+        "viewerCanAssign": false,
+        "viewerCanLabel": false,
+        "__isIssueOrPullRequest": "Issue",
+        "projectItems": {
+          "edges": [],
+          "pageInfo": {
+            "endCursor": null,
+            "hasNextPage": false
+          }
+        },
+        "viewerCanSetMilestone": false,
+        "isPinned": false,
+        "viewerCanDelete": false,
+        "viewerCanTransfer": false,
+        "viewerCanConvertToDiscussion": false,
+        "viewerCanLock": false,
+        "viewerCanType": false,
+        "viewerCanSetFields": false,
+        "issueFieldValues": {
+          "nodes": []
+        },
+        "frontTimelineItems": {
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": "Y3Vyc29yOnYyOpPPAAABmm9IAEgBqzIwODQ1MjcxOTMx"
+          },
+          "totalCount": 12,
+          "edges": [
+            {
+              "node": {
+                "__typename": "LabeledEvent",
+                "__isIssueTimelineItems": "LabeledEvent",
+                "__isTimelineEvent": "LabeledEvent",
+                "databaseId": 20551611125,
+                "createdAt": "2025-10-28T11:41:58Z",
+                "actor": {
+                  "id": "MDQ6VXNlcjQzOTMxMzM=",
+                  "avatarUrl": "https://avatars.githubusercontent.com/u/4393133?s=64&u=98cbf7ad4b7d39c91c374791b98bedd9fc7bd58e&v=4",
+                  "login": "ceolinwill",
+                  "profileResourcePath": "/ceolinwill",
+                  "__typename": "User",
+                  "name": "Will Ceolin"
+                },
+                "label": {
+                  "id": "MDU6TGFiZWwxNTU5ODQxNjA=",
+                  "nameHTML": "Status: Unconfirmed",
+                  "name": "Status: Unconfirmed",
+                  "color": "d4c5f9",
+                  "description": "A potential issue that we haven't yet confirmed as a bug"
+                },
+                "id": "LE_lADOAJy2Ks7UQx_czwAAAATI-LL1",
+                "intent": null,
+                "__isNode": "LabeledEvent"
+              },
+              "cursor": "Y3Vyc29yOnYyOpPPAAABmiqf93ABqzIwNTUxNjExMTI1"
+            },
+            {
+              "node": {
+                "__typename": "RenamedTitleEvent",
+                "__isIssueTimelineItems": "RenamedTitleEvent",
+                "__isTimelineEvent": "RenamedTitleEvent",
+                "databaseId": 20551638473,
+                "createdAt": "2025-10-28T11:43:13Z",
+                "actor": {
+                  "id": "MDQ6VXNlcjQzOTMxMzM=",
+                  "avatarUrl": "https://avatars.githubusercontent.com/u/4393133?s=64&u=98cbf7ad4b7d39c91c374791b98bedd9fc7bd58e&v=4",
+                  "login": "ceolinwill",
+                  "profileResourcePath": "/ceolinwill",
+                  "__typename": "User",
+                  "name": "Will Ceolin"
+                },
+                "id": "RTE_lADOAJy2Ks7UQx_czwAAAATI-R3J",
+                "currentTitle": "Activity mode=“hidden” does not hide nested portals",
+                "previousTitle": "Bug:",
+                "__isNode": "RenamedTitleEvent"
+              },
+              "cursor": "Y3Vyc29yOnYyOpPPAAABmiqhHGgBqzIwNTUxNjM4NDcz"
+            },
+            {
+              "node": {
+                "__typename": "RenamedTitleEvent",
+                "__isIssueTimelineItems": "RenamedTitleEvent",
+                "__isTimelineEvent": "RenamedTitleEvent",
+                "databaseId": 20551648676,
+                "createdAt": "2025-10-28T11:43:39Z",
+                "actor": {
+                  "id": "MDQ6VXNlcjQzOTMxMzM=",
+                  "avatarUrl": "https://avatars.githubusercontent.com/u/4393133?s=64&u=98cbf7ad4b7d39c91c374791b98bedd9fc7bd58e&v=4",
+                  "login": "ceolinwill",
+                  "profileResourcePath": "/ceolinwill",
+                  "__typename": "User",
+                  "name": "Will Ceolin"
+                },
+                "id": "RTE_lADOAJy2Ks7UQx_czwAAAATI-UWk",
+                "currentTitle": "Bug: Activity mode=“hidden” does not hide nested portals",
+                "previousTitle": "Activity mode=“hidden” does not hide nested portals",
+                "__isNode": "RenamedTitleEvent"
+              },
+              "cursor": "Y3Vyc29yOnYyOpPPAAABmiqhgfgBqzIwNTUxNjQ4Njc2"
+            },
+            {
+              "node": {
+                "__typename": "RenamedTitleEvent",
+                "__isIssueTimelineItems": "RenamedTitleEvent",
+                "__isTimelineEvent": "RenamedTitleEvent",
+                "databaseId": 20551840370,
+                "createdAt": "2025-10-28T11:52:20Z",
+                "actor": {
+                  "id": "MDQ6VXNlcjQzOTMxMzM=",
+                  "avatarUrl": "https://avatars.githubusercontent.com/u/4393133?s=64&u=98cbf7ad4b7d39c91c374791b98bedd9fc7bd58e&v=4",
+                  "login": "ceolinwill",
+                  "profileResourcePath": "/ceolinwill",
+                  "__typename": "User",
+                  "name": "Will Ceolin"
+                },
+                "id": "RTE_lADOAJy2Ks7UQx_czwAAAATI_DJy",
+                "currentTitle": "Activity mode=“hidden” does not hide nested portals",
+                "previousTitle": "Bug: Activity mode=“hidden” does not hide nested portals",
+                "__isNode": "RenamedTitleEvent"
+              },
+              "cursor": "Y3Vyc29yOnYyOpPPAAABmiqpdSABqzIwNTUxODQwMzcw"
+            },
+            {
+              "node": {
+                "__typename": "CrossReferencedEvent",
+                "__isIssueTimelineItems": "CrossReferencedEvent",
+                "__isTimelineEvent": "CrossReferencedEvent",
+                "databaseId": 3746077155,
+                "createdAt": "2025-10-28T12:16:01Z",
+                "actor": {
+                  "id": "MDQ6VXNlcjQzOTMxMzM=",
+                  "avatarUrl": "https://avatars.githubusercontent.com/u/4393133?s=64&u=98cbf7ad4b7d39c91c374791b98bedd9fc7bd58e&v=4",
+                  "login": "ceolinwill",
+                  "profileResourcePath": "/ceolinwill",
+                  "__typename": "User",
+                  "name": "Will Ceolin"
+                },
+                "source": {
+                  "__typename": "PullRequest",
+                  "__isNode": "PullRequest",
+                  "id": "PR_kwDOBC3Cis6vf62u"
+                },
+                "willCloseTarget": false,
+                "referencedAt": "2025-10-28T12:16:00Z",
+                "innerSource": {
+                  "__typename": "PullRequest",
+                  "id": "PR_kwDOBC3Cis6vf62u",
+                  "pullTitleHTML": "docs: Routes are wrapped w/ Activity in Cache Components",
+                  "url": "https://github.com/vercel/next.js/pull/85309",
+                  "number": 85309,
+                  "state": "MERGED",
+                  "isDraft": false,
+                  "isInMergeQueue": false,
+                  "repository": {
+                    "id": "MDEwOlJlcG9zaXRvcnk3MDEwNzc4Ng==",
+                    "name": "next.js",
+                    "isPrivate": false,
+                    "owner": {
+                      "__typename": "Organization",
+                      "login": "vercel",
+                      "id": "MDEyOk9yZ2FuaXphdGlvbjE0OTg1MDIw"
+                    }
+                  },
+                  "__isNode": "PullRequest"
+                },
+                "__isNode": "CrossReferencedEvent",
+                "id": "CRE_kwDOBC3Cis7fSJnj"
+              },
+              "cursor": "Y3Vyc29yOnYyOpPPAAABmiq_I-gCqjM3NDYwNzcxNTU="
+            },
+            {
+              "node": {
+                "__typename": "CrossReferencedEvent",
+                "__isIssueTimelineItems": "CrossReferencedEvent",
+                "__isTimelineEvent": "CrossReferencedEvent",
+                "databaseId": 3746200598,
+                "createdAt": "2025-10-28T12:28:39Z",
+                "actor": {
+                  "id": "MDQ6VXNlcjQzOTMxMzM=",
+                  "avatarUrl": "https://avatars.githubusercontent.com/u/4393133?s=64&u=98cbf7ad4b7d39c91c374791b98bedd9fc7bd58e&v=4",
+                  "login": "ceolinwill",
+                  "profileResourcePath": "/ceolinwill",
+                  "__typename": "User",
+                  "name": "Will Ceolin"
+                },
+                "source": {
+                  "__typename": "Issue",
+                  "__isNode": "Issue",
+                  "id": "I_kwDOBC3Cis7T7g-R"
+                },
+                "willCloseTarget": false,
+                "referencedAt": "2025-10-28T12:28:38Z",
+                "innerSource": {
+                  "__typename": "Issue",
+                  "id": "I_kwDOBC3Cis7T7g-R",
+                  "titleHTML": "cacheComponents breaks React Portal cleanup — portaled content stays stuck after route change",
+                  "url": "https://github.com/vercel/next.js/issues/85390",
+                  "number": 85390,
+                  "stateReason": "COMPLETED",
+                  "repository": {
+                    "id": "MDEwOlJlcG9zaXRvcnk3MDEwNzc4Ng==",
+                    "name": "next.js",
+                    "isPrivate": false,
+                    "owner": {
+                      "__typename": "Organization",
+                      "login": "vercel",
+                      "id": "MDEyOk9yZ2FuaXphdGlvbjE0OTg1MDIw"
+                    }
+                  },
+                  "__isNode": "Issue"
+                },
+                "__isNode": "CrossReferencedEvent",
+                "id": "CRE_kwDOBC3Cis7fSnwW"
+              },
+              "cursor": "Y3Vyc29yOnYyOpPPAAABmirKtNgCqjM3NDYyMDA1OTg="
+            },
+            {
+              "node": {
+                "__typename": "CrossReferencedEvent",
+                "__isIssueTimelineItems": "CrossReferencedEvent",
+                "__isTimelineEvent": "CrossReferencedEvent",
+                "databaseId": 3750065923,
+                "createdAt": "2025-10-28T19:55:56Z",
+                "actor": {
+                  "id": "MDQ6VXNlcjQzOTMxMzM=",
+                  "avatarUrl": "https://avatars.githubusercontent.com/u/4393133?s=64&u=98cbf7ad4b7d39c91c374791b98bedd9fc7bd58e&v=4",
+                  "login": "ceolinwill",
+                  "profileResourcePath": "/ceolinwill",
+                  "__typename": "User",
+                  "name": "Will Ceolin"
+                },
+                "source": {
+                  "__typename": "PullRequest",
+                  "__isNode": "PullRequest",
+                  "id": "PR_kwDONx8fQc6wOfLB"
+                },
+                "willCloseTarget": false,
+                "referencedAt": "2025-10-28T19:55:55Z",
+                "innerSource": {
+                  "__typename": "PullRequest",
+                  "id": "PR_kwDONx8fQc6wOfLB",
+                  "pullTitleHTML": "Workaround for handling Next.js 16 router caching",
+                  "url": "https://github.com/zoonk/zoonk/pull/415",
+                  "number": 415,
+                  "state": "MERGED",
+                  "isDraft": false,
+                  "isInMergeQueue": false,
+                  "repository": {
+                    "id": "R_kgDONx8fQQ",
+                    "name": "zoonk",
+                    "isPrivate": false,
+                    "owner": {
+                      "__typename": "Organization",
+                      "login": "zoonk",
+                      "id": "MDEyOk9yZ2FuaXphdGlvbjE2NDYwOTU3"
+                    }
+                  },
+                  "__isNode": "PullRequest"
+                },
+                "__isNode": "CrossReferencedEvent",
+                "id": "CRE_kwDONx8fQc7fhXcD"
+              },
+              "cursor": "Y3Vyc29yOnYyOpPPAAABmixkNOACqjM3NTAwNjU5MjM="
+            },
+            {
+              "node": {
+                "__typename": "IssueComment",
+                "__isIssueTimelineItems": "IssueComment",
+                "databaseId": 3459889423,
+                "viewerDidAuthor": false,
+                "issue": {
+                  "author": {
+                    "__typename": "User",
+                    "login": "ceolinwill",
+                    "id": "MDQ6VXNlcjQzOTMxMzM="
+                  },
+                  "id": "I_kwDOAJy2Ks7UQx_c",
+                  "number": 35000,
+                  "locked": false,
+                  "databaseId": 3561168860
+                },
+                "author": {
+                  "__typename": "User",
+                  "login": "amintai",
+                  "avatarUrl": "https://avatars.githubusercontent.com/u/50178043?u=3615696dcd77372d1c278a86c3d9ba6e2dd9ce97&v=4",
+                  "profileUrl": "https://github.com/amintai",
+                  "id": "MDQ6VXNlcjUwMTc4MDQz",
+                  "name": "Amin Tai"
+                },
+                "id": "IC_kwDOAJy2Ks7OObkP",
+                "url": "https://github.com/react/react/issues/35000#issuecomment-3459889423",
+                "createdAt": "2025-10-29T05:40:02Z",
+                "authorAssociation": "NONE",
+                "viewerCanDelete": false,
+                "viewerCanMinimize": false,
+                "viewerCanUnminimize": false,
+                "viewerCanReport": false,
+                "viewerCanReportToMaintainer": false,
+                "viewerCanBlockFromOrg": false,
+                "viewerCanUnblockFromOrg": false,
+                "viewerCanPin": false,
+                "viewerCanUnpin": false,
+                "viaApp": null,
+                "minimizedReason": null,
+                "showSpammyBadge": false,
+                "createdViaEmail": false,
+                "authorToRepoOwnerSponsorship": null,
+                "viewerCanReadUserContentEdits": true,
+                "lastEditedAt": "2025-10-29T05:42:59Z",
+                "lastUserContentEdit": {
+                  "editor": {
+                    "__typename": "User",
+                    "url": "https://github.com/amintai",
+                    "login": "amintai",
+                    "id": "MDQ6VXNlcjUwMTc4MDQz"
+                  },
+                  "id": "UCE_lALOAJy2Ks7OObkPzoH1Cys"
+                },
+                "pinnedBy": null,
+                "body": "Activity component (formerly related to offscreen rendering ideas) manages visibility rather than **mounting/unmounting**.\nWhen `mode=\"hidden\"`, React keeps the component tree mounted but doesn’t commit updates to the visible **DOM subtree**.\n\nHowever, portals are a special case — they’re rendered outside the parent’s DOM hierarchy (even though they remain part of the React tree logically).\n\nReact treats:\n\n- `<div>` and its normal children as part of the hidden subtree — no DOM updates. \n- The portal, however, is rendered into a different container (document.body), and React doesn’t automatically apply “hidden mode” semantics to that DOM subtree because it’s considered outside the Activity boundary.\n\nSo the portal continues to render even when its logical parent is hidden.\n\nThis is a gray area, but I’d argue it’s a bug.",
+                "bodyHTML": "<p dir=\"auto\">Activity component (formerly related to offscreen rendering ideas) manages visibility rather than <strong>mounting/unmounting</strong>.<br>\nWhen <code class=\"notranslate\">mode=\"hidden\"</code>, React keeps the component tree mounted but doesn’t commit updates to the visible <strong>DOM subtree</strong>.</p>\n<p dir=\"auto\">However, portals are a special case — they’re rendered outside the parent’s DOM hierarchy (even though they remain part of the React tree logically).</p>\n<p dir=\"auto\">React treats:</p>\n<ul dir=\"auto\">\n<li><code class=\"notranslate\">&lt;div&gt;</code> and its normal children as part of the hidden subtree — no DOM updates.</li>\n<li>The portal, however, is rendered into a different container (document.body), and React doesn’t automatically apply “hidden mode” semantics to that DOM subtree because it’s considered outside the Activity boundary.</li>\n</ul>\n<p dir=\"auto\">So the portal continues to render even when its logical parent is hidden.</p>\n<p dir=\"auto\">This is a gray area, but I’d argue it’s a bug.</p>",
+                "bodyVersion": "1b72721dd89583963439ad720323159d595cf13bb10a894ddcf1d1505e08d075",
+                "isHidden": false,
+                "viewerCanUpdate": false,
+                "repository": {
+                  "id": "MDEwOlJlcG9zaXRvcnkxMDI3MDI1MA==",
+                  "name": "react",
+                  "owner": {
+                    "__typename": "Organization",
+                    "id": "MDEyOk9yZ2FuaXphdGlvbjEwMjgxMg==",
+                    "login": "react",
+                    "url": "https://github.com/react"
+                  },
+                  "isPrivate": false,
+                  "viewerCanCreateIssues": true,
+                  "slashCommandsEnabled": true,
+                  "nameWithOwner": "react/react",
+                  "databaseId": 10270250
+                },
+                "reactionGroups": [
+                  {
+                    "content": "THUMBS_UP",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 3,
+                      "nodes": [
+                        {
+                          "__typename": "User",
+                          "login": "denk0403",
+                          "__isNode": "User",
+                          "id": "MDQ6VXNlcjM0NzM5NDU="
+                        },
+                        {
+                          "__typename": "User",
+                          "login": "ValentinGurkov",
+                          "__isNode": "User",
+                          "id": "MDQ6VXNlcjM1MzczOTQw"
+                        },
+                        {
+                          "__typename": "User",
+                          "login": "philwolstenholme",
+                          "__isNode": "User",
+                          "id": "MDQ6VXNlcjYzMzk4NTM="
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "content": "THUMBS_DOWN",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  },
+                  {
+                    "content": "LAUGH",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  },
+                  {
+                    "content": "HOORAY",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  },
+                  {
+                    "content": "CONFUSED",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  },
+                  {
+                    "content": "HEART",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  },
+                  {
+                    "content": "ROCKET",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  },
+                  {
+                    "content": "EYES",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  }
+                ],
+                "__isNode": "IssueComment"
+              },
+              "cursor": "Y3Vyc29yOnYyOpPPAAABmi5691AAqjM0NTk4ODk0MjM="
+            },
+            {
+              "node": {
+                "__typename": "IssueComment",
+                "__isIssueTimelineItems": "IssueComment",
+                "databaseId": 3460393514,
+                "viewerDidAuthor": false,
+                "issue": {
+                  "author": {
+                    "__typename": "User",
+                    "login": "ceolinwill",
+                    "id": "MDQ6VXNlcjQzOTMxMzM="
+                  },
+                  "id": "I_kwDOAJy2Ks7UQx_c",
+                  "number": 35000,
+                  "locked": false,
+                  "databaseId": 3561168860
+                },
+                "author": {
+                  "__typename": "User",
+                  "login": "icyJoseph",
+                  "avatarUrl": "https://avatars.githubusercontent.com/u/21013447?u=4dc74e3d0232ee1048636f00ead4e80b0b14db7b&v=4",
+                  "profileUrl": "https://github.com/icyJoseph",
+                  "id": "MDQ6VXNlcjIxMDEzNDQ3",
+                  "name": "Joseph"
+                },
+                "id": "IC_kwDOAJy2Ks7OQWoq",
+                "url": "https://github.com/react/react/issues/35000#issuecomment-3460393514",
+                "createdAt": "2025-10-29T08:42:14Z",
+                "authorAssociation": "NONE",
+                "viewerCanDelete": false,
+                "viewerCanMinimize": false,
+                "viewerCanUnminimize": false,
+                "viewerCanReport": false,
+                "viewerCanReportToMaintainer": false,
+                "viewerCanBlockFromOrg": false,
+                "viewerCanUnblockFromOrg": false,
+                "viewerCanPin": false,
+                "viewerCanUnpin": false,
+                "viaApp": null,
+                "minimizedReason": null,
+                "showSpammyBadge": false,
+                "createdViaEmail": false,
+                "authorToRepoOwnerSponsorship": null,
+                "viewerCanReadUserContentEdits": true,
+                "lastEditedAt": "2025-10-30T13:02:00Z",
+                "lastUserContentEdit": {
+                  "editor": {
+                    "__typename": "User",
+                    "url": "https://github.com/icyJoseph",
+                    "login": "icyJoseph",
+                    "id": "MDQ6VXNlcjIxMDEzNDQ3"
+                  },
+                  "id": "UCE_lALOAJy2Ks7OQWoqzoJKudE"
+                },
+                "pinnedBy": null,
+                "body": "Gray area indeed, I understand point 2, but there's cases where it doesn't apply, When Activity is the direct parent of the portal, for example, in the sandbox in OPs, add a portal as sibling to the `div`, **_and it'll be hidden too:_** \n\n```tsx\n    <Activity mode=\"hidden\">\n      <div>\n        <h1>Hello CodeSandbox</h1>\n\n        {createPortal(\n          <p>This child is placed in the document body.</p>,\n          document.body\n        )}\n      </div>\n      {createPortal(\n        <p>This OTHER child is placed in the document body.</p>,\n        document.body\n      )}\n    </Activity>\n```\n\nYou can also replace replace the `div` with a `Fragment`:\n\n```tsx\n\n    <Activity mode=\"hidden\">\n      <>\n        <h1>Hello CodeSandbox</h1>\n        {createPortal(\n          <p>This child is placed in the document body.</p>,\n          document.body\n        )}\n      </>\n      {createPortal(\n        <p>This OTHER child is placed in the document body.</p>,\n        document.body\n      )}\n    </Activity>\n```\n\nAnd _**everything is hidden now**_. Likely this just reveals some implementation details of Activity and Portals, but yeah - we need core team input here. The display none is also applied to the `p` tag, not the body.",
+                "bodyHTML": "<p dir=\"auto\">Gray area indeed, I understand point 2, but there's cases where it doesn't apply, When Activity is the direct parent of the portal, for example, in the sandbox in OPs, add a portal as sibling to the <code class=\"notranslate\">div</code>, <strong><em>and it'll be hidden too:</em></strong></p>\n<div class=\"highlight highlight-source-tsx notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"    &lt;Activity mode=&quot;hidden&quot;&gt;\n      &lt;div&gt;\n        &lt;h1&gt;Hello CodeSandbox&lt;/h1&gt;\n\n        {createPortal(\n          &lt;p&gt;This child is placed in the document body.&lt;/p&gt;,\n          document.body\n        )}\n      &lt;/div&gt;\n      {createPortal(\n        &lt;p&gt;This OTHER child is placed in the document body.&lt;/p&gt;,\n        document.body\n      )}\n    &lt;/Activity&gt;\"><pre class=\"notranslate\">    <span class=\"pl-c1\">&lt;</span><span class=\"pl-v\">Activity</span> <span class=\"pl-c1\">mode</span><span class=\"pl-c1\">=</span><span class=\"pl-s\">\"hidden\"</span><span class=\"pl-c1\">&gt;</span>\n      <span class=\"pl-c1\">&lt;</span><span class=\"pl-s1\">div</span><span class=\"pl-c1\">&gt;</span>\n        <span class=\"pl-c1\">&lt;</span><span class=\"pl-s1\">h1</span><span class=\"pl-c1\">&gt;</span>Hello CodeSandbox<span class=\"pl-kos\">&lt;/</span><span class=\"pl-s1\">h1</span><span class=\"pl-c1\">&gt;</span>\n\n        <span class=\"pl-kos\">{</span><span class=\"pl-en\">createPortal</span><span class=\"pl-kos\">(</span>\n          <span class=\"pl-c1\">&lt;</span><span class=\"pl-s1\">p</span><span class=\"pl-c1\">&gt;</span>This child is placed in the document body.<span class=\"pl-kos\">&lt;/</span><span class=\"pl-s1\">p</span><span class=\"pl-c1\">&gt;</span><span class=\"pl-kos\">,</span>\n          <span class=\"pl-smi\">document</span><span class=\"pl-kos\">.</span><span class=\"pl-c1\">body</span>\n        <span class=\"pl-kos\">)</span><span class=\"pl-kos\">}</span>\n      <span class=\"pl-kos\">&lt;/</span><span class=\"pl-s1\">div</span><span class=\"pl-c1\">&gt;</span>\n      <span class=\"pl-kos\">{</span><span class=\"pl-en\">createPortal</span><span class=\"pl-kos\">(</span>\n        <span class=\"pl-c1\">&lt;</span><span class=\"pl-s1\">p</span><span class=\"pl-c1\">&gt;</span>This OTHER child is placed in the document body.<span class=\"pl-kos\">&lt;/</span><span class=\"pl-s1\">p</span><span class=\"pl-c1\">&gt;</span><span class=\"pl-kos\">,</span>\n        <span class=\"pl-smi\">document</span><span class=\"pl-kos\">.</span><span class=\"pl-c1\">body</span>\n      <span class=\"pl-kos\">)</span><span class=\"pl-kos\">}</span>\n    <span class=\"pl-kos\">&lt;/</span><span class=\"pl-v\">Activity</span><span class=\"pl-c1\">&gt;</span></pre></div>\n<p dir=\"auto\">You can also replace replace the <code class=\"notranslate\">div</code> with a <code class=\"notranslate\">Fragment</code>:</p>\n<div class=\"highlight highlight-source-tsx notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"\n    &lt;Activity mode=&quot;hidden&quot;&gt;\n      &lt;&gt;\n        &lt;h1&gt;Hello CodeSandbox&lt;/h1&gt;\n        {createPortal(\n          &lt;p&gt;This child is placed in the document body.&lt;/p&gt;,\n          document.body\n        )}\n      &lt;/&gt;\n      {createPortal(\n        &lt;p&gt;This OTHER child is placed in the document body.&lt;/p&gt;,\n        document.body\n      )}\n    &lt;/Activity&gt;\"><pre class=\"notranslate\">    <span class=\"pl-c1\">&lt;</span><span class=\"pl-v\">Activity</span> <span class=\"pl-c1\">mode</span><span class=\"pl-c1\">=</span><span class=\"pl-s\">\"hidden\"</span><span class=\"pl-c1\">&gt;</span>\n      <span class=\"pl-c1\">&lt;</span><span class=\"pl-c1\">&gt;</span>\n        <span class=\"pl-c1\">&lt;</span><span class=\"pl-s1\">h1</span><span class=\"pl-c1\">&gt;</span>Hello CodeSandbox<span class=\"pl-kos\">&lt;/</span><span class=\"pl-s1\">h1</span><span class=\"pl-c1\">&gt;</span>\n        <span class=\"pl-kos\">{</span><span class=\"pl-en\">createPortal</span><span class=\"pl-kos\">(</span>\n          <span class=\"pl-c1\">&lt;</span><span class=\"pl-s1\">p</span><span class=\"pl-c1\">&gt;</span>This child is placed in the document body.<span class=\"pl-kos\">&lt;/</span><span class=\"pl-s1\">p</span><span class=\"pl-c1\">&gt;</span><span class=\"pl-kos\">,</span>\n          <span class=\"pl-smi\">document</span><span class=\"pl-kos\">.</span><span class=\"pl-c1\">body</span>\n        <span class=\"pl-kos\">)</span><span class=\"pl-kos\">}</span>\n      <span class=\"pl-kos\">&lt;/</span><span class=\"pl-c1\">&gt;</span>\n      <span class=\"pl-kos\">{</span><span class=\"pl-en\">createPortal</span><span class=\"pl-kos\">(</span>\n        <span class=\"pl-c1\">&lt;</span><span class=\"pl-s1\">p</span><span class=\"pl-c1\">&gt;</span>This OTHER child is placed in the document body.<span class=\"pl-kos\">&lt;/</span><span class=\"pl-s1\">p</span><span class=\"pl-c1\">&gt;</span><span class=\"pl-kos\">,</span>\n        <span class=\"pl-smi\">document</span><span class=\"pl-kos\">.</span><span class=\"pl-c1\">body</span>\n      <span class=\"pl-kos\">)</span><span class=\"pl-kos\">}</span>\n    <span class=\"pl-kos\">&lt;/</span><span class=\"pl-v\">Activity</span><span class=\"pl-c1\">&gt;</span></pre></div>\n<p dir=\"auto\">And <em><strong>everything is hidden now</strong></em>. Likely this just reveals some implementation details of Activity and Portals, but yeah - we need core team input here. The display none is also applied to the <code class=\"notranslate\">p</code> tag, not the body.</p>",
+                "bodyVersion": "ff55f87ab010554fd2c7c005d814991757424d516f4633837b6a782e3297ce24",
+                "isHidden": false,
+                "viewerCanUpdate": false,
+                "repository": {
+                  "id": "MDEwOlJlcG9zaXRvcnkxMDI3MDI1MA==",
+                  "name": "react",
+                  "owner": {
+                    "__typename": "Organization",
+                    "id": "MDEyOk9yZ2FuaXphdGlvbjEwMjgxMg==",
+                    "login": "react",
+                    "url": "https://github.com/react"
+                  },
+                  "isPrivate": false,
+                  "viewerCanCreateIssues": true,
+                  "slashCommandsEnabled": true,
+                  "nameWithOwner": "react/react",
+                  "databaseId": 10270250
+                },
+                "reactionGroups": [
+                  {
+                    "content": "THUMBS_UP",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 4,
+                      "nodes": [
+                        {
+                          "__typename": "User",
+                          "login": "khuezy",
+                          "__isNode": "User",
+                          "id": "MDQ6VXNlcjgxMTI5OA=="
+                        },
+                        {
+                          "__typename": "User",
+                          "login": "SorooshGb",
+                          "__isNode": "User",
+                          "id": "U_kgDOCIRDWA"
+                        },
+                        {
+                          "__typename": "User",
+                          "login": "bolechen",
+                          "__isNode": "User",
+                          "id": "MDQ6VXNlcjE5NTAxNQ=="
+                        },
+                        {
+                          "__typename": "User",
+                          "login": "hades343",
+                          "__isNode": "User",
+                          "id": "U_kgDOBeP2tQ"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "content": "THUMBS_DOWN",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  },
+                  {
+                    "content": "LAUGH",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  },
+                  {
+                    "content": "HOORAY",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  },
+                  {
+                    "content": "CONFUSED",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  },
+                  {
+                    "content": "HEART",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  },
+                  {
+                    "content": "ROCKET",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  },
+                  {
+                    "content": "EYES",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  }
+                ],
+                "__isNode": "IssueComment"
+              },
+              "cursor": "Y3Vyc29yOnYyOpPPAAABmi8hxnAAqjM0NjAzOTM1MTQ="
+            },
+            {
+              "node": {
+                "__typename": "IssueComment",
+                "__isIssueTimelineItems": "IssueComment",
+                "databaseId": 3512765526,
+                "viewerDidAuthor": false,
+                "issue": {
+                  "author": {
+                    "__typename": "User",
+                    "login": "ceolinwill",
+                    "id": "MDQ6VXNlcjQzOTMxMzM="
+                  },
+                  "id": "I_kwDOAJy2Ks7UQx_c",
+                  "number": 35000,
+                  "locked": false,
+                  "databaseId": 3561168860
+                },
+                "author": {
+                  "__typename": "User",
+                  "login": "billyjanitsch",
+                  "avatarUrl": "https://avatars.githubusercontent.com/u/1158733?u=b7ebac694a75c1207401c38e983b33da216af00b&v=4",
+                  "profileUrl": "https://github.com/billyjanitsch",
+                  "id": "MDQ6VXNlcjExNTg3MzM=",
+                  "name": "Billy Janitsch"
+                },
+                "id": "IC_kwDOAJy2Ks7RYIxW",
+                "url": "https://github.com/react/react/issues/35000#issuecomment-3512765526",
+                "createdAt": "2025-11-10T16:42:21Z",
+                "authorAssociation": "CONTRIBUTOR",
+                "viewerCanDelete": false,
+                "viewerCanMinimize": false,
+                "viewerCanUnminimize": false,
+                "viewerCanReport": false,
+                "viewerCanReportToMaintainer": false,
+                "viewerCanBlockFromOrg": false,
+                "viewerCanUnblockFromOrg": false,
+                "viewerCanPin": false,
+                "viewerCanUnpin": false,
+                "viaApp": null,
+                "minimizedReason": null,
+                "showSpammyBadge": false,
+                "createdViaEmail": false,
+                "authorToRepoOwnerSponsorship": null,
+                "viewerCanReadUserContentEdits": true,
+                "lastEditedAt": null,
+                "lastUserContentEdit": null,
+                "pinnedBy": null,
+                "body": "This looks to be fixed by https://github.com/facebook/react/pull/35091 (not yet released)",
+                "bodyHTML": "<p dir=\"auto\">This looks to be fixed by <a class=\"issue-link js-issue-link\" data-error-text=\"Failed to load title\" data-id=\"3606336462\" data-permission-text=\"Title is private\" data-url=\"https://github.com/react/react/issues/35091\" data-hovercard-type=\"pull_request\" data-hovercard-url=\"/react/react/pull/35091/hovercard\" href=\"https://github.com/react/react/pull/35091\">#35091</a> (not yet released)</p>",
+                "bodyVersion": "59b651b493f0bf2ffb1020c2cc04178f0a446b4a2dfff0bae68334a62432b56c",
+                "isHidden": false,
+                "viewerCanUpdate": false,
+                "repository": {
+                  "id": "MDEwOlJlcG9zaXRvcnkxMDI3MDI1MA==",
+                  "name": "react",
+                  "owner": {
+                    "__typename": "Organization",
+                    "id": "MDEyOk9yZ2FuaXphdGlvbjEwMjgxMg==",
+                    "login": "react",
+                    "url": "https://github.com/react"
+                  },
+                  "isPrivate": false,
+                  "viewerCanCreateIssues": true,
+                  "slashCommandsEnabled": true,
+                  "nameWithOwner": "react/react",
+                  "databaseId": 10270250
+                },
+                "reactionGroups": [
+                  {
+                    "content": "THUMBS_UP",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  },
+                  {
+                    "content": "THUMBS_DOWN",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  },
+                  {
+                    "content": "LAUGH",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  },
+                  {
+                    "content": "HOORAY",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 2,
+                      "nodes": [
+                        {
+                          "__typename": "User",
+                          "login": "ceolinwill",
+                          "__isNode": "User",
+                          "id": "MDQ6VXNlcjQzOTMxMzM="
+                        },
+                        {
+                          "__typename": "User",
+                          "login": "khuezy",
+                          "__isNode": "User",
+                          "id": "MDQ6VXNlcjgxMTI5OA=="
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "content": "CONFUSED",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  },
+                  {
+                    "content": "HEART",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 1,
+                      "nodes": [
+                        {
+                          "__typename": "User",
+                          "login": "amintai",
+                          "__isNode": "User",
+                          "id": "MDQ6VXNlcjUwMTc4MDQz"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "content": "ROCKET",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  },
+                  {
+                    "content": "EYES",
+                    "viewerHasReacted": false,
+                    "reactors": {
+                      "totalCount": 0,
+                      "nodes": []
+                    }
+                  }
+                ],
+                "__isNode": "IssueComment"
+              },
+              "cursor": "Y3Vyc29yOnYyOpPPAAABmm6lpcgAqjM1MTI3NjU1MjY="
+            },
+            {
+              "node": {
+                "__typename": "CrossReferencedEvent",
+                "__isIssueTimelineItems": "CrossReferencedEvent",
+                "__isTimelineEvent": "CrossReferencedEvent",
+                "databaseId": 3872992805,
+                "createdAt": "2025-11-10T19:39:35Z",
+                "actor": {
+                  "id": "MDQ6VXNlcjEyMjkyMDQ3",
+                  "avatarUrl": "https://avatars.githubusercontent.com/u/12292047?s=64&u=d1523888bc16deb2ce9f5294e4849d1a2f02270c&v=4",
+                  "login": "eps1lon",
+                  "profileResourcePath": "/eps1lon",
+                  "__typename": "User",
+                  "name": "Sebastian \"Sebbie\" Silbermann"
+                },
+                "source": {
+                  "__typename": "PullRequest",
+                  "__isNode": "PullRequest",
+                  "id": "PR_kwDOAJy2Ks6ycgpg"
+                },
+                "willCloseTarget": false,
+                "referencedAt": "2025-11-10T19:39:34Z",
+                "innerSource": {
+                  "__typename": "PullRequest",
+                  "id": "PR_kwDOAJy2Ks6ycgpg",
+                  "pullTitleHTML": "Fix: Activity should hide portal contents",
+                  "url": "https://github.com/react/react/pull/35091",
+                  "number": 35091,
+                  "state": "MERGED",
+                  "isDraft": false,
+                  "isInMergeQueue": false,
+                  "repository": {
+                    "id": "MDEwOlJlcG9zaXRvcnkxMDI3MDI1MA==",
+                    "name": "react",
+                    "isPrivate": false,
+                    "owner": {
+                      "__typename": "Organization",
+                      "login": "react",
+                      "id": "MDEyOk9yZ2FuaXphdGlvbjEwMjgxMg=="
+                    }
+                  },
+                  "__isNode": "PullRequest"
+                },
+                "__isNode": "CrossReferencedEvent",
+                "id": "CRE_kwDOAJy2Ks7m2S4l"
+              },
+              "cursor": "Y3Vyc29yOnYyOpPPAAABmm9H6NgCqjM4NzI5OTI4MDU="
+            },
+            {
+              "node": {
+                "__typename": "ClosedEvent",
+                "__isIssueTimelineItems": "ClosedEvent",
+                "__isTimelineEvent": "ClosedEvent",
+                "databaseId": 20845271931,
+                "createdAt": "2025-11-10T19:39:41Z",
+                "actor": {
+                  "id": "MDQ6VXNlcjEyMjkyMDQ3",
+                  "avatarUrl": "https://avatars.githubusercontent.com/u/12292047?s=64&u=d1523888bc16deb2ce9f5294e4849d1a2f02270c&v=4",
+                  "login": "eps1lon",
+                  "profileResourcePath": "/eps1lon",
+                  "__typename": "User",
+                  "name": "Sebastian \"Sebbie\" Silbermann"
+                },
+                "stateReason": "COMPLETED",
+                "duplicateOf": null,
+                "closingProjectItemStatus": null,
+                "closer": null,
+                "id": "CE_lADOAJy2Ks7UQx_czwAAAATaeZt7",
+                "intent": null,
+                "__isNode": "ClosedEvent"
+              },
+              "cursor": "Y3Vyc29yOnYyOpPPAAABmm9IAEgBqzIwODQ1MjcxOTMx"
+            }
+          ]
+        },
+        "backTimelineItems": {
+          "pageInfo": {
+            "hasPreviousPage": true,
+            "startCursor": null
+          },
+          "totalCount": 12,
+          "edges": []
+        },
+        "pendingSuggestions": []
+      }
+    },
+    "safeViewer": {
+      "isEnterpriseManagedUser": false,
+      "enterpriseManagedEnterpriseId": null,
+      "login": "flazouh",
+      "__typename": "User",
+      "id": "MDQ6VXNlcjI1NzA1NzA0",
+      "name": "Alex",
+      "profileResourcePath": "/flazouh",
+      "avatarUrl": "https://avatars.githubusercontent.com/u/25705704?s=64&u=96b044f633454e825a2af2af0dc2f1e992f5311c&v=4"
+    }
+  },
+  "extensions": {
+    "subscriptions": {
+      "b3e4e7758993710109c0ee07c0f7029e": {
+        "{\"issueId\":\"I_kwDOAJy2Ks7UQx_c\"}": {
+          "response": {
+            "data": {
+              "issueUpdated": {
+                "deletedCommentId": null,
+                "issueBodyUpdated": null,
+                "issueMetadataUpdated": null,
+                "issueStateUpdated": null,
+                "issueReactionUpdated": null,
+                "issueTransferStateUpdated": null,
+                "issueTypeUpdated": null,
+                "issueTitleUpdated": null,
+                "commentReactionUpdated": null,
+                "commentUpdated": null,
+                "subIssuesUpdated": null,
+                "subIssuesSummaryUpdated": null,
+                "parentIssueUpdated": null,
+                "issueDependenciesSummaryUpdated": null,
+                "issueFieldsUpdated": null,
+                "pinnedCommentUpdated": null
+              }
+            }
+          },
+          "subscriptionId": "eyJjIjoiZzp2Mzo6aXNzdWVVcGRhdGVkOmlkOklfa3dET0FKeTJLczdVUXhfYzpnYUpwWkxKSlgydDNSRTlCU25reVMzTTNWVkY0WDJNPSIsInQiOjE3ODU3MTY0NTF9--472c17e2257a7fea7e5565e2c2b157ff55583a4d9d957dd17e80d71d639ad887"
+        }
+      },
+      "3969d52422bb9b229b69c33f06d1ddaa": {
+        "{\"issueId\":\"I_kwDOAJy2Ks7UQx_c\"}": {
+          "response": {
+            "data": {
+              "issueUpdated": {
+                "issueTimelineUpdated": null
+              }
+            }
+          },
+          "subscriptionId": "eyJjIjoiZzp2Mzo6aXNzdWVVcGRhdGVkOmlkOklfa3dET0FKeTJLczdVUXhfYzpnYUpwWkxKSlgydDNSRTlCU25reVMzTTNWVkY0WDJNPSIsInQiOjE3ODU3MTY0NTF9--472c17e2257a7fea7e5565e2c2b157ff55583a4d9d957dd17e80d71d639ad887"
+        }
+      }
+    }
+  }
+}

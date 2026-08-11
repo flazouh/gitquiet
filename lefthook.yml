@@ -1,0 +1,23 @@
+# The gates CI runs, run before the push instead of after it.
+#
+# The same three commands as `.github/workflows/ci.yml`, in the same order, so a
+# push that would turn the branch red is refused here rather than on a runner a
+# minute later. Nothing new is being checked; this is only the check moving to
+# where it can still be acted on.
+#
+# `piped` stops at the first failure. The whole run is about twenty seconds on a
+# clean tree, and the linter answers in the first one of them, so a try/catch
+# that CI would have caught costs a second here rather than the whole suite.
+#
+# `LEFTHOOK=0 git push` goes past all of it, for a branch pushed to be read
+# rather than to be merged.
+
+pre-push:
+  piped: true
+  commands:
+    lint:
+      run: bun run lint
+    compile:
+      run: bun run compile
+    test:
+      run: bun test

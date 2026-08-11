@@ -1,0 +1,304 @@
+/**
+ * Tailwind in three parts rather than one, so the utilities are not in a layer.
+ *
+ * `@import "tailwindcss"` puts them in `@layer utilities`, and `src/ui/styles.css`
+ * spends a comment on why the interface must not: a layered rule loses to an unlayered
+ * one however specific it is, and `quiet.css` is a whole file of unlayered element
+ * rules written on the promise that our own utilities are unlayered too. Under one
+ * plain `@import` the second copy is deduplicated, the layered one survives, and
+ * `quiet.css` quietly beats it — the filter row's buttons kept their reset instead of
+ * their `text-xs bg-hover`, so they were 14px transparent on a dark canvas.
+ *
+ * Preflight is asked for by name, which the interface does not do. It resets every
+ * element on a page, and the page it runs on there is GitHub's. This one is ours.
+ */
+@layer theme, base;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+
+/*
+ * The extension's own stylesheet, because the screens on this page are the
+ * extension's own components rather than pictures of them.
+ *
+ * Every rule it carries is scoped to `:is(#gitquiet-root, [data-gitquiet-outside])`,
+ * so importing it here cannot reach this page's own type or spacing. `Live.tsx` puts
+ * that attribute on each screen's wrapper, which is the repeatable half of the pair:
+ * an id can only be in a document once and there are twelve screens.
+ */
+@import "../../src/ui/styles.css";
+
+/*
+ * Tailwind 4 generates a utility only when it finds the class name in a file it
+ * scanned, and it decides what to scan from where the stylesheet lives. Left alone it
+ * finds `site/src` and none of the interface's class names, which draws every screen as
+ * unstyled markup. `shots/stage.css` says the same thing for the same reason.
+ */
+@source "../../src";
+
+/**
+ * The root of a live screen, said here because the interface says it with an id.
+ *
+ * `primer.css` establishes four inherited things at the top of the interface's own
+ * subtree — the spacing unit, the colour, the family and the base size — in a rule
+ * scoped to `#gitquiet-root`. A live screen cannot carry that id: there are twelve of
+ * them and an id belongs to one element.
+ *
+ * Without them this page's `body` colour and its 16px flowed straight in, because an
+ * inherited `color` is an absolute value and carries down past any `--color-ink` the
+ * theme paints on the way. The filter row's buttons were the visible half: near-black
+ * text at 16px on the interface's dark canvas, which is to say invisible.
+ *
+ * Said here rather than by widening that rule to `[data-gitquiet-outside]`, which is
+ * the shape the rest of the interface uses. That attribute is also on the toast host
+ * and on the bar's own slot, and the rule it opens goes on to set `width: 100%` and
+ * `flex: 1 1 auto` — right for a screen filling the region we replaced, wrong for a
+ * strip at the top of a page.
+ */
+[data-live] {
+  --spacing: 0.25rem;
+
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+
+}
+
+/**
+ * The frame the screen stands in, which is the same problem a second time.
+ *
+ * `widths.css` puts it on `html[data-gitquiet-taken] #gitquiet-root`, and a live screen
+ * matches neither half: this page takes no page of GitHub's over, and it cannot carry
+ * that id twelve times. The variable itself is on `:root` and arrives fine, 32px on a
+ * wide window, so the bar read it and every card under the bar did not — the exact fault
+ * `widths.css` was written to end, inverted.
+ *
+ * On the screen and not on `[data-live]`, which was the first attempt and was wrong by
+ * the same 32px in the other direction. `widths.css` says why in its own words: the bar
+ * is deliberately not inside `#gitquiet-root`, so a value on the interface cannot reach
+ * it. Here the bar's slot is a child of `[data-live]`, so a gutter there is one the bar
+ * pays twice — inset 64 above cards inset 32.
+ */
+[data-screen] {
+  min-width: 0;
+  padding-inline: var(--gitquiet-gutter);
+}
+
+/*
+ * The page's own tokens, named after what they are for rather than what colour they
+ * are, so a change of palette is one edit here. The values are `src/brand.ts`; the
+ * duplication is deliberate, since Tailwind needs them at build time and the shader
+ * needs them at run time.
+ */
+@theme {
+  --color-paper: #fbf9f7;
+  --color-ink: #1b1725;
+  --color-muted: #5f596d;
+  --color-rule: rgba(27, 23, 37, 0.12);
+
+  /*
+   * One family, and no monospace.
+   *
+   * The eyebrow labels above each heading used to be set in `ui-monospace`, which is
+   * a different typeface on every machine that reads this page: SF Mono here, Consolas
+   * on Windows, DejaVu on a Linux box. A label four words long is not worth a second
+   * webfont either, so the labels are Inter, uppercase, tracked out and set in a
+   * medium weight, which is what the mono was doing for them anyway.
+   */
+  --font-sans:
+    "Inter var", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+
+  /*
+   * The interface's motion scale, said again because this page cannot reach it.
+   *
+   * `src/ui/motion.css` declares all of it on `#gitquiet-root, [data-gitquiet-outside]`,
+   * and it says in its own comment why: a `:root` block there would rename duration and
+   * easing across the whole of github.com. The consequence here is that the twelve
+   * screens on this page carry the scale and the page around them carries nothing, so
+   * the one transition this page had was a hand-typed `duration-150` that matched none
+   * of the names below.
+   *
+   * Copied values rather than a shared file, which is the same trade `@theme` already
+   * makes for the colours twenty lines up: Tailwind needs these at build time to emit
+   * `duration-press` and `ease-out` as utilities, and an `@import` of a scoped rule
+   * cannot give it them. The numbers are Emil Kowalski's scale either way, so the two
+   * copies drift only if someone retunes one and not the other.
+   */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --duration-press: 160ms;
+  --duration-quick: 150ms;
+  --duration-fast: 250ms;
+  --duration-stagger: 60ms;
+  --scale-press: 0.97;
+}
+
+html {
+  background: var(--color-paper);
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/*
+ * The eyebrow above a section heading. One class, because it was three utilities
+ * repeated at four call sites and they had already drifted by one tracking step.
+ */
+.eyebrow {
+  font-size: 12px;
+  font-weight: 550;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/*
+ * Measured numbers are the argument on this page, so they never reflow mid-count
+ * and never sit at a different width than the number above them.
+ */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/**
+ * A card with no stroke on it.
+ *
+ * The separation is the surface and the shadow, which is what the paper allows: the
+ * page is `#fbf9f7`, so white at 70 percent reads as a sheet lifted off it rather
+ * than as a panel drawn on it. A hairline around that would say the same thing twice
+ * and say it worse, because the rule is the heaviest mark on a page this light.
+ *
+ * Two shadow lanes, both ink rather than black, for the reason `--color-rule` is ink:
+ * a grey shadow on warm paper turns the paper cold in a ring around every card. The
+ * near one seats the edge, the far one carries the lift, and neither is dark enough to
+ * be seen as a shadow when you are reading the words instead of looking at the box.
+ */
+.quote-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 28px;
+  box-shadow:
+    0 1px 2px rgba(27, 23, 37, 0.04),
+    0 14px 36px -18px rgba(27, 23, 37, 0.14);
+
+  /*
+   * Four cards arriving in order rather than as a block.
+   *
+   * `animation-timeline: view()` rather than an IntersectionObserver, because there is
+   * nothing here for JavaScript to decide: the card fades up as it crosses the fold and
+   * the browser runs it off the compositor. `--stagger` is set per card in `Page.tsx`.
+   *
+   * `both` on the fill, so a card below the fold is at the start of the animation rather
+   * than at rest. Without it the whole set is fully drawn before the timeline is
+   * consulted and the animation plays over already-visible cards.
+   */
+  animation: rise var(--duration-fast) var(--ease-out) both;
+  animation-delay: var(--stagger, 0ms);
+  animation-timeline: view();
+  animation-range: entry 8% cover 26%;
+}
+
+/**
+ * The one entrance this page has, in one place.
+ *
+ * Six pixels and a fade. Both numbers are small enough that a reader who is scrolling
+ * at speed sees the card and not the arriving, which is the point: this is here to stop
+ * four panels appearing at once out of blank paper, not to be noticed.
+ */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/**
+ * A screen, once it has something to draw.
+ *
+ * Twelve of these mount from nothing when `Live` decides the reader is near, and the
+ * mount is a whole React tree with a mock repository in it. Before this they snapped
+ * from an empty dark frame to a full interface in one frame. It happens 800 pixels
+ * ahead of the fold and is invisible at a normal scroll, so this is only for the fast
+ * scroll that catches it — hence a fade with no travel. A screen that also slid would
+ * be a screen that moved after it had been read.
+ */
+.live-in {
+  animation: fade var(--duration-fast) var(--ease-out) both;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/**
+ * Less movement, not less feedback.
+ *
+ * This was the universal selector at `0.01ms !important`, which is the snippet every
+ * project pastes in, and it was wrong here twice over.
+ *
+ * It reached into the twelve screens. `*` matches every node in this document,
+ * `!important` beats an author rule however specific, and neither stops at the frame
+ * around a live screen — so it overrode `src/ui/motion.css`, which spends a hundred
+ * lines getting this exact setting right and keeps `transition-property: color,
+ * background-color, border-color, box-shadow` on purpose. Its own comment says why:
+ * reduced motion is about travel, and a menu row whose hover colour teleports has lost
+ * the one signal that says which row the pointer is on. On github.com the extension
+ * behaved as designed and on this page it did not, which is the worst version of the
+ * bug because the page is where the extension gets demonstrated.
+ *
+ * It also killed colour and opacity here, for the same bad reason. What a vestibular
+ * reader asks not to see is a surface sliding or scaling under their eyes. A button
+ * that warms up under the pointer is not that.
+ *
+ * So: named animations off, travel off, colour kept, and nothing said about anything
+ * inside `[data-live]`. The shader has no CSS clock to stop at all, so `Bed` reads the
+ * same setting in JavaScript — see `useCalm`.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .quote-card,
+  .live-in {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  /*
+   * This page's own controls, and pointedly not the ones inside a screen.
+   *
+   * `:not([data-live] *)` is the whole lesson of the rule this replaced. Without it
+   * these two blocks are the universal selector again with extra steps: `a` matches
+   * every anchor in a mounted screen, and `!important` here would then be arguing with
+   * `motion.css`'s own `!important` with nothing but source order to settle it.
+   *
+   * `!important` is still needed on this side of that boundary, because the utility it
+   * has to beat is a class and these are elements. `motion.css` reaches for it in the
+   * same place for the same reason.
+   */
+  :is(a, button):not([data-live] *) {
+    transition-property: color, background-color, border-color, box-shadow !important;
+  }
+
+  /*
+   * `scale`, not `transform`.
+   *
+   * Tailwind 4 compiles `active:scale-[…]` to the standalone `scale` property, so a
+   * `transform: none` here overrides nothing and the button went on shrinking under a
+   * setting that exists to stop things moving. Read out of the built stylesheet rather
+   * than assumed: `.active\:scale-\[var\(--scale-press\)\]:active{scale:var(--scale-press)}`.
+   */
+  :is(a, button):not([data-live] *):active {
+    scale: 1 !important;
+    transform: none !important;
+  }
+}

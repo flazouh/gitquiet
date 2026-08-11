@@ -1,0 +1,548 @@
+/**
+ * What the reader has chosen, and everything that is known about each choice.
+ *
+ * One declaration per setting, in one list. The menu is built from it, the
+ * defaults come from it, stored values are checked against it, and the diff and
+ * the tree read the result — so adding a knob is adding a line here, and there
+ * is nowhere for the four copies of that knob to drift apart.
+ */
+
+export type Choice<T extends string> = {
+  readonly value: T
+  readonly label: string
+}
+
+export type Knob<K extends string, T extends string> = {
+  readonly key: K
+  readonly label: string
+  /**
+   * The label's other half, in a handful of words: what the knob is about, for
+   * a row that is being scanned rather than read. Never the whole trade — the
+   * note below is that, and one of the two is always in reach of the other.
+   */
+  readonly gist: string
+  /**
+   * What this changes, and what it costs — the whole of it, not a restatement
+   * of the label. Shown in the menu, so it is written for someone deciding
+   * rather than for someone maintaining this file.
+   */
+  readonly note: string
+  /** Curated knobs are in the menu; advanced ones are behind one more click. */
+  readonly advanced: boolean
+  readonly choices: ReadonlyArray<Choice<T>>
+  readonly fallback: T
+}
+
+const knob = <K extends string, T extends string>(
+  key: K,
+  label: string,
+  gist: string,
+  note: string,
+  choices: ReadonlyArray<Choice<T>>,
+  fallback: T,
+  advanced = false,
+): Knob<K, T> => ({ key, label, gist, note, advanced, choices, fallback })
+
+const onOff = [
+  { value: "on", label: "On" },
+  { value: "off", label: "Off" },
+] as const satisfies ReadonlyArray<Choice<"on" | "off">>
+
+/**
+ * Whose pull request page this is — the one choice that decides whether any of
+ * the others are ever read.
+ *
+ * Kept out of the menu below deliberately. The menu is inside our page, so a
+ * row in it that takes our page away would be the one control in there that
+ * closes the thing you are using; the switch lives in the header instead, and
+ * its twin sits on GitHub's own tab row for the way back.
+ */
+export const PAGE_KNOBS = [
+  knob(
+    "view",
+    "Pull request page",
+    "Whose page a pull request opens as",
+    "Which page a pull request opens as. Ours puts the shell, the sections and the diff on one screen in place of the conversation. GitHub's leaves their page untouched and adds nothing to it but a way back, so nothing here is hidden from you on a day when their page is the one you want.",
+    [
+      { value: "ours", label: "This extension" },
+      { value: "github", label: "GitHub's" }
+    ],
+    "ours"
+  )
+] as const
+
+/**
+ * How the interface is painted — light or dark, and which colour pack.
+ *
+ * Separate from `diff.syntax`, which only colours keywords inside the code.
+ * These knobs colour the chrome around it: canvas, ink, borders, status chips.
+ */
+export const THEME_KNOBS = [
+  knob(
+    "appearance",
+    "Appearance",
+    "Follow the OS, or force light or dark",
+    "Whether the interface follows the operating system's light or dark preference, or stays on Light or Dark regardless. System is the default so the product matches the rest of the machine; Light and Dark are for a day when the OS and the work disagree.",
+    [
+      { value: "system", label: "System" },
+      { value: "light", label: "Light" },
+      { value: "dark", label: "Dark" }
+    ],
+    "system"
+  ),
+  knob(
+    "pack",
+    "Theme",
+    "Which colour pack paints the interface",
+    "Which colour pack paints the screens. Match is the default and means the place: GitHub's own colours on GitHub's page, where this interface stands under their header and inside their tab, and Gitquiet — this product's own look — in a window of its own. The rest are familiar editor and terminal packs, Dracula, Gruvbox, Tokyo Night, One Dark and others, each with its own light and dark face, and each of them holds everywhere once it is asked for by name.",
+    [
+      { value: "match", label: "Match the page" },
+      { value: "gitquiet", label: "Gitquiet" },
+      { value: "anthropic", label: "Anthropic" },
+      { value: "cursor", label: "Cursor" },
+      { value: "github", label: "GitHub" },
+      { value: "catppuccin", label: "Catppuccin" },
+      { value: "nord", label: "Nord" },
+      { value: "one-dark", label: "One Dark" },
+      { value: "dracula", label: "Dracula" },
+      { value: "solarized", label: "Solarized" },
+      { value: "gruvbox", label: "Gruvbox" },
+      { value: "tokyo-night", label: "Tokyo Night" },
+      { value: "rose-pine", label: "Rosé Pine" },
+      { value: "monokai", label: "Monokai" },
+      { value: "ayu", label: "Ayu" },
+      { value: "everforest", label: "Everforest" },
+      { value: "kanagawa", label: "Kanagawa" },
+      { value: "night-owl", label: "Night Owl" },
+      { value: "material", label: "Material" },
+      { value: "palenight", label: "Palenight" },
+      { value: "horizon", label: "Horizon" },
+      { value: "vesper", label: "Vesper" },
+      { value: "cobalt", label: "Cobalt" },
+      { value: "synthwave", label: "Synthwave" },
+      { value: "oxocarbon", label: "Oxocarbon" },
+      { value: "flexoki", label: "Flexoki" },
+      { value: "zinc", label: "Zinc" }
+    ],
+    "match"
+  ),
+  knob(
+    "art",
+    "Icons",
+    "Which set the glyphs are drawn from",
+    "Which set every glyph is drawn from. Match uses GitHub's own Octicons on their page, where a pull request in this interface is then the same shape as the one in the header above it, and the product's rounder set in a window of its own, where there is no row of theirs to match. The other two answers hold one set everywhere.",
+    [
+      { value: "match", label: "Match the page" },
+      { value: "github", label: "GitHub" },
+      { value: "gitquiet", label: "Gitquiet" }
+    ],
+    "match"
+  )
+] as const
+
+/**
+ * The diff's own knobs, in the order they matter.
+ *
+ * Every value is a word rather than a boolean or a number, because the menu
+ * shows words and the stored form should be the thing that was chosen rather
+ * than a translation of it — `"wrap"` survives a rename of the renderer's
+ * option; `true` does not survive being read a year later.
+ */
+export const DIFF_KNOBS = [
+  knob(
+    "layout",
+    "Layout",
+    "One column, or two side by side",
+    "Unified puts the deletions directly above the additions that replace them, in one column. Side by side gives each its own column, which reads better for a rewritten block and worse in a narrow panel, where both halves end up cut off mid-line.",
+    [
+      { value: "unified", label: "Unified" },
+      { value: "split", label: "Side by side" },
+    ],
+    "unified",
+  ),
+  knob(
+    "longLines",
+    "Long lines",
+    "Scroll a long line, or fold it onto the next row",
+    "What happens to a line too long for the panel. Scroll keeps the numbering tidy and hides the end of long lines behind a sideways scrollbar; Wrap folds them onto the next row, so nothing is hidden and a minified file becomes very tall.",
+    [
+      { value: "scroll", label: "Scroll" },
+      { value: "wrap", label: "Wrap" },
+    ],
+    "wrap",
+  ),
+  knob(
+    "syntax",
+    "Syntax colours",
+    "Which theme paints the code",
+    "Which colours the code itself is painted in. Everything around it — the canvas, the gutter, the green and red of a changed line — stays GitHub's either way, so this changes keywords, strings and comments and nothing else.",
+    [
+      { value: "one-dark", label: "One Dark" },
+      { value: "github", label: "GitHub" },
+    ],
+    "one-dark",
+  ),
+  knob(
+    "textSize",
+    "Text size",
+    "How big the code is",
+    "The size of the code, and the height of a row with it. Small fits about a third more of a file on the screen; large is easier to read at a distance or on a very wide monitor.",
+    [
+      { value: "small", label: "Small" },
+      { value: "medium", label: "Medium" },
+      { value: "large", label: "Large" },
+    ],
+    "small",
+  ),
+  knob(
+    "lineNumbers",
+    "Line numbers",
+    "The numbers down each side",
+    "The column of numbers down the side of each half. Turning them off buys a little width in a narrow panel, and takes away the thing you name when you want to talk about a particular line.",
+    onOff,
+    "on",
+  ),
+  knob(
+    "fill",
+    "Fill changed lines",
+    "Green and red across the line, or only a mark",
+    "Whether a changed line is filled with green or red across its whole width, which is GitHub's way, or left the colour of the page with only a mark in the margin. Fills make the shape of a change readable while scrolling quickly; without them a diff is calmer and slower to scan.",
+    onOff,
+    "on",
+  ),
+  knob(
+    "withinLine",
+    "Highlight within a line",
+    "What changed inside an edited line",
+    "On a line that was edited rather than replaced, this marks what changed inside it. Words suits prose and most code; Characters is finer and noisier, and earns its keep when a single digit, bracket or letter moved.",
+    [
+      { value: "word", label: "Words" },
+      { value: "char", label: "Characters" },
+      { value: "none", label: "Off" },
+    ],
+    "word",
+  ),
+  /*
+   * The most asked-for thing on GitHub's own board about reading a diff: 443
+   * votes on "Many users want to by default always 'Hide whitespace changes'",
+   * and their answer is a checkbox that forgets itself on the next page. This
+   * is a setting rather than a button for that reason alone — the complaint was
+   * never that it cannot be done, it is that it has to be done again every time.
+   *
+   * Off by default. A reindent is usually noise and occasionally the whole
+   * change, and a reader who has not asked for lines to be held back should not
+   * have them held back. `withoutWhitespace` says how it is done.
+   */
+  knob(
+    "whitespace",
+    "Whitespace-only changes",
+    "Show them, or hold them back",
+    "A line that only gained or lost spacing. Held back, it is drawn as an unchanged line and a file that was only reindented says so instead of showing every line of itself as changed. Shown, you see the file exactly as GitHub sent it.",
+    [
+      { value: "show", label: "Show" },
+      { value: "hide", label: "Hide" },
+    ],
+    "show",
+  ),
+  knob(
+    "marks",
+    "Change marks",
+    "A plus, a bar, or nothing in the gutter",
+    "The sign in the gutter that says what happened to a line. Plus and minus is GitHub's and survives being copied as text; Bars is a quieter vertical rule; None leaves the fill to say it alone.",
+    [
+      { value: "classic", label: "Plus and minus" },
+      { value: "bars", label: "Bars" },
+      { value: "none", label: "None" },
+    ],
+    "bars",
+    true,
+  ),
+  knob(
+    "separators",
+    "Skipped-line headers",
+    "What stands where lines are folded away",
+    "What is drawn where a file's unchanged middle has been folded away. Line count says how many lines are hidden, the hunk header shows the raw @@ line from the patch, and a rule draws a plain divider and no more.",
+    [
+      { value: "line-info", label: "Line count" },
+      { value: "line-info-basic", label: "Line count, plain" },
+      { value: "metadata", label: "Hunk header" },
+      { value: "simple", label: "A rule" },
+    ],
+    "line-info",
+    true,
+  ),
+  knob(
+    "context",
+    "Lines kept around a change",
+    "Unchanged lines kept either side of it",
+    "How many unchanged lines are kept either side of a change before the rest of the file is folded away. 3 is what GitHub shows; 10 usually carries enough of the surrounding function to judge a change without opening anything; 25 makes a heavily edited file a long scroll.",
+    [
+      { value: "3", label: "3" },
+      { value: "10", label: "10" },
+      { value: "25", label: "25" },
+    ],
+    "10",
+    true,
+  ),
+  knob(
+    "expansion",
+    "Lines revealed per click",
+    "How far a folded stretch opens",
+    "How many lines appear each time you click into a folded stretch. 20 is for stepping through the lines around a change; 200 opens most of an ordinary file in a click or two.",
+    [
+      { value: "20", label: "20" },
+      { value: "50", label: "50" },
+      { value: "200", label: "200" },
+    ],
+    "20",
+    true,
+  ),
+  knob(
+    "prose",
+    "Open markdown as a document",
+    "Markdown rendered, not as a patch",
+    "Markdown files open rendered as the document they become, with additions and deletions tinted, rather than as a patch. Any one file can still be switched with the Diff and Preview buttons — this only decides which of the two you land on.",
+    onOff,
+    "on",
+    true,
+  ),
+] as const
+
+/** The rail's knobs. */
+export const TREE_KNOBS = [
+  knob(
+    "density",
+    "Row height",
+    "How tall a row in the file list is",
+    "The height of a row in the file list, and the spacing that scales with it. Compact fits roughly a third more files before you have to scroll; Relaxed is easier to hit with a mouse and easier on the eye in a long list.",
+    [
+      { value: "compact", label: "Compact" },
+      { value: "default", label: "Default" },
+      { value: "relaxed", label: "Relaxed" },
+    ],
+    "compact",
+  ),
+  knob(
+    "icons",
+    "Icons",
+    "Colourful by file type, or the plain set",
+    "Material's icons are colourful and specific to a file's type, so a test, a stylesheet and a lockfile are told apart by colour before the name is read. Plain uses the tree's own quieter set, which stays out of the way and lets the names do the work.",
+    [
+      { value: "material", label: "Material" },
+      { value: "plain", label: "Plain" },
+    ],
+    "material",
+  ),
+  knob(
+    "width",
+    "Rail width",
+    "How much room the file list takes",
+    "How much of the panel the file list takes from the diff. Wide earns itself in deeply nested repositories, where four levels of folder are spent on indentation before a name even starts.",
+    [
+      { value: "narrow", label: "Narrow" },
+      { value: "medium", label: "Medium" },
+      { value: "wide", label: "Wide" },
+    ],
+    "medium",
+  ),
+  knob(
+    "counts",
+    "Line counts",
+    "How much each file changed, beside its name",
+    "The +N −N beside every file and folder, so the two-line rename and the eight-hundred-line rewrite can be told apart without opening either. Folders add up everything inside them.",
+    onOff,
+    "on",
+  ),
+  knob(
+    "ticks",
+    "Mark files seen",
+    "A tick on the files you have read",
+    "A tick beside each file you have opened here or ticked as viewed on GitHub, and the progress bar in the header that counts them. A folder is only ticked once everything inside it is.",
+    onOff,
+    "on",
+  ),
+  knob(
+    "flatten",
+    "Fold empty folders together",
+    "src/main/java as one row, not three",
+    "A folder that holds nothing but one other folder is shown as a single row — src/main/java rather than three nested rows, and three levels of indentation saved. Off shows the repository's real shape, one level at a time.",
+    onOff,
+    "on",
+  ),
+  knob(
+    "folders",
+    "Folders on opening",
+    "Folders start expanded or shut",
+    "Whether folders start open or shut when a pull request is opened. Shut suits a change that touches a few files across many areas. Changing this rebuilds the list, so whatever you had expanded returns to this state.",
+    [
+      { value: "open", label: "Expanded" },
+      { value: "closed", label: "Collapsed" },
+    ],
+    "open",
+    true,
+  ),
+  knob(
+    "search",
+    "Search box",
+    "A box that filters the list as you type",
+    "Adds a box above the files that filters the list as you type. It earns its row past thirty or so files; below that the list is quicker to read than to search.",
+    onOff,
+    "off",
+    true,
+  ),
+  knob(
+    "sticky",
+    "Folders stick while scrolling",
+    "The folder you are in stays pinned",
+    "While the file list is scrolled, the folder you are inside stays pinned at the top of it, so a long run of files never leaves you wondering which folder they belong to.",
+    onOff,
+    "off",
+    true,
+  ),
+] as const
+
+/**
+ * What Home opens as, how wide its Rail is, and where its Involved Issues go.
+ *
+ * Knobs rather than none because the one thing every thread about GitHub's dashboard
+ * agrees on is that nobody wants the same page: "I'd like an option for the Feed to be my
+ * default view" has 146 upvotes, and the readers underneath it are asking for three
+ * different pages. A default Destination costs one stored word and settles the argument.
+ *
+ * The Rail's width is remembered for the plainer reason that a reader who narrows it has
+ * said something about their screen, and asking them to say it again after every reload is
+ * the kind of forgetting that makes a control feel broken.
+ */
+export const HOME_KNOBS = [
+  knob(
+    "destination",
+    "Home opens as",
+    "Which Destination Home starts on",
+    "Which of Home's three Destinations it opens as. Working Set is the reader's own pull requests, ranked by whose move it is, and the default because it is the page that answers what to do next. Repositories is every repository you have, filtered by typing. Activity is what happened elsewhere, in the order it happened, pushes included.",
+    [
+      { value: "working-set", label: "Working Set" },
+      { value: "repositories", label: "Repositories" },
+      { value: "activity", label: "Activity" }
+    ],
+    "working-set"
+  ),
+  knob(
+    "rail",
+    "Rail",
+    "The Rail starts wide or narrow",
+    "Whether the strip down the left of Home starts wide or narrow. Narrow keeps every count and every face and drops the words, which is enough to answer whether anything is yours; wide names each Destination and each repository.",
+    [
+      { value: "wide", label: "Wide" },
+      { value: "narrow", label: "Narrow" }
+    ],
+    "wide"
+  ),
+  knob(
+    "issues",
+    "Involved Issues",
+    "Issues in the Courts, or under them",
+    "Where the issues you raised, were assigned, or were mentioned in are drawn. Mixed puts each one in the Court that owes it, beside the pull requests, which is what the question \"whose move is it\" is worth answering about everything at once. Separate keeps the Courts to pull requests and gathers the issues into their own section underneath.",
+    [
+      { value: "mixed", label: "In the Courts" },
+      { value: "separate", label: "Their own section" }
+    ],
+    "mixed"
+  )
+] as const
+
+type Values<Knobs extends ReadonlyArray<Knob<string, string>>> = {
+  readonly [K in Knobs[number] as K["key"]]: K["choices"][number]["value"]
+}
+
+export type PageSettings = Values<typeof PAGE_KNOBS>
+export type ThemeSettings = Values<typeof THEME_KNOBS>
+export type DiffSettings = Values<typeof DIFF_KNOBS>
+export type TreeSettings = Values<typeof TREE_KNOBS>
+export type HomeSettings = Values<typeof HOME_KNOBS>
+
+/** Which of Home's three Destinations is being shown. */
+export type Destination = HomeSettings["destination"]
+
+/** Which page a pull request opens as, named so the two sides read as words. */
+export type View = PageSettings["view"]
+
+export type Settings = {
+  readonly page: PageSettings
+  readonly theme: ThemeSettings
+  readonly diff: DiffSettings
+  readonly tree: TreeSettings
+  readonly home: HomeSettings
+  /**
+   * The repositories a reader pinned, as `owner/repo`, in the order they pinned them.
+   *
+   * The one field here that is not a knob, and it has to be: GitHub allows six pins because
+   * six is what their layout holds, and "six is not enough" is its own discussion in their
+   * community. A list has no such number in it. Ordered rather than a set, because the order
+   * is the reader's own answer to which repository they look at first.
+   */
+  readonly pinned: ReadonlyArray<string>
+}
+
+/** Whether a stored value is an address this interface could actually draw. */
+const isAddress = (value: unknown): value is string =>
+  typeof value === "string" && /^[^/\s]+\/[^/\s]+$/.test(value)
+
+const fallbacks = <Knobs extends ReadonlyArray<Knob<string, string>>>(
+  knobs: Knobs,
+) =>
+  Object.fromEntries(
+    knobs.map((one) => [one.key, one.fallback]),
+  ) as Values<Knobs>
+
+export const DEFAULTS: Settings = {
+  page: fallbacks(PAGE_KNOBS),
+  theme: fallbacks(THEME_KNOBS),
+  diff: fallbacks(DIFF_KNOBS),
+  tree: fallbacks(TREE_KNOBS),
+  home: fallbacks(HOME_KNOBS),
+  pinned: [],
+}
+
+const readGroup = <Knobs extends ReadonlyArray<Knob<string, string>>>(
+  knobs: Knobs,
+  stored: unknown,
+): Values<Knobs> => {
+  const held =
+    typeof stored === "object" && stored !== null
+      ? (stored as Record<string, unknown>)
+      : {}
+  return Object.fromEntries(
+    knobs.map((one) => {
+      const found = held[one.key]
+      const known = one.choices.some((choice) => choice.value === found)
+      return [one.key, known ? found : one.fallback]
+    }),
+  ) as Values<Knobs>
+}
+
+/**
+ * Stored settings, read defensively.
+ *
+ * What comes back from storage was written by an older version of this file, by
+ * a newer one, or by nothing at all. A value that is no longer offered falls
+ * back to the default rather than reaching the renderer, which would take it at
+ * its word and draw nothing.
+ */
+export const readSettings = (stored: unknown): Settings => {
+  const held =
+    typeof stored === "object" && stored !== null
+      ? (stored as Record<string, unknown>)
+      : {}
+  return {
+    page: readGroup(PAGE_KNOBS, held["page"]),
+    theme: readGroup(THEME_KNOBS, held["theme"]),
+    diff: readGroup(DIFF_KNOBS, held["diff"]),
+    tree: readGroup(TREE_KNOBS, held["tree"]),
+    home: readGroup(HOME_KNOBS, held["home"]),
+    // Item by item, because a list read whole is a list that reaches the Rail with a
+    // number or an object in it, and the row drawn from that is a link to nowhere.
+    pinned: Array.isArray(held["pinned"])
+      ? [...new Set(held["pinned"].filter(isAddress))]
+      : [],
+  }
+}

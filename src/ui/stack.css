@@ -1,0 +1,248 @@
+/**
+ * The gutter that holds the mark saying which pull request a stacked one sits on.
+ *
+ * A stack is the one place in these lists where the order of the rows is a fact
+ * about the work rather than a sort: the top cannot land until the foundation
+ * does. Indentation alone says "these belong together" and leaves the direction
+ * to be guessed, so each stacked row carries an arrow turning down and into it —
+ * read it as "this one sits on that one".
+ *
+ * The arrow is a glyph rather than a drawing, and that is the whole reason this
+ * file is now four rules instead of a page of pseudo-elements. It was borders on
+ * `::before` and `::after` — an arm, a corner, a chevron built out of two edges
+ * rotated forty-five degrees — and every one of those was a number this file had
+ * to guess about a row it cannot see: how tall it is, where its middle is, how
+ * heavy the strokes beside it are. A glyph from the shell's own set knows all
+ * three by being one of them.
+ *
+ * So what is left here is placement. The tier is a grid of a gutter and the row,
+ * which centres the mark against the row's height whatever that height turns out
+ * to be, and lets a stack of a stack put its own gutter inside this one.
+ */
+
+.t-stack,
+.t-stack-up {
+  /*
+   * Wide enough for a twelve-pixel glyph with air on both sides. Nested, it is
+   * only the lane the mark stands in and the indent is the `ml-4` the tier is
+   * given in the markup. Flat, it is both, so that one number moves the gutter
+   * and the tiers together.
+   */
+  --stack-reach: 1rem;
+}
+
+.t-stack > [role="treeitem"] {
+  display: grid;
+  grid-template-columns: var(--stack-reach) minmax(0, 1fr);
+  align-items: center;
+}
+
+/**
+ * The rows above this one, which get the full width back.
+ *
+ * Without this the nested group would land in the gutter column and every stack
+ * of a stack would be squeezed into eighteen pixels.
+ */
+.t-stack > [role="treeitem"] > [role="group"] {
+  grid-column: 1 / -1;
+}
+
+.t-stack > [role="treeitem"] > .t-stack-mark {
+  justify-self: center;
+  /*
+   * The box is centred (`align-items: center`); the stroke is not. Corner
+   * arrows sit low in their viewBox, so without a nudge the turn reads below
+   * the middle of the row even though the SVG's bounds are dead centre.
+   *
+   * `translate` rather than `transform`, which is the same pixel by a name the
+   * linking below can leave alone. The three individual properties compose
+   * instead of replacing each other, so a keyframe may scale this mark without
+   * having to restate a nudge it knows nothing about — and the old arrangement
+   * cost exactly that, an animation that dropped the pixel and left every arrow
+   * reading below the middle of its row.
+   */
+  translate: 0 -1px;
+}
+
+/**
+ * The same chain as a flat list, for the one place that draws it without nesting.
+ *
+ * Same direction and the same mark as the block above: trunk at the top left,
+ * newest at the bottom right, each row stepped in from the one it sits on. Two
+ * drawings of a stack running opposite ways inside one interface is a reader
+ * having to hold which screen they are on before they can read either.
+ *
+ * What differs is only the markup. The pull request header knows a stack is
+ * linear, so it carries the depth as a number on each row rather than as a
+ * nesting, and `--stack-tier` is set where the row is drawn.
+ *
+ * `li` and not `[role="treeitem"]`: a list of links to other pages is
+ * navigation, not a tree widget, and the ARIA practices are explicit that the
+ * tree role brings arrow-key navigation nobody expects from page links. The
+ * gutter is the same either way.
+ */
+.t-stack-up > li {
+  display: grid;
+  grid-template-columns: var(--stack-reach) minmax(0, 1fr);
+  align-items: center;
+  margin-left: calc(var(--stack-tier, 0) * var(--stack-reach));
+}
+
+.t-stack-up > li > .t-stack-mark {
+  justify-self: center;
+  translate: 0 -1px;
+}
+
+/*
+ * The content sits in the second column whether or not a mark stands in the
+ * first. Placed by hand rather than by order, because the mark is absent on the
+ * first row drawn — nothing above it is what it sits on — and a row left to flow
+ * would take the gutter's own sixteen pixels and clip its title to nothing.
+ */
+.t-stack-up > li > .t-stack-row {
+  grid-column: 2;
+}
+
+/**
+ * A chain that does not exist yet, linking up.
+ *
+ * The one animated stack in the interface, and it is the only one entitled to be.
+ * `motion.css` is sceptical of motion by default and says why: everywhere else
+ * this interface draws content that is already true, and choreography over a true
+ * thing reads as a different site rather than a better one. The rows here are not
+ * true. Nobody has made this stack, and the layers arriving on top of one another
+ * is the claim itself — that these pull requests would link up in this order onto
+ * that branch — rather than a decoration on a claim already made.
+ *
+ * The trunk does not travel. It is what everything else links onto, so it is
+ * already standing when the first layer arrives; a `main` sliding in from the
+ * left would say the branch was proposed too.
+ *
+ * Every layer above it starts in the seat of the layer it sits on — one gutter
+ * back and one row up — and takes the step of its own tier from there. That is
+ * the one thing making this stack would do to these pull requests, drawn as
+ * movement: today they all sit on the same branch, and stacking moves each of
+ * them onto the one before it. So a layer is not sliding in from off the card;
+ * it is leaving the ground it shares with its foundation and landing on top of
+ * it, along the diagonal the tier step already runs in and the arm already
+ * points down. The travel is `-100%` of the row's own height rather than a
+ * number, so the file never has to guess how tall a row of this list is.
+ *
+ * `transform`, not the `margin-left` the tier is drawn with, so none of it
+ * relayouts the header, and both lanes are composited.
+ *
+ * The stagger is `--stack-tier`, which every row already carries for the step, so
+ * the run goes trunk upwards without any row being told its turn. It stops
+ * climbing after four, the way `t-row-in`'s does after a handful: the window
+ * draws five layers at most, and a fifth beat would put the top of a deep chain
+ * past half a second while the reader is already reading the rows underneath it.
+ *
+ * A beat of `--duration-micro` and a travel of `--duration-quick` are what make
+ * the run read as a chain rather than as a stagger. Every layer lands, its arm
+ * closes the joint, and the next layer lands eighty milliseconds later, so what
+ * a reader follows is one link forming at a time — where the previous forty
+ * millisecond beat under a two hundred and fifty millisecond travel had all
+ * three rows in the air at once and the arms arriving afterwards in a second
+ * wave of their own. Nothing here is a new number: the run is the vocabulary's
+ * `--duration-quick`, `--duration-micro`, `--ease-out` and `--ease-in-out`, and
+ * the step is the `--stack-reach` the gutter is already measured in.
+ *
+ * Filled backwards rather than both ways, for the reason `t-panels` gives in
+ * `motion.css`: backwards holds a row where it starts through its own delay and
+ * hands every property back the moment it lands, where `both` would leave a
+ * finished animation applying a transform to every row for as long as the page
+ * stands. It also lets the browser drop the animation once it is over, which is
+ * why `probe-linking.js` has to restart the run before it can read it.
+ */
+.t-stack-linking > li:first-child {
+  animation: t-stack-stood var(--duration-quick) var(--ease-out) backwards;
+}
+
+.t-stack-linking > li + li {
+  animation: t-stack-link var(--duration-quick) var(--ease-out) backwards;
+  animation-delay: calc(min(var(--stack-tier, 0), 4) * var(--duration-micro));
+}
+
+@keyframes t-stack-stood {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes t-stack-link {
+  from {
+    opacity: 0;
+    transform: translate(calc(var(--stack-reach) * -1), -100%);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * The arm reaching out of the corner it points from, as its row lands.
+ *
+ * It grows from its own top left, which is where the layer underneath is and
+ * where this glyph's stroke begins: the corner is drawn first and the head
+ * arrives last, so the mark extends into the row it belongs to rather than
+ * appearing whole in the gutter. That is the joint closing, and it is why the
+ * run reads as linking rather than as three rows arriving — a stagger says
+ * these came in an order, an arm drawn from one row into the next says this one
+ * is holding that one up. Anything that draws a path over time does it this
+ * way; the check in `motion.css` writes its tick into a ring the same way and
+ * for the same reason.
+ *
+ * `scale` and `opacity` — the individual property, so the pixel the placement
+ * rule nudges this mark up by is left where it is rather than restated here.
+ *
+ * The clock is the beat itself: eighty milliseconds after its row starts, over
+ * eighty. So the arm closes ten milliseconds after its own row has landed and a
+ * clear seventy before the next one does, which is the order the eye reads as
+ * cause — layer, link, layer — instead of two overlapping runs.
+ *
+ * `--ease-in-out` and not the `--ease-out` every arrival in this interface
+ * takes. That curve is for something coming to rest, and it spends four fifths
+ * of itself in the first quarter of its time, which over eighty milliseconds is
+ * a glyph that appears and then sits there. This mark is not coming to rest from
+ * anywhere; it is being written, and the vocabulary already keeps the strong
+ * ease-in-out for the on-screen morphs — the word swap, the reveal — where the
+ * middle of the movement is the part worth seeing. Measured on the page: forty
+ * milliseconds in, this mark is three fifths written; under `--ease-out` it was
+ * nine tenths written after thirty and had nothing left to show.
+ */
+.t-stack-linking > li > .t-stack-mark {
+  transform-origin: top left;
+  animation: t-stack-arm var(--duration-micro) var(--ease-in-out) backwards;
+  animation-delay: calc(min(var(--stack-tier, 0), 4) * var(--duration-micro) + var(--duration-micro));
+}
+
+@keyframes t-stack-arm {
+  from {
+    opacity: 0;
+    scale: var(--scale-mark);
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+/*
+ * Drawn linked, on the frame it arrives.
+ *
+ * The block at the foot of `motion.css` says what this means: the rows are there
+ * either way, and what goes is the arriving. This one has more to lose than the
+ * others — the assembling is the argument — but a reader who has asked for no
+ * travel is owed the finished chain, not the argument.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .t-stack-linking > li:first-child,
+  .t-stack-linking > li + li,
+  .t-stack-linking > li > .t-stack-mark {
+    animation: none;
+  }
+}

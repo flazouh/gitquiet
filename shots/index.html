@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>gitquiet views</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      /*
+       * No scrollbar and no page margin, because the capture is the element and a
+       * scrollbar is eight pixels of Chrome in a store image.
+       */
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      `gitquiet-root`, and not `stage`, because that id is load-bearing rather than
+      decorative. Every rule in `motion.css`, `primer.css` and `quiet.css` is scoped
+      to `:is(#gitquiet-root, [data-gitquiet-outside])` so that nothing of ours
+      reaches GitHub's own page — and under any other id those rules simply do not
+      apply. The first captures were taken that way: a button held every word it can
+      say side by side, because the rule that hides all but the one being said had
+      never matched. See `src/ui/mount.ts` for the id the extension uses.
+
+      The capture script clips `[data-view]`, which `main.tsx` sets here, so this id
+      belongs to the interface and the clip belongs to the stage.
+    -->
+    <div id="gitquiet-root"></div>
+    <script type="module" src="/main.tsx"></script>
+  </body>
+</html>

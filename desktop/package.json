@@ -1,0 +1,46 @@
+{
+  "name": "desktop",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "aliases": "bun run scripts/settle-aliases.ts",
+    "fonts": "bun run scripts/copy-inter.ts",
+    "css": "bun run aliases && bun run fonts && bun run engine && bun run view:demo && tailwindcss -i src/view/style.css -o src/view/index.css",
+    "view:demo": "bun run scripts/build-demo-view.ts",
+    "css:watch": "bun run css && tailwindcss -i src/view/style.css -o src/view/index.css --watch",
+    "dev": "bun run css && bun run scripts/dev-hmr.ts",
+    "demo": "bun run css && GITQUIET_DEMO=1 GITQUIET_INSPECT=50505 electrobun dev",
+    "dev:bundled": "bun run css && GITQUIET_INSPECT=50505 electrobun dev",
+    "dev:closed": "bun run css && electrobun dev",
+    "build": "bun run css && electrobun build",
+    "compile": "tsc --noEmit",
+    "engine": "bun run scripts/build-diff-engine.ts"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@hugeicons/core-free-icons": "^4.2.3",
+    "@hugeicons/react": "^1.1.9",
+    "@radix-ui/react-slot": "^1.3.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "effect": "^4.0.0-beta.101",
+    "electrobun": "^1.18.1",
+    "framer-motion": "^12.43.0",
+    "lucide-react": "^1.28.0",
+    "radix-ui": "^1.6.7",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/bun": "latest",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.1.5"
+  }
+}

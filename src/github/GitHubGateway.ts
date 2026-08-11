@@ -1,0 +1,3697 @@
+import { Effect, Layer, Option, Schema, UndefinedOr } from "effect"
+import type {
+  Check,
+  CommitDetail,
+  FetchedDiff,
+  NewComment,
+  Participant,
+  PullRequestSnapshot,
+  Remark
+} from "../domain/PullRequest"
+import type { PullRequestRef, RepoRef } from "../domain/PullRequestRef"
+import type { Tab } from "../domain/tabs"
+import type { Portrait } from "../domain/portrait"
+import type { InvolvedPullRequest, Shelf, Sizes, Standings } from "../domain/workingSet"
+import {
+  GatewayError,
+  GitHubGateway,
+  WorkingSetError,
+  type Found,
+  type FoundIssues,
+  type MergeMethod,
+  type QueueMethod,
+  type Review,
+  type UpdateMethod,
+  type Verdict
+} from "../ports/GitHubGateway"
+import { checkRunIn, notesIn } from "./annotations"
+import { askingOnce } from "./flight"
+import { contributionsIn, contributionsRoute } from "./contributions"
+import { hovercardRoute, portraitIn } from "./hovercard"
+import {
+  decodeDeferred,
+  decodeDiffstat,
+  decodeQuery,
+  decodeShelf,
+  involvedIn,
+  sizeIn,
+  standingsIn
+} from "./involved"
+import { linesIn } from "../domain/logs"
+import { tailOf } from "./logs"
+import { jobIn, runIn, stepsIn } from "./steps"
+import type { Pressing, RunOpening, RunRef } from "../domain/run"
+import { isKeptRun, pressOn, runOnPage } from "./runPage"
+import { isKeptStrands, runsOnPage } from "./actionsList"
+import { strandsIn, type Strand } from "../domain/strand"
+import {
+  recall,
+  recallHash,
+  recallRoute,
+  recallRows,
+  remember,
+  rememberBranches,
+  rememberHash,
+  rememberRoute,
+  rememberSize,
+  rememberStanding,
+  rememberStat,
+  recallStats
+} from "./cache"
+import {
+  type HeldBack,
+  type RawPayloads,
+  decodeMergeBox,
+  toCommit,
+  toCreatedThread,
+  toDiffs,
+  toExtraDiffs,
+  toHeldBack,
+  toSnapshot
+} from "./snapshot"
+import { happeningsFrom } from "./activity"
+import { statIn } from "./diffStat"
+import { authorsFrom, branchesFrom } from "./refs"
+import type { Stat } from "../domain/commitList"
+import { historyFrom, marksFrom } from "./commits"
+import { embeddedPayload } from "./embedded"
+import { signOnWanted } from "./signOn"
+import { involvedIssuesFrom, listedIssuesFrom } from "./issues"
+import {
+  decodeRepoHome,
+  decodeTreeCommitInfo,
+  decodeTreeList,
+  frontFrom,
+  frontFromKept,
+  isKeptFront,
+  keptFrom,
+  touchesFrom
+} from "./repoHome"
+import { commitFromKept, keptCommitFrom } from "./keptCommit"
+import { keepTabs, keptTabs, tabsOnPage } from "./repoTabs"
+import { decodeBlob, openedFrom } from "./file"
+import type { Named, Numbered, Suggesting } from "../domain/suggesting"
+import type { Uploaded } from "../domain/attaching"
+import { decodeAddedComment, issueFrom, remarkFrom } from "./issueView"
+import { decodeMentionable, decodeReferable, numberedIn, peopleIn } from "./suggesting"
+import { hashIn, hashOfMutationIn, nonceOn, releaseOn, whenAsked } from "./persisted"
+import { scopedRepositoryIn } from "./scoped"
+import { decodeUploadedAsset, decodeUploadPolicy, repositoryNumberFor } from "./uploading"
+import { preloadedIn } from "./preloaded"
+import { repositoriesFrom } from "./repositories"
+import { decodeSidebar, standingFrom } from "./standing"
+import type { Happening } from "../domain/activity"
+import { type CommitList, type History, routeFor } from "../domain/commitList"
+import type { IssueSnapshot, Settling } from "../domain/Issue"
+import type { InvolvedIssue, Involvement, IssueRef } from "../domain/issues"
+import type { Front, Starring } from "../domain/repoHome"
+import type { Repository } from "../domain/repositories"
+import { asForm, newestBy, signingIn } from "./saying"
+import { loginOnPage } from "../ui/viewer"
+import { CreatedIssueRoute, IssueCommentsRoute, PreviewStackRoute } from "./wire"
+import type { Raising } from "../domain/raising"
+import type { AsyncDiffLoad } from "./wire"
+
+/**
+ * GitHub as their own page reads it: their internal routes, answered with the
+ * session cookies of somebody already signed in and looking at github.com.
+ *
+ * The fast implementation of {@link GitHubGateway} and the one that cannot
+ * travel. Every route here is undocumented, several are HTML meant for their own
+ * JavaScript, and all of them need cookies this origin only has because the code
+ * is running inside their page. What the extension gains for that is a pull
+ * request in one request instead of thirty.
+ */
+
+
+/**
+ * A verdict as GitHub's own dialog sends it.
+ *
+ * Lower case, and `request changes` carries a space where every other name in
+ * this file would have an underscore. Read off the wire rather than guessed:
+ * `APPROVE`, `REQUEST_CHANGES` and `request_changes` are each answered with
+ * 422 `Invalid event`, so the shape that looks like the rest of GitHub's API
+ * is the one shape this route refuses.
+ */
+const eventFor = (verdict: Verdict): string =>
+  verdict === "request-changes" ? "request changes" : verdict
+
+const CHANGES = "/changes"
+const STATUS_CHECKS = "/page_data/status_checks"
+const MERGE_BOX = "/page_data/merge_box?merge_method=MERGE&bypass_requirements=false"
+// The stack GitHub would make out of this pull request, which is the only place
+// that state is knowable from — their merge box says the same thing about a pull
+// request that can be stacked and one with nothing to stack. A few hundred bytes,
+// and `null` where there is nothing to offer. See `PreviewStackRoute`.
+const PREVIEW_STACK = "/page_data/preview_stack"
+// Seventy bytes: the two counts and their sum, and nothing whatever else. The
+// only route GitHub has that says how big a pull request is without sending it.
+const DIFFSTAT = "/page_data/diffstat"
+const DESCRIPTION = "/page_data/description"
+const HEADER = "/page_data/header"
+// The only route that carries the bodies of what was said on the timeline. Its
+// neighbour `page_data/timeline` lists the same items by id and type with no
+// text, which is why reading the conversation needs this one and not that.
+const ISSUE_COMMENTS = "/page_data/issue_comments"
+const MERGE = "/page_data/merge"
+/**
+ * The route a stack lands through, which is not the one above.
+ *
+ * GitHub keeps the two apart and each refuses the other's pull request with the
+ * same sentence — "This pull request is out of date. Refresh the page and try
+ * again." — which is true of neither. Their own button reads `enqueue_stack`
+ * for a layer of a stack and `merge` for everything else, and so does this.
+ *
+ * Named for the queue in their word for it and not for what it does here: on a
+ * repository without a merge queue it lands the stack outright, bottom layer
+ * first, in one operation.
+ */
+const MERGE_STACK = "/page_data/enqueue_stack"
+/**
+ * The route that makes a stack, which is what their "Create stack" button posts.
+ *
+ * Plural, and it takes a list: a stack is made out of several pull requests at
+ * once, and the pull request in the address is only the one being read. The list
+ * is `pullRequestIds`, in GitHub's own numeric ids — see {@link PreviewStackRoute},
+ * which is where those ids come from and the only place they arrive.
+ */
+const MAKE_STACK = "/page_data/pull_request_stacks"
+const COMMENT = "/page_data/create_review_comment"
+const ENQUEUE = "/page_data/enable_auto_merge"
+const DEQUEUE = "/page_data/dequeue_pull_request"
+const CANCEL_AUTO_MERGE = "/page_data/disable_auto_merge"
+const UPDATE_BRANCH = "/page_data/update_pull_request_branch"
+const CLOSE = "/page_data/close_pull_request"
+const REOPEN = "/page_data/reopen_pull_request"
+const MARK_READY = "/page_data/mark_ready_for_review"
+const TO_DRAFT = "/page_data/convert_to_draft"
+/*
+ * Verified against `flazouh/ghpro-scratch#11` rather than read from their
+ * bundle, which matters more here than for the routes above it: this one takes
+ * somebody's branch away. It answered 200 `Head ref was successfully deleted`,
+ * and the merge box's two flags swapped over afterwards.
+ */
+const DELETE_BRANCH = "/page_data/delete_head_ref"
+const SUBMIT_REVIEW = "/page_data/submit_review"
+const SETTLE = "/page_data/resolve_thread"
+const UNSETTLE = "/page_data/unresolve_thread"
+/* Named for the errors, since the URL itself comes off their form. */
+const SAY = "/comment"
+
+/**
+ * One shelf of the Working Set.
+ *
+ * `max_pr_age` is theirs and their own dashboard sends `1m`, which is a month.
+ * Sent identically here: a shelf read with a different window is a different
+ * question, and answering a slightly different one than GitHub's own page does
+ * is how two views of the same Working Set come to disagree.
+ */
+/**
+ * The dashboard's search, escaped.
+ *
+ * `URLSearchParams` rather than `encodeURIComponent`, because a query is mostly
+ * spaces and colons and this is the spelling GitHub's own page produces: spaces as
+ * `+`, colons and slashes as escapes.
+ */
+const searchRoute = (query: string, page: number): string =>
+  `/pulls?${new URLSearchParams({ q: query, page: String(page) }).toString()}`
+
+/** Their word for each involvement, which is the query and nothing else. */
+const QUALIFIER_OF: Record<Involvement, string> = {
+  assigned: "assignee",
+  authored: "author",
+  mentioned: "mentions"
+}
+
+/**
+ * Their issue search, asked one involvement at a time.
+ *
+ * `type=issues` on their search rather than `/issues?q=…`, which is a choice their
+ * own rebuild forced: the issues dashboard is a React page now, asking it for JSON
+ * answers with a shell holding no rows, and the rows it does draw arrive by a
+ * persisted GraphQL query whose name is a hash that changes with every deploy.
+ * This route answers with the rows themselves and is asked for exactly as a shelf
+ * is.
+ *
+ * Three queries and not the one `involves:@me` would allow, because the reason the
+ * reader is involved is the whole of what the Court is decided from and
+ * `involves:@me` throws it away. `is:issue` because their search will otherwise
+ * answer with pull requests too, and those are already read from their shelves.
+ */
+const issuesRoute = (involvement: Involvement): string =>
+  `/search?${new URLSearchParams({
+    q: `${QUALIFIER_OF[involvement]}:@me is:issue is:open`,
+    type: "issues"
+  }).toString()}`
+
+/**
+ * The same search, asked any question and one page at a time.
+ *
+ * How a repository's issue list is read. `p` rather than `page`, which is their
+ * spelling on this route and not a choice: `page` is ignored here and every
+ * request comes back as the first one.
+ */
+const issueSearchRoute = (query: string, page: number): string =>
+  `/search?${new URLSearchParams({ q: query, type: "issues", p: String(page) }).toString()}`
+
+const shelfRoute = (shelf: Shelf): string =>
+  `/pulls/inbox/queries?filter=${shelf}&max_pr_age=1m`
+
+/**
+ * How the checks and reviews stand for pull requests already listed.
+ *
+ * The ids go in repeated square-bracket parameters, which is Rails' way of
+ * spelling an array and not something to tidy: their route reads no other form.
+ */
+const deferredRoute = (ids: ReadonlyArray<number>): string =>
+  `/pulls/inbox/deferred?page=1&${ids.map((id) => `pr_ids%5B%5D=${id}`).join("&")}`
+
+/**
+ * Their own repository picker's route.
+ *
+ * `q` and `filter_value` are sent empty, which is what asks for all of them. Their sidebar
+ * sends a query as the reader types; this reads the whole list once and narrows it here,
+ * because 154 repositories cost 44 kilobytes and a keystroke should not cost a request.
+ */
+const REPOSITORIES = "/_filter/repositories?q=&filter_value="
+
+/**
+ * Where the events that are still in time order are.
+ *
+ * `api.github.com` rather than one of their internal routes, which is a departure worth
+ * naming: every other read here is github.com answered with the reader's session. They have
+ * retired the internal routes that answered chronologically — that retirement is the
+ * complaint this Destination exists to answer — and this one needs no token, so it is asked
+ * for with the cookies deliberately left off.
+ *
+ * A hundred is their maximum for one page and about six hours of a busy account.
+ */
+const eventsRoute = (login: string): string =>
+  `https://api.github.com/users/${encodeURIComponent(login)}/received_events/public?per_page=100`
+
+/**
+ * How many pull requests one deferred read asks about.
+ *
+ * Nine, because that is what GitHub's own dashboard sends. A longer URL may well
+ * be accepted, but a batch size nobody has served is a batch size nobody has
+ * tested, and the cost of being wrong is the whole listing's second half.
+ */
+const PER_BATCH = 9
+
+// GitHub answers 406 to these routes without the XMLHttpRequest header.
+const REQUIRED_HEADERS = {
+  Accept: "application/json",
+  "X-Requested-With": "XMLHttpRequest"
+}
+
+/**
+ * What their own merge button sends, less what it turns out not to need.
+ *
+ * Recorded from a real merge and then cut down against a scratch pull request
+ * one header at a time: the nonce and the client version their bundle attaches
+ * are not checked, but `GitHub-Verified-Fetch` is — it is what stands in for a
+ * CSRF token on these routes, and the cookies do the rest.
+ */
+const VERIFIED = { "GitHub-Verified-Fetch": "true" }
+
+const WRITING_HEADERS = {
+  ...REQUIRED_HEADERS,
+  "Content-Type": "application/json",
+  ...VERIFIED
+}
+
+const decodeInto = (reference: PullRequestRef, raw: RawPayloads) =>
+  toSnapshot(reference, raw).pipe(
+    Effect.catch((cause) =>
+      Effect.fail(
+        new GatewayError({
+          reference,
+          route: CHANGES,
+          reason: "undecodable",
+          detail: String(cause)
+        })
+      )
+    )
+  )
+
+/**
+ * The body as text, and nothing where it will not read.
+ *
+ * Every caller here is already holding an answer it has decided is good; a body
+ * that then refuses to be read is worth an empty string rather than a failure
+ * of its own, because what each of them does next is look for something in it.
+ */
+const textOf = (response: Response): Effect.Effect<string> =>
+  Effect.tryPromise(() => response.text()).pipe(Effect.catch(() => Effect.succeed("")))
+
+/**
+ * What one of GitHub's JSON routes said, as a value rather than as a failure.
+ *
+ * Every read of theirs goes wrong in exactly these three ways, and the reason has to
+ * survive being carried between bundles by the promise several readers are sharing —
+ * which is why it is here in the answer rather than beside it as a failure. The two
+ * callers below turn it back into their own kind of failure, which is where the
+ * difference between them belongs.
+ */
+type Said =
+  | { readonly ok: true; readonly payload: unknown }
+  | {
+      readonly ok: false
+      readonly why: "unreachable" | "rejected" | "undecodable" | "sign-on"
+      readonly detail: string
+    }
+
+/**
+ * Why a refusal was a refusal, told apart by the one status that is not a fault.
+ *
+ * GitHub answers 401 to their own JSON routes for a repository in an organisation
+ * the reader has not signed on to, whether or not anybody is signed in — measured
+ * on `/octo-org/octo-repo/pulls`, which answered 401 with an empty body to a
+ * signed-in reader while the same route on a repository beside it answered 200.
+ * The reader can walk through that one, so it is not filed with the rest.
+ */
+const refusedBy = (response: Response): "rejected" | "sign-on" =>
+  response.status === 401 ? "sign-on" : "rejected"
+
+/**
+ * One GET of one of their JSON routes, folded together with any identical GET already
+ * in the air.
+ *
+ * A read ahead and the press that follows it want the same six routes, and this is
+ * where they become one set of requests rather than two.
+ */
+const saidAt = (url: string): Effect.Effect<Said> =>
+  askingOnce(
+    url,
+    Effect.gen(function* () {
+      const response = yield* Effect.tryPromise({
+        try: () => fetch(url, { headers: REQUIRED_HEADERS, credentials: "include" }),
+        catch: (cause): Said => ({ ok: false, why: "unreachable", detail: String(cause) })
+      })
+
+      if (!response.ok) {
+        return yield* Effect.fail<Said>({
+          ok: false,
+          why: refusedBy(response),
+          detail: `HTTP ${response.status}`
+        })
+      }
+
+      const payload = yield* Effect.tryPromise({
+        try: () => response.json(),
+        catch: (cause): Said => ({ ok: false, why: "undecodable", detail: String(cause) })
+      })
+
+      return { ok: true, payload } satisfies Said
+    }).pipe(Effect.catch(Effect.succeed))
+  )
+
+const fetchRoute = Effect.fn("fetchRoute")(function* (
+  reference: PullRequestRef,
+  route: string
+) {
+  const url = `https://github.com/${reference.owner}/${reference.repo}/pull/${reference.number}${route}`
+
+  const said = yield* saidAt(url)
+  if (!said.ok) {
+    return yield* new GatewayError({ reference, route, reason: said.why, detail: said.detail })
+  }
+
+  return said.payload
+})
+
+/**
+ * The same GET, for a route whose answer the pull request can do without.
+ *
+ * Every route in the batch below fails the read when it fails, and has to: a pull
+ * request drawn without its checks or its threads is a lie in the right shape.
+ * `preview_stack` is not one of those. What it carries is a strip above the header
+ * saying that these two pull requests could be one stack, and refusing the whole
+ * page over it would trade the pull request for a decoration — so a refusal, an
+ * unreachable network and a body nothing can read all arrive here as nothing, and
+ * the snapshot has no proposal on it.
+ */
+const whateverIsAt = Effect.fn("whateverIsAt")(function* (
+  reference: PullRequestRef,
+  route: string
+) {
+  const said = yield* saidAt(
+    `https://github.com/${reference.owner}/${reference.repo}/pull/${reference.number}${route}`
+  )
+
+  return said.ok ? said.payload : null
+})
+
+/**
+ * A read about the Participant rather than about one pull request.
+ *
+ * The same two headers and the same cookies as {@link fetchRoute}, and a
+ * different failure: there is no pull request to name when a Working Set will
+ * not load.
+ */
+const fetchViewerRoute = Effect.fn("fetchViewerRoute")(function* (route: string) {
+  const said = yield* saidAt(`https://github.com${route}`)
+  if (!said.ok) {
+    return yield* new WorkingSetError({ route, reason: said.why, detail: said.detail })
+  }
+
+  return said.payload
+})
+
+/**
+ * One page of somebody's received events, asked for as a stranger.
+ *
+ * `credentials: "omit"` on purpose: the route is public, sending cookies to
+ * `api.github.com` would achieve nothing, and a read that cannot see private repositories
+ * is a read that cannot leak one either. Their rate limit for an anonymous caller is sixty
+ * an hour against the address, which is why the answer is kept and why Activity asks once a
+ * visit rather than on every draw.
+ */
+const eventsAt = (route: string) =>
+  Effect.gen(function* () {
+    const response = yield* Effect.tryPromise({
+      try: () => fetch(route, { credentials: "omit", headers: { Accept: "application/json" } }),
+      catch: (cause) =>
+        new WorkingSetError({ route, reason: "unreachable", detail: String(cause) })
+    })
+
+    if (!response.ok) {
+      return yield* new WorkingSetError({
+        route,
+        reason: "rejected",
+        // Their 403 for a spent rate limit reads the same as any other refusal, and the
+        // remaining count is the thing that tells them apart when this turns up in a log.
+        detail: `HTTP ${response.status} (${response.headers.get("x-ratelimit-remaining") ?? "?"} left)`
+      })
+    }
+
+    return yield* Effect.tryPromise({
+      try: () => response.json(),
+      catch: (cause) =>
+        new WorkingSetError({ route, reason: "undecodable", detail: String(cause) })
+    })
+  })
+
+/** Their repository list, decoded, or a failure that names the route. */
+const decodedRepositories = (raw: unknown) =>
+  repositoriesFrom(raw).pipe(
+    Effect.catch((cause) =>
+      Effect.fail(
+        new WorkingSetError({
+          route: REPOSITORIES,
+          reason: "undecodable",
+          detail: String(cause)
+        })
+      )
+    )
+  )
+
+/**
+ * Their GraphQL route, which is the only way left to read one issue.
+ *
+ * Everything else in this file is a URL that says what it wants. This one is a
+ * name and a hash GitHub mints per deploy, so `persisted.ts` is what makes the
+ * question askable at all.
+ */
+const GRAPHQL = "/_graphql"
+
+/** The query their own issue page runs, and the count of timeline items it asks for. */
+const ISSUE_QUERY = "IssueViewerViewQuery"
+
+/**
+ * How much of a long conversation one read brings back.
+ *
+ * Fifteen, because that is what GitHub's own page sends, and a number nobody
+ * has served is a number nobody has tested. A busier issue keeps the rest
+ * behind their paging, which is a second read this does not make yet.
+ */
+const TIMELINE = 15
+
+/**
+ * The whole question as one address, or nothing where this deploy's hash has
+ * not been seen.
+ *
+ * The address is the cache key as well as the request, which is why it is built
+ * once here: it carries the repository, the number and the hash, so an entry
+ * written before a deploy is never read after one.
+ */
+const issueRoute = (reference: IssueRef, hash: string): string =>
+  `${GRAPHQL}?body=${encodeURIComponent(
+    JSON.stringify({
+      persistedQueryName: ISSUE_QUERY,
+      query: hash,
+      variables: {
+        count: TIMELINE,
+        number: reference.number,
+        owner: reference.owner,
+        repo: reference.repo
+      }
+    })
+  )}`
+
+/**
+ * How long the read waits for this deploy's hash before giving up on it.
+ *
+ * Measured rather than picked: their app asks its own route some hundreds of
+ * milliseconds after `document_start`, which is when this screen begins. Three
+ * seconds is several times that and still well inside the screen's own
+ * twenty-second failsafe, so a page GitHub never asks from hands itself back
+ * long before anything else notices.
+ */
+const ASKING = "3 seconds"
+
+/** The browser's own way of being told about requests as they are made. */
+const watchingResources = (onSeen: (names: ReadonlyArray<string>) => void) => {
+  const observer = new PerformanceObserver((list) => {
+    onSeen(list.getEntries().map((entry) => entry.name))
+  })
+  observer.observe({ type: "resource", buffered: false })
+  return () => observer.disconnect()
+}
+
+/**
+ * The whole question as one address, waiting for this deploy's hash where the
+ * page has not asked by it yet.
+ *
+ * The address is the cache key as well as the request, which is why it is built
+ * once here: it carries the repository, the number and the hash, so an entry
+ * written before a deploy is never read after one.
+ */
+const askedIssue = (reference: IssueRef): Effect.Effect<Option.Option<string>> =>
+  Effect.map(issueHash, (hash) => Option.map(hash, (found) => issueRoute(reference, found)))
+
+/**
+ * This deploy's hash for the issue query: off the page where it is there, out of
+ * the store where it is not.
+ *
+ * The store is asked first and without waiting, because waiting is the thing it
+ * is here to avoid. GitHub's own page asks the query some hundreds of
+ * milliseconds after this screen starts, so {@link whenAsked} sits out that gap
+ * on every issue opened with a page load — and on a soft navigation it sits out
+ * the whole three seconds, because their app asks the timeline's query there and
+ * never this one. A hash kept from the last issue skips both.
+ *
+ * Kept whenever the page does say it, so the next one has it. Under the release,
+ * so a deploy in between is a miss rather than a 404.
+ */
+const issueHash: Effect.Effect<Option.Option<string>> = Effect.gen(function* () {
+  const release = releaseOn(document)
+
+  if (Option.isSome(release)) {
+    const kept = yield* recallHash(release.value, ISSUE_QUERY)
+    if (Option.isSome(kept)) return kept
+  }
+
+  const asked = yield* whenAsked(performance, watchingResources, ISSUE_QUERY, ASKING)
+  if (Option.isSome(asked) && Option.isSome(release)) {
+    yield* rememberHash(release.value, ISSUE_QUERY, asked.value)
+  }
+
+  return asked
+})
+
+/**
+ * The issue read out of its own served page, for the arrival nobody has a hash for.
+ *
+ * The last way in, and the one that always works. Their HTML carries the queries
+ * the page was rendered from, hash and whole result together, so a first issue
+ * opened from their list is answered from the document that describes it rather
+ * than from a route that cannot be addressed yet.
+ *
+ * A whole page rather than one query, which is why it is last: 217 kilobytes
+ * against about 40 for the route, measured on `react/react` #37178. It pays for
+ * itself once. The hash it carries is kept, and every issue after it goes the
+ * cheap way whichever list the reader came from.
+ */
+const issueInItsPage = Effect.fn("issueInItsPage")(function* (reference: IssueRef) {
+  const route = `/${reference.owner}/${reference.repo}/issues/${reference.number}`
+
+  const response = yield* Effect.tryPromise({
+    try: () => fetch(`https://github.com${route}`, { credentials: "include" }),
+    catch: (cause) =>
+      new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+  })
+
+  if (!response.ok) {
+    return yield* new GatewayError({
+      reference,
+      route,
+      reason: "rejected",
+      detail: `${response.status}`
+    })
+  }
+
+  const html = yield* Effect.tryPromise({
+    try: () => response.text(),
+    catch: (cause) =>
+      new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+  })
+
+  const preloaded = preloadedIn(html, ISSUE_QUERY)
+  if (Option.isNone(preloaded)) {
+    return yield* new GatewayError({
+      reference,
+      route,
+      reason: "undecodable",
+      detail: `no ${ISSUE_QUERY} preloaded in the page`
+    })
+  }
+
+  // Waited for rather than forked, unlike everything else kept in this file.
+  // Those are read again on some later visit and losing one costs a repeat of a
+  // read that already answered. This one is what stops the next issue paying for
+  // a whole page, and it is a single write of thirty-two bytes.
+  const release = releaseOn(document)
+  if (Option.isSome(release)) {
+    yield* rememberHash(release.value, ISSUE_QUERY, preloaded.value.hash)
+  }
+
+  return preloaded.value
+})
+
+/**
+ * The same address, without waiting for GitHub to say anything.
+ *
+ * What the store is asked with. Waiting on their traffic here would be waiting
+ * to look something up, which defeats the whole point of a read that answers in
+ * milliseconds or not at all — so the page is read for a hash it already has,
+ * and the store for one it kept, and neither costs a wait.
+ *
+ * The store matters most on exactly the arrival that has no hash: an issue
+ * opened from their list. Without it, an issue read a moment ago is drawn from
+ * nothing while its own page is fetched again.
+ */
+const keptIssueRoute = (reference: IssueRef): Effect.Effect<Option.Option<string>> =>
+  Effect.gen(function* () {
+    const said = hashIn(performance, ISSUE_QUERY)
+    if (Option.isSome(said)) return Option.some(issueRoute(reference, said.value))
+
+    const release = releaseOn(document)
+    if (Option.isNone(release)) return Option.none<string>()
+
+    const kept = yield* recallHash(release.value, ISSUE_QUERY)
+    return Option.map(kept, (hash) => issueRoute(reference, hash))
+  })
+
+/**
+ * A GET of their GraphQL route, which wants one header the others do not.
+ *
+ * The nonce is written into every page GitHub serves and sent back by their own
+ * app on every request. Measured: the same call is 403 without it and 200 with
+ * it. Read off the document each time rather than held, because a soft
+ * navigation leaves a page whose nonce is no longer the one on the screen.
+ */
+const askedGraphql = Effect.fn("askedGraphql")(function* (
+  reference: IssueRef,
+  route: string
+) {
+  const nonce = nonceOn(document)
+  if (Option.isNone(nonce)) {
+    return yield* new GatewayError({
+      reference,
+      route: GRAPHQL,
+      reason: "rejected",
+      detail: "no fetch-nonce on this page"
+    })
+  }
+
+  const response = yield* Effect.tryPromise({
+    try: () =>
+      fetch(`https://github.com${route}`, {
+        headers: { ...REQUIRED_HEADERS, "X-Fetch-Nonce": nonce.value },
+        credentials: "include"
+      }),
+    catch: (cause) =>
+      new GatewayError({ reference, route: GRAPHQL, reason: "unreachable", detail: String(cause) })
+  })
+
+  if (!response.ok) {
+    return yield* new GatewayError({
+      reference,
+      route: GRAPHQL,
+      reason: "rejected",
+      detail: `HTTP ${response.status}`
+    })
+  }
+
+  return yield* Effect.tryPromise({
+    try: () => response.json(),
+    catch: (cause) =>
+      new GatewayError({ reference, route: GRAPHQL, reason: "undecodable", detail: String(cause) })
+  })
+})
+
+/**
+ * One issue, decoded, or a failure that names the route.
+ *
+ * Their GraphQL route answers 200 with an `errors` array where a REST route
+ * would have answered 404, so a body that carries no issue arrives here looking
+ * like a payload that changed shape. Both are undecodable and both mean the
+ * same thing to a reader, which is that this page cannot be drawn.
+ */
+const decodedIssue = (reference: IssueRef, raw: unknown) =>
+  issueFrom(reference, raw).pipe(
+    Effect.catch((cause) =>
+      Effect.fail(
+        new GatewayError({
+          reference,
+          route: GRAPHQL,
+          reason: "undecodable",
+          detail: String(cause)
+        })
+      )
+    )
+  )
+
+/** Their name for the write behind their own Create button. */
+const CREATE_ISSUE = "createIssueMutation"
+
+/**
+ * Named with the mutation as well as the route, because two different calls now
+ * fail as `/_graphql` and a report that says only that names neither.
+ */
+const RAISING = `${GRAPHQL} ${CREATE_ISSUE}`
+
+/**
+ * One of their chunks, read, or nothing where it would not read.
+ *
+ * Without credentials, because these are assets on their CDN and the cookies
+ * this origin has are for github.com. Every failure is the same answer: a chunk
+ * that will not read is a chunk that taught this nothing, and there are a
+ * hundred and eighty more.
+ */
+const readingChunk = (at: string): Effect.Effect<Option.Option<string>> =>
+  Effect.tryPromise(() => fetch(at, { credentials: "omit" })).pipe(
+    Effect.flatMap(textOf),
+    Effect.map(Option.some),
+    Effect.catch(() => Effect.succeed(Option.none<string>()))
+  )
+
+/**
+ * This deploy's hash for the create mutation: out of the store, or out of their
+ * shipped JavaScript.
+ *
+ * The store first, exactly as {@link issueHash} asks it first, and worth more
+ * here than there. A query's hash can be watched for; this one has to be found,
+ * and finding it is a hundred and thirty reads — so the second issue raised
+ * during one deploy should cost none of them.
+ *
+ * Kept under the release for the reason every hash is: GitHub ship several times
+ * a day, and a hash does not outlive the deploy that minted it. What that buys is
+ * a miss rather than a 404.
+ */
+const hashOf = (name: string): Effect.Effect<Option.Option<string>> =>
+  Effect.gen(function* () {
+    const release = releaseOn(document)
+
+    if (Option.isSome(release)) {
+      const kept = yield* recallHash(release.value, name)
+      if (Option.isSome(kept)) return kept
+    }
+
+    const found = yield* hashOfMutationIn(performance, readingChunk, name)
+    if (Option.isSome(found) && Option.isSome(release)) {
+      yield* rememberHash(release.value, name, found.value)
+    }
+
+    return found
+  })
+
+const raisingHash: Effect.Effect<Option.Option<string>> = hashOf(CREATE_ISSUE)
+
+/**
+ * Their two mutations for the one control: closing an issue with a reason, and putting it
+ * back.
+ *
+ * Two rather than one because GitHub wrote them that way — the close takes a reason and a
+ * duplicate to point at, and the reopen takes the issue and nothing else. Measured off their
+ * own button on `flazouh/stack-probe` #77, closed as completed, closed as not planned and
+ * reopened, each answering 200 with the state and reason echoed back.
+ */
+const CLOSE_ISSUE = "updateIssueStateMutationCloseMutation"
+const SAY_ON_ISSUE = "addCommentMutation"
+const REOPEN_ISSUE = "updateIssueStateMutation"
+
+/** Their word for each of ours. `NOT_PLANNED` is what "closed as not planned" is called. */
+const REASON_OF: Record<Settling["as"], string> = {
+  completed: "COMPLETED",
+  discarded: "NOT_PLANNED",
+  duplicate: "DUPLICATE"
+}
+
+/**
+ * One mutation of theirs, sent as their own page sends it.
+ *
+ * The same three problems the raise has, in the same order: this deploy's hash for the
+ * mutation, the page's nonce, and a route that answers 200 for a refusal. Each is reported
+ * apart from the others, because "GitHub refused that" about a hash this extension could not
+ * find is a sentence that sends the reader looking for a fault of GitHub's making.
+ */
+const mutating = Effect.fn("GitHubGateway.mutating")(function* (
+  reference: RepoRef,
+  name: string,
+  variables: Readonly<Record<string, unknown>>
+) {
+  const route = `${GRAPHQL} ${name}`
+
+  const hash = yield* hashOf(name)
+  if (Option.isNone(hash)) {
+    return yield* new GatewayError({
+      reference,
+      route,
+      reason: "not-recorded",
+      detail: `Nothing this page has loaded says which ${name} GitHub will answer.`
+    })
+  }
+
+  const nonce = nonceOn(document)
+  if (Option.isNone(nonce)) {
+    return yield* new GatewayError({
+      reference,
+      route,
+      reason: "rejected",
+      detail: "no fetch-nonce on this page"
+    })
+  }
+
+  const response = yield* Effect.tryPromise({
+    try: () =>
+      fetch(`https://github.com${GRAPHQL}`, {
+        method: "POST",
+        headers: {
+          ...REQUIRED_HEADERS,
+          ...VERIFIED,
+          "Content-Type": "text/plain;charset=UTF-8",
+          "X-Fetch-Nonce": nonce.value
+        },
+        credentials: "include",
+        body: JSON.stringify({ persistedQueryName: name, query: hash.value, variables })
+      }),
+    catch: (cause) =>
+      new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+  })
+
+  const said = yield* textOf(response)
+  const body = parsed(said)
+  const refused = graphqlRefusal(body)
+
+  if (refused !== undefined || !response.ok) {
+    return yield* new GatewayError({
+      reference,
+      route,
+      reason: "rejected",
+      detail: refused ?? reasonGiven(said) ?? `HTTP ${response.status}`
+    })
+  }
+
+  // Handed back rather than dropped: closing an issue has nothing to say, and adding a
+  // comment hands back the whole comment, rendered. Callers that want neither ignore it.
+  return body
+})
+
+/**
+ * The payloads their React roots were rendered from, off the page this is
+ * standing on.
+ *
+ * The same script tag `embedded.ts` looks for in served HTML, read out of the DOM
+ * instead. A document rather than a string because there is no fetch here: the
+ * reader is on the page, and serialising it back to HTML to read one field out of
+ * it would be a megabyte of string for nothing.
+ */
+const embeddedOnPage = (page: Document): ReadonlyArray<string> =>
+  [
+    ...page.querySelectorAll(
+      'script[type="application/json"][data-target="react-app.embeddedData"]'
+    )
+  ].map((script) => script.textContent ?? "")
+
+/**
+ * The sentence a GraphQL answer refused with, from either place their mutation
+ * puts one.
+ *
+ * Both are checked because their mutation uses both: a query that could not be
+ * run at all fails at the top of the answer, and an issue GitHub declined to
+ * create fails in an `errors` array beside the issue it did not make. Neither
+ * arrives as a status code — this route answers 200 for both — so a raise that
+ * looked only at `response.ok` would tell the reader their issue was raised.
+ */
+const graphqlRefusal = (body: unknown): string | undefined => {
+  const said = body as
+    | {
+        errors?: ReadonlyArray<{ message?: unknown }>
+        data?: { createIssue?: { errors?: ReadonlyArray<{ message?: unknown }> } | null }
+      }
+    | undefined
+
+  for (const one of [...(said?.errors ?? []), ...(said?.data?.createIssue?.errors ?? [])]) {
+    if (typeof one?.message === "string" && one.message.length > 0) return one.message
+  }
+
+  return undefined
+}
+
+/** Their issues, decoded, or a failure that names the route. */
+const decodedIssues = (involvement: Involvement, route: string, raw: unknown) =>
+  involvedIssuesFrom(involvement, raw).pipe(
+    Effect.catch((cause) =>
+      Effect.fail(new WorkingSetError({ route, reason: "undecodable", detail: String(cause) }))
+    )
+  )
+
+/** One page of their issue search, decoded, or a failure that names the route. */
+const decodedFoundIssues = (route: string, raw: unknown) =>
+  listedIssuesFrom(raw).pipe(
+    Effect.catch((cause) =>
+      Effect.fail(new WorkingSetError({ route, reason: "undecodable", detail: String(cause) }))
+    )
+  )
+
+/** Their events, decoded, or a failure that names the route. */
+const decodedHappenings = (route: string, raw: unknown) =>
+  happeningsFrom(raw).pipe(
+    Effect.catch((cause) =>
+      Effect.fail(new WorkingSetError({ route, reason: "undecodable", detail: String(cause) }))
+    )
+  )
+
+/**
+ * A GET of a JSON route that refuses the XMLHttpRequest header.
+ *
+ * Their repository filter is the one such route this reads, and it took watching their own
+ * bundle to find out why it answered 406 to everything sensible: it wants
+ * `Content-Type: application/json` on a request with no body, and no `X-Requested-With` at
+ * all. Odd, sent because it is what works, and kept apart from {@link saidAt} so that the
+ * oddity stays with the one route that has it.
+ */
+const askedWithoutXhr = (url: string, route: string) =>
+  Effect.gen(function* () {
+    const response = yield* Effect.tryPromise({
+      try: () =>
+        fetch(url, {
+          headers: { Accept: "application/json", "Content-Type": "application/json" },
+          credentials: "include"
+        }),
+      catch: (cause) =>
+        new WorkingSetError({ route, reason: "unreachable", detail: String(cause) })
+    })
+
+    if (!response.ok) {
+      return yield* new WorkingSetError({
+        route,
+        reason: "rejected",
+        detail: `HTTP ${response.status}`
+      })
+    }
+
+    return yield* Effect.tryPromise({
+      try: () => response.json(),
+      catch: (cause) =>
+        new WorkingSetError({ route, reason: "undecodable", detail: String(cause) })
+    })
+  })
+
+/**
+ * A read of one of GitHub's own HTML fragments, for the two things about a person
+ * that no route answers in any other form.
+ *
+ * None for 404, which is the ordinary answer for an app: `dependabot[bot]` has no
+ * profile page and no calendar, and that is a person there is nothing to draw
+ * rather than a read that went wrong.
+ *
+ * Not {@link fetchViewerRoute}: that asks for JSON, and asking these two for JSON
+ * is refused. Their own pages send the XMLHttpRequest header and without it both
+ * answer 406.
+ */
+const fragmentAt = Effect.fn("fragmentAt")(function* (route: string) {
+  const response = yield* Effect.tryPromise({
+    try: () =>
+      fetch(`https://github.com${route}`, {
+        headers: { Accept: "text/html", "X-Requested-With": "XMLHttpRequest" },
+        credentials: "include"
+      }),
+    catch: (cause) =>
+      new WorkingSetError({ route, reason: "unreachable", detail: String(cause) })
+  })
+
+  if (response.status === 404) return Option.none<string>()
+
+  if (!response.ok) {
+    return yield* new WorkingSetError({
+      route,
+      reason: "rejected",
+      detail: `HTTP ${response.status}`
+    })
+  }
+
+  return Option.some(yield* textOf(response))
+})
+
+/** Ids in the batches GitHub's own dashboard asks in. */
+const inBatches = (ids: ReadonlyArray<number>): ReadonlyArray<ReadonlyArray<number>> => {
+  const batches: Array<ReadonlyArray<number>> = []
+  for (let at = 0; at < ids.length; at += PER_BATCH) {
+    batches.push(ids.slice(at, at + PER_BATCH))
+  }
+  return batches
+}
+
+/**
+ * A write whose answer is only whether it worked.
+ *
+ * The queue routes return a sentence and nothing else, so there is nothing to
+ * decode and one thing to report: what GitHub said when it said no. Routes that
+ * hand back an object worth reading — a merge, a posted comment — keep their
+ * own bodies rather than pretending this shape fits them.
+ *
+ * The method is asked for rather than assumed because these routes do not agree
+ * on one: everything here is a POST except `submit_review`, which GitHub's own
+ * bundle sends as a PUT.
+ */
+const writing = Effect.fn("writing")(function* (
+  reference: PullRequestRef,
+  route: string,
+  body?: Readonly<Record<string, string | boolean | ReadonlyArray<number>>>,
+  method: "POST" | "PUT" = "POST"
+) {
+  const url = `https://github.com/${reference.owner}/${reference.repo}/pull/${reference.number}${route}`
+
+  const response = yield* Effect.tryPromise({
+    try: () =>
+      fetch(url, {
+        method,
+        headers: WRITING_HEADERS,
+        credentials: "include",
+        ...(body === undefined ? {} : { body: JSON.stringify(body) })
+      }),
+    catch: (cause) =>
+      new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+  })
+
+  const said = yield* textOf(response)
+
+  if (!response.ok) {
+    return yield* new GatewayError({
+      reference,
+      route,
+      reason: "rejected",
+      detail: reasonGiven(said) ?? `HTTP ${response.status}`
+    })
+  }
+})
+
+/**
+ * The remark the reader has just written, read back from the conversation.
+ *
+ * GitHub answer a form post with their entire page, so what was written has to be
+ * fetched rather than parsed out of 800kb of markup that changes with every deploy.
+ * The route is the one the card already reads its conversation from, so the remark
+ * arrives decoded the same way as every other remark on the card — the reader's
+ * own comment cannot draw differently from the ones above it.
+ */
+const newestRemark = Effect.fn("newestRemark")(function* (reference: PullRequestRef) {
+  const raw = yield* fetchRoute(reference, ISSUE_COMMENTS)
+  const comments = yield* Schema.decodeUnknownEffect(IssueCommentsRoute)(raw).pipe(
+    Effect.catch((cause) =>
+      Effect.fail(
+        new GatewayError({
+          reference,
+          route: ISSUE_COMMENTS,
+          reason: "undecodable",
+          detail: String(cause)
+        })
+      )
+    )
+  )
+
+  const written = newestBy(loginOnPage(), comments)
+  if (written === null) return Option.none<Remark>()
+
+  return Option.some<Remark>({
+    id: written.id,
+    author: {
+      login: written.authorLogin,
+      isAutomated: false,
+      faceUrl: Option.fromNullishOr(written.authorAvatarUrl)
+    },
+    body: written.body,
+    html: written.bodyHtml,
+    createdAt: written.createdAt
+  })
+})
+
+/**
+ * The route their own Files tab uses for the diffs it was not given.
+ *
+ * The paths are encoded twice on purpose: the parameter is a comma-separated
+ * list of already-encoded paths, so a path containing a comma survives the
+ * round trip. `ctx` asks for the default amount of context around each hunk.
+ */
+const diffEntriesRoute = (head: string, paths: ReadonlyArray<string>): string => {
+  const list = paths.map((path) => encodeURIComponent(path)).join(",")
+  return `/page_data/diff_entries?paths=${encodeURIComponent(list)}&ctx=${encodeURIComponent(":::")}&w=0&range=${head}`
+}
+
+/**
+ * A commit's own page, asked for as data.
+ *
+ * The `_pjax` parameter is what their navigation sends when it wants the next
+ * page's payload instead of a document, and it answers with the same JSON the
+ * page would have been built from — diff lines and all.
+ */
+const commitRoute = (sha: string): string =>
+  `/commit/${sha}?_pjax=%23repo-content-pjax-container`
+
+/**
+ * What one page of a branch's commits is kept under.
+ *
+ * The whole path rather than the route, because the route on its own is
+ * `/commits/main` in every repository there is — and the store is one store for
+ * the whole browser. The cursor is in it too, so the second page is a second
+ * memory rather than one overwriting the first.
+ */
+const pageKey = (list: CommitList): string =>
+  `/${list.repo.owner}/${list.repo.repo}${routeFor(list)}`
+
+/**
+ * Their own branch picker's route, which answers with every name at once.
+ *
+ * No `q`: it takes one and ignores it, so there is no asking for a subset and
+ * the narrowing belongs where the typing is.
+ */
+const BRANCHES_ROUTE = "/refs?type=branch"
+
+const refsKey = (reference: RepoRef): string =>
+  `/${reference.owner}/${reference.repo}${BRANCHES_ROUTE}`
+
+/**
+ * Everybody who has written a commit here, which their own page defers.
+ *
+ * Built rather than taken from the payload that names it, unlike the deferred
+ * marks beside it: this one carries no cursor and is the same address on every
+ * page of every branch, so there is nothing of theirs to carry.
+ */
+const AUTHORS_ROUTE = "/commits/deferred_commit_contributors"
+
+const authorsKey = (reference: RepoRef): string =>
+  `/${reference.owner}/${reference.repo}${AUTHORS_ROUTE}`
+
+/** A repository's front page, kept under its own address. */
+const frontKey = (reference: RepoRef): string => `/${reference.owner}/${reference.repo}`
+
+/**
+ * One run, kept under the address it is read at.
+ *
+ * The attempt is part of it: a re-run has its own page, and answering for attempt two with
+ * what attempt one did is the one mistake a remembered run could make.
+ */
+const runKey = (reference: RunRef): string =>
+  `/${reference.repo.owner}/${reference.repo.repo}/actions/runs/${reference.run}` +
+  (reference.attempt === null ? "" : `/attempts/${reference.attempt}`)
+
+/**
+ * The address a run is read at, rebuilt from the reference.
+ *
+ * Rebuilt rather than passed through, so an attempt is asked for by number and a
+ * job's address cannot send a read somewhere that answers with one job.
+ */
+const runRoute = (reference: RunRef): string =>
+  reference.attempt === null
+    ? `/actions/runs/${reference.run}`
+    : `/actions/runs/${reference.run}/attempts/${reference.attempt}`
+
+/**
+ * A run's page as the document it is served as.
+ *
+ * Two callers, and the second is why this is a function: a press is their own
+ * form posted back, and the form is on this page. So the token a press needs and
+ * the facts a screen needs come out of the same read, asked for the same way.
+ */
+const runDocument = Effect.fn("runDocument")(function* (reference: RunRef, route: string) {
+  const url = `https://github.com/${reference.repo.owner}/${reference.repo.repo}${route}`
+
+  const response = yield* Effect.tryPromise({
+    try: () => fetch(url, { headers: { Accept: "text/html" }, credentials: "include" }),
+    catch: (cause) =>
+      new GatewayError({
+        reference: reference.repo,
+        route,
+        reason: "unreachable",
+        detail: String(cause)
+      })
+  })
+
+  if (!response.ok) {
+    return yield* new GatewayError({
+      reference: reference.repo,
+      route,
+      reason: "rejected",
+      detail: `HTTP ${response.status}`
+    })
+  }
+
+  return yield* Effect.tryPromise({
+    try: () => response.text(),
+    catch: (cause) =>
+      new GatewayError({
+        reference: reference.repo,
+        route,
+        reason: "unreachable",
+        detail: String(cause)
+      })
+  })
+})
+
+/**
+ * One of their forms on a run, sent back to them.
+ *
+ * Their page is read first, every time, and the form is taken out of what comes
+ * back. Nothing is composed here: the route, the `_method`, the token and the
+ * `only_failed_check_runs` are all theirs, and the fields go out in the order
+ * they were written. A token is minted per page, so reading the page again is
+ * not a cost this could avoid by keeping one — it is the only way the press is
+ * addressed to the page it came from.
+ *
+ * Their answer is the run page's HTML either way, which means the status code is
+ * the whole of what there is to go on: a refusal is not distinguishable from a
+ * success by the body. So the check is `response.ok` and the screen re-reads the
+ * run afterwards to say what actually happened.
+ */
+const pressingRun = Effect.fn("pressingRun")(function* (reference: RunRef, what: Pressing) {
+  const route = `/actions/runs/${reference.run}`
+  const html = yield* runDocument(reference, route)
+
+  const press = pressOn(html, what)
+  if (press === null) {
+    return yield* new GatewayError({
+      reference: reference.repo,
+      route,
+      reason: "rejected",
+      detail: "GitHub is not offering that on this run"
+    })
+  }
+
+  const telling = new URLSearchParams()
+  for (const [name, value] of press.fields) telling.append(name, value)
+
+  const response = yield* Effect.tryPromise({
+    try: () =>
+      fetch(`https://github.com${press.action}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "text/html"
+        },
+        credentials: "include",
+        body: telling.toString()
+      }),
+    catch: (cause) =>
+      new GatewayError({
+        reference: reference.repo,
+        route: press.action,
+        reason: "unreachable",
+        detail: String(cause)
+      })
+  })
+
+  if (!response.ok) {
+    return yield* new GatewayError({
+      reference: reference.repo,
+      route: press.action,
+      reason: "rejected",
+      detail: `HTTP ${response.status}`
+    })
+  }
+})
+
+/** A repository's Actions tab, kept under the address its list is read at. */
+const strandsKey = (reference: RepoRef): string =>
+  `/${reference.owner}/${reference.repo}/actions`
+
+/**
+ * One commit, kept under the address it is read at.
+ *
+ * The sha in full, as their own address carries it. A commit that has landed never changes,
+ * which makes this the truest memory the store holds: what a kept one is missing is
+ * nothing at all, and the read behind it only confirms it.
+ */
+const commitKey = (reference: RepoRef, sha: string): string =>
+  `/${reference.owner}/${reference.repo}/commit/${sha}`
+
+/** The row out of a document already read, kept where a later visit will look for it. */
+const keepTheTabs = (reference: RepoRef, html: string): Effect.Effect<void> =>
+  Effect.sync(() => keepTabs(reference, tabsOnPage(html)))
+
+/**
+ * The route naming the data a front page is read out of.
+ *
+ * Named rather than taken first, because their document holds several embedded
+ * payloads: two `react-partial` ones for the header and the sidebar, and the
+ * `react-app` one that is the page.
+ */
+const CODE_VIEW = "codeViewRepoRoute"
+
+/** The same, for the page one file is rendered on. */
+const BLOB_VIEW = "codeViewBlobLayoutRoute.StyledBlob"
+
+/**
+ * The payload out of a page of theirs, rather than out of a route of theirs.
+ *
+ * Two pages of the code view are read this way and both for the same reason:
+ * `Accept: application/json` answers with the route alone and never with the
+ * layout around it, and the layout is where the interesting half is — whether
+ * the reader can push, on the front page, and the lines of the file, on a blob.
+ * A document holds both halves and is the only answer that does.
+ */
+const readRepoPage = Effect.fn("GitHubGateway.readRepoPage")(function* (
+  reference: RepoRef,
+  route: string,
+  naming: string
+) {
+  const url = `https://github.com/${reference.owner}/${reference.repo}${route}`
+
+  const response = yield* Effect.tryPromise({
+    try: () => fetch(url, { headers: { Accept: "text/html" }, credentials: "include" }),
+    catch: (cause) =>
+      new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+  })
+
+  if (!response.ok) {
+    return yield* new GatewayError({
+      reference,
+      route,
+      reason: refusedBy(response),
+      detail: `HTTP ${response.status}`
+    })
+  }
+
+  const html = yield* Effect.tryPromise({
+    try: () => response.text(),
+    catch: (cause) =>
+      new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+  })
+
+  const raw = embeddedPayload(html, naming)
+  if (Option.isNone(raw)) {
+    /*
+     * A document with nothing in it for us is either a shape of theirs that
+     * changed or a wall, and asking here is what tells them apart: their
+     * document routes answer a walled repository 200, with a sign-on page in
+     * place of the page. Asked only on the way out, so a read that worked never
+     * pays for scanning a few hundred kilobytes of rendered README.
+     */
+    const wall = signOnWanted(html)
+
+    return yield* new GatewayError({
+      reference,
+      route,
+      reason: Option.isSome(wall) ? "sign-on" : "undecodable",
+      detail: Option.isSome(wall) ? `single sign-on to ${wall.value}` : "no embedded payload"
+    })
+  }
+
+  /*
+   * The document as well as the payload out of it, because one thing worth having is in
+   * neither of their payloads: the repository's own tab row, with the tabs this repository
+   * actually has and GitHub's counts beside two of them. It costs nothing here — the
+   * document is already read and already in hand — and it is what stops the bar falling
+   * back to the two tabs an address can promise. See `repoTabs.ts`.
+   */
+  return { payload: raw.value, html }
+})
+
+
+/**
+ * One batch of the files a commit page did not send, asked for as their own
+ * page asks for it while being scrolled.
+ *
+ * `start_entry`, `bytes` and `lines` are the cursor GitHub gave with the last
+ * answer, handed straight back. A `paths` parameter is accepted here and
+ * ignored, so there is no asking for a file by name — the walk is the only way.
+ */
+const commitDiffsRoute = (sha: string, held: HeldBack, from: AsyncDiffLoad): string =>
+  `/diffs?commit=${sha}&sha2=${held.sha2}&sha1=${held.sha1}&start_entry=${from.startIndex}&bytes=${from.byteCount}&lines=${from.lineShownCount}`
+
+/**
+ * How far the walk will go before giving up.
+ *
+ * The largest commit on a real pull request — a merge of five hundred and
+ * seventy-five files — was covered in twenty batches. This is above that and
+ * below forever, so a route that answered `loadMore` for ever cannot hang the
+ * panel that asked.
+ */
+const MOST_BATCHES = 30
+
+/**
+ * A repository route read as JSON.
+ *
+ * Beside {@link fetchRoute}, which knows the pull request's number. A commit
+ * belongs to the repository rather than to the pull request carrying it, so its
+ * routes have no number to put in the path.
+ */
+const readRepoRoute = Effect.fn("GitHubGateway.readRepoRoute")(function* (
+  reference: RepoRef,
+  route: string
+) {
+  const url = `https://github.com/${reference.owner}/${reference.repo}${route}`
+
+  const response = yield* Effect.tryPromise({
+    try: () => fetch(url, { headers: REQUIRED_HEADERS, credentials: "include" }),
+    catch: (cause) =>
+      new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+  })
+
+  if (!response.ok) {
+    return yield* new GatewayError({
+      reference,
+      route,
+      reason: refusedBy(response),
+      detail: `HTTP ${response.status}`
+    })
+  }
+
+  return yield* Effect.tryPromise({
+    try: () => response.json(),
+    catch: (cause) =>
+      new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
+  })
+})
+
+/**
+ * How much of a commit's diff will be read before the size stops being worth
+ * counting.
+ *
+ * Two megabytes of text, which is a commit of roughly thirty thousand lines. A
+ * generated lockfile, a vendored dependency and the initial import of a
+ * repository all go past it, and all three are commits whose exact line count
+ * tells a reader nothing they cannot already tell from the word "huge". The cap
+ * is there so that one of them cannot be pulled into memory for a number that
+ * is going to be drawn six pixels high.
+ */
+const MOST_DIFF = 2_000_000
+
+/**
+ * A commit's diff as text, counted rather than kept.
+ *
+ * Read through the stream rather than with `text()`, so the cap above is a cap
+ * on what is ever held: `text()` on a fifty megabyte diff has already spent the
+ * memory by the time anything here could object. Nothing when the diff runs
+ * past the cap, which the row draws as no size at all rather than as a wrong
+ * one.
+ */
+const diffTextAt = Effect.fn("GitHubGateway.diffTextAt")(function* (
+  reference: RepoRef,
+  route: string
+) {
+  const url = `https://github.com/${reference.owner}/${reference.repo}${route}`
+
+  const response = yield* Effect.tryPromise({
+    try: () => fetch(url, { headers: { Accept: "text/plain" }, credentials: "include" }),
+    catch: (cause) =>
+      new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+  })
+
+  if (!response.ok) {
+    return yield* new GatewayError({
+      reference,
+      route,
+      reason: "rejected",
+      detail: `HTTP ${response.status}`
+    })
+  }
+
+  const stream = response.body
+  const broke = (cause: unknown) =>
+    new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+
+  if (stream === null) {
+    const whole = yield* Effect.tryPromise({ try: () => response.text(), catch: broke })
+    return whole.length > MOST_DIFF ? Option.none<string>() : Option.some(whole)
+  }
+
+  const reader = stream.getReader()
+  const decoder = new TextDecoder()
+  let held = ""
+
+  return yield* Effect.gen(function* () {
+    for (;;) {
+      const chunk = yield* Effect.tryPromise({ try: () => reader.read(), catch: broke })
+      if (chunk.done) return Option.some(held)
+
+      held += decoder.decode(chunk.value, { stream: true })
+      if (held.length > MOST_DIFF) {
+        yield* Effect.tryPromise({ try: () => reader.cancel(), catch: broke })
+        return Option.none<string>()
+      }
+    }
+  }).pipe(Effect.ensuring(Effect.sync(() => reader.releaseLock())))
+})
+
+/**
+ * One shelf's rows, out of GitHub's payload for it.
+ *
+ * Written once and used by both the live read and the remembered one, so that a
+ * payload out of the store cannot possibly be read differently from the one that
+ * has just arrived — which is the only thing that makes remembering safe.
+ */
+const shelfIn = (
+  shelf: Shelf,
+  route: string,
+  raw: unknown
+): Effect.Effect<ReadonlyArray<InvolvedPullRequest>, WorkingSetError> =>
+  decodeShelf(raw).pipe(
+    Effect.map((decoded) =>
+      involvedIn(Option.some(shelf), decoded.payload.pullsInboxSurfaceContentRoute.results)
+    ),
+    Effect.catch((cause) =>
+      Effect.fail(new WorkingSetError({ route, reason: "undecodable", detail: String(cause) }))
+    )
+  )
+
+/** One page of a search, out of GitHub's payload for it. The same again, for the other list. */
+const foundIn = (route: string, raw: unknown): Effect.Effect<Found, WorkingSetError> =>
+  decodeQuery(raw).pipe(
+    Effect.map((decoded): Found => {
+      const listing = decoded.payload.pullsDashboardSurfaceContentRoute
+      return {
+        // None, and not a shelf: this route puts nothing anywhere on the reader's
+        // behalf, and saying it did would put a stranger's work in Your Move.
+        rows: involvedIn(Option.none(), listing.results),
+        pages: Option.map(
+          listing.pageInfo === null || listing.pageInfo === undefined
+            ? Option.none()
+            : Option.some(listing.pageInfo),
+          (info) => ({ current: info.currentPage, total: info.totalPages, count: info.totalCount })
+        )
+      }
+    }),
+    Effect.catch((cause) =>
+      Effect.fail(new WorkingSetError({ route, reason: "undecodable", detail: String(cause) }))
+    )
+  )
+
+/** What a payload that would not decode becomes, on the way out of here. */
+const undecodableFrom =
+  (reference: RepoRef, route: string) =>
+  (cause: unknown): Effect.Effect<never, GatewayError> =>
+    Effect.fail(new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) }))
+
+export const layer = Layer.succeed(GitHubGateway, {
+    snapshot: Effect.fn("GitHubGateway.snapshot")(function* (reference: PullRequestRef) {
+      const raw = yield* Effect.all(
+        {
+          changes: fetchRoute(reference, CHANGES),
+          statusChecks: fetchRoute(reference, STATUS_CHECKS),
+          mergeBox: fetchRoute(reference, MERGE_BOX),
+          description: fetchRoute(reference, DESCRIPTION),
+          header: fetchRoute(reference, HEADER),
+          issueComments: fetchRoute(reference, ISSUE_COMMENTS),
+          preview: whateverIsAt(reference, PREVIEW_STACK)
+        },
+        { concurrency: "unbounded" }
+      )
+
+      const snapshot = yield* decodeInto(reference, raw)
+
+      // Kept only once it has decoded, and forked rather than waited for. The
+      // pull request this was read for is about to be on the screen either way;
+      // the write only affects how quickly the next visit is, and paying for
+      // that now would be an odd trade.
+      yield* Effect.forkDetach(remember(reference, raw))
+
+      return snapshot
+    }),
+
+    remembered: Effect.fn("GitHubGateway.remembered")(function* (reference: PullRequestRef) {
+      const raw = yield* recall(reference)
+      if (Option.isNone(raw)) return Option.none<PullRequestSnapshot>()
+
+      // Decoded through exactly the path a live read takes. A payload kept
+      // before a schema changed fails here and is a miss, where a stored
+      // snapshot would have been a lie in the right shape.
+      return yield* decodeInto(reference, raw.value).pipe(
+        Effect.map(Option.some),
+        Effect.catch(() => Effect.succeed(Option.none<PullRequestSnapshot>()))
+      )
+    }),
+
+    comment: Effect.fn("GitHubGateway.comment")(function* (
+      reference: PullRequestRef,
+      note: NewComment
+    ) {
+      const url = `https://github.com/${reference.owner}/${reference.repo}/pull/${reference.number}${COMMENT}`
+      // Their own box sends the range twice — once flat, once inside the
+      // positioning it wants back — and refuses a body that carries only one
+      // of them. A single line is a range whose ends agree.
+      const range = note.startLine === note.line ? {} : { startLine: note.startLine, startSide: "right" }
+      const body = {
+        comparisonStartOid: note.baseSha,
+        comparisonEndOid: note.headSha,
+        text: note.body,
+        submitBatch: true,
+        path: note.path,
+        line: note.line,
+        side: "right",
+        subjectType: "line",
+        ...range,
+        positioning: {
+          type: "line",
+          baseCommitOid: note.baseSha,
+          headCommitOid: note.headSha,
+          commitOid: note.headSha,
+          path: note.path,
+          line: note.line,
+          ...range
+        }
+      }
+
+      const response = yield* Effect.tryPromise({
+        try: () =>
+          fetch(url, {
+            method: "POST",
+            headers: WRITING_HEADERS,
+            credentials: "include",
+            body: JSON.stringify(body)
+          }),
+        catch: (cause) =>
+          new GatewayError({
+            reference,
+            route: COMMENT,
+            reason: "unreachable",
+            detail: String(cause)
+          })
+      })
+
+      const said = yield* textOf(response)
+
+      if (!response.ok) {
+        return yield* new GatewayError({
+          reference,
+          route: COMMENT,
+          reason: "rejected",
+          detail: reasonGiven(said) ?? `HTTP ${response.status}`
+        })
+      }
+
+      return yield* toCreatedThread(JSON.parse(said), {
+        path: note.path,
+        side: "after",
+        line: note.line,
+        startLine: note.startLine
+      }).pipe(
+        Effect.catch((cause) =>
+          Effect.fail(
+            new GatewayError({
+              reference,
+              route: COMMENT,
+              reason: "undecodable",
+              detail: String(cause)
+            })
+          )
+        )
+      )
+    }),
+
+    /**
+     * An answer inside a thread that is already there.
+     *
+     * The same route a new thread goes to, with `inReplyTo` instead of a place in the diff.
+     * Addressed to a comment and not to the thread: sending a thread id is refused with "The
+     * comment you are replying to has been deleted.", which is their way of saying there is no
+     * comment by that number. So the first comment's own number is what a reply is aimed at.
+     *
+     * Hands back what the thread says now, GitHub answering with the whole of it.
+     */
+    reply: Effect.fn("GitHubGateway.reply")(function* (
+      reference: PullRequestRef,
+      commentId: string,
+      body: string
+    ) {
+      const url = `https://github.com/${reference.owner}/${reference.repo}/pull/${reference.number}${COMMENT}`
+
+      const response = yield* Effect.tryPromise({
+        try: () =>
+          fetch(url, {
+            method: "POST",
+            headers: WRITING_HEADERS,
+            credentials: "include",
+            body: JSON.stringify({ text: body, inReplyTo: commentId, submitBatch: true })
+          }),
+        catch: (cause) =>
+          new GatewayError({ reference, route: COMMENT, reason: "unreachable", detail: String(cause) })
+      })
+
+      const said = yield* textOf(response)
+      if (!response.ok) {
+        return yield* new GatewayError({
+          reference,
+          route: COMMENT,
+          reason: refusedBy(response),
+          detail: reasonGiven(said) ?? `HTTP ${response.status}`
+        })
+      }
+
+      const thread = yield* toCreatedThread(parsed(said), {
+        path: "",
+        side: "after",
+        line: 0,
+        startLine: 0
+      }).pipe(
+        Effect.catch((cause) =>
+          Effect.fail(
+            new GatewayError({
+              reference,
+              route: COMMENT,
+              reason: "undecodable",
+              detail: String(cause)
+            })
+          )
+        )
+      )
+
+      // The comments and nothing else: the thread this belongs to is the one the reader is
+      // looking at, which already knows its own line and its own id.
+      return thread.comments
+    }),
+
+    /**
+     * A resolved thread opened again, which is the other half of resolving one.
+     *
+     * `/page_data/unresolve_thread`, the same shape as its opposite: measured on their own
+     * page, and the same thread id their page data is keyed by. A reader who resolves the
+     * wrong thread with one press needs one press to put it back.
+     */
+    unsettle: Effect.fn("GitHubGateway.unsettle")(function* (
+      reference: PullRequestRef,
+      threadId: string
+    ) {
+      yield* writing(reference, UNSETTLE, { threadId })
+    }),
+
+    /*
+     * Something said about the pull request itself, through their own form.
+     *
+     * The form is on the page, signed for this render, and there is nowhere else
+     * to get what it carries — see `saying.ts` for why that is a constraint rather
+     * than a shortcut. What comes back from the post is their entire page, so the
+     * comment is read from the route this gateway already reads the conversation
+     * with, and the newest one written by the reader is the one just written.
+     */
+    remark: Effect.fn("GitHubGateway.remark")(function* (
+      reference: PullRequestRef,
+      body: string
+    ) {
+      const signing = signingIn(document)
+      if (signing === null) {
+        return yield* new GatewayError({
+          reference,
+          route: SAY,
+          reason: "rejected",
+          detail:
+            "GitHub's own comment box is not on this page, so there is nothing signed to post with."
+        })
+      }
+
+      const response = yield* Effect.tryPromise({
+        try: () =>
+          fetch(signing.action, {
+            method: "POST",
+            headers: { ...REQUIRED_HEADERS, "Content-Type": "application/x-www-form-urlencoded" },
+            credentials: "include",
+            body: asForm(signing, body)
+          }),
+        catch: (cause) =>
+          new GatewayError({ reference, route: SAY, reason: "unreachable", detail: String(cause) })
+      })
+
+      if (!response.ok) {
+        return yield* new GatewayError({
+          reference,
+          route: SAY,
+          reason: "rejected",
+          detail: `HTTP ${response.status}`
+        })
+      }
+
+      const written = yield* newestRemark(reference)
+      if (Option.isNone(written)) {
+        return yield* new GatewayError({
+          reference,
+          route: ISSUE_COMMENTS,
+          reason: "undecodable",
+          detail: "GitHub took the comment and then did not list it."
+        })
+      }
+
+      return written.value
+    }),
+
+    review: Effect.fn("GitHubGateway.review")(function* (
+      reference: PullRequestRef,
+      review: Review
+    ) {
+      yield* writing(
+        reference,
+        SUBMIT_REVIEW,
+        { body: review.note, event: eventFor(review.verdict), headSha: review.headSha },
+        "PUT"
+      )
+    }),
+
+    merge: Effect.fn("GitHubGateway.merge")(function* (
+      reference: PullRequestRef,
+      method: MergeMethod
+    ) {
+      // Their button sends a commit title and message as well; left out, so
+      // GitHub writes the same ones it would have suggested.
+      yield* writing(reference, MERGE, {
+        mergeMethod: method,
+        bypassBranchProtections: false
+      })
+    }),
+
+    /**
+     * Lands this layer and every unmerged layer below it, in one operation.
+     *
+     * The same one press their own "Merge stack" button makes, and the only way
+     * a stack lands: the ordinary merge route answers 422 on a layer of one.
+     * What it takes with it is `wouldLand` in the domain, and the caller is
+     * expected to have shown that before offering the press.
+     */
+    mergeStack: Effect.fn("GitHubGateway.mergeStack")(function* (
+      reference: PullRequestRef,
+      method: MergeMethod
+    ) {
+      yield* writing(reference, MERGE_STACK, { mergeMethod: method })
+    }),
+
+    /**
+     * Makes the stack out of the chain GitHub is offering, as their own dialog does.
+     *
+     * Two requests, and the first of them is a read. Their route names the pull
+     * requests by GitHub's numeric ids, which nothing on this side of the seam
+     * carries and nothing should: the numbers a reader knows are `#15` and `#16`,
+     * and the ids beside them in the preview are 4205778980 and 4205779207. So the
+     * offer is read here, immediately before it is taken.
+     *
+     * Which also settles what happens to a proposal that has gone stale on the
+     * screen. The strip may have stood over the page for ten minutes while a third
+     * pull request joined the chain or somebody else pressed their own button, and
+     * a body built from what was drawn then would make the wrong stack or none.
+     * What is made is what GitHub offers in the second the press lands.
+     *
+     * Foundation first, which is the reverse of the order the preview arrives in
+     * and the order their own button sends. Whether the route reads the order at
+     * all is not known; sending it the other way up to find out is not a thing to
+     * learn on somebody's open work.
+     */
+    makeStack: Effect.fn("GitHubGateway.makeStack")(function* (reference: PullRequestRef) {
+      const raw = yield* fetchRoute(reference, PREVIEW_STACK)
+      const offered = yield* Schema.decodeUnknownEffect(PreviewStackRoute)(raw).pipe(
+        Effect.catch((cause) =>
+          Effect.fail(
+            new GatewayError({
+              reference,
+              route: PREVIEW_STACK,
+              reason: "undecodable",
+              detail: String(cause)
+            })
+          )
+        )
+      )
+
+      // `null` is GitHub's answer for a pull request already in a stack and for
+      // one with nothing standing on it, and a chain of one is nothing to make.
+      // Each of them is the offer having gone rather than the write failing, and
+      // the sentence says so: the reader is looking at a strip that was true when
+      // it was drawn.
+      if (offered === null || offered.length < 2) {
+        return yield* new GatewayError({
+          reference,
+          route: PREVIEW_STACK,
+          reason: "rejected",
+          detail: "GitHub no longer offers this stack. Read the pull request again."
+        })
+      }
+
+      yield* writing(reference, MAKE_STACK, {
+        pullRequestIds: offered.map((layer) => layer.id).toReversed()
+      })
+    }),
+
+    enqueue: Effect.fn("GitHubGateway.enqueue")(function* (
+      reference: PullRequestRef,
+      how: QueueMethod
+    ) {
+      // Their own button sends `GROUP` here, in the field a repository without
+      // a queue uses for SQUASH or REBASE. The route is not fussy about it —
+      // a value it cannot read is ignored rather than refused, and the request
+      // succeeds having done something else — so nothing else goes in the body.
+      yield* writing(reference, ENQUEUE, { mergeMethod: how })
+    }),
+
+    dequeue: Effect.fn("GitHubGateway.dequeue")(function* (reference: PullRequestRef) {
+      yield* writing(reference, DEQUEUE)
+    }),
+
+    cancelAutoMerge: Effect.fn("GitHubGateway.cancelAutoMerge")(function* (
+      reference: PullRequestRef
+    ) {
+      yield* writing(reference, CANCEL_AUTO_MERGE)
+    }),
+
+    updateBranch: Effect.fn("GitHubGateway.updateBranch")(function* (
+      reference: PullRequestRef,
+      how: UpdateMethod
+    ) {
+      yield* writing(reference, UPDATE_BRANCH, { updateMethod: how })
+    }),
+
+    close: Effect.fn("GitHubGateway.close")(function* (reference: PullRequestRef) {
+      yield* writing(reference, CLOSE)
+    }),
+
+    reopen: Effect.fn("GitHubGateway.reopen")(function* (reference: PullRequestRef) {
+      yield* writing(reference, REOPEN)
+    }),
+
+    /*
+     * The id their route wants is the one their page data is keyed by, which is
+     * the one the snapshot already carries: watched on a live press, their button
+     * sent `{"threadId":"2530224233"}` and the payload had that same number as the
+     * key of the thread it resolved. The node id their public API answers with
+     * would be refused, and this extension does not hold one anyway.
+     */
+    settle: Effect.fn("GitHubGateway.settle")(function* (
+      reference: PullRequestRef,
+      threadId: string
+    ) {
+      yield* writing(reference, SETTLE, { threadId })
+    }),
+
+    markReady: Effect.fn("GitHubGateway.markReady")(function* (reference: PullRequestRef) {
+      yield* writing(reference, MARK_READY)
+    }),
+
+    toDraft: Effect.fn("GitHubGateway.toDraft")(function* (reference: PullRequestRef) {
+      yield* writing(reference, TO_DRAFT)
+    }),
+
+    deleteBranch: Effect.fn("GitHubGateway.deleteBranch")(function* (reference: PullRequestRef) {
+      yield* writing(reference, DELETE_BRANCH)
+    }),
+
+    branches: Effect.fn("GitHubGateway.branches")(function* (reference: PullRequestRef) {
+      const raw = yield* fetchRoute(reference, MERGE_BOX)
+      const decoded = yield* decodeMergeBox(raw).pipe(
+        Effect.catch((cause) =>
+          Effect.fail(
+            new GatewayError({
+              reference,
+              route: MERGE_BOX,
+              reason: "undecodable",
+              detail: String(cause)
+            })
+          )
+        )
+      )
+
+      const { baseRefName, headRefName } = decoded.pullRequest
+      if (typeof baseRefName !== "string" || typeof headRefName !== "string") return Option.none()
+
+      const branches = { baseBranch: baseRefName, headBranch: headRefName }
+      // Kept, and forked rather than waited for, exactly as a shelf is: the list
+      // this was read for is about to be on the screen either way, and the write
+      // only changes how quickly the next visit is.
+      yield* Effect.forkDetach(rememberBranches(reference, branches))
+
+      return Option.some(branches)
+    }),
+
+    sizeOf: Effect.fn("GitHubGateway.sizeOf")(function* (reference: PullRequestRef) {
+      const raw = yield* fetchRoute(reference, DIFFSTAT)
+
+      const size = sizeIn(
+        yield* decodeDiffstat(raw).pipe(Effect.catch(undecodableFrom(reference, DIFFSTAT)))
+      )
+      yield* Effect.forkDetach(rememberSize(reference, size))
+
+      return size
+    }),
+
+    rememberedRows: (rows) => recallRows(rows),
+
+    portrait: Effect.fn("GitHubGateway.portrait")(function* (
+      login: string,
+      about: Option.Option<string>
+    ) {
+      const html = yield* fragmentAt(hovercardRoute(login, about))
+      return Option.flatMap(html, (said) => portraitIn(said, login))
+    }),
+
+    contributions: Effect.fn("GitHubGateway.contributions")(function* (login: string) {
+      const html = yield* fragmentAt(contributionsRoute(login))
+      return Option.flatMap(html, contributionsIn)
+    }),
+
+    repositories: Effect.fn("GitHubGateway.repositories")(function* () {
+      const raw = yield* askedWithoutXhr(`https://github.com${REPOSITORIES}`, REPOSITORIES)
+      const repositories = yield* decodedRepositories(raw)
+
+      yield* Effect.forkDetach(rememberRoute(REPOSITORIES, raw, "standing"))
+
+      return repositories
+    }),
+
+    rememberedRepositories: Effect.fn("GitHubGateway.rememberedRepositories")(function* () {
+      const raw = yield* recallRoute(REPOSITORIES)
+      if (Option.isNone(raw)) return Option.none<ReadonlyArray<Repository>>()
+
+      return yield* decodedRepositories(raw.value).pipe(
+        Effect.map(Option.some),
+        Effect.catch(() => Effect.succeed(Option.none<ReadonlyArray<Repository>>()))
+      )
+    }),
+
+    activity: Effect.fn("GitHubGateway.activity")(function* (login: string) {
+      const route = eventsRoute(login)
+      const raw = yield* eventsAt(route)
+      const happenings = yield* decodedHappenings(route, raw)
+
+      yield* Effect.forkDetach(rememberRoute(route, raw, "standing"))
+
+      return happenings
+    }),
+
+    rememberedActivity: Effect.fn("GitHubGateway.rememberedActivity")(function* (login: string) {
+      const route = eventsRoute(login)
+      const raw = yield* recallRoute(route)
+      if (Option.isNone(raw)) return Option.none<ReadonlyArray<Happening>>()
+
+      return yield* decodedHappenings(route, raw.value).pipe(
+        Effect.map(Option.some),
+        Effect.catch(() => Effect.succeed(Option.none<ReadonlyArray<Happening>>()))
+      )
+    }),
+
+    involvedIssues: Effect.fn("GitHubGateway.involvedIssues")(function* (
+      involvement: Involvement
+    ) {
+      const route = issuesRoute(involvement)
+      const raw = yield* fetchViewerRoute(route)
+      const issues = yield* decodedIssues(involvement, route, raw)
+
+      yield* Effect.forkDetach(rememberRoute(route, raw, "standing"))
+
+      return issues
+    }),
+
+    rememberedInvolvedIssues: Effect.fn("GitHubGateway.rememberedInvolvedIssues")(function* (
+      involvement: Involvement
+    ) {
+      const route = issuesRoute(involvement)
+      const raw = yield* recallRoute(route)
+      if (Option.isNone(raw)) return Option.none<ReadonlyArray<InvolvedIssue>>()
+
+      return yield* decodedIssues(involvement, route, raw.value).pipe(
+        Effect.map(Option.some),
+        Effect.catch(() => Effect.succeed(Option.none<ReadonlyArray<InvolvedIssue>>()))
+      )
+    }),
+
+    issueSearch: Effect.fn("GitHubGateway.issueSearch")(function* (query: string, page: number) {
+      const route = issueSearchRoute(query, page)
+      const raw = yield* fetchViewerRoute(route)
+      const found = yield* decodedFoundIssues(route, raw)
+
+      // Browsed rather than standing, exactly as a pull request search is: a
+      // repository's page thirty is worth having for the back button and is not
+      // worth the room Home's six reads need.
+      yield* Effect.forkDetach(rememberRoute(route, raw))
+
+      return found
+    }),
+
+    rememberedIssueSearch: Effect.fn("GitHubGateway.rememberedIssueSearch")(function* (
+      query: string,
+      page: number
+    ) {
+      const route = issueSearchRoute(query, page)
+      const raw = yield* recallRoute(route)
+      if (Option.isNone(raw)) return Option.none<FoundIssues>()
+
+      return yield* decodedFoundIssues(route, raw.value).pipe(
+        Effect.map(Option.some),
+        Effect.catch(() => Effect.succeed(Option.none<FoundIssues>()))
+      )
+    }),
+
+    /**
+     * Closes an issue, saying why, and puts a closed one back.
+     *
+     * Their own page offers exactly this pair and nothing between them, and the reason is
+     * the one thing the word "Closed" hides: an issue closed as not planned is an answer to
+     * whoever raised it, and an issue closed as completed is a different answer.
+     */
+    settleIssue: Effect.fn("GitHubGateway.settleIssue")(function* (
+      reference: IssueRef,
+      id: string,
+      settling: Settling
+    ) {
+      yield* mutating(reference, CLOSE_ISSUE, {
+        // Theirs, and sent on every close: null for the two that name no other issue, and
+        // GitHub's own name for the other issue on the one that does.
+        duplicateIssueId: settling.as === "duplicate" ? settling.of : null,
+        id,
+        newStateReason: REASON_OF[settling.as]
+      })
+    }),
+
+    reopenIssue: Effect.fn("GitHubGateway.reopenIssue")(function* (
+      reference: IssueRef,
+      id: string
+    ) {
+      yield* mutating(reference, REOPEN_ISSUE, { id })
+    }),
+
+    /**
+     * A comment on an issue, which is the one write their React page gave no way to make.
+     *
+     * A pull request's remark goes through GitHub's own form, read off the page and posted
+     * with what it carries. Their issue page renders no form at all, so this took the same
+     * road as closing one: their own mutation, recorded off their own box on 2026-08-06.
+     *
+     * Relay sends a `connections` array with it, naming the list in its store to splice the
+     * new comment into. That is bookkeeping for their cache and the server does not want it:
+     * the mutation answers the same either way, measured both ways on `stack-probe` #77.
+     *
+     * The comment comes back whole, GitHub's own rendering included, so the conversation
+     * shows exactly what a re-read would show without the re-read.
+     */
+    sayOnIssue: Effect.fn("GitHubGateway.sayOnIssue")(function* (
+      reference: IssueRef,
+      id: string,
+      body: string
+    ) {
+      const said = yield* mutating(reference, SAY_ON_ISSUE, { input: { body, subjectId: id } })
+
+      const answer = yield* decodeAddedComment(said).pipe(
+        Effect.catch((cause) =>
+          Effect.fail(
+            new GatewayError({
+              reference,
+              route: `${GRAPHQL} ${SAY_ON_ISSUE}`,
+              reason: "undecodable",
+              detail: String(cause)
+            })
+          )
+        )
+      )
+
+      return remarkFrom(answer)
+    }),
+
+    raise: Effect.fn("GitHubGateway.raise")(function* (reference: RepoRef, draft: Raising) {
+      /*
+       * The three facts this write needs and does not carry, each of which the
+       * page either says or does not. Asked for before the request and reported
+       * apart from it, because a reader who is told "GitHub refused that" about a
+       * hash this extension could not find has been told something false.
+       */
+      const hash = yield* raisingHash
+      if (Option.isNone(hash)) {
+        return yield* new GatewayError({
+          reference,
+          route: RAISING,
+          reason: "not-recorded",
+          detail: `Nothing on this page says which ${CREATE_ISSUE} GitHub will answer.`
+        })
+      }
+
+      const repository = scopedRepositoryIn(embeddedOnPage(document), reference)
+      if (Option.isNone(repository)) {
+        return yield* new GatewayError({
+          reference,
+          route: RAISING,
+          reason: "not-recorded",
+          detail: `This page does not say which repository ${reference.owner}/${reference.repo} is.`
+        })
+      }
+
+      const nonce = nonceOn(document)
+      if (Option.isNone(nonce)) {
+        return yield* new GatewayError({
+          reference,
+          route: RAISING,
+          reason: "rejected",
+          detail: "no fetch-nonce on this page"
+        })
+      }
+
+      const response = yield* Effect.tryPromise({
+        try: () =>
+          fetch(`https://github.com${GRAPHQL}`, {
+            method: "POST",
+            /*
+             * `text/plain` rather than `application/json`, which is what every
+             * other write here sends. It is what their own form sent when this was
+             * recorded off the wire, and it is what was verified against a live
+             * repository — a route that is theirs and undocumented gets the
+             * headers that were measured, not the ones that look right.
+             */
+            headers: {
+              ...REQUIRED_HEADERS,
+              ...VERIFIED,
+              "Content-Type": "text/plain;charset=UTF-8",
+              "X-Fetch-Nonce": nonce.value
+            },
+            credentials: "include",
+            body: JSON.stringify({
+              persistedQueryName: CREATE_ISSUE,
+              query: hash.value,
+              /*
+               * Three fields, against the ten their own form sends. The other
+               * seven — a client mutation id, a duplicate flag, an issue type, a
+               * parent, a set of template fields — were each sent as null or false
+               * by their form and each dropped here after the write was verified
+               * without it.
+               */
+              variables: {
+                input: {
+                  repositoryId: repository.value,
+                  title: draft.title.trim(),
+                  body: draft.body
+                }
+              }
+            })
+          }),
+        catch: (cause) =>
+          new GatewayError({
+            reference,
+            route: RAISING,
+            reason: "unreachable",
+            detail: String(cause)
+          })
+      })
+
+      const said = yield* textOf(response)
+      const body = parsed(said)
+
+      // Their own words first, from either place they leave them, and only then
+      // the status: this route answers 200 for a refusal, so the sentence is the
+      // whole of what says whether anything was raised.
+      const refused = graphqlRefusal(body)
+      if (refused !== undefined || !response.ok) {
+        return yield* new GatewayError({
+          reference,
+          route: RAISING,
+          reason: "rejected",
+          detail: refused ?? reasonGiven(said) ?? `HTTP ${response.status}`
+        })
+      }
+
+      const created = yield* Schema.decodeUnknownEffect(CreatedIssueRoute)(body).pipe(
+        Effect.catch((cause) =>
+          Effect.fail(
+            new GatewayError({
+              reference,
+              route: RAISING,
+              reason: "undecodable",
+              detail: String(cause)
+            })
+          )
+        )
+      )
+
+      return {
+        owner: reference.owner,
+        repo: reference.repo,
+        number: created.data.createIssue.issue.number
+      }
+    }),
+
+    issue: Effect.fn("GitHubGateway.issue")(function* (reference: IssueRef) {
+      const asking = yield* askedIssue(reference)
+      if (Option.isNone(asking)) {
+        // Nobody has the hash on this page, which is every issue reached from
+        // their own list. Read it out of its own served page instead, and keep
+        // what that page says the hash is so this is the once it happens.
+        const preloaded = yield* issueInItsPage(reference)
+        const snapshot = yield* decodedIssue(reference, preloaded.result)
+
+        // Under the route it would have come back from, which is the key the
+        // store is read by. Written this way, the same issue opened again is
+        // drawn from memory even though nothing ever asked that route.
+        yield* Effect.forkDetach(
+          rememberRoute(issueRoute(reference, preloaded.hash), preloaded.result)
+        )
+
+        return snapshot
+      }
+
+      const raw = yield* askedGraphql(reference, asking.value)
+      const snapshot = yield* decodedIssue(reference, raw)
+
+      yield* Effect.forkDetach(rememberRoute(asking.value, raw))
+
+      return snapshot
+    }),
+
+    rememberedIssue: Effect.fn("GitHubGateway.rememberedIssue")(function* (reference: IssueRef) {
+      const asking = yield* keptIssueRoute(reference)
+      if (Option.isNone(asking)) return Option.none<IssueSnapshot>()
+
+      const raw = yield* recallRoute(asking.value)
+      if (Option.isNone(raw)) return Option.none<IssueSnapshot>()
+
+      return yield* decodedIssue(reference, raw.value).pipe(
+        Effect.map(Option.some),
+        Effect.catch(() => Effect.succeed(Option.none<IssueSnapshot>()))
+      )
+    }),
+
+    workingSet: Effect.fn("GitHubGateway.workingSet")(function* (shelf: Shelf) {
+      const route = shelfRoute(shelf)
+      const raw = yield* fetchViewerRoute(route)
+      const rows = yield* shelfIn(shelf, route, raw)
+
+      // Kept once it has decoded, and forked rather than waited for, for the
+      // same reason a pull request is: the list this was read for is about to be
+      // on the screen either way, and the write only changes how quickly the
+      // next visit is.
+      //
+      // On the standing index, because all six have to be there for Home to open
+      // from memory and the browsed routes would otherwise push them out one by one.
+      yield* Effect.forkDetach(rememberRoute(route, raw, "standing"))
+
+      return rows
+    }),
+
+    rememberedShelf: Effect.fn("GitHubGateway.rememberedShelf")(function* (shelf: Shelf) {
+      const route = shelfRoute(shelf)
+      const raw = yield* recallRoute(route)
+      if (Option.isNone(raw)) return Option.none<ReadonlyArray<InvolvedPullRequest>>()
+
+      return yield* shelfIn(shelf, route, raw.value).pipe(
+        Effect.map(Option.some),
+        Effect.catch(() => Effect.succeed(Option.none<ReadonlyArray<InvolvedPullRequest>>()))
+      )
+    }),
+
+    search: Effect.fn("GitHubGateway.search")(function* (query: string, page: number) {
+      const route = searchRoute(query, page)
+      const raw = yield* fetchViewerRoute(route)
+      const found = yield* foundIn(route, raw)
+
+      yield* Effect.forkDetach(rememberRoute(route, raw))
+
+      return found
+    }),
+
+    rememberedSearch: Effect.fn("GitHubGateway.rememberedSearch")(function* (
+      query: string,
+      page: number
+    ) {
+      const route = searchRoute(query, page)
+      const raw = yield* recallRoute(route)
+      if (Option.isNone(raw)) return Option.none<Found>()
+
+      return yield* foundIn(route, raw.value).pipe(
+        Effect.map(Option.some),
+        Effect.catch(() => Effect.succeed(Option.none<Found>()))
+      )
+    }),
+
+    standingsFor: Effect.fn("GitHubGateway.standingsFor")(function* (ids: ReadonlyArray<number>) {
+      if (ids.length === 0) return new Map() as Standings
+
+      // Concurrently, because the batches are independent and a Working Set of
+      // forty is five round trips that would otherwise be taken one at a time
+      // while the reader looks at rows with no checks on them.
+      const batches = yield* Effect.all(
+        inBatches(ids).map((batch) =>
+          Effect.gen(function* () {
+            const route = deferredRoute(batch)
+            const raw = yield* fetchViewerRoute(route)
+            const decoded = yield* decodeDeferred(raw).pipe(
+              Effect.catch((cause) =>
+                Effect.fail(
+                  new WorkingSetError({ route, reason: "undecodable", detail: String(cause) })
+                )
+              )
+            )
+            return standingsIn(decoded)
+          })
+        ),
+        { concurrency: "unbounded" }
+      )
+
+      const joined = new Map<number, ReturnType<Standings["get"]> & {}>()
+      for (const batch of batches) {
+        for (const [id, standing] of batch) joined.set(id, standing)
+      }
+
+      // Kept, and forked rather than waited for, exactly as a stack and a size
+      // are: the list this was read for is about to be on the screen either way,
+      // and the write only changes what the next visit opens with.
+      yield* Effect.forkDetach(
+        Effect.forEach(joined, ([id, standing]) => rememberStanding(id, standing), {
+          discard: true
+        })
+      )
+
+      return joined as Standings
+    }),
+
+    notes: Effect.fn("GitHubGateway.notes")(function* (reference: PullRequestRef, check: Check) {
+      const run = checkRunIn(check)
+      // Only Actions checks have one of these pages. A check from anything
+      // else links somewhere we know nothing about, and has no notes here.
+      if (run === undefined) return []
+
+      const route = `/checks?check_run_id=${run}`
+      const url = `https://github.com/${reference.owner}/${reference.repo}/pull/${reference.number}${route}`
+
+      const response = yield* Effect.tryPromise({
+        try: () =>
+          // Their Checks tab as a document, because the annotations are written
+          // into it and published nowhere else. Deliberately not the JSON
+          // routes: those answer with a shell GitHub fills in later.
+          fetch(url, { headers: { Accept: "text/html" }, credentials: "include" }),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+      })
+
+      if (!response.ok) {
+        return yield* new GatewayError({
+          reference,
+          route,
+          reason: "rejected",
+          detail: `HTTP ${response.status}`
+        })
+      }
+
+      const html = yield* Effect.tryPromise({
+        try: () => response.text(),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
+      })
+
+      return notesIn(html)
+    }),
+
+    log: Effect.fn("GitHubGateway.log")(function* (
+      reference: PullRequestRef,
+      sha: string,
+      check: Check,
+      step: number
+    ) {
+      const run = checkRunIn(check)
+      if (run === undefined) return []
+
+      const route = `/checks/${run}/logs/${step}`
+      const url = `https://github.com/${reference.owner}/${reference.repo}/commit/${sha}${route}`
+
+      const response = yield* Effect.tryPromise({
+        try: () =>
+          // Credentials deliberately left at their default. This route answers
+          // with a redirect to the cloud storage the log actually lives in,
+          // which allows any origin to read it but not to send anything of its
+          // own: asking for cookies to be included makes that allowance void
+          // and the read fails outright. The default sends them to GitHub,
+          // which needs them, and drops them at the redirect, which does not.
+          fetch(url, { headers: { Accept: "text/plain" } }),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+      })
+
+      if (!response.ok) {
+        return yield* new GatewayError({
+          reference,
+          route,
+          reason: "rejected",
+          detail: `HTTP ${response.status}`
+        })
+      }
+
+      const log = yield* Effect.tryPromise({
+        try: () => response.text(),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
+      })
+
+      return linesIn(log)
+    }),
+
+    tail: Effect.fn("GitHubGateway.tail")(function* (
+      reference: PullRequestRef,
+      sha: string,
+      check: Check,
+      keep: number
+    ) {
+      const run = checkRunIn(check)
+      if (run === undefined) return []
+
+      const route = `/checks/${run}/logs`
+      const url = `https://github.com/${reference.owner}/${reference.repo}/commit/${sha}${route}`
+
+      const response = yield* Effect.tryPromise({
+        try: () => fetch(url, { headers: { Accept: "text/plain" } }),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+      })
+
+      if (!response.ok || response.body === null) {
+        return yield* new GatewayError({
+          reference,
+          route,
+          reason: "rejected",
+          detail: `HTTP ${response.status}`
+        })
+      }
+
+      // Read in pieces and thrown away as it goes. A whole job's log has no
+      // upper bound worth trusting, and the end is the part being asked for.
+      const tail = yield* tailOf(response.body as ReadableStream<Uint8Array>, keep).pipe(
+        Effect.catch((cause) =>
+          Effect.fail(
+            new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
+          )
+        )
+      )
+
+      return linesIn(tail.text, tail.startAt)
+    }),
+
+    steps: Effect.fn("GitHubGateway.steps")(function* (
+      reference: PullRequestRef,
+      check: Check
+    ) {
+      const run = runIn(check.url)
+      // Only an Actions job runs as steps. Anything else — a status posted by a
+      // service, a check from another CI — has one outcome and no inside.
+      if (Option.isNone(run)) return []
+
+      const route = `${run.value}/jobs/steps`
+
+      // Their own job page first, for the one number this route is keyed by: it
+      // is internal, it is not the check run id every link we hold carries, and
+      // asking with the id we do hold answers 404. Measured against the live
+      // route, which is what `scripts/probe-check-steps.js` was written to find.
+      const page = yield* Effect.tryPromise({
+        try: () =>
+          fetch(new URL(check.url, "https://github.com").href, {
+            headers: { Accept: "text/html" },
+            credentials: "include"
+          }),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+      })
+
+      if (!page.ok) {
+        return yield* new GatewayError({
+          reference,
+          route,
+          reason: "rejected",
+          detail: `HTTP ${page.status}`
+        })
+      }
+
+      const html = yield* Effect.tryPromise({
+        try: () => page.text(),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
+      })
+
+      const job = jobIn(html)
+      // A page that no longer names the route it reads its own steps from. The
+      // dialog still has the log and the link, which is what it had before.
+      if (Option.isNone(job)) return []
+
+      const response = yield* Effect.tryPromise({
+        try: () =>
+          // JSON explicitly: asked with anything else this route answers 400.
+          fetch(`https://github.com${run.value}/jobs/${job.value}/steps`, {
+            headers: { Accept: "application/json" },
+            credentials: "include"
+          }),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+      })
+
+      if (!response.ok) {
+        return yield* new GatewayError({
+          reference,
+          route,
+          reason: "rejected",
+          detail: `HTTP ${response.status}`
+        })
+      }
+
+      const raw = yield* Effect.tryPromise({
+        try: () => response.text(),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
+      })
+
+      return stepsIn(raw)
+    }),
+
+    commit: Effect.fn("GitHubGateway.commit")(function* (reference: RepoRef, sha: string) {
+      const route = commitRoute(sha)
+      const raw = yield* readRepoRoute(reference, route)
+
+      const detail = yield* toCommit(raw).pipe(Effect.catch(undecodableFrom(reference, route)))
+
+      // Kept without its diffs, which is the whole of `keptCommit.ts`: the facts and the
+      // file names are a few hundred bytes and are what the page is drawn from, and the
+      // content of a file is fetched when it is opened either way.
+      yield* Effect.forkDetach(rememberRoute(commitKey(reference, sha), keptCommitFrom(detail)))
+
+      return detail
+    }),
+
+    rememberedCommit: Effect.fn("GitHubGateway.rememberedCommit")(function* (
+      reference: RepoRef,
+      sha: string
+    ) {
+      const raw = yield* recallRoute(commitKey(reference, sha))
+      if (Option.isNone(raw)) return Option.none<CommitDetail>()
+
+      return commitFromKept(raw.value)
+    }),
+
+    commitDiffs: Effect.fn("GitHubGateway.commitDiffs")(function* (
+      reference: RepoRef,
+      sha: string,
+      paths: ReadonlyArray<string>
+    ) {
+      const page = commitRoute(sha)
+      const held = yield* toHeldBack(yield* readRepoRoute(reference, page)).pipe(
+        Effect.catch(undecodableFrom(reference, page))
+      )
+
+      if (Option.isNone(held)) return []
+
+      // Struck off as they arrive. The walk is over once nothing asked for is
+      // still missing, which on most commits is the first batch.
+      const missing = new Set(paths)
+      const found: Array<FetchedDiff> = []
+      let from = Option.some(held.value.from)
+      let batches = 0
+
+      while (Option.isSome(from) && missing.size > 0 && batches < MOST_BATCHES) {
+        const route = commitDiffsRoute(sha, held.value, from.value)
+        const batch = yield* toExtraDiffs(yield* readRepoRoute(reference, route)).pipe(
+          Effect.catch(undecodableFrom(reference, route))
+        )
+        batches += 1
+
+        for (const diff of batch.diffs) {
+          found.push(diff)
+          missing.delete(diff.path)
+        }
+
+        from = batch.from
+      }
+
+      return found
+    }),
+
+    commits: Effect.fn("GitHubGateway.commits")(function* (list: CommitList) {
+      const route = routeFor(list)
+      const raw = yield* readRepoRoute(list.repo, route)
+
+      // Only the list. The marks are deliberately not kept: a green tick read out
+      // of the store is the one thing on this page that is drawn identically
+      // whether it is a second old or a day old, and a branch that has gone red
+      // since would look tested and clear.
+      yield* Effect.forkDetach(rememberRoute(pageKey(list), raw))
+
+      return yield* historyFrom(raw).pipe(Effect.catch(undecodableFrom(list.repo, route)))
+    }),
+
+    /**
+     * A workflow run, out of the one document that holds all of it.
+     *
+     * A document and not JSON, because their run page is server-rendered Turbo: the
+     * facts, the twelve jobs and the fifteen notes are in the markup it is served as,
+     * and the JSON routes beside it answer with a subset of the same jobs. So this is
+     * one request where their own page spends four.
+     *
+     * The address is rebuilt from the reference rather than passed through, so an
+     * attempt is asked for by number and a job's address cannot send this read
+     * somewhere that answers with one job.
+     */
+    run: Effect.fn("GitHubGateway.run")(function* (reference: RunRef) {
+      const route = runRoute(reference)
+      const html = yield* runDocument(reference, route)
+
+      const opening = runOnPage(html)
+      // Undecodable rather than empty. A run has a workflow and an outcome or it is
+      // not a run, and a screen told nothing can hand the document back to GitHub
+      // instead of drawing a page with no facts on it.
+      if (opening === null) {
+        return yield* new GatewayError({
+          reference: reference.repo,
+          route,
+          reason: "undecodable",
+          detail: "no run on the page"
+        })
+      }
+
+      /*
+       * Kept, so that coming back to a run is the page rather than a wait for it.
+       *
+       * The decoded run rather than the document it came out of: their page is half a
+       * megabyte of markup and this is a few hundred bytes of facts. Browsed rather than
+       * standing, as every page reached by pressing a row is: worth having for the way
+       * back, not worth the room the Working Set's own reads need.
+       */
+      yield* Effect.forkDetach(rememberRoute(runKey(reference), opening))
+
+      return opening
+    }),
+
+    /**
+     * Every job of a run again, or the failed ones on their own.
+     *
+     * The failed ones is the press a reader of a red run came for, and it is not a
+     * filter this applies: GitHub renders a form per choice, and this posts the one
+     * that was asked for. A run with nothing failed carries no such form, and the
+     * refusal is theirs rather than a request they would have turned down.
+     */
+    rerunRun: Effect.fn("GitHubGateway.rerunRun")(function* (
+      reference: RunRef,
+      which: "all" | "failed"
+    ) {
+      yield* pressingRun(reference, which === "failed" ? "rerunFailed" : "rerun")
+    }),
+
+    /**
+     * Stops a run that is still going.
+     *
+     * Addressed by the check suite behind the run, which is the one number here that
+     * cannot be worked out from the address: their own form on the run page carries
+     * it, so the form is read rather than the id guessed at.
+     */
+    cancelRun: Effect.fn("GitHubGateway.cancelRun")(function* (reference: RunRef) {
+      yield* pressingRun(reference, "cancel")
+    }),
+
+    rememberedRun: Effect.fn("GitHubGateway.rememberedRun")(function* (reference: RunRef) {
+      const raw = yield* recallRoute(runKey(reference))
+      if (Option.isNone(raw)) return Option.none<RunOpening>()
+
+      return isKeptRun(raw.value) ? Option.some(raw.value) : Option.none<RunOpening>()
+    }),
+
+    /**
+     * Their Actions list, folded into Strands.
+     *
+     * One document again, and the same reason: every row carries the ref, the outcome, the
+     * duration and the pull request already, so the folding needs no second request. The
+     * page is asked for without a query, which is the one their Actions tab opens with.
+     */
+    strands: Effect.fn("GitHubGateway.strands")(function* (reference: RepoRef) {
+      const route = "/actions"
+      const url = `https://github.com/${reference.owner}/${reference.repo}${route}`
+
+      const response = yield* Effect.tryPromise({
+        try: () => fetch(url, { headers: { Accept: "text/html" }, credentials: "include" }),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+      })
+
+      if (!response.ok) {
+        return yield* new GatewayError({
+          reference,
+          route,
+          reason: "rejected",
+          detail: `HTTP ${response.status}`
+        })
+      }
+
+      const html = yield* Effect.tryPromise({
+        try: () => response.text(),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+      })
+
+      const strands = strandsIn(runsOnPage(html))
+
+      // Kept for the same reason a run is, and it matters more here: this list is what a
+      // reader comes back to between runs.
+      yield* Effect.forkDetach(rememberRoute(strandsKey(reference), strands))
+
+      return strands
+    }),
+
+    rememberedStrands: Effect.fn("GitHubGateway.rememberedStrands")(function* (
+      reference: RepoRef
+    ) {
+      const raw = yield* recallRoute(strandsKey(reference))
+      if (Option.isNone(raw)) return Option.none<ReadonlyArray<Strand>>()
+
+      return isKeptStrands(raw.value)
+        ? Option.some(raw.value)
+        : Option.none<ReadonlyArray<Strand>>()
+    }),
+
+    repoHome: Effect.fn("GitHubGateway.repoHome")(function* (reference: RepoRef) {
+      const route = ""
+      const page = yield* readRepoPage(reference, route, CODE_VIEW)
+      const raw = page.payload
+
+      const front = yield* decodeRepoHome(raw).pipe(
+        Effect.map((decoded) => frontFrom(reference, decoded)),
+        Effect.catch(undecodableFrom(reference, route))
+      )
+
+      yield* Effect.forkDetach(rememberRoute(frontKey(reference), keptFrom(front)))
+      // The tab row out of the same document, at the cost of one parse. See `tabs` below.
+      yield* Effect.forkDetach(keepTheTabs(reference, page.html))
+
+      return front
+    }),
+
+    /**
+     * A repository's own tab row: which tabs it has, where they go, and their counts.
+     *
+     * Its own read because the bar stands on every page of a repository and most of them
+     * are not the front page. A reader who opens a pull request first has never fetched the
+     * document their row lives in, and the bar there had nothing to draw but Code and Pull
+     * requests — no Issues, no Actions, no counts — until GitHub's own header hydrated
+     * underneath our screen.
+     *
+     * The whole front page for one row is a heavy read and it is the only place the row is
+     * served. It is warmed on the pointer and kept per repository, so it is paid once.
+     */
+    tabs: Effect.fn("GitHubGateway.tabs")(function* (reference: RepoRef) {
+      const route = ""
+      const url = `https://github.com/${reference.owner}/${reference.repo}${route}`
+
+      const response = yield* Effect.tryPromise({
+        try: () => fetch(url, { headers: { Accept: "text/html" }, credentials: "include" }),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+      })
+
+      if (!response.ok) {
+        return yield* new GatewayError({
+          reference,
+          route,
+          reason: refusedBy(response),
+          detail: `HTTP ${response.status}`
+        })
+      }
+
+      const html = yield* Effect.tryPromise({
+        try: () => response.text(),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+      })
+
+      const found = tabsOnPage(html)
+      yield* Effect.sync(() => keepTabs(reference, found))
+
+      return found
+    }),
+
+    /**
+     * Who can be mentioned here, and what can be referred to by number.
+     *
+     * Their own suggester, which their own box asks the moment an at sign is typed. Two
+     * flags on one route, both answering with the whole list and neither taking a query, so
+     * this is read once for a repository and filtered wherever a box is standing.
+     *
+     * `X-Requested-With: XMLHttpRequest` is not optional: without it the route answers 406,
+     * whatever the Accept header says. Nor is standing inside the repository being asked
+     * about, which answers 406 as well.
+     */
+    suggesting: Effect.fn("GitHubGateway.suggesting")(function* (reference: RepoRef) {
+      const route = "/suggestions/issue"
+      const asking = `repository=${reference.repo}&user_id=${reference.owner}`
+
+      const reading = (flag: string) =>
+        Effect.tryPromise({
+          try: () =>
+            fetch(`https://github.com${route}?${flag}=1&${asking}`, {
+              headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
+              credentials: "include"
+            }),
+          catch: (cause) =>
+            new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+        }).pipe(
+          Effect.flatMap((response) =>
+            response.ok
+              ? textOf(response)
+              : Effect.fail(
+                  new GatewayError({
+                    reference,
+                    route,
+                    reason: refusedBy(response),
+                    detail: `HTTP ${response.status}`
+                  })
+                )
+          )
+        )
+
+      const [said, numbered] = yield* Effect.all(
+        [reading("mention_suggester"), reading("issue_suggester")],
+        { concurrency: 2 }
+      )
+
+      /*
+       * A list that will not read is an empty list rather than a failure. Nothing on the
+       * screen depends on this: the box works without it, offering nobody, and a comment
+       * that could not be written because a suggester changed shape would be absurd.
+       */
+      const people = yield* decodeMentionable(parsed(said)).pipe(
+        Effect.map(peopleIn),
+        Effect.catch(() => Effect.succeed([] as ReadonlyArray<Named>))
+      )
+      const referable = yield* decodeReferable(parsed(numbered)).pipe(
+        Effect.map(numberedIn),
+        Effect.catch(() => Effect.succeed([] as ReadonlyArray<Numbered>))
+      )
+
+      return { people, numbered: referable } satisfies Suggesting
+    }),
+
+    /**
+     * A file into GitHub's own store, in the three requests their own box makes.
+     *
+     * Recorded off their box on a scratch repository, one paste at a time:
+     *
+     * 1. `POST /upload/policies/assets`, a form of `repository_id`, `name`, `size` and
+     *    `content_type`. Answers 201 with a signed form, an address to post it to, and the
+     *    address the file will have. 422 without `GitHub-Verified-Fetch`, which is what stands
+     *    in for a CSRF token here as it does on the writes.
+     * 2. `POST` to their storage with that form and the bytes. Cross-origin, no cookies, and
+     *    the fields go in as they came: the signature covers them.
+     * 3. `PUT` the `asset_upload_url` with the token from the first answer, which is what turns
+     *    a file in a bucket into an attachment. The address works without it for a while and
+     *    then does not, so it is not optional.
+     *
+     * The size and type are the file's own. Nothing is checked against a limit here: GitHub
+     * refuses with a sentence of their own about what is too big for what, and their sentence
+     * is better than a number written down in this file that goes stale.
+     */
+    upload: Effect.fn("GitHubGateway.upload")(function* (reference: RepoRef, file: File) {
+      const route = "/upload/policies/assets"
+
+      const nonce = nonceOn(document)
+      if (Option.isNone(nonce)) {
+        return yield* new GatewayError({
+          reference,
+          route,
+          reason: "rejected",
+          detail: "no fetch-nonce on this page"
+        })
+      }
+
+      const number = repositoryNumberFor(document, reference, (asked) =>
+        Option.isSome(scopedRepositoryIn(embeddedOnPage(document), asked))
+      )
+      if (Option.isNone(number)) {
+        return yield* new GatewayError({
+          reference,
+          route,
+          reason: "not-recorded",
+          detail: `This page does not say which repository ${reference.owner}/${reference.repo} is.`
+        })
+      }
+
+      const asking = new FormData()
+      asking.append("repository_id", number.value)
+      asking.append("name", file.name)
+      asking.append("size", String(file.size))
+      asking.append("content_type", file.type === "" ? "application/octet-stream" : file.type)
+
+      const answered = yield* Effect.tryPromise({
+        try: () =>
+          fetch(`https://github.com${route}`, {
+            method: "POST",
+            // No Content-Type: the browser writes one with the boundary in it.
+            headers: { ...REQUIRED_HEADERS, ...VERIFIED, "X-Fetch-Nonce": nonce.value },
+            credentials: "include",
+            body: asking
+          }),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+      })
+
+      const policySaid = yield* textOf(answered)
+      if (!answered.ok) {
+        return yield* new GatewayError({
+          reference,
+          route,
+          reason: refusedBy(answered),
+          detail: reasonGiven(policySaid) ?? `HTTP ${answered.status}`
+        })
+      }
+
+      const policy = yield* decodeUploadPolicy(parsed(policySaid)).pipe(
+        Effect.catch((cause) =>
+          Effect.fail(
+            new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
+          )
+        )
+      )
+
+      const carrying = new FormData()
+      for (const [key, value] of Object.entries(policy.form)) carrying.append(key, value)
+      // Last, because their storage reads the fields before it reads the bytes.
+      carrying.append("file", file)
+
+      const stored = yield* Effect.tryPromise({
+        try: () =>
+          fetch(policy.upload_url, {
+            method: "POST",
+            headers: policy.header ?? {},
+            // Their bucket, not theirs to be signed into. Cookies here are refused outright.
+            credentials: "omit",
+            body: carrying
+          }),
+        catch: (cause) =>
+          new GatewayError({
+            reference,
+            route: policy.upload_url,
+            reason: "unreachable",
+            detail: String(cause)
+          })
+      })
+
+      if (!stored.ok) {
+        return yield* new GatewayError({
+          reference,
+          route: policy.upload_url,
+          reason: "rejected",
+          detail: `HTTP ${stored.status}`
+        })
+      }
+
+      const telling = new FormData()
+      telling.append("authenticity_token", policy.asset_upload_authenticity_token)
+
+      const told = yield* Effect.tryPromise({
+        try: () =>
+          fetch(`https://github.com${policy.asset_upload_url}`, {
+            method: "PUT",
+            headers: { ...REQUIRED_HEADERS, "X-Fetch-Nonce": nonce.value },
+            credentials: "include",
+            body: telling
+          }),
+        catch: (cause) =>
+          new GatewayError({
+            reference,
+            route: policy.asset_upload_url,
+            reason: "unreachable",
+            detail: String(cause)
+          })
+      })
+
+      const toldSaid = yield* textOf(told)
+      if (!told.ok) {
+        return yield* new GatewayError({
+          reference,
+          route: policy.asset_upload_url,
+          reason: refusedBy(told),
+          detail: reasonGiven(toldSaid) ?? `HTTP ${told.status}`
+        })
+      }
+
+      /*
+       * The address off the first answer where the third says nothing readable. Both carry the
+       * same one, and a file that is up and named nowhere would be the worst of the three
+       * things that can happen here.
+       */
+      const asset = yield* decodeUploadedAsset(parsed(toldSaid)).pipe(
+        Effect.catch(() => Effect.succeed(policy.asset))
+      )
+
+      return { name: file.name, href: asset.href } satisfies Uploaded
+    }),
+
+    /**
+     * The row as it was last read, out of the one store the bar can read in a frame.
+     *
+     * `localStorage` rather than the store behind every other memory here, and the reason is
+     * upstairs: the bar renders before a promise can answer, and a row landing after the
+     * first paint is the flicker this read exists to remove. See `repoTabs.ts`.
+     */
+    rememberedTabs: Effect.fn("GitHubGateway.rememberedTabs")(function* (reference: RepoRef) {
+      const found = yield* Effect.sync(() => keptTabs(reference))
+
+      return found.length === 0 ? Option.none<ReadonlyArray<Tab>>() : Option.some(found)
+    }),
+
+    /**
+     * Everything about a repository that is neither its files nor its README.
+     *
+     * One request for six sections, which is how GitHub serves it. Four
+     * kilobytes, and it is asked for beside the commit column rather than before
+     * the file list, so nothing on the page waits for it.
+     */
+    standing: Effect.fn("GitHubGateway.standing")(function* (reference: RepoRef) {
+      const route = "/_sidebar"
+      const url = `https://github.com/${reference.owner}/${reference.repo}${route}`
+
+      const response = yield* Effect.tryPromise({
+        try: () => fetch(url, { headers: REQUIRED_HEADERS, credentials: "include" }),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+      })
+
+      if (!response.ok) {
+        return yield* new GatewayError({
+          reference,
+          route,
+          reason: "rejected",
+          detail: `HTTP ${response.status}`
+        })
+      }
+
+      const raw = yield* Effect.tryPromise({
+        try: () => response.json(),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
+      })
+
+      return yield* decodeSidebar(raw).pipe(
+        Effect.map(standingFrom),
+        Effect.catch(undecodableFrom(reference, route))
+      )
+    }),
+
+    /**
+     * Star a repository, or take the star back.
+     *
+     * Two plain routes of their own rather than the GraphQL a persisted mutation
+     * would need. Recorded off their own button on a repository of ours: `POST
+     * /owner/repo/star` and `POST /owner/repo/unstar`, no body at all, and the
+     * nonce is the header that stands in for a CSRF token. Both were then read
+     * back from the page to make sure the star really landed.
+     *
+     * Answers nothing. The reader is told by the button, which moved before this
+     * was sent and moves back where it fails.
+     */
+    star: Effect.fn("GitHubGateway.star")(function* (reference: RepoRef, to: Starring) {
+      const route = to === "starred" ? "/star" : "/unstar"
+      const url = `https://github.com/${reference.owner}/${reference.repo}${route}`
+
+      const nonce = nonceOn(document)
+      if (Option.isNone(nonce)) {
+        return yield* new GatewayError({
+          reference,
+          route,
+          reason: "rejected",
+          detail: "no fetch-nonce on this page"
+        })
+      }
+
+      const response = yield* Effect.tryPromise({
+        try: () =>
+          fetch(url, {
+            method: "POST",
+            headers: { ...REQUIRED_HEADERS, ...VERIFIED, "X-Fetch-Nonce": nonce.value },
+            credentials: "include"
+          }),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+      })
+
+      if (!response.ok) {
+        return yield* new GatewayError({
+          reference,
+          route,
+          reason: "rejected",
+          detail: `HTTP ${response.status}`
+        })
+      }
+    }),
+
+    treeCommits: Effect.fn("GitHubGateway.treeCommits")(function* (
+      reference: RepoRef,
+      sha: string
+    ) {
+      const route = `/tree-commit-info/${sha}`
+      const raw = yield* readRepoRoute(reference, route)
+
+      // Not kept. A date is drawn identically whether it is a second or a day
+      // old, and this arrives a quarter of a second after the rows it decorates,
+      // so there is nothing for a stored copy to save.
+      return yield* decodeTreeCommitInfo(raw).pipe(
+        Effect.map(touchesFrom),
+        Effect.catch(undecodableFrom(reference, route))
+      )
+    }),
+
+    /**
+     * Every path in the repository, at one commit.
+     *
+     * The route their own file finder is built on, and the only one that answers
+     * with the whole tree rather than one directory of it. It is the largest
+     * thing this gateway asks for — seven thousand paths and six hundred
+     * kilobytes on `react/react` — which is why the screen draws the root from
+     * the page first and folds this in behind it.
+     */
+    /**
+     * One file, for the pane where the README usually is.
+     *
+     * Their page for it rather than the raw host, which is lighter and cannot be
+     * used: the raw host answers `Access-Control-Allow-Origin: *`, which a
+     * request carrying the reader's session is not allowed to accept, and
+     * without the session every file in a private repository is a 404. Their
+     * page costs more and is right everywhere, and it carries their rendering of
+     * a markdown file in the same answer.
+     */
+    fileAt: Effect.fn("GitHubGateway.fileAt")(function* (
+      reference: RepoRef,
+      branch: string,
+      path: string
+    ) {
+      const route = `/blob/${branch}/${path.split("/").map(encodeURIComponent).join("/")}`
+      const raw = (yield* readRepoPage(reference, route, BLOB_VIEW)).payload
+
+      return yield* decodeBlob(raw).pipe(
+        Effect.map((decoded) => openedFrom(decoded, path)),
+        Effect.catch(undecodableFrom(reference, route))
+      )
+    }),
+
+    treePaths: Effect.fn("GitHubGateway.treePaths")(function* (
+      reference: RepoRef,
+      sha: string
+    ) {
+      const route = `/tree-list/${sha}`
+      const raw = yield* readRepoRoute(reference, route)
+
+      return yield* decodeTreeList(raw).pipe(
+        Effect.map((list) => list.paths),
+        Effect.catch(undecodableFrom(reference, route))
+      )
+    }),
+
+    rememberedRepoHome: Effect.fn("GitHubGateway.rememberedRepoHome")(function* (
+      reference: RepoRef
+    ) {
+      const raw = yield* recallRoute(frontKey(reference))
+      if (Option.isNone(raw)) return Option.none<Front>()
+
+      // Checked rather than trusted: the store outlives the code, and an entry
+      // written before an update is the one shape that would reach the screen
+      // and fail there.
+      return isKeptFront(raw.value)
+        ? Option.some(frontFromKept(reference, raw.value))
+        : Option.none<Front>()
+    }),
+
+    rememberedCommits: Effect.fn("GitHubGateway.rememberedCommits")(function* (
+      list: CommitList
+    ) {
+      const raw = yield* recallRoute(pageKey(list))
+      if (Option.isNone(raw)) return Option.none<History>()
+
+      return yield* historyFrom(raw.value).pipe(
+        Effect.map(Option.some),
+        Effect.catch(() => Effect.succeed(Option.none<History>()))
+      )
+    }),
+
+    branchesOf: Effect.fn("GitHubGateway.branchesOf")(function* (reference: RepoRef) {
+      const route = BRANCHES_ROUTE
+      const raw = yield* readRepoRoute(reference, route)
+
+      yield* Effect.forkDetach(rememberRoute(refsKey(reference), raw))
+
+      return yield* branchesFrom(raw).pipe(Effect.catch(undecodableFrom(reference, route)))
+    }),
+
+    rememberedBranchesOf: Effect.fn("GitHubGateway.rememberedBranchesOf")(function* (
+      reference: RepoRef
+    ) {
+      const raw = yield* recallRoute(refsKey(reference))
+      if (Option.isNone(raw)) return Option.none<ReadonlyArray<string>>()
+
+      return yield* branchesFrom(raw.value).pipe(
+        Effect.map(Option.some),
+        Effect.catch(() => Effect.succeed(Option.none<ReadonlyArray<string>>()))
+      )
+    }),
+
+    authorsOf: Effect.fn("GitHubGateway.authorsOf")(function* (reference: RepoRef) {
+      const raw = yield* readRepoRoute(reference, AUTHORS_ROUTE)
+
+      yield* Effect.forkDetach(rememberRoute(authorsKey(reference), raw))
+
+      return yield* authorsFrom(raw).pipe(
+        Effect.catch(undecodableFrom(reference, AUTHORS_ROUTE))
+      )
+    }),
+
+    rememberedAuthorsOf: Effect.fn("GitHubGateway.rememberedAuthorsOf")(function* (
+      reference: RepoRef
+    ) {
+      const raw = yield* recallRoute(authorsKey(reference))
+      if (Option.isNone(raw)) return Option.none<ReadonlyArray<Participant>>()
+
+      return yield* authorsFrom(raw.value).pipe(
+        Effect.map(Option.some),
+        Effect.catch(() => Effect.succeed(Option.none<ReadonlyArray<Participant>>()))
+      )
+    }),
+
+    commitStat: Effect.fn("GitHubGateway.commitStat")(function* (
+      reference: RepoRef,
+      sha: string
+    ) {
+      const kept = yield* recallStats([sha])
+      const known = kept.get(sha)
+      if (known !== undefined) return Option.some(known)
+
+      const diff = yield* diffTextAt(reference, `/commit/${sha}.diff`)
+      if (Option.isNone(diff)) return Option.none<Stat>()
+
+      const stat = statIn(diff.value)
+      yield* Effect.forkDetach(rememberStat(sha, stat))
+
+      return Option.some(stat)
+    }),
+
+    rememberedStats: (shas: ReadonlyArray<string>) => recallStats(shas),
+
+    commitMarks: Effect.fn("GitHubGateway.commitMarks")(function* (
+      reference: RepoRef,
+      route: string
+    ) {
+      const raw = yield* readRepoRoute(reference, route)
+
+      return yield* marksFrom(raw).pipe(Effect.catch(undecodableFrom(reference, route)))
+    }),
+
+    diffs: Effect.fn("GitHubGateway.diffs")(function* (
+      reference: PullRequestRef,
+      head: string,
+      paths: ReadonlyArray<string>
+    ) {
+      const route = diffEntriesRoute(head, paths)
+      const raw = yield* fetchRoute(reference, route)
+
+      return yield* toDiffs(raw).pipe(
+        Effect.catch((cause) =>
+          Effect.fail(
+            new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
+          )
+        )
+      )
+    })
+})
+
+const parsed = UndefinedOr.liftThrowable(JSON.parse)
+
+/**
+ * The sentence out of GitHub's answer, when it left one.
+ *
+ * Under either of the two keys they use for it. The merge routes refuse under
+ * `error` and the rest under `message`, and reading only the second turned
+ * every refused merge into "HTTP 422" — the one place on this interface where
+ * GitHub's own words are the whole of what the reader needs.
+ */
+const reasonGiven = (body: string): string | undefined => {
+  const said = parsed(body) as { message?: unknown; error?: unknown } | undefined
+  const sentence = said?.message ?? said?.error
+  return typeof sentence === "string" && sentence.length > 0 ? sentence : undefined
+}
+
+export type Recording = {
+  readonly reference: PullRequestRef
+  readonly payloads: RawPayloads
+}
+
+const notRecorded = (reference: PullRequestRef) =>
+  new GatewayError({
+    reference,
+    route: CHANGES,
+    reason: "not-recorded",
+    detail: `No recording for ${reference.owner}/${reference.repo}#${reference.number}`
+  })
+
+/** The same, for the calls that are about a repository rather than a number. */
+const nothingRecordedFor = (reference: RepoRef) =>
+  new GatewayError({
+    reference,
+    route: CHANGES,
+    reason: "not-recorded",
+    detail: `No recording for ${reference.owner}/${reference.repo}`
+  })
+
+const sameReference = (left: PullRequestRef, right: PullRequestRef): boolean =>
+  left.owner === right.owner && left.repo === right.repo && left.number === right.number
+
+/**
+ * The same decoding path as the live gateway, fed from recorded payloads
+ * instead of the network, so tests exercise real decoding rather than a
+ * hand-written stand-in that cannot drift with GitHub.
+ */
+export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
+  Layer.succeed(GitHubGateway, {
+    snapshot: (reference: PullRequestRef) => {
+      const recording = recordings.find((candidate) =>
+        sameReference(candidate.reference, reference)
+      )
+      if (recording === undefined) return Effect.fail(notRecorded(reference))
+      return decodeInto(reference, recording.payloads)
+    },
+    // Nothing was read before this test began. A test that wants to watch what
+    // a remembered pull request does to the screen says so with a layer of its
+    // own, which is what the seam is for.
+    remembered: () => Effect.succeed(Option.none()),
+    // A recording is one page as GitHub served it, and the files it held back
+    // are exactly the ones no recording contains.
+    diffs: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    commit: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    commitDiffs: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    commits: (list: CommitList) => Effect.fail(nothingRecordedFor(list.repo)),
+    commitMarks: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    rememberedCommits: () => Effect.succeed(Option.none()),
+    commitStat: () => Effect.succeed(Option.none()),
+    rememberedStats: () => Effect.succeed(new Map()),
+    branchesOf: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    rememberedBranchesOf: () => Effect.succeed(Option.none()),
+    authorsOf: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    rememberedAuthorsOf: () => Effect.succeed(Option.none()),
+    // A recording is the pull request's own routes, and the Checks tab is not
+    // one of them: nothing was written against these checks here.
+    notes: () => Effect.succeed([]),
+    log: () => Effect.succeed([]),
+    tail: () => Effect.succeed([]),
+    steps: () => Effect.succeed([]),
+    comment: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    settle: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    remark: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    review: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    merge: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    mergeStack: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    makeStack: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    enqueue: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    dequeue: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    cancelAutoMerge: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    updateBranch: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    close: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    reopen: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    markReady: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    toDraft: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    deleteBranch: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    // One pull request stood in for here, never the Participant's Working Set.
+    // An empty shelf is what "nothing was listed" looks like, and a test that
+    // wants a Working Set says so with a layer of its own.
+    workingSet: () => Effect.succeed([]),
+    // Nothing was read before this test began, here as above.
+    rememberedShelf: () => Effect.succeed(Option.none()),
+    // Nothing found, rather than a page of nothing: offline there is no repository
+    // to have pull requests in.
+    search: () => Effect.succeed({ rows: [], pages: Option.none() }),
+    rememberedSearch: () => Effect.succeed(Option.none()),
+    standingsFor: () => Effect.succeed(new Map() as Standings),
+    // Nothing to stack against: a lone pull request has no siblings here, and a
+    // row with no branches is a row drawn flat.
+    branches: () => Effect.succeed(Option.none()),
+    // No listing here to want sizes for. A failure rather than zero lines,
+    // because a recording that cannot say is not a pull request that changes
+    // nothing — and the lists already draw a row whose size never arrived.
+    sizeOf: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    // Nothing was kept about any row, here as above.
+    rememberedRows: () => Effect.succeed({ branches: new Map(), sizes: new Map() as Sizes, standings: new Map() as Standings }),
+
+    // Nobody offline is anybody: the card is a live read and nothing here fakes one.
+    portrait: () => Effect.succeed(Option.none<Portrait>()),
+    contributions: () => Effect.succeed(Option.none<number>()),
+
+    // None of these lists is about the pull request a test stood up here: no repositories,
+    // nothing happening anywhere, no issues owed to anybody. A test that wants one says so
+    // with a layer of its own.
+    repositories: () => Effect.succeed([]),
+    rememberedRepositories: () => Effect.succeed(Option.none()),
+    activity: () => Effect.succeed([]),
+    rememberedActivity: () => Effect.succeed(Option.none()),
+    involvedIssues: () => Effect.succeed([]),
+    rememberedInvolvedIssues: () => Effect.succeed(Option.none()),
+    issue: (reference: IssueRef) => Effect.fail(nothingRecordedFor(reference)),
+    rememberedIssue: () => Effect.succeed(Option.none()),
+    issueSearch: () => Effect.succeed({ rows: [], pages: Option.none() }),
+    rememberedIssueSearch: () => Effect.succeed(Option.none()),
+    // Nothing is written from a recording. A raise that answered with a number
+    // would be this layer inventing an issue nobody can open.
+    raise: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    repoHome: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    star: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    standing: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    treePaths: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    fileAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    treeCommits: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    // No run recorded, and a failure rather than an empty one: a run with no jobs
+    // and no facts is not a run that did nothing, and the screen says so either way.
+    run: (reference: RunRef) => Effect.fail(nothingRecordedFor(reference.repo)),
+    rememberedCommit: () => Effect.succeed(Option.none()),
+    tabs: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    suggesting: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    upload: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    reply: (reference: PullRequestRef) => Effect.fail(nothingRecordedFor(reference)),
+    unsettle: (reference: PullRequestRef) => Effect.fail(nothingRecordedFor(reference)),
+    settleIssue: (reference: IssueRef) => Effect.fail(nothingRecordedFor(reference)),
+    sayOnIssue: (reference: IssueRef) => Effect.fail(nothingRecordedFor(reference)),
+    reopenIssue: (reference: IssueRef) => Effect.fail(nothingRecordedFor(reference)),
+    rememberedTabs: () => Effect.succeed(Option.none()),
+    rememberedRun: () => Effect.succeed(Option.none()),
+    rerunRun: (reference: RunRef) => Effect.fail(nothingRecordedFor(reference.repo)),
+    cancelRun: (reference: RunRef) => Effect.fail(nothingRecordedFor(reference.repo)),
+    strands: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    rememberedStrands: () => Effect.succeed(Option.none()),
+    rememberedRepoHome: () => Effect.succeed(Option.none())
+  })
+
+/**
+ * Serves snapshots built by hand, for the cases no real payload can express —
+ * a Participant who is the Author of the pull request they are looking at, for
+ * instance. Decoding is covered by {@link layerFromRecordings}.
+ */
+export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>) =>
+  Layer.succeed(GitHubGateway, {
+    snapshot: (reference: PullRequestRef) => {
+      const found = snapshots.find((candidate) =>
+        sameReference(candidate.reference, reference)
+      )
+      return found === undefined ? Effect.fail(notRecorded(reference)) : Effect.succeed(found)
+    },
+    remembered: () => Effect.succeed(Option.none()),
+    diffs: (reference: PullRequestRef, _head: string, paths: ReadonlyArray<string>) => {
+      const found = snapshots.find((candidate) => sameReference(candidate.reference, reference))
+      if (found === undefined) return Effect.fail(notRecorded(reference))
+
+      return Effect.succeed(
+        found.files.flatMap((file) =>
+          paths.includes(file.path) && Option.isSome(file.diff)
+            ? [{ path: file.path, diff: file.diff.value }]
+            : []
+        )
+      )
+    },
+    commit: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    commitDiffs: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    commits: (list: CommitList) => Effect.fail(nothingRecordedFor(list.repo)),
+    commitMarks: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    rememberedCommits: () => Effect.succeed(Option.none()),
+    commitStat: () => Effect.succeed(Option.none()),
+    rememberedStats: () => Effect.succeed(new Map()),
+    branchesOf: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    rememberedBranchesOf: () => Effect.succeed(Option.none()),
+    authorsOf: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    rememberedAuthorsOf: () => Effect.succeed(Option.none()),
+    notes: () => Effect.succeed([]),
+    log: () => Effect.succeed([]),
+    tail: () => Effect.succeed([]),
+    steps: () => Effect.succeed([]),
+    // Nothing to merge into: these snapshots are made up, and a test that wants
+    // to watch a merge should say so with its own gateway.
+    comment: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    settle: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    remark: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    review: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    merge: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    mergeStack: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    makeStack: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    enqueue: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    dequeue: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    cancelAutoMerge: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    updateBranch: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    close: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    reopen: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    markReady: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    toDraft: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    deleteBranch: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    // One pull request stood in for here, never the Participant's Working Set.
+    // An empty shelf is what "nothing was listed" looks like, and a test that
+    // wants a Working Set says so with a layer of its own.
+    workingSet: () => Effect.succeed([]),
+    // Nothing was read before this test began, here as above.
+    rememberedShelf: () => Effect.succeed(Option.none()),
+    // Nothing found, rather than a page of nothing: offline there is no repository
+    // to have pull requests in.
+    search: () => Effect.succeed({ rows: [], pages: Option.none() }),
+    rememberedSearch: () => Effect.succeed(Option.none()),
+    standingsFor: () => Effect.succeed(new Map() as Standings),
+    // Nothing to stack against: a lone pull request has no siblings here, and a
+    // row with no branches is a row drawn flat.
+    branches: () => Effect.succeed(Option.none()),
+    // As above: nothing is listed here, so nothing here has a size.
+    sizeOf: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
+    // Nothing was kept about any row, here as above.
+    rememberedRows: () => Effect.succeed({ branches: new Map(), sizes: new Map() as Sizes, standings: new Map() as Standings }),
+
+    // Nobody offline is anybody: the card is a live read and nothing here fakes one.
+    portrait: () => Effect.succeed(Option.none<Portrait>()),
+    contributions: () => Effect.succeed(Option.none<number>()),
+
+    // None of these lists is about the pull request a test stood up here: no repositories,
+    // nothing happening anywhere, no issues owed to anybody. A test that wants one says so
+    // with a layer of its own.
+    repositories: () => Effect.succeed([]),
+    rememberedRepositories: () => Effect.succeed(Option.none()),
+    activity: () => Effect.succeed([]),
+    rememberedActivity: () => Effect.succeed(Option.none()),
+    involvedIssues: () => Effect.succeed([]),
+    rememberedInvolvedIssues: () => Effect.succeed(Option.none()),
+    issue: (reference: IssueRef) => Effect.fail(nothingRecordedFor(reference)),
+    rememberedIssue: () => Effect.succeed(Option.none()),
+    issueSearch: () => Effect.succeed({ rows: [], pages: Option.none() }),
+    rememberedIssueSearch: () => Effect.succeed(Option.none()),
+    // Nothing is written from a recording. A raise that answered with a number
+    // would be this layer inventing an issue nobody can open.
+    raise: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    repoHome: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    star: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    standing: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    treePaths: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    fileAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    treeCommits: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    // No run recorded, and a failure rather than an empty one: a run with no jobs
+    // and no facts is not a run that did nothing, and the screen says so either way.
+    run: (reference: RunRef) => Effect.fail(nothingRecordedFor(reference.repo)),
+    rememberedCommit: () => Effect.succeed(Option.none()),
+    tabs: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    suggesting: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    upload: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    reply: (reference: PullRequestRef) => Effect.fail(nothingRecordedFor(reference)),
+    unsettle: (reference: PullRequestRef) => Effect.fail(nothingRecordedFor(reference)),
+    settleIssue: (reference: IssueRef) => Effect.fail(nothingRecordedFor(reference)),
+    sayOnIssue: (reference: IssueRef) => Effect.fail(nothingRecordedFor(reference)),
+    reopenIssue: (reference: IssueRef) => Effect.fail(nothingRecordedFor(reference)),
+    rememberedTabs: () => Effect.succeed(Option.none()),
+    rememberedRun: () => Effect.succeed(Option.none()),
+    rerunRun: (reference: RunRef) => Effect.fail(nothingRecordedFor(reference.repo)),
+    cancelRun: (reference: RunRef) => Effect.fail(nothingRecordedFor(reference.repo)),
+    strands: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    rememberedStrands: () => Effect.succeed(Option.none()),
+    rememberedRepoHome: () => Effect.succeed(Option.none())
+  })

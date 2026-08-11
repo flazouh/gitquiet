@@ -1,0 +1,244 @@
+{
+  "deferredCommits": [
+    {
+      "oid": "3a717e42438afac81020cdec297dadb5613a4304",
+      "commentCount": 0,
+      "statusCheckStatus": {
+        "state": "success",
+        "short_text": "251 / 252 checks OK"
+      },
+      "verifiedStatus": "verified",
+      "signatureInformation": {
+        "signatureVerificationReason": "valid",
+        "hasSignature": true,
+        "verifiedAt": "2026-07-31T19:20:21Z",
+        "isViewer": false,
+        "keyExpired": null,
+        "keyId": "B5690EEEBB952194",
+        "keyRevoked": false,
+        "signedByGitHub": true,
+        "signerAvatarUrl": "https://avatars.githubusercontent.com/u/19864447?s=64&v=4",
+        "signerLogin": "web-flow",
+        "signatureCertificateSubject": {
+          "common_name": null,
+          "email_address": null,
+          "organization": null,
+          "organization_unit": null
+        },
+        "signatureCertificateIssuer": {
+          "common_name": null,
+          "email_address": null,
+          "organization": null,
+          "organization_unit": null
+        },
+        "signatureType": "GpgSignature"
+      },
+      "onBehalfOf": null
+    },
+    {
+      "oid": "9b5b4d51e5be870d396a9568701259e5eb053668",
+      "commentCount": 0,
+      "statusCheckStatus": {
+        "state": "success",
+        "short_text": "251 / 252 checks OK"
+      },
+      "verifiedStatus": "verified",
+      "signatureInformation": {
+        "signatureVerificationReason": "valid",
+        "hasSignature": true,
+        "verifiedAt": "2026-07-31T17:22:31Z",
+        "isViewer": false,
+        "keyExpired": null,
+        "keyId": "B5690EEEBB952194",
+        "keyRevoked": false,
+        "signedByGitHub": true,
+        "signerAvatarUrl": "https://avatars.githubusercontent.com/u/19864447?s=64&v=4",
+        "signerLogin": "web-flow",
+        "signatureCertificateSubject": {
+          "common_name": null,
+          "email_address": null,
+          "organization": null,
+          "organization_unit": null
+        },
+        "signatureCertificateIssuer": {
+          "common_name": null,
+          "email_address": null,
+          "organization": null,
+          "organization_unit": null
+        },
+        "signatureType": "GpgSignature"
+      },
+      "onBehalfOf": null
+    },
+    {
+      "oid": "cbb046ab92b66dfc4ad1e1ea30d4b8beae6f2c24",
+      "commentCount": 0,
+      "statusCheckStatus": {
+        "state": "success",
+        "short_text": "251 / 252 checks OK"
+      },
+      "verifiedStatus": "verified",
+      "signatureInformation": {
+        "signatureVerificationReason": "valid",
+        "hasSignature": true,
+        "verifiedAt": "2026-07-31T14:24:10Z",
+        "isViewer": false,
+        "keyExpired": null,
+        "keyId": "B5690EEEBB952194",
+        "keyRevoked": false,
+        "signedByGitHub": true,
+        "signerAvatarUrl": "https://avatars.githubusercontent.com/u/19864447?s=64&v=4",
+        "signerLogin": "web-flow",
+        "signatureCertificateSubject": {
+          "common_name": null,
+          "email_address": null,
+          "organization": null,
+          "organization_unit": null
+        },
+        "signatureCertificateIssuer": {
+          "common_name": null,
+          "email_address": null,
+          "organization": null,
+          "organization_unit": null
+        },
+        "signatureType": "GpgSignature"
+      },
+      "onBehalfOf": null
+    },
+    {
+      "oid": "0f42eac25e44090837e92304ac08d8d430ceef0a",
+      "commentCount": 0,
+      "statusCheckStatus": {
+        "state": "success",
+        "short_text": "251 / 252 checks OK"
+      },
+      "verifiedStatus": "verified",
+      "signatureInformation": {
+        "signatureVerificationReason": "valid",
+        "hasSignature": true,
+        "verifiedAt": "2026-07-30T20:17:49Z",
+        "isViewer": false,
+        "keyExpired": null,
+        "keyId": "B5690EEEBB952194",
+        "keyRevoked": false,
+        "signedByGitHub": true,
+        "signerAvatarUrl": "https://avatars.githubusercontent.com/u/19864447?s=64&v=4",
+        "signerLogin": "web-flow",
+        "signatureCertificateSubject": {
+          "common_name": null,
+          "email_address": null,
+          "organization": null,
+          "organization_unit": null
+        },
+        "signatureCertificateIssuer": {
+          "common_name": null,
+          "email_address": null,
+          "organization": null,
+          "organization_unit": null
+        },
+        "signatureType": "GpgSignature"
+      },
+      "onBehalfOf": null
+    },
+    {
+      "oid": "7acf00566e35c40817342654438a5757c6c41d0e",
+      "commentCount": 0,
+      "statusCheckStatus": null,
+      "verifiedStatus": "verified",
+      "signatureInformation": {
+        "signatureVerificationReason": "valid",
+        "hasSignature": true,
+        "verifiedAt": "2026-07-30T20:17:49Z",
+        "isViewer": false,
+        "keyExpired": null,
+        "keyId": "B5690EEEBB952194",
+        "keyRevoked": false,
+        "signedByGitHub": true,
+        "signerAvatarUrl": "https://avatars.githubusercontent.com/u/19864447?s=64&v=4",
+        "signerLogin": "web-flow",
+        "signatureCertificateSubject": {
+          "common_name": null,
+          "email_address": null,
+          "organization": null,
+          "organization_unit": null
+        },
+        "signatureCertificateIssuer": {
+          "common_name": null,
+          "email_address": null,
+          "organization": null,
+          "organization_unit": null
+        },
+        "signatureType": "GpgSignature"
+      },
+      "onBehalfOf": null
+    },
+    {
+      "oid": "c56a44903f91d41dce51107f34491daabdcb6a70",
+      "commentCount": 0,
+      "statusCheckStatus": null,
+      "verifiedStatus": "verified",
+      "signatureInformation": {
+        "signatureVerificationReason": "valid",
+        "hasSignature": true,
+        "verifiedAt": "2026-07-30T20:17:49Z",
+        "isViewer": false,
+        "keyExpired": null,
+        "keyId": "B5690EEEBB952194",
+        "keyRevoked": false,
+        "signedByGitHub": true,
+        "signerAvatarUrl": "https://avatars.githubusercontent.com/u/19864447?s=64&v=4",
+        "signerLogin": "web-flow",
+        "signatureCertificateSubject": {
+          "common_name": null,
+          "email_address": null,
+          "organization": null,
+          "organization_unit": null
+        },
+        "signatureCertificateIssuer": {
+          "common_name": null,
+          "email_address": null,
+          "organization": null,
+          "organization_unit": null
+        },
+        "signatureType": "GpgSignature"
+      },
+      "onBehalfOf": null
+    },
+    {
+      "oid": "32b1fbad6fd1fc34ef361dcf06bcfb1ae3fed5f3",
+      "commentCount": 0,
+      "statusCheckStatus": {
+        "state": "success",
+        "short_text": "251 / 252 checks OK"
+      },
+      "verifiedStatus": "partially_verified",
+      "signatureInformation": {
+        "signatureVerificationReason": "valid",
+        "hasSignature": true,
+        "verifiedAt": "2026-07-22T21:56:50Z",
+        "isViewer": false,
+        "keyExpired": null,
+        "keyId": "B5690EEEBB952194",
+        "keyRevoked": false,
+        "signedByGitHub": true,
+        "signerAvatarUrl": "https://avatars.githubusercontent.com/u/19864447?s=64&v=4",
+        "signerLogin": "web-flow",
+        "signatureCertificateSubject": {
+          "common_name": null,
+          "email_address": null,
+          "organization": null,
+          "organization_unit": null
+        },
+        "signatureCertificateIssuer": {
+          "common_name": null,
+          "email_address": null,
+          "organization": null,
+          "organization_unit": null
+        },
+        "signatureType": "GpgSignature"
+      },
+      "onBehalfOf": null
+    }
+  ],
+  "renameHistory": null
+}

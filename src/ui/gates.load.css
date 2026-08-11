@@ -1,0 +1,173 @@
+/*
+ * Generated from src/ui/place.ts by scripts/build-gates.ts. Do not edit.
+ *
+ * Every selector here is one an interface also uses to find where to stand, and
+ * the two must never drift: a rule naming a region the interface no longer looks
+ * in hides nothing, which a reader sees as GitHub's own page for as long as the
+ * takeover takes.
+ *
+ * Run `bun scripts/build-gates.ts` after changing that table. `bun test` fails
+ * if this file is out of date.
+ */
+
+/* conversation: before ours is up. */
+html[data-gitquiet-page="conversation"]:not([data-gitquiet-revealed]) react-app[app-name="pull-requests"] [class*="PageLayoutContent"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-page="conversation"]:not([data-gitquiet-revealed]) [class*="PageLayoutContent"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-page="conversation"]:not([data-gitquiet-revealed]) [class*="PullRequestHeader"],
+html[data-gitquiet-page="conversation"]:not([data-gitquiet-revealed]) [aria-label="Pull request navigation tabs"],
+html[data-gitquiet-page="conversation"]:not([data-gitquiet-revealed]) [data-component="Banner"][aria-label="Can Stack Banner"] {
+  display: none;
+}
+
+/* conversation: for as long as ours is in charge. */
+html[data-gitquiet-taken] react-app[app-name="pull-requests"] [class*="PageLayoutContent"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-taken] [class*="PageLayoutContent"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-taken] [class*="PullRequestHeader"],
+html[data-gitquiet-taken] [aria-label="Pull request navigation tabs"],
+html[data-gitquiet-taken] [data-component="Banner"][aria-label="Can Stack Banner"] {
+  display: none;
+}
+
+/* commit: before ours is up. */
+html[data-gitquiet-page="commit"]:not([data-gitquiet-revealed]) react-app[app-name="pull-requests"] [class*="PageLayoutContent"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-page="commit"]:not([data-gitquiet-revealed]) [class*="PageLayoutContent"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-page="commit"]:not([data-gitquiet-revealed]) react-app[app-name="commits"] [class*="PageLayout-Header"] {
+  display: none;
+}
+
+/* commit: for as long as ours is in charge. */
+html[data-gitquiet-taken] react-app[app-name="pull-requests"] [class*="PageLayoutContent"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-taken] [class*="PageLayoutContent"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-taken] react-app[app-name="commits"] [class*="PageLayout-Header"] {
+  display: none;
+}
+
+/* commits: before ours is up. */
+html[data-gitquiet-page="commits"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-page="commits"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* commits: for as long as ours is in charge. */
+html[data-gitquiet-taken] #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* dashboard: before ours is up. */
+html[data-gitquiet-page="dashboard"]:not([data-gitquiet-revealed]) [data-testid="pulls-dashboard-surface-layout"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* dashboard: for as long as ours is in charge. */
+html[data-gitquiet-taken] [data-testid="pulls-dashboard-surface-layout"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* repo-pulls: before ours is up. */
+html[data-gitquiet-page="repo-pulls"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-page="repo-pulls"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* repo-pulls: for as long as ours is in charge. */
+html[data-gitquiet-taken] #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* raise: before ours is up. */
+html[data-gitquiet-page="raise"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-page="raise"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* raise: for as long as ours is in charge. */
+html[data-gitquiet-taken] #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* repo-issues: before ours is up. */
+html[data-gitquiet-page="repo-issues"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-page="repo-issues"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* repo-issues: for as long as ours is in charge. */
+html[data-gitquiet-taken] #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* repo-home: before ours is up. */
+html[data-gitquiet-page="repo-home"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-page="repo-home"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* repo-home: for as long as ours is in charge. */
+html[data-gitquiet-taken] #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* issue: before ours is up. */
+html[data-gitquiet-page="issue"]:not([data-gitquiet-revealed]) [data-testid="issue-viewer-container"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* issue: for as long as ours is in charge. */
+html[data-gitquiet-taken] [data-testid="issue-viewer-container"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* issues: before ours is up. */
+html[data-gitquiet-page="issues"]:not([data-gitquiet-revealed]) react-app[app-name="issues-react"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* issues: for as long as ours is in charge. */
+html[data-gitquiet-taken] react-app[app-name="issues-react"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* run: before ours is up. */
+html[data-gitquiet-page="run"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* run: for as long as ours is in charge. */
+html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* actions: before ours is up. */
+html[data-gitquiet-page="actions"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-page="actions"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* actions: for as long as ours is in charge. */
+html[data-gitquiet-taken] #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* home: before ours is up. */
+html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) #dashboard.dashboard > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) div.copilotPreview__container,
+html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) div.feed-background:has(#dashboard.dashboard) aside.feed-left-sidebar[aria-label="Account"],
+html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) div.feed-content:has(#dashboard.dashboard) div.feed-main__universe--spinner,
+html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) div.feed-content:has(#dashboard.dashboard) aside.feed-right-column[aria-label="Explore"] {
+  display: none;
+}
+
+/* home: for as long as ours is in charge. */
+html[data-gitquiet-taken] #dashboard.dashboard > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-taken] div.copilotPreview__container,
+html[data-gitquiet-taken] div.feed-background:has(#dashboard.dashboard) aside.feed-left-sidebar[aria-label="Account"],
+html[data-gitquiet-taken] div.feed-content:has(#dashboard.dashboard) div.feed-main__universe--spinner,
+html[data-gitquiet-taken] div.feed-content:has(#dashboard.dashboard) aside.feed-right-column[aria-label="Explore"] {
+  display: none;
+}

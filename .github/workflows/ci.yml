@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # The prepare script clones the Effect source for local research only,
+      # so it is skipped here in favour of running wxt prepare directly.
+      - run: bun install --frozen-lockfile --ignore-scripts
+
+      # Built rather than committed, with the types written on both sides of it:
+      # the build reads the tsconfig `wxt prepare` writes, and the typecheck needs
+      # types written after the engine is in `public`, since WXT types `getURL` as
+      # the set of files actually there.
+      - name: Generate WXT types
+        run: bun run types
+
+      - name: Build the diff engine
+        run: bun run build:diff-engine
+
+      - name: Generate WXT types again, now the engine is an address
+        run: bun run types
+
+      # No try/catch anywhere, no promises in `src` outside tests, and no
+      # gateway layer or extension API in the interface. `.oxlintrc.json` says
+      # what each of those means and why.
+      - name: Lint
+        run: bun run lint
+
+      - name: Typecheck
+        run: bun run compile
+
+      - name: Tests
+        run: bun test

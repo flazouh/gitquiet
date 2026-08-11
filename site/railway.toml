@@ -1,0 +1,9 @@
+[build]
+builder = "RAILPACK"
+buildCommand = "bun install --frozen-lockfile && bun run build"
+
+[deploy]
+startCommand = "bunx --bun serve dist -s -l ${PORT:-3000}"
+healthcheckPath = "/"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"

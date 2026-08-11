@@ -1,0 +1,801 @@
+[
+  {
+    "id": "16357991891",
+    "type": "PushEvent",
+    "actor": {
+      "id": 173549478,
+      "login": "gildrb",
+      "display_login": "gildrb",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/gildrb",
+      "avatar_url": "https://avatars.githubusercontent.com/u/173549478?"
+    },
+    "repo": {
+      "id": 1301527583,
+      "name": "gildrb/web",
+      "url": "https://api.github.com/repos/gildrb/web"
+    },
+    "payload": {
+      "repository_id": 1301527583,
+      "push_id": 38664632441,
+      "ref": "refs/heads/agent/intercept-reload-before-entry",
+      "head": "40cc1352d00d8eada5e04d654970a136c62ca8e9",
+      "before": "5a3ad07eb1b3a1fc35fb967f521d4224f7d770f3"
+    },
+    "public": true,
+    "created_at": "2026-07-31T23:41:56Z"
+  },
+  {
+    "id": "16357980954",
+    "type": "PushEvent",
+    "actor": {
+      "id": 173549478,
+      "login": "gildrb",
+      "display_login": "gildrb",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/gildrb",
+      "avatar_url": "https://avatars.githubusercontent.com/u/173549478?"
+    },
+    "repo": {
+      "id": 1301527583,
+      "name": "gildrb/web",
+      "url": "https://api.github.com/repos/gildrb/web"
+    },
+    "payload": {
+      "repository_id": 1301527583,
+      "push_id": 38664621352,
+      "ref": "refs/heads/agent/intercept-reload-before-entry",
+      "head": "5a3ad07eb1b3a1fc35fb967f521d4224f7d770f3",
+      "before": "b9a1959a2a777c26d75c58de6329ec0e9fa8743d"
+    },
+    "public": true,
+    "created_at": "2026-07-31T23:41:40Z"
+  },
+  {
+    "id": "12615505812",
+    "type": "PullRequestEvent",
+    "actor": {
+      "id": 173549478,
+      "login": "gildrb",
+      "display_login": "gildrb",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/gildrb",
+      "avatar_url": "https://avatars.githubusercontent.com/u/173549478?"
+    },
+    "repo": {
+      "id": 1301527583,
+      "name": "gildrb/web",
+      "url": "https://api.github.com/repos/gildrb/web"
+    },
+    "payload": {
+      "action": "opened",
+      "number": 25,
+      "pull_request": {
+        "url": "https://api.github.com/repos/gildrb/web/pulls/25",
+        "id": 4181555909,
+        "number": 25,
+        "head": {
+          "ref": "agent/intercept-reload-before-entry",
+          "sha": "40cc1352d00d8eada5e04d654970a136c62ca8e9",
+          "repo": {
+            "id": 1301527583,
+            "url": "https://api.github.com/repos/gildrb/web",
+            "name": "web"
+          }
+        },
+        "base": {
+          "ref": "main",
+          "sha": "05592c5538f14c5f51dbb1336aa9167a80ce94ad",
+          "repo": {
+            "id": 1301527583,
+            "url": "https://api.github.com/repos/gildrb/web",
+            "name": "web"
+          }
+        }
+      }
+    },
+    "public": true,
+    "created_at": "2026-07-31T23:44:07Z"
+  },
+  {
+    "id": "12615024202",
+    "type": "PullRequestEvent",
+    "actor": {
+      "id": 173549478,
+      "login": "gildrb",
+      "display_login": "gildrb",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/gildrb",
+      "avatar_url": "https://avatars.githubusercontent.com/u/173549478?"
+    },
+    "repo": {
+      "id": 1301527583,
+      "name": "gildrb/web",
+      "url": "https://api.github.com/repos/gildrb/web"
+    },
+    "payload": {
+      "action": "closed",
+      "number": 24,
+      "pull_request": {
+        "url": "https://api.github.com/repos/gildrb/web/pulls/24",
+        "id": 4181396769,
+        "number": 24,
+        "head": {
+          "ref": "agent/prevent-reload-entry-flash",
+          "sha": "87b725fae183ad42d112ad117030a88b2831dc52",
+          "repo": {
+            "id": 1301527583,
+            "url": "https://api.github.com/repos/gildrb/web",
+            "name": "web"
+          }
+        },
+        "base": {
+          "ref": "main",
+          "sha": "05592c5538f14c5f51dbb1336aa9167a80ce94ad",
+          "repo": {
+            "id": 1301527583,
+            "url": "https://api.github.com/repos/gildrb/web",
+            "name": "web"
+          }
+        }
+      }
+    },
+    "public": true,
+    "created_at": "2026-07-31T23:09:11Z"
+  },
+  {
+    "id": "12606991328",
+    "type": "IssuesEvent",
+    "actor": {
+      "id": 184567,
+      "login": "oskarrough",
+      "display_login": "oskarrough",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/oskarrough",
+      "avatar_url": "https://avatars.githubusercontent.com/u/184567?"
+    },
+    "repo": {
+      "id": 471008274,
+      "name": "oskarrough/balancemender",
+      "url": "https://api.github.com/repos/oskarrough/balancemender"
+    },
+    "payload": {
+      "action": "labeled",
+      "issue": {
+        "url": "https://api.github.com/repos/oskarrough/balancemender/issues/70",
+        "repository_url": "https://api.github.com/repos/oskarrough/balancemender",
+        "labels_url": "https://api.github.com/repos/oskarrough/balancemender/issues/70/labels{/name}",
+        "comments_url": "https://api.github.com/repos/oskarrough/balancemender/issues/70/comments",
+        "events_url": "https://api.github.com/repos/oskarrough/balancemender/issues/70/events",
+        "html_url": "https://github.com/oskarrough/balancemender/issues/70",
+        "id": 5032665467,
+        "node_id": "I_kwDOHBMEEs8AAAABK_hhew",
+        "number": 70,
+        "title": "Add the first room of dungeon two",
+        "user": {
+          "login": "oskarrough",
+          "id": 184567,
+          "node_id": "MDQ6VXNlcjE4NDU2Nw==",
+          "avatar_url": "https://avatars.githubusercontent.com/u/184567?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oskarrough",
+          "html_url": "https://github.com/oskarrough",
+          "followers_url": "https://api.github.com/users/oskarrough/followers",
+          "following_url": "https://api.github.com/users/oskarrough/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oskarrough/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oskarrough/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oskarrough/subscriptions",
+          "organizations_url": "https://api.github.com/users/oskarrough/orgs",
+          "repos_url": "https://api.github.com/users/oskarrough/repos",
+          "events_url": "https://api.github.com/users/oskarrough/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oskarrough/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "labels": [
+          {
+            "id": 11659023412,
+            "node_id": "LA_kwDOHBMEEs8AAAACtu6UNA",
+            "url": "https://api.github.com/repos/oskarrough/balancemender/labels/content",
+            "name": "content",
+            "color": "0E8A16",
+            "default": false,
+            "description": "New abilities, encounters, or progression content"
+          }
+        ],
+        "state": "open",
+        "locked": false,
+        "assignees": [],
+        "milestone": null,
+        "comments": 1,
+        "created_at": "2026-07-31T19:17:09Z",
+        "updated_at": "2026-07-31T19:21:37Z",
+        "closed_at": null,
+        "assignee": null,
+        "active_lock_reason": null,
+        "sub_issues_summary": {
+          "total": 0,
+          "completed": 0,
+          "percent_completed": 0
+        },
+        "issue_dependencies_summary": {
+          "blocked_by": 0,
+          "total_blocked_by": 0,
+          "blocking": 0,
+          "total_blocking": 0
+        },
+        "body": "Build the second dungeon one room at a time so each encounter can be played and tuned before the next one exists.\n\n## First slice\n\n- Add a three-room-intended dungeon to the splash, but author only room one for now.\n- Room one remixes two Wolf Woods threats: Snapjaw pressures the tank with a long wound while Skulker bursts the healer.\n- Start with Tank and the full Wolf Woods spell kit; this is a sequel encounter, not another tutorial.\n- Pin the intended balance shape: deliberate triage wins, Flash Heal spam loses.\n- Simulate across seeds and play it in the browser before adding room two.\n\nRoom two and room three are deliberately separate follow-ups after playtest.",
+        "reactions": {
+          "url": "https://api.github.com/repos/oskarrough/balancemender/issues/70/reactions",
+          "total_count": 0,
+          "+1": 0,
+          "-1": 0,
+          "laugh": 0,
+          "hooray": 0,
+          "confused": 0,
+          "heart": 0,
+          "rocket": 0,
+          "eyes": 0
+        },
+        "timeline_url": "https://api.github.com/repos/oskarrough/balancemender/issues/70/timeline",
+        "performed_via_github_app": null,
+        "state_reason": null,
+        "pinned_comment": null
+      },
+      "label": {
+        "id": 11659023412,
+        "node_id": "LA_kwDOHBMEEs8AAAACtu6UNA",
+        "url": "https://api.github.com/repos/oskarrough/balancemender/labels/content",
+        "name": "content",
+        "color": "0E8A16",
+        "default": false,
+        "description": "New abilities, encounters, or progression content"
+      },
+      "labels": [
+        {
+          "id": 11659023412,
+          "node_id": "LA_kwDOHBMEEs8AAAACtu6UNA",
+          "url": "https://api.github.com/repos/oskarrough/balancemender/labels/content",
+          "name": "content",
+          "color": "0E8A16",
+          "default": false,
+          "description": "New abilities, encounters, or progression content"
+        }
+      ]
+    },
+    "public": true,
+    "created_at": "2026-07-31T19:17:11Z"
+  },
+  {
+    "id": "12606991228",
+    "type": "IssuesEvent",
+    "actor": {
+      "id": 184567,
+      "login": "oskarrough",
+      "display_login": "oskarrough",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/oskarrough",
+      "avatar_url": "https://avatars.githubusercontent.com/u/184567?"
+    },
+    "repo": {
+      "id": 471008274,
+      "name": "oskarrough/balancemender",
+      "url": "https://api.github.com/repos/oskarrough/balancemender"
+    },
+    "payload": {
+      "action": "opened",
+      "issue": {
+        "url": "https://api.github.com/repos/oskarrough/balancemender/issues/70",
+        "repository_url": "https://api.github.com/repos/oskarrough/balancemender",
+        "labels_url": "https://api.github.com/repos/oskarrough/balancemender/issues/70/labels{/name}",
+        "comments_url": "https://api.github.com/repos/oskarrough/balancemender/issues/70/comments",
+        "events_url": "https://api.github.com/repos/oskarrough/balancemender/issues/70/events",
+        "html_url": "https://github.com/oskarrough/balancemender/issues/70",
+        "id": 5032665467,
+        "node_id": "I_kwDOHBMEEs8AAAABK_hhew",
+        "number": 70,
+        "title": "Add the first room of dungeon two",
+        "user": {
+          "login": "oskarrough",
+          "id": 184567,
+          "node_id": "MDQ6VXNlcjE4NDU2Nw==",
+          "avatar_url": "https://avatars.githubusercontent.com/u/184567?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oskarrough",
+          "html_url": "https://github.com/oskarrough",
+          "followers_url": "https://api.github.com/users/oskarrough/followers",
+          "following_url": "https://api.github.com/users/oskarrough/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oskarrough/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oskarrough/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oskarrough/subscriptions",
+          "organizations_url": "https://api.github.com/users/oskarrough/orgs",
+          "repos_url": "https://api.github.com/users/oskarrough/repos",
+          "events_url": "https://api.github.com/users/oskarrough/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oskarrough/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "labels": [
+          {
+            "id": 11659023412,
+            "node_id": "LA_kwDOHBMEEs8AAAACtu6UNA",
+            "url": "https://api.github.com/repos/oskarrough/balancemender/labels/content",
+            "name": "content",
+            "color": "0E8A16",
+            "default": false,
+            "description": "New abilities, encounters, or progression content"
+          }
+        ],
+        "state": "open",
+        "locked": false,
+        "assignees": [],
+        "milestone": null,
+        "comments": 1,
+        "created_at": "2026-07-31T19:17:09Z",
+        "updated_at": "2026-07-31T19:21:37Z",
+        "closed_at": null,
+        "assignee": null,
+        "active_lock_reason": null,
+        "sub_issues_summary": {
+          "total": 0,
+          "completed": 0,
+          "percent_completed": 0
+        },
+        "issue_dependencies_summary": {
+          "blocked_by": 0,
+          "total_blocked_by": 0,
+          "blocking": 0,
+          "total_blocking": 0
+        },
+        "body": "Build the second dungeon one room at a time so each encounter can be played and tuned before the next one exists.\n\n## First slice\n\n- Add a three-room-intended dungeon to the splash, but author only room one for now.\n- Room one remixes two Wolf Woods threats: Snapjaw pressures the tank with a long wound while Skulker bursts the healer.\n- Start with Tank and the full Wolf Woods spell kit; this is a sequel encounter, not another tutorial.\n- Pin the intended balance shape: deliberate triage wins, Flash Heal spam loses.\n- Simulate across seeds and play it in the browser before adding room two.\n\nRoom two and room three are deliberately separate follow-ups after playtest.",
+        "reactions": {
+          "url": "https://api.github.com/repos/oskarrough/balancemender/issues/70/reactions",
+          "total_count": 0,
+          "+1": 0,
+          "-1": 0,
+          "laugh": 0,
+          "hooray": 0,
+          "confused": 0,
+          "heart": 0,
+          "rocket": 0,
+          "eyes": 0
+        },
+        "timeline_url": "https://api.github.com/repos/oskarrough/balancemender/issues/70/timeline",
+        "performed_via_github_app": null,
+        "state_reason": null,
+        "pinned_comment": null
+      }
+    },
+    "public": true,
+    "created_at": "2026-07-31T19:17:10Z"
+  },
+  {
+    "id": "12607161227",
+    "type": "IssueCommentEvent",
+    "actor": {
+      "id": 184567,
+      "login": "oskarrough",
+      "display_login": "oskarrough",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/oskarrough",
+      "avatar_url": "https://avatars.githubusercontent.com/u/184567?"
+    },
+    "repo": {
+      "id": 471008274,
+      "name": "oskarrough/balancemender",
+      "url": "https://api.github.com/repos/oskarrough/balancemender"
+    },
+    "payload": {
+      "action": "created",
+      "issue": {
+        "url": "https://api.github.com/repos/oskarrough/balancemender/issues/70",
+        "repository_url": "https://api.github.com/repos/oskarrough/balancemender",
+        "labels_url": "https://api.github.com/repos/oskarrough/balancemender/issues/70/labels{/name}",
+        "comments_url": "https://api.github.com/repos/oskarrough/balancemender/issues/70/comments",
+        "events_url": "https://api.github.com/repos/oskarrough/balancemender/issues/70/events",
+        "html_url": "https://github.com/oskarrough/balancemender/issues/70",
+        "id": 5032665467,
+        "node_id": "I_kwDOHBMEEs8AAAABK_hhew",
+        "number": 70,
+        "title": "Add the first room of dungeon two",
+        "user": {
+          "login": "oskarrough",
+          "id": 184567,
+          "node_id": "MDQ6VXNlcjE4NDU2Nw==",
+          "avatar_url": "https://avatars.githubusercontent.com/u/184567?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oskarrough",
+          "html_url": "https://github.com/oskarrough",
+          "followers_url": "https://api.github.com/users/oskarrough/followers",
+          "following_url": "https://api.github.com/users/oskarrough/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oskarrough/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oskarrough/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oskarrough/subscriptions",
+          "organizations_url": "https://api.github.com/users/oskarrough/orgs",
+          "repos_url": "https://api.github.com/users/oskarrough/repos",
+          "events_url": "https://api.github.com/users/oskarrough/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oskarrough/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "labels": [
+          {
+            "id": 11659023412,
+            "node_id": "LA_kwDOHBMEEs8AAAACtu6UNA",
+            "url": "https://api.github.com/repos/oskarrough/balancemender/labels/content",
+            "name": "content",
+            "color": "0E8A16",
+            "default": false,
+            "description": "New abilities, encounters, or progression content"
+          }
+        ],
+        "state": "open",
+        "locked": false,
+        "assignees": [],
+        "milestone": null,
+        "comments": 1,
+        "created_at": "2026-07-31T19:17:09Z",
+        "updated_at": "2026-07-31T19:21:37Z",
+        "closed_at": null,
+        "assignee": null,
+        "active_lock_reason": null,
+        "sub_issues_summary": {
+          "total": 0,
+          "completed": 0,
+          "percent_completed": 0
+        },
+        "issue_dependencies_summary": {
+          "blocked_by": 0,
+          "total_blocked_by": 0,
+          "blocking": 0,
+          "total_blocking": 0
+        },
+        "body": "Build the second dungeon one room at a time so each encounter can be played and tuned before the next one exists.\n\n## First slice\n\n- Add a three-room-intended dungeon to the splash, but author only room one for now.\n- Room one remixes two Wolf Woods threats: Snapjaw pressures the tank with a long wound while Skulker bursts the healer.\n- Start with Tank and the full Wolf Woods spell kit; this is a sequel encounter, not another tutorial.\n- Pin the intended balance shape: deliberate triage wins, Flash Heal spam loses.\n- Simulate across seeds and play it in the browser before adding room two.\n\nRoom two and room three are deliberately separate follow-ups after playtest.",
+        "reactions": {
+          "url": "https://api.github.com/repos/oskarrough/balancemender/issues/70/reactions",
+          "total_count": 0,
+          "+1": 0,
+          "-1": 0,
+          "laugh": 0,
+          "hooray": 0,
+          "confused": 0,
+          "heart": 0,
+          "rocket": 0,
+          "eyes": 0
+        },
+        "timeline_url": "https://api.github.com/repos/oskarrough/balancemender/issues/70/timeline",
+        "performed_via_github_app": null,
+        "state_reason": null,
+        "pinned_comment": null
+      },
+      "comment": {
+        "url": "https://api.github.com/repos/oskarrough/balancemender/issues/comments/5146644508",
+        "html_url": "https://github.com/oskarrough/balancemender/issues/70#issuecomment-5146644508",
+        "issue_url": "https://api.github.com/repos/oskarrough/balancemender/issues/70",
+        "id": 5146644508,
+        "node_id": "IC_kwDOHBMEEs8AAAABMsOQHA",
+        "user": {
+          "login": "oskarrough",
+          "id": 184567,
+          "node_id": "MDQ6VXNlcjE4NDU2Nw==",
+          "avatar_url": "https://avatars.githubusercontent.com/u/184567?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oskarrough",
+          "html_url": "https://github.com/oskarrough",
+          "followers_url": "https://api.github.com/users/oskarrough/followers",
+          "following_url": "https://api.github.com/users/oskarrough/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oskarrough/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oskarrough/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oskarrough/subscriptions",
+          "organizations_url": "https://api.github.com/users/oskarrough/orgs",
+          "repos_url": "https://api.github.com/users/oskarrough/repos",
+          "events_url": "https://api.github.com/users/oskarrough/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oskarrough/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "created_at": "2026-07-31T19:21:37Z",
+        "updated_at": "2026-07-31T19:21:37Z",
+        "body": "Room one is now **Tumblewood Trail — Double Trouble**, shifting dungeon two toward a brighter, kid-friendly storybook tone.\n\nMeasured Snapjaw + Skulker across 100 seeds: Renew 100% win, triage 99%, Shield 98%, and panic 0%. Idle also loses 100%, so healing matters. Browser playtest: first attempt lost; second cleared in 48.0s with Tank and Player alive by keeping Renew rolling and shielding the healer before Ambush.\n\nLeaving this open for human playtest feedback before room two.",
+        "pin": null,
+        "reactions": {
+          "url": "https://api.github.com/repos/oskarrough/balancemender/issues/comments/5146644508/reactions",
+          "total_count": 0,
+          "+1": 0,
+          "-1": 0,
+          "laugh": 0,
+          "hooray": 0,
+          "confused": 0,
+          "heart": 0,
+          "rocket": 0,
+          "eyes": 0
+        },
+        "performed_via_github_app": null,
+        "minimized": null
+      }
+    },
+    "public": true,
+    "created_at": "2026-07-31T19:21:37Z"
+  },
+  {
+    "id": "12604980976",
+    "type": "IssueCommentEvent",
+    "actor": {
+      "id": 69302858,
+      "login": "woosal1337",
+      "display_login": "woosal1337",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/woosal1337",
+      "avatar_url": "https://avatars.githubusercontent.com/u/69302858?"
+    },
+    "repo": {
+      "id": 762436121,
+      "name": "woosal1337/blog",
+      "url": "https://api.github.com/repos/woosal1337/blog"
+    },
+    "payload": {
+      "action": "created",
+      "issue": {
+        "url": "https://api.github.com/repos/woosal1337/blog/issues/8",
+        "repository_url": "https://api.github.com/repos/woosal1337/blog",
+        "labels_url": "https://api.github.com/repos/woosal1337/blog/issues/8/labels{/name}",
+        "comments_url": "https://api.github.com/repos/woosal1337/blog/issues/8/comments",
+        "events_url": "https://api.github.com/repos/woosal1337/blog/issues/8/events",
+        "html_url": "https://github.com/woosal1337/blog/issues/8",
+        "id": 5029668782,
+        "node_id": "I_kwDOLXHaGc8AAAABK8qnrg",
+        "number": 8,
+        "title": "Deployment to https://www.skills.sh/ ?",
+        "user": {
+          "login": "teodoryantcheff",
+          "id": 4791195,
+          "node_id": "MDQ6VXNlcjQ3OTExOTU=",
+          "avatar_url": "https://avatars.githubusercontent.com/u/4791195?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/teodoryantcheff",
+          "html_url": "https://github.com/teodoryantcheff",
+          "followers_url": "https://api.github.com/users/teodoryantcheff/followers",
+          "following_url": "https://api.github.com/users/teodoryantcheff/following{/other_user}",
+          "gists_url": "https://api.github.com/users/teodoryantcheff/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/teodoryantcheff/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/teodoryantcheff/subscriptions",
+          "organizations_url": "https://api.github.com/users/teodoryantcheff/orgs",
+          "repos_url": "https://api.github.com/users/teodoryantcheff/repos",
+          "events_url": "https://api.github.com/users/teodoryantcheff/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/teodoryantcheff/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "labels": [],
+        "state": "open",
+        "locked": false,
+        "assignees": [],
+        "milestone": null,
+        "comments": 1,
+        "created_at": "2026-07-31T12:43:10Z",
+        "updated_at": "2026-07-31T18:27:45Z",
+        "closed_at": null,
+        "assignee": null,
+        "active_lock_reason": null,
+        "sub_issues_summary": {
+          "total": 0,
+          "completed": 0,
+          "percent_completed": 0
+        },
+        "issue_dependencies_summary": {
+          "blocked_by": 0,
+          "total_blocked_by": 0,
+          "blocking": 0,
+          "total_blocking": 0
+        },
+        "body": "Ever thought of publishing the skill to https://www.skills.sh/ ?",
+        "reactions": {
+          "url": "https://api.github.com/repos/woosal1337/blog/issues/8/reactions",
+          "total_count": 0,
+          "+1": 0,
+          "-1": 0,
+          "laugh": 0,
+          "hooray": 0,
+          "confused": 0,
+          "heart": 0,
+          "rocket": 0,
+          "eyes": 0
+        },
+        "timeline_url": "https://api.github.com/repos/woosal1337/blog/issues/8/timeline",
+        "performed_via_github_app": null,
+        "state_reason": null,
+        "pinned_comment": null
+      },
+      "comment": {
+        "url": "https://api.github.com/repos/woosal1337/blog/issues/comments/5146205245",
+        "html_url": "https://github.com/woosal1337/blog/issues/8#issuecomment-5146205245",
+        "issue_url": "https://api.github.com/repos/woosal1337/blog/issues/8",
+        "id": 5146205245,
+        "node_id": "IC_kwDOLXHaGc8AAAABMrzcPQ",
+        "user": {
+          "login": "woosal1337",
+          "id": 69302858,
+          "node_id": "MDQ6VXNlcjY5MzAyODU4",
+          "avatar_url": "https://avatars.githubusercontent.com/u/69302858?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/woosal1337",
+          "html_url": "https://github.com/woosal1337",
+          "followers_url": "https://api.github.com/users/woosal1337/followers",
+          "following_url": "https://api.github.com/users/woosal1337/following{/other_user}",
+          "gists_url": "https://api.github.com/users/woosal1337/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/woosal1337/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/woosal1337/subscriptions",
+          "organizations_url": "https://api.github.com/users/woosal1337/orgs",
+          "repos_url": "https://api.github.com/users/woosal1337/repos",
+          "events_url": "https://api.github.com/users/woosal1337/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/woosal1337/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "created_at": "2026-07-31T18:27:45Z",
+        "updated_at": "2026-07-31T18:27:45Z",
+        "body": "Might be actually. @gollyjer asked if the skill will be updated in the future in #5 or not. I guess we need to update it maybe for one last time before publishing to skills.sh.",
+        "pin": null,
+        "reactions": {
+          "url": "https://api.github.com/repos/woosal1337/blog/issues/comments/5146205245/reactions",
+          "total_count": 0,
+          "+1": 0,
+          "-1": 0,
+          "laugh": 0,
+          "hooray": 0,
+          "confused": 0,
+          "heart": 0,
+          "rocket": 0,
+          "eyes": 0
+        },
+        "performed_via_github_app": null,
+        "minimized": null
+      }
+    },
+    "public": true,
+    "created_at": "2026-07-31T18:27:45Z"
+  },
+  {
+    "id": "12611720491",
+    "type": "WatchEvent",
+    "actor": {
+      "id": 69302858,
+      "login": "woosal1337",
+      "display_login": "woosal1337",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/woosal1337",
+      "avatar_url": "https://avatars.githubusercontent.com/u/69302858?"
+    },
+    "repo": {
+      "id": 814684486,
+      "name": "longbridge/gpui-component",
+      "url": "https://api.github.com/repos/longbridge/gpui-component"
+    },
+    "payload": {
+      "action": "started"
+    },
+    "public": true,
+    "created_at": "2026-07-31T21:25:08Z",
+    "org": {
+      "id": 68419756,
+      "login": "longbridge",
+      "gravatar_id": "",
+      "url": "https://api.github.com/orgs/longbridge",
+      "avatar_url": "https://avatars.githubusercontent.com/u/68419756?"
+    }
+  },
+  {
+    "id": "12609675326",
+    "type": "WatchEvent",
+    "actor": {
+      "id": 1306620,
+      "login": "yasaricli",
+      "display_login": "yasaricli",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/yasaricli",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1306620?"
+    },
+    "repo": {
+      "id": 88370518,
+      "name": "grocy/grocy",
+      "url": "https://api.github.com/repos/grocy/grocy"
+    },
+    "payload": {
+      "action": "started"
+    },
+    "public": true,
+    "created_at": "2026-07-31T20:27:52Z",
+    "org": {
+      "id": 44542094,
+      "login": "grocy",
+      "gravatar_id": "",
+      "url": "https://api.github.com/orgs/grocy",
+      "avatar_url": "https://avatars.githubusercontent.com/u/44542094?"
+    }
+  },
+  {
+    "id": "16357926833",
+    "type": "CreateEvent",
+    "actor": {
+      "id": 173549478,
+      "login": "gildrb",
+      "display_login": "gildrb",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/gildrb",
+      "avatar_url": "https://avatars.githubusercontent.com/u/173549478?"
+    },
+    "repo": {
+      "id": 1301527583,
+      "name": "gildrb/web",
+      "url": "https://api.github.com/repos/gildrb/web"
+    },
+    "payload": {
+      "ref": "agent/intercept-reload-before-entry",
+      "ref_type": "branch",
+      "full_ref": "refs/heads/agent/intercept-reload-before-entry",
+      "master_branch": "main",
+      "description": "Source of gildrb.com",
+      "pusher_type": "user"
+    },
+    "public": true,
+    "created_at": "2026-07-31T23:40:20Z"
+  },
+  {
+    "id": "16355756374",
+    "type": "CreateEvent",
+    "actor": {
+      "id": 173549478,
+      "login": "gildrb",
+      "display_login": "gildrb",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/gildrb",
+      "avatar_url": "https://avatars.githubusercontent.com/u/173549478?"
+    },
+    "repo": {
+      "id": 1301527583,
+      "name": "gildrb/web",
+      "url": "https://api.github.com/repos/gildrb/web"
+    },
+    "payload": {
+      "ref": "agent/prevent-reload-entry-flash",
+      "ref_type": "branch",
+      "full_ref": "refs/heads/agent/prevent-reload-entry-flash",
+      "master_branch": "main",
+      "description": "Source of gildrb.com",
+      "pusher_type": "user"
+    },
+    "public": true,
+    "created_at": "2026-07-31T22:52:50Z"
+  },
+  {
+    "id": "16351514277",
+    "type": "DeleteEvent",
+    "actor": {
+      "id": 173549478,
+      "login": "gildrb",
+      "display_login": "gildrb",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/gildrb",
+      "avatar_url": "https://avatars.githubusercontent.com/u/173549478?"
+    },
+    "repo": {
+      "id": 1301527583,
+      "name": "gildrb/web",
+      "url": "https://api.github.com/repos/gildrb/web"
+    },
+    "payload": {
+      "ref": "agent/stagger-homepage-entry",
+      "ref_type": "branch",
+      "full_ref": "refs/heads/agent/stagger-homepage-entry",
+      "pusher_type": "user"
+    },
+    "public": true,
+    "created_at": "2026-07-31T21:20:11Z"
+  }
+]

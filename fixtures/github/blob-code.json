@@ -1,0 +1,303 @@
+{
+ "payload": {
+  "codeViewBlobRoute": {
+   "csv": null,
+   "csvError": null,
+   "headerInfo": {
+    "toc": null
+   },
+   "issueTemplate": null,
+   "discussionTemplate": null,
+   "richText": null,
+   "richTextTruncated": false,
+   "renderedFileInfo": null,
+   "symbols": {
+    "timed_out": false,
+    "not_analyzed": true,
+    "symbols": []
+   }
+  },
+  "codeViewBlobLayoutRoute": {
+   "codeLineWrapEnabled": false,
+   "refInfo": {
+    "name": "main",
+    "listCacheKey": "v0:1785771367.0",
+    "canEdit": false,
+    "refType": "branch",
+    "currentOid": "7dfc7ccd12d0294debc69b9b9b4e9dd1fd42e08a",
+    "canEditOnDefaultBranch": false,
+    "fileExistsOnDefault": true
+   },
+   "path": "package.json",
+   "blob": {
+    "copilotSWEAgentEnabled": false,
+    "dependabotInfo": {
+     "showConfigurationBanner": false,
+     "configFilePath": null,
+     "networkDependabotPath": "/react/react/network/updates",
+     "dismissConfigurationNoticePath": "/settings/dismiss-notice/dependabot_configuration_notice",
+     "configurationNoticeDismissed": null
+    },
+    "displayName": "package.json",
+    "displayUrl": "https://github.com/react/react/blob/main/package.json?raw=true",
+    "headerInfo": {
+     "blobSize": "8.46 KB",
+     "deleteTooltip": "You must be signed in to make or propose changes",
+     "editTooltip": "You must be signed in to make or propose changes",
+     "ghDesktopPath": "https://desktop.github.com",
+     "isGitLfs": false,
+     "onBranch": true,
+     "shortPath": "29abc8c",
+     "siteNavLoginPath": "/login?return_to=https%3A%2F%2Fgithub.com%2Freact%2Freact%2Fblob%2Fmain%2Fpackage.json",
+     "isCSV": false,
+     "isRichtext": false,
+     "lineInfo": {
+      "truncatedLoc": "166",
+      "truncatedSloc": "166"
+     },
+     "mode": "file"
+    },
+    "image": false,
+    "isCodeownersFile": null,
+    "isPlain": false,
+    "isValidLegacyIssueTemplate": false,
+    "isIssueTemplate": false,
+    "isDiscussionTemplate": false,
+    "language": "JSON",
+    "languageID": 174,
+    "large": false,
+    "planSupportInfo": {
+     "repoIsFork": null,
+     "repoOwnedByCurrentUser": null,
+     "requestFullPath": "/react/react/blob/main/package.json",
+     "showFreeOrgGatedFeatureMessage": null,
+     "showPlanSupportBanner": null,
+     "upgradeDataAttributes": null,
+     "upgradePath": null
+    },
+    "publishBannersInfo": {
+     "dismissActionNoticePath": "/settings/dismiss-notice/publish_action_from_dockerfile",
+     "releasePath": "/react/react/releases/new?marketplace=true",
+     "showPublishActionBanner": false
+    },
+    "rawBlobUrl": "https://github.com/react/react/raw/refs/heads/main/package.json",
+    "renderImageOrRaw": false,
+    "shortPath": null,
+    "symbolsEnabled": true,
+    "tabSize": 2,
+    "topBannersInfo": {
+     "overridingGlobalFundingFile": false,
+     "globalPreferredFundingPath": null,
+     "showInvalidCitationWarning": false,
+     "citationHelpUrl": "https://docs.github.com/github/creating-cloning-and-archiving-repositories/creating-a-repository-on-github/about-citation-files",
+     "actionsOnboardingTip": null
+    },
+    "truncated": false,
+    "viewable": true,
+    "workflowRedirectUrl": null
+   },
+   "copilotInfo": null,
+   "copilotAccessAllowed": false,
+   "copilotSpacesEnabled": false,
+   "modelsAccessAllowed": false,
+   "modelsRepoIntegrationEnabled": false,
+   "isMarketplaceEnabled": true
+  },
+  "codeViewBlobLayoutRoute.StyledBlob": {
+   "rawLines": [
+    "{",
+    "  \"private\": true,",
+    "  \"workspaces\": [",
+    "    \"packages/*\"",
+    "  ],",
+    "  \"devDependencies\": {",
+    "    \"@babel/cli\": \"^7.10.5\",",
+    "    \"@babel/code-frame\": \"^7.10.4\",",
+    "    \"@babel/core\": \"^7.11.1\",",
+    "    \"@babel/helper-define-map\": \"^7.18.6\",",
+    "    \"@babel/helper-module-imports\": \"^7.10.4\",",
+    "    \"@babel/parser\": \"^7.11.3\","
+   ],
+   "stylingDirectives": [
+    [],
+    [
+     [
+      2,
+      11,
+      "pl-ent"
+     ],
+     [
+      13,
+      17,
+      "pl-c1"
+     ]
+    ],
+    [
+     [
+      2,
+      14,
+      "pl-ent"
+     ]
+    ],
+    [
+     [
+      4,
+      16,
+      "pl-s"
+     ],
+     [
+      4,
+      5,
+      "pl-pds"
+     ],
+     [
+      15,
+      16,
+      "pl-pds"
+     ]
+    ],
+    [],
+    [
+     [
+      2,
+      19,
+      "pl-ent"
+     ]
+    ],
+    [
+     [
+      4,
+      16,
+      "pl-ent"
+     ],
+     [
+      18,
+      27,
+      "pl-s"
+     ],
+     [
+      18,
+      19,
+      "pl-pds"
+     ],
+     [
+      26,
+      27,
+      "pl-pds"
+     ]
+    ],
+    [
+     [
+      4,
+      23,
+      "pl-ent"
+     ],
+     [
+      25,
+      34,
+      "pl-s"
+     ],
+     [
+      25,
+      26,
+      "pl-pds"
+     ],
+     [
+      33,
+      34,
+      "pl-pds"
+     ]
+    ],
+    [
+     [
+      4,
+      17,
+      "pl-ent"
+     ],
+     [
+      19,
+      28,
+      "pl-s"
+     ],
+     [
+      19,
+      20,
+      "pl-pds"
+     ],
+     [
+      27,
+      28,
+      "pl-pds"
+     ]
+    ],
+    [
+     [
+      4,
+      30,
+      "pl-ent"
+     ],
+     [
+      32,
+      41,
+      "pl-s"
+     ],
+     [
+      32,
+      33,
+      "pl-pds"
+     ],
+     [
+      40,
+      41,
+      "pl-pds"
+     ]
+    ],
+    [
+     [
+      4,
+      34,
+      "pl-ent"
+     ],
+     [
+      36,
+      45,
+      "pl-s"
+     ],
+     [
+      36,
+      37,
+      "pl-pds"
+     ],
+     [
+      44,
+      45,
+      "pl-pds"
+     ]
+    ],
+    [
+     [
+      4,
+      19,
+      "pl-ent"
+     ],
+     [
+      21,
+      30,
+      "pl-s"
+     ],
+     [
+      21,
+      22,
+      "pl-pds"
+     ],
+     [
+      29,
+      30,
+      "pl-pds"
+     ]
+    ]
+   ],
+   "colorizedLines": null
+  }
+ }
+}

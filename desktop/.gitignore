@@ -1,0 +1,23 @@
+# dependencies
+node_modules
+
+# electrobun output: the .app bundle, and the installers and patches beside it
+build
+artifacts
+
+# compiled by tailwind from style.css, which is the file to edit
+src/view/index.css
+
+# Inter, copied out of node_modules by `bun run fonts` so that the url()s in the
+# compiled stylesheet resolve beside it
+src/view/files
+
+# caches
+*.tsbuildinfo
+.DS_Store
+
+# Built by scripts/build-diff-engine.ts.
+src/view/diff-engine.js
+
+# Built by scripts/build-demo-view.ts out of index.html, which is the page to edit.
+src/view/demo.html

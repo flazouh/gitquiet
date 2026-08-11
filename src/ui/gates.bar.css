@@ -1,0 +1,16 @@
+/*
+ * Generated from src/ui/place.ts by scripts/build-gates.ts. Do not edit.
+ *
+ * Every selector here is one an interface also uses to find where to stand, and
+ * the two must never drift: a rule naming a region the interface no longer looks
+ * in hides nothing, which a reader sees as GitHub's own page for as long as the
+ * takeover takes.
+ *
+ * Run `bun scripts/build-gates.ts` after changing that table. `bun test` fails
+ * if this file is out of date.
+ */
+
+/* Their bar, wherever ours is standing. */
+html:has(#gitquiet-bar) header.GlobalNav {
+  display: none;
+}

@@ -1,0 +1,939 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>The Bar — three options, against what GitHub does today</title>
+    <style>
+      /*
+       * Gitquiet dark, copied from src/domain/theme.ts so the mocks are the product's own
+       * colours rather than approximations of them. GitHub's own bar keeps GitHub's colours,
+       * because the comparison is only honest if their side looks like theirs.
+       */
+      :root {
+        --canvas: #171717;
+        --surface: #252525;
+        --raised: #2c2c2c;
+        --hover: #ffffff0f;
+        --ink: #f5f5f5;
+        --muted: #a3a3a3;
+        --accent: #6b97ff;
+        --busy: #d29922;
+        --pass: #3fb950;
+        --line: #f5f5f51f;
+        --their-bar: #010409;
+        --their-line: #3d444d;
+        --their-ink: #f0f6fc;
+        --their-muted: #9198a1;
+        --font: ui-sans-serif, -apple-system, "Segoe UI", Inter, sans-serif;
+        --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 40px 32px 96px;
+        background: var(--canvas);
+        color: var(--ink);
+        font-family: var(--font);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      h1 {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0 0 4px;
+      }
+
+      h2 {
+        font-size: 15px;
+        font-weight: 600;
+        margin: 0;
+      }
+
+      p {
+        margin: 0;
+        max-width: 78ch;
+        color: var(--muted);
+      }
+
+      .page {
+        max-width: 1180px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 40px;
+      }
+
+      .option {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .option header {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .tag {
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .tag.pick {
+        color: var(--pass);
+      }
+
+      .tall {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--busy);
+      }
+
+      /* The mock of a browser window, so heights read against something. */
+      .window {
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--canvas);
+        box-shadow: 0 0 0 1px var(--line);
+      }
+
+      .measured {
+        display: flex;
+      }
+
+      .ruler {
+        width: 56px;
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--muted);
+        background: #0e0e0e;
+      }
+
+      .ruler span {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 8px;
+        border-bottom: 1px dashed var(--line);
+      }
+
+      .stack {
+        flex: 1;
+        min-width: 0;
+      }
+
+      /* ---------- GitHub's own bar ---------- */
+
+      .theirs {
+        height: 64px;
+        background: var(--their-bar);
+        border-bottom: 1px solid var(--their-line);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 16px;
+        color: var(--their-ink);
+      }
+
+      .theirs .crumb {
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .theirs .gap {
+        flex: 1;
+        position: relative;
+      }
+
+      .theirs .gap::after {
+        content: "1169px of nothing";
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--mono);
+        font-size: 10px;
+        color: #6b6b6b;
+      }
+
+      .search-theirs {
+        width: 197px;
+        height: 30px;
+        border: 1px solid var(--their-line);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 8px;
+        font-size: 12px;
+        color: var(--their-muted);
+      }
+
+      .icons {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        display: grid;
+        place-items: center;
+        color: var(--their-ink);
+      }
+
+      .icon.plain {
+        color: var(--muted);
+      }
+
+      .nav-theirs {
+        height: 36px;
+        background: var(--their-bar);
+        border-bottom: 1px solid var(--their-line);
+        display: flex;
+        align-items: stretch;
+        gap: 4px;
+        padding: 0 16px;
+        font-size: 13px;
+      }
+
+      .nav-theirs a {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 10px;
+        color: var(--their-ink);
+        text-decoration: none;
+        border-bottom: 2px solid transparent;
+      }
+
+      .nav-theirs a.here {
+        border-bottom-color: #f78166;
+        font-weight: 600;
+      }
+
+      .count {
+        font-family: var(--mono);
+        font-size: 11px;
+        padding: 1px 6px;
+        border-radius: 999px;
+        background: #ffffff1a;
+        color: var(--their-muted);
+      }
+
+      /* ---------- Our own strip ---------- */
+
+      .ours {
+        height: 48px;
+        background: var(--surface);
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 0 16px;
+        color: var(--ink);
+      }
+
+      .ours .where {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        min-width: 240px;
+      }
+
+      .ours .where .mark {
+        color: var(--accent);
+        display: grid;
+        place-items: center;
+      }
+
+      .ours .where b {
+        font-weight: 600;
+      }
+
+      .ours .where .owed {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--busy);
+      }
+
+      .ours .where .num {
+        font-family: var(--mono);
+        color: var(--muted);
+      }
+
+      .palette {
+        flex: 1;
+        max-width: 520px;
+        height: 32px;
+        border-radius: 8px;
+        background: var(--hover);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 10px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .palette kbd {
+        margin-left: auto;
+        font-family: var(--mono);
+        font-size: 11px;
+        padding: 1px 6px;
+        border-radius: 4px;
+        background: #ffffff14;
+        color: var(--muted);
+      }
+
+      .right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .bell {
+        position: relative;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+      }
+
+      .bell .dot {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: var(--accent);
+        box-shadow: 0 0 0 2px var(--surface);
+      }
+
+      .face {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .face i {
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        background: linear-gradient(160deg, #4b5563, #1f2937);
+        display: grid;
+        place-items: center;
+        font-style: normal;
+        font-size: 11px;
+        color: var(--ink);
+      }
+
+      .repo-menu {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 28px;
+        padding: 0 8px 0 6px;
+        border-radius: 8px;
+        background: var(--hover);
+        font-size: 13px;
+      }
+
+      .tabs {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        font-size: 13px;
+      }
+
+      .tabs a {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 28px;
+        padding: 0 10px;
+        border-radius: 8px;
+        color: var(--muted);
+        text-decoration: none;
+      }
+
+      .tabs a.here {
+        background: var(--hover);
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      /* ---------- what sits under the bar, so the strip is seen in place ---------- */
+
+      .beneath {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 12px 16px 20px;
+      }
+
+      .rail {
+        width: 200px;
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .rail div {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 28px;
+        padding: 0 8px;
+        border-radius: 8px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .rail div.here {
+        background: var(--hover);
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .rail div span:last-child {
+        margin-left: auto;
+        font-family: var(--mono);
+        font-size: 11px;
+      }
+
+      .column {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .court {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--busy);
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        height: 26px;
+        font-size: 13px;
+      }
+
+      .row .no {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--muted);
+        width: 52px;
+      }
+
+      .row .what {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .row .repo {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .conv {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 4px 0;
+      }
+
+      .conv .title {
+        font-size: 17px;
+        font-weight: 600;
+      }
+
+      .conv .meta {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .gains {
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+        font-size: 13px;
+      }
+
+      .gains div {
+        flex: 1 1 320px;
+      }
+
+      .gains b {
+        display: block;
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--muted);
+        font-weight: 600;
+        margin-bottom: 2px;
+      }
+
+      .gains ul {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+      }
+
+      hr {
+        border: 0;
+        border-top: 1px solid var(--line);
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="option">
+        <h1>The bar: three options, against what GitHub does today</h1>
+        <p>
+          Every number here was measured on a live signed-in window at 1920 wide by
+          <span class="tag">scripts/probe-header-dom.js</span>. Their side keeps their colours;
+          ours is Gitquiet dark, read out of
+          <span class="tag">src/domain/theme.ts</span>. The fork is only visible on a
+          repository page, so each option is drawn there — on Home all three are identical.
+        </p>
+      </div>
+
+      <hr />
+
+      <!-- ============ today ============ -->
+      <div class="option">
+        <header>
+          <h2>Today — GitHub, on a pull request</h2>
+          <span class="tall">100px before the page begins</span>
+        </header>
+        <p>
+          Twelve controls, nine of them unlabelled icons in the right 500px. The search sits at
+          x=1355 and still advertises a key the Rail already owns.
+        </p>
+        <div class="window measured">
+          <div class="ruler">
+            <span style="height: 64px">64px</span>
+            <span style="height: 36px">36px</span>
+            <span style="height: 120px; border-bottom: 0">page</span>
+          </div>
+          <div class="stack">
+            <div class="theirs">
+              <span class="icon">☰</span>
+              <span class="icon">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38v-1.33c-2.23.49-2.7-1.07-2.7-1.07-.36-.93-.89-1.18-.89-1.18-.73-.5.05-.49.05-.49.81.06 1.23.83 1.23.83.72 1.23 1.88.88 2.34.67.07-.52.28-.88.51-1.08-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.83-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.52.56.83 1.28.83 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"
+                  />
+                </svg>
+              </span>
+              <span class="crumb">flowline-labs</span>
+              <span style="color: var(--their-muted)">/</span>
+              <span class="crumb">flowline</span>
+              <span class="gap"></span>
+              <span class="search-theirs">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-1.06 1.06ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"
+                  />
+                </svg>
+                Type <kbd style="font-family: var(--mono)">/</kbd> to search
+              </span>
+              <span class="icons">
+                <span class="icon plain">✨</span>
+                <span class="icon plain">+ ▾</span>
+                <span class="icon plain">◫</span>
+                <span class="icon plain">⑂</span>
+                <span class="icon plain">◎</span>
+                <span class="icon plain">✉</span>
+                <span class="face"><i>f</i></span>
+              </span>
+            </div>
+            <div class="nav-theirs">
+              <a href="#">Code</a>
+              <a href="#">Issues <span class="count">183</span></a>
+              <a class="here" href="#">Pull requests <span class="count">8</span></a>
+              <a href="#">Discussions</a>
+              <a href="#">Actions</a>
+              <a href="#">Projects</a>
+              <a href="#">Security</a>
+              <a href="#">Insights</a>
+              <a href="#">Settings</a>
+            </div>
+            <div class="beneath">
+              <div class="column conv">
+                <span class="title">feat(design-system): canonical component library</span>
+                <span class="meta">#1934 · flazouh wants to merge 14 commits into main</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <hr />
+
+      <!-- ============ A: keep ============ -->
+      <div class="option">
+        <header>
+          <h2>A — Our strip, their repository nav kept</h2>
+          <span class="tag pick">recommended</span>
+          <span class="tall">84px, and the nav still navigates like GitHub's</span>
+        </header>
+        <p>
+          Our 48px strip takes the global row: context in words, one search that answers from
+          the cache, a dot for the inbox, our five-item menu. Their 36px nav row is untouched,
+          because six of its nine tabs go to pages this extension does not render.
+        </p>
+        <div class="window measured">
+          <div class="ruler">
+            <span style="height: 48px">48px</span>
+            <span style="height: 36px">36px</span>
+            <span style="height: 120px; border-bottom: 0">page</span>
+          </div>
+          <div class="stack">
+            <div class="ours">
+              <span class="where">
+                <span class="mark">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path
+                      d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8ZM5 12.25a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.25a.25.25 0 0 1-.4.2l-1.45-1.087a.249.249 0 0 0-.3 0L5.4 15.7a.25.25 0 0 1-.4-.2Z"
+                    />
+                  </svg>
+                </span>
+                <b>flowline-labs/flowline</b>
+                <span class="num">#1934</span>
+              </span>
+              <span class="palette">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-1.06 1.06ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"
+                  />
+                </svg>
+                Any repository, or anything you are on
+                <kbd>⌘K</kbd>
+              </span>
+              <span class="right">
+                <span class="bell">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path
+                      d="M2.8 2.06A1.75 1.75 0 0 1 4.41 1h7.18c.7 0 1.333.417 1.61 1.06l2.74 6.395c.04.093.06.194.06.295v4.5A1.75 1.75 0 0 1 14.25 15H1.75A1.75 1.75 0 0 1 0 13.25v-4.5c0-.101.02-.202.06-.295Zm1.61.44a.25.25 0 0 0-.23.152L1.887 8H4.75a.75.75 0 0 1 .6.3L6.625 10h2.75L10.65 8.3a.75.75 0 0 1 .6-.3h2.863L11.82 2.652a.25.25 0 0 0-.23-.152Z"
+                    />
+                  </svg>
+                  <span class="dot"></span>
+                </span>
+                <span class="face"><i>f</i> flazouh ▾</span>
+              </span>
+            </div>
+            <div class="nav-theirs">
+              <a href="#">Code</a>
+              <a href="#">Issues <span class="count">183</span></a>
+              <a class="here" href="#">Pull requests <span class="count">8</span></a>
+              <a href="#">Discussions</a>
+              <a href="#">Actions</a>
+              <a href="#">Projects</a>
+              <a href="#">Security</a>
+              <a href="#">Insights</a>
+              <a href="#">Settings</a>
+            </div>
+            <div class="beneath">
+              <div class="column conv">
+                <span class="title">feat(design-system): canonical component library</span>
+                <span class="meta">#1934 · flazouh wants to merge 14 commits into main</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="gains">
+          <div>
+            <b>What it buys</b>
+            <ul>
+              <li>16px back on every screen, and nothing on the page moves address to address.</li>
+              <li>Their nav keeps working, so Actions and Settings are not dead ends.</li>
+              <li>One gate, one element, one selector: the smallest thing that can break.</li>
+            </ul>
+          </div>
+          <div>
+            <b>What it costs</b>
+            <ul>
+              <li>Two bars of two different designs stacked, which is the honest cost.</li>
+              <li>Their nav row still hides counts behind Primer's grey.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <hr />
+
+      <!-- ============ B: absorb ============ -->
+      <div class="option">
+        <header>
+          <h2>B — Our strip absorbs the tabs we render</h2>
+          <span class="tall">48px, one bar, six tabs behind a menu</span>
+        </header>
+        <p>
+          Code, Issues and Pull requests come into our strip because those are pages we render
+          or link cleanly; Discussions, Actions, Projects, Security, Insights and Settings move
+          into the repository menu behind the name.
+        </p>
+        <div class="window measured">
+          <div class="ruler">
+            <span style="height: 48px">48px</span>
+            <span style="height: 156px; border-bottom: 0">page</span>
+          </div>
+          <div class="stack">
+            <div class="ours">
+              <span class="repo-menu">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8Z"
+                  />
+                </svg>
+                <b>flowline</b>
+                <span style="color: var(--muted)">▾</span>
+              </span>
+              <span class="tabs">
+                <a href="#">Code</a>
+                <a href="#">Issues <span class="count">183</span></a>
+                <a class="here" href="#">Pull requests <span class="count">8</span></a>
+              </span>
+              <span class="palette" style="max-width: 380px">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-1.06 1.06ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"
+                  />
+                </svg>
+                Search
+                <kbd>⌘K</kbd>
+              </span>
+              <span class="right">
+                <span class="bell">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path
+                      d="M2.8 2.06A1.75 1.75 0 0 1 4.41 1h7.18c.7 0 1.333.417 1.61 1.06l2.74 6.395c.04.093.06.194.06.295v4.5A1.75 1.75 0 0 1 14.25 15H1.75A1.75 1.75 0 0 1 0 13.25v-4.5c0-.101.02-.202.06-.295Z"
+                    />
+                  </svg>
+                  <span class="dot"></span>
+                </span>
+                <span class="face"><i>f</i> flazouh ▾</span>
+              </span>
+            </div>
+            <div class="beneath">
+              <div class="column conv">
+                <span class="title">feat(design-system): canonical component library</span>
+                <span class="meta">#1934 · flazouh wants to merge 14 commits into main</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="gains">
+          <div>
+            <b>What it buys</b>
+            <ul>
+              <li>52px back, one bar, one design language on every screen we own.</li>
+              <li>Counts get our colours instead of Primer's grey pills.</li>
+            </ul>
+          </div>
+          <div>
+            <b>What it costs</b>
+            <ul>
+              <li>Six tabs move, so muscle memory built over years misses on the first try.</li>
+              <li>Pressing Actions from our bar lands on a page that looks nothing like it.</li>
+              <li>We now own a repository menu, a scope we have not specified anywhere.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <hr />
+
+      <!-- ============ C: replace ============ -->
+      <div class="option">
+        <header>
+          <h2>C — Replace it wholesale</h2>
+          <span class="tall">48px, every repository tab behind one menu</span>
+        </header>
+        <p>
+          The strip carries only what this extension can answer: where you are, search, inbox,
+          you. Everything of GitHub's is one menu press away, including Code.
+        </p>
+        <div class="window measured">
+          <div class="ruler">
+            <span style="height: 48px">48px</span>
+            <span style="height: 156px; border-bottom: 0">page</span>
+          </div>
+          <div class="stack">
+            <div class="ours">
+              <span class="where">
+                <span class="mark">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path
+                      d="M1.5 8a6.5 6.5 0 1 1 13 0 6.5 6.5 0 0 1-13 0ZM8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0Zm.5 4.75a.75.75 0 0 0-1.5 0v3.5c0 .3.18.57.46.69l2.5 1a.75.75 0 0 0 .56-1.39L8.5 7.74Z"
+                    />
+                  </svg>
+                </span>
+                <b>flowline</b>
+                <span class="num">#1934</span>
+                <span style="color: var(--muted)">▾</span>
+              </span>
+              <span class="palette">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-1.06 1.06ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"
+                  />
+                </svg>
+                Any repository, or anything you are on
+                <kbd>⌘K</kbd>
+              </span>
+              <span class="right">
+                <span class="bell">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path
+                      d="M2.8 2.06A1.75 1.75 0 0 1 4.41 1h7.18c.7 0 1.333.417 1.61 1.06l2.74 6.395c.04.093.06.194.06.295v4.5A1.75 1.75 0 0 1 14.25 15H1.75A1.75 1.75 0 0 1 0 13.25v-4.5c0-.101.02-.202.06-.295Z"
+                    />
+                  </svg>
+                  <span class="dot"></span>
+                </span>
+                <span class="face"><i>f</i> flazouh ▾</span>
+              </span>
+            </div>
+            <div class="beneath">
+              <div class="column conv">
+                <span class="title">feat(design-system): canonical component library</span>
+                <span class="meta">#1934 · flazouh wants to merge 14 commits into main</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="gains">
+          <div>
+            <b>What it buys</b>
+            <ul>
+              <li>The quietest possible top: four things, one row, identical everywhere.</li>
+            </ul>
+          </div>
+          <div>
+            <b>What it costs</b>
+            <ul>
+              <li>Code becomes two presses on a page whose whole purpose is reading code.</li>
+              <li>Contradicts pull-request-review.md:96 outright, so that spec needs rewriting.</li>
+              <li>Every repository tab is now our responsibility to keep current with theirs.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <hr />
+
+      <!-- ============ Home, where all three agree ============ -->
+      <div class="option">
+        <header>
+          <h2>Home — the same in all three</h2>
+          <span class="tall">48px, and the crumb finally says something</span>
+        </header>
+        <p>
+          There is no repository nav here, so the options only differ off Home. "Dashboard"
+          becomes the Destination and what is owed on it, and the search moves from x=1355 to
+          the top of the reading column.
+        </p>
+        <div class="window measured">
+          <div class="ruler">
+            <span style="height: 48px">48px</span>
+            <span style="height: 168px; border-bottom: 0">page</span>
+          </div>
+          <div class="stack">
+            <div class="ours">
+              <span class="where">
+                <span class="mark">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path
+                      d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v9.5A1.75 1.75 0 0 1 14.25 14H1.75A1.75 1.75 0 0 1 0 12.25v-9.5C0 1.784.784 1 1.75 1ZM1.5 2.75v9.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25v-9.5a.25.25 0 0 0-.25-.25H1.75a.25.25 0 0 0-.25.25Zm1.5 1.5h4v1.5H3Zm0 3h9v1.5H3Zm0 3h6v1.5H3Z"
+                    />
+                  </svg>
+                </span>
+                <b>Working Set</b>
+                <span class="owed">4 are yours</span>
+              </span>
+              <span class="palette">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                  <path
+                    d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-1.06 1.06ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"
+                  />
+                </svg>
+                Any of your 154 repositories, or anything owed to you
+                <kbd>⌘K</kbd>
+              </span>
+              <span class="right">
+                <span class="bell">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path
+                      d="M2.8 2.06A1.75 1.75 0 0 1 4.41 1h7.18c.7 0 1.333.417 1.61 1.06l2.74 6.395c.04.093.06.194.06.295v4.5A1.75 1.75 0 0 1 14.25 15H1.75A1.75 1.75 0 0 1 0 13.25v-4.5c0-.101.02-.202.06-.295Z"
+                    />
+                  </svg>
+                  <span class="dot"></span>
+                </span>
+                <span class="face"><i>f</i> flazouh ▾</span>
+              </span>
+            </div>
+            <div class="beneath">
+              <div class="rail">
+                <div class="here"><span>Working Set</span><span>4</span></div>
+                <div><span>Repositories</span><span>154</span></div>
+                <div><span>Activity</span><span></span></div>
+              </div>
+              <div class="column">
+                <span class="court">Your move · 4</span>
+                <div class="row">
+                  <span class="no">#1934</span>
+                  <span class="what">feat(design-system): canonical component library</span>
+                  <span class="repo">flowline</span>
+                </div>
+                <div class="row">
+                  <span class="no">#1267</span>
+                  <span class="what">feature(playlists): improve the playlist experience</span>
+                  <span class="repo">flowline</span>
+                </div>
+                <div class="row">
+                  <span class="no">#1248</span>
+                  <span class="what">bug(caption-export): keep the detected caption language</span>
+                  <span class="repo">flowline</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

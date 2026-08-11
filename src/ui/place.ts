@@ -1,0 +1,705 @@
+import { Option } from "effect";
+import { fromPathname as commitIn } from "../domain/CommitRef";
+import { commitListIn } from "../domain/commitList";
+import { issueDashboardIn } from "../domain/issueDashboard";
+import { issueListIn } from "../domain/issueList";
+import { fromPathname as issueIn } from "../domain/issues";
+import { isHome, showsWorkingSet } from "../domain/pages";
+import { fromPathname as pullRequestIn } from "../domain/PullRequestRef";
+import { raisingIn } from "../domain/raising";
+import { repoHomeIn } from "../domain/repoHome";
+import { runAddressIn } from "../domain/run";
+import { actionsIn } from "../domain/strand";
+
+/**
+ * Where on a GitHub page the interface goes, described per page.
+ *
+ * `mount.ts` is the machinery — wait for React to render the region, put the
+ * container in it, hide what GitHub drew, put it back when React replaces the
+ * region underneath us. None of that is particular to a pull request, but every
+ * selector it used to hold was. A second page to take over meant either a second
+ * copy of the machinery or this: the same machinery, told where it is.
+ */
+export type Place = {
+  /**
+   * Which interface this is, written onto the container it renders into.
+   *
+   * Two interfaces live in one document as a reader moves between them, and for a
+   * moment both of their scripts are running. Without a name on the container the
+   * second would adopt the first's element, and the two takeovers' observers would
+   * then spend the rest of the page's life moving that one element back and forth
+   * between their two regions — which wedges the tab.
+   */
+  readonly name: string;
+  /**
+   * Which addresses are this screen's, asked with a path.
+   *
+   * Two things read it, and they used to be two different answers to one question. The shell
+   * routes a press by it: which of these pages is the reader going to. And `mount.ts` holds a
+   * takeover back by it: a screen may stand on the page only once the address is its own.
+   *
+   * That second one is the rule that was missing. A press starts the arriving screen a whole
+   * second before the address moves, and the screen used to take the page the instant it had
+   * somewhere to stand — which replaced the bar, and with it the very link the reader was
+   * pressing. The release then landed on nothing, no address was pushed, and the reader was
+   * left with one page's content under another page's address, for good.
+   *
+   * Required, so that a place added later cannot quietly answer neither question. Written with
+   * the same parsers the screens read their own addresses with, never a second pattern: a
+   * screen that disagreed with the shell about what its address is would be a screen the shell
+   * fetches and the rule never lets stand.
+   */
+  readonly owns: (path: string) => boolean;
+  /**
+   * The regions worth taking, best first. Only these are accepted while the
+   * document is still parsing, because anything further up the tree is parsed
+   * earlier and would always win.
+   */
+  readonly regions: ReadonlyArray<string>;
+  /**
+   * Where to go when none of {@link regions} ever appears: a worse place that is
+   * still the right part of the page. Offered only once parsing is over, when
+   * the absence of a region means something.
+   */
+  readonly fallback: string;
+  /**
+   * Bands elsewhere on the page that this interface replaces, hidden alongside
+   * the region's own children. Empty where the region is the whole of it.
+   */
+  readonly bands: ReadonlyArray<string>;
+  /**
+   * Everywhere their content may be while ours is arriving, for the rules that
+   * hide it. Defaults to {@link regions}.
+   *
+   * Not the same question as where to stand, which is why it is its own field. A
+   * repository's list is rendered into `#repo-content-pjax-container` most of the
+   * time and straight into its Turbo frame the rest of it, and a rule that knew
+   * only the first left their list on the screen for a measured 587 milliseconds
+   * while ours was on its way. Where to stand can be a preference; what to hide
+   * cannot afford to be.
+   */
+  readonly stages?: ReadonlyArray<string>;
+  /**
+   * How to hide their page when GitHub swaps it in without loading a document,
+   * or nothing where that never happens to this page.
+   *
+   * These rules ship with the script that runs on every GitHub page, because on
+   * that path the interface's own stylesheet has not been delivered yet — that
+   * delivery is a message to a worker which may be asleep, and how long it takes
+   * is how long their page is on the screen.
+   */
+  readonly soft?: {
+    /**
+     * An ancestor that exists only on their version of this page.
+     *
+     * The gate is switched on at the press, while the page being left is still the
+     * page on the screen. Waiting for something only the destination has is what
+     * keeps a rule from blanking the page a reader is still reading.
+     */
+    readonly within?: string;
+    /**
+     * Added to each stage for the same reason, where an ancestor cannot say it:
+     * `:has(.js-issue-row)` is a region that really holds their rows now.
+     */
+    readonly holding?: string;
+  };
+};
+
+/**
+ * A pull request: the region GitHub fills with the conversation, below their own
+ * pull request header.
+ *
+ * The site header and the repository nav are left exactly as they are. Those are
+ * how someone gets around GitHub, they already work, and replacing them would
+ * only make this page stranger than the one beside it.
+ *
+ * Primer's class names carry a per-deploy hash — `prc-PageLayout-Content-BneH9`
+ * today, something else next week — so these match on the part that is stable
+ * and fall back to the whole repository content when the layout moves.
+ */
+export const CONVERSATION: Place = {
+  name: "conversation",
+  owns: (path) => Option.isSome(pullRequestIn(path)),
+  regions: [
+    'react-app[app-name="pull-requests"] [class*="PageLayoutContent"]',
+    '[class*="PageLayoutContent"]',
+  ],
+  /*
+   * The whole repository content, which is much further up the document and
+   * therefore parsed long before the region it contains. That is why it is a
+   * fallback and not a region: ask for either during parsing and the answer is
+   * always this one, and the interface would take the entire repository content
+   * on every single load while the code claimed to be replacing a conversation.
+   */
+  fallback: "#repo-content-pjax-container",
+  /*
+   * The region as GitHub names it, either way round. The whole repository content
+   * is deliberately not here: it is somewhere ours may have to stand when their
+   * conversation never appears, and hiding everything inside it on the way past
+   * would take the repository's own page down with it.
+   */
+  stages: [
+    'react-app[app-name="pull-requests"] [class*="PageLayoutContent"]',
+    '[class*="PageLayoutContent"]',
+  ],
+  /*
+   * Their pull request app, which exists on no other page — so this may be
+   * switched on the moment a pull request is pressed, while the list is still on
+   * the screen, without blanking the list on the way out.
+   */
+  soft: { within: 'react-app[app-name="pull-requests"]' },
+  /*
+   * Their header: title, state, branch chips, the corner buttons, and the
+   * Conversation / Commits / Checks / Files changed row beneath them.
+   *
+   * All of it goes, because ours says the same things in one band instead of
+   * four, and two headers one above the other make the reader work out which
+   * page they are on before they can do anything.
+   */
+  bands: [
+    '[class*="PullRequestHeader"]',
+    '[aria-label="Pull request navigation tabs"]',
+    /*
+     * Their banner offering to stack this pull request with the ones below it.
+     *
+     * A sibling of the header rather than a part of it, which is why the band above
+     * leaves it standing: it lives in `PageLayout-Header` and it was the last piece
+     * of GitHub's own page left over ours. Named by the label they give it, since
+     * every class on it carries a per-deploy hash.
+     *
+     * Ours says the same thing above the header card and says which pull requests,
+     * in what order, onto what branch. See `Proposed`. Two banners about one chain,
+     * one of them a button that opens a dialog to answer what the other has already
+     * drawn, is worse than either alone.
+     */
+    '[data-component="Banner"][aria-label="Can Stack Banner"]',
+  ],
+};
+
+/**
+ * A commit's own page — `/owner/repo/commit/<sha>`.
+ *
+ * The same region as a pull request, because GitHub renders both with the same
+ * layout, and its own place all the same: the band above the diff is a different
+ * element, nothing ever navigates here without loading a page, and a rule written
+ * for one of these two pages must not fire on the other. Their commit header and a
+ * pull request's title row sit in the same position, so a band named by layout
+ * class alone would take the title off every pull request as well.
+ */
+export const COMMIT: Place = {
+  ...CONVERSATION,
+  name: "commit",
+  owns: (path) => Option.isSome(commitIn(path)),
+  /*
+   * Where GitHub says the message, the parent and how many files changed above the
+   * diff — all of which the panel below repeats.
+   */
+  bands: ['react-app[app-name="commits"] [class*="PageLayout-Header"]'],
+  /*
+   * Nothing: their own navigation between commits loads a page every time, so this
+   * page is never swapped in under a reader.
+   */
+  soft: undefined,
+};
+
+/**
+ * One issue — `/owner/repo/issues/N`.
+ *
+ * Their own container for the issue and everything said about it, named by
+ * `data-testid` because that is the one hook on this page carrying no
+ * per-deploy hash. Read off the live document rather than guessed.
+ *
+ * The content region only, as on a pull request. The repository's header and
+ * its tab row are GitHub's to keep: somebody reading an issue still needs the
+ * rest of the repository.
+ */
+export const ISSUE: Place = {
+  name: "issue",
+  owns: (path) => Option.isSome(issueIn(path)),
+  regions: ['[data-testid="issue-viewer-container"]'],
+  /*
+   * The Turbo frame the region lives in. Further up the tree and therefore
+   * parsed earlier, which is why it is a fallback rather than a second region:
+   * offered during parsing it would win every time, and the interface would
+   * take the whole repository content on every load.
+   */
+  fallback: "turbo-frame#repo-content-turbo-frame",
+  stages: ['[data-testid="issue-viewer-container"]'],
+  /*
+   * Their issue app, which exists on no other page — so this may be switched on
+   * the moment an issue is pressed, while the list is still on the screen,
+   * without blanking the list on the way out.
+   */
+  soft: { within: 'react-app[app-name="issues-react"]' },
+  // Nothing. The region is the title, the body and the conversation together.
+  bands: [],
+};
+
+/**
+ * The form for raising one — `/owner/repo/issues/new`.
+ *
+ * Their Turbo frame and not the pjax container the two lists prefer, because on
+ * this page the container is not there at all: read off the live form on
+ * 2026-08-05, where the title field's ancestors run input, twelve divs,
+ * `react-app[app-name="issues-react"]`, the frame, `main`. Kept as a region all
+ * the same, so that a soft navigation which does render into it is still
+ * preferred to the frame around it.
+ *
+ * `/issues/new/choose` is deliberately not owned. That is a menu of template
+ * files kept in the repository, and a reader who pressed it wants the template
+ * rather than the blank box this screen would hand them instead — see
+ * `src/domain/raising.ts`.
+ */
+export const RAISE: Place = {
+  name: "raise",
+  owns: (path) => Option.isSome(raisingIn(`https://github.com${path}`)),
+  regions: [
+    "#repo-content-pjax-container",
+    "turbo-frame#repo-content-turbo-frame",
+  ],
+  fallback: "turbo-frame#repo-content-turbo-frame",
+  stages: [
+    "#repo-content-pjax-container",
+    "turbo-frame#repo-content-turbo-frame",
+  ],
+  /*
+   * Their issue app, as on the issue and the list: it exists on no other page, so
+   * this may be switched on the moment the form is pressed for, while whatever the
+   * reader is reading is still on the screen.
+   */
+  soft: { within: 'react-app[app-name="issues-react"]' },
+  // Nothing. The region is the title box, the description box and the button.
+  bands: [],
+};
+
+/**
+ * A repository's issue list — `/owner/repo/issues`.
+ *
+ * The same two hooks as a repository's pull request list, which is not a guess:
+ * both pages are a repository tab, and GitHub's Turbo navigation targets the
+ * same container and frame on each.
+ *
+ * What differs is the proof of which tab this is. Their pull request list is
+ * Rails-rendered and puts `.js-issue-row` in the region; their issue list is
+ * React, renders no such row, and marks itself with an app name instead.
+ */
+export const REPO_ISSUES: Place = {
+  name: "repo-issues",
+  owns: (path) => Option.isSome(issueListIn(`https://github.com${path}`)),
+  regions: ["#repo-content-pjax-container"],
+  fallback: "turbo-frame#repo-content-turbo-frame",
+  stages: [
+    "#repo-content-pjax-container",
+    "turbo-frame#repo-content-turbo-frame",
+  ],
+  /*
+   * Their issue app, and not a row inside it. `within` rather than `holding`
+   * because the marker is an ancestor of the stages here rather than something
+   * the stages contain — the app element wraps the repository content.
+   */
+  soft: { within: 'react-app[app-name="issues-react"]' },
+  // Nothing. The region is the toolbar, the rows and the pager together.
+  bands: [],
+};
+
+/**
+ * The reader's own issues at `/issues`, and the three tabs under it.
+ *
+ * Their issue app, which on this page is the whole of `main` — measured on a
+ * live dashboard, where the app and `main` are the same box to the pixel and no
+ * Turbo frame or pjax container exists at all. That is why the fallback here is
+ * `main` rather than the frame a repository's tabs fall back to: on this page
+ * the frame is not there to fall back to.
+ *
+ * The whole list and its filter pane together, as the pull request dashboard
+ * takes both. This page brings its own filtering, so leaving theirs beside it
+ * would put two sets of controls on one screen that disagree about what is on
+ * it.
+ */
+export const ISSUES: Place = {
+  name: "issues",
+  owns: (path) => Option.isSome(issueDashboardIn(`https://github.com${path}`)),
+  regions: ['react-app[app-name="issues-react"]'],
+  fallback: "main",
+  stages: ['react-app[app-name="issues-react"]'],
+  /*
+   * Their issue app again, which is the marker all three issue pages share.
+   * Harmless that they share it: every gate rule is written against the page
+   * this document was marked as, so a rule for one of the three never fires on
+   * another.
+   */
+  soft: { within: 'react-app[app-name="issues-react"]' },
+  // Nothing. The region is the tabs, the rows and the pager together.
+  bands: [],
+};
+
+/**
+ * The pull request dashboard at `/pulls`: GitHub's whole two-column layout, the
+ * filter pane on the left and the list of rows on the right.
+ *
+ * Both, not just the list. The Working Set brings its own filtering, so leaving
+ * their pane beside it would put two sets of controls on one page that disagree
+ * with each other about what is on the screen.
+ *
+ * Named by `data-testid` rather than by class, which is the one hook on this page
+ * that carries no per-deploy hash. Read off the live document rather than guessed
+ * — see `scripts/probe-pulls-dom.js`, which is what found it.
+ */
+export const DASHBOARD: Place = {
+  name: "dashboard",
+  owns: (path) => showsWorkingSet(path),
+  regions: ['[data-testid="pulls-dashboard-surface-layout"]'],
+  /*
+   * The app element that region sits in. Above the SSO banner GitHub sometimes
+   * puts at the top of it, which is why it is not the region itself: taking this
+   * would take the banner with it, and a banner about an expired single sign-on
+   * is the one thing on this page a reader may need more than their pull
+   * requests.
+   */
+  fallback: 'react-app[app-name="dashboard-surface"]',
+  /*
+   * The region alone. Their app element is where ours stands when the region never
+   * arrives, and it holds the single sign-on banner as well — which is the one
+   * thing on this page a reader may need more than their pull requests.
+   */
+  stages: ['[data-testid="pulls-dashboard-surface-layout"]'],
+  /*
+   * Nothing to wait for: this region exists on their dashboard and nowhere else, so
+   * its presence is already the proof the other pages need a marker for.
+   */
+  soft: {},
+  // Nothing. The region is GitHub's entire list, pane and all.
+  bands: [],
+};
+
+/**
+ * A repository's own pull request list — `/owner/repo/pulls`.
+ *
+ * The odd one of the three. This page is still Rails-rendered, so there is no
+ * `react-app` element and no `data-testid` layout to match: the hooks are element
+ * ids that have been on GitHub for years and are what their own Turbo navigation
+ * targets. Read off the live document rather than guessed — see
+ * `scripts/probe-repo-list-dom.js`, which is what found them.
+ *
+ * The content region and not the whole page, deliberately. The repository's header
+ * and its tab row sit outside this, and they are GitHub's to keep: somebody reading
+ * a repository's pull requests still needs the rest of the repository.
+ */
+export const REPO_PULLS: Place = {
+  name: "repo-pulls",
+  owns: (path) => /^\/[^/]+\/[^/]+\/pulls\/?$/.test(path),
+  regions: ["#repo-content-pjax-container"],
+  /*
+   * The Turbo frame that region lives in, which is the same box to the pixel. Worth
+   * having as a fallback rather than nothing because the two ids belong to different
+   * eras of GitHub's own navigation, and they have not always both been present.
+   */
+  fallback: "turbo-frame#repo-content-turbo-frame",
+  /*
+   * Both, unlike the other two places, and this is the one that taught the lesson.
+   * Turbo renders the list into the container most of the time and straight into
+   * the frame the rest of it; rules that named only the container matched nothing
+   * whenever it picked the frame, and their list was on the screen for 587
+   * milliseconds while ours was being fetched.
+   */
+  stages: [
+    "#repo-content-pjax-container",
+    "turbo-frame#repo-content-turbo-frame",
+  ],
+  /*
+   * Their rows, because nothing else here says which page this is. Every hook on
+   * this page is a content region that exists on all of a repository's tabs — so
+   * the proof has to be the content itself, and `.js-issue-row` is what a list of
+   * pull requests puts in it. Until then a reader pressing the tab goes on looking
+   * at the page they were on, rather than at an empty frame.
+   */
+  soft: { holding: ":has(.js-issue-row)" },
+  // Nothing. The region is the toolbar, the rows and the pager together.
+  bands: [],
+};
+
+/**
+ * A branch's commits — `/owner/repo/commits/BRANCH`.
+ *
+ * The same two hooks as a repository's pull request list, which is not a guess:
+ * both pages are a repository tab, and GitHub's Turbo navigation targets the same
+ * container and frame on each. Measured on a live commits page, where the region
+ * and the frame are the same box to the pixel and hold a `react-app` named
+ * `commits` — see `scripts/probe-commits-dom.js`.
+ *
+ * The content region only, as on their pull request list. The repository's header
+ * and its tab row are GitHub's to keep: somebody reading a branch's history still
+ * needs the rest of the repository.
+ */
+export const COMMITS: Place = {
+  name: "commits",
+  owns: (path) => Option.isSome(commitListIn(`https://github.com${path}`)),
+  regions: ["#repo-content-pjax-container"],
+  fallback: "turbo-frame#repo-content-turbo-frame",
+  stages: [
+    "#repo-content-pjax-container",
+    "turbo-frame#repo-content-turbo-frame",
+  ],
+  /*
+   * Their rows, for the reason a repository's list needs the same thing: every
+   * hook on this page is a content region that exists on all of a repository's
+   * tabs, so the proof of which tab this is has to be the content. A commit row
+   * carries their own test id, which is what a list of commits puts there.
+   */
+  soft: { holding: ':has([data-testid="commit-row-item"])' },
+  // Nothing. The region is the branch picker, the rows and the pager together.
+  bands: [],
+};
+
+/**
+ * A repository's front page — `/owner/repo`.
+ *
+ * The same content region as their pull request list and their commits, which is
+ * measured rather than assumed: on a live repository the pjax container, the Turbo
+ * frame, `main` and their code view app are one box to the pixel, 1512 by 7635 at
+ * the top of the page.
+ *
+ * The difference from the other repository tabs is what the region holds. Their
+ * `#repository-container-header` is empty here — zero by zero — because the code
+ * view renders the repository's own name and tab row inside the app rather than
+ * above it. So this place takes the tabs along with the content, and the bar puts
+ * them back. On the other tabs the header is outside the region and stays.
+ */
+export const REPO_HOME: Place = {
+  name: "repo-home",
+  owns: (path) => Option.isSome(repoHomeIn(`https://github.com${path}`)),
+  regions: ["#repo-content-pjax-container"],
+  fallback: "turbo-frame#repo-content-turbo-frame",
+  stages: [
+    "#repo-content-pjax-container",
+    "turbo-frame#repo-content-turbo-frame",
+  ],
+  /*
+   * Their code view app, which is the marker the whole of `/owner/repo`,
+   * `/tree/...` and `/blob/...` share. Harmless that they share it: every gate
+   * rule is written against the page this document was marked as, and only a
+   * repository's root is ever marked `repo-home`.
+   */
+  soft: { within: 'react-app[app-name="code-view"]' },
+  // Nothing. The region is the tab row, the file list and the README together.
+  bands: [],
+};
+
+/**
+ * One workflow run — `/owner/repo/actions/runs/{id}`.
+ *
+ * The only page here whose region is the Turbo frame itself. Measured on run
+ * 30866145080: their frame, `main` and their `<run-summary>` element are one box to
+ * the pixel, 1512 by 2242 at top 100, and there is no `#repo-content-pjax-container`
+ * and no `react-app` on the page at all. A run is server-rendered Turbo with
+ * `react-partial` islands, so the gate waits on the frame and never on an app name.
+ *
+ * The frame rather than `run-summary`, which contains it: their own element holds a
+ * hidden `#repository-container-header` for Turbo to swap, and taking the frame leaves
+ * that alone. The repository's header and tab row sit above all three at top 100 and
+ * stay, as on every other repository tab.
+ */
+export const RUN: Place = {
+  name: "run",
+  owns: (path) => Option.isSome(runAddressIn(`https://github.com${path}`)),
+  regions: ["turbo-frame#repo-content-turbo-frame"],
+  /*
+   * One step out, and the same box to the pixel on the measured page. Worth having
+   * because the frame and `main` belong to different eras of their own navigation.
+   */
+  fallback: "main",
+  stages: ["turbo-frame#repo-content-turbo-frame"],
+  /*
+   * Their own `<run-summary>` element, which is an ancestor of the frame and exists on
+   * a run and nowhere else: probed against `/owner/repo/actions`, where it is absent
+   * and a pjax container is present. So this may be switched on the moment a run is
+   * pressed, while the list is still on the screen, without blanking the list.
+   */
+  soft: { within: "run-summary" },
+  // Nothing. The region is the summary, the job graph and the notes together.
+  bands: [],
+};
+
+/**
+ * A repository's Actions tab at `/owner/repo/actions`: their whole list of workflow runs.
+ *
+ * The same two content hooks every other repository tab uses, and for the same reason: the
+ * pjax container is what Turbo renders this list into, and the frame is what it renders into
+ * the rest of the time. Probed on the live page, where the container is present and the
+ * `run-summary` element that marks a single run is absent, which is what keeps this place and
+ * `RUN` apart while a reader moves between them.
+ *
+ * Their sidebar of workflows goes with the list. It is a filter, and this screen groups
+ * instead of filtering, so leaving it beside the rows would put two sets of controls on one
+ * page that disagree about what is on the screen. That is the same argument the pull request
+ * dashboard makes about their filter pane.
+ */
+export const ACTIONS: Place = {
+  name: "actions",
+  owns: (path) => Option.isSome(actionsIn(`https://github.com${path}`)),
+  regions: ["#repo-content-pjax-container"],
+  fallback: "turbo-frame#repo-content-turbo-frame",
+  stages: [
+    "#repo-content-pjax-container",
+    "turbo-frame#repo-content-turbo-frame",
+  ],
+  /*
+   * Their own row ids, which are `check_suite_<id>` and are written by the run list and by
+   * nothing else on a repository. Every other hook on this page is a content region shared
+   * with the Code tab, so the proof has to be the content itself. Until a row exists, a
+   * reader pressing the tab goes on looking at the page they were on rather than at an empty
+   * frame.
+   */
+  soft: { holding: ':has([id^="check_suite_"])' },
+  // Nothing. The region is the rows and their pager together.
+  bands: [],
+};
+
+/**
+ * The home dashboard at `/`, and at `/dashboard`, which is the same page.
+ *
+ * The odd one in a different way from a repository's list: this page is Rails-rendered
+ * *and* its modules are `react-partial` elements, so the hooks are an id, two class
+ * names that have been on GitHub for years, and GitHub's own `partial-name`
+ * attributes — none of which carry the per-deploy hash Primer's class names do. Read
+ * off the live document rather than guessed; see `scripts/probe-home-dom.js`, which
+ * is what found them.
+ *
+ * The centre column and not the whole layout. Their sidebar sits outside `main`
+ * entirely, so taking this region leaves it standing — which is why it is named as a
+ * band below rather than left to the region.
+ */
+export const HOME: Place = {
+  name: "home",
+  owns: (path) => isHome(path),
+  regions: ["#dashboard.dashboard"],
+  /*
+   * One step out: the column that region is the whole of. Measured at the same width
+   * as the region on a live page, so a takeover that lands here rather than in
+   * `#dashboard` is in the right part of the page and looks it.
+   */
+  fallback: "main.flex-1",
+  stages: ["#dashboard.dashboard"],
+  /*
+   * Nothing to wait for. Their Rails dashboard container exists on this page and
+   * nowhere else, so its presence is already the proof the pull request pages need a
+   * marker for.
+   *
+   * Probed against `/feed`, which was the doubt: that page is `dashboard_feed#show`,
+   * names its own column `#feed.dashboard`, and carries no Copilot container — so this
+   * stage and that band are both false there. The sidebar was the one hook the two
+   * pages really do share, and it is proved rather than named; see `bands` below.
+   */
+  soft: {},
+  /*
+   * Two, and each earns its place by what it holds.
+   *
+   * `copilotPreview__container` was measured holding the greeting, the Preview chip,
+   * the ask box and the Agent / Create issue / Write code / Git / Pull requests
+   * buttons — five of the complaints in `docs/spec/home.md` in one element. It is
+   * inside the region, so the region already takes it; naming it anyway is what puts
+   * it in the soft sheet, and what keeps it hidden if this ever stands in the column
+   * rather than in the region.
+   *
+   * The sidebar is outside `main` and holds their repository list. The Rail replaces
+   * it, and two lists of repositories on one screen is the duplication their own
+   * readers asked them to end.
+   *
+   * It is also the one selector here that had to be narrowed, and the probe is what
+   * said so. `/feed` carries the same `aside.feed-left-sidebar[aria-label="Account"]`
+   * to the attribute — GitHub named this page's own furniture after that one — and
+   * these rules are switched on at the press, while the page being left is still on
+   * the screen. Named plainly, pressing Home from the feed would take the feed's own
+   * sidebar off the screen for as long as GitHub took to answer. So it is proved
+   * against the region: `#dashboard.dashboard` is home's column and `/feed` names its
+   * own `#feed.dashboard`, which is why the `:has()` is false there and true here.
+   * The same trick as `:has(.js-issue-row)` on a repository's list, one level up.
+   */
+  bands: [
+    "div.copilotPreview__container",
+    'div.feed-background:has(#dashboard.dashboard) aside.feed-left-sidebar[aria-label="Account"]',
+    /*
+     * Their spinner, which stands where their lists are going to be.
+     *
+     * Part of a mechanism worth knowing about, because it is the one thing on this page
+     * that hides *our* interface as well as theirs: GitHub keeps `main` at
+     * `display: none` until one of their partials is marked loaded, and shows this in its
+     * place. Our container is inside that `main`, so their rule took the whole takeover
+     * off the screen — and their partials are inside the region we hid, so the class that
+     * would lift it may never be set at all. `widths.css` is what answers that; this band
+     * only takes the spinner, which would otherwise sit above the finished list.
+     *
+     * Proved against the column for the same reason the sidebar is: `/feed` is rendered
+     * by the same layout and has a spinner of its own.
+     */
+    "div.feed-content:has(#dashboard.dashboard) div.feed-main__universe--spinner",
+    /*
+     * Their Explore panel, 312 pixels of trending repositories down the right.
+     *
+     * Nothing on this page is here because we wanted the reader's attention, and this is
+     * the one thing on theirs that is only that: it was measured reading "Loading" beside
+     * a finished list. Taking it is also what gives the Courts the width — with it on the
+     * page the interface stopped at 1078 pixels inside a 1512-pixel window.
+     */
+    'div.feed-content:has(#dashboard.dashboard) aside.feed-right-column[aria-label="Explore"]',
+  ],
+};
+
+/**
+ * Every page this extension stands on, for the rules that hide GitHub's version of
+ * them.
+ *
+ * A place left out of this list is a page whose gate is never written, so it is
+ * worth being the same list the interfaces are chosen from — see
+ * `scripts/build-gates.ts`, which turns it into the two stylesheets.
+ */
+export const PLACES: ReadonlyArray<Place> = [
+  CONVERSATION,
+  COMMIT,
+  COMMITS,
+  DASHBOARD,
+  REPO_PULLS,
+  RAISE,
+  REPO_ISSUES,
+  REPO_HOME,
+  ISSUE,
+  ISSUES,
+  RUN,
+  ACTIONS,
+  HOME,
+];
+
+/**
+ * The same places, in the order an address is offered to them.
+ *
+ * The order is the whole of the routing. `/owner/repo/pull/1` and `/owner/repo/pulls`
+ * differ by a character; a repository's front page is the shortest address of the lot
+ * and is asked last, or it would answer for every tab in the repository.
+ *
+ * Home is not here. It is the Working Set standing somewhere else, and the dashboard
+ * already owns that address — `placeFor` in the shell is what tells the two apart.
+ */
+const BY_ADDRESS: ReadonlyArray<Place> = [
+  CONVERSATION,
+  COMMIT,
+  COMMITS,
+  DASHBOARD,
+  REPO_PULLS,
+  ISSUE,
+  RAISE,
+  REPO_ISSUES,
+  ISSUES,
+  RUN,
+  ACTIONS,
+  REPO_HOME,
+];
+
+/**
+ * Whose page an address is, or nothing where it is one of GitHub's own.
+ *
+ * The one answer to that question. The shell routes a press by it and `mount.ts`
+ * holds a takeover back until it agrees, so a page routed by one rule and stood up
+ * by another cannot happen.
+ */
+export const placeOwning = (path: string): Place | null =>
+  BY_ADDRESS.find((place) => place.owns(path)) ?? null;

@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A repository's own page — three ways to arrange it</title>
+    <style>
+      /*
+       * Gitquiet's own tokens, read off the live page rather than guessed:
+       * getComputedStyle(#gitquiet-root) on github.com, dark.
+       */
+      :root {
+        --canvas: #171717;
+        --surface: #252525;
+        --raised: #2c2c2c;
+        --hover: #ffffff0f;
+        --line: #f5f5f51f;
+        --line-muted: #f5f5f512;
+        --ink: #f5f5f5;
+        --ink-muted: #a3a3a3;
+        --ink-accent: #6b97ff;
+        --busy: #d29922;
+        --ok: #3fb950;
+        --danger: #f85149;
+        --radius: 10px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 40px 32px 96px;
+        background: var(--canvas);
+        color: var(--ink);
+        font:
+          13px/1.45 Inter,
+          system-ui,
+          -apple-system,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .sheet {
+        max-width: 1180px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0 0 6px;
+        letter-spacing: -0.01em;
+      }
+
+      .lede {
+        color: var(--ink-muted);
+        max-width: 78ch;
+        margin: 0 0 8px;
+      }
+
+      .lede b {
+        color: var(--ink);
+        font-weight: 500;
+      }
+
+      .option {
+        margin-top: 52px;
+      }
+
+      .option > h2 {
+        font-size: 15px;
+        font-weight: 600;
+        margin: 0 0 4px;
+      }
+
+      .option > h2 .tag {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--ink-muted);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 2px 8px;
+        margin-left: 8px;
+        vertical-align: 2px;
+      }
+
+      .why {
+        color: var(--ink-muted);
+        max-width: 78ch;
+        margin: 0 0 16px;
+      }
+
+      /* The page itself, drawn as the extension would draw it. */
+      .page {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--canvas);
+      }
+
+      .bar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 40px;
+        padding: 0 10px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--line);
+        font-size: 12px;
+      }
+
+      .bar .repo {
+        font-weight: 600;
+        padding: 4px 8px;
+        border-radius: 6px;
+        background: var(--raised);
+      }
+
+      .bar a {
+        color: var(--ink-muted);
+        text-decoration: none;
+        padding: 4px 8px;
+        border-radius: 6px;
+      }
+
+      .bar a.on {
+        color: var(--ink);
+        background: var(--raised);
+      }
+
+      .bar .count {
+        color: var(--ink-muted);
+        font-variant-numeric: tabular-nums;
+        margin-left: 4px;
+      }
+
+      .body {
+        padding: 12px 16px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      /* The thin strip of facts about the repository. */
+      .strip {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+        color: var(--ink-muted);
+        padding: 2px 2px 8px;
+      }
+
+      .strip .name {
+        color: var(--ink);
+        font-weight: 600;
+        font-size: 14px;
+      }
+
+      .strip a {
+        color: var(--ink-accent);
+        text-decoration: none;
+      }
+
+      .strip .fact {
+        font-variant-numeric: tabular-nums;
+      }
+
+      .strip .sep {
+        color: var(--line);
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--canvas);
+        overflow: hidden;
+      }
+
+      .card > header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px 12px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--line);
+        font-size: 12px;
+        color: var(--ink-muted);
+      }
+
+      .card > header b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .card > header .quiet {
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* The file list. */
+      .files {
+        display: grid;
+      }
+
+      .files.two {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .file {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 12px;
+        border-top: 1px solid var(--line-muted);
+        color: var(--ink);
+      }
+
+      .files.two .file:nth-child(-n + 2),
+      .files:not(.two) .file:first-child {
+        border-top: 0;
+      }
+
+      .files.two .file:nth-child(odd) {
+        border-right: 1px solid var(--line-muted);
+      }
+
+      .file .glyph {
+        width: 14px;
+        color: var(--ink-muted);
+        flex: none;
+        text-align: center;
+      }
+
+      .file.dir .name {
+        color: var(--ink-accent);
+      }
+
+      .file .when {
+        margin-left: auto;
+        color: var(--ink-muted);
+        font-variant-numeric: tabular-nums;
+        font-size: 12px;
+      }
+
+      .file .msg {
+        margin-left: auto;
+        color: var(--ink-muted);
+        font-size: 12px;
+        max-width: 46%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .more {
+        padding: 7px 12px;
+        border-top: 1px solid var(--line-muted);
+        color: var(--ink-accent);
+        font-size: 12px;
+        cursor: default;
+      }
+
+      /* The readme. */
+      .readme {
+        padding: 18px 22px 22px;
+      }
+
+      .readme h3 {
+        font-size: 17px;
+        margin: 0 0 10px;
+        font-weight: 600;
+      }
+
+      .readme h4 {
+        font-size: 14px;
+        margin: 18px 0 6px;
+        font-weight: 600;
+      }
+
+      .readme p {
+        margin: 0 0 10px;
+        color: #d4d4d4;
+        max-width: 76ch;
+      }
+
+      .readme pre {
+        margin: 0 0 10px;
+        padding: 12px 14px;
+        background: var(--surface);
+        border-radius: 8px;
+        overflow: hidden;
+        color: #d4d4d4;
+        font:
+          12px/1.5 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+
+      .readme ul {
+        margin: 0 0 10px;
+        padding-left: 20px;
+        color: #d4d4d4;
+      }
+
+      .fade {
+        height: 56px;
+        background: linear-gradient(to bottom, transparent, var(--canvas));
+        margin-top: -56px;
+        position: relative;
+      }
+
+      /* Work rows, for the variant that leads with them. */
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 12px;
+        border-top: 1px solid var(--line-muted);
+      }
+
+      .row:first-child {
+        border-top: 0;
+      }
+
+      .row .num {
+        color: var(--ink-muted);
+        font-variant-numeric: tabular-nums;
+        width: 46px;
+        flex: none;
+      }
+
+      .row .title {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .row .chip {
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--ink-muted);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 1px 8px;
+        flex: none;
+      }
+
+      .row .chip.warn {
+        color: var(--busy);
+        border-color: #d2992255;
+      }
+
+      .court {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 12px;
+        background: var(--surface);
+        border-top: 1px solid var(--line);
+        font-size: 12px;
+        color: var(--ink-muted);
+      }
+
+      .court:first-child {
+        border-top: 0;
+      }
+
+      .court b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      /* Notes under each option. */
+      .notes {
+        margin: 14px 0 0;
+        padding: 0;
+        list-style: none;
+        color: var(--ink-muted);
+        display: grid;
+        gap: 5px;
+        max-width: 82ch;
+      }
+
+      .notes li::before {
+        content: "— ";
+        color: var(--line);
+      }
+
+      .notes .good::before {
+        content: "+ ";
+        color: var(--ok);
+      }
+
+      .notes .bad::before {
+        content: "− ";
+        color: var(--danger);
+      }
+
+      .aside {
+        display: grid;
+        grid-template-columns: 1fr 260px;
+        gap: 10px;
+        align-items: start;
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 12px 14px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .panel h5 {
+        margin: 0;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--ink-muted);
+      }
+
+      .panel p {
+        margin: 0;
+        color: #d4d4d4;
+      }
+
+      .panel .line {
+        display: flex;
+        justify-content: space-between;
+        color: var(--ink-muted);
+      }
+
+      .panel .line b {
+        color: var(--ink);
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .langs {
+        display: flex;
+        height: 6px;
+        border-radius: 999px;
+        overflow: hidden;
+      }
+
+      hr.rule {
+        border: 0;
+        border-top: 1px solid var(--line);
+        margin: 56px 0 0;
+      }
+
+      .decide {
+        margin-top: 48px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 18px 22px;
+      }
+
+      .decide h2 {
+        margin: 0 0 10px;
+        font-size: 15px;
+      }
+
+      .decide table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+
+      .decide th,
+      .decide td {
+        text-align: left;
+        padding: 7px 10px;
+        border-top: 1px solid var(--line-muted);
+        vertical-align: top;
+      }
+
+      .decide th {
+        color: var(--ink-muted);
+        font-weight: 500;
+        border-top: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sheet">
+      <h1>A repository's own page — three ways to arrange it</h1>
+      <p class="lede">
+        Real data from <b>flowline-labs/flowline</b>, read off the live page: 28 entries at the root,
+        2,488 commits on <b>main</b>, 25 tags, a 35&nbsp;KB README. Every one of these three costs
+        <b>no extra requests</b>. GitHub already puts the file list, the README, the branch, the
+        counts, the website and the topics into the page as JSON, and all three read the same
+        payload.
+      </p>
+
+      <!-- ── A ─────────────────────────────────────────────────────────── -->
+      <section class="option">
+        <h2>A. The README first<span class="tag">recommended</span></h2>
+        <p class="why">
+          The reader came to find out what this is. GitHub puts 28 rows of build configuration
+          between them and the sentence that says so. This turns that around: a strip of facts, the
+          README, and the files underneath for when the question is a file.
+        </p>
+
+        <div class="page">
+          <div class="bar">
+            <span class="repo">flowline-labs/flowline</span>
+            <a class="on" href="#a">Code</a>
+            <a href="#a">Issues<span class="count">190</span></a>
+            <a href="#a">Pull requests<span class="count">9</span></a>
+          </div>
+          <div class="body">
+            <div class="strip">
+              <span class="name">flowline</span>
+              <span class="sep">·</span>
+              <span class="fact">main</span>
+              <span class="sep">·</span>
+              <span class="fact">2,488 commits</span>
+              <span class="sep">·</span>
+              <span class="fact">25 tags</span>
+              <span class="sep">·</span>
+              <a href="#a">flowline-website.vercel.app</a>
+            </div>
+
+            <div class="card">
+              <header><b>README.md</b></header>
+              <div class="readme">
+                <h3>Flowline Monorepo</h3>
+                <p>
+                  This is a monorepo containing the Flowline api, extension, website and mobile
+                  packages, managed with Bun workspaces.
+                </p>
+                <h4>Structure</h4>
+                <pre>
+flowline/
+├── packages/
+│   ├── api/              # HTTP API
+│   ├── worker/           # Background worker
+│   ├── extension/        # Browser extension (Chrome &amp; Firefox)
+│   ├── shared/           # Shared types and schemas
+│   ├── website/          # Website (coming soon)
+│   └── mobile/           # Mobile app (coming soon)
+├── package.json          # Root workspace configuration
+└── README.md             # This file</pre
+                >
+                <h4>Getting Started</h4>
+                <p>Bun installed (v1.3.6 or later)</p>
+                <pre># Install all dependencies for all packages
+bun install</pre>
+              </div>
+              <div class="fade"></div>
+            </div>
+
+            <div class="card">
+              <header>
+                <b>Files</b>
+                <span class="quiet">28 at the root</span>
+              </header>
+              <div class="files two">
+                <div class="file dir">
+                  <span class="glyph">▸</span><span class="name">.codex</span>
+                </div>
+                <div class="file"><span class="glyph">·</span><span>.acepe.json</span></div>
+                <div class="file dir">
+                  <span class="glyph">▸</span><span class="name">.github/workflows</span>
+                </div>
+                <div class="file"><span class="glyph">·</span><span>.bun-version</span></div>
+                <div class="file dir">
+                  <span class="glyph">▸</span><span class="name">docs</span>
+                </div>
+                <div class="file"><span class="glyph">·</span><span>AGENTS.md</span></div>
+                <div class="file dir">
+                  <span class="glyph">▸</span><span class="name">packages</span>
+                </div>
+                <div class="file"><span class="glyph">·</span><span>CLAUDE.md</span></div>
+                <div class="file dir">
+                  <span class="glyph">▸</span><span class="name">patches</span>
+                </div>
+                <div class="file"><span class="glyph">·</span><span>CONTEXT.md</span></div>
+                <div class="file dir">
+                  <span class="glyph">▸</span><span class="name">scripts</span>
+                </div>
+                <div class="file"><span class="glyph">·</span><span>Dockerfile</span></div>
+                <div class="file dir">
+                  <span class="glyph">▸</span><span class="name">skills</span>
+                </div>
+                <div class="file"><span class="glyph">·</span><span>README.md</span></div>
+              </div>
+              <div class="more">Show the other 14</div>
+            </div>
+          </div>
+        </div>
+
+        <ul class="notes">
+          <li class="good">The sentence that says what this repository is, is the first thing on it.</li>
+          <li class="good">
+            Files in two columns, folders down the left. Twenty-eight rows become fourteen.
+          </li>
+          <li>
+            No last-commit message per row. That is the one part of GitHub's tree that needs a
+            second request, and it repeats the same message down twenty rows.
+          </li>
+          <li class="bad">
+            Wrong for the visit where you came to open a file. Two scrolls instead of none.
+          </li>
+        </ul>
+      </section>
+
+      <hr class="rule" />
+
+      <!-- ── B ─────────────────────────────────────────────────────────── -->
+      <section class="option">
+        <h2>B. What is waiting on you first</h2>
+        <p class="why">
+          The gitquiet argument taken all the way: a repository's own page opens with your part in
+          it. Three pull requests are yours to move, six are waiting on others, four issues are
+          assigned to you. Then the README, then the files.
+        </p>
+
+        <div class="page">
+          <div class="bar">
+            <span class="repo">flowline-labs/flowline</span>
+            <a class="on" href="#b">Code</a>
+            <a href="#b">Issues<span class="count">190</span></a>
+            <a href="#b">Pull requests<span class="count">9</span></a>
+          </div>
+          <div class="body">
+            <div class="strip">
+              <span class="name">flowline</span>
+              <span class="sep">·</span>
+              <span class="fact">main</span>
+              <span class="sep">·</span>
+              <span class="fact">2,488 commits</span>
+              <span class="sep">·</span>
+              <a href="#b">flowline-website.vercel.app</a>
+            </div>
+
+            <div class="card">
+              <div class="court">
+                <b>Your move</b>
+                <span>3</span>
+              </div>
+              <div class="row">
+                <span class="num">#1934</span>
+                <span class="title">
+                  feat(design-system): canonical component library + auth, onboarding, widget
+                </span>
+                <span class="chip warn">Merge conflicts</span>
+              </div>
+              <div class="row">
+                <span class="num">#2083</span>
+                <span class="title">Stop storage growing without bound: fix both audio leak paths</span>
+                <span class="chip">Waiting for review</span>
+              </div>
+              <div class="row">
+                <span class="num">#2139</span>
+                <span class="title">[BUG-1] very buggy</span>
+                <span class="chip">Assigned to you</span>
+              </div>
+              <div class="court">
+                <b>Waiting on others</b>
+                <span>6</span>
+              </div>
+              <div class="row">
+                <span class="num">#2134</span>
+                <span class="title">Harden Ego to Arc QA fallback</span>
+              </div>
+              <div class="row">
+                <span class="num">#2082</span>
+                <span class="title">Fix Netflix bookmark frame quality</span>
+              </div>
+              <div class="more">Show the other 4</div>
+            </div>
+
+            <div class="card">
+              <header><b>README.md</b></header>
+              <div class="readme">
+                <h3>Flowline Monorepo</h3>
+                <p>
+                  This is a monorepo containing the Flowline api, extension, website and mobile
+                  packages, managed with Bun workspaces.
+                </p>
+              </div>
+              <div class="fade"></div>
+            </div>
+
+            <div class="card">
+              <header>
+                <b>Files</b>
+                <span class="quiet">28 at the root</span>
+              </header>
+              <div class="files two">
+                <div class="file dir">
+                  <span class="glyph">▸</span><span class="name">.codex</span>
+                </div>
+                <div class="file"><span class="glyph">·</span><span>.acepe.json</span></div>
+                <div class="file dir">
+                  <span class="glyph">▸</span><span class="name">docs</span>
+                </div>
+                <div class="file"><span class="glyph">·</span><span>AGENTS.md</span></div>
+                <div class="file dir">
+                  <span class="glyph">▸</span><span class="name">packages</span>
+                </div>
+                <div class="file"><span class="glyph">·</span><span>README.md</span></div>
+              </div>
+              <div class="more">Show the other 22</div>
+            </div>
+          </div>
+        </div>
+
+        <ul class="notes">
+          <li class="good">
+            The only page anywhere that answers "what is my part in this repository" in one look.
+          </li>
+          <li class="bad">
+            Costs two searches this page does not otherwise need. Everything above lands about a
+            second later than in A.
+          </li>
+          <li class="bad">
+            Says the same thing the Issues and Pull requests tabs say, one press away, and can
+            disagree with them for a second after either changes.
+          </li>
+        </ul>
+      </section>
+
+      <hr class="rule" />
+
+      <!-- ── C ─────────────────────────────────────────────────────────── -->
+      <section class="option">
+        <h2>C. GitHub's order, in gitquiet's clothes</h2>
+        <p class="why">
+          Files first, README under them, the About panel down the right. Nothing is moved, only
+          quietened: no last-commit column, no contributor faces, no packages, no deployments.
+        </p>
+
+        <div class="page">
+          <div class="bar">
+            <span class="repo">flowline-labs/flowline</span>
+            <a class="on" href="#c">Code</a>
+            <a href="#c">Issues<span class="count">190</span></a>
+            <a href="#c">Pull requests<span class="count">9</span></a>
+          </div>
+          <div class="body">
+            <div class="aside">
+              <div style="display: grid; gap: 6px">
+                <div class="card">
+                  <header>
+                    <b>main</b>
+                    <span class="quiet">2,488 commits · 25 tags</span>
+                  </header>
+                  <div class="files">
+                    <div class="file dir">
+                      <span class="glyph">▸</span><span class="name">.codex</span>
+                      <span class="msg">chore: bump the codex skill set</span>
+                      <span class="when" style="margin-left: 12px">2d</span>
+                    </div>
+                    <div class="file dir">
+                      <span class="glyph">▸</span><span class="name">.github/workflows</span>
+                      <span class="msg">ci: run bun test on pull requests</span>
+                      <span class="when" style="margin-left: 12px">5d</span>
+                    </div>
+                    <div class="file dir">
+                      <span class="glyph">▸</span><span class="name">docs</span>
+                      <span class="msg">docs(qa): standardize agent browser work</span>
+                      <span class="when" style="margin-left: 12px">5d</span>
+                    </div>
+                    <div class="file dir">
+                      <span class="glyph">▸</span><span class="name">packages</span>
+                      <span class="msg">feat(ui): motion overhaul</span>
+                      <span class="when" style="margin-left: 12px">6m</span>
+                    </div>
+                    <div class="file">
+                      <span class="glyph">·</span><span>AGENTS.md</span>
+                      <span class="msg">docs: agent instructions for the monorepo</span>
+                      <span class="when" style="margin-left: 12px">1mo</span>
+                    </div>
+                    <div class="file">
+                      <span class="glyph">·</span><span>README.md</span>
+                      <span class="msg">docs: local dev setup</span>
+                      <span class="when" style="margin-left: 12px">3mo</span>
+                    </div>
+                  </div>
+                  <div class="more">Show the other 22</div>
+                </div>
+
+                <div class="card">
+                  <header><b>README.md</b></header>
+                  <div class="readme">
+                    <h3>Flowline Monorepo</h3>
+                    <p>
+                      This is a monorepo containing the Flowline api, extension, website and
+                      mobile packages, managed with Bun workspaces.
+                    </p>
+                  </div>
+                  <div class="fade"></div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <h5>About</h5>
+                <p style="color: var(--ink-muted)">No description.</p>
+                <a href="#c" style="color: var(--ink-accent); text-decoration: none"
+                  >flowline-website.vercel.app</a
+                >
+                <div class="line"><span>Stars</span><b>0</b></div>
+                <div class="line"><span>Forks</span><b>0</b></div>
+                <div class="line"><span>Tags</span><b>25</b></div>
+                <h5 style="margin-top: 4px">Languages</h5>
+                <div class="langs">
+                  <span style="flex: 62; background: #3178c6"></span>
+                  <span style="flex: 21; background: #f1e05a"></span>
+                  <span style="flex: 11; background: #563d7c"></span>
+                  <span style="flex: 6; background: var(--raised)"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <ul class="notes">
+          <li class="good">Nothing to relearn. The page is where it always was.</li>
+          <li class="good">
+            The last-commit column is the one thing A drops and some people navigate by.
+          </li>
+          <li class="bad">
+            Costs one extra request for that column, and it is the slowest part of GitHub's own
+            page.
+          </li>
+          <li class="bad">
+            The README, which is the reason most visits happen, still starts below the fold.
+          </li>
+        </ul>
+      </section>
+
+      <!-- ── the file-list question, drawn ─────────────────────────────── -->
+      <section class="decide">
+        <h2>The file list on its own — the part I asked badly</h2>
+        <p class="why" style="margin-bottom: 14px">
+          Three ways to draw the same 28 entries. This is the only choice that costs a request, and
+          it is the middle one.
+        </p>
+        <table>
+          <tr>
+            <th style="width: 22%">Draw</th>
+            <th style="width: 38%">Looks like</th>
+            <th>Costs</th>
+          </tr>
+          <tr>
+            <td><b>Plain</b> (used in A and B)</td>
+            <td>Name only, folders first, two columns. 28 entries in 14 rows.</td>
+            <td>Nothing. It is in the page already.</td>
+          </tr>
+          <tr>
+            <td><b>With last commit</b> (used in C)</td>
+            <td>
+              Name, then the message of the last commit that touched it, then how long ago. One
+              column, 28 rows.
+            </td>
+            <td>
+              One request to their <code>tree-commit-info</code>, and it is what makes GitHub's own
+              tree arrive late.
+            </td>
+          </tr>
+          <tr>
+            <td><b>Short</b></td>
+            <td>The first eight entries and a "show the rest" control.</td>
+            <td>Nothing. Fits more of the README on the screen.</td>
+          </tr>
+        </table>
+      </section>
+    </div>
+  </body>
+</html>

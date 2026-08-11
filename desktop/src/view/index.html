@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <title>GitQuiet</title>
+    <link rel="stylesheet" href="index.css" />
+    <!--
+      Which scheme, decided before the first paint rather than in an effect.
+
+      The palette hangs off `.dark`, so a React effect would paint the light
+      theme for one frame on a dark desktop. The attribute above is the guess
+      that is right most of the time and this corrects it, in the head, where
+      there is nothing on screen yet to correct.
+
+      The reader's own choice first, and the desktop's only when they have not
+      made one. Read straight out of `localStorage` because it has to be read
+      synchronously and nothing is loaded yet: the key and the three words are
+      `scheme.ts`, which owns everything about this after the first paint,
+      listener included.
+    -->
+    <script>
+      const chosen = localStorage.getItem("gitquiet.scheme")
+      const dark =
+        chosen === "dark" ||
+        (chosen !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches)
+      document.documentElement.classList.toggle("dark", dark)
+    </script>
+  </head>
+  <body>
+    <!--
+      The same id the extension mounts under, which is not a coincidence.
+
+      `motion.css` scopes its whole vocabulary to `#gitquiet-root` so that a
+      `:root` block here could never redefine a duration across github.com. That
+      scoping costs nothing on a page we own, and honouring it means the
+      stylesheet is imported rather than forked: one `t-row-in` for both apps.
+    -->
+    <div id="gitquiet-root"></div>
+    <script src="index.js" type="module"></script>
+  </body>
+</html>

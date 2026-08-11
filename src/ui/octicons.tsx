@@ -1,0 +1,164 @@
+import {
+  AlertFillIcon,
+  ArrowDownRightIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  BoldIcon,
+  BookIcon,
+  BriefcaseIcon,
+  CheckCircleFillIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ChevronUpIcon,
+  ClockIcon,
+  CodeIcon,
+  CommentDiscussionIcon,
+  CommentIcon,
+  CopilotIcon,
+  CopyIcon,
+  DotFillIcon,
+  DotIcon,
+  EyeIcon,
+  FileDirectoryIcon,
+  FileIcon,
+  GearIcon,
+  GitMergeIcon,
+  GitPullRequestClosedIcon,
+  GitPullRequestDraftIcon,
+  GitPullRequestIcon,
+  GraphIcon,
+  HomeIcon,
+  InboxFillIcon,
+  InboxIcon,
+  InfoIcon,
+  IssueClosedIcon,
+  IssueOpenedIcon,
+  ItalicIcon,
+  KebabHorizontalIcon,
+  LinkExternalIcon,
+  LinkIcon,
+  PaperclipIcon,
+  ListUnorderedIcon,
+  MarkGithubIcon,
+  PaintbrushIcon,
+  PencilIcon,
+  PersonIcon,
+  PinIcon,
+  PinSlashIcon,
+  PlayIcon,
+  PlusIcon,
+  ProjectIcon,
+  PulseIcon,
+  QuoteIcon,
+  RepoIcon,
+  SearchIcon,
+  ShieldIcon,
+  SidebarCollapseIcon,
+  SidebarExpandIcon,
+  SignOutIcon,
+  SkipFillIcon,
+  SlidersIcon,
+  XCircleFillIcon,
+  XIcon
+} from "@primer/octicons-react"
+import type { Art, Set } from "./art"
+import { CommandKeyIcon } from "./commandKey"
+import { SpinnerIcon } from "./spinner"
+
+/**
+ * The interface drawn in GitHub's own glyphs.
+ *
+ * The argument for these is recognition, and it is only an argument on their page: a pull request
+ * in this interface is the same shape as the one in the header above it, and a reader who opens
+ * that page forty times a day has already learnt what every one of them means. A window that is
+ * not GitHub's page has no such row of glyphs above ours to match, which is why the other set
+ * exists and why this one is the default on github.com rather than everywhere.
+ *
+ * Whole rather than partial. A set that answered half the names and let the rest fall through to
+ * another set was what this used to be, and a screen drawn in two libraries at once is a screen
+ * where the reader can see the seam.
+ */
+export const OCTICONS: Set = {
+  "pull-request": GitPullRequestIcon,
+  "pull-request-draft": GitPullRequestDraftIcon,
+  "pull-request-merged": GitMergeIcon,
+  "pull-request-closed": GitPullRequestClosedIcon,
+  issue: IssueOpenedIcon,
+  "issue-closed": IssueClosedIcon,
+  "check-passed": CheckCircleFillIcon,
+  "check-failed": AlertFillIcon,
+  // Ours rather than theirs: Octicons has no spinner in it, and the one in `art.tsx` is their
+  // Primer component's markup with our own class on it, so it stops for a reader who asked the
+  // operating system for less motion.
+  "check-running": SpinnerIcon,
+  "check-queued": DotIcon,
+  "check-skipped": SkipFillIcon,
+  comment: CommentIcon,
+  comments: CommentDiscussionIcon,
+  bot: CopilotIcon,
+  clock: ClockIcon,
+  eye: EyeIcon,
+  tick: CheckIcon,
+  dot: DotFillIcon,
+  "chevron-down": ChevronDownIcon,
+  pinned: PinIcon,
+  unpin: PinSlashIcon,
+  close: XIcon,
+  // The Working Set is an inbox: what has arrived for this reader and is waiting on them.
+  "working-set": InboxIcon,
+  notifications: InboxIcon,
+  // Octicons has no unread tray, so the filled one says it.
+  "notifications-unread": InboxFillIcon,
+  repositories: RepoIcon,
+  activity: PulseIcon,
+  search: SearchIcon,
+  create: PlusIcon,
+  home: HomeIcon,
+  narrow: SidebarCollapseIcon,
+  widen: SidebarExpandIcon,
+  // Work, as distinct from the pin above it: the repositories the reader is in this week.
+  work: BriefcaseIcon,
+  // Over to you: an arrow pointing at the reader's own column of rows.
+  "your-move": ArrowRightIcon,
+  "stacked-on": ArrowDownRightIcon,
+  more: KebabHorizontalIcon,
+  link: LinkIcon,
+  attach: PaperclipIcon,
+  /*
+   * Ours in both sets, because this one is not a picture of an idea and Octicons has no key
+   * in it at all.
+   * `CommandPaletteIcon` is a prompt and a caret — the thing ⌘K opens rather than the key it is
+   * held down with, and in the bar's badge it read as `>_K`. See `commandKey.tsx`.
+   */
+  command: CommandKeyIcon,
+  github: MarkGithubIcon,
+  code: CodeIcon,
+  // A run rather than a robot: Actions is a thing that runs, and their own tab is a play.
+  actions: PlayIcon,
+  projects: ProjectIcon,
+  security: ShieldIcon,
+  insights: GraphIcon,
+  settings: GearIcon,
+  wiki: BookIcon,
+  person: PersonIcon,
+  "sign-out": SignOutIcon,
+  back: ArrowLeftIcon,
+  "chevron-right": ChevronRightIcon,
+  "chevron-up": ChevronUpIcon,
+  copy: CopyIcon,
+  file: FileIcon,
+  appearance: PaintbrushIcon,
+  files: FileDirectoryIcon,
+  diff: SlidersIcon,
+  info: InfoIcon,
+  // A crossed circle where a failing check is a triangle: colour is not the only thing
+  // telling the two apart.
+  error: XCircleFillIcon,
+  external: LinkExternalIcon,
+  bold: BoldIcon,
+  italic: ItalicIcon,
+  quote: QuoteIcon,
+  list: ListUnorderedIcon,
+  write: PencilIcon
+} satisfies Record<keyof Set, Art>

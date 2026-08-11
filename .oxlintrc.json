@@ -1,0 +1,211 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "jsPlugins": [{ "name": "eslint-js", "specifier": "oxlint-plugin-eslint" }],
+  "plugins": [],
+  "categories": {},
+
+  // Everywhere, without exception: failure is a value here.
+  //
+  // Nothing in this codebase throws to say something went wrong — the gateway
+  // fails an Effect, the domain returns an Option, and the interfaces decide
+  // what to show. A `try` is how that discipline leaks back out, and it leaks
+  // quietly: the page it was guarding is left gated, or the error is swallowed
+  // where nobody reads it.
+  "rules": {
+    "eslint-js/no-restricted-syntax": [
+      "error",
+      {
+        "selector": "TryStatement",
+        "message": "No try/catch. Effect.try and Effect.tryPromise turn a throw into a failure you can see in the type."
+      }
+    ],
+
+    // Naming a field in order to leave it out is the clearest way to drop one,
+    // and the name is the point rather than an oversight: `const { headRefName,
+    // ...rest }` says which field is going. ESLint's own default, which oxlint
+    // does not share.
+    // The leading underscore is oxlint's own convention and is spelled out here
+    // only because naming these options at all replaces the defaults.
+    "no-unused-vars": [
+      "warn",
+      { "ignoreRestSiblings": true, "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }
+    ]
+  },
+
+  "overrides": [
+    {
+      /*
+       * All of it: there are no promises left in this codebase.
+       *
+       * This was a ratchet for a while, a directory at a time, and there is no
+       * longer anything to ratchet — every read, write, cache and render seam is
+       * an Effect. What that buys is not tidiness: an Effect says in its type
+       * how it can fail, is interrupted when the reader navigates away, and does
+       * not start until somebody runs it. A promise does none of the three, and
+       * one reintroduced here would be the first thing to leak a fetch into a
+       * page nobody is looking at.
+       *
+       * Tests are left out. A test body is async because the test runner and
+       * `userEvent` are, and that is a fact about them rather than about this.
+       */
+      "files": ["src/**"],
+      "excludeFiles": ["**/*.test.ts", "**/*.test.tsx"],
+      "rules": {
+        "eslint-js/no-restricted-syntax": [
+          "error",
+          {
+            "selector": "TryStatement",
+            "message": "No try/catch. Effect.try and Effect.tryPromise turn a throw into a failure you can see in the type."
+          },
+          {
+            "selector": "NewExpression[callee.name='Promise']",
+            "message": "No promises. Effect.async, Effect.tryPromise or Effect.gen instead."
+          },
+          {
+            "selector": "MemberExpression[object.name='Promise']",
+            "message": "No promises. Effect.all, Effect.succeed and Effect.fail instead of Promise.all, resolve and reject."
+          },
+          {
+            "selector": "TSTypeReference[typeName.name='Promise']",
+            "message": "No promise in a signature. Return an Effect, or take a PromiseLike where you are describing somebody else's API."
+          },
+          {
+            "selector": "AwaitExpression",
+            "message": "No await. Effect.gen and yield* instead."
+          },
+          {
+            "selector": ":function[async=true]",
+            "message": "No async functions. Effect.gen instead."
+          },
+          {
+            // `Effect.catch` is spelled the same as a promise's and is the
+            // thing this asks for, so it is the one caller left alone.
+            "selector": "CallExpression[callee.property.name=/^(then|catch|finally)$/]:not([callee.object.name='Effect'])",
+            "message": "No promise chains. Effect.map, Effect.catch and Effect.ensuring instead."
+          }
+        ]
+      }
+    },
+    {
+      /*
+       * Everything that asks for GitHub rather than deciding how to reach it.
+       *
+       * A layer names a way of reaching GitHub — the reader's own cookies on
+       * their page, a token anywhere else — and only whatever is running the
+       * interface knows which one it has. `src/shell` and `src/entrypoints` are
+       * the exception and are deliberately not here: choosing a layer is the one
+       * thing they exist to do.
+       *
+       * The rules above are repeated rather than inherited: a rule configured in
+       * an override replaces the one before it, so leaving them out here would
+       * quietly be permission.
+       */
+      "files": [
+        "src/app/**",
+        "src/domain/**",
+        "src/keys/**",
+        "src/observability/**",
+        "src/settings/**",
+        "src/diff/**",
+        "src/github/**"
+      ],
+      "excludeFiles": ["**/*.test.ts", "**/*.test.tsx"],
+      "rules": {
+        "eslint-js/no-restricted-syntax": [
+          "error",
+          {
+            "selector": "TryStatement",
+            "message": "No try/catch. Effect.try and Effect.tryPromise turn a throw into a failure you can see in the type."
+          },
+          {
+            "selector": "NewExpression[callee.name='Promise']",
+            "message": "No promises. Effect.async, Effect.tryPromise or Effect.gen instead."
+          },
+          {
+            "selector": "MemberExpression[object.name='Promise']",
+            "message": "No promises. Effect.all, Effect.succeed and Effect.fail instead of Promise.all, resolve and reject."
+          },
+          {
+            "selector": "TSTypeReference[typeName.name='Promise']",
+            "message": "No promise in a signature. Return an Effect, or take a PromiseLike where you are describing somebody else's API."
+          },
+          {
+            "selector": "AwaitExpression",
+            "message": "No await. Effect.gen and yield* instead."
+          },
+          {
+            "selector": ":function[async=true]",
+            "message": "No async functions. Effect.gen instead."
+          },
+          {
+            "selector": "CallExpression[callee.property.name=/^(then|catch|finally)$/]:not([callee.object.name='Effect'])",
+            "message": "No promise chains. Effect.map, Effect.catch and Effect.ensuring instead."
+          },
+          {
+            "selector": "ImportDeclaration[source.value=/GitHubGateway$/] ImportSpecifier[imported.name=/^layer/]",
+            "message": "Ask for GitHubGateway, never one of its layers. A layer names a way of reaching GitHub — cookies on their own page, a token everywhere else — and only whatever is running the interface knows which one it has."
+          }
+        ]
+      }
+    },
+    {
+      /*
+       * The interface, which is the part meant to outlive this extension.
+       *
+       * Seventeen thousand lines of it, and the reason a desktop, a website or a
+       * phone is a shell around this rather than a rewrite of it. Two things
+       * would end that, and both would do it a file at a time: a component that
+       * reaches for a gateway layer decides how GitHub is read on every platform
+       * at once, and a component that touches `browser` cannot be drawn anywhere
+       * an extension is not installed.
+       */
+      "files": ["src/ui/**"],
+      "excludeFiles": ["**/*.test.ts", "**/*.test.tsx"],
+      "rules": {
+        "eslint-js/no-restricted-syntax": [
+          "error",
+          {
+            "selector": "TryStatement",
+            "message": "No try/catch. Effect.try and Effect.tryPromise turn a throw into a failure you can see in the type."
+          },
+          {
+            "selector": "NewExpression[callee.name='Promise']",
+            "message": "No promises. Effect.async, Effect.tryPromise or Effect.gen instead."
+          },
+          {
+            "selector": "MemberExpression[object.name='Promise']",
+            "message": "No promises. Effect.all, Effect.succeed and Effect.fail instead of Promise.all, resolve and reject."
+          },
+          {
+            "selector": "TSTypeReference[typeName.name='Promise']",
+            "message": "No promise in a signature. Return an Effect, or take a PromiseLike where you are describing somebody else's API."
+          },
+          {
+            "selector": "AwaitExpression",
+            "message": "No await. Effect.gen and yield* instead."
+          },
+          {
+            "selector": ":function[async=true]",
+            "message": "No async functions. Effect.gen instead."
+          },
+          {
+            "selector": "CallExpression[callee.property.name=/^(then|catch|finally)$/]:not([callee.object.name='Effect'])",
+            "message": "No promise chains. Effect.map, Effect.catch and Effect.ensuring instead."
+          },
+          {
+            "selector": "ImportDeclaration[source.value=/GitHubGateway$/] ImportSpecifier[imported.name=/^layer/]",
+            "message": "No gateway layer in the interface. Take the read as a prop or from a context — `ui/portraits` is the shape of it — and let the shell provide one."
+          },
+          {
+            "selector": "MemberExpression[object.name='browser']",
+            "message": "No extension API in the interface. Put it behind a type the shell satisfies, the way `settings/store` describes the slice of storage it needs."
+          },
+          {
+            "selector": "MemberExpression[object.name='chrome']",
+            "message": "No extension API in the interface. Put it behind a type the shell satisfies, the way `settings/store` describes the slice of storage it needs."
+          }
+        ]
+      }
+    }
+  ]
+}

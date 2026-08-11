@@ -1,0 +1,148 @@
+import { Effect } from "effect"
+import type { Asked, Card } from "../shared/wire"
+import { graphRead } from "./api"
+
+/**
+ * The eight things a card can do to a pull request.
+ *
+ * All eight are GraphQL mutations, and every one of them is addressed by node id
+ * rather than by owner, repository and number — so each write is two round trips,
+ * the second of which is the write. REST could do three of these in one (merge,
+ * close, update branch) and cannot do the other five at all: there is no
+ * documented REST route for taking a pull request into or out of a merge queue, or
+ * for moving it into or out of draft. One vocabulary for all eight is worth a
+ * round trip nobody is waiting on twice.
+ *
+ * Every field name and every input field here was read out of the live schema
+ * before it was written down, which is how `dequeuePullRequest` came to be the odd
+ * one out: its input calls the pull request `id` where the other seven call it
+ * `pullRequestId`, and nothing but asking would have said so.
+ */
+
+const NODE = `
+  query Node($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $number) { id }
+    }
+  }
+`
+
+/** The pull request's node id, which every mutation below is addressed by. */
+const nodeOf = Effect.fn("nodeOf")(function* (token: string, card: Card) {
+  const answer = yield* graphRead<{
+    readonly repository: { readonly pullRequest: { readonly id: string } | null } | null
+  }>(token, NODE, { owner: card.owner, repo: card.repo, number: card.number })
+
+  const id = answer.repository?.pullRequest?.id
+  if (id === undefined) {
+    return yield* Effect.fail(
+      new Error(`GitHub has no pull request ${card.owner}/${card.repo}#${card.number}`)
+    )
+  }
+
+  return id
+})
+
+/**
+ * One mutation, as the query text and the arguments it takes beyond the id.
+ *
+ * Written as a table rather than eight functions because that is what they are:
+ * the same shape, differing in a name and at most one argument. What is not in the
+ * table is `expectedHeadOid`, which GitHub offers on the merge and would refuse a
+ * write against a branch that has moved since it was read. It belongs here, and it
+ * needs the head sha the port does not pass — worth its own change rather than a
+ * guess at which sha was on screen.
+ */
+const mutation = (asked: Asked): { readonly query: string; readonly input: Record<string, unknown> } => {
+  switch (asked.doing) {
+    case "merge":
+      return {
+        query: `mutation Merge($input: MergePullRequestInput!) {
+          mergePullRequest(input: $input) { clientMutationId }
+        }`,
+        input: { mergeMethod: asked.method }
+      }
+
+    case "close":
+      return {
+        query: `mutation Close($input: ClosePullRequestInput!) {
+          closePullRequest(input: $input) { clientMutationId }
+        }`,
+        input: {}
+      }
+
+    case "reopen":
+      return {
+        query: `mutation Reopen($input: ReopenPullRequestInput!) {
+          reopenPullRequest(input: $input) { clientMutationId }
+        }`,
+        input: {}
+      }
+
+    case "markReady":
+      return {
+        query: `mutation Ready($input: MarkPullRequestReadyForReviewInput!) {
+          markPullRequestReadyForReview(input: $input) { clientMutationId }
+        }`,
+        input: {}
+      }
+
+    case "toDraft":
+      return {
+        query: `mutation Draft($input: ConvertPullRequestToDraftInput!) {
+          convertPullRequestToDraft(input: $input) { clientMutationId }
+        }`,
+        input: {}
+      }
+
+    case "enqueue":
+      return {
+        query: `mutation Enqueue($input: EnqueuePullRequestInput!) {
+          enqueuePullRequest(input: $input) { clientMutationId }
+        }`,
+        // The back of the line, which is the only place a button labelled "merge
+        // when ready" should put anybody. `jump` is how the queue is skipped.
+        input: { jump: false }
+      }
+
+    case "dequeue":
+      return {
+        query: `mutation Dequeue($input: DequeuePullRequestInput!) {
+          dequeuePullRequest(input: $input) { clientMutationId }
+        }`,
+        input: {}
+      }
+
+    case "cancelAutoMerge":
+      return {
+        query: `mutation Cancel($input: DisablePullRequestAutoMergeInput!) {
+          disablePullRequestAutoMerge(input: $input) { clientMutationId }
+        }`,
+        input: {}
+      }
+
+    case "updateBranch":
+      return {
+        query: `mutation Catch($input: UpdatePullRequestBranchInput!) {
+          updatePullRequestBranch(input: $input) { clientMutationId }
+        }`,
+        input: { updateMethod: asked.how }
+      }
+  }
+}
+
+/**
+ * What the pull request is called in this mutation's input.
+ *
+ * Seven say `pullRequestId` and `dequeuePullRequest` says `id`. Kept as a value
+ * beside the table rather than folded into it so that the exception is visible
+ * where somebody adding a ninth mutation will read it.
+ */
+const idFieldOf = (asked: Asked): string => (asked.doing === "dequeue" ? "id" : "pullRequestId")
+
+export const write = Effect.fn("write")(function* (token: string, card: Card, asked: Asked) {
+  const id = yield* nodeOf(token, card)
+  const { query, input } = mutation(asked)
+
+  yield* graphRead<unknown>(token, query, { input: { ...input, [idFieldOf(asked)]: id } })
+})

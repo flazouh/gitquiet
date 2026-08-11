@@ -1,0 +1,118 @@
+import { afterEach, describe, expect, test } from "bun:test"
+import { cleanup, render, screen, waitFor } from "@testing-library/react"
+import { Effect } from "effect"
+import type { Sitting } from "../domain/sittings"
+import { RepoPullsScreen } from "./RepoPullsScreen"
+import { WorkingSetScreen } from "./WorkingSetScreen"
+
+afterEach(cleanup)
+
+const nothing: ReadonlyArray<Sitting> = [
+  { court: "your-move", count: 0, piles: [], issues: [] },
+  { court: "waiting", count: 0, piles: [], issues: [] },
+  { court: "settled", count: 0, piles: [], issues: [] }
+]
+
+const wait = (): HTMLElement | null => document.querySelector("[data-gitquiet-loading]")
+
+/** Waits for it to appear, since it is held back until a wait is worth drawing. */
+const drawn = async (): Promise<HTMLElement> => {
+  await waitFor(() => expect(wait()).not.toBeNull())
+  return wait()!
+}
+
+/** A read that never answers, so the wait itself can be looked at. */
+const waitingSet = async () => {
+  const rendered = render(
+    <WorkingSetScreen
+      load={() => Effect.never as Effect.Effect<never>}
+      onOpen={() => {}}
+      onStepAside={() => {}}
+    />
+  )
+  await drawn()
+  return rendered
+}
+
+/** A read that answers after long enough for the wait to have been read. */
+const arrivingSet = (after = 400) =>
+  render(
+    <WorkingSetScreen
+      load={() => Effect.succeed(nothing).pipe(Effect.delay(after))}
+      onOpen={() => {}}
+      onStepAside={() => {}}
+    />
+  )
+
+const waitingRepo = async () => {
+  const rendered = render(
+    <RepoPullsScreen
+      repo={{ owner: "acme", repo: "widgets" }}
+      load={() => Effect.never as Effect.Effect<never>}
+      onOpen={() => {}}
+      onStepAside={() => {}}
+      onPage={() => {}}
+    />
+  )
+  await drawn()
+  return rendered
+}
+
+describe("the wait before a list of pull requests has been read", () => {
+  test("says what it is reading, which is not the same sentence on both screens", async () => {
+    await waitingSet()
+    expect(screen.getByRole("status").textContent).toContain("Reading your pull requests")
+
+    cleanup()
+
+    await waitingRepo()
+    expect(screen.getByRole("status").textContent).toContain("this repository's pull requests")
+  })
+
+  test("names the repository while it waits, since that much was known from the address", async () => {
+    // Not a guess: it came off the URL before a single request went out, so a
+    // reader can see that the wait belongs to the repository they asked for.
+    const { container } = await waitingRepo()
+
+    expect(container.textContent).toContain("acme/widgets")
+  })
+
+  test("offers nothing to press or type into", async () => {
+    const { container } = await waitingSet()
+
+    expect(container.querySelectorAll("button, a, input, [tabindex]")).toHaveLength(0)
+  })
+})
+
+describe("the moment a list arrives", () => {
+  test("keeps the very element that was on the page, so it has something to fade from", async () => {
+    arrivingSet()
+
+    const shown = await drawn()
+
+    await waitFor(() => expect(screen.getByRole("searchbox")).toBeDefined())
+    expect(wait() === shown).toBe(true)
+  })
+
+  test("takes it off the page once it has gone", async () => {
+    arrivingSet()
+
+    await drawn()
+    await waitFor(() => expect(wait() === null).toBe(true), { timeout: 2000 })
+  })
+
+  test("does not dissolve a wait nobody was around for", async () => {
+    // A list is remembered between sittings and comes back from memory within the
+    // same document, so this is the common case rather than the exception: a wait
+    // up for a frame, and no reason to fade it over a list already being read.
+    render(
+      <WorkingSetScreen
+        load={() => Effect.succeed(nothing)}
+        onOpen={() => {}}
+        onStepAside={() => {}}
+      />
+    )
+
+    await waitFor(() => expect(wait() === null).toBe(true), { timeout: 250 })
+  })
+})
