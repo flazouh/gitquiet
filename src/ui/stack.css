@@ -4,8 +4,8 @@
  * A stack is the one place in these lists where the order of the rows is a fact
  * about the work rather than a sort: the top cannot land until the foundation
  * does. Indentation alone says "these belong together" and leaves the direction
- * to be guessed, so each stacked row carries an arrow turning down and into it —
- * read it as "this one sits on that one".
+ * to be guessed, so each stacked row carries an arrow turning up and out of it,
+ * at the row above it — read it as "this one goes into that one".
  *
  * The arrow is a glyph rather than a drawing, and that is the whole reason this
  * file is now four rules instead of a page of pseudo-elements. It was borders on
@@ -51,8 +51,9 @@
   justify-self: center;
   /*
    * The box is centred (`align-items: center`); the stroke is not. Corner
-   * arrows sit low in their viewBox, so without a nudge the turn reads below
-   * the middle of the row even though the SVG's bounds are dead centre.
+   * arrows sit off centre in their viewBox, and this one turns up and to the
+   * left, so its weight is high and a nudge down is what puts the turn on the
+   * middle of the row.
    *
    * `translate` rather than `transform`, which is the same pixel by a name the
    * linking below can leave alone. The three individual properties compose
@@ -61,7 +62,7 @@
    * cost exactly that, an animation that dropped the pixel and left every arrow
    * reading below the middle of its row.
    */
-  translate: 0 -1px;
+  translate: 0 1px;
 }
 
 /**
@@ -90,7 +91,7 @@
 
 .t-stack-up > li > .t-stack-mark {
   justify-self: center;
-  translate: 0 -1px;
+  translate: 0 1px;
 }
 
 /*
@@ -186,18 +187,19 @@
 /*
  * The arm reaching out of the corner it points from, as its row lands.
  *
- * It grows from its own top left, which is where the layer underneath is and
- * where this glyph's stroke begins: the corner is drawn first and the head
- * arrives last, so the mark extends into the row it belongs to rather than
- * appearing whole in the gutter. That is the joint closing, and it is why the
- * run reads as linking rather than as three rows arriving — a stagger says
- * these came in an order, an arm drawn from one row into the next says this one
- * is holding that one up. Anything that draws a path over time does it this
+ * It grows from its own bottom right, which is where its own row is and where
+ * this glyph's stroke begins: the corner is drawn first and the head arrives
+ * last, so the mark reaches out of the row it belongs to and up at the row
+ * that row goes into, rather than appearing whole in the gutter. That is the
+ * joint closing, and it is why the run reads as linking rather than as three
+ * rows arriving — a stagger says these came in an order, an arm drawn from one
+ * row up into the row above says that one is holding this one up. Anything
+ * that draws a path over time does it this
  * way; the check in `motion.css` writes its tick into a ring the same way and
  * for the same reason.
  *
  * `scale` and `opacity` — the individual property, so the pixel the placement
- * rule nudges this mark up by is left where it is rather than restated here.
+ * rule nudges this mark down by is left where it is rather than restated here.
  *
  * The clock is the beat itself: eighty milliseconds after its row starts, over
  * eighty. So the arm closes ten milliseconds after its own row has landed and a
@@ -215,7 +217,7 @@
  * nine tenths written after thirty and had nothing left to show.
  */
 .t-stack-linking > li > .t-stack-mark {
-  transform-origin: top left;
+  transform-origin: bottom right;
   animation: t-stack-arm var(--duration-micro) var(--ease-in-out) backwards;
   animation-delay: calc(min(var(--stack-tier, 0), 4) * var(--duration-micro) + var(--duration-micro));
 }

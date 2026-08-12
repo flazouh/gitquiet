@@ -36,12 +36,13 @@ describe("a chain that does not exist yet, linking up", () => {
   })
 
   test("writes its arm with `scale`, which composes with the pixel it is nudged by", () => {
-    // The mark is placed a pixel above the middle of its row, because a corner arrow sits low in
-    // its own viewBox. `transform` in a keyframe would replace that placement rather than compose
-    // with it, and every arrow in the chain would read low while it was arriving.
+    // The mark is placed a pixel below the middle of its row, because a corner arrow turning up
+    // and to the left sits high in its own viewBox. `transform` in a keyframe would replace that
+    // placement rather than compose with it, and every arrow in the chain would read high while
+    // it was arriving.
     expect(linking).toMatch(/@keyframes t-stack-arm \{[^]*?scale:/)
     expect(linking).not.toMatch(/@keyframes t-stack-arm \{[^]*?transform:/)
-    expect(sheet).toMatch(/\.t-stack-up > li > \.t-stack-mark \{[^}]*translate: 0 -1px/)
+    expect(sheet).toMatch(/\.t-stack-up > li > \.t-stack-mark \{[^}]*translate: 0 1px/)
   })
 
   test("names every duration and curve rather than writing one out", () => {
