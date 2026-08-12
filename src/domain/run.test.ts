@@ -9,6 +9,8 @@ import {
   runAddressIn,
   saysNothing,
   skippedIn,
+  toleratedIn,
+  tolerating,
   unescaped,
   worstOf
 } from "./run"
@@ -131,6 +133,56 @@ describe("what a run failed at", () => {
     expect(worstOf(THE_RUN.filter((job) => job.state === "succeeded"))).toBe("succeeded")
     expect(worstOf([job("test", "succeeded", 1), job("build", "running", 2)])).toBe("running")
     expect(worstOf([])).toBe("neutral")
+  })
+})
+
+/*
+ * Measured, because nothing about this is guessable from the vocabulary. Workflow
+ * run 31641974931 of `flazouh/ghpro-scratch` was written to fail three ways at once
+ * and read back through GitHub's own API: a job carrying `continue-on-error: true`
+ * came back `conclusion: "failure"` inside a run that came back
+ * `conclusion: "success"`, and the check run for that job is a failure too. The
+ * combination is the whole signal, and it has no other cause — a job that fails
+ * without being tolerated fails its run with it.
+ */
+describe("a failure the workflow was told to carry on past", () => {
+  const TOLERANT: ReadonlyArray<Job> = [
+    job("plain", "succeeded", 4),
+    job("tolerated-job", "failed", 3)
+  ]
+
+  test("is not a fault, because the run it is in concluded successfully", () => {
+    const jobs = tolerating("succeeded", TOLERANT)
+
+    expect(faultsIn(jobs)).toEqual([])
+    expect(toleratedIn(jobs).map((one) => one.name)).toEqual(["tolerated-job"])
+  })
+
+  test("leaves a real failure alone, which is every job of a run that failed", () => {
+    const jobs = tolerating("failed", THE_RUN)
+
+    expect(faultsIn(jobs).map((one) => one.name)).toEqual(["integration-test", "ci-complete"])
+    expect(toleratedIn(jobs)).toEqual([])
+  })
+
+  /*
+   * A run still going says nothing yet about what its failures will count for, so
+   * nothing is claimed for them until GitHub has concluded the run.
+   */
+  test("is claimed for no job of a run that has not finished", () => {
+    expect(toleratedIn(tolerating("running", TOLERANT))).toEqual([])
+  })
+
+  test("never outranks a pass, since GitHub called the run a success", () => {
+    expect(worstOf(tolerating("succeeded", TOLERANT))).toBe("succeeded")
+    expect(worstOf(tolerating("succeeded", [job("tolerated-job", "failed", 3)]))).toBe("tolerated")
+  })
+
+  test("is counted with neither the passing jobs nor the skipped ones", () => {
+    const jobs = tolerating("succeeded", TOLERANT)
+
+    expect(passedIn(jobs)).toEqual({ count: 1, seconds: 4 })
+    expect(skippedIn(jobs)).toBe(0)
   })
 })
 

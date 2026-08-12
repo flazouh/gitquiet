@@ -98,6 +98,13 @@ const CHECKING = "Checking this run…"
 const WORD_OF: Record<CheckState, string> = {
   succeeded: "Success",
   failed: "Failure",
+  /*
+   * Not one of their words, because they have none. "Allowed to fail" is what the
+   * Workflow's author wrote when they wrote `continue-on-error: true`, said in a
+   * way a reader who has never opened the file can act on: the job fell over, and
+   * nobody has to do anything about it.
+   */
+  tolerated: "Allowed to fail",
   running: "In progress",
   queued: "Queued",
   cancelled: "Cancelled",
@@ -120,7 +127,8 @@ const PILL_OF: Record<CheckState, string> = {
   queued: "bg-hover text-ink",
   cancelled: "bg-hover text-ink",
   skipped: "bg-hover text-ink",
-  neutral: "bg-hover text-ink"
+  neutral: "bg-hover text-ink",
+  tolerated: "bg-hover text-ink"
 }
 
 /**

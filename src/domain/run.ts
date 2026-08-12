@@ -211,11 +211,18 @@ const pathOf = (url: string): string | null => {
  * and lose the failure that caused it.
  */
 const WEIGHT: Record<CheckState, number> = {
-  failed: 6,
-  cancelled: 5,
-  running: 4,
-  queued: 3,
-  succeeded: 2,
+  failed: 7,
+  cancelled: 6,
+  running: 5,
+  queued: 4,
+  succeeded: 3,
+  /*
+   * Under a pass, because GitHub concluded the run a success and a standing that
+   * said otherwise would contradict the only verdict there is. Over neutral,
+   * because something did run and it did fail: a run whose every job was tolerated
+   * is not the same thing as a run nothing happened in.
+   */
+  tolerated: 2,
   neutral: 1,
   skipped: 0
 }
@@ -242,6 +249,41 @@ export const worstOf = (some: ReadonlyArray<{ readonly state: CheckState }>): Ch
  */
 export const faultsIn = (jobs: ReadonlyArray<Job>): ReadonlyArray<Job> =>
   jobs.filter((job) => job.state === "failed" || job.state === "cancelled")
+
+/**
+ * The Jobs of a Run, with the failures the Run carried on past said as tolerated.
+ *
+ * The rule is one fact against another, and both are on the run page in the one
+ * fetch it is read by: the Run's own conclusion in its header, and each Job's
+ * beside its name. A Job that failed inside a Run GitHub concluded a success is a
+ * Job the Workflow carried `continue-on-error: true` on, because that is the only
+ * thing that produces the pair — a failure nobody allowed takes its Run down with
+ * it. Measured on run 31641974931 of `flazouh/ghpro-scratch`, where the tolerated
+ * job answers `failure` under a run that answers `success`.
+ *
+ * Nothing is claimed while the Run is still going. A Run that has not concluded has
+ * not said what its failures will count for, and a job drawn as tolerated on a
+ * running Run would be redrawn as a Fault the moment GitHub finished — which is the
+ * one thing worse than drawing it red in the first place.
+ */
+export const tolerating = (
+  standing: CheckState,
+  jobs: ReadonlyArray<Job>
+): ReadonlyArray<Job> =>
+  standing !== "succeeded"
+    ? jobs
+    : jobs.map((job) => (job.state === "failed" ? { ...job, state: "tolerated" as const } : job))
+
+/**
+ * Every Job that failed and was allowed to, in the order they were run.
+ *
+ * Rows and not a number, unlike the skipped ones. A skipped Job reports nothing
+ * about the Run; a tolerated one ran, failed, and had its failure waived, and
+ * [#15452](https://github.com/orgs/community/discussions/15452) asks for exactly
+ * that to be shown properly rather than hidden or painted red.
+ */
+export const toleratedIn = (jobs: ReadonlyArray<Job>): ReadonlyArray<Job> =>
+  jobs.filter((job) => job.state === "tolerated")
 
 /**
  * What passed, as a number and a total time.

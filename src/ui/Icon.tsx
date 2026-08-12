@@ -31,7 +31,14 @@ export const CHECK_TONE: Record<CheckState, string> = {
   queued: "text-busy",
   cancelled: "text-ink-muted",
   skipped: "text-ink-muted",
-  neutral: "text-ink-muted"
+  neutral: "text-ink-muted",
+  /*
+   * The failure glyph in the colour of something nobody is waiting on, which is
+   * the whole of what a tolerated failure is: it did fail, and the Workflow said
+   * so in writing that it did not count. Red would repeat GitHub's own mistake;
+   * the tick would hide a job that fell over.
+   */
+  tolerated: "text-ink-muted"
 }
 
 /**
