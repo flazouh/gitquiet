@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { curated } from "../domain/putAway"
 import { strandsIn } from "../domain/strand"
 import { runsOnPage, workflowsOnPage } from "./actionsList"
 
@@ -246,5 +247,26 @@ describe("what the list folds down to", () => {
 
   test("puts the strand that ran most recently first", () => {
     expect(strands[0]?.branch).toBe("alex/queue-byte-budget")
+  })
+
+  /*
+   * The same page with their code scanning put away, which is the curation their own Workflow
+   * filter offers for one page load and forgets.
+   *
+   * Four of the twenty-five Runs go, and all four were doing something worse than taking up a
+   * chip: their titles are "Code Quality: PR #1758" where the `ci` Runs of the same work are
+   * titled with the commit, so the fold read them as Runs against a commit the work had moved
+   * past and pull request 1758 reported "3 on earlier commits" about three Runs of its own head.
+   */
+  test("drops every run of a workflow the reader put away", () => {
+    const away = curated(strands, ["github-code-scanning/codeql"])
+    const of1758 = away.strands.find((one) => one.pullRequest === "1758")
+
+    expect(away.strands).toHaveLength(10)
+    expect(away.strands.reduce((running, one) => running + one.runs.length, 0)).toBe(21)
+    expect(away.away).toEqual([
+      { key: "github-code-scanning/codeql", workflow: "CodeQL", runs: 4 }
+    ])
+    expect(of1758?.earlier).toBe(0)
   })
 })
