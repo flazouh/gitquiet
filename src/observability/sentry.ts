@@ -8,6 +8,7 @@ export type Surface = "content-script" | "service-worker" | "prefetch" | "workin
   | "issues"
   | "actions"
   | "raise"
+  | "notifications"
 
 const readEnvironmentValue = (key: string): string | undefined => {
   const environment: unknown = import.meta.env

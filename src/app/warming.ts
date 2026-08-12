@@ -16,6 +16,7 @@ import { commitListIn } from "../domain/commitList"
 import { issueDashboardIn, queryFor as mineFor } from "../domain/issueDashboard"
 import { issueListIn, queryFor as issuesFor } from "../domain/issueList"
 import { fromPathname as issueIn } from "../domain/issues"
+import { noticesIn } from "../domain/notices"
 import { showsWorkingSet } from "../domain/pages"
 import { elsewhereThan } from "../domain/PullRequestRef"
 import { repoHomeIn } from "../domain/repoHome"
@@ -26,6 +27,7 @@ import type { GitHubGateway } from "../ports/GitHubGateway"
 import { warmHistory } from "./commitList"
 import { warmIssue } from "./issue"
 import { warmIssueList } from "./issueList"
+import { warmNotices } from "./notices"
 import { loadPullRequest, warmCommit } from "./pullRequest"
 import { warmRepoHome } from "./repoHome"
 import { warmRepoList } from "./repoList"
@@ -174,6 +176,19 @@ const pageFor = (href: string, at: string): Ahead | null => {
     const { owner, repo, sha } = commit.value
     return { key: link.pathname, read: warmCommit({ owner, repo }, sha) }
   }
+
+  /*
+   * The inbox, which is the one page here that every other page of GitHub links to.
+   *
+   * Their bell is in the site header, so this is the only read on the table a reader can start
+   * from anywhere. Worth it for the reason a repository's front page is: their document is the
+   * page rather than a decoration of it, and one fetch of it carries every row, every reason
+   * and every write form.
+   *
+   * Keyed by the address with the query on it, because `?query=is:unread` is a different inbox
+   * and their own nav offers several.
+   */
+  if (noticesIn(link.href)) return { key: keyOf(link), read: warmNotices(link.search.replace(/^\?/, "")) }
 
   // The reader's own issues, which is the same one search again.
   const mine = issueDashboardIn(link.href)

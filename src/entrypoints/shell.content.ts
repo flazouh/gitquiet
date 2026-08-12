@@ -28,6 +28,7 @@ import {
   HOME,
   ISSUE,
   ISSUES,
+  NOTIFICATIONS,
   RAISE,
   REPO_HOME,
   REPO_ISSUES,
@@ -95,6 +96,7 @@ const PLACE_OF: Record<Wanted, Place> = {
   issues: ISSUES,
   run: RUN,
   actions: ACTIONS,
+  notifications: NOTIFICATIONS,
 };
 
 /**

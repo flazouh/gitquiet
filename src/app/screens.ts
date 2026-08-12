@@ -36,6 +36,7 @@ export type Wanted =
   | "issues"
   | "run"
   | "actions"
+  | "notifications"
 
 export const WANTED: ReadonlyArray<Wanted> = [
   "pull-request",
@@ -49,7 +50,8 @@ export const WANTED: ReadonlyArray<Wanted> = [
   "raise",
   "issues",
   "run",
-  "actions"
+  "actions",
+  "notifications"
 ]
 
 export const isWanted = (what: string): what is Wanted =>
