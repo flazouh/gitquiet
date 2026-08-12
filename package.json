@@ -61,6 +61,7 @@
     "@radix-ui/react-tooltip": "^1.2.16",
     "@sentry/browser": "^10.68.0",
     "effect": "^4.0.0-beta.101",
+    "gemoji": "^8.1.0",
     "markdown-it": "^14.3.0",
     "marked": "^18.0.9",
     "react": "^19.2.8",

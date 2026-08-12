@@ -2,18 +2,39 @@ import type {
   HtmlNode,
   MarkdownBlock,
   MarkdownInline,
+  ParseOptions,
   TableAlign,
   TableBlock
 } from "./model"
 import { parseMarkdown } from "./parse"
 
-export const Markdown = ({ markdown }: { readonly markdown: string }) => {
-  const doc = parseMarkdown(markdown)
+export const Markdown = ({
+  markdown,
+  owner,
+  repo
+}: {
+  readonly markdown: string
+  readonly owner?: string
+  readonly repo?: string
+}) => {
+  const options: ParseOptions = { owner, repo }
+  const doc = parseMarkdown(markdown, options)
   return (
     <div className="markdown">
       {doc.blocks.map((block, index) => (
         <Block key={index} block={block} />
       ))}
+      {doc.footnotes.length > 0 ? (
+        <ol className="markdown-footnotes">
+          {doc.footnotes.map((note) => (
+            <li key={note.id} id={`fn-${note.id}`}>
+              {note.blocks.map((block, index) => (
+                <Block key={index} block={block} />
+              ))}
+            </li>
+          ))}
+        </ol>
+      ) : null}
     </div>
   )
 }
@@ -48,10 +69,23 @@ const Block = ({ block }: { readonly block: MarkdownBlock }) => {
           ))}
         </blockquote>
       )
+    case "alert":
+      return (
+        <aside className={`markdown-alert markdown-alert-${block.kind}`} aria-label={block.kind}>
+          <p className="markdown-alert-title">{block.kind}</p>
+          {block.blocks.map((child, index) => (
+            <Block key={index} block={child} />
+          ))}
+        </aside>
+      )
     case "hr":
       return <hr />
     case "code":
-      return (
+      return block.language === "suggestion" ? (
+        <pre className="markdown-suggestion">
+          <code data-language="suggestion">{block.code}</code>
+        </pre>
+      ) : (
         <pre>
           <code data-language={block.language || undefined}>{block.code}</code>
         </pre>
@@ -149,6 +183,33 @@ const Inline = ({ node }: { readonly node: MarkdownInline }) => {
       )
     case "html":
       return <Html node={node} />
+    case "mention":
+      return (
+        <a href={`https://github.com/${node.login}`} className="markdown-mention">
+          @{node.login}
+        </a>
+      )
+    case "issue":
+      return (
+        <a
+          href={`https://github.com/${node.owner}/${node.repo}/issues/${node.number}`}
+          className="markdown-issue"
+        >
+          {`${node.label}`}
+        </a>
+      )
+    case "emoji":
+      return (
+        <span className="markdown-emoji" title={`:${node.name}:`}>
+          {node.character}
+        </span>
+      )
+    case "footnote-ref":
+      return (
+        <a href={`#fn-${node.id}`} className="markdown-footnote-ref">
+          <sup>{node.id}</sup>
+        </a>
+      )
   }
 }
 
@@ -190,6 +251,7 @@ const isInline = (node: MarkdownBlock | MarkdownInline): node is MarkdownInline 
     case "table":
     case "list":
     case "blockquote":
+    case "alert":
     case "hr":
       return false
     case "code":

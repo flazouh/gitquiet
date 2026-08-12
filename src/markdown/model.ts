@@ -1,5 +1,6 @@
 export type MarkdownDocument = {
   readonly blocks: ReadonlyArray<MarkdownBlock>
+  readonly footnotes: ReadonlyArray<Footnote>
 }
 
 export type MarkdownBlock =
@@ -12,6 +13,7 @@ export type MarkdownBlock =
   | HtmlNode
   | BlockquoteBlock
   | HrBlock
+  | AlertBlock
 
 export type HeadingBlock = {
   readonly type: "heading"
@@ -24,7 +26,18 @@ export type ParagraphBlock = {
   readonly children: ReadonlyArray<MarkdownInline>
 }
 
-export type MarkdownInline = TextInline | LinkInline | HtmlNode | StrongInline | EmInline | DeleteInline | CodeInline
+export type MarkdownInline =
+  | TextInline
+  | LinkInline
+  | HtmlNode
+  | StrongInline
+  | EmInline
+  | DeleteInline
+  | CodeInline
+  | MentionInline
+  | IssueInline
+  | EmojiInline
+  | FootnoteRefInline
 
 export type TextInline = {
   readonly type: "text"
@@ -55,6 +68,48 @@ export type DeleteInline = {
 export type CodeInline = {
   readonly type: "code"
   readonly text: string
+}
+
+export type MentionInline = {
+  readonly type: "mention"
+  readonly login: string
+}
+
+export type IssueInline = {
+  readonly type: "issue"
+  readonly owner: string
+  readonly repo: string
+  readonly number: number
+  readonly label: string
+}
+
+export type EmojiInline = {
+  readonly type: "emoji"
+  readonly name: string
+  readonly character: string
+}
+
+export type FootnoteRefInline = {
+  readonly type: "footnote-ref"
+  readonly id: string
+}
+
+export type Footnote = {
+  readonly id: string
+  readonly blocks: ReadonlyArray<MarkdownBlock>
+}
+
+export type AlertKind = "note" | "tip" | "important" | "warning" | "caution"
+
+export type AlertBlock = {
+  readonly type: "alert"
+  readonly kind: AlertKind
+  readonly blocks: ReadonlyArray<MarkdownBlock>
+}
+
+export type ParseOptions = {
+  readonly owner?: string
+  readonly repo?: string
 }
 
 export type TableAlign = "left" | "center" | "right" | null

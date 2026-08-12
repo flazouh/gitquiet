@@ -272,4 +272,63 @@ See #1945 and @alice.
       false
     )
   })
+
+  test("turns @alice and #12 into GitHub references", () => {
+    const doc = parseMarkdown("Thanks @alice for #12", { owner: "ori", repo: "cli" })
+
+    expect(doc.blocks).toMatchObject([
+      {
+        type: "paragraph",
+        children: [
+          { type: "text", text: "Thanks " },
+          { type: "mention", login: "alice" },
+          { type: "text", text: " for " },
+          { type: "issue", owner: "ori", repo: "cli", number: 12 }
+        ]
+      }
+    ])
+  })
+
+  test("turns :rocket: into an emoji", () => {
+    const doc = parseMarkdown("ship it :rocket:")
+
+    expect(doc.blocks).toMatchObject([
+      {
+        type: "paragraph",
+        children: [
+          { type: "text", text: "ship it " },
+          { type: "emoji", name: "rocket", character: "🚀" }
+        ]
+      }
+    ])
+  })
+
+  test("reads a GitHub alert", () => {
+    const doc = parseMarkdown("> [!NOTE]\n> Be careful")
+
+    expect(doc.blocks).toMatchObject([
+      {
+        type: "alert",
+        kind: "note",
+        blocks: [{ type: "paragraph", children: [{ type: "text", text: "Be careful" }] }]
+      }
+    ])
+  })
+
+  test("reads a footnote reference and its definition", () => {
+    const doc = parseMarkdown("See this.[^1]\n\n[^1]: the note")
+
+    expect(doc.blocks).toMatchObject([
+      {
+        type: "paragraph",
+        children: [
+          { type: "text", text: "See this." },
+          { type: "footnote-ref", id: "1" }
+        ]
+      }
+    ])
+    expect(doc.footnotes).toMatchObject([
+      { id: "1", blocks: [{ type: "paragraph", children: [{ type: "text", text: "the note" }] }] }
+    ])
+  })
 })

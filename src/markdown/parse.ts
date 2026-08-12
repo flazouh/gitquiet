@@ -1,5 +1,6 @@
 import { marked, type Token, type Tokens } from "marked"
 import { attrsFor, isAllowed, isSkipped, piecesOf, type HtmlPiece } from "./html"
+import { decorateGitHub } from "./github"
 import type {
   CodeBlock,
   HeadingBlock,
@@ -9,6 +10,7 @@ import type {
   MarkdownDocument,
   MarkdownInline,
   ParagraphBlock,
+  ParseOptions,
   TableAlign,
   TableBlock,
   TableCell,
@@ -16,9 +18,12 @@ import type {
 } from "./model"
 import { hrefOf } from "./sanitize"
 
-export const parseMarkdown = (source: string): MarkdownDocument => {
+export const parseMarkdown = (
+  source: string,
+  options: ParseOptions = {}
+): MarkdownDocument => {
   const tokens = marked.lexer(source, { gfm: true, breaks: false })
-  return { blocks: blocksOf(tokens) }
+  return decorateGitHub({ blocks: blocksOf(tokens), footnotes: [] }, options)
 }
 
 type Child = MarkdownBlock | MarkdownInline
@@ -129,6 +134,7 @@ const isBlockChild = (child: Child): child is MarkdownBlock => {
     case "table":
     case "list":
     case "blockquote":
+    case "alert":
     case "hr":
     case "html":
       return true

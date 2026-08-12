@@ -34,4 +34,22 @@ describe("rendering our markdown document", () => {
     expect(screen.getByText("More").closest("summary")).not.toBeNull()
     expect(screen.getByText("item").closest("details")).not.toBeNull()
   })
+
+  test("turns a mention and an issue number into links", () => {
+    render(<Markdown markdown={"Thanks @alice for #12"} owner="ori" repo="cli" />)
+
+    expect(screen.getByRole("link", { name: "@alice" }).getAttribute("href")).toBe(
+      "https://github.com/alice"
+    )
+    expect(screen.getByRole("link", { name: "#12" }).getAttribute("href")).toBe(
+      "https://github.com/ori/cli/issues/12"
+    )
+  })
+
+  test("renders a suggestion fence as a suggestion", () => {
+    render(<Markdown markdown={"```suggestion\nfoo\n```"} />)
+
+    expect(document.querySelector(".markdown-suggestion")).not.toBeNull()
+    expect(screen.getByText("foo")).toBeTruthy()
+  })
 })
