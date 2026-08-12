@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { failing, howTheRunStands, isGreen, type RunStanding } from "../domain/checks"
+import { failing, howTheRunStands, isGreen, tolerated, type RunStanding } from "../domain/checks"
 import type { Check } from "../domain/PullRequest"
 import { useArt } from "./art"
 import { CheckDialog } from "./CheckDialog"
@@ -118,7 +118,8 @@ export const Checks = ({
 
   const standing = howTheRunStands(checks)
   const red = failing(checks)
-  const rest = checks.filter((check) => check.state !== "failed")
+  const allowed = tolerated(checks)
+  const rest = checks.filter((check) => check.state !== "failed" && check.state !== "tolerated")
   // Counted with the domain's own predicate, so the fold and the line above it
   // cannot come to two answers about the same checks. They used to.
   const passed = rest.filter(isGreen).length
@@ -141,6 +142,21 @@ export const Checks = ({
       {/* Failures open, everything else behind one line: a green check has
           nothing to say, and thirty of them said at once are a wall. */}
       {red.map((check) => (
+        <CheckRow key={check.name} check={check} onOpen={() => setOpened(check)} />
+      ))}
+      {/* Open, like the failures, and named for what it is. A job carrying
+          `continue-on-error: true` reports a failing check run under a workflow run
+          GitHub concluded a success, and their page has no word for that at all:
+          it draws the row in the red of a real failure and counts it into "Some
+          checks were not successful". Folding it away with the green ones would be
+          the opposite mistake, since the job did fall over and its log is worth
+          reading. See [#15452](https://github.com/orgs/community/discussions/15452). */}
+      {allowed.length === 0 ? null : (
+        <p className="border-t border-line-muted px-3 py-1.5 text-xs text-ink-muted first:border-t-0">
+          {`${allowed.length} allowed to fail`}
+        </p>
+      )}
+      {allowed.map((check) => (
         <CheckRow key={check.name} check={check} onOpen={() => setOpened(check)} />
       ))}
       {rest.length === 0 ? null : (

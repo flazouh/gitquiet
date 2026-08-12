@@ -155,6 +155,16 @@ describe("what a pull request owes, everything that is not a thread", () => {
     expect(courts({ checks: [check("test", "cancelled")] })).toEqual(["your-move"])
   })
 
+  /*
+   * A failure the workflow was written to carry on past owes nobody anything: the
+   * run concluded a success, so there is no move to make and nothing to fix before
+   * merging. Their own page owes it a red mark and a place in the count, which is
+   * [#15452](https://github.com/orgs/community/discussions/15452).
+   */
+  test("a check its run was told to carry on past is settled, not the reader's move", () => {
+    expect(courts({ checks: [check("flaky-e2e", "tolerated")] })).toEqual(["settled"])
+  })
+
   test("a branch level with its base is not something owed", () => {
     expect(attentionIn(owing({ merge: level }))).toEqual([])
   })
