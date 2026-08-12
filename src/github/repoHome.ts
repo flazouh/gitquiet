@@ -66,6 +66,7 @@ const welcomeFrom = (
 
   return Option.some({
     name: file.displayName,
+    path: file.path,
     html,
     timedOut: file.timedOut === true
   })

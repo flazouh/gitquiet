@@ -239,6 +239,35 @@ export const loadFile = Effect.fn("loadFile")(function* (
 })
 
 /**
+ * The README's own text, so the screen can parse it rather than take their HTML.
+ *
+ * The raw route first, which is five kilobytes against the three hundred their
+ * page for the file spends. Their page second, and only where the first was
+ * refused: the raw route reaches a private repository through a signed redirect,
+ * and if a repository is ever met where that does not hold, a heavier read is
+ * better than a README wearing GitHub's chrome.
+ *
+ * The failure is kept. The screen already holds their rendering of this file and
+ * draws it where this cannot be had, so a refusal costs the chrome and not the
+ * README.
+ */
+export const loadReadme = Effect.fn("loadReadme")(function* (
+  repo: RepoRef,
+  branch: string,
+  path: string
+) {
+  const gateway = yield* GitHubGateway
+
+  return yield* gateway
+    .rawFileAt(repo, branch, path)
+    .pipe(
+      Effect.catch(() =>
+        gateway.fileAt(repo, branch, path).pipe(Effect.map((file) => file.lines.join("\n")))
+      )
+    )
+})
+
+/**
  * Star a repository, or take the star back.
  *
  * The failure is kept rather than swallowed. The button is what the reader is

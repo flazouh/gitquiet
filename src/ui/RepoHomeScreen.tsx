@@ -1,12 +1,21 @@
 import { Effect, Option } from "effect"
 import { useCallback, useEffect, useState } from "react"
-import type { About, Front, Opened, Standing as Stands, Starring, Touch } from "../domain/repoHome"
+import type {
+  About,
+  Front,
+  Opened,
+  Standing as Stands,
+  Starring,
+  Touch,
+  Welcome as Welcoming
+} from "../domain/repoHome"
 import { leadFor } from "../domain/repoHome"
 import type { Repository } from "../domain/repositories"
 import { mountSprite } from "./FileHeading"
 import { Branches, type LoadBranches } from "./Branches"
 import { ASIDE, PRESSABLE } from "./dress"
 import { GitHubHtml } from "./GitHubHtml"
+import { Markdown } from "./Markdown"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import type { Shelf } from "../app/shelf"
 import { Reading } from "./ReadingPane"
@@ -72,6 +81,15 @@ export type RepoHomeScreenProps = {
    * row under the pointer, so the usual press opens a file already in hand.
    */
   readonly shelf?: Shelf
+  /**
+   * The README's own text, so it is parsed here rather than taken as their HTML.
+   *
+   * Its own read and not part of `load`, for the reason every other read on this
+   * page is: the page is drawn from a payload already in the document, and this
+   * is a request behind it that replaces one block when it lands. Nothing waits
+   * for it, and a refusal leaves GitHub's rendering where it was.
+   */
+  readonly loadReadme?: (branch: string, path: string) => Effect.Effect<string, unknown>
   /** The file the address names, or nothing for the README. */
   readonly reading?: string | null
   /** A file was chosen in the tree. The address follows. */
@@ -215,13 +233,53 @@ const Beside = ({
 )
 
 /**
- * The README, as GitHub already rendered it.
+ * The README's own text, read once, with their rendering standing in until it lands.
  *
- * Inserted rather than parsed, by the same component that draws every other body
- * of theirs on every other screen. It arrives in the payload as HTML their own
- * server produced, and it is the largest thing on this page by an order of
- * magnitude — fifty-four kilobytes on a repository of ours, several hundred on a
- * popular one — so it is handed to the browser once and never touched again.
+ * A README is markdown, and every other markdown on this interface is parsed
+ * here. Taken as their HTML it wears their table, their headings and their code
+ * fences, which is a second interface inside this one on the page most readers
+ * meet first — and it is the page whose own tables are the product's vocabulary.
+ *
+ * Their rendering is what the first paint uses, because it is already in hand at
+ * no request and no wait. The source replaces it when it arrives, and stays away
+ * where the read was refused: a README in their chrome beats no README.
+ *
+ * Nothing is asked for where GitHub gave up rendering it. That is their word for
+ * a file too large for their own page, and the screen says so instead.
+ */
+const useSource = (
+  welcome: Welcoming,
+  branch: string,
+  load: RepoHomeScreenProps["loadReadme"]
+): string | undefined => {
+  const [source, setSource] = useState<string>()
+  const { path, timedOut } = welcome
+
+  useEffect(() => {
+    if (load === undefined || timedOut) return
+    let wanted = true
+
+    void Effect.runPromise(
+      load(branch, path).pipe(
+        Effect.match({
+          onSuccess: (text) => {
+            if (wanted) setSource(text)
+          },
+          onFailure: () => {}
+        })
+      )
+    )
+
+    return () => {
+      wanted = false
+    }
+  }, [load, branch, path, timedOut])
+
+  return source
+}
+
+/**
+ * The README.
  *
  * Held to a measure, which is the one thing on this page that is. Everywhere else
  * gitquiet takes the width of the window, because a row of file names and commit
@@ -238,25 +296,58 @@ const Beside = ({
  * README off the critical path: the browser lays out what is on the screen and
  * skips the rest until it is scrolled to.
  */
-const Welcome = ({ front }: { readonly front: Front }) =>
+const Readme = ({
+  welcome,
+  repo,
+  branch,
+  loadReadme
+}: {
+  readonly welcome: Welcoming
+  readonly repo: RepoHomeScreenProps["repo"]
+  readonly branch: string
+  readonly loadReadme: RepoHomeScreenProps["loadReadme"]
+}) => {
+  const source = useSource(welcome, branch, loadReadme)
+
+  return (
+    <section
+      aria-label="Readme"
+      className="max-w-4xl rounded-lg border border-line px-6 py-5 lg:col-start-1 lg:row-start-2"
+    >
+      <h2 className="mb-4 text-sm font-semibold text-ink-muted">{welcome.name}</h2>
+      {welcome.timedOut ? (
+        <p className="text-sm text-ink-muted">
+          GitHub could not render this README. It is too large for their own page as well.
+        </p>
+      ) : (
+        <div style={{ contentVisibility: "auto", containIntrinsicSize: "auto 1200px" }}>
+          {source === undefined ? (
+            <GitHubHtml html={welcome.html} />
+          ) : (
+            <Markdown markdown={source} owner={repo.owner} repo={repo.repo} />
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+const Welcome = ({
+  front,
+  loadReadme
+}: {
+  readonly front: Front
+  readonly loadReadme: RepoHomeScreenProps["loadReadme"]
+}) =>
   Option.match(front.welcome, {
     onNone: () => null,
     onSome: (welcome) => (
-      <section
-        aria-label="Readme"
-        className="max-w-4xl rounded-lg border border-line px-6 py-5 lg:col-start-1 lg:row-start-2"
-      >
-        <h2 className="mb-4 text-sm font-semibold text-ink-muted">{welcome.name}</h2>
-        {welcome.timedOut ? (
-          <p className="text-sm text-ink-muted">
-            GitHub could not render this README. It is too large for their own page as well.
-          </p>
-        ) : (
-          <div style={{ contentVisibility: "auto", containIntrinsicSize: "auto 1200px" }}>
-            <GitHubHtml html={welcome.html} />
-          </div>
-        )}
-      </section>
+      <Readme
+        welcome={welcome}
+        repo={front.repo}
+        branch={front.branch}
+        loadReadme={loadReadme}
+      />
     )
   })
 
@@ -356,15 +447,17 @@ const Paper = ({
   front,
   reading,
   opened,
+  loadReadme,
   onRead
 }: {
   readonly front: Front
   readonly reading: string | null
   readonly opened: Read
+  readonly loadReadme: RepoHomeScreenProps["loadReadme"]
   readonly onRead?: (path: string | null) => void
 }) =>
   reading === null ? (
-    <Welcome front={front} />
+    <Welcome front={front} loadReadme={loadReadme} />
   ) : (
     <Reading
       path={reading}
@@ -456,6 +549,7 @@ export const RepoHomeScreen = ({
   loadPaths,
   loadTouches,
   loadBranches,
+  loadReadme,
   shelf,
   reading = null,
   onRead
@@ -527,7 +621,13 @@ export const RepoHomeScreen = ({
           <Facts about={front.about} onStar={onStar} stands={stands} />
           {welcomeFirst ? (
             <>
-              <Paper front={front} reading={reading} opened={opened} onRead={onRead} />
+              <Paper
+                front={front}
+                reading={reading}
+                opened={opened}
+                loadReadme={loadReadme}
+                onRead={onRead}
+              />
               <Beside
                 front={front}
                 repo={repo}
@@ -553,7 +653,13 @@ export const RepoHomeScreen = ({
                 onOpen={(path) => onRead?.(path)}
                 onNear={warm}
               />
-              <Paper front={front} reading={reading} opened={opened} onRead={onRead} />
+              <Paper
+                front={front}
+                reading={reading}
+                opened={opened}
+                loadReadme={loadReadme}
+                onRead={onRead}
+              />
             </>
           )}
         </div>

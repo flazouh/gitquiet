@@ -3281,12 +3281,10 @@ export const layer = Layer.succeed(GitHubGateway, {
     /**
      * One file, for the pane where the README usually is.
      *
-     * Their page for it rather than the raw host, which is lighter and cannot be
-     * used: the raw host answers `Access-Control-Allow-Origin: *`, which a
-     * request carrying the reader's session is not allowed to accept, and
-     * without the session every file in a private repository is a 404. Their
-     * page costs more and is right everywhere, and it carries their rendering of
-     * a markdown file in the same answer.
+     * Their page for it rather than the raw host, and the extra weight buys one
+     * field: their rendering of a markdown file, which the pane offers as a tab
+     * beside the source. A caller that only wants the text wants
+     * {@link rawFileAt} instead, which is a hundredth of this.
      */
     fileAt: Effect.fn("GitHubGateway.fileAt")(function* (
       reference: RepoRef,
@@ -3300,6 +3298,50 @@ export const layer = Layer.succeed(GitHubGateway, {
         Effect.map((decoded) => openedFrom(decoded, path)),
         Effect.catch(undecodableFrom(reference, route))
       )
+    }),
+
+    /**
+     * One file as its own text, off their raw route.
+     *
+     * The route is on github.com and the answer is not: it redirects to the raw
+     * host, which allows any origin to read it. That is the whole arrangement,
+     * and it is the same one `log` above relies on. Credentials are left at
+     * their default deliberately — the session goes to github.com, which needs
+     * it to sign the redirect for a private repository, and is dropped at the
+     * redirect, which refuses a request that carries one.
+     *
+     * A branch with a slash in it is written whole, as `fileAt` writes it. Their
+     * route resolves the ambiguity between `feat/x` holding `README.md` and
+     * `feat` holding `x/README.md` against the refs that exist.
+     */
+    rawFileAt: Effect.fn("GitHubGateway.rawFileAt")(function* (
+      reference: RepoRef,
+      branch: string,
+      path: string
+    ) {
+      const route = `/raw/${branch}/${path.split("/").map(encodeURIComponent).join("/")}`
+      const url = `https://github.com/${reference.owner}/${reference.repo}${route}`
+
+      const response = yield* Effect.tryPromise({
+        try: () => fetch(url, { headers: { Accept: "text/plain" } }),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+      })
+
+      if (!response.ok) {
+        return yield* new GatewayError({
+          reference,
+          route,
+          reason: "rejected",
+          detail: `HTTP ${response.status}`
+        })
+      }
+
+      return yield* Effect.tryPromise({
+        try: () => response.text(),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
+      })
     }),
 
     treePaths: Effect.fn("GitHubGateway.treePaths")(function* (
@@ -3571,6 +3613,7 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     standing: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     treePaths: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     fileAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    rawFileAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     treeCommits: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     whoTouched: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     // No run recorded, and a failure rather than an empty one: a run with no jobs
@@ -3697,6 +3740,7 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     standing: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     treePaths: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     fileAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    rawFileAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     treeCommits: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     whoTouched: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     // No run recorded, and a failure rather than an empty one: a run with no jobs

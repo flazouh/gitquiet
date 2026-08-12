@@ -143,17 +143,23 @@ export type Entry = {
 }
 
 /**
- * The README, already rendered.
+ * The README: where to read it, and GitHub's rendering of it until it is read.
  *
- * GitHub renders it to HTML on the server and puts it in the payload the page
- * already carries, so this costs no request and no markdown parser. It is also
- * most of the payload — three hundred kilobytes of three hundred and thirty for a
- * well-documented repository — which is why nothing here reads it, measures it or
- * copies it. It arrives as a string and is handed to the screen as the same
- * string.
+ * Two forms, and the source is the one this interface draws. A README is markdown
+ * like a description and a comment are, and those are parsed here, so a README
+ * taken as GitHub's HTML is their table, their headings and their fences on the
+ * one page most readers meet first.
+ *
+ * Their rendering is kept because it is already in hand. It comes with the
+ * payload at no request and no wait, and it is most of that payload — three
+ * hundred kilobytes of three hundred and thirty for a well-documented repository
+ * — which is why nothing here reads it, measures it or copies it. It stands on
+ * the page while the source is read, and stays where the source cannot be.
  */
 export type Welcome = {
   readonly name: string
+  /** Where the file is, from the root, so the source can be asked for. */
+  readonly path: string
   readonly html: string
   /** True where GitHub gave up rendering it. The screen says so rather than showing a blank. */
   readonly timedOut: boolean

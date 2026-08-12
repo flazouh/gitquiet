@@ -221,7 +221,7 @@ const README = [
   "the notices for everything it vendors are in <a href=\"LICENSE.md\">LICENSE.md</a>.</p>"
 ].join("\n")
 
-const WELCOME: Welcome = { name: "README.md", html: README, timedOut: false }
+const WELCOME: Welcome = { name: "README.md", path: "README.md", html: README, timedOut: false }
 
 const ABOUT: About = {
   description: Option.some(

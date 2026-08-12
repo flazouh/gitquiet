@@ -6,6 +6,7 @@ import {
   loadRepoHome,
   loadFile,
   loadFolderTouches,
+  loadReadme,
   loadStanding,
   loadTreePaths,
   rememberedRepoHome,
@@ -164,6 +165,10 @@ const open = (home: RepoHome): Open => {
   const branches = (partly: (names: ReadonlyArray<string>) => void) =>
     loadBranches(home.repo, partly).pipe(throughGitHub)
 
+  /** The README's own text, which the screen parses in place of GitHub's HTML. */
+  const readme = (branch: string, path: string) =>
+    loadReadme(home.repo, branch, path).pipe(throughGitHub)
+
   /*
    * One shelf for this page, so a file read once is never read again and the
    * pointer resting on a row pays for the press that follows it.
@@ -204,6 +209,7 @@ const open = (home: RepoHome): Open => {
         loadPaths={paths}
         loadTouches={touches}
         loadBranches={branches}
+        loadReadme={readme}
         shelf={shelf}
         reading={showing}
         onRead={goTo}

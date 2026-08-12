@@ -457,6 +457,24 @@ export class GitHubGateway extends Context.Service<
     ) => Effect.Effect<Opened, GatewayError>
 
     /**
+     * One file as its own text, and nothing else.
+     *
+     * The same file {@link fileAt} answers with, at a hundredth of the cost:
+     * five kilobytes of markdown against the three hundred their page for it
+     * spends on a rendering, a symbol table and a layout. That is the whole
+     * reason it exists, and the reason the README on a front page can be parsed
+     * here rather than taken as their HTML.
+     *
+     * No rendering comes with it, so the caller must have a parser. The pane
+     * beside the tree wants their rendering as well and keeps to `fileAt`.
+     */
+    readonly rawFileAt: (
+      reference: RepoRef,
+      branch: string,
+      path: string
+    ) => Effect.Effect<string, GatewayError>
+
+    /**
      * Star a repository, or take the star back.
      *
      * Said as where the reader wants to end up rather than as a thing to do, so
