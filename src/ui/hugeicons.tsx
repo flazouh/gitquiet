@@ -3,7 +3,7 @@ import {
   Alert02Icon,
   Analytics01Icon,
   ArrowLeft01Icon,
-  ArrowMoveUpLeftIcon,
+  ArrowMoveUpRightIcon,
   ArrowRight01Icon,
   BoldIcon,
   Book02Icon,
@@ -104,6 +104,25 @@ const weight = (side: number): number =>
  * reader who is not looking at it gets nothing from a decoration — so the spinner carries its own
  * name, and a call site that has a better one still wins.
  */
+/**
+ * The same glyph, turned a quarter of the way round inside its own box.
+ *
+ * The turn is an attribute on the paths rather than a CSS `rotate`, and that is the whole reason
+ * this helper exists. The mark in a stack's gutter is grown from one corner of itself as it
+ * arrives — see `.t-stack-linking` in `stack.css` — and a rotation on the element would share
+ * `transform-origin` with that keyframe, so turning the glyph would swing it out of its own box.
+ * Inside the SVG the box does not move and the corner the animation grows from stays where it is.
+ *
+ * It earns itself on one glyph. Hugeicons draws `ArrowMoveUpLeft` with its head pointing west,
+ * which in a gutter is an arrow aimed past the row above at nothing; `ArrowMoveUpRight` turned
+ * anticlockwise ends with the head pointing up, at the row the arrow is about.
+ */
+const turned = (icon: typeof GitPullRequestIcon, degrees: number): typeof GitPullRequestIcon =>
+  icon.map(([tag, attrs]): [string, { [key: string]: string | number }] => [
+    tag,
+    { ...attrs, transform: `rotate(${degrees} 12 12)` }
+  ]);
+
 const from =
   (icon: typeof GitPullRequestIcon, extra?: string, named?: string): Art =>
   ({ size = 16, className, "aria-label": label }) => {
@@ -180,7 +199,7 @@ export const HUGEICONS: Set = {
   widen: from(SidebarRight01Icon),
   work: from(Briefcase01Icon),
   "your-move": from(ArrowRight01Icon),
-  "stacked-on": from(ArrowMoveUpLeftIcon),
+  "stacked-on": from(turned(ArrowMoveUpRightIcon, -90)),
   more: from(MoreHorizontalIcon),
   link: from(Link01Icon),
   attach: from(Attachment01Icon),
