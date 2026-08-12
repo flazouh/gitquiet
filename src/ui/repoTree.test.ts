@@ -108,6 +108,21 @@ describe("which rows the tree shows", () => {
     const [row] = shownOf({ entries: [entry("README.md")], opened: new Set(), hunting: "" })
     expect(Option.isNone(row?.touched ?? Option.none())).toBe(true)
   })
+
+  test("carries the last commit onto a nested row once that folder's column has landed", () => {
+    const nested = touch({ said: "The tree draws itself", url: "/o/r/commit/nested" })
+    const rows = shownOf({
+      entries: root,
+      whole: ["src/ui/RepoTree.tsx"],
+      opened: new Set(["src"]),
+      hunting: "",
+      touches: new Map([["src/ui", nested]])
+    })
+    const ui = rows.find((one) => one.path === "src/ui")
+
+    expect(Option.getOrNull(ui?.touched ?? Option.none())?.said).toBe("The tree draws itself")
+    expect(Option.getOrNull(ui?.touched ?? Option.none())?.url).toBe("/o/r/commit/nested")
+  })
 })
 
 /** A row of the tree, as the pointer's composed path holds it. */

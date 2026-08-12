@@ -1,6 +1,6 @@
 import { Effect, Option } from "effect"
 import { useCallback, useEffect, useState } from "react"
-import type { About, Front, Opened, Standing as Stands, Starring } from "../domain/repoHome"
+import type { About, Front, Opened, Standing as Stands, Starring, Touch } from "../domain/repoHome"
 import { leadFor } from "../domain/repoHome"
 import type { Repository } from "../domain/repositories"
 import { mountSprite } from "./FileHeading"
@@ -44,6 +44,16 @@ export type RepoHomeScreenProps = {
    * and the tree is drawn from it at once; this is the rest, and it arrives.
    */
   readonly loadPaths?: (sha: string) => Effect.Effect<ReadonlyArray<string>, unknown>
+  /**
+   * Last commits under one folder, for nested rows of the tree.
+   *
+   * Asked when a folder opens. The root column arrives with the page; this is
+   * one directory at a time, because that is how their route answers.
+   */
+  readonly loadTouches?: (
+    sha: string,
+    folder: string
+  ) => Effect.Effect<ReadonlyMap<string, Touch>, unknown>
   /**
    * Every branch, for the picker over the tree.
    *
@@ -91,6 +101,7 @@ const Files = ({
   front,
   repo,
   loadPaths,
+  loadTouches,
   loadBranches,
   reading,
   onOpen,
@@ -99,6 +110,7 @@ const Files = ({
   readonly front: Front
   readonly repo: RepoHomeScreenProps["repo"]
   readonly loadPaths?: RepoHomeScreenProps["loadPaths"]
+  readonly loadTouches?: RepoHomeScreenProps["loadTouches"]
   readonly loadBranches?: LoadBranches
   readonly reading: string | null
   readonly onOpen: (path: string) => void
@@ -146,6 +158,7 @@ const Files = ({
       branch={front.branch}
       head={front.head}
       loadPaths={loadPaths}
+      loadTouches={loadTouches}
       reading={reading}
       onOpen={onOpen}
       onNear={onNear}
@@ -165,6 +178,7 @@ const Beside = ({
   front,
   repo,
   loadPaths,
+  loadTouches,
   loadBranches,
   stands,
   reading,
@@ -174,6 +188,7 @@ const Beside = ({
   readonly front: Front
   readonly repo: RepoHomeScreenProps["repo"]
   readonly loadPaths?: RepoHomeScreenProps["loadPaths"]
+  readonly loadTouches?: RepoHomeScreenProps["loadTouches"]
   readonly loadBranches?: LoadBranches
   readonly stands: Stands | undefined
   readonly reading: string | null
@@ -186,6 +201,7 @@ const Beside = ({
       front={front}
       repo={repo}
       loadPaths={loadPaths}
+      loadTouches={loadTouches}
       loadBranches={loadBranches}
       reading={reading}
       onOpen={onOpen}
@@ -434,6 +450,7 @@ export const RepoHomeScreen = ({
   onStar,
   loadStanding,
   loadPaths,
+  loadTouches,
   loadBranches,
   shelf,
   reading = null,
@@ -511,6 +528,7 @@ export const RepoHomeScreen = ({
                 front={front}
                 repo={repo}
                 loadPaths={loadPaths}
+                loadTouches={loadTouches}
                 loadBranches={loadBranches}
                 stands={stands}
                 reading={reading}
@@ -524,6 +542,7 @@ export const RepoHomeScreen = ({
                 front={front}
                 repo={repo}
                 loadPaths={loadPaths}
+                loadTouches={loadTouches}
                 loadBranches={loadBranches}
                 stands={stands}
                 reading={reading}

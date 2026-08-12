@@ -71,6 +71,53 @@ describe("the commit column on a row", () => {
 
     expect(screen.getByLabelText("flazouh")).toBeTruthy()
   })
+
+  test("holds a face-sized slot before the author is known, so the message does not jump", () => {
+    showing()
+
+    const link = screen.getByRole("link", { name: /Say what this is for/ })
+    const slot = link.querySelector("span.h-4.w-4")
+    expect(slot).toBeTruthy()
+    expect(within(link).queryByLabelText("flazouh")).toBeNull()
+  })
+
+  test("puts the full message on the truncated words, so a hover can read them", () => {
+    showing({
+      entries: [
+        entry("README.md", {
+          touched: Option.some(touch({ said: "Say what this is for in full" }))
+        })
+      ]
+    })
+
+    const words = screen.getByText("Say what this is for in full")
+    expect(words.getAttribute("title")).toBe("Say what this is for in full")
+  })
+
+  test("paints today's age green, last week's amber, and older ages quieter", () => {
+    const now = new Date("2026-08-12T12:00:00Z")
+    const at = (name: string, iso: string, said: string) =>
+      entry(name, { touched: Option.some(touch({ at: iso, said })) })
+
+    showing({
+      entries: [
+        at("a.ts", "2026-08-12T10:00:00Z", "touched today"),
+        at("b.ts", "2026-08-09T12:00:00Z", "touched this week"),
+        at("c.ts", "2026-07-20T12:00:00Z", "touched this month"),
+        at("d.ts", "2026-05-01T12:00:00Z", "touched earlier")
+      ],
+      now
+    })
+
+    expect(screen.getByRole("link", { name: /touched today/ }).className).toContain("text-pass")
+    expect(screen.getByRole("link", { name: /touched this week/ }).className).toContain("text-busy")
+    expect(screen.getByRole("link", { name: /touched this month/ }).className.split(" ")).toContain(
+      "text-ink-muted"
+    )
+    expect(screen.getByRole("link", { name: /touched earlier/ }).className.split(" ")).toContain(
+      "text-ink-muted/50"
+    )
+  })
 })
 
 describe("opening a file and a folder", () => {
@@ -89,5 +136,24 @@ describe("opening a file and a folder", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "src" }))
     expect(await screen.findByRole("button", { name: "ui" })).toBeTruthy()
+  })
+
+  test("fills the last commit on a nested row after the folder is opened", async () => {
+    showing({
+      loadPaths: () => Effect.succeed(["src/ui/RepoTree.tsx", "README.md"]),
+      loadTouches: () =>
+        Effect.succeed(
+          new Map([
+            [
+              "src/ui",
+              touch({ said: "The tree draws itself", url: "/flowline-labs/flowline/commit/nested" })
+            ]
+          ])
+        )
+    })
+
+    await userEvent.click(screen.getByRole("button", { name: "src" }))
+    const link = await screen.findByRole("link", { name: /The tree draws itself/ })
+    expect(link.getAttribute("href")).toBe("/flowline-labs/flowline/commit/nested")
   })
 })

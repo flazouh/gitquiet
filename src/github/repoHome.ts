@@ -321,10 +321,13 @@ const whoFrom = (
   })
 }
 
-export const touchesFrom = (route: TreeCommitInfoRoute): ReadonlyMap<string, Touch> =>
+export const touchesFrom = (
+  route: TreeCommitInfoRoute,
+  folder = ""
+): ReadonlyMap<string, Touch> =>
   new Map(
     Object.entries(route.entries).map(([path, entry]) => [
-      path,
+      folder === "" ? path : `${folder}/${path}`,
       {
         at: entry.date,
         said: saidIn(entry.shortMessageHtmlLink),

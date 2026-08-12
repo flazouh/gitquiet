@@ -3233,16 +3233,20 @@ export const layer = Layer.succeed(GitHubGateway, {
 
     treeCommits: Effect.fn("GitHubGateway.treeCommits")(function* (
       reference: RepoRef,
-      sha: string
+      sha: string,
+      folder = ""
     ) {
-      const route = `/tree-commit-info/${sha}`
+      const route =
+        folder === ""
+          ? `/tree-commit-info/${sha}`
+          : `/tree-commit-info/${sha}/${folder.split("/").map(encodeURIComponent).join("/")}`
       const raw = yield* readRepoRoute(reference, route)
 
       // Not kept. A date is drawn identically whether it is a second or a day
       // old, and this arrives a quarter of a second after the rows it decorates,
       // so there is nothing for a stored copy to save.
       return yield* decodeTreeCommitInfo(raw).pipe(
-        Effect.map(touchesFrom),
+        Effect.map((decoded) => touchesFrom(decoded, folder)),
         Effect.catch(undecodableFrom(reference, route))
       )
     }),

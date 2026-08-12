@@ -117,6 +117,12 @@ describe("the commit column, read off their second route", () => {
     expect(Option.isSome(first?.oid ?? Option.none())).toBe(true)
   })
 
+  test("prefixes a folder's names, because that route answers relative to it", () => {
+    const nested = touchesFrom(Effect.runSync(decodeTreeCommitInfo(touches)), "src")
+    const [path] = nested.keys()
+    expect(path?.startsWith("src/")).toBe(true)
+  })
+
   test("leaves the author empty when the route did not name one", () => {
     expect([...read().values()].every((one) => Option.isNone(one.who))).toBe(true)
   })

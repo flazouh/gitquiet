@@ -471,10 +471,13 @@ export class GitHubGateway extends Context.Service<
      * one their own page spends here too: eight kilobytes and 234 milliseconds for
      * a repository of thirteen entries, measured. Asked about a commit rather than
      * a branch, so that a column drawn against one tree can never describe another.
+     * A folder below the root is a second ask of the same route, because it answers
+     * one directory at a time and names its children relative to it.
      */
     readonly treeCommits: (
       reference: RepoRef,
-      sha: string
+      sha: string,
+      folder?: string
     ) => Effect.Effect<ReadonlyMap<string, Touch>, GatewayError>
     /**
      * The front page as it was last read, without asking GitHub.

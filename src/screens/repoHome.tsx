@@ -5,6 +5,7 @@ import { forgetIntent, intendedPath } from "@/app/intent"
 import {
   loadRepoHome,
   loadFile,
+  loadFolderTouches,
   loadStanding,
   loadTreePaths,
   rememberedRepoHome,
@@ -153,6 +154,8 @@ const open = (home: RepoHome): Open => {
    */
   const standingOf = () => loadStanding(home.repo).pipe(throughGitHub)
   const paths = (sha: string) => loadTreePaths(home.repo, sha).pipe(throughGitHub)
+  const touches = (sha: string, folder: string) =>
+    loadFolderTouches(home.repo, sha, folder).pipe(throughGitHub)
 
   /** The branches, once the picker over the tree is opened and not before. */
   const branches = (partly: (names: ReadonlyArray<string>) => void) =>
@@ -196,6 +199,7 @@ const open = (home: RepoHome): Open => {
         onStar={(to) => starRepo(home.repo, to).pipe(throughGitHub)}
         loadStanding={standingOf}
         loadPaths={paths}
+        loadTouches={touches}
         loadBranches={branches}
         shelf={shelf}
         reading={showing}

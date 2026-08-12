@@ -47,6 +47,32 @@ const whoFrom = (detail: CommitDetail): TouchWho => ({
   face: detail.avatarUrl
 })
 
+const whoOf =
+  (
+    gateway: {
+      readonly rememberedCommit: (
+        repo: RepoRef,
+        sha: string
+      ) => Effect.Effect<Option.Option<CommitDetail>, unknown>
+      readonly commit: (
+        repo: RepoRef,
+        sha: string
+      ) => Effect.Effect<CommitDetail, unknown>
+    },
+    repo: RepoRef
+  ) =>
+  (sha: string) =>
+    gateway.rememberedCommit(repo, sha).pipe(
+      Effect.orElseSucceed(() => Option.none()),
+      Effect.flatMap((held) =>
+        Option.match(held, {
+          onNone: () => gateway.commit(repo, sha),
+          onSome: (detail) => Effect.succeed(detail)
+        })
+      ),
+      Effect.map(whoFrom)
+    )
+
 /**
  * Faces for the unique SHAs the column still has no author for.
  *
@@ -120,19 +146,28 @@ export const loadRepoHome = Effect.fn("loadRepoHome")(function* (
   const withTouches = { ...front, entries: touchedBy(front.entries, touches) }
   partly(withTouches)
 
-  const named = yield* fillWho(touches, (sha) =>
-    gateway.rememberedCommit(repo, sha).pipe(
-      Effect.orElseSucceed(() => Option.none()),
-      Effect.flatMap((held) =>
-        Option.match(held, {
-          onNone: () => gateway.commit(repo, sha),
-          onSome: (detail) => Effect.succeed(detail)
-        })
-      ),
-      Effect.map(whoFrom)
-    )
-  )
+  const named = yield* fillWho(touches, whoOf(gateway, repo))
   return { ...front, entries: touchedBy(front.entries, named) }
+})
+
+/**
+ * Last commits under one folder, for nested rows of the tree.
+ *
+ * The root column is the page's second request. A folder that opens is a third,
+ * because their route answers one directory at a time and names its children
+ * relative to it. Faces fill in the same way as the root: unique SHAs, after
+ * the messages are already on the rows.
+ */
+export const loadFolderTouches = Effect.fn("loadFolderTouches")(function* (
+  repo: RepoRef,
+  sha: string,
+  folder: string
+) {
+  const gateway = yield* GitHubGateway
+  const touches = yield* gateway
+    .treeCommits(repo, sha, folder)
+    .pipe(Effect.orElseSucceed((): ReadonlyMap<string, Touch> => new Map()))
+  return yield* fillWho(touches, whoOf(gateway, repo))
 })
 
 /**

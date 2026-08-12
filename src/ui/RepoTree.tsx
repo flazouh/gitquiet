@@ -8,7 +8,7 @@ import { mountSprite } from "./FileHeading"
 import { materialIcon } from "./fileIcon"
 import { useSettings } from "./useSettings"
 import { Who } from "./Who"
-import { ageOf, momentOf } from "./when"
+import { ageOf, freshnessOf, momentOf } from "./when"
 
 export type RepoTreeProps = {
   readonly entries: ReadonlyArray<Entry>
@@ -18,12 +18,25 @@ export type RepoTreeProps = {
   readonly head: string
   /** Every path in the repository. Absent until it lands, and absent if it fails. */
   readonly loadPaths?: (sha: string) => Effect.Effect<ReadonlyArray<string>, unknown>
+  /**
+   * Last commits under one folder, for the column beside nested rows.
+   *
+   * The root column is already on `entries`. This is asked when a folder opens,
+   * and again for each folder a hunt reveals, because their route answers one
+   * directory at a time.
+   */
+  readonly loadTouches?: (
+    sha: string,
+    folder: string
+  ) => Effect.Effect<ReadonlyMap<string, Touch>, unknown>
   /** A file was pressed. The pane beside the tree shows it. */
   readonly onOpen: (path: string) => void
   /** The pointer is resting on a file. Read it now, so the press costs nothing. */
   readonly onNear?: (path: string) => void
   /** The file that pane is showing, so the row for it is marked as chosen. */
   readonly reading: string | null
+  /** Frozen in tests, so a colour for "today" does not depend on the clock. */
+  readonly now?: Date
 }
 
 /**
@@ -78,6 +91,8 @@ export type ShownOf = {
   readonly whole?: ReadonlyArray<string>
   readonly opened: ReadonlySet<string>
   readonly hunting: string
+  /** Last commits for nested rows, keyed by path. Root rows already carry theirs. */
+  readonly touches?: ReadonlyMap<string, Touch>
 }
 
 const touchesOn = (entries: ReadonlyArray<Entry>): ReadonlyMap<string, Touch> => {
@@ -166,8 +181,17 @@ const hitBy = (
  * has landed; until then an opened folder shows no children, which is the same
  * bargain the commit column makes.
  */
-export const shownOf = ({ entries, whole, opened, hunting }: ShownOf): ReadonlyArray<Shown> => {
-  const touches = touchesOn(entries)
+export const shownOf = ({
+  entries,
+  whole,
+  opened,
+  hunting,
+  touches: extra
+}: ShownOf): ReadonlyArray<Shown> => {
+  const touches = new Map(touchesOn(entries))
+  if (extra !== undefined) {
+    for (const [path, touch] of extra) touches.set(path, touch)
+  }
   const hit = hitBy(hunting, entries, whole)
 
   const walk = (nodes: ReadonlyArray<Entry>, depth: number): Array<Shown> => {
@@ -245,7 +269,13 @@ const Mark = ({
   return <File size={16} className="shrink-0 text-ink-muted" />
 }
 
-const Commit = ({ touch }: { readonly touch: Option.Option<Touch> }) =>
+const Commit = ({
+  touch,
+  now
+}: {
+  readonly touch: Option.Option<Touch>
+  readonly now: Date
+}) =>
   Option.match(touch, {
     onNone: () => <span className="min-w-0" />,
     onSome: (one) => {
@@ -253,14 +283,18 @@ const Commit = ({ touch }: { readonly touch: Option.Option<Touch> }) =>
       return (
         <a
           href={one.url}
-          className="flex min-w-0 items-center gap-2 text-xs text-ink-muted no-underline hover:underline"
+          className={`flex min-w-0 items-center gap-2 text-xs no-underline hover:underline ${freshnessOf(one.at, now)}`}
         >
-          {who === undefined ? null : (
-            <Who login={who.login} src={Option.getOrUndefined(who.face)} size={16} />
-          )}
-          <span className="min-w-0 truncate">{one.said}</span>
+          <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center">
+            {who === undefined ? null : (
+              <Who login={who.login} src={Option.getOrUndefined(who.face)} size={16} />
+            )}
+          </span>
+          <span className="min-w-0 truncate" title={one.said}>
+            {one.said}
+          </span>
           <span className="shrink-0 tabular-nums" title={momentOf(one.at)}>
-            {ageOf(one.at)}
+            {ageOf(one.at, now)}
           </span>
         </a>
       )
@@ -286,9 +320,11 @@ export const RepoTree = ({
   entries,
   head,
   loadPaths,
+  loadTouches,
   onOpen,
   onNear,
-  reading
+  reading,
+  now = new Date()
 }: RepoTreeProps) => {
   const { settings } = useSettings()
   const icons = settings.tree.icons
@@ -297,6 +333,8 @@ export const RepoTree = ({
   const [whole, setWhole] = useState<ReadonlyArray<string> | undefined>(undefined)
   const [hunting, setHunting] = useState("")
   const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set())
+  const [extra, setExtra] = useState<ReadonlyMap<string, Touch>>(() => new Map())
+  const asked = useRef(new Set<string>())
 
   useEffect(() => {
     if (icons === "material") mountSprite(document)
@@ -323,9 +361,43 @@ export const RepoTree = ({
   }, [loadPaths, head])
 
   const rows = useMemo(
-    () => shownOf({ entries, whole, opened, hunting }),
-    [entries, whole, opened, hunting]
+    () => shownOf({ entries, whole, opened, hunting, touches: extra }),
+    [entries, whole, opened, hunting, extra]
   )
+
+  useEffect(() => {
+    asked.current = new Set()
+    setExtra(new Map())
+  }, [head])
+
+  useEffect(() => {
+    if (loadTouches === undefined) return
+    let watching = true
+
+    for (const row of rows) {
+      if (row.kind !== "directory" || !row.open) continue
+      if (asked.current.has(row.path)) continue
+      asked.current.add(row.path)
+
+      void Effect.runPromise(
+        loadTouches(head, row.path).pipe(
+          Effect.map((found) => {
+            if (!watching) return
+            setExtra((was) => {
+              const next = new Map(was)
+              for (const [path, touch] of found) next.set(path, touch)
+              return next
+            })
+          }),
+          Effect.catch(() => Effect.void)
+        )
+      )
+    }
+
+    return () => {
+      watching = false
+    }
+  }, [rows, loadTouches, head])
 
   const toggle = (path: string): void => {
     setOpened((was) => {
@@ -379,7 +451,7 @@ export const RepoTree = ({
                 <Mark path={row.path} kind={row.kind} icons={icons} />
                 <span className="min-w-0 truncate">{row.name}</span>
               </button>
-              <Commit touch={row.touched} />
+              <Commit touch={row.touched} now={now} />
             </div>
           )
         })}
