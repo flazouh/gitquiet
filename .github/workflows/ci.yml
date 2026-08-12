@@ -11,9 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The same bun the lockfile was written with, and the one the Railway
+      # builder installs, so a green run here means the same resolution there.
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version-file: .bun-version
 
       # The prepare script clones the Effect source for local research only,
       # so it is skipped here in favour of running wxt prepare directly.
