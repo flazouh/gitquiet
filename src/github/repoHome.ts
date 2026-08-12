@@ -285,12 +285,23 @@ export const frontFromKept = (
  *
  * There is no plain copy of it anywhere in the payload: the field is an `<a>` with
  * the issue and commit references already linked, and sometimes that anchor is
- * wrapped in an object with the string under `value`. Read with the same
- * unescaper the commit list uses rather than with a parser — this runs once per
- * row, and a thousand-entry repository would be a thousand throwaway documents.
+ * wrapped in an object with the string under `value`. The visible text is often
+ * cut with an ellipsis. The `title` on the same anchor is the full headline,
+ * then a blank line, then the body — so the first line of that is what a hover
+ * should say, and what this returns.
+ *
+ * Read with the same unescaper the commit list uses rather than with a parser —
+ * this runs once per row, and a thousand-entry repository would be a thousand
+ * throwaway documents.
  */
-const saidIn = (link: string | { readonly value: string } | null | undefined): string =>
-  link === null || link === undefined ? "" : plainText(typeof link === "string" ? link : link.value)
+const saidIn = (link: string | { readonly value: string } | null | undefined): string => {
+  if (link === null || link === undefined) return ""
+  const html = typeof link === "string" ? link : link.value
+  const titled = html.match(/\btitle="([^"]*)"/)
+  const headline = titled?.[1]?.split("\n")[0]
+  if (headline !== undefined && headline !== "") return plainText(headline)
+  return plainText(html)
+}
 
 /**
  * What last touched each path, ready to be written onto the tree.

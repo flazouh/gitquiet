@@ -107,6 +107,26 @@ describe("the commit column, read off their second route", () => {
     expect(said.every((one) => !one.includes("<a "))).toBe(true)
   })
 
+  test("keeps the full headline from the title, not the cut line inside the anchor", () => {
+    const cut = {
+      entries: {
+        ".sentrux": {
+          oid: "abc",
+          url: "/c/abc",
+          date: "2026-07-30T12:00:00Z",
+          shortMessageHtmlLink: {
+            value:
+              '<a title="Turn the last two contracts into ports, and delete the layer that excused them\n\nBoth contracts could only be excused as core." href="/c/abc">Turn the last two contracts into ports, and delete the layer that exc…</a>'
+          }
+        }
+      }
+    }
+    const [touch] = touchesFrom(Effect.runSync(decodeTreeCommitInfo(cut))).values()
+    expect(touch?.said).toBe(
+      "Turn the last two contracts into ports, and delete the layer that excused them"
+    )
+  })
+
   test("keeps the date, which is the half of this column nobody argues about", () => {
     const [first] = read().values()
     expect(Number.isNaN(Date.parse(first?.at ?? ""))).toBe(false)
