@@ -246,12 +246,24 @@ const refFor = (work: Work, ran: Ran): Ref | null => {
   return work.branch === null ? null : { kind: "branch", name: work.branch }
 }
 
+/**
+ * The file each of these workflows is, in the two spellings their sidebar really uses.
+ *
+ * Code scanning is GitHub's own and is listed under a folder rather than as a file, which is
+ * the only place a folder appears on that page. Everything else is a file somebody committed.
+ */
+const fileFor = (workflow: string): string =>
+  workflow === "CodeQL"
+    ? "github-code-scanning/codeql"
+    : `${workflow.toLowerCase().replaceAll(" ", "-")}.yml`
+
 const one = (work: Work, ran: Ran, title: string, minutes: number, ticket: number): Listed => {
   const run = `${18_700_000_000 + ticket}`
   return {
     run,
     url: `https://github.com/${REPO.owner}/${REPO.repo}/actions/runs/${run}`,
     workflow: ran.workflow,
+    file: fileFor(ran.workflow),
     number: `${9_400 + ticket}`,
     title,
     state: ran.state,

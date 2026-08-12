@@ -16,6 +16,7 @@ const listed = (
   run: `30${what.number}`,
   url: `/o/r/actions/runs/30${what.number}`,
   workflow: "ci",
+  file: "ci.yml",
   title: "fix(events): bound the in-memory queue by retained bytes",
   state: "succeeded" as CheckState,
   seconds: 228,

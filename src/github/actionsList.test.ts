@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
+import { curated } from "../domain/putAway"
 import { strandsIn } from "../domain/strand"
-import { runsOnPage } from "./actionsList"
+import { isKeptStrands, runsOnPage, workflowsOnPage } from "./actionsList"
 
 /*
  * `octo-org/octo-repo/actions` as GitHub served it on 2026-08-04: twenty-five runs over
@@ -138,6 +139,104 @@ describe("reading their list page", () => {
   })
 })
 
+/*
+ * The list of Workflows down the side of their own page, which this interface draws nowhere.
+ * It is read for one field their rows do not carry: the file each Workflow is. A row names a
+ * Workflow by its `name:` and by nothing else, and a `name:` is a line somebody edits.
+ */
+describe("reading the workflows their sidebar names", () => {
+  const workflows = workflowsOnPage(real)
+
+  test("finds every workflow on the page, and the file each one is", () => {
+    expect(workflows).toEqual([
+      { name: "ci", file: "ci.yml" },
+      { name: "CodeQL", file: "github-code-scanning/codeql" },
+      { name: "Copilot", file: "agents/copilot-pull-request-reviewer" },
+      { name: "Dependabot Updates", file: "dependabot/dependabot-updates" },
+      { name: "Live model smoke", file: "live-model.yml" },
+      { name: "release", file: "release-please.yml" },
+      { name: "release-cli", file: "release-cli.yml" },
+      { name: "tripwire-review", file: "tripwire-review.yml" }
+    ])
+  })
+
+  /*
+   * Eight Workflows named, two of them run: discussions
+   * [#12025](https://github.com/orgs/community/discussions/12025) and
+   * [#26256](https://github.com/orgs/community/discussions/26256) are about the other six, and
+   * a screen built out of Runs never draws them. The count is here so that stays measured.
+   */
+  test("names six workflows that nothing on the page ran", () => {
+    const ran = new Set(runs.map((one) => one.workflow))
+
+    expect(workflows).toHaveLength(8)
+    expect(workflows.filter((one) => !ran.has(one.name))).toHaveLength(6)
+  })
+
+  test("gives a run the file of the workflow that ran it", () => {
+    expect(runs[0]?.workflow).toBe("ci")
+    expect(runs[0]?.file).toBe("ci.yml")
+    expect(runs.find((one) => one.workflow === "CodeQL")?.file).toBe(
+      "github-code-scanning/codeql"
+    )
+  })
+
+  const named = (name: string, file: string) =>
+    `<li class="actions-workflow-list-item"><a href="/octo-org/octo-repo/actions/workflows/${file}"><span class="ActionListItem-label">${name}</span></a></li>`
+
+  const rowOf = (workflow: string) => `<div class="Box-row">
+    <a href="/octo-org/octo-repo/actions/runs/8478" aria-label="completed successfully:  Run 8478 of ${workflow}. a title">
+      <svg class="octicon" aria-label="completed successfully: "></svg>
+      <span class="markdown-title">a title</span>
+    </a>
+    <span><span>by <a data-hovercard-type="user" href="/flazouh">flazouh</a></span></span>
+    <a class="branch-name" title="main" href="/octo-org/octo-repo/tree/refs/heads/main">main</a>
+  </div>`
+
+  test("says nothing about the file where their sidebar names no such workflow", () => {
+    expect(runsOnPage(rowOf("Comment Cop"))[0]?.file).toBeNull()
+  })
+
+  /*
+   * Two files may carry one `name:`, and GitHub allows it. Their row names the name, so which
+   * of the two ran is not on the page, and a guess would put a Workflow away that the reader
+   * never pressed.
+   */
+  test("says nothing about the file where two workflows share one name", () => {
+    const both = `${named("build", "build.yml")}${named("build", "nightly.yml")}${rowOf("build")}`
+
+    expect(runsOnPage(both)[0]?.file).toBeNull()
+  })
+})
+
+/*
+ * The list as a previous visit left it in the store, which is what this screen paints while the
+ * live read is in the air.
+ */
+describe("what came back out of the store", () => {
+  const kept = strandsIn(runs)
+
+  test("is taken as it stands where it is the shape this version writes", () => {
+    expect(isKeptStrands(kept)).toBe(true)
+    expect(isKeptStrands([])).toBe(true)
+  })
+
+  /*
+   * An entry written before a Run carried the file of its Workflow. Put Away is keyed on that
+   * file, so a reader who put one away would watch it appear on the kept list and then go when
+   * the live read landed, which is one screen giving two answers about what is on it. Refusing
+   * the entry means the first paint waits, which is what a first visit does anyway.
+   */
+  test("is refused where a run in it was written before a workflow had a file", () => {
+    const older = kept.map((strand) => ({
+      ...strand,
+      runs: strand.runs.map(({ file: _file, ...rest }) => rest)
+    }))
+
+    expect(isKeptStrands(older)).toBe(false)
+  })
+})
+
 describe("what the list folds down to", () => {
   const strands = strandsIn(runs)
 
@@ -176,5 +275,26 @@ describe("what the list folds down to", () => {
 
   test("puts the strand that ran most recently first", () => {
     expect(strands[0]?.branch).toBe("alex/queue-byte-budget")
+  })
+
+  /*
+   * The same page with their code scanning put away, which is the curation their own Workflow
+   * filter offers for one page load and forgets.
+   *
+   * Four of the twenty-five Runs go, and all four were doing something worse than taking up a
+   * chip: their titles are "Code Quality: PR #1758" where the `ci` Runs of the same work are
+   * titled with the commit, so the fold read them as Runs against a commit the work had moved
+   * past and pull request 1758 reported "3 on earlier commits" about three Runs of its own head.
+   */
+  test("drops every run of a workflow the reader put away", () => {
+    const away = curated(strands, ["github-code-scanning/codeql"])
+    const of1758 = away.strands.find((one) => one.pullRequest === "1758")
+
+    expect(away.strands).toHaveLength(10)
+    expect(away.strands.reduce((running, one) => running + one.runs.length, 0)).toBe(21)
+    expect(away.away).toEqual([
+      { key: "github-code-scanning/codeql", workflow: "CodeQL", runs: 4 }
+    ])
+    expect(of1758?.earlier).toBe(0)
   })
 })

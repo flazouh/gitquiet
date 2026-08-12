@@ -1,7 +1,7 @@
 # Spec: Actions
 
-Status: draft-for-review. The run screen is specified. The list screen has a decided shape
-and no detail yet.
+Status: draft-for-review. The run screen is specified. The list screen has a decided shape, and
+Put Away is the first piece of its detail, specified and built.
 
 Covers two addresses: `/{owner}/{repo}/actions`, the run list, and
 `/{owner}/{repo}/actions/runs/{id}`, one run. The worked example throughout is
@@ -232,6 +232,9 @@ and the conclusion of the worst of them. A branch with a pull request shows the 
 Workflows the Participant has put away never appear, and putting one away is remembered.
 Detail is deferred to its own pass.
 
+The four threads were recounted on 2026-08-13: 884, 578, 419 and 400 upvotes, so 2,281
+between them and the same complaint.
+
 **And the unit is not quite the branch.** Read on 2026-08-04, the same page carried 25 rows
 over 12 refs, and every row names a ref: ten of them are `refs/heads/<branch>` and two are
 `refs/pull/<n>/head`, which is how a `pull_request_target` workflow is run. Both of those
@@ -282,13 +285,51 @@ arrive. Requiring a ref dropped all five silently. A Run whose row names a pull 
 to that pull request whether or not it names a ref, so the ref is a field that may be missing
 rather than a reason to drop a Run.
 
+### Put Away, as built
+
+A press on a Workflow's own chip takes every Run of that Workflow off this screen, and it stays
+off: the decision is kept in the settings record, per Participant and per repository, beside the
+repositories they pinned. Their own answer to the same request is the Workflow filter beside
+their rows, which holds one Workflow, applies to the list alone and is gone on the next page
+load.
+
+**The press is on the chip, not in a pane.** The chip is the one place on the screen where the
+reader is already looking at the Workflow they want gone. A pane listing every Workflow in the
+repository would be their sidebar built again, with the disagreement `ACTIONS` in
+`src/ui/place.ts` describes: two sets of controls on one page that do not agree about what is on
+the screen.
+
+**A Workflow is put away under its file, not under the word on the row.** A row names a
+Workflow by its `name:`, and a `name:` is a line somebody edits:
+[#26256](https://github.com/orgs/community/discussions/26256) is 419 readers whose Actions tab
+still names a Workflow they renamed. The file is on the page and not on the row. It is on the
+list of Workflows down the side, which this screen draws nowhere and now reads, at the cost of
+one more pass over the document already fetched and no second request. Where that list does not
+name the file, which is a Workflow past the first page of it or a `name:` two files share, the
+Workflow is put away under its name and the decision lasts as long as the name does.
+
+**The fold runs again; the rows are not hidden.** Every number on a Strand answers a question
+about which Runs are on the screen: which commit is the head, how many Runs stand against it,
+how many attempts were superseded, and what the work came to. A Strand keeping a standing worked
+out from a Run nobody can see would be this page's own fault, drawn by us. Read against the
+worked page, putting their code scanning away takes four Runs off and corrects a count as well:
+those four are titled "Code Quality: PR #1758" where the `ci` Runs of the same work are titled
+with the commit, so the fold had read them as Runs against a commit the work had moved past, and
+pull request 1758 reported "3 on earlier commits" about three Runs of its own head.
+
+**What is away is named above the rows.** Each Workflow that is away is a press that brings it
+back, with the count of Runs of this page it is holding. A decision that is remembered and not
+visible is a screen quietly keeping something back, and a Workflow put away weeks ago has no
+Run left on the page to be found from.
+
 ### What the list screen does not do yet
 
 Their sidebar of Workflows is a filter, and this screen groups instead, so
-`/actions/workflows/ci.yml` stays GitHub's until this screen can filter. Their paging is
-theirs too: this reads the first page, which is the page their Actions tab opens with. Put Away
-is specified above and not built, and it is the piece that needs the list screen to exist
-before it means anything.
+`/actions/workflows/ci.yml` stays GitHub's until this screen can filter. Their paging is theirs
+too: this reads the first page, which is the page their Actions tab opens with. Put Away holds
+for one repository at a time. "Stop showing me CodeQL forever" wants it across all of them, and
+that is a second decision rather than the same one written wider, because `ci.yml` is a
+different file in each of the hundreds of repositories a reader has.
 
 ## Implementation Decisions
 
@@ -343,6 +384,46 @@ table falls through to `failure`, so every one of the worked run's ten notices w
 failure and drawn in the failure colour. Ranking then had nothing to sort by, and a notice
 about `Schema.Finite` sat above a real deprecation warning. Both spellings are read now.
 
+### What the list page carries about a Workflow, and what it does not
+
+Three findings, all read off `tests/fixtures/actionsList.html`, which is
+`octo-org/octo-repo/actions` as GitHub served it on 2026-08-04, 191KB of it kept.
+
+**A row names a Workflow and never its file.** The only Workflow name on a row is in the
+`aria-label` their row prints for a screen reader, "Run 9857 of ci.", which is the `name:` inside
+the file. The row's own menu offers "View workflow file" as `/actions/runs/{id}/workflow`, which
+is a redirect and not a path. The file is on the page once, in the list of Workflows beside the
+rows: `<li class="actions-workflow-list-item">` with a link to `/actions/workflows/ci.yml` and
+the display name as its label. So the mapping from the word on a row to the file it came from is
+one more pass over the same document. `workflowsOnPage` in `src/github/actionsList.ts` reads it,
+and a `name:` held by two files answers with no file rather than with the first of them.
+
+**Nothing on the page says a Workflow is reusable.** A reusable Workflow is called with
+`workflow_call` and runs as Jobs inside the Run of the Workflow that called it, so it has no Run
+of its own and never a row here. The words `workflow_call`, `workflow_dispatch` and `reusable`
+appear nowhere in the 191KB document: the trigger their row prints is the event that set the Run
+off, "synchronize" or "push", and a Workflow's own triggers are on the Workflow's page and in the
+file. Telling a reusable Workflow from a runnable one therefore costs a fetch per Workflow, and
+it buys nothing here, because
+[#12025](https://github.com/orgs/community/discussions/12025) is about their sidebar and this
+screen has none. Their list names eight Workflows on the worked page and two of the eight have a
+Run on it. A screen made of Runs draws the other six nowhere, reusable or dead or merely quiet,
+which is that thread and
+[#26256](https://github.com/orgs/community/discussions/26256) answered by the shape of the
+screen. Put Away is for the Workflow that does run and is still not wanted.
+
+**The folders those two threads want cannot exist.** GitHub's own documentation, on reusing
+workflows: "Subdirectories of the `workflows` directory are not supported."
+([docs.github.com](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows))
+A Workflow in `.github/workflows/deploy/staging.yml` is not registered and does not run, so there
+is no folder structure in any working repository to group Workflows by, on this page or on any
+other. That is [#15935](https://github.com/orgs/community/discussions/15935) and
+[#11831](https://github.com/orgs/community/discussions/11831), 978 upvotes between them, asking
+GitHub for something GitHub refuses, and nothing this extension reads can supply it. The only
+folder on the page is GitHub's own: `github-code-scanning/codeql`,
+`dependabot/dependabot-updates` and `agents/copilot-pull-request-reviewer` are Workflows nobody
+committed, and their paths are slugs with a folder on the front.
+
 ### The Run screen and their router
 
 A Run stands inside `turbo-frame#repo-content-turbo-frame`, which is different from every
@@ -377,6 +458,10 @@ against a running job, a running run refreshes on a timer and says so.
   first line of code, per the Language section of `CONTEXT.md`.
 - **Runs with no pull request and no branch.** A `merge_group` run showed on the list with an
   empty branch cell. Grouping by branch needs a home for those.
+- **Putting a Workflow away everywhere.** The Problem Statement above says "stop showing me
+  CodeQL forever", and Put Away holds for one repository. GitHub's own managed Workflows are the
+  case for a decision that crosses repositories, because `github-code-scanning/codeql` is that
+  same slug in every repository that has it, where `ci.yml` is a different file in each one.
 - **Attempts.** `navigation_partial` takes `?attempt=1` and the page has a "viewingCurrent"
   flag, so re-runs are addressable. Whether the run screen shows attempts as a switch or as
   history is undecided.
@@ -402,6 +487,10 @@ from GitHub's own community discussions, Actions category, sorted by top.
 | Lazy-load treadmill defeats "jump to the end" | Hacker News, under GitHub's engineering post |
 | Log line numbers come along on copy | GitHub's own survey answers |
 | Matrix results unreadable past three fields | GitHub's own survey answers |
+| Subdirectories of `.github/workflows` are not supported | GitHub's own documentation, on reusing workflows |
+| Their sidebar names 8 Workflows, 2 of which have a run on the page | measured, `octo-repo`, 2026-08-04 |
+| No Workflow trigger anywhere in the list page: no `workflow_call`, no `workflow_dispatch` | measured, the same 191KB document |
+| 4 CodeQL runs of two pull requests read as runs against an earlier commit, because their titles are not the commit's | measured, the same page |
 | 25 rows on the first screen describe 5 pull requests | measured, `octo-repo`, 2026-08-04 |
 | 14 of 25 runs on the first screen are bot-triggered | measured, `octo-repo` |
 | Two rows for one commit carry unrelated titles | measured, `octo-repo`, `ci` versus `CodeQL` |

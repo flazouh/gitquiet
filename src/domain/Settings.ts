@@ -481,11 +481,39 @@ export type Settings = {
    * is the reader's own answer to which repository they look at first.
    */
   readonly pinned: ReadonlyArray<string>
+  /**
+   * The Workflows a reader put away, as `owner/repo:workflow`, in the order they put them away.
+   *
+   * A list rather than a knob for the reason the pins are one: how many Workflows a repository
+   * runs is theirs to decide. Scoped to a repository because a Workflow is a file in one, and
+   * `ci.yml` is a different file in each of the hundreds a reader has. The Workflow is its file
+   * where their page named one and its own `name:` where it did not, which is `putAwayKey` in
+   * `src/domain/putAway.ts`.
+   *
+   * Four discussions on GitHub's own board ask for this, and 1,303 votes of the four are the
+   * two it answers: 884 on marking a Workflow so it stops appearing, and 419 on hiding an old
+   * or renamed one. Their own filters do it for one page load; this is remembered.
+   */
+  readonly putAway: ReadonlyArray<string>
 }
 
 /** Whether a stored value is an address this interface could actually draw. */
 const isAddress = (value: unknown): value is string =>
   typeof value === "string" && /^[^/\s]+\/[^/\s]+$/.test(value)
+
+/**
+ * Whether a stored entry still names one Workflow of one repository.
+ *
+ * The first colon and not every colon: a Workflow's own `name:` may carry one, and "Code
+ * Quality: PR" is a real name off `octo-repo`. A repository address cannot, so the first is
+ * always the one that divides the two halves.
+ */
+const isPutAway = (value: unknown): value is string => {
+  if (typeof value !== "string") return false
+
+  const divide = value.indexOf(":")
+  return divide > 0 && isAddress(value.slice(0, divide)) && divide < value.length - 1
+}
 
 const fallbacks = <Knobs extends ReadonlyArray<Knob<string, string>>>(
   knobs: Knobs,
@@ -501,6 +529,7 @@ export const DEFAULTS: Settings = {
   tree: fallbacks(TREE_KNOBS),
   home: fallbacks(HOME_KNOBS),
   pinned: [],
+  putAway: [],
 }
 
 const readGroup = <Knobs extends ReadonlyArray<Knob<string, string>>>(
@@ -543,6 +572,11 @@ export const readSettings = (stored: unknown): Settings => {
     // number or an object in it, and the row drawn from that is a link to nowhere.
     pinned: Array.isArray(held["pinned"])
       ? [...new Set(held["pinned"].filter(isAddress))]
+      : [],
+    // Item by item as well, and for the same reason: an entry that has lost its repository
+    // would hide a Workflow of that name in every repository the reader opens.
+    putAway: Array.isArray(held["putAway"])
+      ? [...new Set(held["putAway"].filter(isPutAway))]
       : [],
   }
 }

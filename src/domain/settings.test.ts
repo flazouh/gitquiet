@@ -200,3 +200,48 @@ describe("the repositories a reader pinned", () => {
     ])
   })
 })
+
+/**
+ * The Workflows a reader put away, which is the second field here that is not a knob.
+ *
+ * A list for the reason the pins are one: the number of Workflows a repository has is theirs
+ * and not ours. Each entry names the repository as well as the Workflow, because `ci.yml` is a
+ * different file in every repository and one reader has hundreds of them.
+ */
+describe("the workflows a reader put away", () => {
+  it("starts empty, because putting one away is something somebody did", () => {
+    expect(readSettings({}).putAway).toEqual([])
+  })
+
+  it("keeps the repository and the workflow together", () => {
+    expect(
+      readSettings({ putAway: ["octo-org/octo-repo:github-code-scanning/codeql"] }).putAway
+    ).toEqual(["octo-org/octo-repo:github-code-scanning/codeql"])
+  })
+
+  /*
+   * A Workflow their sidebar did not name is put away under its own `name:`, and a `name:` may
+   * carry a colon: "Code Quality: PR" is a real one off `octo-repo`. So the repository is
+   * everything up to the first colon and the Workflow is the whole of the rest, never a split
+   * on every colon.
+   */
+  it("keeps a workflow whose own name carries a colon", () => {
+    expect(readSettings({ putAway: ["octo-org/octo-repo:Code Quality: PR"] }).putAway).toEqual([
+      "octo-org/octo-repo:Code Quality: PR"
+    ])
+  })
+
+  it("drops an entry that names no repository, or no workflow", () => {
+    expect(
+      readSettings({
+        putAway: ["ci.yml", "octo-org/octo-repo:", ":ci.yml", 4, null, {}, ""]
+      }).putAway
+    ).toEqual([])
+  })
+
+  it("holds one workflow of one repository once, however it was written", () => {
+    expect(
+      readSettings({ putAway: ["octo-org/octo-repo:ci.yml", "octo-org/octo-repo:ci.yml"] }).putAway
+    ).toEqual(["octo-org/octo-repo:ci.yml"])
+  })
+})

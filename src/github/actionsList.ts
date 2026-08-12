@@ -17,7 +17,7 @@
  * title as often as the workflow. Measured against `tests/fixtures/actionsList.html`.
  */
 
-import type { Listed, Strand } from "../domain/strand"
+import type { Listed, Strand, Workflow } from "../domain/strand"
 import { refIn } from "../domain/strand"
 import { secondsIn, stateOf, text } from "./outcome"
 
@@ -25,6 +25,31 @@ import { secondsIn, stateOf, text } from "./outcome"
 const SAID = /Run\s+(\d+)\s+of\s+(.+?)\.\s/
 
 const RUN = /\/actions\/runs\/(\d+)/
+
+const FILE = /\/actions\/workflows\/(.+)$/
+
+const parse = (html: string): Document => new DOMParser().parseFromString(html, "text/html")
+
+const workflowsIn = (page: Document): ReadonlyArray<Workflow> =>
+  [...page.querySelectorAll(".actions-workflow-list-item a[href]")].flatMap((link) => {
+    const file = FILE.exec(link.getAttribute("href") ?? "")?.[1] ?? ""
+    const name = text(link.querySelector(".ActionListItem-label") ?? link)
+    return file === "" || name === "" ? [] : [{ name, file }]
+  })
+
+/**
+ * Which file each Workflow name belongs to, for the names that answer to one file only.
+ *
+ * Two files may carry one `name:` and GitHub lists both, so a name held twice answers with
+ * nothing rather than with the first of them. A row names the name and never the file, so
+ * choosing between two candidates would be a guess, and what it decides is which Workflow a
+ * reader's Put Away holds, which is the wrong kind of thing to guess at.
+ */
+const filesIn = (workflows: ReadonlyArray<Workflow>): ReadonlyMap<string, string | null> => {
+  const held = new Map<string, string | null>()
+  for (const one of workflows) held.set(one.name, held.has(one.name) ? null : one.file)
+  return held
+}
 
 /**
  * What set the run off, out of the sentence their row prints about it.
@@ -43,7 +68,10 @@ const triggerIn = (holder: Element | null | undefined, actor: string): string =>
   return named.replace(/\bby\s*$/, "").trim()
 }
 
-const rowIn = (row: Element): ReadonlyArray<Listed> => {
+const rowIn = (
+  row: Element,
+  files: ReadonlyMap<string, string | null>
+): ReadonlyArray<Listed> => {
   const link = row.querySelector('a[href*="/actions/runs/"]')
   const url = link?.getAttribute("href") ?? ""
   const label = link?.getAttribute("aria-label") ?? ""
@@ -74,11 +102,14 @@ const rowIn = (row: Element): ReadonlyArray<Listed> => {
    */
   const icon = link?.querySelector("svg[aria-label]")?.getAttribute("aria-label") ?? ""
 
+  const workflow = said[2] ?? ""
+
   return [
     {
       run,
       url,
-      workflow: said[2] ?? "",
+      workflow,
+      file: files.get(workflow) ?? null,
       number: said[1] ?? "",
       title: text(row.querySelector(".markdown-title")),
       state: stateOf(icon),
@@ -100,9 +131,26 @@ const rowIn = (row: Element): ReadonlyArray<Listed> => {
  * Strand and a re-sort here would make that a second opinion.
  */
 export const runsOnPage = (html: string): ReadonlyArray<Listed> => {
-  const page = new DOMParser().parseFromString(html, "text/html")
-  return [...page.querySelectorAll(".Box-row")].flatMap(rowIn)
+  const page = parse(html)
+  const files = filesIn(workflowsIn(page))
+  return [...page.querySelectorAll(".Box-row")].flatMap((row) => rowIn(row, files))
 }
+
+/**
+ * Every Workflow the list down the side of their page names, in their order.
+ *
+ * Read out of the same document as the rows, at the cost of one more pass over it and no
+ * second request. Their list of Workflows is a filter and this screen groups, so it is drawn
+ * nowhere, which `ACTIONS` in `src/ui/place.ts` argues. It is still the only place on the page
+ * that says which file a Workflow is, and a Run's row is labelled with a `name:` that anybody
+ * can edit in a commit.
+ *
+ * The first page of it, which is what their own sidebar shows: past twenty or so Workflows
+ * they hide the rest behind a "Show more workflows" press that fetches
+ * `/actions/workflows_partial`. Not followed. A Run of a Workflow that far down the list comes
+ * back with no file and is named by its `name:`, which is what a reader sees anyway.
+ */
+export const workflowsOnPage = (html: string): ReadonlyArray<Workflow> => workflowsIn(parse(html))
 
 /**
  * Whether what came back out of the store is still the shape that went in.
@@ -116,12 +164,24 @@ export const isKeptStrands = (value: unknown): value is ReadonlyArray<Strand> =>
   if (value.length === 0) return true
 
   const one: Partial<Strand> = value[0]
-  return (
-    typeof one === "object" &&
-    one !== null &&
-    typeof one.head === "string" &&
-    typeof one.state === "string" &&
-    Array.isArray(one.latest) &&
-    Array.isArray(one.runs)
-  )
+  if (
+    typeof one !== "object" ||
+    one === null ||
+    typeof one.head !== "string" ||
+    typeof one.state !== "string" ||
+    !Array.isArray(one.latest) ||
+    !Array.isArray(one.runs)
+  ) {
+    return false
+  }
+
+  /*
+   * One Run's own fields as well as the Strand's, because the field a Run gained is the one Put
+   * Away is keyed on. An entry written before it would paint a Workflow the reader put away, and
+   * then lose it when the live read landed a moment later, which is one screen giving two
+   * answers about what is on it. Refused instead, and the first paint waits: that is what a
+   * first visit to a repository does anyway.
+   */
+  const run: Partial<Listed> | undefined = one.runs[0]
+  return run !== undefined && (typeof run.file === "string" || run.file === null)
 }

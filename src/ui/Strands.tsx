@@ -44,23 +44,53 @@ const explains = (strand: Strand): Listed | undefined =>
  * The workflow's name and how it went, because that is what the row cannot say once several
  * Runs are folded into it: a `ci` run and a `CodeQL` run of one commit are two outcomes and
  * the reader needs to see which of them is the red one.
+ *
+ * Where the screen can remember it, the chip carries the press that puts the Workflow away.
+ * Here because this is the one place on the screen where a reader is already looking at the
+ * Workflow they want gone: a pane of every Workflow in the repository would be their sidebar
+ * built again, and `ACTIONS` in `src/ui/place.ts` says why this screen does not have one.
  */
-const OfHead = ({ run }: { readonly run: Listed }) => {
+const OfHead = ({
+  run,
+  onPutAway
+}: {
+  readonly run: Listed
+  readonly onPutAway?: (run: Listed) => void
+}) => {
   const art = useArt()
   const Mark = checkArt(art, run.state)
+  const Away = art.close
 
   return (
-    <a
-      className={`${CHIP} flex shrink-0 items-center gap-1.5 no-underline hover:bg-hover`}
-      href={run.url}
-      title={`${run.workflow} ${WORD_OF[run.state].toLowerCase()}, run #${run.number}`}
-    >
-      <Mark size={12} aria-hidden="true" className={CHECK_TONE[run.state]} />
-      <span className="max-w-[10rem] truncate text-ink">{run.workflow}</span>
-      {run.seconds === 0 ? null : (
-        <span className="tabular-nums text-ink-muted">{said(run.seconds)}</span>
+    <span className="flex shrink-0 items-center gap-0.5">
+      <a
+        className={`${CHIP} flex shrink-0 items-center gap-1.5 no-underline hover:bg-hover`}
+        href={run.url}
+        title={`${run.workflow} ${WORD_OF[run.state].toLowerCase()}, run #${run.number}`}
+      >
+        <Mark size={12} aria-hidden="true" className={CHECK_TONE[run.state]} />
+        <span className="max-w-[10rem] truncate text-ink">{run.workflow}</span>
+        {run.seconds === 0 ? null : (
+          <span className="tabular-nums text-ink-muted">{said(run.seconds)}</span>
+        )}
+      </a>
+      {onPutAway === undefined ? null : (
+        <button
+          type="button"
+          onClick={() => onPutAway(run)}
+          aria-label={`Put ${run.workflow} away`}
+          title={`Put ${run.workflow} away in this repository, until you bring it back`}
+          /*
+           * Always drawn and dim until it is pointed at, which is the trade the Rail's pin
+           * settled: "row actions only appear on hover" is its own complaint in their threads,
+           * and a full-strength cross beside every chip would read as a warning about each one.
+           */
+          className="grid size-5 shrink-0 place-items-center rounded text-ink-muted opacity-50 hover:bg-hover hover:opacity-100"
+        >
+          <Away size={12} />
+        </button>
       )}
-    </a>
+    </span>
   )
 }
 
@@ -72,7 +102,15 @@ const OfHead = ({ run }: { readonly run: Listed }) => {
  * earlier. Neither is the standing of the head, and drawing either as a chip beside the one
  * that is puts two answers to one question on the row.
  */
-const Row = ({ strand, repo }: { readonly strand: Strand; readonly repo: RepoRef }) => {
+const Row = ({
+  strand,
+  repo,
+  onPutAway
+}: {
+  readonly strand: Strand
+  readonly repo: RepoRef
+  readonly onPutAway?: (run: Listed) => void
+}) => {
   const art = useArt()
   const Mark = checkArt(art, strand.state)
   const opens = explains(strand)
@@ -130,7 +168,7 @@ const Row = ({ strand, repo }: { readonly strand: Strand; readonly repo: RepoRef
           )}
 
           {strand.latest.map((run) => (
-            <OfHead key={run.run} run={run} />
+            <OfHead key={run.run} run={run} onPutAway={onPutAway} />
           ))}
 
           {strand.superseded === 0 ? null : (
@@ -157,10 +195,13 @@ const Row = ({ strand, repo }: { readonly strand: Strand; readonly repo: RepoRef
  */
 export const Strands = ({
   strands,
-  repo
+  repo,
+  onPutAway
 }: {
   readonly strands: ReadonlyArray<Strand>
   readonly repo: RepoRef
+  /** Puts one Run's Workflow away. Left out where there is nowhere to remember the decision. */
+  readonly onPutAway?: (run: Listed) => void
 }) => {
   if (strands.length === 0) {
     return (
@@ -180,7 +221,7 @@ export const Strands = ({
           key={`${strand.pullRequest ?? ""}:${strand.branch ?? ""}`}
           className="border-t border-line-muted first:border-t-0"
         >
-          <Row strand={strand} repo={repo} />
+          <Row strand={strand} repo={repo} onPutAway={onPutAway} />
         </div>
       ))}
     </section>
