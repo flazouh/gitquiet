@@ -373,6 +373,109 @@ describe("what the home place is allowed to match", () => {
 });
 
 /**
+ * A repository's front page with a branch banner on it, down to the parts a band has
+ * to match.
+ *
+ * The chain is copied from a live repository, where the code view app is a child of
+ * the pjax container rather than the other way round, and the banner sits four boxes
+ * inside that app in `OverviewHeader`. The banner's own markup is the shipped
+ * component's, read out of the code view bundle rather than off the screen: the
+ * banner is drawn for a branch pushed within the hour, and no repository this account
+ * can push to had one while this was written.
+ *
+ * `RecentlyTouchedBranches` renders one warning Flash per branch — an icon, a link to
+ * the branch, the words "had recent pushes", and the button that offers to open the
+ * pull request. The hash on the class is the one that shipped in
+ * `60092.e749e6cc81e0f69e.module.css`, and it is an argument here because a band that
+ * needed that exact hash would stop matching on GitHub's next deploy.
+ */
+const repoHome = (hash = "reMRu"): Document => {
+  const page = document.implementation.createHTMLDocument("github");
+  page.body.innerHTML = `
+    <div class="application-main">
+      <main id="js-repo-pjax-container">
+        <div id="repository-container-header"></div>
+        <turbo-frame id="repo-content-turbo-frame">
+          <div id="repo-content-pjax-container" class="repository-content">
+            <react-app app-name="code-view" class="loaded">
+              <div data-target="react-app.reactRoot">
+                <div class="prc-PageLayout-PageLayoutContent-BneH9">
+                  <div id="repos-split-pane-content" class="SharedPageLayout-module__content__IwGAp">
+                    <div class="OverviewContent-module__Box__PF75K">
+                      <div class="OverviewHeader-module__Box__cC1RH">
+                        <div class="flash flash-warn RecentlyTouchedBranches-module__Flash__${hash}">
+                          <div class="RecentlyTouchedBranches-module__Box__d6v2n">
+                            <a class="text-bold" href="/facebook/react/tree/fix">fix</a>
+                            had recent pushes 4 minutes ago
+                          </div>
+                          <a class="prc-Button-ButtonBase-c50BI" href="/facebook/react/compare/fix?expand=1">Compare &amp; pull request</a>
+                        </div>
+                      </div>
+                      <div>their file list and README</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </react-app>
+          </div>
+        </turbo-frame>
+      </main>
+    </div>`;
+  return page;
+};
+
+/** Whatever a place's bands find on a page, which is what a gate rule would hide. */
+const banded = (page: Document, place: Place): ReadonlyArray<Element> =>
+  place.bands.flatMap((band) => [...page.querySelectorAll(band)]);
+
+/**
+ * The banner GitHub draws above a repository's files when a branch was pushed to in
+ * the last hour, which 407 readers asked to be able to switch off for branches they
+ * do not care about.
+ */
+describe("the branch banner on a repository's front page", () => {
+  test("is named by the repository front page's bands", () => {
+    const page = repoHome();
+
+    const found = banded(page, REPO_HOME);
+
+    expect(found).toHaveLength(1);
+    expect(found[0]?.textContent).toContain("had recent pushes");
+  });
+
+  test("and the button offering the pull request goes with it", () => {
+    // Inside the Flash rather than beside it, so the row is one element to hide and
+    // not two. A band that took only the sentence would leave the button standing.
+    const page = repoHome();
+
+    expect(banded(page, REPO_HOME)[0]?.textContent).toContain(
+      "Compare & pull request",
+    );
+  });
+
+  test("and is found again when the deploy hash on the class changes", () => {
+    // The whole reason the band names a fragment: `RecentlyTouchedBranches-module__
+    // Flash__reMRu` is that deploy's class, and next week's is the same name with
+    // five other characters on the end.
+    const page = repoHome("Qk3Zt");
+
+    expect(banded(page, REPO_HOME)[0]?.textContent).toContain(
+      "had recent pushes",
+    );
+  });
+
+  test("and matches nothing on the other pages this extension stands on", () => {
+    // These rules are switched on at the press, while the page being left is still
+    // the page on the screen, so a band true anywhere else takes a piece of a page
+    // somebody is still reading.
+    for (const page of [dashboard(), home(), feed()]) {
+      for (const band of REPO_HOME.bands)
+        expect(page.querySelector(band)).toBeNull();
+    }
+  });
+});
+
+/**
  * A reader moving from the Working Set to a pull request, which is the case that
  * wedged a real tab.
  *
