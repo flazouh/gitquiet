@@ -179,6 +179,117 @@ describe("what the gateway sends to GitHub", () => {
     }
   })
 
+  /**
+   * The one thing their pull request payload cannot say, and the one read it
+   * costs to find out.
+   *
+   * `status_checks` reports a job carrying `continue-on-error: true` as
+   * `FAILURE` like any other, and the only place the tolerance is written is the
+   * run: GitHub concluded run 31641974931 of `flazouh/ghpro-scratch` a success
+   * with a failing job in it. So the run behind a failing check is read, once per
+   * run rather than once per check, and a green run makes its failures tolerated.
+   */
+  describe("a check the run around it carried on past", () => {
+    const RUN = "30143307647"
+    const tolerated = [
+      "Code OSS / Compile & Hygiene (pull_request)",
+      "Code OSS / Copilot - Check Telemetry (pull_request)"
+    ]
+
+    // Their payload as this test needs to read it. The fixtures are held as
+    // `unknown` on purpose — they are GitHub's answers and the decoder is the
+    // only thing that gets to say what shape they are — and the two fields
+    // named here are the two this doctors.
+    const payload = draftWithBotFindings.statusChecks as {
+      readonly statusChecks: ReadonlyArray<{ readonly displayName: string; readonly state: string }>
+    }
+
+    const asFailing = {
+      ...payload,
+      statusChecks: payload.statusChecks.map((one) =>
+        tolerated.includes(one.displayName) ? { ...one, state: "FAILURE" } : one
+      )
+    }
+
+    // Their own run page with the header icon of a run that passed, which is
+    // what a run whose only failures were tolerated is served as.
+    const green = runPage.replace(
+      '<svg data-component="Octicon" width="22" height="22" class="octicon octicon-x-circle-fill color-fg-danger" aria-label="failed: "',
+      '<svg data-component="Octicon" width="22" height="22" class="octicon octicon-check-circle-fill color-fg-success" aria-label="completed successfully: "'
+    )
+
+    const answering = (html: string) =>
+      intercept((url) =>
+        url.includes("/actions/runs/")
+          ? new Response(html, { status: 200, headers: { "Content-Type": "text/html" } })
+          : Response.json(url.includes("status_checks") ? asFailing : payloadFor(url))
+      )
+
+    /**
+     * The pull request, and then the second read that softens what it can.
+     *
+     * Two calls rather than one because the screen makes them as two: the checks
+     * are drawn as GitHub reported them and the runs are read behind that first
+     * paint. See `loadPullRequest`, which is where the two are put together.
+     */
+    const softened = Effect.gen(function* () {
+      const gateway = yield* GitHubGateway
+      const snapshot = yield* gateway.snapshot(draft)
+      return { ...snapshot, checks: yield* gateway.tolerated(snapshot.checks) }
+    }).pipe(Effect.provide(layer))
+
+    test("is red in the answer the reader waits for, which asks for no run at all", async () => {
+      const calls = answering(green)
+
+      const snapshot = await Effect.runPromise(live)
+
+      expect(snapshot.checks.filter((check) => check.state === "failed").map((one) => one.name)).toEqual(
+        tolerated
+      )
+      expect(calls.filter((call) => call.url.includes("/actions/runs/"))).toEqual([])
+    })
+
+    test("is said as tolerated, and its run is read once for the two of them", async () => {
+      const calls = answering(green)
+
+      const snapshot = await Effect.runPromise(softened)
+
+      expect(
+        snapshot.checks.filter((check) => check.state === "tolerated").map((check) => check.name)
+      ).toEqual(tolerated)
+      expect(snapshot.checks.some((check) => check.state === "failed")).toBe(false)
+
+      const runs = calls.filter((call) => call.url.includes("/actions/runs/"))
+      expect(runs).toHaveLength(1)
+      expect(new URL(runs[0]?.url ?? "https://example.invalid").pathname).toBe(
+        `/microsoft/vscode/actions/runs/${RUN}`
+      )
+    })
+
+    test("stays failed where the run around it failed too", async () => {
+      answering(runPage)
+
+      const snapshot = await Effect.runPromise(softened)
+
+      expect(snapshot.checks.filter((check) => check.state === "tolerated")).toEqual([])
+      expect(snapshot.checks.filter((check) => check.state === "failed").map((one) => one.name)).toEqual(
+        tolerated
+      )
+    })
+
+    test("stays failed where the run could not be read at all", async () => {
+      intercept((url) =>
+        url.includes("/actions/runs/")
+          ? new Response("no", { status: 500 })
+          : Response.json(url.includes("status_checks") ? asFailing : payloadFor(url))
+      )
+
+      const snapshot = await Effect.runPromise(softened)
+
+      expect(snapshot.checks.filter((check) => check.state === "failed")).toHaveLength(2)
+    })
+  })
+
   test("fetches the diffs GitHub left out of the page it served", async () => {
     // Their own Files tab holds back all but the first few files and asks for
     // the rest as they are scrolled to; a file we have no content for is one of

@@ -333,6 +333,38 @@ describe("the line above the checks", () => {
 
     expect(screen.queryByText("All 2 checks passed")).not.toBeNull()
   })
+
+  /*
+   * The pull request half of
+   * [#15452](https://github.com/orgs/community/discussions/15452), 316 upvotes. A job
+   * carrying `continue-on-error: true` reports a failing check run under a workflow
+   * run GitHub concluded a success — measured on run 31641974931 of
+   * `flazouh/ghpro-scratch` — and their own page counts it into "Some checks were not
+   * successful" and paints it red.
+   */
+  test("is not red because a check was allowed to fail", () => {
+    render(
+      <Checks checks={[check("ci / build", "succeeded"), check("ci / flaky-e2e", "tolerated")]} />
+    )
+
+    expect(screen.queryByText(/CI is red/)).toBeNull()
+    expect(screen.queryByText("All 2 checks passed")).toBeNull()
+  })
+})
+
+describe("a check its run was told to carry on past", () => {
+  test("is shown without being opened, and said to be allowed to fail", () => {
+    render(
+      <Checks checks={[check("ci / build", "succeeded"), check("ci / flaky-e2e", "tolerated")]} />
+    )
+
+    // Not behind the fold the green ones are behind: it fell over, and
+    // [#15452](https://github.com/orgs/community/discussions/15452) asks for that to
+    // be shown properly rather than hidden.
+    expect(screen.queryByText("ci / flaky-e2e")).not.toBeNull()
+    expect(screen.queryByText("1 allowed to fail")).not.toBeNull()
+    expect(screen.queryByText("1 passed")).not.toBeNull()
+  })
 })
 
 describe("getting out of the dialog", () => {

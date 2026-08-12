@@ -318,6 +318,10 @@ export const checkName = (state: CheckState): ArtName => {
     case "succeeded":
       return "check-passed"
     case "failed":
+    // The same glyph a failure gets, in a different colour, because it is the
+    // same event: the job fell over. What differs is whether anybody owes it a
+    // move, and `CHECK_TONE` is where that is said.
+    case "tolerated":
       return "check-failed"
     // Running and queued are not the same wait: one is happening, the other has
     // not begun. GitHub draws that difference and so does this.

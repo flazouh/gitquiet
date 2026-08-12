@@ -26,7 +26,7 @@ import type { Repository } from "../domain/repositories"
 import { TheBar } from "./TheBar"
 import { useFreshening } from "./useFreshening"
 import type { AskLayerSizes } from "./useLayerSizes"
-import { useLive } from "./useLive"
+import { type Load, useLive } from "./useLive"
 
 export type Loaded = {
   readonly snapshot: PullRequestSnapshot
@@ -34,7 +34,16 @@ export type Loaded = {
 
 export type PullRequestScreenProps = {
   readonly reference: PullRequestRef
-  readonly load: () => Effect.Effect<Loaded, unknown>
+  /**
+   * The pull request, said as soon as GitHub's own routes answer and again once
+   * the runs behind its failing checks have been read.
+   *
+   * Staged like every list here that lands in pieces: what a failing check's run
+   * says about it is a document per run, and holding the card back for those
+   * meant the pull request with three failing runs — the one somebody is in a
+   * hurry about — drew nothing until all three had answered.
+   */
+  readonly load: Load<Loaded>
   /**
    * The pull request as it was last time, for the screen to show while
    * {@link load} finds out what it is now. Answers in about as long as a

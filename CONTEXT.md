@@ -142,6 +142,16 @@ to the only question anybody brings to a Run, so it is the content of the Run sc
 sits behind a click.
 _Avoid_: error, failure, root cause
 
+**Tolerated**:
+A Job that failed inside a Run that succeeded, which is what `continue-on-error: true` in the
+Workflow file produces. GitHub has no word for it and no field either: the Job answers
+`conclusion: "failure"` exactly like a real one, and the only thing that says otherwise is the
+Run around it concluding `success`. So a Tolerated Job is not a Fault, is never the reason a
+Strand or a pull request is red, and is still shown, because it did fall over and its log is
+worth reading. On screen it is **Allowed to fail** — the Workflow's author allowed it, and a
+reader who has never opened the file can act on that sentence.
+_Avoid_: soft failure, non-blocking, warning, expected failure, flaky
+
 **Note**:
 Something a Job reported about a specific place, either a line of the log or a line of a file:
 a compiler error, a lint opinion, a deprecation warning. GitHub calls these annotations and

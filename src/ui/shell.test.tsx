@@ -31,6 +31,39 @@ const showing = (
   )
 }
 
+/**
+ * The same screen, given a read that answers in two stages.
+ *
+ * Which is what reading a pull request is now: its own routes say what the
+ * checks are, and the run behind a failing one — a document of half a megabyte,
+ * per run — says whether the failure was allowed. The second is handed back the
+ * moment this test releases it, so the assertions in between are about the card
+ * as the reader has it while that read is still out.
+ */
+const staging = (first: PullRequestSnapshot, then: PullRequestSnapshot) => {
+  let release = (): void => {}
+  const held = new Promise<void>((done) => {
+    release = () => done()
+  })
+
+  render(
+    <PullRequestScreen
+      reference={first.reference}
+      load={(partly) =>
+        Effect.gen(function* () {
+          partly({ snapshot: first })
+          yield* Effect.promise(() => held)
+          return { snapshot: then }
+        })
+      }
+      fetchDiffs={() => Effect.succeed([])}
+      onStepAside={() => {}}
+    />
+  )
+
+  return { release: () => release() }
+}
+
 const section = (name: string) => screen.getByRole("region", { name })
 
 /** Every height a panel holds its contents to, which is how anything here hides. */
@@ -647,5 +680,41 @@ describe("the files, as one thing", () => {
     await awaitPage()
 
     expect(section("Files").textContent).toContain("No files changed")
+  })
+})
+
+/*
+ * The pull request half of
+ * [#15452](https://github.com/orgs/community/discussions/15452), on the clock.
+ *
+ * Whether a failing check was one its run was told to carry on past is written
+ * on the run and nowhere else, and three failing runs are three documents. Held
+ * in front of the card, that is three reads between the reader and a page they
+ * opened in a hurry; behind it, the checks are on the screen as GitHub reported
+ * them and one of them changes its mind a moment later.
+ */
+describe("a pull request read in two stages", () => {
+  const failing = aSnapshot({
+    checks: [aCheck("ci / build", "succeeded"), aCheck("ci / flaky-e2e", "failed")]
+  })
+  const allowed = {
+    ...failing,
+    checks: [aCheck("ci / build", "succeeded"), aCheck("ci / flaky-e2e", "tolerated")]
+  }
+
+  test("draws the checks GitHub reported before the run behind them is read", async () => {
+    const run = staging(failing, allowed)
+    await awaitPage()
+
+    expect(screen.queryByText(/CI is red/)).not.toBeNull()
+    expect(screen.queryByText("1 allowed to fail")).toBeNull()
+
+    run.release()
+
+    // Red, then allowed to fail. Never green in between: the job did fall over,
+    // and a tick on the way past would say it did not.
+    await waitFor(() => expect(screen.queryByText("1 allowed to fail")).not.toBeNull())
+    expect(screen.queryByText(/CI is red/)).toBeNull()
+    expect(screen.queryByText("All 2 checks passed")).toBeNull()
   })
 })

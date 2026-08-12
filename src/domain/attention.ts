@@ -180,9 +180,18 @@ const courtOfThread = (thread: ReviewThread, viewer: string): Court => {
  * Cancelled counts with failed rather than with green, which is what
  * {@link isGreen} already says and what a reader means: a job somebody stopped
  * is not a job that passed, and the only thing that starts it again is a person.
+ *
+ * A tolerated failure is settled without being green, which is the one place
+ * those two part company. It is not a pass — it ran and it fell over — and there
+ * is still no move in it for anybody: the Workflow said in writing that the run
+ * should carry on, and GitHub concluded the run a success.
  */
 const courtOfCheck = (check: Check): Court =>
-  isGreen(check) ? "settled" : isUnfinished(check) ? "running" : "your-move"
+  isGreen(check) || check.state === "tolerated"
+    ? "settled"
+    : isUnfinished(check)
+      ? "running"
+      : "your-move"
 
 /**
  * What has moved since the reader last reviewed, said as one thing or as none.

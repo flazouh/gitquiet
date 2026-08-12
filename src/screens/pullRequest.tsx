@@ -42,7 +42,7 @@ import type { View } from "@/domain/Settings"
 import { chosenView, rememberView } from "@/app/settings"
 import { standAScreen } from "@/shell/screen"
 import { liveUpdates, settings, throughGitHub } from "@/shell/supplied"
-import { PullRequestScreen } from "@/ui/PullRequestScreen"
+import { type Loaded, PullRequestScreen } from "@/ui/PullRequestScreen"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { CONVERSATION } from "@/ui/place"
 import { whenLocationChanges } from "@/ui/navigation"
@@ -114,6 +114,20 @@ const open = (
       Effect.tapError((error) => Effect.sync(() => reportError(error)))
     )
 
+  const asking = (partly: (loaded: Loaded) => void) =>
+    writing(loadPullRequest(reference, partly))
+
+  /*
+   * The pull request as its own routes have it, which lands a whole read before
+   * the runs behind its failing checks do.
+   *
+   * Held here as well as reported, because this read starts before the screen
+   * exists: the card can be complete by the time React asks, and a stage nobody
+   * was there to hear is a card that waits on run pages to draw its checks.
+   */
+  let sofar: Loaded | undefined
+  let tell: ((loaded: Loaded) => void) | undefined
+
   // Started before anything is waited on. Reading the pull request and parsing
   // GitHub's HTML have nothing to say to each other, and running them one after
   // the other — which is what awaiting the takeover first did — spent the whole
@@ -122,7 +136,12 @@ const open = (
   // A running fiber rather than an effect nobody has started: the read has to be
   // in the air while the takeover is being worked out, and joining it later is
   // how anything that needs the answer waits without asking GitHub again.
-  const reading = Effect.runFork(writing(loadPullRequest(reference)))
+  const reading = Effect.runFork(
+    asking((loaded) => {
+      sofar = loaded
+      tell?.(loaded)
+    })
+  )
 
   // Started in the same breath, and normally finished long before: one storage
   // read against four requests to GitHub. On any pull request opened before,
@@ -203,14 +222,16 @@ const open = (
   // Which way a branch is caught up is decided by the pull request as it is
   // now, and after a re-read that is no longer the first read.
   let latest = reading
-  const read = () =>
+  const read = (partly: (loaded: Loaded) => void) =>
     Effect.suspend(() => {
       if (!started) {
         started = true
+        tell = partly
+        if (sofar !== undefined) partly(sofar)
         return Fiber.join(reading)
       }
 
-      latest = Effect.runFork(writing(loadPullRequest(reference)))
+      latest = Effect.runFork(asking(partly))
       return Fiber.join(latest)
     })
 

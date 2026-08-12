@@ -208,6 +208,25 @@ here works that out from the conclusion. Each press asks twice, because a re-run
 somebody's minutes and a cancel throws away what is running. The routes and what they did
 when they were exercised are in `docs/spec/github-write-api.md`.
 
+**A failure the run carried on past is not a Fault.** A job written with
+`continue-on-error: true` reports `conclusion: "failure"` and the run around it reports
+`conclusion: "success"`, which is the whole of the signal GitHub gives: measured on run
+31641974931 of `flazouh/ghpro-scratch`, where `might-fail` answered `failure` under a run
+their own page headed "completed successfully". So a failing job inside a succeeded run is
+Tolerated. It is a row rather than a count, said as "Allowed to fail", and it leads to its log
+like any other row; it is not counted red, and a run whose only failures were tolerated opens
+with no Fault at all. This is [#15452](https://github.com/orgs/community/discussions/15452)
+answered, and it is answered the same way on a pull request's checks list, which reads the run
+behind a failing check to find out. That read is behind the first paint rather than in front of
+it: the checks are drawn as GitHub reported them, and a tolerated one turns from red to
+"Allowed to fail" when its run answers, the way a remembered pull request has always corrected
+itself a second after it appears. In front, a pull request with three failing runs would wait
+for three half-megabyte documents before drawing anything, which is exactly the pull request
+somebody is in a hurry about. The softening only ever goes from red to tolerated, so no check
+passes through green on the way. A step written with `continue-on-error: true` is a
+different thing and is not covered: GitHub reports that step as `success` outright, so its
+failure exists only in the log and there is nothing to read.
+
 **Notes are grouped, then ranked.** Identical messages collapse into one row with a count, so
 ten `schemaNumber` notices are one row reading "10 files". Rows carrying no information are
 demoted below rows carrying some, regardless of level: a note whose whole text is "Process

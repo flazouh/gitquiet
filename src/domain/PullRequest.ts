@@ -169,6 +169,23 @@ export type Remark = {
 export type CheckState =
   | "succeeded"
   | "failed"
+  /**
+   * A failure the Workflow was told to carry on past: `continue-on-error: true`.
+   *
+   * GitHub has no word for this and that is the complaint. Read on workflow run
+   * 31641974931 of `flazouh/ghpro-scratch`, written to fail three ways at once:
+   * the tolerated job comes back `conclusion: "failure"`, its check run comes
+   * back a failure too, and the run around it comes back `conclusion: "success"`.
+   * Their own pages draw the job in the red they draw a real failure in, which is
+   * [#15452](https://github.com/orgs/community/discussions/15452) and its 316
+   * upvotes.
+   *
+   * Never a Job Step. A step carrying `continue-on-error` comes back
+   * `conclusion: "success"` from the steps route — GitHub applies the tolerance
+   * before it answers, and the failure is in the log and the annotation only —
+   * so there is nothing on a step for this word to be said about.
+   */
+  | "tolerated"
   | "running"
   | "queued"
   | "cancelled"

@@ -7,6 +7,10 @@ import type { Check, JobStep } from "./PullRequest"
  * own summary counts them as: a job the workflow decided not to run is not a
  * job anybody is waiting on. Cancelled is deliberately not among them — it is
  * finished and it did not pass, which is a third thing.
+ *
+ * Nor is a tolerated failure, for the same reason and the other way round: it
+ * is finished, nobody owes it a move, and it did not pass either. Counting it
+ * green would say a job that fell over went fine.
  */
 export const isGreen = (check: Check): boolean =>
   check.state === "succeeded" || check.state === "skipped" || check.state === "neutral"
@@ -15,8 +19,20 @@ export const isGreen = (check: Check): boolean =>
 export const isUnfinished = (check: Check): boolean =>
   check.state === "running" || check.state === "queued"
 
+/**
+ * The checks that failed and count, which is what a red pull request is red for.
+ *
+ * A failure its Workflow was told to carry on past is not among them, and it is
+ * kept out by being a state of its own rather than by a second condition here.
+ * That is deliberate: a flag beside the state would have to be remembered at
+ * every count in this file, and this one was already counted three ways.
+ */
 export const failing = (checks: ReadonlyArray<Check>): ReadonlyArray<Check> =>
   checks.filter((check) => check.state === "failed")
+
+/** The checks that failed and were allowed to, which are shown and not counted. */
+export const tolerated = (checks: ReadonlyArray<Check>): ReadonlyArray<Check> =>
+  checks.filter((check) => check.state === "tolerated")
 
 /**
  * A step the runner added rather than one the workflow asked for.
@@ -67,7 +83,14 @@ export type RunStanding =
   }
   /** Every one of them finished green. The only standing that may say so. */
   | { readonly kind: "passed"; readonly total: number }
-  /** Finished, nothing failed, and not all green either: something was cancelled. */
+  /**
+   * Finished, nothing failed that counts, and not all green either.
+   *
+   * Two things arrive here: a check somebody cancelled, and a check whose Workflow
+   * was told to carry on past its failure. Neither is a pass and neither is owed a
+   * move, so the line says how many passed and leaves the claim of "all clear"
+   * alone.
+   */
   | { readonly kind: "stopped"; readonly green: number; readonly total: number }
 
 export const howTheRunStands = (checks: ReadonlyArray<Check>): RunStanding => {

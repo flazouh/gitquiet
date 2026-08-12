@@ -65,6 +65,28 @@ describe("where a run of checks stands", () => {
       total: 2
     })
   })
+
+  /*
+   * The complaint itself: a job carrying `continue-on-error: true` reports a
+   * failing check run under a run GitHub concluded a success, and their pull
+   * request draws it in the red of a real failure. Measured on run 31641974931 of
+   * `flazouh/ghpro-scratch`, and asked for by
+   * [#15452](https://github.com/orgs/community/discussions/15452), 316 upvotes.
+   */
+  test("is not red because of a check whose run was told to carry on past it", () => {
+    expect(howTheRunStands(run("succeeded", "tolerated"))).toEqual({
+      kind: "stopped",
+      green: 1,
+      total: 2
+    })
+    expect(failing(run("succeeded", "tolerated"))).toEqual([])
+  })
+
+  test("does not count a tolerated failure among the ones that passed either", () => {
+    // It ran and it fell over. Counting it green would hide that as thoroughly as
+    // painting it red overstates it.
+    expect(howTheRunStands(run("tolerated"))).toEqual({ kind: "stopped", green: 0, total: 1 })
+  })
 })
 
 describe("the checks a card asks about directly", () => {

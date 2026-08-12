@@ -171,6 +171,29 @@ export class GitHubGateway extends Context.Service<
       reference: PullRequestRef
     ) => Effect.Effect<PullRequestSnapshot, GatewayError>
     /**
+     * The same checks, with a failure its own run carried on past said as
+     * tolerated.
+     *
+     * Apart from {@link snapshot} because it is a second read of something much
+     * larger, and because nothing waits for it: a job carrying
+     * `continue-on-error: true` is reported `FAILURE` in their status checks
+     * payload like any other, and the only place the tolerance is written is the
+     * run page behind it, which is half a megabyte. A pull request with three
+     * failing runs would hold its whole first paint behind three of those.
+     *
+     * So the checks are drawn as GitHub reported them and this softens what it
+     * can afterwards, which only ever takes a check from failed to tolerated.
+     * See `loadPullRequest`, which is where the two are put together.
+     *
+     * It cannot fail. Every run behind these is a page this interface could
+     * have shown without, so an unreachable network, a refusal, or markup
+     * nothing can read all mean the same thing: the check stays red exactly as
+     * GitHub reported it, which is the only safe way to be wrong.
+     */
+    readonly tolerated: (
+      checks: ReadonlyArray<Check>
+    ) => Effect.Effect<ReadonlyArray<Check>>
+    /**
      * The pull request as it was the last time it was read, without asking
      * GitHub anything.
      *

@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import type { CheckNote } from "../domain/PullRequest"
-import { type Job, type Run, type RunOpening, gathered } from "../domain/run"
+import { type Job, type Run, type RunOpening, gathered, tolerating } from "../domain/run"
 import { RunScreen } from "./RunScreen"
 import { Toasts } from "./Toasts"
 
@@ -180,6 +180,34 @@ describe("the jobs of a run", () => {
       "integration-test2m 51s",
       "ci-complete3s"
     ])
+  })
+
+  /*
+   * The run this is drawn from is measured: run 31641974931 of
+   * `flazouh/ghpro-scratch` concluded a success with a job that answered
+   * `conclusion: "failure"`, because the workflow carried `continue-on-error: true`
+   * on it. GitHub paints that job the red it paints a real failure, which is
+   * [#15452](https://github.com/orgs/community/discussions/15452) and its 316
+   * upvotes.
+   */
+  test("gives a tolerated failure a row of its own, and never a Fault", async () => {
+    render(
+      screenOf({
+        load: () =>
+          Effect.succeed({
+            ...opening,
+            run: { ...run, state: "succeeded" as const },
+            jobs: tolerating("succeeded", [
+              job("lint", "succeeded", 62),
+              job("flaky-e2e", "failed", 44)
+            ])
+          })
+      })
+    )
+
+    await waitFor(() => expect(screen.getByText("flaky-e2e")).toBeDefined())
+    expect(screen.queryByRole("region", { name: "Fault" })).toBeNull()
+    expect(screen.getByText(/1 allowed to fail/)).toBeDefined()
   })
 
   test("counts what was skipped, which is never a row", async () => {

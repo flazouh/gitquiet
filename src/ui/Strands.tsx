@@ -18,6 +18,11 @@ const said = (seconds: number): string =>
 const WORD_OF: Record<CheckState, string> = {
   succeeded: "Success",
   failed: "Failure",
+  // A Run itself is never this: the word is said of a Job whose failure its Run
+  // carried on past, and a Run of such a Job concludes a success. It is here
+  // because the outcome a row prints is one vocabulary and this is one of its
+  // words.
+  tolerated: "Allowed to fail",
   running: "In progress",
   queued: "Queued",
   cancelled: "Cancelled",

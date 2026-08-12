@@ -26,7 +26,8 @@ import {
   type Pressing,
   type Run,
   type RunOpening,
-  gathered
+  gathered,
+  tolerating
 } from "../domain/run"
 import { notesIn } from "./annotations"
 import { secondsIn, stateOf, text } from "./outcome"
@@ -229,7 +230,15 @@ export const runOnPage = (html: string): RunOpening | null => {
    */
   return {
     run,
-    jobs: jobsIn(html),
+    /*
+     * Here and not in `jobsIn`, because the rule needs two facts and only one of
+     * them is beside a job. A job that failed inside a run GitHub concluded a
+     * success was carried on past — `continue-on-error: true` — and their page
+     * draws it in the same red as a failure that took the run down, which is
+     * [#15452](https://github.com/orgs/community/discussions/15452). Both facts
+     * are in this one fetch, so the tolerance costs nothing to know.
+     */
+    jobs: tolerating(run.state, jobsIn(html)),
     notes,
     gathering: gathered(notes),
     presses: pressesOn(html)
