@@ -20,6 +20,9 @@ coverage/
 # Built by scripts/build-diff-engine.ts, not by hand.
 public/diff-engine.js
 
+# Built by scripts/build-markdown-highlighter.ts, not by hand.
+public/markdown-highlighter.js
+
 # Built by scripts/build-screens.ts, not by hand.
 public/screens/
 

@@ -33,8 +33,10 @@ export default defineConfig({
   },
   /*
    * The repository's own `public/`, so the diff engine is at `/diff-engine.js` here
-   * exactly as it is inside the extension. It is built, not committed, so the pull
-   * request view needs `bun run build:diff-engine` before it can draw a diff.
+   * exactly as it is inside the extension, and the markdown highlighter is at
+   * `/markdown-highlighter.js`. Both are built, not committed, so the pull
+   * request view needs `bun run build:diff-engine` before it can draw a diff,
+   * and a labelled fence needs `bun run build:markdown-highlighter`.
    */
   publicDir: here("../public"),
   server: { port: 5199, strictPort: true },

@@ -3,6 +3,7 @@ import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry"
 import type { ReactNode } from "react"
 import type { Changes, WatchedKeyValue } from "@/ports/KeyValue"
 import type { Store } from "@/ports/Settings"
+import { setHighlightLoader, type Highlight } from "@/markdown/loadHighlight"
 import { type DiffEngine, DiffEngineUnavailable } from "@/ports/Renderer"
 import { settingsStore } from "@/settings/store"
 import { ArtProvider } from "@/ui/art"
@@ -63,6 +64,24 @@ const inMemory = (chosen: Record<string, unknown>): WatchedKeyValue => {
 }
 
 let loaded: DiffEngine | undefined
+let highlighterLoaded: Highlight | undefined
+
+setHighlightLoader(() => {
+  if (highlighterLoaded !== undefined) return Effect.succeed(highlighterLoaded)
+  const beside = new URL("markdown-highlighter.js", window.location.href).href
+  return Effect.tryPromise({
+    try: () => import(/* @vite-ignore */ beside),
+    catch: () => "highlighter-unavailable" as const
+  }).pipe(
+    Effect.map((module) => (module as { highlight: Highlight }).highlight),
+    Effect.tap((highlight) =>
+      Effect.sync(() => {
+        highlighterLoaded = highlight
+      })
+    ),
+    Effect.orElseSucceed(() => () => Effect.succeed(null))
+  )
+})
 
 /**
  * The real diff renderer, fetched the way the extension fetches it.

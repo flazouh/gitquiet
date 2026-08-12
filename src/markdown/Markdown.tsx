@@ -1,3 +1,6 @@
+import { Effect, Fiber } from "effect"
+import { useEffect, useState } from "react"
+import { highlightCode } from "./loadHighlight"
 import type {
   HtmlNode,
   MarkdownBlock,
@@ -81,14 +84,12 @@ const Block = ({ block }: { readonly block: MarkdownBlock }) => {
     case "hr":
       return <hr />
     case "code":
-      return block.language === "suggestion" ? (
-        <pre className="markdown-suggestion">
-          <code data-language="suggestion">{block.code}</code>
-        </pre>
-      ) : (
-        <pre>
-          <code data-language={block.language || undefined}>{block.code}</code>
-        </pre>
+      return (
+        <CodeFence
+          code={block.code}
+          language={block.language}
+          suggestion={block.language === "suggestion"}
+        />
       )
     case "list": {
       const Tag = block.ordered ? "ol" : "ul"
@@ -112,6 +113,48 @@ const Block = ({ block }: { readonly block: MarkdownBlock }) => {
     case "html":
       return <Html node={block} />
   }
+}
+
+const CodeFence = ({
+  code,
+  language,
+  suggestion
+}: {
+  readonly code: string
+  readonly language: string
+  readonly suggestion: boolean
+}) => {
+  const [html, setHtml] = useState<string | null>(null)
+
+  useEffect(() => {
+    setHtml(null)
+    if (language === "" || suggestion) return
+    const theme = document.documentElement.dataset.colorMode === "light" ? "light" : "dark"
+    let cancelled = false
+    const asking = Effect.runFork(
+      highlightCode(code, language, theme).pipe(
+        Effect.tap((coloured) =>
+          Effect.sync(() => {
+            if (!cancelled) setHtml(coloured)
+          })
+        )
+      )
+    )
+    return () => {
+      cancelled = true
+      Effect.runFork(Fiber.interrupt(asking))
+    }
+  }, [code, language, suggestion])
+
+  return (
+    <pre className={suggestion ? "markdown-suggestion" : undefined}>
+      {html === null ? (
+        <code data-language={language || undefined}>{code}</code>
+      ) : (
+        <code data-language={language || undefined} dangerouslySetInnerHTML={{ __html: html }} />
+      )}
+    </pre>
+  )
 }
 
 const Table = ({ block }: { readonly block: TableBlock }) => (

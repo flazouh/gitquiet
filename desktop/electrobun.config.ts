@@ -42,7 +42,12 @@ export default {
        * resolve, and this is four hundred syntax grammars that a window should not
        * be parsing before it draws a list.
        */
-      "src/view/diff-engine.js": "views/main/diff-engine.js"
+      "src/view/diff-engine.js": "views/main/diff-engine.js",
+      /*
+       * The markdown highlighter, built by `scripts/build-markdown-highlighter.ts`
+       * and fetched on the first labelled fence. Same reason as the diff engine.
+       */
+      "src/view/markdown-highlighter.js": "views/main/markdown-highlighter.js"
     }
   }
 } satisfies ElectrobunConfig

@@ -3,6 +3,7 @@ import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 import type { ReactNode } from "react";
 import { listen, socketUrl } from "../github/alive";
 import { layer } from "../github/GitHubGateway";
+import { setHighlightLoader } from "../markdown/loadHighlight";
 import type { GitHubGateway } from "../ports/GitHubGateway";
 import type { Store } from "../ports/Settings";
 import { browserSettings } from "../settings/browserStore";
@@ -15,7 +16,10 @@ import { SettingsProvider } from "../ui/settings";
 import { Theme } from "../ui/Theme";
 import { Toasts } from "../ui/Toasts";
 import { loadDiffEngine } from "./diffEngine";
+import { loadMarkdownHighlighter } from "./markdownHighlighter";
 import { onGitHub } from "./portraits";
+
+setHighlightLoader(() => loadMarkdownHighlighter);
 
 /**
  * What a browser extension on github.com can answer, in one file.

@@ -1,8 +1,14 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, render, screen, waitFor } from "@testing-library/react"
+import { Effect } from "effect"
+import { highlight } from "./highlight"
+import { resetHighlightLoader, setHighlightLoader } from "./loadHighlight"
 import { Markdown } from "./Markdown"
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  resetHighlightLoader()
+})
 
 describe("rendering our markdown document", () => {
   test("draws a GFM table as tiled cells", () => {
@@ -51,5 +57,13 @@ describe("rendering our markdown document", () => {
 
     expect(document.querySelector(".markdown-suggestion")).not.toBeNull()
     expect(screen.getByText("foo")).toBeTruthy()
+  })
+
+  test("colours a typescript fence once a highlighter is provided", async () => {
+    setHighlightLoader(() => Effect.succeed(highlight))
+    render(<Markdown markdown={"```ts\nconst x = 1\n```"} />)
+
+    await waitFor(() => expect(document.querySelector("code span")).not.toBeNull())
+    expect(screen.getByText("const", { exact: false })).toBeTruthy()
   })
 })

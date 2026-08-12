@@ -12,8 +12,12 @@ import { RendererProvider } from "../../../src/ui/renderer"
 import { SettingsProvider } from "../../../src/ui/settings"
 import { Theme } from "../../../src/ui/Theme"
 import { Toasts } from "../../../src/ui/Toasts"
+import { setHighlightLoader } from "../../../src/markdown/loadHighlight"
 import { loadDiffEngine } from "./diffEngine"
+import { loadMarkdownHighlighter } from "./markdownHighlighter"
 import { inThisWindow } from "./somewhere"
+
+setHighlightLoader(() => loadMarkdownHighlighter)
 
 /**
  * What a window can answer, where the extension's `shell/supplied.tsx` answers
