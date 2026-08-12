@@ -209,6 +209,95 @@ describe("opening a file and a folder", () => {
   })
 })
 
+/*
+ * happy-dom lays nothing out, so every height is zero and the tree draws every
+ * row — which is what the rest of this file relies on. These two give it a
+ * viewport of twenty rows to work with.
+ */
+const laidOut = () => {
+  /*
+   * Each on the prototype that already owns it: the rect on `Element`, the height
+   * on `HTMLElement`. An own property put on the wrong one of those shadows the
+   * right one for good — which is how a stub here quietly broke the rects
+   * `near.test.tsx` lays out on `Element`.
+   */
+  const box = Object.getOwnPropertyDescriptor(Element.prototype, "getBoundingClientRect")
+  const tall = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight")
+
+  Object.defineProperty(Element.prototype, "getBoundingClientRect", {
+    configurable: true,
+    writable: true,
+    value: () =>
+      ({
+        height: 24,
+        width: 400,
+        top: 0,
+        left: 0,
+        right: 400,
+        bottom: 24,
+        x: 0,
+        y: 0,
+        toJSON: () => ""
+      }) as DOMRect
+  })
+  Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+    configurable: true,
+    get: () => 480
+  })
+
+  flatten = () => {
+    if (box !== undefined) Object.defineProperty(Element.prototype, "getBoundingClientRect", box)
+    if (tall !== undefined) Object.defineProperty(HTMLElement.prototype, "clientHeight", tall)
+  }
+}
+
+let flatten: (() => void) | undefined
+afterEach(() => {
+  flatten?.()
+  flatten = undefined
+})
+
+describe("a tree too long to draw", () => {
+  const thousands = Array.from({ length: 2000 }, (_, at) => `src/file${at}.ts`)
+
+  test("draws the rows in front of the reader and not the two thousand behind them", async () => {
+    laidOut()
+    showing({ loadPaths: () => Effect.succeed(thousands) })
+
+    await userEvent.click(screen.getByRole("button", { name: "src" }))
+    await screen.findByRole("button", { name: "file0.ts" })
+
+    const drawn = document.querySelectorAll("[data-path]").length
+    expect(drawn).toBeGreaterThan(20)
+    expect(drawn).toBeLessThan(100)
+  })
+
+  test("keeps the scroll the height the whole list would have been", async () => {
+    laidOut()
+    const { container } = showing({ loadPaths: () => Effect.succeed(thousands) })
+
+    await userEvent.click(screen.getByRole("button", { name: "src" }))
+    await screen.findByRole("button", { name: "file0.ts" })
+
+    const rows = document.querySelectorAll("[data-path]").length
+    const spacers = [...container.querySelectorAll("[aria-hidden]")]
+      .map((one) => Number.parseInt((one as HTMLElement).style.height, 10))
+      .filter((height) => Number.isFinite(height))
+    const held = spacers.reduce((all, one) => all + one, 0)
+
+    // The folder row and 2000 files and the README, minus the rows drawn.
+    expect(rows).toBeLessThan(100)
+    expect(held).toBe((2002 - rows) * 24)
+  })
+
+  test("draws every row while nothing has been laid out, so nothing is lost", async () => {
+    showing({ loadPaths: () => Effect.succeed(["src/ui/RepoTree.tsx", "README.md"]) })
+
+    await userEvent.click(screen.getByRole("button", { name: "src" }))
+    expect(await screen.findByRole("button", { name: "ui" })).toBeTruthy()
+  })
+})
+
 describe("what a folder's column costs", () => {
   const deep = [
     "src/ui/RepoTree.tsx",

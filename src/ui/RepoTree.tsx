@@ -6,6 +6,7 @@ import { HERE } from "./dress"
 import { Field } from "./Field"
 import { mountSprite } from "./FileHeading"
 import { materialIcon } from "./fileIcon"
+import { useSlice } from "./slice"
 import { useSettings } from "./useSettings"
 import { Who } from "./Who"
 import { ageOf, freshnessOf, momentOf } from "./when"
@@ -388,6 +389,14 @@ export const RepoTree = ({
     [entries, whole, opened, hunting, extra]
   )
 
+  /*
+   * Only the rows in front of the reader are drawn. Four folders open on a large
+   * repository is a few thousand of them, and each one is a grid, two icons, a
+   * link and three spans — see `slice.ts` for the two spacers that stand in for
+   * the rest and keep the scrollbar where it was.
+   */
+  const { frame, slice, onScroll } = useSlice(rows.length)
+
   useEffect(() => {
     at.current = head
     asked.current = new Set()
@@ -457,10 +466,13 @@ export const RepoTree = ({
         <Field value={hunting} onChange={setHunting} label="Find a file" art="search" room="tight" />
       </div>
       <div
+        ref={frame}
+        onScroll={onScroll}
         className="min-h-0 flex-1 overflow-auto text-xs"
         onPointerMove={(event) => resting(event.nativeEvent)}
       >
-        {rows.map((row) => {
+        {slice.above > 0 ? <div aria-hidden style={{ height: slice.above }} /> : null}
+        {rows.slice(slice.from, slice.to).map((row) => {
           const here = reading === row.path
           return (
             <div
@@ -494,6 +506,7 @@ export const RepoTree = ({
             </div>
           )
         })}
+        {slice.below > 0 ? <div aria-hidden style={{ height: slice.below }} /> : null}
       </div>
     </>
   )
