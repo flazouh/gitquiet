@@ -1,6 +1,7 @@
 import { Effect, Layer, Option, Schema, UndefinedOr } from "effect"
 import type {
   Check,
+  CheckState,
   CommitDetail,
   FetchedDiff,
   NewComment,
@@ -40,6 +41,7 @@ import {
 import { linesIn } from "../domain/logs"
 import { tailOf } from "./logs"
 import { jobIn, runIn, stepsIn } from "./steps"
+import { runsBehind, tolerating } from "./tolerance"
 import type { Pressing, RunOpening, RunRef } from "../domain/run"
 import { isKeptRun, pressOn, runOnPage } from "./runPage"
 import { isKeptStrands, runsOnPage } from "./actionsList"
@@ -1262,6 +1264,89 @@ const runDocument = Effect.fn("runDocument")(function* (reference: RunRef, route
 })
 
 /**
+ * How a run went, for the one question a pull request's own payload cannot answer.
+ *
+ * Their `status_checks` payload says a check failed and stops there. Whether the
+ * workflow around it was told to carry on is written only on the run, so this is
+ * the read that turns twelve red rows into eleven red rows and one that was
+ * allowed to fail. It is asked once per run rather than once per check, and only
+ * for a run something failed in.
+ *
+ * The kept run is preferred, and a fetched one is kept, because a run that has
+ * finished has finished: an outcome read once is an outcome that never has to be
+ * read again, on the same reasoning a landed commit's diffstat is kept forever.
+ * A run still going is read again next time, since the answer it gives now is
+ * not the answer it will end on.
+ *
+ * Nothing here fails. Every one of these is a page this interface could have
+ * shown without, so an unreachable network, a refusal, or markup nothing can
+ * read all mean the same thing: no outcome for that run, and its checks stay red
+ * exactly as GitHub reported them.
+ */
+const runStanding = Effect.fn("runStanding")(function* (path: string) {
+  const found = /^\/([^/]+)\/([^/]+)\/actions\/runs\/(\d+)$/.exec(path)
+  if (found === null) return Option.none<CheckState>()
+
+  const reference: RunRef = {
+    repo: { owner: found[1]!, repo: found[2]! },
+    run: found[3]!,
+    attempt: null,
+    job: null
+  }
+
+  const kept = yield* recallRoute(path)
+  if (Option.isSome(kept) && isKeptRun(kept.value) && !isUnderway(kept.value.run.state)) {
+    return Option.some(kept.value.run.state)
+  }
+
+  const html = yield* runDocument(reference, runRoute(reference)).pipe(
+    Effect.map(Option.some),
+    Effect.catch(() => Effect.succeed(Option.none<string>()))
+  )
+  if (Option.isNone(html)) return Option.none<CheckState>()
+
+  const opening = runOnPage(html.value)
+  if (opening === null) return Option.none<CheckState>()
+
+  if (!isUnderway(opening.run.state)) {
+    yield* Effect.forkDetach(rememberRoute(path, opening))
+  }
+
+  return Option.some(opening.run.state)
+})
+
+const isUnderway = (state: CheckState): boolean => state === "running" || state === "queued"
+
+/**
+ * The checks a pull request arrived with, with the tolerated failures said so.
+ *
+ * Skipped outright where nothing failed, which is most pull requests most of the
+ * time: `runsBehind` comes back empty, no run is read, and this costs a pass over
+ * an array of twenty.
+ *
+ * On the live read only. A remembered pull request is decoded from GitHub's own
+ * payloads, and their payload has no word for this, so one opened from memory
+ * draws a tolerated failure red for the second before the live read replaces it —
+ * the same second-hand it draws every other fact that has moved since.
+ */
+const asTolerated = Effect.fn("asTolerated")(function* (checks: ReadonlyArray<Check>) {
+  const runs = runsBehind(checks)
+  if (runs.length === 0) return checks
+
+  const standings = new Map<string, CheckState>()
+  yield* Effect.forEach(
+    runs,
+    Effect.fnUntraced(function* (path: string) {
+      const standing = yield* runStanding(path)
+      if (Option.isSome(standing)) standings.set(path, standing.value)
+    }),
+    { concurrency: 4, discard: true }
+  )
+
+  return tolerating(checks, standings)
+})
+
+/**
  * One of their forms on a run, sent back to them.
  *
  * Their page is read first, every time, and the form is taken out of what comes
@@ -1610,7 +1695,8 @@ export const layer = Layer.succeed(GitHubGateway, {
         { concurrency: "unbounded" }
       )
 
-      const snapshot = yield* decodeInto(reference, raw)
+      const decoded = yield* decodeInto(reference, raw)
+      const snapshot = { ...decoded, checks: yield* asTolerated(decoded.checks) }
 
       // Kept only once it has decoded, and forked rather than waited for. The
       // pull request this was read for is about to be on the screen either way;
