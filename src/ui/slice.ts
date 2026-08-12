@@ -68,12 +68,15 @@ const ROW = "[data-path]"
  * quietly wrong on the first of those. Until a row exists to measure, the whole
  * list is drawn, so the measuring never depends on the measurement.
  *
- * The scroll is read once a frame at most. `scroll` fires far faster than a list
- * is worth redrawing, and redrawing on every event is how a wheel turns to jank.
+ * The scroll is read on the event and not inside a frame. A browser throttles
+ * frames for a tab it decides is not worth painting fully, and a reader scrolling
+ * such a tab would face the spacer instead of the list. `scrollTop` during a
+ * scroll event is a read of a layout the browser has already settled, so there is
+ * nothing to save by waiting; the redraw it causes is one React render, and React
+ * drops the ones where these three numbers land the same.
  */
 export const useSlice = (many: number) => {
   const frame = useRef<HTMLDivElement | null>(null)
-  const waiting = useRef(0)
   const [seen, setSeen] = useState<Measured>({ row: 0, height: 0, top: 0 })
 
   const measure = useCallback(() => {
@@ -105,20 +108,19 @@ export const useSlice = (many: number) => {
     return () => watching.disconnect()
   }, [measure])
 
-  useEffect(
-    () => () => {
-      if (waiting.current !== 0) window.cancelAnimationFrame(waiting.current)
-    },
-    []
-  )
-
+  /*
+   * The scroll alone, and none of the rest. A row's height and the viewport's are
+   * two rects to read, and neither of them changes because the reader moved the
+   * wheel; `scrollTop` is the one number that did. The event already fires at most
+   * once a frame, so there is nothing left here worth throttling.
+   */
   const onScroll = useCallback(() => {
-    if (waiting.current !== 0) return
-    waiting.current = window.requestAnimationFrame(() => {
-      waiting.current = 0
-      measure()
-    })
-  }, [measure])
+    const element = frame.current
+    if (element === null) return
+
+    const top = element.scrollTop
+    setSeen((was) => (was.top === top ? was : { ...was, top }))
+  }, [])
 
   return { frame, slice: sliceOf(many, seen), onScroll }
 }

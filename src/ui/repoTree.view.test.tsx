@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen, within } from "@testing-library/react"
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import type { Entry, Touch } from "../domain/repoHome"
@@ -223,6 +223,8 @@ const laidOut = () => {
    */
   const box = Object.getOwnPropertyDescriptor(Element.prototype, "getBoundingClientRect")
   const tall = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight")
+  const down = Object.getOwnPropertyDescriptor(Element.prototype, "scrollTop")
+  let scrolled = 0
 
   Object.defineProperty(Element.prototype, "getBoundingClientRect", {
     configurable: true,
@@ -244,10 +246,29 @@ const laidOut = () => {
     configurable: true,
     get: () => 480
   })
+  Object.defineProperty(Element.prototype, "scrollTop", {
+    configurable: true,
+    get: () => scrolled,
+    set: (value: number) => {
+      scrolled = value
+    }
+  })
 
   flatten = () => {
     if (box !== undefined) Object.defineProperty(Element.prototype, "getBoundingClientRect", box)
     if (tall !== undefined) Object.defineProperty(HTMLElement.prototype, "clientHeight", tall)
+    if (down !== undefined) Object.defineProperty(Element.prototype, "scrollTop", down)
+  }
+}
+
+/** A tab whose frames the browser has decided are not worth running. */
+const stopFrames = () => {
+  const frames = window.requestAnimationFrame
+  window.requestAnimationFrame = () => 1
+  const flat = flatten
+  flatten = () => {
+    window.requestAnimationFrame = frames
+    flat?.()
   }
 }
 
@@ -288,6 +309,29 @@ describe("a tree too long to draw", () => {
     // The folder row and 2000 files and the README, minus the rows drawn.
     expect(rows).toBeLessThan(100)
     expect(held).toBe((2002 - rows) * 24)
+  })
+
+  /*
+   * A browser throttles frames for a tab it decides is not worth painting fully,
+   * and a machine under load delays them. The reader is still scrolling, so where
+   * they are cannot be something this waits for a frame to find out.
+   */
+  test("follows a scroll that no frame ever arrives to answer", async () => {
+    laidOut()
+    stopFrames()
+    showing({ loadPaths: () => Effect.succeed(thousands) })
+
+    await userEvent.click(screen.getByRole("button", { name: "src" }))
+    await screen.findByRole("button", { name: "file0.ts" })
+
+    const list = (document.querySelector("[data-path]") as HTMLElement).parentElement
+    const first = () => (document.querySelector("[data-path]") as HTMLElement).dataset.path
+    const started = first()
+
+    if (list !== null) list.scrollTop = 3400
+    list?.dispatchEvent(new Event("scroll"))
+
+    await waitFor(() => expect(first()).not.toBe(started))
   })
 
   test("draws every row while nothing has been laid out, so nothing is lost", async () => {
