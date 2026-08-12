@@ -5,6 +5,7 @@ import { highlight } from "./highlight"
 import { resetHighlightLoader, setHighlightLoader } from "./loadHighlight"
 import { resetMermaidLoader, setMermaidLoader } from "./loadMermaid"
 import { Markdown } from "./Markdown"
+import { MarkdownDrawProvider } from "./runtime"
 
 afterEach(() => {
   cleanup()
@@ -76,5 +77,28 @@ describe("rendering our markdown document", () => {
     render(<Markdown markdown={"```mermaid\ngraph TD\nA-->B\n```"} />)
 
     await waitFor(() => expect(document.querySelector("svg")).not.toBeNull())
+  })
+
+  test("does not leave a mermaid fence as a code block GitHub can steal", () => {
+    render(<Markdown markdown={"```mermaid\ngraph TD\nA-->B\n```"} />)
+
+    expect(document.querySelector("code[data-language='mermaid']")).toBeNull()
+    expect(document.querySelector(".markdown-mermaid")).not.toBeNull()
+  })
+
+  test("draws mermaid from the tree provider, not a module loader", async () => {
+    setMermaidLoader(() =>
+      Effect.succeed(() => Effect.succeed("<svg><title>module</title></svg>"))
+    )
+    render(
+      <MarkdownDrawProvider
+        highlight={() => Effect.succeed(null)}
+        mermaid={() => Effect.succeed("<svg><title>provider</title></svg>")}
+      >
+        <Markdown markdown={"```mermaid\ngraph TD\nA-->B\n```"} />
+      </MarkdownDrawProvider>
+    )
+
+    await waitFor(() => expect(document.querySelector("svg title")?.textContent).toBe("provider"))
   })
 })

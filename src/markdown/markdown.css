@@ -129,6 +129,14 @@
   overflow-x: auto;
 }
 
+.markdown-mermaid-pending {
+  min-height: 4rem;
+  display: flex;
+  align-items: center;
+  color: var(--color-ink-muted);
+  font-size: 0.8125rem;
+}
+
 .markdown-mermaid svg {
   max-width: 100%;
   height: auto;

@@ -3,8 +3,9 @@ import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry"
 import type { ReactNode } from "react"
 import type { Changes, WatchedKeyValue } from "@/ports/KeyValue"
 import type { Store } from "@/ports/Settings"
-import { setHighlightLoader, type Highlight } from "@/markdown/loadHighlight"
-import { setMermaidLoader, type DrawMermaid } from "@/markdown/loadMermaid"
+import { type Highlight } from "@/markdown/loadHighlight"
+import { type DrawMermaid } from "@/markdown/loadMermaid"
+import { MarkdownDrawProvider } from "@/markdown/runtime"
 import { type DiffEngine, DiffEngineUnavailable } from "@/ports/Renderer"
 import { settingsStore } from "@/settings/store"
 import { ArtProvider } from "@/ui/art"
@@ -68,39 +69,49 @@ let loaded: DiffEngine | undefined
 let highlighterLoaded: Highlight | undefined
 let mermaidLoaded: DrawMermaid | undefined
 
-setHighlightLoader(() => {
-  if (highlighterLoaded !== undefined) return Effect.succeed(highlighterLoaded)
-  const beside = new URL("markdown-highlighter.js", window.location.href).href
-  return Effect.tryPromise({
-    try: () => import(/* @vite-ignore */ beside),
-    catch: () => "highlighter-unavailable" as const
-  }).pipe(
-    Effect.map((module) => (module as { highlight: Highlight }).highlight),
-    Effect.tap((highlight) =>
-      Effect.sync(() => {
-        highlighterLoaded = highlight
-      })
-    ),
-    Effect.orElseSucceed(() => () => Effect.succeed(null))
-  )
-})
+const highlight: Highlight = (code, language, theme) => {
+  const load =
+    highlighterLoaded !== undefined
+      ? Effect.succeed(highlighterLoaded)
+      : Effect.tryPromise({
+          try: () => {
+            const beside = new URL("markdown-highlighter.js", window.location.href).href
+            return import(/* @vite-ignore */ beside)
+          },
+          catch: () => "highlighter-unavailable" as const
+        }).pipe(
+          Effect.map((module) => (module as { highlight: Highlight }).highlight),
+          Effect.tap((next) =>
+            Effect.sync(() => {
+              highlighterLoaded = next
+            })
+          ),
+          Effect.orElseSucceed(() => () => Effect.succeed(null))
+        )
+  return load.pipe(Effect.flatMap((draw) => draw(code, language, theme)))
+}
 
-setMermaidLoader(() => {
-  if (mermaidLoaded !== undefined) return Effect.succeed(mermaidLoaded)
-  const beside = new URL("markdown-mermaid.js", window.location.href).href
-  return Effect.tryPromise({
-    try: () => import(/* @vite-ignore */ beside),
-    catch: () => "mermaid-unavailable" as const
-  }).pipe(
-    Effect.map((module) => (module as { draw: DrawMermaid }).draw),
-    Effect.tap((draw) =>
-      Effect.sync(() => {
-        mermaidLoaded = draw
-      })
-    ),
-    Effect.orElseSucceed(() => () => Effect.succeed(null))
-  )
-})
+const mermaid: DrawMermaid = (code) => {
+  const load =
+    mermaidLoaded !== undefined
+      ? Effect.succeed(mermaidLoaded)
+      : Effect.tryPromise({
+          try: () => {
+            const beside = new URL("markdown-mermaid.js", window.location.href).href
+            return import(/* @vite-ignore */ beside)
+          },
+          catch: () => "mermaid-unavailable" as const
+        }).pipe(
+          Effect.map((module) => (module as { draw: DrawMermaid }).draw),
+          Effect.tap((next) =>
+            Effect.sync(() => {
+              mermaidLoaded = next
+            })
+          ),
+          Effect.orElseSucceed(() => () => Effect.succeed(null))
+        )
+  return load.pipe(Effect.flatMap((draw) => draw(code)))
+}
 
 /**
  * The real diff renderer, fetched the way the extension fetches it.
@@ -179,7 +190,9 @@ export const Supplied = ({
           <ArtProvider here={HUGEICONS}>
             <PortraitsProvider reads={nobody}>
               <RendererProvider load={loadDiffEngine}>
+                <MarkdownDrawProvider highlight={highlight} mermaid={mermaid}>
                 <Toasts>{children}</Toasts>
+                </MarkdownDrawProvider>
               </RendererProvider>
             </PortraitsProvider>
           </ArtProvider>

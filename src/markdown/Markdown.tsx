@@ -1,7 +1,6 @@
 import { Effect, Fiber } from "effect"
 import { useEffect, useState } from "react"
-import { highlightCode } from "./loadHighlight"
-import { drawMermaid } from "./loadMermaid"
+import { useMarkdownDraw } from "./runtime"
 import type {
   HtmlNode,
   MarkdownBlock,
@@ -125,6 +124,7 @@ const CodeFence = ({
   readonly language: string
   readonly suggestion: boolean
 }) => {
+  const { highlight, mermaid } = useMarkdownDraw()
   const [html, setHtml] = useState<string | null>(null)
 
   useEffect(() => {
@@ -132,10 +132,7 @@ const CodeFence = ({
     if (language === "") return
     const theme = document.documentElement.dataset.colorMode === "light" ? "light" : "dark"
     let cancelled = false
-    const work =
-      language === "mermaid"
-        ? drawMermaid(code)
-        : highlightCode(code, language, theme)
+    const work = language === "mermaid" ? mermaid(code) : highlight(code, language, theme)
     const asking = Effect.runFork(
       work.pipe(
         Effect.tap((coloured) =>
@@ -149,10 +146,17 @@ const CodeFence = ({
       cancelled = true
       Effect.runFork(Fiber.interrupt(asking))
     }
-  }, [code, language, suggestion])
+  }, [code, language, suggestion, highlight, mermaid])
 
-  if (language === "mermaid" && html !== null) {
-    return <figure className="markdown-mermaid" dangerouslySetInnerHTML={{ __html: html }} />
+  if (language === "mermaid") {
+    if (html !== null) {
+      return <figure className="markdown-mermaid" dangerouslySetInnerHTML={{ __html: html }} />
+    }
+    return (
+      <figure className="markdown-mermaid markdown-mermaid-pending" role="status">
+        Drawing diagram
+      </figure>
+    )
   }
 
   return (
