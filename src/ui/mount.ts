@@ -341,6 +341,51 @@ export const theScreenShown = (target: Document): string | null =>
   target.documentElement.getAttribute(SHOWN)
 
 /**
+ * Says when the document has a body, which at `document_start` it does not.
+ *
+ * A detached container renders as well as an attached one, so a screen is drawn
+ * before there is anywhere to put it. `body` is the exception, and it is not the
+ * root's business but everything of ours that lives outside it: the bar's slot is
+ * `body`'s first child, and the toaster and the hover cards are appended to it, all
+ * three from a render. Against a document that is still `<html>` and nothing else,
+ * `page.body` is null and the first render throws inside whichever of them got
+ * there first. React then has no tree, nothing asks it for another, and the reader
+ * is left with an empty interface over a page held back by the gate. Measured at
+ * about one cold load in eight on a Run.
+ *
+ * Immediate where there is a body already, which is every soft navigation and every
+ * screen a press stood up: the shell has been running since the document started, and
+ * only the first screen of a load can be this early.
+ *
+ * Looked for again on the next turn rather than watched for. The wait is a turn or two
+ * on a cold load and nothing at all on every other arrival, so an observer on
+ * `documentElement` would be set up and taken down for one record, and one that is
+ * never taken down is a watcher on the busiest node of the page.
+ */
+export const whenThereIsAPage = (page: Document, ready: () => void): (() => void) => {
+  if (page.body !== null) {
+    ready()
+    return () => {}
+  }
+
+  let turn: ReturnType<typeof setTimeout> | null = null
+  const look = (): void => {
+    if (page.body === null) {
+      turn = setTimeout(look)
+      return
+    }
+    turn = null
+    ready()
+  }
+  turn = setTimeout(look)
+
+  return () => {
+    if (turn !== null) clearTimeout(turn)
+    turn = null
+  }
+}
+
+/**
  * The element the interface is drawn into.
  *
  * Handed out before there is anywhere on the page to put it, so React can build

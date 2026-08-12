@@ -35,6 +35,20 @@ const tidy = (): void => {
 const settled = (): Promise<void> => new Promise((done) => setTimeout(() => done(), 20))
 
 /**
+ * Waits for a word to arrive somewhere, up to a second.
+ *
+ * For the arrival that takes several turns of its own rather than one: a body, then the
+ * region in it, then the wait for that region, then the draw. Counting the turns out in
+ * the test would be writing down what the shell does today.
+ */
+const drawn = async (where: string, said: string): Promise<void> => {
+  for (let turn = 0; turn < 50; turn++) {
+    if (document.querySelector(where)?.textContent?.includes(said) === true) return
+    await settled()
+  }
+}
+
+/**
  * Whether the screen's tree is still rendered, wherever its container happens to be.
  *
  * Asked of the container rather than of the page because the two answers differ in the
@@ -116,6 +130,34 @@ describe("standing a screen on the page", () => {
     await settled()
 
     expect(document.querySelector("#region")?.textContent).toContain("second")
+    page.close()
+  })
+
+  test("draws once the document has a body, having been started before it had one", async () => {
+    /*
+     * The shell runs at `document_start`, so on a cold load the screen is stood up
+     * against a document that is still `<html>` and nothing else. Every element of
+     * ours that lives outside the root — the bar's slot, the toaster, the hover
+     * cards — is put into `body`, from a render, so drawing then threw inside the
+     * first render and the tree was never built. The reader got an empty interface
+     * and no second attempt, on about one load in eight.
+     */
+    history.replaceState(null, "", "/mine")
+    const body = document.body
+    document.documentElement.removeChild(body)
+
+    const page = standAScreen({ place: MINE, draw: () => <p>ours</p> })
+    // React renders on a task of its own, and on the reader's machine that task is the
+    // one that ran against the bodyless document. Waiting here is what puts this test in
+    // that order rather than in the one where the parser happens to win.
+    await settled()
+
+    document.documentElement.appendChild(body)
+    theirPage()
+    await drawn("#region", "ours")
+
+    expect(document.querySelector("#region")?.textContent).toContain("ours")
+    expect(mounted(page.container)).toBe(true)
     page.close()
   })
 

@@ -13,7 +13,8 @@ import {
   reveal,
   takeOverSlotWhenReady,
   ungate,
-  whenTakenOver
+  whenTakenOver,
+  whenThereIsAPage
 } from "../ui/mount"
 import type { Place } from "../ui/place"
 import { Supplied } from "./supplied"
@@ -138,6 +139,9 @@ export const standAScreen = ({
   const letGo = holding?.(container) ?? (() => {})
 
   let down = false
+  // Assigned by the wait at the foot of this function, and called from `standDown` above
+  // it. Until then there is nothing to stop: no screen comes down before it is drawn.
+  let stopWaitingForABody = (): void => {}
   /**
    * Takes the tree down and lets go of everything the screen held, once.
    *
@@ -157,6 +161,7 @@ export const standAScreen = ({
   const standDown = (): void => {
     if (down) return
     down = true
+    stopWaitingForABody()
     letGo()
     whenAnotherBarStands(document, () => root.unmount())
   }
@@ -169,49 +174,59 @@ export const standAScreen = ({
   container.addEventListener(GOING, standDown)
 
   /*
-   * Where a screen of ours is the page being left, its surface is the one to stand on.
-   * Read after the container was made, which is what marks the screen on its way out.
-   *
-   * Waiting for GitHub's own region instead was a second of the old page still on the
-   * screen after the reader asked for this one. Their page is behind ours, hidden
-   * rather than gone, and nothing is going to make them render it again: no document
-   * is coming, because answering the press without one is the whole point.
+   * Held until the wait at the foot of this function has a page to work with, so that
+   * `close` has something to interrupt from the moment it can be called.
    */
-  const surface = borrowing ? (ourSurface(document) ?? undefined) : undefined
+  let waiting: ReturnType<typeof whenTakenOver> | null = null
 
-  const waiting = whenTakenOver(
-    () => takeOverSlotWhenReady(document, container, undefined, settling, place, surface),
-    {
-      taken: (takeover) => {
-        /*
-         * The reader left while this was waiting for the address or for a region. The
-         * takeover still landed, and a container put on the page by a screen nobody is
-         * on is a second interface standing beside the real one — with a bar of its
-         * own, which is how two bars used to end up on one page.
-         */
-        if (!watching) {
-          takeover?.stepAside()
+  const standUp = (): void => {
+    /*
+     * Where a screen of ours is the page being left, its surface is the one to stand on.
+     * Read after the container was made, which is what marks the screen on its way out.
+     *
+     * Waiting for GitHub's own region instead was a second of the old page still on the
+     * screen after the reader asked for this one. Their page is behind ours, hidden
+     * rather than gone, and nothing is going to make them render it again: no document
+     * is coming, because answering the press without one is the whole point.
+     */
+    const surface = borrowing ? (ourSurface(document) ?? undefined) : undefined
+
+    waiting = whenTakenOver(
+      () => takeOverSlotWhenReady(document, container, undefined, settling, place, surface),
+      {
+        taken: (takeover) => {
+          /*
+           * The reader left while this was waiting for the address or for a region. The
+           * takeover still landed, and a container put on the page by a screen nobody is
+           * on is a second interface standing beside the real one — with a bar of its
+           * own, which is how two bars used to end up on one page.
+           */
+          if (!watching) {
+            takeover?.stepAside()
+            standDown()
+            return
+          }
+          if (takeover === null) {
+            // The page is GitHub's now. Nothing is going to look at this tree.
+            standDown()
+            return
+          }
+          stepAside = takeover.stepAside
+        },
+        failed: (cause) => {
+          // The wait ended in a throw, so this tree has no page and none is coming: the
+          // same case as `takeover === null` above, and it comes down the same way.
           standDown()
-          return
-        }
-        if (takeover === null) {
-          // The page is GitHub's now. Nothing is going to look at this tree.
-          standDown()
-          return
-        }
-        stepAside = takeover.stepAside
-      },
-      failed: (cause) => {
-        // The wait ended in a throw, so this tree has no page and none is coming: the
-        // same case as `takeover === null` above, and it comes down the same way.
-        standDown()
-        reveal(document)
-        ungate(document)
-        reportError(cause)
-      },
-      settled: () => clearTimeout(failsafe)
-    }
-  )
+          reveal(document)
+          ungate(document)
+          reportError(cause)
+        },
+        settled: () => clearTimeout(failsafe)
+      }
+    )
+
+    standing.redraw()
+  }
 
   const standing: Standing = {
     container,
@@ -221,8 +236,10 @@ export const standAScreen = ({
       watching = false
       clearTimeout(failsafe)
       // Nothing is waiting for this page any more. Left alone the wait holds an address
-      // watcher and a mutation observer open for as long as its patience lasts.
-      Effect.runFork(Fiber.interrupt(waiting))
+      // watcher and a mutation observer open for as long as its patience lasts. Null
+      // where the reader left before the document had a body, which is a screen that
+      // never began to look for a page.
+      if (waiting !== null) Effect.runFork(Fiber.interrupt(waiting))
       // Where another screen is taking the page, the rest of this is its business: it
       // says when this one leaves the screen and comes down.
       if (!stepAside()) return
@@ -242,7 +259,16 @@ export const standAScreen = ({
       handBack(document)
     }
   }
-  standing.redraw()
+  /*
+   * Everything above this line is a statement about the document; everything in
+   * {@link standUp} needs a page to put a screen on, and at `document_start` there is
+   * not one yet. See {@link whenThereIsAPage} for what that cost. A screen the reader
+   * left before the parser produced a body is not stood up at all.
+   */
+  stopWaitingForABody = whenThereIsAPage(document, () => {
+    if (down || !watching) return
+    standUp()
+  })
 
   return standing
 }

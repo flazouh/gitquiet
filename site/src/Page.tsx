@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react"
+import type { CSSProperties, ReactNode } from "react"
 import { VIEWS } from "../../shots/views"
 import { Bed } from "./Bed"
 import { INK, MUTED } from "./brand"
@@ -10,11 +10,32 @@ import { PAINS } from "./pains"
 const STORE_AT =
   "https://chromewebstore.google.com/detail/gitquiet/ichobjnihnofjkpoegikjhefmoekaahe"
 
+const SOURCE_AT = "https://github.com/flazouh/gitquiet"
+
+const Octocat = ({ size = 17 }: { readonly size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.07-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.15 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A7.995 7.995 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+  </svg>
+)
+
+const Source = () => (
+  <a
+    href={SOURCE_AT}
+    aria-label="GitQuiet source on GitHub"
+    className="inline-flex items-center gap-2 rounded-full px-2.5 py-2 text-[15px] font-medium text-ink/70 transition-colors duration-[var(--duration-press)] ease-out hover:text-ink sm:px-3"
+  >
+    <Octocat />
+    <span className="hidden sm:inline">GitHub</span>
+  </a>
+)
+
 const Install = ({ big = false }: { readonly big?: boolean }) => (
   <a
     href={STORE_AT}
-    className={`inline-flex items-center justify-center rounded-full bg-ink font-semibold text-paper transition-[transform,background-color] duration-[var(--duration-press)] ease-out hover:bg-ink/85 active:scale-[var(--scale-press)] ${
-      big ? "px-7 py-3.5 text-[17px]" : "px-5 py-2.5 text-[15px]"
+    className={`inline-flex items-center justify-center whitespace-nowrap rounded-full bg-ink font-semibold text-paper transition-[transform,background-color] duration-[var(--duration-press)] ease-out hover:bg-ink/85 active:scale-[var(--scale-press)] ${
+      big
+        ? "px-7 py-3.5 text-[17px]"
+        : "px-4 py-2 text-[14px] sm:px-5 sm:py-2.5 sm:text-[15px]"
     }`}
   >
     Add to Chrome
@@ -36,6 +57,45 @@ const COURTS = [
   { court: "Running", means: "A machine is still working. Nothing to do but wait." },
 
   { court: "Settled", means: "Finished. Nothing left to do." }
+]
+
+const AGAINST: readonly {
+  readonly aspect: string
+  readonly theirs: ReactNode
+  readonly ours: string
+}[] = [
+  {
+    aspect: "The approach",
+    theirs: "Improves the pages GitHub drew, one annoyance at a time.",
+    ours: "Redraws thirteen pages on github.com itself."
+  },
+  {
+    aspect: "A pull request",
+    theirs: "Conversation and Files changed stay separate tabs.",
+    ours: "One screen. No tabs."
+  },
+  {
+    aspect: "A comment on code that moved",
+    theirs: (
+      <>
+        <a
+          className="underline decoration-ink/25 underline-offset-2 transition-colors hover:decoration-ink/60"
+          href="https://github.com/refined-github/refined-github/issues/7255"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Closed as not planned
+        </a>
+        , under the label &ldquo;impossible&rdquo;.
+      </>
+    ),
+    ours: "Stays visible, on the version of the code you wrote it about."
+  },
+  {
+    aspect: "Your work across repositories",
+    theirs: "GitHub’s own lists, improved.",
+    ours: "One list, grouped by who has to act next."
+  }
 ]
 
 const first = VIEWS[0]
@@ -73,9 +133,16 @@ export const Page = () => (
         <nav className="flex items-center justify-between py-7">
           <div className="flex items-center gap-2.5">
             <Mark size={30} color={INK} />
-            <Wordmark size={20} color={INK} />
+            {/* On the narrowest phones the mark carries the name on its own, so the
+                install button keeps the width it needs. */}
+            <span className="hidden min-[360px]:inline">
+              <Wordmark size={20} color={INK} />
+            </span>
           </div>
-          <Install />
+          <div className="flex items-center gap-2">
+            <Source />
+            <Install />
+          </div>
         </nav>
 
         <div className="pb-44 pt-12 sm:pt-20">
@@ -174,76 +241,52 @@ export const Page = () => (
           differ in where they start.
         </p>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] border-collapse text-left">
-            <thead>
-              <tr className="border-t border-ink/25">
-                <th className="w-[30%] py-5 pr-6 align-top" />
-                <th className="w-[35%] py-5 pr-6 align-top text-[17px] font-semibold tracking-[-0.02em]">
-                  Refined GitHub
-                </th>
-                <th className="w-[35%] py-5 align-top text-[17px] font-semibold tracking-[-0.02em]">
-                  GitQuiet
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-t border-rule">
+        <table className="hidden w-full border-collapse text-left md:table">
+          <thead>
+            <tr className="border-t border-ink/25">
+              <th className="w-[30%] py-5 pr-6 align-top" />
+              <th className="w-[35%] py-5 pr-6 align-top text-[17px] font-semibold tracking-[-0.02em]">
+                Refined GitHub
+              </th>
+              <th className="w-[35%] py-5 align-top text-[17px] font-semibold tracking-[-0.02em]">
+                GitQuiet
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {AGAINST.map((row) => (
+              <tr key={row.aspect} className="border-t border-rule">
                 <th scope="row" className="py-5 pr-6 align-top text-[15px] font-medium">
-                  The approach
+                  {row.aspect}
                 </th>
                 <td className="py-5 pr-6 align-top text-[15px] leading-relaxed text-muted">
-                  Improves the pages GitHub drew, one annoyance at a time.
+                  {row.theirs}
                 </td>
                 <td className="py-5 align-top text-[15px] leading-relaxed text-muted">
-                  Redraws thirteen pages on github.com itself.
+                  {row.ours}
                 </td>
               </tr>
-              <tr className="border-t border-rule">
-                <th scope="row" className="py-5 pr-6 align-top text-[15px] font-medium">
-                  A pull request
-                </th>
-                <td className="py-5 pr-6 align-top text-[15px] leading-relaxed text-muted">
-                  Conversation and Files changed stay separate tabs.
-                </td>
-                <td className="py-5 align-top text-[15px] leading-relaxed text-muted">
-                  One screen. No tabs.
-                </td>
-              </tr>
+            ))}
+          </tbody>
+        </table>
 
-              <tr className="border-t border-rule">
-                <th scope="row" className="py-5 pr-6 align-top text-[15px] font-medium">
-                  A comment on code that moved
-                </th>
-                <td className="py-5 pr-6 align-top text-[15px] leading-relaxed text-muted">
-                  <a
-                    className="underline decoration-ink/25 underline-offset-2 transition-colors hover:decoration-ink/60"
-                    href="https://github.com/refined-github/refined-github/issues/7255"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Closed as not planned
-                  </a>
-                  , under the label &ldquo;impossible&rdquo;.
-                </td>
-                <td className="py-5 align-top text-[15px] leading-relaxed text-muted">
-                  Stays visible, on the version of the code you wrote it about.
-                </td>
-              </tr>
-              <tr className="border-t border-rule">
-                <th scope="row" className="py-5 pr-6 align-top text-[15px] font-medium">
-                  Your work across repositories
-                </th>
-                <td className="py-5 pr-6 align-top text-[15px] leading-relaxed text-muted">
-                  GitHub&rsquo;s own lists, improved.
-                </td>
-                <td className="py-5 align-top text-[15px] leading-relaxed text-muted">
-                  One list, grouped by who has to act next.
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        {/* Three columns do not fit a phone, and a table nobody can read sideways is
+            worse than the same four rows read downwards. */}
+        <dl className="m-0 grid gap-9 md:hidden">
+          {AGAINST.map((row) => (
+            <div key={row.aspect} className="border-t border-rule pt-5">
+              <dt className="text-[16px] font-semibold tracking-[-0.02em]">{row.aspect}</dt>
+              <dd className="m-0 mt-4 text-[15px] leading-relaxed text-muted">
+                <span className="eyebrow mb-1.5 block">Refined GitHub</span>
+                {row.theirs}
+              </dd>
+              <dd className="m-0 mt-4 text-[15px] leading-relaxed text-muted">
+                <span className="eyebrow mb-1.5 block">GitQuiet</span>
+                {row.ours}
+              </dd>
+            </div>
+          ))}
+        </dl>
 
         <p className="mt-10 max-w-2xl text-pretty text-[17px] leading-relaxed text-muted">
           The third row is the tracker&rsquo;s own verdict, and it is honest: keeping a
@@ -264,7 +307,14 @@ export const Page = () => (
 
       <section className="border-t border-rule py-24">
         <div className="relative isolate overflow-hidden rounded-2xl">
-          <Bed rotation={200} scale={1.3} className="absolute inset-0 -z-10" />
+          {/* The position has to come through the style, since Bed's own inline
+              position would beat a class and leave the canvas nothing to fill. */}
+          <Bed
+            rotation={200}
+            scale={1.3}
+            className="-z-10"
+            style={{ position: "absolute", inset: 0 }}
+          />
           <div className="px-8 py-20 text-center sm:px-16">
             <h2 className="m-0 text-balance text-[clamp(1.75rem,4.5vw,3rem)] font-semibold leading-[1.05] tracking-[-0.035em]">
               Nothing changes for anybody else.
@@ -288,7 +338,16 @@ export const Page = () => (
           <span>gitquiet</span>
         </div>
 
-        <p className="m-0">Not affiliated with GitHub.</p>
+        <div className="flex flex-wrap items-center gap-6">
+          <a
+            href={SOURCE_AT}
+            className="inline-flex items-center gap-2 text-muted transition-colors duration-[var(--duration-press)] ease-out hover:text-ink"
+          >
+            <Octocat size={15} />
+            Source, under AGPL-3.0
+          </a>
+          <p className="m-0">Not affiliated with GitHub.</p>
+        </div>
       </footer>
     </div>
   </>
