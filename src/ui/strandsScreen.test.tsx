@@ -16,6 +16,7 @@ const listed = (
   run: `30${what.number}`,
   url: `/octo-org/octo-repo/actions/runs/30${what.number}`,
   workflow: "ci",
+  file: "ci.yml",
   title: "fix(worker): bound live tail memory and keep it observable",
   state: "succeeded",
   seconds: 234,

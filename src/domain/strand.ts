@@ -13,11 +13,44 @@ export type Ref =
   | { readonly kind: "branch"; readonly name: string }
   | { readonly kind: "pull"; readonly number: string }
 
+/**
+ * One Workflow, as the list down the side of their own page names it.
+ *
+ * Two fields because their page keeps the Workflow's two names apart and a reader only ever
+ * sees one of them: a Run row is labelled with the `name:` inside the file, and the file
+ * itself is named nowhere on the row.
+ */
+export type Workflow = {
+  /** Its own `name:`, or its filename where it has none. The word their rows print. */
+  readonly name: string
+  /**
+   * The file, as their own link to it writes it: `ci.yml`, under `.github/workflows`.
+   *
+   * Sometimes not a file at all. GitHub runs four or five Workflows of its own that nobody
+   * committed — code scanning, Dependabot, the Copilot reviewer — and writes those as a slug
+   * with a folder on the front, `github-code-scanning/codeql`. Read as their own spelling for
+   * the Workflow either way, because that is what it is used for: naming one Workflow apart
+   * from the rest of them for as long as a reader's decision about it has to last.
+   */
+  readonly file: string
+}
+
 /** One Run, in the facts their list page gives about it. */
 export type Listed = {
   readonly run: string
   readonly url: string
   readonly workflow: string
+  /**
+   * The file the Workflow is, where the list down the side of their page names it.
+   *
+   * Null where it does not: a Workflow whose `name:` two files share, a Workflow past the
+   * first page of that list, and a Run whose row is read on its own in a test. A Run carries
+   * this rather than the Strand or the screen because it is the one durable name a Workflow
+   * has — `name:` is a line in a file somebody edits, and
+   * [#26256](https://github.com/orgs/community/discussions/26256) is 419 readers saying that
+   * renaming a Workflow leaves the old name on their Actions tab for good.
+   */
+  readonly file: string | null
   /** The Run number their page writes as `#9857`, without the hash. */
   readonly number: string
   /** The head commit's title, which is all their list gives of the commit. */
