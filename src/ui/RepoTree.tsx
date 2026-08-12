@@ -341,6 +341,23 @@ export const RepoTree = ({
   const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set())
   const [extra, setExtra] = useState<ReadonlyMap<string, Touch>>(() => new Map())
   const asked = useRef(new Set<string>())
+  /*
+   * The tree a folder's column is allowed to land on, and whether it is still up.
+   *
+   * Neither belongs to the effect that starts the read. That effect runs again on
+   * every redraw, and the first stage of the read is itself a redraw — so a read
+   * cancelled by its own effect running again is a read that stages its messages
+   * and then throws its faces away.
+   */
+  const at = useRef(head)
+  const living = useRef(true)
+
+  useEffect(
+    () => () => {
+      living.current = false
+    },
+    []
+  )
 
   useEffect(() => {
     if (icons === "material") mountSprite(document)
@@ -372,38 +389,38 @@ export const RepoTree = ({
   )
 
   useEffect(() => {
+    at.current = head
     asked.current = new Set()
     setExtra(new Map())
   }, [head])
 
   useEffect(() => {
     if (loadTouches === undefined) return
-    let watching = true
 
-    const fold = (found: ReadonlyMap<string, Touch>): void => {
-      if (!watching) return
-      setExtra((was) => {
-        const next = new Map(was)
-        for (const [path, touch] of found) next.set(path, touch)
-        return next
-      })
-    }
+    /** A column, onto the tree that asked for it. Nothing, once that tree is gone. */
+    const fold =
+      (was: string) =>
+      (found: ReadonlyMap<string, Touch>): void => {
+        if (!living.current || at.current !== was) return
+        setExtra((have) => {
+          const next = new Map(have)
+          for (const [path, touch] of found) next.set(path, touch)
+          return next
+        })
+      }
 
     for (const row of rows) {
       if (row.kind !== "directory" || !row.open) continue
       if (asked.current.has(row.path)) continue
       asked.current.add(row.path)
 
+      const onto = fold(head)
       void Effect.runPromise(
-        loadTouches(head, row.path, fold).pipe(
-          Effect.map(fold),
+        loadTouches(head, row.path, onto).pipe(
+          Effect.map(onto),
           Effect.catch(() => Effect.void)
         )
       )
-    }
-
-    return () => {
-      watching = false
     }
   }, [rows, loadTouches, head])
 

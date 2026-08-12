@@ -179,4 +179,32 @@ describe("opening a file and a folder", () => {
     await userEvent.click(screen.getByRole("button", { name: "src" }))
     expect(await screen.findByRole("link", { name: /The tree draws itself/ })).toBeTruthy()
   })
+
+  /*
+   * The two stages are one request, and the first of them redraws the tree. A
+   * list that treated that redraw as a reason to drop the read would show every
+   * nested message with a hole where its face goes, for ever.
+   */
+  test("puts the face on a nested row, after the message the same read staged", async () => {
+    const said = "The tree draws itself"
+    const staged = new Map([["src/ui", touch({ said })]])
+    const named = new Map([
+      ["src/ui", touch({ said, who: Option.some({ login: "flazouh", face: Option.none() }) })]
+    ])
+
+    showing({
+      loadPaths: () => Effect.succeed(["src/ui/RepoTree.tsx", "README.md"]),
+      loadTouches: (_sha, _folder, partly) =>
+        Effect.sync(() => partly(staged)).pipe(
+          // A tick apart, as the two routes are. Together in one tick, the
+          // redraw the first stage causes lands after the second is already in.
+          Effect.flatMap(() => Effect.promise(() => new Promise((wake) => setTimeout(wake, 20)))),
+          Effect.map(() => named)
+        )
+    })
+
+    await userEvent.click(screen.getByRole("button", { name: "src" }))
+    const link = await screen.findByRole("link", { name: /The tree draws itself/ })
+    expect(await within(link).findByRole("img", { name: "flazouh" })).toBeTruthy()
+  })
 })
