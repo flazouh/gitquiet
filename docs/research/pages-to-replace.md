@@ -14,7 +14,9 @@ That tab is still GitHub's on purpose. `src/domain/PullRequestRef.ts` says Files
 
 GitHub's own changelog still reports 10+ second switches into that tab, a 1 GB JavaScript heap on large diffs, and a 1,000 or 3,000 file cap. Users still route around it with `github.dev`, the CLI, and other review products.
 
-Code view (`/blob`) is the second page. Notifications is the third. Job logs are already this product's run screen, so they are not a new page.
+Code view (`/blob`) is the second page. Notifications is the third.
+
+Job logs at `/actions/runs/ID/job/JOB` are already this product's run screen (`LogPanel`, `runAddressIn`). A second pass ranked that URL as a new page. That ranking is wrong. The Checks tab at `/pull/N/checks` is still GitHub's, and it is a weaker copy of the same log viewer.
 
 ## Method
 
@@ -33,7 +35,7 @@ Reddit search on r/github returned few recent performance threads. The strongest
 
 | Address | Why it is not a candidate |
 | --- | --- |
-| `/owner/repo/actions/runs/ID` and `.../job/JOB` | `runAddressIn` treats a job URL as the same Run screen. The spec in `docs/spec/actions.md` already answers "what broke". |
+| `/owner/repo/actions/runs/ID` and `.../job/JOB` | `runAddressIn` treats a job URL as the same Run screen. `src/ui/LogPanel.tsx` already draws the log. |
 | `/owner/repo/pull/N` | Conversation takeover. |
 | Home, pulls, issues, repo home, commits, one commit, one issue, raise, actions list | Already in `PLACES`. |
 
@@ -69,6 +71,21 @@ The default Files changed page still has hard limits (read from the official fee
 - Virtualized mode breaks find-in-page, select-all, print, and extensions that need the full diff in the DOM
 
 Source: https://github.com/orgs/community/discussions/163932 (408 upvotes, 3,188 comments)
+
+GitHub's repository limits still cap every diff, including this tab:
+
+- 20,000 loadable lines, or 1 MB of raw diff
+- 300 files in a single diff (docs). The new Files changed preview raises that to 1,000 or 3,000, then virtualizes.
+
+Source: https://docs.github.com/en/repositories/creating-and-managing-repositories/repository-limits
+
+Community #138160 (30 upvotes, 5 comments, 2024-09-09): "The PRs for my project are painfully slow to load and view. [...] each PR normally has thousands of changed files."
+
+https://github.com/orgs/community/discussions/138160
+
+WebKit staff filed the same Safari freeze on pull request review: 34 upvotes, 2 comments, 2025-08-25.
+
+https://github.com/orgs/community/discussions/170922
 
 Older threads that GitHub has not closed:
 
@@ -142,11 +159,17 @@ Do this after Files changed, unless the goal is to steal the bell-icon habit. Th
 
 Fit: high. This is how a pull request starts.
 
-Strength: medium. The public record is more about failures than FPS.
+Strength: medium. The public record mixes failures, missing filters, and the same diff caps as Files changed.
+
+The repository-limits doc applies the 20,000-line / 1 MB / 300-file caps to "commits, pull requests, and compare views".
+
+Community #165765 (29 upvotes, 2 comments, 2025-07-11): "GitHub's `/compare` page does not support filtering by path. That means when there a lot of changes in the other projects it gets very hard to read the comparison."
+
+https://github.com/orgs/community/discussions/165765
 
 Community #202875, "500 Internal Server Error when creating a Pull Request": 50 upvotes, 24 comments, 2026-07-24.
 
-Source: https://github.com/orgs/community/discussions/202875
+https://github.com/orgs/community/discussions/202875
 
 Safari #170758 comments name the new-PR reviewers picker as the worst control on that page.
 
@@ -166,9 +189,13 @@ A Perl 5 issue (2019) reports GitHub blame on large files as a unicorn: "This pa
 
 Source: https://github.com/Perl/perl5/issues/17310
 
+Community #150869 (1 upvote, 2025-02-06) reports the new in-page search: "overriding that for browser search is useless if the commit is more than about 100 lines down as it has not been loaded yet." "I've basically stopped using blames unless absolutely necessary."
+
+https://github.com/orgs/community/discussions/150869
+
 Community #5033 (587 upvotes, 24 comments) asks for `--ignore-revs-file` on the blame view. That is a feature gap, not a speed report, but it shows the page still has a large audience.
 
-Source: https://github.com/orgs/community/discussions/5033
+https://github.com/orgs/community/discussions/5033
 
 Why an extension can be faster: blame is expensive on GitHub's servers. A takeover cannot make `git blame` cheaper. It can page by line range and avoid drawing the whole file. Local `git blame` remains faster. Lower priority than Files changed and blob.
 
@@ -178,7 +205,11 @@ Fit: high. Merge is in the vision.
 
 Strength: low for speed, high for missing facts
 
-`docs/spec/conflicted-files.md` already measured that `page_data/merge_box` carries the conflict paths. The gap is the editor, not the list. Community reports are about wrong merge direction and false conflicts, not FPS.
+`docs/spec/conflicted-files.md` already measured that `page_data/merge_box` carries the conflict paths. The gap is the editor, not the list.
+
+GitHub's own docs disable the page for anything but a simple line clash: "If Resolve conflicts is deactivated, resolve the conflict using another Git client or the command line."
+
+https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/resolving-a-merge-conflict-on-github
 
 Do the path list on the pull request first. Replace the editor only if people still leave for GitHub after they see the paths.
 
@@ -186,11 +217,12 @@ Do the path list on the pull request first. Replace the editor only if people st
 
 | Page | Why it waits |
 | --- | --- |
-| `/pull/N/checks` | GitQuiet already files Checks on the conversation. A separate tab adds little. |
+| `/pull/N/checks` | Still GitHub's URL. GitQuiet already files Checks on the conversation and draws the job log on the run screen. A third copy of the log viewer is not the next page. |
 | `/pull/N/commits` | The conversation already lists commits. The branch commits page is already replaced. |
-| Actions job log viewer as GitHub draws it | Already owned. A GitHub employee still says "Stop Using the Log Viewer" and points at `gh run view --log-failed`. https://dev.to/andreagriffiths11/github-actions-the-stuff-nobody-tells-you-19md |
+| Actions job log as GitHub draws it | Already owned at the job URL. A GitHub employee still says "Stop Using the Log Viewer" and points at `gh run view --log-failed`. https://dev.to/andreagriffiths11/github-actions-the-stuff-nobody-tells-you-19md |
+| Search | Official caps: 100 results, files over 350 KiB excluded, query timeouts. An extension cannot beat their index. https://docs.github.com/en/search-github/github-code-search/about-github-code-search |
 | Network graph, contributors, insights | Classic timeouts. Not pull-request work. |
-| Projects, Discussions, Wiki, Releases, Search | Real pain, different product. Search needs GitHub's index. |
+| Projects, Discussions, Wiki, Releases | Real pain, different product. |
 | Settings, billing, packages, codespaces | Out of vision. |
 
 ## Reddit
@@ -241,6 +273,8 @@ An extension that draws less DOM, virtualizes from the first byte, and keeps nat
 - Files changed 5 Feb 2026: https://github.blog/changelog/2026-02-05-improved-pull-request-files-changed-february-5-updates/
 - Diff performance: https://github.blog/engineering/architecture-optimization/the-uphill-climb-of-making-diff-lines-performant/
 - Code view performance: https://github.blog/engineering/architecture-optimization/crafting-a-better-faster-code-view/
+- Repository limits: https://docs.github.com/en/repositories/creating-and-managing-repositories/repository-limits
+- Conflict editor limits: https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/resolving-a-merge-conflict-on-github
 - Actions log advice: https://dev.to/andreagriffiths11/github-actions-the-stuff-nobody-tells-you-19md
 
 ### GitHub Community
@@ -248,9 +282,13 @@ An extension that draws less DOM, virtualizes from the first byte, and keeps nat
 - Files changed feedback: https://github.com/orgs/community/discussions/163932
 - Big PR lag: https://github.com/orgs/community/discussions/33663
 - File tree crash: https://github.com/orgs/community/discussions/39341
+- Thousands of files: https://github.com/orgs/community/discussions/138160
 - Safari: https://github.com/orgs/community/discussions/170758
+- Safari, WebKit staff: https://github.com/orgs/community/discussions/170922
 - Code view symbols: https://github.com/orgs/community/discussions/54962
+- Compare path filter: https://github.com/orgs/community/discussions/165765
 - Notifications filters: https://github.com/orgs/community/discussions/5601, https://github.com/orgs/community/discussions/55098, https://github.com/orgs/community/discussions/4520
+- Blame search: https://github.com/orgs/community/discussions/150869
 - Blame ignore-revs: https://github.com/orgs/community/discussions/5033
 - Create PR 500: https://github.com/orgs/community/discussions/202875
 
