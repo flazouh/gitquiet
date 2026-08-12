@@ -137,8 +137,14 @@
   font-size: 0.8125rem;
 }
 
+/*
+ * No ceiling on the width, which is the other half of `useMaxWidth: false`.
+ * Held to the column, a diagram wider than the column is drawn smaller until
+ * its words are too small to read; left at its own size it is drawn once and
+ * the figure above scrolls to the rest of it.
+ */
 .markdown-mermaid svg {
-  max-width: 100%;
+  max-width: none;
   height: auto;
 }
 

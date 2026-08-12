@@ -106,7 +106,14 @@ export const draw = (code: string): Effect.Effect<string | null> =>
         securityLevel: "strict",
         theme: "base",
         themeVariables: paperforgeTheme(ink),
-        flowchart: { htmlLabels: false, curve: "basis" }
+        /*
+         * Drawn at its own size rather than squeezed into the panel. Mermaid's
+         * default fits the diagram to whatever it is put in, and this interface
+         * puts it in a column of twenty-six rems: a flowchart of four nodes came
+         * out at a third of its size, with labels no reader could read. The
+         * figure around it scrolls sideways instead — see `markdown.css`.
+         */
+        flowchart: { htmlLabels: false, curve: "basis", useMaxWidth: false }
       })
       nextId += 1
       return mermaid.render(`mermaid-${nextId}`, code)
