@@ -1,13 +1,15 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import { afterwards } from "../../tests/afterwards"
 import { aCheck, aComment, aFile, aSnapshot, aThread, person } from "../../tests/snapshots"
 import { loadPullRequest } from "../app/pullRequest"
-import type { FetchedDiff, PullRequestSnapshot } from "../domain/PullRequest"
+import type { FetchedDiff, NewComment, PullRequestSnapshot } from "../domain/PullRequest"
+import type { DiffRequest, Note } from "../ports/Renderer"
 import { layerFromSnapshots } from "../github/GitHubGateway"
 import { PullRequestScreen } from "./PullRequestScreen"
+import { RendererProvider, type LoadEngine } from "./renderer"
 
 afterEach(cleanup)
 
@@ -442,6 +444,115 @@ describe("a markdown file, which is prose rather than code", () => {
     await awaitPage()
 
     expect(within(section("Files")).queryByRole("button", { name: "Preview" })).toBeNull()
+  })
+})
+
+/**
+ * The renderer, stood in for, with the rows it hangs put where a test can read
+ * them.
+ *
+ * The real one slots each row into its own shadow tree, under the line it
+ * belongs to. This one appends the same element to the container it was given,
+ * which is the whole of what a box opened over marked lines needs to be
+ * reachable from the document.
+ */
+const drawing = () => {
+  const asked: Array<DiffRequest> = []
+  const load: LoadEngine = Effect.succeed({
+    renderDiff: (container: HTMLElement, request: DiffRequest) => {
+      asked.push(request)
+      const hang = (notes: ReadonlyArray<Note>) => {
+        for (const note of notes) {
+          const row = request.fillNote?.(note.key)
+          if (row !== undefined && !container.contains(row)) container.append(row)
+        }
+      }
+      hang(request.notes ?? [])
+      return { onThemeChange: () => {}, showNotes: hang, unpick: () => {}, destroy: () => {} }
+    }
+  })
+  return { asked, load }
+}
+
+describe("a remark written on a line the pull request removed", () => {
+  /** One file, one hunk, one line taken out of it: line 43 of the old file. */
+  const withADeletion = (): PullRequestSnapshot =>
+    aSnapshot({
+      files: [
+        {
+          ...aFile("src/spin.ts"),
+          diff: Option.some({
+            isBinary: false,
+            isTruncated: false,
+            lines: [
+              {
+                kind: "hunk" as const,
+                text: "@@ -43,1 +43,0 @@",
+                beforeLine: Option.none(),
+                afterLine: Option.none()
+              },
+              {
+                kind: "deleted" as const,
+                text: "-  const index = build()",
+                beforeLine: Option.some(43),
+                afterLine: Option.none()
+              }
+            ]
+          })
+        }
+      ]
+    })
+
+  /*
+   * The reader marks a removed line, and the two halves of the diff are
+   * numbered separately: line 43 of the old file is not line 43 of the new one,
+   * and a remark that arrives without saying which is a remark on whatever
+   * happens to sit at that number now. `sideOf` in `threads.ts` has honoured
+   * that on the way in since threads were first drawn in the diff; this is the
+   * same fact on the way out, and the screen is where it used to be dropped.
+   */
+  test("reaches the gateway numbered on the old file rather than the new one", async () => {
+    const posted: Array<NewComment> = []
+    const renderer = drawing()
+    const snapshot = withADeletion()
+
+    render(
+      <RendererProvider load={renderer.load}>
+        <PullRequestScreen
+          reference={snapshot.reference}
+          load={() =>
+            loadPullRequest(snapshot.reference).pipe(
+              Effect.provide(layerFromSnapshots([snapshot]))
+            )
+          }
+          fetchDiffs={() => Effect.succeed([])}
+          onStepAside={() => {}}
+          postComment={(note) => {
+            posted.push(note)
+            return Effect.succeed(aThread("t9", []))
+          }}
+        />
+      </RendererProvider>
+    )
+    await awaitPage()
+
+    const request = await waitFor(() => {
+      expect(renderer.asked).toHaveLength(1)
+      return renderer.asked[0]!
+    })
+    act(() => request.onPick?.({ side: "deletions", from: 43, to: 43 }))
+
+    const box = within(section("Files")).getByRole("textbox")
+    await userEvent.type(box, "This was the only caller.")
+    await userEvent.click(within(section("Files")).getByRole("button", { name: "Comment" }))
+
+    expect(posted).toHaveLength(1)
+    expect(posted[0]).toMatchObject({
+      path: "src/spin.ts",
+      side: "before",
+      line: 43,
+      startLine: 43
+    })
   })
 })
 
