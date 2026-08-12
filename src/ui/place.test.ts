@@ -9,6 +9,7 @@ import {
   HOME,
   ISSUE,
   ISSUES,
+  NOTIFICATIONS,
   placeOwning,
   PLACES,
   RAISE,
@@ -45,6 +46,7 @@ const ADDRESSES: ReadonlyArray<readonly [string, Place]> = [
   ["/facebook/react/actions/runs/30866145080", RUN],
   ["/facebook/react/actions/runs/30866145080/job/1234", RUN],
   ["/facebook/react/actions", ACTIONS],
+  ["/notifications", NOTIFICATIONS],
   ["/facebook/react", REPO_HOME],
   ["/facebook/react/tree/main/src", REPO_HOME],
 ];
@@ -54,7 +56,10 @@ const THEIRS: Array<string> = [
   // The tabs beside a pull request are GitHub's on purpose: this interface replaces
   // the conversation, and Files, Commits and Checks are theirs.
   "/facebook/react/pull/1749/files",
-  "/notifications",
+  // The two pages under the same word as the inbox. Neither lists a Notice: one lists the
+  // threads the reader is subscribed to and the other lists repositories.
+  "/notifications/subscriptions",
+  "/watching",
   "/facebook/react/settings",
   "/facebook/react/actions/caches",
   // The picker that stands in front of the form where a repository has templates.

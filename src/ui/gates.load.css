@@ -154,6 +154,16 @@ html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet
   display: none;
 }
 
+/* notifications: before ours is up. */
+html[data-gitquiet-page="notifications"]:not([data-gitquiet-revealed]) div.js-notifications-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* notifications: for as long as ours is in charge. */
+html[data-gitquiet-taken] div.js-notifications-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
 /* home: before ours is up. */
 html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) #dashboard.dashboard > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
 html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) div.copilotPreview__container,
