@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import type { Settling } from "../domain/Issue"
-import { Effect } from "effect"
+import { Effect, Option } from "effect"
 import {
   draftWithBotFindings,
   loadFixture,
@@ -743,7 +743,11 @@ describe("what the gateway sends to GitHub", () => {
         }
       })
 
-    const commenting = (note: { readonly line: number; readonly startLine: number }) =>
+    const commenting = (note: {
+      readonly line: number
+      readonly startLine: number
+      readonly side?: "before" | "after"
+    }) =>
       Effect.gen(function* () {
         const gateway = yield* GitHubGateway
         return yield* gateway.comment(draft, {
@@ -751,6 +755,7 @@ describe("what the gateway sends to GitHub", () => {
           body: "This drops the index.",
           baseSha: base,
           headSha: head,
+          side: "after",
           ...note
         })
       }).pipe(Effect.provide(layer))
@@ -806,6 +811,62 @@ describe("what the gateway sends to GitHub", () => {
         startLine: 12,
         startSide: "right",
         positioning: { startLine: 12, startSide: "right" }
+      })
+    })
+
+    /*
+     * The half of the diff the remark was written on, said in their word for it.
+     *
+     * A removed line is numbered in the old file, and that number in the new
+     * file is whatever happens to sit there now — so a remark on a deleted line
+     * sent as the right side lands on unrelated code, or is refused for a line
+     * their route cannot find. The read path has honoured the two halves since
+     * `sideOf` in `src/ui/threads.ts`; this is the same fact on the way out.
+     *
+     * `left` is an inference and not a capture. `docs/spec/github-write-api.md`
+     * records this route's own marker for the two halves — `R{line}` for the new
+     * file and `L{line}` for the old — and their own box was measured sending
+     * `right` in lower case for the new one. Nothing here has read a request
+     * carrying the other word off the wire.
+     */
+    test("puts a remark on a removed line on the old file's numbering", async () => {
+      const calls = intercept(written)
+
+      await Effect.runPromise(commenting({ line: 12, startLine: 12, side: "before" }))
+
+      expect(calls[0]!.body).toMatchObject({ side: "left" })
+    })
+
+    test("keeps both ends of a range on the side the reader marked out", async () => {
+      const calls = intercept(written)
+
+      await Effect.runPromise(commenting({ line: 14, startLine: 12, side: "before" }))
+
+      // A range picked on one half of the diff has both ends numbered in the
+      // same file. The two disagreeing would be a range running from the old
+      // file to the new one, which is not a thing a reader can mark out here.
+      expect(calls[0]!.body).toMatchObject({
+        side: "left",
+        startSide: "left",
+        positioning: { startSide: "left" }
+      })
+    })
+
+    test("hands back a thread hung on the side the remark was written on", async () => {
+      intercept(written)
+
+      const thread = await Effect.runPromise(
+        commenting({ line: 12, startLine: 12, side: "before" })
+      )
+
+      // What the diff draws it against a moment later, without reading the page
+      // again. Anchored to the new file, the remark just posted would appear in
+      // the interface on a line it is not about.
+      expect(Option.getOrUndefined(thread.at)).toEqual({
+        path: "src/index.ts",
+        side: "before",
+        line: 12,
+        startLine: 12
       })
     })
 

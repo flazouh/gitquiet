@@ -127,6 +127,14 @@ or the literal `FILE` when the comment is on the file rather than a line. A
 multi-line comment adds the same marker for its start. `submitBatch` decides
 whether the comment posts immediately or joins a pending review.
 
+The body also names the side in two fields of its own, beside the line numbers
+rather than inside them: `side`, and `startSide` on a range. `right` is the
+measured value in both, captured from their own box on a comment about an added
+line. `left` is not measured. It is inferred from the `L` marker above and from
+`right` arriving in lower case, and `GitHubGateway.comment` sends it on a remark
+written on the deletions side. A remark on a removed line, captured off the
+wire, is the request that would settle it, and none has been read here.
+
 ### `submitBatch` decides it, and `true` sends
 
 `true` posts the comment at once. `false` holds it in the Participant's own

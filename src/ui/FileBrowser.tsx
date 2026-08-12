@@ -9,6 +9,7 @@ import { acted, footingOf, markOf } from "../domain/reviewPass"
 import { stepping } from "../domain/stepping"
 import type { DiffChoices, TreeChoices } from "../domain/choices"
 import type { ChangedFile, FileDiff, ReviewThread } from "../domain/PullRequest"
+import type { DiffSide } from "../ports/Renderer"
 import { chordFor, DEFAULT_PROFILE, type Profile } from "../keys/commands"
 import { Cap } from "./Cap"
 import { draftsIn, dropDraft, saveDraft, type Draft } from "./drafts"
@@ -44,6 +45,8 @@ export type FileBrowserProps = {
   /** Sends a remark on some lines of a file to GitHub. */
   readonly onPost?: (note: {
     readonly path: string
+    /** Which half of the diff the lines were marked on, since the two are numbered apart. */
+    readonly side: DiffSide
     readonly from: number
     readonly to: number
     readonly body: string

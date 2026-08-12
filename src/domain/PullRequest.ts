@@ -121,6 +121,15 @@ export type ThreadAnchor = {
  */
 export type NewComment = {
   readonly path: string
+  /**
+   * Which side of the diff the lines are numbered on, spelled as
+   * {@link ThreadAnchor} spells it.
+   *
+   * A remark on a removed line belongs to the old file's numbering. Sent
+   * without this, it would be filed against the new file at the same number,
+   * where it lands on whatever happens to sit there now or on nothing at all.
+   */
+  readonly side: ThreadAnchor["side"]
   /** The last line of the range, which for a single line is the only one. */
   readonly line: number
   readonly startLine: number
