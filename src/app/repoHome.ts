@@ -1,5 +1,4 @@
 import { Effect, Option } from "effect"
-import type { CommitDetail } from "../domain/PullRequest"
 import type { RepoRef } from "../domain/PullRequestRef"
 import {
   type Front,
@@ -39,39 +38,58 @@ export const rememberedRepoHome = Effect.fn("rememberedRepoHome")(function* (rep
   return yield* gateway.rememberedRepoHome(repo)
 })
 
-/** How many unique commits to name at once. One request per SHA, not per row. */
-const AT_ONCE = 4
+/**
+ * How many unique commits to name at once. One request per SHA, not per row.
+ *
+ * Sixteen because the wait is round trips and not bytes. Each answer is about two
+ * kilobytes and takes about eight hundred milliseconds, so sixty-five of them —
+ * one folder of this repository — took 7.5 seconds four at a time, 3.4 seconds
+ * sixteen at a time, and no answer was ever refused with thirty in flight.
+ */
+const AT_ONCE = 16
 
-const whoFrom = (detail: CommitDetail): TouchWho => ({
-  login: detail.author,
-  face: detail.avatarUrl
-})
+/**
+ * Faces named in this document already, so a second folder does not ask again.
+ *
+ * Held in memory rather than in the store, and safe to hold for as long as the
+ * page lives: a commit that has landed never changes its author. Folders under
+ * one repository share their last commits heavily — the root column and three
+ * opened folders were re-reading the same SHAs — and a repeated read costs a
+ * round trip to be told what is already on the screen.
+ */
+const named = new Map<string, Option.Option<TouchWho>>()
+
+const under = (repo: RepoRef, sha: string): string => `${repo.owner}/${repo.repo}@${sha}`
 
 const whoOf =
   (
     gateway: {
-      readonly rememberedCommit: (
+      readonly whoTouched: (
         repo: RepoRef,
         sha: string
-      ) => Effect.Effect<Option.Option<CommitDetail>, unknown>
-      readonly commit: (
-        repo: RepoRef,
-        sha: string
-      ) => Effect.Effect<CommitDetail, unknown>
+      ) => Effect.Effect<Option.Option<TouchWho>, unknown>
     },
     repo: RepoRef
   ) =>
-  (sha: string) =>
-    gateway.rememberedCommit(repo, sha).pipe(
-      Effect.orElseSucceed(() => Option.none()),
-      Effect.flatMap((held) =>
-        Option.match(held, {
-          onNone: () => gateway.commit(repo, sha),
-          onSome: (detail) => Effect.succeed(detail)
+  (sha: string) => {
+    const held = named.get(under(repo, sha))
+    if (held !== undefined) {
+      return Option.match(held, {
+        onNone: () => Effect.fail("nobody named" as const),
+        onSome: (who) => Effect.succeed(who)
+      })
+    }
+
+    return gateway.whoTouched(repo, sha).pipe(
+      Effect.tap((found) => Effect.sync(() => named.set(under(repo, sha), found))),
+      Effect.flatMap(
+        Option.match({
+          onNone: () => Effect.fail("nobody named" as const),
+          onSome: (who) => Effect.succeed(who)
         })
-      ),
-      Effect.map(whoFrom)
+      )
     )
+  }
 
 /**
  * Faces for the unique SHAs the column still has no author for.

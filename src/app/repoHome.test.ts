@@ -91,6 +91,23 @@ const heldAtTheFaces = (): ReadonlyArray<string> => {
   return asked
 }
 
+/** The column answered, and every face answered as well. */
+const answering = (): ReadonlyArray<string> => {
+  const asked: Array<string> = []
+  const handler = (input: RequestInfo | URL): Promise<Response> => {
+    const url = String(input)
+    asked.push(url)
+    const body = url.includes("/tree-commit-info/")
+      ? answered
+      : { oid: url.split("/latest-commit/")[1] ?? "", author: { login: "flazouh" } }
+    return Promise.resolve(
+      new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } })
+    )
+  }
+  globalThis.fetch = Object.assign(handler, { preconnect: realFetch.preconnect })
+  return asked
+}
+
 const soon = async (there: () => boolean): Promise<boolean> => {
   for (let tries = 0; tries < 50; tries += 1) {
     if (there()) return true
@@ -116,6 +133,40 @@ describe("the last commits under one folder", () => {
     expect([...(staged[0] ?? new Map()).keys()].every((path) => path.startsWith("src/"))).toBe(true)
 
     await Effect.runPromise(Fiber.interrupt(reading))
+  })
+
+  /*
+   * The face used to come off the commit's own page, which carries the whole
+   * diff to name one person: 28 kilobytes here and 390 on `facebook/react`,
+   * against 2 for this route.
+   */
+  test("reads the face off the cheap route, not off the commit's own page", async () => {
+    const asked = answering()
+
+    await Effect.runPromise(
+      loadFolderTouches(repo, "head", "src").pipe(Effect.provide(layer))
+    )
+
+    expect(asked.some((url) => url.includes("/latest-commit/"))).toBe(true)
+    expect(asked.some((url) => url.includes("/commit/"))).toBe(false)
+  })
+
+  test("asks once for a commit two folders share", async () => {
+    const asked = answering()
+    // Its own repository, because the faces are remembered for as long as the
+    // document lives and another test in this file has already named these.
+    const alone = { owner: "flazouh", repo: "shared-commits" }
+
+    await Effect.runPromise(
+      loadFolderTouches(alone, "head", "src").pipe(Effect.provide(layer))
+    )
+    const first = asked.filter((url) => url.includes("/latest-commit/")).length
+    await Effect.runPromise(
+      loadFolderTouches(alone, "head", "src/ui").pipe(Effect.provide(layer))
+    )
+
+    expect(first).toBeGreaterThan(0)
+    expect(asked.filter((url) => url.includes("/latest-commit/"))).toHaveLength(first)
   })
 
   test("asks that folder's own route, which answers relative to it", async () => {

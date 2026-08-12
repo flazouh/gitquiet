@@ -23,7 +23,7 @@ import type { IssueSnapshot, Settling } from "../domain/Issue"
 import type { InvolvedIssue, Involvement, IssueRef, ListedIssue } from "../domain/issues"
 import type { Portrait } from "../domain/portrait"
 import type { Raised, Raising } from "../domain/raising"
-import type { Front, Opened, Standing, Starring, Touch } from "../domain/repoHome"
+import type { Front, Opened, Standing, Starring, Touch, TouchWho } from "../domain/repoHome"
 import type { Repository } from "../domain/repositories"
 import type { RunOpening, RunRef } from "../domain/run"
 import type { Strand } from "../domain/strand"
@@ -479,6 +479,21 @@ export class GitHubGateway extends Context.Service<
       sha: string,
       folder?: string
     ) => Effect.Effect<ReadonlyMap<string, Touch>, GatewayError>
+    /**
+     * Who wrote one commit, for the face beside a row of that column.
+     *
+     * The route above names nobody, so this is asked once per unique commit
+     * behind it. Its own route rather than {@link commit}, which answers the
+     * whole diff to say one login: two kilobytes against twenty-eight on this
+     * repository and three hundred and ninety on `facebook/react`, measured.
+     *
+     * Nothing where nobody is named, which is a row that keeps its message, its
+     * age and its link and loses only the face.
+     */
+    readonly whoTouched: (
+      reference: RepoRef,
+      sha: string
+    ) => Effect.Effect<Option.Option<TouchWho>, GatewayError>
     /**
      * The front page as it was last read, without asking GitHub.
      *

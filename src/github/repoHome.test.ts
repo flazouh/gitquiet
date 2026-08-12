@@ -5,12 +5,14 @@ import payload from "../../fixtures/github/repo-home.json"
 import type { Front, Starring } from "../domain/repoHome"
 import type { KeptFront } from "./repoHome"
 import {
+  decodeLatestCommit,
   decodeRepoHome,
   decodeTreeCommitInfo,
   frontFrom,
   frontFromKept,
   keptFrom,
-  touchesFrom
+  touchesFrom,
+  wroteIn
 } from "./repoHome"
 
 const repo = { owner: "flazouh", repo: "githubpro" }
@@ -164,6 +166,60 @@ describe("the commit column, read off their second route", () => {
     expect(Option.getOrNull(Option.getOrNull(touch?.who ?? Option.none())?.face ?? Option.none())).toBe(
       "https://avatars.githubusercontent.com/u/1"
     )
+  })
+})
+
+describe("who wrote a commit, off the cheap route", () => {
+  const answered = (over: Record<string, unknown>) =>
+    wroteIn("abc", Effect.runSync(decodeLatestCommit({ oid: "abc", ...over })))
+
+  test("reads the login and the face", () => {
+    const who = answered({
+      author: {
+        login: "flazouh",
+        displayName: "flazouh",
+        avatarUrl: "https://avatars.githubusercontent.com/u/25705704?s=40&v=4"
+      }
+    })
+
+    expect(Option.getOrNull(who)?.login).toBe("flazouh")
+    expect(Option.getOrNull(Option.getOrNull(who)?.face ?? Option.none())).toBe(
+      "https://avatars.githubusercontent.com/u/25705704?s=40&v=4"
+    )
+  })
+
+  /*
+   * A commit whose author email belongs to no account. GitHub answers a real name
+   * and a gravatar, and a row that dropped it would lose the one person the
+   * column exists to name.
+   */
+  test("falls back to the name where the email belongs to no account", () => {
+    const who = answered({
+      author: { login: null, displayName: "Askar Safin", avatarUrl: null }
+    })
+
+    expect(Option.getOrNull(who)?.login).toBe("Askar Safin")
+  })
+
+  test("takes the first of the credited authors where there is no author field", () => {
+    const who = answered({ authors: [{ login: "flazouh" }, { login: "cursoragent" }] })
+
+    expect(Option.getOrNull(who)?.login).toBe("flazouh")
+  })
+
+  /*
+   * That route means "the latest commit at this ref, under this path". A path on
+   * the end answers about another commit, and a face from it would name the wrong
+   * person on every row.
+   */
+  test("answers nothing where the route answered about another commit", () => {
+    const who = wroteIn("abc", Effect.runSync(decodeLatestCommit({ oid: "def", author: { login: "flazouh" } })))
+
+    expect(Option.isNone(who)).toBe(true)
+  })
+
+  test("answers nothing where nobody is named", () => {
+    expect(Option.isNone(answered({}))).toBe(true)
   })
 })
 

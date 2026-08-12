@@ -17,11 +17,12 @@ import { Effect, Option, Schema } from "effect"
 import type { About, Entry, Front, Kind, Starring, Touch, TouchWho, Welcome } from "../domain/repoHome"
 import { footingOf, inReadingOrder } from "../domain/repoHome"
 import { plainText } from "./plainText"
-import { RepoHomeRoute, TreeCommitInfoRoute, TreeListRoute } from "./wire"
+import { LatestCommitRoute, RepoHomeRoute, TreeCommitInfoRoute, TreeListRoute } from "./wire"
 
 export const decodeRepoHome = Schema.decodeUnknownEffect(RepoHomeRoute)
 export const decodeTreeCommitInfo = Schema.decodeUnknownEffect(TreeCommitInfoRoute)
 export const decodeTreeList = Schema.decodeUnknownEffect(TreeListRoute)
+export const decodeLatestCommit = Schema.decodeUnknownEffect(LatestCommitRoute)
 
 type WireEntry = RepoHomeRoute["payload"]["codeViewRepoRoute"]["tree"]["items"][number]
 
@@ -330,6 +331,31 @@ const whoFrom = (
     login,
     face: Option.fromNullishOr(author.avatarUrl ?? undefined)
   })
+}
+
+/**
+ * Who wrote one commit, off the route that answers that and nothing else.
+ *
+ * The name where the email belongs to no account, rather than nobody. GitHub
+ * sends a real display name and a gravatar for those commits, and a column that
+ * dropped them would go blank on exactly the rows a reader cannot work out for
+ * themselves.
+ *
+ * Nothing where the answer is about another commit. That route means "the latest
+ * commit at this ref, under this path", so a path left on the end answers about
+ * a different one — and a face taken from it would name the wrong person on
+ * every row of the folder.
+ */
+export const wroteIn = (sha: string, route: LatestCommitRoute): Option.Option<TouchWho> => {
+  if (route.oid != null && route.oid !== sha) return Option.none()
+
+  const person = route.author ?? route.authors?.[0]
+  if (person == null) return Option.none()
+
+  const named = person.login ?? person.displayName
+  if (named == null || named === "") return Option.none()
+
+  return Option.some({ login: named, face: Option.fromNullishOr(person.avatarUrl ?? undefined) })
 }
 
 export const touchesFrom = (

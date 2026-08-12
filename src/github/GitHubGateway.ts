@@ -78,6 +78,7 @@ import { embeddedPayload } from "./embedded"
 import { signOnWanted } from "./signOn"
 import { involvedIssuesFrom, listedIssuesFrom } from "./issues"
 import {
+  decodeLatestCommit,
   decodeRepoHome,
   decodeTreeCommitInfo,
   decodeTreeList,
@@ -85,7 +86,8 @@ import {
   frontFromKept,
   isKeptFront,
   keptFrom,
-  touchesFrom
+  touchesFrom,
+  wroteIn
 } from "./repoHome"
 import { commitFromKept, keptCommitFrom } from "./keptCommit"
 import { keepTabs, keptTabs, tabsOnPage } from "./repoTabs"
@@ -3251,6 +3253,22 @@ export const layer = Layer.succeed(GitHubGateway, {
       )
     }),
 
+    whoTouched: Effect.fn("GitHubGateway.whoTouched")(function* (
+      reference: RepoRef,
+      sha: string
+    ) {
+      const route = `/latest-commit/${sha}`
+      const raw = yield* readRepoRoute(reference, route)
+
+      // Not kept, for the same reason the column is not: it decorates a row that
+      // is already drawn, and the folder it belongs to is asked for again on the
+      // next visit anyway.
+      return yield* decodeLatestCommit(raw).pipe(
+        Effect.map((decoded) => wroteIn(sha, decoded)),
+        Effect.catch(undecodableFrom(reference, route))
+      )
+    }),
+
     /**
      * Every path in the repository, at one commit.
      *
@@ -3554,6 +3572,7 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     treePaths: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     fileAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     treeCommits: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    whoTouched: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     // No run recorded, and a failure rather than an empty one: a run with no jobs
     // and no facts is not a run that did nothing, and the screen says so either way.
     run: (reference: RunRef) => Effect.fail(nothingRecordedFor(reference.repo)),
@@ -3679,6 +3698,7 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     treePaths: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     fileAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     treeCommits: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    whoTouched: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     // No run recorded, and a failure rather than an empty one: a run with no jobs
     // and no facts is not a run that did nothing, and the screen says so either way.
     run: (reference: RunRef) => Effect.fail(nothingRecordedFor(reference.repo)),
