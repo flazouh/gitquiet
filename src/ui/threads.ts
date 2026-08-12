@@ -32,6 +32,16 @@ export const threadKey = (thread: ReviewThread): string => `thread:${thread.id}`
 export const sideOf = (side: ThreadAnchor["side"]): DiffSide =>
   side === "before" ? "deletions" : "additions"
 
+/**
+ * The renderer's word for a side of the diff, in ours.
+ *
+ * The way back out, for lines the reader marked to say something about: what
+ * the renderer hands over is the half of its own two the pointer was on, and
+ * what a remark travels to GitHub as is the file that half is numbered in.
+ */
+export const anchorSideOf = (side: DiffSide): ThreadAnchor["side"] =>
+  side === "deletions" ? "before" : "after"
+
 /** Every thread hung off a line of this file, in the order they arrived. */
 export const threadsIn = (
   threads: ReadonlyArray<ReviewThread>,

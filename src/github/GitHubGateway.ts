@@ -6,7 +6,8 @@ import type {
   NewComment,
   Participant,
   PullRequestSnapshot,
-  Remark
+  Remark,
+  ThreadAnchor
 } from "../domain/PullRequest"
 import type { PullRequestRef, RepoRef } from "../domain/PullRequestRef"
 import type { Tab } from "../domain/tabs"
@@ -1589,6 +1590,24 @@ const foundIn = (route: string, raw: unknown): Effect.Effect<Found, WorkingSetEr
     )
   )
 
+/**
+ * Our word for a side of the diff, in the one their write route uses.
+ *
+ * The two halves are numbered separately, so which of them a remark is about is
+ * as much a part of its address as the line number: on the new file, line 43 of
+ * the old file is whatever the change left at 43, and on a file whose end was
+ * cut it is nothing at all. `sideOf` in `src/ui/threads.ts` says the same thing
+ * about the way in.
+ *
+ * `right` was measured. It is what their own box sends, in lower case, and the
+ * request it came from is recorded in `docs/spec/github-write-api.md`. `left`
+ * is inferred from the same document, which records this route's marker for the
+ * two halves as `R{line}` for the new file and `L{line}` for the old: no
+ * request carrying the word for the old file has been read off the wire here.
+ */
+const asTheyNameIt = (side: ThreadAnchor["side"]): "left" | "right" =>
+  side === "before" ? "left" : "right"
+
 /** What a payload that would not decode becomes, on the way out of here. */
 const undecodableFrom =
   (reference: RepoRef, route: string) =>
@@ -1639,10 +1658,13 @@ export const layer = Layer.succeed(GitHubGateway, {
       note: NewComment
     ) {
       const url = `https://github.com/${reference.owner}/${reference.repo}/pull/${reference.number}${COMMENT}`
+      const side = asTheyNameIt(note.side)
       // Their own box sends the range twice — once flat, once inside the
       // positioning it wants back — and refuses a body that carries only one
-      // of them. A single line is a range whose ends agree.
-      const range = note.startLine === note.line ? {} : { startLine: note.startLine, startSide: "right" }
+      // of them. A single line is a range whose ends agree. Both ends take the
+      // same side: a reader marks lines out on one half of the diff, and a
+      // range whose ends disagreed would run from the old file into the new.
+      const range = note.startLine === note.line ? {} : { startLine: note.startLine, startSide: side }
       const body = {
         comparisonStartOid: note.baseSha,
         comparisonEndOid: note.headSha,
@@ -1650,7 +1672,7 @@ export const layer = Layer.succeed(GitHubGateway, {
         submitBatch: true,
         path: note.path,
         line: note.line,
-        side: "right",
+        side,
         subjectType: "line",
         ...range,
         positioning: {
@@ -1694,7 +1716,7 @@ export const layer = Layer.succeed(GitHubGateway, {
 
       return yield* toCreatedThread(JSON.parse(said), {
         path: note.path,
-        side: "after",
+        side: note.side,
         line: note.line,
         startLine: note.startLine
       }).pipe(

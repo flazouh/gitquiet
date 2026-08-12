@@ -7,7 +7,7 @@ import type { GitStatus } from "@pierre/trees"
 import { Effect, Option } from "effect"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import type { DiffEngine, DiffHandle, Note as NoteAt, Picked } from "../ports/Renderer"
+import type { DiffEngine, DiffHandle, DiffSide, Note as NoteAt, Picked } from "../ports/Renderer"
 import type { Uploaded } from "../domain/attaching"
 import type { Suggesting } from "../domain/suggesting"
 import { toPatch } from "../domain/toPatch"
@@ -312,6 +312,8 @@ export type FileDiffPaneProps = {
   readonly answering?: Answering
   /** Sends a remark to GitHub. Absent where nothing is wired up to. */
   readonly onPost?: (note: {
+    /** Which half of the diff the lines were marked on, since the two are numbered apart. */
+    readonly side: DiffSide
     readonly from: number
     readonly to: number
     readonly body: string
@@ -594,7 +596,7 @@ export const FileDiffPane = ({
               onPost === undefined
                 ? undefined
                 : (body) =>
-                    onPost({ from: draft.from, to: draft.to, body }).pipe(
+                    onPost({ side: draft.side, from: draft.from, to: draft.to, body }).pipe(
                       Effect.tap(() => Effect.sync(() => onDropDraft?.(note.key)))
                     )
             }

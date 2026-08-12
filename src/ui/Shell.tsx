@@ -16,6 +16,7 @@ import type {
 } from "../domain/PullRequest"
 import type { Uploaded } from "../domain/attaching"
 import type { Suggesting } from "../domain/suggesting"
+import type { DiffSide } from "../ports/Renderer"
 import type { Size } from "../domain/workingSet"
 import { diffChoices, treeChoices } from "../domain/choices"
 import { keyOf } from "../domain/PullRequestRef"
@@ -26,6 +27,7 @@ import { FileBrowser } from "./FileBrowser"
 import { Header } from "./Header"
 import { About } from "./About"
 import type { Answering } from "./ThreadView"
+import { anchorSideOf } from "./threads"
 import type { Review as Said } from "../ports/GitHubGateway"
 import { Proposed } from "./Proposed"
 import { logKey } from "./checkReads"
@@ -294,6 +296,7 @@ export const Shell = ({
         ? undefined
         : (note: {
             readonly path: string
+            readonly side: DiffSide
             readonly from: number
             readonly to: number
             readonly body: string
@@ -301,6 +304,11 @@ export const Shell = ({
             Effect.map(
               postComment({
                 path: note.path,
+                // The half of the diff the lines were marked on, which is the
+                // file their numbers belong to. A remark on a removed line
+                // carried over to the new file is a remark on whichever line
+                // the change happened to leave at that number.
+                side: anchorSideOf(note.side),
                 line: note.to,
                 startLine: note.from,
                 body: note.body,
