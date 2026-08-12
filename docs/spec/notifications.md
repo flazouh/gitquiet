@@ -124,7 +124,7 @@ Every field below is on the row. Nothing here needs a second fetch.
 | What kind of event | `payload.comment_type` |
 | **The subject's own state** | the Octicon at the head of the row |
 | Recent participants, and which are machines | `a.avatar` in the `AvatarStack`, `href` starting `/apps/` for an App |
-| Saved | `svg.octicon-bookmark` in the row |
+| Whether GitHub is still telling the reader | the `notification-unsubscribed` class on the `li`, where the reader has stopped it |
 
 The `data-hydro-click` attribute is JSON in the served HTML rather than something their bundle
 injects, so a plain fetch has it. It is analytics markup and it is the richest thing on the row,
@@ -208,6 +208,11 @@ with `authenticity_token` and one or more `notification_ids[]`, form-encoded:
 | `unsubscribe` | stop being told about this thread |
 | `subscribe` | start again |
 | `star` / `unstar` | Save and un-save |
+
+`mark` and `unmark` are the two that are not in the row. They sit at the top of the page and take
+their ids from the checkbox beside each row; the other six carry the id as a hidden field. Every
+token on the page was a different string, so a caller reads the token off the form it is about to
+submit.
 
 None of this was recorded in `docs/spec/github-write-api.md`, which covers a pull request's
 `page_data` routes and the two Rails forms on a run. It is recorded there now, in a section
@@ -300,11 +305,10 @@ the title, who has been in the thread, how long ago it moved, and the reason in 
 own words rather than GitHub's. Unread rows are drawn heavier than read ones within their
 Court.
 
-**The presses stay on the row.** Done, Mark read or unread, Unsubscribe, Save, and opening it.
-Each is one of the Rails forms above, each is on the row GitHub served, so the fact that a press
-is available is the form being there — a subscribed thread carries `unsubscribe` and an
-unsubscribed one carries `subscribe`, and nothing here works that out from anything else. That
-is the rule the run screen already follows for its two presses.
+**The presses stay on the row.** Done, Mark read or unread, Unsubscribe, and opening it. Each is
+one of the Rails forms above, and which half of each pair applies is read from the row's own
+state rather than from the form being there — see the correction below, which is the one place
+this page does not work the way the run screen does.
 
 **Nothing is drawn that GitHub did not send.** Where a row's icon is a shape this parser does
 not know, the row still appears, in the Court its reason gives, with its state unsaid. A row
@@ -344,6 +348,29 @@ swapped in under a reader and there is no soft gate to write.
 
 One HTML fetch of `/notifications`, decoded with `DOMParser`, exactly as `strands` reads the
 Actions list. Written to come back empty rather than wrong.
+
+### Three things the live page corrected, and all three were readings of their markup
+
+**The form being there does not mean the press applies.** This spec said it did, on the strength
+of the run screen, where a run page carries a cancel form or a re-run form and never both. A
+Notice row carries all six: `archive` and `unarchive`, `subscribe` and `unsubscribe`, `star` and
+`unstar`, on every one of the eleven rows in the fixture. GitHub's own script shows one of each
+pair at a time. So the row's state is what decides, and there are only two markers on the row
+that give it: `notification-unread` against `notification-read`, and `notification-unsubscribed`
+where the reader has stopped the thread. `pressOf` in `src/domain/notices.ts` is that reading,
+and archiving is always offered because everything on the inbox is un-archived by definition.
+
+**Saving is not offered, because the row does not say whether it is already saved.** Their
+bookmark span is rendered on all eleven rows and hidden by a rule, so its presence says nothing,
+and no row class says it either. A button that might do the opposite of what it says is worse
+than no button, so the pair is parsed and never drawn.
+
+**Marking read is not on the row at all.** It is a form at the top of the page which takes its
+ids from the checkbox beside each row, where the other six carry their id as a hidden field. So
+the parser pairs the page's token with the row's own id, which is the request that was exercised
+above. Their action list is also drawn twice per row, once for a wide window and once for a
+narrow one, so every kind arrives in duplicate with two different tokens; the first of each is
+kept, and their server takes either.
 
 ### Vocabulary
 

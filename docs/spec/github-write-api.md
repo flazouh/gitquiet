@@ -299,6 +299,18 @@ way.
 Every token seen was distinct per form, so a caller reads the token off the form it is about to
 submit rather than reusing one from elsewhere on the page.
 
+Each row's list of actions is rendered twice, once for a wide window and once for a narrow one,
+so a row carries twelve forms and not six. The two copies of a kind carry different tokens and
+the server takes either, which is what pressing the same button in a narrow window has always
+done.
+
+Unlike the run forms above, the presence of one of these forms says nothing about whether the
+action applies. A run page carries a cancel form or a re-run form and never both; a Notice row
+carries both halves of all three of its pairs, and GitHub's own script shows one of each. What
+decides is the row's own class: `notification-unread` against `notification-read`, and
+`notification-unsubscribed` where the reader has stopped the thread. Nothing on the row says
+whether it is saved.
+
 Exercised against a real notification on 13 August 2026, taking a row that was already read and
 putting it back the way it was found:
 

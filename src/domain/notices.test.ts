@@ -2,13 +2,20 @@ import { describe, expect, test } from "bun:test"
 import { Option } from "effect"
 import {
   type Notice,
+  type Press,
   type Standing,
   REASONS,
   courtOf,
   docketsOf,
   noticesIn,
+  pressOf,
   standingOf
 } from "./notices"
+
+/** Every press GitHub renders on a row, which is all six of them, in pairs. */
+const sixForms: ReadonlyArray<Press> = (
+  ["mark", "unmark", "archive", "unarchive", "subscribe", "unsubscribe"] as const
+).map((kind) => ({ kind, route: `/notifications/beta/${kind}`, token: "tok", ids: ["NT_kwHOAYg86No"] }))
 
 /**
  * A Notice in the shape their row gives one.
@@ -25,10 +32,10 @@ const notice = (what: Partial<Notice> = {}): Notice => ({
   reason: "author",
   standing: "open",
   unread: false,
-  saved: false,
+  subscribed: true,
   movedAt: "2026-08-12T21:59:53Z",
   participants: [],
-  presses: [],
+  presses: sixForms,
   ...what
 })
 
@@ -174,6 +181,45 @@ describe("the four piles", () => {
     const running = docketsOf(some).find((one) => one.court === "running")
 
     expect(running?.count).toBe(0)
+  })
+})
+
+/*
+ * GitHub renders all six forms on every row and shows one of each pair with their own
+ * script, which is the opposite of how a run page works: a run carries a cancel form or a
+ * re-run form and never both, so there the form is the answer. Here the row's own state is.
+ */
+describe("which half of a pair applies", () => {
+  test("offers marking read only where the Notice is unread, and unmarking only where it is not", () => {
+    expect(Option.isSome(pressOf(notice({ unread: true }), "mark"))).toBe(true)
+    expect(Option.isSome(pressOf(notice({ unread: true }), "unmark"))).toBe(false)
+    expect(Option.isSome(pressOf(notice({ unread: false }), "mark"))).toBe(false)
+    expect(Option.isSome(pressOf(notice({ unread: false }), "unmark"))).toBe(true)
+  })
+
+  test("offers unsubscribing only where GitHub is still telling the reader about it", () => {
+    expect(Option.isSome(pressOf(notice({ subscribed: true }), "unsubscribe"))).toBe(true)
+    expect(Option.isSome(pressOf(notice({ subscribed: true }), "subscribe"))).toBe(false)
+    expect(Option.isSome(pressOf(notice({ subscribed: false }), "subscribe"))).toBe(true)
+  })
+
+  /* Everything on the inbox is un-archived, which is what makes it the inbox. */
+  test("always offers Done", () => {
+    expect(Option.isSome(pressOf(notice(), "archive"))).toBe(true)
+  })
+
+  /*
+   * Nothing on the row says whether a Notice is already saved: their bookmark span is on
+   * every row and hidden by a rule. A button that might do the opposite of what it says is
+   * worse than no button.
+   */
+  test("offers neither half of saving, because the row does not say which applies", () => {
+    expect(Option.isSome(pressOf(notice(), "star"))).toBe(false)
+    expect(Option.isSome(pressOf(notice(), "unstar"))).toBe(false)
+  })
+
+  test("offers nothing GitHub did not put a form there for", () => {
+    expect(Option.isSome(pressOf(notice({ presses: [] }), "archive"))).toBe(false)
   })
 })
 

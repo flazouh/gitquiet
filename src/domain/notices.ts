@@ -15,19 +15,32 @@ import type { Court } from "./workingSet"
  */
 export type Standing = "open" | "merged" | "closed" | "unknown"
 
+export type PressKind =
+  | "mark"
+  | "unmark"
+  | "archive"
+  | "unarchive"
+  | "subscribe"
+  | "unsubscribe"
+  | "star"
+  | "unstar"
+
 /**
  * Something the reader can do to a Notice without leaving the screen.
  *
- * Each is a Rails form GitHub already put in the row, so the fact that a press is on offer
- * is the form being there — a subscribed thread carries `unsubscribe` and an unsubscribed
- * one carries `subscribe`, and nothing here works that out from anything else. The run
- * screen reads its two presses the same way.
+ * A Rails form GitHub already put in the row, kept whole rather than rebuilt from the kind,
+ * because the token is per-form: every one of the six on a row was a different string, so a
+ * caller reusing one from elsewhere on the page is a caller relying on GitHub not to check.
+ *
+ * Unlike the run screen's two presses, the form being there does not mean the press applies.
+ * A run page carries a cancel form or a re-run form and never both; a Notice row carries all
+ * six, in pairs, and their own script shows one of each pair at a time. So which half applies
+ * is read from the row's state — see {@link Notice.unread} and {@link Notice.subscribed} —
+ * and the form is only where the address and the token come from.
  */
 export type Press = {
-  readonly kind: "mark" | "unmark" | "archive" | "unarchive" | "subscribe" | "unsubscribe" | "star" | "unstar"
-  /** The path their form posts to, kept whole rather than rebuilt from the kind. */
+  readonly kind: PressKind
   readonly route: string
-  /** Their own authenticity token, read off this form and not off another one on the page. */
   readonly token: string
   readonly ids: ReadonlyArray<string>
 }
@@ -59,7 +72,15 @@ export type Notice = {
   readonly reason: string
   readonly standing: Standing
   readonly unread: boolean
-  readonly saved: boolean
+  /**
+   * Whether GitHub will go on telling the reader about this thread.
+   *
+   * Read off the row's own `notification-unsubscribed` class, which is the only marker on the
+   * row that says it. There is no matching class for saved, so whether a Notice is bookmarked
+   * is not on the page as far as this could establish: their bookmark span is rendered on
+   * every row and hidden by a rule, so its presence says nothing.
+   */
+  readonly subscribed: boolean
   readonly movedAt: string
   /**
    * Who has been in the thread lately, machines marked.
@@ -71,6 +92,27 @@ export type Notice = {
    */
   readonly participants: ReadonlyArray<Participant>
   readonly presses: ReadonlyArray<Press>
+}
+
+/**
+ * The half of a pair of presses that applies to this Notice, or nothing.
+ *
+ * The pairs and what decides them: read state decides `mark` against `unmark`, the
+ * subscription decides `subscribe` against `unsubscribe`, and `archive` always applies
+ * because this screen reads the inbox and everything on it is un-archived by definition.
+ * Saving is not offered, because nothing on the row says whether a Notice is already saved
+ * and a button that might do the opposite of what it says is worse than no button.
+ */
+export const pressOf = (notice: Notice, kind: PressKind): Option.Option<Press> => {
+  const applies =
+    kind === "mark" ? notice.unread
+      : kind === "unmark" ? !notice.unread
+        : kind === "subscribe" ? !notice.subscribed
+          : kind === "unsubscribe" ? notice.subscribed
+            : kind === "archive"
+
+  if (!applies) return Option.none()
+  return Option.fromNullishOr(notice.presses.find((one) => one.kind === kind))
 }
 
 /** A Court of the inbox, and the Notices filed in it. */
