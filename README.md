@@ -15,7 +15,7 @@ GitHub splits a pull request by record type: Conversation, Commits, Checks, File
 None of those four tabs answers the question you opened it with, so you read all
 of them and work it out again on the next visit.
 
-GitQuiet redraws thirteen pages on github.com itself and groups the same data by
+GitQuiet redraws fourteen pages on github.com itself and groups the same data by
 who acts next. It runs inside GitHub's own page, in Primer tokens and Octicons,
 so it follows whichever theme you already use. Their header, nav and repository
 tabs are left exactly as they are.
@@ -56,7 +56,7 @@ you last looked, all above the diff.
 
 </details>
 
-## The thirteen pages
+## The fourteen pages
 
 Listed in [`src/ui/place.ts`](./src/ui/place.ts), which is the one list both the
 router and the takeover read.
@@ -76,6 +76,7 @@ router and the takeover read.
 | `/owner/repo/commit/SHA` | one commit |
 | `/owner/repo/actions` | workflow runs |
 | `/owner/repo/actions/runs/ID` | one run |
+| `/notifications` | your inbox |
 
 ## Keyboard
 

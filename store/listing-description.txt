@@ -1,6 +1,6 @@
 A faster, quieter GitHub. Pull requests, issues, commits and checks, grouped by who acts next.
 
-GitHub splits a pull request by record type: Conversation, Commits, Checks, Files. None of those tabs tells you whether it is your turn, so you work it out again on every visit. GitQuiet redraws thirteen pages on github.com itself and groups the same data by who acts next. Every action goes back through GitHub's own routes.
+GitHub splits a pull request by record type: Conversation, Commits, Checks, Files. None of those tabs tells you whether it is your turn, so you work it out again on every visit. GitQuiet redraws fourteen pages on github.com itself and groups the same data by who acts next. Every action goes back through GitHub's own routes.
 
 WHAT YOU GET
 • Working set - every pull request you are in, across repositories, in four groups: Your Move, Waiting, Running, Settled

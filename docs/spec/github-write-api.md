@@ -276,6 +276,63 @@ and the run read `run_attempt: 2`, `status: in_progress`. Their unchecked
 `enable_debug_logging` is not a hidden field, so reading the hidden fields alone
 leaves it out, which is what a browser submitting the form would also do.
 
+### Notifications, which are Rails forms as well
+
+The inbox at `/notifications` writes the same way a run does and not through `page_data` at
+all. Every action is a form in the document GitHub serves, `POST` to
+`/notifications/beta/{route}`, sent as `application/x-www-form-urlencoded`, carrying an
+`authenticity_token` read off the page that carried the form and one or more
+`notification_ids[]`.
+
+| Route | What it does |
+| --- | --- |
+| `mark` | Mark read |
+| `unmark` | Mark unread |
+| `archive` | Done, which takes the thread out of the inbox |
+| `unarchive` | Move to inbox |
+| `subscribe` | Start being told about the thread again |
+| `unsubscribe` | Stop |
+| `star` | Save |
+| `unstar` | Un-save |
+
+Three more sit on the page and are the reader's own view preferences rather than anything done
+to a thread: `set_preferred_inbox_query`, `update_sort_order`, `update_view_preference`.
+
+Where the ids come from differs by where the form is. The bulk forms at the top of the page —
+`mark` and `unmark` among them — carry the token alone and take their ids from the checked
+`notification_ids[]` boxes beside each row. The per-row forms, which is every other route above,
+carry their one id as a hidden field. A caller outside their page sends the ids itself either
+way.
+
+Every token seen was distinct per form, so a caller reads the token off the form it is about to
+submit rather than reusing one from elsewhere on the page.
+
+Each row's list of actions is rendered twice, once for a wide window and once for a narrow one,
+so a row carries twelve forms and not six. The two copies of a kind carry different tokens and
+the server takes either, which is what pressing the same button in a narrow window has always
+done.
+
+Unlike the run forms above, the presence of one of these forms says nothing about whether the
+action applies. A run page carries a cancel form or a re-run form and never both; a Notice row
+carries both halves of all three of its pairs, and GitHub's own script shows one of each. What
+decides is the row's own class: `notification-unread` against `notification-read`, and
+`notification-unsubscribed` where the reader has stopped the thread. Nothing on the row says
+whether it is saved.
+
+Exercised against a real notification on 13 August 2026, taking a row that was already read and
+putting it back the way it was found:
+
+| Request | Answer | The inbox afterwards |
+| --- | --- | --- |
+| `POST /notifications/beta/unmark` | 200, zero-byte body, no redirect | the id is in `?query=is:unread` |
+| `POST /notifications/beta/mark` | 200, zero-byte body, no redirect | the id is not |
+
+The body says nothing either way, so the status code and a re-read are all there is to go on,
+and a refusal is not distinguishable from a success by the body. That is the same caution the
+run forms above need, for the same reason.
+
+`docs/spec/notifications.md` records what the page carries on the read side.
+
 ### Preferences and stacks
 
 `update_merge_box_user_preference`, `update_show_change_groups_preference`,

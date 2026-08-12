@@ -4,6 +4,7 @@ import { commitListIn } from "../domain/commitList";
 import { issueDashboardIn } from "../domain/issueDashboard";
 import { issueListIn } from "../domain/issueList";
 import { fromPathname as issueIn } from "../domain/issues";
+import { noticesIn } from "../domain/notices";
 import { isHome, showsWorkingSet } from "../domain/pages";
 import { fromPathname as pullRequestIn } from "../domain/PullRequestRef";
 import { raisingIn } from "../domain/raising";
@@ -668,6 +669,53 @@ export const HOME: Place = {
 };
 
 /**
+ * The reader's notifications at `/notifications`.
+ *
+ * A top-level page like `/pulls` and `/issues`, so the closer precedents for the region and
+ * the fallback are `DASHBOARD` and `ISSUES` rather than any repository tab. It is the odd one
+ * among the three all the same: their dashboard is React and their issues are React, and this
+ * page is Rails-rendered end to end. Measured on 2026-08-13, there is no `react-app`, no
+ * `turbo-frame` and no `include-fragment` carrying the list — the served document already
+ * holds every row, with the write forms in them. See `scripts/probe-notifications-dom.js`.
+ *
+ * Their whole two-column layout and not just the list: the pane on the left at 247 wide and
+ * the rows on the right at 1233. Both, because the pane is a filter and this screen groups
+ * instead of filtering, so leaving it beside the rows would put two sets of controls on one
+ * page that disagree about what is on the screen. That is the argument `DASHBOARD` and
+ * `ACTIONS` both record, and this page is where it is easiest to win: their own `is:open` and
+ * `is:merged` return zero rows rather than an error, so the pane cannot answer the question
+ * the reader brings to it.
+ */
+export const NOTIFICATIONS: Place = {
+  name: "notifications",
+  owns: (path) => noticesIn(`https://github.com${path}`),
+  /*
+   * Their own behaviour hook, which is the direct child of `main` and holds both columns.
+   * Measured 1512 by 1313 at top 64, the same box as `main` to the pixel bar the header.
+   * A `js-` class rather than a Primer one, so it carries no per-deploy hash.
+   */
+  regions: ["div.js-notifications-container"],
+  /*
+   * `main`, as on `ISSUES`, and for the same reason: this is a top-level page and there is no
+   * pjax container or Turbo frame inside it to fall back to. The id `main` carries here,
+   * `js-repo-pjax-container`, belongs to an older era of their navigation and is on repository
+   * pages too, so it is deliberately not named — a rule written against it would not be
+   * written against this page.
+   */
+  fallback: "main",
+  stages: ["div.js-notifications-container"],
+  /*
+   * Nothing, as on `COMMIT`. Measured rather than assumed: a sentinel written onto `window`
+   * on `/pulls` was gone by the time their own notifications link had settled on
+   * `/notifications`, so GitHub loads a document to get here and this page is never swapped in
+   * under a reader. There is no soft path to gate.
+   */
+  soft: undefined,
+  // Nothing. The region is their pane, the rows and the pager together.
+  bands: [],
+};
+
+/**
  * Every page this extension stands on, for the rules that hide GitHub's version of
  * them.
  *
@@ -688,6 +736,7 @@ export const PLACES: ReadonlyArray<Place> = [
   ISSUES,
   RUN,
   ACTIONS,
+  NOTIFICATIONS,
   HOME,
 ];
 
@@ -713,6 +762,11 @@ const BY_ADDRESS: ReadonlyArray<Place> = [
   ISSUES,
   RUN,
   ACTIONS,
+  /*
+   * Before a repository's front page, as everything else is, and the order does not otherwise
+   * matter: `/notifications` is one address that no other place here claims.
+   */
+  NOTIFICATIONS,
   REPO_HOME,
 ];
 

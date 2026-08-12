@@ -46,6 +46,8 @@ import { runsBehind, tolerating } from "./tolerance"
 import type { Pressing, RunOpening, RunRef } from "../domain/run"
 import { isKeptRun, pressOn, runOnPage } from "./runPage"
 import { isKeptStrands, runsOnPage } from "./actionsList"
+import { isKeptNotices, noticesOnPage } from "./notifications"
+import type { Notice, Press } from "../domain/notices"
 import { strandsIn, type Strand } from "../domain/strand"
 import {
   recall,
@@ -1415,6 +1417,16 @@ const pressingRun = Effect.fn("pressingRun")(function* (reference: RunRef, what:
 /** A repository's Actions tab, kept under the address its list is read at. */
 const strandsKey = (reference: RepoRef): string =>
   `/${reference.owner}/${reference.repo}/actions`
+
+/**
+ * The inbox, at the address the reader asked for it at.
+ *
+ * The query is part of the name because it is part of which inbox this is: `is:unread` and
+ * the whole of it are two different lists, and a memory shared between them would paint the
+ * one the reader is not looking at.
+ */
+const noticesRoute = (query: string): string =>
+  query === "" ? "/notifications" : `/notifications?${query}`
 
 /**
  * One commit, kept under the address it is read at.
@@ -2969,6 +2981,109 @@ export const layer = Layer.succeed(GitHubGateway, {
         : Option.none<ReadonlyArray<Strand>>()
     }),
 
+    /**
+     * Their inbox, read as the document they serve it as.
+     *
+     * One request, and the lightest read on this interface. Their `/notifications` is Rails
+     * end to end, so the reason, the read state, the subject's own Octicon and all twelve
+     * write forms of every row are in the markup before any script runs — measured on
+     * 2026-08-13, with fifteen rows in 1.1 megabytes.
+     *
+     * The reader's query is carried through untouched. It is the one thing about this page
+     * that is theirs and still matters: a link into `?query=is:unread` is a link to a
+     * smaller inbox, and answering it with the whole one would be this screen overruling
+     * the address it was opened at.
+     */
+    notices: Effect.fn("GitHubGateway.notices")(function* (query: string) {
+      const route = noticesRoute(query)
+      const url = `https://github.com${route}`
+
+      const response = yield* Effect.tryPromise({
+        try: () => fetch(url, { headers: { Accept: "text/html" }, credentials: "include" }),
+        catch: (cause) =>
+          new WorkingSetError({ route, reason: "unreachable", detail: String(cause) })
+      })
+
+      if (!response.ok) {
+        return yield* new WorkingSetError({
+          route,
+          reason: "rejected",
+          detail: `HTTP ${response.status}`
+        })
+      }
+
+      const html = yield* Effect.tryPromise({
+        try: () => response.text(),
+        catch: (cause) =>
+          new WorkingSetError({ route, reason: "unreachable", detail: String(cause) })
+      })
+
+      const notices = noticesOnPage(html)
+
+      /*
+       * Kept as the rows rather than as their markup, unlike every route above that keeps
+       * the payload it decoded. A megabyte of their HTML is far past what a store entry
+       * should be, and there is no decoder to re-run against it: the reading is the parse.
+       *
+       * Standing rather than browsed. An inbox is the page a reader opens first and comes
+       * back to all day, and it is one address rather than a page of a search, so it is
+       * worth a place that a morning of browsing cannot push out.
+       */
+      yield* Effect.forkDetach(rememberRoute(route, notices, "standing"))
+
+      return notices
+    }),
+
+    rememberedNotices: Effect.fn("GitHubGateway.rememberedNotices")(function* (query: string) {
+      const raw = yield* recallRoute(noticesRoute(query))
+      if (Option.isNone(raw)) return Option.none<ReadonlyArray<Notice>>()
+
+      return isKeptNotices(raw.value)
+        ? Option.some(raw.value)
+        : Option.none<ReadonlyArray<Notice>>()
+    }),
+
+    /**
+     * One press of one of their own forms, sent back the way their page sends it.
+     *
+     * The ids go on the body even for the two routes whose forms carry none. `mark` and
+     * `unmark` are bulk forms at the top of their page and take their ids from the checked
+     * boxes beside the rows; a caller that is not their page has no boxes, so it names the
+     * threads itself. Exercised on 2026-08-13 with a single `notification_ids[]` on each,
+     * and both answered 200 with a zero-byte body.
+     *
+     * Nothing is read back. Their answer carries no body at all, so a re-read is the only
+     * way to confirm one, and the screen has already drawn the new state.
+     */
+    pressNotice: Effect.fn("GitHubGateway.pressNotice")(function* (press: Press) {
+      const telling = new URLSearchParams()
+      telling.set("authenticity_token", press.token)
+      for (const id of press.ids) telling.append("notification_ids[]", id)
+
+      const response = yield* Effect.tryPromise({
+        try: () =>
+          fetch(`https://github.com${press.route}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              Accept: "text/html"
+            },
+            credentials: "include",
+            body: telling.toString()
+          }),
+        catch: (cause) =>
+          new WorkingSetError({ route: press.route, reason: "unreachable", detail: String(cause) })
+      })
+
+      if (!response.ok) {
+        return yield* new WorkingSetError({
+          route: press.route,
+          reason: "rejected",
+          detail: `HTTP ${response.status}`
+        })
+      }
+    }),
+
     repoHome: Effect.fn("GitHubGateway.repoHome")(function* (reference: RepoRef) {
       const route = ""
       const page = yield* readRepoPage(reference, route, CODE_VIEW)
@@ -3558,6 +3673,15 @@ const nothingRecordedFor = (reference: RepoRef) =>
     detail: `No recording for ${reference.owner}/${reference.repo}`
   })
 
+/**
+ * The same again for the inbox, which names no repository to blame.
+ *
+ * A {@link WorkingSetError} because that is what the read it stands in for fails with, and
+ * the route is the press's own so that a test reading this knows which button was pressed.
+ */
+const noInboxHere = (route: string) =>
+  new WorkingSetError({ route, reason: "not-recorded", detail: "No inbox is recorded here" })
+
 const sameReference = (left: PullRequestRef, right: PullRequestRef): boolean =>
   left.owner === right.owner && left.repo === right.repo && left.number === right.number
 
@@ -3683,6 +3807,12 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     cancelRun: (reference: RunRef) => Effect.fail(nothingRecordedFor(reference.repo)),
     strands: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     rememberedStrands: () => Effect.succeed(Option.none()),
+    // An empty inbox, which is what a page nobody recorded looks like from here, and
+    // nothing written to one: a press answered without a request would be this layer
+    // telling a test that GitHub agreed to something nobody asked.
+    notices: () => Effect.succeed([]),
+    rememberedNotices: () => Effect.succeed(Option.none()),
+    pressNotice: (press: Press) => Effect.fail(noInboxHere(press.route)),
     rememberedRepoHome: () => Effect.succeed(Option.none())
   })
 
@@ -3812,5 +3942,11 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     cancelRun: (reference: RunRef) => Effect.fail(nothingRecordedFor(reference.repo)),
     strands: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     rememberedStrands: () => Effect.succeed(Option.none()),
+    // An empty inbox, which is what a page nobody recorded looks like from here, and
+    // nothing written to one: a press answered without a request would be this layer
+    // telling a test that GitHub agreed to something nobody asked.
+    notices: () => Effect.succeed([]),
+    rememberedNotices: () => Effect.succeed(Option.none()),
+    pressNotice: (press: Press) => Effect.fail(noInboxHere(press.route)),
     rememberedRepoHome: () => Effect.succeed(Option.none())
   })

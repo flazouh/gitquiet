@@ -21,6 +21,7 @@ import type { Happening } from "../domain/activity"
 import type { CommitList, History, Marks, Stat, Stats } from "../domain/commitList"
 import type { IssueSnapshot, Settling } from "../domain/Issue"
 import type { InvolvedIssue, Involvement, IssueRef, ListedIssue } from "../domain/issues"
+import type { Notice, Press } from "../domain/notices"
 import type { Portrait } from "../domain/portrait"
 import type { Raised, Raising } from "../domain/raising"
 import type { Front, Opened, Standing, Starring, Touch } from "../domain/repoHome"
@@ -445,6 +446,59 @@ export class GitHubGateway extends Context.Service<
     readonly rememberedStrands: (
       reference: RepoRef
     ) => Effect.Effect<Option.Option<ReadonlyArray<Strand>>, GatewayError>
+
+    /**
+     * Every Notice in the reader's inbox, out of one fetch of their own page.
+     *
+     * The lightest read on this interface, and it is the only one where that is GitHub's
+     * doing rather than ours: their `/notifications` is Rails-rendered, so the document
+     * served at that address already carries every row's reason, read state, subject state
+     * and write forms. Measured on 2026-08-13 — there is no `react-app`, no `turbo-frame`
+     * and no `include-fragment` behind the list, so there is nothing to ask for twice.
+     *
+     * A {@link WorkingSetError} and not a {@link GatewayError}, for the reason
+     * {@link issueSearch} takes one: there is no repository to name. An inbox is about the
+     * Participant, and a failure here is "your notifications could not be read".
+     *
+     * An empty inbox comes back empty rather than failing, as a repository with no runs
+     * does, and for the same reason: nothing on the page tells an inbox with nothing in it
+     * from a page that has stopped looking like their inbox, and a screen that says so
+     * beside a way back to GitHub is right either way.
+     */
+    readonly notices: (
+      /**
+       * Their own query, or nothing for the inbox as they open it.
+       *
+       * Passed through rather than built here so that a reader who arrives on a link with
+       * `?query=is:unread` on it is shown the rows that link asked for. This screen adds no
+       * query of its own: it groups, and a filter of ours on top of one of theirs would be
+       * two sets of controls disagreeing about what is on the screen.
+       */
+      query: string
+    ) => Effect.Effect<ReadonlyArray<Notice>, WorkingSetError>
+
+    /**
+     * The same inbox as the last visit left it, without asking GitHub.
+     *
+     * Worth more here than on any list yet. An inbox is the page a reader opens first and
+     * comes back to all day, and their own takes most of a second to serve.
+     */
+    readonly rememberedNotices: (
+      query: string
+    ) => Effect.Effect<Option.Option<ReadonlyArray<Notice>>>
+
+    /**
+     * Carries out one of the presses GitHub put in a Notice's own row.
+     *
+     * The whole {@link Press} and not a kind, because the route and the token are on the
+     * form GitHub served and every one of the six on a row carried a different token. This
+     * takes what was read rather than rebuilding it, so a press cannot be made up for a row
+     * that does not offer it.
+     *
+     * Nothing comes back. Their server answers a mark with the row's own markup, and the
+     * screen showed the new state the moment the reader pressed.
+     */
+    readonly pressNotice: (press: Press) => Effect.Effect<void, WorkingSetError>
 
     /**
      * Everything about a repository that is neither its files nor its README.

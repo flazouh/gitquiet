@@ -32,6 +32,13 @@ describe("what resting on a link reads", () => {
     ],
     ["one issue", "https://github.com/oven-sh/bun/issues/24680", "/oven-sh/bun/issues/24680"],
     ["the reader's own issues", "https://github.com/issues", "/issues"],
+    ["the reader's inbox", "https://github.com/notifications", "/notifications"],
+    [
+      // A different inbox, and a different memory: their own nav offers several of these.
+      "one question asked of the inbox",
+      "https://github.com/notifications?query=is%3Aunread",
+      "/notifications?query=is%3Aunread"
+    ],
     ["a repository's front page", "https://github.com/oven-sh/bun", "/oven-sh/bun"],
     ["a repository's Actions tab", "https://github.com/oven-sh/bun/actions", "/oven-sh/bun/actions"],
     [
@@ -59,7 +66,8 @@ describe("what resting on a link reads", () => {
    */
   test("reads nothing about a page of GitHub's that no screen of ours draws", () => {
     expect(warming("https://github.com/settings/profile")).toBeNull()
-    expect(warming("https://github.com/notifications")).toBeNull()
+    // Their subscriptions page, which lists threads rather than Notices and has no screen.
+    expect(warming("https://github.com/notifications/subscriptions")).toBeNull()
     expect(warming("https://github.com/oven-sh/bun/issues/new")).toBeNull()
   })
 

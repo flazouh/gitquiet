@@ -67,7 +67,7 @@ const AGAINST: readonly {
   {
     aspect: "The approach",
     theirs: "Improves the pages GitHub drew, one annoyance at a time.",
-    ours: "Redraws thirteen pages on github.com itself."
+    ours: "Redraws fourteen pages on github.com itself."
   },
   {
     aspect: "A pull request",
@@ -151,7 +151,7 @@ export const Page = () => (
           </h1>
 
           <p className="mt-7 max-w-xl text-pretty text-[clamp(1.05rem,2.2vw,1.3rem)] leading-relaxed text-ink/70">
-            GitQuiet is a Chrome extension for GitHub pull request review. It redraws thirteen
+            GitQuiet is a Chrome extension for GitHub pull request review. It redraws fourteen
             pages on github.com itself, from a pull request to a failing Actions run. Your work
             is grouped by who has to act next: you, someone else, a machine, or nobody.
           </p>

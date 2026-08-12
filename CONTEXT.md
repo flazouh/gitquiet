@@ -189,6 +189,16 @@ _Avoid_: my PR, relevant PR, subscribed PR
 Every Involved Pull Request for a Participant. Defines the scope of what is kept ready to open instantly.
 _Avoid_: inbox, watch list
 
+### Notices
+
+**Notice**:
+One row of GitHub's `/notifications` page: one thread the Participant is subscribed to, carrying the Reason they were told about it, whether they have read it, and the state of the subject it is about. The word "notification" is already spoken for — it is what an Attention Item must not be called — and "inbox" is spoken for by the Working Set, so a row of that page needed a word of its own. Notice sits with Court and Docket.
+_Avoid_: notification, inbox item, alert
+
+**Reason**:
+GitHub's own word for why a Notice reached the Participant, and their string kept verbatim: `review_requested`, `mention`, `subscribed` and twelve more. It belongs to the thread rather than to the event and it is the strongest one that has ever fired, so it says why the Participant was ever told about this thread and not what happened last. Every Reason maps to exactly one Court, and the subject's own state overrules the map.
+_Avoid_: trigger, cause, type
+
 ## Not built
 
 Words removed from the vocabulary above because nothing answers to them yet. Kept

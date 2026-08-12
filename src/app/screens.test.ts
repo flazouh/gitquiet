@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { fileOf, isWanted, WANTED } from "./screens"
 
 describe("naming the screen a page wants", () => {
-  test("knows the twelve pages this extension has a screen for", () => {
+  test("knows the thirteen pages this extension has a screen for", () => {
     expect([...WANTED]).toEqual([
       "pull-request",
       "commit",
@@ -15,13 +15,14 @@ describe("naming the screen a page wants", () => {
       "raise",
       "issues",
       "run",
-      "actions"
+      "actions",
+      "notifications"
     ])
   })
 
   test("does not recognise a page it has no screen for", () => {
     // The name chooses a file to import, so it is checked rather than trusted.
-    expect(isWanted("notifications")).toBe(false)
+    expect(isWanted("subscriptions")).toBe(false)
     expect(isWanted("")).toBe(false)
   })
 
