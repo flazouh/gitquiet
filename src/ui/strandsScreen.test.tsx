@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, within } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import { strandsIn } from "../domain/strand"
 import type { Listed } from "../domain/strand"
@@ -47,6 +48,7 @@ const threeOfOneBranch = [
     startedAt: "2026-08-04T11:07:00Z",
     ref: onPull("1760"),
     workflow: "CodeQL",
+    file: "github-code-scanning/codeql",
     seconds: 200
   }),
   listed({
@@ -173,6 +175,57 @@ describe("a repository's runs", () => {
    * looks exactly like a current one — every row of it says "in progress" or "failed" about a
    * moment that has since passed — so the checking has to be said out loud.
    */
+  /*
+   * Put Away, which `docs/spec/actions.md` specified and left for the list screen to exist
+   * first. The press is on the chip of the Workflow itself, because that is the only place on
+   * the screen where the reader is already looking at the thing they want gone — and a pane of
+   * checkboxes down the side would be the filter the `ACTIONS` place argues against.
+   */
+  test("puts a workflow away on a press beside its own chip", async () => {
+    show(threeOfOneBranch)
+
+    const listing = await screen.findByRole("region", { name: "Runs" })
+    await userEvent.click(within(listing).getByRole("button", { name: "Put CodeQL away" }))
+
+    expect(within(listing).queryByTitle(/^CodeQL /)).toBeNull()
+    expect(within(listing).getByTitle(/^ci /)).toBeTruthy()
+  })
+
+  test("counts the runs it is no longer showing out of the tally", async () => {
+    show(threeOfOneBranch)
+
+    expect(await screen.findByText("1 strand, from 3 runs")).toBeTruthy()
+    await userEvent.click(screen.getByRole("button", { name: "Put CodeQL away" }))
+
+    expect(screen.getByText("1 strand, from 2 runs")).toBeTruthy()
+  })
+
+  /*
+   * Away and reachable. Their own answer to this request is a Workflow filter that holds one
+   * value and forgets it on the next page load; the opposite mistake would be a decision the
+   * reader cannot find again, so what is away is named above the rows for as long as it is away.
+   */
+  test("says what is away, and brings it back on a press", async () => {
+    show(threeOfOneBranch)
+
+    const listing = await screen.findByRole("region", { name: "Runs" })
+    await userEvent.click(within(listing).getByRole("button", { name: "Put CodeQL away" }))
+
+    const back = screen.getByRole("button", { name: "Bring CodeQL back" })
+    expect(back.textContent).toContain("CodeQL")
+    await userEvent.click(back)
+
+    expect(within(listing).getByTitle(/^CodeQL /)).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Bring CodeQL back" })).toBeNull()
+  })
+
+  test("says nothing about putting things away until something is away", async () => {
+    show(threeOfOneBranch)
+
+    await screen.findByRole("region", { name: "Runs" })
+    expect(screen.queryByText("Put away")).toBeNull()
+  })
+
   test("says it is being checked, over the runs the reader is already reading", async () => {
     const kept = strandsIn(threeOfOneBranch)
 

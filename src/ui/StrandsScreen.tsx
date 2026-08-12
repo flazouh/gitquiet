@@ -1,12 +1,17 @@
 import type { Effect, Option } from "effect"
+import { useCallback } from "react"
 import type { RepoRef } from "../domain/PullRequestRef"
+import { type Away, curated, putAwayEntry, putAwayIn, putAwayKey } from "../domain/putAway"
 import type { Repository } from "../domain/repositories"
-import type { Strand } from "../domain/strand"
+import type { Listed, Strand } from "../domain/strand"
+import { useArt } from "./art"
+import { CHIP } from "./dress"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import { Strands } from "./Strands"
 import { TheBar } from "./TheBar"
 import { useFreshening } from "./useFreshening"
 import { useLive } from "./useLive"
+import { useSettings } from "./useSettings"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
 
@@ -52,6 +57,53 @@ const Tally = ({ strands, runs }: { readonly strands: number; readonly runs: num
 )
 
 /**
+ * What is away, above the rows, for as long as it is away.
+ *
+ * A decision that is remembered has to be findable, or it is a screen quietly holding
+ * something back. GitHub's own Workflow filter is the opposite mistake and the reason these
+ * threads exist: it holds one Workflow, applies to the list alone, and forgets on the next page
+ * load. So each Workflow that is away is a press that brings it back, and the count beside it
+ * says how many Runs of this page it is holding — a Workflow that has not run lately shows no
+ * number, because zero on a chip reads as a result rather than as a silence.
+ */
+const PutAway = ({
+  away,
+  onBack
+}: {
+  readonly away: ReadonlyArray<Away>
+  readonly onBack: (key: string) => void
+}) => {
+  const art = useArt()
+  const Back = art.back
+
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-ink-muted">
+      <span>Put away</span>
+      {away.map((one) => (
+        <button
+          key={one.key}
+          type="button"
+          onClick={() => onBack(one.key)}
+          aria-label={`Bring ${one.workflow} back`}
+          title={
+            one.runs === 0
+              ? `Bring ${one.workflow} back. It has no run on this page.`
+              : `Bring ${one.workflow} back, and the ${one.runs} run${
+                  one.runs === 1 ? "" : "s"
+                } of it this page carries.`
+          }
+          className={`${CHIP} flex shrink-0 items-center gap-1.5 hover:bg-active`}
+        >
+          <Back size={12} aria-hidden="true" />
+          <span className="max-w-[10rem] truncate text-ink">{one.workflow}</span>
+          {one.runs === 0 ? null : <span className="tabular-nums">{one.runs}</span>}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/**
  * A repository's Actions tab: every recent Run, folded into the work it belongs to.
  *
  * One read and no staging, because their page carries all of it in one document. The argument
@@ -69,6 +121,32 @@ export const StrandsScreen = ({
   const { read } = live
   const waiting = useWaiting(read.status)
   useFreshening(live.catchingUp, CHECKING)
+  const { settings, change } = useSettings()
+
+  /*
+   * Both written against the settings as they stand at the moment of the press rather than
+   * against this render's copy, for the reason the Rail's pin is: two presses a second apart
+   * each spreading their own snapshot is how one of them silently undoes the other.
+   */
+  const putAway = useCallback(
+    (run: Listed) =>
+      change((current) => {
+        const entry = putAwayEntry(repo, putAwayKey(run))
+        return current.putAway.includes(entry)
+          ? current
+          : { ...current, putAway: [...current.putAway, entry] }
+      }),
+    [change, repo]
+  )
+
+  const bringBack = useCallback(
+    (key: string) =>
+      change((current) => ({
+        ...current,
+        putAway: current.putAway.filter((one) => one !== putAwayEntry(repo, key))
+      })),
+    [change, repo]
+  )
 
   if (read.status === "failed") {
     return (
@@ -82,7 +160,16 @@ export const StrandsScreen = ({
     )
   }
 
-  const strands = read.status === "ready" ? read.value : undefined
+  /*
+   * The reader's own curation, applied to what came back rather than to what was asked for.
+   * The list is kept between visits and read whole, so bringing a Workflow back is answered
+   * out of the store and never costs another trip to GitHub.
+   */
+  const curation =
+    read.status === "ready"
+      ? curated(read.value, putAwayIn(settings.putAway, repo))
+      : undefined
+  const strands = curation?.strands
   const runs =
     strands === undefined ? 0 : strands.reduce((running, one) => running + one.runs.length, 0)
 
@@ -97,10 +184,15 @@ export const StrandsScreen = ({
       />
       {strands === undefined ? null : (
         <div className="t-panels flex flex-col pt-2 pb-2">
-          <div className="flex items-center justify-end pb-1.5">
+          <div className="flex items-center justify-between gap-3 pb-1.5">
+            {curation?.away.length === 0 ? (
+              <span />
+            ) : (
+              <PutAway away={curation?.away ?? []} onBack={bringBack} />
+            )}
             <Tally strands={strands.length} runs={runs} />
           </div>
-          <Strands strands={strands} repo={repo} />
+          <Strands strands={strands} repo={repo} onPutAway={putAway} />
         </div>
       )}
       {waiting ? (
