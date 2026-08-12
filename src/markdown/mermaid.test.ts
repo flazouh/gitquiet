@@ -3,12 +3,38 @@ import { Effect } from "effect"
 import { draw, paperforgeTheme } from "./mermaid"
 
 describe("drawing a mermaid fence", () => {
-  test("tints paperforge blue with the ink colour", () => {
-    const theme = paperforgeTheme("#000000")
+  test("fills nodes with the paperforge pastels themselves", () => {
+    const theme = paperforgeTheme()
 
-    // 35% #000000 into pBlue #B4D2F0 → #75899c
-    expect(theme.primaryColor).toBe("#75899c")
+    expect(theme.primaryColor).toBe("#b4d2f0")
+    expect(theme.secondaryColor).toBe("#b4e6c8")
+    expect(theme.tertiaryColor).toBe("#ffebb4")
+    expect(theme.clusterBkg).toBe("#d2bef0")
+  })
+
+  test("draws every border at black!40 and every arrow at black!60", () => {
+    const theme = paperforgeTheme()
+
+    expect(theme.nodeBorder).toBe("#999999")
+    expect(theme.primaryBorderColor).toBe("#999999")
+    expect(theme.clusterBorder).toBe("#999999")
+    expect(theme.lineColor).toBe("#666666")
+    expect(theme.signalColor).toBe("#666666")
+  })
+
+  test("labels the diagram in the interface's own font, at its own size", () => {
+    const theme = paperforgeTheme()
+
+    expect(theme.fontFamily).toBe("var(--font-sans)")
+    expect(theme.fontSize).toBe("13px")
+  })
+
+  test("writes labels in black, because the fills are paper pastels", () => {
+    const theme = paperforgeTheme()
+
     expect(theme.primaryTextColor).toBe("#000000")
+    expect(theme.textColor).toBe("#000000")
+    expect(theme.noteTextColor).toBe("#000000")
   })
 
   test("returns nothing for a diagram that does not parse", async () => {

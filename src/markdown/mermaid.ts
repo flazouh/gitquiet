@@ -2,110 +2,96 @@ import { Effect } from "effect"
 import mermaid from "mermaid"
 
 /**
- * Paperforge pastels, mixed into `--color-ink` so a dark pack tints them
- * toward light ink and a light pack tints them toward dark ink.
+ * The paperforge palette, as the article preamble declares it.
+ *
+ * These are the fills themselves, not a tint of them. The first version mixed
+ * 35% of `--color-ink` into every pastel so a dark pack would darken the
+ * diagram with the rest of the interface, which produced a figure in colours
+ * paperforge does not have: pBlue at #75899c, and labels in light ink on it. A
+ * paperforge figure is black on a pastel on paper, so the figure carries its
+ * own paper with it — see `.markdown-mermaid` in `markdown.css`.
  */
 const PASTELS = {
-  blue: "#B4D2F0",
-  green: "#B4E6C8",
-  yellow: "#FFEBB4",
-  orange: "#FFD2AA",
-  purple: "#D2BEF0",
-  gray: "#DCDCE1",
-  red: "#F5BEBE"
+  blue: "#b4d2f0",
+  green: "#b4e6c8",
+  yellow: "#ffebb4",
+  orange: "#ffd2aa",
+  purple: "#d2bef0",
+  gray: "#dcdce1",
+  red: "#f5bebe"
 } as const
 
-/** How much of the ink colour is mixed into each pastel fill. */
-const TINT = 0.35
+/** `black!40`, the one border colour every template draws with. */
+const EDGE = "#999999"
 
-const parseHex = (colour: string): readonly [number, number, number] | undefined => {
-  const raw = colour.trim()
-  if (!raw.startsWith("#")) return undefined
-  const hex = raw.slice(1)
-  if (hex.length === 3) {
-    const red = hex[0]
-    const green = hex[1]
-    const blue = hex[2]
-    if (red === undefined || green === undefined || blue === undefined) return undefined
-    return [
-      Number.parseInt(red + red, 16),
-      Number.parseInt(green + green, 16),
-      Number.parseInt(blue + blue, 16)
-    ]
-  }
-  if (hex.length === 6) {
-    return [
-      Number.parseInt(hex.slice(0, 2), 16),
-      Number.parseInt(hex.slice(2, 4), 16),
-      Number.parseInt(hex.slice(4, 6), 16)
-    ]
-  }
-  return undefined
-}
+/** `black!60`, for arrows and connecting lines. */
+const ARROW = "#666666"
 
-const toHex = (channel: number): string => channel.toString(16).padStart(2, "0")
+/** The text colour on every pastel fill. */
+const INK = "#000000"
 
-const mix = (pastel: string, ink: string, amount: number): string => {
-  const from = parseHex(pastel)
-  const toward = parseHex(ink)
-  if (from === undefined || toward === undefined) return pastel
-  const channel = (index: 0 | 1 | 2) =>
-    Math.round(from[index] * (1 - amount) + toward[index] * amount)
-  return `#${toHex(channel(0))}${toHex(channel(1))}${toHex(channel(2))}`
-}
+/** The paper a figure is printed on. */
+const PAPER = "#ffffff"
 
-const inkOf = (): string => {
-  const raw = getComputedStyle(document.documentElement).getPropertyValue("--color-ink").trim()
-  return parseHex(raw) === undefined ? "#171717" : raw
-}
-
-export const paperforgeTheme = (ink: string) => {
-  const fill = (pastel: string) => mix(pastel, ink, TINT)
-  const edge = (pastel: string) => mix(pastel, ink, 0.5)
-  return {
-    primaryColor: fill(PASTELS.blue),
-    secondaryColor: fill(PASTELS.green),
-    tertiaryColor: fill(PASTELS.yellow),
-    primaryTextColor: ink,
-    secondaryTextColor: ink,
-    tertiaryTextColor: ink,
-    primaryBorderColor: edge(PASTELS.blue),
-    secondaryBorderColor: edge(PASTELS.green),
-    tertiaryBorderColor: edge(PASTELS.yellow),
-    lineColor: mix(PASTELS.gray, ink, 0.5),
-    textColor: ink,
-    mainBkg: fill(PASTELS.blue),
-    nodeBorder: edge(PASTELS.blue),
-    clusterBkg: fill(PASTELS.purple),
-    clusterBorder: edge(PASTELS.purple),
-    titleColor: ink,
-    edgeLabelBackground: fill(PASTELS.gray),
-    noteBkgColor: fill(PASTELS.orange),
-    noteTextColor: ink,
-    noteBorderColor: edge(PASTELS.orange),
-    errorBkgColor: fill(PASTELS.red),
-    errorTextColor: ink,
-    actorBkg: fill(PASTELS.blue),
-    actorBorder: edge(PASTELS.blue),
-    actorTextColor: ink,
-    actorLineColor: mix(PASTELS.gray, ink, 0.5),
-    signalColor: ink,
-    labelBoxBkgColor: fill(PASTELS.green),
-    labelTextColor: ink
-  }
-}
+export const paperforgeTheme = () => ({
+  /*
+   * The one thing not taken from the article, which sets its figures in the body
+   * serif at \scriptsize. Read at 14px inside a sans interface, that looks like a
+   * figure pasted in from somewhere else.
+   *
+   * Stated here rather than in `markdown.css` because mermaid writes its own
+   * stylesheet into the SVG and scopes it by the diagram's id, which no class
+   * selector of ours can outweigh. The variable resolves against the root, so a
+   * pack that changes the interface font changes the labels with it.
+   */
+  fontFamily: "var(--font-sans)",
+  fontSize: "13px",
+  primaryColor: PASTELS.blue,
+  secondaryColor: PASTELS.green,
+  tertiaryColor: PASTELS.yellow,
+  primaryTextColor: INK,
+  secondaryTextColor: INK,
+  tertiaryTextColor: INK,
+  primaryBorderColor: EDGE,
+  secondaryBorderColor: EDGE,
+  tertiaryBorderColor: EDGE,
+  lineColor: ARROW,
+  textColor: INK,
+  mainBkg: PASTELS.blue,
+  nodeBorder: EDGE,
+  background: PAPER,
+  clusterBkg: PASTELS.purple,
+  clusterBorder: EDGE,
+  titleColor: INK,
+  /* Paperforge writes an edge label as plain text over the paper, with white
+     casing under it so a crossing line stays crisp. */
+  edgeLabelBackground: PAPER,
+  noteBkgColor: PASTELS.orange,
+  noteTextColor: INK,
+  noteBorderColor: EDGE,
+  errorBkgColor: PASTELS.red,
+  errorTextColor: INK,
+  actorBkg: PASTELS.blue,
+  actorBorder: EDGE,
+  actorTextColor: INK,
+  actorLineColor: ARROW,
+  signalColor: ARROW,
+  signalTextColor: INK,
+  labelBoxBkgColor: PASTELS.green,
+  labelBoxBorderColor: EDGE,
+  labelTextColor: INK
+})
 
 let nextId = 0
 
 export const draw = (code: string): Effect.Effect<string | null> =>
   Effect.tryPromise({
     try: () => {
-      const ink = inkOf()
       mermaid.initialize({
         startOnLoad: false,
         securityLevel: "strict",
         theme: "base",
-        themeVariables: paperforgeTheme(ink),
+        themeVariables: paperforgeTheme(),
         /*
          * Drawn at its own size rather than squeezed into the panel. Mermaid's
          * default fits the diagram to whatever it is put in, and this interface
