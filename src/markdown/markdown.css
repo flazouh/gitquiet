@@ -1,0 +1,360 @@
+/**
+ * Markdown chrome, including Acepe's tiled tables remapped onto GitQuiet tokens.
+ *
+ * Acepe mixes against --foreground and --border. Here those are --color-ink
+ * and --color-line, so the tiles follow the reader's pack.
+ */
+
+/**
+ * The prose itself, which had nothing until this block existed.
+ *
+ * `primer.css` zeroes the margin of every p, heading, list, quote and pre inside
+ * the root, because GitHub's own sheet was giving ours ten pixels nobody asked
+ * for. Prose we render ourselves is the one place that reset is wrong: a
+ * document arrived as one flat run, headings at the browser's 2em and 1.5em
+ * rather than this interface's scale, and nothing between a paragraph and the
+ * heading after it.
+ *
+ * READMEs escape this because `GitHubHtml` marks them `.markdown-body`, which
+ * GitHub's page dresses for us. Our own tree is `.markdown`, which their sheet
+ * has never heard of. A class and an element outweigh the two element selectors
+ * that reset carries, so every rule here wins on its own weight.
+ */
+.markdown {
+  color: var(--color-ink);
+  line-height: 1.5;
+  overflow-wrap: break-word;
+}
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  margin: 1.25em 0 0.5em;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+/*
+ * Two rules under the top headings, as GitHub draws them, because a document
+ * long enough to need an h2 needs to be scannable by section.
+ */
+.markdown h1 {
+  font-size: 1.5em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.markdown h2 {
+  font-size: 1.25em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.markdown h3 {
+  font-size: 1.1em;
+}
+
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  font-size: 1em;
+}
+
+.markdown p,
+.markdown blockquote,
+.markdown ul,
+.markdown ol,
+.markdown dl,
+.markdown pre,
+.markdown details {
+  margin: 0 0 0.8em;
+}
+
+/*
+ * Markers and indent stated rather than inherited: GitHub's base sheet takes
+ * both off every list on the page, so a list of ours planted in their document
+ * came out as unmarked paragraphs at the left margin.
+ */
+.markdown ul,
+.markdown ol {
+  padding-left: 2em;
+}
+
+.markdown ul {
+  list-style: disc;
+}
+
+.markdown ol {
+  list-style: decimal;
+}
+
+.markdown ul ul {
+  list-style: circle;
+}
+
+.markdown ul ul ul {
+  list-style: square;
+}
+
+.markdown li + li {
+  margin-top: 0.25em;
+}
+
+.markdown li > p {
+  margin-bottom: 0.5em;
+}
+
+.markdown li > ul,
+.markdown li > ol {
+  margin: 0.25em 0 0;
+}
+
+.markdown li input[type="checkbox"] {
+  margin-right: 0.4em;
+  vertical-align: middle;
+}
+
+.markdown blockquote {
+  padding: 0 1em;
+  color: var(--color-ink-muted);
+  border-left: 0.25em solid var(--color-line);
+}
+
+.markdown code {
+  padding: 0.15em 0.35em;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-ink) 8%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.markdown pre {
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-ink) 5%, transparent);
+  overflow-x: auto;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+/* The fill and the padding belong to the block, not to each line inside it. */
+.markdown pre code {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: inherit;
+}
+
+.markdown a {
+  color: var(--color-ink-accent);
+  text-decoration: none;
+}
+
+.markdown a:hover {
+  text-decoration: underline;
+}
+
+.markdown hr {
+  height: 0;
+  margin: 1.5em 0;
+  border: 0;
+  border-top: 1px solid var(--color-line);
+}
+
+.markdown img {
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+}
+
+.markdown summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.markdown-table {
+  overflow-x: auto;
+  overflow-y: hidden;
+  outline: none;
+  margin: 0.75rem 0;
+}
+
+.markdown-table::-webkit-scrollbar {
+  height: 6px;
+}
+
+.markdown-table::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.markdown-table::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-line) 50%, transparent);
+  border-radius: 3px;
+}
+
+.markdown-table::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-line) 70%, transparent);
+}
+
+.markdown-table table {
+  width: 100%;
+  min-width: max-content;
+  border-collapse: separate;
+  border-spacing: 2px;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.markdown-table th {
+  padding: 0.375rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+  font-weight: 500;
+  color: var(--color-ink);
+  background: color-mix(in srgb, var(--color-ink) 9%, transparent);
+  border-radius: 0.25rem;
+  white-space: nowrap;
+}
+
+.markdown-table th:empty {
+  background: transparent;
+}
+
+.markdown-table td {
+  padding: 0.375rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+  color: color-mix(in srgb, var(--color-ink) 90%, transparent);
+  background: color-mix(in srgb, var(--color-ink) 5%, transparent);
+  border-radius: 0.25rem;
+}
+
+.markdown-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--color-ink) 8%, transparent);
+}
+
+.markdown-table td code,
+.markdown-table th code {
+  background-color: transparent;
+  padding: 0;
+}
+
+.markdown-alert {
+  margin: 0.75rem 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  background: color-mix(in srgb, var(--color-ink) 5%, transparent);
+}
+
+.markdown-alert-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: var(--color-ink);
+}
+
+.markdown-alert-note {
+  background: var(--color-accent-muted);
+}
+
+.markdown-alert-tip {
+  background: var(--color-pass-muted);
+}
+
+.markdown-alert-important {
+  background: var(--color-done-muted);
+}
+
+.markdown-alert-warning {
+  background: var(--color-attention-muted);
+}
+
+.markdown-alert-caution {
+  background: var(--color-fail-muted);
+}
+
+.markdown-suggestion {
+  border-left: 3px solid var(--color-pass);
+  background: var(--color-pass-muted);
+}
+
+.markdown-mention,
+.markdown-issue {
+  color: var(--color-ink-accent);
+}
+
+.markdown-footnotes {
+  margin-top: 1.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-line);
+  font-size: 0.8125rem;
+}
+
+/**
+ * A paperforge figure brings its own paper.
+ *
+ * The palette in `mermaid.ts` is the article preamble's: pastel fills, black
+ * labels, black!40 borders. Those are colours for paper, and they do not become
+ * dark-pack colours by being tinted — a figure drawn on the reader's dark canvas
+ * showed pastel boxes floating over black gaps, with the arrows between them
+ * lost. So the figure is printed, on paper, in both packs, and the panel's own
+ * line marks where the paper ends.
+ */
+.markdown-mermaid {
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  overflow-x: auto;
+  /* `\centering`, which every template opens with. Stated as text alignment
+     rather than as a flex rule: a flex box that centres content wider than
+     itself puts the left of that content out of reach of the scroll. */
+  text-align: center;
+}
+
+/* No paper until there is something printed on it. */
+.markdown-mermaid-pending {
+  min-height: 4rem;
+  display: flex;
+  align-items: center;
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-ink-muted);
+  font-size: 0.8125rem;
+}
+
+/*
+ * No ceiling on the width, which is the other half of `useMaxWidth: false`.
+ * Held to the column, a diagram wider than the column is drawn smaller until
+ * its words are too small to read; left at its own size it is drawn once and
+ * the figure above scrolls to the rest of it.
+ */
+.markdown-mermaid svg {
+  max-width: none;
+  height: auto;
+}
+
+/*
+ * `rounded corners=3pt`, which is four pixels at 96dpi.
+ *
+ * Every box, not only a flowchart node: a template turns the same corner on a
+ * state, a participant, a note and a tile, and mermaid ships three different
+ * radii for those. A presentation attribute loses to a declaration, so this
+ * reaches the boxes mermaid wrote an `rx` of its own onto.
+ */
+.markdown-mermaid svg rect {
+  rx: 4px;
+  ry: 4px;
+}

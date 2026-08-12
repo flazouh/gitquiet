@@ -44,7 +44,9 @@ const touched = (said: string, hours: number): Option.Option<Touch> =>
   Option.some({
     at: hoursAgo(hours),
     said,
-    url: `https://github.com/${REPO.owner}/${REPO.repo}/commit/${HEAD.slice(0, 7)}`
+    url: `https://github.com/${REPO.owner}/${REPO.repo}/commit/${HEAD.slice(0, 7)}`,
+    oid: Option.some(HEAD),
+    who: Option.none()
   })
 
 /**

@@ -1,6 +1,14 @@
 import { Effect, Option } from "effect"
 import type { RepoRef } from "../domain/PullRequestRef"
-import { type Front, type Starring, type Touch, touchedBy } from "../domain/repoHome"
+import {
+  type Front,
+  type Starring,
+  type Touch,
+  type TouchWho,
+  namedBy,
+  shasOf,
+  touchedBy
+} from "../domain/repoHome"
 import { GitHubGateway } from "../ports/GitHubGateway"
 
 /**
@@ -31,6 +39,86 @@ export const rememberedRepoHome = Effect.fn("rememberedRepoHome")(function* (rep
 })
 
 /**
+ * How many unique commits to name at once. One request per SHA, not per row.
+ *
+ * Sixteen because the wait is round trips and not bytes. Each answer is about two
+ * kilobytes and takes about eight hundred milliseconds, so sixty-five of them —
+ * one folder of this repository — took 7.5 seconds four at a time, 3.4 seconds
+ * sixteen at a time, and no answer was ever refused with thirty in flight.
+ */
+const AT_ONCE = 16
+
+/**
+ * Faces named in this document already, so a second folder does not ask again.
+ *
+ * Held in memory rather than in the store, and safe to hold for as long as the
+ * page lives: a commit that has landed never changes its author. Folders under
+ * one repository share their last commits heavily — the root column and three
+ * opened folders were re-reading the same SHAs — and a repeated read costs a
+ * round trip to be told what is already on the screen.
+ */
+const named = new Map<string, Option.Option<TouchWho>>()
+
+const under = (repo: RepoRef, sha: string): string => `${repo.owner}/${repo.repo}@${sha}`
+
+const whoOf =
+  (
+    gateway: {
+      readonly whoTouched: (
+        repo: RepoRef,
+        sha: string
+      ) => Effect.Effect<Option.Option<TouchWho>, unknown>
+    },
+    repo: RepoRef
+  ) =>
+  (sha: string) => {
+    const held = named.get(under(repo, sha))
+    if (held !== undefined) {
+      return Option.match(held, {
+        onNone: () => Effect.fail("nobody named" as const),
+        onSome: (who) => Effect.succeed(who)
+      })
+    }
+
+    return gateway.whoTouched(repo, sha).pipe(
+      Effect.tap((found) => Effect.sync(() => named.set(under(repo, sha), found))),
+      Effect.flatMap(
+        Option.match({
+          onNone: () => Effect.fail("nobody named" as const),
+          onSome: (who) => Effect.succeed(who)
+        })
+      )
+    )
+  }
+
+/**
+ * Faces for the unique SHAs the column still has no author for.
+ *
+ * One read per commit, not per row: many files share a SHA. A SHA the first
+ * route already named is skipped. A SHA that fails to read keeps the message,
+ * the age and the link.
+ */
+export const fillWho = Effect.fn("fillWho")(function* (
+  touches: ReadonlyMap<string, Touch>,
+  whoOf: (sha: string) => Effect.Effect<TouchWho, unknown>
+) {
+  const shas = shasOf(touches)
+  if (shas.length === 0) return touches
+
+  const found = yield* Effect.forEach(
+    shas,
+    (sha) =>
+      whoOf(sha).pipe(
+        Effect.map((who) => Option.some([sha, who] as const)),
+        Effect.orElseSucceed(() => Option.none<readonly [string, TouchWho]>())
+      ),
+    { concurrency: AT_ONCE }
+  )
+
+  return namedBy(touches, new Map(found.flatMap((one) => Option.toArray(one))))
+})
+
+/**
  * A repository's front page.
  *
  * Two reads, and only one of them is ever a request.
@@ -48,6 +136,9 @@ export const rememberedRepoHome = Effect.fn("rememberedRepoHome")(function* (rep
  * held back, so the file list is on the screen in one paint and gains its column a
  * quarter of a second later. Held back instead, every row would wait on a read
  * that decorates it.
+ *
+ * Faces fill in behind the column. Unique SHAs are named after the messages are
+ * already on the rows, so a slow author read cannot hold the dates back.
  *
  * The column fails quietly. It only ever adds to a row already worth drawing, and
  * a repository whose history is too large for GitHub to answer about is a
@@ -70,7 +161,45 @@ export const loadRepoHome = Effect.fn("loadRepoHome")(function* (
     .treeCommits(repo, front.head)
     .pipe(Effect.orElseSucceed((): ReadonlyMap<string, Touch> => new Map()))
 
-  return { ...front, entries: touchedBy(front.entries, touches) }
+  const withTouches = { ...front, entries: touchedBy(front.entries, touches) }
+  partly(withTouches)
+
+  const named = yield* fillWho(touches, whoOf(gateway, repo))
+  return { ...front, entries: touchedBy(front.entries, named) }
+})
+
+/**
+ * Last commits under one folder, for nested rows of the tree.
+ *
+ * The root column is the page's second request. A folder that opens is a third,
+ * because their route answers one directory at a time and names its children
+ * relative to it.
+ *
+ * Reported in two stages, for the same reason {@link loadRepoHome} does it: the
+ * messages and the dates are one request, and the faces are one request per
+ * unique commit behind it. A folder of two hundred files is a hundred commit
+ * pages read four at a time, so a column handed over whole is a column that
+ * lands twenty seconds after the names — while the half of it that was ready at
+ * once sat waiting on avatars.
+ *
+ * The failure is kept rather than swallowed, which is where this parts company
+ * with the page. A page that failed is still a page, and there is nothing to do
+ * about it; a folder that failed is a folder the reader can press again. The
+ * tree is the one that hears the press, so the tree is where a failed column is
+ * forgotten and asked for a second time.
+ */
+export const loadFolderTouches = Effect.fn("loadFolderTouches")(function* (
+  repo: RepoRef,
+  sha: string,
+  folder: string,
+  partly: (touches: ReadonlyMap<string, Touch>) => void = () => {}
+) {
+  const gateway = yield* GitHubGateway
+  const touches = yield* gateway.treeCommits(repo, sha, folder)
+
+  partly(touches)
+
+  return yield* fillWho(touches, whoOf(gateway, repo))
 })
 
 /**

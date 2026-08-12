@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { ageOf, momentOf } from "./when"
+import { ageOf, freshnessOf, momentOf } from "./when"
 
 const now = new Date("2026-07-27T12:00:00Z")
 const ago = (iso: string) => ageOf(iso, now)
@@ -21,6 +21,15 @@ describe("how long ago", () => {
 
   test("says nothing at all rather than NaN when the date is unreadable", () => {
     expect(ago("not a date")).toBe("")
+  })
+})
+
+describe("how recently, as a colour", () => {
+  test("paints the last day green, the last week amber, this month muted, and older quieter", () => {
+    expect(freshnessOf("2026-07-27T04:00:00Z", now)).toBe("text-pass")
+    expect(freshnessOf("2026-07-24T12:00:00Z", now)).toBe("text-busy")
+    expect(freshnessOf("2026-07-10T12:00:00Z", now)).toBe("text-ink-muted")
+    expect(freshnessOf("2026-05-04T12:00:00Z", now)).toBe("text-ink-muted/50")
   })
 })
 

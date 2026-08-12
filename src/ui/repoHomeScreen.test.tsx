@@ -30,10 +30,12 @@ const front = (footing: Footing, over: Partial<Front> = {}): Front => ({
   entries: [
     entry("src", { kind: "directory", path: "src" }),
     entry("README.md", {
-      touched: Option.some({
+        touched: Option.some({
         at: "2026-07-30T12:00:00Z",
         said: "Say what this is for",
-        url: "/flowline-labs/flowline/commit/def"
+        url: "/flowline-labs/flowline/commit/def",
+        oid: Option.some("def"),
+        who: Option.none()
       })
     })
   ],
@@ -104,9 +106,8 @@ describe("a repository's front page", () => {
     // toggle reads as a page that failed to load, so the order changes and the
     // contents do not.
     //
-    // Said of the section rather than of the rows: the tree draws itself into a
-    // shadow root of its own and there is nothing in this document to read. What
-    // it is given is checked in `repoTree.test.ts`.
+    // Said of the section rather than of the rows: the tree is checked in
+    // `repoTree.test.ts` and `repoTree.view.test.tsx`.
     showing(() => Effect.succeed(front("caller")))
 
     await screen.findByText("Flowline")

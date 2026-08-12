@@ -18,10 +18,14 @@ import { Section } from "./Section"
  * is the thing this used to get wrong.
  */
 export const Description = ({
-  html,
+  markdown,
+  owner,
+  repo,
   foldable = true
 }: {
-  readonly html: string
+  readonly markdown: string
+  readonly owner?: string
+  readonly repo?: string
   readonly foldable?: boolean
 }) => {
   const [opened, setOpened] = useState(false)
@@ -48,7 +52,7 @@ export const Description = ({
               }
         }
       >
-        <Markdown html={html} />
+        <Markdown markdown={markdown} owner={owner} repo={repo} />
       </div>
       {foldable ? (
         <div className="px-3 pb-2">

@@ -5,12 +5,14 @@ import payload from "../../fixtures/github/repo-home.json"
 import type { Front, Starring } from "../domain/repoHome"
 import type { KeptFront } from "./repoHome"
 import {
+  decodeLatestCommit,
   decodeRepoHome,
   decodeTreeCommitInfo,
   frontFrom,
   frontFromKept,
   keptFrom,
-  touchesFrom
+  touchesFrom,
+  wroteIn
 } from "./repoHome"
 
 const repo = { owner: "flazouh", repo: "githubpro" }
@@ -107,9 +109,117 @@ describe("the commit column, read off their second route", () => {
     expect(said.every((one) => !one.includes("<a "))).toBe(true)
   })
 
+  test("keeps the full headline from the title, not the cut line inside the anchor", () => {
+    const cut = {
+      entries: {
+        ".sentrux": {
+          oid: "abc",
+          url: "/c/abc",
+          date: "2026-07-30T12:00:00Z",
+          shortMessageHtmlLink: {
+            value:
+              '<a title="Turn the last two contracts into ports, and delete the layer that excused them\n\nBoth contracts could only be excused as core." href="/c/abc">Turn the last two contracts into ports, and delete the layer that exc…</a>'
+          }
+        }
+      }
+    }
+    const [touch] = touchesFrom(Effect.runSync(decodeTreeCommitInfo(cut))).values()
+    expect(touch?.said).toBe(
+      "Turn the last two contracts into ports, and delete the layer that excused them"
+    )
+  })
+
   test("keeps the date, which is the half of this column nobody argues about", () => {
     const [first] = read().values()
     expect(Number.isNaN(Date.parse(first?.at ?? ""))).toBe(false)
+  })
+
+  test("keeps the commit id, so a later read can name who wrote it", () => {
+    const [first] = read().values()
+    expect(Option.isSome(first?.oid ?? Option.none())).toBe(true)
+  })
+
+  test("prefixes a folder's names, because that route answers relative to it", () => {
+    const nested = touchesFrom(Effect.runSync(decodeTreeCommitInfo(touches)), "src")
+    const [path] = nested.keys()
+    expect(path?.startsWith("src/")).toBe(true)
+  })
+
+  test("leaves the author empty when the route did not name one", () => {
+    expect([...read().values()].every((one) => Option.isNone(one.who))).toBe(true)
+  })
+
+  test("names the author where the route already sent one", () => {
+    const withAuthor = {
+      entries: {
+        "README.md": {
+          oid: "abc",
+          url: "/c/abc",
+          date: "2026-07-30T12:00:00Z",
+          shortMessageHtmlLink: "hello",
+          author: { login: "flazouh", avatarUrl: "https://avatars.githubusercontent.com/u/1" }
+        }
+      }
+    }
+    const [touch] = touchesFrom(Effect.runSync(decodeTreeCommitInfo(withAuthor))).values()
+    expect(Option.getOrNull(touch?.who ?? Option.none())?.login).toBe("flazouh")
+    expect(Option.getOrNull(Option.getOrNull(touch?.who ?? Option.none())?.face ?? Option.none())).toBe(
+      "https://avatars.githubusercontent.com/u/1"
+    )
+  })
+})
+
+describe("who wrote a commit, off the cheap route", () => {
+  const answered = (over: Record<string, unknown>) =>
+    wroteIn("abc", Effect.runSync(decodeLatestCommit({ oid: "abc", ...over })))
+
+  test("reads the login and the face", () => {
+    const who = answered({
+      author: {
+        login: "flazouh",
+        displayName: "flazouh",
+        avatarUrl: "https://avatars.githubusercontent.com/u/25705704?s=40&v=4"
+      }
+    })
+
+    expect(Option.getOrNull(who)?.login).toBe("flazouh")
+    expect(Option.getOrNull(Option.getOrNull(who)?.face ?? Option.none())).toBe(
+      "https://avatars.githubusercontent.com/u/25705704?s=40&v=4"
+    )
+  })
+
+  /*
+   * A commit whose author email belongs to no account. GitHub answers a real name
+   * and a gravatar, and a row that dropped it would lose the one person the
+   * column exists to name.
+   */
+  test("falls back to the name where the email belongs to no account", () => {
+    const who = answered({
+      author: { login: null, displayName: "Askar Safin", avatarUrl: null }
+    })
+
+    expect(Option.getOrNull(who)?.login).toBe("Askar Safin")
+  })
+
+  test("takes the first of the credited authors where there is no author field", () => {
+    const who = answered({ authors: [{ login: "flazouh" }, { login: "cursoragent" }] })
+
+    expect(Option.getOrNull(who)?.login).toBe("flazouh")
+  })
+
+  /*
+   * That route means "the latest commit at this ref, under this path". A path on
+   * the end answers about another commit, and a face from it would name the wrong
+   * person on every row.
+   */
+  test("answers nothing where the route answered about another commit", () => {
+    const who = wroteIn("abc", Effect.runSync(decodeLatestCommit({ oid: "def", author: { login: "flazouh" } })))
+
+    expect(Option.isNone(who)).toBe(true)
+  })
+
+  test("answers nothing where nobody is named", () => {
+    expect(Option.isNone(answered({}))).toBe(true)
   })
 })
 

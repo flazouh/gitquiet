@@ -6,12 +6,12 @@ import { defineConfig, type Plugin } from "vite"
 
 const here = (path: string) => fileURLToPath(new URL(path, import.meta.url))
 
-const diffEngineBeside = (): Plugin => {
-  const from = here("../public/diff-engine.js")
-  const at = "/diff-engine.js"
+const chunkBeside = (file: string, missing: string): Plugin => {
+  const from = here(`../public/${file}`)
+  const at = `/${file}`
 
   return {
-    name: "gitquiet:diff-engine-beside",
+    name: `gitquiet:${file}-beside`,
     configureServer: (server) => {
       server.middlewares.use(at, (_request, response) => {
         try {
@@ -20,22 +20,28 @@ const diffEngineBeside = (): Plugin => {
           response.end(held)
         } catch {
           response.statusCode = 404
-          response.end("diff-engine.js is built, not committed: bun run build:diff-engine")
+          response.end(`${file} is built, not committed: ${missing}`)
         }
       })
     },
     generateBundle: function () {
       try {
-        this.emitFile({ type: "asset", fileName: "diff-engine.js", source: readFileSync(from) })
+        this.emitFile({ type: "asset", fileName: file, source: readFileSync(from) })
       } catch {
-        this.warn("no public/diff-engine.js: run bun run build:diff-engine before building")
+        this.warn(`no public/${file}: run ${missing} before building`)
       }
     }
   }
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), diffEngineBeside()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    chunkBeside("diff-engine.js", "bun run build:diff-engine"),
+    chunkBeside("markdown-highlighter.js", "bun run build:markdown-highlighter"),
+    chunkBeside("markdown-mermaid.js", "bun run build:markdown-mermaid")
+  ],
 
   resolve: {
     alias: { "@": fileURLToPath(new URL("../src", import.meta.url)) },

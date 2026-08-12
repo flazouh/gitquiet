@@ -78,6 +78,7 @@ import { embeddedPayload } from "./embedded"
 import { signOnWanted } from "./signOn"
 import { involvedIssuesFrom, listedIssuesFrom } from "./issues"
 import {
+  decodeLatestCommit,
   decodeRepoHome,
   decodeTreeCommitInfo,
   decodeTreeList,
@@ -85,7 +86,8 @@ import {
   frontFromKept,
   isKeptFront,
   keptFrom,
-  touchesFrom
+  touchesFrom,
+  wroteIn
 } from "./repoHome"
 import { commitFromKept, keptCommitFrom } from "./keptCommit"
 import { keepTabs, keptTabs, tabsOnPage } from "./repoTabs"
@@ -3233,16 +3235,36 @@ export const layer = Layer.succeed(GitHubGateway, {
 
     treeCommits: Effect.fn("GitHubGateway.treeCommits")(function* (
       reference: RepoRef,
-      sha: string
+      sha: string,
+      folder = ""
     ) {
-      const route = `/tree-commit-info/${sha}`
+      const route =
+        folder === ""
+          ? `/tree-commit-info/${sha}`
+          : `/tree-commit-info/${sha}/${folder.split("/").map(encodeURIComponent).join("/")}`
       const raw = yield* readRepoRoute(reference, route)
 
       // Not kept. A date is drawn identically whether it is a second or a day
       // old, and this arrives a quarter of a second after the rows it decorates,
       // so there is nothing for a stored copy to save.
       return yield* decodeTreeCommitInfo(raw).pipe(
-        Effect.map(touchesFrom),
+        Effect.map((decoded) => touchesFrom(decoded, folder)),
+        Effect.catch(undecodableFrom(reference, route))
+      )
+    }),
+
+    whoTouched: Effect.fn("GitHubGateway.whoTouched")(function* (
+      reference: RepoRef,
+      sha: string
+    ) {
+      const route = `/latest-commit/${sha}`
+      const raw = yield* readRepoRoute(reference, route)
+
+      // Not kept, for the same reason the column is not: it decorates a row that
+      // is already drawn, and the folder it belongs to is asked for again on the
+      // next visit anyway.
+      return yield* decodeLatestCommit(raw).pipe(
+        Effect.map((decoded) => wroteIn(sha, decoded)),
         Effect.catch(undecodableFrom(reference, route))
       )
     }),
@@ -3550,6 +3572,7 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     treePaths: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     fileAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     treeCommits: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    whoTouched: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     // No run recorded, and a failure rather than an empty one: a run with no jobs
     // and no facts is not a run that did nothing, and the screen says so either way.
     run: (reference: RunRef) => Effect.fail(nothingRecordedFor(reference.repo)),
@@ -3675,6 +3698,7 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     treePaths: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     fileAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     treeCommits: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    whoTouched: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     // No run recorded, and a failure rather than an empty one: a run with no jobs
     // and no facts is not a run that did nothing, and the screen says so either way.
     run: (reference: RunRef) => Effect.fail(nothingRecordedFor(reference.repo)),

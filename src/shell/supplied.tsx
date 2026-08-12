@@ -3,6 +3,7 @@ import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 import type { ReactNode } from "react";
 import { listen, socketUrl } from "../github/alive";
 import { layer } from "../github/GitHubGateway";
+import { MarkdownDrawProvider } from "../markdown/runtime";
 import type { GitHubGateway } from "../ports/GitHubGateway";
 import type { Store } from "../ports/Settings";
 import { browserSettings } from "../settings/browserStore";
@@ -15,7 +16,15 @@ import { SettingsProvider } from "../ui/settings";
 import { Theme } from "../ui/Theme";
 import { Toasts } from "../ui/Toasts";
 import { loadDiffEngine } from "./diffEngine";
+import { loadMarkdownHighlighter } from "./markdownHighlighter";
+import { loadMarkdownMermaid } from "./markdownMermaid";
 import { onGitHub } from "./portraits";
+
+const highlight = (code: string, language: string, theme: "light" | "dark") =>
+  loadMarkdownHighlighter.pipe(Effect.flatMap((draw) => draw(code, language, theme)));
+
+const mermaid = (code: string) =>
+  loadMarkdownMermaid.pipe(Effect.flatMap((draw) => draw(code)));
 
 /**
  * What a browser extension on github.com can answer, in one file.
@@ -129,11 +138,13 @@ export const Supplied = ({
         <ArtProvider here={OCTICONS}>
         <PortraitsProvider reads={onGitHub}>
           <RendererProvider load={loadDiffEngine}>
+            <MarkdownDrawProvider highlight={highlight} mermaid={mermaid}>
             {/* Above the interface rather than inside a screen: a refusal outlives
                 the control that caused it — the menu closed on the press — and on
                 some of them it outlives the screen too, a merged pull request being
                 a page the reader is about to leave. */}
             <Toasts>{children}</Toasts>
+            </MarkdownDrawProvider>
           </RendererProvider>
         </PortraitsProvider>
         </ArtProvider>

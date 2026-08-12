@@ -57,15 +57,25 @@ export default defineConfig({
     permissions: ["storage", "unlimitedStorage"],
     /*
      * Everything the shell fetches once it knows what page this is: the four screens
-     * (scripts/build-screens.ts), the chunk they share, their stylesheets, and the
-     * diff renderer the two diff screens ask for when a file is opened.
+     * (scripts/build-screens.ts), the chunk they share, their stylesheets, the
+     * diff renderer the two diff screens ask for when a file is opened, and the
+     * markdown highlighter a labelled fence asks for, and the mermaid renderer
+     * a mermaid fence asks for.
      *
      * A content script may only import an extension file the manifest has published,
      * and only onto the pages that need it. Published as a folder because the shared
      * chunk's name carries a content hash, which changes with the build.
      */
     web_accessible_resources: [
-      { resources: ["diff-engine.js", "screens/*"], matches: ["*://github.com/*"] }
+      {
+        resources: [
+          "diff-engine.js",
+          "markdown-highlighter.js",
+          "markdown-mermaid.js",
+          "screens/*"
+        ],
+        matches: ["*://github.com/*"]
+      }
     ]
   },
   vite: () => ({

@@ -14,14 +14,15 @@
  */
 
 import { Effect, Option, Schema } from "effect"
-import type { About, Entry, Front, Kind, Starring, Touch, Welcome } from "../domain/repoHome"
+import type { About, Entry, Front, Kind, Starring, Touch, TouchWho, Welcome } from "../domain/repoHome"
 import { footingOf, inReadingOrder } from "../domain/repoHome"
 import { plainText } from "./plainText"
-import { RepoHomeRoute, TreeCommitInfoRoute, TreeListRoute } from "./wire"
+import { LatestCommitRoute, RepoHomeRoute, TreeCommitInfoRoute, TreeListRoute } from "./wire"
 
 export const decodeRepoHome = Schema.decodeUnknownEffect(RepoHomeRoute)
 export const decodeTreeCommitInfo = Schema.decodeUnknownEffect(TreeCommitInfoRoute)
 export const decodeTreeList = Schema.decodeUnknownEffect(TreeListRoute)
+export const decodeLatestCommit = Schema.decodeUnknownEffect(LatestCommitRoute)
 
 type WireEntry = RepoHomeRoute["payload"]["codeViewRepoRoute"]["tree"]["items"][number]
 
@@ -285,12 +286,23 @@ export const frontFromKept = (
  *
  * There is no plain copy of it anywhere in the payload: the field is an `<a>` with
  * the issue and commit references already linked, and sometimes that anchor is
- * wrapped in an object with the string under `value`. Read with the same
- * unescaper the commit list uses rather than with a parser — this runs once per
- * row, and a thousand-entry repository would be a thousand throwaway documents.
+ * wrapped in an object with the string under `value`. The visible text is often
+ * cut with an ellipsis. The `title` on the same anchor is the full headline,
+ * then a blank line, then the body — so the first line of that is what a hover
+ * should say, and what this returns.
+ *
+ * Read with the same unescaper the commit list uses rather than with a parser —
+ * this runs once per row, and a thousand-entry repository would be a thousand
+ * throwaway documents.
  */
-const saidIn = (link: string | { readonly value: string } | null | undefined): string =>
-  link === null || link === undefined ? "" : plainText(typeof link === "string" ? link : link.value)
+const saidIn = (link: string | { readonly value: string } | null | undefined): string => {
+  if (link === null || link === undefined) return ""
+  const html = typeof link === "string" ? link : link.value
+  const titled = html.match(/\btitle="([^"]*)"/)
+  const headline = titled?.[1]?.split("\n")[0]
+  if (headline !== undefined && headline !== "") return plainText(headline)
+  return plainText(html)
+}
 
 /**
  * What last touched each path, ready to be written onto the tree.
@@ -299,10 +311,66 @@ const saidIn = (link: string | { readonly value: string } | null | undefined): s
  * per row and a record lookup on a thousand-key object built by `JSON.parse` is
  * slower than a Map built once.
  */
-export const touchesFrom = (route: TreeCommitInfoRoute): ReadonlyMap<string, Touch> =>
+const whoFrom = (
+  author:
+    | string
+    | {
+        readonly login?: string | null
+        readonly avatarUrl?: string | null
+      }
+    | null
+    | undefined
+): Option.Option<TouchWho> => {
+  if (author == null) return Option.none()
+  if (typeof author === "string") {
+    return author === "" ? Option.none() : Option.some({ login: author, face: Option.none() })
+  }
+  const login = author.login
+  if (login == null || login === "") return Option.none()
+  return Option.some({
+    login,
+    face: Option.fromNullishOr(author.avatarUrl ?? undefined)
+  })
+}
+
+/**
+ * Who wrote one commit, off the route that answers that and nothing else.
+ *
+ * The name where the email belongs to no account, rather than nobody. GitHub
+ * sends a real display name and a gravatar for those commits, and a column that
+ * dropped them would go blank on exactly the rows a reader cannot work out for
+ * themselves.
+ *
+ * Nothing where the answer is about another commit. That route means "the latest
+ * commit at this ref, under this path", so a path left on the end answers about
+ * a different one — and a face taken from it would name the wrong person on
+ * every row of the folder.
+ */
+export const wroteIn = (sha: string, route: LatestCommitRoute): Option.Option<TouchWho> => {
+  if (route.oid != null && route.oid !== sha) return Option.none()
+
+  const person = route.author ?? route.authors?.[0]
+  if (person == null) return Option.none()
+
+  const named = person.login ?? person.displayName
+  if (named == null || named === "") return Option.none()
+
+  return Option.some({ login: named, face: Option.fromNullishOr(person.avatarUrl ?? undefined) })
+}
+
+export const touchesFrom = (
+  route: TreeCommitInfoRoute,
+  folder = ""
+): ReadonlyMap<string, Touch> =>
   new Map(
     Object.entries(route.entries).map(([path, entry]) => [
-      path,
-      { at: entry.date, said: saidIn(entry.shortMessageHtmlLink), url: entry.url }
+      folder === "" ? path : `${folder}/${path}`,
+      {
+        at: entry.date,
+        said: saidIn(entry.shortMessageHtmlLink),
+        url: entry.url,
+        oid: Option.some(entry.oid),
+        who: whoFrom(entry.author)
+      }
     ])
   )

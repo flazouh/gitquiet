@@ -1,12 +1,12 @@
 import { Effect, Option } from "effect"
 import { useCallback, useEffect, useState } from "react"
-import type { About, Front, Opened, Standing as Stands, Starring } from "../domain/repoHome"
+import type { About, Front, Opened, Standing as Stands, Starring, Touch } from "../domain/repoHome"
 import { leadFor } from "../domain/repoHome"
 import type { Repository } from "../domain/repositories"
 import { mountSprite } from "./FileHeading"
 import { Branches, type LoadBranches } from "./Branches"
 import { ASIDE, PRESSABLE } from "./dress"
-import { Markdown } from "./Markdown"
+import { GitHubHtml } from "./GitHubHtml"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import type { Shelf } from "../app/shelf"
 import { Reading } from "./ReadingPane"
@@ -44,6 +44,20 @@ export type RepoHomeScreenProps = {
    * and the tree is drawn from it at once; this is the rest, and it arrives.
    */
   readonly loadPaths?: (sha: string) => Effect.Effect<ReadonlyArray<string>, unknown>
+  /**
+   * Last commits under one folder, for nested rows of the tree.
+   *
+   * Asked when a folder opens. The root column arrives with the page; this is
+   * one directory at a time, because that is how their route answers.
+   *
+   * Two stages, as the page itself has: `partly` is the messages and the dates,
+   * and the answer is the same column with its faces read behind them.
+   */
+  readonly loadTouches?: (
+    sha: string,
+    folder: string,
+    partly: (touches: ReadonlyMap<string, Touch>) => void
+  ) => Effect.Effect<ReadonlyMap<string, Touch>, unknown>
   /**
    * Every branch, for the picker over the tree.
    *
@@ -91,6 +105,7 @@ const Files = ({
   front,
   repo,
   loadPaths,
+  loadTouches,
   loadBranches,
   reading,
   onOpen,
@@ -99,19 +114,15 @@ const Files = ({
   readonly front: Front
   readonly repo: RepoHomeScreenProps["repo"]
   readonly loadPaths?: RepoHomeScreenProps["loadPaths"]
+  readonly loadTouches?: RepoHomeScreenProps["loadTouches"]
   readonly loadBranches?: LoadBranches
   readonly reading: string | null
   readonly onOpen: (path: string) => void
   readonly onNear?: (path: string) => void
 }) => (
   /*
-   * A definite height, because the tree inside is virtualised.
-   *
-   * It draws the rows that fit and no others, so a container that sizes itself
-   * to its contents leaves it nothing to fit into: the search box came up and
-   * not one row under it. The height also earns its keep — the tree scrolls
-   * inside the card while the README scrolls the page, which is the arrangement
-   * every editor uses and the reason a rail beats a list.
+   * A definite height, so the tree scrolls inside the card while the README
+   * scrolls the page, which is the arrangement every editor uses.
    */
   <section
     aria-label="Files"
@@ -151,6 +162,7 @@ const Files = ({
       branch={front.branch}
       head={front.head}
       loadPaths={loadPaths}
+      loadTouches={loadTouches}
       reading={reading}
       onOpen={onOpen}
       onNear={onNear}
@@ -161,16 +173,16 @@ const Files = ({
 /**
  * The right-hand column: what it is written in, over what it is written in.
  *
- * One block rather than two, because the tree inside it is virtualised and needs
- * a definite height: it draws the rows that fit and no others, so a card that
- * sizes itself to its contents leaves it nothing to fit into. The column takes
- * the window's height, the languages take what they need off the top, and the
- * tree takes the rest and scrolls inside it while the README scrolls the page.
+ * One block rather than two, so the languages sit over the tree they describe.
+ * The column takes the window's height, the languages take what they need off
+ * the top, and the tree takes the rest and scrolls inside it while the README
+ * scrolls the page.
  */
 const Beside = ({
   front,
   repo,
   loadPaths,
+  loadTouches,
   loadBranches,
   stands,
   reading,
@@ -180,6 +192,7 @@ const Beside = ({
   readonly front: Front
   readonly repo: RepoHomeScreenProps["repo"]
   readonly loadPaths?: RepoHomeScreenProps["loadPaths"]
+  readonly loadTouches?: RepoHomeScreenProps["loadTouches"]
   readonly loadBranches?: LoadBranches
   readonly stands: Stands | undefined
   readonly reading: string | null
@@ -192,6 +205,7 @@ const Beside = ({
       front={front}
       repo={repo}
       loadPaths={loadPaths}
+      loadTouches={loadTouches}
       loadBranches={loadBranches}
       reading={reading}
       onOpen={onOpen}
@@ -239,7 +253,7 @@ const Welcome = ({ front }: { readonly front: Front }) =>
           </p>
         ) : (
           <div style={{ contentVisibility: "auto", containIntrinsicSize: "auto 1200px" }}>
-            <Markdown html={welcome.html} />
+            <GitHubHtml html={welcome.html} />
           </div>
         )}
       </section>
@@ -440,6 +454,7 @@ export const RepoHomeScreen = ({
   onStar,
   loadStanding,
   loadPaths,
+  loadTouches,
   loadBranches,
   shelf,
   reading = null,
@@ -517,6 +532,7 @@ export const RepoHomeScreen = ({
                 front={front}
                 repo={repo}
                 loadPaths={loadPaths}
+                loadTouches={loadTouches}
                 loadBranches={loadBranches}
                 stands={stands}
                 reading={reading}
@@ -530,6 +546,7 @@ export const RepoHomeScreen = ({
                 front={front}
                 repo={repo}
                 loadPaths={loadPaths}
+                loadTouches={loadTouches}
                 loadBranches={loadBranches}
                 stands={stands}
                 reading={reading}
