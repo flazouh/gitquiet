@@ -164,12 +164,24 @@ export const isKeptStrands = (value: unknown): value is ReadonlyArray<Strand> =>
   if (value.length === 0) return true
 
   const one: Partial<Strand> = value[0]
-  return (
-    typeof one === "object" &&
-    one !== null &&
-    typeof one.head === "string" &&
-    typeof one.state === "string" &&
-    Array.isArray(one.latest) &&
-    Array.isArray(one.runs)
-  )
+  if (
+    typeof one !== "object" ||
+    one === null ||
+    typeof one.head !== "string" ||
+    typeof one.state !== "string" ||
+    !Array.isArray(one.latest) ||
+    !Array.isArray(one.runs)
+  ) {
+    return false
+  }
+
+  /*
+   * One Run's own fields as well as the Strand's, because the field a Run gained is the one Put
+   * Away is keyed on. An entry written before it would paint a Workflow the reader put away, and
+   * then lose it when the live read landed a moment later, which is one screen giving two
+   * answers about what is on it. Refused instead, and the first paint waits: that is what a
+   * first visit to a repository does anyway.
+   */
+  const run: Partial<Listed> | undefined = one.runs[0]
+  return run !== undefined && (typeof run.file === "string" || run.file === null)
 }

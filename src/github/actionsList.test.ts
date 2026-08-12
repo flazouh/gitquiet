@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { curated } from "../domain/putAway"
 import { strandsIn } from "../domain/strand"
-import { runsOnPage, workflowsOnPage } from "./actionsList"
+import { isKeptStrands, runsOnPage, workflowsOnPage } from "./actionsList"
 
 /*
  * `octo-org/octo-repo/actions` as GitHub served it on 2026-08-04: twenty-five runs over
@@ -206,6 +206,34 @@ describe("reading the workflows their sidebar names", () => {
     const both = `${named("build", "build.yml")}${named("build", "nightly.yml")}${rowOf("build")}`
 
     expect(runsOnPage(both)[0]?.file).toBeNull()
+  })
+})
+
+/*
+ * The list as a previous visit left it in the store, which is what this screen paints while the
+ * live read is in the air.
+ */
+describe("what came back out of the store", () => {
+  const kept = strandsIn(runs)
+
+  test("is taken as it stands where it is the shape this version writes", () => {
+    expect(isKeptStrands(kept)).toBe(true)
+    expect(isKeptStrands([])).toBe(true)
+  })
+
+  /*
+   * An entry written before a Run carried the file of its Workflow. Put Away is keyed on that
+   * file, so a reader who put one away would watch it appear on the kept list and then go when
+   * the live read landed, which is one screen giving two answers about what is on it. Refusing
+   * the entry means the first paint waits, which is what a first visit does anyway.
+   */
+  test("is refused where a run in it was written before a workflow had a file", () => {
+    const older = kept.map((strand) => ({
+      ...strand,
+      runs: strand.runs.map(({ file: _file, ...rest }) => rest)
+    }))
+
+    expect(isKeptStrands(older)).toBe(false)
   })
 })
 
