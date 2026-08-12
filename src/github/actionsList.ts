@@ -42,8 +42,8 @@ const workflowsIn = (page: Document): ReadonlyArray<Workflow> =>
  *
  * Two files may carry one `name:` and GitHub lists both, so a name held twice answers with
  * nothing rather than with the first of them. A row names the name and never the file, so
- * choosing between two candidates would be a guess, and the thing it decides is which
- * Workflow a reader's Put Away holds — the wrong kind of thing to guess at.
+ * choosing between two candidates would be a guess, and what it decides is which Workflow a
+ * reader's Put Away holds, which is the wrong kind of thing to guess at.
  */
 const filesIn = (workflows: ReadonlyArray<Workflow>): ReadonlyMap<string, string | null> => {
   const held = new Map<string, string | null>()
@@ -141,7 +141,7 @@ export const runsOnPage = (html: string): ReadonlyArray<Listed> => {
  *
  * Read out of the same document as the rows, at the cost of one more pass over it and no
  * second request. Their list of Workflows is a filter and this screen groups, so it is drawn
- * nowhere — `ACTIONS` in `src/ui/place.ts` argues that — but it is the only place on the page
+ * nowhere, which `ACTIONS` in `src/ui/place.ts` argues. It is still the only place on the page
  * that says which file a Workflow is, and a Run's row is labelled with a `name:` that anybody
  * can edit in a commit.
  *

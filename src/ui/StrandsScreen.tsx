@@ -50,7 +50,9 @@ const CHECKING = "Checking this repository's runs…"
  * of the screen.
  */
 const Tally = ({ strands, runs }: { readonly strands: number; readonly runs: number }) => (
-  <span className="text-sm text-ink-muted">
+  // Pushed to the end by itself rather than by the line, so the line holds one child on a
+  // screen with nothing put away and the tally is where it has always been.
+  <span className="ml-auto text-sm text-ink-muted">
     {`${strands} ${strands === 1 ? "strand" : "strands"}`}
     {runs === strands ? "" : `, from ${runs} ${runs === 1 ? "run" : "runs"}`}
   </span>
@@ -63,7 +65,7 @@ const Tally = ({ strands, runs }: { readonly strands: number; readonly runs: num
  * something back. GitHub's own Workflow filter is the opposite mistake and the reason these
  * threads exist: it holds one Workflow, applies to the list alone, and forgets on the next page
  * load. So each Workflow that is away is a press that brings it back, and the count beside it
- * says how many Runs of this page it is holding — a Workflow that has not run lately shows no
+ * says how many Runs of this page it is holding. A Workflow that has not run lately shows no
  * number, because zero on a chip reads as a result rather than as a silence.
  */
 const PutAway = ({
@@ -184,11 +186,9 @@ export const StrandsScreen = ({
       />
       {strands === undefined ? null : (
         <div className="t-panels flex flex-col pt-2 pb-2">
-          <div className="flex items-center justify-between gap-3 pb-1.5">
-            {curation?.away.length === 0 ? (
-              <span />
-            ) : (
-              <PutAway away={curation?.away ?? []} onBack={bringBack} />
+          <div className="flex items-center gap-3 pb-1.5">
+            {curation === undefined || curation.away.length === 0 ? null : (
+              <PutAway away={curation.away} onBack={bringBack} />
             )}
             <Tally strands={strands.length} runs={runs} />
           </div>

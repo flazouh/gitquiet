@@ -41,8 +41,8 @@ export const putAwayEntry = (repo: RepoRef, key: string): string =>
 /**
  * The Workflows put away in one repository, out of every one the reader has put away anywhere.
  *
- * Split on the first colon only. A Workflow put away under its own `name:` may carry one —
- * "Code Quality: PR" is a real name off `octo-repo` — and a repository address cannot.
+ * Split on the first colon only. A Workflow put away under its own `name:` may carry one, and
+ * "Code Quality: PR" is a real name off `octo-repo`. A repository address cannot carry one.
  */
 export const putAwayIn = (
   kept: ReadonlyArray<string>,
