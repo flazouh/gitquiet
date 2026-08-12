@@ -311,12 +311,17 @@
  * lost. So the figure is printed, on paper, in both packs, and the panel's own
  * line marks where the paper ends.
  */
+/*
+ * A figure is a block like the code block above it, and wears the same paper:
+ * the corner, the padding and the wash of `.markdown pre`, so the two read as
+ * two of a kind rather than as one of ours and one from somewhere else. The
+ * colours inside it come from the same tokens — see `ourTheme` in `mermaid.ts`.
+ */
 .markdown-mermaid {
   margin: 0.75rem 0;
   padding: 0.75rem;
-  border: 1px solid var(--color-line);
   border-radius: var(--radius-md);
-  background: #ffffff;
+  background: color-mix(in srgb, var(--color-ink) 5%, transparent);
   overflow-x: auto;
 }
 
@@ -325,7 +330,6 @@
   min-height: 4rem;
   display: flex;
   align-items: center;
-  border-color: transparent;
   background: transparent;
   color: var(--color-ink-muted);
   font-size: 0.8125rem;
@@ -342,8 +346,8 @@
   height: auto;
 }
 
-/* `rounded corners=3pt` on a state box, which is four pixels at 96dpi. */
+/* The corner every other box in this interface turns, `rounded-md`. */
 .markdown-mermaid .node rect {
-  rx: 4;
-  ry: 4;
+  rx: var(--radius-md);
+  ry: var(--radius-md);
 }
