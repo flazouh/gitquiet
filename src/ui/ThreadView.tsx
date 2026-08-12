@@ -73,7 +73,7 @@ export const Comments = ({
           {comment.author.isAutomated ? <span className="Label">bot</span> : null}
           <span title={momentOf(comment.createdAt)}>{ageOf(comment.createdAt)}</span>
         </span>
-        <Markdown html={comment.html} />
+        <Markdown markdown={comment.body} />
       </article>
     ))}
   </div>

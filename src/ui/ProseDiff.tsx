@@ -2,7 +2,6 @@ import { useMemo } from "react"
 import { proseRuns, type ProseKind } from "../domain/proseRuns"
 import type { FileDiff } from "../domain/PullRequest"
 import { Markdown } from "./Markdown"
-import { renderMarkdown } from "./renderMarkdown"
 
 /**
  * Green for what the change adds, red for what it takes away, and nothing at
@@ -24,10 +23,7 @@ const TONE: Record<ProseKind, string> = {
  * page reads as a document and the edits are still where they happened.
  */
 export const ProseDiff = ({ diff }: { readonly diff: FileDiff }) => {
-  const runs = useMemo(
-    () => proseRuns(diff).map((run) => ({ ...run, html: renderMarkdown(run.text) })),
-    [diff]
-  )
+  const runs = useMemo(() => proseRuns(diff), [diff])
 
   return (
     <div className="flex flex-col">
@@ -39,7 +35,7 @@ export const ProseDiff = ({ diff }: { readonly diff: FileDiff }) => {
           data-change={run.kind}
           className={`px-2 ${TONE[run.kind]}`}
         >
-          <Markdown html={run.html} />
+          <Markdown markdown={run.text} />
         </div>
       ))}
     </div>

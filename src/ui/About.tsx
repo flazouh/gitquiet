@@ -94,7 +94,11 @@ export const About = ({
       onOpenCommit={onOpenCommit}
       onSettle={onSettle}
     />
-    <Description html={snapshot.description.html} />
+    <Description
+      markdown={snapshot.description.markdown}
+      owner={snapshot.reference.owner}
+      repo={snapshot.reference.repo}
+    />
     <Checks
       checks={snapshot.checks}
       library={notes}

@@ -6,7 +6,7 @@ import type { Profile } from "../keys/commands"
 import type { DiffChoices, TreeChoices } from "../domain/choices"
 import { useArt } from "./art"
 import { FileBrowser } from "./FileBrowser"
-import { Markdown } from "./Markdown"
+import { GitHubHtml } from "./GitHubHtml"
 import { useFreshening } from "./useFreshening"
 import { ageOf, momentOf } from "./when"
 import { Who } from "./Who"
@@ -219,7 +219,7 @@ export const CommitView = ({
   const body =
     reading.step === "ready" && Option.isSome(reading.commit.bodyHtml) ? (
       <div className="max-h-32 overflow-y-auto px-3 py-2">
-        <Markdown html={reading.commit.bodyHtml.value} />
+        <GitHubHtml html={reading.commit.bodyHtml.value} />
       </div>
     ) : null
 

@@ -11,7 +11,7 @@ import {
 import { checkName, useArt } from "./art"
 import { CHIP, PRESSABLE } from "./dress"
 import { CHECK_TONE, rollupArtState } from "./Icon"
-import { Markdown } from "./Markdown"
+import { GitHubHtml } from "./GitHubHtml"
 import { ageOf, momentOf } from "./when"
 import { Who } from "./Who"
 
@@ -464,7 +464,7 @@ const Row = ({
                 className="t-panel-fade relative pt-1 pl-6 text-xs text-ink-muted"
                 style={{ gridColumn: "1 / -1" }}
               >
-                <Markdown html={html} />
+                <GitHubHtml html={html} />
               </div>
             )
           })

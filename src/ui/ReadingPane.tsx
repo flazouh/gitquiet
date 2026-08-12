@@ -132,8 +132,9 @@ export const Reading = ({ path, opened, failed = false, onClose }: ReadingProps)
     setWay("rendered")
   }, [path])
 
-  const rendered = opened === undefined ? undefined : Option.getOrUndefined(opened.rendered)
-  const showing = rendered !== undefined && way === "rendered"
+  const canRender = opened !== undefined && Option.isSome(opened.rendered)
+  const source = opened === undefined ? "" : opened.lines.join("\n")
+  const showing = canRender && way === "rendered"
 
   return (
     <section
@@ -155,11 +156,11 @@ export const Reading = ({ path, opened, failed = false, onClose }: ReadingProps)
             drawn with here: the icon in the row and the icon in the heading are
             one file said twice. */}
         <FileMark path={path} icons="material" />
-        {rendered === undefined ? null : (
+        {canRender ? (
           <span className="ml-auto shrink-0">
             <Ways ways={WAYS} on={way} onPick={setWay} label="How to read this file" />
           </span>
-        )}
+        ) : null}
       </div>
       <div className={SHEET}>
         {failed ? (
@@ -171,7 +172,7 @@ export const Reading = ({ path, opened, failed = false, onClose }: ReadingProps)
           <p className="px-4 py-3 text-sm text-ink-muted">Reading this file…</p>
         ) : showing ? (
           <div className="px-6 py-5">
-            <Markdown html={rendered} />
+            <Markdown markdown={source} />
           </div>
         ) : (
           <Source opened={opened} />

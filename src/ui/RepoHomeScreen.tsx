@@ -6,7 +6,7 @@ import type { Repository } from "../domain/repositories"
 import { mountSprite } from "./FileHeading"
 import { Branches, type LoadBranches } from "./Branches"
 import { ASIDE, PRESSABLE } from "./dress"
-import { Markdown } from "./Markdown"
+import { GitHubHtml } from "./GitHubHtml"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import type { Shelf } from "../app/shelf"
 import { Reading } from "./ReadingPane"
@@ -233,7 +233,7 @@ const Welcome = ({ front }: { readonly front: Front }) =>
           </p>
         ) : (
           <div style={{ contentVisibility: "auto", containIntrinsicSize: "auto 1200px" }}>
-            <Markdown html={welcome.html} />
+            <GitHubHtml html={welcome.html} />
           </div>
         )}
       </section>
