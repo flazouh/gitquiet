@@ -13,6 +13,7 @@ import {
   passedIn,
   saysNothing,
   skippedIn,
+  toleratedIn,
   unescaped
 } from "../domain/run"
 import { useArt } from "./art"
@@ -568,29 +569,40 @@ const Fault = ({
  * [#18001](https://github.com/orgs/community/discussions/18001) answered: a job whose
  * `if` was false reports nothing about the run.
  *
+ * A job the run carried on past is a row, and it is here rather than above: it failed,
+ * so a count would hide the one thing about it worth reading, and it is not a Fault, so
+ * putting it above would make a green run open with the word for what broke. That is
+ * [#15452](https://github.com/orgs/community/discussions/15452) answered — their own
+ * page draws it in the red of a real failure, and this draws it in the grey of
+ * something nobody owes a move.
+ *
  * The failing jobs are not repeated here. They are the Fault above, with what they said.
  */
 const Jobs = ({ jobs }: { readonly jobs: ReadonlyArray<Job> }) => {
   const passed = passedIn(jobs)
   const skipped = skippedIn(jobs)
+  const allowed = toleratedIn(jobs)
   const running = jobs.filter((job) => job.state === "running" || job.state === "queued")
 
   const words = [
     passed.count === 0 ? null : `${passed.count} passed in ${said(passed.seconds)}`,
     running.length === 0 ? null : `${running.length} still going`,
+    allowed.length === 0 ? null : `${allowed.length} allowed to fail`,
     skipped === 0 ? null : `${skipped} skipped`
   ].filter((word) => word !== null)
+
+  const rows = [...allowed, ...running]
 
   // A line rather than a panel where there is nothing to list. A bordered box holding
   // one footnote is the shape of something that failed to load, which is what this
   // section looked like on a finished run: a header, and nothing under it.
-  if (running.length === 0) {
+  if (rows.length === 0) {
     return <p className="px-1 pt-0.5 text-xs text-ink-muted">{words.join(", ")}</p>
   }
 
   return (
     <Section name="Jobs" summary={words.join(", ")}>
-      {running.map((job) => (
+      {rows.map((job) => (
         <JobRow key={job.name} job={job} />
       ))}
     </Section>
@@ -686,8 +698,18 @@ export const RunScreen = ({
    * says what broke leads, ten copies of one lint opinion are one row, and a note whose
    * whole text is that a process exited non-zero is not an answer at all. See `gathered`
    * in `src/domain/run.ts`.
+   *
+   * Nothing leads a run GitHub concluded a success. A job the run was told to carry on
+   * past still writes its annotation at the failure level — measured on run 31641974931
+   * of `flazouh/ghpro-scratch` — so a lead taken without asking what the run came to
+   * would head a green run with the word Fault and the sentence "Process completed with
+   * exit code 1.". Those notes are still on the screen, under Notes, where they read as
+   * what they are.
    */
-  const lead = opening?.gathering.find((note) => !saysNothing(note.message))
+  const answered = opening !== undefined && opening.run.state === "succeeded"
+  const lead = answered
+    ? undefined
+    : opening?.gathering.find((note) => !saysNothing(note.message))
   const rest = opening === undefined ? [] : opening.gathering.filter((note) => note !== lead)
 
   return (
