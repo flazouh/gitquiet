@@ -105,13 +105,8 @@ const Files = ({
   readonly onNear?: (path: string) => void
 }) => (
   /*
-   * A definite height, because the tree inside is virtualised.
-   *
-   * It draws the rows that fit and no others, so a container that sizes itself
-   * to its contents leaves it nothing to fit into: the search box came up and
-   * not one row under it. The height also earns its keep — the tree scrolls
-   * inside the card while the README scrolls the page, which is the arrangement
-   * every editor uses and the reason a rail beats a list.
+   * A definite height, so the tree scrolls inside the card while the README
+   * scrolls the page, which is the arrangement every editor uses.
    */
   <section
     aria-label="Files"
@@ -161,11 +156,10 @@ const Files = ({
 /**
  * The right-hand column: what it is written in, over what it is written in.
  *
- * One block rather than two, because the tree inside it is virtualised and needs
- * a definite height: it draws the rows that fit and no others, so a card that
- * sizes itself to its contents leaves it nothing to fit into. The column takes
- * the window's height, the languages take what they need off the top, and the
- * tree takes the rest and scrolls inside it while the README scrolls the page.
+ * One block rather than two, so the languages sit over the tree they describe.
+ * The column takes the window's height, the languages take what they need off
+ * the top, and the tree takes the rest and scrolls inside it while the README
+ * scrolls the page.
  */
 const Beside = ({
   front,

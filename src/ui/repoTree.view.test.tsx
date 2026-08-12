@@ -1,0 +1,93 @@
+import { afterEach, describe, expect, test } from "bun:test"
+import { cleanup, render, screen, within } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
+import { Effect, Option } from "effect"
+import type { Entry, Touch } from "../domain/repoHome"
+import { RepoTree } from "./RepoTree"
+
+afterEach(cleanup)
+
+const touch = (over: Partial<Touch> = {}): Touch => ({
+  at: new Date().toISOString(),
+  said: "Say what this is for",
+  url: "/flowline-labs/flowline/commit/def",
+  oid: Option.some("def"),
+  who: Option.none(),
+  ...over
+})
+
+const entry = (name: string, over: Partial<Entry> = {}): Entry => ({
+  name,
+  path: name,
+  kind: "file",
+  touched: Option.none(),
+  ...over
+})
+
+const showing = (over: Partial<Parameters<typeof RepoTree>[0]> = {}) =>
+  render(
+    <RepoTree
+      entries={[
+        entry("src", { kind: "directory", path: "src" }),
+        entry("README.md", { touched: Option.some(touch()) })
+      ]}
+      repo={{ owner: "flowline-labs", repo: "flowline" }}
+      branch="main"
+      head="abc123"
+      onOpen={() => {}}
+      reading={null}
+      {...over}
+    />
+  )
+
+describe("the commit column on a row", () => {
+  test("shows the message, the age, and a link to the commit", () => {
+    showing()
+
+    const link = screen.getByRole("link", { name: /Say what this is for/ })
+    expect(link.getAttribute("href")).toBe("/flowline-labs/flowline/commit/def")
+    expect(within(link).getByText("just now")).toBeTruthy()
+  })
+
+  test("leaves the column empty until the commit has landed", () => {
+    showing({
+      entries: [entry("README.md")]
+    })
+
+    expect(screen.getByText("README.md")).toBeTruthy()
+    expect(screen.queryByRole("link")).toBeNull()
+  })
+
+  test("draws the face when the author is known", () => {
+    showing({
+      entries: [
+        entry("README.md", {
+          touched: Option.some(
+            touch({ who: Option.some({ login: "flazouh", face: Option.none() }) })
+          )
+        })
+      ]
+    })
+
+    expect(screen.getByLabelText("flazouh")).toBeTruthy()
+  })
+})
+
+describe("opening a file and a folder", () => {
+  test("opens a file in the pane beside the tree", async () => {
+    const opened: Array<string> = []
+    showing({ onOpen: (path) => opened.push(path) })
+
+    await userEvent.click(screen.getByRole("button", { name: "README.md" }))
+    expect(opened).toEqual(["README.md"])
+  })
+
+  test("opens a folder onto the files under it once the whole tree has landed", async () => {
+    showing({
+      loadPaths: () => Effect.succeed(["src/ui/RepoTree.tsx", "README.md"])
+    })
+
+    await userEvent.click(screen.getByRole("button", { name: "src" }))
+    expect(await screen.findByRole("button", { name: "ui" })).toBeTruthy()
+  })
+})

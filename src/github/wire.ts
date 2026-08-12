@@ -721,6 +721,23 @@ export const TreeCommitInfoRoute = Schema.Struct({
         Schema.NullOr(
           Schema.Union([Schema.String, Schema.Struct({ value: Schema.String })])
         )
+      ),
+      /*
+       * The person, where this route already named them.
+       *
+       * Absent on the payloads we have recorded. Optional so a later shape that
+       * carries a login can skip the extra read of unique SHAs.
+       */
+      author: Schema.optional(
+        Schema.NullOr(
+          Schema.Union([
+            Schema.String,
+            Schema.Struct({
+              login: Schema.optional(Schema.NullOr(Schema.String)),
+              avatarUrl: Schema.optional(Schema.NullOr(Schema.String))
+            })
+          ])
+        )
       )
     })
   )

@@ -7,7 +7,9 @@ import {
   type Touch,
   inReadingOrder,
   leadFor,
+  namedBy,
   repoHomeIn,
+  shasOf,
   touchedBy
 } from "./repoHome"
 
@@ -151,8 +153,15 @@ describe("the order of the file list", () => {
   })
 })
 
+const touch: Touch = {
+  at: "2026-07-07T00:20:39.000+02:00",
+  said: "fix the thing",
+  url: "/c/1",
+  oid: Option.some("abc"),
+  who: Option.none()
+}
+
 describe("the commit column", () => {
-  const touch: Touch = { at: "2026-07-07T00:20:39.000+02:00", said: "fix the thing", url: "/c/1" }
 
   test("writes onto the row of the same path", () => {
     const [written] = touchedBy([entry("a.ts")], new Map([["a.ts", touch]]))
@@ -167,5 +176,31 @@ describe("the commit column", () => {
   test("goes by path rather than position, because the two answers are separate reads", () => {
     const rows = touchedBy([entry("a.ts"), entry("b.ts")], new Map([["b.ts", touch]]))
     expect(rows.map((one) => Option.isSome(one.touched))).toEqual([false, true])
+  })
+})
+
+describe("who wrote the last commit", () => {
+  const who = { login: "flazouh", face: Option.some("https://avatars.githubusercontent.com/u/1") }
+
+  test("asks once per SHA, even when two rows share the commit", () => {
+    const other = { ...touch, url: "/c/2" }
+    expect(shasOf(new Map([["a.ts", touch], ["b.ts", other]]))).toEqual(["abc"])
+  })
+
+  test("does not ask again for a SHA the first route already named", () => {
+    const named = { ...touch, who: Option.some(who) }
+    expect(shasOf(new Map([["a.ts", named]]))).toEqual([])
+  })
+
+  test("writes the face onto every row of that SHA", () => {
+    const other = { ...touch, url: "/c/2" }
+    const named = namedBy(new Map([["a.ts", touch], ["b.ts", other]]), new Map([["abc", who]]))
+    expect(Option.getOrNull(named.get("a.ts")?.who ?? Option.none())?.login).toBe("flazouh")
+    expect(Option.getOrNull(named.get("b.ts")?.who ?? Option.none())?.login).toBe("flazouh")
+  })
+
+  test("leaves a row whose SHA was not answered alone", () => {
+    const named = namedBy(new Map([["a.ts", touch]]), new Map())
+    expect(named.get("a.ts")?.who).toEqual(Option.none())
   })
 })

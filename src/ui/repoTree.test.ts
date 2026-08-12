@@ -1,7 +1,16 @@
 import { describe, expect, test } from "bun:test"
 import { Option } from "effect"
-import type { Entry } from "../domain/repoHome"
-import { agesOf, asPaths, fileUnder } from "./RepoTree"
+import type { Entry, Kind, Touch } from "../domain/repoHome"
+import { fileUnder, shownOf } from "./RepoTree"
+
+const touch = (over: Partial<Touch> = {}): Touch => ({
+  at: "2026-07-30T12:00:00Z",
+  said: "Say what this is for",
+  url: "/o/r/commit/def",
+  oid: Option.some("def"),
+  who: Option.none(),
+  ...over
+})
 
 const entry = (name: string, over: Partial<Entry> = {}): Entry => ({
   name,
@@ -11,51 +20,101 @@ const entry = (name: string, over: Partial<Entry> = {}): Entry => ({
   ...over
 })
 
-describe("what the tree is given", () => {
-  test("marks a directory with the trailing slash the tree reads folders by", () => {
-    // Without it an empty directory in the root of a repository is drawn as a
-    // file, which is the only signal the tree takes.
-    const paths = asPaths([entry("src", { kind: "directory" }), entry("README.md")])
+const folder = (name: string, over: Partial<Entry> = {}): Entry =>
+  entry(name, { kind: "directory", path: name, ...over })
 
-    expect(paths).toEqual(["src/", "README.md"])
+describe("which rows the tree shows", () => {
+  const root: ReadonlyArray<Entry> = [
+    folder("src"),
+    entry("README.md", { touched: Option.some(touch()) })
+  ]
+
+  test("starts with the root, folders first, which is what the page already holds", () => {
+    const rows = shownOf({ entries: root, opened: new Set(), hunting: "" })
+
+    expect(rows.map((one) => one.path)).toEqual(["src", "README.md"])
+    expect(rows[0]?.kind).toBe("directory")
+    expect(rows[0]?.depth).toBe(0)
   })
 
-  test("keeps the order it was given, which is GitHub's reading order", () => {
-    const paths = asPaths([
-      entry("docs", { kind: "directory" }),
-      entry("src", { kind: "directory" }),
-      entry("bun.lock")
+  test("opens a folder onto the files under it, once the whole tree has landed", () => {
+    const rows = shownOf({
+      entries: root,
+      whole: ["src/ui/RepoTree.tsx", "src/domain/repoHome.ts", "README.md"],
+      opened: new Set(["src"]),
+      hunting: ""
+    })
+
+    expect(rows.map((one) => `${one.depth}:${one.path}`)).toEqual([
+      "0:src",
+      "1:src/domain",
+      "1:src/ui",
+      "0:README.md"
     ])
-
-    expect(paths).toEqual(["docs/", "src/", "bun.lock"])
   })
 
-  test("says when each entry last moved, for the lane beside the name", () => {
-    const ages = agesOf([
-      entry("README.md", {
-        touched: Option.some({
-          at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          said: "Say what this is for",
-          url: "/o/r/commit/def"
-        })
-      })
+  test("opens a nested folder the same way", () => {
+    const rows = shownOf({
+      entries: root,
+      whole: ["src/ui/RepoTree.tsx", "src/domain/repoHome.ts"],
+      opened: new Set(["src", "src/ui"]),
+      hunting: ""
+    })
+
+    expect(rows.map((one) => one.path)).toEqual([
+      "src",
+      "src/domain",
+      "src/ui",
+      "src/ui/RepoTree.tsx",
+      "README.md"
     ])
-
-    expect(ages.get("README.md")).toContain("3d")
   })
 
-  test("says nothing for an entry the commit column has not reached", () => {
-    // It arrives a quarter of a second behind the rows, and a row of dashes that
-    // turns into a date is worse than a row that gains one.
-    expect(agesOf([entry("README.md")]).has("README.md")).toBe(false)
+  test("keeps a closed folder shut, even after the whole tree has landed", () => {
+    const rows = shownOf({
+      entries: root,
+      whole: ["src/ui/RepoTree.tsx"],
+      opened: new Set(),
+      hunting: ""
+    })
+
+    expect(rows.map((one) => one.path)).toEqual(["src", "README.md"])
+  })
+
+  test("narrows to matching files and the folders that hold them", () => {
+    const rows = shownOf({
+      entries: root,
+      whole: ["src/ui/RepoTree.tsx", "src/domain/repoHome.ts", "README.md"],
+      opened: new Set(),
+      hunting: "RepoTree"
+    })
+
+    expect(rows.map((one) => one.path)).toEqual(["src", "src/ui", "src/ui/RepoTree.tsx"])
+    expect(rows.filter((one) => one.kind === "directory").every((one) => one.open)).toBe(true)
+  })
+
+  test("carries the last commit on the row it belongs to", () => {
+    const [readme] = shownOf({
+      entries: [entry("README.md", { touched: Option.some(touch({ said: "Say what this is for" })) })],
+      opened: new Set(),
+      hunting: ""
+    })
+
+    expect(Option.getOrNull(readme?.touched ?? Option.none())?.said).toBe("Say what this is for")
+    expect(Option.getOrNull(readme?.touched ?? Option.none())?.url).toBe("/o/r/commit/def")
+  })
+
+  test("says nothing for a row the commit column has not reached", () => {
+    const [row] = shownOf({ entries: [entry("README.md")], opened: new Set(), hunting: "" })
+    expect(Option.isNone(row?.touched ?? Option.none())).toBe(true)
   })
 })
 
 /** A row of the tree, as the pointer's composed path holds it. */
-const row = (path: string, type: "file" | "folder"): HTMLElement => {
+const row = (path: string, kind: Kind): HTMLElement => {
   const element = document.createElement("button")
-  element.dataset.itemPath = path
-  element.dataset.itemType = type
+  element.dataset.path = path
+  element.dataset.kind = kind
   return element
 }
 
@@ -67,11 +126,8 @@ describe("the row the pointer is on", () => {
     expect(fileUnder(over(row("src/main.ts", "file")))).toBe("src/main.ts")
   })
 
-  test("names nothing for a folder, which the tree calls a folder", () => {
-    // `data-item-type` is `folder` or `file` and never `directory`: read for the
-    // other word, every folder the pointer crossed was fetched as though it were
-    // a file, and the file the reader was actually heading for was not.
-    expect(fileUnder(over(row("src/", "folder")))).toBe(null)
+  test("names nothing for a folder, which has no file to read", () => {
+    expect(fileUnder(over(row("src", "directory")))).toBe(null)
   })
 
   test("names nothing over the tree but off every row", () => {

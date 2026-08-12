@@ -1,6 +1,15 @@
 import { Effect, Option } from "effect"
+import type { CommitDetail } from "../domain/PullRequest"
 import type { RepoRef } from "../domain/PullRequestRef"
-import { type Front, type Starring, type Touch, touchedBy } from "../domain/repoHome"
+import {
+  type Front,
+  type Starring,
+  type Touch,
+  type TouchWho,
+  namedBy,
+  shasOf,
+  touchedBy
+} from "../domain/repoHome"
 import { GitHubGateway } from "../ports/GitHubGateway"
 
 /**
@@ -30,6 +39,41 @@ export const rememberedRepoHome = Effect.fn("rememberedRepoHome")(function* (rep
   return yield* gateway.rememberedRepoHome(repo)
 })
 
+/** How many unique commits to name at once. One request per SHA, not per row. */
+const AT_ONCE = 4
+
+const whoFrom = (detail: CommitDetail): TouchWho => ({
+  login: detail.author,
+  face: detail.avatarUrl
+})
+
+/**
+ * Faces for the unique SHAs the column still has no author for.
+ *
+ * One read per commit, not per row: many files share a SHA. A SHA the first
+ * route already named is skipped. A SHA that fails to read keeps the message,
+ * the age and the link.
+ */
+export const fillWho = Effect.fn("fillWho")(function* (
+  touches: ReadonlyMap<string, Touch>,
+  whoOf: (sha: string) => Effect.Effect<TouchWho, unknown>
+) {
+  const shas = shasOf(touches)
+  if (shas.length === 0) return touches
+
+  const found = yield* Effect.forEach(
+    shas,
+    (sha) =>
+      whoOf(sha).pipe(
+        Effect.map((who) => Option.some([sha, who] as const)),
+        Effect.orElseSucceed(() => Option.none<readonly [string, TouchWho]>())
+      ),
+    { concurrency: AT_ONCE }
+  )
+
+  return namedBy(touches, new Map(found.flatMap((one) => Option.toArray(one))))
+})
+
 /**
  * A repository's front page.
  *
@@ -48,6 +92,9 @@ export const rememberedRepoHome = Effect.fn("rememberedRepoHome")(function* (rep
  * held back, so the file list is on the screen in one paint and gains its column a
  * quarter of a second later. Held back instead, every row would wait on a read
  * that decorates it.
+ *
+ * Faces fill in behind the column. Unique SHAs are named after the messages are
+ * already on the rows, so a slow author read cannot hold the dates back.
  *
  * The column fails quietly. It only ever adds to a row already worth drawing, and
  * a repository whose history is too large for GitHub to answer about is a
@@ -70,7 +117,22 @@ export const loadRepoHome = Effect.fn("loadRepoHome")(function* (
     .treeCommits(repo, front.head)
     .pipe(Effect.orElseSucceed((): ReadonlyMap<string, Touch> => new Map()))
 
-  return { ...front, entries: touchedBy(front.entries, touches) }
+  const withTouches = { ...front, entries: touchedBy(front.entries, touches) }
+  partly(withTouches)
+
+  const named = yield* fillWho(touches, (sha) =>
+    gateway.rememberedCommit(repo, sha).pipe(
+      Effect.orElseSucceed(() => Option.none()),
+      Effect.flatMap((held) =>
+        Option.match(held, {
+          onNone: () => gateway.commit(repo, sha),
+          onSome: (detail) => Effect.succeed(detail)
+        })
+      ),
+      Effect.map(whoFrom)
+    )
+  )
+  return { ...front, entries: touchedBy(front.entries, named) }
 })
 
 /**

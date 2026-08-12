@@ -14,7 +14,7 @@
  */
 
 import { Effect, Option, Schema } from "effect"
-import type { About, Entry, Front, Kind, Starring, Touch, Welcome } from "../domain/repoHome"
+import type { About, Entry, Front, Kind, Starring, Touch, TouchWho, Welcome } from "../domain/repoHome"
 import { footingOf, inReadingOrder } from "../domain/repoHome"
 import { plainText } from "./plainText"
 import { RepoHomeRoute, TreeCommitInfoRoute, TreeListRoute } from "./wire"
@@ -299,10 +299,38 @@ const saidIn = (link: string | { readonly value: string } | null | undefined): s
  * per row and a record lookup on a thousand-key object built by `JSON.parse` is
  * slower than a Map built once.
  */
+const whoFrom = (
+  author:
+    | string
+    | {
+        readonly login?: string | null
+        readonly avatarUrl?: string | null
+      }
+    | null
+    | undefined
+): Option.Option<TouchWho> => {
+  if (author == null) return Option.none()
+  if (typeof author === "string") {
+    return author === "" ? Option.none() : Option.some({ login: author, face: Option.none() })
+  }
+  const login = author.login
+  if (login == null || login === "") return Option.none()
+  return Option.some({
+    login,
+    face: Option.fromNullishOr(author.avatarUrl ?? undefined)
+  })
+}
+
 export const touchesFrom = (route: TreeCommitInfoRoute): ReadonlyMap<string, Touch> =>
   new Map(
     Object.entries(route.entries).map(([path, entry]) => [
       path,
-      { at: entry.date, said: saidIn(entry.shortMessageHtmlLink), url: entry.url }
+      {
+        at: entry.date,
+        said: saidIn(entry.shortMessageHtmlLink),
+        url: entry.url,
+        oid: Option.some(entry.oid),
+        who: whoFrom(entry.author)
+      }
     ])
   )

@@ -111,6 +111,34 @@ describe("the commit column, read off their second route", () => {
     const [first] = read().values()
     expect(Number.isNaN(Date.parse(first?.at ?? ""))).toBe(false)
   })
+
+  test("keeps the commit id, so a later read can name who wrote it", () => {
+    const [first] = read().values()
+    expect(Option.isSome(first?.oid ?? Option.none())).toBe(true)
+  })
+
+  test("leaves the author empty when the route did not name one", () => {
+    expect([...read().values()].every((one) => Option.isNone(one.who))).toBe(true)
+  })
+
+  test("names the author where the route already sent one", () => {
+    const withAuthor = {
+      entries: {
+        "README.md": {
+          oid: "abc",
+          url: "/c/abc",
+          date: "2026-07-30T12:00:00Z",
+          shortMessageHtmlLink: "hello",
+          author: { login: "flazouh", avatarUrl: "https://avatars.githubusercontent.com/u/1" }
+        }
+      }
+    }
+    const [touch] = touchesFrom(Effect.runSync(decodeTreeCommitInfo(withAuthor))).values()
+    expect(Option.getOrNull(touch?.who ?? Option.none())?.login).toBe("flazouh")
+    expect(Option.getOrNull(Option.getOrNull(touch?.who ?? Option.none())?.face ?? Option.none())).toBe(
+      "https://avatars.githubusercontent.com/u/1"
+    )
+  })
 })
 
 describe("what survives the store", () => {
