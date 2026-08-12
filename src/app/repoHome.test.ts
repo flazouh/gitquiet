@@ -1,7 +1,9 @@
-import { describe, expect, test } from "bun:test"
-import { Effect, Option } from "effect"
+import { afterEach, describe, expect, test } from "bun:test"
+import { Effect, Fiber, Option } from "effect"
+import answered from "../../fixtures/github/repo-home-touches.json"
 import type { Touch, TouchWho } from "../domain/repoHome"
-import { fillWho } from "./repoHome"
+import { layer } from "../github/GitHubGateway"
+import { fillWho, loadFolderTouches } from "./repoHome"
 
 const touch = (path: string, oid: string, over: Partial<Touch> = {}): readonly [string, Touch] => [
   path,
@@ -57,5 +59,78 @@ describe("naming who wrote the last commit", () => {
 
     expect(named.get("a.ts")?.said).toBe("Say what this is for")
     expect(named.get("a.ts")?.who).toEqual(Option.none())
+  })
+})
+
+const realFetch = globalThis.fetch
+afterEach(() => {
+  globalThis.fetch = realFetch
+})
+
+/**
+ * A folder's column answered, and every author read left hanging.
+ *
+ * Which is the shape of the complaint: a folder of many files is many unique
+ * commits, and reading one commit page is a request of its own.
+ */
+const heldAtTheFaces = (): ReadonlyArray<string> => {
+  const asked: Array<string> = []
+  const handler = (input: RequestInfo | URL): Promise<Response> => {
+    const url = String(input)
+    asked.push(url)
+    if (url.includes("/tree-commit-info/")) {
+      return Promise.resolve(
+        new Response(JSON.stringify(answered), {
+          headers: { "content-type": "application/json" }
+        })
+      )
+    }
+    return new Promise<Response>(() => {})
+  }
+  globalThis.fetch = Object.assign(handler, { preconnect: realFetch.preconnect })
+  return asked
+}
+
+const soon = async (there: () => boolean): Promise<boolean> => {
+  for (let tries = 0; tries < 50; tries += 1) {
+    if (there()) return true
+    await new Promise((wake) => setTimeout(wake, 10))
+  }
+  return there()
+}
+
+describe("the last commits under one folder", () => {
+  const repo = { owner: "flazouh", repo: "githubpro" }
+
+  test("reports the messages before the faces, as the root column does", async () => {
+    heldAtTheFaces()
+    const staged: Array<ReadonlyMap<string, Touch>> = []
+
+    const reading = Effect.runFork(
+      loadFolderTouches(repo, "head", "src", (found) => staged.push(found)).pipe(
+        Effect.provide(layer)
+      )
+    )
+
+    expect(await soon(() => staged.length > 0)).toBe(true)
+    expect([...(staged[0] ?? new Map()).keys()].every((path) => path.startsWith("src/"))).toBe(true)
+
+    await Effect.runPromise(Fiber.interrupt(reading))
+  })
+
+  test("asks that folder's own route, which answers relative to it", async () => {
+    const asked = heldAtTheFaces()
+    const staged: Array<ReadonlyMap<string, Touch>> = []
+
+    const reading = Effect.runFork(
+      loadFolderTouches(repo, "head", "src/ui", (found) => staged.push(found)).pipe(
+        Effect.provide(layer)
+      )
+    )
+
+    expect(await soon(() => staged.length > 0)).toBe(true)
+    expect(asked[0]).toContain("/tree-commit-info/head/src/ui")
+
+    await Effect.runPromise(Fiber.interrupt(reading))
   })
 })

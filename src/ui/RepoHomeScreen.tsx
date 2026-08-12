@@ -49,10 +49,14 @@ export type RepoHomeScreenProps = {
    *
    * Asked when a folder opens. The root column arrives with the page; this is
    * one directory at a time, because that is how their route answers.
+   *
+   * Two stages, as the page itself has: `partly` is the messages and the dates,
+   * and the answer is the same column with its faces read behind them.
    */
   readonly loadTouches?: (
     sha: string,
-    folder: string
+    folder: string,
+    partly: (touches: ReadonlyMap<string, Touch>) => void
   ) => Effect.Effect<ReadonlyMap<string, Touch>, unknown>
   /**
    * Every branch, for the picker over the tree.

@@ -155,18 +155,28 @@ export const loadRepoHome = Effect.fn("loadRepoHome")(function* (
  *
  * The root column is the page's second request. A folder that opens is a third,
  * because their route answers one directory at a time and names its children
- * relative to it. Faces fill in the same way as the root: unique SHAs, after
- * the messages are already on the rows.
+ * relative to it.
+ *
+ * Reported in two stages, for the same reason {@link loadRepoHome} does it: the
+ * messages and the dates are one request, and the faces are one request per
+ * unique commit behind it. A folder of two hundred files is a hundred commit
+ * pages read four at a time, so a column handed over whole is a column that
+ * lands twenty seconds after the names — while the half of it that was ready at
+ * once sat waiting on avatars.
  */
 export const loadFolderTouches = Effect.fn("loadFolderTouches")(function* (
   repo: RepoRef,
   sha: string,
-  folder: string
+  folder: string,
+  partly: (touches: ReadonlyMap<string, Touch>) => void = () => {}
 ) {
   const gateway = yield* GitHubGateway
   const touches = yield* gateway
     .treeCommits(repo, sha, folder)
     .pipe(Effect.orElseSucceed((): ReadonlyMap<string, Touch> => new Map()))
+
+  partly(touches)
+
   return yield* fillWho(touches, whoOf(gateway, repo))
 })
 

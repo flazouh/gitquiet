@@ -24,10 +24,16 @@ export type RepoTreeProps = {
    * The root column is already on `entries`. This is asked when a folder opens,
    * and again for each folder a hunt reveals, because their route answers one
    * directory at a time.
+   *
+   * `partly` is the messages and the dates, which are one request. The answer is
+   * the same column with its faces, which are one request per unique commit
+   * behind it — so a folder drawn only from the answer is a folder whose column
+   * waits on avatars it does not need.
    */
   readonly loadTouches?: (
     sha: string,
-    folder: string
+    folder: string,
+    partly: (touches: ReadonlyMap<string, Touch>) => void
   ) => Effect.Effect<ReadonlyMap<string, Touch>, unknown>
   /** A file was pressed. The pane beside the tree shows it. */
   readonly onOpen: (path: string) => void
@@ -374,21 +380,23 @@ export const RepoTree = ({
     if (loadTouches === undefined) return
     let watching = true
 
+    const fold = (found: ReadonlyMap<string, Touch>): void => {
+      if (!watching) return
+      setExtra((was) => {
+        const next = new Map(was)
+        for (const [path, touch] of found) next.set(path, touch)
+        return next
+      })
+    }
+
     for (const row of rows) {
       if (row.kind !== "directory" || !row.open) continue
       if (asked.current.has(row.path)) continue
       asked.current.add(row.path)
 
       void Effect.runPromise(
-        loadTouches(head, row.path).pipe(
-          Effect.map((found) => {
-            if (!watching) return
-            setExtra((was) => {
-              const next = new Map(was)
-              for (const [path, touch] of found) next.set(path, touch)
-              return next
-            })
-          }),
+        loadTouches(head, row.path, fold).pipe(
+          Effect.map(fold),
           Effect.catch(() => Effect.void)
         )
       )

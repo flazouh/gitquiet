@@ -156,4 +156,27 @@ describe("opening a file and a folder", () => {
     const link = await screen.findByRole("link", { name: /The tree draws itself/ })
     expect(link.getAttribute("href")).toBe("/flowline-labs/flowline/commit/nested")
   })
+
+  /*
+   * The complaint behind this: a folder of many files is many unique commits,
+   * and the faces are one read each. Held to the end, the messages arrive with
+   * the last avatar rather than with their own route.
+   */
+  test("draws a nested message while the face behind it is still being read", async () => {
+    const staged = new Map([
+      ["src/ui", touch({ said: "The tree draws itself", url: "/flowline-labs/flowline/commit/nested" })]
+    ])
+
+    showing({
+      loadPaths: () => Effect.succeed(["src/ui/RepoTree.tsx", "README.md"]),
+      loadTouches: (_sha, _folder, partly) =>
+        Effect.sync(() => partly(staged)).pipe(
+          // The faces never land. The messages must not wait on them.
+          Effect.flatMap(() => Effect.never)
+        )
+    })
+
+    await userEvent.click(screen.getByRole("button", { name: "src" }))
+    expect(await screen.findByRole("link", { name: /The tree draws itself/ })).toBeTruthy()
+  })
 })
