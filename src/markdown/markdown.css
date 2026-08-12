@@ -123,3 +123,18 @@
   border-top: 1px solid var(--color-line);
   font-size: 0.8125rem;
 }
+
+.markdown-mermaid {
+  margin: 0.75rem 0;
+  overflow-x: auto;
+}
+
+.markdown-mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.markdown-mermaid .node rect {
+  rx: 6;
+  ry: 6;
+}

@@ -3,11 +3,13 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import { Effect } from "effect"
 import { highlight } from "./highlight"
 import { resetHighlightLoader, setHighlightLoader } from "./loadHighlight"
+import { resetMermaidLoader, setMermaidLoader } from "./loadMermaid"
 import { Markdown } from "./Markdown"
 
 afterEach(() => {
   cleanup()
   resetHighlightLoader()
+  resetMermaidLoader()
 })
 
 describe("rendering our markdown document", () => {
@@ -65,5 +67,14 @@ describe("rendering our markdown document", () => {
 
     await waitFor(() => expect(document.querySelector("code span")).not.toBeNull())
     expect(screen.getByText("const", { exact: false })).toBeTruthy()
+  })
+
+  test("draws a mermaid fence as a diagram once a renderer is provided", async () => {
+    setMermaidLoader(() =>
+      Effect.succeed((_source: string) => Effect.succeed('<svg><title>diagram</title></svg>'))
+    )
+    render(<Markdown markdown={"```mermaid\ngraph TD\nA-->B\n```"} />)
+
+    await waitFor(() => expect(document.querySelector("svg")).not.toBeNull())
   })
 })

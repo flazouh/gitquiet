@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { listen, socketUrl } from "../github/alive";
 import { layer } from "../github/GitHubGateway";
 import { setHighlightLoader } from "../markdown/loadHighlight";
+import { setMermaidLoader } from "../markdown/loadMermaid";
 import type { GitHubGateway } from "../ports/GitHubGateway";
 import type { Store } from "../ports/Settings";
 import { browserSettings } from "../settings/browserStore";
@@ -17,9 +18,11 @@ import { Theme } from "../ui/Theme";
 import { Toasts } from "../ui/Toasts";
 import { loadDiffEngine } from "./diffEngine";
 import { loadMarkdownHighlighter } from "./markdownHighlighter";
+import { loadMarkdownMermaid } from "./markdownMermaid";
 import { onGitHub } from "./portraits";
 
 setHighlightLoader(() => loadMarkdownHighlighter);
+setMermaidLoader(() => loadMarkdownMermaid);
 
 /**
  * What a browser extension on github.com can answer, in one file.

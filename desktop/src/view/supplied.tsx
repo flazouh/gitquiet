@@ -13,11 +13,14 @@ import { SettingsProvider } from "../../../src/ui/settings"
 import { Theme } from "../../../src/ui/Theme"
 import { Toasts } from "../../../src/ui/Toasts"
 import { setHighlightLoader } from "../../../src/markdown/loadHighlight"
+import { setMermaidLoader } from "../../../src/markdown/loadMermaid"
 import { loadDiffEngine } from "./diffEngine"
 import { loadMarkdownHighlighter } from "./markdownHighlighter"
+import { loadMarkdownMermaid } from "./markdownMermaid"
 import { inThisWindow } from "./somewhere"
 
 setHighlightLoader(() => loadMarkdownHighlighter)
+setMermaidLoader(() => loadMarkdownMermaid)
 
 /**
  * What a window can answer, where the extension's `shell/supplied.tsx` answers

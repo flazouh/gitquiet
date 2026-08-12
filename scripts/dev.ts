@@ -91,6 +91,11 @@ const nudge = () => {
     } catch {
       // Same as above, for the highlighter.
     }
+    try {
+      utimesSync(here("../public/markdown-mermaid.js"), now, now)
+    } catch {
+      // Same as above, for mermaid.
+    }
   }, DEBOUNCE + 400)
 }
 
@@ -140,6 +145,7 @@ await watcher(
   "build-markdown-highlighter.ts",
   "built public/markdown-highlighter.js"
 )
+await watcher("mermaid", "build-markdown-mermaid.ts", "built public/markdown-mermaid.js")
 await watcher("screens", "build-screens.ts", "built public/screens/")
 
 const started = Date.now()

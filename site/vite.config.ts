@@ -39,7 +39,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
     chunkBeside("diff-engine.js", "bun run build:diff-engine"),
-    chunkBeside("markdown-highlighter.js", "bun run build:markdown-highlighter")
+    chunkBeside("markdown-highlighter.js", "bun run build:markdown-highlighter"),
+    chunkBeside("markdown-mermaid.js", "bun run build:markdown-mermaid")
   ],
 
   resolve: {

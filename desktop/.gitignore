@@ -22,5 +22,8 @@ src/view/diff-engine.js
 # Built by scripts/build-markdown-highlighter.ts.
 src/view/markdown-highlighter.js
 
+# Built by scripts/build-markdown-mermaid.ts.
+src/view/markdown-mermaid.js
+
 # Built by scripts/build-demo-view.ts out of index.html, which is the page to edit.
 src/view/demo.html

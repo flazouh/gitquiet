@@ -1,6 +1,7 @@
 import { Effect, Fiber } from "effect"
 import { useEffect, useState } from "react"
 import { highlightCode } from "./loadHighlight"
+import { drawMermaid } from "./loadMermaid"
 import type {
   HtmlNode,
   MarkdownBlock,
@@ -127,15 +128,19 @@ const CodeFence = ({
   const [html, setHtml] = useState<string | null>(null)
 
   useEffect(() => {
-    setHtml(null)
-    if (language === "" || suggestion) return
+    if (suggestion) return
+    if (language === "") return
     const theme = document.documentElement.dataset.colorMode === "light" ? "light" : "dark"
     let cancelled = false
+    const work =
+      language === "mermaid"
+        ? drawMermaid(code)
+        : highlightCode(code, language, theme)
     const asking = Effect.runFork(
-      highlightCode(code, language, theme).pipe(
+      work.pipe(
         Effect.tap((coloured) =>
           Effect.sync(() => {
-            if (!cancelled) setHtml(coloured)
+            if (!cancelled && coloured !== null) setHtml(coloured)
           })
         )
       )
@@ -145,6 +150,10 @@ const CodeFence = ({
       Effect.runFork(Fiber.interrupt(asking))
     }
   }, [code, language, suggestion])
+
+  if (language === "mermaid" && html !== null) {
+    return <figure className="markdown-mermaid" dangerouslySetInnerHTML={{ __html: html }} />
+  }
 
   return (
     <pre className={suggestion ? "markdown-suggestion" : undefined}>

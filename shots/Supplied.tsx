@@ -4,6 +4,7 @@ import type { ReactNode } from "react"
 import type { Changes, WatchedKeyValue } from "@/ports/KeyValue"
 import type { Store } from "@/ports/Settings"
 import { setHighlightLoader, type Highlight } from "@/markdown/loadHighlight"
+import { setMermaidLoader, type DrawMermaid } from "@/markdown/loadMermaid"
 import { type DiffEngine, DiffEngineUnavailable } from "@/ports/Renderer"
 import { settingsStore } from "@/settings/store"
 import { ArtProvider } from "@/ui/art"
@@ -65,6 +66,7 @@ const inMemory = (chosen: Record<string, unknown>): WatchedKeyValue => {
 
 let loaded: DiffEngine | undefined
 let highlighterLoaded: Highlight | undefined
+let mermaidLoaded: DrawMermaid | undefined
 
 setHighlightLoader(() => {
   if (highlighterLoaded !== undefined) return Effect.succeed(highlighterLoaded)
@@ -77,6 +79,23 @@ setHighlightLoader(() => {
     Effect.tap((highlight) =>
       Effect.sync(() => {
         highlighterLoaded = highlight
+      })
+    ),
+    Effect.orElseSucceed(() => () => Effect.succeed(null))
+  )
+})
+
+setMermaidLoader(() => {
+  if (mermaidLoaded !== undefined) return Effect.succeed(mermaidLoaded)
+  const beside = new URL("markdown-mermaid.js", window.location.href).href
+  return Effect.tryPromise({
+    try: () => import(/* @vite-ignore */ beside),
+    catch: () => "mermaid-unavailable" as const
+  }).pipe(
+    Effect.map((module) => (module as { draw: DrawMermaid }).draw),
+    Effect.tap((draw) =>
+      Effect.sync(() => {
+        mermaidLoaded = draw
       })
     ),
     Effect.orElseSucceed(() => () => Effect.succeed(null))
