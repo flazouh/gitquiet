@@ -208,3 +208,68 @@ describe("opening a file and a folder", () => {
     expect(await within(link).findByRole("img", { name: "flazouh" })).toBeTruthy()
   })
 })
+
+describe("what a folder's column costs", () => {
+  const deep = [
+    "src/ui/RepoTree.tsx",
+    "src/app/repoHome.ts",
+    "src/domain/repoHome.ts",
+    "src/github/repoHome.ts",
+    "README.md"
+  ]
+
+  test("asks once for the folder that was pressed, and nothing for the rest", async () => {
+    const asked: Array<string> = []
+    showing({
+      loadPaths: () => Effect.succeed(deep),
+      loadTouches: (_sha, folder) => Effect.sync(() => asked.push(folder)).pipe(
+        Effect.map(() => new Map<string, Touch>())
+      )
+    })
+
+    await userEvent.click(screen.getByRole("button", { name: "src" }))
+    await screen.findByRole("button", { name: "ui" })
+
+    expect(asked).toEqual(["src"])
+  })
+
+  /*
+   * A hunt opens every folder holding a match. Asking each one for its own
+   * column is one request per folder revealed, on every keystroke — hundreds of
+   * them on a large repository, for a reader who is reading names.
+   */
+  test("asks for nothing when a hunt is what opened the folders", async () => {
+    const asked: Array<string> = []
+    showing({
+      loadPaths: () => Effect.succeed(deep),
+      loadTouches: (_sha, folder) => Effect.sync(() => asked.push(folder)).pipe(
+        Effect.map(() => new Map<string, Touch>())
+      )
+    })
+
+    await userEvent.type(screen.getByLabelText("Find a file"), "repoHome")
+    // Three folders hold a match, and the hunt opens all three of them.
+    expect(await screen.findAllByRole("button", { name: "repoHome.ts" })).toHaveLength(3)
+
+    expect(asked).toEqual([])
+  })
+
+  test("asks again for a folder whose column failed, when it is opened again", async () => {
+    let attempts = 0
+    showing({
+      loadPaths: () => Effect.succeed(deep),
+      loadTouches: () =>
+        Effect.sync(() => {
+          attempts += 1
+        }).pipe(Effect.flatMap(() => Effect.fail("no")))
+    })
+
+    await userEvent.click(screen.getByRole("button", { name: "src" }))
+    await screen.findByRole("button", { name: "ui" })
+    await userEvent.click(screen.getByRole("button", { name: "src" }))
+    await userEvent.click(screen.getByRole("button", { name: "src" }))
+    await screen.findByRole("button", { name: "ui" })
+
+    expect(attempts).toBe(2)
+  })
+})

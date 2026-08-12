@@ -163,6 +163,12 @@ export const loadRepoHome = Effect.fn("loadRepoHome")(function* (
  * pages read four at a time, so a column handed over whole is a column that
  * lands twenty seconds after the names — while the half of it that was ready at
  * once sat waiting on avatars.
+ *
+ * The failure is kept rather than swallowed, which is where this parts company
+ * with the page. A page that failed is still a page, and there is nothing to do
+ * about it; a folder that failed is a folder the reader can press again. The
+ * tree is the one that hears the press, so the tree is where a failed column is
+ * forgotten and asked for a second time.
  */
 export const loadFolderTouches = Effect.fn("loadFolderTouches")(function* (
   repo: RepoRef,
@@ -171,9 +177,7 @@ export const loadFolderTouches = Effect.fn("loadFolderTouches")(function* (
   partly: (touches: ReadonlyMap<string, Touch>) => void = () => {}
 ) {
   const gateway = yield* GitHubGateway
-  const touches = yield* gateway
-    .treeCommits(repo, sha, folder)
-    .pipe(Effect.orElseSucceed((): ReadonlyMap<string, Touch> => new Map()))
+  const touches = yield* gateway.treeCommits(repo, sha, folder)
 
   partly(touches)
 

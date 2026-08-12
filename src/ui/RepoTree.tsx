@@ -410,7 +410,14 @@ export const RepoTree = ({
       }
 
     for (const row of rows) {
-      if (row.kind !== "directory" || !row.open) continue
+      /*
+       * Pressed, and not merely shown open. A hunt opens every folder holding a
+       * match, and a column for each of those is one request per folder revealed
+       * on every keystroke — several hundred on a large repository, for a reader
+       * who is reading names. The folders they pressed keep the columns they
+       * already have.
+       */
+      if (row.kind !== "directory" || !opened.has(row.path)) continue
       if (asked.current.has(row.path)) continue
       asked.current.add(row.path)
 
@@ -418,11 +425,18 @@ export const RepoTree = ({
       void Effect.runPromise(
         loadTouches(head, row.path, onto).pipe(
           Effect.map(onto),
-          Effect.catch(() => Effect.void)
+          // Forgotten rather than remembered as answered, so the next press asks
+          // again. A column is worth one attempt, and a dropped connection is
+          // not a reason to leave a folder blank for the rest of the visit.
+          Effect.catch(() =>
+            Effect.sync(() => {
+              asked.current.delete(row.path)
+            })
+          )
         )
       )
     }
-  }, [rows, loadTouches, head])
+  }, [rows, opened, loadTouches, head])
 
   const toggle = (path: string): void => {
     setOpened((was) => {
