@@ -481,8 +481,30 @@ export const REPO_HOME: Place = {
    * repository's root is ever marked `repo-home`.
    */
   soft: { within: 'react-app[app-name="code-view"]' },
-  // Nothing. The region is the tab row, the file list and the README together.
-  bands: [],
+  /*
+   * One, and the region takes everything else: the tab row, the file list and the
+   * README are all inside it.
+   *
+   * Their banner saying a branch "had recent pushes 4 minutes ago", with the button
+   * offering to open the pull request. 407 readers asked GitHub for a way to switch it
+   * off for branches they do not care about and were given none, which is what puts it
+   * here rather than behind a setting.
+   *
+   * Inside the region as well, as their greeting is on the home dashboard, so a load
+   * of this page already takes it along with the code view app. Naming it is what
+   * reaches the other path: on a navigation that loads no document every rule is
+   * scoped under `react-app[app-name="code-view"]`, and the stages cannot be — they
+   * name the pjax container, which was measured as that app's parent rather than its
+   * child — while this band really is inside the app.
+   *
+   * Named by the stable half of its own CSS module class, because that name is the one
+   * hook the row has: read out of the code view bundle, which is where the words "had
+   * recent pushes" and the class `RecentlyTouchedBranches-module__Flash__reMRu` are
+   * shipped together, the last five characters being that deploy's hash. The fragment
+   * stops at `Flash` because the box and the icon inside it carry the same module's
+   * name, and a fragment cut shorter would take the one row three times over.
+   */
+  bands: ['[class*="RecentlyTouchedBranches-module__Flash"]'],
 };
 
 /**

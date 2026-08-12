@@ -49,7 +49,8 @@ html[data-gitquiet-gating] react-app[app-name="issues-react"] turbo-frame#repo-c
 
 /* repo-home: swapped in without a load. */
 html[data-gitquiet-gating] react-app[app-name="code-view"] #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
-html[data-gitquiet-gating] react-app[app-name="code-view"] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+html[data-gitquiet-gating] react-app[app-name="code-view"] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-gating] react-app[app-name="code-view"] [class*="RecentlyTouchedBranches-module__Flash"] {
   display: none;
 }
 

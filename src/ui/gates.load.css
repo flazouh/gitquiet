@@ -102,13 +102,15 @@ html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet
 
 /* repo-home: before ours is up. */
 html[data-gitquiet-page="repo-home"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
-html[data-gitquiet-page="repo-home"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+html[data-gitquiet-page="repo-home"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-page="repo-home"]:not([data-gitquiet-revealed]) [class*="RecentlyTouchedBranches-module__Flash"] {
   display: none;
 }
 
 /* repo-home: for as long as ours is in charge. */
 html[data-gitquiet-taken] #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
-html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-taken] [class*="RecentlyTouchedBranches-module__Flash"] {
   display: none;
 }
 
