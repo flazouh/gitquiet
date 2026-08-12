@@ -1,67 +1,65 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { draw, ourTheme, type Palette } from "./mermaid"
-
-/** Gitquiet light, as `domain/theme.ts` writes it. */
-const LIGHT: Palette = {
-  canvas: "#fafafa",
-  surface: "#ffffff",
-  ink: "#171717",
-  muted: "#737373",
-  line: "#1717171f",
-  accent: "#0969da",
-  accentMuted: "#0969da26",
-  pass: "#1a7f37",
-  passMuted: "#1f883d26",
-  done: "#8250df",
-  doneMuted: "#8250df26",
-  busy: "#9a6700",
-  attentionMuted: "#9a670026",
-  fail: "#d1242f",
-  failMuted: "#cf222e26"
-}
+import { draw, paperforgeLayout, paperforgeTheme } from "./mermaid"
 
 describe("drawing a mermaid fence", () => {
-  test("prints the figure on the same paper as a code block", () => {
-    const theme = ourTheme(LIGHT)
+  test("fills nodes with the paperforge pastels themselves", () => {
+    const theme = paperforgeTheme()
 
-    // `--color-ink` at 5% over the card, which is what `.markdown pre` paints.
-    expect(theme.background).toBe("#efefef")
-    expect(theme.edgeLabelBackground).toBe("#efefef")
+    expect(theme.primaryColor).toBe("#b4d2f0")
+    expect(theme.secondaryColor).toBe("#b4e6c8")
+    expect(theme.tertiaryColor).toBe("#ffebb4")
+    expect(theme.clusterBkg).toBe("#d2bef0")
   })
 
-  test("fills a node with the accent wash a badge on a card wears", () => {
-    const theme = ourTheme(LIGHT)
+  test("draws every border at black!40 and every arrow at black!60", () => {
+    const theme = paperforgeTheme()
 
-    // `--color-accent-muted` over that paper.
-    expect(theme.primaryColor).toBe("#cddbec")
-    expect(theme.mainBkg).toBe("#cddbec")
-    expect(theme.nodeBorder).toBe("#0969da")
+    expect(theme.nodeBorder).toBe("#999999")
+    expect(theme.primaryBorderColor).toBe("#999999")
+    expect(theme.clusterBorder).toBe("#999999")
+    expect(theme.lineColor).toBe("#666666")
+    expect(theme.signalColor).toBe("#666666")
   })
 
-  test("varies a node the way this interface varies a panel", () => {
-    const theme = ourTheme(LIGHT)
+  test("prints on paper, in both packs, because the pastels are paper colours", () => {
+    const theme = paperforgeTheme()
 
-    expect(theme.secondaryBorderColor).toBe(LIGHT.pass)
-    expect(theme.tertiaryBorderColor).toBe(LIGHT.done)
-    expect(theme.noteBorderColor).toBe(LIGHT.busy)
-    expect(theme.errorBkgColor).not.toBe(theme.mainBkg)
-  })
-
-  test("writes every word in the reader's own ink", () => {
-    const theme = ourTheme(LIGHT)
-
-    expect(theme.textColor).toBe("#171717")
-    expect(theme.primaryTextColor).toBe("#171717")
-    expect(theme.noteTextColor).toBe("#171717")
-    expect(theme.lineColor).toBe("#737373")
+    expect(theme.background).toBe("#ffffff")
+    expect(theme.edgeLabelBackground).toBe("#ffffff")
   })
 
   test("labels the diagram in the interface's own font, at its own size", () => {
-    const theme = ourTheme(LIGHT)
+    const theme = paperforgeTheme()
 
     expect(theme.fontFamily).toBe("var(--font-sans)")
     expect(theme.fontSize).toBe("13px")
+  })
+
+  test("writes labels in black, because the fills are paper pastels", () => {
+    const theme = paperforgeTheme()
+
+    expect(theme.primaryTextColor).toBe("#000000")
+    expect(theme.textColor).toBe("#000000")
+    expect(theme.noteTextColor).toBe("#000000")
+  })
+
+  test("gives a box the room a template gives it, and no more", () => {
+    const layout = paperforgeLayout()
+
+    // `inner sep=5pt`, against mermaid's fifteen.
+    expect(layout.flowchart.padding).toBe(6)
+    // `minimum height=0.6cm`, against mermaid's fixed 150 by 65.
+    expect(layout.sequence.height).toBe(26)
+    expect(layout.sequence.width).toBe(100)
+    expect(layout.sequence.mirrorActors).toBe(false)
+  })
+
+  test("draws at its own size, so the figure scrolls instead of shrinking", () => {
+    const layout = paperforgeLayout()
+
+    expect(layout.flowchart.useMaxWidth).toBe(false)
+    expect(layout.sequence.useMaxWidth).toBe(false)
   })
 
   test("returns nothing for a diagram that does not parse", async () => {
