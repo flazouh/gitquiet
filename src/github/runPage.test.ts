@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Option } from "effect"
-import { unescaped } from "../domain/run"
+import { faultsIn, toleratedIn, unescaped } from "../domain/run"
 import { secondsIn } from "./outcome"
 import { jobsIn, pressOn, pressesOn, runFrom, runOnPage } from "./runPage"
 
@@ -146,6 +146,50 @@ describe("the jobs of a run, off their own page", () => {
 
   test("comes back empty rather than wrong on a page it does not recognise", () => {
     expect(jobsIn("<html><body></body></html>")).toEqual([])
+  })
+})
+
+/*
+ * The same page with the one thing changed that a `continue-on-error` job changes:
+ * the header icon, which is the run's own conclusion. Their markup says nothing
+ * about the tolerance anywhere — measured on run 31641974931 of
+ * `flazouh/ghpro-scratch`, where the tolerated job answers `conclusion: "failure"`
+ * and the run around it answers `conclusion: "success"` — so a red job under a
+ * green header is the whole of the signal, and this is that page.
+ *
+ * Only the first of their two icons is rewritten, which is the wide one; the
+ * narrow copy beside it keeps the failure label. That is deliberate: the reader is
+ * the first `svg[aria-label]` under `PageHeader-leadingVisual`, and a rule written
+ * against the wrong one of the pair would pass here and fail on their page.
+ */
+const tolerantHeader = real.replace(
+  '<svg data-component="Octicon" width="22" height="22" class="octicon octicon-x-circle-fill color-fg-danger" aria-label="failed: "',
+  '<svg data-component="Octicon" width="22" height="22" class="octicon octicon-check-circle-fill color-fg-success" aria-label="completed successfully: "'
+)
+
+describe("a run whose failures it carried on past", () => {
+  const opening = runOnPage(tolerantHeader)
+
+  test("is read as the success GitHub concluded it to be", () => {
+    expect(opening?.run.state).toBe("succeeded")
+  })
+
+  test("says its failed jobs as tolerated, so the screen has no Fault to lead with", () => {
+    expect(faultsIn(opening?.jobs ?? [])).toEqual([])
+    expect(toleratedIn(opening?.jobs ?? []).map((job) => job.name)).toEqual([
+      "integration-test",
+      "ci-complete"
+    ])
+  })
+
+  test("leaves the failures of a failed run exactly as GitHub reported them", () => {
+    const failed = runOnPage(real)
+
+    expect(faultsIn(failed?.jobs ?? []).map((job) => job.name)).toEqual([
+      "integration-test",
+      "ci-complete"
+    ])
+    expect(toleratedIn(failed?.jobs ?? [])).toEqual([])
   })
 })
 
