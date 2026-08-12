@@ -217,7 +217,13 @@ Tolerated. It is a row rather than a count, said as "Allowed to fail", and it le
 like any other row; it is not counted red, and a run whose only failures were tolerated opens
 with no Fault at all. This is [#15452](https://github.com/orgs/community/discussions/15452)
 answered, and it is answered the same way on a pull request's checks list, which reads the run
-behind a failing check to find out. A step written with `continue-on-error: true` is a
+behind a failing check to find out. That read is behind the first paint rather than in front of
+it: the checks are drawn as GitHub reported them, and a tolerated one turns from red to
+"Allowed to fail" when its run answers, the way a remembered pull request has always corrected
+itself a second after it appears. In front, a pull request with three failing runs would wait
+for three half-megabyte documents before drawing anything, which is exactly the pull request
+somebody is in a hurry about. The softening only ever goes from red to tolerated, so no check
+passes through green on the way. A step written with `continue-on-error: true` is a
 different thing and is not covered: GitHub reports that step as `success` outright, so its
 failure exists only in the log and there is nothing to read.
 

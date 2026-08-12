@@ -1,5 +1,5 @@
 import { Effect, Option } from "effect"
-import type { Check, NewComment } from "../domain/PullRequest"
+import type { Check, NewComment, PullRequestSnapshot } from "../domain/PullRequest"
 import type { PullRequestRef, RepoRef } from "../domain/PullRequestRef"
 import { GitHubGateway, type Review, type UpdateMethod } from "../ports/GitHubGateway"
 
@@ -10,15 +10,30 @@ import { GitHubGateway, type Review, type UpdateMethod } from "../ports/GitHubGa
  * Asked for twice at once — which is what resting on a row and then pressing it is
  * — this costs one set of requests rather than two: the gateway folds identical
  * reads that are in the air together, so the press waits on what the pointer began.
+ *
+ * Two stages, like every list here that lands in pieces. The pull request's own
+ * routes answer in one round trip and are the whole page; whether a failing
+ * check was one its run was told to carry on past is written only on the run,
+ * which is a document of half a megabyte per failing run. So the pull request is
+ * reported through `partly` the moment it lands, with its checks exactly as
+ * GitHub reported them, and the runs are read behind it — a pull request with
+ * three failing runs used to wait for three of those before it drew anything,
+ * and that is the pull request somebody is in a hurry about.
+ *
+ * The second stage only ever softens a red check to tolerated, so nothing on the
+ * screen goes from wrong to right by way of green. A caller with nowhere to put
+ * a half answer leaves the argument out and gets the complete one.
  */
 export const loadPullRequest = Effect.fn("loadPullRequest")(function* (
-  reference: PullRequestRef
+  reference: PullRequestRef,
+  partly: (loaded: { readonly snapshot: PullRequestSnapshot }) => void = () => {}
 ) {
   const gateway = yield* GitHubGateway
 
   const snapshot = yield* gateway.snapshot(reference)
+  partly({ snapshot })
 
-  return { snapshot }
+  return { snapshot: { ...snapshot, checks: yield* gateway.tolerated(snapshot.checks) } }
 })
 
 /**

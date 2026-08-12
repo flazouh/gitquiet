@@ -1,6 +1,6 @@
 import { Effect, Layer, Option } from "effect"
 import type { PullRequestRef, RepoRef } from "../../../src/domain/PullRequestRef"
-import type { NewComment } from "../../../src/domain/PullRequest"
+import type { Check, NewComment } from "../../../src/domain/PullRequest"
 import type { Branches } from "../../../src/domain/sittings"
 import { shelfOf } from "../../../src/domain/shelving"
 import type { InvolvedPullRequest, Shelf, Size, Standings } from "../../../src/domain/workingSet"
@@ -253,6 +253,17 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
      * empty list and get one that works.
      */
     snapshot: (reference: PullRequestRef) => askForCard(reference),
+    /*
+     * The checks as they arrived, because this window has no run page to read.
+     *
+     * A tolerated failure is a job that failed under a run that succeeded, and
+     * the pair is written on GitHub's own run document; the main process reads
+     * their documented API, which says nothing about either half. Answered all
+     * the same, and never left out: `loadPullRequest` asks every gateway this,
+     * and a method this layer does not answer is a defect that stops the read
+     * where no console says why.
+     */
+    tolerated: (checks: ReadonlyArray<Check>) => Effect.succeed(checks),
     diffs: (reference: PullRequestRef, _head: string, paths: ReadonlyArray<string>) =>
       askForPatches(reference, paths),
 

@@ -1324,10 +1324,13 @@ const isUnderway = (state: CheckState): boolean => state === "running" || state 
  * time: `runsBehind` comes back empty, no run is read, and this costs a pass over
  * an array of twenty.
  *
- * On the live read only. A remembered pull request is decoded from GitHub's own
- * payloads, and their payload has no word for this, so one opened from memory
- * draws a tolerated failure red for the second before the live read replaces it —
- * the same second-hand it draws every other fact that has moved since.
+ * Behind the first paint rather than in front of it. A remembered pull request
+ * draws a tolerated failure red for the second before this replaces it — the
+ * same second-hand it draws every other fact that has moved since — and the
+ * live read now does exactly that too: the checks go up as GitHub reported
+ * them, and a run that says it was allowed to fail softens the row afterwards.
+ * Held in front, a pull request with three failing runs waited for three
+ * half-megabyte documents before it drew anything.
  */
 const asTolerated = Effect.fn("asTolerated")(function* (checks: ReadonlyArray<Check>) {
   const runs = runsBehind(checks)
@@ -1695,8 +1698,7 @@ export const layer = Layer.succeed(GitHubGateway, {
         { concurrency: "unbounded" }
       )
 
-      const decoded = yield* decodeInto(reference, raw)
-      const snapshot = { ...decoded, checks: yield* asTolerated(decoded.checks) }
+      const snapshot = yield* decodeInto(reference, raw)
 
       // Kept only once it has decoded, and forked rather than waited for. The
       // pull request this was read for is about to be on the screen either way;
@@ -1706,6 +1708,8 @@ export const layer = Layer.succeed(GitHubGateway, {
 
       return snapshot
     }),
+
+    tolerated: asTolerated,
 
     remembered: Effect.fn("GitHubGateway.remembered")(function* (reference: PullRequestRef) {
       const raw = yield* recall(reference)
@@ -3549,6 +3553,9 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
       if (recording === undefined) return Effect.fail(notRecorded(reference))
       return decodeInto(reference, recording.payloads)
     },
+    // A recording is the pull request's own routes, and the run behind a failing
+    // check is not one of them. The checks stand as they were recorded.
+    tolerated: (checks: ReadonlyArray<Check>) => Effect.succeed(checks),
     // Nothing was read before this test began. A test that wants to watch what
     // a remembered pull request does to the screen says so with a layer of its
     // own, which is what the seam is for.
@@ -3670,6 +3677,10 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
       )
       return found === undefined ? Effect.fail(notRecorded(reference)) : Effect.succeed(found)
     },
+    // A snapshot made by hand already says what its checks are. A test that
+    // wants a tolerated failure writes one, rather than standing up a run page
+    // for this to read it off.
+    tolerated: (checks: ReadonlyArray<Check>) => Effect.succeed(checks),
     remembered: () => Effect.succeed(Option.none()),
     diffs: (reference: PullRequestRef, _head: string, paths: ReadonlyArray<string>) => {
       const found = snapshots.find((candidate) => sameReference(candidate.reference, reference))

@@ -225,10 +225,34 @@ describe("what the gateway sends to GitHub", () => {
           : Response.json(url.includes("status_checks") ? asFailing : payloadFor(url))
       )
 
-    test("is said as tolerated, and its run is read once for the two of them", async () => {
+    /**
+     * The pull request, and then the second read that softens what it can.
+     *
+     * Two calls rather than one because the screen makes them as two: the checks
+     * are drawn as GitHub reported them and the runs are read behind that first
+     * paint. See `loadPullRequest`, which is where the two are put together.
+     */
+    const softened = Effect.gen(function* () {
+      const gateway = yield* GitHubGateway
+      const snapshot = yield* gateway.snapshot(draft)
+      return { ...snapshot, checks: yield* gateway.tolerated(snapshot.checks) }
+    }).pipe(Effect.provide(layer))
+
+    test("is red in the answer the reader waits for, which asks for no run at all", async () => {
       const calls = answering(green)
 
       const snapshot = await Effect.runPromise(live)
+
+      expect(snapshot.checks.filter((check) => check.state === "failed").map((one) => one.name)).toEqual(
+        tolerated
+      )
+      expect(calls.filter((call) => call.url.includes("/actions/runs/"))).toEqual([])
+    })
+
+    test("is said as tolerated, and its run is read once for the two of them", async () => {
+      const calls = answering(green)
+
+      const snapshot = await Effect.runPromise(softened)
 
       expect(
         snapshot.checks.filter((check) => check.state === "tolerated").map((check) => check.name)
@@ -245,7 +269,7 @@ describe("what the gateway sends to GitHub", () => {
     test("stays failed where the run around it failed too", async () => {
       answering(runPage)
 
-      const snapshot = await Effect.runPromise(live)
+      const snapshot = await Effect.runPromise(softened)
 
       expect(snapshot.checks.filter((check) => check.state === "tolerated")).toEqual([])
       expect(snapshot.checks.filter((check) => check.state === "failed").map((one) => one.name)).toEqual(
@@ -260,7 +284,7 @@ describe("what the gateway sends to GitHub", () => {
           : Response.json(url.includes("status_checks") ? asFailing : payloadFor(url))
       )
 
-      const snapshot = await Effect.runPromise(live)
+      const snapshot = await Effect.runPromise(softened)
 
       expect(snapshot.checks.filter((check) => check.state === "failed")).toHaveLength(2)
     })
