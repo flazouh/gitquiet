@@ -145,7 +145,7 @@ describe("which Court a Notice sits in", () => {
   })
 })
 
-describe("the four piles", () => {
+describe("the three piles", () => {
   const some = [
     notice({ id: "a", reason: "review_requested", standing: "open", unread: true, movedAt: "2026-08-10T00:00:00Z" }),
     notice({ id: "b", reason: "review_requested", standing: "open", unread: false, movedAt: "2026-08-12T00:00:00Z" }),
@@ -153,11 +153,18 @@ describe("the four piles", () => {
     notice({ id: "d", reason: "subscribed", standing: "open" })
   ]
 
-  test("gives all four even where three are empty", () => {
+  /*
+   * Three of the product's four, and Running is the one left out. Every other screen draws a
+   * Court that is empty today because it is full this afternoon, and the reader learns where to
+   * look by its being in the same place either way. Running on an inbox is not that: no Notice
+   * can reach it, on any inbox, ever — see `courtOf`. A heading that can never mean anything
+   * teaches the reader that a heading may mean nothing, which is what the four Courts are for.
+   */
+  test("gives three even where two are empty, and no Running", () => {
     const dockets = docketsOf([notice({ reason: "subscribed", standing: "open" })])
 
-    expect(dockets.map((one) => one.court)).toEqual(["your-move", "waiting", "running", "settled"])
-    expect(dockets.map((one) => one.count)).toEqual([0, 1, 0, 0])
+    expect(dockets.map((one) => one.court)).toEqual(["your-move", "waiting", "settled"])
+    expect(dockets.map((one) => one.count)).toEqual([0, 1, 0])
   })
 
   test("files each Notice in exactly one", () => {
@@ -177,10 +184,32 @@ describe("the four piles", () => {
     expect(yourMove?.notices.map((one) => one.id)).toEqual(["a", "b"])
   })
 
-  test("leaves Running empty, because a Notice arrives after the machine has stopped", () => {
-    const running = docketsOf(some).find((one) => one.court === "running")
+  /*
+   * The guard on the Court that is not drawn. A Notice with nowhere to go would be a row this
+   * screen reads off their page and then never shows, which is worse than a heading nothing
+   * reaches: `docketsOf` files by Court, so a Court it does not list is a Notice dropped.
+   *
+   * So this is asked of every reason GitHub sends and every state their icons carry, and it is
+   * what should fail first if a later reason does belong in Running. The answer then is to draw
+   * Running on the inbox again, not to file the row somewhere it does not belong.
+   */
+  test("files every reason and every state in one of the three", () => {
+    const standings: ReadonlyArray<Standing> = ["open", "merged", "closed", "unknown"]
+    const drawn = ["your-move", "waiting", "settled"]
 
-    expect(running?.count).toBe(0)
+    for (const reason of [...REASONS, "something_new"]) {
+      for (const standing of standings) {
+        expect(drawn).toContain(courtOf(notice({ reason, standing })))
+      }
+    }
+  })
+
+  test("drops no Notice on an inbox that holds one of everything", () => {
+    const one = [...REASONS].map((reason) => notice({ id: reason, reason, standing: "open" }))
+
+    const filed = docketsOf(one).flatMap((docket) => docket.notices)
+
+    expect(filed).toHaveLength(REASONS.length)
   })
 })
 

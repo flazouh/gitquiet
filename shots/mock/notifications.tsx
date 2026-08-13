@@ -12,7 +12,7 @@ import { minutesAgo } from "./when"
  * 2026-08-13, 15 rows carried 7 pull requests that were already merged, and across three of
  * GitHub's own reason queries 41 rows of 51 concerned something finished — all of them drawn
  * at the same height and the same weight as the work. So the rows here keep that shape: a
- * Settled Court that is the largest of the four, holding merged pull requests and closed
+ * Settled Court that is the largest of the three, holding merged pull requests and closed
  * issues that their page puts at the top of the list, and a Your Move Court small enough to
  * read in one look.
  *
@@ -38,12 +38,12 @@ type Told = {
 }
 
 /**
- * Twelve threads, which is what the frame holds with four Court headers above them.
+ * Thirteen threads, which is what the frame holds with three Court headers above them.
  *
- * Counted rather than guessed: a row is forty-four pixels and a header thirty-three, so
- * twelve rows and four headers carry the list to the bottom edge. The split across the Courts
- * is the measured one rather than a flattering one — two the reader owes, three with somebody
- * else, seven already over.
+ * Counted rather than guessed: a row is forty-four pixels and a header thirty-three, so thirteen
+ * rows and three headers carry the list to the bottom edge. The split across the Courts is the
+ * measured one rather than a flattering one — two the reader owes, three with somebody else,
+ * eight already over.
  */
 const TOLD: ReadonlyArray<Told> = [
   {
@@ -180,6 +180,20 @@ const TOLD: ReadonlyArray<Told> = [
     unread: false,
     minutes: 1_440,
     who: []
+  },
+  {
+    // The thirteenth, and it is here for the frame rather than for a case: dropping the Running
+    // header freed a header's height, and a picture that ends short of the edge invites the
+    // reader to wonder what was cut off. Finished work is what the inbox has most of, so that is
+    // what fills it.
+    repository: "vitejs/vite",
+    number: "19703",
+    title: "Warn once when a plugin returns a sourcemap without sources",
+    reason: "mention",
+    standing: "merged",
+    unread: false,
+    minutes: 2_160,
+    who: ["patak-dev", MOCK_VIEWER]
   }
 ]
 
