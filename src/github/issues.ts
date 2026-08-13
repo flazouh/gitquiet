@@ -11,11 +11,11 @@
 import { Effect, Option, Schema } from "effect"
 import type { InvolvedIssue, Involvement, ListedIssue } from "../domain/issues"
 import type { FoundIssues } from "../ports/GitHubGateway"
-import { IssueSearchRoute } from "./wire"
+import { answerIn, type IssueSearchAnswer, IssueSearchRoute } from "./wire"
 
 export const decodeIssueSearch = Schema.decodeUnknownEffect(IssueSearchRoute)
 
-type Found = IssueSearchRoute["payload"]["results"][number]
+type Found = IssueSearchAnswer["results"][number]
 
 /**
  * Whether this row is a pull request wearing an issue's clothes.
@@ -64,7 +64,7 @@ const listedFrom = (row: Found): ListedIssue => ({
 
 /** Every row of one answer that is really an issue, in the order GitHub gave them. */
 const listedIn = (said: IssueSearchRoute): ReadonlyArray<ListedIssue> =>
-  said.payload.results.flatMap((row) => (isReallyAPullRequest(row) ? [] : [listedFrom(row)]))
+  answerIn(said).results.flatMap((row) => (isReallyAPullRequest(row) ? [] : [listedFrom(row)]))
 
 /**
  * The same rows, each carrying the question that found it.
@@ -97,22 +97,26 @@ export const involvedIssuesFrom = (
  * without the count the first page of something large and the whole of
  * something small are the same picture.
  */
-export const listedIssuesIn = (said: IssueSearchRoute): FoundIssues => ({
-  rows: listedIn(said),
-  /*
-   * Left out rather than guessed where the payload does not add up. Their route
-   * has always sent all three, and a page whose numbers disagree with itself is
-   * better drawn as a list with no pager than as one whose Next goes nowhere.
-   */
-  pages:
-    said.payload.page_count >= 1
-      ? Option.some({
-          current: said.payload.page,
-          total: said.payload.page_count,
-          count: said.payload.result_count
-        })
-      : Option.none()
-})
+export const listedIssuesIn = (said: IssueSearchRoute): FoundIssues => {
+  const answer = answerIn(said)
+
+  return {
+    rows: listedIn(said),
+    /*
+     * Left out rather than guessed where the payload does not add up. Their route
+     * has always sent all three, and a page whose numbers disagree with itself is
+     * better drawn as a list with no pager than as one whose Next goes nowhere.
+     */
+    pages:
+      answer.page_count >= 1
+        ? Option.some({
+            current: answer.page,
+            total: answer.page_count,
+            count: answer.result_count
+          })
+        : Option.none()
+  }
+}
 
 /** Decoded and mapped, for a caller holding raw JSON. */
 export const listedIssuesFrom = (raw: unknown): Effect.Effect<FoundIssues, unknown> =>

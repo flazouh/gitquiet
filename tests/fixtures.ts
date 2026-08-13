@@ -87,6 +87,25 @@ export const involvedIssuesWithAPullRequest: unknown = JSON.parse(
   )
 )
 
+/**
+ * The same recording, moved to where their search now puts it.
+ *
+ * Measured against the live route on 2026-08-14: `/search?type=issues` answers with
+ * `payload.blackbirdSearchRoute` holding what `payload` used to hold directly, and the
+ * rows and the three paging numbers inside it are unchanged. Made from the recording
+ * rather than recorded again, because the move is the whole difference and a second
+ * recording would only be able to say the same rows twice.
+ *
+ * The one field asserted here is `payload`, which the file is a recording of and the
+ * loader is already named for. Nothing inside it is read, so the decoder still has to
+ * establish every shape it claims.
+ */
+export const involvedIssuesAsNested: unknown = {
+  payload: {
+    blackbirdSearchRoute: (loadFixture("involved-issues") as { readonly payload: unknown }).payload
+  }
+}
+
 export const draftWithBotFindings = {
   changes: loadFixture("changes"),
   statusChecks: loadFixture("status-checks"),

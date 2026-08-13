@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Option } from "effect"
-import { involvedIssuesWithAPullRequest, loadFixture } from "../../tests/fixtures"
+import {
+  involvedIssuesAsNested,
+  involvedIssuesWithAPullRequest,
+  loadFixture
+} from "../../tests/fixtures"
 import { involvedIssuesFrom } from "./issues"
 
 /**
@@ -84,6 +88,22 @@ describe("reading the issues GitHub's own search answers with", () => {
 
     expect(issues).toHaveLength(2)
     expect(issues.every((one) => one.reference.number !== 1267)).toBe(true)
+  })
+
+  test("reads the rows where their search moved them", async () => {
+    // Measured on 2026-08-14 against `/search?type=issues`: the results, the page and
+    // the two counts now sit under `payload.blackbirdSearchRoute` rather than under
+    // `payload`. Nothing else about the answer changed. Both are read, because the old
+    // shape is what every recording here holds and there is no saying which of the two
+    // an account is served.
+    const issues = await Effect.runPromise(involvedIssuesFrom("assigned", involvedIssuesAsNested))
+
+    expect(issues).toHaveLength(3)
+    expect(issues.map((one) => one.reference)).toContainEqual({
+      owner: "flazouh",
+      repo: "acepe",
+      number: 146
+    })
   })
 
   test("refuses a payload that is not theirs, rather than inventing issues", async () => {

@@ -1379,9 +1379,8 @@ export type FilteredRepositories = typeof FilteredRepositories["Type"]
  * this extension sends are qualifiers with no free text in them, so there is
  * nothing for GitHub to mark.
  */
-export const IssueSearchRoute = Schema.Struct({
-  payload: Schema.Struct({
-    results: Schema.Array(
+const IssueSearchAnswer = Schema.Struct({
+  results: Schema.Array(
       Schema.Struct({
         /** Their own id, as a string on this route where every other one sends a number. */
         id: Schema.String,
@@ -1428,14 +1427,44 @@ export const IssueSearchRoute = Schema.Struct({
         )
       })
     ),
-    /** Where this page sits, in the same three numbers a pull request search gives. */
-    page: Schema.Number,
-    page_count: Schema.Number,
-    result_count: Schema.Number
-  })
+  /** Where this page sits, in the same three numbers a pull request search gives. */
+  page: Schema.Number,
+  page_count: Schema.Number,
+  result_count: Schema.Number
+})
+
+export type IssueSearchAnswer = typeof IssueSearchAnswer["Type"]
+
+/**
+ * The same answer, at either of the two places GitHub puts it.
+ *
+ * Measured on 2026-08-14: `/search?type=issues` began wrapping the whole answer in
+ * `payload.blackbirdSearchRoute`, where it had been `payload` itself. The rows and
+ * the three paging numbers inside are unchanged, and the wrapper arrived beside
+ * `header_redesign_enabled`, which is what a rollout looks like rather than a
+ * finished rename. So both are read: an account served the old shape and one served
+ * the new shape are both accounts whose issues should be drawn.
+ *
+ * Nested first, because that is what a live account is served today and a union that
+ * tried the departing shape first would decode nothing on it either way.
+ */
+export const IssueSearchRoute = Schema.Struct({
+  payload: Schema.Union([
+    Schema.Struct({ blackbirdSearchRoute: IssueSearchAnswer }),
+    IssueSearchAnswer
+  ])
 })
 
 export type IssueSearchRoute = typeof IssueSearchRoute["Type"]
+
+/**
+ * The answer itself, wherever it arrived.
+ *
+ * One place, so that everything downstream reads one shape and the move above stays a
+ * fact about the wire rather than a branch in the interface.
+ */
+export const answerIn = (said: IssueSearchRoute): IssueSearchAnswer =>
+  "blackbirdSearchRoute" in said.payload ? said.payload.blackbirdSearchRoute : said.payload
 
 /**
  * The events GitHub still serves in the order they happened.
