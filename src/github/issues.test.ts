@@ -106,6 +106,35 @@ describe("reading the issues GitHub's own search answers with", () => {
     })
   })
 
+  test("reads a title's punctuation as punctuation", async () => {
+    // `hl_title` is the title with the search's matches marked up, so it arrives as
+    // HTML and its apostrophes arrive as `&#39;`. Seen on 2026-08-14 on a live list,
+    // where a row read "Choose and validate Coadra&#39;s second vertical".
+    const issues = await Effect.runPromise(
+      involvedIssuesFrom("assigned", {
+        payload: {
+          results: [
+            {
+              id: "1",
+              number: 33,
+              state: "open",
+              hl_title: "Choose and validate Coadra&#39;s &amp; Acepe&#39;s &quot;second&quot; vertical",
+              num_comments: 0,
+              labels: [],
+              created: "2026-07-21T15:12:25.000Z",
+              repo: { repository: { name: "coadra", owner_login: "flazouh" } }
+            }
+          ],
+          page: 1,
+          page_count: 1,
+          result_count: 1
+        }
+      })
+    )
+
+    expect(issues[0]?.title).toBe('Choose and validate Coadra\'s & Acepe\'s "second" vertical')
+  })
+
   test("refuses a payload that is not theirs, rather than inventing issues", async () => {
     const outcome = await Effect.runPromise(
       involvedIssuesFrom("assigned", { payload: { results: [{ number: "seven" }] } }).pipe(

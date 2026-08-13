@@ -11,6 +11,7 @@
 import { Effect, Option, Schema } from "effect"
 import type { InvolvedIssue, Involvement, ListedIssue } from "../domain/issues"
 import type { FoundIssues } from "../ports/GitHubGateway"
+import { plainText } from "./plainText"
 import { answerIn, type IssueSearchAnswer, IssueSearchRoute } from "./wire"
 
 export const decodeIssueSearch = Schema.decodeUnknownEffect(IssueSearchRoute)
@@ -37,7 +38,13 @@ const listedFrom = (row: Found): ListedIssue => ({
     number: row.number
   },
   id: row.id,
-  title: row.hl_title,
+  /*
+   * `hl_title` is the title with the search's own matches marked up, so it is HTML
+   * and its punctuation is escaped: a row read "Coadra&#39;s second vertical" on a
+   * live list on 2026-08-14. Read through the same unescaping a commit headline
+   * gets, which also drops any `<mark>` a query with free text in it would draw.
+   */
+  title: plainText(row.hl_title),
   author: {
     // A row without an author is one whose account is gone. GitHub renders those
     // as `ghost`, and so does everything else here that meets one.
