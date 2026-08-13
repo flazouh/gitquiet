@@ -644,6 +644,37 @@ export const takeOverSlot = (
     for (const leaving of target.querySelectorAll(`[${LEAVING}]`)) takeOffThePage(leaving)
     if (missed !== null) takeOffThePage(missed)
     marked = null
+    /*
+     * And any other of ours standing there unmarked, which is the same invariant asked at the
+     * one moment it can be answered truthfully.
+     *
+     * {@link interfaceContainer} asks it of the document, and a container is deliberately not in
+     * the document when it is handed out: it renders detached so that the tree is built while
+     * GitHub's HTML is still arriving. So for the whole of that wait — measured at between 169
+     * and 1219 milliseconds on their inbox, across six loads — `getElementById` answers null,
+     * whatever is really pending, and a second container is made and never marked as replacing
+     * the first, because marking happens in the search that could not see it.
+     *
+     * The reader found what that costs on `/notifications`, where they were shown their whole
+     * inbox twice in two columns: two roots, both drawn, both direct children of a region that
+     * is `display: flex`. Neither hid the other either, since `hideTheirs` skips a child of
+     * ours by id.
+     *
+     * Here the question has one answer that cannot be stale, because this is the line that puts
+     * a container in the document. `id` is not unique in a DOM that has two of these, so it is
+     * asked with `querySelectorAll` rather than by id.
+     *
+     * Marked before it is taken off, which is not decoration: the takeover that put it there is
+     * watching for exactly this and puts it back, and this one would take it out again. That is
+     * a wedged tab rather than a flicker, because each runs on the mutations the other makes.
+     * The mark is how a watcher is told to stand down, and the sweep above never has to set it
+     * because a marked container is what that sweep is looking for.
+     */
+    for (const stray of target.querySelectorAll(`#${ROOT_ID}`)) {
+      if (stray === container) continue
+      stray.setAttribute(LEAVING, "")
+      takeOffThePage(stray)
+    }
     into.append(container)
     hideTheirs(into, container)
     hideTheirBands(target, place)

@@ -701,6 +701,48 @@ describe("handing the page from one interface to the next", () => {
     expect(down).toBe(1)
   })
 
+  /*
+   * Two interfaces of the same screen, each built while the other was off the page.
+   *
+   * Which is the whole window between a container being handed out and it being put in the
+   * document: a container renders detached on purpose, so `getElementById` cannot see it, and
+   * the one guard on "there is one of these per document" is that search. Measured at between
+   * 169 and 1219 milliseconds on their inbox, across six loads.
+   *
+   * The reader saw the cost of it on `/notifications`: two roots, both drawn, both direct
+   * children of a region that is `display: flex`, so their whole inbox twice in two columns of
+   * 612 pixels each. Nothing hid the second, either — the sweep looks for a container marked as
+   * leaving, and neither of these was ever marked, because marking happens in the same search
+   * that could not see it.
+   */
+  test("stands one interface where two were built before either had a page", () => {
+    const page = githubPage()
+    const first = interfaceContainer(page, REPO_PULLS)
+    const second = interfaceContainer(page, REPO_PULLS)
+    expect(second).not.toBe(first)
+
+    takeOverSlot(page, first, REPO_PULLS)
+    takeOverSlot(page, second, REPO_PULLS)
+
+    expect(page.querySelectorAll(`#${ROOT_ID}`)).toHaveLength(1)
+    expect<Element | null>(page.getElementById(ROOT_ID)).toBe(second)
+  })
+
+  test("tells the one it sweeps that it is going, so that tree comes down too", () => {
+    const page = githubPage()
+    const first = interfaceContainer(page, REPO_PULLS)
+    const second = interfaceContainer(page, REPO_PULLS)
+    let down = 0
+    first.addEventListener(GOING, () => {
+      down += 1
+    })
+
+    takeOverSlot(page, first, REPO_PULLS)
+    takeOverSlot(page, second, REPO_PULLS)
+
+    expect(down).toBe(1)
+  })
+
   test("the list does not put itself back once the card has the page", async () => {
     // Both takeovers are watching the document, and the list's sees its own
     // container leave. Putting it back would start a fight neither ever wins.
