@@ -43,6 +43,33 @@ them with the same schemas:
 GITHUB_SESSION_COOKIE='user_session=…; __Host-user_session_same_site=…' bun run drift
 ```
 
+It asks for 34 reads, which is every schema in `src/github/wire.ts` that decodes
+a read: the pull request routes, a commit and the batch of diffs it holds back, a
+branch's commits and their deferred marks, branches, authors, the front page, the
+sidebar, the whole tree, one file, all six shelves, the dashboard's search and
+its deferred rows, the repository filter, the issue search, an issue, the two
+suggesters, and the public events feed. Each names how much it read, because a
+shelf nobody has put anything on decodes whatever shape it is and an `ok` on no
+rows is worth less than an `ok` on twenty.
+
+Five schemas are not asked for, and the script names them with the reason on
+every run: `CreatedComment`, `AddedComment`, `CreatedIssueRoute`, `UploadPolicy`
+and `UploadedAsset` each decode the answer to a write, so asking would mean
+commenting on somebody's pull request, opening an issue, or putting a file in
+GitHub's asset store once per run.
+
+A route that answers with something other than 200 is reported apart from one
+that drifted, and exits 2 rather than 1: a 404 means a target in the list above
+has been deleted, which is the check needing repair rather than news about
+GitHub. Every target has an environment variable of its own: `DRIFT_PULL_REQUEST`,
+`DRIFT_REPOSITORY`, `DRIFT_COMMIT` and the rest are listed at the top of the
+script, so a dead default can be worked around in one run.
+
+Until 2026-08-14 this covered five routes out of thirty-four schemas, all five on
+one pull request. That is why the widening exists: on the morning
+`/search?type=issues` moved its whole answer into `payload.blackbirdSearchRoute`
+and blanked both issue screens, `bun run drift` printed five `ok` lines.
+
 This is not wired into scheduled CI. These routes authenticate with a browser
 session cookie, which is a full account credential, and storing one in Actions
 secrets to run a weekly check is a poor trade. Drift is instead caught two ways:
