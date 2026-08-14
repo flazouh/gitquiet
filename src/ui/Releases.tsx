@@ -290,9 +290,16 @@ const Yours = ({
       }
     >
       {Option.isSome(yours) ? (
-        <div className="p-2">
+        /*
+         * The button is the width of its own filename and no wider. Stretched across the card it
+         * was a bar of solid accent the width of the screen, which is louder than the one press
+         * on the page needs to be: emphasis is how a reader finds it, and a reader finds a button
+         * faster than they find a banner. The size sits outside it as a fact about the file, not
+         * as part of what the press does.
+         */
+        <div className="flex items-center gap-2.5 px-3 py-2">
           <a
-            className={`${GHOST} flex items-center gap-2.5 bg-accent-emphasis px-3 py-2.5 text-ink-on-emphasis no-underline hover:opacity-90`}
+            className={`${GHOST} flex min-w-0 items-center gap-2 bg-accent-emphasis px-2.5 py-1.5 font-semibold text-ink-on-emphasis text-xs no-underline hover:opacity-90`}
             href={yours.value.url}
             title={
               yours.value.digest === null
@@ -300,14 +307,14 @@ const Yours = ({
                 : `${yours.value.name}\n${yours.value.digest}`
             }
           >
-            <Down size={16} aria-hidden="true" className="shrink-0 opacity-90" />
-            <span className="min-w-0 flex-1 truncate font-mono font-semibold text-sm">
-              {yours.value.name}
-            </span>
-            {yours.value.size === "" ? null : (
-              <span className="shrink-0 text-sm tabular-nums opacity-80">{yours.value.size}</span>
-            )}
+            <Down size={14} aria-hidden="true" className="shrink-0 opacity-90" />
+            <span className="min-w-0 truncate font-mono">{yours.value.name}</span>
           </a>
+          {yours.value.size === "" ? null : (
+            <span className="shrink-0 text-ink-muted text-xs tabular-nums">
+              {yours.value.size}
+            </span>
+          )}
         </div>
       ) : (
         /*
