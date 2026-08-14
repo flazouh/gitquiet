@@ -46,8 +46,10 @@ import { runsBehind, tolerating } from "./tolerance"
 import type { Pressing, RunOpening, RunRef } from "../domain/run"
 import { isKeptRun, pressOn, runOnPage } from "./runPage"
 import { isKeptStrands, runsOnPage } from "./actionsList"
+import { buildsOnPage, isKeptVersions, versionsOnPage } from "./releasesList"
 import { isKeptNotices, noticesOnPage } from "./notifications"
 import type { Notice, Press } from "../domain/notices"
+import type { Version } from "../domain/release"
 import { strandsIn, type Strand } from "../domain/strand"
 import {
   recall,
@@ -1508,6 +1510,42 @@ const pressingRun = Effect.fn("pressingRun")(function* (reference: RunRef, what:
 /** A repository's Actions tab, kept under the address its list is read at. */
 const strandsKey = (reference: RepoRef): string =>
   `/${reference.owner}/${reference.repo}/actions`
+
+/** A repository's Releases tab, kept under the address its list is read at. */
+const releasesKey = (reference: RepoRef): string =>
+  `/${reference.owner}/${reference.repo}/releases`
+
+/**
+ * One of a repository's own pages as the document it is served as.
+ *
+ * `runDocument` above with a repository in place of a run, and the same three failures named the
+ * same way. Two callers, both on the releases screen: their list page and the asset fragment it
+ * defers, which are one kind of read asked at two addresses.
+ */
+const repoDocument = Effect.fn("repoDocument")(function* (reference: RepoRef, route: string) {
+  const url = `https://github.com/${reference.owner}/${reference.repo}${route}`
+
+  const response = yield* Effect.tryPromise({
+    try: () => fetch(url, { headers: { Accept: "text/html" }, credentials: "include" }),
+    catch: (cause) =>
+      new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+  })
+
+  if (!response.ok) {
+    return yield* new GatewayError({
+      reference,
+      route,
+      reason: "rejected",
+      detail: `HTTP ${response.status}`
+    })
+  }
+
+  return yield* Effect.tryPromise({
+    try: () => response.text(),
+    catch: (cause) =>
+      new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+  })
+})
 
 /**
  * The inbox, at the address the reader asked for it at.
@@ -3073,6 +3111,48 @@ export const layer = Layer.succeed(GitHubGateway, {
     }),
 
     /**
+     * Their releases list, read as the document they serve it as.
+     *
+     * One request, and the notes come whole: their own page hides the long ones behind a CSS
+     * rule rather than cutting them server-side, so reading the markup is what answers the
+     * truncation complaint at no cost. Asked for without a query, which is the page their
+     * Releases tab opens with.
+     */
+    releases: Effect.fn("GitHubGateway.releases")(function* (reference: RepoRef) {
+      const versions = versionsOnPage(yield* repoDocument(reference, "/releases"))
+
+      // Kept for the reason the Actions list is, and it matters as much: somebody who came to
+      // download something has no patience for a spinner.
+      yield* Effect.forkDetach(rememberRoute(releasesKey(reference), versions))
+
+      return versions
+    }),
+
+    /**
+     * The files of one Version, out of the fragment their own page defers.
+     *
+     * The one read here that exists because GitHub withheld something rather than because they
+     * buried it: their list page names no file at all, so this is not an optimisation but the
+     * only way to learn a filename without the API. One tag, because Yours is about the newest
+     * Version.
+     */
+    builds: Effect.fn("GitHubGateway.builds")(function* (reference: RepoRef, tag: string) {
+      const route = `/releases/expanded_assets/${encodeURIComponent(tag)}`
+      return buildsOnPage(yield* repoDocument(reference, route))
+    }),
+
+    rememberedReleases: Effect.fn("GitHubGateway.rememberedReleases")(function* (
+      reference: RepoRef
+    ) {
+      const raw = yield* recallRoute(releasesKey(reference))
+      if (Option.isNone(raw)) return Option.none<ReadonlyArray<Version>>()
+
+      return isKeptVersions(raw.value)
+        ? Option.some(raw.value)
+        : Option.none<ReadonlyArray<Version>>()
+    }),
+
+    /**
      * Their inbox, read as the document they serve it as.
      *
      * One request, and the lightest read on this interface. Their `/notifications` is Rails
@@ -3962,6 +4042,9 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     cancelRun: (reference: RunRef) => Effect.fail(nothingRecordedFor(reference.repo)),
     strands: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     rememberedStrands: () => Effect.succeed(Option.none()),
+    releases: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    builds: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    rememberedReleases: () => Effect.succeed(Option.none()),
     // An empty inbox, which is what a page nobody recorded looks like from here, and
     // nothing written to one: a press answered without a request would be this layer
     // telling a test that GitHub agreed to something nobody asked.
@@ -4099,6 +4182,9 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     cancelRun: (reference: RunRef) => Effect.fail(nothingRecordedFor(reference.repo)),
     strands: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     rememberedStrands: () => Effect.succeed(Option.none()),
+    releases: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    builds: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    rememberedReleases: () => Effect.succeed(Option.none()),
     // An empty inbox, which is what a page nobody recorded looks like from here, and
     // nothing written to one: a press answered without a request would be this layer
     // telling a test that GitHub agreed to something nobody asked.

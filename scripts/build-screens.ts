@@ -110,6 +110,7 @@ const result = await build({
         issues: here("../src/screens/issues.tsx"),
         run: here("../src/screens/run.tsx"),
         actions: here("../src/screens/actions.tsx"),
+        releases: here("../src/screens/releases.tsx"),
         notifications: here("../src/screens/notifications.tsx")
       },
       output: {

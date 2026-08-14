@@ -36,6 +36,7 @@ export type Wanted =
   | "issues"
   | "run"
   | "actions"
+  | "releases"
   | "notifications"
 
 export const WANTED: ReadonlyArray<Wanted> = [
@@ -51,6 +52,7 @@ export const WANTED: ReadonlyArray<Wanted> = [
   "issues",
   "run",
   "actions",
+  "releases",
   "notifications"
 ]
 

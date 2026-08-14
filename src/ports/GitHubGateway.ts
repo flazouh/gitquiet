@@ -24,6 +24,7 @@ import type { InvolvedIssue, Involvement, IssueRef, ListedIssue } from "../domai
 import type { Notice, Press } from "../domain/notices"
 import type { Portrait } from "../domain/portrait"
 import type { Raised, Raising } from "../domain/raising"
+import type { Attached, Version } from "../domain/release"
 import type { Front, Opened, Standing, Starring, Touch, TouchWho } from "../domain/repoHome"
 import type { Repository } from "../domain/repositories"
 import type { RunOpening, RunRef } from "../domain/run"
@@ -446,6 +447,55 @@ export class GitHubGateway extends Context.Service<
     readonly rememberedStrands: (
       reference: RepoRef
     ) => Effect.Effect<Option.Option<ReadonlyArray<Strand>>, GatewayError>
+
+    /**
+     * Every Version on the first page of a repository's releases list.
+     *
+     * One document, and this one is generous where their Actions list is: the notes come
+     * complete in the markup, so the truncation eight readers called misleading in
+     * [#5962](https://github.com/orgs/community/discussions/5962) is a CSS rule this screen
+     * simply does not carry over. Measured on 2026-08-14, `oven-sh/bun` ships a 3,719
+     * character body and the words "Read more" appear nowhere in the document.
+     *
+     * The first page only, which is ten Versions and the page their own tab opens with.
+     *
+     * A repository with no releases comes back empty rather than failing, as one with no
+     * runs does, and for the same reason: nothing on the page tells an empty list from a
+     * page that has stopped looking like their list, and a screen that says so beside a way
+     * back to GitHub is right either way.
+     */
+    readonly releases: (
+      reference: RepoRef
+    ) => Effect.Effect<ReadonlyArray<Version>, GatewayError>
+
+    /**
+     * The files of one Version, which their list page names nowhere.
+     *
+     * A second request, and the only one this screen needs: that same 389,330 byte document
+     * carries zero filenames, because every asset list sits behind an `include-fragment` at
+     * `/releases/expanded_assets/{tag}`. Asked for one tag rather than ten, since Yours is
+     * about the newest Version, so the whole screen is two requests where their own page
+     * spends eleven.
+     *
+     * Comes back with the Source Archives beside the Builds and never among them. GitHub
+     * appends a zip and a tarball nobody uploaded and nobody can remove, which is
+     * [#6003](https://github.com/orgs/community/discussions/6003) at 143 upvotes and curl's
+     * maintainer reporting that readers take those instead of the real files.
+     */
+    readonly builds: (
+      reference: RepoRef,
+      tag: string
+    ) => Effect.Effect<Attached, GatewayError>
+
+    /**
+     * The same list as it was last read, without asking GitHub.
+     *
+     * Worth as much here as on the Actions tab, and for a reason of this page's own: a
+     * reader who came to download something is a reader with no patience for a spinner.
+     */
+    readonly rememberedReleases: (
+      reference: RepoRef
+    ) => Effect.Effect<Option.Option<ReadonlyArray<Version>>, GatewayError>
 
     /**
      * Every Notice in the reader's inbox, out of one fetch of their own page.

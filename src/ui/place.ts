@@ -9,6 +9,7 @@ import { isHome, showsWorkingSet } from "../domain/pages";
 import { personReposIn, personStarsIn, profileIn } from "../domain/person";
 import { fromPathname as pullRequestIn } from "../domain/PullRequestRef";
 import { raisingIn } from "../domain/raising";
+import { releasesIn } from "../domain/release";
 import { repoHomeIn } from "../domain/repoHome";
 import { runAddressIn } from "../domain/run";
 import { actionsIn } from "../domain/strand";
@@ -585,6 +586,39 @@ export const ACTIONS: Place = {
 };
 
 /**
+ * A repository's Releases tab at `/owner/repo/releases`: every Version they list.
+ *
+ * The same two content hooks every other repository tab uses, measured on 2026-08-14 against
+ * `zeronsh/comet`: the pjax container is present, the Turbo frame is present, and there is no
+ * `react-app` at all. The page is server-rendered Turbo with two `react-partial` islands that
+ * carry the docs URL and the logged-out header, so neither is worth reading.
+ *
+ * Their own pager goes with the list, as their workflow sidebar goes with the runs. This screen
+ * reads the first page, which is the page their Releases tab opens with, and `docs/spec/releases.md`
+ * records that holding more than that is what their search box would need.
+ */
+export const RELEASES: Place = {
+  name: "releases",
+  owns: (path) => Option.isSome(releasesIn(`https://github.com${path}`)),
+  regions: ["#repo-content-pjax-container"],
+  fallback: "turbo-frame#repo-content-turbo-frame",
+  stages: ["#repo-content-pjax-container", "turbo-frame#repo-content-turbo-frame"],
+  /*
+   * Their own section wrapper for one Version, which is written by this list and by nothing
+   * else. Every other hook on the page is a content region shared with the Code tab, so the
+   * proof has to be the content itself.
+   *
+   * Measured rather than assumed, because the doubt was the two neighbouring pages: read on
+   * 2026-08-14, `data-release-anchor` appears ten times on `/releases` and exactly zero times
+   * on `/releases/tag/v0.2.1` and on `/tags`. So a reader pressing one Version, or their "View
+   * all tags", is never left looking at a page this rule has blanked.
+   */
+  soft: { holding: ":has(section[data-release-anchor])" },
+  // Nothing. The region is the Versions and their pager together.
+  bands: [],
+};
+
+/**
  * The home dashboard at `/`, and at `/dashboard`, which is the same page.
  *
  * The odd one in a different way from a repository's list: this page is Rails-rendered
@@ -814,6 +848,7 @@ export const PLACES: ReadonlyArray<Place> = [
   ISSUES,
   RUN,
   ACTIONS,
+  RELEASES,
   NOTIFICATIONS,
   HOME,
   PROFILE,
@@ -843,6 +878,12 @@ const BY_ADDRESS: ReadonlyArray<Place> = [
   ISSUES,
   RUN,
   ACTIONS,
+  /*
+   * Before a repository's front page, as everything else is. Its own neighbours are no trouble:
+   * `releasesIn` refuses `/releases/tag/{tag}`, `/releases/latest` and `/tags` outright, so this
+   * claims one address and never a page beside it.
+   */
+  RELEASES,
   /*
    * Before a repository's front page, as everything else is, and the order does not otherwise
    * matter: `/notifications` is one address that no other place here claims.

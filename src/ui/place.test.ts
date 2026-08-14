@@ -16,6 +16,7 @@ import {
   PLACES,
   PROFILE,
   RAISE,
+  RELEASES,
   REPO_HOME,
   REPO_ISSUES,
   REPO_PULLS,
@@ -59,6 +60,7 @@ const ADDRESSES: ReadonlyArray<readonly [string, Place]> = [
   ["/facebook/react/actions/runs/30866145080", RUN],
   ["/facebook/react/actions/runs/30866145080/job/1234", RUN],
   ["/facebook/react/actions", ACTIONS],
+  ["/facebook/react/releases", RELEASES],
   ["/notifications", NOTIFICATIONS],
   ["/facebook/react", REPO_HOME],
   ["/facebook/react/tree/main/src", REPO_HOME],
@@ -75,6 +77,14 @@ const THEIRS: Array<string> = [
   "/watching",
   "/facebook/react/settings",
   "/facebook/react/actions/caches",
+  /*
+   * One Version, the redirect to it, and their list of tags. All three are a press away from
+   * the releases list, so a place that read `/releases` as a prefix would claim the page a
+   * reader went to next and leave them looking at a gate over nothing.
+   */
+  "/facebook/react/releases/tag/v19.0.0",
+  "/facebook/react/releases/latest",
+  "/facebook/react/tags",
   // Their own stars pages, which are somebody else's list under a reserved word.
   "/stars/flazouh",
   "/stars/flazouh/lists/tools",

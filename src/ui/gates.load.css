@@ -156,6 +156,18 @@ html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet
   display: none;
 }
 
+/* releases: before ours is up. */
+html[data-gitquiet-page="releases"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-page="releases"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* releases: for as long as ours is in charge. */
+html[data-gitquiet-taken] #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
 /* notifications: before ours is up. */
 html[data-gitquiet-page="notifications"]:not([data-gitquiet-revealed]) div.js-notifications-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
   display: none;

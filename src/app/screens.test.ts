@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { fileOf, isWanted, WANTED } from "./screens"
 
 describe("naming the screen a page wants", () => {
-  test("knows the thirteen pages this extension has a screen for", () => {
+  test("knows the fourteen pages this extension has a screen for", () => {
     expect([...WANTED]).toEqual([
       "pull-request",
       "commit",
@@ -16,6 +16,7 @@ describe("naming the screen a page wants", () => {
       "issues",
       "run",
       "actions",
+      "releases",
       "notifications"
     ])
   })

@@ -75,6 +75,12 @@ html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has([id^="check_
   display: none;
 }
 
+/* releases: swapped in without a load. */
+html[data-gitquiet-gating] #repo-content-pjax-container:has(section[data-release-anchor]) > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has(section[data-release-anchor]) > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
 /* home: swapped in without a load. */
 html[data-gitquiet-gating] #dashboard.dashboard > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
 html[data-gitquiet-gating] div.copilotPreview__container,

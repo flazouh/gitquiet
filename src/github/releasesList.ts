@@ -20,7 +20,7 @@
  * which are `zeronsh/comet` as GitHub served it on 2026-08-14.
  */
 
-import type { Build, Change, SourceArchive, Version } from "../domain/release"
+import type { Attached, Build, Change, SourceArchive, Version } from "../domain/release"
 import { formIn, platformIn } from "../domain/release"
 import { text } from "./outcome"
 
@@ -169,9 +169,7 @@ const sizeIn = (row: Element): string => {
  * `/archive/refs/tags/`, and a file somebody uploaded is served from `/releases/download/`. A
  * maintainer is free to upload a file called "Source code", and one has.
  */
-export const buildsOnPage = (
-  html: string
-): { readonly builds: ReadonlyArray<Build>; readonly archives: ReadonlyArray<SourceArchive> } => {
+export const buildsOnPage = (html: string): Attached => {
   const page = parse(html)
   const builds: Array<Build> = []
   const archives: Array<SourceArchive> = []

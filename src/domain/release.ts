@@ -78,6 +78,17 @@ export type SourceArchive = {
   readonly url: string
 }
 
+/**
+ * What one Version has attached, in the two lists it really is.
+ *
+ * Two fields rather than one so that nothing can put a Source Archive in a list of Builds by
+ * accident, which is the mistake their own page makes by drawing all six alike.
+ */
+export type Attached = {
+  readonly builds: ReadonlyArray<Build>
+  readonly archives: ReadonlyArray<SourceArchive>
+}
+
 /** One entry of a repository's releases list. */
 export type Version = {
   readonly tag: string
@@ -176,6 +187,28 @@ export const rowsIn = (versions: ReadonlyArray<Version>): ReadonlyArray<Row> => 
 
   flush()
   return rows
+}
+
+/**
+ * Which Version a reader who came to download something should be offered.
+ *
+ * GitHub's own "Latest" label where they set one, because that label is the maintainer's answer
+ * to this exact question and it already skips pre-releases. Failing that, the newest Version
+ * that is not a pre-release, and only then the newest of all.
+ *
+ * The order matters on repositories where the top of the list is not the answer. Read on
+ * 2026-08-14, 89 of the 100 newest releases of `vercel/next.js` are pre-releases, so the newest
+ * Version there is a canary and the file a reader wants is further down the page than their
+ * screen shows. Offering the canary is the same mistake as offering the wrong platform.
+ */
+export const downloadable = (
+  versions: ReadonlyArray<Version>
+): Option.Option<Version> => {
+  const chosen =
+    versions.find((one) => one.latest) ??
+    versions.find((one) => !one.prerelease) ??
+    versions[0]
+  return chosen === undefined ? Option.none() : Option.some(chosen)
 }
 
 const TAB = /^\/([^/]+)\/([^/]+)\/releases\/?$/
