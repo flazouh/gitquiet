@@ -12,12 +12,13 @@ import { proposalIn } from "../domain/commitList"
 import type { Participant } from "../domain/PullRequest"
 import type { CheckRollup } from "../domain/workingSet"
 import { plainText } from "./plainText"
-import { CommitsRoute, DeferredCommitsRoute } from "./wire"
+import type { CommitsAnswer } from "./wire"
+import { commitsIn, CommitsRoute, DeferredCommitsRoute } from "./wire"
 
 export const decodeCommits = Schema.decodeUnknownEffect(CommitsRoute)
 export const decodeDeferred = Schema.decodeUnknownEffect(DeferredCommitsRoute)
 
-type WireCommit = CommitsRoute["payload"]["commitGroups"][number]["commits"][number]
+type WireCommit = CommitsAnswer["commitGroups"][number]["commits"][number]
 
 /** What GitHub renders where an account is gone, and so does everything here. */
 const GHOST = "ghost"
@@ -104,19 +105,20 @@ const restIn = (said: string): string => said.replace(/^\/[^/]+\/[^/]+/, "")
  * newest page is a button that goes nowhere.
  */
 export const historyIn = (said: CommitsRoute): History => {
-  const { pagination } = said.payload.filters
+  const answer = commitsIn(said)
+  const { pagination } = answer.filters
 
-  const days: ReadonlyArray<Day> = said.payload.commitGroups.map((group) => ({
+  const days: ReadonlyArray<Day> = answer.commitGroups.map((group) => ({
     title: group.title,
     commits: group.commits.map(landedFrom)
   }))
 
   return {
-    branch: said.payload.refInfo.name,
+    branch: answer.refInfo.name,
     days,
     older: pagination.hasNextPage ? Option.fromNullishOr(pagination.endCursor) : Option.none(),
     newer: pagination.hasPreviousPage ? Option.fromNullishOr(pagination.startCursor) : Option.none(),
-    rest: Option.fromNullishOr(said.payload.metadata?.deferredDataUrl).pipe(Option.map(restIn))
+    rest: Option.fromNullishOr(answer.metadata?.deferredDataUrl).pipe(Option.map(restIn))
   }
 }
 

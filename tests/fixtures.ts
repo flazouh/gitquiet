@@ -106,6 +106,21 @@ export const involvedIssuesAsNested: unknown = {
   }
 }
 
+/**
+ * The commit list recording, moved to where their commit list now puts it.
+ *
+ * Measured against the live route on 2026-08-15: a branch's commits answer with
+ * `payload.commitsRefRoute` holding what `payload` used to hold directly, which is the
+ * same move `/search?type=issues` made the day before and the shape their repository
+ * home and their file view have answered with for longer. Made from the recording
+ * rather than recorded again, for the reason given above it.
+ */
+export const branchCommitsAsNested: unknown = {
+  payload: {
+    commitsRefRoute: (loadFixture("branch-commits") as { readonly payload: unknown }).payload
+  }
+}
+
 export const draftWithBotFindings = {
   changes: loadFixture("changes"),
   statusChecks: loadFixture("status-checks"),

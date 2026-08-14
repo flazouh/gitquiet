@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Option } from "effect"
-import { loadFixture } from "../../tests/fixtures"
+import { branchCommitsAsNested, loadFixture } from "../../tests/fixtures"
 import { commitsOf, withMarks } from "../domain/commitList"
 import { historyFrom, marksFrom } from "./commits"
 
@@ -104,6 +104,17 @@ describe("reading a branch's commits off GitHub's own list", () => {
     const [first] = commitsOf(await read())
 
     expect(first?.committer).toEqual(Option.none())
+  })
+
+  test("reads the same list where GitHub moved it, so a branch still draws", async () => {
+    // Measured on 2026-08-15: their commit list began answering with
+    // `payload.commitsRefRoute` around what `payload` held directly, and the whole
+    // page went blank rather than short. Both are read, since a stored answer from
+    // before the move is still a branch's commits.
+    const history = await Effect.runPromise(historyFrom(branchCommitsAsNested))
+
+    expect(history.branch).toBe("main")
+    expect(commitsOf(history)).toHaveLength(9)
   })
 
   test("refuses a payload that is not theirs, rather than inventing commits", async () => {

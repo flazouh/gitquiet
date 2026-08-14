@@ -277,57 +277,83 @@ export type CommitRoute = typeof CommitRoute["Type"]
  * whether there is another and where it starts, which is all a list that grows
  * while it is read can honestly say.
  */
-export const CommitsRoute = Schema.Struct({
-  payload: Schema.Struct({
-    commitGroups: Schema.Array(
-      Schema.Struct({
-        title: Schema.String,
-        commits: Schema.Array(
-          Schema.Struct({
-            oid: Schema.String,
-            authoredDate: Schema.String,
-            // As on a commit's own page: a merge made through their web
-            // interface carries the headline as rendered markdown and nothing
-            // else, so the mapper takes whichever came.
-            shortMessage: Schema.optional(Schema.NullOr(Schema.String)),
-            shortMessageMarkdown: Schema.optional(Schema.NullOr(Schema.String)),
-            bodyMessageHtml: Schema.optional(Schema.NullOr(Schema.String)),
-            authors: Schema.Array(CommitAuthor),
-            // Who put it on the branch, and whether GitHub thinks that is worth
-            // saying. `committerAttribution` is their own answer to "are these
-            // two the same person": false on the ordinary commit, true where a
-            // rebase or a patch applied on somebody's behalf split them.
-            committer: Schema.optional(Schema.NullOr(CommitAuthor)),
-            committerAttribution: Schema.optional(Schema.Boolean)
-          })
-        )
-      })
-    ),
-    // Which branch they resolved, which an address naming none still gets.
-    refInfo: Schema.Struct({
-      name: Schema.String
-    }),
-    // Where the rest of what they know about this page is. Their own list asks
-    // for it as a second request the moment the rows are drawn.
-    metadata: Schema.optional(
-      Schema.NullOr(
+const CommitsAnswer = Schema.Struct({
+  commitGroups: Schema.Array(
+    Schema.Struct({
+      title: Schema.String,
+      commits: Schema.Array(
         Schema.Struct({
-          deferredDataUrl: Schema.optional(Schema.NullOr(Schema.String))
+          oid: Schema.String,
+          authoredDate: Schema.String,
+          // As on a commit's own page: a merge made through their web
+          // interface carries the headline as rendered markdown and nothing
+          // else, so the mapper takes whichever came.
+          shortMessage: Schema.optional(Schema.NullOr(Schema.String)),
+          shortMessageMarkdown: Schema.optional(Schema.NullOr(Schema.String)),
+          bodyMessageHtml: Schema.optional(Schema.NullOr(Schema.String)),
+          authors: Schema.Array(CommitAuthor),
+          // Who put it on the branch, and whether GitHub thinks that is worth
+          // saying. `committerAttribution` is their own answer to "are these
+          // two the same person": false on the ordinary commit, true where a
+          // rebase or a patch applied on somebody's behalf split them.
+          committer: Schema.optional(Schema.NullOr(CommitAuthor)),
+          committerAttribution: Schema.optional(Schema.Boolean)
         })
       )
-    ),
-    filters: Schema.Struct({
-      pagination: Schema.Struct({
-        startCursor: Schema.optional(Schema.NullOr(Schema.String)),
-        endCursor: Schema.optional(Schema.NullOr(Schema.String)),
-        hasNextPage: Schema.Boolean,
-        hasPreviousPage: Schema.Boolean
+    })
+  ),
+  // Which branch they resolved, which an address naming none still gets.
+  refInfo: Schema.Struct({
+    name: Schema.String
+  }),
+  // Where the rest of what they know about this page is. Their own list asks
+  // for it as a second request the moment the rows are drawn.
+  metadata: Schema.optional(
+    Schema.NullOr(
+      Schema.Struct({
+        deferredDataUrl: Schema.optional(Schema.NullOr(Schema.String))
       })
+    )
+  ),
+  filters: Schema.Struct({
+    pagination: Schema.Struct({
+      startCursor: Schema.optional(Schema.NullOr(Schema.String)),
+      endCursor: Schema.optional(Schema.NullOr(Schema.String)),
+      hasNextPage: Schema.Boolean,
+      hasPreviousPage: Schema.Boolean
     })
   })
 })
 
+export type CommitsAnswer = typeof CommitsAnswer["Type"]
+
+/**
+ * The same list, at either of the two places GitHub puts it.
+ *
+ * Measured on 2026-08-15: a branch's commits began arriving inside
+ * `payload.commitsRefRoute`, where they had been `payload` itself, and the page went
+ * blank rather than short because a list is drawn from this or from nothing. It is the
+ * move `/search?type=issues` made the day before, and their repository home and their
+ * file view have answered this way for longer, so this is one route catching up with a
+ * convention rather than a change of its own. Both are read: a page GitHub serves today
+ * and an answer kept from before the move are both a branch's commits.
+ *
+ * Nested first, for the reason {@link IssueSearchRoute} gives.
+ */
+export const CommitsRoute = Schema.Struct({
+  payload: Schema.Union([Schema.Struct({ commitsRefRoute: CommitsAnswer }), CommitsAnswer])
+})
+
 export type CommitsRoute = typeof CommitsRoute["Type"]
+
+/**
+ * The list itself, wherever it arrived.
+ *
+ * One place, so that everything downstream reads one shape and the move above stays a
+ * fact about the wire rather than a branch in the interface.
+ */
+export const commitsIn = (said: CommitsRoute): CommitsAnswer =>
+  "commitsRefRoute" in said.payload ? said.payload.commitsRefRoute : said.payload
 
 /**
  * The facts GitHub holds back from its own commit list.

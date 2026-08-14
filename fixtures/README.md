@@ -68,7 +68,10 @@ script, so a dead default can be worked around in one run.
 Until 2026-08-14 this covered five routes out of thirty-four schemas, all five on
 one pull request. That is why the widening exists: on the morning
 `/search?type=issues` moved its whole answer into `payload.blackbirdSearchRoute`
-and blanked both issue screens, `bun run drift` printed five `ok` lines.
+and blanked both issue screens, `bun run drift` printed five `ok` lines. The next day
+the same move reached the commit list, as `payload.commitsRefRoute`, and blanked a
+branch's commits: two routes catching up in two days with the shape their repository
+home and their file view already answered with.
 
 This is not wired into scheduled CI. These routes authenticate with a browser
 session cookie, which is a full account credential, and storing one in Actions

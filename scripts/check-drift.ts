@@ -8,6 +8,7 @@ import {
   ChangesRoute,
   CommitDiffsRoute,
   CommitRoute,
+  commitsIn,
   CommitsRoute,
   ContributorsRoute,
   DeferredCommitsRoute,
@@ -343,7 +344,7 @@ const routes: ReadonlyArray<Check> = [
     url: () => `${REPO}/commits/${encodeURIComponent(branch)}`,
     schema: CommitsRoute,
     learn: (answered) => {
-      const deferred = answered.payload.metadata?.deferredDataUrl
+      const deferred = commitsIn(answered).metadata?.deferredDataUrl
       if (typeof deferred !== "string") return
 
       // Their address carries the repository as well as the route, and the
@@ -352,7 +353,7 @@ const routes: ReadonlyArray<Check> = [
       deferredCommits = `${REPO}${deferred.replace(/^\/[^/]+\/[^/]+/, "")}`
     },
     note: (answered) =>
-      `${answered.payload.commitGroups.reduce((all, group) => all + group.commits.length, 0)} commits`
+      `${commitsIn(answered).commitGroups.reduce((all, group) => all + group.commits.length, 0)} commits`
   }),
   checking({
     name: "deferred_commits",
