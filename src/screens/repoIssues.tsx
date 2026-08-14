@@ -2,6 +2,7 @@ import { Effect, Fiber, Option } from "effect"
 import { rememberedRepositories } from "@/app/destinations"
 import { forgetIntent, intendedPath } from "@/app/intent"
 import { type ListedIssues, loadIssueList, rememberedIssueList } from "@/app/issueList"
+import { drawingIssues } from "@/app/rows"
 import { type IssueList, issueListIn, queryFor, seeding } from "@/domain/issueList"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import type { View } from "@/domain/Settings"
@@ -56,12 +57,25 @@ const open = (
 ): (() => void) => {
   const asked = queryFor(list)
 
+  /**
+   * What this list has on the screen, said for the screen that a press on one of
+   * these rows opens.
+   *
+   * Both answers below say it, because either can be the page the reader is
+   * pressing a row of: what was remembered paints first and the live read lands
+   * over it. A memory that landed second would leave the issue screen a header one
+   * read old, which is the bargain everything remembered here already makes. See
+   * `src/app/rows.ts`.
+   */
+  const drawn = (listed: ListedIssues): void => drawingIssues(window, listed.rows)
+
   const reading = () =>
     loadIssueList(asked, list.page).pipe(
       throughGitHub,
       Effect.tap((listed) =>
         Effect.sync(() => {
           asLastSeen = { address: addressOf(list), listed }
+          drawn(listed)
         })
       ),
       Effect.tapError((error) => Effect.sync(() => reportError(error)))
@@ -77,7 +91,7 @@ const open = (
    * second for a search.
    */
   const remembered = () =>
-    held !== undefined
+    (held !== undefined
       ? Effect.succeed(Option.some(held))
       : rememberedIssueList(asked, list.page).pipe(
           throughGitHub,
@@ -85,6 +99,13 @@ const open = (
           // worth reporting: the live read is on its way and is the answer.
           Effect.catch(() => Effect.succeed(Option.none<ListedIssues>()))
         )
+    ).pipe(
+      Effect.tap((was) =>
+        Effect.sync(() => {
+          if (Option.isSome(was)) drawn(was.value)
+        })
+      )
+    )
 
   // Started before anything is waited on. Reading the list and waiting for
   // GitHub to render a region to stand in have nothing to say to each other.

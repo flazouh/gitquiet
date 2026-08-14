@@ -2,6 +2,7 @@ import { Effect, Fiber, Option } from "effect"
 import { rememberedRepositories } from "@/app/destinations"
 import { forgetIntent, intendedPath } from "@/app/intent"
 import { type ListedIssues, loadIssueList, rememberedIssueList } from "@/app/issueList"
+import { drawingIssues } from "@/app/rows"
 import {
   type IssueDashboard,
   issueDashboardIn,
@@ -62,12 +63,20 @@ const open = (
 ): (() => void) => {
   const asked = queryFor(dash)
 
+  /**
+   * What this tab has on the screen, said for the screen that a press on one of
+   * these rows opens. The same as a repository's own list does it, and for the
+   * same reason: see `src/app/rows.ts`.
+   */
+  const drawn = (listed: ListedIssues): void => drawingIssues(window, listed.rows)
+
   const reading = () =>
     loadIssueList(asked, dash.page).pipe(
       throughGitHub,
       Effect.tap((listed) =>
         Effect.sync(() => {
           asLastSeen = { address: addressOf(dash), listed }
+          drawn(listed)
         })
       ),
       Effect.tapError((error) => Effect.sync(() => reportError(error)))
@@ -83,7 +92,7 @@ const open = (
    * second for a search.
    */
   const remembered = () =>
-    held !== undefined
+    (held !== undefined
       ? Effect.succeed(Option.some(held))
       : rememberedIssueList(asked, dash.page).pipe(
           throughGitHub,
@@ -91,6 +100,13 @@ const open = (
           // worth reporting: the live read is on its way and is the answer.
           Effect.catch(() => Effect.succeed(Option.none<ListedIssues>()))
         )
+    ).pipe(
+      Effect.tap((was) =>
+        Effect.sync(() => {
+          if (Option.isSome(was)) drawn(was.value)
+        })
+      )
+    )
 
   // Started before anything is waited on. Reading the list and waiting for
   // GitHub to render a region to stand in have nothing to say to each other.

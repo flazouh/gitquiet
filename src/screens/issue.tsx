@@ -4,6 +4,7 @@ import { uploadFile } from "@/app/attaching"
 import { loadSuggesting } from "@/app/suggesting"
 import { rememberedRepositories } from "@/app/destinations"
 import { forgetIntent, intendedPath } from "@/app/intent"
+import { issueDrawn } from "@/app/rows"
 import { fromPathname, type IssueRef } from "@/domain/issues"
 import type { GitHubGateway } from "@/ports/GitHubGateway"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
@@ -57,6 +58,16 @@ const open = (reference: IssueRef, onUseGitHub?: () => void): (() => void) => {
   // read against one request to GitHub.
   const remembered = Effect.runFork(rememberedIssue(reference).pipe(throughGitHub))
 
+  /**
+   * The row for this issue, where the list the reader pressed had one.
+   *
+   * Read here rather than waited for, because it is already on the page: the list
+   * says what it has on the screen for as long as it is up. Nothing for a pasted
+   * address or a link off GitHub's own page, and the screen then waits as it
+   * always did. See `rows.ts`.
+   */
+  const row = issueDrawn(window, reference)
+
   /*
    * The read above was started before there was anything to render into, so the
    * first ask is given what is already in flight. Every ask after it is somebody
@@ -81,6 +92,7 @@ const open = (reference: IssueRef, onUseGitHub?: () => void): (() => void) => {
         reference={reference}
         load={read}
         preload={() => Fiber.join(remembered)}
+        row={row}
         recallRepositories={recallRepositories}
         /*
          * The box to write in, which took their own mutation to make possible.

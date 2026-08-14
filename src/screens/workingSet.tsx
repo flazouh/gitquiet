@@ -13,6 +13,7 @@ import {
   rememberedActivity,
   rememberedRepositories,
 } from "@/app/destinations";
+import { drawingIssues } from "@/app/rows";
 import { loadWorkingSet, rememberedWorkingSet } from "@/app/workingSet";
 import { fromPathname, type PullRequestRef } from "@/domain/PullRequestRef";
 import type { RowDoing } from "@/domain/doable";
@@ -88,6 +89,22 @@ const placeAt = (path: string): Place => (isHome(path) ? HOME : DASHBOARD);
  * page that is not a list at all.
  */
 const open = (place: Place): (() => void) => {
+  /**
+   * The issues in the Courts, said for the screen that a press on one of them
+   * opens.
+   *
+   * Half of what this list holds is issues, and pressing one of those used to
+   * leave the reader on a page saying "Reading this issue…" for seconds. The row
+   * is the issue's header, so the row is handed over. Pull requests are not: a
+   * card is read ahead on the hover and opens from the store. See
+   * `src/app/rows.ts`.
+   */
+  const drawn = (sittings: ReadonlyArray<Sitting>): void =>
+    drawingIssues(
+      window,
+      sittings.flatMap((sitting) => sitting.issues),
+    );
+
   // Started before anything is waited on. Reading the Working Set and waiting for
   // GitHub to render a region to stand in have nothing to say to each other, and
   // running them one after the other spends the whole of GitHub's page load doing
@@ -100,6 +117,7 @@ const open = (place: Place): (() => void) => {
       Effect.tap((sittings) =>
         Effect.sync(() => {
           asLastSeen = Option.some(sittings);
+          drawn(sittings);
         }),
       ),
       Effect.tapError((error) => Effect.sync(() => reportError(error))),
@@ -119,7 +137,7 @@ const open = (place: Place): (() => void) => {
    * six shelves, and rows without their stacks or their sizes.
    */
   const remembered = () =>
-    Option.isSome(asLastSeen)
+    (Option.isSome(asLastSeen)
       ? Effect.succeed(asLastSeen)
       : rememberedWorkingSet().pipe(
           throughGitHub,
@@ -128,7 +146,16 @@ const open = (place: Place): (() => void) => {
           Effect.catch(() =>
             Effect.succeed(Option.none<ReadonlyArray<Sitting>>()),
           ),
-        );
+        )
+    ).pipe(
+      // Whichever of the two is on the screen is the one whose rows a press lands
+      // on, so both say what they hold.
+      Effect.tap((was) =>
+        Effect.sync(() => {
+          if (Option.isSome(was)) drawn(was.value);
+        }),
+      ),
+    );
 
   // The first ask joins what is already in flight; every ask after it is
   // somebody saying the Working Set has changed, and joining that same finished
