@@ -73,17 +73,18 @@ describe("what a screen says while it is checking what it remembered", () => {
     render(<Screen load={load} preload={preload} />)
     await waitFor(() => expect(toldOf()).not.toBeNull())
 
-    await settle(400)
+    // Awaited rather than slept past: 400ms is a hundred more than the read takes
+    // here, and a loaded machine spends that on less than this.
+    await waitFor(() => {
+      expect(rowsOf()).toBe("fresh")
+      expect(screen.getByText(UP_TO_DATE)).toBeDefined()
+    })
 
-    expect(rowsOf()).toBe("fresh")
-    expect(screen.getByText(UP_TO_DATE)).toBeDefined()
     // In place: one toast, which spun and then said what came of it.
     expect(standing()).toBe(1)
 
     // And then it goes on its own, which the sentence before it never did.
-    await settle(SETTLED + 400)
-
-    expect(standing()).toBe(0)
+    await waitFor(() => expect(standing()).toBe(0), { timeout: SETTLED + 2000 })
   })
 
   test("says nothing at all where the screen went away mid-read", async () => {

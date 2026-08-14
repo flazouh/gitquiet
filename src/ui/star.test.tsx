@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import type { Starring } from "../domain/repoHome"
@@ -74,9 +74,13 @@ describe("the star", () => {
     showing("unstarred", { onStar: () => Effect.fail("no") })
 
     await userEvent.click(screen.getByRole("button"))
-    await Effect.runPromise(Effect.sleep("10 millis"))
 
-    expect(screen.getByRole("button").getAttribute("aria-pressed")).toBe("false")
+    // Awaited rather than given ten milliseconds: what is being waited for is a
+    // state change and a render, and a machine under load takes longer than any
+    // figure written here.
+    await waitFor(() =>
+      expect(screen.getByRole("button").getAttribute("aria-pressed")).toBe("false")
+    )
   })
 
   test("throws the sparks on the way in and not on the way out", async () => {
