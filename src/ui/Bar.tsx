@@ -122,6 +122,24 @@ export type BarProps = {
    * advertises a slash key that now belongs to the Rail's filter.
    */
   readonly onSearch?: () => void;
+  /**
+   * Going back to the page behind this one, from whoever knows there is one.
+   *
+   * Left out and nothing is drawn at all, which is a tab opened straight onto
+   * this address: a back control with nothing behind it presses into nothing,
+   * and this bar exists to stop the version of that mistake their own strip
+   * makes. See `somewhereBehind` in `going.ts`.
+   */
+  readonly onBack?: () => void;
+  /**
+   * What the page behind this one is called, where anything knows.
+   *
+   * "Back" is honest and says only which direction. "Back to the Working Set" is
+   * what a reader deciding whether to press it is asking. Only our own pushes
+   * leave the address behind on the entry, so a reader who arrived from GitHub's
+   * own list gets the direction and no name. See `cameFrom`.
+   */
+  readonly backTo?: string;
   readonly onStepAside?: () => void;
   /**
    * Whatever the shell keeps in the tray beside the inbox — in the extension, the way into the
@@ -243,12 +261,15 @@ export const Bar = ({
   at = window.location.pathname,
   participant,
   onSearch,
+  onBack,
+  backTo,
   onStepAside,
   corner,
 }: BarProps) => {
   const art = useArt();
   const Chevron = art["chevron-down"];
   const Search = art.search;
+  const Back = art.back;
   // The tray says which state it is in, so the two are named rather than one
   // glyph with something drawn over it.
   const Inbox = unread ? art["notifications-unread"] : art.notifications;
@@ -313,6 +334,41 @@ export const Bar = ({
        */
       className="flex h-10 items-center gap-2 bg-surface px-2 text-sm text-ink shadow-pop"
     >
+      {/*
+       * The way back, first in the strip, before the mark for Home.
+       *
+       * The mirror of the way out at the other end. This row already reads
+       * outward to inward — Home, then the repository, then the section a page is
+       * in — and the page behind this one stands a step further out than any of
+       * them, so it goes at the head of that sequence rather than into the middle
+       * of it. It is also the corner every browser and every window on the
+       * machine keeps a back control in, and this bar stands where a browser's
+       * chrome does not: in the extension's own window there is nothing above it.
+       *
+       * Not on the screen below, which is where the exit used to be. A control
+       * that exists on one of the four screens is a control a reader has to find
+       * again on the other three, and that argument is what put the GitHub mark
+       * in this row in the first place.
+       *
+       * Not beside that mark either. The far corner means leaving this interface
+       * for GitHub's page, and going back moves within it: two controls a hand
+       * cannot tell apart is how a reader learns to distrust both.
+       *
+       * Wordless like the tray at the other end. The mark says the direction and
+       * the name says the destination, for a pointer and for anyone being read to.
+       */}
+      {onBack === undefined ? null : (
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label={backTo === undefined ? "Back" : `Back to ${backTo}`}
+          title={backTo === undefined ? "Back" : `Back to ${backTo}`}
+          className="grid size-7 shrink-0 place-items-center rounded-md text-ink-muted hover:bg-hover hover:text-ink"
+        >
+          <Back size={16} />
+        </button>
+      )}
+
       <Ours here={where.kind === "home"} />
 
       {where.kind === "home" ? null : (

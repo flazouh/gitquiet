@@ -53,6 +53,48 @@ export const ourOwnRowsDrawn = (target: Window): boolean =>
   (target as World).gitquietOwnRows === true
 
 /**
+ * What a push of ours leaves on the entry it makes: the address left behind.
+ *
+ * Read by the bar, which draws the way back and names where it goes. "Back" is a
+ * direction and "Back to the Working Set" is a destination, and the entry is the
+ * only thing that knows which of the two is true.
+ *
+ * On the entry rather than on the window that {@link drawingOurOwnRows} uses. A
+ * flag on the window would survive the screen swap, which is what that one wants
+ * — and it would also survive going back, going forward and reloading, which are
+ * three ways of standing on an entry this push never made. The browser keeps
+ * state with the entry, which is the lifetime this fact actually has.
+ */
+type OurEntry = { readonly gitquiet: { readonly from: string } }
+
+/** The address the reader was on before this one, where a push of ours named it. */
+export const cameFrom = (target: Window): string | undefined => {
+  const state = target.history.state as Partial<OurEntry> | null
+  return state?.gitquiet?.from
+}
+
+/**
+ * Whether there is a page behind this one to go back to.
+ *
+ * `history.length`, which is as much as a browser will say. Whether the entry
+ * behind is one of ours, GitHub's own or another site altogether cannot be read
+ * from a page, and it makes no difference to the press: `back()` returns to it
+ * either way. One entry is a tab opened straight onto this address, by a middle
+ * click or a pasted link, and there is nothing behind it at all.
+ */
+export const somewhereBehind = (target: Window): boolean => target.history.length > 1
+
+/**
+ * Back to the page behind this one, which is the browser's own move and not ours.
+ *
+ * Here because everything that touches history is here. A screen says the reader
+ * is going back; it does not reach into `history` to do it.
+ */
+export const goBack = (target: Window): void => {
+  target.history.back()
+}
+
+/**
  * Sends the reader to one of our screens, and makes sure the address never gets
  * ahead of what is on the page.
  *
@@ -118,12 +160,14 @@ export const goTo = (
 
   const leaving = theScreenOnThePage(target.document)
   const cameUp = arrived ?? (() => theScreenOnThePage(target.document) !== leaving)
+  // Read before the push, which is the moment it stops being true.
+  const from = addressOf(target)
 
   // The screen being left stays on the page until the next one is in the
   // document. Its own script hears this address change too, and would otherwise
   // hand the page back to GitHub in the same turn.
   holdTheSurface(target.document)
-  target.history.pushState(null, "", path)
+  target.history.pushState({ gitquiet: { from } } satisfies OurEntry, "", path)
 
   target.setTimeout(() => {
     // Somewhere else entirely by now: a second press, or the back button. This

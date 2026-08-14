@@ -672,3 +672,65 @@ describe("the search", () => {
     expect(asked).toBe(1)
   })
 })
+
+/*
+ * Where it goes is the whole of this. The strip reads outward to inward — the page
+ * behind, Home, the repository, the section — and the far corner is for leaving this
+ * interface for GitHub's page, which is a different move.
+ */
+describe("the way back", () => {
+  const REPOSITORY = { kind: "repository", owner: "flowline-labs", repo: "flowline" } as const
+
+  test("stands at the head of the strip, before the mark for Home", () => {
+    render(<Bar where={REPOSITORY} onBack={() => undefined} />)
+
+    const bar = screen.getByRole("banner")
+    const back = screen.getByRole("button", { name: "Back" })
+    const home = screen.getByLabelText("Home")
+
+    expect(bar.firstElementChild).toBe(back)
+    expect(back.compareDocumentPosition(home) & Node.DOCUMENT_POSITION_FOLLOWING).toBeGreaterThan(0)
+  })
+
+  test("is not the way out, which keeps the other corner", () => {
+    render(<Bar where={REPOSITORY} onBack={() => undefined} onStepAside={() => undefined} />)
+
+    const back = screen.getByRole("button", { name: "Back" })
+    const out = screen.getByRole("button", { name: "Show GitHub's own page" })
+
+    expect(back).not.toBe(out)
+    expect(back.compareDocumentPosition(out) & Node.DOCUMENT_POSITION_FOLLOWING).toBeGreaterThan(0)
+  })
+
+  test("names where it goes, where anything knows the name", () => {
+    render(<Bar where={REPOSITORY} onBack={() => undefined} backTo="the Working Set" />)
+
+    const back = screen.getByRole("button", { name: "Back to the Working Set" })
+    expect(back.getAttribute("title")).toBe("Back to the Working Set")
+  })
+
+  /*
+   * A tab opened straight onto this address has nothing behind it, and a control
+   * that presses into nothing is the fault this bar exists to undo.
+   */
+  test("is not drawn at all where there is nothing behind the page", () => {
+    render(<Bar where={REPOSITORY} />)
+
+    expect(screen.queryByRole("button", { name: /^back/i })).toBeNull()
+  })
+
+  test("hands the press to whoever knows how to go back", async () => {
+    let asked = 0
+    render(
+      <Bar
+        where={REPOSITORY}
+        onBack={() => {
+          asked += 1
+        }}
+      />
+    )
+
+    await userEvent.click(screen.getByRole("button", { name: "Back" }))
+    expect(asked).toBe(1)
+  })
+})

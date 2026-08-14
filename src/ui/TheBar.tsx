@@ -2,9 +2,11 @@ import { Effect, Option } from "effect";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Owed } from "../domain/finding";
+import { showsWorkingSet } from "../domain/pages";
 import type { Repository } from "../domain/repositories";
 import { keepTabs, keptTabs } from "../github/repoTabs";
 import { Bar, type BarProps } from "./Bar";
+import { cameFrom, goBack, somewhereBehind } from "./going";
 import { keepTheBarSlot, theBarSlot, theBarStands } from "./barSlot";
 import { keepRepositories, keptRepositories } from "./keptRepositories";
 import { Palette } from "./Palette";
@@ -42,7 +44,7 @@ export const TheBar = ({
   recall,
   participant,
   ...props
-}: Omit<BarProps, "tabs" | "onSearch" | "corner"> & {
+}: Omit<BarProps, "tabs" | "onSearch" | "corner" | "onBack" | "backTo"> & {
   /**
    * Every repository the reader has, for the palette. Left out and no search is offered at
    * all — a control that presses into an empty list is the mistake this bar exists to undo.
@@ -253,6 +255,22 @@ export const TheBar = ({
    */
   const [lately] = useState(visited);
 
+  /*
+   * Whether there is a page behind this one, and what to call it, read once for
+   * the life of this screen.
+   *
+   * Once rather than on every render, and it costs nothing to keep: `history.length`
+   * grows as the reader moves, and a control that appeared in the corner of the
+   * strip halfway through a read would be a control nobody asked for. Every move
+   * between screens of ours builds a whole new bar anyway — each screen is its own
+   * bundle — so the answer is fresh on the page it describes.
+   */
+  const [back] = useState(() =>
+    somewhereBehind(window)
+      ? { to: theNameOf(cameFrom(window)) }
+      : undefined,
+  );
+
   useEffect(() => {
     if (props.where.kind !== "repository") return;
     visiting(`${props.where.owner}/${props.where.repo}`);
@@ -322,6 +340,8 @@ export const TheBar = ({
           readingTheCode(props.where, window.location.pathname)
         }
         onSearch={searchable ? () => setFinding(true) : undefined}
+        onBack={back === undefined ? undefined : () => goBack(window)}
+        backTo={back?.to}
         corner={<SettingsDialog settings={settings} onChange={change} />}
       />
       {finding ? (
@@ -344,6 +364,24 @@ export const TheBar = ({
     slot,
   );
 };
+
+/**
+ * What to call the page behind this one, where one of our own pushes named it.
+ *
+ * The Working Set is the one page worth naming. It is where a reader presses a row
+ * from, so it is the page behind more often than any other, and it is the one whose
+ * address — `/` or `/pulls` — says nothing about what is on it. Everything else
+ * keeps the plain direction: a name guessed off an address is how a control comes
+ * to promise a page that is not there.
+ *
+ * Nothing at all where the entry is not ours, which is every arrival from GitHub's
+ * own list or a pasted link. `back()` still goes there; the strip just does not
+ * claim to know what there is.
+ */
+const theNameOf = (from: string | undefined): string | undefined =>
+  from !== undefined && showsWorkingSet(from.replace(/[?#].*$/, ""))
+    ? "the Working Set"
+    : undefined;
 
 /**
  * Whether two reads of the repository list are the same list.

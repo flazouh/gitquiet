@@ -5,10 +5,13 @@ import { BAR_ID } from "./barSlot"
 import {
   answerPress,
   answerPressesIn,
+  cameFrom,
   drawingOurOwnRows,
+  goBack,
   goTo,
   ourOwnRowsDrawn,
-  oursToAnswer
+  oursToAnswer,
+  somewhereBehind
 } from "./going"
 import { ROOT_ID } from "./mount"
 
@@ -17,6 +20,8 @@ const aPullRequest = (path: string): boolean => Option.isSome(fromPathname(path)
 
 type Recorded = {
   readonly pushed: Array<string>
+  /** What was pushed onto the entry beside the address. See `cameFrom`. */
+  readonly stated: Array<unknown>
   readonly replaced: Array<string>
   readonly later: Array<() => void>
 }
@@ -55,7 +60,7 @@ const aPageOfOurs = (): {
       <a href="https://github.com/owner/repo/issues" aria-label="their tab">Issues</a>
     </div>`
 
-  const recorded: Recorded = { pushed: [], replaced: [], later: [] }
+  const recorded: Recorded = { pushed: [], stated: [], replaced: [], later: [] }
   const screen = page.getElementById(ROOT_ID) as Element
 
   const target = {
@@ -67,7 +72,12 @@ const aPageOfOurs = (): {
       hash: "",
       replace: (path: string) => recorded.replaced.push(path)
     },
-    history: { pushState: (_: unknown, __: string, path: string) => recorded.pushed.push(path) },
+    history: {
+      pushState: (state: unknown, _: string, path: string) => {
+        recorded.stated.push(state)
+        recorded.pushed.push(path)
+      }
+    },
     setTimeout: (run: () => void) => {
       recorded.later.push(run)
       return 0
@@ -307,6 +317,76 @@ describe("going somewhere by hand, as the keyboard does", () => {
     goTo(page.window, "/owner/repo")
 
     expect(page.recorded.pushed).toEqual(["/owner/repo"])
+  })
+})
+
+/*
+ * The bar draws a way back and names where it goes, and only the entry knows the
+ * name: "Back" is a direction, "Back to the Working Set" is a destination. The
+ * address left behind is written onto the entry the push makes, so it survives the
+ * screen swap, and going back onto an entry nobody pushed answers nothing.
+ */
+describe("the way back", () => {
+  test("writes the address being left onto the entry the push makes", () => {
+    const page = aPageOfOurs()
+
+    goTo(page.window, "/owner/repo/pull/12")
+
+    expect(page.recorded.stated).toEqual([{ gitquiet: { from: "/pulls/inbox" } }])
+  })
+
+  test("writes the whole address, so the way back is the page that was on the screen", () => {
+    const page = aPageOfOurs()
+    const at = page.window.location as { pathname: string; search: string }
+    at.pathname = "/owner/repo/pulls"
+    at.search = "?page=2"
+
+    goTo(page.window, "/owner/repo/pull/12")
+
+    expect(page.recorded.stated).toEqual([
+      { gitquiet: { from: "/owner/repo/pulls?page=2" } }
+    ])
+  })
+
+  const standingOn = (state: unknown, length: number): Window =>
+    ({ history: { state, length } }) as unknown as Window
+
+  test("reads the address back off an entry one of our pushes made", () => {
+    expect(cameFrom(standingOn({ gitquiet: { from: "/pulls" } }, 2))).toBe("/pulls")
+  })
+
+  /*
+   * Every arrival from GitHub's own list is one of these, and so is a pasted link
+   * and a reload. `back()` still goes somewhere; the strip declines to say what.
+   */
+  test("says nothing about an entry nobody of ours pushed", () => {
+    expect(cameFrom(standingOn(null, 2))).toBeUndefined()
+    expect(cameFrom(standingOn({ turbo: true }, 2))).toBeUndefined()
+  })
+
+  test("offers the way back wherever a browser has one, ours or theirs", () => {
+    expect(somewhereBehind(standingOn(null, 2))).toBe(true)
+    expect(somewhereBehind(standingOn({ gitquiet: { from: "/pulls" } }, 4))).toBe(true)
+  })
+
+  /*
+   * A tab opened straight onto a pull request by a middle click or a pasted link.
+   * A control that presses into nothing is the fault the bar exists to undo, so
+   * there is nothing to draw here.
+   */
+  test("offers none on a tab with nothing behind it", () => {
+    expect(somewhereBehind(standingOn(null, 1))).toBe(false)
+  })
+
+  test("goes back through the browser rather than by pushing an address", () => {
+    const went: Array<true> = []
+    const target = {
+      history: { state: null, length: 2, back: () => went.push(true) }
+    } as unknown as Window
+
+    goBack(target)
+
+    expect(went).toEqual([true])
   })
 })
 
