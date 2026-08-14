@@ -5,12 +5,17 @@ import { Filters } from "./Filters"
 
 afterEach(cleanup)
 
-const showing = (query = "", authors: ReadonlyArray<string> = ["flazouh", "octocat"]) => {
+const showing = (
+  query = "",
+  authors: ReadonlyArray<string> = ["flazouh", "octocat"],
+  repos: ReadonlyArray<string> = ["oven-sh/bun", "flazouh/octo-repo"]
+) => {
   let asked = query
   const view = render(
     <Filters
       query={query}
       authors={authors}
+      repos={repos}
       viewer="flazouh"
       what="the Working Set"
       onQuery={(next) => {
@@ -29,7 +34,7 @@ describe("the filter row above a list", () => {
     showing()
 
     expect(screen.getByRole("searchbox", { name: /Filter/ })).toBeDefined()
-    for (const name of [/Author/, /Checks/, /Review/, /State/, /Activity/]) {
+    for (const name of [/Author/, /Repository/, /Checks/, /Review/, /State/, /Activity/]) {
       expect(chip(name)).toBeDefined()
     }
   })
@@ -104,6 +109,37 @@ describe("the filter row above a list", () => {
     expect(within(menu).getByLabelText("octocat")).toBeDefined()
     // "Mine" is the reader's own face rather than a word standing in for one.
     expect(within(menu).getByLabelText("flazouh")).toBeDefined()
+  })
+
+  test("offers the repositories the rows are in, each behind its owner's picture", async () => {
+    // The same trick the Author chip plays. A list of every repository on GitHub
+    // would be a search box; what is useful is the handful in front of the reader.
+    showing("", ["octocat"], ["oven-sh/bun"])
+
+    await userEvent.click(chip(/Repository/))
+    const menu = screen.getByRole("menu")
+
+    expect(within(menu).getByRole("menuitemcheckbox", { name: /bun/ })).toBeDefined()
+    expect(within(menu).getByLabelText("oven-sh")).toBeDefined()
+  })
+
+  test("writes the repository the reader pointed at, named in full", async () => {
+    // In full, because two owners can name a repository the same way and the
+    // line has to say which one was asked for.
+    const { asked } = showing("", ["octocat"], ["oven-sh/bun"])
+
+    await userEvent.click(chip(/Repository/))
+    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: /bun/ }))
+
+    expect(asked()).toBe("repo:oven-sh/bun")
+  })
+
+  test("leaves the chip out where every row is in one repository", () => {
+    // A repository's own list already says which one above the rows, so a chip
+    // offering the only answer is a control that cannot change anything.
+    showing("", ["octocat"], [])
+
+    expect(screen.queryByRole("button", { name: /Repository/ })).toBeNull()
   })
 
   test("draws each state in the tone a row draws it in", async () => {

@@ -14,6 +14,7 @@ import {
   STATE_WORDS
 } from "./Icon"
 import { FIELD, HERE } from "./dress"
+import { Owner } from "./Owner"
 import { Who } from "./Who"
 
 /**
@@ -193,6 +194,37 @@ const authorFacet = (
   ]
 })
 
+/**
+ * The Repository chip, built from the repositories the rows are in.
+ *
+ * The Author chip's reasoning one column across. A Working Set spans everything
+ * the reader is involved in, and the question a reader brings to it half the time
+ * is about one repository: what is owed on the thing they are working on this
+ * afternoon. That was already typeable — the address is in the words a plain term
+ * searches — but only as a word, so `bun` also matched a title mentioning it.
+ *
+ * Named in full in the term and by its own name on the chip, with the owner's
+ * picture beside it. `oven-sh/bun` is what goes into the line, because two owners
+ * can name a repository the same way; `bun` is what is read, because the picture
+ * has already said whose it is. The same pair the rows below wear.
+ *
+ * Empty where every row is in one repository, and an empty facet is not drawn:
+ * a repository's own list says which one above the rows, so a chip there offers
+ * the only answer there is.
+ */
+const repoFacet = (repos: ReadonlyArray<string>): Facet => ({
+  name: "Repository",
+  terms: repos.map((full) => {
+    const [owner = full, repo = full] = full.split("/")
+
+    return {
+      term: `repo:${full}`,
+      words: repo,
+      mark: <Owner owner={owner} size={16} />
+    }
+  })
+})
+
 const chosenIn = (query: string, facet: Facet): ReadonlyArray<Term> =>
   facet.terms.filter((one) => asked(query, one.term))
 
@@ -313,6 +345,9 @@ const Chip = ({
  * `is:failing` is a check and an issue has none, so on a list of issues it
  * teaches a word that empties the list.
  */
+/** One array rather than a fresh one per render, so the facets are rebuilt only when they change. */
+const NO_REPOS: ReadonlyArray<string> = []
+
 const EXAMPLE: Record<"work" | "issues", string> = {
   work: "Filter by title, or author:me is:failing",
   issues: "Filter by title, or author:me is:closed"
@@ -321,6 +356,7 @@ const EXAMPLE: Record<"work" | "issues", string> = {
 export const Filters = ({
   query,
   authors,
+  repos = NO_REPOS,
   viewer,
   what,
   about = "work",
@@ -329,6 +365,14 @@ export const Filters = ({
   readonly query: string
   /** The logins on the screen, which is what the Author chip offers. */
   readonly authors: ReadonlyArray<string>
+  /**
+   * The repositories the rows are in, as `owner/name`, which is what the
+   * Repository chip offers.
+   *
+   * Empty on a list of one repository's own rows, where the chip is left out
+   * rather than drawn with a single answer in it.
+   */
+  readonly repos?: ReadonlyArray<string>
   /** Whoever is signed in, whose own face stands for "Mine". */
   readonly viewer?: string
   /** What this list is, for the box's label: the Working Set, or a repository. */
@@ -377,16 +421,23 @@ export const Filters = ({
 
   const facets = useMemo(
     () =>
-      about === "issues"
-        ? [authorFacet(art, authors, viewer), issueStateFacet(art), issueActivityFacet(art)]
+      (about === "issues"
+        ? [
+            authorFacet(art, authors, viewer),
+            repoFacet(repos),
+            issueStateFacet(art),
+            issueActivityFacet(art)
+          ]
         : [
             authorFacet(art, authors, viewer),
+            repoFacet(repos),
             checksFacet(art),
             reviewFacet(art),
             stateFacet(art),
             activityFacet(art)
-          ],
-    [about, art, authors, viewer]
+          ]
+      ).filter((facet) => facet.terms.length > 0),
+    [about, art, authors, repos, viewer]
   )
   const anything = termsIn(query).length > 0
 

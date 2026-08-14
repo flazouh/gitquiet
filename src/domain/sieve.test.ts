@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { Option } from "effect"
+import type { ListedIssue } from "./issues"
 import type { InvolvedPullRequest } from "./workingSet"
-import { answers, asked, sieveOf, toggling, undecided, understood } from "./sieve"
+import { answers, answersIssue, asked, sieveOf, toggling, undecided, understood } from "./sieve"
 
 const WEEK = 7 * 24 * 60 * 60 * 1000
 const NOW = Date.parse("2026-07-30T00:00:00Z")
@@ -30,6 +31,18 @@ const one = (over: Partial<InvolvedPullRequest> = {}): InvolvedPullRequest => ({
 
 const sifts = (typed: string, row: InvolvedPullRequest, viewer = "flazouh"): boolean =>
   answers(row, sieveOf(typed, viewer), NOW)
+
+const anIssue = (over: Partial<ListedIssue> = {}): ListedIssue => ({
+  reference: { owner: "flazouh", repo: "octo-repo", number: 88 },
+  id: "I_88",
+  title: "the streamed usage is counted twice",
+  author: { login: "flazouh", isAutomated: false, faceUrl: Option.none() },
+  state: "open",
+  comments: 0,
+  labels: [],
+  raisedAt: "2026-07-29T00:00:00Z",
+  ...over
+})
 
 describe("what the reader typed into the filter", () => {
   test("nothing typed matches everything", () => {
@@ -118,6 +131,41 @@ describe("filtering by who wrote it", () => {
 
   test("author:me with nobody signed in matches nothing rather than everything", () => {
     expect(answers(one(), sieveOf("author:me", undefined), NOW)).toBe(false)
+  })
+})
+
+describe("filtering by which repository it is in", () => {
+  test("repo: narrows to that repository, named in full or on its own", () => {
+    expect(sifts("repo:flazouh/octo-repo", one())).toBe(true)
+    expect(sifts("repo:octo-repo", one())).toBe(true)
+    expect(sifts("repo:stack-probe", one())).toBe(false)
+    expect(sifts("repo:octocat/octo-repo", one())).toBe(false)
+  })
+
+  test("the case it was typed in does not matter", () => {
+    expect(sifts("repo:FlaZouh/Octo-Repo", one())).toBe(true)
+    expect(sifts("repo:OCTO-REPO", one())).toBe(true)
+  })
+
+  test("two repositories mean either of them", () => {
+    expect(sifts("repo:stack-probe repo:octo-repo", one())).toBe(true)
+    expect(sifts("repo:stack-probe repo:flowline", one())).toBe(false)
+  })
+
+  test("an issue answers it too, since an issue is in a repository as well", () => {
+    expect(answersIssue(anIssue(), sieveOf("repo:flazouh/octo-repo"))).toBe(true)
+    expect(answersIssue(anIssue(), sieveOf("repo:octo-repo"))).toBe(true)
+    expect(answersIssue(anIssue(), sieveOf("repo:stack-probe"))).toBe(false)
+  })
+
+  test("it narrows with the other kinds rather than instead of them", () => {
+    expect(sifts("repo:octo-repo author:me", one())).toBe(true)
+    expect(sifts("repo:octo-repo author:octocat", one())).toBe(false)
+    expect(sifts("repo:stack-probe author:me", one())).toBe(false)
+  })
+
+  test("repo: with nothing after it is a word, not a term matching everything", () => {
+    expect(sifts("repo:", one())).toBe(false)
   })
 })
 
@@ -214,6 +262,7 @@ describe("which of GitHub's terms this box can be filled with", () => {
     for (const term of [
       "author:aleks",
       "author:me",
+      "repo:oven-sh/bun",
       "is:open",
       "is:closed",
       "is:merged",

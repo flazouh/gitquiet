@@ -636,6 +636,56 @@ describe("narrowing the Working Set down", () => {
     expect(screen.queryByText(/cache the tokenizer/)).toBeNull()
   })
 
+  test("can be narrowed to one repository, which is what a reader of this list asks about", async () => {
+    // The Working Set spans everything the reader is involved in, and half the
+    // questions brought to it are about the one repository they are working in
+    // this afternoon.
+    showing([
+      involved(1, { title: "price claude turns" }),
+      involved(2, {
+        title: "cache the tokenizer",
+        reference: { owner: "oven-sh", repo: "bun", number: 2 }
+      })
+    ])
+
+    await userEvent.click(screen.getByRole("button", { name: /Repository/ }))
+    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: /bun/ }))
+
+    expect(screen.getByText(/cache the tokenizer/)).toBeDefined()
+    expect(screen.queryByText(/price claude turns/)).toBeNull()
+  })
+
+  test("takes the issues in a Court with it, since an issue is in a repository too", async () => {
+    render(
+      <WorkingSet
+        sittings={alongside(
+          [
+            involved(1, {
+              title: "cache the tokenizer",
+              reference: { owner: "oven-sh", repo: "bun", number: 1 }
+            })
+          ],
+          [raised(7, { title: "the flaky test" })]
+        )}
+        onOpen={() => {}}
+      />
+    )
+
+    await userEvent.click(screen.getByRole("button", { name: /Repository/ }))
+    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: /bun/ }))
+
+    expect(screen.getByText(/cache the tokenizer/)).toBeDefined()
+    expect(screen.queryByText(/the flaky test/)).toBeNull()
+  })
+
+  test("offers no repository to choose between where every row is in one", () => {
+    // A repository's own list, and a Working Set that holds one repository this
+    // morning. A chip whose single term matches every row cannot narrow anything.
+    showing(many)
+
+    expect(screen.queryByRole("button", { name: /Repository/ })).toBeNull()
+  })
+
   test("can be narrowed to only what has changed since the reader last looked", async () => {
     showing(many)
 

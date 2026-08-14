@@ -12,7 +12,7 @@ import type { InvolvedPullRequest, Opinion } from "./workingSet"
  * else. The chips above the list write into the same line, so pointing and typing
  * are two ways of saying one sentence rather than two filters that can disagree.
  *
- * The vocabulary is GitHub's own — `author:`, `is:`, `review:`, `has:` — because
+ * The vocabulary is GitHub's own — `author:`, `repo:`, `is:`, `review:`, `has:` — because
  * a reader on this page has been typing it into their search box for years, and
  * `src/domain/repoList.ts` already speaks it to their search API.
  *
@@ -25,6 +25,15 @@ export type Sieve = {
   readonly words: ReadonlyArray<string>
   /** Logins, lowercased. `author:me` has already become a login here, or nothing. */
   readonly authors: ReadonlySet<string>
+  /**
+   * Repositories, lowercased, each as the reader named it.
+   *
+   * Either spelling is kept as typed rather than resolved to one of them, because
+   * only a row can say which it answers: `repo:bun` is the repository called that
+   * whoever owns it, and `repo:oven-sh/bun` is one repository. A reader looking
+   * down a Working Set types the short one, and a chip writes the long one.
+   */
+  readonly repos: ReadonlySet<string>
   readonly states: ReadonlySet<PullRequestState>
   readonly checks: ReadonlySet<CheckState>
   readonly review: ReadonlySet<Opinion>
@@ -75,6 +84,7 @@ export const termsIn = (typed: string): ReadonlyArray<string> =>
 export const sieveOf = (typed: string, viewer?: string): Sieve => {
   const words: Array<string> = []
   const authors = new Set<string>()
+  const repos = new Set<string>()
   const states = new Set<PullRequestState>()
   const checks = new Set<CheckState>()
   const review = new Set<Opinion>()
@@ -92,6 +102,11 @@ export const sieveOf = (typed: string, viewer?: string): Sieve => {
       if (value !== "me") authors.add(value)
       else if (viewer === undefined) impossible = true
       else authors.add(viewer.toLowerCase())
+      continue
+    }
+
+    if (name === "repo" && value.length > 0) {
+      repos.add(value)
       continue
     }
 
@@ -129,7 +144,7 @@ export const sieveOf = (typed: string, viewer?: string): Sieve => {
     words.push(term.toLowerCase())
   }
 
-  return { words, authors, states, checks, review, unread, commented, stale, impossible }
+  return { words, authors, repos, states, checks, review, unread, commented, stale, impossible }
 }
 
 /** Nothing asked, which every row answers. */
@@ -137,6 +152,22 @@ export const EVERYTHING: Sieve = sieveOf("")
 
 const addressOf = (one: InvolvedPullRequest): string =>
   `${one.reference.owner}/${one.reference.repo}#${one.reference.number}`
+
+/**
+ * Whether a row is in one of the repositories the reader named.
+ *
+ * Both spellings answered by the row rather than either normalised at the door:
+ * a reader scanning a Working Set types `repo:bun`, and the chip above the rows
+ * writes `repo:oven-sh/bun` because two owners can name a repository the same
+ * way. Asked of the two kinds of row from one place, so a Court cannot hold a
+ * pull request and an issue that disagree about what was asked.
+ */
+const inNamedRepo = (
+  reference: { readonly owner: string; readonly repo: string },
+  repos: ReadonlySet<string>
+): boolean =>
+  repos.has(reference.repo.toLowerCase()) ||
+  repos.has(`${reference.owner}/${reference.repo}`.toLowerCase())
 
 /**
  * Whether one pull request answers what the reader asked.
@@ -156,6 +187,7 @@ export const answers = (
   if (sieve.stale && now - Date.parse(one.changedAt) < STALE) return false
 
   if (sieve.authors.size > 0 && !sieve.authors.has(one.author.login.toLowerCase())) return false
+  if (sieve.repos.size > 0 && !inNamedRepo(one.reference, sieve.repos)) return false
   if (sieve.states.size > 0 && !sieve.states.has(one.state)) return false
 
   // Absent is not passing. A row nobody has asked about yet turning up under
@@ -189,7 +221,9 @@ export const answers = (
  * from when it was raised would call a thread argued over this morning stale.
  *
  * `is:draft` and `is:merged` exclude an issue for the reason above; `is:open` and
- * `is:closed` are asked of it directly, since those are states it has.
+ * `is:closed` are asked of it directly, since those are states it has. So is
+ * `repo:`: an issue sits in a repository exactly as a pull request does, and a
+ * reader narrowing a Court to one repository means the whole Court.
  */
 export const answersIssue = (one: ListedIssue, sieve: Sieve): boolean => {
   if (sieve.impossible) return false
@@ -198,6 +232,7 @@ export const answersIssue = (one: ListedIssue, sieve: Sieve): boolean => {
   if (sieve.commented && one.comments === 0) return false
 
   if (sieve.authors.size > 0 && !sieve.authors.has(one.author.login.toLowerCase())) return false
+  if (sieve.repos.size > 0 && !inNamedRepo(one.reference, sieve.repos)) return false
   if (sieve.states.size > 0 && !sieve.states.has(one.state)) return false
 
   if (sieve.words.length === 0) return true

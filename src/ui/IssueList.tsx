@@ -76,6 +76,19 @@ export const IssueList = ({
   /** The people whose issues are on the screen, which is what the Author chip offers. */
   const authors = useMemo(() => [...new Set(rows.map((one) => one.author.login))].sort(), [rows])
 
+  /**
+   * The repositories the rows are in, which is what the Repository chip offers.
+   *
+   * Nothing on a repository's own list, where every row is in the one the bar
+   * already names: a chip whose single term matches every row cannot narrow
+   * anything. On the reader's own list at `/issues` the rows come from
+   * everywhere, and this is the question that page most obviously asks.
+   */
+  const repos = useMemo(() => {
+    const found = new Set(rows.map((one) => `${one.reference.owner}/${one.reference.repo}`))
+    return found.size < 2 ? [] : [...found].sort()
+  }, [rows])
+
   /** Whether there are more of these than the page the reader is looking at. */
   const paged = Option.match(listed.pages, {
     onNone: () => false,
@@ -94,6 +107,7 @@ export const IssueList = ({
       <Filters
         query={query}
         authors={authors}
+        repos={repos}
         viewer={viewer}
         what={what}
         about="issues"

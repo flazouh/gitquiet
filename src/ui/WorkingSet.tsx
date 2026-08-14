@@ -179,6 +179,9 @@ type Within = { readonly owner: string; readonly repo: string }
 /** One array rather than a fresh one per render, so the walk below is rebuilt when it changes. */
 const NO_ISSUES: ReadonlyArray<InvolvedIssue> = []
 
+/** The same, for a list whose rows are all in one repository and so offers no choice of one. */
+const NO_REPOS: ReadonlyArray<string> = []
+
 const isWithin = (
   reference: { readonly owner: string; readonly repo: string },
   within: Within | undefined
@@ -1103,6 +1106,37 @@ export const WorkingSet = ({
   }, [sittings, viewer])
 
   /*
+   * The repositories the Repository chip offers, and how many rows each holds.
+   *
+   * Every row of both kinds, so a Court of issues in one repository is as
+   * reachable as a Court of pull requests. Nothing at all where they are all in
+   * one repository: a chip whose single term matches every row on the screen is
+   * a control that cannot change anything, which is a repository's own list and
+   * a Working Set that happens to hold one repository this morning.
+   *
+   * The busiest first rather than alphabetically, and eight of them, because the
+   * cap is what decides whether the chip is useful: a reader with fifteen
+   * repositories in front of them is asking about one of the loud ones, and the
+   * box beside the chip takes any repository they care to type.
+   */
+  const repos = useMemo(() => {
+    const many = new Map<string, number>()
+    const count = (reference: { readonly owner: string; readonly repo: string }) => {
+      const full = `${reference.owner}/${reference.repo}`
+      many.set(full, (many.get(full) ?? 0) + 1)
+    }
+
+    for (const one of walkThrough(sittings)) count(one.reference)
+    for (const one of sittings.flatMap((sitting) => sitting.issues)) count(one.reference)
+
+    if (many.size < 2) return NO_REPOS
+    return [...many]
+      .sort(([first, held], [next, also]) => also - held || first.localeCompare(next))
+      .slice(0, 8)
+      .map(([full]) => full)
+  }, [sittings])
+
+  /*
    * Every row the eye passes, in the order it passes them.
    *
    * Court by Court rather than every pull request and then every issue, because
@@ -1292,7 +1326,14 @@ export const WorkingSet = ({
            pixels of canvas this started at was a gutter doing a border's job twice over. */
         className={`t-panels flex flex-col gap-1 ${bare ? "" : "py-3"}`}
       >
-        <Filters query={query} authors={authors} viewer={viewer} what={what} onQuery={ask} />
+        <Filters
+          query={query}
+          authors={authors}
+          repos={repos}
+          viewer={viewer}
+          what={what}
+          onQuery={ask}
+        />
 
         {!anything ? (
           <p className="px-3 py-2 text-sm text-ink-muted">
