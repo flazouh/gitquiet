@@ -105,21 +105,32 @@ export const whenTheyStayPut = (
 }
 
 /**
- * Calls back with the new path whenever it changes, and never for the path it
+ * Calls back whenever the address changes, path or search, and never for the one it
  * started on. Returns the way to stop.
+ *
+ * The whole address rather than the path, because three of the pages this extension
+ * stands on differ by a query parameter alone: a person's profile, their repositories
+ * and their stars are all `/login` with a different `tab`. A watcher that compared
+ * paths never fired between them, so the screen for one went on standing on the page
+ * of another — showing repositories under an address that says stars.
+ *
+ * Both halves are handed over, unjoined, because that is how they are asked about:
+ * `placeOwning` takes a path and a search, and rejoining them at every caller is a
+ * string to get wrong.
  */
-export const whenLocationChanges = (
+export const whenAddressChanges = (
   target: Window,
-  onChange: (path: string) => void,
+  onChange: (path: string, search: string) => void,
   lookAgain: number = LOOK_AGAIN
 ): Stop => {
-  let known = target.location.pathname
+  const whole = (): string => `${target.location.pathname}${target.location.search}`
+  let known = whole()
 
   const look = (): void => {
-    const now = target.location.pathname
+    const now = whole()
     if (now === known) return
     known = now
-    onChange(now)
+    onChange(target.location.pathname, target.location.search)
   }
 
   // Their events land before the address is rewritten as often as after it, so
@@ -143,4 +154,31 @@ export const whenLocationChanges = (
     said?.removeEventListener("currententrychange", look)
     target.clearInterval(ticking)
   }
+}
+
+/**
+ * Calls back with the new path whenever the path changes, and never for a search
+ * that changed under the same path. Returns the way to stop.
+ *
+ * The narrower of the two questions, and the one most of this codebase asks: for
+ * every page but a person's three, which page a reader is on is a path. A screen
+ * that redraws for its own paging — a list writing `?page=2`, a log writing `#L23`
+ * — must not be told it has arrived somewhere new.
+ */
+export const whenLocationChanges = (
+  target: Window,
+  onChange: (path: string) => void,
+  lookAgain: number = LOOK_AGAIN
+): Stop => {
+  let known = target.location.pathname
+
+  return whenAddressChanges(
+    target,
+    (path) => {
+      if (path === known) return
+      known = path
+      onChange(path)
+    },
+    lookAgain
+  )
 }

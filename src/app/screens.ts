@@ -38,6 +38,15 @@ export type Wanted =
   | "actions"
   | "releases"
   | "notifications"
+  /**
+   * A person's repositories tab. The profile and their stars are places already —
+   * `place.ts` claims all three of those addresses — and they are deliberately not
+   * here yet: a name in this list is a file to import, and a page named for a file
+   * that does not exist is a gate raised over a screen that never comes. Until each
+   * has its screen GitHub keeps the page, which is what the shell does with a place
+   * no screen answers for.
+   */
+  | "person-repos"
 
 export const WANTED: ReadonlyArray<Wanted> = [
   "pull-request",
@@ -53,7 +62,8 @@ export const WANTED: ReadonlyArray<Wanted> = [
   "run",
   "actions",
   "releases",
-  "notifications"
+  "notifications",
+  "person-repos"
 ]
 
 export const isWanted = (what: string): what is Wanted =>

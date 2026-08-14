@@ -18,7 +18,7 @@ import {
   goTo,
 } from "@/ui/going";
 import { markPage, theScreenShown, unmarkPage } from "@/ui/mount";
-import { type Stop, whenLocationChanges, whenTheyStayPut } from "@/ui/navigation";
+import { type Stop, whenAddressChanges, whenTheyStayPut } from "@/ui/navigation";
 import {
   ACTIONS,
   COMMIT,
@@ -29,6 +29,7 @@ import {
   ISSUE,
   ISSUES,
   NOTIFICATIONS,
+  PERSON_REPOS,
   RAISE,
   RELEASES,
   REPO_HOME,
@@ -99,6 +100,7 @@ const PLACE_OF: Record<Wanted, Place> = {
   actions: ACTIONS,
   releases: RELEASES,
   notifications: NOTIFICATIONS,
+  "person-repos": PERSON_REPOS,
 };
 
 /**
@@ -135,11 +137,25 @@ const SCREEN_OF = new Map<Place, Wanted>(
  * reads that, because `mount.ts` holds a takeover back until the address is the
  * screen's own: a screen routed by one rule while its takeover waits on another
  * is a screen that never stands up.
+ *
+ * The search is asked for as well as the path, because a person's three pages are
+ * one path and a `tab` parameter. Left out, `/flazouh?tab=stars` would route to
+ * whichever of the three claims the bare path.
+ *
+ * Nothing where a place claims the address and no screen answers for it, which is
+ * how a page can be named in `place.ts` before its screen is written: GitHub keeps
+ * it, exactly as they keep every page this extension has no opinion about.
  */
-const pageAt = (path: string): Wanted | null => {
-  const place = placeOwning(path);
+const pageAt = (path: string, search?: string): Wanted | null => {
+  const place = placeOwning(path, search);
   return place === null ? null : (SCREEN_OF.get(place) ?? null);
 };
+
+/** The address on the screen, as `pageAt` wants it. */
+const hereNow = (): readonly [string, string] => [
+  window.location.pathname,
+  window.location.search,
+];
 
 /**
  * Reads a pull request ahead of being asked for it, so that opening it is a
@@ -324,7 +340,7 @@ export default defineContentScript({
             // a page nobody is on gates a page it is not about.
             if (up.has(what)) return;
             if (
-              pageAt(window.location.pathname) !== what &&
+              pageAt(...hereNow()) !== what &&
               intendedPath(window) === null
             )
               return;
@@ -461,7 +477,7 @@ export default defineContentScript({
        * script's matches for the same reason: no document loads, so the match is
        * never tested again and the script for the page never runs.
        */
-      const page = pageAt(link.pathname);
+      const page = pageAt(link.pathname, link.search);
 
       /*
        * Every link to a page of ours, and their router in none of them.
@@ -476,7 +492,7 @@ export default defineContentScript({
        * request, which is what `wanted` is the judge of.
        */
       const what =
-        oursToOpen(page, pageAt(window.location.pathname)) &&
+        oursToOpen(page, pageAt(...hereNow())) &&
         (page !== "pull-request" || wanted(target) !== null)
           ? page
           : null;
@@ -524,13 +540,18 @@ export default defineContentScript({
     // tab, anything GitHub navigates on its own account. Later than a press —
     // the page is already changing — but still before their conversation has
     // been rendered into the region that is about to be hidden.
-    whenLocationChanges(window, (path) => {
+    /*
+     * The whole address, not the path. A press between a person's three tabs changes
+     * the `tab` parameter and nothing else, so a watcher on the path alone never heard
+     * about it — and the screen for one tab went on standing on another's page.
+     */
+    whenAddressChanges(window, (path, search) => {
       // Their router moved, so the last press was acted on and the deadline that
       // would have carried it out by hand has nothing left to do.
       stayingPut();
       stayingPut = () => {};
 
-      const page = pageAt(path);
+      const page = pageAt(path, search);
       if (page === null) {
         ungate();
         // Somewhere we have nothing to say about — an issue, the Code tab. The rules
@@ -557,7 +578,7 @@ export default defineContentScript({
      * at `document_start`, before their markup has been parsed, and an attribute set
      * a frame later is a frame of their page on the screen.
      */
-    const loadedOn = pageAt(window.location.pathname);
+    const loadedOn = pageAt(...hereNow());
     if (loadedOn !== null) {
       markPage(document, placeFor(loadedOn, window.location.pathname));
       fetchIt(loadedOn);

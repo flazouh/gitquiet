@@ -1,5 +1,5 @@
 import { Effect, type Fiber } from "effect"
-import { type Stop, whenLocationChanges } from "./navigation"
+import { type Stop, whenAddressChanges } from "./navigation"
 import { CONVERSATION, type Place } from "./place"
 
 export const ROOT_ID = "gitquiet-root"
@@ -817,7 +817,7 @@ const whenTheAddressIsOurs = (
 ): Effect.Effect<boolean> => {
   const view = target.defaultView
   if (view === null) return Effect.succeed(true)
-  if (place.owns(view.location.pathname)) return Effect.succeed(true)
+  if (place.owns(view.location.pathname, view.location.search)) return Effect.succeed(true)
 
   return Effect.callback((resume) => {
     let stop: Stop = () => {}
@@ -831,10 +831,14 @@ const whenTheAddressIsOurs = (
 
     // Fifty rather than the watcher's usual fifth of a second: this one is between a
     // press and the page it asked for, where every tick is a tick of nothing happening.
-    stop = whenLocationChanges(
+    //
+    // The whole address, because a person's three pages are one path and a `tab`: a
+    // press from their repositories tab to their stars changes nothing else, and a
+    // screen waiting on the path alone would wait until the failsafe gave up.
+    stop = whenAddressChanges(
       view,
-      (path) => {
-        if (place.owns(path)) finish(true)
+      (path, search) => {
+        if (place.owns(path, search)) finish(true)
       },
       50
     )
