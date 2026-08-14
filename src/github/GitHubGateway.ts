@@ -618,6 +618,82 @@ const issueHash: Effect.Effect<Option.Option<string>> = Effect.gen(function* () 
 })
 
 /**
+ * What an issue's own page held, as a value rather than as a failure.
+ *
+ * {@link Said} beside it, for the reason that one exists and with one difference:
+ * a page is read for the query GitHub rendered it from, so the hash and the result
+ * are both in the answer. Plain JSON, which is the only thing the promise between
+ * the joiners may carry.
+ */
+type Served =
+  | { readonly ok: true; readonly hash: string; readonly result: unknown }
+  | {
+      readonly ok: false
+      readonly why: "unreachable" | "rejected" | "undecodable"
+      readonly detail: string
+    }
+
+/**
+ * One GET of an issue's own page, folded together with any identical GET already in
+ * the air.
+ *
+ * The page is the read a reader waits longest for, so it is the read worth joining
+ * most. Measured on an instrumented build before this: an issue opened from a list
+ * fetched its page twice, the press's answer at 4519ms and the read ahead's at
+ * 5427ms, so resting on the row bought nothing.
+ *
+ * The hash is kept inside the fold rather than outside it, which is what keeps that
+ * write at one per page however many readers joined.
+ */
+const servedIssueAt = (route: string): Effect.Effect<Served> =>
+  askingOnce(
+    `https://github.com${route}`,
+    Effect.gen(function* () {
+      const response = yield* Effect.tryPromise({
+        try: () => fetch(`https://github.com${route}`, { credentials: "include" }),
+        catch: (cause): Served => ({ ok: false, why: "unreachable", detail: String(cause) })
+      })
+
+      if (!response.ok) {
+        return yield* Effect.fail<Served>({
+          ok: false,
+          why: "rejected",
+          detail: `${response.status}`
+        })
+      }
+
+      const html = yield* Effect.tryPromise({
+        try: () => response.text(),
+        catch: (cause): Served => ({ ok: false, why: "unreachable", detail: String(cause) })
+      })
+
+      const preloaded = preloadedIn(html, ISSUE_QUERY)
+      if (Option.isNone(preloaded)) {
+        return yield* Effect.fail<Served>({
+          ok: false,
+          why: "undecodable",
+          detail: `no ${ISSUE_QUERY} preloaded in the page`
+        })
+      }
+
+      // Waited for rather than forked, unlike everything else kept in this file.
+      // Those are read again on some later visit and losing one costs a repeat of a
+      // read that already answered. This one is what stops the next issue paying for
+      // a whole page, and it is a single write of thirty-two bytes.
+      const release = releaseOn(document)
+      if (Option.isSome(release)) {
+        yield* rememberHash(release.value, ISSUE_QUERY, preloaded.value.hash)
+      }
+
+      return {
+        ok: true,
+        hash: preloaded.value.hash,
+        result: preloaded.value.result
+      } satisfies Served
+    }).pipe(Effect.catch(Effect.succeed))
+  )
+
+/**
  * The issue read out of its own served page, for the arrival nobody has a hash for.
  *
  * The last way in, and the one that always works. Their HTML carries the queries
@@ -633,47 +709,12 @@ const issueHash: Effect.Effect<Option.Option<string>> = Effect.gen(function* () 
 const issueInItsPage = Effect.fn("issueInItsPage")(function* (reference: IssueRef) {
   const route = `/${reference.owner}/${reference.repo}/issues/${reference.number}`
 
-  const response = yield* Effect.tryPromise({
-    try: () => fetch(`https://github.com${route}`, { credentials: "include" }),
-    catch: (cause) =>
-      new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
-  })
-
-  if (!response.ok) {
-    return yield* new GatewayError({
-      reference,
-      route,
-      reason: "rejected",
-      detail: `${response.status}`
-    })
+  const served = yield* servedIssueAt(route)
+  if (!served.ok) {
+    return yield* new GatewayError({ reference, route, reason: served.why, detail: served.detail })
   }
 
-  const html = yield* Effect.tryPromise({
-    try: () => response.text(),
-    catch: (cause) =>
-      new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
-  })
-
-  const preloaded = preloadedIn(html, ISSUE_QUERY)
-  if (Option.isNone(preloaded)) {
-    return yield* new GatewayError({
-      reference,
-      route,
-      reason: "undecodable",
-      detail: `no ${ISSUE_QUERY} preloaded in the page`
-    })
-  }
-
-  // Waited for rather than forked, unlike everything else kept in this file.
-  // Those are read again on some later visit and losing one costs a repeat of a
-  // read that already answered. This one is what stops the next issue paying for
-  // a whole page, and it is a single write of thirty-two bytes.
-  const release = releaseOn(document)
-  if (Option.isSome(release)) {
-    yield* rememberHash(release.value, ISSUE_QUERY, preloaded.value.hash)
-  }
-
-  return preloaded.value
+  return { hash: served.hash, result: served.result }
 })
 
 /**
@@ -701,6 +742,48 @@ const keptIssueRoute = (reference: IssueRef): Effect.Effect<Option.Option<string
   })
 
 /**
+ * One GET of their GraphQL route, folded together with any identical GET already in
+ * the air.
+ *
+ * The route carries the repository, the number and this deploy's hash, so two reads
+ * of one issue address it identically and the second joins the first. Measured on an
+ * instrumented build before this: an issue opened from a list asked the route twice,
+ * the press's answer at 798ms and the read ahead's at 1494ms.
+ *
+ * The nonce is handed in rather than read here, because reading it is what decides
+ * whether there is anything to ask at all and that answer belongs to the caller.
+ */
+const graphqlSaidAt = (route: string, nonce: string): Effect.Effect<Said> =>
+  askingOnce(
+    `https://github.com${route}`,
+    Effect.gen(function* () {
+      const response = yield* Effect.tryPromise({
+        try: () =>
+          fetch(`https://github.com${route}`, {
+            headers: { ...REQUIRED_HEADERS, "X-Fetch-Nonce": nonce },
+            credentials: "include"
+          }),
+        catch: (cause): Said => ({ ok: false, why: "unreachable", detail: String(cause) })
+      })
+
+      if (!response.ok) {
+        return yield* Effect.fail<Said>({
+          ok: false,
+          why: "rejected",
+          detail: `HTTP ${response.status}`
+        })
+      }
+
+      const payload = yield* Effect.tryPromise({
+        try: () => response.json(),
+        catch: (cause): Said => ({ ok: false, why: "undecodable", detail: String(cause) })
+      })
+
+      return { ok: true, payload } satisfies Said
+    }).pipe(Effect.catch(Effect.succeed))
+  )
+
+/**
  * A GET of their GraphQL route, which wants one header the others do not.
  *
  * The nonce is written into every page GitHub serves and sent back by their own
@@ -722,30 +805,17 @@ const askedGraphql = Effect.fn("askedGraphql")(function* (
     })
   }
 
-  const response = yield* Effect.tryPromise({
-    try: () =>
-      fetch(`https://github.com${route}`, {
-        headers: { ...REQUIRED_HEADERS, "X-Fetch-Nonce": nonce.value },
-        credentials: "include"
-      }),
-    catch: (cause) =>
-      new GatewayError({ reference, route: GRAPHQL, reason: "unreachable", detail: String(cause) })
-  })
-
-  if (!response.ok) {
+  const said = yield* graphqlSaidAt(route, nonce.value)
+  if (!said.ok) {
     return yield* new GatewayError({
       reference,
       route: GRAPHQL,
-      reason: "rejected",
-      detail: `HTTP ${response.status}`
+      reason: said.why,
+      detail: said.detail
     })
   }
 
-  return yield* Effect.tryPromise({
-    try: () => response.json(),
-    catch: (cause) =>
-      new GatewayError({ reference, route: GRAPHQL, reason: "undecodable", detail: String(cause) })
-  })
+  return said.payload
 })
 
 /**
