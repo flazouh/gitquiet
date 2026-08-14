@@ -362,8 +362,13 @@ export const namedBy = (
  * from here is one page of GitHub's replaced by an interface that then finds no
  * repository, so the list is deliberately longer than the addresses seen in
  * practice.
+ *
+ * Exported because a person's own three pages are one segment, so their parser has
+ * the same problem and a worse version of it — see `NOT_A_PERSON` in
+ * `./person.ts`, which reads this and adds the pages that never host a second
+ * segment. One list, extended, rather than two lists that drift.
  */
-const NOT_AN_OWNER: ReadonlySet<string> = new Set([
+export const NOT_AN_OWNER: ReadonlySet<string> = new Set([
   "about",
   "account",
   "apps",
