@@ -290,14 +290,23 @@ const Commit = ({
       return (
         <a
           href={one.url}
-          className={`flex min-w-0 items-center gap-2 text-xs no-underline hover:underline ${freshnessOf(one.at, now)}`}
+          className={`group flex min-w-0 items-center gap-2 text-xs no-underline ${freshnessOf(one.at, now)}`}
         >
           <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center">
             {who === undefined ? null : (
               <Who login={who.login} src={Option.getOrUndefined(who.face)} size={16} />
             )}
           </span>
-          <span className="min-w-0 truncate" title={one.said}>
+          {/*
+           * The underline is on the words and carries a `!`, which is two
+           * deliberate choices rather than one. GitHub ships a `.no-underline` of
+           * its own with `!important` in it, and this link wears that class name,
+           * so a plain `hover:underline` on it draws nothing at all — measured on
+           * their own repository page. And the message is what a reader reaches
+           * for, so the line belongs under the words wherever in the row the
+           * pointer entered.
+           */}
+          <span className="min-w-0 truncate group-hover:!underline" title={one.said}>
             {one.said}
           </span>
           <span className="shrink-0 tabular-nums" title={momentOf(one.at)}>

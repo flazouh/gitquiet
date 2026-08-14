@@ -94,6 +94,22 @@ describe("the commit column on a row", () => {
     expect(words.getAttribute("title")).toBe("Say what this is for in full")
   })
 
+  /*
+   * GitHub ships a `.no-underline` of its own carrying `!important`, and the link
+   * wears that same class name, so a plain `hover:underline` never draws. The `!`
+   * is what settles it, and the underline sits on the words rather than on the
+   * flex link around them.
+   */
+  test("underlines the message while the pointer is on the row, so it reads as a way in", () => {
+    showing({
+      entries: [entry("README.md", { touched: Option.some(touch({ said: "Open me" })) })]
+    })
+
+    const words = screen.getByText("Open me")
+    expect(words.className).toContain("group-hover:!underline")
+    expect(screen.getByRole("link").className).toContain("group")
+  })
+
   test("paints today's age green, last week's amber, and older ages quieter", () => {
     const now = new Date("2026-08-12T12:00:00Z")
     const at = (name: string, iso: string, said: string) =>
