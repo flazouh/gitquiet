@@ -3,7 +3,25 @@ import * as Bubble from "@radix-ui/react-tooltip"
 import { useId, useState, type ReactNode } from "react"
 import { useArt } from "./art"
 import { DIFF_KNOBS, THEME_KNOBS, TREE_KNOBS, type Knob, type Settings } from "../domain/Settings"
+import { ROOT_ID } from "./mount"
 import { sampleOf } from "./SettingsPreview"
+
+/**
+ * Where everything this menu opens is drawn.
+ *
+ * Inside our own root, because the theme is a set of inline custom properties on
+ * that element and not on `<html>`: the rest of the document is GitHub's page,
+ * and our names on their root would repaint their chrome. A panel portaled to
+ * `document.body` instead reads the stylesheet's defaults, which are the light
+ * pack — a white menu with near-black text over a dark page. See `outside.ts`,
+ * written after the bar was paid for that once.
+ *
+ * Asked for on every render rather than held: the root is made by the mount and
+ * remade whenever the page is taken over again, so a reference kept here would
+ * be a reference to an element no longer in the document.
+ */
+const inOurs = (): HTMLElement | null =>
+  typeof document === "undefined" ? null : document.getElementById(ROOT_ID)
 
 export type SettingsMenuProps = {
   readonly settings: Settings
@@ -59,7 +77,7 @@ const Explains = ({
         <Info size={12} />
       </span>
     </Bubble.Trigger>
-    <Bubble.Portal>
+    <Bubble.Portal container={inOurs()}>
       <Bubble.Content
         side="left"
         align="start"
@@ -118,7 +136,7 @@ const Row = ({
         </span>
         <Explains knob={knob} chosen={chosen} open={explaining} onOpenChange={setExplaining} />
       </Menu.SubTrigger>
-      <Menu.Portal>
+      <Menu.Portal container={inOurs()}>
         <Menu.SubContent
           sideOffset={4}
           className="t-dropdown z-50 min-w-40 rounded-md border border-line bg-raised p-1 shadow-pop"
@@ -227,7 +245,7 @@ export const SettingsMenu = ({
         >
           <More size={16} />
         </Menu.Trigger>
-        <Menu.Portal>
+        <Menu.Portal container={inOurs()}>
           <Menu.Content
             align="end"
             sideOffset={4}
@@ -259,7 +277,7 @@ export const SettingsMenu = ({
                 <span className="flex-1">Advanced</span>
                 <span className="text-ink-muted">›</span>
               </Menu.SubTrigger>
-              <Menu.Portal>
+              <Menu.Portal container={inOurs()}>
                 <Menu.SubContent
                   sideOffset={4}
                   className="t-dropdown z-50 min-w-56 rounded-md border border-line bg-raised p-1 text-xs shadow-pop"
