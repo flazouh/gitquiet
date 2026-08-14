@@ -146,6 +146,33 @@ export const whenAsked = (
   })
 
 /**
+ * Whether GitHub served the page this query would be asked on.
+ *
+ * What decides whether {@link whenAsked} is worth calling at all. Their app asks
+ * an issue's query on the issue's own page, some hundreds of milliseconds after
+ * it loads, and nowhere else: a reader who presses a row on one of our lists
+ * moves the address without loading anything, so nobody is going to ask and the
+ * wait is dead time in front of a card that cannot be drawn. Measured on the
+ * first issue of a deploy, opened from our own list: 4364ms to draw, of which
+ * about 1.7s was this wait and 2643ms was the page it fell back to.
+ *
+ * The navigation entry is the address the document was served for, and a
+ * `pushState` since does not touch it. The path alone, because a search and a
+ * fragment are the same page to their router as to this.
+ *
+ * True where the browser records no navigation at all. Nothing is known then, and
+ * the wait it allows costs at most three seconds while skipping it would cost a
+ * whole page fetch every time.
+ */
+export const servedFor = (timings: Timings, path: string): boolean => {
+  const [entry] = timings.getEntriesByType("navigation")
+  if (entry === undefined) return true
+
+  const at = URL.parse(entry.name)
+  return at === null || at.pathname === path
+}
+
+/**
  * A mutation's hash, which cannot be harvested the way a query's can.
  *
  * Everything above reads a hash off a request the page has already made, and

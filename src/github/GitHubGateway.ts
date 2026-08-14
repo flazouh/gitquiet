@@ -101,7 +101,7 @@ import type { Named, Numbered, Suggesting } from "../domain/suggesting"
 import type { Uploaded } from "../domain/attaching"
 import { decodeAddedComment, issueFrom, remarkFrom } from "./issueView"
 import { decodeMentionable, decodeReferable, numberedIn, peopleIn } from "./suggesting"
-import { hashIn, hashOfMutationIn, nonceOn, releaseOn, whenAsked } from "./persisted"
+import { hashIn, hashOfMutationIn, nonceOn, releaseOn, servedFor, whenAsked } from "./persisted"
 import { scopedRepositoryIn } from "./scoped"
 import { decodeUploadedAsset, decodeUploadPolicy, repositoryNumberFor } from "./uploading"
 import { preloadedIn } from "./preloaded"
@@ -565,6 +565,10 @@ const issueRoute = (reference: IssueRef, hash: string): string =>
  * twenty-second failsafe, so a page GitHub never asks from hands itself back
  * long before anything else notices.
  */
+/** The issue's own page, which is both what GitHub serves it on and what the read falls back to. */
+const issuePage = (reference: IssueRef): string =>
+  `/${reference.owner}/${reference.repo}/issues/${reference.number}`
+
 const ASKING = "3 seconds"
 
 /** The browser's own way of being told about requests as they are made. */
@@ -585,7 +589,7 @@ const watchingResources = (onSeen: (names: ReadonlyArray<string>) => void) => {
  * written before a deploy is never read after one.
  */
 const askedIssue = (reference: IssueRef): Effect.Effect<Option.Option<string>> =>
-  Effect.map(issueHash, (hash) => Option.map(hash, (found) => issueRoute(reference, found)))
+  Effect.map(issueHash(reference), (hash) => Option.map(hash, (found) => issueRoute(reference, found)))
 
 /**
  * This deploy's hash for the issue query: off the page where it is there, out of
@@ -601,21 +605,36 @@ const askedIssue = (reference: IssueRef): Effect.Effect<Option.Option<string>> =
  * Kept whenever the page does say it, so the next one has it. Under the release,
  * so a deploy in between is a miss rather than a 404.
  */
-const issueHash: Effect.Effect<Option.Option<string>> = Effect.gen(function* () {
-  const release = releaseOn(document)
+const issueHash = (reference: IssueRef): Effect.Effect<Option.Option<string>> =>
+  Effect.gen(function* () {
+    const release = releaseOn(document)
 
-  if (Option.isSome(release)) {
-    const kept = yield* recallHash(release.value, ISSUE_QUERY)
-    if (Option.isSome(kept)) return kept
-  }
+    if (Option.isSome(release)) {
+      const kept = yield* recallHash(release.value, ISSUE_QUERY)
+      if (Option.isSome(kept)) return kept
+    }
 
-  const asked = yield* whenAsked(performance, watchingResources, ISSUE_QUERY, ASKING)
-  if (Option.isSome(asked) && Option.isSome(release)) {
-    yield* rememberHash(release.value, ISSUE_QUERY, asked.value)
-  }
+    /*
+     * Waited for only on the page GitHub served for this issue, because that is
+     * the only page their app asks this query on. A reader pressing a row on one
+     * of our lists moves the address without loading anything, so the wait ran
+     * its full three seconds for a question nobody was going to ask, and then the
+     * read fell back to the issue's own page regardless. Measured on the first
+     * issue of a deploy opened that way: 4364ms to draw, about 1.7s of it here.
+     *
+     * The page is still read, because a hash asked for a moment ago is on it and
+     * costs nothing to look at.
+     */
+    const asked = servedFor(performance, issuePage(reference))
+      ? yield* whenAsked(performance, watchingResources, ISSUE_QUERY, ASKING)
+      : hashIn(performance, ISSUE_QUERY)
 
-  return asked
-})
+    if (Option.isSome(asked) && Option.isSome(release)) {
+      yield* rememberHash(release.value, ISSUE_QUERY, asked.value)
+    }
+
+    return asked
+  })
 
 /**
  * What an issue's own page held, as a value rather than as a failure.
@@ -707,7 +726,7 @@ const servedIssueAt = (route: string): Effect.Effect<Served> =>
  * cheap way whichever list the reader came from.
  */
 const issueInItsPage = Effect.fn("issueInItsPage")(function* (reference: IssueRef) {
-  const route = `/${reference.owner}/${reference.repo}/issues/${reference.number}`
+  const route = issuePage(reference)
 
   const served = yield* servedIssueAt(route)
   if (!served.ok) {

@@ -7,6 +7,7 @@ import {
   hashOfMutationIn,
   nonceOn,
   releaseOn,
+  servedFor,
   whenAsked
 } from "./persisted"
 
@@ -178,6 +179,35 @@ describe("what the page says about itself", () => {
     const bare = { querySelector: () => null } as never
     expect(nonceOn(bare)).toEqual(Option.none())
     expect(releaseOn(bare)).toEqual(Option.none())
+  })
+})
+
+describe("whether GitHub served the page a query would be asked on", () => {
+  const loadedOn = (name: string) => ({
+    getEntriesByType: (kind: string) => (kind === "navigation" ? [{ name }] : [])
+  })
+
+  test("says yes for the address this document was loaded on", () => {
+    expect(
+      servedFor(loadedOn("https://github.com/o/r/issues/12"), "/o/r/issues/12")
+    ).toBe(true)
+  })
+
+  test("says no where the reader arrived from one of our own lists", () => {
+    // The whole point of asking. GitHub asks the issue's query on the issue's
+    // page and nowhere else, so on a soft navigation out of a list there is no
+    // question coming and nothing to wait for.
+    expect(servedFor(loadedOn("https://github.com/o/r/issues"), "/o/r/issues/12")).toBe(false)
+  })
+
+  test("reads the path alone, a search and a fragment being the same page", () => {
+    expect(
+      servedFor(loadedOn("https://github.com/o/r/issues/12?x=1#issuecomment-3"), "/o/r/issues/12")
+    ).toBe(true)
+  })
+
+  test("says yes where the browser records no navigation, rather than skipping a wait that would have answered", () => {
+    expect(servedFor({ getEntriesByType: () => [] }, "/o/r/issues/12")).toBe(true)
   })
 })
 
