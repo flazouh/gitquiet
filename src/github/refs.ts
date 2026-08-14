@@ -1,9 +1,10 @@
-import { Effect, Option, Schema } from "effect"
+import { Effect, Option } from "effect"
 import type { Participant } from "../domain/PullRequest"
 import { ContributorsRoute, RefsRoute } from "./wire"
+import { whereverItIs } from "./wherever"
 
-const decode = Schema.decodeUnknownEffect(RefsRoute)
-const decodeAuthors = Schema.decodeUnknownEffect(ContributorsRoute)
+const decode = whereverItIs(RefsRoute)
+const decodeAuthors = whereverItIs(ContributorsRoute)
 
 /**
  * Every branch name a repository has.

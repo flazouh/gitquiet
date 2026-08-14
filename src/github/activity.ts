@@ -8,11 +8,12 @@
  * page exists to remove.
  */
 
-import { Effect, Option, Schema } from "effect"
+import { Effect, Option } from "effect"
 import type { Doer, Happening } from "../domain/activity"
 import { PublicEvents } from "./wire"
+import { whereverItIs } from "./wherever"
 
-export const decodeEvents = Schema.decodeUnknownEffect(PublicEvents)
+export const decodeEvents = whereverItIs(PublicEvents)
 
 type Event = PublicEvents[number]
 

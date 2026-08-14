@@ -6,7 +6,7 @@
  * which is the request this gateway already makes everywhere else.
  */
 
-import { Effect, Option, Schema } from "effect"
+import { Effect, Option } from "effect"
 import type { Day, History, Landed, Mark, Marks } from "../domain/commitList"
 import { proposalIn } from "../domain/commitList"
 import type { Participant } from "../domain/PullRequest"
@@ -16,7 +16,7 @@ import { whereverItIs } from "./wherever"
 import { CommitsAnswer, DeferredCommitsRoute } from "./wire"
 
 export const decodeCommits = whereverItIs(CommitsAnswer)
-export const decodeDeferred = Schema.decodeUnknownEffect(DeferredCommitsRoute)
+export const decodeDeferred = whereverItIs(DeferredCommitsRoute)
 
 type WireCommit = CommitsAnswer["commitGroups"][number]["commits"][number]
 

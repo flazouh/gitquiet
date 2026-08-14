@@ -1,4 +1,5 @@
 import { Data, Effect, Schema } from "effect"
+import { whereverItIs } from "./wherever"
 
 export const PullRequestHeader = Schema.Struct({
   number: Schema.Number,
@@ -7,21 +8,14 @@ export const PullRequestHeader = Schema.Struct({
 
 export type PullRequestHeader = typeof PullRequestHeader["Type"]
 
-const LayoutPayload = Schema.Struct({
-  payload: Schema.Struct({
-    pullRequestsLayoutRoute: Schema.Struct({
-      pullRequest: PullRequestHeader
-    })
-  })
-})
-
-const ChangesPayload = Schema.Struct({
-  payload: Schema.Struct({
-    pullRequestsChangesRoute: Schema.Struct({
-      pullRequest: PullRequestHeader
-    })
-  })
-})
+/**
+ * The header, wherever in the document's own data it sits.
+ *
+ * Their layout route carries it on every sub-page and their changes route carries it on
+ * the pages that render without the layout. One shape reads both, and reads whatever
+ * they rename either to.
+ */
+const Held = Schema.Struct({ pullRequest: PullRequestHeader })
 
 export class EmbeddedPayloadUnavailable extends Data.TaggedError(
   "EmbeddedPayloadUnavailable"
@@ -31,13 +25,11 @@ export class EmbeddedPayloadUnavailable extends Data.TaggedError(
 
 const EMBEDDED_SELECTOR = 'script[data-target="react-app.embeddedData"]'
 
-const decodeLayout = Schema.decodeUnknownEffect(LayoutPayload)
-const decodeChanges = Schema.decodeUnknownEffect(ChangesPayload)
+const decodeHeader = whereverItIs(Held)
 
 /**
- * GitHub's pull request pages ship their own data as JSON in the document. The
- * layout route carries the header on every sub-page; the changes route is the
- * fallback for pages that render without it.
+ * GitHub's pull request pages ship their own data as JSON in the document, and the
+ * header is in it wherever this week's route names put it.
  */
 export const readPullRequestHeader = Effect.fn("readPullRequestHeader")(
   function* (source: Document) {
@@ -51,13 +43,6 @@ export const readPullRequestHeader = Effect.fn("readPullRequestHeader")(
       catch: () => new EmbeddedPayloadUnavailable({ reason: "not-json" })
     })
 
-    return yield* decodeLayout(parsed).pipe(
-      Effect.map((data) => data.payload.pullRequestsLayoutRoute.pullRequest),
-      Effect.catch(() =>
-        decodeChanges(parsed).pipe(
-          Effect.map((data) => data.payload.pullRequestsChangesRoute.pullRequest)
-        )
-      )
-    )
+    return yield* decodeHeader(parsed).pipe(Effect.map((held) => held.pullRequest))
   }
 )

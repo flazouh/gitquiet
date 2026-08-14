@@ -107,11 +107,7 @@ describe("reading a Working Set row as an Involved Pull Request", () => {
   })
 })
 
-const deferred = (
-  results: DeferredRoute["payload"]["pullsInboxSurfaceContentDeferredData"]["results"]
-): DeferredRoute => ({
-  payload: { pullsInboxSurfaceContentDeferredData: { results } }
-})
+const deferred = (results: DeferredRoute["results"]): DeferredRoute => ({ results })
 
 describe("what the deferred read adds", () => {
   test("a passing rollup carries its counts", () => {

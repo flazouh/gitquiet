@@ -12,11 +12,12 @@
  * repository showing six empty headings.
  */
 
-import { Option, Schema } from "effect"
+import { Option } from "effect"
 import type { Hand, Landing, Shipped, Standing, Tongue } from "../domain/repoHome"
 import { SidebarRoute } from "./wire"
+import { whereverItIs } from "./wherever"
 
-export const decodeSidebar = Schema.decodeUnknownEffect(SidebarRoute)
+export const decodeSidebar = whereverItIs(SidebarRoute)
 
 /** GitHub's own grey for a language it has no colour for. */
 const UNCOLOURED = "#8b949e"

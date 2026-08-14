@@ -13,16 +13,17 @@
  * on the screen in one round trip rather than two.
  */
 
-import { Effect, Option, Schema } from "effect"
+import { Effect, Option } from "effect"
 import type { About, Entry, Front, Kind, Starring, Touch, TouchWho, Welcome } from "../domain/repoHome"
 import { footingOf, inReadingOrder } from "../domain/repoHome"
 import { plainText } from "./plainText"
 import { LatestCommitRoute, RepoHomeRoute, TreeCommitInfoRoute, TreeListRoute } from "./wire"
+import { whereverItIs } from "./wherever"
 
-export const decodeRepoHome = Schema.decodeUnknownEffect(RepoHomeRoute)
-export const decodeTreeCommitInfo = Schema.decodeUnknownEffect(TreeCommitInfoRoute)
-export const decodeTreeList = Schema.decodeUnknownEffect(TreeListRoute)
-export const decodeLatestCommit = Schema.decodeUnknownEffect(LatestCommitRoute)
+export const decodeRepoHome = whereverItIs(RepoHomeRoute)
+export const decodeTreeCommitInfo = whereverItIs(TreeCommitInfoRoute)
+export const decodeTreeList = whereverItIs(TreeListRoute)
+export const decodeLatestCommit = whereverItIs(LatestCommitRoute)
 
 type WireEntry = RepoHomeRoute["payload"]["codeViewRepoRoute"]["tree"]["items"][number]
 

@@ -90,6 +90,33 @@ capture road above found a third: a commit's own page, as `payload.commitRoute`.
 commit routes moved on the same day, and the check found the page while the reader had
 only noticed the list.
 
+## Not caring about the wrapper
+
+Four moves in two days, and all four were the same move: the answer went under a new
+key and nothing inside it changed. So the schemas stopped describing the envelope. A
+route's schema says what its answer is, `whereverItIs` in `src/github/wherever.ts`
+searches the payload for it three levels deep, shallowest first, and a rename costs one
+extra decode attempt. Two shapes matching at the same depth is a refusal rather than a
+guess, for the same reason the gateway refuses a payload it cannot read: a screen drawn
+from the wrong subtree can show the wrong facts.
+
+That claim is checked rather than asserted. `reParented` in `tests/reParented.ts` applies
+the move nobody has applied yet, renaming an existing wrapper or adding one, and the
+contract tests read all twelve recordings through it. The same transformation runs against
+the live routes:
+
+```sh
+DRIFT_FROM=/tmp/drift-capture DRIFT_RENAMED=1 bun scripts/check-drift.ts
+```
+
+Thirty of the thirty-four survive that. The two that do not are `repo_home` and `blob`,
+and the two tree reads that are asked with what `repo_home` answers. Both read several of
+GitHub's route payloads out of one document at once — the file list, the About box and
+`currentUserCanPush` are three siblings — so unwrapping them needs one search per fact
+rather than one for the answer, and they still name their keys until that is written.
+Mining the right embedded script out of the document is by route name as well, in
+`embedded.ts`, which is a second place those two would need.
+
 This is not wired into scheduled CI. These routes authenticate with a browser
 session cookie, which is a full account credential, and storing one in Actions
 secrets to run a weekly check is a poor trade. Drift is instead caught two ways:

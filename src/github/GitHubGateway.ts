@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, Schema, UndefinedOr } from "effect"
+import { Effect, Layer, Option, UndefinedOr } from "effect"
 import type {
   Check,
   CheckState,
@@ -122,6 +122,7 @@ import { loginOnPage } from "../ui/viewer"
 import { CreatedIssueRoute, IssueCommentsRoute, PreviewStackRoute } from "./wire"
 import type { Raising } from "../domain/raising"
 import type { AsyncDiffLoad } from "./wire"
+import { whereverItIs } from "./wherever"
 
 /**
  * GitHub as their own page reads it: their internal routes, answered with the
@@ -1210,7 +1211,7 @@ const writing = Effect.fn("writing")(function* (
  */
 const newestRemark = Effect.fn("newestRemark")(function* (reference: PullRequestRef) {
   const raw = yield* fetchRoute(reference, ISSUE_COMMENTS)
-  const comments = yield* Schema.decodeUnknownEffect(IssueCommentsRoute)(raw).pipe(
+  const comments = yield* whereverItIs(IssueCommentsRoute)(raw).pipe(
     Effect.catch((cause) =>
       Effect.fail(
         new GatewayError({
@@ -1792,7 +1793,7 @@ const shelfIn = (
 ): Effect.Effect<ReadonlyArray<InvolvedPullRequest>, WorkingSetError> =>
   decodeShelf(raw).pipe(
     Effect.map((decoded) =>
-      involvedIn(Option.some(shelf), decoded.payload.pullsInboxSurfaceContentRoute.results)
+      involvedIn(Option.some(shelf), decoded.results)
     ),
     Effect.catch((cause) =>
       Effect.fail(new WorkingSetError({ route, reason: "undecodable", detail: String(cause) }))
@@ -1803,7 +1804,7 @@ const shelfIn = (
 const foundIn = (route: string, raw: unknown): Effect.Effect<Found, WorkingSetError> =>
   decodeQuery(raw).pipe(
     Effect.map((decoded): Found => {
-      const listing = decoded.payload.pullsDashboardSurfaceContentRoute
+      const listing = decoded
       return {
         // None, and not a shelf: this route puts nothing anywhere on the reader's
         // behalf, and saying it did would put a stranger's work in Your Move.
@@ -2161,7 +2162,7 @@ export const layer = Layer.succeed(GitHubGateway, {
      */
     makeStack: Effect.fn("GitHubGateway.makeStack")(function* (reference: PullRequestRef) {
       const raw = yield* fetchRoute(reference, PREVIEW_STACK)
-      const offered = yield* Schema.decodeUnknownEffect(PreviewStackRoute)(raw).pipe(
+      const offered = yield* whereverItIs(PreviewStackRoute)(raw).pipe(
         Effect.catch((cause) =>
           Effect.fail(
             new GatewayError({
@@ -2564,7 +2565,7 @@ export const layer = Layer.succeed(GitHubGateway, {
         })
       }
 
-      const created = yield* Schema.decodeUnknownEffect(CreatedIssueRoute)(body).pipe(
+      const created = yield* whereverItIs(CreatedIssueRoute)(body).pipe(
         Effect.catch((cause) =>
           Effect.fail(
             new GatewayError({

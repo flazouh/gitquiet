@@ -1,4 +1,4 @@
-import { Option, Schema } from "effect"
+import { Option } from "effect"
 import type {
   CheckRollup,
   InvolvedPullRequest,
@@ -7,12 +7,13 @@ import type {
   Size,
   Standings
 } from "../domain/workingSet"
-import { DeferredRoute, DiffstatRoute, QueryRoute, ShelfRoute, type WorkingSetRow } from "./wire"
+import { whereverItIs } from "./wherever"
+import { DeferredRoute, DiffstatRoute, Listing, type WorkingSetRow } from "./wire"
 
-export const decodeShelf = Schema.decodeUnknownEffect(ShelfRoute)
-export const decodeQuery = Schema.decodeUnknownEffect(QueryRoute)
-export const decodeDeferred = Schema.decodeUnknownEffect(DeferredRoute)
-export const decodeDiffstat = Schema.decodeUnknownEffect(DiffstatRoute)
+export const decodeShelf = whereverItIs(Listing)
+export const decodeQuery = whereverItIs(Listing)
+export const decodeDeferred = whereverItIs(DeferredRoute)
+export const decodeDiffstat = whereverItIs(DiffstatRoute)
 
 /**
  * Turning GitHub's Working Set rows into Involved Pull Requests.
@@ -141,7 +142,7 @@ export const standingsIn = (route: DeferredRoute): Standings => {
     { checks: Option.Option<CheckRollup>; reviewed: Option.Option<Opinion> }
   >()
 
-  for (const result of route.payload.pullsInboxSurfaceContentDeferredData.results) {
+  for (const result of route.results) {
     found.set(result.id, {
       checks: Option.map(nothing(result.statusCheckRollup), (rollup) => ({
         state: rollupState(rollup.state),

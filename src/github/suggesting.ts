@@ -18,12 +18,12 @@
  * for the filtering, and `held.ts` for the other half of a box that does not lose things.
  */
 
-import { Schema } from "effect"
 import type { Named, Numbered } from "../domain/suggesting"
 import { Mentionable, Referable } from "./wire"
+import { whereverItIs } from "./wherever"
 
-export const decodeMentionable = Schema.decodeUnknownEffect(Mentionable)
-export const decodeReferable = Schema.decodeUnknownEffect(Referable)
+export const decodeMentionable = whereverItIs(Mentionable)
+export const decodeReferable = whereverItIs(Referable)
 
 /** Everyone their suggester named, as people. */
 export const peopleIn = (said: Mentionable): ReadonlyArray<Named> =>

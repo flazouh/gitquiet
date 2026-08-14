@@ -1,4 +1,4 @@
-import { Data, Effect, Option, Schema } from "effect"
+import { Data, Effect, Option } from "effect"
 import type {
   AutoMerge,
   BlockerAbout,
@@ -67,17 +67,17 @@ export class NotAuthenticated extends Data.TaggedError("NotAuthenticated")<{
   readonly reference: PullRequestRef
 }> {}
 
-const decodeChanges = Schema.decodeUnknownEffect(ChangesRoute)
-const decodeStatusChecks = Schema.decodeUnknownEffect(StatusChecksRoute)
-export const decodeMergeBox = Schema.decodeUnknownEffect(MergeBoxRoute)
-const decodeDescription = Schema.decodeUnknownEffect(DescriptionRoute)
-const decodeHeader = Schema.decodeUnknownEffect(HeaderRoute)
-const decodeIssueComments = Schema.decodeUnknownEffect(IssueCommentsRoute)
-const decodePreviewStack = Schema.decodeUnknownEffect(PreviewStackRoute)
-const decodeDiffEntries = Schema.decodeUnknownEffect(DiffEntriesRoute)
-const decodeCreated = Schema.decodeUnknownEffect(CreatedComment)
+const decodeChanges = whereverItIs(ChangesRoute)
+const decodeStatusChecks = whereverItIs(StatusChecksRoute)
+export const decodeMergeBox = whereverItIs(MergeBoxRoute)
+const decodeDescription = whereverItIs(DescriptionRoute)
+const decodeHeader = whereverItIs(HeaderRoute)
+const decodeIssueComments = whereverItIs(IssueCommentsRoute)
+const decodePreviewStack = whereverItIs(PreviewStackRoute)
+const decodeDiffEntries = whereverItIs(DiffEntriesRoute)
+const decodeCreated = whereverItIs(CreatedComment)
 const decodeCommit = whereverItIs(CommitAnswer)
-const decodeCommitDiffs = Schema.decodeUnknownEffect(CommitDiffsRoute)
+const decodeCommitDiffs = whereverItIs(CommitDiffsRoute)
 
 const GHOST = "ghost"
 
@@ -907,7 +907,7 @@ export const toSnapshot = Effect.fn("toSnapshot")(function* (
     Effect.catch(() => Effect.succeed(null))
   )
 
-  const route = changes.payload.pullRequestsChangesRoute
+  const route = changes
   const viewerLogin = route.user.currentUserLogin
   if (viewerLogin === null) {
     return yield* new NotAuthenticated({ reference })

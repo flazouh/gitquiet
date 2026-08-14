@@ -2,11 +2,12 @@
  * Their repository filter's answer, in this codebase's words.
  */
 
-import { Effect, Option, Schema } from "effect"
+import { Effect, Option } from "effect"
 import type { Repository } from "../domain/repositories"
 import { FilteredRepositories } from "./wire"
+import { whereverItIs } from "./wherever"
 
-export const decodeRepositories = Schema.decodeUnknownEffect(FilteredRepositories)
+export const decodeRepositories = whereverItIs(FilteredRepositories)
 
 /**
  * Every repository they listed, as {@link Repository}.

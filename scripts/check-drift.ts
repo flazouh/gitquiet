@@ -5,6 +5,7 @@ import { SHELVES } from "../src/domain/workingSet"
 import { embeddedPayload } from "../src/github/embedded"
 import { preloadedIn } from "../src/github/preloaded"
 import { whereverItIs } from "../src/github/wherever"
+import { reParented } from "../tests/reParented"
 import {
   BlobRoute,
   ChangesRoute,
@@ -26,11 +27,11 @@ import {
   MergeBoxRoute,
   PreviewStackRoute,
   PublicEvents,
-  QueryRoute,
+  Listing,
   Referable,
   RefsRoute,
   RepoHomeRoute,
-  ShelfRoute,
+
   SidebarRoute,
   StatusChecksRoute,
   TreeCommitInfoRoute,
@@ -62,6 +63,15 @@ import {
 
 /** A directory of bodies a browser fetched, or nothing to read live. */
 const captured = process.env["DRIFT_FROM"]
+
+/**
+ * The rename to make before reading, when this run is asked to prove it does not matter.
+ *
+ * Off by default, because a check whose every route is altered would no longer say what
+ * GitHub is serving today.
+ */
+const pretending = (payload: unknown): unknown =>
+  process.env["DRIFT_RENAMED"] === "1" ? reParented(payload) : payload
 
 const cookie = process.env["GITHUB_SESSION_COOKIE"] ?? ""
 if (captured === undefined && cookie.length === 0) {
@@ -236,9 +246,11 @@ const checking = <A>(check: {
   url: check.url,
   ask: check.ask ?? asJson,
   // Through the finder, so a payload GitHub has re-parented reads here as it reads in
-  // production: the schema says what the answer is and not where it was put.
+  // production: the schema says what the answer is and not where it was put. With
+  // `DRIFT_RENAMED=1` every answer is moved under a key nobody has named, which checks
+  // that claim against all 34 live routes rather than against the twelve recordings.
   read: (payload) =>
-    Effect.map(whereverItIs(check.schema)(payload), (answered) => {
+    Effect.map(whereverItIs(check.schema)(pretending(payload)), (answered) => {
       check.learn?.(answered)
       return check.note?.(answered) ?? ""
     })
@@ -282,7 +294,7 @@ const routes: ReadonlyArray<Check> = [
     url: () => `${PULL}/changes`,
     schema: ChangesRoute,
     learn: (answered) => {
-      const page = answered.payload.pullRequestsChangesRoute
+      const page = answered
       const carried = new Set(page.diffContents.map((diff) => diff.path))
       const held = page.diffSummaries.map((summary) => summary.path).filter((path) => !carried.has(path))
       // The first file where GitHub held none of them back. Their route answers for
@@ -427,31 +439,31 @@ const routes: ReadonlyArray<Check> = [
     checking({
       name: `shelf ${shelf}`,
       url: () => `https://github.com/pulls/inbox/queries?filter=${shelf}&max_pr_age=1m`,
-      schema: ShelfRoute,
-      note: (answered) => `${answered.payload.pullsInboxSurfaceContentRoute.results.length} rows`
+      schema: Listing,
+      note: (answered) => `${answered.results.length} rows`
     })
   ),
   checking({
     name: "pulls_query",
     url: () => `https://github.com/pulls?${new URLSearchParams({ q: pullQuery, page: "1" }).toString()}`,
-    schema: QueryRoute,
+    schema: Listing,
     learn: (answered) => {
       // Nine, because nine is what their own dashboard asks about at a time.
-      const ids = answered.payload.pullsDashboardSurfaceContentRoute.results
+      const ids = answered.results
         .slice(0, 9)
         .map((row) => row.id)
       if (ids.length === 0) return
 
       deferredRows = `https://github.com/pulls/inbox/deferred?page=1&${ids.map((id) => `pr_ids%5B%5D=${id}`).join("&")}`
     },
-    note: (answered) => `${answered.payload.pullsDashboardSurfaceContentRoute.results.length} rows`
+    note: (answered) => `${answered.results.length} rows`
   }),
   checking({
     name: "pulls_deferred",
     url: () => deferredRows,
     schema: DeferredRoute,
     note: (answered) =>
-      `${answered.payload.pullsInboxSurfaceContentDeferredData.results.length} rows`
+      `${answered.results.length} rows`
   }),
   checking({
     name: "repositories",

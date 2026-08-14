@@ -8,7 +8,7 @@
  * from, the way a shelf is for a pull request.
  */
 
-import { Effect, Option, Schema } from "effect"
+import { Effect, Option } from "effect"
 import type { InvolvedIssue, Involvement, ListedIssue } from "../domain/issues"
 import type { FoundIssues } from "../ports/GitHubGateway"
 import { plainText } from "./plainText"
@@ -106,9 +106,8 @@ export const involvedIssuesFrom = (
  * something small are the same picture.
  */
 export const listedIssuesIn = (answer: IssueSearchAnswer): FoundIssues => {
-
   return {
-    rows: listedIn(said),
+    rows: listedIn(answer),
     /*
      * Left out rather than guessed where the payload does not add up. Their route
      * has always sent all three, and a page whose numbers disagree with itself is

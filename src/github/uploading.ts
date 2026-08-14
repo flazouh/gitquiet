@@ -13,12 +13,13 @@
  * is the other half of this and does the same for the node id.
  */
 
-import { Option, Schema } from "effect"
+import { Option } from "effect"
 import type { RepoRef } from "../domain/PullRequestRef"
 import { UploadedAsset, UploadPolicy } from "./wire"
+import { whereverItIs } from "./wherever"
 
-export const decodeUploadPolicy = Schema.decodeUnknownEffect(UploadPolicy)
-export const decodeUploadedAsset = Schema.decodeUnknownEffect(UploadedAsset)
+export const decodeUploadPolicy = whereverItIs(UploadPolicy)
+export const decodeUploadedAsset = whereverItIs(UploadedAsset)
 
 type Page = Pick<Document, "querySelector">
 

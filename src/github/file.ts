@@ -1,8 +1,9 @@
-import { Option, Schema } from "effect"
+import { Option } from "effect"
 import type { Opened } from "../domain/repoHome"
 import { BlobRoute } from "./wire"
+import { whereverItIs } from "./wherever"
 
-export const decodeBlob = Schema.decodeUnknownEffect(BlobRoute)
+export const decodeBlob = whereverItIs(BlobRoute)
 
 /**
  * One file, out of the payload of the page GitHub renders for it.

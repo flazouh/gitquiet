@@ -6,13 +6,14 @@
  * person, and an issue arrives whole from one.
  */
 
-import { Effect, Option, Schema } from "effect"
+import { Effect, Option } from "effect"
 import type { Allowed, Closing, IssueSnapshot, Label, Reaction } from "../domain/Issue"
 import type { IssueRef } from "../domain/issues"
 import type { Participant, Remark } from "../domain/PullRequest"
 import { AddedComment, IssueViewRoute } from "./wire"
+import { whereverItIs } from "./wherever"
 
-export const decodeIssueView = Schema.decodeUnknownEffect(IssueViewRoute)
+export const decodeIssueView = whereverItIs(IssueViewRoute)
 
 type Said = IssueViewRoute["data"]["repository"]["issue"]
 type Speaker = NonNullable<Said["author"]>
@@ -174,7 +175,7 @@ export const issueFrom = (
 ): Effect.Effect<IssueSnapshot, unknown> =>
   decodeIssueView(raw).pipe(Effect.map((route) => issueIn(reference, route)))
 
-export const decodeAddedComment = Schema.decodeUnknownEffect(AddedComment)
+export const decodeAddedComment = whereverItIs(AddedComment)
 
 /**
  * The comment their mutation just made, as a Remark.

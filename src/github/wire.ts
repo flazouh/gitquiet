@@ -825,34 +825,30 @@ const PullRequestStateOnTheWire = Schema.Literals([
 ])
 
 export const ChangesRoute = Schema.Struct({
-  payload: Schema.Struct({
-    pullRequestsChangesRoute: Schema.Struct({
-      pullRequest: Schema.Struct({
-        number: Schema.Number,
-        title: Schema.String,
-        state: PullRequestStateOnTheWire,
-        author: Schema.NullOr(Author),
-        baseBranch: Schema.String,
-        headBranch: Schema.String,
-        commitsCount: Schema.Number
-      }),
-      user: Schema.Struct({
-        currentUserLogin: Schema.NullOr(Schema.String),
-        lastReviewOid: Schema.NullOr(Schema.String)
-      }),
-      comparison: Schema.Struct({
-        fullDiff: Schema.Struct({
-          baseOid: Schema.String,
-          headOid: Schema.String
-        })
-      }),
-      diffSummaries: Schema.Array(DiffSummary),
-      diffContents: Schema.Array(DiffContent),
-      commits: Schema.Array(Commit),
-      markers: Schema.Struct({
-        threads: Schema.Record(Schema.String, Thread)
-      })
+  pullRequest: Schema.Struct({
+    number: Schema.Number,
+    title: Schema.String,
+    state: PullRequestStateOnTheWire,
+    author: Schema.NullOr(Author),
+    baseBranch: Schema.String,
+    headBranch: Schema.String,
+    commitsCount: Schema.Number
+  }),
+  user: Schema.Struct({
+    currentUserLogin: Schema.NullOr(Schema.String),
+    lastReviewOid: Schema.NullOr(Schema.String)
+  }),
+  comparison: Schema.Struct({
+    fullDiff: Schema.Struct({
+      baseOid: Schema.String,
+      headOid: Schema.String
     })
+  }),
+  diffSummaries: Schema.Array(DiffSummary),
+  diffContents: Schema.Array(DiffContent),
+  commits: Schema.Array(Commit),
+  markers: Schema.Struct({
+    threads: Schema.Record(Schema.String, Thread)
   })
 })
 
@@ -1302,7 +1298,15 @@ const WorkingSetRow = Schema.Struct({
 
 export type WorkingSetRow = typeof WorkingSetRow["Type"]
 
-const Listing = Schema.Struct({
+/**
+ * A page of rows, which is what both of their pull request lists answer with.
+ *
+ * One shape for two routes: `/pulls/inbox/queries?filter=…` serves a shelf and
+ * `/pulls?q=…` serves an arbitrary search, and the rows are the same rows. Only the
+ * shelf route fills in `category`, so what a payload holds is said by which route was
+ * asked rather than by anything in the answer, and both callers know which they asked.
+ */
+export const Listing = Schema.Struct({
   results: Schema.Array(WorkingSetRow),
   pageInfo: Schema.optional(
     Schema.NullOr(
@@ -1315,25 +1319,7 @@ const Listing = Schema.Struct({
   )
 })
 
-/**
- * One of GitHub's six shelves, from `/pulls/inbox/queries?filter=…`.
- *
- * The same rows as {@link QueryRoute} under a different key, which is GitHub's
- * arrangement and not one worth hiding: the shelf route is the only one that
- * fills in `category`, so which key a payload came under says what is in it.
- */
-export const ShelfRoute = Schema.Struct({
-  payload: Schema.Struct({ pullsInboxSurfaceContentRoute: Listing })
-})
-
-export type ShelfRoute = typeof ShelfRoute["Type"]
-
-/** An arbitrary search, from `/pulls?q=…`. Carries no `category`. */
-export const QueryRoute = Schema.Struct({
-  payload: Schema.Struct({ pullsDashboardSurfaceContentRoute: Listing })
-})
-
-export type QueryRoute = typeof QueryRoute["Type"]
+export type Listing = typeof Listing["Type"]
 
 /**
  * What the rows arrive without: how the checks stand, and how the reviews did.
@@ -1343,42 +1329,38 @@ export type QueryRoute = typeof QueryRoute["Type"]
  * Working Set two requests rather than one per pull request.
  */
 export const DeferredRoute = Schema.Struct({
-  payload: Schema.Struct({
-    pullsInboxSurfaceContentDeferredData: Schema.Struct({
-      results: Schema.Array(
-        Schema.Struct({
-          id: Schema.Number,
-          /**
-           * Absent altogether on a pull request with no checks at all, which one
-           * observed row was — hence optional rather than merely nullable.
-           */
-          statusCheckRollup: Schema.optional(
-            Schema.NullOr(
-              Schema.Struct({
-                /**
-                 * `SUCCESS` and `FAILURE` are the two observed. The rest are
-                 * GitHub's published `StatusState`, which this field is typed as
-                 * in their own schema, and `CI_RUNNING` turning up as a category
-                 * says `PENDING` is reachable.
-                 */
-                state: Schema.Literals(["SUCCESS", "FAILURE", "PENDING", "ERROR", "EXPECTED"]),
-                totalCount: Schema.Number,
-                successCount: Schema.Number
-              })
-            )
-          ),
-          /** Null until anybody has given an opinion, which is most of them. */
-          reviewDecisionState: Schema.optional(
-            Schema.NullOr(
-              Schema.Literals(["APPROVED", "CHANGES_REQUESTED", "REVIEW_REQUIRED"])
-            )
-          ),
-          approvedReviewsCount: Schema.optional(Schema.NullOr(Schema.Number)),
-          changesRequestedReviewsCount: Schema.optional(Schema.NullOr(Schema.Number))
-        })
-      )
+  results: Schema.Array(
+    Schema.Struct({
+      id: Schema.Number,
+      /**
+       * Absent altogether on a pull request with no checks at all, which one
+       * observed row was — hence optional rather than merely nullable.
+       */
+      statusCheckRollup: Schema.optional(
+        Schema.NullOr(
+          Schema.Struct({
+            /**
+             * `SUCCESS` and `FAILURE` are the two observed. The rest are
+             * GitHub's published `StatusState`, which this field is typed as
+             * in their own schema, and `CI_RUNNING` turning up as a category
+             * says `PENDING` is reachable.
+             */
+            state: Schema.Literals(["SUCCESS", "FAILURE", "PENDING", "ERROR", "EXPECTED"]),
+            totalCount: Schema.Number,
+            successCount: Schema.Number
+          })
+        )
+      ),
+      /** Null until anybody has given an opinion, which is most of them. */
+      reviewDecisionState: Schema.optional(
+        Schema.NullOr(
+          Schema.Literals(["APPROVED", "CHANGES_REQUESTED", "REVIEW_REQUIRED"])
+        )
+      ),
+      approvedReviewsCount: Schema.optional(Schema.NullOr(Schema.Number)),
+      changesRequestedReviewsCount: Schema.optional(Schema.NullOr(Schema.Number))
     })
-  })
+  )
 })
 
 export type DeferredRoute = typeof DeferredRoute["Type"]

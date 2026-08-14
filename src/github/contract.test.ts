@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
-import { Effect, Schema } from "effect"
+import { Effect } from "effect"
 import { type FixtureName, loadFixture } from "../../tests/fixtures"
+import { reParented } from "../../tests/reParented"
 import {
   ChangesRoute,
   CommitAnswer,
@@ -23,24 +24,32 @@ type Decoder = (input: unknown) => Effect.Effect<unknown, unknown>
 const finding = (schema: Parameters<typeof whereverItIs>[0]): Decoder => whereverItIs(schema)
 
 const contracts: ReadonlyArray<readonly [FixtureName, Decoder]> = [
-  ["changes", Schema.decodeUnknownEffect(ChangesRoute)],
-  ["approved-changes", Schema.decodeUnknownEffect(ChangesRoute)],
-  ["status-checks", Schema.decodeUnknownEffect(StatusChecksRoute)],
-  ["approved-status-checks", Schema.decodeUnknownEffect(StatusChecksRoute)],
-  ["merge-box", Schema.decodeUnknownEffect(MergeBoxRoute)],
-  ["merge-box-approved", Schema.decodeUnknownEffect(MergeBoxRoute)],
-  ["merge-box-stacked-bottom", Schema.decodeUnknownEffect(MergeBoxRoute)],
-  ["merge-box-stacked-middle", Schema.decodeUnknownEffect(MergeBoxRoute)],
-  ["merge-box-stacked-top", Schema.decodeUnknownEffect(MergeBoxRoute)],
-  ["merge-box-stacked-draft-below", Schema.decodeUnknownEffect(MergeBoxRoute)],
+  ["changes", finding(ChangesRoute)],
+  ["approved-changes", finding(ChangesRoute)],
+  ["status-checks", finding(StatusChecksRoute)],
+  ["approved-status-checks", finding(StatusChecksRoute)],
+  ["merge-box", finding(MergeBoxRoute)],
+  ["merge-box-approved", finding(MergeBoxRoute)],
+  ["merge-box-stacked-bottom", finding(MergeBoxRoute)],
+  ["merge-box-stacked-middle", finding(MergeBoxRoute)],
+  ["merge-box-stacked-top", finding(MergeBoxRoute)],
+  ["merge-box-stacked-draft-below", finding(MergeBoxRoute)],
   ["commit", finding(CommitAnswer)],
-  ["commit-extra-diffs", Schema.decodeUnknownEffect(CommitDiffsRoute)]
+  ["commit-extra-diffs", finding(CommitDiffsRoute)]
 ]
 
 describe("recorded GitHub payloads still match the schemas we decode with", () => {
   for (const [name, decode] of contracts) {
     test(`${name}.json decodes`, async () => {
       await Effect.runPromise(decode(loadFixture(name)))
+    })
+  }
+})
+
+describe("a payload GitHub has parented somewhere new", () => {
+  for (const [name, decode] of contracts) {
+    test(`${name}.json still decodes, without anybody naming the new key`, async () => {
+      await Effect.runPromise(decode(reParented(loadFixture(name))))
     })
   }
 })
@@ -68,7 +77,7 @@ describe("when GitHub stops sending something we read", () => {
 
   test("the failure names the missing field rather than crashing somewhere else", async () => {
     const error = await Effect.runPromise(
-      Effect.flip(Schema.decodeUnknownEffect(ChangesRoute)(withoutTitle))
+      Effect.flip(finding(ChangesRoute)(withoutTitle))
     )
 
     expect(String(error)).toContain("title")
@@ -94,11 +103,13 @@ describe("when GitHub stops sending something we read", () => {
     }
 
     const error = await Effect.runPromise(
-      Effect.flip(Schema.decodeUnknownEffect(ChangesRoute)(queued))
+      Effect.flip(finding(ChangesRoute)(queued))
     )
 
+    // Named from where their envelope ends, since the reader no longer knows or
+    // cares which key this week's payload was parented under.
     expect(whyItWouldNotDecode(error)).toBe(
-      'payload.pullRequestsChangesRoute.pullRequest.state: Expected "OPEN" | "CLOSED" | "MERGED" | "DRAFT" | "QUEUED", got "PARKED"'
+      'pullRequest.state: Expected "OPEN" | "CLOSED" | "MERGED" | "DRAFT" | "QUEUED", got "PARKED"'
     )
   })
 
