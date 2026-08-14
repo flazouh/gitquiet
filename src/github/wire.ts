@@ -721,12 +721,71 @@ export const TreeCommitInfoRoute = Schema.Struct({
         Schema.NullOr(
           Schema.Union([Schema.String, Schema.Struct({ value: Schema.String })])
         )
+      ),
+      /*
+       * The person, where this route already named them.
+       *
+       * Absent on the payloads we have recorded. Optional so a later shape that
+       * carries a login can skip the extra read of unique SHAs.
+       */
+      author: Schema.optional(
+        Schema.NullOr(
+          Schema.Union([
+            Schema.String,
+            Schema.Struct({
+              login: Schema.optional(Schema.NullOr(Schema.String)),
+              avatarUrl: Schema.optional(Schema.NullOr(Schema.String))
+            })
+          ])
+        )
       )
     })
   )
 })
 
 export type TreeCommitInfoRoute = typeof TreeCommitInfoRoute["Type"]
+
+/**
+ * One commit, off `/owner/repo/latest-commit/<sha>`, for the face beside a row.
+ *
+ * The cheap answer to "who wrote this". The column route above names nobody, and
+ * the commit's own page — which is what this replaced — carries the whole diff to
+ * say it: measured at 2 kilobytes here against 28 on this repository and 390 on
+ * `facebook/react`. The fields are the column's four, plus the person.
+ *
+ * `author` is the git author with a login and a pre-sized avatar where the email
+ * belongs to an account, and a display name with neither where it does not.
+ * `authors` is the same person first, then anybody the trailers credit.
+ *
+ * The route means "the latest commit at this ref, under this path", so a path on
+ * the end answers about a different commit. The `oid` it returns is checked
+ * against the one that was asked for.
+ */
+export const LatestCommitRoute = Schema.Struct({
+  oid: Schema.optional(Schema.NullOr(Schema.String)),
+  author: Schema.optional(
+    Schema.NullOr(
+      Schema.Struct({
+        login: Schema.optional(Schema.NullOr(Schema.String)),
+        displayName: Schema.optional(Schema.NullOr(Schema.String)),
+        avatarUrl: Schema.optional(Schema.NullOr(Schema.String))
+      })
+    )
+  ),
+  authors: Schema.optional(
+    Schema.NullOr(
+      Schema.Array(
+        Schema.Struct({
+          login: Schema.optional(Schema.NullOr(Schema.String)),
+          displayName: Schema.optional(Schema.NullOr(Schema.String)),
+          avatarUrl: Schema.optional(Schema.NullOr(Schema.String))
+        })
+      )
+    )
+  )
+})
+
+export type LatestCommitRoute = typeof LatestCommitRoute["Type"]
 
 /**
  * The three moments of a pull request, from the route GitHub's own header reads.

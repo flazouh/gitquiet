@@ -5,6 +5,8 @@ import { forgetIntent, intendedPath } from "@/app/intent"
 import {
   loadRepoHome,
   loadFile,
+  loadFolderTouches,
+  loadReadme,
   loadStanding,
   loadTreePaths,
   rememberedRepoHome,
@@ -12,7 +14,7 @@ import {
 } from "@/app/repoHome"
 import { chosenView } from "@/app/settings"
 import { shelfOf } from "@/app/shelf"
-import type { Front, RepoHome } from "@/domain/repoHome"
+import type { Front, RepoHome, Touch } from "@/domain/repoHome"
 import { repoHomeIn } from "@/domain/repoHome"
 import type { View } from "@/domain/Settings"
 import { frontInDocument } from "@/github/repoHome"
@@ -153,10 +155,19 @@ const open = (home: RepoHome): Open => {
    */
   const standingOf = () => loadStanding(home.repo).pipe(throughGitHub)
   const paths = (sha: string) => loadTreePaths(home.repo, sha).pipe(throughGitHub)
+  const touches = (
+    sha: string,
+    folder: string,
+    partly: (found: ReadonlyMap<string, Touch>) => void
+  ) => loadFolderTouches(home.repo, sha, folder, partly).pipe(throughGitHub)
 
   /** The branches, once the picker over the tree is opened and not before. */
   const branches = (partly: (names: ReadonlyArray<string>) => void) =>
     loadBranches(home.repo, partly).pipe(throughGitHub)
+
+  /** The README's own text, which the screen parses in place of GitHub's HTML. */
+  const readme = (branch: string, path: string) =>
+    loadReadme(home.repo, branch, path).pipe(throughGitHub)
 
   /*
    * One shelf for this page, so a file read once is never read again and the
@@ -196,7 +207,9 @@ const open = (home: RepoHome): Open => {
         onStar={(to) => starRepo(home.repo, to).pipe(throughGitHub)}
         loadStanding={standingOf}
         loadPaths={paths}
+        loadTouches={touches}
         loadBranches={branches}
+        loadReadme={readme}
         shelf={shelf}
         reading={showing}
         onRead={goTo}

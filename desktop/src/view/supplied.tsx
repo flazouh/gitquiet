@@ -12,8 +12,17 @@ import { RendererProvider } from "../../../src/ui/renderer"
 import { SettingsProvider } from "../../../src/ui/settings"
 import { Theme } from "../../../src/ui/Theme"
 import { Toasts } from "../../../src/ui/Toasts"
+import { MarkdownDrawProvider } from "../../../src/markdown/runtime"
 import { loadDiffEngine } from "./diffEngine"
+import { loadMarkdownHighlighter } from "./markdownHighlighter"
+import { loadMarkdownMermaid } from "./markdownMermaid"
 import { inThisWindow } from "./somewhere"
+
+const highlight = (code: string, language: string, theme: "light" | "dark") =>
+  loadMarkdownHighlighter.pipe(Effect.flatMap((draw) => draw(code, language, theme)))
+
+const mermaid = (code: string) =>
+  loadMarkdownMermaid.pipe(Effect.flatMap((draw) => draw(code)))
 
 /**
  * What a window can answer, where the extension's `shell/supplied.tsx` answers
@@ -134,11 +143,13 @@ export const Supplied = ({ children }: { readonly children: ReactNode }) => (
         <ArtProvider here={HUGEICONS}>
         <PortraitsProvider reads={nobody}>
           <RendererProvider load={loadDiffEngine}>
+            <MarkdownDrawProvider highlight={highlight} mermaid={mermaid}>
             {/* One for the window, above every screen in it: a refusal outlives
                 the menu that caused it, and often the screen as well. Wrapping
                 rather than sitting beside, so the screens that wrap themselves in
                 this again do not each get a Toaster of their own. */}
             <Toasts>{children}</Toasts>
+            </MarkdownDrawProvider>
           </RendererProvider>
         </PortraitsProvider>
         </ArtProvider>

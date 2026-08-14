@@ -190,7 +190,13 @@ export type ArtName =
   | "write"
   /**
    * What a stacked pull request sits on: the mark in a tier's gutter, pointing
-   * from the row above the fold down into the row that is waiting on it.
+   * out of the row that is waiting and up into the row it goes into.
+   *
+   * It points at the base and not away from it. A layer merges into the one it
+   * sits on, and the trunk is drawn above and to the left, so an arrow turning
+   * up out of a row says where that row's work is going. Turned the other way
+   * the same arrow said the base flows into the layer, which is the direction
+   * nothing here travels in.
    *
    * Named for the relationship and not for an arrow, because the two sets draw
    * it differently on purpose: GitHub's is a corner arrow of the same weight as

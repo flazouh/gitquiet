@@ -101,12 +101,29 @@ export type Kind = "directory" | "file" | "submodule"
  * refactor, so the message alone lies about a file and the date beside it does
  * not. Shown together, a reader can see when the message is not worth believing.
  */
+/**
+ * Who wrote the commit that last touched a row, when that is known.
+ *
+ * Optional on the first paint of the column: the tree-commit route names the
+ * commit and not always the person, and a later read of unique SHAs fills this
+ * in. A row that never learns a login still shows the message, the age and the
+ * link.
+ */
+export type TouchWho = {
+  readonly login: string
+  /** GitHub's own URL for the face, when the payload carried one. */
+  readonly face: Option.Option<string>
+}
+
 export type Touch = {
   /** ISO 8601, as GitHub sends it. Formatted by `ageOf` at the last moment. */
   readonly at: string
   readonly said: string
   /** The commit itself, so the row's date is a way into the history. */
   readonly url: string
+  /** The SHA, so one later read can name the author of many rows at once. */
+  readonly oid: Option.Option<string>
+  readonly who: Option.Option<TouchWho>
 }
 
 export type Entry = {
@@ -126,17 +143,23 @@ export type Entry = {
 }
 
 /**
- * The README, already rendered.
+ * The README: where to read it, and GitHub's rendering of it until it is read.
  *
- * GitHub renders it to HTML on the server and puts it in the payload the page
- * already carries, so this costs no request and no markdown parser. It is also
- * most of the payload — three hundred kilobytes of three hundred and thirty for a
- * well-documented repository — which is why nothing here reads it, measures it or
- * copies it. It arrives as a string and is handed to the screen as the same
- * string.
+ * Two forms, and the source is the one this interface draws. A README is markdown
+ * like a description and a comment are, and those are parsed here, so a README
+ * taken as GitHub's HTML is their table, their headings and their fences on the
+ * one page most readers meet first.
+ *
+ * Their rendering is kept because it is already in hand. It comes with the
+ * payload at no request and no wait, and it is most of that payload — three
+ * hundred kilobytes of three hundred and thirty for a well-documented repository
+ * — which is why nothing here reads it, measures it or copies it. It stands on
+ * the page while the source is read, and stays where the source cannot be.
  */
 export type Welcome = {
   readonly name: string
+  /** Where the file is, from the root, so the source can be asked for. */
+  readonly path: string
   readonly html: string
   /** True where GitHub gave up rendering it. The screen says so rather than showing a blank. */
   readonly timedOut: boolean
@@ -284,6 +307,45 @@ export const touchedBy = (
     const found = touches.get(entry.path)
     return found === undefined ? entry : { ...entry, touched: Option.some(found) }
   })
+
+/**
+ * The SHAs still missing a face, unique, so one commit is one later read.
+ *
+ * A SHA already named is left out: the tree-commit route sometimes carries the
+ * author, and asking again would be a request for a fact already in hand.
+ */
+export const shasOf = (touches: ReadonlyMap<string, Touch>): ReadonlyArray<string> => {
+  const seen = new Set<string>()
+  const shas: Array<string> = []
+  for (const touch of touches.values()) {
+    if (Option.isSome(touch.who)) continue
+    const oid = Option.getOrUndefined(touch.oid)
+    if (oid === undefined || seen.has(oid)) continue
+    seen.add(oid)
+    shas.push(oid)
+  }
+  return shas
+}
+
+/**
+ * The same column, with faces written onto the commits they belong to.
+ *
+ * Keyed by SHA rather than by path, because many rows share one commit and the
+ * later read answers once per commit. A row whose SHA is missing from `who`
+ * keeps the message it already had.
+ */
+export const namedBy = (
+  touches: ReadonlyMap<string, Touch>,
+  who: ReadonlyMap<string, TouchWho>
+): ReadonlyMap<string, Touch> =>
+  new Map(
+    [...touches].map(([path, touch]) => {
+      if (Option.isSome(touch.who)) return [path, touch]
+      const oid = Option.getOrUndefined(touch.oid)
+      const found = oid === undefined ? undefined : who.get(oid)
+      return [path, found === undefined ? touch : { ...touch, who: Option.some(found) }]
+    })
+  )
 
 /**
  * The site's own two-segment addresses, which are not repositories.

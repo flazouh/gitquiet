@@ -4,7 +4,6 @@ import type { Suggesting } from "../domain/suggesting"
 import { useState } from "react"
 import { PRESSABLE } from "./dress"
 import { Markdown } from "./Markdown"
-import { renderMarkdown } from "./renderMarkdown"
 import { Says } from "./says"
 import { Who } from "./Who"
 import { Writing } from "./Writing"
@@ -86,7 +85,7 @@ export const Note = ({
             Delete
           </button>
         </div>
-        <Markdown html={renderMarkdown(body)} />
+        <Markdown markdown={body} />
       </>
     )
   }

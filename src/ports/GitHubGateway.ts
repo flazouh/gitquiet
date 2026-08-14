@@ -24,7 +24,7 @@ import type { InvolvedIssue, Involvement, IssueRef, ListedIssue } from "../domai
 import type { Notice, Press } from "../domain/notices"
 import type { Portrait } from "../domain/portrait"
 import type { Raised, Raising } from "../domain/raising"
-import type { Front, Opened, Standing, Starring, Touch } from "../domain/repoHome"
+import type { Front, Opened, Standing, Starring, Touch, TouchWho } from "../domain/repoHome"
 import type { Repository } from "../domain/repositories"
 import type { RunOpening, RunRef } from "../domain/run"
 import type { Strand } from "../domain/strand"
@@ -534,6 +534,24 @@ export class GitHubGateway extends Context.Service<
     ) => Effect.Effect<Opened, GatewayError>
 
     /**
+     * One file as its own text, and nothing else.
+     *
+     * The same file {@link fileAt} answers with, at a hundredth of the cost:
+     * five kilobytes of markdown against the three hundred their page for it
+     * spends on a rendering, a symbol table and a layout. That is the whole
+     * reason it exists, and the reason the README on a front page can be parsed
+     * here rather than taken as their HTML.
+     *
+     * No rendering comes with it, so the caller must have a parser. The pane
+     * beside the tree wants their rendering as well and keeps to `fileAt`.
+     */
+    readonly rawFileAt: (
+      reference: RepoRef,
+      branch: string,
+      path: string
+    ) => Effect.Effect<string, GatewayError>
+
+    /**
      * Star a repository, or take the star back.
      *
      * Said as where the reader wants to end up rather than as a thing to do, so
@@ -548,11 +566,29 @@ export class GitHubGateway extends Context.Service<
      * one their own page spends here too: eight kilobytes and 234 milliseconds for
      * a repository of thirteen entries, measured. Asked about a commit rather than
      * a branch, so that a column drawn against one tree can never describe another.
+     * A folder below the root is a second ask of the same route, because it answers
+     * one directory at a time and names its children relative to it.
      */
     readonly treeCommits: (
       reference: RepoRef,
-      sha: string
+      sha: string,
+      folder?: string
     ) => Effect.Effect<ReadonlyMap<string, Touch>, GatewayError>
+    /**
+     * Who wrote one commit, for the face beside a row of that column.
+     *
+     * The route above names nobody, so this is asked once per unique commit
+     * behind it. Its own route rather than {@link commit}, which answers the
+     * whole diff to say one login: two kilobytes against twenty-eight on this
+     * repository and three hundred and ninety on `facebook/react`, measured.
+     *
+     * Nothing where nobody is named, which is a row that keeps its message, its
+     * age and its link and loses only the face.
+     */
+    readonly whoTouched: (
+      reference: RepoRef,
+      sha: string
+    ) => Effect.Effect<Option.Option<TouchWho>, GatewayError>
     /**
      * The front page as it was last read, without asking GitHub.
      *

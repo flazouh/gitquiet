@@ -1,8 +1,8 @@
 import {
   AlertFillIcon,
-  ArrowDownRightIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
+  ArrowUpLeftIcon,
   BoldIcon,
   BookIcon,
   BriefcaseIcon,
@@ -121,7 +121,7 @@ export const OCTICONS: Set = {
   work: BriefcaseIcon,
   // Over to you: an arrow pointing at the reader's own column of rows.
   "your-move": ArrowRightIcon,
-  "stacked-on": ArrowDownRightIcon,
+  "stacked-on": ArrowUpLeftIcon,
   more: KebabHorizontalIcon,
   link: LinkIcon,
   attach: PaperclipIcon,

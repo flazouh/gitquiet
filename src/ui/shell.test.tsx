@@ -248,7 +248,7 @@ describe("what the pull request is, in four sections", () => {
     await awaitPage()
 
     const about = section("Description")
-    expect(about.querySelector(".markdown-body h2")?.textContent).toBe("Why")
+    expect(about.querySelector(".markdown h2")?.textContent).toBe("Why")
     expect(ceilings(about)).toEqual(["13rem"])
     expect(within(about).getByRole("button").textContent).toContain("Show all")
   })

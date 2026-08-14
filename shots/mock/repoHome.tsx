@@ -44,7 +44,9 @@ const touched = (said: string, hours: number): Option.Option<Touch> =>
   Option.some({
     at: hoursAgo(hours),
     said,
-    url: `https://github.com/${REPO.owner}/${REPO.repo}/commit/${HEAD.slice(0, 7)}`
+    url: `https://github.com/${REPO.owner}/${REPO.repo}/commit/${HEAD.slice(0, 7)}`,
+    oid: Option.some(HEAD),
+    who: Option.none()
   })
 
 /**
@@ -219,7 +221,7 @@ const README = [
   "the notices for everything it vendors are in <a href=\"LICENSE.md\">LICENSE.md</a>.</p>"
 ].join("\n")
 
-const WELCOME: Welcome = { name: "README.md", html: README, timedOut: false }
+const WELCOME: Welcome = { name: "README.md", path: "README.md", html: README, timedOut: false }
 
 const ABOUT: About = {
   description: Option.some(

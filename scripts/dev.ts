@@ -6,12 +6,13 @@
  *
  * Three builds make this extension and only one of them is WXT's. The shell and
  * the worker are entrypoints, so `wxt` watches those itself. The four screens
- * (scripts/build-screens.ts) and the diff renderer (scripts/build-diff-engine.ts)
- * are built beside it into `public/`, for the reasons those two files give, and
+ * (scripts/build-screens.ts), the diff renderer (scripts/build-diff-engine.ts),
+ * and the markdown highlighter (scripts/build-markdown-highlighter.ts)
+ * are built beside it into `public/`, for the reasons those files give, and
  * `wxt` treats that folder as static: it copies what changes and reloads the
  * extension, but it will not rebuild a screen because a component under `src/ui`
- * was saved. So both are started here in watch mode, and between the three of
- * them every file in `src` is watched by something.
+ * was saved. So those watchers are started here, and between them and `wxt`
+ * every file in `src` is watched by something.
  *
  * Then the browser. `wxt` would normally start one, and it cannot here — there is
  * no Chrome installed and the browser we develop against is ego lite, already
@@ -85,6 +86,16 @@ const nudge = () => {
       // The diff renderer is built before this can be called, so this is only
       // reachable if that build has just failed. The next nudge will do.
     }
+    try {
+      utimesSync(here("../public/markdown-highlighter.js"), now, now)
+    } catch {
+      // Same as above, for the highlighter.
+    }
+    try {
+      utimesSync(here("../public/markdown-mermaid.js"), now, now)
+    } catch {
+      // Same as above, for mermaid.
+    }
   }, DEBOUNCE + 400)
 }
 
@@ -129,6 +140,12 @@ const waitForBuild = async (after: number) => {
 await once("gates", "build-gates.ts")
 
 await watcher("diff", "build-diff-engine.ts", "built public/diff-engine.js")
+await watcher(
+  "highlighter",
+  "build-markdown-highlighter.ts",
+  "built public/markdown-highlighter.js"
+)
+await watcher("mermaid", "build-markdown-mermaid.ts", "built public/markdown-mermaid.js")
 await watcher("screens", "build-screens.ts", "built public/screens/")
 
 const started = Date.now()

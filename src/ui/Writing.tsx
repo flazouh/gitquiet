@@ -1,5 +1,5 @@
 import { Effect, Fiber } from "effect"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   pictured,
   placed,
@@ -18,7 +18,6 @@ import {
 } from "../domain/suggesting"
 import { type ArtName, useArt } from "./art"
 import { Markdown } from "./Markdown"
-import { renderMarkdown } from "./renderMarkdown"
 import { continued, indented, linked } from "./typing"
 import { type Way, Ways } from "./Ways"
 
@@ -205,7 +204,6 @@ export const Writing = ({
   const [previewing, setPreviewing] = useState(false)
   const box = useRef<HTMLTextAreaElement>(null)
   const picker = useRef<HTMLInputElement>(null)
-  const preview = useMemo(() => renderMarkdown(text), [text])
   const [offering, setOffering] = useState<Suggesting>(NOBODY)
   const [caret, setCaret] = useState(0)
   const [chose, setChose] = useState(0)
@@ -440,7 +438,7 @@ export const Writing = ({
           {text.trim() === "" ? (
             <p className="text-sm text-ink-muted">Nothing to preview yet.</p>
           ) : (
-            <Markdown html={preview} />
+            <Markdown markdown={text} />
           )}
         </div>
       ) : (

@@ -30,15 +30,18 @@ const front = (footing: Footing, over: Partial<Front> = {}): Front => ({
   entries: [
     entry("src", { kind: "directory", path: "src" }),
     entry("README.md", {
-      touched: Option.some({
+        touched: Option.some({
         at: "2026-07-30T12:00:00Z",
         said: "Say what this is for",
-        url: "/flowline-labs/flowline/commit/def"
+        url: "/flowline-labs/flowline/commit/def",
+        oid: Option.some("def"),
+        who: Option.none()
       })
     })
   ],
   welcome: Option.some({
     name: "README.md",
+    path: "README.md",
     html: "<h1>Flowline</h1><p>A queue, a worker and somewhere to watch them.</p>",
     timedOut: false
   }),
@@ -104,9 +107,8 @@ describe("a repository's front page", () => {
     // toggle reads as a page that failed to load, so the order changes and the
     // contents do not.
     //
-    // Said of the section rather than of the rows: the tree draws itself into a
-    // shadow root of its own and there is nothing in this document to read. What
-    // it is given is checked in `repoTree.test.ts`.
+    // Said of the section rather than of the rows: the tree is checked in
+    // `repoTree.test.ts` and `repoTree.view.test.tsx`.
     showing(() => Effect.succeed(front("caller")))
 
     await screen.findByText("Flowline")
@@ -178,12 +180,89 @@ describe("a repository's front page", () => {
     showing(() =>
       Effect.succeed(
         front("caller", {
-          welcome: Option.some({ name: "README.md", html: "", timedOut: true })
+          welcome: Option.some({ name: "README.md", path: "README.md", html: "", timedOut: true })
         })
       )
     )
 
     expect(await screen.findByText(/could not render this README/)).toBeTruthy()
+  })
+
+  /*
+   * The README is markdown like every other body on this interface, so it is
+   * parsed here rather than taken as GitHub's rendering of it. Their HTML wears
+   * their own table, their own headings and their own code fences, which is a
+   * second interface inside this one on the one page most readers meet first.
+   */
+  test("draws the README from its source, in this interface's own chrome", async () => {
+    showing(() => Effect.succeed(front("caller")), {
+      loadReadme: () =>
+        Effect.succeed("| Group | Means |\n| --- | --- |\n| Your Move | You can act on it now. |")
+    })
+
+    expect(await screen.findByText("Your Move")).toBeTruthy()
+    expect(document.querySelector(".markdown-table")).toBeTruthy()
+  })
+
+  test("asks for the README by the path GitHub named, on the branch it is on", async () => {
+    const asked: Array<readonly [string, string]> = []
+
+    showing(
+      () =>
+        Effect.succeed(
+          front("caller", {
+            welcome: Option.some({
+              name: "README",
+              path: "docs/README.md",
+              html: "<h1>Flowline</h1>",
+              timedOut: false
+            })
+          })
+        ),
+      {
+        loadReadme: (branch, path) => {
+          asked.push([branch, path])
+          return Effect.succeed("# Flowline")
+        }
+      }
+    )
+
+    await screen.findByText("Flowline")
+    expect(asked).toEqual([["main", "docs/README.md"]])
+  })
+
+  /*
+   * A README that cannot be read is worse than one wearing GitHub's chrome, and
+   * their rendering of it is already in hand at no cost.
+   */
+  test("keeps GitHub's rendering where the source cannot be read", async () => {
+    showing(() => Effect.succeed(front("caller")), {
+      loadReadme: () => Effect.fail(new Error("no"))
+    })
+
+    expect(await screen.findByText("Flowline")).toBeTruthy()
+  })
+
+  test("asks for nothing where GitHub could not render the README either", async () => {
+    let asked = 0
+
+    showing(
+      () =>
+        Effect.succeed(
+          front("caller", {
+            welcome: Option.some({ name: "README.md", path: "README.md", html: "", timedOut: true })
+          })
+        ),
+      {
+        loadReadme: () => {
+          asked += 1
+          return Effect.succeed("# Flowline")
+        }
+      }
+    )
+
+    await screen.findByText(/could not render this README/)
+    expect(asked).toBe(0)
   })
 
   test("offers GitHub's own page back when the read fails", async () => {

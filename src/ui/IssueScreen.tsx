@@ -294,7 +294,12 @@ export const IssueScreen = ({
             onReopen={onReopen}
           />
           <div className="flex flex-col gap-1.5 pb-2">
-            <Description html={snapshot.description.html} foldable={false} />
+            <Description
+              markdown={snapshot.description.markdown}
+              owner={snapshot.reference.owner}
+              repo={snapshot.reference.repo}
+              foldable={false}
+            />
             {/* No threads, ever: a thread hangs off a line of a diff and an
                 issue has no lines. Every comment on one is a Remark, which is
                 why this panel draws either page without knowing which it is on.
