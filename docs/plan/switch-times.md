@@ -116,12 +116,24 @@ buys nothing unless the reader rests longer than the whole read.
 
 ## 5. What is left to fix
 
-1. Join the two issue reads through `askingOnce`, keyed by the route the store
-   already uses. One request per open, and the rest a reader takes before
-   pressing finally counts.
-2. Carry the persisted query hash to a list page, so the first issue of a session
-   stops costing a whole HTML document. This is the 2643ms above and the only
-   remaining switch that is ours rather than GitHub's.
+Done. Both issue reads fold through `askingOnce` now, keyed by the address each
+fetches. Measured on the marked build, with the pointer resting 346ms on a row
+before the press: the read ahead asked at -190ms, the screen asked at 72ms and
+joined at 81ms, one request was made, and both readers were answered at 1073ms
+and 1074ms. Before it, the same shape made two requests 700ms apart.
+
+A rest longer than the read is not folded, and should not be: `askingOnce` folds
+requests in the air rather than keeping answers. Rest for a second and the read
+ahead finishes first, the store carries its answer, and the screen's own live read
+goes out again on its own. Measured: the read ahead answered at 59ms after the
+press and the screen asked at 71ms, so there was nothing left to join.
+
+Left. Carry the persisted query hash to a list page, so the first issue of a
+session stops costing a whole HTML document. That leg is 4364ms, of which 2643ms
+is the page fetch, and the roughly 1.7s before the fetch even starts is
+`ASKING`, the three second wait for a hash to appear before the read gives up and
+falls back to the page. Both halves are ours rather than GitHub's, and this is the
+only slow switch left on the audit.
 
 Nothing else on this audit justifies work. Notifications at 63ms, the tail of
 mutations, and the bar switch were all instrument faults rather than product
