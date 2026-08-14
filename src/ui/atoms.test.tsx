@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { act, cleanup, render, screen } from "@testing-library/react"
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Effect } from "effect"
 import * as Atom from "effect/unstable/reactivity/Atom"
@@ -105,14 +105,26 @@ describe("atoms on a screen", () => {
 })
 
 describe("a read that can be written to before GitHub answers", () => {
-  /** A GitHub that takes its time and can be made to refuse. */
+  /**
+   * A GitHub that answers when this test says so, and can be made to refuse.
+   *
+   * Held rather than slow: what these tests assert is the value a reader has
+   * while the write is still out, and a timer long enough to assert against on
+   * this machine is a timer a cold or loaded runner beats. This one cannot be
+   * beaten, because nothing but `answer` ends the wait.
+   */
   const server = (refuse = false) => {
     let rows = ["open", "open"]
+    let answer = (): void => {}
+    const answered = new Promise<void>((done) => {
+      answer = () => done()
+    })
 
     return {
       rows: () => rows,
+      answer: () => answer(),
       close: () =>
-        Effect.sleep("10 millis").pipe(
+        Effect.promise(() => answered).pipe(
           Effect.flatMap(() =>
             refuse
               ? Effect.fail("no")
@@ -160,6 +172,7 @@ describe("a read that can be written to before GitHub answers", () => {
 
     expect(screen.getByRole("button").textContent).toBe("closed,open")
 
+    github.answer()
     await settle()
 
     expect(screen.getByRole("button").textContent).toBe("closed,open")
@@ -190,9 +203,8 @@ describe("a read that can be written to before GitHub answers", () => {
 
     expect(screen.getByRole("button").textContent).toBe("closed,open")
 
-    await settle()
-
-    expect(screen.getByRole("button").textContent).toBe("open,open")
+    github.answer()
+    await waitFor(() => expect(screen.getByRole("button").textContent).toBe("open,open"))
   })
 })
 
