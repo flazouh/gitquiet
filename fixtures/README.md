@@ -109,13 +109,25 @@ the live routes:
 DRIFT_FROM=/tmp/drift-capture DRIFT_RENAMED=1 bun scripts/check-drift.ts
 ```
 
-Thirty of the thirty-four survive that. The two that do not are `repo_home` and `blob`,
-and the two tree reads that are asked with what `repo_home` answers. Both read several of
-GitHub's route payloads out of one document at once — the file list, the About box and
-`currentUserCanPush` are three siblings — so unwrapping them needs one search per fact
-rather than one for the answer, and they still name their keys until that is written.
-Mining the right embedded script out of the document is by route name as well, in
-`embedded.ts`, which is a second place those two would need.
+All thirty-four survive that.
+
+The two pages read out of a document took the most work, and are the reason `wherever.ts`
+has four functions rather than one. A repository page carries the file list, the About
+panel and `currentUserCanPush` as three of GitHub's payloads side by side, and a file page
+carries the lines and the rendering as two. So each fact is searched for on its own: the
+file list and the lines are required, and the other three are looked for and done without,
+which is `maybeAmong`. A repository whose About panel changes shape draws its files.
+
+Two of those searches need an anchor, because everything drawn from them is optional and a
+shape that matches an empty object matches the first object in the document. The About
+panel is anchored on `stargazersPath`, which is not drawn at all and is the one field their
+panel always carries, so a repository that stops sending counts still draws its
+description. The footing is anchored on `repo.currentUserCanPush` being present, because
+their About payload holds a `repo` of its own and a search for any `repo` finds two.
+
+Mining is by shape as well now. `embeddedPayloads` hands over every payload in the
+document and the schema picks, so nobody spells `codeViewBlobLayoutRoute.StyledBlob`,
+which was a key with a dot in its name rather than two levels of nesting.
 
 This is not wired into scheduled CI. These routes authenticate with a browser
 session cookie, which is a full account credential, and storing one in Actions

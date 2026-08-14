@@ -17,15 +17,31 @@ import { Effect, Option } from "effect"
 import type { About, Entry, Front, Kind, Starring, Touch, TouchWho, Welcome } from "../domain/repoHome"
 import { footingOf, inReadingOrder } from "../domain/repoHome"
 import { plainText } from "./plainText"
-import { LatestCommitRoute, RepoHomeRoute, TreeCommitInfoRoute, TreeListRoute } from "./wire"
-import { whereverItIs } from "./wherever"
+import {
+  LatestCommitRoute,
+  RepoAbout,
+  RepoFooting,
+  RepoTree,
+  TreeCommitInfoRoute,
+  TreeListRoute
+} from "./wire"
+import { maybeAmong, whereverAmong, whereverItIs } from "./wherever"
 
-export const decodeRepoHome = whereverItIs(RepoHomeRoute)
+/**
+ * The three facts a front page is drawn from, each found on its own.
+ *
+ * The tree is the page and is required. The About panel and the footing are two more of
+ * GitHub's payloads in the same document, and a page draws without either: no About
+ * panel, and a reader treated as a Caller, which is the safe way round.
+ */
+export const findTheTree = whereverAmong(RepoTree)
+export const findTheAbout = maybeAmong(RepoAbout)
+export const findTheFooting = maybeAmong(RepoFooting)
 export const decodeTreeCommitInfo = whereverItIs(TreeCommitInfoRoute)
 export const decodeTreeList = whereverItIs(TreeListRoute)
 export const decodeLatestCommit = whereverItIs(LatestCommitRoute)
 
-type WireEntry = RepoHomeRoute["payload"]["codeViewRepoRoute"]["tree"]["items"][number]
+type WireEntry = RepoTree["tree"]["items"][number]
 
 /**
  * The three kinds GitHub sends, and a fourth answer for anything it starts sending.
@@ -55,7 +71,7 @@ const entryFrom = (entry: WireEntry): Entry => ({
  * opinion that disagrees with theirs on some repository nobody tests.
  */
 const welcomeFrom = (
-  overview: RepoHomeRoute["payload"]["codeViewRepoRoute"]["overview"]
+  overview: RepoTree["overview"]
 ): Option.Option<Welcome> => {
   const file = overview?.overviewFiles?.[0]
   if (file === undefined) return Option.none()
@@ -85,7 +101,7 @@ const starringFrom = (star: { viewerHasStarred?: boolean | null; canStar?: boole
   return star?.canStar === true ? "unstarred" : "barred"
 }
 
-const aboutFrom = (sidebar: RepoHomeRoute["payload"]["sidebarAbout"]): About => ({
+const aboutFrom = (sidebar: RepoAbout | undefined): About => ({
   description: Option.fromNullishOr(sidebar?.description),
   stars: Option.fromNullishOr(sidebar?.stargazerCount),
   forks: Option.fromNullishOr(sidebar?.forksCount),
@@ -102,8 +118,8 @@ const aboutFrom = (sidebar: RepoHomeRoute["payload"]["sidebarAbout"]): About => 
  * first has to scroll past a README they wrote, and a Caller shown the file list
  * first is the page GitHub already gives everybody.
  */
-const footingFrom = (payload: RepoHomeRoute["payload"]): ReturnType<typeof footingOf> =>
-  footingOf(payload.codeViewLayoutRoute?.repo?.currentUserCanPush === true)
+const footingFrom = (layout: RepoFooting | undefined): ReturnType<typeof footingOf> =>
+  footingOf(layout?.repo?.currentUserCanPush === true)
 
 /**
  * How many commits the branch has, whichever way GitHub spelled it.
@@ -122,21 +138,18 @@ const countFrom = (count: number | string | null | undefined): Option.Option<num
 
 export const frontFrom = (
   repo: { readonly owner: string; readonly repo: string },
-  route: RepoHomeRoute
-): Front => {
-  const page = route.payload.codeViewRepoRoute
-
-  return {
+  payloads: ReadonlyArray<unknown>
+): Effect.Effect<Front, unknown> =>
+  Effect.map(findTheTree(payloads), (page) => ({
     repo,
-    footing: footingFrom(route.payload),
+    footing: footingFrom(Option.getOrUndefined(findTheFooting(payloads))),
     branch: page.refInfo.name,
     head: page.refInfo.currentOid,
     entries: inReadingOrder(page.tree.items.map(entryFrom)),
     welcome: welcomeFrom(page.overview),
-    about: aboutFrom(route.payload.sidebarAbout),
+    about: aboutFrom(Option.getOrUndefined(findTheAbout(payloads))),
     commits: countFrom(page.overview?.commitCount)
-  }
-}
+  }))
 
 /**
  * Where their code view puts its data in a document it rendered.
@@ -170,15 +183,12 @@ export const frontInDocument = Effect.fn("repoHome.frontInDocument")(function* (
   const raw = Option.liftThrowable(JSON.parse)(script.textContent ?? "")
   if (Option.isNone(raw)) return Option.none<Front>()
 
-  const decoded = yield* decodeRepoHome(raw.value).pipe(
+  return yield* frontFrom(repo, [raw.value]).pipe(
     Effect.map(Option.some),
     // Not an error worth reporting. The payload belongs to whatever page this
     // document last was, and the live read is the answer either way.
-    Effect.catch(() => Effect.succeed(Option.none<RepoHomeRoute>()))
+    Effect.catch(() => Effect.succeed(Option.none<Front>()))
   )
-  if (Option.isNone(decoded)) return Option.none<Front>()
-
-  return Option.some(frontFrom(repo, decoded.value))
 })
 
 /**

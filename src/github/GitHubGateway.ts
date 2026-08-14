@@ -83,12 +83,11 @@ import { statIn } from "./diffStat"
 import { authorsFrom, branchesFrom } from "./refs"
 import type { Stat } from "../domain/commitList"
 import { historyFrom, marksFrom } from "./commits"
-import { embeddedPayload } from "./embedded"
+import { embeddedPayloads } from "./embedded"
 import { signOnWanted } from "./signOn"
 import { involvedIssuesFrom, listedIssuesFrom } from "./issues"
 import {
   decodeLatestCommit,
-  decodeRepoHome,
   decodeTreeCommitInfo,
   decodeTreeList,
   frontFrom,
@@ -100,7 +99,7 @@ import {
 } from "./repoHome"
 import { commitFromKept, keptCommitFrom } from "./keptCommit"
 import { keepTabs, keptTabs, tabsOnPage } from "./repoTabs"
-import { decodeBlob, openedFrom } from "./file"
+import { openedFrom } from "./file"
 import type { Named, Numbered, Suggesting } from "../domain/suggesting"
 import type { Uploaded } from "../domain/attaching"
 import { decodeAddedComment, issueFrom, remarkFrom } from "./issueView"
@@ -1575,18 +1574,6 @@ const keepTheTabs = (reference: RepoRef, html: string): Effect.Effect<void> =>
   Effect.sync(() => keepTabs(reference, tabsOnPage(html)))
 
 /**
- * The route naming the data a front page is read out of.
- *
- * Named rather than taken first, because their document holds several embedded
- * payloads: two `react-partial` ones for the header and the sidebar, and the
- * `react-app` one that is the page.
- */
-const CODE_VIEW = "codeViewRepoRoute"
-
-/** The same, for the page one file is rendered on. */
-const BLOB_VIEW = "codeViewBlobLayoutRoute.StyledBlob"
-
-/**
  * The payload out of a page of theirs, rather than out of a route of theirs.
  *
  * Two pages of the code view are read this way and both for the same reason:
@@ -1597,8 +1584,7 @@ const BLOB_VIEW = "codeViewBlobLayoutRoute.StyledBlob"
  */
 const readRepoPage = Effect.fn("GitHubGateway.readRepoPage")(function* (
   reference: RepoRef,
-  route: string,
-  naming: string
+  route: string
 ) {
   const url = `https://github.com/${reference.owner}/${reference.repo}${route}`
 
@@ -1623,8 +1609,14 @@ const readRepoPage = Effect.fn("GitHubGateway.readRepoPage")(function* (
       new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
   })
 
-  const raw = embeddedPayload(html, naming)
-  if (Option.isNone(raw)) {
+  /*
+   * Every payload the document carries, rather than the one under a name. Their pages
+   * hold several side by side, and which of them holds a file's lines or a tree is
+   * decided by which one the schema decodes in. So a rename of any of those keys costs
+   * a reader here nothing, which is what four renames in two days argued for.
+   */
+  const payloads = embeddedPayloads(html)
+  if (payloads.length === 0) {
     /*
      * A document with nothing in it for us is either a shape of theirs that
      * changed or a wall, and asking here is what tells them apart: their
@@ -1649,7 +1641,7 @@ const readRepoPage = Effect.fn("GitHubGateway.readRepoPage")(function* (
    * document is already read and already in hand — and it is what stops the bar falling
    * back to the two tabs an address can promise. See `repoTabs.ts`.
    */
-  return { payload: raw.value, html }
+  return { payloads, html }
 })
 
 
@@ -3303,11 +3295,9 @@ export const layer = Layer.succeed(GitHubGateway, {
 
     repoHome: Effect.fn("GitHubGateway.repoHome")(function* (reference: RepoRef) {
       const route = ""
-      const page = yield* readRepoPage(reference, route, CODE_VIEW)
-      const raw = page.payload
+      const page = yield* readRepoPage(reference, route)
 
-      const front = yield* decodeRepoHome(raw).pipe(
-        Effect.map((decoded) => frontFrom(reference, decoded)),
+      const front = yield* frontFrom(reference, page.payloads).pipe(
         Effect.catch(undecodableFrom(reference, route))
       )
 
@@ -3734,10 +3724,9 @@ export const layer = Layer.succeed(GitHubGateway, {
       path: string
     ) {
       const route = `/blob/${branch}/${path.split("/").map(encodeURIComponent).join("/")}`
-      const raw = (yield* readRepoPage(reference, route, BLOB_VIEW)).payload
+      const { payloads } = yield* readRepoPage(reference, route)
 
-      return yield* decodeBlob(raw).pipe(
-        Effect.map((decoded) => openedFrom(decoded, path)),
+      return yield* openedFrom(payloads, path).pipe(
         Effect.catch(undecodableFrom(reference, route))
       )
     }),

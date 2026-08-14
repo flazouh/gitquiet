@@ -2,10 +2,20 @@ import { describe, expect, test } from "bun:test"
 import { Effect, Option } from "effect"
 import code from "../../fixtures/github/blob-code.json"
 import markdown from "../../fixtures/github/blob-markdown.json"
-import { decodeBlob, openedFrom } from "./file"
+import { reParented } from "../../tests/reParented"
+import { openedFrom } from "./file"
 
-const read = (given: unknown, path: string) =>
-  openedFrom(Effect.runSync(decodeBlob(given)), path)
+/** As the gateway reads it: the payloads a document carries, and no key named. */
+const read = (given: unknown, path: string) => Effect.runSync(openedFrom([given], path))
+
+describe("one file, where GitHub has parented its payloads somewhere new", () => {
+  test("still gives the lines, and still gives their rendering", () => {
+    const opened = Effect.runSync(openedFrom([reParented(markdown)], "README.md"))
+
+    expect(opened.lines.length).toBeGreaterThan(0)
+    expect(Option.getOrThrow(opened.rendered).startsWith("<article")).toBe(true)
+  })
+})
 
 describe("one file of a repository, read out of their page", () => {
   test("gives back the file a line at a time, as they sent it", () => {

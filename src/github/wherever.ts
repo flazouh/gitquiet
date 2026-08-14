@@ -85,6 +85,40 @@ const endOfTheEnvelope = (raw: unknown): unknown => {
 }
 
 /**
+ * Every place the schema decodes, at the shallowest depth where anything does.
+ *
+ * One depth at a time, so that two answers at that depth are seen as two rather than
+ * resolved by whichever came first.
+ */
+const searching = <A>(
+  raw: unknown,
+  attempt: (value: unknown) => Option.Option<A>
+): ReadonlyArray<readonly [string, A]> => {
+  const found: Array<readonly [string, A]> = []
+  let deep = -1
+
+  for (const [path, value] of placesIn(raw)) {
+    const at = path === "" ? 0 : path.split(".").length
+    if (found.length > 0 && at > deep) break
+
+    const held = attempt(value)
+    if (Option.isSome(held)) {
+      found.push([path, held.value])
+      deep = at
+    }
+  }
+
+  return found
+}
+
+const ambiguous = (found: ReadonlyArray<readonly [string, unknown]>): Error =>
+  new Error(
+    `the answer decodes at ${found.length} places: ${
+      found.map(([path]) => (path === "" ? "the payload itself" : path)).join(", ")
+    }`
+  )
+
+/**
  * A read that finds its own answer.
  *
  * The failure where nothing matched is the schema's own complaint, made at the end of
@@ -96,30 +130,58 @@ export const whereverItIs = <S extends Schema.ConstraintDecoder<unknown>>(schema
   const complaining = Schema.decodeUnknownEffect(schema)
 
   return (raw: unknown): Effect.Effect<S["Type"], unknown> => {
-    const found: Array<readonly [string, S["Type"]]> = []
-    let deep = -1
-
-    for (const [path, value] of placesIn(raw)) {
-      const at = path === "" ? 0 : path.split(".").length
-      // Everything at one depth is tried, so that two answers at that depth are seen
-      // as two rather than resolved by whichever came first.
-      if (found.length > 0 && at > deep) break
-
-      const held = attempt(value)
-      if (Option.isSome(held)) {
-        found.push([path, held.value])
-        deep = at
-      }
-    }
-
+    const found = searching<S["Type"]>(raw, attempt)
     const [first] = found
-    if (first === undefined) return complaining(endOfTheEnvelope(raw))
 
-    if (found.length > 1) {
-      const where = found.map(([path]) => (path === "" ? "the payload itself" : path)).join(", ")
-      return Effect.fail(new Error(`the answer decodes at ${found.length} places: ${where}`))
-    }
+    if (first === undefined) return complaining(endOfTheEnvelope(raw))
+    if (found.length > 1) return Effect.fail(ambiguous(found))
 
     return Effect.succeed(first[1])
+  }
+}
+
+/**
+ * The same search, for a fact a screen can do without.
+ *
+ * An Option rather than a failure, because the caller has nothing to report: a file
+ * GitHub does not render has no rendering, and a repository with no About panel draws
+ * without one. Two matches are none, for the reason the refusal above gives.
+ */
+export const maybeWherever = <S extends Schema.ConstraintDecoder<unknown>>(schema: S) => {
+  const attempt = Schema.decodeUnknownOption(schema)
+
+  return (raw: unknown): Option.Option<S["Type"]> => {
+    const found = searching<S["Type"]>(raw, attempt)
+    return found.length === 1 && found[0] !== undefined ? Option.some(found[0][1]) : Option.none()
+  }
+}
+
+/**
+ * The same search, across the several payloads one document carries.
+ *
+ * A repository page holds the code view's own data, the layout around it and the About
+ * panel as three payloads in one script, and a file page holds four. Which of them holds
+ * what a caller wants is decided by which one the schema decodes in, rather than by a
+ * name a reader had to know.
+ */
+export const whereverAmong = <S extends Schema.ConstraintDecoder<unknown>>(schema: S) => {
+  const find = whereverItIs(schema)
+
+  return (payloads: ReadonlyArray<unknown>): Effect.Effect<S["Type"], unknown> =>
+    payloads.length === 0
+      ? find(undefined)
+      : Effect.firstSuccessOf(payloads.map((payload) => find(payload)))
+}
+
+/** The same again, for a fact a screen can do without. */
+export const maybeAmong = <S extends Schema.ConstraintDecoder<unknown>>(schema: S) => {
+  const find = maybeWherever(schema)
+
+  return (payloads: ReadonlyArray<unknown>): Option.Option<S["Type"]> => {
+    for (const payload of payloads) {
+      const held = find(payload)
+      if (Option.isSome(held)) return held
+    }
+    return Option.none()
   }
 }

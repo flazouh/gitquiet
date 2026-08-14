@@ -2,11 +2,11 @@ import { describe, expect, test } from "bun:test"
 import { Effect, Option } from "effect"
 import touches from "../../fixtures/github/repo-home-touches.json"
 import payload from "../../fixtures/github/repo-home.json"
+import { reParented } from "../../tests/reParented"
 import type { Front, Starring } from "../domain/repoHome"
 import type { KeptFront } from "./repoHome"
 import {
   decodeLatestCommit,
-  decodeRepoHome,
   decodeTreeCommitInfo,
   frontFrom,
   frontFromKept,
@@ -17,8 +17,8 @@ import {
 
 const repo = { owner: "flazouh", repo: "githubpro" }
 
-const read = (given: unknown = payload) =>
-  frontFrom(repo, Effect.runSync(decodeRepoHome(given)))
+/** As the gateway reads it: the payloads a document carries, and no key named. */
+const read = (given: unknown = payload) => Effect.runSync(frontFrom(repo, [given]))
 
 /** The same payload with the one field that decides the order turned over. */
 const asCaller = () => {
@@ -28,6 +28,29 @@ const asCaller = () => {
   copy.payload.codeViewLayoutRoute.repo.currentUserCanPush = false
   return copy
 }
+
+describe("a repository's front page, where GitHub has parented it somewhere new", () => {
+  /*
+   * Their three payloads moved at once, under keys nobody has named. All three facts are
+   * searched for rather than looked up, so the page draws: the files, the About panel and
+   * the footing, which is the one that decides what the reader sees first.
+   */
+  const front = Effect.runSync(frontFrom(repo, [reParented(payload)]))
+
+  test("still draws its files", () => {
+    expect(front.entries.length).toBeGreaterThan(0)
+  })
+
+  test("still knows the reader can push, which decides what they see first", () => {
+    expect(front.footing).toBe("keeper")
+  })
+
+  test("still says what the About panel says", () => {
+    // The stars rather than the description: this recording is of a repository that has
+    // none, which is the case the panel is written to draw anyway.
+    expect(Option.isSome(front.about.stars)).toBe(true)
+  })
+})
 
 describe("a repository's front page, read off their own payload", () => {
   test("reads the branch and the commit the tree was read at", () => {

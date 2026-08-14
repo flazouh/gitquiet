@@ -34,6 +34,36 @@ const CLOSING = "</script>"
  * Checked with `indexOf` on the slice before anything is parsed, so that a
  * document holding four payloads costs one `JSON.parse` rather than four.
  */
+/**
+ * Every payload a page carries, in the order the document holds them.
+ *
+ * For a reader that knows the shape it wants rather than the name it is under. The two
+ * code view pages read this way: whichever script decodes is the answer, so nobody has
+ * to spell `codeViewBlobLayoutRoute.StyledBlob` and nothing breaks when GitHub renames
+ * it. A repository page has one script holding three of their route payloads side by
+ * side, and a file page one holding four.
+ *
+ * All of them parsed, rather than the first that mentions a name. That is one `JSON.parse`
+ * per script on a page whose scripts are the page, and both pages measured have one.
+ */
+export const embeddedPayloads = (html: string): ReadonlyArray<unknown> => {
+  const payloads: Array<unknown> = []
+  let from = html.indexOf(OPENING)
+
+  while (from !== -1) {
+    const opens = from + OPENING.length
+    const closes = html.indexOf(CLOSING, opens)
+    if (closes === -1) return payloads
+
+    const parsed = Option.liftThrowable(JSON.parse)(html.slice(opens, closes))
+    if (Option.isSome(parsed)) payloads.push(parsed.value)
+
+    from = html.indexOf(OPENING, closes)
+  }
+
+  return payloads
+}
+
 export const embeddedPayload = (html: string, naming: string): Option.Option<unknown> => {
   let from = html.indexOf(OPENING)
 

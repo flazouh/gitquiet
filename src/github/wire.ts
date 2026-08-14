@@ -435,115 +435,137 @@ export const DescriptionRoute = Schema.Struct({
 export type DescriptionRoute = typeof DescriptionRoute["Type"]
 
 /**
- * A repository's front page, from the route their own code view reads.
+ * A repository's front page, from the document their own code view renders.
  *
- * One request carries the whole page: the root of the tree, the README already
- * rendered to HTML, how many commits the branch has, and what the About panel
- * says. The README is the bulk of it — three hundred kilobytes of the three
- * hundred and thirty for a well-documented repository — and it arriving here is
- * why this page costs one request rather than the six GitHub's own spends.
+ * One document carries the whole page: the root of the tree, the README already
+ * rendered to HTML, how many commits the branch has, what the About panel says, and
+ * whether the reader can push. The README is the bulk of it — three hundred kilobytes
+ * of the three hundred and thirty for a well-documented repository — and it arriving
+ * here is why this page costs one request rather than the six GitHub's own spends.
+ *
+ * Three shapes rather than one, because those facts are three of GitHub's own route
+ * payloads sitting side by side in that document, and each is searched for on its own.
+ * A repository whose About panel changes shape still draws its files, and no reader here
+ * knows what any of the three payloads is called this week.
  *
  * Everything below the tree is optional because every part of it goes missing on
  * a real repository. A repository with no README has no overview file, one with
  * an empty default branch has no `refInfo` worth reading, and a repository nobody
  * has starred still has to draw.
  */
-export const RepoHomeRoute = Schema.Struct({
-  payload: Schema.Struct({
-    codeViewRepoRoute: Schema.Struct({
-      refInfo: Schema.Struct({
-        name: Schema.String,
-        currentOid: Schema.String,
-        refType: Schema.optional(Schema.String)
-      }),
-      tree: Schema.Struct({
-        items: Schema.Array(
-          Schema.Struct({
-            name: Schema.String,
-            path: Schema.String,
-            // `directory`, `file`, or `submodule`. Kept as it came rather than
-            // narrowed to a union: a fourth kind is a row drawn plainly, not a
-            // payload this refuses to read.
-            contentType: Schema.String
-          })
-        ),
-        totalCount: Schema.Number
-      }),
-      overview: Schema.optional(
-        Schema.Struct({
-          /*
-           * A string on a live payload — `"140"`, measured — and typed as either
-           * because a count that starts arriving as a number should not cost the
-           * whole page. Made a number by the mapper rather than here, so the one
-           * place that knows this is odd is the one place that reads it.
-           */
-          commitCount: Schema.optional(
-            Schema.NullOr(Schema.Union([Schema.Number, Schema.String]))
-          ),
-          overviewFiles: Schema.optional(
-            Schema.Array(
-              Schema.Struct({
-                displayName: Schema.String,
-                path: Schema.String,
-                richText: Schema.optional(Schema.NullOr(Schema.String)),
-                // True when GitHub gave up rendering it, which happens on the
-                // largest READMEs. The screen says so rather than showing a blank.
-                timedOut: Schema.optional(Schema.NullOr(Schema.Boolean))
-              })
-            )
-          )
-        })
-      )
-    }),
-    /*
-     * Absent from every JSON answer, and present in the document.
-     *
-     * Measured rather than assumed: `/owner/repo` asked with `Accept:
-     * application/json` returns `codeViewRepoRoute` alone, from inside the
-     * repository and from outside it alike. Their own app has the layout already
-     * and never asks for it twice, so the one place this field exists is the
-     * embedded payload of a loaded document — which is where the front page reads
-     * it, and why the screen prefers the document it is standing on.
-     */
-    codeViewLayoutRoute: Schema.optional(
+export const RepoTree = Schema.Struct({
+  refInfo: Schema.Struct({
+    name: Schema.String,
+    currentOid: Schema.String,
+    refType: Schema.optional(Schema.String)
+  }),
+  tree: Schema.Struct({
+    items: Schema.Array(
       Schema.Struct({
-        repo: Schema.Struct({
-          currentUserCanPush: Schema.optional(Schema.NullOr(Schema.Boolean)),
-          isFork: Schema.optional(Schema.NullOr(Schema.Boolean))
-        })
+        name: Schema.String,
+        path: Schema.String,
+        // `directory`, `file`, or `submodule`. Kept as it came rather than
+        // narrowed to a union: a fourth kind is a row drawn plainly, not a
+        // payload this refuses to read.
+        contentType: Schema.String
       })
     ),
-    sidebarAbout: Schema.optional(
-      Schema.Struct({
-        description: Schema.optional(Schema.NullOr(Schema.String)),
-        stargazerCount: Schema.optional(Schema.NullOr(Schema.Number)),
-        forksCount: Schema.optional(Schema.NullOr(Schema.Number)),
-        /*
-         * A flat array of names, and an empty one where a repository has no
-         * topics. Read off a live payload for `facebook/react`, which carries six
-         * of them and nothing else on each: no URL, no id.
-         */
-        topics: Schema.optional(Schema.NullOr(Schema.Array(Schema.Struct({ name: Schema.String })))),
-        /*
-         * Whether the reader has starred this and whether they may. Both are
-         * needed and neither can be worked out from the other: a signed-out
-         * reader has not starred it and cannot, and their own button is drawn
-         * from exactly these two.
-         */
-        star: Schema.optional(
-          Schema.NullOr(
-            Schema.Struct({
-              viewerHasStarred: Schema.optional(Schema.NullOr(Schema.Boolean)),
-              canStar: Schema.optional(Schema.NullOr(Schema.Boolean))
-            })
-          )
+    totalCount: Schema.Number
+  }),
+  overview: Schema.optional(
+    Schema.Struct({
+      /*
+       * A string on a live payload — `"140"`, measured — and typed as either
+       * because a count that starts arriving as a number should not cost the
+       * whole page. Made a number by the mapper rather than here, so the one
+       * place that knows this is odd is the one place that reads it.
+       */
+      commitCount: Schema.optional(Schema.NullOr(Schema.Union([Schema.Number, Schema.String]))),
+      overviewFiles: Schema.optional(
+        Schema.Array(
+          Schema.Struct({
+            displayName: Schema.String,
+            path: Schema.String,
+            richText: Schema.optional(Schema.NullOr(Schema.String)),
+            // True when GitHub gave up rendering it, which happens on the
+            // largest READMEs. The screen says so rather than showing a blank.
+            timedOut: Schema.optional(Schema.NullOr(Schema.Boolean))
+          })
         )
-      })
-    )
+      )
+    })
+  )
+})
+
+export type RepoTree = typeof RepoTree["Type"]
+
+/**
+ * Where the reader stands with this repository, from the one field that says so.
+ *
+ * Absent from every JSON answer, and present in the document.
+ *
+ * Measured rather than assumed: `/owner/repo` asked with `Accept: application/json`
+ * returns the code view's own answer alone and never the layout around it, from inside
+ * the repository and from outside it alike. Their own app has the layout already and
+ * never asks for it twice, so the one place this field exists is the embedded payload of
+ * a loaded document — which is where the front page reads it, and why the screen prefers
+ * the document it is standing on.
+ *
+ * Anchored on `repo.currentUserCanPush` being there, which is the field being read. It
+ * has to be required: their About payload carries a `repo` object of its own, so a shape
+ * asking only for a `repo` matches in two places and a search across the document then
+ * refuses. Where GitHub stops sending it the footing is Caller, which is the safe way
+ * round: a Keeper shown the welcome first has to scroll past a README they wrote.
+ */
+export const RepoFooting = Schema.Struct({
+  repo: Schema.Struct({
+    currentUserCanPush: Schema.NullOr(Schema.Boolean),
+    isFork: Schema.optional(Schema.NullOr(Schema.Boolean))
   })
 })
 
-export type RepoHomeRoute = typeof RepoHomeRoute["Type"]
+export type RepoFooting = typeof RepoFooting["Type"]
+
+/**
+ * What the About panel says.
+ *
+ * Everything drawn from here is optional, because every part of it goes missing on a
+ * real repository: one with no description, one nobody has starred, one with no topics.
+ * That leaves nothing required to find it by, and a shape that matches an empty object
+ * would match the first object in the document.
+ *
+ * So the anchor is `stargazersPath`, which is not drawn at all. Their About payload
+ * always carries it, it appears once in the document, and anchoring on it rather than on
+ * a count means a repository that stops sending counts still draws its description.
+ */
+export const RepoAbout = Schema.Struct({
+  stargazersPath: Schema.String,
+  description: Schema.optional(Schema.NullOr(Schema.String)),
+  stargazerCount: Schema.optional(Schema.NullOr(Schema.Number)),
+  forksCount: Schema.optional(Schema.NullOr(Schema.Number)),
+  /*
+   * A flat array of names, and an empty one where a repository has no
+   * topics. Read off a live payload for `facebook/react`, which carries six
+   * of them and nothing else on each: no URL, no id.
+   */
+  topics: Schema.optional(Schema.NullOr(Schema.Array(Schema.Struct({ name: Schema.String })))),
+  /*
+   * Whether the reader has starred this and whether they may. Both are
+   * needed and neither can be worked out from the other: a signed-out
+   * reader has not starred it and cannot, and their own button is drawn
+   * from exactly these two.
+   */
+  star: Schema.optional(
+    Schema.NullOr(
+      Schema.Struct({
+        viewerHasStarred: Schema.optional(Schema.NullOr(Schema.Boolean)),
+        canStar: Schema.optional(Schema.NullOr(Schema.Boolean))
+      })
+    )
+  )
+})
+
+export type RepoAbout = typeof RepoAbout["Type"]
 
 /**
  * What `/owner/repo/_sidebar` answers with.
@@ -668,25 +690,29 @@ export type TreeListRoute = typeof TreeListRoute["Type"]
  * route around it. One document holds both, along with their rendering of a
  * markdown file, and it is the only answer that holds all three.
  *
- * The styled-blob key really does have a dot in its name. It is one key of their
- * payload object and not two levels of it.
+ * Two shapes, searched for separately, because the lines and the rendering are two
+ * payloads of theirs in that document. One of the keys they sat under really did have a
+ * dot in its name, `codeViewBlobLayoutRoute.StyledBlob`, as one key rather than two
+ * levels — the kind of detail that costs a screen when a reader has to spell it.
  */
-export const BlobRoute = Schema.Struct({
-  payload: Schema.Struct({
-    "codeViewBlobLayoutRoute.StyledBlob": Schema.Struct({
-      rawLines: Schema.NullOr(Schema.Array(Schema.String))
-    }),
-    codeViewBlobRoute: Schema.optional(
-      Schema.NullOr(
-        Schema.Struct({
-          richText: Schema.optional(Schema.NullOr(Schema.String))
-        })
-      )
-    )
-  })
+export const FileLines = Schema.Struct({
+  rawLines: Schema.NullOr(Schema.Array(Schema.String))
 })
 
-export type BlobRoute = typeof BlobRoute["Type"]
+export type FileLines = typeof FileLines["Type"]
+
+/**
+ * The same file as GitHub rendered it, where they render it at all.
+ *
+ * Its own shape and its own search, because it is a second payload of theirs in the same
+ * document as the lines. A file they do not render has none of this and still has to
+ * draw, so the pane treats it as absent rather than as a page that would not read.
+ */
+export const FileRendering = Schema.Struct({
+  richText: Schema.NullOr(Schema.String)
+})
+
+export type FileRendering = typeof FileRendering["Type"]
 
 /**
  * What each row of the file list was last touched by.

@@ -2,12 +2,12 @@
 import { Effect, Option, Schema } from "effect"
 import { existsSync, readFileSync } from "node:fs"
 import { SHELVES } from "../src/domain/workingSet"
-import { embeddedPayload } from "../src/github/embedded"
+import { embeddedPayloads } from "../src/github/embedded"
 import { preloadedIn } from "../src/github/preloaded"
-import { whereverItIs } from "../src/github/wherever"
+import { whereverAmong, whereverItIs } from "../src/github/wherever"
 import { reParented } from "../tests/reParented"
 import {
-  BlobRoute,
+  FileLines,
   ChangesRoute,
   CommitDiffsRoute,
   CommitAnswer,
@@ -30,7 +30,7 @@ import {
   Listing,
   Referable,
   RefsRoute,
-  RepoHomeRoute,
+  RepoTree,
 
   SidebarRoute,
   StatusChecksRoute,
@@ -70,8 +70,8 @@ const captured = process.env["DRIFT_FROM"]
  * Off by default, because a check whose every route is altered would no longer say what
  * GitHub is serving today.
  */
-const pretending = (payload: unknown): unknown =>
-  process.env["DRIFT_RENAMED"] === "1" ? reParented(payload) : payload
+const pretending = (given: unknown): unknown =>
+  process.env["DRIFT_RENAMED"] === "1" ? reParented(given) : given
 
 const cookie = process.env["GITHUB_SESSION_COOKIE"] ?? ""
 if (captured === undefined && cookie.length === 0) {
@@ -125,8 +125,13 @@ const REPO = `https://github.com/${repository}`
  */
 type Answer =
   | { readonly said: "payload"; readonly payload: unknown }
+  /** A document, which carries several of their payloads side by side. */
+  | { readonly said: "payloads"; readonly payloads: ReadonlyArray<unknown> }
   | { readonly said: "refused"; readonly status: number }
   | { readonly said: "nothing"; readonly why: string }
+
+/** An answer with something in it, which is the only kind a read is given. */
+type Held = Extract<Answer, { readonly said: "payload" | "payloads" }>
 
 const asPayload = (body: string): Answer =>
   Option.match(Option.liftThrowable(JSON.parse)(body), {
@@ -190,13 +195,12 @@ const asFiltered = asking(
  * check that read the lighter answer would be checking a shape production never
  * sees.
  */
-const asPage = (naming: string) =>
-  asking({ Accept: "text/html", Cookie: cookie }, (body) =>
-    Option.match(embeddedPayload(body, naming), {
-      onNone: (): Answer => ({ said: "nothing", why: `no ${naming} embedded in the page` }),
-      onSome: (payload): Answer => ({ said: "payload", payload })
-    })
-  )
+const asPage = asking({ Accept: "text/html", Cookie: cookie }, (body) => {
+  const payloads = embeddedPayloads(body)
+  return payloads.length === 0
+    ? ({ said: "nothing", why: "no embedded payload in the page" } as Answer)
+    : ({ said: "payloads", payloads } as Answer)
+})
 
 /**
  * The answer GitHub wrote into an issue's own page.
@@ -223,8 +227,14 @@ type Check = {
   /** Nothing where the route this one is asked with did not answer. */
   readonly url: () => string | undefined
   readonly ask: (url: string, name: string) => Promise<Answer>
-  /** Decodes the answer, and says what was in it. */
-  readonly read: (payload: unknown) => Effect.Effect<string, unknown>
+  /**
+   * Decodes the answer, and says what was in it.
+   *
+   * A document is handed its several payloads and everything else one, which is told
+   * rather than guessed: a route whose whole answer is an array would otherwise look
+   * like a list of payloads.
+   */
+  readonly read: (answer: Held) => Effect.Effect<string, unknown>
 }
 
 const checking = <A>(check: {
@@ -245,15 +255,22 @@ const checking = <A>(check: {
   name: check.name,
   url: check.url,
   ask: check.ask ?? asJson,
-  // Through the finder, so a payload GitHub has re-parented reads here as it reads in
+  // Through the search, so a payload GitHub has re-parented reads here as it reads in
   // production: the schema says what the answer is and not where it was put. With
   // `DRIFT_RENAMED=1` every answer is moved under a key nobody has named, which checks
   // that claim against all 34 live routes rather than against the twelve recordings.
-  read: (payload) =>
-    Effect.map(whereverItIs(check.schema)(pretending(payload)), (answered) => {
+  read: (answer) => {
+    // A document's several payloads are searched across, as `readRepoPage` searches them.
+    const search =
+      answer.said === "payloads"
+        ? whereverAmong(check.schema)(answer.payloads.map(pretending))
+        : whereverItIs(check.schema)(pretending(answer.payload))
+
+    return Effect.map(search, (answered) => {
       check.learn?.(answered)
       return check.note?.(answered) ?? ""
     })
+  }
 })
 
 /**
@@ -406,12 +423,12 @@ const routes: ReadonlyArray<Check> = [
   checking({
     name: "repo_home",
     url: () => REPO,
-    ask: asPage("codeViewRepoRoute"),
-    schema: RepoHomeRoute,
+    ask: asPage,
+    schema: RepoTree,
     learn: (answered) => {
-      head = answered.payload.codeViewRepoRoute.refInfo.currentOid
+      head = answered.refInfo.currentOid
     },
-    note: (answered) => `${answered.payload.codeViewRepoRoute.tree.items.length} entries`
+    note: (answered) => `${answered.tree.items.length} entries`
   }),
   checking({
     name: "tree_list",
@@ -428,10 +445,9 @@ const routes: ReadonlyArray<Check> = [
   checking({
     name: "blob",
     url: () => `${REPO}/blob/${encodeURIComponent(branch)}/${file.split("/").map(encodeURIComponent).join("/")}`,
-    ask: asPage("codeViewBlobLayoutRoute.StyledBlob"),
-    schema: BlobRoute,
-    note: (answered) =>
-      `${answered.payload["codeViewBlobLayoutRoute.StyledBlob"].rawLines?.length ?? 0} lines`
+    ask: asPage,
+    schema: FileLines,
+    note: (answered) => `${answered.rawLines?.length ?? 0} lines`
   }),
   // Every shelf, from the list the Working Set reads, so that a seventh one GitHub
   // adds is asked for here as soon as this codebase knows about it.
@@ -556,7 +572,7 @@ for (const route of routes) {
     continue
   }
 
-  const outcome = await Effect.runPromise(Effect.result(route.read(answer.payload)))
+  const outcome = await Effect.runPromise(Effect.result(route.read(answer)))
 
   if (outcome._tag === "Failure") {
     console.error(`${route.name}: DRIFTED`)
