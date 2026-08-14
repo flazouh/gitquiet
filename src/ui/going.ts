@@ -359,6 +359,35 @@ export const goTo = (
 }
 
 /**
+ * Another view of the screen already standing: a second page of a list, another
+ * tab of one.
+ *
+ * The redraw is done here rather than left to the watcher a screen hears the
+ * address on, which is the whole reason this exists. That watcher reads the
+ * pathname and nothing else — see {@link whenLocationChanges} — so a second page,
+ * which changes the search alone, is an address change no screen is ever told
+ * about. Pushing it and waiting to be told left the first page on the screen
+ * under the second page's address, and the deadline in {@link goTo} then loaded
+ * the whole document a moment later. Loading it directly was what these screens
+ * did instead: correct, and it charged the reader for everything already read.
+ *
+ * Which address the screen is standing for is the screen's own to say, and is
+ * asked for twice — once before the press, and once when that deadline wonders
+ * whether anything arrived. A redraw in place keeps its container, so the answer
+ * that deadline reaches for by default would call every one of these a failure.
+ */
+export const goWithin = (
+  target: Window,
+  path: string,
+  redraw: () => void,
+  standingFor: () => string | undefined
+): void => {
+  const before = standingFor()
+  goTo(target, path, () => standingFor() !== before)
+  redraw()
+}
+
+/**
  * Everything this extension draws, in the two elements it draws it into.
  *
  * The bar is the reason this is not one selector. It is a child of `body` rather

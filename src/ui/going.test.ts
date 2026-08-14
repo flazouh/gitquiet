@@ -10,6 +10,7 @@ import {
   goBackTo,
   goForward,
   goTo,
+  goWithin,
   ourOwnRowsDrawn,
   oursToAnswer,
   theTrail,
@@ -99,6 +100,13 @@ const press = (on: Element, held?: "meta"): Event => {
 /** GitHub, watching every press on the page from the top of the document. */
 const theyCancelPresses = (page: Document): void => {
   page.addEventListener("click", (event) => event.preventDefault(), true)
+}
+
+/** The address, arrived where a push of ours sent it. */
+const arrivedAt = (target: Window, pathname: string, search: string = ""): void => {
+  const at = target.location as { pathname: string; search: string }
+  at.pathname = pathname
+  at.search = search
 }
 
 const rowIn = (screen: Element): Element =>
@@ -256,6 +264,68 @@ describe("an address moved to a screen that never arrives", () => {
     page.recorded.later.forEach((run) => run())
 
     expect(page.recorded.replaced).toEqual([])
+  })
+})
+
+describe("another view of the screen already standing", () => {
+  /*
+   * Why this is a function and not a push. The watcher every screen hears the
+   * address on reads the pathname and nothing else — see `whenLocationChanges` —
+   * so a second page of a list, which changes the search alone, is an address
+   * change no screen is ever told about. Pushing it and waiting to be told left
+   * the first page on the screen under the second page's address, and the
+   * deadline below then loaded the whole document. Loading it directly was what
+   * these screens did instead, and it cost the reader everything already read.
+   */
+  test("moves the address and redraws in place, rather than loading a document", () => {
+    const page = aPageOfOurs()
+    const drawn: Array<string> = []
+    let standingFor = "/issues/assigned"
+
+    goWithin(
+      page.window,
+      "/issues/assigned?page=2",
+      () => {
+        standingFor = "/issues/assigned?page=2"
+        drawn.push(standingFor)
+      },
+      () => standingFor
+    )
+
+    expect(page.recorded.pushed).toEqual(["/issues/assigned?page=2"])
+    expect(drawn).toEqual(["/issues/assigned?page=2"])
+    expect(page.recorded.replaced).toEqual([])
+  })
+
+  test("leaves the address alone where the screen redrew for it", () => {
+    const page = aPageOfOurs()
+    let standingFor = "/issues/assigned"
+
+    goWithin(
+      page.window,
+      "/issues/assigned?page=2",
+      () => {
+        standingFor = "/issues/assigned?page=2"
+      },
+      () => standingFor
+    )
+    arrivedAt(page.window, "/issues/assigned", "?page=2")
+    page.recorded.later.forEach((run) => run())
+
+    expect(page.recorded.replaced).toEqual([])
+  })
+
+  test("loads the document where nothing redrew, so the reader is not left where they pressed", () => {
+    const page = aPageOfOurs()
+    // A read that threw, a page that is not there: whatever the reason, the
+    // screen standing is still the one the reader asked to leave.
+    const standingFor = "/issues/assigned"
+
+    goWithin(page.window, "/issues/assigned?page=2", () => {}, () => standingFor)
+    arrivedAt(page.window, "/issues/assigned", "?page=2")
+    page.recorded.later.forEach((run) => run())
+
+    expect(page.recorded.replaced).toEqual(["/issues/assigned?page=2"])
   })
 })
 

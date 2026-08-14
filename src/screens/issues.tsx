@@ -13,6 +13,7 @@ import type { Involvement } from "@/domain/issues"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import type { View } from "@/domain/Settings"
 import { chosenView } from "@/app/settings"
+import { goWithin } from "@/ui/going"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { ISSUES } from "@/ui/place"
@@ -54,7 +55,11 @@ let asLastSeen: { readonly address: string; readonly listed: ListedIssues } | un
  * loading a page, so the list would otherwise still be standing over whatever
  * comes next.
  */
-const open = (dash: IssueDashboard): (() => void) => {
+const open = (
+  dash: IssueDashboard,
+  /** Another view of this same screen, without a document. See {@link goWithin}. */
+  press: (path: string) => void
+): (() => void) => {
   const asked = queryFor(dash)
 
   const reading = () =>
@@ -110,8 +115,8 @@ const open = (dash: IssueDashboard): (() => void) => {
    * path and the search belonged to the tab being left: a filter typed against
    * Assigned is not a filter anybody asked for against Mentioned.
    */
-  const goTo = (involvement: Involvement): void => {
-    window.location.assign(pathOf(involvement))
+  const goToTab = (involvement: Involvement): void => {
+    press(pathOf(involvement))
   }
 
   /**
@@ -125,7 +130,7 @@ const open = (dash: IssueDashboard): (() => void) => {
     const address = new URL(window.location.href)
     if (page <= 1) address.searchParams.delete("page")
     else address.searchParams.set("page", String(page))
-    window.location.assign(address.toString())
+    press(`${address.pathname}${address.search}`)
   }
 
   return standAScreen({
@@ -136,7 +141,7 @@ const open = (dash: IssueDashboard): (() => void) => {
         load={read}
         recallRepositories={recallRepositories}
         preload={remembered}
-        onGo={goTo}
+        onGo={goToTab}
         onPage={goToPage}
         seed={seeding(dash)}
         onStepAside={standing.stepAside}
@@ -164,9 +169,33 @@ export const start = (): void => {
   let close = (): void => {}
   let view: View = "ours"
 
+  /**
+   * The address the screen on the page was stood up for, or nothing where none of
+   * ours is standing. Read by {@link goWithin}, which asks it before and after a
+   * press to tell a redraw from a screen that never came.
+   */
+  let standingFor: string | undefined
+
+  /** Another view of this screen: another tab, another page. */
+  const press = (path: string): void =>
+    goWithin(
+      window,
+      path,
+      () => show(window.location.href),
+      () => standingFor
+    )
+
   const show = (url: string): void => {
+    /*
+     * One address asked for twice, which is one screen. A press within this
+     * screen redraws for the new address itself, and where that press changed the
+     * path the watcher below hears it as well and asks for the same thing again.
+     */
+    if (standingFor === url) return
+
     close()
     close = () => {}
+    standingFor = undefined
 
     const dash = issueDashboardIn(url)
 
@@ -188,7 +217,8 @@ export const start = (): void => {
       return
     }
 
-    close = open(dash.value)
+    close = open(dash.value, press)
+    standingFor = url
   }
 
   // The whole address, not the path: which page of which tab this is lives in
