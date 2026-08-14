@@ -6,6 +6,7 @@ import { type IssueList, issueListIn, queryFor, seeding } from "@/domain/issueLi
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import type { View } from "@/domain/Settings"
 import { chosenView } from "@/app/settings"
+import { goWithin } from "@/ui/going"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { REPO_ISSUES } from "@/ui/place"
@@ -48,7 +49,11 @@ let asLastSeen: { readonly address: string; readonly listed: ListedIssues } | un
  * the Code tab, and the attribute holding GitHub's own content out of sight
  * would still be set.
  */
-const open = (list: IssueList): (() => void) => {
+const open = (
+  list: IssueList,
+  /** Another view of this same screen, without a document. See {@link goWithin}. */
+  press: (path: string) => void
+): (() => void) => {
   const asked = queryFor(list)
 
   const reading = () =>
@@ -108,7 +113,7 @@ const open = (list: IssueList): (() => void) => {
     const address = new URL(window.location.href)
     if (page <= 1) address.searchParams.delete("page")
     else address.searchParams.set("page", String(page))
-    window.location.assign(address.toString())
+    press(`${address.pathname}${address.search}`)
   }
 
   return standAScreen({
@@ -148,9 +153,30 @@ export const start = (): void => {
   let close = (): void => {}
   let view: View = "ours"
 
+  /**
+   * The address the screen on the page was stood up for, or nothing where none of
+   * ours is standing. Read by {@link goWithin}, which asks it before and after a
+   * press to tell a redraw from a screen that never came.
+   */
+  let standingFor: string | undefined
+
+  /** Another view of this screen, which here means another page of the list. */
+  const press = (path: string): void =>
+    goWithin(
+      window,
+      path,
+      () => show(window.location.href),
+      () => standingFor
+    )
+
   const show = (url: string): void => {
+    // One address asked for twice, which is one screen. A press within this
+    // screen redraws for the new address itself.
+    if (standingFor === url) return
+
     close()
     close = () => {}
+    standingFor = undefined
 
     const list = issueListIn(url)
 
@@ -171,7 +197,8 @@ export const start = (): void => {
       return
     }
 
-    close = open(list.value)
+    close = open(list.value, press)
+    standingFor = url
   }
 
   // The whole address, not the path: which page of which search this is lives

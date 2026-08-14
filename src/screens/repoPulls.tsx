@@ -7,6 +7,7 @@ import { type RepoList, repoListIn, seeding } from "@/domain/repoList"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import type { View } from "@/domain/Settings"
 import { chosenView } from "@/app/settings"
+import { goTo as moveTheAddress, goWithin } from "@/ui/going"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { REPO_PULLS } from "@/ui/place"
@@ -61,7 +62,11 @@ let asLastSeen: { readonly address: string; readonly listed: Listed } | undefine
  * loading a page, so the list would otherwise still be standing over the Code tab,
  * and the attribute holding GitHub's own content out of sight would still be set.
  */
-const open = (list: RepoList): (() => void) => {
+const open = (
+  list: RepoList,
+  /** Another view of this same screen, without a document. See {@link goWithin}. */
+  press: (path: string) => void
+): (() => void) => {
   // Started before anything is waited on. Reading the list and waiting for GitHub to
   // render a region to stand in have nothing to say to each other.
   const reading = (partly: (listed: Listed) => void) =>
@@ -155,9 +160,14 @@ const open = (list: RepoList): (() => void) => {
    * A press is a link and the browser handles it, which is what puts the prefetch
    * script's gating and injection in the path. The keyboard has no link to press, so
    * this asks for the same navigation by hand.
+   *
+   * The same way, too: a press on the row moves the address and the card stands on
+   * the surface this list is holding — see `answerPressesIn` — so asking for a whole
+   * document here made Enter the slow way to open the pull request the arrow keys
+   * had just landed on.
    */
   const goTo = (reference: PullRequestRef): void => {
-    window.location.assign(`/${reference.owner}/${reference.repo}/pull/${reference.number}`)
+    moveTheAddress(window, `/${reference.owner}/${reference.repo}/pull/${reference.number}`)
   }
 
   /**
@@ -171,7 +181,7 @@ const open = (list: RepoList): (() => void) => {
     const address = new URL(window.location.href)
     if (page <= 1) address.searchParams.delete("page")
     else address.searchParams.set("page", String(page))
-    window.location.assign(address.toString())
+    press(`${address.pathname}${address.search}`)
   }
 
   return standAScreen({
@@ -219,9 +229,30 @@ export const start = (): void => {
   let close = (): void => {}
   let view: View = "ours"
 
+  /**
+   * The address the screen on the page was stood up for, or nothing where none of
+   * ours is standing. Read by {@link goWithin}, which asks it before and after a
+   * press to tell a redraw from a screen that never came.
+   */
+  let standingFor: string | undefined
+
+  /** Another view of this screen, which here means another page of the list. */
+  const press = (path: string): void =>
+    goWithin(
+      window,
+      path,
+      () => show(window.location.href),
+      () => standingFor
+    )
+
   const show = (url: string): void => {
+    // One address asked for twice, which is one screen. A press within this
+    // screen redraws for the new address itself.
+    if (standingFor === url) return
+
     close()
     close = () => {}
+    standingFor = undefined
 
     const list = repoListIn(url)
 
@@ -248,7 +279,8 @@ export const start = (): void => {
       return
     }
 
-    close = open(list.value)
+    close = open(list.value, press)
+    standingFor = url
   }
 
   // The whole address, not the path: which page of which search this is lives in the

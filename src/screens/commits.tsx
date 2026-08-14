@@ -16,6 +16,7 @@ import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { HistoryScreen } from "@/ui/HistoryScreen"
+import { goWithin } from "@/ui/going"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { COMMITS } from "@/ui/place"
@@ -36,7 +37,11 @@ const recallRepositories = () => rememberedRepositories().pipe(throughGitHub)
  * The closing half is not tidiness. GitHub navigates within a repository without
  * loading a page, so this list would otherwise still be standing over the Code tab.
  */
-const open = (list: CommitList): (() => void) => {
+const open = (
+  list: CommitList,
+  /** Another view of this same screen, without a document. See {@link goWithin}. */
+  press: (path: string) => void
+): (() => void) => {
   // Started before anything is waited on: reading the branch and waiting for GitHub
   // to render a region to stand in have nothing to say to each other.
   const reading = (partly: (history: History) => void) =>
@@ -124,7 +129,7 @@ const open = (list: CommitList): (() => void) => {
    * somebody the link has sent them that fortnight.
    */
   const goTo = (path: string): void => {
-    window.location.assign(path)
+    press(path)
   }
 
   return standAScreen({
@@ -165,9 +170,30 @@ export const start = (): void => {
   let close = (): void => {}
   let view: View = "ours"
 
+  /**
+   * The address the screen on the page was stood up for, or nothing where none of
+   * ours is standing. Read by {@link goWithin}, which asks it before and after a
+   * press to tell a redraw from a screen that never came.
+   */
+  let standingFor: string | undefined
+
+  /** Another view of this screen, which here means another page of the branch. */
+  const press = (path: string): void =>
+    goWithin(
+      window,
+      path,
+      () => show(window.location.href),
+      () => standingFor
+    )
+
   const show = (url: string): void => {
+    // One address asked for twice, which is one screen. A press within this
+    // screen redraws for the new address itself.
+    if (standingFor === url) return
+
     close()
     close = () => {}
+    standingFor = undefined
 
     const list = commitListIn(url)
 
@@ -188,7 +214,8 @@ export const start = (): void => {
       return
     }
 
-    close = open(list.value)
+    close = open(list.value, press)
+    standingFor = url
   }
 
   // The whole address, not the path: which page of the branch this is lives in the
