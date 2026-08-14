@@ -79,11 +79,11 @@ const readableOn = (colour: string): string => {
 }
 
 /**
- * Which of the two states, and how long the issue has been open.
+ * Which of the two states, and how long since the issue was raised.
  *
  * One pill for both headers below rather than the same dozen classes twice. The
- * word is the thing this header exists to say and the label a screen reader
- * hears is part of the contract; two copies of it would be the two headers
+ * word is what this header exists to say, and what a screen reader hears of it
+ * is part of the contract: two copies of this would be the two headers
  * disagreeing about the issue the reader is looking at.
  */
 const TheState = ({
@@ -135,7 +135,7 @@ const TheNumber = ({ of: reference }: { readonly of: IssueRef }) => (
   </span>
 )
 
-/** Who raised it, which is the one fact a row and a page agree on completely. */
+/** Who raised it, said the same way on both headers. */
 const Raiser = ({ person }: { readonly person: Participant }) => (
   <span className="flex shrink-0 items-center gap-1.5">
     <Who login={person.login} src={Option.getOrUndefined(person.faceUrl)} />
@@ -257,8 +257,8 @@ export const ListedHeader = ({ one }: { readonly one: ListedIssue }) => (
       <Raiser person={one.author} />
 
       <span className="flex min-w-0 flex-wrap items-center gap-1">
-        {one.labels.map((word) => (
-          <Word key={word} word={word} />
+        {one.labels.map((name) => (
+          <LabelWord key={name} name={name} />
         ))}
       </span>
     </div>
@@ -268,22 +268,22 @@ export const ListedHeader = ({ one }: { readonly one: ListedIssue }) => (
 /**
  * A label as a row has it, which is the word and no colour.
  *
- * The dot is hashed from the word — see `labelTone.ts` — exactly as the lists do
- * it, because GitHub's issue search answers with the names alone. A filled chip
- * in a colour nobody read would change colour under the reader when the issue
- * lands, so the two forms are told apart on purpose: a dot while the page is
- * being read, GitHub's own fill once it has been.
+ * The dot is hashed from the word, exactly as the lists do it: see
+ * `labelTone.ts`. GitHub's issue search answers with the names alone, and a
+ * filled chip in a colour nobody read would change colour under the reader when
+ * the issue lands. So the two forms are told apart on purpose: a dot while the
+ * page is being read, GitHub's own fill once it has been.
  */
-const Word = ({ word }: { readonly word: string }) => (
+const LabelWord = ({ name }: { readonly name: string }) => (
   <span
-    title={word}
+    title={name}
     className="flex max-w-40 shrink-0 items-center gap-1.5 rounded-full bg-hover py-0.5 pr-2 pl-1.5 text-xs text-ink-muted"
   >
     <span
       aria-hidden="true"
-      style={{ background: toneOf(word) }}
+      style={{ background: toneOf(name) }}
       className="size-1.5 shrink-0 rounded-full"
     />
-    <span className="truncate">{word}</span>
+    <span className="truncate">{name}</span>
   </span>
 )

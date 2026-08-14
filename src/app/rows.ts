@@ -17,11 +17,11 @@
  * exactly what a row never carried.
  *
  * Written to the window every script this extension runs in the page shares, for
- * the reason `intent.ts` is written there: a list and an issue are separate
- * screens, each imported by its own extension URL — see `screens.ts` — so
- * neither can see the other's modules, and a value held in one of them is not a
- * value in the other. GitHub's own page cannot see this, which a `data-`
- * attribute could not promise.
+ * the reason `intent.ts` is written there. A list and an issue are separate
+ * screens, each imported by its own extension URL: see `screens.ts`. So neither
+ * can see the other's modules, and a value held in one of them is not a value in
+ * the other. GitHub's own page cannot see this, which a `data-` attribute could
+ * not promise.
  *
  * Said for as long as the list is drawing rather than at the moment of a press.
  * The shell watches presses from the top of the document and has the next screen
@@ -41,7 +41,7 @@ type World = Window & { gitquietRows?: ReadonlyArray<ListedIssue> }
  * Replaced rather than added to. The question this answers is about the list the
  * reader is pressing a row of, and a collection that grew with every screen this
  * document ever drew would answer with whichever page happened to hold an issue
- * first — a title from a search the reader ran twenty minutes ago.
+ * first. That is a title from a search the reader ran twenty minutes ago.
  */
 export const drawingIssues = (target: Window, rows: ReadonlyArray<ListedIssue>): void => {
   ;(target as World).gitquietRows = rows
