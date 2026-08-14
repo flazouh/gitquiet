@@ -17,6 +17,7 @@ import {
   CommentIcon,
   CopilotIcon,
   CopyIcon,
+  DownloadIcon,
   DotFillIcon,
   DotIcon,
   EyeIcon,
@@ -59,6 +60,7 @@ import {
   SignOutIcon,
   SkipFillIcon,
   SlidersIcon,
+  TagIcon,
   XCircleFillIcon,
   XIcon
 } from "@primer/octicons-react"
@@ -149,6 +151,8 @@ export const OCTICONS: Set = {
   "chevron-up": ChevronUpIcon,
   copy: CopyIcon,
   file: FileIcon,
+  download: DownloadIcon,
+  tag: TagIcon,
   appearance: PaintbrushIcon,
   files: FileDirectoryIcon,
   diff: SlidersIcon,

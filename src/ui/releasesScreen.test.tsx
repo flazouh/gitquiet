@@ -109,8 +109,8 @@ describe("a repository's releases", () => {
   test("joins the Versions that said nothing into one line", async () => {
     show(asComet)
 
-    expect(await screen.findByText("2 versions with nothing in their notes")).toBeTruthy()
-    expect(screen.getByText("1 version with nothing in its notes")).toBeTruthy()
+    expect(await screen.findByText("2 versions said nothing")).toBeTruthy()
+    expect(screen.getByText("1 version said nothing")).toBeTruthy()
   })
 
   /* A tag that exists is a tag somebody may be looking for, so a marker still links to each. */
@@ -151,10 +151,15 @@ describe("the one file this reader should take", () => {
   test("says which machine it named it for, and where the other files are", async () => {
     show(asComet, files)
 
-    expect(await screen.findByText("macOS, Apple silicon · v0.2.1")).toBeTruthy()
-    expect(screen.getByRole("link", { name: "2 other files" }).getAttribute("href")).toBe(
-      "/zeronsh/comet/releases/tag/v0.2.1"
-    )
+    const card = await screen.findByRole("region", { name: "Download" })
+
+    expect(card.textContent).toContain("macOS, Apple silicon")
+    expect(card.textContent).toContain("v0.2.1")
+    /*
+     * The rest are folded away, which is the whole argument of the row above them: two Builds
+     * this reader's machine does not want, and the archive GitHub appended to the Version.
+     */
+    expect(screen.getByText("3 other files")).toBeTruthy()
   })
 
   /*
@@ -165,9 +170,10 @@ describe("the one file this reader should take", () => {
     show(asComet, files, { machine: "windows", chip: "x86_64" })
 
     expect(
-      await screen.findByText("No single file is named for Windows, x86_64. Every file this version has:")
+      await screen.findByText("No single file is named for Windows, x86_64. All of them are below.")
     ).toBeTruthy()
-    expect(screen.getByRole("link", { name: /zeron-0\.2\.1-macos-arm64\.dmg/ })).toBeTruthy()
+    /* Nothing is held back: the fold carries every Build, plus the archives GitHub appended. */
+    expect(screen.getByText("4 other files")).toBeTruthy()
   })
 
   /*
@@ -184,7 +190,10 @@ describe("the one file this reader should take", () => {
       files
     )
 
-    expect(await screen.findByText("macOS, Apple silicon · v16.0.0")).toBeTruthy()
+    const card = await screen.findByRole("region", { name: "Download" })
+
+    expect(card.textContent).toContain("v16.0.0")
+    expect(card.textContent).not.toContain("canary")
   })
 
   test("draws no download row at all until the second read lands", async () => {

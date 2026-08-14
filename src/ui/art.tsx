@@ -238,6 +238,25 @@ export type ArtName =
    * both sets because it belongs to GitHub rather than to a drawing style.
    */
   | "github"
+  /**
+   * Taking a file away with you, for the one row on the releases screen that is the
+   * reason a reader came to that page at all.
+   *
+   * The most upvoted complaint about GitHub's releases page is a reader asking where
+   * the download button is, at 3,293 points, so the glyph is doing the work a word
+   * cannot do fast enough. `file` is the wrong shape for it: a file is a thing that
+   * exists, and this is a thing that happens.
+   */
+  | "download"
+  /**
+   * A version, for the chip that says which one a Change arrived in.
+   *
+   * Named for the tag rather than for a version number, because that is what GitHub
+   * publishes and what the reader can go and look at. The releases screen wears it
+   * once per section heading and never on a row: thirty tags down a page, a glyph
+   * beside each would be the noise the screen exists to remove.
+   */
+  | "tag"
 
 /** Ours, in a module of its own so a set can hold it without a cycle. */
 export { SpinnerIcon } from "./spinner"
