@@ -345,16 +345,18 @@ export const TheBar = ({
         onSearch={searchable ? () => setFinding(true) : undefined}
         onBack={trail.back ? () => goBack(window) : undefined}
         onForward={trail.forward ? () => goForward(window) : undefined}
-        behind={trail.behind.map((step) => ({
-          ...theNameOf(step.at),
-          id: `${step.back}`,
-          /* The address as well as the press, so a place in the trail can be
-             opened in a new tab or copied like any other link. The plain press
-             goes to the entry itself, which is the page as the reader left it
-             rather than a fresh load of the same address. */
-          where: step.at,
-          press: () => goBackTo(window, step),
-        }))}
+        behind={eachOnce(
+          trail.behind.map((step) => ({
+            ...theNameOf(step.at),
+            id: `${step.back}`,
+            /* The address as well as the press, so a place in the trail can be
+               opened in a new tab or copied like any other link. The plain press
+               goes to the entry itself, which is the page as the reader left it
+               rather than a fresh load of the same address. */
+            where: step.at,
+            press: () => goBackTo(window, step),
+          })),
+        )}
         corner={<SettingsDialog settings={settings} onChange={change} />}
       />
       {finding ? (
@@ -377,6 +379,20 @@ export const TheBar = ({
     slot,
   );
 };
+
+/**
+ * One name once, keeping the nearest place that wears it.
+ *
+ * `theTrail` already says one address once, and an address is not what a reader
+ * reads. A pull request opened, then opened again with the diff split, is two
+ * addresses and one page: `?diff=split` differs, the name does not, and the menu
+ * offered "#12 in flazouh/ghpro-scratch" twice with no way to tell the rows apart.
+ * Two pages of one list collapse the same way and for the same reason.
+ */
+const eachOnce = <One extends { readonly name: string }>(
+  rows: ReadonlyArray<One>,
+): ReadonlyArray<One> =>
+  rows.filter((one, at) => rows.findIndex((other) => other.name === one.name) === at);
 
 /**
  * What one place in the trail is called, and which glyph it wears.

@@ -97,6 +97,28 @@ describe("the places the trail names", () => {
     ])
   })
 
+  /*
+   * One page, two addresses: the same pull request with a query of its own. The
+   * name is what a reader reads, so a row they cannot tell from the one above it
+   * is not worth a line.
+   */
+  test("says one name once, keeping the nearest place that wears it", async () => {
+    havingBeen([
+      "/flazouh/gitquiet/pull/12?diff=split",
+      "/pulls",
+      "/flazouh/gitquiet/pull/12",
+      "/flazouh/gitquiet/pull/14"
+    ])
+
+    render(<TheBar where={WHERE} participant={SOMEONE} repositories={KEPT} />)
+    await userEvent.click(screen.getByRole("button", { name: "Where you have been" }))
+
+    expect(screen.getAllByRole("menuitem").map((one) => one.textContent)).toEqual([
+      "#12 in flazouh/gitquiet",
+      "Working Set"
+    ])
+  })
+
   test("keeps the path itself for a page of theirs nothing here can name", async () => {
     havingBeen(["/flazouh/gitquiet/blob/main/README.md", "/pulls", "/flazouh/gitquiet/pull/14"])
 
