@@ -59,12 +59,12 @@ const open = (reference: IssueRef, onUseGitHub?: () => void): (() => void) => {
   const remembered = Effect.runFork(rememberedIssue(reference).pipe(throughGitHub))
 
   /**
-   * The row for this issue, where the list the reader pressed had one.
+   * The row for this issue, where the list the reader came from drew one.
    *
-   * Read here rather than waited for, because it is already on the page: the list
-   * says what it has on the screen for as long as it is up. Nothing for a pasted
-   * address or a link off GitHub's own page, and the screen then waits as it
-   * always did. See `rows.ts`.
+   * Read rather than waited for, because it is already there: a list says what it
+   * has on the screen while it draws, and this screen is stood up afterwards.
+   * Nothing for a pasted address, a tab of its own or a link off GitHub's own
+   * page, and the screen then waits as it always did. See `rows.ts`.
    */
   const row = issueDrawn(window, reference)
 

@@ -29,6 +29,14 @@
  * hand-over made on the press would arrive after the thing that has to read it.
  * `drawingOurOwnRows` in `src/ui/going.ts` is declared while a list stands for
  * the same reason.
+ *
+ * Not forgotten when the list goes, which is where this parts company with an
+ * intent. An intention names one press, so a stale one sends the next arrival to
+ * the wrong pull request. A row here is only ever read for the one issue whose
+ * address it matches, so the worst a stale one can do is put a title on the
+ * screen that was true when the list was read, for the second before the issue
+ * itself lands over it. That is the bargain everything this extension remembers
+ * already makes.
  */
 
 import { type IssueRef, type ListedIssue, nameOf } from "../domain/issues"
