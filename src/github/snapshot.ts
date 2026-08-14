@@ -28,14 +28,14 @@ import type {
 } from "../domain/PullRequest"
 import type { PullRequestRef } from "../domain/PullRequestRef"
 import { plainText } from "./plainText"
+import { whereverItIs } from "./wherever"
 import {
   type AsyncDiffLoad,
   CreatedComment,
   ChangesRoute,
   type CommitDiffEntry,
   CommitDiffsRoute,
-  commitIn,
-  CommitRoute,
+  CommitAnswer,
   DescriptionRoute,
   DiffEntriesRoute,
   HeaderRoute,
@@ -76,7 +76,7 @@ const decodeIssueComments = Schema.decodeUnknownEffect(IssueCommentsRoute)
 const decodePreviewStack = Schema.decodeUnknownEffect(PreviewStackRoute)
 const decodeDiffEntries = Schema.decodeUnknownEffect(DiffEntriesRoute)
 const decodeCreated = Schema.decodeUnknownEffect(CreatedComment)
-const decodeCommit = Schema.decodeUnknownEffect(CommitRoute)
+const decodeCommit = whereverItIs(CommitAnswer)
 const decodeCommitDiffs = Schema.decodeUnknownEffect(CommitDiffsRoute)
 
 const GHOST = "ghost"
@@ -792,7 +792,7 @@ const commitFileOf = (entry: CommitDiffEntry): ChangedFile => ({
  * page does too, so the file browser already knows how to show one.
  */
 export const toCommit = Effect.fn("toCommit")(function* (raw: unknown) {
-  const payload = commitIn(yield* decodeCommit(raw))
+  const payload = yield* decodeCommit(raw)
   const author = payload.commit.authors[0]
   const headline =
     payload.commit.shortMessage ?? plainText(payload.commit.shortMessageMarkdown ?? "")
@@ -827,7 +827,7 @@ export type HeldBack = {
 }
 
 export const toHeldBack = Effect.fn("toHeldBack")(function* (raw: unknown) {
-  const payload = commitIn(yield* decodeCommit(raw))
+  const payload = yield* decodeCommit(raw)
   const from = payload.asyncDiffLoadInfo ?? null
   const sha1 = payload.commit.sha1 ?? null
   const sha2 = payload.commit.sha2 ?? payload.commit.oid

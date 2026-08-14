@@ -3,12 +3,13 @@ import { Effect, Schema } from "effect"
 import { type FixtureName, loadFixture } from "../../tests/fixtures"
 import {
   ChangesRoute,
+  CommitAnswer,
   CommitDiffsRoute,
-  CommitRoute,
   MergeBoxRoute,
   StatusChecksRoute,
   whyItWouldNotDecode
 } from "./wire"
+import { whereverItIs } from "./wherever"
 
 /**
  * The early-warning system for undocumented endpoints. These fixtures are
@@ -17,6 +18,9 @@ import {
  */
 
 type Decoder = (input: unknown) => Effect.Effect<unknown, unknown>
+
+/** Read as production reads it: the schema describes the answer, not the envelope. */
+const finding = (schema: Parameters<typeof whereverItIs>[0]): Decoder => whereverItIs(schema)
 
 const contracts: ReadonlyArray<readonly [FixtureName, Decoder]> = [
   ["changes", Schema.decodeUnknownEffect(ChangesRoute)],
@@ -29,7 +33,7 @@ const contracts: ReadonlyArray<readonly [FixtureName, Decoder]> = [
   ["merge-box-stacked-middle", Schema.decodeUnknownEffect(MergeBoxRoute)],
   ["merge-box-stacked-top", Schema.decodeUnknownEffect(MergeBoxRoute)],
   ["merge-box-stacked-draft-below", Schema.decodeUnknownEffect(MergeBoxRoute)],
-  ["commit", Schema.decodeUnknownEffect(CommitRoute)],
+  ["commit", finding(CommitAnswer)],
   ["commit-extra-diffs", Schema.decodeUnknownEffect(CommitDiffsRoute)]
 ]
 

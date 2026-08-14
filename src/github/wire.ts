@@ -239,7 +239,7 @@ const CommitAuthor = Schema.Struct({
  * records — one route's `status` where the other says `changeType`, and the
  * rest identical — so everything downstream of here is shared.
  */
-const CommitAnswer = Schema.Struct({
+export const CommitAnswer = Schema.Struct({
   commit: Schema.Struct({
     oid: Schema.String,
     authoredDate: Schema.String,
@@ -264,23 +264,6 @@ const CommitAnswer = Schema.Struct({
 export type CommitAnswer = typeof CommitAnswer["Type"]
 
 /**
- * The same commit, at either of the two places GitHub puts it.
- *
- * Measured on 2026-08-15: their commit page began answering with `payload.commitRoute`
- * around what `payload` held directly, on the same day their commit list moved to
- * `payload.commitsRefRoute`. Both are read, for the reason {@link CommitsRoute} gives.
- */
-export const CommitRoute = Schema.Struct({
-  payload: Schema.Union([Schema.Struct({ commitRoute: CommitAnswer }), CommitAnswer])
-})
-
-export type CommitRoute = typeof CommitRoute["Type"]
-
-/** The commit itself, wherever it arrived. */
-export const commitIn = (said: CommitRoute): CommitAnswer =>
-  "commitRoute" in said.payload ? said.payload.commitRoute : said.payload
-
-/**
  * A branch's commits, from the page GitHub serves for them.
  *
  * Grouped by day, and the grouping is theirs: the title of each group is a date
@@ -292,7 +275,7 @@ export const commitIn = (said: CommitRoute): CommitAnswer =>
  * whether there is another and where it starts, which is all a list that grows
  * while it is read can honestly say.
  */
-const CommitsAnswer = Schema.Struct({
+export const CommitsAnswer = Schema.Struct({
   commitGroups: Schema.Array(
     Schema.Struct({
       title: Schema.String,
@@ -341,34 +324,6 @@ const CommitsAnswer = Schema.Struct({
 })
 
 export type CommitsAnswer = typeof CommitsAnswer["Type"]
-
-/**
- * The same list, at either of the two places GitHub puts it.
- *
- * Measured on 2026-08-15: a branch's commits began arriving inside
- * `payload.commitsRefRoute`, where they had been `payload` itself, and the page went
- * blank rather than short because a list is drawn from this or from nothing. It is the
- * move `/search?type=issues` made the day before, and their repository home and their
- * file view have answered this way for longer, so this is one route catching up with a
- * convention rather than a change of its own. Both are read: a page GitHub serves today
- * and an answer kept from before the move are both a branch's commits.
- *
- * Nested first, for the reason {@link IssueSearchRoute} gives.
- */
-export const CommitsRoute = Schema.Struct({
-  payload: Schema.Union([Schema.Struct({ commitsRefRoute: CommitsAnswer }), CommitsAnswer])
-})
-
-export type CommitsRoute = typeof CommitsRoute["Type"]
-
-/**
- * The list itself, wherever it arrived.
- *
- * One place, so that everything downstream reads one shape and the move above stays a
- * fact about the wire rather than a branch in the interface.
- */
-export const commitsIn = (said: CommitsRoute): CommitsAnswer =>
-  "commitsRefRoute" in said.payload ? said.payload.commitsRefRoute : said.payload
 
 /**
  * The facts GitHub holds back from its own commit list.
@@ -1479,7 +1434,7 @@ export type FilteredRepositories = typeof FilteredRepositories["Type"]
  * this extension sends are qualifiers with no free text in them, so there is
  * nothing for GitHub to mark.
  */
-const IssueSearchAnswer = Schema.Struct({
+export const IssueSearchAnswer = Schema.Struct({
   results: Schema.Array(
       Schema.Struct({
         /** Their own id, as a string on this route where every other one sends a number. */
@@ -1535,36 +1490,6 @@ const IssueSearchAnswer = Schema.Struct({
 
 export type IssueSearchAnswer = typeof IssueSearchAnswer["Type"]
 
-/**
- * The same answer, at either of the two places GitHub puts it.
- *
- * Measured on 2026-08-14: `/search?type=issues` began wrapping the whole answer in
- * `payload.blackbirdSearchRoute`, where it had been `payload` itself. The rows and
- * the three paging numbers inside are unchanged, and the wrapper arrived beside
- * `header_redesign_enabled`, which is what a rollout looks like rather than a
- * finished rename. So both are read: an account served the old shape and one served
- * the new shape are both accounts whose issues should be drawn.
- *
- * Nested first, because that is what a live account is served today and a union that
- * tried the departing shape first would decode nothing on it either way.
- */
-export const IssueSearchRoute = Schema.Struct({
-  payload: Schema.Union([
-    Schema.Struct({ blackbirdSearchRoute: IssueSearchAnswer }),
-    IssueSearchAnswer
-  ])
-})
-
-export type IssueSearchRoute = typeof IssueSearchRoute["Type"]
-
-/**
- * The answer itself, wherever it arrived.
- *
- * One place, so that everything downstream reads one shape and the move above stays a
- * fact about the wire rather than a branch in the interface.
- */
-export const answerIn = (said: IssueSearchRoute): IssueSearchAnswer =>
-  "blackbirdSearchRoute" in said.payload ? said.payload.blackbirdSearchRoute : said.payload
 
 /**
  * The events GitHub still serves in the order they happened.

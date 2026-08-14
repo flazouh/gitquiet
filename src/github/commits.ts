@@ -12,10 +12,10 @@ import { proposalIn } from "../domain/commitList"
 import type { Participant } from "../domain/PullRequest"
 import type { CheckRollup } from "../domain/workingSet"
 import { plainText } from "./plainText"
-import type { CommitsAnswer } from "./wire"
-import { commitsIn, CommitsRoute, DeferredCommitsRoute } from "./wire"
+import { whereverItIs } from "./wherever"
+import { CommitsAnswer, DeferredCommitsRoute } from "./wire"
 
-export const decodeCommits = Schema.decodeUnknownEffect(CommitsRoute)
+export const decodeCommits = whereverItIs(CommitsAnswer)
 export const decodeDeferred = Schema.decodeUnknownEffect(DeferredCommitsRoute)
 
 type WireCommit = CommitsAnswer["commitGroups"][number]["commits"][number]
@@ -104,8 +104,7 @@ const restIn = (said: string): string => said.replace(/^\/[^/]+\/[^/]+/, "")
  * pointing backwards points at the page being read — and a Newer button on the
  * newest page is a button that goes nowhere.
  */
-export const historyIn = (said: CommitsRoute): History => {
-  const answer = commitsIn(said)
+export const historyIn = (answer: CommitsAnswer): History => {
   const { pagination } = answer.filters
 
   const days: ReadonlyArray<Day> = answer.commitGroups.map((group) => ({

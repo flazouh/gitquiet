@@ -12,9 +12,10 @@ import { Effect, Option, Schema } from "effect"
 import type { InvolvedIssue, Involvement, ListedIssue } from "../domain/issues"
 import type { FoundIssues } from "../ports/GitHubGateway"
 import { plainText } from "./plainText"
-import { answerIn, type IssueSearchAnswer, IssueSearchRoute } from "./wire"
+import { whereverItIs } from "./wherever"
+import { IssueSearchAnswer } from "./wire"
 
-export const decodeIssueSearch = Schema.decodeUnknownEffect(IssueSearchRoute)
+export const decodeIssueSearch = whereverItIs(IssueSearchAnswer)
 
 type Found = IssueSearchAnswer["results"][number]
 
@@ -70,8 +71,8 @@ const listedFrom = (row: Found): ListedIssue => ({
 })
 
 /** Every row of one answer that is really an issue, in the order GitHub gave them. */
-const listedIn = (said: IssueSearchRoute): ReadonlyArray<ListedIssue> =>
-  answerIn(said).results.flatMap((row) => (isReallyAPullRequest(row) ? [] : [listedFrom(row)]))
+const listedIn = (answer: IssueSearchAnswer): ReadonlyArray<ListedIssue> =>
+  answer.results.flatMap((row) => (isReallyAPullRequest(row) ? [] : [listedFrom(row)]))
 
 /**
  * The same rows, each carrying the question that found it.
@@ -82,7 +83,7 @@ const listedIn = (said: IssueSearchRoute): ReadonlyArray<ListedIssue> =>
  */
 export const involvedIssuesIn = (
   involvement: Involvement,
-  said: IssueSearchRoute
+  said: IssueSearchAnswer
 ): ReadonlyArray<InvolvedIssue> => listedIn(said).map((one) => ({ ...one, involvement }))
 
 /** Decoded and mapped, for a caller holding raw JSON. */
@@ -104,8 +105,7 @@ export const involvedIssuesFrom = (
  * without the count the first page of something large and the whole of
  * something small are the same picture.
  */
-export const listedIssuesIn = (said: IssueSearchRoute): FoundIssues => {
-  const answer = answerIn(said)
+export const listedIssuesIn = (answer: IssueSearchAnswer): FoundIssues => {
 
   return {
     rows: listedIn(said),

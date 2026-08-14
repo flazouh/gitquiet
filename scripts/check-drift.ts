@@ -4,14 +4,13 @@ import { existsSync, readFileSync } from "node:fs"
 import { SHELVES } from "../src/domain/workingSet"
 import { embeddedPayload } from "../src/github/embedded"
 import { preloadedIn } from "../src/github/preloaded"
+import { whereverItIs } from "../src/github/wherever"
 import {
   BlobRoute,
   ChangesRoute,
   CommitDiffsRoute,
-  CommitRoute,
-  commitIn,
-  commitsIn,
-  CommitsRoute,
+  CommitAnswer,
+  CommitsAnswer,
   ContributorsRoute,
   DeferredCommitsRoute,
   DeferredRoute,
@@ -21,7 +20,7 @@ import {
   FilteredRepositories,
   HeaderRoute,
   IssueCommentsRoute,
-  IssueSearchRoute,
+  IssueSearchAnswer,
   IssueViewRoute,
   Mentionable,
   MergeBoxRoute,
@@ -236,8 +235,10 @@ const checking = <A>(check: {
   name: check.name,
   url: check.url,
   ask: check.ask ?? asJson,
+  // Through the finder, so a payload GitHub has re-parented reads here as it reads in
+  // production: the schema says what the answer is and not where it was put.
   read: (payload) =>
-    Effect.map(Schema.decodeUnknownEffect(check.schema)(payload), (answered) => {
+    Effect.map(whereverItIs(check.schema)(payload), (answered) => {
       check.learn?.(answered)
       return check.note?.(answered) ?? ""
     })
@@ -335,9 +336,9 @@ const routes: ReadonlyArray<Check> = [
   checking({
     name: "commit",
     url: () => `${REPO}/commit/${commit}?_pjax=%23repo-content-pjax-container`,
-    schema: CommitRoute,
+    schema: CommitAnswer,
     learn: (answered) => {
-      const page = commitIn(answered)
+      const page = answered
       const from = page.asyncDiffLoadInfo
       if (from === undefined || from === null) return
       const { sha1, sha2 } = page.commit
@@ -347,7 +348,7 @@ const routes: ReadonlyArray<Check> = [
         `${REPO}/diffs?commit=${page.commit.oid}&sha2=${sha2}&sha1=${sha1}` +
         `&start_entry=${from.startIndex}&bytes=${from.byteCount}&lines=${from.lineShownCount}`
     },
-    note: (answered) => `${commitIn(answered).diffEntryData.length} files`
+    note: (answered) => `${answered.diffEntryData.length} files`
   }),
   checking({
     name: "commit_diffs",
@@ -358,9 +359,9 @@ const routes: ReadonlyArray<Check> = [
   checking({
     name: "commits",
     url: () => `${REPO}/commits/${encodeURIComponent(branch)}`,
-    schema: CommitsRoute,
+    schema: CommitsAnswer,
     learn: (answered) => {
-      const deferred = commitsIn(answered).metadata?.deferredDataUrl
+      const deferred = answered.metadata?.deferredDataUrl
       if (typeof deferred !== "string") return
 
       // Their address carries the repository as well as the route, and the
@@ -369,7 +370,7 @@ const routes: ReadonlyArray<Check> = [
       deferredCommits = `${REPO}${deferred.replace(/^\/[^/]+\/[^/]+/, "")}`
     },
     note: (answered) =>
-      `${commitsIn(answered).commitGroups.reduce((all, group) => all + group.commits.length, 0)} commits`
+      `${answered.commitGroups.reduce((all, one) => all + one.commits.length, 0)} commits`
   }),
   checking({
     name: "deferred_commits",
@@ -463,13 +464,8 @@ const routes: ReadonlyArray<Check> = [
     name: "issue_search",
     url: () =>
       `https://github.com/search?${new URLSearchParams({ q: issueQuery, type: "issues", p: "1" }).toString()}`,
-    schema: IssueSearchRoute,
-    // Which of the two places their answer arrived at, since both are decoded and
-    // the departing one is the shape that used to be the only one.
-    note: (answered) =>
-      "blackbirdSearchRoute" in answered.payload
-        ? `${answered.payload.blackbirdSearchRoute.results.length} rows, nested`
-        : `${answered.payload.results.length} rows, at the payload`
+    schema: IssueSearchAnswer,
+    note: (answered) => `${answered.results.length} rows`
   }),
   checking({
     name: "activity",
