@@ -5,7 +5,7 @@ import type { Changes, WatchedKeyValue } from "@/ports/KeyValue"
 import type { Store } from "@/ports/Settings"
 import { type Highlight } from "@/markdown/loadHighlight"
 import { type DrawMermaid } from "@/markdown/loadMermaid"
-import { MarkdownDrawProvider } from "@/markdown/runtime"
+import { PaintedMarkdown } from "@/ui/PaintedMarkdown"
 import { type DiffEngine, DiffEngineUnavailable } from "@/ports/Renderer"
 import { settingsStore } from "@/settings/store"
 import { ArtProvider } from "@/ui/art"
@@ -190,9 +190,9 @@ export const Supplied = ({
           <ArtProvider here={HUGEICONS}>
             <PortraitsProvider reads={nobody}>
               <RendererProvider load={loadDiffEngine}>
-                <MarkdownDrawProvider highlight={highlight} mermaid={mermaid}>
+                <PaintedMarkdown highlight={highlight} mermaid={mermaid}>
                 <Toasts>{children}</Toasts>
-                </MarkdownDrawProvider>
+                </PaintedMarkdown>
               </RendererProvider>
             </PortraitsProvider>
           </ArtProvider>

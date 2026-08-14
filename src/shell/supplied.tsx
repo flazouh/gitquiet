@@ -3,11 +3,11 @@ import * as AtomRegistry from "effect/unstable/reactivity/AtomRegistry";
 import type { ReactNode } from "react";
 import { listen, socketUrl } from "../github/alive";
 import { layer } from "../github/GitHubGateway";
-import { MarkdownDrawProvider } from "../markdown/runtime";
 import type { GitHubGateway } from "../ports/GitHubGateway";
 import type { Store } from "../ports/Settings";
 import { browserSettings } from "../settings/browserStore";
 import { ArtProvider } from "../ui/art";
+import { PaintedMarkdown } from "../ui/PaintedMarkdown";
 import { RegistryProvider } from "../ui/atoms";
 import { OCTICONS } from "../ui/octicons";
 import { PortraitsProvider } from "../ui/portraits";
@@ -20,7 +20,7 @@ import { loadMarkdownHighlighter } from "./markdownHighlighter";
 import { loadMarkdownMermaid } from "./markdownMermaid";
 import { onGitHub } from "./portraits";
 
-const highlight = (code: string, language: string, theme: "light" | "dark") =>
+const highlight = (code: string, language: string, theme: string) =>
   loadMarkdownHighlighter.pipe(Effect.flatMap((draw) => draw(code, language, theme)));
 
 const mermaid = (code: string) =>
@@ -138,13 +138,13 @@ export const Supplied = ({
         <ArtProvider here={OCTICONS}>
         <PortraitsProvider reads={onGitHub}>
           <RendererProvider load={loadDiffEngine}>
-            <MarkdownDrawProvider highlight={highlight} mermaid={mermaid}>
+            <PaintedMarkdown highlight={highlight} mermaid={mermaid}>
             {/* Above the interface rather than inside a screen: a refusal outlives
                 the control that caused it — the menu closed on the press — and on
                 some of them it outlives the screen too, a merged pull request being
                 a page the reader is about to leave. */}
             <Toasts>{children}</Toasts>
-            </MarkdownDrawProvider>
+            </PaintedMarkdown>
           </RendererProvider>
         </PortraitsProvider>
         </ArtProvider>

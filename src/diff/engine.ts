@@ -14,7 +14,9 @@
  */
 
 import type { DiffChoices } from "../domain/choices"
+import { syntaxOf } from "../domain/syntax"
 import { PAPER, type DiffHandle, type DiffRequest, type DiffSide, type Note, type Picked } from "../ports/Renderer"
+import { LOADERS } from "../syntax/loaders"
 import {
   CORE_CSS_ATTRIBUTE,
   FileDiff,
@@ -24,34 +26,26 @@ import {
 } from "@pierre/diffs"
 
 /**
- * The syntax colours, which are the reader's to choose.
+ * The syntax colours Pierre can name, registered once.
  *
- * Only the tokens: the surfaces, the gutter and the green and red of a changed
- * line are GitHub's either way — see PRIMER below — so the diff sits in the
- * page rather than on it whichever of these is picked. One Dark has no light
- * half, so its light counterpart is Pierre's own.
+ * Which pair a render uses is `syntaxOf`: Match follows the pack, One Dark and
+ * GitHub stay as overrides. Surfaces are not these — see SURFACES below.
  */
-const THEMES = {
-  "one-dark": { dark: "one-dark-pro", light: "pierre-light" },
-  github: { dark: "github-dark-default", light: "github-light-default" }
-} as const
-
-registerCustomTheme("one-dark-pro", () => import("@shikijs/themes/one-dark-pro"))
-registerCustomTheme("github-dark-default", () => import("@shikijs/themes/github-dark-default"))
-registerCustomTheme("github-light-default", () => import("@shikijs/themes/github-light-default"))
+for (const [name, load] of Object.entries(LOADERS)) {
+  registerCustomTheme(name, load as Parameters<typeof registerCustomTheme>[1])
+}
 
 /**
  * Everything around the code: the canvas, the gutter, the green and the red.
  *
  * The theme above colours tokens and nothing else, so left alone the diff sits
- * on Pierre's own surfaces in the middle of GitHub's. These are all the
- * variables their stylesheet leaves open, pointed at Primer's — which means the
- * page's theme, whichever of the six it is, is answered without naming a single
- * colour here.
+ * on Pierre's own surfaces in the middle of the pack. These are all the
+ * variables their stylesheet leaves open, pointed at ours — which means the
+ * pack, whichever it is, is answered without naming a single colour here.
  */
 const SHEET = `var(${PAPER}, var(--bgColor-default))`
 
-const PRIMER: Readonly<Record<string, string>> = {
+export const SURFACES: Readonly<Record<string, string>> = {
   "--diffs-light-bg": SHEET,
   "--diffs-dark-bg": SHEET,
   "--diffs-light": "var(--fgColor-default)",
@@ -71,7 +65,7 @@ const PRIMER: Readonly<Record<string, string>> = {
   "--diffs-bg-context-gutter-override": "var(--bgColor-muted)",
   "--diffs-bg-buffer-override": SHEET,
   "--diffs-bg-separator-override": "var(--bgColor-muted)",
-  "--diffs-bg-hover-override": "var(--bgColor-neutral-muted)",
+  "--diffs-bg-hover-override": "var(--color-hover)",
   "--diffs-fg-number-override": "var(--fgColor-muted)",
   // The page's own text colour on the tinted cells: a tint of the canvas keeps
   // the canvas's lightness, so what reads on one reads on the other.
@@ -80,7 +74,8 @@ const PRIMER: Readonly<Record<string, string>> = {
 
   // Whatever mono the reader has set for the rest of GitHub. The size is not
   // here: it is theirs to choose, and set per render below.
-  "--diffs-font-family": "var(--fontStack-monospace)"
+  "--diffs-font-family":
+    "var(--font-mono, var(--fontStack-monospace, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace))"
 }
 
 /**
@@ -165,7 +160,7 @@ const dressedContainer = (theme: "light" | "dark", choices: DiffChoices): HTMLEl
   // On the host rather than inside the shadow root: custom properties inherit
   // across the boundary, so Primer's variables — which are declared out on the
   // page — resolve here and are read by their stylesheet in there.
-  for (const [name, value] of Object.entries(PRIMER)) host.style.setProperty(name, value)
+  for (const [name, value] of Object.entries(SURFACES)) host.style.setProperty(name, value)
   host.style.setProperty("--diffs-font-size", `${choices.fontSize}px`)
   host.style.setProperty("--diffs-line-height", `${choices.lineHeight}px`)
 
@@ -192,7 +187,7 @@ export const renderDiff = (container: HTMLElement, request: DiffRequest): DiffHa
   const diff = new FileDiff<string>({
     diffStyle: choices.layout,
     overflow: choices.overflow,
-    theme: THEMES[choices.syntax],
+    theme: syntaxOf(choices.syntax, request.pack ?? "github"),
     themeType: request.theme,
     disableFileHeader: true,
     disableLineNumbers: !choices.lineNumbers,

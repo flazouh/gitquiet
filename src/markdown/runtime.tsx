@@ -10,28 +10,38 @@ import { drawMermaid, type DrawMermaid } from "./loadMermaid"
  * variable set in the shell is a different variable from the one the screens
  * read. This context is how the shell hands the functions across that cut,
  * the same way `RendererProvider` hands the diff engine.
+ *
+ * `syntaxTheme` is the Shiki theme name for labelled fences. The shell fills it
+ * from the painted pack; tests that never wrap this keep GitHub light.
  */
 const MarkdownDraw = createContext<{
   readonly highlight: Highlight
   readonly mermaid: DrawMermaid
+  readonly syntaxTheme: string
 }>({
   highlight: highlightCode,
-  mermaid: drawMermaid
+  mermaid: drawMermaid,
+  syntaxTheme: "github-light-default"
 })
 
 export const MarkdownDrawProvider = ({
   highlight,
   mermaid,
+  syntaxTheme = "github-light-default",
   children
 }: {
   readonly highlight: Highlight
   readonly mermaid: DrawMermaid
+  readonly syntaxTheme?: string
   readonly children: ReactNode
 }) => (
-  <MarkdownDraw.Provider value={{ highlight, mermaid }}>{children}</MarkdownDraw.Provider>
+  <MarkdownDraw.Provider value={{ highlight, mermaid, syntaxTheme }}>
+    {children}
+  </MarkdownDraw.Provider>
 )
 
 export const useMarkdownDraw = (): {
   readonly highlight: Highlight
   readonly mermaid: DrawMermaid
+  readonly syntaxTheme: string
 } => useContext(MarkdownDraw)

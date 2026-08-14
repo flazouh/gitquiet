@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test"
-import { shadowFor } from "./engine"
+import { SURFACES, shadowFor } from "./engine"
 
 /**
  * The one line in the engine that behaves differently on the two platforms.
@@ -32,5 +32,16 @@ describe("the shadow root a diff is drawn into", () => {
     const first = shadowFor(host)
     expect(() => shadowFor(host)).not.toThrow()
     expect(shadowFor(host)).toBe(first)
+  })
+})
+
+describe("the surfaces a diff sits on", () => {
+  it("hovers with the pack's hover, not GitHub's muted fill", () => {
+    expect(SURFACES["--diffs-bg-hover-override"]).toBe("var(--color-hover)")
+  })
+
+  it("uses the pack's mono, then GitHub's, then a system stack", () => {
+    expect(SURFACES["--diffs-font-family"]).toContain("--font-mono")
+    expect(SURFACES["--diffs-font-family"]).toContain("--fontStack-monospace")
   })
 })

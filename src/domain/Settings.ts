@@ -74,7 +74,8 @@ export const PAGE_KNOBS = [
 /**
  * How the interface is painted — light or dark, and which colour pack.
  *
- * Separate from `diff.syntax`, which only colours keywords inside the code.
+ * Separate from `diff.syntax`, which colours keywords inside the code. That
+ * knob can follow the pack (`match`) or stay on One Dark or GitHub.
  * These knobs colour the chrome around it: canvas, ink, borders, status chips.
  */
 export const THEME_KNOBS = [
@@ -174,13 +175,14 @@ export const DIFF_KNOBS = [
   knob(
     "syntax",
     "Syntax colours",
-    "Which theme paints the code",
-    "Which colours the code itself is painted in. Everything around it — the canvas, the gutter, the green and red of a changed line — stays GitHub's either way, so this changes keywords, strings and comments and nothing else.",
+    "Follow the colour pack, or pick one",
+    "Which colours the code itself is painted in. Match the theme follows the colour pack the screens are wearing, so a Dracula interface paints Dracula code. One Dark and GitHub stay as fixed syntax themes when the pack and the code should not share a palette. The canvas, the gutter and the green and red of a changed line follow the pack either way.",
     [
+      { value: "match", label: "Match the theme" },
       { value: "one-dark", label: "One Dark" },
       { value: "github", label: "GitHub" },
     ],
-    "one-dark",
+    "match",
   ),
   knob(
     "textSize",

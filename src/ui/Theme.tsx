@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, type ReactNode } from "react"
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useState,
+  type ReactNode
+} from "react"
 import { ROOT_ID } from "./mount"
 import {
   paintFloor,
@@ -8,11 +16,38 @@ import {
   rememberedTheme
 } from "./applyTheme"
 import { DEFAULTS } from "../domain/Settings"
-import type { Appearance, Pack } from "../domain/theme"
+import type { Appearance, Pack, Scheme } from "../domain/theme"
 import { packOf, tokensOf } from "../domain/theme"
 import { OVER_ID, ourOutsides, outsideHost } from "./outside"
 import { schemeOnPage } from "./theirScheme"
 import { useSettings } from "./useSettings"
+
+/**
+ * What Theme last painted, so a diff or a fence can wear the same colours.
+ *
+ * The tokens live on the root as CSS variables. Syntax highlighters do not read
+ * those: they want a light/dark name and a pack, baked into the DOM they write.
+ * This is that pair, from the one place that already resolved it.
+ */
+export type PaintedTheme = {
+  readonly scheme: Scheme
+  readonly pack: Pack
+}
+
+const Painted = createContext<PaintedTheme | null>(null)
+
+/**
+ * The scheme and pack currently on the screens, or the page's own where Theme
+ * has not painted yet — a test, a first frame, a pane rendered alone.
+ */
+export const usePaintedTheme = (): PaintedTheme => {
+  const painted = useContext(Painted)
+  if (painted !== null) return painted
+  return {
+    scheme: schemeOnPage(document.documentElement, prefersDarkScheme()),
+    pack: "gitquiet"
+  }
+}
 
 /**
  * Where the tokens land.
@@ -64,6 +99,7 @@ export const Theme = ({
   readonly children?: ReactNode
 }) => {
   const { settings, ready } = useSettings()
+  const [painted, setPainted] = useState<PaintedTheme | null>(null)
 
   const paint = useCallback(
     (appearance: Appearance, pack: Pack, remember: boolean) => {
@@ -88,6 +124,9 @@ export const Theme = ({
       if (scope !== "document") outsideHost(document, OVER_ID)
 
       const scheme = paintTheme(root, appearance, pack, dark, remember)
+      setPainted((was) =>
+        was !== null && was.scheme === scheme && was.pack === pack ? was : { scheme, pack }
+      )
       /*
        * And every element of ours that had to stand outside the root — the bar, the host the
        * hover cards portal into. Tokens are inline custom properties, so nothing inherits across
@@ -170,5 +209,5 @@ export const Theme = ({
     }
   }, [ready, scope, paint, here, settings.theme.appearance, settings.theme.pack])
 
-  return children ?? null
+  return <Painted.Provider value={painted}>{children ?? null}</Painted.Provider>
 }

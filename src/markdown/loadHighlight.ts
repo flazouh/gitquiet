@@ -12,7 +12,7 @@ import { Effect } from "effect"
 export type Highlight = (
   code: string,
   language: string,
-  theme: "light" | "dark"
+  theme: string
 ) => Effect.Effect<string | null>
 
 const none: Highlight = () => Effect.succeed(null)

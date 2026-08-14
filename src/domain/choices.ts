@@ -1,4 +1,5 @@
 import type { DiffSettings, TreeSettings } from "./Settings"
+import type { SyntaxChoice } from "./syntax"
 
 /**
  * The reader's words turned into what the renderers take.
@@ -13,7 +14,7 @@ import type { DiffSettings, TreeSettings } from "./Settings"
 export type DiffChoices = {
   readonly layout: "unified" | "split"
   readonly overflow: "scroll" | "wrap"
-  readonly syntax: "one-dark" | "github"
+  readonly syntax: SyntaxChoice
   readonly fontSize: number
   readonly lineHeight: number
   readonly lineNumbers: boolean

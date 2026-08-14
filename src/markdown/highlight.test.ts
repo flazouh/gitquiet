@@ -4,20 +4,27 @@ import { highlight } from "./highlight"
 
 describe("colouring a labelled fence", () => {
   test("colours a typescript fence", async () => {
-    const html = await Effect.runPromise(highlight("const x = 1", "ts", "light"))
+    const html = await Effect.runPromise(highlight("const x = 1", "ts", "github-light-default"))
 
     expect(html).toContain("const")
     expect(html).toContain("<span")
   })
 
   test("maps sh to the shell grammar", async () => {
-    const html = await Effect.runPromise(highlight("ori login", "sh", "light"))
+    const html = await Effect.runPromise(highlight("ori login", "sh", "github-light-default"))
 
     expect(html).not.toBeNull()
     expect(html).toContain("ori")
   })
 
   test("leaves an unknown language uncoloured", async () => {
-    expect(await Effect.runPromise(highlight("graph TD", "mermaid", "light"))).toBeNull()
+    expect(await Effect.runPromise(highlight("graph TD", "mermaid", "github-light-default"))).toBeNull()
+  })
+
+  test("loads a pack theme that was not in the first two", async () => {
+    const html = await Effect.runPromise(highlight("const x = 1", "ts", "dracula"))
+
+    expect(html).toContain("const")
+    expect(html).toContain("<span")
   })
 })

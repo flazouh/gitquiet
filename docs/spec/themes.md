@@ -85,8 +85,9 @@ Shown in Settings as an **Appearance** section: Appearance row, Theme (pack) row
 3. Each shipped pack has a distinct light and dark surface/ink pair.
 4. Unknown or missing stored theme values fall back to the defaults above.
 5. Desktop and extension theme choices do not overwrite each other.
-6. Diff syntax theme (`diff.syntax`) stays a separate knob; this spec does not
-   change it.
+6. Diff syntax (`diff.syntax`) defaults to `match`, which follows the colour pack.
+   One Dark and GitHub remain as overrides. Surfaces (canvas, gutter, green, red)
+   follow the pack through CSS variables either way.
 
 ## Related
 

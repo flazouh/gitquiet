@@ -4,9 +4,13 @@ import { Effect, Option } from "effect"
 import type { DiffHandle, DiffRequest } from "../ports/Renderer"
 import type { ChangedFile } from "../domain/PullRequest"
 import { diffChoices } from "../domain/choices"
-import { DEFAULTS } from "../domain/Settings"
+import { DEFAULTS, type Settings } from "../domain/Settings"
+import type { Store } from "../ports/Settings"
 import { FileDiffPane } from "./Files"
+import { ROOT_ID } from "./mount"
 import { RendererProvider, type LoadEngine } from "./renderer"
+import { SettingsProvider } from "./settings"
+import { Theme } from "./Theme"
 
 /**
  * The renderer, stood in for.
@@ -35,6 +39,15 @@ const stub: LoadEngine = Effect.succeed({
 afterEach(() => {
   cleanup()
   asked.length = 0
+  document.documentElement.removeAttribute("data-color-mode")
+  for (const found of document.querySelectorAll(`#${ROOT_ID}`)) found.remove()
+})
+
+/** A store that answers with one set of choices and hears nothing afterwards. */
+const holding = (settings: Settings): Store => ({
+  read: Effect.sync(() => settings),
+  write: () => Effect.void,
+  watch: () => () => {}
 })
 
 const file: ChangedFile = {
@@ -72,6 +85,31 @@ const drawn = async (): Promise<DiffRequest> => {
   })
   return asked[0]!
 }
+
+describe("which colours a file is drawn in", () => {
+  test("follows the reader's appearance, not GitHub's page", async () => {
+    document.documentElement.setAttribute("data-color-mode", "light")
+    const root = document.createElement("div")
+    root.id = ROOT_ID
+    document.body.append(root)
+
+    render(
+      <SettingsProvider
+        store={holding({
+          ...DEFAULTS,
+          theme: { ...DEFAULTS.theme, appearance: "dark", pack: "dracula" }
+        })}
+      >
+        <Theme element={root}>{pane()}</Theme>
+      </SettingsProvider>
+    )
+
+    await waitFor(() => {
+      expect(asked.at(-1)?.theme).toBe("dark")
+    })
+    expect(asked.at(-1)?.pack).toBe("dracula")
+  })
+})
 
 describe("marking lines out to say something about them", () => {
   test("is offered where a remark can be sent", async () => {

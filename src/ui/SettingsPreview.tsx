@@ -40,7 +40,7 @@ type CodeProps = {
   readonly wrap?: boolean
   readonly size?: number
   readonly leading?: number
-  readonly palette?: "one-dark" | "github"
+  readonly palette?: "one-dark" | "github" | "match"
 }
 
 const Code = ({
@@ -103,7 +103,7 @@ const Code = ({
 )
 
 /**
- * Two palettes, hand-coloured.
+ * Two palettes, hand-coloured, and one that follows the pack.
  *
  * Loading Shiki to paint eight words in a tooltip would cost more than the
  * whole menu; these are the four token colours anyone recognises from each
@@ -115,7 +115,13 @@ const paint = (text: string, palette: CodeProps["palette"]): ReactNode => {
   const colours =
     palette === "one-dark"
       ? { keyword: "#c678dd", name: "#e06c75", string: "#98c379" }
-      : { keyword: "#ff7b72", name: "#79c0ff", string: "#a5d6ff" }
+      : palette === "github"
+        ? { keyword: "#ff7b72", name: "#79c0ff", string: "#a5d6ff" }
+        : {
+            keyword: "var(--color-ink-accent)",
+            name: "var(--color-pass)",
+            string: "var(--color-done)"
+          }
   const [, keyword, name, rest] = /^(\w+) (\w+) = (.*)$/.exec(text) ?? []
   if (keyword === undefined) return text
 
@@ -223,7 +229,7 @@ const SAMPLES: Record<string, (choice: string) => ReactNode> = {
   ),
   syntax: (choice) => (
     <Code
-      palette={choice === "github" ? "github" : "one-dark"}
+      palette={choice === "github" ? "github" : choice === "one-dark" ? "one-dark" : "match"}
       lines={[{ text: 'const name = "widget"' }, { text: 'const kind = "button"' }]}
     />
   ),

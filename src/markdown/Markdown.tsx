@@ -124,15 +124,14 @@ const CodeFence = ({
   readonly language: string
   readonly suggestion: boolean
 }) => {
-  const { highlight, mermaid } = useMarkdownDraw()
+  const { highlight, mermaid, syntaxTheme } = useMarkdownDraw()
   const [html, setHtml] = useState<string | null>(null)
 
   useEffect(() => {
     if (suggestion) return
     if (language === "") return
-    const theme = document.documentElement.dataset.colorMode === "light" ? "light" : "dark"
     let cancelled = false
-    const work = language === "mermaid" ? mermaid(code) : highlight(code, language, theme)
+    const work = language === "mermaid" ? mermaid(code) : highlight(code, language, syntaxTheme)
     const asking = Effect.runFork(
       work.pipe(
         Effect.tap((coloured) =>
@@ -146,7 +145,7 @@ const CodeFence = ({
       cancelled = true
       Effect.runFork(Fiber.interrupt(asking))
     }
-  }, [code, language, suggestion, highlight, mermaid])
+  }, [code, language, suggestion, highlight, mermaid, syntaxTheme])
 
   if (language === "mermaid") {
     if (html !== null) {

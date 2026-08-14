@@ -106,6 +106,7 @@ describe("choosing whose pull request page to read", () => {
 describe("choosing how the interface looks", () => {
   it("starts on the desktop look, following the OS, in the glyphs of wherever it is drawn", () => {
     expect(DEFAULTS.theme).toEqual({ appearance: "system", pack: "match", art: "match" })
+    expect(DEFAULTS.diff.syntax).toBe("match")
   })
 
   it("keeps a stored appearance and pack that are still offered", () => {

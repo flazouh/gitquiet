@@ -8,6 +8,7 @@ import { PRESSABLE } from "./dress"
 import { FileMark } from "./FileHeading"
 import { Markdown } from "./Markdown"
 import { useRenderer } from "./renderer"
+import { usePaintedTheme } from "./Theme"
 import { useSettings } from "./useSettings"
 import { type Way, Ways } from "./Ways"
 
@@ -32,10 +33,6 @@ export type ReadingProps = {
  */
 const SHEET = "bg-raised"
 
-/** Whichever of the two themes the page is wearing, which the renderer asks for. */
-const preferredTheme = (): "light" | "dark" =>
-  document.documentElement.dataset.colorMode === "light" ? "light" : "dark"
-
 /**
  * The file, drawn by the renderer every diff on every other screen is drawn by.
  *
@@ -46,6 +43,7 @@ const preferredTheme = (): "light" | "dark" =>
 const Source = ({ opened }: { readonly opened: Opened }) => {
   const host = useRef<HTMLDivElement | null>(null)
   const load = useRenderer()
+  const painted = usePaintedTheme()
   const { settings } = useSettings()
   const [engine, setEngine] = useState<DiffEngine | null>(null)
   const [unavailable, setUnavailable] = useState(false)
@@ -68,7 +66,8 @@ const Source = ({ opened }: { readonly opened: Opened }) => {
     const live = engine.renderDiff(container, {
       patch: source,
       path: opened.path,
-      theme: preferredTheme(),
+      theme: painted.scheme,
+      pack: painted.pack,
       // Unified whatever the reader chose for diffs. Split is two columns of the
       // same file here, which is the setting doing the opposite of what it is
       // for: there is no before and after in a file nothing happened to.
@@ -77,7 +76,7 @@ const Source = ({ opened }: { readonly opened: Opened }) => {
       fillNote: () => undefined
     })
     return () => live.destroy()
-  }, [engine, patch, opened.path, choices])
+  }, [engine, patch, opened.path, choices, painted.scheme, painted.pack])
 
   if (Option.isNone(patch)) {
     return <p className="px-4 py-3 text-sm text-ink-muted">This file is empty.</p>

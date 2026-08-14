@@ -20,6 +20,7 @@ import { draftKey, type Draft } from "./drafts"
 import { Note } from "./Note"
 import { ProseDiff } from "./ProseDiff"
 import { useRenderer } from "./renderer"
+import { usePaintedTheme } from "./Theme"
 import { rowMarks, shortCount, type RowMark } from "./rowMarks"
 import { type Answering, ThreadInDiff } from "./ThreadView"
 import { threadKey, threadNotes, threadsIn } from "./threads"
@@ -112,13 +113,6 @@ const PLAIN_ICONS = { set: "complete" as const }
 
 /** Nothing seen yet, shared so a default prop is not a new set every render. */
 const EMPTY: ReadonlySet<string> = new Set()
-
-/** Whichever of its two themes GitHub is currently wearing. */
-const preferredTheme = (): "light" | "dark" => {
-  const mode = document.documentElement.dataset.colorMode
-  if (mode === "light" || mode === "dark") return mode
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
-}
 
 export type FileTreePaneProps = {
   readonly files: ReadonlyArray<ChangedFile>
@@ -353,6 +347,7 @@ export const FileDiffPane = ({
   onUpload
 }: FileDiffPaneProps) => {
   const host = useRef<HTMLDivElement | null>(null)
+  const painted = usePaintedTheme()
   const load = useRenderer()
   const [engine, setEngine] = useState<DiffEngine | null>(null)
   const [unavailable, setUnavailable] = useState(false)
@@ -498,7 +493,8 @@ export const FileDiffPane = ({
     const live = engine.renderDiff(container, {
       patch: source,
       path: file.path,
-      theme: preferredTheme(),
+      theme: painted.scheme,
+      pack: painted.pack,
       choices,
       // Off where a remark has nowhere to go, which takes the gutter's plus and
       // the drag across the line numbers with it. A commit read on its own page
@@ -517,7 +513,7 @@ export const FileDiffPane = ({
     }
     // Every one of these is baked into the DOM the renderer writes, so a change
     // to any of them is a file drawn again from the patch.
-  }, [engine, shown, file.path, prose, choices, onPost])
+  }, [engine, shown, file.path, prose, choices, onPost, painted.scheme, painted.pack])
 
   useEffect(() => {
     handle.current?.showNotes(notes)

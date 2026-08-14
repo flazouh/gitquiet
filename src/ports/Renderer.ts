@@ -15,6 +15,7 @@
 
 import { Data } from "effect"
 import type { DiffChoices } from "../domain/choices"
+import type { Pack } from "../domain/theme"
 
 /** Which half of a diff a line belongs to: the old file, or the new one. */
 export type DiffSide = "additions" | "deletions"
@@ -53,6 +54,13 @@ export type DiffRequest = {
   readonly patch: string
   readonly path: string
   readonly theme: "light" | "dark"
+  /**
+   * The colour pack the screens are wearing.
+   *
+   * The syntax knob can follow this (`match`) rather than One Dark or GitHub.
+   * Absent only in tests that never ask about colours.
+   */
+  readonly pack?: Pack
   /** Everything the reader has chosen about how a diff is drawn. */
   readonly choices: DiffChoices
   /** Lines were dragged out, or the gutter's plus was clicked. Null on letting go. */
