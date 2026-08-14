@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { act, cleanup, render, screen } from "@testing-library/react"
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import { type Load, useLive } from "./useLive"
@@ -337,7 +337,18 @@ describe("a change shown before GitHub has agreed to it", () => {
 
   test("puts it back where GitHub refused, and says who refused", async () => {
     const load = () => Effect.sleep("5 millis").pipe(Effect.as(["open"]))
-    const change = () => Effect.sleep("20 millis").pipe(Effect.andThen(Effect.fail("no")))
+
+    /*
+     * Held until this test refuses, rather than refused on a timer. What the first
+     * assertion is about is the list while the write is still out, and a timer long
+     * enough to assert against here is one a loaded runner beats: at zero the
+     * assertion reads `open`, which is the same failure a slow runner produces.
+     */
+    let refuse = (): void => {}
+    const refused = new Promise<void>((done) => {
+      refuse = () => done()
+    })
+    const change = () => Effect.promise(() => refused).pipe(Effect.andThen(Effect.fail("no")))
 
     let refusal: unknown
     render(
@@ -355,9 +366,10 @@ describe("a change shown before GitHub has agreed to it", () => {
 
     expect(rowsOf()).toBe("closed")
 
-    await settle(80)
-
-    expect(rowsOf()).toBe("open")
-    expect(refusal).toBeDefined()
+    refuse()
+    await waitFor(() => {
+      expect(rowsOf()).toBe("open")
+      expect(refusal).toBeDefined()
+    })
   })
 })
