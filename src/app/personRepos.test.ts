@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { Effect, Option } from "effect"
 import { layer } from "../github/GitHubGateway"
 import { personPageIn } from "../domain/person"
-import { AT_MOST, theirFirstPage, theirOtherPages } from "./personRepos"
+import { AT_MOST, type TheirList, theirFirstPage, theirOtherPages, theirWholeList } from "./personRepos"
 
 const real = await Bun.file("tests/fixtures/personRepos.html").text()
 const last = await Bun.file("tests/fixtures/personReposArchived.html").text()
@@ -108,5 +108,67 @@ describe("the pages behind it", () => {
 
   test("reads at most ten pages, which is three hundred repositories", () => {
     expect(AT_MOST).toBe(10)
+  })
+})
+
+describe("their whole list, in the order the screen needs it", () => {
+  const walk = (served: Document) => {
+    const reported: Array<TheirList> = []
+    return Effect.runPromise(
+      theirWholeList(page, served, (list) => {
+        reported.push(list)
+      }).pipe(Effect.provide(layer), Effect.map((all) => ({ all, reported })))
+    )
+  }
+
+  test("reports the served page before it asks for anything", async () => {
+    // Thirty rows on the screen in the first frame, and the four requests behind
+    // them are a second nobody is watching.
+    intercept((url) => html(url.includes("page=2") ? last : real))
+
+    const { reported } = await walk(document_(real))
+
+    expect(reported).toHaveLength(1)
+    expect(reported[0]?.rows).toHaveLength(30)
+  })
+
+  test("comes back with the served page and every page behind it", async () => {
+    intercept((url) => html(url.includes("page=2") ? last : real))
+
+    const { all } = await walk(document_(real))
+
+    expect(all.rows).toHaveLength(34)
+    expect(all.capped).toBe(false)
+  })
+
+  test("asks for nothing where their pager says the served page is the whole list", async () => {
+    // The archived fixture has no Next link, so it is a whole list of four.
+    const asked = intercept(() => html(real))
+
+    const { all } = await walk(document_(last))
+
+    expect(asked).toEqual([])
+    expect(all.rows).toHaveLength(4)
+  })
+
+  test("asks for page one where their frame is on the page and its rows are not", async () => {
+    // What a soft press from the Overview tab looks like: the frame is there, and
+    // their own fetch of the rows has not landed.
+    const asked = intercept((url) => html(url.includes("page=2") ? last : real))
+
+    const { all } = await walk(document_("<!doctype html><body><turbo-frame id=user-profile-frame>"))
+
+    // Their tab and no page number, which is the address page one lives at.
+    expect(asked[0]).toBe("https://github.com/flazouh?tab=repositories")
+    expect(all.rows).toHaveLength(34)
+  })
+
+  test("says when the walk stopped at the cap rather than at the end", async () => {
+    intercept(() => html(real))
+
+    const { all } = await walk(document_(real))
+
+    expect(all.capped).toBe(true)
+    expect(all.rows).toHaveLength(30 * AT_MOST)
   })
 })
