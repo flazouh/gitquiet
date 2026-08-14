@@ -1,6 +1,17 @@
 import { describe, expect, test } from "bun:test"
 import { Option } from "effect"
-import { grouped, type Life, type ListedRepository, lifeOf, matching, shares } from "./life"
+import {
+  grouped,
+  isShut,
+  type Life,
+  type ListedRepository,
+  lifeOf,
+  matching,
+  MOVING_DAYS,
+  movement,
+  shares,
+  turnedEntry
+} from "./life"
 
 const now = new Date("2026-08-15T00:00:00Z")
 
@@ -200,5 +211,91 @@ describe("finding a row", () => {
 
   test("nothing typed is everything there is", () => {
     expect(matching(list, "   ").length).toBe(list.length)
+  })
+})
+
+describe("the last-moved strip", () => {
+  const strip = (rows: ReadonlyArray<ListedRepository>) => movement(rows, now)
+
+  test("is one cell per repository, newest push first", () => {
+    const cells = strip([
+      row({ repo: "old", pushedAt: Option.some(daysAgo(400)) }),
+      row({ repo: "today", pushedAt: Option.some(daysAgo(0)) }),
+      row({ repo: "spring", pushedAt: Option.some(daysAgo(120)) })
+    ])
+
+    expect(cells.map((one) => one.nameWithOwner)).toEqual([
+      "flazouh/today",
+      "flazouh/spring",
+      "flazouh/old"
+    ])
+  })
+
+  test("shades a week, a month, half a year, a year, and older than that", () => {
+    const levels = strip([
+      row({ repo: "a", pushedAt: Option.some(daysAgo(1)) }),
+      row({ repo: "b", pushedAt: Option.some(daysAgo(20)) }),
+      row({ repo: "c", pushedAt: Option.some(daysAgo(100)) }),
+      row({ repo: "d", pushedAt: Option.some(daysAgo(300)) }),
+      row({ repo: "e", pushedAt: Option.some(daysAgo(900)) })
+    ]).map((one) => one.level)
+
+    expect(levels).toEqual([4, 3, 2, 1, 0])
+  })
+
+  test("draws the month at the same edge the groups use", () => {
+    // Two resolutions of one fact rather than two facts that nearly agree: a row
+    // in the moving group is never a grey cell in the strip above it.
+    const cells = strip([
+      row({ repo: "in", pushedAt: Option.some(daysAgo(MOVING_DAYS - 1)) }),
+      row({ repo: "out", pushedAt: Option.some(daysAgo(MOVING_DAYS + 1)) })
+    ])
+
+    expect(cells.map((one) => one.level)).toEqual([3, 2])
+  })
+
+  test("puts a repository with no commits last, at the grey end", () => {
+    const cells = strip([
+      row({ repo: "empty", pushedAt: Option.none() }),
+      row({ repo: "moving", pushedAt: Option.some(daysAgo(1)) })
+    ])
+
+    expect(cells.map((one) => one.nameWithOwner)).toEqual(["flazouh/moving", "flazouh/empty"])
+    expect(cells[1]?.level).toBe(0)
+  })
+
+  test("is nothing at all on a list with nothing in it", () => {
+    expect(strip([])).toEqual([])
+  })
+})
+
+describe("which groups are shut", () => {
+  test("forked starts shut and the other three start open", () => {
+    expect(isShut([], "flazouh", "forked")).toBe(true)
+    expect(isShut([], "flazouh", "moving")).toBe(false)
+    expect(isShut([], "flazouh", "quiet")).toBe(false)
+    expect(isShut([], "flazouh", "retired")).toBe(false)
+  })
+
+  test("a remembered turn means the other way, whichever way it started", () => {
+    // One list for both halves. An entry for forked is the reader opening it; an
+    // entry for moving is the reader shutting it.
+    expect(isShut([turnedEntry("flazouh", "forked")], "flazouh", "forked")).toBe(false)
+    expect(isShut([turnedEntry("flazouh", "moving")], "flazouh", "moving")).toBe(true)
+  })
+
+  test("is remembered for one person and not for the next", () => {
+    // 154 repositories of one account and three of another are not the same list
+    // and do not want the same shape.
+    const turned = [turnedEntry("flazouh", "quiet")]
+
+    expect(isShut(turned, "flazouh", "quiet")).toBe(true)
+    expect(isShut(turned, "sindresorhus", "quiet")).toBe(false)
+  })
+
+  test("answers the same whatever case their name was written in", () => {
+    // GitHub answers `/FLAZOUH` and `/flazouh` with the same page, and a reader
+    // arriving by either address is looking at the list they shaped.
+    expect(isShut([turnedEntry("FLAZOUH", "moving")], "flazouh", "moving")).toBe(true)
   })
 })

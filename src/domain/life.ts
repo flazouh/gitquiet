@@ -135,7 +135,7 @@ export type Group = {
  * headings on an account with three repositories is a shape that says less than the
  * three rows do.
  */
-const ORDER: ReadonlyArray<Life> = ["moving", "quiet", "retired", "forked"]
+export const LIVES: ReadonlyArray<Life> = ["moving", "quiet", "retired", "forked"]
 
 /**
  * A list of rows as the four groups, newest push first inside each.
@@ -158,7 +158,7 @@ export const grouped = (
     else already.push(one)
   }
 
-  return ORDER.flatMap((life) => {
+  return LIVES.flatMap((life) => {
     const found = held.get(life)
     if (found === undefined || found.length === 0) return []
 
@@ -176,6 +176,86 @@ const pushedFirst = (left: ListedRepository, right: ListedRepository): number =>
 
   return when(right) - when(left) || left.nameWithOwner.localeCompare(right.nameWithOwner)
 }
+
+/**
+ * The group that starts shut, and it is the only one.
+ *
+ * Forked, because a fork nobody pushed to is somebody else's work and is most of
+ * what makes these lists long. The other three are what the reader came for and a
+ * heading with nothing under it answers nothing.
+ */
+export const SHUT_AT_FIRST: ReadonlySet<Life> = new Set<Life>(["forked"])
+
+/** One remembered turn of one group of one person's list. */
+export const turnedEntry = (login: string, life: Life): string => `${login.toLowerCase()}:${life}`
+
+/**
+ * Whether a group is shut, from what the reader turned and what it started as.
+ *
+ * A stored entry means "the reader turned this group the other way", rather than
+ * "this group is shut". One list carries both halves that way: Forked starts shut,
+ * so an entry for it means opened, and an entry for Moving means shut. The
+ * alternative was a second list of what is open, and two lists that have to
+ * disagree about the same group is how a group ends up in both.
+ *
+ * Per person, because 154 repositories of one account and three of another are not
+ * the same list and do not want the same shape.
+ */
+export const isShut = (
+  turned: ReadonlyArray<string>,
+  login: string,
+  life: Life
+): boolean => SHUT_AT_FIRST.has(life) !== turned.includes(turnedEntry(login, life))
+
+/** One cell of the last-moved strip: a repository, when it moved, and how lately. */
+export type Cell = {
+  readonly nameWithOwner: string
+  readonly when: Option.Option<string>
+  /** 4 for this week down to 0 for over a year ago or never. */
+  readonly level: 0 | 1 | 2 | 3 | 4
+}
+
+/**
+ * The steps of the strip, in days, and the reason for each.
+ *
+ * A week, a month, half a year, a year. The month is `MOVING_DAYS`, so the strip
+ * and the groups are drawing the same fact at two resolutions rather than two
+ * facts that nearly agree.
+ */
+const STEPS: ReadonlyArray<readonly [number, Cell["level"]]> = [
+  [7, 4],
+  [MOVING_DAYS, 3],
+  [180, 2],
+  [365, 1]
+]
+
+/**
+ * Every repository as one cell, newest push first.
+ *
+ * The figure a reader reads instead of thirty rows: a strip that is bright on the
+ * left and grey for the rest of its length says one person keeps one thing alive,
+ * and an even strip says the opposite. Neither sentence is on GitHub's page,
+ * though every row carries the date it is drawn from.
+ *
+ * One cell per repository and no bucketing by week, unlike the contribution
+ * calendar this borrows its shape from. A repository is the unit a reader presses,
+ * and a cell that stands for four of them cannot be pressed.
+ */
+export const movement = (
+  rows: ReadonlyArray<ListedRepository>,
+  now: Date = new Date()
+): ReadonlyArray<Cell> =>
+  [...rows].sort(pushedFirst).map((one) => {
+    const pushed = Option.getOrUndefined(one.pushedAt)
+    const at = pushed === undefined ? Number.NaN : Date.parse(pushed)
+    const days = Number.isFinite(at) ? (now.getTime() - at) / DAY : Number.POSITIVE_INFINITY
+
+    return {
+      nameWithOwner: one.nameWithOwner,
+      when: one.pushedAt,
+      level: STEPS.find(([within]) => days <= within)?.[1] ?? 0
+    }
+  })
 
 /** One band of the share figure: a language, its colour, and how much of the list it is. */
 export type Share = {

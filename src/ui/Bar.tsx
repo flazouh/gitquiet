@@ -54,7 +54,15 @@ export type Where =
        * repository for as long as it existed. `Owner` asks GitHub's redirect by name, so
        * there is nothing to pass and nothing to forget to pass.
        */
-    };
+    }
+  /**
+   * A person's own pages: their profile, their repositories, their stars.
+   *
+   * A login rather than an address, and no tab in here. Which of their three tabs the
+   * reader is on is drawn by the screen, one row below this bar and beside the counts it
+   * belongs to, exactly as a repository's tabs are.
+   */
+  | { readonly kind: "person"; readonly login: string };
 
 export type BarProps = {
   readonly where: Where;
@@ -452,7 +460,25 @@ export const Bar = ({
 
       <Ours here={where.kind === "home"} />
 
-      {where.kind === "home" ? null : (
+      {/*
+       * Their name, on their own pages, and no chevron beside it.
+       *
+       * The chevron on a repository offers the reader's other repositories, which is a list
+       * this bar is handed. Nothing hands it a list of people, and a menu built from the
+       * owners of a repository list is a column of whoever happens to be in it rather than
+       * anyone the reader chose. So one chip, one press, and it goes to their profile.
+       */}
+      {where.kind === "person" ? (
+        <a
+          href={`/${where.login}`}
+          className={`flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-ink no-underline hover:bg-active ${TINT}`}
+        >
+          <Owner owner={where.login} size={18} />
+          <span className="font-semibold">{where.login}</span>
+        </a>
+      ) : null}
+
+      {where.kind !== "repository" ? null : (
         <div className="relative flex shrink-0 items-center">
           {/*
            * One chip, two presses: the name goes to the repository and the chevron opens the

@@ -7,6 +7,8 @@
  * is nowhere for the four copies of that knob to drift apart.
  */
 
+import { LIVES } from "./life"
+
 export type Choice<T extends string> = {
   readonly value: T
   readonly label: string
@@ -497,6 +499,19 @@ export type Settings = {
    * or renamed one. Their own filters do it for one page load; this is remembered.
    */
   readonly putAway: ReadonlyArray<string>
+  /**
+   * The groups of a person's repositories a reader turned the other way, as `login:group`.
+   *
+   * A list for the reason the pins are one: how many people a reader looks at is theirs.
+   * Scoped to a login because 154 repositories of one account and three of another do not
+   * want the same shape.
+   *
+   * An entry means turned rather than shut, which is what lets one list carry both halves:
+   * Forked starts shut, so an entry for it means opened. `isShut` in `src/domain/life.ts`
+   * is where that is read, and the argument against a second list of what is open is
+   * written there.
+   */
+  readonly turned: ReadonlyArray<string>
 }
 
 /** Whether a stored value is an address this interface could actually draw. */
@@ -517,6 +532,25 @@ const isPutAway = (value: unknown): value is string => {
   return divide > 0 && isAddress(value.slice(0, divide)) && divide < value.length - 1
 }
 
+/**
+ * Whether a stored entry still names one group of one person's list.
+ *
+ * The group is checked against the four there are rather than accepted as any word, because
+ * an entry nothing draws is a row of the reader's own choices that can never be undone from
+ * the screen it came from.
+ */
+const isTurned = (value: unknown): value is string => {
+  if (typeof value !== "string") return false
+
+  const divide = value.indexOf(":")
+  if (divide <= 0) return false
+
+  return GROUPS.has(value.slice(divide + 1))
+}
+
+/** The four groups, out of the one place they are named. */
+const GROUPS: ReadonlySet<string> = new Set<string>(LIVES)
+
 const fallbacks = <Knobs extends ReadonlyArray<Knob<string, string>>>(
   knobs: Knobs,
 ) =>
@@ -532,6 +566,7 @@ export const DEFAULTS: Settings = {
   home: fallbacks(HOME_KNOBS),
   pinned: [],
   putAway: [],
+  turned: [],
 }
 
 const readGroup = <Knobs extends ReadonlyArray<Knob<string, string>>>(
@@ -579,6 +614,11 @@ export const readSettings = (stored: unknown): Settings => {
     // would hide a Workflow of that name in every repository the reader opens.
     putAway: Array.isArray(held["putAway"])
       ? [...new Set(held["putAway"].filter(isPutAway))]
+      : [],
+    // Item by item again. An entry naming a group that no longer exists is a turn nothing
+    // draws and nothing can undo, which is the reader's own choice held out of reach.
+    turned: Array.isArray(held["turned"])
+      ? [...new Set(held["turned"].filter(isTurned))]
       : [],
   }
 }

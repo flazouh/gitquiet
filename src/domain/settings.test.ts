@@ -246,3 +246,29 @@ describe("the workflows a reader put away", () => {
     ).toEqual(["octo-org/octo-repo:ci.yml"])
   })
 })
+
+describe("the groups a reader turned the other way", () => {
+  it("starts empty, so every list opens in the shape it was designed in", () => {
+    expect(readSettings({}).turned).toEqual([])
+  })
+
+  it("keeps the person and the group together", () => {
+    expect(readSettings({ turned: ["flazouh:forked"] }).turned).toEqual(["flazouh:forked"])
+  })
+
+  it("drops an entry naming a group that does not exist", () => {
+    // A turn nothing draws is a choice the reader cannot undo from the screen it
+    // was made on.
+    expect(
+      readSettings({
+        turned: ["flazouh:popular", "flazouh:", ":forked", "moving", 4, null, {}, ""]
+      }).turned
+    ).toEqual([])
+  })
+
+  it("holds one group of one person once", () => {
+    expect(readSettings({ turned: ["flazouh:quiet", "flazouh:quiet"] }).turned).toEqual([
+      "flazouh:quiet"
+    ])
+  })
+})

@@ -43,6 +43,28 @@ export const freshnessOf = (iso: string, now: Date = new Date()): string => {
   return "text-ink-muted/50"
 }
 
+/**
+ * The day something happened, as a date and never as a distance.
+ *
+ * For a list read down a column rather than a row read on its own. "2 years ago" and
+ * "3 years ago" are the same three words to somebody scanning thirty rows, and the
+ * question those rows are being read for — which of these is the maintained one — is
+ * answered by 2019 sitting under 2026.
+ *
+ * The year is dropped inside the current one, where it is the same digits on every row
+ * and says nothing.
+ */
+export const dayOf = (iso: string, now: Date = new Date()): string => {
+  const then = new Date(iso)
+  if (Number.isNaN(then.getTime())) return ""
+
+  return then.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: then.getFullYear() === now.getFullYear() ? undefined : "numeric"
+  })
+}
+
 /** The whole timestamp, for the hover that answers "yes, but exactly when". */
 export const momentOf = (iso: string): string => {
   const then = new Date(iso)
