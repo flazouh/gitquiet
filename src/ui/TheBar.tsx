@@ -13,6 +13,7 @@ import { SettingsDialog } from "./SettingsDialog";
 import { Theme } from "./Theme";
 import { useOursToDraw } from "./useOursToDraw";
 import { useSettings } from "./useSettings";
+import { participantOnPage } from "./viewer";
 import { visited, visiting } from "./visited";
 import { useWithin } from "./within";
 import {
@@ -39,6 +40,7 @@ export const TheBar = ({
   repositories,
   owed = NOTHING,
   recall,
+  participant,
   ...props
 }: Omit<BarProps, "tabs" | "onSearch" | "corner"> & {
   /**
@@ -227,6 +229,21 @@ export const TheBar = ({
   const searchable = findable.length > 0 || owed.length > 0;
 
   /*
+   * Whoever their own page says is here, unless the screen was told by its own read.
+   *
+   * Read here because thirteen of the fourteen screens never read it: `participantOnPage`
+   * was called in `screens/workingSet.tsx` and nowhere else, so `/pulls` was the only page
+   * in the build whose tray carried the account at all. It belongs on this component for
+   * the reason the nav row above does — it is a fact about the document, and the bar is
+   * the one thing standing on every page.
+   *
+   * Read on every render rather than once, which is how the face arrives. Their header
+   * hydrates after the document, so the login is there from the start and the avatar is
+   * not, and a single read at mount would leave an initial where there is a face to draw.
+   */
+  const reader = participant ?? participantOnPage();
+
+  /*
    * Where the reader has been, read once for the life of this screen and then recorded.
    *
    * Read first, so that the repository being read now does not arrive as its own most recent
@@ -294,6 +311,7 @@ export const TheBar = ({
     <Theme element={slot}>
       <Bar
         {...props}
+        participant={reader}
         tabs={shown}
         /* The same list the palette searches, so the switcher and ⌘K can never disagree. */
         repositories={findable}

@@ -566,3 +566,57 @@ describe("the strip after the reader switches repository", () => {
     landed.remove()
   })
 })
+
+describe("whose account the bar says it is", () => {
+  /*
+   * By the name on it, because the way into the account menu is the chip itself and a
+   * shut menu is not in the document — see `Menu`, which draws nothing until it is up.
+   */
+  const chipFor = (login: string) => screen.queryByRole("button", { name: new RegExp(login) })
+
+  /**
+   * Their own markup, which carries the login on every page signed in or out.
+   *
+   * See `viewer.ts`: this is what `participantOnPage` reads, and it is the whole reason
+   * a bar can name the reader without a request.
+   */
+  const theirLogin = (login: string) => {
+    const said = document.createElement("meta")
+    said.setAttribute("name", "user-login")
+    said.setAttribute("content", login)
+    document.head.append(said)
+    return said
+  }
+
+  test("reads it off their page where the screen handed none in", async () => {
+    // Thirteen of the fourteen screens hand none in, which is why this is read here
+    // rather than passed: only `/pulls` ever called `participantOnPage`, so every
+    // other screen drew a bar with the account missing from the tray.
+    const said = theirLogin("flazouh")
+
+    render(<TheBar where={WHERE} repositories={KEPT} />)
+
+    await waitFor(() => expect(chipFor("flazouh")).not.toBeNull())
+
+    said.remove()
+  })
+
+  test("says nobody where their page names nobody, rather than an empty chip", () => {
+    render(<TheBar where={WHERE} repositories={KEPT} />)
+
+    expect(chipFor("flazouh")).toBeNull()
+  })
+
+  test("lets a screen that knows better win, since one reads it from its own load", () => {
+    // `WorkingSetScreen` hands in whoever its own read named. A page fact read here
+    // must not overrule a screen that was told.
+    const said = theirLogin("someone-else")
+
+    render(<TheBar where={WHERE} participant={SOMEONE} repositories={KEPT} />)
+
+    expect(chipFor("flazouh")).not.toBeNull()
+    expect(chipFor("someone-else")).toBeNull()
+
+    said.remove()
+  })
+})
