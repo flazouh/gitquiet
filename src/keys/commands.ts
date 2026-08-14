@@ -18,6 +18,7 @@ export type Command =
   | "nextFile"
   | "previousFile"
   | "markFile"
+  | "reviewMode"
   | "openAside"
   | "search"
   | "dismiss"
@@ -74,6 +75,17 @@ const STANDARD: Table = {
    */
   markFile: ["x"],
   /*
+   * `r` for review, and it goes both ways: pressed outside the mode it opens it,
+   * pressed inside it closes it. Escape closes it as well and always did, but
+   * Escape is the way out of everything and says nothing about what this is.
+   *
+   * The letter is free on this page. GitHub gives `r` to quoting a reply, which
+   * only happens with text selected inside a comment box, and this layer does
+   * not read a press made while the reader is typing. `g r` is Repositories and
+   * stays that way: a sequence half typed is read before a key on its own.
+   */
+  reviewMode: ["r"],
+  /*
    * The capital, which is to say O with shift held. Written as the key the
    * browser reports rather than as a modifier and a letter, the same way `?` is
    * one key here: see `commandFor`.
@@ -104,6 +116,9 @@ const VIM: Table = {
   nextFile: ["j"],
   previousFile: ["k"],
   markFile: ["x"],
+  // `r` replaces a character in vim and waits for the character. Nothing here
+  // waits for a second key, so there is no habit of vim's to keep clear of.
+  reviewMode: ["r"],
   openAside: ["O"],
   search: ["/"],
   dismiss: ["Escape"],
@@ -117,6 +132,7 @@ const NOTHING: Table = {
   nextFile: [],
   previousFile: [],
   markFile: [],
+  reviewMode: [],
   openAside: [],
   search: [],
   dismiss: [],

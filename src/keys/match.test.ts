@@ -13,6 +13,13 @@ describe("what a keypress asks for", () => {
     expect(commandFor({ key: "p" }, "standard")).toBe("previousFile")
   })
 
+  test("reaches review mode on the letter that names it", () => {
+    // And in both profiles: `r` waits for a second key in vim, and nothing here
+    // waits for one, so there is nothing of vim's to keep clear of.
+    expect(commandFor({ key: "r" }, "standard")).toBe("reviewMode")
+    expect(commandFor({ key: "r" }, "vim")).toBe("reviewMode")
+  })
+
   test("reaches the filter and the way out", () => {
     expect(commandFor({ key: "/" }, "standard")).toBe("search")
     expect(commandFor({ key: "Escape" }, "standard")).toBe("dismiss")

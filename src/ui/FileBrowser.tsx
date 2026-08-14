@@ -458,6 +458,12 @@ export const FileBrowser = ({
   const back = chordFor(keys, "previousFile");
   const mark = chordFor(keys, "markFile");
   const dismiss = chordFor(keys, "dismiss");
+  const enter = chordFor(keys, "reviewMode");
+  /*
+   * The one letter the review button wears, which is whichever direction it is
+   * pointing: `r` on the way in, Escape on the way back out.
+   */
+  const wearing = review === undefined ? null : review.active ? dismiss : enter;
 
   /**
    * The open file's mark, turned over.
@@ -526,6 +532,10 @@ export const FileBrowser = ({
     nextFile: () => onward(next),
     previousFile: () => onward(previous),
     markFile: turnOver,
+    // In and out of the same letter. Escape still leaves, and is still the only
+    // one of the two that a reader who has never read this tries first.
+    reviewMode:
+      review === undefined ? undefined : () => review.onChange(!review.active),
     dismiss: review?.active === true ? () => review.onChange(false) : undefined,
   });
 
@@ -699,19 +709,17 @@ export const FileBrowser = ({
                 // Named in full whatever the width leaves room to draw: what a
                 // reader hears must not depend on the size of a card.
                 aria-label={review.active ? "Exit review" : "Review mode"}
-                aria-keyshortcuts={
-                  review.active ? (dismiss ?? undefined) : undefined
-                }
+                aria-keyshortcuts={wearing ?? undefined}
                 onClick={() => review.onChange(!review.active)}
                 className="flex items-center gap-1.5 rounded-md bg-canvas px-2.5 py-1 text-xs font-semibold text-ink-muted hover:bg-hover hover:text-ink"
               >
                 {review.active ? "Exit review" : "Review"}
                 {review.active ? null : <Wide>{" mode"}</Wide>}
-                {review.active && dismiss !== null ? (
+                {wearing === null ? null : (
                   <Hint>
-                    <Cap chord={dismiss} />
+                    <Cap chord={wearing} />
                   </Hint>
-                ) : null}
+                )}
               </button>
             )}
             <button
@@ -733,7 +741,6 @@ export const FileBrowser = ({
               className="flex items-center gap-1.5 rounded-md bg-pass-emphasis px-2.5 py-1 text-xs font-semibold text-ink-on-emphasis enabled:hover:opacity-90 disabled:opacity-40"
             >
               Next
-              <Wide>{" file"}</Wide>
               {on === null ? null : (
                 <Hint>
                   <Cap chord={on} tone="onEmphasis" />

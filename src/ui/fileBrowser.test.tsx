@@ -360,3 +360,70 @@ describe("changing how the diff is drawn, from the band above it", () => {
     expect(within(band()).queryByLabelText("How the files are drawn")).toBeNull()
   })
 })
+
+/**
+ * Full-screen reading, off one letter.
+ *
+ * It is the mode a long review is read in, and reaching it meant finding a
+ * button in a band that gives its labels up as the card narrows. Escape already
+ * left; this is the way in, and the way back out of the same letter.
+ */
+describe("review mode, off the keyboard", () => {
+  const band = (): HTMLElement => screen.getByLabelText("Files").firstElementChild as HTMLElement
+
+  const browser = (active: boolean, onChange: (on: boolean) => void) =>
+    render(
+      <FileBrowser
+        files={[file("src/one.ts"), file("src/two.ts")]}
+        fetchDiffs={() => Effect.succeed([])}
+        diff={diffChoices(DEFAULTS.diff)}
+        tree={treeChoices(DEFAULTS.tree)}
+        review={{ active, subject: "pr-1", head: "abc123", onChange }}
+      />
+    )
+
+  test("goes in on its letter", async () => {
+    const asked: Array<boolean> = []
+    browser(false, (on) => asked.push(on))
+
+    await userEvent.keyboard("r")
+
+    expect(asked).toEqual([true])
+  })
+
+  test("comes back out on the same letter, Escape not being the only way", async () => {
+    const asked: Array<boolean> = []
+    browser(true, (on) => asked.push(on))
+
+    await userEvent.keyboard("r")
+
+    expect(asked).toEqual([false])
+  })
+
+  test("wears the letter that works, so nobody has to be told about it", () => {
+    browser(false, () => {})
+
+    const way = within(band()).getByRole("button", { name: "Review mode" })
+    expect(way.getAttribute("aria-keyshortcuts")).toBe("r")
+    expect(way.textContent).toContain("r")
+  })
+})
+
+describe("the band says the least that is still true", () => {
+  test("names the next file button Next, and still calls it Next file to a listener", () => {
+    render(
+      <FileBrowser
+        files={[file("src/one.ts"), file("src/two.ts")]}
+        fetchDiffs={() => Effect.succeed([])}
+        diff={diffChoices(DEFAULTS.diff)}
+        tree={treeChoices(DEFAULTS.tree)}
+      />
+    )
+
+    // "file" said nothing "Next" does not, in a band where the width it spends
+    // is the width that pushed the last control off the end.
+    const next = screen.getByRole("button", { name: "Next file" })
+    expect(next.textContent).toContain("Next")
+    expect(next.textContent).not.toContain("file")
+  })
+})
