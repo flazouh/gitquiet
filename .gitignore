@@ -31,3 +31,8 @@ public/screens/
 
 # Saved source pages for research, fetched not written. See .research/README.md
 .research/
+
+# Agent skills fetched from other people's repositories, with the lock file that
+# records where each came from. Somebody else's writing, and nothing here reads it.
+.agents/
+skills-lock.json
