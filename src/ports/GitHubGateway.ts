@@ -21,6 +21,7 @@ import type { Happening } from "../domain/activity"
 import type { CommitList, History, Marks, Stat, Stats } from "../domain/commitList"
 import type { IssueSnapshot, Settling } from "../domain/Issue"
 import type { InvolvedIssue, Involvement, IssueRef, ListedIssue } from "../domain/issues"
+import type { Listing } from "../domain/life"
 import type { Notice, Press } from "../domain/notices"
 import type { Portrait } from "../domain/portrait"
 import type { Raised, Raising } from "../domain/raising"
@@ -549,6 +550,35 @@ export class GitHubGateway extends Context.Service<
      * screen showed the new state the moment the reader pressed.
      */
     readonly pressNotice: (press: Press) => Effect.Effect<void, WorkingSetError>
+
+    /**
+     * One page after the first of a person's repositories tab.
+     *
+     * After the first, because the first needs no request at all: their tab is
+     * Rails-rendered and the served document holds thirty rows complete, so the screen
+     * reads the page it is standing in. This is what the groups need to be true — a
+     * reader with 154 repositories has five pages of them, and a Moving group counted
+     * over the first thirty is a wrong answer confidently drawn.
+     *
+     * A {@link WorkingSetError} rather than a {@link GatewayError}, as an inbox takes:
+     * there is no repository to name. This read is about a person.
+     *
+     * The narrowing goes back exactly as the address carried it, which is what
+     * `tabRoute` in `src/domain/person.ts` builds. Their own controls write `type`,
+     * `language` and `sort`, and this screen has no opinion about any of them: the rows
+     * that arrive are the rows the reader's address asked for, and the grouping happens
+     * over whatever came.
+     *
+     * Comes back empty rather than failing where the page holds no rows, as every other
+     * list here does. Nothing on the page tells an account that has run out of
+     * repositories from a page that has stopped looking like their list.
+     */
+    readonly personRepositories: (
+      login: string,
+      page: number,
+      /** `narrowing` from the address, `page` excepted. See `PersonPage`. */
+      narrowing: string
+    ) => Effect.Effect<Listing, WorkingSetError>
 
     /**
      * Everything about a repository that is neither its files nor its README.

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Option } from "effect"
-import { personPageIn, personReposIn, personStarsIn, profileIn, routeFor } from "./person"
+import { personPageIn, personReposIn, personStarsIn, profileIn, tabRoute } from "./person"
 
 const read = (url: string) => personPageIn(url)
 const readOrThrow = (url: string) => Option.getOrThrow(personPageIn(url))
@@ -121,7 +121,7 @@ describe("the address a later page is read from", () => {
   const page = readOrThrow("https://github.com/flazouh?tab=repositories&q=octo&type=source")
 
   test("names the tab and the page wanted", () => {
-    const route = routeFor(page, 2)
+    const route = tabRoute(page, 2)
 
     expect(route.startsWith("/flazouh?")).toBe(true)
     expect(route).toContain("tab=repositories")
@@ -129,7 +129,7 @@ describe("the address a later page is read from", () => {
   })
 
   test("hands every narrowing back as it arrived", () => {
-    const route = routeFor(page, 2)
+    const route = tabRoute(page, 2)
 
     expect(route).toContain("q=octo")
     expect(route).toContain("type=source")
@@ -138,7 +138,7 @@ describe("the address a later page is read from", () => {
   test("leaves the page off the first one", () => {
     // Their own route serves page one without it, and an address that says `page=1`
     // is one more thing for a remembered read to miss on.
-    expect(routeFor(page, 1)).not.toContain("page=")
+    expect(tabRoute(page, 1)).not.toContain("page=")
   })
 
   test("names the tab even where the reader's address did not", () => {
@@ -146,6 +146,6 @@ describe("the address a later page is read from", () => {
     // parsed a profile would show nothing with no visible cause.
     const bare = readOrThrow("https://github.com/flazouh")
 
-    expect(routeFor({ ...bare, tab: "stars" }, 1)).toContain("tab=stars")
+    expect(tabRoute({ ...bare, tab: "stars" }, 1)).toContain("tab=stars")
   })
 })

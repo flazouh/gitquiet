@@ -52,6 +52,19 @@ export type ListedRepository = {
 }
 
 /**
+ * One page of a person's list, and whether there is another behind it.
+ *
+ * Both halves together because a group is only true over the whole list: a reader with
+ * 154 repositories has five pages of them, and a Moving count over the first thirty is
+ * a wrong answer confidently drawn. So a screen holding this knows whether what it is
+ * counting is all of it.
+ */
+export type Listing = {
+  readonly rows: ReadonlyArray<ListedRepository>
+  readonly more: boolean
+}
+
+/**
  * What a repository is doing, which is what a reader of a list wants to know.
  *
  * **Moving** was pushed to lately. **Quiet** was not, and is not marked as over.

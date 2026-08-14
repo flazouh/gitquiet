@@ -188,7 +188,7 @@ const wordFor: Readonly<Record<Tab, string>> = {
  * for. The tab is written even where the reader's address left it out, because a
  * fetch without it answers with the profile.
  */
-export const routeFor = (page: PersonPage, wanted: number): string => {
+export const tabRoute = (page: PersonPage, wanted: number): string => {
   const search = new URLSearchParams(page.narrowing)
   search.set("tab", wordFor[page.tab])
   if (wanted > firstPage) search.set("page", String(wanted))

@@ -48,6 +48,8 @@ import { isKeptRun, pressOn, runOnPage } from "./runPage"
 import { isKeptStrands, runsOnPage } from "./actionsList"
 import { buildsOnPage, isKeptVersions, versionsOnPage } from "./releasesList"
 import { isKeptNotices, noticesOnPage } from "./notifications"
+import { hasNextOnPage, repositoriesOnPage } from "./personRepos"
+import { tabRoute } from "../domain/person"
 import type { Notice, Press } from "../domain/notices"
 import type { Version } from "../domain/release"
 import { strandsIn, type Strand } from "../domain/strand"
@@ -3205,6 +3207,49 @@ export const layer = Layer.succeed(GitHubGateway, {
       return notices
     }),
 
+    /**
+     * One page after the first of a person's repositories tab.
+     *
+     * A document again, and this one is asked for exactly as the reader's own address
+     * asks for it: `tabRoute` writes the tab, the page and every narrowing the address
+     * carried, so the rows that come back are the rows that address means.
+     *
+     * Nothing is kept. Every other list here remembers what it read because the read is
+     * what the reader waits on; the first page of this one costs no request at all — it
+     * is in the document the screen is standing in — so what a store would save is the
+     * second page of a list whose first page is already drawn.
+     */
+    personRepositories: Effect.fn("GitHubGateway.personRepositories")(function* (
+      login: string,
+      page: number,
+      narrowing: string
+    ) {
+      const route = tabRoute({ login, tab: "repositories", page, find: "", narrowing }, page)
+      const url = `https://github.com${route}`
+
+      const response = yield* Effect.tryPromise({
+        try: () => fetch(url, { headers: { Accept: "text/html" }, credentials: "include" }),
+        catch: (cause) =>
+          new WorkingSetError({ route, reason: "unreachable", detail: String(cause) })
+      })
+
+      if (!response.ok) {
+        return yield* new WorkingSetError({
+          route,
+          reason: "rejected",
+          detail: `HTTP ${response.status}`
+        })
+      }
+
+      const html = yield* Effect.tryPromise({
+        try: () => response.text(),
+        catch: (cause) =>
+          new WorkingSetError({ route, reason: "unreachable", detail: String(cause) })
+      })
+
+      return { rows: repositoriesOnPage(html), more: hasNextOnPage(html) }
+    }),
+
     rememberedNotices: Effect.fn("GitHubGateway.rememberedNotices")(function* (query: string) {
       const raw = yield* recallRoute(noticesRoute(query))
       if (Option.isNone(raw)) return Option.none<ReadonlyArray<Notice>>()
@@ -4051,6 +4096,9 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     notices: () => Effect.succeed([]),
     rememberedNotices: () => Effect.succeed(Option.none()),
     pressNotice: (press: Press) => Effect.fail(noInboxHere(press.route)),
+    // An empty page with nothing behind it, for the same reason the inbox is empty
+    // here: a list nobody recorded has no second page either.
+    personRepositories: () => Effect.succeed({ rows: [], more: false }),
     rememberedRepoHome: () => Effect.succeed(Option.none())
   })
 
@@ -4191,5 +4239,8 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     notices: () => Effect.succeed([]),
     rememberedNotices: () => Effect.succeed(Option.none()),
     pressNotice: (press: Press) => Effect.fail(noInboxHere(press.route)),
+    // An empty page with nothing behind it, for the same reason the inbox is empty
+    // here: a list nobody recorded has no second page either.
+    personRepositories: () => Effect.succeed({ rows: [], more: false }),
     rememberedRepoHome: () => Effect.succeed(Option.none())
   })
