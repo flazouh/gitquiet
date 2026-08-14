@@ -1,7 +1,13 @@
 import type { Uploaded } from "../domain/attaching";
 import type { Suggesting } from "../domain/suggesting";
 import { Effect, Option } from "effect";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { diffLibrary, type DiffFetcher } from "../domain/library";
 import { railOrder } from "../domain/railOrder";
 import { readingOrder } from "../domain/readingOrder";
@@ -140,6 +146,31 @@ const total = (
 ): number => files.reduce((sum, file) => sum + file[of], 0);
 
 const isProse = (path: string): boolean => /\.(md|mdx|markdown)$/i.test(path);
+
+/**
+ * A key cap, where the band is wide enough to teach one.
+ *
+ * The letter beside a button says the button has a key, which is worth twenty
+ * pixels on a wide card and worth nothing on a card too narrow to hold the
+ * buttons themselves. It goes first, because it is the only thing in that group
+ * that does not do anything: the key it names keeps working with it gone.
+ */
+const Hint = ({ children }: { readonly children: ReactNode }) => (
+  <span className="hidden @[34rem]/band:inline-flex">{children}</span>
+);
+
+/**
+ * The second word of a label, where there is room for it.
+ *
+ * "Review mode" and "Next file" name the thing; "Review" and "Next" name it as
+ * well, in two thirds of the width. Marked `aria-hidden` so that what a reader
+ * hears does not change with the width of a card they cannot hear.
+ */
+const Wide = ({ children }: { readonly children: ReactNode }) => (
+  <span aria-hidden className="hidden @[26rem]/band:inline">
+    {children}
+  </span>
+);
 
 /**
  * The patch, or the document the patch makes.
@@ -523,18 +554,23 @@ export const FileBrowser = ({
           is a fact about the whole set, so it belongs to the card that holds
           both halves rather than to either half.
 
-          Wrapping, because this row does not get the window: it gets whatever is
-          left of it after the conversation beside it, and a reader can make that
-          narrower still. Everything in here was `shrink-0` and nothing wrapped,
-          so a band wider than its card simply ran off the end of a card that
-          hides what overflows — and the thing that went was whatever was last.
-          A second line is worth twenty pixels; a control nobody can reach is
-          not. See `Merge`, whose own band wraps for the same reason. */}
-      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2">
+          One line, and it stays one line. This row does not get the window: it
+          gets what is left beside the conversation, and a reader can make that
+          narrower still. What gives way is what it says, not what it does — the
+          progress and the way back to unread step out below the widths where
+          they stop fitting, and the counts truncate. Everything that acts stays,
+          in one group at the right end, at every width worth reading a diff in.
+          It is measured against this band and not the window, because the window
+          is not what changed. */}
+      <div className="@container/band flex shrink-0 items-center gap-3 px-3 py-2">
         {/* No heading: the card is the files, and the counts say so in the same
             breath as saying how many. The section keeps its name for anyone
-            arriving by landmark. */}
-        <span className="shrink-0 text-xs text-ink-muted tabular-nums">
+            arriving by landmark.
+
+            Whole or not at all. Truncated, this reads "2.." — a number cut in
+            half is worse than the same number left out, since a reader cannot
+            tell 2 files from 24. */}
+        <span className="hidden shrink-0 text-xs text-ink-muted tabular-nums @[36rem]/band:inline">
           {`${files.length} changed`}{" "}
           <span className="text-pass">+{total(files, "linesAdded")}</span>{" "}
           <span className="text-fail">−{total(files, "linesDeleted")}</span>
@@ -572,7 +608,7 @@ export const FileBrowser = ({
 
           return waiting === undefined ? (
             <span
-              className="flex shrink-0 items-center gap-1.5 text-xs text-ink-muted tabular-nums"
+              className="hidden shrink-0 items-center gap-1.5 text-xs text-ink-muted tabular-nums @[46rem]/band:flex"
               title={held}
             >
               {bar}
@@ -582,7 +618,7 @@ export const FileBrowser = ({
               type="button"
               onClick={() => onward(waiting)}
               title={`${held}. Go to the first that has not been: ${waiting.path}`}
-              className="flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs text-ink-muted tabular-nums hover:bg-hover hover:text-ink"
+              className="hidden shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs text-ink-muted tabular-nums hover:bg-hover hover:text-ink @[46rem]/band:flex"
             >
               {bar}
             </button>
@@ -597,7 +633,7 @@ export const FileBrowser = ({
             type="button"
             onClick={putAllBack}
             title="Every file back to unread, so the whole pull request can be read again"
-            className="shrink-0 rounded-md px-1.5 py-0.5 text-xs text-ink-muted hover:bg-hover hover:text-ink"
+            className="hidden shrink-0 rounded-md px-1.5 py-0.5 text-xs text-ink-muted hover:bg-hover hover:text-ink @[50rem]/band:block"
           >
             Put all back
           </button>
@@ -607,13 +643,11 @@ export const FileBrowser = ({
             that pushed everything else to the right, and repeats what the
             heading below already says.
 
-            Everything that acts, in one group at the right end. Held together
-            rather than left loose in the band, so that when the band wraps they
-            go onto the next line as a set and stay in the same order, instead of
-            two of them being stranded above the other three. `ml-auto` rather
-            than a spacer for the same reason: a spacer only pushes on the line it
-            is on, and on a wrapped band it is the wrong line. */}
-        <span className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
+            Everything that acts, in one group at the right end, and none of it
+            gives way. Held together rather than left loose in the band so that
+            the group is what the band measures against the room it has, and so
+            that the order the hand has learned is one fact about one element. */}
+        <span className="ml-auto flex shrink-0 items-center gap-1.5">
           {/* A README arrives as a wall of pipes and hashes, and the change it
               makes is to a document. Only for prose, and only when there is
               something to render: offering it on a TypeScript file would be a
@@ -637,7 +671,7 @@ export const FileBrowser = ({
               Neither greys out at an end, there being no ends: the list is a loop
               and both directions always lead somewhere. A pull request of one file
               is the one place they cannot, and they say so. */}
-          <span className="flex flex-wrap items-center justify-end gap-1.5">
+          <span className="flex shrink-0 items-center gap-1.5">
             {/* This one file's mark, beside the keys that walk past it. Wearing its
               letter for the same reason Next and Previous wear theirs: it is
               pressed once per file for the length of a review. */}
@@ -655,22 +689,28 @@ export const FileBrowser = ({
                 className="flex items-center gap-1.5 rounded-md bg-canvas px-2.5 py-1 text-xs font-semibold text-ink-muted hover:bg-hover hover:text-ink"
               >
                 {seen.has(file.path) ? "Seen" : "Not seen"}
-                {mark === null ? null : <Cap chord={mark} />}
+                {mark === null ? null : <Hint>{<Cap chord={mark} />}</Hint>}
               </button>
             )}
             {review === undefined ? null : (
               <button
                 type="button"
                 aria-pressed={review.active}
+                // Named in full whatever the width leaves room to draw: what a
+                // reader hears must not depend on the size of a card.
+                aria-label={review.active ? "Exit review" : "Review mode"}
                 aria-keyshortcuts={
                   review.active ? (dismiss ?? undefined) : undefined
                 }
                 onClick={() => review.onChange(!review.active)}
                 className="flex items-center gap-1.5 rounded-md bg-canvas px-2.5 py-1 text-xs font-semibold text-ink-muted hover:bg-hover hover:text-ink"
               >
-                {review.active ? "Exit review" : "Review mode"}
+                {review.active ? "Exit review" : "Review"}
+                {review.active ? null : <Wide>{" mode"}</Wide>}
                 {review.active && dismiss !== null ? (
-                  <Cap chord={dismiss} />
+                  <Hint>
+                    <Cap chord={dismiss} />
+                  </Hint>
                 ) : null}
               </button>
             )}
@@ -682,17 +722,23 @@ export const FileBrowser = ({
               className="flex items-center gap-1.5 rounded-md bg-canvas px-2.5 py-1 text-xs font-semibold text-ink-muted enabled:hover:bg-hover enabled:hover:text-ink disabled:opacity-40"
             >
               Previous
-              {back === null ? null : <Cap chord={back} />}
+              {back === null ? null : <Hint>{<Cap chord={back} />}</Hint>}
             </button>
             <button
               type="button"
               disabled={files.length < 2}
+              aria-label="Next file"
               aria-keyshortcuts={on ?? undefined}
               onClick={() => onward(next)}
               className="flex items-center gap-1.5 rounded-md bg-pass-emphasis px-2.5 py-1 text-xs font-semibold text-ink-on-emphasis enabled:hover:opacity-90 disabled:opacity-40"
             >
-              Next file
-              {on === null ? null : <Cap chord={on} tone="onEmphasis" />}
+              Next
+              <Wide>{" file"}</Wide>
+              {on === null ? null : (
+                <Hint>
+                  <Cap chord={on} tone="onEmphasis" />
+                </Hint>
+              )}
             </button>
           </span>
           {/* Last, and out of the cluster: Previous and Next are pressed dozens
