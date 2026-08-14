@@ -199,6 +199,35 @@ _Avoid_: notification, inbox item, alert
 GitHub's own word for why a Notice reached the Participant, and their string kept verbatim: `review_requested`, `mention`, `subscribed` and twelve more. It belongs to the thread rather than to the event and it is the strongest one that has ever fired, so it says why the Participant was ever told about this thread and not what happened last. Every Reason maps to exactly one Court, and the subject's own state overrules the map.
 _Avoid_: trigger, cause, type
 
+### Releases
+
+**Version**:
+One entry of a repository's releases list: a tag, notes about what changed, and the files attached to it. GitHub calls all three of those a release, and calls the act of publishing one a release as well, which is why a repository can hold 365 tags under the words "There aren't any releases here". Reserving one word for the entry leaves Tag free for the git ref it stands on.
+_Avoid_: release, tag, version number
+
+**Change**:
+One thing that changed in a Version, as a person would say it: the pull request's title, who wrote it, and its number. This is the unit the releases list screen lists, in place of the Version, and `docs/spec/releases.md` counts why: read on 2026-08-14, 67 Versions of `zeronsh/comet` described 60 Changes between them, and 30 of the 67 described none.
+_Avoid_: release note, changelog entry, commit, bullet
+
+**Bare**:
+A Version whose notes name no Change, which is what GitHub's generated notes produce when nothing landed through a pull request. Forty-four percent of the worked example. A Bare Version is drawn as a marker between the Changes around it and never as a row of its own, because there is nothing on it to read.
+_Avoid_: empty release, no-op release, patch release
+
+**Build**:
+One file attached to a Version, and the platform it runs on, read out of its filename. Carries a size and a `sha256:` digest, because GitHub's own asset fragment carries both.
+_Avoid_: asset, artifact, binary, download, release asset
+
+**Yours**:
+The Build matching the reader's own operating system and processor, resolved before they ask and drawn as one row at the top of the screen. Only ever one Build: where no Build agrees on both the operating system and the processor, or more than one does, there is no Yours and every Build is named by platform instead. A wrong file is worse than no answer, and the most upvoted thing anybody has written about GitHub's releases page is where the download is.
+_Avoid_: recommended, suggested download, your platform, best match
+
+**Source Archive**:
+The zip and the tarball GitHub attaches to every Version, which nobody uploaded and nobody can remove. Never a Build and never Yours, and drawn below the Builds rather than above them, which is the order GitHub uses and the reason curl's maintainer reports users taking the wrong file.
+_Avoid_: source code zip, auto-generated asset
+
+**Pre-release** is GitHub's word and is kept verbatim, like Reason. It is exact, readers use it,
+and it comes off a flag on the record rather than from anything this interface works out.
+
 ## Not built
 
 Words removed from the vocabulary above because nothing answers to them yet. Kept
