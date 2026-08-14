@@ -9,7 +9,7 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The same bun the lockfile was written with, and the one the Railway
       # builder installs, so a green run here means the same resolution there.
