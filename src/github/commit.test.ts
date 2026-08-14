@@ -42,6 +42,18 @@ const entry = {
 const read = (raw: unknown) => Effect.runPromise(toCommit(raw))
 
 describe("reading one commit off GitHub's page", () => {
+  test("reads the same commit where GitHub moved it, so the page still draws", async () => {
+    // Measured on 2026-08-15: their commit page began answering with
+    // `payload.commitRoute` around what `payload` held directly, the same move their
+    // commit list made that day. Both are read, since a kept answer is still a commit.
+    const moved = { payload: { commitRoute: payload({}).payload } }
+
+    const commit = await read(moved)
+
+    expect(commit.headline).toBe("fix: restore pi RPC usage plumbing")
+    expect(commit.abbreviatedSha).toBe("97ca0ad")
+  })
+
   test("takes the headline, the face and the moment", async () => {
     const commit = await read(payload({}))
 

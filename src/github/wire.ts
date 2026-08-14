@@ -239,31 +239,46 @@ const CommitAuthor = Schema.Struct({
  * records — one route's `status` where the other says `changeType`, and the
  * rest identical — so everything downstream of here is shared.
  */
+const CommitAnswer = Schema.Struct({
+  commit: Schema.Struct({
+    oid: Schema.String,
+    authoredDate: Schema.String,
+    // This commit and the one it is a diff against, which is what their route
+    // for the held-back files is keyed by. Absent on a root commit, which has
+    // nothing before it to compare with.
+    sha1: Schema.optional(Schema.NullOr(Schema.String)),
+    sha2: Schema.optional(Schema.NullOr(Schema.String)),
+    // Null on some commits, where the headline only exists as the rendered
+    // markdown beside it — a merge commit made through their web interface is
+    // one. Both are optional here and the mapper takes whichever came.
+    shortMessage: Schema.optional(Schema.NullOr(Schema.String)),
+    shortMessageMarkdown: Schema.optional(Schema.NullOr(Schema.String)),
+    bodyMessageHtml: Schema.optional(Schema.NullOr(Schema.String)),
+    authors: Schema.Array(CommitAuthor)
+  }),
+  asyncDiffLoadInfo: Schema.optional(Schema.NullOr(AsyncDiffLoad)),
+  moreDiffsToLoad: Schema.optional(Schema.Boolean),
+  diffEntryData: Schema.Array(CommitDiffEntry)
+})
+
+export type CommitAnswer = typeof CommitAnswer["Type"]
+
+/**
+ * The same commit, at either of the two places GitHub puts it.
+ *
+ * Measured on 2026-08-15: their commit page began answering with `payload.commitRoute`
+ * around what `payload` held directly, on the same day their commit list moved to
+ * `payload.commitsRefRoute`. Both are read, for the reason {@link CommitsRoute} gives.
+ */
 export const CommitRoute = Schema.Struct({
-  payload: Schema.Struct({
-    commit: Schema.Struct({
-      oid: Schema.String,
-      authoredDate: Schema.String,
-      // This commit and the one it is a diff against, which is what their route
-      // for the held-back files is keyed by. Absent on a root commit, which has
-      // nothing before it to compare with.
-      sha1: Schema.optional(Schema.NullOr(Schema.String)),
-      sha2: Schema.optional(Schema.NullOr(Schema.String)),
-      // Null on some commits, where the headline only exists as the rendered
-      // markdown beside it — a merge commit made through their web interface is
-      // one. Both are optional here and the mapper takes whichever came.
-      shortMessage: Schema.optional(Schema.NullOr(Schema.String)),
-      shortMessageMarkdown: Schema.optional(Schema.NullOr(Schema.String)),
-      bodyMessageHtml: Schema.optional(Schema.NullOr(Schema.String)),
-      authors: Schema.Array(CommitAuthor)
-    }),
-    asyncDiffLoadInfo: Schema.optional(Schema.NullOr(AsyncDiffLoad)),
-    moreDiffsToLoad: Schema.optional(Schema.Boolean),
-    diffEntryData: Schema.Array(CommitDiffEntry)
-  })
+  payload: Schema.Union([Schema.Struct({ commitRoute: CommitAnswer }), CommitAnswer])
 })
 
 export type CommitRoute = typeof CommitRoute["Type"]
+
+/** The commit itself, wherever it arrived. */
+export const commitIn = (said: CommitRoute): CommitAnswer =>
+  "commitRoute" in said.payload ? said.payload.commitRoute : said.payload
 
 /**
  * A branch's commits, from the page GitHub serves for them.

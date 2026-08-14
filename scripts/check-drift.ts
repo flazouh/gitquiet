@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { Effect, Option, Schema } from "effect"
+import { existsSync, readFileSync } from "node:fs"
 import { SHELVES } from "../src/domain/workingSet"
 import { embeddedPayload } from "../src/github/embedded"
 import { preloadedIn } from "../src/github/preloaded"
@@ -8,6 +9,7 @@ import {
   ChangesRoute,
   CommitDiffsRoute,
   CommitRoute,
+  commitIn,
   commitsIn,
   CommitsRoute,
   ContributorsRoute,
@@ -51,16 +53,32 @@ import {
  * in {@link WRITES} with the reason, so the surface is accounted for rather than
  * partly remembered.
  *
- * Requires GITHUB_SESSION_COOKIE because these routes authenticate with a
- * browser session. See fixtures/README.md for how to obtain one, and why this
- * runs on demand rather than on every CI run.
+ * Reads over the wire with GITHUB_SESSION_COOKIE, because these routes
+ * authenticate with a browser session. Or reads a capture a browser took, with
+ * `DRIFT_FROM=<directory>`, which is the same decode against the same schemas and
+ * asks for no credential at all: `capture-drift.mjs` fetches the routes from inside
+ * a logged-in page, where the session is already. See fixtures/README.md for both,
+ * and for why this runs on demand rather than on every CI run.
  */
 
-const cookie = process.env["GITHUB_SESSION_COOKIE"]
-if (cookie === undefined || cookie.length === 0) {
-  console.error("GITHUB_SESSION_COOKIE is not set. See fixtures/README.md.")
+/** A directory of bodies a browser fetched, or nothing to read live. */
+const captured = process.env["DRIFT_FROM"]
+
+const cookie = process.env["GITHUB_SESSION_COOKIE"] ?? ""
+if (captured === undefined && cookie.length === 0) {
+  console.error("GITHUB_SESSION_COOKIE is not set, and DRIFT_FROM names no capture.")
+  console.error("See fixtures/README.md.")
   process.exit(2)
 }
+
+/** What a capture calls the file it kept a route's answer in. */
+const slug = (name: string): string => name.replace(/[^a-z0-9]+/gi, "-")
+
+/** What the capture recorded about each route, beside the bodies. */
+const recorded: Record<string, { readonly status: number; readonly why?: string }> =
+  captured === undefined
+    ? {}
+    : JSON.parse(readFileSync(`${captured}/index.json`, "utf8"))
 
 /**
  * What the routes are asked about.
@@ -107,20 +125,39 @@ const asPayload = (body: string): Answer =>
     onSome: (payload): Answer => ({ said: "payload", payload })
   })
 
-/** GitHub answers 406 to these routes without the XMLHttpRequest header. */
-const asJson = async (url: string): Promise<Answer> => {
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      "X-Requested-With": "XMLHttpRequest",
-      Cookie: cookie
-    }
-  })
+/**
+ * A body, from the wire or from a capture, read the way production reads it.
+ *
+ * The two roads meet here so that a capture is decoded by the same code as a live
+ * read: the headers are what GitHub is asked with, and the reading is what turns the
+ * answer into a payload, and only the first of the two is about the network.
+ */
+const asking =
+  (headers: Record<string, string>, reading: (body: string) => Answer) =>
+  async (url: string, name: string): Promise<Answer> => {
+    if (captured !== undefined) {
+      const at = `${captured}/${slug(name)}.body`
+      const kept = recorded[slug(name)]
+      if (kept !== undefined && kept.status !== 200) {
+        return kept.status === 0
+          ? { said: "nothing", why: kept.why ?? "the capture skipped it" }
+          : { said: "refused", status: kept.status }
+      }
+      if (!existsSync(at)) return { said: "nothing", why: "the capture holds no answer for it" }
 
-  return response.ok
-    ? asPayload(await response.text())
-    : { said: "refused", status: response.status }
-}
+      return reading(readFileSync(at, "utf8"))
+    }
+
+    const response = await fetch(url, { headers })
+
+    return response.ok ? reading(await response.text()) : { said: "refused", status: response.status }
+  }
+
+/** GitHub answers 406 to these routes without the XMLHttpRequest header. */
+const asJson = asking(
+  { Accept: "application/json", "X-Requested-With": "XMLHttpRequest", Cookie: cookie },
+  asPayload
+)
 
 /**
  * The repository filter, which takes a different pair of headers from everything
@@ -130,19 +167,10 @@ const asJson = async (url: string): Promise<Answer> => {
  * answers 400 with an empty body to `Content-Type: application/json` alone and 200
  * to the two together.
  */
-const asFiltered = async (url: string): Promise<Answer> => {
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      Cookie: cookie
-    }
-  })
-
-  return response.ok
-    ? asPayload(await response.text())
-    : { said: "refused", status: response.status }
-}
+const asFiltered = asking(
+  { Accept: "application/json", "Content-Type": "application/json", Cookie: cookie },
+  asPayload
+)
 
 /**
  * A payload out of a page of theirs rather than out of a route of theirs.
@@ -153,16 +181,13 @@ const asFiltered = async (url: string): Promise<Answer> => {
  * check that read the lighter answer would be checking a shape production never
  * sees.
  */
-const asPage = (naming: string) => async (url: string): Promise<Answer> => {
-  const response = await fetch(url, { headers: { Accept: "text/html", Cookie: cookie } })
-  if (!response.ok) return { said: "refused", status: response.status }
-
-  const held = embeddedPayload(await response.text(), naming)
-  return Option.match(held, {
-    onNone: (): Answer => ({ said: "nothing", why: `no ${naming} embedded in the page` }),
-    onSome: (payload): Answer => ({ said: "payload", payload })
-  })
-}
+const asPage = (naming: string) =>
+  asking({ Accept: "text/html", Cookie: cookie }, (body) =>
+    Option.match(embeddedPayload(body, naming), {
+      onNone: (): Answer => ({ said: "nothing", why: `no ${naming} embedded in the page` }),
+      onSome: (payload): Answer => ({ said: "payload", payload })
+    })
+  )
 
 /**
  * The answer GitHub wrote into an issue's own page.
@@ -173,31 +198,22 @@ const asPage = (naming: string) => async (url: string): Promise<Answer> => {
  * under `preloadedQueries`, which is the way in the gateway falls back to, so the
  * schema is checked against the payload that arrives rather than not at all.
  */
-const asPreloaded = (query: string) => async (url: string): Promise<Answer> => {
-  const response = await fetch(url, { headers: { Cookie: cookie } })
-  if (!response.ok) return { said: "refused", status: response.status }
-
-  const preloaded = preloadedIn(await response.text(), query)
-  return Option.match(preloaded, {
-    onNone: (): Answer => ({ said: "nothing", why: `no ${query} preloaded in the page` }),
-    onSome: (found): Answer => ({ said: "payload", payload: found.result })
-  })
-}
+const asPreloaded = (query: string) =>
+  asking({ Cookie: cookie }, (body) =>
+    Option.match(preloadedIn(body, query), {
+      onNone: (): Answer => ({ said: "nothing", why: `no ${query} preloaded in the page` }),
+      onSome: (found): Answer => ({ said: "payload", payload: found.result })
+    })
+  )
 
 /** Their public events, with the cookies left off as the gateway leaves them off. */
-const asPublic = async (url: string): Promise<Answer> => {
-  const response = await fetch(url, { headers: { Accept: "application/json" } })
-
-  return response.ok
-    ? asPayload(await response.text())
-    : { said: "refused", status: response.status }
-}
+const asPublic = asking({ Accept: "application/json" }, asPayload)
 
 type Check = {
   readonly name: string
   /** Nothing where the route this one is asked with did not answer. */
   readonly url: () => string | undefined
-  readonly ask: (url: string) => Promise<Answer>
+  readonly ask: (url: string, name: string) => Promise<Answer>
   /** Decodes the answer, and says what was in it. */
   readonly read: (payload: unknown) => Effect.Effect<string, unknown>
 }
@@ -205,7 +221,7 @@ type Check = {
 const checking = <A>(check: {
   readonly name: string
   readonly url: () => string | undefined
-  readonly ask?: (url: string) => Promise<Answer>
+  readonly ask?: (url: string, name: string) => Promise<Answer>
   readonly schema: Schema.ConstraintCodec<A, unknown>
   /** Where a route below takes the address it can only be asked with. */
   readonly learn?: (answered: A) => void
@@ -321,7 +337,7 @@ const routes: ReadonlyArray<Check> = [
     url: () => `${REPO}/commit/${commit}?_pjax=%23repo-content-pjax-container`,
     schema: CommitRoute,
     learn: (answered) => {
-      const page = answered.payload
+      const page = commitIn(answered)
       const from = page.asyncDiffLoadInfo
       if (from === undefined || from === null) return
       const { sha1, sha2 } = page.commit
@@ -331,7 +347,7 @@ const routes: ReadonlyArray<Check> = [
         `${REPO}/diffs?commit=${page.commit.oid}&sha2=${sha2}&sha1=${sha1}` +
         `&start_entry=${from.startIndex}&bytes=${from.byteCount}&lines=${from.lineShownCount}`
     },
-    note: (answered) => `${answered.payload.diffEntryData.length} files`
+    note: (answered) => `${commitIn(answered).diffEntryData.length} files`
   }),
   checking({
     name: "commit_diffs",
@@ -518,7 +534,7 @@ for (const route of routes) {
     continue
   }
 
-  const answer = await route.ask(url)
+  const answer = await route.ask(url, route.name)
 
   if (answer.said === "refused") {
     console.error(`${route.name}: HTTP ${answer.status} from ${url}`)

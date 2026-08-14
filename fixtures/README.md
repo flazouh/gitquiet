@@ -43,6 +43,20 @@ them with the same schemas:
 GITHUB_SESSION_COOKIE='user_session=…; __Host-user_session_same_site=…' bun run drift
 ```
 
+Or without a credential at all, by asking from inside a page that is already signed
+in. `capture-drift.mjs` runs in a browser ego-browser drives, fetches the same routes
+with the same headers, and writes each answer as the bytes GitHub sent. The check then
+decodes those with the same schemas and the same page mining:
+
+```sh
+mkdir -p /tmp/drift-capture && ego-browser nodejs < scripts/capture-drift.mjs
+DRIFT_FROM=/tmp/drift-capture bun scripts/check-drift.ts
+```
+
+Prefer that road. The session never leaves the browser, so no environment variable,
+shell history, terminal log or file on disk holds an account credential for the length
+of a check.
+
 It asks for 34 reads, which is every schema in `src/github/wire.ts` that decodes
 a read: the pull request routes, a commit and the batch of diffs it holds back, a
 branch's commits and their deferred marks, branches, authors, the front page, the
@@ -71,7 +85,10 @@ one pull request. That is why the widening exists: on the morning
 and blanked both issue screens, `bun run drift` printed five `ok` lines. The next day
 the same move reached the commit list, as `payload.commitsRefRoute`, and blanked a
 branch's commits: two routes catching up in two days with the shape their repository
-home and their file view already answered with.
+home and their file view already answered with. On the evening of the second day, the
+capture road above found a third: a commit's own page, as `payload.commitRoute`. Both
+commit routes moved on the same day, and the check found the page while the reader had
+only noticed the list.
 
 This is not wired into scheduled CI. These routes authenticate with a browser
 session cookie, which is a full account credential, and storing one in Actions
