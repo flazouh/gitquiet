@@ -1,8 +1,11 @@
 import type { Effect } from "effect"
 import { Option } from "effect"
 import type { Closing, IssueSnapshot, Label, Settled } from "../domain/Issue"
+import type { IssueRef, IssueState, ListedIssue } from "../domain/issues"
+import type { Participant } from "../domain/PullRequest"
 import { issueName, useArt } from "./art"
 import { CHIP } from "./dress"
+import { toneOf } from "./labelTone"
 import { Settle } from "./Settle"
 import { ageOf, momentOf } from "./when"
 import { Who } from "./Who"
@@ -76,6 +79,71 @@ const readableOn = (colour: string): string => {
 }
 
 /**
+ * Which of the two states, and how long the issue has been open.
+ *
+ * One pill for both headers below rather than the same dozen classes twice. The
+ * word is the thing this header exists to say and the label a screen reader
+ * hears is part of the contract; two copies of it would be the two headers
+ * disagreeing about the issue the reader is looking at.
+ */
+const TheState = ({
+  state,
+  word,
+  raisedAt
+}: {
+  readonly state: IssueState
+  readonly word: string
+  readonly raisedAt: string
+}) => {
+  const art = useArt()
+  const Art = art[issueName(state)]
+  const age = ageOf(raisedAt)
+
+  return (
+    <span
+      aria-label={`${word} ${age}`}
+      /*
+       * Said out loud when it changes, which is the third fault in the thread on GitHub's
+       * own close button: theirs shows the reason as a coloured glyph, and a screen reader
+       * is never told the issue closed at all. The word is here anyway, so announcing it
+       * costs one attribute.
+       */
+      aria-live="polite"
+      title={`Opened ${momentOf(raisedAt)}`}
+      className={`flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold ${
+        state === "open"
+          ? "bg-pass-emphasis text-ink-on-emphasis"
+          : "bg-done-emphasis text-ink-on-emphasis"
+      }`}
+    >
+      <Art size={12} />
+      {word}
+      <span className="font-normal opacity-80 tabular-nums">{age}</span>
+    </span>
+  )
+}
+
+/**
+ * The number, in the place both headers keep it.
+ *
+ * Not `Number`, which is the global this file's own colour arithmetic calls
+ * `Number.parseInt` on.
+ */
+const TheNumber = ({ of: reference }: { readonly of: IssueRef }) => (
+  <span className={`${CHIP} shrink-0 font-mono text-base font-semibold tabular-nums text-ink`}>
+    {`#${reference.number}`}
+  </span>
+)
+
+/** Who raised it, which is the one fact a row and a page agree on completely. */
+const Raiser = ({ person }: { readonly person: Participant }) => (
+  <span className="flex shrink-0 items-center gap-1.5">
+    <Who login={person.login} src={Option.getOrUndefined(person.faceUrl)} />
+    <span className="font-semibold text-ink">{person.login}</span>
+  </span>
+)
+
+/**
  * Which issue this is, as a card rather than as loose text.
  *
  * The same shape as a pull request's header next door, and deliberately so: a
@@ -93,87 +161,129 @@ export const IssueHeader = ({
   readonly onSettle?: (settling: Settled) => Effect.Effect<void, unknown>
   /** Opens a closed one again. */
   readonly onReopen?: () => Effect.Effect<void, unknown>
-}) => {
-  const art = useArt()
-  const Art = art[issueName(snapshot.state)]
-  const word = wordOf(snapshot)
-  const age = ageOf(snapshot.openedAt)
+}) => (
+  <section
+    aria-label="This issue"
+    className="t-panel-fade mb-1.5 shrink-0 rounded-md border border-line bg-surface p-1"
+  >
+    <div className="mb-1 flex items-center gap-2.5">
+      <TheState
+        state={snapshot.state}
+        word={wordOf(snapshot)}
+        raisedAt={snapshot.openedAt}
+      />
 
-  return (
-    <section
-      aria-label="This issue"
-      className="t-panel-fade mb-1.5 shrink-0 rounded-md border border-line bg-surface p-1"
-    >
-      <div className="mb-1 flex items-center gap-2.5">
-        <span
-          aria-label={`${word} ${age}`}
-          /*
-           * Said out loud when it changes, which is the third fault in the thread on GitHub's
-           * own close button: theirs shows the reason as a coloured glyph, and a screen reader
-           * is never told the issue closed at all. The word is here anyway, so announcing it
-           * costs one attribute.
-           */
-          aria-live="polite"
-          title={`Opened ${momentOf(snapshot.openedAt)}`}
-          className={`flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold ${
-            snapshot.state === "open"
-              ? "bg-pass-emphasis text-ink-on-emphasis"
-              : "bg-done-emphasis text-ink-on-emphasis"
-          }`}
-        >
-          <Art size={12} />
-          {word}
-          <span className="font-normal opacity-80 tabular-nums">{age}</span>
-        </span>
+      <TheNumber of={snapshot.reference} />
 
-        <span
-          className={`${CHIP} shrink-0 font-mono text-base font-semibold tabular-nums text-ink`}
-        >
-          {`#${snapshot.reference.number}`}
-        </span>
+      <h1 className="min-w-0 flex-1 truncate text-base font-semibold">{snapshot.title}</h1>
 
-        <h1 className="min-w-0 flex-1 truncate text-base font-semibold">{snapshot.title}</h1>
+      {/* At the far end of the line the state is on, which is the line it changes. A
+          reader deciding whether to close an issue is reading the title and the word
+          beside it, and the control belongs where that decision is being made. */}
+      <Settle
+        state={snapshot.state}
+        where={snapshot.reference}
+        allowed={snapshot.allowed}
+        onSettle={onSettle}
+        onReopen={onReopen}
+      />
+    </div>
 
-        {/* At the far end of the line the state is on, which is the line it changes. A
-            reader deciding whether to close an issue is reading the title and the word
-            beside it, and the control belongs where that decision is being made. */}
-        <Settle
-          state={snapshot.state}
-          where={snapshot.reference}
-          allowed={snapshot.allowed}
-          onSettle={onSettle}
-          onReopen={onReopen}
-        />
-      </div>
+    <div className="flex items-center gap-2 rounded-md bg-inset px-2.5 py-1.5 text-xs text-ink-muted">
+      <Raiser person={snapshot.author} />
 
-      <div className="flex items-center gap-2 rounded-md bg-inset px-2.5 py-1.5 text-xs text-ink-muted">
-        <span className="flex shrink-0 items-center gap-1.5">
-          <Who login={snapshot.author.login} src={Option.getOrUndefined(snapshot.author.faceUrl)} />
-          <span className="font-semibold text-ink">{snapshot.author.login}</span>
-        </span>
+      {/* Wrapped rather than truncated. Labels are how a repository files its
+          issues, and an issue with six of them is one where the sixth is as
+          much of the filing as the first. */}
+      <span className="flex min-w-0 flex-wrap items-center gap-1">
+        {snapshot.labels.map((label) => (
+          <Chip key={label.name} label={label} />
+        ))}
+      </span>
 
-        {/* Wrapped rather than truncated. Labels are how a repository files its
-            issues, and an issue with six of them is one where the sixth is as
-            much of the filing as the first. */}
-        <span className="flex min-w-0 flex-wrap items-center gap-1">
-          {snapshot.labels.map((label) => (
-            <Chip key={label.name} label={label} />
+      {/* Faces and no words, at the far end where a pull request keeps its
+          size. Nobody assigned is nothing at all rather than "Unassigned":
+          most issues are, and the word would be on every one of them. */}
+      {snapshot.assignees.length === 0 ? null : (
+        <span className="ml-auto flex shrink-0 items-center" aria-label="Assigned to">
+          {snapshot.assignees.map((person) => (
+            <span key={person.login} className="-ml-1.5 rounded-full ring-2 ring-inset first:ml-0">
+              <Who login={person.login} src={Option.getOrUndefined(person.faceUrl)} />
+            </span>
           ))}
         </span>
+      )}
+    </div>
+  </section>
+)
 
-        {/* Faces and no words, at the far end where a pull request keeps its
-            size. Nobody assigned is nothing at all rather than "Unassigned":
-            most issues are, and the word would be on every one of them. */}
-        {snapshot.assignees.length === 0 ? null : (
-          <span className="ml-auto flex shrink-0 items-center" aria-label="Assigned to">
-            {snapshot.assignees.map((person) => (
-              <span key={person.login} className="-ml-1.5 rounded-full ring-2 ring-inset first:ml-0">
-                <Who login={person.login} src={Option.getOrUndefined(person.faceUrl)} />
-              </span>
-            ))}
-          </span>
-        )}
-      </div>
-    </section>
-  )
-}
+/**
+ * The same header, from the row the reader pressed rather than from the issue.
+ *
+ * Drawn for the seconds between the press and GitHub answering, which on the
+ * first open of an issue is most of a page load: the read carries the issue and
+ * every remark on it together, so a screen that waited for all of it showed a
+ * reader nothing at all for two to four and a half seconds. A row already holds
+ * the answer to what this is.
+ *
+ * Only what the row really carries. There is no description here and no
+ * conversation, because a row has neither and the wait underneath is saying so.
+ * There is no reason on a closed one, no assignees, and nothing to press: what a
+ * reader may do to an issue is GitHub's answer and this row never asked for it,
+ * so a Close button here would be a control that refuses the moment it is used.
+ */
+export const ListedHeader = ({ one }: { readonly one: ListedIssue }) => (
+  <section
+    aria-label="This issue"
+    className="t-panel-fade mb-1.5 shrink-0 rounded-md border border-line bg-surface p-1"
+  >
+    <div className="mb-1 flex items-center gap-2.5">
+      {/* "Closed" and no more. GitHub's search says which of the two states an
+          issue is in and never why it left the other, and "Closed as not
+          planned" guessed over a read is the one sentence on this page a reader
+          would act on. */}
+      <TheState
+        state={one.state}
+        word={one.state === "open" ? "Open" : "Closed"}
+        raisedAt={one.raisedAt}
+      />
+
+      <TheNumber of={one.reference} />
+
+      <h1 className="min-w-0 flex-1 truncate text-base font-semibold">{one.title}</h1>
+    </div>
+
+    <div className="flex items-center gap-2 rounded-md bg-inset px-2.5 py-1.5 text-xs text-ink-muted">
+      <Raiser person={one.author} />
+
+      <span className="flex min-w-0 flex-wrap items-center gap-1">
+        {one.labels.map((word) => (
+          <Word key={word} word={word} />
+        ))}
+      </span>
+    </div>
+  </section>
+)
+
+/**
+ * A label as a row has it, which is the word and no colour.
+ *
+ * The dot is hashed from the word — see `labelTone.ts` — exactly as the lists do
+ * it, because GitHub's issue search answers with the names alone. A filled chip
+ * in a colour nobody read would change colour under the reader when the issue
+ * lands, so the two forms are told apart on purpose: a dot while the page is
+ * being read, GitHub's own fill once it has been.
+ */
+const Word = ({ word }: { readonly word: string }) => (
+  <span
+    title={word}
+    className="flex max-w-40 shrink-0 items-center gap-1.5 rounded-full bg-hover py-0.5 pr-2 pl-1.5 text-xs text-ink-muted"
+  >
+    <span
+      aria-hidden="true"
+      style={{ background: toneOf(word) }}
+      className="size-1.5 shrink-0 rounded-full"
+    />
+    <span className="truncate">{word}</span>
+  </span>
+)

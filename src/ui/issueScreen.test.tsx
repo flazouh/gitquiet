@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import type { Closing, IssueSnapshot } from "../domain/Issue"
+import type { ListedIssue } from "../domain/issues"
 import { IssueScreen } from "./IssueScreen"
 import { Toasts } from "./Toasts"
 
@@ -199,6 +200,75 @@ describe("one issue, on the page GitHub keeps for it", () => {
     )
 
     await waitFor(() => expect(screen.getByText("You are signed out of GitHub")).toBeDefined())
+  })
+})
+
+/**
+ * The header, drawn from the row the reader pressed rather than waited for.
+ *
+ * The first open of any given issue is the whole of the wait on this screen: one request
+ * carries the issue and every remark on it, and until 14 August 2026 nothing at all was
+ * drawn until all of it landed. The list that was on the screen a moment earlier already
+ * had the header of it, so the header is drawn from that and the wait is left over the
+ * parts a row never carried.
+ */
+describe("the header a list already had", () => {
+  const row: ListedIssue = {
+    reference,
+    id: issue.id,
+    title: issue.title,
+    author: person("flazouh"),
+    state: "open",
+    comments: 1,
+    labels: ["bug", "help wanted"],
+    raisedAt: "2026-07-28T20:07:00Z"
+  }
+
+  test("says which issue this is before any read has answered", () => {
+    render(screenOf({ row, load: () => Effect.never }))
+
+    expect(screen.getByText(row.title)).toBeDefined()
+    expect(screen.getByText("#146")).toBeDefined()
+  })
+
+  test("says the state, the age, who raised it and its labels", () => {
+    render(screenOf({ row, load: () => Effect.never }))
+
+    expect(screen.getByLabelText(/^Open /)).toBeDefined()
+    expect(screen.getByText("flazouh")).toBeDefined()
+    expect(screen.getByText("bug")).toBeDefined()
+    expect(screen.getByText("help wanted")).toBeDefined()
+  })
+
+  test("claims no body and no conversation, having read neither", () => {
+    render(screenOf({ row, load: () => Effect.never }))
+
+    expect(screen.queryByRole("region", { name: "Description" })).toBeNull()
+    expect(screen.queryByLabelText("Conversation")).toBeNull()
+  })
+
+  test("offers nothing to press on an issue GitHub has not answered for", () => {
+    // What the reader may do to an issue is GitHub's answer and a row never asked for
+    // it, so a Close button here would be a control that refuses when it is used.
+    render(screenOf({ row, load: () => Effect.never, settle: () => Effect.void }))
+
+    expect(screen.getByText(row.title)).toBeDefined()
+    expect(screen.queryByRole("button", { name: "Close issue" })).toBeNull()
+  })
+
+  test("gives way to the issue GitHub sent, title and all", async () => {
+    const renamed = { ...issue, title: "Renamed since the list was read" }
+    render(screenOf({ row, load: () => Effect.succeed({ snapshot: renamed }) }))
+
+    await waitFor(() => expect(screen.getByText(renamed.title)).toBeDefined())
+    expect(screen.queryByText(row.title)).toBeNull()
+    expect(screen.getByRole("region", { name: "Description" })).toBeDefined()
+  })
+
+  test("waits as it always did where no list drew a row for it", () => {
+    render(screenOf({ load: () => Effect.never }))
+
+    expect(screen.queryByText(issue.title)).toBeNull()
   })
 })
 

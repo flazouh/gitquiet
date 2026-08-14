@@ -1,13 +1,13 @@
 import { Effect, Option } from "effect"
 import { useMemo, useState } from "react"
 import { closingOf, type Closing, type IssueSnapshot, type Remark, type Settled } from "../domain/Issue"
-import { type IssueRef, nameOf } from "../domain/issues"
+import { type IssueRef, type ListedIssue, nameOf } from "../domain/issues"
 import type { Repository } from "../domain/repositories"
 import type { Uploaded } from "../domain/attaching"
 import type { Suggesting } from "../domain/suggesting"
 import { Conversation } from "./Conversation"
 import { Description } from "./Description"
-import { IssueHeader } from "./IssueHeader"
+import { IssueHeader, ListedHeader } from "./IssueHeader"
 import { reasonFor } from "./refusal"
 import { SETTLED } from "./Settle"
 import { done, refused } from "./Toasts"
@@ -30,6 +30,19 @@ export type IssueScreenProps = {
    * worth the half second, never rested on.
    */
   readonly preload?: () => Effect.Effect<Option.Option<LoadedIssue>>
+  /**
+   * The row the list drew for this issue, where the reader pressed one.
+   *
+   * A header and nothing else, which is the whole of what makes it honest: a row
+   * carries the title, the state, who raised it, when, and its labels, and
+   * carries no description and no remarks. So this shortens the wait for the part
+   * a row answered and leaves the wait over the part it never did. See
+   * `src/app/rows.ts` for how it crosses from one screen to the other.
+   *
+   * Absent where nobody pressed a row of ours: a pasted address, a tab of its
+   * own, a link from GitHub's own page. The screen then waits as it always did.
+   */
+  readonly row?: ListedIssue
   /** Restores GitHub's own issue, which is still on the page behind this. */
   readonly onStepAside: () => void
   /**
@@ -113,6 +126,7 @@ export const IssueScreen = ({
   reference,
   load,
   preload,
+  row,
   onStepAside,
   onUseGitHub,
   postRemark,
@@ -281,6 +295,14 @@ export const IssueScreen = ({
         recall={recallRepositories}
         onStepAside={onUseGitHub}
       />
+      {/* The row's header, while nothing has been read and nothing was
+          remembered. It goes the moment either lands, and it is the same panel
+          in the same slot either way so that the title does not move. */}
+      {snapshot === undefined && row !== undefined ? (
+        <div className="t-panels flex flex-col pt-2">
+          <ListedHeader one={row} />
+        </div>
+      ) : null}
       {snapshot === undefined ? null : (
         // No gutter of its own. This screen chose its own four for a while,
         // because their container runs the full width of the window and a card
@@ -331,6 +353,17 @@ export const IssueScreen = ({
           what={READING}
           detail={`${reference.owner}/${reference.repo} #${reference.number}`}
           leaving={read.status === "ready"}
+          /*
+           * Under the header rather than over the window, where a row gave this
+           * screen a header to draw. What is being read then is the description
+           * and the conversation, and they land underneath: a wait centred on the
+           * window would be centred on a title that has already arrived.
+           *
+           * Decided from the prop and not from what is drawn, so that the moment
+           * the issue lands the wait dissolves where it stood instead of jumping
+           * out of the flow first.
+           */
+          room={row === undefined ? "card" : "list"}
         />
       ) : null}
     </div>
