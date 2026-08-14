@@ -23,15 +23,22 @@ jobs:
 
       # Built rather than committed, with the types written on both sides of it:
       # the build reads the tsconfig `wxt prepare` writes, and the typecheck needs
-      # types written after the engine is in `public`, since WXT types `getURL` as
+      # types written after the chunks are in `public`, since WXT types `getURL` as
       # the set of files actually there.
       - name: Generate WXT types
         run: bun run types
 
-      - name: Build the diff engine
-        run: bun run build:diff-engine
+      # Every chunk `getURL` names, not only the engine. A chunk missing here is a
+      # typecheck failure on the file that imports it, and only here: a working
+      # copy has them from the last `bun run build`, so the error belongs to CI
+      # alone and reads as a mystery there.
+      - name: Build the chunks the shell imports by address
+        run: |
+          bun run build:diff-engine
+          bun run build:markdown-highlighter
+          bun run build:markdown-mermaid
 
-      - name: Generate WXT types again, now the engine is an address
+      - name: Generate WXT types again, now the chunks are addresses
         run: bun run types
 
       # No try/catch anywhere, no promises in `src` outside tests, and no
