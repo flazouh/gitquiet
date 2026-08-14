@@ -1,6 +1,6 @@
 import { Effect, Fiber } from "effect"
 import type { ReactNode } from "react"
-import { createRoot } from "react-dom/client"
+import { createRoot, type Root } from "react-dom/client"
 import { reportError } from "../observability/sentry"
 import { whenAnotherBarStands } from "../ui/barSlot"
 import {
@@ -48,6 +48,40 @@ import { Supplied } from "./supplied"
  * at nothing at all, which is far worse than looking at the page we meant to replace.
  */
 const FAILSAFE = 20_000
+
+/**
+ * The one React root a container has, and which stand-up owns it.
+ *
+ * A screen taken up again is handed the container it already has — see
+ * `interfaceContainer`, where coming back to a list that never left the page is the case
+ * it is for. A second root on that node is what React warns about in a development build
+ * and says nothing about in the one a reader runs, and the cost is paid in the bar: every
+ * root's own copy of `mount.ts` has `ours` pointing at that same container, so
+ * `oursToDraw` is true for all of them and each portals a bar into the one slot. Measured
+ * on the page: /pulls, a pull request, Back, Back, and three bars stacked, three palettes
+ * on one ⌘K, and Escape shutting one of them.
+ *
+ * So the root is kept here rather than made again, and the stand-up that arrived last owns
+ * it. Owning matters on the way down: the screen being taken up again is told to come down
+ * by the very move that replaced it, and unmounting then would take the tree the reader is
+ * looking at with it.
+ */
+const roots = new WeakMap<Element, { readonly root: Root; owner: symbol }>()
+
+const rootOn = (container: Element, owner: symbol): Root => {
+  const had = roots.get(container)
+  if (had !== undefined) {
+    had.owner = owner
+    return had.root
+  }
+  const made = createRoot(container)
+  roots.set(container, { root: made, owner })
+  return made
+}
+
+/** Whether this stand-up is still the one whose tree the container is showing. */
+const stillOwned = (container: Element, owner: symbol): boolean =>
+  roots.get(container)?.owner === owner
 
 /** The page a screen is standing on, handed to it so it can draw and leave. */
 export type Standing = {
@@ -135,7 +169,9 @@ export const standAScreen = ({
   let watching = true
 
   const container = interfaceContainer(document, place)
-  const root = createRoot(container)
+  /** This stand-up, told apart from another on the same container. */
+  const mine = Symbol(place.name)
+  const root = rootOn(container, mine)
   const letGo = holding?.(container) ?? (() => {})
 
   let down = false
@@ -163,7 +199,13 @@ export const standAScreen = ({
     down = true
     stopWaitingForABody()
     letGo()
-    whenAnotherBarStands(document, () => root.unmount())
+    whenAnotherBarStands(document, () => {
+      // Another stand-up on this container has the tree now, which is the screen on the
+      // page: this one's tree stopped existing the moment that render replaced it.
+      if (!stillOwned(container, mine)) return
+      roots.delete(container)
+      root.unmount()
+    })
   }
 
   /*

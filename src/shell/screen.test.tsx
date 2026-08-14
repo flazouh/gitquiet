@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { standAScreen } from "./screen"
+import { BAR_ID } from "../ui/barSlot"
 import type { Place } from "../ui/place"
+import { TheBar } from "../ui/TheBar"
 
 /**
  * A page of GitHub's, invented rather than copied: what is under test here is the
@@ -159,6 +161,29 @@ describe("standing a screen on the page", () => {
     expect(document.querySelector("#region")?.textContent).toContain("ours")
     expect(mounted(page.container)).toBe(true)
     page.close()
+  })
+
+  test("draws one bar where the reader came back to a screen still on the page", async () => {
+    /*
+     * Measured on the page: /pulls, a pull request, Back, Back, and the one bar slot held
+     * three bars. Coming back to a screen that never left takes the same container up
+     * again — `interfaceContainer` hands it back by design — and a second root was made on
+     * it every time. Every root's `ours` is that one container, so `oursToDraw` was true
+     * for all of them and each drew its own bar. One press of ⌘K then opened three
+     * palettes, and Escape shut one.
+     */
+    history.replaceState(null, "", "/mine")
+    theirPage()
+
+    const first = standAScreen({ place: MINE, draw: () => <TheBar where={{ kind: "home" }} /> })
+    await drawn(`#${BAR_ID}`, "Search")
+
+    const again = standAScreen({ place: MINE, draw: () => <TheBar where={{ kind: "home" }} /> })
+    await settled()
+
+    expect(document.querySelectorAll(`#${BAR_ID} > header`).length).toBe(1)
+    first.close()
+    again.close()
   })
 
   test("stands nothing up when the reader leaves before the address arrives", async () => {
