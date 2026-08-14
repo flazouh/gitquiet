@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import type { ListedIssues } from "../app/issueList"
 import type { Involvement, ListedIssue } from "../domain/issues"
@@ -53,6 +54,21 @@ describe("the reader's own issues, across everything", () => {
 
     const row = await screen.findByRole("link", { name: /Issue / })
     expect(row.textContent).toContain("flowline")
+  })
+
+  test("hands its rows to ⌘K, so a half-remembered title finds one", async () => {
+    // The spec's promise for Home: "every repository, plus every pull request and issue
+    // the Courts hold". Only the Working Set kept it, so a reader could be looking at an
+    // issue on this page, press ⌘K, type its title and be told there is nothing.
+    shown([issue(31), issue(12)])
+    await screen.findAllByRole("link", { name: /Issue / })
+
+    await userEvent.keyboard("{Meta>}k{/Meta}")
+    await userEvent.type(screen.getByRole("combobox"), "number 31")
+
+    expect(screen.getAllByRole("option").map((one) => one.textContent)).toEqual([
+      expect.stringContaining("number 31")
+    ])
   })
 
   test("offers GitHub's three tabs", async () => {

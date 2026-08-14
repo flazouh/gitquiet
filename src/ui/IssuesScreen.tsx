@@ -1,5 +1,8 @@
 import { type Effect, Option } from "effect"
+import { useMemo } from "react"
 import type { ListedIssues } from "../app/issueList"
+import type { Owed } from "../domain/finding"
+import { owedIssues } from "../domain/finding"
 import { pathOf } from "../domain/issueDashboard"
 import { INVOLVEMENTS, type Involvement } from "../domain/issues"
 import type { Repository } from "../domain/repositories"
@@ -56,6 +59,9 @@ const WHAT: Record<Involvement, string> = {
   authored: "The issues you raised",
   mentioned: "The issues that mention you"
 }
+
+/** One array for every read that has nothing to offer, so a fold cannot spin on a new one. */
+const NOTHING: ReadonlyArray<Owed> = []
 
 const WORKING = "Reading your issues…"
 
@@ -141,6 +147,17 @@ export const IssuesScreen = ({
   const waiting = useWaiting(read.status)
   useFreshening(live.catchingUp, CHECKING)
 
+  /*
+   * What ⌘K searches beside the repositories, for the reason the Working Set gives: a
+   * title half-remembered is the usual way back to a row, and every one of them is
+   * already on this screen. Read here rather than below the failure, because a hook
+   * cannot stand after a return.
+   */
+  const owed = useMemo(
+    () => (read.status === "ready" ? owedIssues(read.value.rows) : NOTHING),
+    [read]
+  )
+
   if (read.status === "failed") {
     return (
       <ReadFailed
@@ -160,7 +177,7 @@ export const IssuesScreen = ({
     // two slots throughout: the wait has to be the same element on both sides of
     // the answer or the dissolve has nothing to start from.
     <div className="relative">
-      <TheBar where={{ kind: "home" }} recall={recallRepositories} />
+      <TheBar where={{ kind: "home" }} recall={recallRepositories} owed={owed} />
       {listed === undefined ? null : (
         <div className="t-panels flex flex-col gap-1 py-3">
           <Tabs on={involvement} onGo={onGo} />

@@ -65,6 +65,25 @@ export const owedIn = (
     }))
   ])
 
+/**
+ * One page of a repository's or a reader's issues, as things the palette can find.
+ *
+ * A separate fold from {@link owedIn} because the shape it starts from is different: the
+ * Courts arrive as piles, and a list arrives as rows. What they have in common is all
+ * `Owed` asks for, so the two meet here rather than at the screens.
+ *
+ * Every row, and no filtering by state. A reader half-remembering a title has no idea
+ * whether that issue was closed this morning, which is the same argument the piles fold
+ * makes about a stack.
+ */
+export const owedIssues = (
+  rows: ReadonlyArray<{
+    readonly reference: { readonly owner: string; readonly repo: string; readonly number: number }
+    readonly title: string
+  }>
+): ReadonlyArray<Owed> =>
+  rows.map((one) => ({ kind: "issue" as const, reference: one.reference, title: one.title }))
+
 type Piled = {
   readonly one: {
     readonly reference: { readonly owner: string; readonly repo: string; readonly number: number }
