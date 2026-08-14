@@ -10,8 +10,11 @@ import {
   ISSUE,
   ISSUES,
   NOTIFICATIONS,
+  PERSON_REPOS,
+  PERSON_STARS,
   placeOwning,
   PLACES,
+  PROFILE,
   RAISE,
   REPO_HOME,
   REPO_ISSUES,
@@ -30,6 +33,16 @@ import {
  * recognise until the failsafe hands the page back.
  */
 const ADDRESSES: ReadonlyArray<readonly [string, Place]> = [
+  /*
+   * A person's three, which are one path and a `tab` parameter. Written whole here
+   * rather than as a path column and a search column, because that is how they are
+   * read: `placeOwning` is asked with both, and the three differ in the second.
+   */
+  ["/flazouh", PROFILE],
+  ["/flazouh?tab=overview", PROFILE],
+  ["/flazouh?tab=repositories", PERSON_REPOS],
+  ["/flazouh?tab=repositories&page=2&q=octo", PERSON_REPOS],
+  ["/flazouh?tab=stars", PERSON_STARS],
   ["/facebook/react/pull/1749", CONVERSATION],
   ["/facebook/react/commit/9f7d1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f", COMMIT],
   ["/facebook/react/commits/main", COMMITS],
@@ -62,28 +75,66 @@ const THEIRS: Array<string> = [
   "/watching",
   "/facebook/react/settings",
   "/facebook/react/actions/caches",
+  // Their own stars pages, which are somebody else's list under a reserved word.
+  "/stars/flazouh",
+  "/stars/flazouh/lists/tools",
   // The picker that stands in front of the form where a repository has templates.
   // Which template is a question about their repository's own files, so the form
   // this extension draws is reached from it rather than instead of it.
   "/facebook/react/issues/new/choose",
   "/feed",
-  "/facebook",
+  /*
+   * `/facebook` is deliberately absent from this list, and it used to be on it.
+   *
+   * An organisation's address is one segment, exactly as a person's is, and no rule
+   * written against an address can tell the two apart: `facebook` is a real account
+   * name. So the profile place claims it and the document settles it — measured,
+   * an organisation carries no `user-profile-frame` and no profile sidebar, so no
+   * gate fires and the screen hands the page back. See `PROFILE`.
+   */
+  // The tabs of a person's page this interface draws no screen for. Each is the
+  // profile's own address with one word changed, so a place that read the path
+  // alone would claim all of them.
+  "/flazouh?tab=achievements",
+  "/flazouh?tab=followers",
+  "/flazouh?tab=following",
+  "/flazouh?tab=packages",
+  "/flazouh?tab=projects",
+  "/flazouh?tab=sponsoring",
+  // The site's own one-segment pages, which look exactly like a login.
+  "/features",
+  "/pricing",
+  "/marketplace",
+  "/orgs/facebook/repositories",
 ];
 
+/** A whole address as the two halves `placeOwning` is asked with. */
+const owningOf = (address: string): Place | null => {
+  const at = address.indexOf("?");
+  return at === -1
+    ? placeOwning(address)
+    : placeOwning(address.slice(0, at), address.slice(at));
+};
+
 describe("which addresses belong to which page", () => {
-  test.each(ADDRESSES)("%s is the %s", (path, place) => {
-    expect(placeOwning(path)?.name).toBe(place.name);
+  test.each(ADDRESSES)("%s is the %s", (address, place) => {
+    expect(owningOf(address)?.name).toBe(place.name);
   });
 
-  test.each(THEIRS)("%s stays GitHub's", (path: string) => {
-    expect(placeOwning(path)).toBeNull();
+  test.each(THEIRS)("%s stays GitHub's", (address: string) => {
+    expect(owningOf(address)).toBeNull();
   });
 
   test("every place says which addresses are its own", () => {
     // The compiler already asks for the field. This asks that it was answered with
     // something, rather than with a rule that is false everywhere.
     const said = PLACES.filter((place) =>
-      ADDRESSES.some(([path]) => place.owns(path)),
+      ADDRESSES.some(([address]) => {
+        const at = address.indexOf("?");
+        return at === -1
+          ? place.owns(address)
+          : place.owns(address.slice(0, at), address.slice(at));
+      }),
     );
 
     expect(said).toHaveLength(PLACES.length);
@@ -476,6 +527,112 @@ describe("the branch banner on a repository's front page", () => {
     for (const page of [dashboard(), home(), feed()]) {
       for (const band of REPO_HOME.bands)
         expect(page.querySelector(band)).toBeNull();
+    }
+  });
+});
+
+/**
+ * One of a person's three pages, down to the parts a takeover and a gate depend on.
+ *
+ * Copied from the three fetched documents rather than invented: `/flazouh`,
+ * `?tab=repositories` and `?tab=stars` all serve `Layout-sidebar` and
+ * `turbo-frame#user-profile-frame`, and each fills the frame with something the
+ * other two do not have. Which tab is which is the whole difficulty on these pages,
+ * because the address is the same path and the frame is the same element.
+ */
+const person = (tab: "profile" | "repositories" | "stars"): Document => {
+  const page = document.implementation.createHTMLDocument("github");
+  const inside = {
+    profile: `<include-fragment src="/users/flazouh?action=show&amp;controller=profiles&amp;tab=contributions">their calendar</include-fragment>`,
+    repositories: `<div id="user-repositories-list"><ul><li>their repository rows</li></ul></div><div class="paginate-container">their pager</div>`,
+    stars: `<turbo-frame id="user-starred-repos"><ol><li>their starred rows</li></ol></turbo-frame><div class="paginate-container">their pager</div>`,
+  }[tab];
+
+  page.body.innerHTML = `
+    <div class="application-main">
+      <main>
+        <div class="container-xl px-3">
+          <div class="Layout Layout--flowRow-until-md">
+            <div class="Layout-sidebar">
+              <div class="js-profile-editable-replace">their face, name, bio and follower counts</div>
+            </div>
+            <div class="Layout-main">
+              <turbo-frame id="user-profile-frame">${inside}</turbo-frame>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>`;
+  return page;
+};
+
+/**
+ * The three tabs are one frame under one path, so the proof of which tab a press is
+ * going to has to be the content of the frame. These rules are switched on at the
+ * press, while the tab being left is still on the screen — a proof true on a
+ * neighbouring tab would blank the page the reader is still reading.
+ */
+describe("telling a person's three tabs apart", () => {
+  const proofOf = (place: Place): string =>
+    (place.stages ?? place.regions)
+      .map((stage) => `${stage}${place.soft?.holding ?? ""}`)
+      .join(", ");
+
+  test.each([
+    [PROFILE, "profile"],
+    [PERSON_REPOS, "repositories"],
+    [PERSON_STARS, "stars"],
+  ] as const)("%s is proved on its own tab", (place, tab) => {
+    expect(person(tab).querySelector(proofOf(place))).not.toBeNull();
+  });
+
+  test.each([
+    [PROFILE, "repositories", "stars"],
+    [PERSON_REPOS, "profile", "stars"],
+    [PERSON_STARS, "profile", "repositories"],
+  ] as const)("%s is false on the other two", (place, one, other) => {
+    expect(person(one).querySelector(proofOf(place))).toBeNull();
+    expect(person(other).querySelector(proofOf(place))).toBeNull();
+  });
+
+  test("all three stand in the frame and leave the sidebar alone", () => {
+    // The face, the name, the bio and the follower counts are the one part of these
+    // pages nobody complains about, and the part a reader uses to decide whether
+    // they are looking at the right person.
+    const page = person("repositories");
+
+    takeOverSlot(page, interfaceContainer(page, PERSON_REPOS), PERSON_REPOS);
+
+    expect(visible(page, "their repository rows")).toBe(false);
+    expect(
+      visible(page, "their face, name, bio and follower counts"),
+    ).toBe(true);
+  });
+
+  test("and give the page back whole", () => {
+    const page = person("stars");
+
+    takeOverSlot(
+      page,
+      interfaceContainer(page, PERSON_STARS),
+      PERSON_STARS,
+    )?.stepAside();
+
+    expect(visible(page, "their starred rows")).toBe(true);
+    expect(page.getElementById(ROOT_ID)).toBeNull();
+  });
+
+  test("nothing is taken on an organisation, which shares the address", () => {
+    // No `user-profile-frame` and no profile sidebar on an organisation, measured on
+    // `/microsoft`. So the region is not there, the gate is false, and the screen
+    // has nowhere to stand — which is how an organisation stays GitHub's.
+    const org = document.implementation.createHTMLDocument("github");
+    org.body.innerHTML = `<main><div id="org-repositories">their organisation page</div></main>`;
+
+    for (const place of [PROFILE, PERSON_REPOS, PERSON_STARS]) {
+      for (const region of place.regions)
+        expect(org.querySelector(region)).toBeNull();
+      expect(org.querySelector(proofOf(place))).toBeNull();
     }
   });
 });

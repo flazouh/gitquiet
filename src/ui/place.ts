@@ -6,6 +6,7 @@ import { issueListIn } from "../domain/issueList";
 import { fromPathname as issueIn } from "../domain/issues";
 import { noticesIn } from "../domain/notices";
 import { isHome, showsWorkingSet } from "../domain/pages";
+import { personReposIn, personStarsIn, profileIn } from "../domain/person";
 import { fromPathname as pullRequestIn } from "../domain/PullRequestRef";
 import { raisingIn } from "../domain/raising";
 import { repoHomeIn } from "../domain/repoHome";
@@ -33,7 +34,7 @@ export type Place = {
    */
   readonly name: string;
   /**
-   * Which addresses are this screen's, asked with a path.
+   * Which addresses are this screen's, asked with a path and what followed it.
    *
    * Two things read it, and they used to be two different answers to one question. The shell
    * routes a press by it: which of these pages is the reader going to. And `mount.ts` holds a
@@ -49,8 +50,13 @@ export type Place = {
    * the same parsers the screens read their own addresses with, never a second pattern: a
    * screen that disagreed with the shell about what its address is would be a screen the shell
    * fetches and the rule never lets stand.
+   *
+   * The search comes second and most places ignore it, because most of GitHub's pages are
+   * told apart by a path. A person's three are not: the profile, their repositories and their
+   * stars are one path and a `tab` parameter, so a place that read the path alone would claim
+   * all three and the wrong screen would stand on two of them.
    */
-  readonly owns: (path: string) => boolean;
+  readonly owns: (path: string, search?: string) => boolean;
   /**
    * The regions worth taking, best first. Only these are accepted while the
    * document is still parsing, because anything further up the tree is parsed
@@ -716,6 +722,78 @@ export const NOTIFICATIONS: Place = {
 };
 
 /**
+ * What all three of a person's pages share, which is everything but the proof.
+ *
+ * Measured on the three fetched pages rather than guessed: each serves
+ * `turbo-frame#user-profile-frame` as its content, with `Layout-sidebar` and
+ * `Layout-main` around it and a bare `<main>` above. There is no pjax container and
+ * no repository frame anywhere on them, which is why the fallback is `main` as it is
+ * on `ISSUES` and `NOTIFICATIONS`.
+ *
+ * No bands. The sidebar — the face, the name, the bio, the follower counts, the
+ * follow button — sits outside the frame and stays exactly as GitHub drew it. It is
+ * the one part of these pages nobody complains about, and the part a reader uses to
+ * decide whether they are looking at the right person.
+ */
+const PERSON = {
+  regions: ["turbo-frame#user-profile-frame"],
+  fallback: "main",
+  stages: ["turbo-frame#user-profile-frame"],
+  bands: [],
+} as const;
+
+/**
+ * A person's profile — `/LOGIN`, and `?tab=overview`, which is the same page.
+ *
+ * The shared frame is why every one of these three needs `holding` rather than
+ * `within`: all three tabs are the same frame under the same address, so the frame
+ * cannot say which tab a press is going to, and a rule that hid it on the strength
+ * of the frame alone would blank the tab the reader is still reading.
+ *
+ * The proof here is their contributions fragment, whose `src` carries
+ * `tab=contributions`. Checked against all three fetched pages: present on the
+ * profile, absent on the repositories tab, absent on the stars tab.
+ *
+ * An organisation's page is one segment too and no reserved-word list will ever
+ * catch it. Measured: `/microsoft` carries no `user-profile-frame` and no profile
+ * sidebar, so this gate is false there and nothing is hidden. The screen hands the
+ * page back when the frame is missing, which is what keeps an organisation GitHub's.
+ */
+export const PROFILE: Place = {
+  ...PERSON,
+  name: "profile",
+  owns: (path, search) => Option.isSome(profileIn(`https://github.com${path}${search ?? ""}`)),
+  soft: { holding: ':has(include-fragment[src*="tab=contributions"])' },
+};
+
+/**
+ * Their repositories tab — `?tab=repositories`.
+ *
+ * The proof is their own list element, `#user-repositories-list`, which holds the
+ * thirty rows the served document already carries. Present on this tab and on
+ * neither of the other two.
+ */
+export const PERSON_REPOS: Place = {
+  ...PERSON,
+  name: "person-repos",
+  owns: (path, search) => Option.isSome(personReposIn(`https://github.com${path}${search ?? ""}`)),
+  soft: { holding: ':has(#user-repositories-list)' },
+};
+
+/**
+ * Their stars tab — `?tab=stars`.
+ *
+ * The proof is the frame their starred rows arrive in, which is a second Turbo frame
+ * inside the profile frame and exists on this tab alone.
+ */
+export const PERSON_STARS: Place = {
+  ...PERSON,
+  name: "person-stars",
+  owns: (path, search) => Option.isSome(personStarsIn(`https://github.com${path}${search ?? ""}`)),
+  soft: { holding: ":has(turbo-frame#user-starred-repos)" },
+};
+
+/**
  * Every page this extension stands on, for the rules that hide GitHub's version of
  * them.
  *
@@ -738,6 +816,9 @@ export const PLACES: ReadonlyArray<Place> = [
   ACTIONS,
   NOTIFICATIONS,
   HOME,
+  PROFILE,
+  PERSON_REPOS,
+  PERSON_STARS,
 ];
 
 /**
@@ -768,6 +849,17 @@ const BY_ADDRESS: ReadonlyArray<Place> = [
    */
   NOTIFICATIONS,
   REPO_HOME,
+  /*
+   * Last of all, after a repository's front page, because a login is the shortest
+   * address GitHub has: one segment and nothing else. Asked earlier, the profile
+   * would answer for every two-segment address whose parser had not yet had a look.
+   *
+   * The three of them in any order among themselves — each refuses the other two's
+   * `tab`, so no two ever claim one address.
+   */
+  PERSON_REPOS,
+  PERSON_STARS,
+  PROFILE,
 ];
 
 /**
@@ -776,6 +868,9 @@ const BY_ADDRESS: ReadonlyArray<Place> = [
  * The one answer to that question. The shell routes a press by it and `mount.ts`
  * holds a takeover back until it agrees, so a page routed by one rule and stood up
  * by another cannot happen.
+ *
+ * The search is optional and the places that do not need it ignore it. Left out, an
+ * address on a person's path reads as their profile, which is what `/LOGIN` is.
  */
-export const placeOwning = (path: string): Place | null =>
-  BY_ADDRESS.find((place) => place.owns(path)) ?? null;
+export const placeOwning = (path: string, search?: string): Place | null =>
+  BY_ADDRESS.find((place) => place.owns(path, search)) ?? null;

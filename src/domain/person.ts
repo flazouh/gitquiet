@@ -70,6 +70,7 @@ const NOT_A_PERSON: ReadonlySet<string> = new Set([
   "copilot",
   "customer-stories",
   "features",
+  "feed",
   "home",
   "join",
   "mobile",

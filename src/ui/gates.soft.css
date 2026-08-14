@@ -83,3 +83,18 @@ html[data-gitquiet-gating] div.feed-content:has(#dashboard.dashboard) div.feed-m
 html[data-gitquiet-gating] div.feed-content:has(#dashboard.dashboard) aside.feed-right-column[aria-label="Explore"] {
   display: none;
 }
+
+/* profile: swapped in without a load. */
+html[data-gitquiet-gating] turbo-frame#user-profile-frame:has(include-fragment[src*="tab=contributions"]) > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* person-repos: swapped in without a load. */
+html[data-gitquiet-gating] turbo-frame#user-profile-frame:has(#user-repositories-list) > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* person-stars: swapped in without a load. */
+html[data-gitquiet-gating] turbo-frame#user-profile-frame:has(turbo-frame#user-starred-repos) > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
