@@ -239,10 +239,10 @@ const COURT_OF_REASON: Readonly<Record<string, Court>> = {
  * is over. No such row was on the measured inbox, so an unknown shape falls to the reader
  * rather than being quietly settled.
  *
- * Nothing lands in Running, and the Court is drawn empty rather than filled with something
- * that does not belong there. Running means a machine owes the next step and only time moves
- * it; a Notice exists because a machine has finished, and a row about an open pull request
- * carries no check state at all.
+ * Nothing lands in Running, which is why the inbox has no such Court to draw: see
+ * {@link NOTICE_COURTS}. Running means a machine owes the next step and only time moves it; a
+ * Notice exists because a machine has finished, and a row about an open pull request carries no
+ * check state at all.
  */
 export const courtOf = (notice: Notice): Court => {
   if (notice.standing === "merged" || notice.standing === "closed") return "settled"
@@ -263,13 +263,28 @@ const readLast = (some: ReadonlyArray<Notice>): ReadonlyArray<Notice> =>
   )
 
 /**
- * Every Notice in four piles, in the order a reader asks about them.
+ * The Courts an inbox has, which is three of the product's four.
  *
- * All four come back even where three are empty, for the reason `docketsIn` gives: a Court
- * that vanished on a quiet inbox would take the reader's bearings with it.
+ * Taken out of the four rather than written again, so the order a reader learns on every other
+ * screen is the order here and cannot drift from it.
+ *
+ * Running is the one left out, and it is left out because {@link courtOf} cannot return it on
+ * any inbox, ever. Elsewhere an empty Court is drawn anyway — a reader finds Settled by where it
+ * sits, and a heading that came and went with the day's rows would take that away — but that
+ * argument is about a Court which is empty this morning and full this afternoon. A heading
+ * nothing can ever reach teaches the reader instead that a heading may mean nothing, which is
+ * the opposite of what filing by who acts next is for.
+ */
+export const NOTICE_COURTS: ReadonlyArray<Court> = COURTS.filter((court) => court !== "running")
+
+/**
+ * Every Notice in three piles, in the order a reader asks about them.
+ *
+ * All three come back even where two are empty, which is the part of `docketsIn`'s reasoning
+ * that does hold here: "Nothing." under a heading is worth more than a heading that moves.
  */
 export const docketsOf = (notices: ReadonlyArray<Notice>): ReadonlyArray<NoticeDocket> =>
-  COURTS.map((court) => {
+  NOTICE_COURTS.map((court) => {
     const held = readLast(notices.filter((one) => courtOf(one) === court))
     return { court, notices: held, count: held.length }
   })

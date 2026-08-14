@@ -242,7 +242,7 @@ const Row = ({
 }
 
 /**
- * The reader's inbox in four Courts.
+ * The reader's inbox in three Courts.
  *
  * Grouped and never filtered. Their own pane offers `is:unread` and `reason:mention` and cannot
  * offer `is:open` at all — it answers zero rows for it — so the question every one of the five
@@ -250,10 +250,15 @@ const Row = ({
  * without asking the reader to write anything: on the inbox this was measured against, 41 rows
  * of 51 were about work already finished, and they are one Court the reader can leave shut.
  *
- * All four Courts, even where three are empty, for the reason `docketsIn` gives: a Court that
- * vanished on a quiet inbox would take the reader's bearings with it. Running is always one of
- * the empty ones here, and that is a finding rather than an omission — a Notice exists because
- * a machine has finished.
+ * Three of the product's four, and the missing one is Running. Every Court a screen draws is
+ * drawn whether or not it has rows today, because a reader finds Settled by where it sits and a
+ * heading that came and went would take that away — which is the argument this comment used to
+ * make for keeping Running as well. It does not hold for a Court no row can ever reach: Running
+ * means a machine owes the next step, a Notice is sent because a machine has finished, and
+ * `courtOf` therefore never returns it. What a permanently empty heading teaches the reader is
+ * that a heading may mean nothing, which is the opposite of what the four Courts are for. So
+ * the inbox has three, every other screen still has four, and "Nothing." is kept for a Court
+ * that is empty this morning and full this afternoon.
  */
 export const Notices = ({
   notices,

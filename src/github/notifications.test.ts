@@ -210,7 +210,7 @@ describe("what the reader can press", () => {
   })
 })
 
-describe("what the four Courts do to a real inbox", () => {
+describe("what the three Courts do to a real inbox", () => {
   /*
    * Five of the eleven rows concern work that is already over, and every one of them is
    * settled by the icon on its own row rather than by anything fetched. On the whole inbox
@@ -224,8 +224,17 @@ describe("what the four Courts do to a real inbox", () => {
     expect(settled?.notices.every((one) => courtOf(one) === "settled")).toBe(true)
   })
 
-  test("keeps Running empty on a real page", () => {
-    expect(docketsOf(notices).find((one) => one.court === "running")?.count).toBe(0)
+  /*
+   * Three piles for a real page, and no Running among them: every row of this inbox arrived
+   * because something had already happened, which is what a notification is. The one before this
+   * asserted the Court was drawn and empty, which is the claim the reader objected to.
+   */
+  test("files a real page into three piles, with no Running to draw", () => {
+    expect(docketsOf(notices).map((one) => one.court)).toEqual([
+      "your-move",
+      "waiting",
+      "settled"
+    ])
   })
 
   test("loses nothing between the page and the piles", () => {

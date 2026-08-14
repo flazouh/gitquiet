@@ -63,14 +63,15 @@ describe("the notifications view", () => {
   })
 
   /*
-   * Drawn empty, and that is the finding. A Notice exists because a machine has finished, so
-   * nothing on this page can honestly be filed under Running.
+   * Not drawn at all, and that is the finding. A Notice exists because a machine has finished,
+   * so nothing on this page can honestly be filed under Running — and the picture in the store
+   * has to show the reader the screen they are going to get.
    */
-  test("draws Running with nothing in it", async () => {
+  test("shows no Running, which is the one Court an inbox cannot fill", async () => {
     const shot = drawn()
-    const running = await courtIn(shot, "Running")
+    await courtIn(shot, "Settled")
 
-    expect(running.queryAllByRole("listitem")).toHaveLength(0)
+    expect(shot.queryByRole("region", { name: "Running" })).toBeNull()
   })
 
   test("offers the presses GitHub puts on the row, and never Save", async () => {

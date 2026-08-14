@@ -248,8 +248,8 @@ Four principles, and the rest is their consequence.
    by returning `settled` for anything merged or closed. Applied to the 51 measured rows it
    moves 41 of them into one Court off a fact already on the page.
 2. **The reason decides the rest.** For a subject that is still open, the reason is the only
-   thing on the row that says anything about who acts next, and it is enough for the four
-   Courts.
+   thing on the row that says anything about who acts next, and it is enough for the three Courts
+   an inbox has.
 3. **Read state is weight, not a Court.** Whether the reader has opened a row is their own
    bookmark and says nothing about who owes the next move. It orders rows within a Court and
    never moves one between Courts.
@@ -281,13 +281,32 @@ merged, closed or resolved, every row in this table is Settled instead.
 | `state_change` | Settled | The reader closed or merged it themselves. |
 | `ci_activity` | by the icon | A run the reader triggered has finished, so the machine is no longer working: a failure is Your Move and a pass is Settled. No `ci_activity` row appeared in the measured inbox, so the icon a completed run draws here is unread and the parser will treat an unknown one as unknown. |
 
-**Running is empty on this screen, and that is a finding rather than an omission.** Running
-means a machine owes the next step and only time moves it. A notification is sent when a machine
-has *finished* — `ci_activity` is documented as "a workflow run that you triggered was
-completed" — and a row about an open pull request carries no check state at all. So nothing on
-this page can honestly be filed there. The Court is still drawn, empty, for the reason
-`docketsIn` returns all four: a Court that vanished on a quiet inbox would take the reader's
-bearings with it.
+### The inbox has three Courts where the rest of the product has four
+
+**Running is not drawn here, and that is a finding rather than an omission.** Running means a
+machine owes the next step and only time moves it. A notification is sent when a machine has
+*finished* — `ci_activity` is documented as "a workflow run that you triggered was completed" —
+and a row about an open pull request carries no check state at all. So nothing on this page can
+honestly be filed there: `courtOf` in `src/domain/notices.ts` never returns `running`, on any
+inbox, ever.
+
+This screen first shipped with the Court drawn and empty, on the argument `docketsIn` makes for
+returning all four: a Court that vanished on a quiet inbox would take the reader's bearings with
+it. That argument is sound and it is about a different thing. It holds for Waiting, which is
+empty at nine in the morning and holds eight rows by lunch, and it is why "Nothing." is kept
+under a heading here rather than the heading being dropped for the day. It does not hold for a
+Court no row can reach, because there is no afternoon in which it fills. What a permanently empty
+heading teaches the reader is that a heading may mean nothing, which is the opposite of what
+filing by who acts next is for.
+
+So the inbox draws three and every other screen still draws four. `NOTICE_COURTS` is the three,
+taken out of `COURTS` rather than written again so that the order a reader learns everywhere else
+cannot drift from the order here. The guard against the reverse mistake is a test rather than a
+comment: every reason GitHub sends, against every state their icons carry, has to land in one of
+the three, because `docketsOf` files by Court and a Court it does not list would be a row read
+off their page and then never shown. If a later reason does belong in Running, that test fails
+first, and the answer then is to draw Running on the inbox again rather than to file the row
+somewhere it does not belong.
 
 **Where the state and the reason disagree, and the state is not the whole answer.** A
 `review_requested` row on an open pull request goes to Your Move even where the reader has
@@ -298,7 +317,7 @@ those are 10 of the 51 rows measured.
 
 ### The screen
 
-`/notifications`, four Courts, and the reader's own inbox in them.
+`/notifications`, three Courts, and the reader's own inbox in them.
 
 **One row per Notice, and the row says the thing the icon was hiding.** Repository and number,
 the title, who has been in the thread, how long ago it moved, and the reason in the product's

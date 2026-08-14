@@ -50,12 +50,30 @@ const show = (notices: ReadonlyArray<Notice>, onPress: (press: Press) => void = 
   )
 
 describe("the reader's inbox, grouped by who acts next", () => {
-  test("draws all four Courts, so a quiet inbox reads the same as a busy one", async () => {
+  /*
+   * Three, and the same three whether the inbox is quiet or busy: a reader finds Settled by
+   * where it is rather than by reading, and a Court that came and went with the day's rows
+   * would take that away.
+   */
+  test("draws its three Courts, so a quiet inbox reads the same as a busy one", async () => {
     show([notice({ id: "one" })])
 
-    for (const court of ["Your Move", "Waiting", "Running", "Settled"]) {
+    for (const court of ["Your Move", "Waiting", "Settled"]) {
       expect(await screen.findByRole("region", { name: court })).toBeTruthy()
     }
+  })
+
+  /*
+   * And not the fourth. Running means a machine owes the next step, and a Notice is sent
+   * because a machine has finished, so nothing on any inbox can ever be filed there. Every
+   * other screen keeps an empty Court because this afternoon it will have rows in it; what a
+   * heading nothing can reach teaches the reader is that a heading may mean nothing.
+   */
+  test("draws no Running, which nothing on any inbox can reach", async () => {
+    show([notice({ id: "one" })])
+
+    await screen.findByRole("region", { name: "Your Move" })
+    expect(screen.queryByRole("region", { name: "Running" })).toBeNull()
   })
 
   /*
