@@ -674,22 +674,41 @@ describe("the search", () => {
 })
 
 /*
- * Where it goes is the whole of this. The strip reads outward to inward — the page
+ * Where these go is the whole of this. The strip reads outward to inward — the page
  * behind, Home, the repository, the section — and the far corner is for leaving this
  * interface for GitHub's page, which is a different move.
  */
-describe("the way back", () => {
+describe("the way back and the way forward", () => {
   const REPOSITORY = { kind: "repository", owner: "flowline-labs", repo: "flowline" } as const
+
+  const BEHIND = [
+    { name: "flowline-labs/flowline: pulls", where: "/flowline-labs/flowline/pulls", id: "1" },
+    { name: "Working Set", where: "/pulls", id: "2" }
+  ]
 
   test("stands at the head of the strip, before the mark for Home", () => {
     render(<Bar where={REPOSITORY} onBack={() => undefined} />)
 
-    const bar = screen.getByRole("banner")
     const back = screen.getByRole("button", { name: "Back" })
     const home = screen.getByLabelText("Home")
 
-    expect(bar.firstElementChild).toBe(back)
+    expect(screen.getByRole("banner").firstElementChild?.contains(back)).toBe(true)
     expect(back.compareDocumentPosition(home) & Node.DOCUMENT_POSITION_FOLLOWING).toBeGreaterThan(0)
+  })
+
+  test("keeps back and forward together, in that order", () => {
+    render(<Bar where={REPOSITORY} onBack={() => undefined} onForward={() => undefined} />)
+
+    const back = screen.getByRole("button", { name: "Back" })
+    const forward = screen.getByRole("button", { name: "Forward" })
+
+    expect(back.compareDocumentPosition(forward) & Node.DOCUMENT_POSITION_FOLLOWING).toBeGreaterThan(
+      0
+    )
+    expect(
+      forward.compareDocumentPosition(screen.getByLabelText("Home")) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeGreaterThan(0)
   })
 
   test("is not the way out, which keeps the other corner", () => {
@@ -702,35 +721,74 @@ describe("the way back", () => {
     expect(back.compareDocumentPosition(out) & Node.DOCUMENT_POSITION_FOLLOWING).toBeGreaterThan(0)
   })
 
-  test("names where it goes, where anything knows the name", () => {
-    render(<Bar where={REPOSITORY} onBack={() => undefined} backTo="the Working Set" />)
+  /*
+   * The one dead slot in the strip, and the gesture is why: Back is pressed twice
+   * as often as once, and a forward button arriving between the two presses would
+   * take the second one and undo the first.
+   */
+  test("keeps the forward slot with nothing ahead, saying it is disabled", () => {
+    render(<Bar where={REPOSITORY} onBack={() => undefined} />)
 
-    const back = screen.getByRole("button", { name: "Back to the Working Set" })
-    expect(back.getAttribute("title")).toBe("Back to the Working Set")
+    const forward = screen.getByRole("button", { name: "Forward" })
+    expect(forward.getAttribute("aria-disabled")).toBe("true")
+    expect((forward as HTMLButtonElement).disabled).toBe(true)
   })
 
   /*
-   * A tab opened straight onto this address has nothing behind it, and a control
-   * that presses into nothing is the fault this bar exists to undo.
+   * A tab opened straight onto this address has nothing behind it, and a pair of
+   * arrows that press into nothing is the fault this bar exists to undo.
    */
-  test("is not drawn at all where there is nothing behind the page", () => {
+  test("draws neither where there is nothing behind the page", () => {
     render(<Bar where={REPOSITORY} />)
 
-    expect(screen.queryByRole("button", { name: /^back/i })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Back" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Forward" })).toBeNull()
   })
 
-  test("hands the press to whoever knows how to go back", async () => {
-    let asked = 0
+  test("hands each press to whoever knows how to move", async () => {
+    const asked: Array<string> = []
     render(
       <Bar
         where={REPOSITORY}
-        onBack={() => {
-          asked += 1
-        }}
+        onBack={() => asked.push("back")}
+        onForward={() => asked.push("forward")}
       />
     )
 
     await userEvent.click(screen.getByRole("button", { name: "Back" }))
-    expect(asked).toBe(1)
+    await userEvent.click(screen.getByRole("button", { name: "Forward" }))
+    expect(asked).toEqual(["back", "forward"])
+  })
+
+  test("offers the places behind, nearest first, behind a chevron on the back half", async () => {
+    render(<Bar where={REPOSITORY} onBack={() => undefined} behind={BEHIND} />)
+
+    await userEvent.click(screen.getByRole("button", { name: "Where you have been" }))
+
+    const rows = screen.getAllByRole("menuitem")
+    expect(rows.map((one) => one.textContent)).toEqual([
+      "flowline-labs/flowline: pulls",
+      "Working Set"
+    ])
+  })
+
+  /* Real addresses, so a place in the trail can be opened in a new tab or copied. */
+  test("gives every place its own address as well as its press", async () => {
+    render(<Bar where={REPOSITORY} onBack={() => undefined} behind={BEHIND} />)
+
+    await userEvent.click(screen.getByRole("button", { name: "Where you have been" }))
+
+    expect(screen.getByRole("menuitem", { name: "Working Set" }).getAttribute("href")).toBe("/pulls")
+  })
+
+  /*
+   * A column holding the one page the arrow beside it already goes to is a second
+   * control for the first one.
+   */
+  test("offers no menu for one place behind", () => {
+    render(<Bar where={REPOSITORY} onBack={() => undefined} behind={[BEHIND[0]!]} />)
+
+    expect(screen.queryByRole("button", { name: "Where you have been" })).toBeNull()
+    expect(screen.getByRole("button", { name: "Back" })).toBeDefined()
   })
 })

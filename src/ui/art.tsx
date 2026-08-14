@@ -153,6 +153,15 @@ export type ArtName =
    * says `copy` keeps working the day the drawing changes.
    */
   | "back"
+  /**
+   * The other way along the reader's own path, which is the pair to `back`.
+   *
+   * Not `your-move`, which is the same arrow drawn for a different reason: that
+   * one is a Court, and a set is named by meaning here rather than by picture. A
+   * pack is free to draw the two alike, and nothing that says `forward` has to
+   * change on the day one of them stops.
+   */
+  | "forward"
   | "chevron-right"
   | "chevron-up"
   | "copy"

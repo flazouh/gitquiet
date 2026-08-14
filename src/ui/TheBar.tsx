@@ -3,10 +3,12 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Owed } from "../domain/finding";
 import { showsWorkingSet } from "../domain/pages";
+import { fromPathname } from "../domain/PullRequestRef";
 import type { Repository } from "../domain/repositories";
 import { keepTabs, keptTabs } from "../github/repoTabs";
+import { type ArtName } from "./art";
 import { Bar, type BarProps } from "./Bar";
-import { cameFrom, goBack, somewhereBehind } from "./going";
+import { goBack, goBackTo, goForward, theTrail, watchTheTrail } from "./going";
 import { keepTheBarSlot, theBarSlot, theBarStands } from "./barSlot";
 import { keepRepositories, keptRepositories } from "./keptRepositories";
 import { Palette } from "./Palette";
@@ -15,6 +17,7 @@ import { SettingsDialog } from "./SettingsDialog";
 import { Theme } from "./Theme";
 import { useOursToDraw } from "./useOursToDraw";
 import { useSettings } from "./useSettings";
+import { tabMark } from "./tabMarks";
 import { participantOnPage } from "./viewer";
 import { visited, visiting } from "./visited";
 import { useWithin } from "./within";
@@ -44,7 +47,10 @@ export const TheBar = ({
   recall,
   participant,
   ...props
-}: Omit<BarProps, "tabs" | "onSearch" | "corner" | "onBack" | "backTo"> & {
+}: Omit<
+  BarProps,
+  "tabs" | "onSearch" | "corner" | "onBack" | "onForward" | "behind"
+> & {
   /**
    * Every repository the reader has, for the palette. Left out and no search is offered at
    * all — a control that presses into an empty list is the mistake this bar exists to undo.
@@ -256,20 +262,17 @@ export const TheBar = ({
   const [lately] = useState(visited);
 
   /*
-   * Whether there is a page behind this one, and what to call it, read once for
-   * the life of this screen.
+   * Where the reader can go from here, read off the browser and kept fresh.
    *
-   * Once rather than on every render, and it costs nothing to keep: `history.length`
-   * grows as the reader moves, and a control that appeared in the corner of the
-   * strip halfway through a read would be a control nobody asked for. Every move
-   * between screens of ours builds a whole new bar anyway — each screen is its own
-   * bundle — so the answer is fresh on the page it describes.
+   * Read again on every move rather than once at mount. Most moves build a whole
+   * new bar — each screen is its own bundle — but not all of them: a list going
+   * back to its own first page redraws in place, and a bar that had answered once
+   * would still be saying there is nothing ahead while the reader stood on a page
+   * with something ahead. See `watchTheTrail`.
    */
-  const [back] = useState(() =>
-    somewhereBehind(window)
-      ? { to: theNameOf(cameFrom(window)) }
-      : undefined,
-  );
+  const [trail, setTrail] = useState(() => theTrail(window));
+
+  useEffect(() => watchTheTrail(window, () => setTrail(theTrail(window))), []);
 
   useEffect(() => {
     if (props.where.kind !== "repository") return;
@@ -340,8 +343,18 @@ export const TheBar = ({
           readingTheCode(props.where, window.location.pathname)
         }
         onSearch={searchable ? () => setFinding(true) : undefined}
-        onBack={back === undefined ? undefined : () => goBack(window)}
-        backTo={back?.to}
+        onBack={trail.back ? () => goBack(window) : undefined}
+        onForward={trail.forward ? () => goForward(window) : undefined}
+        behind={trail.behind.map((step) => ({
+          ...theNameOf(step.at),
+          id: `${step.back}`,
+          /* The address as well as the press, so a place in the trail can be
+             opened in a new tab or copied like any other link. The plain press
+             goes to the entry itself, which is the page as the reader left it
+             rather than a fresh load of the same address. */
+          where: step.at,
+          press: () => goBackTo(window, step),
+        }))}
         corner={<SettingsDialog settings={settings} onChange={change} />}
       />
       {finding ? (
@@ -366,22 +379,41 @@ export const TheBar = ({
 };
 
 /**
- * What to call the page behind this one, where one of our own pushes named it.
+ * What one place in the trail is called, and which glyph it wears.
  *
- * The Working Set is the one page worth naming. It is where a reader presses a row
- * from, so it is the page behind more often than any other, and it is the one whose
- * address — `/` or `/pulls` — says nothing about what is on it. Everything else
- * keeps the plain direction: a name guessed off an address is how a control comes
- * to promise a page that is not there.
+ * From the address and nothing else. The browser lists the entries a tab has been
+ * through and gives their addresses; it does not give their titles, and the pages
+ * are not ours to have kept a title for — half of them are GitHub's own. So this
+ * says what an address can honestly say, and falls back to the path itself, which
+ * is what a reader would read in an address bar anyway.
  *
- * Nothing at all where the entry is not ours, which is every arrival from GitHub's
- * own list or a pasted link. `back()` still goes there; the strip just does not
- * claim to know what there is.
+ * The kinds are the ones the reader walks between: the Working Set, a pull request,
+ * a repository's own lists, a repository. Their own pages fall through to the path
+ * rather than being guessed at from the shape of it.
  */
-const theNameOf = (from: string | undefined): string | undefined =>
-  from !== undefined && showsWorkingSet(from.replace(/[?#].*$/, ""))
-    ? "the Working Set"
-    : undefined;
+const theNameOf = (at: string): { readonly name: string; readonly art: ArtName } => {
+  const path = at.replace(/[?#].*$/, "");
+  if (showsWorkingSet(path)) return { name: "Working Set", art: "working-set" };
+  if (path === "/notifications")
+    return { name: "Notifications", art: "notifications" };
+
+  const pull = fromPathname(path);
+  if (Option.isSome(pull))
+    return {
+      name: `#${pull.value.number} in ${pull.value.owner}/${pull.value.repo}`,
+      art: "pull-request",
+    };
+
+  const parts = path.split("/").filter((one) => one !== "");
+  const [owner, repo, section] = parts;
+  if (owner === undefined || repo === undefined) return { name: path, art: "dot" };
+
+  const named = `${owner}/${repo}`;
+  if (section === undefined) return { name: named, art: "code" };
+  if (parts.length > 3) return { name: path, art: "dot" };
+
+  return { name: `${named}: ${section}`, art: tabMark(section) };
+};
 
 /**
  * Whether two reads of the repository list are the same list.

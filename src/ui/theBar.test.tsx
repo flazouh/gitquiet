@@ -40,6 +40,76 @@ const SOMEONE = { login: "flazouh", faceUrl: Option.none() }
 
 const WHERE = { kind: "repository" as const, owner: "flazouh", repo: "gitquiet" }
 
+/**
+ * A tab that has been somewhere, as the browser describes one.
+ *
+ * The Navigation API, which is what `theTrail` reads: verified from inside a content
+ * script, and absent from the runtime the tests run in — so it is put on the window
+ * here and taken off again by the hook below, rather than the naming being tested
+ * through a seam of its own.
+ */
+const havingBeen = (addresses: ReadonlyArray<string>): void => {
+  ;(window as { navigation?: unknown }).navigation = {
+    entries: () =>
+      addresses.map((at, index) => ({
+        url: `https://github.com${at}`,
+        key: `k${index}`,
+        index
+      })),
+    currentEntry: { index: addresses.length - 1 },
+    canGoBack: addresses.length > 1,
+    canGoForward: false,
+    traverseTo: () => undefined,
+    addEventListener: () => {},
+    removeEventListener: () => {}
+  }
+}
+
+// Taken off after every test rather than inside each one, so a test that fails
+// mid-way does not leave a trail on the window for the next file in the run.
+afterEach(() => {
+  delete (window as { navigation?: unknown }).navigation
+})
+
+/*
+ * The browser lists the addresses a tab has been through and never their titles, so
+ * the menu says what an address can honestly say. These are the kinds a reader walks
+ * between; GitHub's own pages fall through to the path.
+ */
+describe("the places the trail names", () => {
+  test("names each kind a reader walks between, nearest first", async () => {
+    havingBeen([
+      "/pulls",
+      "/flazouh/gitquiet",
+      "/flazouh/gitquiet/issues",
+      "/flazouh/gitquiet/pull/12",
+      "/flazouh/gitquiet/pull/14"
+    ])
+
+    render(<TheBar where={WHERE} participant={SOMEONE} repositories={KEPT} />)
+    await userEvent.click(screen.getByRole("button", { name: "Where you have been" }))
+
+    expect(screen.getAllByRole("menuitem").map((one) => one.textContent)).toEqual([
+      "#12 in flazouh/gitquiet",
+      "flazouh/gitquiet: issues",
+      "flazouh/gitquiet",
+      "Working Set"
+    ])
+  })
+
+  test("keeps the path itself for a page of theirs nothing here can name", async () => {
+    havingBeen(["/flazouh/gitquiet/blob/main/README.md", "/pulls", "/flazouh/gitquiet/pull/14"])
+
+    render(<TheBar where={WHERE} participant={SOMEONE} repositories={KEPT} />)
+    await userEvent.click(screen.getByRole("button", { name: "Where you have been" }))
+
+    expect(screen.getAllByRole("menuitem").map((one) => one.textContent)).toEqual([
+      "Working Set",
+      "/flazouh/gitquiet/blob/main/README.md"
+    ])
+  })
+})
+
 describe("the bar and where the reader has been", () => {
   test("records the repository being read, so the next switcher opens on it", async () => {
     render(<TheBar where={WHERE} participant={SOMEONE} repositories={KEPT} />)

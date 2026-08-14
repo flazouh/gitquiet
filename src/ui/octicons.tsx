@@ -144,6 +144,7 @@ export const OCTICONS: Set = {
   person: PersonIcon,
   "sign-out": SignOutIcon,
   back: ArrowLeftIcon,
+  forward: ArrowRightIcon,
   "chevron-right": ChevronRightIcon,
   "chevron-up": ChevronUpIcon,
   copy: CopyIcon,

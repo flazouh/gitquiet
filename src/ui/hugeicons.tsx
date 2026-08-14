@@ -224,6 +224,7 @@ export const HUGEICONS: Set = {
   person: from(UserCircleIcon),
   "sign-out": from(Logout01Icon),
   back: from(ArrowLeft01Icon),
+  forward: from(ArrowRight01Icon),
   "chevron-right": from(ChevronRightIcon),
   "chevron-up": from(ChevronUpIcon),
   copy: from(Copy01Icon),

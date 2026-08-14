@@ -5,13 +5,15 @@ import { BAR_ID } from "./barSlot"
 import {
   answerPress,
   answerPressesIn,
-  cameFrom,
   drawingOurOwnRows,
   goBack,
+  goBackTo,
+  goForward,
   goTo,
   ourOwnRowsDrawn,
   oursToAnswer,
-  somewhereBehind
+  theTrail,
+  watchTheTrail
 } from "./going"
 import { ROOT_ID } from "./mount"
 
@@ -321,72 +323,216 @@ describe("going somewhere by hand, as the keyboard does", () => {
 })
 
 /*
- * The bar draws a way back and names where it goes, and only the entry knows the
- * name: "Back" is a direction, "Back to the Working Set" is a destination. The
- * address left behind is written onto the entry the push makes, so it survives the
- * screen swap, and going back onto an entry nobody pushed answers nothing.
+ * Nothing of ours on the entry a push makes. It was tried, to carry the address
+ * being left, and the slot on a GitHub page holds Turbo's own record — see `goTo`.
+ * The entries themselves say where the reader has been.
  */
-describe("the way back", () => {
-  test("writes the address being left onto the entry the push makes", () => {
+describe("the entry a push of ours makes", () => {
+  test("leaves GitHub's own state slot alone", () => {
     const page = aPageOfOurs()
 
     goTo(page.window, "/owner/repo/pull/12")
 
-    expect(page.recorded.stated).toEqual([{ gitquiet: { from: "/pulls/inbox" } }])
+    expect(page.recorded.stated).toEqual([null])
   })
+})
 
-  test("writes the whole address, so the way back is the page that was on the screen", () => {
-    const page = aPageOfOurs()
-    const at = page.window.location as { pathname: string; search: string }
-    at.pathname = "/owner/repo/pulls"
-    at.search = "?page=2"
+/**
+ * A tab that has been somewhere, as the Navigation API describes one.
+ *
+ * `entries` are the addresses in order and `here` is which of them the reader is
+ * standing on, which is the pair the real API answers with. `length` is history's
+ * own count, and it is deliberately allowed to disagree: `entries()` holds the
+ * same-origin run this page is part of and nothing before it.
+ */
+const aTabThatHasBeen = ({
+  entries,
+  here,
+  length = entries.length,
+  api = true
+}: {
+  readonly entries: ReadonlyArray<string>
+  readonly here: number
+  readonly length?: number
+  readonly api?: boolean
+}): { readonly window: Window; readonly traversed: Array<string>; readonly went: Array<number> } => {
+  const traversed: Array<string> = []
+  const went: Array<number> = []
 
-    goTo(page.window, "/owner/repo/pull/12")
+  const navigation = {
+    entries: () =>
+      entries.map((url, index) => ({ url: `https://github.com${url}`, key: `k${index}`, index })),
+    currentEntry: { index: here },
+    canGoBack: here > 0,
+    canGoForward: here < entries.length - 1,
+    traverseTo: (key: string) => {
+      traversed.push(key)
+      return undefined
+    }
+  }
 
-    expect(page.recorded.stated).toEqual([
-      { gitquiet: { from: "/owner/repo/pulls?page=2" } }
+  const target = {
+    history: {
+      length,
+      back: () => went.push(-1),
+      forward: () => went.push(1),
+      go: (by: number) => went.push(by)
+    },
+    ...(api ? { navigation } : {})
+  } as unknown as Window
+
+  return { window: target, traversed, went }
+}
+
+describe("where the reader can go from here", () => {
+  test("lists the places behind, nearest first", () => {
+    const tab = aTabThatHasBeen({
+      entries: ["/pulls", "/owner/repo/pulls", "/owner/repo/pull/12"],
+      here: 2
+    })
+
+    expect(theTrail(tab.window).behind).toEqual([
+      { at: "/owner/repo/pulls", key: "k1", back: 1 },
+      { at: "/pulls", key: "k0", back: 2 }
     ])
   })
 
-  const standingOn = (state: unknown, length: number): Window =>
-    ({ history: { state, length } }) as unknown as Window
+  /*
+   * Their router replaces an entry for a filter, a heading or a scroll position,
+   * and a reader walking a stack passes the same list between layers. A menu
+   * offering the Working Set five times says nothing five times, and the nearest
+   * of them is the one worth going to.
+   */
+  test("says one address once, keeping the nearest of them", () => {
+    const tab = aTabThatHasBeen({
+      entries: ["/pulls", "/owner/repo/pull/12", "/pulls", "/owner/repo/pull/14"],
+      here: 3
+    })
 
-  test("reads the address back off an entry one of our pushes made", () => {
-    expect(cameFrom(standingOn({ gitquiet: { from: "/pulls" } }, 2))).toBe("/pulls")
+    expect(theTrail(tab.window).behind).toEqual([
+      { at: "/pulls", key: "k2", back: 1 },
+      { at: "/owner/repo/pull/12", key: "k1", back: 2 }
+    ])
+  })
+
+  test("keeps the search, two pages of one list being two places", () => {
+    const tab = aTabThatHasBeen({
+      entries: ["/owner/repo/pulls", "/owner/repo/pulls?page=2"],
+      here: 1
+    })
+
+    expect(theTrail(tab.window).behind).toEqual([
+      { at: "/owner/repo/pulls", key: "k0", back: 1 }
+    ])
+  })
+
+  test("stops at eight, a menu being read at a glance", () => {
+    const tab = aTabThatHasBeen({
+      entries: Array.from({ length: 20 }, (_, at) => `/owner/repo/pull/${at}`),
+      here: 19
+    })
+
+    expect(theTrail(tab.window).behind).toHaveLength(8)
+  })
+
+  test("says whether there is anywhere ahead, which there is only after going back", () => {
+    const ahead = aTabThatHasBeen({ entries: ["/pulls", "/owner/repo/pull/12"], here: 0 })
+    const nothing = aTabThatHasBeen({ entries: ["/pulls", "/owner/repo/pull/12"], here: 1 })
+
+    expect(theTrail(ahead.window).forward).toBe(true)
+    expect(theTrail(nothing.window).forward).toBe(false)
   })
 
   /*
-   * Every arrival from GitHub's own list is one of these, and so is a pasted link
-   * and a reload. `back()` still goes somewhere; the strip declines to say what.
+   * A reader who reached GitHub from somewhere else stands at index 0 of a list
+   * that cannot show what is before it. `back()` still returns there, so the
+   * button is drawn and the menu has nothing to add.
    */
-  test("says nothing about an entry nobody of ours pushed", () => {
-    expect(cameFrom(standingOn(null, 2))).toBeUndefined()
-    expect(cameFrom(standingOn({ turbo: true }, 2))).toBeUndefined()
+  test("still offers back at the start of the list, where the count knows better", () => {
+    const tab = aTabThatHasBeen({ entries: ["/owner/repo/pull/12"], here: 0, length: 3 })
+
+    expect(theTrail(tab.window)).toEqual({ back: true, forward: false, behind: [] })
   })
 
-  test("offers the way back wherever a browser has one, ours or theirs", () => {
-    expect(somewhereBehind(standingOn(null, 2))).toBe(true)
-    expect(somewhereBehind(standingOn({ gitquiet: { from: "/pulls" } }, 4))).toBe(true)
+  test("offers nothing at all on a tab opened straight onto the page", () => {
+    const tab = aTabThatHasBeen({ entries: ["/owner/repo/pull/12"], here: 0, length: 1 })
+
+    expect(theTrail(tab.window)).toEqual({ back: false, forward: false, behind: [] })
   })
 
   /*
-   * A tab opened straight onto a pull request by a middle click or a pasted link.
-   * A control that presses into nothing is the fault the bar exists to undo, so
-   * there is nothing to draw here.
+   * The count is all a browser without the API will say, so the two buttons work
+   * and no menu is offered. Nothing guesses at a forward entry from a count: the
+   * count includes them and cannot say so.
    */
-  test("offers none on a tab with nothing behind it", () => {
-    expect(somewhereBehind(standingOn(null, 1))).toBe(false)
+  test("falls back to the count where the entries cannot be read", () => {
+    const tab = aTabThatHasBeen({ entries: ["/pulls"], here: 0, length: 4, api: false })
+
+    expect(theTrail(tab.window)).toEqual({ back: true, forward: false, behind: [] })
+  })
+})
+
+describe("going back and forward", () => {
+  test("moves one page each way through the browser", () => {
+    const tab = aTabThatHasBeen({ entries: ["/pulls", "/owner/repo/pull/12"], here: 1 })
+
+    goBack(tab.window)
+    goForward(tab.window)
+
+    expect(tab.went).toEqual([-1, 1])
   })
 
-  test("goes back through the browser rather than by pushing an address", () => {
-    const went: Array<true> = []
+  /*
+   * By the entry rather than by a count. A count is a promise about a list that
+   * may have changed since it was read, and `go(-4)` would then land on whatever
+   * is four back now.
+   */
+  test("goes to a place in the trail by the entry the browser named", () => {
+    const tab = aTabThatHasBeen({
+      entries: ["/pulls", "/owner/repo/pulls", "/owner/repo/pull/12"],
+      here: 2
+    })
+
+    goBackTo(tab.window, { at: "/pulls", key: "k0", back: 2 })
+
+    expect(tab.traversed).toEqual(["k0"])
+    expect(tab.went).toEqual([])
+  })
+
+  test("counts the steps where there is no entry to name", () => {
+    const tab = aTabThatHasBeen({ entries: ["/pulls"], here: 0, api: false })
+
+    goBackTo(tab.window, { at: "/pulls", back: 3 })
+
+    expect(tab.went).toEqual([-3])
+  })
+})
+
+describe("hearing that the trail moved", () => {
+  test("asks the API, which hears a push as well as a traversal", () => {
+    const heard: Array<string> = []
     const target = {
-      history: { state: null, length: 2, back: () => went.push(true) }
+      navigation: {
+        addEventListener: (name: string) => heard.push(`on ${name}`),
+        removeEventListener: (name: string) => heard.push(`off ${name}`)
+      }
     } as unknown as Window
 
-    goBack(target)
+    watchTheTrail(target, () => {})()
 
-    expect(went).toEqual([true])
+    expect(heard).toEqual(["on currententrychange", "off currententrychange"])
+  })
+
+  test("falls back to the event a browser without it still sends", () => {
+    const heard: Array<string> = []
+    const target = {
+      addEventListener: (name: string) => heard.push(`on ${name}`),
+      removeEventListener: (name: string) => heard.push(`off ${name}`)
+    } as unknown as Window
+
+    watchTheTrail(target, () => {})()
+
+    expect(heard).toEqual(["on popstate", "off popstate"])
   })
 })
 

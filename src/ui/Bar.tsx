@@ -6,7 +6,7 @@ import { useArt } from "./art";
 import { Cap } from "./Cap";
 import { HERE, INSIDE, PRESSABLE, TINT } from "./dress";
 import { Face } from "./Face";
-import { Menu } from "./Menu";
+import { Menu, type Row } from "./Menu";
 import { Owner } from "./Owner";
 import { participantRows } from "./participant";
 import { tabMark } from "./tabMarks";
@@ -123,23 +123,32 @@ export type BarProps = {
    */
   readonly onSearch?: () => void;
   /**
-   * Going back to the page behind this one, from whoever knows there is one.
+   * Going back one page, from whoever knows there is one behind this.
    *
-   * Left out and nothing is drawn at all, which is a tab opened straight onto
-   * this address: a back control with nothing behind it presses into nothing,
+   * Left out and neither of the two is drawn, which is a tab opened straight onto
+   * this address: a pair of arrows with nothing behind them presses into nothing,
    * and this bar exists to stop the version of that mistake their own strip
-   * makes. See `somewhereBehind` in `going.ts`.
+   * makes. See `theTrail` in `going.ts`.
    */
   readonly onBack?: () => void;
   /**
-   * What the page behind this one is called, where anything knows.
+   * Going forward one page, where the reader has been back and can return.
    *
-   * "Back" is honest and says only which direction. "Back to the Working Set" is
-   * what a reader deciding whether to press it is asking. Only our own pushes
-   * leave the address behind on the entry, so a reader who arrived from GitHub's
-   * own list gets the direction and no name. See `cameFrom`.
+   * Left out and the control still stands, disabled. It is the one control in
+   * this strip that keeps a dead slot, and the reason is the gesture either side
+   * of it: a reader pressing Back twice presses the same pixel twice, and a
+   * forward button that appeared in between would take the second press.
    */
-  readonly backTo?: string;
+  readonly onForward?: () => void;
+  /**
+   * The places behind this page, nearest first, for the menu on the back button.
+   *
+   * Fewer than two and no menu is offered: a column holding the one page Back
+   * already goes to is a second control for the first one. Each row carries the
+   * address as well as the press, so the browser's own ways of using a link — a
+   * new tab, a copied address — still work on it. See `Row`.
+   */
+  readonly behind?: ReadonlyArray<Row>;
   readonly onStepAside?: () => void;
   /**
    * Whatever the shell keeps in the tray beside the inbox — in the extension, the way into the
@@ -262,7 +271,8 @@ export const Bar = ({
   participant,
   onSearch,
   onBack,
-  backTo,
+  onForward,
+  behind = NOTHING,
   onStepAside,
   corner,
 }: BarProps) => {
@@ -270,13 +280,14 @@ export const Bar = ({
   const Chevron = art["chevron-down"];
   const Search = art.search;
   const Back = art.back;
+  const Forward = art.forward;
   // The tray says which state it is in, so the two are named rather than one
   // glyph with something drawn over it.
   const Inbox = unread ? art["notifications-unread"] : art.notifications;
   const TheirMark = art.github;
   const More = art.more;
   const [opened, setOpened] = useState<
-    "account" | "repositories" | "tabs" | undefined
+    "account" | "repositories" | "tabs" | "behind" | undefined
   >(undefined);
 
   const stood: ReadonlyArray<Stood> = tabs.map((one) => ({
@@ -335,15 +346,16 @@ export const Bar = ({
       className="flex h-10 items-center gap-2 bg-surface px-2 text-sm text-ink shadow-pop"
     >
       {/*
-       * The way back, first in the strip, before the mark for Home.
+       * The way back and the way forward, first in the strip, before the mark for
+       * Home.
        *
        * The mirror of the way out at the other end. This row already reads
        * outward to inward — Home, then the repository, then the section a page is
        * in — and the page behind this one stands a step further out than any of
        * them, so it goes at the head of that sequence rather than into the middle
        * of it. It is also the corner every browser and every window on the
-       * machine keeps a back control in, and this bar stands where a browser's
-       * chrome does not: in the extension's own window there is nothing above it.
+       * machine keeps these two in, and this bar stands where a browser's chrome
+       * does not: in the extension's own window there is nothing above it.
        *
        * Not on the screen below, which is where the exit used to be. A control
        * that exists on one of the four screens is a control a reader has to find
@@ -358,14 +370,83 @@ export const Bar = ({
        * the name says the destination, for a pointer and for anyone being read to.
        */}
       {onBack === undefined ? null : (
+        <div className="relative flex shrink-0 items-center">
+          {/*
+           * One chip, two presses, which is the shape the repository's name takes
+           * a few pixels to the right: the arrow goes back a page and the chevron
+           * asks which page. The alternative was Chrome's, where the list is
+           * behind a long press on the same arrow — a gesture nothing in this
+           * interface uses and nothing on the strip could advertise.
+           */}
+          <div
+            className={`flex items-center overflow-hidden rounded-md ${TINT}`}
+          >
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="Back"
+              title="Back"
+              className="grid size-7 shrink-0 place-items-center text-ink-muted hover:bg-active hover:text-ink"
+            >
+              <Back size={16} />
+            </button>
+            {/*
+             * Two or more, and the second is the reason: a menu whose only row is
+             * the page the arrow beside it already goes to is a second button for
+             * the first one.
+             */}
+            {behind.length < 2 ? null : (
+              <button
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={opened === "behind"}
+                aria-label="Where you have been"
+                title="Where you have been"
+                onClick={() => setOpened(opened === "behind" ? undefined : "behind")}
+                /* Twenty across against the name's twenty-eight, and the same line
+                   down its left. This half opens a menu beside a half that goes
+                   somewhere, and the pair has to stay narrower than the two tabs
+                   it pushes along. */
+                className="grid h-7 w-5 shrink-0 place-items-center border-l border-line-muted text-ink-muted hover:bg-active hover:text-ink"
+              >
+                <Chevron
+                  size={10}
+                  className={`t-turn ${opened === "behind" ? "is-turned" : ""}`}
+                />
+              </button>
+            )}
+          </div>
+          <Menu
+            name="Where you have been"
+            origin="top-left"
+            wide="w-72"
+            open={opened === "behind"}
+            onShut={() => setOpened(undefined)}
+            rows={behind}
+          />
+        </div>
+      )}
+
+      {/*
+       * Forward keeps its slot whether or not there is anywhere ahead.
+       *
+       * Everything else in this strip is drawn only where it does something, and
+       * this is the exception the gesture forces: Back is pressed twice as often
+       * as once, and a control that appeared between the two presses would catch
+       * the second one and undo the first. Said as disabled rather than painted
+       * as absent, so a reader being read to hears why it does nothing.
+       */}
+      {onBack === undefined ? null : (
         <button
           type="button"
-          onClick={onBack}
-          aria-label={backTo === undefined ? "Back" : `Back to ${backTo}`}
-          title={backTo === undefined ? "Back" : `Back to ${backTo}`}
-          className="grid size-7 shrink-0 place-items-center rounded-md text-ink-muted hover:bg-hover hover:text-ink"
+          onClick={onForward}
+          aria-label="Forward"
+          title="Forward"
+          aria-disabled={onForward === undefined}
+          disabled={onForward === undefined}
+          className="grid size-7 shrink-0 place-items-center rounded-md text-ink-muted enabled:hover:bg-hover enabled:hover:text-ink disabled:opacity-40"
         >
-          <Back size={16} />
+          <Forward size={16} />
         </button>
       )}
 

@@ -1,3 +1,4 @@
+import { Effect } from "effect"
 import { BAR_ID } from "./barSlot"
 import { holdTheSurface, ROOT_ID, theScreenOnThePage } from "./mount"
 import type { Stop } from "./navigation"
@@ -53,45 +54,218 @@ export const ourOwnRowsDrawn = (target: Window): boolean =>
   (target as World).gitquietOwnRows === true
 
 /**
- * What a push of ours leaves on the entry it makes: the address left behind.
+ * The browser's own account of where this tab has been.
  *
- * Read by the bar, which draws the way back and names where it goes. "Back" is a
- * direction and "Back to the Working Set" is a destination, and the entry is the
- * only thing that knows which of the two is true.
+ * `history` will not say. It answers a count and nothing else, so a control built
+ * on it can offer one step in each direction and can never list the places behind
+ * — which is the whole of what a reader asking for "five back" wants. The
+ * Navigation API answers with the entries themselves.
  *
- * On the entry rather than on the window that {@link drawingOurOwnRows} uses. A
- * flag on the window would survive the screen swap, which is what that one wants
- * — and it would also survive going back, going forward and reloading, which are
- * three ways of standing on an entry this push never made. The browser keeps
- * state with the entry, which is the lifetime this fact actually has.
+ * Read off the window rather than declared as a global, because it is Chrome's and
+ * this file is also compiled for tests in a runtime that has none. Every field is
+ * optional for the same reason: what a version of the browser answers is its
+ * business, and {@link theTrail} falls back to the count when anything is missing.
+ *
+ * Verified from inside a content script, which was the doubt: the isolated world a
+ * screen of ours runs in sees the same entries, the same index, and a `pushState`
+ * of ours appears among them. What it does not see is the state on an entry, so
+ * nothing here reads one — a row is named from its address.
  */
-type OurEntry = { readonly gitquiet: { readonly from: string } }
+type Entry = {
+  readonly key?: string
+  readonly url?: string | null
+  readonly index?: number
+}
 
-/** The address the reader was on before this one, where a push of ours named it. */
-export const cameFrom = (target: Window): string | undefined => {
-  const state = target.history.state as Partial<OurEntry> | null
-  return state?.gitquiet?.from
+type Traversal = {
+  readonly committed?: PromiseLike<unknown>
+  readonly finished?: PromiseLike<unknown>
+}
+
+type TheirNavigation = {
+  readonly entries?: () => ReadonlyArray<Entry>
+  readonly currentEntry?: Entry | null
+  readonly canGoBack?: boolean
+  readonly canGoForward?: boolean
+  readonly traverseTo?: (key: string) => Traversal | undefined
+  readonly addEventListener?: (name: string, heard: () => void) => void
+  readonly removeEventListener?: (name: string, heard: () => void) => void
+}
+
+const theirNavigation = (target: Window): TheirNavigation | undefined =>
+  (target as unknown as { navigation?: TheirNavigation }).navigation
+
+/** One place the reader has been, as the menu behind the back button draws it. */
+export type Step = {
+  /** The address, path and search, which is what names the row and fills its href. */
+  readonly at: string
+  /** The entry, where the browser named it, so the jump is to that entry and not a count. */
+  readonly key?: string
+  /** How many entries back it is, for going there without a key. */
+  readonly back: number
+}
+
+/** Where the reader can go from here, in both directions. */
+export type Trail = {
+  /** Whether there is anywhere behind this page. */
+  readonly back: boolean
+  /** Whether there is anywhere ahead, which there is only once the reader has gone back. */
+  readonly forward: boolean
+  /**
+   * The places behind, nearest first, at most {@link HOW_FAR} of them.
+   *
+   * Empty where the browser will not list them, which leaves the two buttons
+   * working and no menu to open.
+   */
+  readonly behind: ReadonlyArray<Step>
 }
 
 /**
- * Whether there is a page behind this one to go back to.
+ * How many places back the menu offers.
  *
- * `history.length`, which is as much as a browser will say. Whether the entry
- * behind is one of ours, GitHub's own or another site altogether cannot be read
- * from a page, and it makes no difference to the press: `back()` returns to it
- * either way. One entry is a tab opened straight onto this address, by a middle
- * click or a pasted link, and there is nothing behind it at all.
+ * Eight, against Chrome's own twelve. A menu is read at a glance and the reason a
+ * reader opens this one is to skip two or three pages at once, not to audit an
+ * afternoon: the entry twelve back is quicker to reach by pressing the row that
+ * names the repository than by finding it in a column.
  */
-export const somewhereBehind = (target: Window): boolean => target.history.length > 1
+const HOW_FAR = 8
 
 /**
- * Back to the page behind this one, which is the browser's own move and not ours.
+ * The path and search of one entry, or nothing where there is no page in it.
+ *
+ * Cut off the front rather than parsed. `new URL` throws on the entries a tab has
+ * that are not pages — `about:blank` is the first entry of a tab opened empty — and
+ * a throw is a failure this has no way to report. Anything that does not come out
+ * of this as a path is not somewhere a reader can be sent back to.
+ */
+const addressOfEntry = (url: string | null | undefined): string | undefined => {
+  if (url === undefined || url === null || url === "") return undefined
+
+  const address = url.replace(/^(?:https?:)?\/\/[^/]+/, "").replace(/#.*$/, "")
+  return address.startsWith("/") ? address : undefined
+}
+
+/**
+ * Where the reader can go from here, read once and handed to the bar.
+ *
+ * One address appears once, nearest first. The same page is often several entries
+ * — their router replaces an entry for a filter, a heading or a scroll position,
+ * and a reader who walks a stack visits the same list between each layer — and a
+ * menu offering the Working Set five times says nothing five times. Whichever of
+ * those entries is nearest is the one worth going to, so the first reading of an
+ * address wins and the rest are dropped.
+ *
+ * The count is still the answer where the entries cannot be read: `back` stays
+ * true, `forward` stays false, and no menu is offered. Nothing here guesses at a
+ * forward entry from a count, because a count includes them and cannot say so.
+ */
+export const theTrail = (target: Window): Trail => {
+  const nav = theirNavigation(target)
+  const entries = nav?.entries?.()
+  const here = nav?.currentEntry?.index
+
+  if (nav === undefined || entries === undefined || here === undefined || here < 0) {
+    return { back: target.history.length > 1, forward: false, behind: [] }
+  }
+
+  const behind: Array<Step> = []
+
+  for (let at = here - 1; at >= 0 && behind.length < HOW_FAR; at -= 1) {
+    const address = addressOfEntry(entries[at]?.url)
+    if (address === undefined) continue
+    if (behind.some((one) => one.at === address)) continue
+
+    behind.push({ at: address, key: entries[at]?.key, back: here - at })
+  }
+
+  return {
+    /*
+     * The API's answer, and the count where it declines to give one. `entries()`
+     * holds the same-origin run this page is part of and nothing before it, so a
+     * reader who reached GitHub from somewhere else stands at index 0 with a page
+     * behind them that the list cannot show. `back()` still returns to it.
+     */
+    back: (nav.canGoBack ?? false) || target.history.length > 1,
+    forward: nav.canGoForward ?? false,
+    behind
+  }
+}
+
+/**
+ * Back one page, forward one page: the browser's own moves, not ours.
  *
  * Here because everything that touches history is here. A screen says the reader
  * is going back; it does not reach into `history` to do it.
  */
 export const goBack = (target: Window): void => {
   target.history.back()
+}
+
+export const goForward = (target: Window): void => {
+  target.history.forward()
+}
+
+/**
+ * Reads whatever the browser answers a traversal with, and does nothing about it.
+ *
+ * A refused traversal is nothing to report: the entry has gone, the reader is where
+ * they were, and the only reason to look at the answer at all is that a rejection
+ * nobody reads is an error on GitHub's console with this extension's name on it.
+ */
+const letGo = (answer: PromiseLike<unknown> | undefined): void => {
+  if (answer === undefined) return
+
+  Effect.runFork(
+    Effect.match(
+      Effect.tryPromise(() => answer),
+      { onSuccess: () => {}, onFailure: () => {} }
+    )
+  )
+}
+
+/**
+ * Straight to one of the places behind, skipping the ones between.
+ *
+ * By the entry where the browser named one, because a count is a promise about a
+ * list that may have changed since it was read: an entry the browser has since
+ * dropped turns `go(-4)` into a jump to whatever is four back now. `traverseTo`
+ * names the entry itself and fails instead of landing somewhere else.
+ *
+ * A refused traversal is nothing to report. The entry is gone, the reader is where
+ * they were, and the two promises are read only so that neither is left unhandled.
+ */
+export const goBackTo = (target: Window, step: Step): void => {
+  const nav = theirNavigation(target)
+
+  if (step.key !== undefined && nav?.traverseTo !== undefined) {
+    const traversal = nav.traverseTo(step.key)
+    letGo(traversal?.committed)
+    letGo(traversal?.finished)
+    return
+  }
+
+  target.history.go(-step.back)
+}
+
+/**
+ * Says when the trail has changed, so the two buttons never describe the last page.
+ *
+ * A press on Back leaves this screen, and a new screen builds a new bar — except
+ * where it does not: a list going back to its own first page redraws in place, and
+ * the bar that stays up would otherwise still say there is nothing ahead. One
+ * event covers pushes and traversals alike where the API is there, and `popstate`
+ * covers the traversals where it is not.
+ */
+export const watchTheTrail = (target: Window, moved: () => void): Stop => {
+  const nav = theirNavigation(target)
+
+  if (nav?.addEventListener !== undefined && nav.removeEventListener !== undefined) {
+    nav.addEventListener("currententrychange", moved)
+    return () => nav.removeEventListener?.("currententrychange", moved)
+  }
+
+  target.addEventListener("popstate", moved)
+  return () => target.removeEventListener("popstate", moved)
 }
 
 /**
@@ -160,14 +334,19 @@ export const goTo = (
 
   const leaving = theScreenOnThePage(target.document)
   const cameUp = arrived ?? (() => theScreenOnThePage(target.document) !== leaving)
-  // Read before the push, which is the moment it stops being true.
-  const from = addressOf(target)
 
   // The screen being left stays on the page until the next one is in the
   // document. Its own script hears this address change too, and would otherwise
   // hand the page back to GitHub in the same turn.
   holdTheSurface(target.document)
-  target.history.pushState({ gitquiet: { from } } satisfies OurEntry, "", path)
+  /*
+   * No state of ours on the entry. It was tried, to carry the address being left
+   * so the bar could name where Back goes, and the entries themselves say it: see
+   * {@link theTrail}. What the slot actually holds on a GitHub page is Turbo's own
+   * record, so writing ours into it would be this extension keeping a fact GitHub
+   * needs, in the one place GitHub is entitled to overwrite.
+   */
+  target.history.pushState(null, "", path)
 
   target.setTimeout(() => {
     // Somewhere else entirely by now: a second press, or the back button. This

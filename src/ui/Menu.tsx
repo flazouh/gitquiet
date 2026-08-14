@@ -7,6 +7,15 @@ import { useMenuPhase } from "./useMenuPhase"
 /** One line in a menu: somewhere to go, or something to do. */
 export type Row = {
   readonly name: string
+  /**
+   * What tells this row from the others, where the name does not.
+   *
+   * The name does in every menu but one. The trail behind the back button lists
+   * places rather than pages, and a reader who has been to the same repository
+   * twice by two routes has two rows reading the same words — which React
+   * reconciles as one row, drawn once.
+   */
+  readonly id?: string
   readonly where?: string
   /**
    * What to do instead of following the address, on an unmodified press.
@@ -215,7 +224,7 @@ export const Menu = ({
 
         return one.where === undefined ? (
           <button
-            key={one.name}
+            key={one.id ?? one.name}
             type="button"
             {...(up ? { role: "menuitem" } : {})}
             tabIndex={up ? undefined : -1}
@@ -229,7 +238,7 @@ export const Menu = ({
           </button>
         ) : (
           <a
-            key={one.name}
+            key={one.id ?? one.name}
             {...(up ? { role: "menuitem" } : {})}
             tabIndex={up ? undefined : -1}
             href={one.where}
