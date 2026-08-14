@@ -209,37 +209,88 @@ describe("a memory with a read still running behind it", () => {
  * `scripts/probe-flicker-dom.js`, which is what recorded it.
  */
 describe("a read that says what it has on the way", () => {
-  const staging = (): Load<ReadonlyArray<string>> => {
+  /** One wait, ended by whoever holds the handle rather than by a clock. */
+  const gate = () => {
+    let open = (): void => {}
+    const waited = new Promise<void>((done) => {
+      open = () => done()
+    })
+
+    return { open: () => open(), waited }
+  }
+
+  /**
+   * A staged read whose two stages this test hands out, one at a time.
+   *
+   * Held rather than timed. On a clock these tests stand in a window between the
+   * stage landing and the read finishing, and they read the screen in the middle
+   * of it — 15ms into a window 25ms wide, which is the margin that failed twice
+   * elsewhere in this file. Here the window is as wide as the test needs, and
+   * `told` says the stage was really reported, so a test can prove the screen
+   * ignored a stage rather than waiting long enough to believe it did.
+   */
+  const staging = () => {
     let asked = 0
-    return (partly) =>
+    let told = 0
+    const rounds = new Map<number, { rows: ReturnType<typeof gate>; checks: ReturnType<typeof gate> }>()
+
+    const roundOf = (round: number) => {
+      const already = rounds.get(round)
+      if (already !== undefined) return already
+
+      const made = { rows: gate(), checks: gate() }
+      rounds.set(round, made)
+      return made
+    }
+
+    const load: Load<ReadonlyArray<string>> = (partly) =>
       Effect.suspend(() => {
         const round = ++asked
-        return Effect.sleep("5 millis").pipe(
+        const held = roundOf(round)
+
+        return Effect.promise(() => held.rows.waited).pipe(
           // The rows, and nothing that goes beside them. Every screen with a staged
           // read reports this stage, and every one of them is missing most of a row.
-          Effect.tap(() => Effect.sync(() => partly([`round ${round} rows`]))),
-          Effect.andThen(Effect.sleep("25 millis")),
+          Effect.tap(() =>
+            Effect.sync(() => {
+              told += 1
+              partly([`round ${round} rows`])
+            })
+          ),
+          Effect.andThen(Effect.promise(() => held.checks.waited)),
           Effect.as([`round ${round} rows`, `round ${round} checks`])
         )
       })
+
+    return {
+      load,
+      /** Lets that round's rows land, which is the stage every staged screen reports. */
+      rows: (round = 1) => roundOf(round).rows.open(),
+      /** Lets that round finish. */
+      checks: (round = 1) => roundOf(round).checks.open(),
+      /** How many stages have been reported, over every round. */
+      told: () => told
+    }
   }
 
   test("shows the stages of the first read, which is what they are for", async () => {
-    render(<Screen load={staging()} />)
-    await settle(15)
+    const read = staging()
+    render(<Screen load={read.load} />)
 
-    expect(rowsOf()).toBe("round 1 rows")
+    read.rows()
+    await waitFor(() => expect(rowsOf()).toBe("round 1 rows"))
 
-    await settle(40)
-
-    expect(rowsOf()).toBe("round 1 rows,round 1 checks")
+    read.checks()
+    await waitFor(() => expect(rowsOf()).toBe("round 1 rows,round 1 checks"))
   })
 
   test("never shows a stage of a re-read over the finished list", async () => {
-    render(<Screen load={staging()} />)
-    await settle(60)
+    const read = staging()
+    render(<Screen load={read.load} />)
 
-    expect(rowsOf()).toBe("round 1 rows,round 1 checks")
+    read.rows()
+    read.checks()
+    await waitFor(() => expect(rowsOf()).toBe("round 1 rows,round 1 checks"))
 
     // Coming back to the tab, which is the same re-read a reader gets for walking
     // out of a pull request onto the list they came from.
@@ -247,15 +298,17 @@ describe("a read that says what it has on the way", () => {
       document.dispatchEvent(new Event("visibilitychange"))
       window.dispatchEvent(new Event("visibilitychange"))
     })
-    await settle(15)
 
-    // The second read's rows have landed and its checks have not. What is on the
-    // screen is a whole list, and half of one is not an improvement on it.
+    // The second read's rows have landed — reported, not merely due — and its
+    // checks have not. What is on the screen is a whole list, and half of one is
+    // not an improvement on it.
+    read.rows(2)
+    await waitFor(() => expect(read.told()).toBe(2))
+
     expect(rowsOf()).toBe("round 1 rows,round 1 checks")
 
-    await settle(40)
-
-    expect(rowsOf()).toBe("round 2 rows,round 2 checks")
+    read.checks(2)
+    await waitFor(() => expect(rowsOf()).toBe("round 2 rows,round 2 checks"))
   })
 
   test("shows no stage over a memory, which is a whole page where a stage is part of one", async () => {
@@ -263,28 +316,30 @@ describe("a read that says what it has on the way", () => {
     // its own rows handed back with every check taken off them.
     const preload = () => Effect.succeed(Option.some(["remembered rows", "remembered checks"]))
 
-    render(<Screen load={staging()} preload={preload} />)
-    await settle(15)
+    const read = staging()
+    render(<Screen load={read.load} preload={preload} />)
+    await waitFor(() => expect(rowsOf()).toBe("remembered rows,remembered checks"))
+
+    read.rows()
+    await waitFor(() => expect(read.told()).toBe(1))
 
     expect(rowsOf()).toBe("remembered rows,remembered checks")
 
     // And the answer, which is the only thing worth replacing a whole page with.
-    await settle(40)
-
-    expect(rowsOf()).toBe("round 1 rows,round 1 checks")
+    read.checks()
+    await waitFor(() => expect(rowsOf()).toBe("round 1 rows,round 1 checks"))
   })
 
   test("says it is catching up while it holds the memory back, so the wait is not silent", async () => {
     const preload = () => Effect.succeed(Option.some(["remembered rows", "remembered checks"]))
 
-    render(<Screen load={staging()} preload={preload} />)
-    await settle(15)
+    const read = staging()
+    render(<Screen load={read.load} preload={preload} />)
+    await waitFor(() => expect(catchingUp()).toBe("yes"))
 
-    expect(catchingUp()).toBe("yes")
-
-    await settle(40)
-
-    expect(catchingUp()).toBe("no")
+    read.rows()
+    read.checks()
+    await waitFor(() => expect(catchingUp()).toBe("no"))
   })
 })
 
