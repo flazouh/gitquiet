@@ -367,10 +367,13 @@ export const Shell = ({
   // Read once here and handed down as two settled objects: the diff and the
   // rail should never be looking at different answers to the same question.
   //
-  // Read only, now. The way into changing them is in the bar — see `TheBar` —
-  // rather than at the right end of the files band, where it was a control only
-  // the one screen with a files band ever offered.
-  const { settings } = useSettings()
+  // The way in is in two places, and they are two errands. The bar carries the
+  // sheet, which is where the knobs are read about and where a screen with no
+  // files band reaches them at all. The band above the diff carries the same
+  // knobs as a menu, because a diff drawn the wrong way is answered above the
+  // diff rather than at the top of the page. Writing goes through this one
+  // reader either way, so nothing on the screen holds a second copy.
+  const { settings, change } = useSettings()
   const diff = useMemo(() => diffChoices(settings.diff), [settings.diff])
   const tree = useMemo(() => treeChoices(settings.tree), [settings.tree])
 
@@ -452,6 +455,7 @@ export const Shell = ({
                   head: snapshot.headSha,
                   onChange: setReviewing
                 }}
+                display={{ settings, onChange: change }}
               />
             ) : (
               <CommitView
@@ -464,6 +468,7 @@ export const Shell = ({
                 tree={tree}
                 proseAsDocument={settings.diff.prose === "on"}
                 keys={keys}
+                display={{ settings, onChange: change }}
               />
             )}
           </div>

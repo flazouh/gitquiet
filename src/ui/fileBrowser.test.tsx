@@ -4,8 +4,8 @@ import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import type { ChangedFile } from "../domain/PullRequest"
 import { diffChoices, treeChoices } from "../domain/choices"
-import { DEFAULTS } from "../domain/Settings"
-import { FileBrowser } from "./FileBrowser"
+import { DEFAULTS, type Settings } from "../domain/Settings"
+import { FileBrowser, type FileBrowserProps } from "./FileBrowser"
 
 afterEach(cleanup)
 
@@ -270,5 +270,93 @@ describe("taking a mark off a file", () => {
 
     await userEvent.keyboard("j")
     expect(counted()).toContain("1 of 3")
+  })
+})
+
+/**
+ * The knobs, at the end of the band that holds the diff they are about.
+ *
+ * The bar has them too, in a sheet with a preview beside it, which is where a
+ * reader goes to read what each one does. This is the other errand: a diff in
+ * front of you drawn one way, wanted the other way, without leaving it.
+ */
+describe("changing how the diff is drawn, from the band above it", () => {
+  const browser = (over: Partial<FileBrowserProps> = {}) =>
+    render(
+      <FileBrowser
+        files={[file("src/one.ts"), file("src/two.ts")]}
+        fetchDiffs={() => Effect.succeed([])}
+        diff={diffChoices(DEFAULTS.diff)}
+        tree={treeChoices(DEFAULTS.tree)}
+        {...over}
+      />
+    )
+
+  const band = (): HTMLElement => screen.getByLabelText("Files").firstElementChild as HTMLElement
+
+  test("opens on a button at the end of the band", async () => {
+    browser({ display: { settings: DEFAULTS, onChange: () => {} } })
+
+    const way = within(band()).getByLabelText("How the files are drawn")
+    // Last, and outside the cluster Next file is in: the two buttons pressed
+    // dozens of times in a review keep the corner the hand already knows.
+    expect(band().lastElementChild?.contains(way)).toBe(true)
+    expect(within(band()).getByRole("button", { name: /Next file/ }).parentElement).not.toBe(
+      way.parentElement
+    )
+
+    await userEvent.click(way)
+
+    // Named runs of knobs rather than three loose lists: the Appearance section
+    // holds a knob called Appearance, and only the grouping tells them apart.
+    const menu = screen.getByRole("menu")
+    for (const section of ["Appearance", "Diff", "Files"]) {
+      expect(within(menu).getByRole("group", { name: section })).toBeDefined()
+    }
+  })
+
+  test("reports the choice that was picked, against the settings it was given", async () => {
+    let written: Settings | undefined
+    browser({
+      display: {
+        settings: DEFAULTS,
+        onChange: (settings) => {
+          written = settings
+        }
+      }
+    })
+
+    await userEvent.click(within(band()).getByLabelText("How the files are drawn"))
+    // Each knob is its own submenu, opened by the pointer landing on the row.
+    await userEvent.hover(screen.getByRole("menuitem", { name: /Layout/ }))
+    await userEvent.click(await screen.findByRole("menuitemradio", { name: "Side by side" }))
+
+    expect(written?.diff.layout).toBe("split")
+    // The rest of the settings ride along untouched, since this writes them whole.
+    expect(written?.tree).toEqual(DEFAULTS.tree)
+  })
+
+  test("reaches the appearance knobs too, which no other button on this screen does", async () => {
+    let written: Settings | undefined
+    browser({
+      display: {
+        settings: DEFAULTS,
+        onChange: (settings) => {
+          written = settings
+        }
+      }
+    })
+
+    await userEvent.click(within(band()).getByLabelText("How the files are drawn"))
+    await userEvent.hover(screen.getByRole("menuitem", { name: /^Appearance/ }))
+    await userEvent.click(await screen.findByRole("menuitemradio", { name: "Dark" }))
+
+    expect(written?.theme.appearance).toBe("dark")
+  })
+
+  test("draws no button where nobody handed it a way to change anything", () => {
+    browser()
+
+    expect(within(band()).queryByLabelText("How the files are drawn")).toBeNull()
   })
 })

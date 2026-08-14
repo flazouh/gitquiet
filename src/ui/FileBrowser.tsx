@@ -8,6 +8,7 @@ import { readingOrder } from "../domain/readingOrder"
 import { acted, footingOf, markOf } from "../domain/reviewPass"
 import { stepping } from "../domain/stepping"
 import type { DiffChoices, TreeChoices } from "../domain/choices"
+import type { Settings } from "../domain/Settings"
 import type { ChangedFile, FileDiff, ReviewThread } from "../domain/PullRequest"
 import type { DiffSide } from "../ports/Renderer"
 import { chordFor, DEFAULT_PROFILE, type Profile } from "../keys/commands"
@@ -17,6 +18,7 @@ import { FileDiffPane, FileTreePane } from "./Files"
 import { FileHeading } from "./FileHeading"
 import { keepPass, passOf } from "./passes"
 import { seenFiles } from "./rowMarks"
+import { SettingsMenu } from "./SettingsMenu"
 import type { Answering } from "./ThreadView"
 import { useKeys } from "./useKeys"
 import { type Way, Ways } from "./Ways"
@@ -73,6 +75,18 @@ export type FileBrowserProps = {
     readonly subject: string
     readonly head: string
     readonly onChange: (active: boolean) => void
+  }
+  /**
+   * The knobs the diff and the rail are drawn by, and the way to change them.
+   *
+   * Handed in rather than read here, because the screen above reads them once
+   * and hands the settled answers down: a second reader of the store on the same
+   * page is a second copy that can disagree with the first. Absent on a screen
+   * that has no way to write them, where the band simply has no button.
+   */
+  readonly display?: {
+    readonly settings: Settings
+    readonly onChange: (settings: Settings) => void
   }
 }
 
@@ -156,7 +170,8 @@ export const FileBrowser = ({
   viewer,
   suggest,
   onUpload,
-  review
+  review,
+  display
 }: FileBrowserProps) => {
   // The same files, in the order the rail draws them.
   //
@@ -635,6 +650,20 @@ export const FileBrowser = ({
             {on === null ? null : <Cap chord={on} tone="onEmphasis" />}
           </button>
         </span>
+        {/* Last, and out of the cluster: Previous and Next are pressed dozens of
+            times in one review and keep the corner the hand has learned, while
+            this is opened rarely and never in that rhythm. It is here at all
+            because the answer to a diff drawn the wrong way is above the diff,
+            not in the bar at the top of the page and two screens away from what
+            it changes. The sheet up there is still the place to read what each
+            knob does; this is the place to turn one. */}
+        {display === undefined ? null : (
+          <SettingsMenu
+            settings={display.settings}
+            onChange={display.onChange}
+            label="How the files are drawn"
+          />
+        )}
       </div>
 
       {/* What the rail's width is a share of. Named as a container so the tree

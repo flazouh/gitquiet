@@ -5,7 +5,7 @@ import type { CommitDetail } from "../domain/PullRequest"
 import type { Profile } from "../keys/commands"
 import type { DiffChoices, TreeChoices } from "../domain/choices"
 import { useArt } from "./art"
-import { FileBrowser } from "./FileBrowser"
+import { FileBrowser, type FileBrowserProps } from "./FileBrowser"
 import { GitHubHtml } from "./GitHubHtml"
 import { useFreshening } from "./useFreshening"
 import { ageOf, momentOf } from "./when"
@@ -56,6 +56,8 @@ export type CommitViewProps = {
   readonly proseAsDocument?: boolean
   /** Whose keys move between the files of this commit. */
   readonly keys?: Profile
+  /** Handed straight to the band, so a commit is drawn by the same knobs. See `FileBrowser`. */
+  readonly display?: FileBrowserProps["display"]
 }
 
 /**
@@ -91,7 +93,8 @@ export const CommitView = ({
   diff,
   tree,
   proseAsDocument,
-  keys
+  keys,
+  display
 }: CommitViewProps) => {
   const art = useArt()
   const Back = art.back
@@ -236,6 +239,7 @@ export const CommitView = ({
         tree={tree}
         proseAsDocument={proseAsDocument}
         keys={keys}
+        display={display}
       />
     ) : (
       <div className="flex flex-1 items-center justify-center text-xs text-ink-muted">

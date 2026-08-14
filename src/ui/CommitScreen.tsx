@@ -65,7 +65,7 @@ export const CommitScreen = ({
 }: CommitScreenProps) => {
   // Read only: the way into changing them is in the bar above, not in this
   // panel's corner. See `TheBar`.
-  const { settings } = useSettings()
+  const { settings, change } = useSettings()
   const diff = useMemo(() => diffChoices(settings.diff), [settings.diff])
   const tree = useMemo(() => treeChoices(settings.tree), [settings.tree])
 
@@ -179,6 +179,7 @@ export const CommitScreen = ({
             tree={tree}
             proseAsDocument={settings.diff.prose === "on"}
             keys={keys}
+            display={{ settings, onChange: change }}
           />
         </div>
       </div>

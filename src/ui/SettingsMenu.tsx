@@ -1,13 +1,23 @@
 import * as Menu from "@radix-ui/react-dropdown-menu"
 import * as Bubble from "@radix-ui/react-tooltip"
-import { useState } from "react"
+import { useId, useState, type ReactNode } from "react"
 import { useArt } from "./art"
-import { DIFF_KNOBS, TREE_KNOBS, type Knob, type Settings } from "../domain/Settings"
+import { DIFF_KNOBS, THEME_KNOBS, TREE_KNOBS, type Knob, type Settings } from "../domain/Settings"
 import { sampleOf } from "./SettingsPreview"
 
 export type SettingsMenuProps = {
   readonly settings: Settings
   readonly onChange: (settings: Settings) => void
+  /**
+   * What this button is called, where it stands beside another way into the same
+   * knobs.
+   *
+   * A screen with a files band carries two: the sheet in the bar, which is where
+   * the knobs are read about, and this menu above the diff. Two buttons on one
+   * screen answering to the same name is two identical buttons to anybody
+   * listening to the page rather than looking at it.
+   */
+  readonly label?: string
 }
 
 const ITEM =
@@ -147,14 +157,39 @@ const Group = ({
   </>
 )
 
-const Heading = ({ children }: { readonly children: string }) => (
-  <Menu.Label className="px-2 pt-1.5 pb-1 text-[11px] font-semibold text-ink-muted">
-    {children}
-  </Menu.Label>
-)
+/**
+ * One named run of knobs.
+ *
+ * A group rather than a heading followed by loose rows, and named by that
+ * heading, because two of these sections hold a knob whose label is the section
+ * name — Appearance holds Appearance — and a bare heading leaves nothing to tell
+ * the two apart. Anybody reading the menu by its structure, a screen reader or a
+ * test, is told which run a row is in.
+ */
+const Section = ({
+  name,
+  children
+}: {
+  readonly name: string
+  readonly children: ReactNode
+}) => {
+  const named = useId()
+
+  return (
+    <Menu.Group aria-labelledby={named}>
+      <Menu.Label
+        id={named}
+        className="px-2 pt-1.5 pb-1 text-[11px] font-semibold text-ink-muted"
+      >
+        {name}
+      </Menu.Label>
+      {children}
+    </Menu.Group>
+  )
+}
 
 /**
- * Everything the diff and the rail can be told to do, behind one button.
+ * Everything the screens can be told to do, behind one button.
  *
  * Built from the schema rather than written out: a knob added there appears
  * here, in the right section, with its choices and its current value, and there
@@ -162,10 +197,19 @@ const Heading = ({ children }: { readonly children: string }) => (
  * alternative — every choice of every knob in one column — is forty rows deep
  * and unreadable, and because a submenu shows what is currently chosen on the
  * row itself, which is the thing being looked for most of the time.
+ *
+ * The same three sections the sheet in the bar opens on, in the same order, so
+ * whichever one a reader learned first tells them where to look in the other.
  */
-export const SettingsMenu = ({ settings, onChange }: SettingsMenuProps) => {
+export const SettingsMenu = ({
+  settings,
+  onChange,
+  label = "Display settings"
+}: SettingsMenuProps) => {
   const art = useArt()
   const More = art.more
+  const pickTheme = (key: string, value: string) =>
+    onChange({ ...settings, theme: { ...settings.theme, [key]: value } })
   const pickDiff = (key: string, value: string) =>
     onChange({ ...settings, diff: { ...settings.diff, [key]: value } })
   const pickTree = (key: string, value: string) =>
@@ -178,7 +222,7 @@ export const SettingsMenu = ({ settings, onChange }: SettingsMenuProps) => {
     <Bubble.Provider delayDuration={0} skipDelayDuration={0} disableHoverableContent>
       <Menu.Root>
         <Menu.Trigger
-          aria-label="Display settings"
+          aria-label={label}
           className="flex shrink-0 items-center rounded-md px-1.5 py-1 text-ink-muted hover:bg-hover hover:text-ink"
         >
           <More size={16} />
@@ -189,18 +233,26 @@ export const SettingsMenu = ({ settings, onChange }: SettingsMenuProps) => {
             sideOffset={4}
             className="t-dropdown z-50 min-w-56 rounded-md border border-line bg-raised p-1 text-xs shadow-pop"
           >
-            <Heading>Diff</Heading>
-            <Group
-              knobs={DIFF_KNOBS.filter((knob) => !knob.advanced)}
-              chosen={settings.diff}
-              onPick={pickDiff}
-            />
-            <Heading>Files</Heading>
-            <Group
-              knobs={TREE_KNOBS.filter((knob) => !knob.advanced)}
-              chosen={settings.tree}
-              onPick={pickTree}
-            />
+            {/* First, and whole: three knobs, none of them advanced, and the
+                one section here that is about the product rather than about
+                this screen. */}
+            <Section name="Appearance">
+              <Group knobs={THEME_KNOBS} chosen={settings.theme} onPick={pickTheme} />
+            </Section>
+            <Section name="Diff">
+              <Group
+                knobs={DIFF_KNOBS.filter((knob) => !knob.advanced)}
+                chosen={settings.diff}
+                onPick={pickDiff}
+              />
+            </Section>
+            <Section name="Files">
+              <Group
+                knobs={TREE_KNOBS.filter((knob) => !knob.advanced)}
+                chosen={settings.tree}
+                onPick={pickTree}
+              />
+            </Section>
             <Menu.Separator className="my-1 h-px bg-line" />
             <Menu.Sub>
               <Menu.SubTrigger className={ITEM}>
@@ -212,18 +264,20 @@ export const SettingsMenu = ({ settings, onChange }: SettingsMenuProps) => {
                   sideOffset={4}
                   className="t-dropdown z-50 min-w-56 rounded-md border border-line bg-raised p-1 text-xs shadow-pop"
                 >
-                  <Heading>Diff</Heading>
-                  <Group
-                    knobs={DIFF_KNOBS.filter((knob) => knob.advanced)}
-                    chosen={settings.diff}
-                    onPick={pickDiff}
-                  />
-                  <Heading>Files</Heading>
-                  <Group
-                    knobs={TREE_KNOBS.filter((knob) => knob.advanced)}
-                    chosen={settings.tree}
-                    onPick={pickTree}
-                  />
+                  <Section name="Diff">
+                    <Group
+                      knobs={DIFF_KNOBS.filter((knob) => knob.advanced)}
+                      chosen={settings.diff}
+                      onPick={pickDiff}
+                    />
+                  </Section>
+                  <Section name="Files">
+                    <Group
+                      knobs={TREE_KNOBS.filter((knob) => knob.advanced)}
+                      chosen={settings.tree}
+                      onPick={pickTree}
+                    />
+                  </Section>
                 </Menu.SubContent>
               </Menu.Portal>
             </Menu.Sub>

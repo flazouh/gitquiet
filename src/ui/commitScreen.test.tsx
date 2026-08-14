@@ -147,6 +147,10 @@ describe("a commit on the page GitHub keeps for it", () => {
     render(screenOf())
 
     await waitFor(() => expect(screen.getByLabelText("Display settings")).toBeDefined())
+    // And the menu at the end of the files band, which holds the same knobs. The
+    // two are named apart on purpose: two buttons answering to one name are two
+    // identical buttons to anybody listening to the page instead of looking at it.
+    expect(screen.getByLabelText("How the files are drawn")).toBeDefined()
   })
 })
 
