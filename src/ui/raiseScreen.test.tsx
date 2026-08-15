@@ -81,7 +81,16 @@ describe("the form for raising an issue", () => {
         }
       ])
     )
-  })
+    /*
+     * Seventy-seven keystrokes, against a five second default.
+     *
+     * `userEvent.type` sends a key at a time and the form draws again on each
+     * one, so the two sentences above cost seventy-seven renders. That is the
+     * point — the draft has to survive being typed rather than assigned — but on
+     * two slow cores under `--parallel` it crosses five seconds, and a killed
+     * test reads as the form failing to send.
+     */
+  }, 20_000)
 
   test("goes to the issue GitHub gave a number to", async () => {
     const went: Array<Raised> = []

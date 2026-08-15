@@ -1,11 +1,11 @@
-import { Effect, Fiber, Option } from "effect"
+import { Effect, Option } from "effect"
 import { forgetIntent, intendedPath } from "@/app/intent"
 import { type TheirList, theirWholeList } from "@/app/personRepos"
 import { chosenView } from "@/app/settings"
 import { type PersonPage, personReposIn } from "@/domain/person"
 import type { View } from "@/domain/Settings"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
-import { standAScreen } from "@/shell/screen"
+import { held, standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenAddressChanges } from "@/ui/navigation"
@@ -34,18 +34,7 @@ const open = (page: PersonPage): (() => void) => {
 
   // Started before anything is waited on, as on the releases screen: reading their list
   // and waiting for GitHub to render a frame to stand in have nothing to say to each other.
-  let report: (shown: Shown) => void = () => {}
-  const first = Effect.runFork(reading((shown) => report(shown)))
-
-  let started = false
-  const read = (partly: (shown: Shown) => void) => {
-    if (!started) {
-      started = true
-      report = partly
-      return Fiber.join(first)
-    }
-    return reading(partly)
-  }
+  const read = held(reading)
 
   /*
    * Who they are is not read here, and that is deliberate. The column is in the markup

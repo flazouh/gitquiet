@@ -314,3 +314,28 @@ export const standAScreen = ({
 
   return standing
 }
+
+/**
+ * A read that is already running by the time the screen asks for it.
+ *
+ * Every screen here starts its read at `document_start` and mounts once GitHub has given
+ * it somewhere to stand, which are two different moments. Held this way the read is one
+ * read: the first caller joins the fiber that is already in flight and is handed what it
+ * reported on the way, and a later caller — a reader coming back to the tab, which
+ * `useLive` revalidates on — gets a fresh one.
+ */
+export const held = <A, E>(
+  reading: (partly: (value: A) => void) => Effect.Effect<A, E>
+): ((partly: (value: A) => void) => Effect.Effect<A, E>) => {
+  let report: (value: A) => void = () => {}
+  const first = Effect.runFork(reading((value) => report(value)))
+  let started = false
+
+  return (partly) => {
+    if (started) return reading(partly)
+
+    started = true
+    report = partly
+    return Fiber.join(first)
+  }
+}

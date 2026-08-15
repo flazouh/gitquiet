@@ -36,7 +36,12 @@ export const theirAnswering = Effect.fn("theirAnswering")(function* (
     onSome: (events) => sofar(answering(events, login, now))
   })
 
-  const events = yield* gateway.activity(login)
+  /*
+   * Kept as a page somebody went to rather than as one of Home's own reads. A stranger's
+   * events in the standing index would evict one of the eleven the Working Set is built
+   * from, and the fifth profile a reader opened would cost them a blank Home.
+   */
+  const events = yield* gateway.activity(login, "browsed")
   return answering(events, login, now)
 })
 

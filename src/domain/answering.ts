@@ -84,28 +84,24 @@ export const answering = (
 ): Answering => {
   const from = now.getTime() - days * 24 * 60 * 60 * 1000
   const counted = events.filter(
-    (one) =>
+    (one): one is Happening & { readonly kind: Counted } =>
       isCounted(one.kind) && elsewhere(one, login) && new Date(one.at).getTime() >= from
   )
 
-  if (counted.length === 0) return { ...NOBODY, days }
+  const first = counted[0]
+  if (first === undefined) return { ...NOBODY, days }
 
   const tally = { reviews: 0, replies: 0, pulls: 0 }
   const places = new Set<string>()
-  let last = counted[0]?.at ?? ""
+  let last = first.at
 
   for (const one of counted) {
-    if (!isCounted(one.kind)) continue
-    // Runs are folded together upstream, so one line can be six acts. See `Happening`.
-    tally[COUNTED[one.kind]] += one.howOften
+    // One each. Runs are folded together for the Activity page and never for these three
+    // kinds — see `gathered` in `./activity` — so `howOften` is one on every path here.
+    tally[COUNTED[one.kind]] += 1
     places.add(`${one.repo.owner}/${one.repo.repo}`.toLowerCase())
     if (one.at > last) last = one.at
   }
 
-  return {
-    ...tally,
-    places: places.size,
-    last: last === "" ? Option.none() : Option.some(last),
-    days
-  }
+  return { ...tally, places: places.size, last: Option.some(last), days }
 }

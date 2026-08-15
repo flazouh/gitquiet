@@ -16,6 +16,13 @@ const read = (html: string): Document => new DOMParser().parseFromString(html, "
 const real = read(await Bun.file("tests/fixtures/personRepos.html").text())
 const counted = read(await Bun.file("tests/fixtures/personReposCounted.html").text())
 const archived = read(await Bun.file("tests/fixtures/personReposArchived.html").text())
+/*
+ * Their overview, which is a different template around the same column: no rows in it at
+ * all, a pinned grid and a contributions fragment where the list is on the tab. Read here
+ * because the profile screen reads its column with this parser, and a template that moved
+ * the card would take the whole column off that page with nothing to say it had.
+ */
+const overview = read(await Bun.file("tests/fixtures/personProfile.html").text())
 
 const of = (page: Document) => Option.getOrThrow(personIn(page))
 const got = <A>(one: Option.Option<A>): A | null => Option.getOrNull(one)
@@ -125,5 +132,27 @@ describe("who their page says they are", () => {
     `)
 
     expect(got(of(page).location)).toBe("Lyon, France")
+  })
+})
+
+describe("the same column on their overview, which is another template", () => {
+  test("reads who they are off it, so the profile keeps its column", () => {
+    const who = of(overview)
+
+    expect(who.login).toBe("flazouh")
+    expect(got(who.name)).toBe("Alex")
+    expect(got(who.followers)).toBe("25")
+  })
+
+  /*
+   * Fetched signed out, so the repository count is their 56 public ones rather than the
+   * 121 their own session is shown. Which is the count this parser should carry either
+   * way: it prints what the page it was handed says, and never a number of its own.
+   */
+  test("carries their own counts, which is what the tab row prints", () => {
+    const who = of(overview)
+
+    expect(got(who.tally.repositories)).toBe("56")
+    expect(got(who.tally.stars)).toBe("115")
   })
 })

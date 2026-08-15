@@ -1570,15 +1570,7 @@ export const PublicEvents = Schema.Array(
        * here: an event of this type with no review in it is served for a review that was
        * dismissed, and the pull request is still worth pointing at.
        */
-      review: Schema.optional(
-        Schema.NullOr(
-          Schema.Struct({
-            html_url: Schema.optional(Schema.NullOr(Schema.String)),
-            /** `approved`, `changes_requested` or `commented`. Not drawn yet. */
-            state: Schema.optional(Schema.NullOr(Schema.String))
-          })
-        )
-      )
+      review: Schema.optional(Schema.NullOr(Schema.Struct({ html_url: Schema.String })))
     })
   })
 )

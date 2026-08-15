@@ -281,5 +281,14 @@ describe("the picture beside every choice on the appearance page", () => {
       await userEvent.hover(choice)
       expect(within(frame).getAllByRole("radio").length).toBe(choices.length)
     }
-  })
+    /*
+     * Thirty pointers and thirty pictures, against a five second default.
+     *
+     * Every other test here points at one thing; this one points at more than
+     * thirty, because a sample that throws takes the screen with it and the only
+     * way to know none of them does is to draw all of them. Under
+     * `bun test --parallel` on two slow cores that crosses five seconds and is
+     * reported as a fault in the dialog, which is the one thing it is not.
+     */
+  }, 20_000)
 })

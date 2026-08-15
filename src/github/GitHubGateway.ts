@@ -67,6 +67,7 @@ import {
   rememberStat,
   recallStats
 } from "./cache"
+import type { Keeping } from "./cache"
 import {
   type HeldBack,
   type RawPayloads,
@@ -2320,12 +2321,15 @@ export const layer = Layer.succeed(GitHubGateway, {
       )
     }),
 
-    activity: Effect.fn("GitHubGateway.activity")(function* (login: string) {
+    activity: Effect.fn("GitHubGateway.activity")(function* (
+      login: string,
+      keeping: Keeping = "standing"
+    ) {
       const route = eventsRoute(login)
       const raw = yield* eventsAt(route)
       const happenings = yield* decodedHappenings(route, raw)
 
-      yield* Effect.forkDetach(rememberRoute(route, raw, "standing"))
+      yield* Effect.forkDetach(rememberRoute(route, raw, keeping))
 
       return happenings
     }),

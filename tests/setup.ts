@@ -1,4 +1,5 @@
 import { GlobalRegistrator } from "@happy-dom/global-registrator"
+import { setDefaultTimeout } from "bun:test"
 
 /**
  * On GitHub, because that is where every one of these documents lives.
@@ -29,5 +30,22 @@ const { configure } = await import("@testing-library/react")
  * timeout being reported as a fault in the code under it. Waiting longer costs nothing
  * where the value arrives, because that is when the wait ends. It only spends the extra
  * time on a test that was going to fail anyway.
+ *
+ * This budget is spent inside `bun test`'s own per-test limit, so the two are raised
+ * together: a wait long enough to outlast that limit turns a slow test into a killed one,
+ * which reads as a different fault in a different place. Four seconds against the twenty
+ * below leaves the wait reporting its own failure, which names the value it never saw.
  */
-configure({ asyncUtilTimeout: 3_000 })
+configure({ asyncUtilTimeout: 4_000 })
+
+/**
+ * How long one test may take before it is killed, which is the limit the budget above is
+ * spent inside.
+ *
+ * Five seconds is the default and it is not a statement about any test here; it is what
+ * is left over. Highlighting a fence takes a shikitheme and a grammar, and on a loaded
+ * runner that alone ran to 6130ms and was killed a second after the work was done. Twenty
+ * seconds is still far below the job's own ten minutes, so a genuine hang is caught by
+ * one of the two rather than by neither.
+ */
+setDefaultTimeout(20_000)

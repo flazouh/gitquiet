@@ -70,17 +70,22 @@ const shown = (
     readonly said?: Answering
     readonly owned?: Owned
     readonly failing?: boolean
+    readonly failingAnswering?: boolean
   } = {}
 ) =>
   render(
     <ProfileScreen
       login="flazouh"
       now={now}
-      answering={() => Effect.succeed(over.said ?? answered())}
+      answering={() =>
+        over.failingAnswering
+          ? Effect.fail(new Error("no") as never)
+          : Effect.succeed(over.said ?? answered())
+      }
       owned={() =>
         over.failing
           ? Effect.fail(new Error("no") as never)
-          : Effect.succeed(over.owned ?? { rows: LIST, reading: false })
+          : Effect.succeed(over.owned ?? { rows: LIST, reading: false, capped: false })
       }
       who={who()}
       onStepAside={() => {}}
@@ -154,9 +159,31 @@ describe("their column and their tabs", () => {
 })
 
 describe("a read that failed", () => {
-  test("offers their page back rather than an empty screen", async () => {
+  test("keeps the band that answered where the other read failed", async () => {
+    // The question this page exists to answer was answered. Handing the whole page back
+    // over the list would throw that away for a network that dropped one request.
     shown({ failing: true })
 
+    expect((await screen.findByRole("region", { name: "Answering" })).textContent).toContain(
+      "reviews"
+    )
+    expect((await screen.findByRole("region", { name: "Repositories" })).textContent).toContain(
+      "Could not read flazouh's repositories"
+    )
+    expect(screen.queryByRole("button", { name: "Show GitHub's page" })).toBeNull()
+  })
+
+  test("offers their page back where neither read answered", async () => {
+    shown({ failing: true, failingAnswering: true })
+
     expect(await screen.findByRole("button", { name: "Show GitHub's page" })).toBeTruthy()
+  })
+
+  test("says so where they own nothing, rather than dropping the band", async () => {
+    shown({ owned: { rows: [], reading: false, capped: false } })
+
+    expect((await screen.findByRole("region", { name: "Repositories" })).textContent).toContain(
+      "flazouh has no public repository."
+    )
   })
 })

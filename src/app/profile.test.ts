@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer, Option } from "effect"
-import type { Answering } from "../domain/answering"
 import type { Happening } from "../domain/activity"
+import type { Answering } from "../domain/answering"
+import { layerFromRecordings } from "../github/GitHubGateway"
 import { GitHubGateway } from "../ports/GitHubGateway"
 import { theirAnswering } from "./profile"
 
@@ -27,15 +28,25 @@ const act = (kind: Happening["kind"], where: string, days: number): Happening =>
   }
 }
 
-/** A gateway that answers with the two reads this module makes and nothing else. */
+/**
+ * A gateway that answers the two reads this module makes with what a test says.
+ *
+ * Built over `layerFromRecordings([])`, which is the whole port with every read answering
+ * empty, so the two below are checked against their real signatures: a rename on either
+ * one fails this file rather than passing it.
+ */
 const gateway = (
   remembered: Option.Option<ReadonlyArray<Happening>>,
   fresh: ReadonlyArray<Happening>
 ) =>
-  Layer.succeed(GitHubGateway, {
-    rememberedActivity: () => Effect.succeed(remembered),
-    activity: () => Effect.succeed(fresh)
-  } as unknown as typeof GitHubGateway.Service)
+  Layer.effect(
+    GitHubGateway,
+    Effect.map(GitHubGateway, (whole) => ({
+      ...whole,
+      rememberedActivity: () => Effect.succeed(remembered),
+      activity: () => Effect.succeed(fresh)
+    }))
+  ).pipe(Layer.provide(layerFromRecordings([])))
 
 describe("how much of an answer they have been", () => {
   test("counts what they did on other people's work in the window", async () => {

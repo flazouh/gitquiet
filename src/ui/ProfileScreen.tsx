@@ -1,7 +1,7 @@
 import { Option } from "effect"
 import { useMemo } from "react"
 import { type Answering } from "../domain/answering"
-import { grouped, type Life, type ListedRepository } from "../domain/life"
+import { grouped, type ListedRepository } from "../domain/life"
 import type { Person } from "../domain/person"
 import { personIn } from "../github/person"
 import { ASIDE } from "./dress"
@@ -14,6 +14,8 @@ import { TheBar } from "./TheBar"
 import type { Load } from "./useLive"
 import { useLive } from "./useLive"
 import { usePerson } from "./usePerson"
+import { useWaiting } from "./useWaiting"
+import { Waiting } from "./Waiting"
 import { dayOf } from "./when"
 
 /** Their repositories as the profile has them, which is the tab's list unchanged. */
@@ -21,6 +23,8 @@ export type Owned = {
   readonly rows: ReadonlyArray<ListedRepository>
   /** Whether the walk behind the first answer is still running. */
   readonly reading: boolean
+  /** Whether that walk stopped at its cap, so the counts are over part of a longer list. */
+  readonly capped: boolean
 }
 
 export type ProfileScreenProps = {
@@ -39,6 +43,8 @@ export type ProfileScreenProps = {
 
 /** How many of their repositories the band at the foot shows before the link takes over. */
 const A_FEW = 6
+
+const READING = "Reading their profile…"
 
 /**
  * One number and what it counts, as one line of the Answering band.
@@ -124,14 +130,6 @@ const Answers = ({
   )
 }
 
-/** What each group is called under the band, in the order the tab draws them. */
-const NAMED: Record<Life, string> = {
-  moving: "moving",
-  quiet: "quiet",
-  retired: "retired",
-  forked: "forked"
-}
-
 /**
  * The few of their repositories that are still moving, and the shape of the rest.
  *
@@ -150,11 +148,26 @@ const Owns = ({
   readonly now: Date
 }) => {
   const groups = useMemo(() => grouped(owned.rows, now), [owned.rows, now])
-  const columns = useMemo(() => columnsIn(owned.rows), [owned.rows])
   const moving = groups.find((group) => group.life === "moving")
-  const few = (moving?.rows ?? owned.rows).slice(0, A_FEW)
+  /*
+   * The moving ones, or the next group along where nothing of theirs moves. Every group
+   * is ordered by its last push, so the six are the six most recent either way — which
+   * is what the header above them claims and what a reader is looking for.
+   */
+  const few = (moving?.rows ?? groups[0]?.rows ?? []).slice(0, A_FEW)
+  /* Over the six drawn rather than over the list: the tab holds its columns still
+     against a find box, and there is no find box here. */
+  const columns = useMemo(() => columnsIn(few), [few])
 
-  if (owned.rows.length === 0) return null
+  if (owned.rows.length === 0) {
+    return (
+      <Section name="Repositories" art="repositories">
+        <p className="px-3 py-6 text-center text-ink-muted text-sm">
+          {owned.reading ? `Reading ${login}'s repositories…` : `${login} has no public repository.`}
+        </p>
+      </Section>
+    )
+  }
 
   return (
     <Section
@@ -179,14 +192,30 @@ const Owns = ({
         {groups.map((group, index) => (
           <span key={group.life}>
             {index === 0 ? "" : ", "}
-            <span className="text-ink tabular-nums">{group.rows.length}</span> {NAMED[group.life]}
+            <span className="text-ink tabular-nums">{group.rows.length}</span> {group.life}
           </span>
         ))}
         {owned.reading ? ", still reading the rest…" : ""}
+        {/* A count over part of a list, said where the count is, as the tab says it. */}
+        {owned.capped ? ", of the first pages of a longer list" : ""}
       </p>
     </Section>
   )
 }
+
+/**
+ * One band's place, where that band's read failed.
+ *
+ * Said rather than left empty, because an empty space is read as "this person does
+ * nothing" and the other band on the page is still worth the reader's time. Their own
+ * page is one press away in the column beside it, which is where somebody who needs the
+ * missing half goes.
+ */
+const Missing = ({ name, what }: { readonly name: string; readonly what: string }) => (
+  <Section name={name} art="info">
+    <p className="px-3 py-6 text-center text-ink-muted text-sm">{what}</p>
+  </Section>
+)
 
 /**
  * A person's profile, arranged around the one question a reader brings to it.
@@ -213,13 +242,15 @@ export const ProfileScreen = ({
   const them = who ?? served
   const said = useLive(answering).read
   const list = useLive(owned).read
+  const waiting = useWaiting(list.status === "ready" ? said.status : list.status)
 
   /*
-   * Their list failing takes the page back and their events failing does not. The list is
-   * the page; the band above it is one question answered, and a profile without it is
-   * still a better page than GitHub's.
+   * The page is handed back when both reads failed and not before. Either one of them
+   * alone is a page worth having: the band answers the question this page is opened
+   * with, and the list is the list, and a screen that threw away a good answer because
+   * the other read timed out would be worse than GitHub's page on a bad network.
    */
-  if (list.status === "failed") {
+  if (list.status === "failed" && said.status === "failed") {
     return (
       <ReadFailed
         signedOut={!signedIn()}
@@ -241,15 +272,31 @@ export const ProfileScreen = ({
           <PersonTabs login={login} on="overview" who={them} />
 
           <div className="t-panels flex min-w-0 flex-col gap-1">
-            {said.status === "ready" ? (
-              <Answers said={said.value} login={login} now={now} />
+            {said.status === "ready" ? <Answers said={said.value} login={login} now={now} /> : null}
+            {/* A read that failed is said where its answer would have been, rather than
+                left as a gap. The other band is still worth reading. */}
+            {said.status === "failed" ? (
+              <Missing
+                name="Answering"
+                what={`Could not read what ${login} did on other people's work.`}
+              />
             ) : null}
-            {list.status === "ready" ? (
-              <Owns owned={list.value} login={login} now={now} />
+
+            {list.status === "ready" ? <Owns owned={list.value} login={login} now={now} /> : null}
+            {list.status === "failed" ? (
+              <Missing name="Repositories" what={`Could not read ${login}'s repositories.`} />
             ) : null}
           </div>
         </div>
       </div>
+      {waiting ? (
+        <Waiting
+          what={READING}
+          detail={login}
+          room="list"
+          leaving={list.status === "ready" || said.status === "ready"}
+        />
+      ) : null}
     </div>
   )
 }

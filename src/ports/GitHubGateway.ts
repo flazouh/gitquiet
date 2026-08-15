@@ -1110,7 +1110,18 @@ export class GitHubGateway extends Context.Service<
      * Activity that is honestly public is worth more than one that needs a token this
      * extension has nowhere to keep.
      */
-    readonly activity: (login: string) => Effect.Effect<ReadonlyArray<Happening>, WorkingSetError>
+    readonly activity: (
+      login: string,
+      /**
+       * Which index the answer is kept in, and it matters which.
+       *
+       * The viewer's own events are one of the eleven routes Home is built from, so they
+       * are kept in the small index nothing can evict. A stranger's are a page somebody
+       * went to: kept there instead, they would push a shelf out of Home every fifth
+       * profile a reader opened. See `Keeping` in `src/github/cache.ts`.
+       */
+      keeping?: "standing" | "browsed"
+    ) => Effect.Effect<ReadonlyArray<Happening>, WorkingSetError>
     /** The same events as last time, from the store, or nothing. */
     readonly rememberedActivity: (
       login: string

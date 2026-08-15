@@ -107,7 +107,16 @@ export type TheirList = {
 export const theirWholeList = Effect.fn("theirWholeList")(function* (
   page: PersonPage,
   served: Document,
-  sofar: (list: TheirList) => void
+  sofar: (list: TheirList) => void,
+  /**
+   * How many pages the walk behind page one is worth here.
+   *
+   * The tab reads as far as the cap, because the whole list is what that page is. The
+   * profile shows six rows and four counts off the same walk, and one page of theirs was
+   * measured at 307 kilobytes — so a screen that wants a shape rather than a list says
+   * how many pages that shape is worth and carries `capped` where the counts are.
+   */
+  upTo: number = AT_MOST
 ) {
   const inTheDocument = theirFirstPage(served)
   const first =
@@ -116,6 +125,6 @@ export const theirWholeList = Effect.fn("theirWholeList")(function* (
   sofar({ rows: first.rows, capped: false })
   if (!first.more) return { rows: first.rows, capped: false }
 
-  const rest = yield* theirOtherPages(page)
+  const rest = yield* theirOtherPages(page, upTo)
   return { rows: [...first.rows, ...rest.rows], capped: rest.more }
 })

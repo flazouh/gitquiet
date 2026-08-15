@@ -1,4 +1,4 @@
-import { Effect, Fiber, Option } from "effect"
+import { Effect, Option } from "effect"
 import { forgetIntent, intendedPath } from "@/app/intent"
 import { theirWholeList } from "@/app/personRepos"
 import { theirAnswering } from "@/app/profile"
@@ -7,7 +7,7 @@ import type { Answering } from "@/domain/answering"
 import { type PersonPage, profileIn } from "@/domain/person"
 import type { View } from "@/domain/Settings"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
-import { standAScreen } from "@/shell/screen"
+import { held, standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenAddressChanges } from "@/ui/navigation"
@@ -23,6 +23,16 @@ import "@/ui/styles.css"
  * are the same walk their tab does. The column and the tab row are drawn before either
  * lands, because both are already in the document GitHub served.
  */
+/**
+ * How many pages of their list this page is worth.
+ *
+ * Their tab reads ten, because the whole list is what that page is for. This shows six
+ * rows and four counts, one of their pages was measured at 307 kilobytes, and `useLive`
+ * reads again every time the reader comes back to the tab — so three pages buys the
+ * shape and the band says when it is over part of a longer list.
+ */
+const PAGES = 3
+
 const open = (page: PersonPage): (() => void) => {
   const now = new Date()
 
@@ -33,33 +43,22 @@ const open = (page: PersonPage): (() => void) => {
     )
 
   const listing = (partly: (owned: Owned) => void) =>
-    theirWholeList(page, document, (list) => partly({ rows: list.rows, reading: true })).pipe(
+    theirWholeList(
+      page,
+      document,
+      (list) => partly({ rows: list.rows, reading: true, capped: list.capped }),
+      PAGES
+    ).pipe(
       throughGitHub,
-      Effect.map((list): Owned => ({ rows: list.rows, reading: false })),
+      Effect.map((list): Owned => ({ rows: list.rows, reading: false, capped: list.capped })),
       Effect.tapError((error) => Effect.sync(() => reportError(error)))
     )
 
   /*
    * Both started before anything is waited on, as on the repositories tab: reading their
    * events and waiting for GitHub to render a frame to stand in have nothing to say to
-   * each other. The pair below is the same held-read shape the other screens use — the
-   * fiber is already running when the screen asks for it, so nothing is read twice.
+   * each other. See `held`.
    */
-  const held = <A, E>(reading: (partly: (value: A) => void) => Effect.Effect<A, E>) => {
-    let report: (value: A) => void = () => {}
-    const first = Effect.runFork(reading((value) => report(value)))
-    let started = false
-
-    return (partly: (value: A) => void) => {
-      if (!started) {
-        started = true
-        report = partly
-        return Fiber.join(first)
-      }
-      return reading(partly)
-    }
-  }
-
   const answering = held(asking)
   const owned = held(listing)
 
