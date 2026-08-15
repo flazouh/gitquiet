@@ -379,6 +379,11 @@ jobs:
     # app, and only Xcode builds those.
     runs-on: macos-latest
     timeout-minutes: 90
+    # The app's name, which is also its folder, its project, its scheme and its
+    # bundle. Written once here rather than eight times below, where one of the
+    # eight would eventually be missed.
+    env:
+      APP: GitQuiet for Safari
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -414,17 +419,25 @@ jobs:
       # Generated on every release and committed nowhere, so the project cannot
       # describe an older extension than the one built beside it.
       #
-      # The identifier's last part has to be the app's own name. Apple's
-      # converter reads that part as the app and gives the extension the whole
-      # thing plus `.Extension`, so `dev.gitquiet.safari` produced an app called
-      # `dev.gitquiet.GitQuiet` with an extension under it that Xcode then
-      # refused: "not prefixed with the parent app's bundle identifier".
+      # The identifier's last part has to be the app's name with the spaces turned
+      # into hyphens, because the converter writes two identifiers and derives them
+      # differently: the app's from the name it was given, the extension's from the
+      # identifier it was given plus `.Extension`. Where the two disagree, Xcode
+      # refuses the pair with "not prefixed with the parent app's bundle
+      # identifier", and the disagreement is silent until then. `GitQuiet` with
+      # `dev.gitquiet.safari` failed this way, and so did `GitQuiet for Safari`
+      # with `dev.gitquiet.GitQuiet`.
+      #
+      # Named apart from the desktop app, which is also GitQuiet and also lands in
+      # Applications. Two files of that name cannot both sit there, so installing
+      # the second used to replace the first, and Spotlight offered two identical
+      # answers up to the moment it did.
       - name: Wrap the extension in an Xcode project
         run: |
           xcrun safari-web-extension-converter .output/safari-mv3 \
             --project-location "$RUNNER_TEMP/safari" \
-            --app-name GitQuiet \
-            --bundle-identifier dev.gitquiet.GitQuiet \
+            --app-name "$APP" \
+            --bundle-identifier "dev.gitquiet.${APP// /-}" \
             --macos-only --swift --copy-resources --no-open --no-prompt --force
 
       # Archive and export, rather than signing the app once it is built. The
@@ -437,6 +450,9 @@ jobs:
       # is named for the tag. Xcode applies these to the app and the extension
       # together, which is what Safari reads and what the App Store counts on:
       # it refuses an upload whose build number did not go up.
+      #
+      # The category is passed in for the same reason: the converter leaves it out,
+      # the build warns about it, and the App Store rejects an app without one.
       - name: Archive and sign
         env:
           IDENTITY: ${{ secrets.APPLE_DEVELOPER_ID }}
@@ -448,16 +464,17 @@ jobs:
           plutil -insert teamID -string "$TEAM" "$plist"
           plutil -insert signingStyle -string manual "$plist"
           plutil -insert signingCertificate -string "Developer ID Application" "$plist"
-          xcodebuild -project "$RUNNER_TEMP/safari/GitQuiet/GitQuiet.xcodeproj" \
-            -scheme GitQuiet -configuration Release archive \
-            -archivePath "$RUNNER_TEMP/GitQuiet.xcarchive" \
+          xcodebuild -project "$RUNNER_TEMP/safari/$APP/$APP.xcodeproj" \
+            -scheme "$APP" -configuration Release archive \
+            -archivePath "$RUNNER_TEMP/safari.xcarchive" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="$IDENTITY" \
             DEVELOPMENT_TEAM="$TEAM" \
             MARKETING_VERSION="$RELEASE_VERSION" \
-            CURRENT_PROJECT_VERSION="$RELEASE_VERSION"
+            CURRENT_PROJECT_VERSION="$RELEASE_VERSION" \
+            INFOPLIST_KEY_LSApplicationCategoryType=public.app-category.developer-tools
           xcodebuild -exportArchive \
-            -archivePath "$RUNNER_TEMP/GitQuiet.xcarchive" \
+            -archivePath "$RUNNER_TEMP/safari.xcarchive" \
             -exportOptionsPlist "$plist" \
             -exportPath "$RUNNER_TEMP/safari-export"
 
@@ -468,9 +485,9 @@ jobs:
           echo "DMG=GitQuiet-$RELEASE_VERSION-safari.dmg" >> "$GITHUB_ENV"
           staging="$RUNNER_TEMP/safari-dmg"
           mkdir -p "$staging"
-          cp -R "$RUNNER_TEMP/safari-export/GitQuiet.app" "$staging/"
+          cp -R "$RUNNER_TEMP/safari-export/$APP.app" "$staging/"
           ln -s /Applications "$staging/Applications"
-          hdiutil create -volname "GitQuiet for Safari" -srcfolder "$staging" \
+          hdiutil create -volname "$APP" -srcfolder "$staging" \
             -ov -format ULFO "GitQuiet-$RELEASE_VERSION-safari.dmg"
 
       # Apple has to see the image before Gatekeeper will open what is inside it,
@@ -492,6 +509,7 @@ jobs:
       - uses: ./.github/actions/gatekeeper
         with:
           dmg: ${{ env.DMG }}
+          app: ${{ env.APP }}.app
 
       # Under a fixed second name as well, for the same reason as the macOS app
       # above: the site's download link has to outlive the release it was written
