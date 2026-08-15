@@ -1,17 +1,30 @@
 # The gates CI runs, run before the push instead of after it.
 #
+# `bun install` writes these hooks, because `prepare` runs `lefthook install`
+# and lefthook is a devDependency. A fresh clone is covered without anybody
+# being told to run anything.
+#
+# `LEFTHOOK=0 git commit` and `LEFTHOOK=0 git push` go past all of it, for work
+# pushed to be read rather than to be merged.
+
+# The linter alone, over the staged files only, which answers in well under a
+# second. A try/catch is caught while the change is still in your head rather
+# than a minute later at the push.
+pre-commit:
+  commands:
+    lint:
+      glob: "src/**/*.{ts,tsx}"
+      run: bunx oxlint {staged_files}
+
 # The same three commands as `.github/workflows/ci.yml`, in the same order, so a
 # push that would turn the branch red is refused here rather than on a runner a
 # minute later. Nothing new is being checked; this is only the check moving to
 # where it can still be acted on.
 #
-# `piped` stops at the first failure. The whole run is about twenty seconds on a
-# clean tree, and the linter answers in the first one of them, so a try/catch
-# that CI would have caught costs a second here rather than the whole suite.
-#
-# `LEFTHOOK=0 git push` goes past all of it, for a branch pushed to be read
-# rather than to be merged.
-
+# `piped` stops at the first failure. The linter answers first and the tests
+# last, so a rule CI would have caught costs a second here rather than the whole
+# suite. `--parallel` puts the tests across every core, which is the difference
+# between fifty seconds and fourteen.
 pre-push:
   piped: true
   commands:
@@ -20,4 +33,4 @@ pre-push:
     compile:
       run: bun run compile
     test:
-      run: bun test
+      run: bun test --parallel --dots

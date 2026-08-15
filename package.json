@@ -6,7 +6,7 @@
   "type": "module",
   "workspaces": ["desktop"],
   "scripts": {
-    "prepare": "./scripts/prepare-effect.sh && bun run types",
+    "prepare": "./scripts/prepare-effect.sh && lefthook install && bun run types",
     "types": "wxt prepare",
     "dev": "bun scripts/dev.ts",
     "dev:wxt": "wxt",
@@ -43,6 +43,7 @@
     "@types/react-dom": "^19.2.3",
     "@wxt-dev/module-react": "^1.2.2",
     "happy-dom": "^20.11.1",
+    "lefthook": "^2.1.10",
     "material-icon-theme": "^5.37.0",
     "oxlint": "^1.76.0",
     "oxlint-plugin-eslint": "^1.76.0",
