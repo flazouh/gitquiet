@@ -430,6 +430,13 @@ jobs:
       # Archive and export, rather than signing the app once it is built. The
       # extension is a bundle inside a bundle, and this is what signs both from
       # the inside out and turns the hardened runtime on, which notarising needs.
+      #
+      # The two versions are passed in because the converter writes `1.0` and
+      # build `1` into the project it generates, and nothing downstream corrects
+      # it. Every Safari app released so far says `1.0` inside while its disk image
+      # is named for the tag. Xcode applies these to the app and the extension
+      # together, which is what Safari reads and what the App Store counts on:
+      # it refuses an upload whose build number did not go up.
       - name: Archive and sign
         env:
           IDENTITY: ${{ secrets.APPLE_DEVELOPER_ID }}
@@ -446,7 +453,9 @@ jobs:
             -archivePath "$RUNNER_TEMP/GitQuiet.xcarchive" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="$IDENTITY" \
-            DEVELOPMENT_TEAM="$TEAM"
+            DEVELOPMENT_TEAM="$TEAM" \
+            MARKETING_VERSION="$RELEASE_VERSION" \
+            CURRENT_PROJECT_VERSION="$RELEASE_VERSION"
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/GitQuiet.xcarchive" \
             -exportOptionsPlist "$plist" \
