@@ -252,6 +252,10 @@ export default defineContentScript({
       );
     };
 
+    /** Which link the pointer is on, where it is on one at all. */
+    const linkUnder = (target: EventTarget | null): HTMLAnchorElement | null =>
+      target instanceof Element ? target.closest("a") : null;
+
     /**
      * What resting on a link would read, and the name it is read under.
      *
@@ -259,13 +263,30 @@ export default defineContentScript({
      * coverage is tested. This half is the part that needs a document: which link
      * the pointer is over, and where the reader is while it is there.
      */
-    const aheadOf = (target: EventTarget | null): Ahead | null => {
-      if (!(target instanceof Element)) return null;
+    const aheadOf = (link: HTMLAnchorElement): Ahead | null =>
+      warmingFor(link.href, window.location.href);
 
-      const link = target.closest("a");
-      if (link === null) return null;
+    /**
+     * And the screen's own file, fetched while the pointer is still on its way.
+     *
+     * A screen is several hundred kilobytes and the first press of a session is the
+     * one that fetches it. Measured on a press between two person pages: a hundred
+     * and eighty-five milliseconds from the press to the interface, nearly all of it
+     * this. It is an extension file, so there is no request to GitHub in it and
+     * nothing to be polite about — the only cost of being wrong about where the
+     * reader is going is a module read from disk and never started.
+     *
+     * Fetching is all this does. Starting a screen is the press's business, and one
+     * started for a page nobody is on gates a page it is not about.
+     */
+    const fetched = new Set<Wanted>();
 
-      return warmingFor(link.href, window.location.href);
+    const soon = (link: HTMLAnchorElement): void => {
+      const page = pageAt(link.pathname, link.search);
+      if (page === null || fetched.has(page)) return;
+
+      fetched.add(page);
+      Effect.runFork(screenFor(page).pipe(Effect.ignore));
     };
 
     let dwelling: ReturnType<typeof setTimeout> | undefined;
@@ -274,9 +295,14 @@ export default defineContentScript({
       "pointerover",
       (event) => {
         if (view === "github") return;
+
+        const link = linkUnder(event.target);
+        if (link === null) return;
+        soon(link);
+
         if (asked.size >= AT_MOST) return;
 
-        const ahead = aheadOf(event.target);
+        const ahead = aheadOf(link);
         if (ahead === null || asked.has(ahead.key)) return;
 
         clearTimeout(dwelling);
@@ -312,7 +338,6 @@ export default defineContentScript({
       "pointermove",
       (event) => {
         if (view === "github") return;
-        if (asked.size >= AT_MOST) return;
         // One look a frame at most. `pointermove` fires far faster than a page can be
         // read, and seventeen hit tests an event is work in front of a moving pointer.
         if (looking !== 0) return;
@@ -323,8 +348,18 @@ export default defineContentScript({
           looking = 0;
 
           const link = linkNear(at);
-          const ahead =
-            link === null ? null : warmingFor(link.href, window.location.href);
+          if (link === null) {
+            nearest = undefined;
+            return;
+          }
+
+          // Whatever the reader has already read ahead. The file is fetched once a
+          // session either way, and the pages worth having it are the pages of ours.
+          soon(link);
+
+          if (asked.size >= AT_MOST) return;
+
+          const ahead = aheadOf(link);
 
           if (ahead === null || asked.has(ahead.key)) {
             nearest = undefined;

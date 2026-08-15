@@ -1604,52 +1604,77 @@ const theirMarkup = Effect.fn("theirMarkup")(function* (route: string) {
   })
 })
 
-type Reading = Fiber.Fiber<string, WorkingSetError>
+/**
+ * A read done once however many callers ask for it inside the window above.
+ *
+ * Reading ahead and opening are the same call made twice — once by a pointer coming near
+ * a link, once by the screen a few hundred milliseconds later — and the store cannot tell
+ * them apart, because the first answer has not arrived yet and so nothing has been
+ * written. Without this the second caller fetches the whole thing again and waits for it,
+ * and the lead the read ahead bought is spent.
+ *
+ * Detached rather than a child of whoever asked first, which is the whole point: nobody
+ * waits on a read ahead, so the fiber has to outlive the one that forked it for the press
+ * to have anything to join.
+ *
+ * Not `app/kept.ts`, which is the other half of the same idea and is not this one: that
+ * keeps every answer for as long as the page lives, because a sha names something that
+ * cannot change. A person's markup is a quarter of a megabyte and a person changes, so
+ * this holds a bounded few of them for as long as a press takes and the store keeps the
+ * rest.
+ */
+const sharedBy = <A>(read: (route: string) => Effect.Effect<A, WorkingSetError>) => {
+  const air = new Map<
+    string,
+    { readonly at: number; readonly reading: Fiber.Fiber<A, WorkingSetError> }
+  >()
 
-const asking = new Map<string, { readonly at: number; readonly reading: Reading }>()
+  const share = Effect.fn("shared")(function* (route: string) {
+    const held = air.get(route)
+    const fresh = held !== undefined && Date.now() - held.at < IN_THE_AIR ? held.reading : undefined
+
+    const reading = fresh ?? (yield* Effect.forkDetach(read(route)))
+
+    if (fresh === undefined) {
+      const oldest = air.keys().next()
+      if (air.size >= AT_ONCE && !oldest.done) air.delete(oldest.value)
+      air.set(route, { at: Date.now(), reading })
+    }
+
+    return yield* Fiber.join(reading).pipe(
+      // A refusal is not an answer to hand to the next caller. The press that follows a
+      // failed read ahead is the reader asking out loud, and it deserves a fresh attempt.
+      Effect.tapError(() =>
+        Effect.sync(() => {
+          if (air.get(route)?.reading === reading) air.delete(route)
+        })
+      )
+    )
+  })
+
+  return { share, forget: () => air.clear() } as const
+}
+
+const pages = sharedBy(theirMarkup)
+
+/** One of a person's own pages, read once for everybody who wants it. */
+const personDocument = pages.share
+
+/** The received events of one person, on the same terms. */
+const eventsShared = sharedBy(eventsAt)
 
 /**
- * Forgets the pages still in the air, for a test that means to serve a different one.
+ * Forgets what is still in the air, for a test that means to serve something else.
  *
- * A page is held for thirty seconds and a test file is faster than that, so two tests
+ * An answer is held for thirty seconds and a test file is faster than that, so two tests
  * asking the same address would otherwise be one fetch and one assertion about the other
  * test's fixture. Nothing in the extension calls this: a reader who wants a page again is
  * a document load away, and a document load is a new module.
  */
-export const forgetPersonPages = (): void => {
-  asking.clear()
+export const forgetWhatIsInTheAir = (): void => {
+  pages.forget()
+  eventsShared.forget()
 }
-
-/**
- * The same, read once however many callers ask for it inside the window above.
- *
- * Detached rather than a child of whoever asked first, which is the whole point: the read
- * ahead is started by a pointer and nobody waits on it, so the fiber has to outlive the
- * one that forked it for the press to have anything to join.
- */
-const personDocument = Effect.fn("personDocument")(function* (route: string) {
-  const held = asking.get(route)
-  const fresh =
-    held !== undefined && Date.now() - held.at < IN_THE_AIR ? held.reading : undefined
-
-  const reading = fresh ?? (yield* Effect.forkDetach(theirMarkup(route)))
-
-  if (fresh === undefined) {
-    const oldest = asking.keys().next()
-    if (asking.size >= AT_ONCE && !oldest.done) asking.delete(oldest.value)
-    asking.set(route, { at: Date.now(), reading })
-  }
-
-  return yield* Fiber.join(reading).pipe(
-    // A refusal is not an answer to hand to the next caller. The press that follows a
-    // failed read ahead is the reader asking out loud, and it deserves a fresh attempt.
-    Effect.tapError(() =>
-      Effect.sync(() => {
-        if (asking.get(route)?.reading === reading) asking.delete(route)
-      })
-    )
-  )
-})
 
 /** A person's column, kept under the address it is read at. */
 const personKey = (login: string): string => `person:${login.toLowerCase()}`
@@ -2430,7 +2455,9 @@ export const layer = Layer.succeed(GitHubGateway, {
       keeping: Keeping = "standing"
     ) {
       const route = eventsRoute(login)
-      const raw = yield* eventsAt(route)
+      // Shared, because the profile's read ahead asks this the moment a pointer comes near
+      // a person's link and the screen asks it again on the press. See {@link sharedBy}.
+      const raw = yield* eventsShared.share(route)
       const happenings = yield* decodedHappenings(route, raw)
 
       yield* Effect.forkDetach(rememberRoute(route, raw, keeping))
