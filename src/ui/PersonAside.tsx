@@ -139,11 +139,26 @@ export const PersonAside = ({ who, onStepAside }: PersonAsideProps) => {
           </div>
         </div>
 
-        {/* Their own words, kept as they wrote them: the newlines in a bio are theirs. */}
+        {/*
+         * Their own words, and their line breaks with them. A run of blank lines is not a
+         * line break they meant, though: GitHub's box keeps every return somebody pressed,
+         * so a bio typed with a gap in it reads here as a name, then an inch of nothing,
+         * then a sentence. One paragraph per run, and the run itself is dropped.
+         */}
         {Option.match(who.bio, {
           onNone: () => null,
           onSome: (said) => (
-            <p className="min-w-0 whitespace-pre-line text-ink text-sm leading-5">{said}</p>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              {said
+                .split(/\n\s*\n+/)
+                .map((line) => line.trim())
+                .filter((line) => line !== "")
+                .map((line) => (
+                  <p key={line} className="min-w-0 whitespace-pre-line text-ink text-sm leading-5">
+                    {line}
+                  </p>
+                ))}
+            </div>
           )
         })}
 

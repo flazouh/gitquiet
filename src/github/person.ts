@@ -87,9 +87,18 @@ const followIn = (card: Element, tab: string): Option.Option<string> => {
  * reader was going to see anyway. `data-tab-item` is their hook and is on every one of
  * the eight; the profile tab carries no counter at all, which is why nothing here asks
  * for one.
+ *
+ * Two hooks because their row is halfway through being rebuilt: `.Counter` on the Rails
+ * one, a `CounterLabel` on the Primer React one, and both are served depending on the
+ * account and the day. The label and never the slot around it — the slot holds a second
+ * copy of the number for a screen reader, and its text reads "121 (121)".
  */
 const tallyIn = (page: Document, tab: string): Option.Option<string> => {
-  const found = text(page.querySelector(`a[data-tab-item="${tab}"] .Counter`))
+  const at = `a[data-tab-item="${tab}"]`
+  const found = text(
+    page.querySelector(`${at} [data-component="CounterLabel"]`) ??
+      page.querySelector(`${at} .Counter`)
+  )
   return found === "" ? Option.none() : Option.some(found)
 }
 

@@ -68,6 +68,37 @@ describe("who their page says they are", () => {
     expect(got(who.tally.stars)).toBe("113")
   })
 
+  /*
+   * Their tab row is being rebuilt in Primer's React components, and the count moved with
+   * it: `.Counter` on the old row, a `CounterLabel` inside a counter slot on the new one.
+   * Measured on the live page, where the old hook read nothing and the tab row lost both
+   * numbers. The hidden copy beside it is for a screen reader and would read "121 (121)".
+   */
+  test("carries those counts off their rebuilt tab row too", () => {
+    const page = read(`
+      <div class="h-card"><span class="vcard-username">flazouh</span></div>
+      <nav>
+        <a data-tab-item="repositories">
+          <span data-component="text">Repositories</span>
+          <span data-component="counter">
+            <span aria-hidden="true" data-component="CounterLabel">121</span>
+            <span class="prc-VisuallyHidden-VisuallyHidden-Q0qSB">&nbsp;(121)</span>
+          </span>
+        </a>
+        <a data-tab-item="stars">
+          <span data-component="text">Stars</span>
+          <span data-component="counter">
+            <span aria-hidden="true" data-component="CounterLabel">115</span>
+          </span>
+        </a>
+      </nav>
+    `)
+
+    const who = of(page)
+    expect(got(who.tally.repositories)).toBe("121")
+    expect(got(who.tally.stars)).toBe("115")
+  })
+
   test("notices the sponsor button where GitHub offered one", () => {
     expect(got(of(real).sponsorAt)).toBe("/sponsors/flazouh")
   })

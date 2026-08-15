@@ -14,6 +14,7 @@ import {
   turnedEntry
 } from "../domain/life"
 import type { Person } from "../domain/person"
+import { personIn } from "../github/person"
 import { useArt } from "./art"
 import { ASIDE, FIELD, PILL } from "./dress"
 import { PersonAside } from "./PersonAside"
@@ -23,6 +24,7 @@ import { painted, Section } from "./Section"
 import { TheBar } from "./TheBar"
 import type { Load } from "./useLive"
 import { useLive } from "./useLive"
+import { usePerson } from "./usePerson"
 import { useSettings } from "./useSettings"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -48,10 +50,13 @@ export type PersonReposScreenProps = {
   /**
    * Who their page says they are, for the column down the left.
    *
-   * Absent where that column could not be read, and the page is still worth drawing
-   * without it: the list is what the reader came for. See `personIn`.
+   * Given where somebody already has it, which is a test or the staging shots. The
+   * screen reads it off the page otherwise, and draws the list without the column where
+   * that read comes back with nothing: the list is what the reader came for.
    */
   readonly who?: Person
+  /** How to read that column off the served page. Only a test ever passes one. */
+  readonly readWho?: (page: Document) => Option.Option<Person>
   /** Restores GitHub's own page, which is still behind this one. */
   readonly onStepAside: () => void
   readonly signedIn?: () => boolean
@@ -428,10 +433,14 @@ export const PersonReposScreen = ({
   login,
   load,
   who,
+  readWho = personIn,
   onStepAside,
   signedIn = viewerOnPage,
   now = new Date()
 }: PersonReposScreenProps) => {
+  /* What was given, or what the page says once it has been parsed. See `usePerson`. */
+  const served = usePerson(readWho)
+  const them = who ?? served
   const live = useLive(load)
   const { read } = live
   const waiting = useWaiting(read.status)
@@ -472,10 +481,10 @@ export const PersonReposScreen = ({
     <div className="relative">
       <TheBar where={{ kind: "person", login }} />
       <div className="flex min-w-0 flex-col gap-4 py-3 lg:flex-row lg:items-start">
-        {who === undefined ? null : <PersonAside who={who} onStepAside={onStepAside} />}
+        {them === undefined ? null : <PersonAside who={them} onStepAside={onStepAside} />}
 
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <PersonTabs login={login} on="repositories" who={who} />
+          <PersonTabs login={login} on="repositories" who={them} />
 
           {shown === undefined ? null : (
             <div className="t-panels flex min-w-0 flex-col gap-1">
