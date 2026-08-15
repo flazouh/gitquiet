@@ -1,4 +1,4 @@
-import { Effect, Layer, Option, UndefinedOr } from "effect"
+import { Effect, Fiber, Layer, Option, UndefinedOr } from "effect"
 import type {
   Check,
   CheckState,
@@ -48,8 +48,10 @@ import { isKeptRun, pressOn, runOnPage } from "./runPage"
 import { isKeptStrands, runsOnPage } from "./actionsList"
 import { buildsOnPage, isKeptVersions, versionsOnPage } from "./releasesList"
 import { isKeptNotices, noticesOnPage } from "./notifications"
+import { asKept, personKept } from "./keptPerson"
+import { personOnPage } from "./person"
 import { hasNextOnPage, repositoriesOnPage } from "./personRepos"
-import { tabRoute } from "../domain/person"
+import { type Person, tabRoute } from "../domain/person"
 import type { Notice, Press } from "../domain/notices"
 import type { Version } from "../domain/release"
 import { strandsIn, type Strand } from "../domain/strand"
@@ -1549,6 +1551,108 @@ const repoDocument = Effect.fn("repoDocument")(function* (reference: RepoRef, ro
       new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
   })
 })
+
+/**
+ * How long a person's page just fetched still answers for the next reader of it.
+ *
+ * This is not a cache and it is deliberately not one: it is the window between a pointer
+ * coming near a link and the screen for that link asking the same question. Reading ahead
+ * fetches a quarter of a megabyte of their markup, the press lands a few hundred
+ * milliseconds later, and without this the screen fetches all of it again — the first
+ * answer is still in the air, so nothing in the store has been written yet.
+ *
+ * Thirty seconds is far longer than that gap and far shorter than a page a reader would
+ * notice going stale. The store behind it is what serves a reader who comes back.
+ */
+const IN_THE_AIR = 30_000
+
+/**
+ * How many of those are held at once.
+ *
+ * One entry per person whose page was read ahead, and each holds their markup for as long
+ * as the window above. A reader sweeping a list of contributors passes a dozen names.
+ */
+const AT_ONCE = 12
+
+/**
+ * One of a person's own pages, as the document they serve it as.
+ *
+ * Their markup, not a payload: every page under a person's login is Rails-rendered, so the
+ * card, the counts and the rows are all in the document and there is no JSON route that
+ * answers with any of it.
+ */
+const theirMarkup = Effect.fn("theirMarkup")(function* (route: string) {
+  const response = yield* Effect.tryPromise({
+    try: () => fetch(`https://github.com${route}`, {
+      headers: { Accept: "text/html" },
+      credentials: "include"
+    }),
+    catch: (cause) => new WorkingSetError({ route, reason: "unreachable", detail: String(cause) })
+  })
+
+  if (!response.ok) {
+    return yield* new WorkingSetError({
+      route,
+      reason: "rejected",
+      detail: `HTTP ${response.status}`
+    })
+  }
+
+  return yield* Effect.tryPromise({
+    try: () => response.text(),
+    catch: (cause) => new WorkingSetError({ route, reason: "unreachable", detail: String(cause) })
+  })
+})
+
+type Reading = Fiber.Fiber<string, WorkingSetError>
+
+const asking = new Map<string, { readonly at: number; readonly reading: Reading }>()
+
+/**
+ * Forgets the pages still in the air, for a test that means to serve a different one.
+ *
+ * A page is held for thirty seconds and a test file is faster than that, so two tests
+ * asking the same address would otherwise be one fetch and one assertion about the other
+ * test's fixture. Nothing in the extension calls this: a reader who wants a page again is
+ * a document load away, and a document load is a new module.
+ */
+export const forgetPersonPages = (): void => {
+  asking.clear()
+}
+
+/**
+ * The same, read once however many callers ask for it inside the window above.
+ *
+ * Detached rather than a child of whoever asked first, which is the whole point: the read
+ * ahead is started by a pointer and nobody waits on it, so the fiber has to outlive the
+ * one that forked it for the press to have anything to join.
+ */
+const personDocument = Effect.fn("personDocument")(function* (route: string) {
+  const held = asking.get(route)
+  const fresh =
+    held !== undefined && Date.now() - held.at < IN_THE_AIR ? held.reading : undefined
+
+  const reading = fresh ?? (yield* Effect.forkDetach(theirMarkup(route)))
+
+  if (fresh === undefined) {
+    const oldest = asking.keys().next()
+    if (asking.size >= AT_ONCE && !oldest.done) asking.delete(oldest.value)
+    asking.set(route, { at: Date.now(), reading })
+  }
+
+  return yield* Fiber.join(reading).pipe(
+    // A refusal is not an answer to hand to the next caller. The press that follows a
+    // failed read ahead is the reader asking out loud, and it deserves a fresh attempt.
+    Effect.tapError(() =>
+      Effect.sync(() => {
+        if (asking.get(route)?.reading === reading) asking.delete(route)
+      })
+    )
+  )
+})
+
+/** A person's column, kept under the address it is read at. */
+const personKey = (login: string): string => `person:${login.toLowerCase()}`
 
 /**
  * The inbox, at the address the reader asked for it at.
@@ -3211,10 +3315,12 @@ export const layer = Layer.succeed(GitHubGateway, {
      * asks for it: `tabRoute` writes the tab, the page and every narrowing the address
      * carried, so the rows that come back are the rows that address means.
      *
-     * Nothing is kept. Every other list here remembers what it read because the read is
-     * what the reader waits on; the first page of this one costs no request at all — it
-     * is in the document the screen is standing in — so what a store would save is the
-     * second page of a list whose first page is already drawn.
+     * Nothing is kept between visits. Every other list here remembers what it read because
+     * the read is what the reader waits on; on a page GitHub served, the first page of this
+     * one costs no request at all. What holds it within a visit is the window in
+     * {@link theirMarkup}, which is the case that matters: a press answered without a
+     * document load arrives with no rows on the page, and the read ahead that started when
+     * the pointer came near the link is the one this reuses.
      */
     personRepositories: Effect.fn("GitHubGateway.personRepositories")(function* (
       login: string,
@@ -3222,29 +3328,43 @@ export const layer = Layer.succeed(GitHubGateway, {
       narrowing: string
     ) {
       const route = tabRoute({ login, tab: "repositories", page, find: "", narrowing }, page)
-      const url = `https://github.com${route}`
-
-      const response = yield* Effect.tryPromise({
-        try: () => fetch(url, { headers: { Accept: "text/html" }, credentials: "include" }),
-        catch: (cause) =>
-          new WorkingSetError({ route, reason: "unreachable", detail: String(cause) })
-      })
-
-      if (!response.ok) {
-        return yield* new WorkingSetError({
-          route,
-          reason: "rejected",
-          detail: `HTTP ${response.status}`
-        })
-      }
-
-      const html = yield* Effect.tryPromise({
-        try: () => response.text(),
-        catch: (cause) =>
-          new WorkingSetError({ route, reason: "unreachable", detail: String(cause) })
-      })
+      const html = yield* personDocument(route)
 
       return { rows: repositoriesOnPage(html), more: hasNextOnPage(html) }
+    }),
+
+    /**
+     * The column down the left of their profile, over the network.
+     *
+     * Read off their repositories tab rather than off their profile, which looks like the
+     * wrong page and is the right one: the card is the same on all three of their pages,
+     * and this is the page both person screens need anyway. Asked at the address
+     * {@link personRepositories} asks page one at, character for character, so the two
+     * reads are one fetch — the profile draws a column and six repositories out of a
+     * single document, and the tab draws a column and thirty out of the same one.
+     *
+     * Kept as the column rather than as the markup it was read from — see `keptPerson.ts`
+     * — and kept as browsed rather than standing: a person is somewhere a reader went, and
+     * the eleven routes Home is built from must not be pushed out by an afternoon of
+     * reading other people's profiles.
+     */
+    person: Effect.fn("GitHubGateway.person")(function* (login: string) {
+      const route = tabRoute({ login, tab: "repositories", page: 1, find: "", narrowing: "" }, 1)
+      const found = personOnPage(yield* personDocument(route))
+
+      yield* Option.match(found, {
+        // An organisation, or an account GitHub has since renamed. Nothing to keep, and
+        // nothing to say: the screen hands the page back and GitHub draws their own.
+        onNone: () => Effect.void,
+        onSome: (who) => Effect.forkDetach(rememberRoute(personKey(login), asKept(who)))
+      })
+
+      return found
+    }),
+
+    rememberedPerson: Effect.fn("GitHubGateway.rememberedPerson")(function* (login: string) {
+      const raw = yield* recallRoute(personKey(login))
+      return Option.isNone(raw) ? Option.none<Person>() : personKept(raw.value)
     }),
 
     rememberedNotices: Effect.fn("GitHubGateway.rememberedNotices")(function* (query: string) {
@@ -4093,6 +4213,8 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     // An empty page with nothing behind it, for the same reason the inbox is empty
     // here: a list nobody recorded has no second page either.
     personRepositories: () => Effect.succeed({ rows: [], more: false }),
+    person: () => Effect.succeed(Option.none()),
+    rememberedPerson: () => Effect.succeed(Option.none()),
     rememberedRepoHome: () => Effect.succeed(Option.none())
   })
 
@@ -4236,5 +4358,7 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     // An empty page with nothing behind it, for the same reason the inbox is empty
     // here: a list nobody recorded has no second page either.
     personRepositories: () => Effect.succeed({ rows: [], more: false }),
+    person: () => Effect.succeed(Option.none()),
+    rememberedPerson: () => Effect.succeed(Option.none()),
     rememberedRepoHome: () => Effect.succeed(Option.none())
   })

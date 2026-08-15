@@ -290,7 +290,15 @@ const Html = ({ node }: { readonly node: HtmlNode }) => {
     case "br":
       return <br />
     case "img":
-      return <img src={node.attrs.src} alt={node.attrs.alt ?? ""} width={node.attrs.width} height={node.attrs.height} />
+      return (
+        <img
+          src={node.attrs.src}
+          alt={node.attrs.alt ?? ""}
+          width={node.attrs.width}
+          height={node.attrs.height}
+          loading="lazy"
+        />
+      )
     case "source":
       return <source media={node.attrs.media} srcSet={node.attrs.srcset} type={node.attrs.type} />
     case "picture":

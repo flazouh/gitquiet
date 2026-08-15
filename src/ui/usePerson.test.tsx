@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import { Option } from "effect"
 import type { Person } from "../domain/person"
-import { usePerson } from "./usePerson"
+import { type Elsewhere, usePerson } from "./usePerson"
 
 afterEach(cleanup)
 
@@ -32,8 +32,14 @@ const someone = (over: Partial<Person> = {}): Person => ({
  * page has not written yet: a first read that answers with a name and nothing under it is
  * the fault this hook exists for.
  */
-const Probe = ({ read }: { readonly read: (page: Document) => Option.Option<Person> }) => {
-  const who = usePerson(read, document, WATCHING)
+const Probe = ({
+  read,
+  elsewhere
+}: {
+  readonly read: (page: Document) => Option.Option<Person>
+  readonly elsewhere?: Elsewhere
+}) => {
+  const who = usePerson(read, elsewhere, document, WATCHING)
   return <p>{who === undefined ? "nobody" : `${Option.getOrElse(who.followers, () => "no")} followers`}</p>
 }
 
@@ -75,6 +81,35 @@ describe("who the served page says they are", () => {
     stir()
 
     await waitFor(() => expect(screen.getByText("25 followers")).toBeTruthy())
+  })
+
+  /*
+   * A press this extension answered itself: no document loaded, so the page under the
+   * screen is the issue the reader pressed from and their card is not in it. Reading it
+   * again for four seconds finds nothing four seconds later.
+   */
+  test("takes the column from elsewhere where the page is not theirs", async () => {
+    render(
+      <Probe
+        read={() => Option.none()}
+        elsewhere={(found) => found(someone({ followers: Option.some("25") }))}
+      />
+    )
+
+    await waitFor(() => expect(screen.getByText("25 followers")).toBeTruthy())
+  })
+
+  test("keeps the page's own card over one read from elsewhere", async () => {
+    render(
+      <Probe
+        read={() => Option.some(someone({ followers: Option.some("25") }))}
+        elsewhere={(found) => found(someone({ followers: Option.some("11") }))}
+      />
+    )
+
+    await rested()
+
+    expect(screen.getByText("25 followers")).toBeTruthy()
   })
 
   test("stops watching, rather than observing the page behind a reader", async () => {

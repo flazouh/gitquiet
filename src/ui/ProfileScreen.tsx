@@ -13,7 +13,7 @@ import { Section } from "./Section"
 import { TheBar } from "./TheBar"
 import type { Load } from "./useLive"
 import { useLive } from "./useLive"
-import { usePerson } from "./usePerson"
+import { type Elsewhere, usePerson } from "./usePerson"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
 import { dayOf } from "./when"
@@ -36,6 +36,13 @@ export type ProfileScreenProps = {
   readonly who?: Person
   /** How to read their column off the served page. Only a test ever passes one. */
   readonly readWho?: (page: Document) => Option.Option<Person>
+  /**
+   * Where to read it instead, where the page being stood on is not theirs.
+   *
+   * Given on a press this extension answered itself: no document loads, so their card is
+   * not on the page and never will be. See `usePerson`.
+   */
+  readonly elsewhere?: Elsewhere
   readonly onStepAside: () => void
   readonly signedIn?: () => boolean
   readonly now?: Date
@@ -234,11 +241,12 @@ export const ProfileScreen = ({
   owned,
   who,
   readWho = personIn,
+  elsewhere,
   onStepAside,
   signedIn = viewerOnPage,
   now = new Date()
 }: ProfileScreenProps) => {
-  const served = usePerson(readWho)
+  const served = usePerson(readWho, elsewhere)
   const them = who ?? served
   const said = useLive(answering).read
   const list = useLive(owned).read

@@ -84,7 +84,20 @@ const attrsOf = (raw: string): Readonly<Record<string, string>> => {
   return attrs
 }
 
-const srcsetOf = (value: string): string | null => {
+/**
+ * Every address in a `srcset`, put through `each`, with the descriptors left where they are.
+ *
+ * `logo.svg 1x, logo@2x.svg 2x` is two addresses and two facts about screens. `each` says
+ * what one address becomes, and nothing where that one is not worth keeping; where nothing
+ * is left there is no attribute worth writing.
+ *
+ * Both readings of a `srcset` in this interface go through here: this file asking whether
+ * an address is one a reader may follow, and `github.ts` asking where in a repository it is.
+ */
+export const everyAddressIn = (
+  value: string,
+  each: (address: string) => string | null
+): string | null => {
   const kept: Array<string> = []
   for (const part of value.split(",")) {
     const trimmed = part.trim()
@@ -92,9 +105,11 @@ const srcsetOf = (value: string): string | null => {
     const bits = trimmed.split(/\s+/u)
     const url = bits[0]
     if (url === undefined) continue
-    const safe = hrefOf(url)
+    const safe = each(url)
     if (safe === null) continue
     kept.push(bits.length > 1 ? `${safe} ${bits.slice(1).join(" ")}` : safe)
   }
   return kept.length === 0 ? null : kept.join(", ")
 }
+
+const srcsetOf = (value: string): string | null => everyAddressIn(value, hrefOf)

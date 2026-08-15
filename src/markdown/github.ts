@@ -1,4 +1,5 @@
 import { nameToEmoji } from "gemoji"
+import { everyAddressIn } from "./html"
 import type {
   AlertKind,
   Footnote,
@@ -123,52 +124,44 @@ const inTheRepository = (src: string, options: ParseOptions): string => {
   const { owner, repo } = options
   if (owner === undefined || repo === undefined) return src
   if (src === "" || ROOTED.test(src)) return src
-  return `${RAW}/${owner}/${repo}/${options.branch ?? "HEAD"}/${walked(beside(options.at), src)}`
-}
-
-/** The directory the markdown is in, as steps. A README at the top of a repository is in none. */
-const beside = (at: string | undefined): ReadonlyArray<string> =>
-  at === undefined ? [] : at.split("/").slice(0, -1).filter((step) => step !== "")
-
-/**
- * Where an address written in that directory lands.
- *
- * `..` steps back out of it, `.` stays, and everything else is a step further in — the walk a
- * reader does in their head when they read `../site/one.png` in a file under `docs`. Stepping
- * back past the top of the repository is dropped rather than kept, because there is nothing
- * above it to point at.
- */
-const walked = (from: ReadonlyArray<string>, src: string): string => {
-  const steps = [...from]
-  for (const step of src.split("/")) {
-    if (step === "" || step === ".") continue
-    if (step === "..") {
-      steps.pop()
-      continue
-    }
-    steps.push(step)
-  }
-  return steps.join("/")
+  /*
+   * `URL` walks the `..` and the `./` for us, from the directory the file naming it is in,
+   * and encodes the spaces a filename is allowed to have. It is the same walk a reader does
+   * in their head reading `../site/one.png` in a file under `docs`, and writing it out by
+   * hand was twenty lines saying what the platform already says.
+   */
+  const from = `${RAW}/${owner}/${repo}/${options.branch ?? "HEAD"}/${options.at ?? ""}`
+  return new URL(src, from).toString()
 }
 
 /*
  * One walk for both, because a picture written as html arrives as a block on its own line and
  * as an inline in the middle of a sentence, and the two must not disagree about where its
- * file is. A `srcset` is left alone: it is a list with descriptors in it rather than an
- * address, and a README that writes one writes their host into it.
+ * file is.
  */
-const decorateHtml = (node: HtmlNode, options: ParseOptions): HtmlNode => {
+const decorateHtml = (node: HtmlNode, options: ParseOptions): HtmlNode => ({
+  ...node,
+  attrs: pointed(node, options),
+  children: node.children.flatMap(
+    (child): ReadonlyArray<MarkdownBlock | MarkdownInline> =>
+      isInline(child) ? decorateInline(child, options) : [decorateBlock(child, options)]
+  )
+})
+
+/**
+ * The tag's own attributes, with any address in them read as a file in the repository.
+ *
+ * No tag is named here because none has to be: `html.ts` decides which tags may carry a `src`
+ * or a `srcset` at all, and only a picture and its sources may.
+ */
+const pointed = (node: HtmlNode, options: ParseOptions): HtmlNode["attrs"] => {
   const src = node.attrs["src"]
+  const srcset = node.attrs["srcset"]
+  const each = srcset === undefined ? null : everyAddressIn(srcset, (one) => inTheRepository(one, options))
   return {
-    ...node,
-    attrs:
-      node.tag === "img" && src !== undefined
-        ? { ...node.attrs, src: inTheRepository(src, options) }
-        : node.attrs,
-    children: node.children.flatMap(
-      (child): ReadonlyArray<MarkdownBlock | MarkdownInline> =>
-        isInline(child) ? decorateInline(child, options) : [decorateBlock(child, options)]
-    )
+    ...node.attrs,
+    ...(src === undefined ? {} : { src: inTheRepository(src, options) }),
+    ...(each === null ? {} : { srcset: each })
   }
 }
 

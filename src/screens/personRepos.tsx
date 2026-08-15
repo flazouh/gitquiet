@@ -5,7 +5,7 @@ import { chosenView } from "@/app/settings"
 import { type PersonPage, personReposIn } from "@/domain/person"
 import type { View } from "@/domain/Settings"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
-import { held, standAScreen } from "@/shell/screen"
+import { held, standAScreen, theColumn } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenAddressChanges } from "@/ui/navigation"
@@ -37,6 +37,12 @@ const open = (page: PersonPage): (() => void) => {
   const read = held(reading)
 
   /*
+   * Their column, where the press that brought the reader here loaded no document and
+   * there is none on the page to read. See `theColumn`.
+   */
+  const column = theColumn(page.login)
+
+  /*
    * Who they are is not read here, and that is deliberate. The column is in the markup
    * the gate hides — the face, the name, the bio, the counts and every link they set —
    * so it costs nothing and is the whole reason the page can be taken whole rather than
@@ -47,7 +53,12 @@ const open = (page: PersonPage): (() => void) => {
   return standAScreen({
     place: PERSON_REPOS,
     draw: (standing) => (
-      <PersonReposScreen login={page.login} load={read} onStepAside={standing.stepAside} />
+      <PersonReposScreen
+        login={page.login}
+        load={read}
+        elsewhere={column}
+        onStepAside={standing.stepAside}
+      />
     )
   }).close
 }

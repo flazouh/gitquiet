@@ -17,6 +17,7 @@ import { issueDashboardIn, queryFor as mineFor } from "../domain/issueDashboard"
 import { issueListIn, queryFor as issuesFor } from "../domain/issueList"
 import { fromPathname as issueIn } from "../domain/issues"
 import { noticesIn } from "../domain/notices"
+import { personPageIn } from "../domain/person"
 import { showsWorkingSet } from "../domain/pages"
 import { elsewhereThan } from "../domain/PullRequestRef"
 import { repoHomeIn } from "../domain/repoHome"
@@ -28,6 +29,7 @@ import { warmHistory } from "./commitList"
 import { warmIssue } from "./issue"
 import { warmIssueList } from "./issueList"
 import { warmNotices } from "./notices"
+import { warmPerson } from "./person"
 import { loadPullRequest, warmCommit } from "./pullRequest"
 import { warmRepoHome } from "./repoHome"
 import { warmRepoList } from "./repoList"
@@ -189,6 +191,18 @@ const pageFor = (href: string, at: string): Ahead | null => {
    * and their own nav offers several.
    */
   if (noticesIn(link.href)) return { key: keyOf(link), read: warmNotices(link.search.replace(/^\?/, "")) }
+
+  /*
+   * A person's profile and their repositories tab, which are two pages out of one document.
+   *
+   * The last pages here to open cold, and the ones that opened coldest: nothing a person's
+   * page draws is in the markup a press arrives on. Their column, their repositories and
+   * their events all begin as requests after the screen is already standing, so a reader
+   * pressing an author's name from an issue watched an empty frame for a second and a half
+   * while three answers landed out of order. See `app/person.ts`.
+   */
+  const person = Option.filter(personPageIn(link.href), (page) => page.tab !== "stars")
+  if (Option.isSome(person)) return { key: keyOf(link), read: warmPerson(person.value) }
 
   // The reader's own issues, which is the same one search again.
   const mine = issueDashboardIn(link.href)

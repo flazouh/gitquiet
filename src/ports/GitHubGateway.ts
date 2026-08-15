@@ -23,6 +23,7 @@ import type { IssueSnapshot, Settling } from "../domain/Issue"
 import type { InvolvedIssue, Involvement, IssueRef, ListedIssue } from "../domain/issues"
 import type { Listing } from "../domain/life"
 import type { Notice, Press } from "../domain/notices"
+import type { Person } from "../domain/person"
 import type { Portrait } from "../domain/portrait"
 import type { Raised, Raising } from "../domain/raising"
 import type { Attached, Version } from "../domain/release"
@@ -579,6 +580,23 @@ export class GitHubGateway extends Context.Service<
       /** `narrowing` from the address, `page` excepted. See `PersonPage`. */
       narrowing: string
     ) => Effect.Effect<Listing, WorkingSetError>
+
+    /**
+     * The column down the left of a person's page: their face, their bio, their counts.
+     *
+     * Free on a page GitHub served, and this is not that case. A press from an issue to
+     * the author's profile loads no document — the screen stands on the issue's markup —
+     * so their card is not on the page and never will be. This is the same read over the
+     * network, and it is what a pointer resting near the link starts.
+     *
+     * Nothing where the account has no such column, which is how an organisation is
+     * refused: `/microsoft` is one path segment like anybody's login, and the proof that
+     * it is a person's page is the card itself.
+     */
+    readonly person: (login: string) => Effect.Effect<Option.Option<Person>, WorkingSetError>
+
+    /** Their column as it was last read, for the frame before the live read lands. */
+    readonly rememberedPerson: (login: string) => Effect.Effect<Option.Option<Person>>
 
     /**
      * Everything about a repository that is neither its files nor its README.

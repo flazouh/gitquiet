@@ -34,8 +34,22 @@ const same = (before: Person | undefined, now: Person): boolean =>
  * navigation lands on a finished document, the first read has the whole card, and every
  * read after it agrees.
  */
+/**
+ * Their column read from somewhere other than the page, reporting each answer it gets.
+ *
+ * Given only where no document is coming, which is a press this extension answered
+ * itself: the screen stands on the page the reader left, so the watcher below can run its
+ * four seconds against an issue's markup and find nothing, forever. Two answers arrive
+ * through it where there is something remembered — last visit's card, then this one's.
+ *
+ * The shape is a `Load` without the Effect. See `app/person.ts`, which is what fills it.
+ */
+export type Elsewhere = (found: (who: Person) => void) => void
+
 export const usePerson = (
   read: (page: Document) => Option.Option<Person>,
+  /** Where else to look, where the page being stood on is not theirs. */
+  elsewhere?: Elsewhere,
   /** The document to read. Only a test ever passes one. */
   page: Document = document,
   /** How long to keep watching. Only a test shortens it, so it does not wait four seconds. */
@@ -45,11 +59,36 @@ export const usePerson = (
   const had = useRef(found)
   had.current = found
 
+  /**
+   * Whether what is on the screen came off the page.
+   *
+   * The page wins, and this is what lets it: both sources are the same card, so a read
+   * over the network that lands after the reader has arrived on a page of theirs would
+   * otherwise put an older name over the one GitHub just served. It never goes back to
+   * false — a document that had their card does not stop having it.
+   */
+  const fromThePage = useRef(found !== undefined)
+
+  useEffect(() => {
+    if (elsewhere === undefined) return
+
+    let gone = false
+    elsewhere((who) => {
+      if (gone || fromThePage.current) return
+      setFound(who)
+    })
+
+    return () => {
+      gone = true
+    }
+  }, [elsewhere])
+
   useEffect(() => {
     const look = () =>
       Option.match(read(page), {
         onNone: () => {},
         onSome: (now) => {
+          fromThePage.current = true
           if (same(had.current, now)) return
           setFound(now)
         }

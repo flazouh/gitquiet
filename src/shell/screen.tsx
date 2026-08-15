@@ -1,6 +1,8 @@
-import { Effect, Fiber } from "effect"
+import { Effect, Fiber, Option } from "effect"
 import type { ReactNode } from "react"
 import { createRoot, type Root } from "react-dom/client"
+import { theirCard } from "../app/person"
+import type { Person } from "../domain/person"
 import { reportError } from "../observability/sentry"
 import { whenAnotherBarStands } from "../ui/barSlot"
 import {
@@ -16,8 +18,10 @@ import {
   whenTakenOver,
   whenThereIsAPage
 } from "../ui/mount"
+import { ourOwnRowsDrawn } from "../ui/going"
 import type { Place } from "../ui/place"
-import { Supplied } from "./supplied"
+import type { Elsewhere } from "../ui/usePerson"
+import { Supplied, throughGitHub } from "./supplied"
 
 /**
  * Standing one screen on a GitHub page, for every screen there is.
@@ -337,5 +341,50 @@ export const held = <A, E>(
     started = true
     report = partly
     return Fiber.join(first)
+  }
+}
+
+/**
+ * Their column, for the arrival where no document is coming.
+ *
+ * All three of a person's pages carry their card, so on a page GitHub served this is
+ * nothing at all: the screen reads it off the markup it is standing in, for free, as it
+ * arrives. A press this extension answered itself has no such markup — the screen stands
+ * on the issue or the list the reader pressed from — and the column had nowhere to come
+ * from at all until this.
+ *
+ * Started here rather than inside the screen, and started at once: the same read is what
+ * a pointer near the link already began, so by the time React asks, the answer is usually
+ * in the air or in the store. Nothing where the page GitHub served is theirs.
+ *
+ * A failure is silence. The column is not what the reader pressed for, and a page that
+ * refused to draw their repositories because their face could not be read would be a
+ * worse page than one with no face on it.
+ */
+export const theColumn = (login: string): Elsewhere | undefined => {
+  if (!ourOwnRowsDrawn(window)) return undefined
+
+  let last: Person | undefined
+  let tell: (who: Person) => void = () => {}
+
+  const heard = (who: Person): void => {
+    last = who
+    tell(who)
+  }
+
+  Effect.runFork(
+    theirCard(login, heard).pipe(
+      throughGitHub,
+      Effect.map((found) => Option.match(found, { onNone: () => {}, onSome: heard })),
+      Effect.ignore
+    )
+  )
+
+  // Whatever landed before the screen mounted, said again to whoever mounted. The read
+  // starts here and React asks a frame or two later, so without this the column would
+  // wait for a second answer that is not coming.
+  return (found) => {
+    tell = found
+    if (last !== undefined) found(last)
   }
 }

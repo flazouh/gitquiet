@@ -162,3 +162,13 @@ export const personIn = (page: Document): Option.Option<Person> => {
     }
   })
 }
+
+/**
+ * The same, for a page fetched rather than the one being stood on.
+ *
+ * Which is how the column arrives on a soft press. Nothing loads, so the document under
+ * the screen is whatever page the reader came from — an issue, a list — and their card
+ * is not in it and never will be. See `GitHubGateway.person`.
+ */
+export const personOnPage = (html: string): Option.Option<Person> =>
+  personIn(new DOMParser().parseFromString(html, "text/html"))

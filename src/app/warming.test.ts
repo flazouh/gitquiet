@@ -51,6 +51,12 @@ describe("what resting on a link reads", () => {
       "one commit",
       "https://github.com/oven-sh/bun/commit/9f2c1d4e5a6b7c8d9e0f1a2b3c4d5e6f70819293",
       "/oven-sh/bun/commit/9f2c1d4e5a6b7c8d9e0f1a2b3c4d5e6f70819293"
+    ],
+    ["a person's profile", "https://github.com/sindresorhus", "/sindresorhus"],
+    [
+      "a person's repositories tab",
+      "https://github.com/sindresorhus?tab=repositories",
+      "/sindresorhus?tab=repositories"
     ]
   ]
 
@@ -69,6 +75,21 @@ describe("what resting on a link reads", () => {
     // Their subscriptions page, which lists threads rather than Notices and has no screen.
     expect(warming("https://github.com/notifications/subscriptions")).toBeNull()
     expect(warming("https://github.com/oven-sh/bun/issues/new")).toBeNull()
+  })
+
+  /*
+   * A person's page is one path segment, which is also the shape of every marketing page
+   * GitHub has. `personPageIn` keeps the list of the reserved ones; this is the guard that
+   * the table asks it at all, because reading `/pricing` as a profile is three requests for
+   * a page nobody drew.
+   */
+  test("reads nothing about a person's stars tab, which has no screen", () => {
+    expect(warming("https://github.com/sindresorhus?tab=stars")).toBeNull()
+  })
+
+  test("reads nothing about the site's own one-segment pages", () => {
+    expect(warming("https://github.com/pricing")).toBeNull()
+    expect(warming("https://github.com/features")).toBeNull()
   })
 
   test("reads nothing on another host, this being every page of the web", () => {

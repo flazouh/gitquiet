@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { Effect, Option } from "effect"
-import { layer } from "../github/GitHubGateway"
+import { forgetPersonPages, layer } from "../github/GitHubGateway"
 import { personPageIn } from "../domain/person"
 import { AT_MOST, type TheirList, theirFirstPage, theirOtherPages, theirWholeList } from "./personRepos"
 
@@ -10,6 +10,10 @@ const last = await Bun.file("tests/fixtures/personReposArchived.html").text()
 const realFetch = globalThis.fetch
 afterEach(() => {
   globalThis.fetch = realFetch
+  // One page of theirs is held for half a minute so that a read ahead and the press that
+  // follows it are one fetch. A test file is quicker than that, so each test starts with
+  // nothing held rather than with the last test's fixture.
+  forgetPersonPages()
 })
 
 const intercept = (respond: (url: string) => Response): ReadonlyArray<string> => {

@@ -298,6 +298,36 @@ describe("parsing markdown into a document", () => {
     ])
   })
 
+  test("reads every address in a source's set the same way", () => {
+    const doc = parseMarkdown(
+      `<picture>
+    <source media="(prefers-color-scheme: dark)" srcset="site/dark.svg 1x, site/dark@2x.svg 2x">
+    <img src="site/light.svg" alt="Open">
+  </picture>`,
+      { owner: "flazouh", repo: "gitquiet" }
+    )
+
+    expect(doc.blocks).toMatchObject([
+      {
+        type: "html",
+        tag: "picture",
+        children: [
+          {
+            tag: "source",
+            attrs: {
+              srcset:
+                "https://raw.githubusercontent.com/flazouh/gitquiet/HEAD/site/dark.svg 1x, https://raw.githubusercontent.com/flazouh/gitquiet/HEAD/site/dark@2x.svg 2x"
+            }
+          },
+          {
+            tag: "img",
+            attrs: { src: "https://raw.githubusercontent.com/flazouh/gitquiet/HEAD/site/light.svg" }
+          }
+        ]
+      }
+    ])
+  })
+
   test("leaves an address alone where there is no repository to read it from", () => {
     // A comment box drawing its own preview has no repository behind it. An address left as
     // written is one the reader can still see; one pointed at a guessed repository is not.
