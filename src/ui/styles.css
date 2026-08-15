@@ -27,7 +27,30 @@
  * Nothing here reaches their page: these rules only apply to class names this
  * interface writes.
  */
-@import "tailwindcss/utilities.css";
+/**
+ * `source("../")` is `src`, and only `src`.
+ *
+ * Tailwind looks for class names from the directory the build runs in when
+ * nothing says otherwise, and both builds that make this sheet run at the
+ * repository root. So the desktop window and the marketing site were writing
+ * into the sheet the extension ships: 12 KB of rules for pages that never load
+ * it. Each of those has its own entry and scopes itself the same way.
+ *
+ * It also made the build unreproducible. Mozilla rebuilds the extension from the
+ * sources archive, which carries no `desktop` and no `site`, so the sheet a
+ * reviewer built came out 12 KB shorter than the uploaded one, with nothing in
+ * the diff to say why.
+ */
+@import "tailwindcss/utilities.css" source("../");
+
+/*
+ * Tests render the same components, so their class names read as used ones, and
+ * half a kilobyte of the shipped sheet was styling assertions. The sources
+ * archive holds no test file either, so this is the last thing between the
+ * uploaded build and a rebuilt one.
+ */
+@source not "../**/*.test.tsx";
+@source not "../**/*.test.ts";
 
 @import "./primer.css";
 @import "./motion.css";
