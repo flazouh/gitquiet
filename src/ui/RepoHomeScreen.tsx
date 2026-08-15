@@ -324,7 +324,13 @@ const Readme = ({
           {source === undefined ? (
             <GitHubHtml html={welcome.html} />
           ) : (
-            <Markdown markdown={source} owner={repo.owner} repo={repo.repo} />
+            <Markdown
+              markdown={source}
+              owner={repo.owner}
+              repo={repo.repo}
+              branch={branch}
+              at={welcome.path}
+            />
           )}
         </div>
       )}
@@ -463,6 +469,8 @@ const Paper = ({
       path={reading}
       opened={opened.file}
       failed={opened.failed}
+      repo={front.repo}
+      branch={front.branch}
       onClose={() => onRead?.(null)}
     />
   )

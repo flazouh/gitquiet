@@ -14,13 +14,19 @@ import { parseMarkdown } from "./parse"
 export const Markdown = ({
   markdown,
   owner,
-  repo
+  repo,
+  branch,
+  at
 }: {
   readonly markdown: string
   readonly owner?: string
   readonly repo?: string
+  /** Which branch a relative address means. Their default branch where nobody says. */
+  readonly branch?: string
+  /** Where this markdown itself is, so an address beside it is read from beside it. */
+  readonly at?: string
 }) => {
-  const options: ParseOptions = { owner, repo }
+  const options: ParseOptions = { owner, repo, branch, at }
   const doc = parseMarkdown(markdown, options)
   return (
     <div className="markdown">
@@ -236,6 +242,13 @@ const Inline = ({ node }: { readonly node: MarkdownInline }) => {
           <Inlines nodes={node.children} />
         </a>
       )
+    case "image":
+      /*
+       * Lazy, because a README is read from the top and its shots are usually further down
+       * it than the reader ever goes. Nothing here sets a width: the markdown does not carry
+       * one, and `markdown.css` holds every picture inside the column it is drawn in.
+       */
+      return <img src={node.src} alt={node.alt} loading="lazy" />
     case "html":
       return <Html node={node} />
     case "mention":

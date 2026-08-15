@@ -118,6 +118,23 @@
 }
 
 /**
+ * Every picture gets a small corner, unless it asked for another one.
+ *
+ * A square photograph on a screen where nothing else has a square corner reads as an
+ * element that has not finished loading. Three pixels is the same corner a code fence and
+ * a badge already have, so a screenshot in a README sits in the column rather than being
+ * pasted over it.
+ *
+ * Through `:where` again, at no specificity, so this is only what an image gets when nobody
+ * said otherwise: a face keeps its `rounded-full` and a card its own radius. `markdown.css`
+ * says the same thing about a picture in a document, and says it as the same token.
+ */
+:where(#gitquiet-root) img,
+:where([data-gitquiet-outside]) img {
+  border-radius: var(--radius-sm);
+}
+
+/**
  * The margin half of the preflight, and the one rule here whose weight had to be
  * counted rather than reasoned about.
  *

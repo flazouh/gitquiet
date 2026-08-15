@@ -29,6 +29,7 @@ export type ParagraphBlock = {
 export type MarkdownInline =
   | TextInline
   | LinkInline
+  | ImageInline
   | HtmlNode
   | StrongInline
   | EmInline
@@ -48,6 +49,20 @@ export type LinkInline = {
   readonly type: "link"
   readonly href: string | null
   readonly children: ReadonlyArray<MarkdownInline>
+}
+
+/**
+ * A picture, which on the page most readers meet first is most of what is on it.
+ *
+ * The alt text is not optional here even though it is in the markdown, because a picture
+ * with nothing said about it is a gap in a screen reader's account of the page. An empty
+ * string is the honest answer where the writer gave none, and it is what `<img alt="">`
+ * means: decoration, skip it.
+ */
+export type ImageInline = {
+  readonly type: "image"
+  readonly src: string
+  readonly alt: string
 }
 
 export type StrongInline = {
@@ -110,6 +125,24 @@ export type AlertBlock = {
 export type ParseOptions = {
   readonly owner?: string
   readonly repo?: string
+  /**
+   * Which commit or branch a relative address means, where the caller knows.
+   *
+   * Left out, a relative address is read from `HEAD`, which their raw host resolves to
+   * whatever the repository's default branch is. That is right for a README on a front
+   * page and for the body of an issue, and wrong only for markdown read out of a branch
+   * that is not the default one, where the caller has the ref to hand and can say so.
+   */
+  readonly branch?: string
+  /**
+   * The path of the file this markdown was read out of, from the root of the repository.
+   *
+   * A README beside its pictures writes `images/one.png`, and that means beside the README
+   * rather than at the top of the repository. Left out, an address is read from the root,
+   * which is where GitHub reads the body of an issue or a comment from: those are not files
+   * and have no directory to be beside.
+   */
+  readonly at?: string
 }
 
 export type TableAlign = "left" | "center" | "right" | null

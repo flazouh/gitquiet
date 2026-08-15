@@ -30,6 +30,23 @@ describe("rendering our markdown document", () => {
     expect(screen.getByText("A CLI.")).toBeTruthy()
   })
 
+  test("draws an image with the words that describe it", () => {
+    render(<Markdown markdown={"![The working set](https://example.com/shot.png)"} />)
+
+    const shot = screen.getByRole("img", { name: "The working set" })
+    expect(shot.getAttribute("src")).toBe("https://example.com/shot.png")
+  })
+
+  test("draws a repository's own shot from its raw host", () => {
+    render(
+      <Markdown markdown={"![A shot](docs/shot.png)"} owner="flazouh" repo="gitquiet" />
+    )
+
+    expect(screen.getByRole("img", { name: "A shot" }).getAttribute("src")).toBe(
+      "https://raw.githubusercontent.com/flazouh/gitquiet/HEAD/docs/shot.png"
+    )
+  })
+
   test("does not make a javascript: link clickable", () => {
     render(<Markdown markdown={"[x](javascript:alert(1))"} />)
 

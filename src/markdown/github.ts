@@ -2,6 +2,7 @@ import { nameToEmoji } from "gemoji"
 import type {
   AlertKind,
   Footnote,
+  HtmlNode,
   MarkdownBlock,
   MarkdownDocument,
   MarkdownInline,
@@ -96,15 +97,78 @@ const decorateBlock = (block: MarkdownBlock, options: ParseOptions): MarkdownBlo
         )
       }
     case "html":
-      return {
-        ...block,
-        children: block.children.flatMap(
-          (child): ReadonlyArray<MarkdownBlock | MarkdownInline> =>
-            isInline(child) ? decorateInline(child, options) : [decorateBlock(child, options)]
-        )
-      }
+      return decorateHtml(block, options)
     default:
       return block
+  }
+}
+
+const RAW = "https://raw.githubusercontent.com"
+
+/** An address that already says where it is: it has a scheme, or it starts at a root. */
+const ROOTED = /^(?:[a-z][a-z0-9+.-]*:|\/)/iu
+
+/**
+ * A picture's address, read as a file in the repository the markdown came out of.
+ *
+ * A README writes `site/public/store/working-set.png`, meaning a file in the repository, and
+ * GitHub's own rendering points that at their raw host. Left as written it resolves against
+ * whatever page the reader is standing on, so every shot in every README is a missing page
+ * drawn as a broken picture.
+ *
+ * `HEAD` where the caller named no branch: their raw host resolves it to the default branch,
+ * so nothing here has to know what a repository calls its trunk.
+ */
+const inTheRepository = (src: string, options: ParseOptions): string => {
+  const { owner, repo } = options
+  if (owner === undefined || repo === undefined) return src
+  if (src === "" || ROOTED.test(src)) return src
+  return `${RAW}/${owner}/${repo}/${options.branch ?? "HEAD"}/${walked(beside(options.at), src)}`
+}
+
+/** The directory the markdown is in, as steps. A README at the top of a repository is in none. */
+const beside = (at: string | undefined): ReadonlyArray<string> =>
+  at === undefined ? [] : at.split("/").slice(0, -1).filter((step) => step !== "")
+
+/**
+ * Where an address written in that directory lands.
+ *
+ * `..` steps back out of it, `.` stays, and everything else is a step further in — the walk a
+ * reader does in their head when they read `../site/one.png` in a file under `docs`. Stepping
+ * back past the top of the repository is dropped rather than kept, because there is nothing
+ * above it to point at.
+ */
+const walked = (from: ReadonlyArray<string>, src: string): string => {
+  const steps = [...from]
+  for (const step of src.split("/")) {
+    if (step === "" || step === ".") continue
+    if (step === "..") {
+      steps.pop()
+      continue
+    }
+    steps.push(step)
+  }
+  return steps.join("/")
+}
+
+/*
+ * One walk for both, because a picture written as html arrives as a block on its own line and
+ * as an inline in the middle of a sentence, and the two must not disagree about where its
+ * file is. A `srcset` is left alone: it is a list with descriptors in it rather than an
+ * address, and a README that writes one writes their host into it.
+ */
+const decorateHtml = (node: HtmlNode, options: ParseOptions): HtmlNode => {
+  const src = node.attrs["src"]
+  return {
+    ...node,
+    attrs:
+      node.tag === "img" && src !== undefined
+        ? { ...node.attrs, src: inTheRepository(src, options) }
+        : node.attrs,
+    children: node.children.flatMap(
+      (child): ReadonlyArray<MarkdownBlock | MarkdownInline> =>
+        isInline(child) ? decorateInline(child, options) : [decorateBlock(child, options)]
+    )
   }
 }
 
@@ -139,16 +203,10 @@ const decorateInline = (node: MarkdownInline, options: ParseOptions): ReadonlyAr
     case "em":
     case "delete":
       return [{ ...node, children: decorateInlines(node.children, options) }]
+    case "image":
+      return [{ ...node, src: inTheRepository(node.src, options) }]
     case "html":
-      return [
-        {
-          ...node,
-          children: node.children.flatMap(
-            (child): ReadonlyArray<MarkdownBlock | MarkdownInline> =>
-              isInline(child) ? decorateInline(child, options) : [decorateBlock(child, options)]
-          )
-        }
-      ]
+      return [decorateHtml(node, options)]
     default:
       return [node]
   }

@@ -18,6 +18,10 @@ export type ReadingProps = {
   readonly opened: Opened | undefined
   /** True where the read failed, which is a sentence rather than an empty pane. */
   readonly failed?: boolean
+  /** Whose repository this file is, so a picture written beside it can be found. */
+  readonly repo?: { readonly owner: string; readonly repo: string }
+  /** Which branch it was read from, for the same reason. */
+  readonly branch?: string
   /** Back to the README, which is what this pane replaced. */
   readonly onClose: () => void
 }
@@ -121,7 +125,14 @@ const WAYS = [
  * document, and the source is one press away for the reader who wants what it
  * says rather than what it looks like.
  */
-export const Reading = ({ path, opened, failed = false, onClose }: ReadingProps) => {
+export const Reading = ({
+  path,
+  opened,
+  failed = false,
+  repo,
+  branch,
+  onClose
+}: ReadingProps) => {
   const [way, setWay] = useState<"rendered" | "source">("rendered")
 
   // Back to rendered on every new file. The choice is about the document being
@@ -171,7 +182,13 @@ export const Reading = ({ path, opened, failed = false, onClose }: ReadingProps)
           <p className="px-4 py-3 text-sm text-ink-muted">Reading this file…</p>
         ) : showing ? (
           <div className="px-6 py-5">
-            <Markdown markdown={source} />
+            <Markdown
+              markdown={source}
+              owner={repo?.owner}
+              repo={repo?.repo}
+              branch={branch}
+              at={path}
+            />
           </div>
         ) : (
           <Source opened={opened} />

@@ -301,6 +301,8 @@ const inlineOf = (token: Token): ReadonlyArray<MarkdownInline> => {
       return "text" in token ? [{ type: "text", text: token.text }] : []
     case "link":
       return isLink(token) ? [linkOf(token)] : []
+    case "image":
+      return isImage(token) ? imageOf(token) : []
     case "strong":
       return Array.isArray(token.tokens)
         ? [{ type: "strong", children: inlinesOf(token.tokens) }]
@@ -350,3 +352,16 @@ const linkOf = (token: Tokens.Link): MarkdownInline => ({
   href: hrefOf(token.href),
   children: inlinesOf(token.tokens)
 })
+
+const isImage = (token: Token): token is Tokens.Image =>
+  token.type === "image" && "href" in token && "text" in token
+
+/*
+ * Nothing rather than a broken picture where the address is not one a reader may follow.
+ * A link with the same address keeps its words and loses only the press, because the words
+ * are the message; an image's message is the picture, and there is nothing left to draw.
+ */
+const imageOf = (token: Tokens.Image): ReadonlyArray<MarkdownInline> => {
+  const src = hrefOf(token.href)
+  return src === null ? [] : [{ type: "image", src, alt: token.text }]
+}
