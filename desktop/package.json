@@ -13,6 +13,7 @@
     "dev:bundled": "bun run css && GITQUIET_INSPECT=50505 electrobun dev",
     "dev:closed": "bun run css && electrobun dev",
     "build": "bun run css && electrobun build",
+    "build:stable": "bun run css && electrobun build --env=stable",
     "compile": "tsc --noEmit",
     "engine": "bun run scripts/build-diff-engine.ts && bun run scripts/build-markdown-highlighter.ts && bun run scripts/build-markdown-mermaid.ts"
   },

@@ -66,7 +66,7 @@ jobs:
       - name: Set extension version
         env:
           RELEASE_TAG: ${{ steps.which.outputs.tag }}
-        run: echo "EXTENSION_VERSION=$(bun scripts/release-version.ts "$RELEASE_TAG")" >> "$GITHUB_ENV"
+        run: echo "RELEASE_VERSION=$(bun scripts/release-version.ts "$RELEASE_TAG")" >> "$GITHUB_ENV"
 
       # The install above skips the `prepare` script, which is what writes
       # `.wxt/tsconfig.json` locally. Every chunk the build makes is bundled through
@@ -182,3 +182,102 @@ jobs:
           bunx wxt submit \
             --firefox-zip .output/*-firefox.zip \
             --firefox-sources-zip .output/*-sources.zip
+
+  desktop:
+    name: macOS app
+    needs: package
+    # An Apple app can only be signed and notarised on a Mac, and `hdiutil`,
+    # `codesign` and `notarytool` are all only here.
+    runs-on: macos-latest
+    # Notarisation is a queue at Apple. Ten minutes is normal, an hour happens.
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.package.outputs.tag }}
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: .bun-version
+
+      # Not `--ignore-scripts` here: the desktop app is a workspace, and this is
+      # what puts Electrobun's own binary in place.
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Read the release version
+        env:
+          RELEASE_TAG: ${{ needs.package.outputs.tag }}
+        run: echo "RELEASE_VERSION=$(bun scripts/release-version.ts "$RELEASE_TAG")" >> "$GITHUB_ENV"
+
+      # Gatekeeper refuses an unsigned app that arrived over the network, so a
+      # DMG nobody can open is worse than no DMG. Without a certificate this job
+      # says so and stops, and the extension still ships.
+      - name: Check there is a certificate to sign with
+        id: signable
+        env:
+          CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+        run: |
+          if [ -z "$CERTIFICATE" ]; then
+            echo "::notice::No MACOS_CERTIFICATE secret. Skipping the macOS app."
+            echo "signable=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "signable=yes" >> "$GITHUB_OUTPUT"
+          fi
+
+      # A keychain of its own, in the runner's temp folder, so the certificate
+      # lives as long as the job and no longer. `set-key-partition-list` is what
+      # lets `codesign` read the key without a prompt no runner can answer.
+      - name: Unlock a keychain with the certificate in it
+        if: steps.signable.outputs.signable == 'yes'
+        env:
+          CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/release.keychain-db"
+          password=$(uuidgen)
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          echo "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" \
+            -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/certificate.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain"
+          security list-keychain -d user -s "$keychain" login.keychain-db
+          security find-identity -v -p codesigning "$keychain"
+
+      # `ELECTROBUN_DEVELOPER_ID` is what turns signing on: see
+      # desktop/electrobun.config.ts, which reads it to decide.
+      - name: Build, sign and notarise
+        if: steps.signable.outputs.signable == 'yes'
+        working-directory: desktop
+        env:
+          ELECTROBUN_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+          ELECTROBUN_APPLEID: ${{ secrets.APPLE_ID }}
+          ELECTROBUN_APPLEIDPASS: ${{ secrets.APPLE_ID_PASSWORD }}
+          ELECTROBUN_TEAMID: ${{ secrets.APPLE_TEAM_ID }}
+        run: bun run build:stable
+
+      # Renamed on the way up. Electrobun names an artifact for the build it came
+      # from, which reads as nothing at all in somebody's downloads folder.
+      - name: Attach the app to the GitHub release
+        if: steps.signable.outputs.signable == 'yes'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.package.outputs.tag }}
+        run: |
+          dmg="GitQuiet-$RELEASE_VERSION-macos-arm64.dmg"
+          mv desktop/artifacts/*-GitQuiet.dmg "$dmg"
+          gh release upload "$RELEASE_TAG" "$dmg" --clobber
+
+      # Proof the signature is real and Apple stapled its ticket to it, which is
+      # the difference between an app that opens and one that says it is damaged.
+      - name: Check Gatekeeper accepts it
+        if: steps.signable.outputs.signable == 'yes'
+        run: |
+          hdiutil attach -nobrowse -readonly "GitQuiet-$RELEASE_VERSION-macos-arm64.dmg" \
+            -mountpoint "$RUNNER_TEMP/dmg"
+          codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/dmg/GitQuiet.app"
+          spctl --assess --type execute --verbose "$RUNNER_TEMP/dmg/GitQuiet.app"
+          hdiutil detach "$RUNNER_TEMP/dmg"

@@ -13,7 +13,14 @@ export default {
   app: {
     name: "GitQuiet",
     identifier: "dev.gitquiet.app",
-    version: "0.1.0",
+    /*
+     * The tag, when a release is what is building. `.github/workflows/release.yml`
+     * reads it off the tag and both this app and the extension's manifest take it
+     * from there, so one tag names one version of both and nothing in the tree
+     * records it. The fallback is for a build on somebody's own machine, which has
+     * no tag and needs a version anyway.
+     */
+    version: process.env.RELEASE_VERSION ?? "0.0.0",
     description: "Your pull requests, without the browser"
   },
   build: {
@@ -53,6 +60,26 @@ export default {
        * fetched on the first mermaid fence. Same reason as the highlighter.
        */
       "src/view/markdown-mermaid.js": "views/main/markdown-mermaid.js"
+    },
+    /*
+     * Signed and notarised only where there is an identity to sign with, which is
+     * the release runner and not a laptop. Gatekeeper refuses an unsigned app it
+     * downloaded, so a release has to carry both; a build made to look at
+     * carries neither, and asking a developer for a certificate to run `bun run
+     * build` would be asking for the wrong thing.
+     *
+     * Notarising also needs an Apple ID, its app password and a team, or an App
+     * Store Connect key. `codesign: true` with none of them fails the build
+     * rather than shipping something a reader cannot open, which is the right way
+     * round.
+     *
+     * `icons` is left at its default, `icon.iconset`, which `bun
+     * scripts/build-icons.ts` writes from the same mark the extension uses.
+     */
+    mac: {
+      codesign: process.env.ELECTROBUN_DEVELOPER_ID !== undefined,
+      notarize: process.env.ELECTROBUN_DEVELOPER_ID !== undefined,
+      createDmg: true
     }
   }
 } satisfies ElectrobunConfig

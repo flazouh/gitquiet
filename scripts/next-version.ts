@@ -2,7 +2,7 @@
  * The next tag to cut, counted from the last one.
  *
  * A release carries no commit here. Nothing in the repository records a version
- * — `package.json` stays at `0.0.0`, and both manifests read `EXTENSION_VERSION`
+ * — `package.json` stays at `0.0.0`, and both manifests read `RELEASE_VERSION`
  * at build time — so the tag is the only place a version is written, and the
  * only thing to read the previous one from. That is what lets a release be a
  * tag and nothing else: no bump commit, no changelog to merge, no second push

@@ -7,7 +7,7 @@ name: Tag
 #   gh workflow run tag.yml -f bump=minor
 #
 # Nothing is committed. `package.json` stays at `0.0.0` and both manifests read
-# `EXTENSION_VERSION` at build time, so the tag is the only record of a version
+# `RELEASE_VERSION` at build time, so the tag is the only record of a version
 # and a release never touches the tree — see scripts/next-version.ts.
 on:
   workflow_dispatch:

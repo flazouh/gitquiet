@@ -45,9 +45,9 @@ export default defineConfig({
     // Toolbar / overflow menus. Store listing keeps the longer `name`.
     short_name: "GitQuiet",
     description: `GitHub pull request review in ${readIn[browser] ?? "your browser"}. See every PR that needs you, waiting, or still running. One screen, sorted by next action.`,
-    ...(process.env.EXTENSION_VERSION === undefined
+    ...(process.env.RELEASE_VERSION === undefined
       ? {}
-      : { version: process.env.EXTENSION_VERSION }),
+      : { version: process.env.RELEASE_VERSION }),
     /*
      * Firefox alone wants to be told which add-on this is. Chrome derives an id
      * from the key the store signs with, but Gecko reads it out of the manifest,
