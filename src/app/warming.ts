@@ -49,6 +49,35 @@ export type Ahead = {
   readonly read: Effect.Effect<unknown, unknown, GitHubGateway>
 }
 
+/** As much of `navigator.connection` as this decision needs, and no more. */
+export type Connection = {
+  readonly saveData?: boolean
+  readonly effectiveType?: string
+}
+
+/**
+ * Whether a page nobody has asked for yet is worth the reader's data.
+ *
+ * Every page here is a guess, and a guess that misses is bytes somebody paid for and
+ * never saw. On a metered connection, or one slow enough that the guess would still be
+ * arriving when the press did, the guess is not worth making: the press itself reads the
+ * same page a moment later and the reader loses nothing but the head start.
+ *
+ * Both signals, because they are different complaints. `saveData` is the reader saying
+ * so outright, and `2g` is the network saying it for them. The pattern matches `slow-2g`
+ * as well as `2g` and leaves `3g` alone, which is where every other library that does
+ * this draws the same line.
+ *
+ * Absent altogether on Firefox and Safari, where the whole API is unimplemented. Read as
+ * permission rather than as refusal: a reader who cannot be asked has not said no.
+ */
+export const dataToSpare = (connection: Connection | undefined): boolean => {
+  if (connection === undefined) return true
+  if (connection.saveData === true) return false
+
+  return !/2g/.test(connection.effectiveType ?? "")
+}
+
 /**
  * The page a link leads to, ready to read, or nothing where there is nothing to read.
  *

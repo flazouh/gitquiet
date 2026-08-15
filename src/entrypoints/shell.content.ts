@@ -3,7 +3,7 @@ import { defineContentScript } from "wxt/utils/define-content-script";
 import { screenFor, type Wanted } from "@/app/screens";
 import { intendTo, intendedPath } from "@/app/intent";
 import { oursToOpen } from "@/app/pressing";
-import { type Ahead, warmingFor } from "@/app/warming";
+import { type Ahead, type Connection, dataToSpare, warmingFor } from "@/app/warming";
 import { isHome } from "@/domain/pages";
 import { elsewhereThan, type PullRequestRef } from "@/domain/PullRequestRef";
 import { layer as gatewayLayer } from "@/github/GitHubGateway";
@@ -18,8 +18,15 @@ import {
   goTo,
 } from "@/ui/going";
 import { markPage, theScreenShown, unmarkPage } from "@/ui/mount";
-import { linkNear } from "@/ui/linkNear";
-import { lingerFor, type Lingering, NOTHING } from "@/ui/lingering";
+import { linkNear, type Reached } from "@/ui/linkNear";
+import {
+  forwardness,
+  lingerFor,
+  type Lingering,
+  NOTHING,
+  type Seen,
+  smoothed,
+} from "@/ui/lingering";
 import type { Point } from "@/ui/near";
 import { type Stop, whenAddressChanges, whenTheyStayPut } from "@/ui/navigation";
 import {
@@ -314,6 +321,45 @@ export default defineContentScript({
     let at: Point | undefined;
     let ticking = 0;
     let lastLook = 0;
+    /** Where the pointer was when it was last looked at, and where it is going. */
+    let wasAt: Point | undefined;
+    let travel: Point = { x: 0, y: 0 };
+
+    /*
+     * Read each time rather than once, because both halves of it move: a reader turns
+     * data saver on mid-session, and a laptop carried out of range is on 2g by the time
+     * the next list is drawn.
+     *
+     * The cast is the whole API. Neither the DOM library nor Firefox nor Safari has
+     * `navigator.connection`, so the shape is stated here and read as absent everywhere
+     * it is missing.
+     */
+    const connectionNow = (): Connection | undefined =>
+      (navigator as Navigator & { connection?: Connection }).connection;
+
+    /**
+     * Whether what the pointer is near is worth earning credit towards, and at what rate.
+     *
+     * Several reasons it is not, and they are different kinds of reason: nothing is near
+     * at all, there is no page of ours behind what is, that page is read already, this
+     * visit has read its share, or the reader is on a connection where a guess costs more
+     * than it saves.
+     */
+    const worthReading = (found: Reached | null): Seen<Ahead> | null => {
+      if (found === null || asked.size >= AT_MOST || !dataToSpare(connectionNow())) {
+        return null;
+      }
+
+      const ahead = aheadOf(found.link);
+      if (ahead === null || asked.has(ahead.key)) return null;
+
+      return {
+        key: ahead.key,
+        reach: found.from.reach,
+        forward: forwardness(travel, found.from),
+        page: ahead,
+      };
+    };
 
     /*
      * On a frame rather than on the event, and it keeps running while there is anything
@@ -338,17 +384,18 @@ export default defineContentScript({
       const elapsed = now - lastLook;
       lastLook = now;
 
+      travel =
+        wasAt === undefined
+          ? travel
+          : smoothed(travel, { x: point.x - wasAt.x, y: point.y - wasAt.y });
+      wasAt = point;
+
       const found = linkNear(point);
       // Whatever the reader is near, whether or not it earns anything. The file is
       // fetched once a session either way, and the pages worth having it are ours.
       if (found !== null) soon(found.link);
 
-      const ahead = found === null ? null : aheadOf(found.link);
-      const worth =
-        found === null || ahead === null || asked.has(ahead.key) || asked.size >= AT_MOST
-          ? null
-          : { key: ahead.key, reach: found.reach, page: ahead };
-
+      const worth = worthReading(found);
       const step = lingerFor(lingering, worth, elapsed);
       lingering = step.lingering;
 
@@ -366,6 +413,11 @@ export default defineContentScript({
       at = { x: event.clientX, y: event.clientY };
       if (ticking !== 0) return;
 
+      // Starting again after an idle spell. Both halves of the heading are stale: the
+      // last position is too old to measure a step from, and the heading it built was
+      // for a movement that ended. Neither is worth more than starting over.
+      wasAt = undefined;
+      travel = { x: 0, y: 0 };
       lastLook = performance.now();
       ticking = window.requestAnimationFrame(look);
     };
@@ -384,6 +436,10 @@ export default defineContentScript({
       "pointerleave",
       () => {
         at = undefined;
+        // And no heading either. A pointer that comes back through the other side of the
+        // window is not still going the way it left.
+        wasAt = undefined;
+        travel = { x: 0, y: 0 };
       },
       { passive: true },
     );

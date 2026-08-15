@@ -22,6 +22,20 @@ export const AHEAD = 96
 const AROUND = 8
 
 /**
+ * Where a sampled point sits relative to the pointer, as a direction and a distance.
+ *
+ * The distance is the ring's own rather than the length of the vector: the offsets are
+ * rounded to whole pixels, so measuring one back gives 48.08 where the ring means 48.
+ *
+ * The direction points at the sample that found the link, which is not quite the
+ * direction of the link itself. A row is wider than the ring, so a pointer dropping into
+ * the gap above one meets it at the diagonal sample rather than the one straight down,
+ * and reads as three quarters aimed at a row it is heading straight into. Coarse in the
+ * forgiving direction, which is the right way round for a guess.
+ */
+export type Offset = Point & { readonly reach: number }
+
+/**
  * The points to test, nearest first: the pointer itself, then a ring at half the reach,
  * then a ring at the whole of it.
  *
@@ -32,7 +46,7 @@ const AROUND = 8
  * link was without measuring anything: the caller weighs a link under the pointer more
  * heavily than one the pointer is merely closing on.
  */
-const RING: ReadonlyArray<Point & { readonly reach: number }> = [
+const RING: ReadonlyArray<Offset> = [
   { x: 0, y: 0, reach: 0 },
   ...[AHEAD / 2, AHEAD].flatMap((reach) =>
     Array.from({ length: AROUND }, (_, step) => {
@@ -46,8 +60,8 @@ const RING: ReadonlyArray<Point & { readonly reach: number }> = [
   )
 ]
 
-/** A link within reach, and how far in front of the pointer it was found. */
-export type Reached = { readonly link: HTMLAnchorElement; readonly reach: number }
+/** A link within reach, and where in front of the pointer it was found. */
+export type Reached = { readonly link: HTMLAnchorElement; readonly from: Offset }
 
 /** What is under one point of the page. Only a test ever passes one. */
 export type Pick = (x: number, y: number) => Element | null
@@ -73,7 +87,7 @@ export const linkNear = (at: Point, pick: Pick = onThePage): Reached | null => {
     const link = found === null ? null : found.closest("a")
 
     if (link instanceof HTMLAnchorElement && link.href !== "") {
-      return { link, reach: offset.reach }
+      return { link, from: offset }
     }
   }
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { warmingFor } from "./warming"
+import { dataToSpare, warmingFor } from "./warming"
 
 /**
  * The coverage, page by page, and the two rules that keep it honest.
@@ -124,5 +124,30 @@ describe("what lingering near a link reads", () => {
     expect(second?.key).toBe("/oven-sh/bun/pulls?page=2")
     expect(filtered?.key).toBe("/oven-sh/bun/pulls?q=is%3Aopen+author%3Ame")
     expect(second?.key).not.toBe(filtered?.key)
+  })
+})
+
+describe("whether a guess is worth the reader's data", () => {
+  test("reads ahead on an ordinary connection", () => {
+    expect(dataToSpare({ saveData: false, effectiveType: "4g" })).toBe(true)
+    expect(dataToSpare({ saveData: false, effectiveType: "3g" })).toBe(true)
+  })
+
+  test("reads nothing ahead when the reader has asked for data saver", () => {
+    expect(dataToSpare({ saveData: true, effectiveType: "4g" })).toBe(false)
+  })
+
+  test("reads nothing ahead on a connection too slow to be ahead of anything", () => {
+    expect(dataToSpare({ effectiveType: "2g" })).toBe(false)
+    expect(dataToSpare({ effectiveType: "slow-2g" })).toBe(false)
+  })
+
+  /*
+   * Firefox and Safari implement none of this. Treating the silence as a refusal would
+   * turn the read-ahead off for most of the readers who are not on Chrome.
+   */
+  test("reads ahead where the browser has no opinion to offer", () => {
+    expect(dataToSpare(undefined)).toBe(true)
+    expect(dataToSpare({})).toBe(true)
   })
 })
