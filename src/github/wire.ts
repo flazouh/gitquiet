@@ -14,13 +14,18 @@ import * as SchemaIssue from "effect/SchemaIssue"
 const sayIssue = SchemaIssue.makeFormatterStandardSchemaV1()
 
 /**
- * Which field of a payload would not decode, and what arrived there instead.
+ * Which field of a payload would not decode, and what it would have taken.
  *
  * A refusal from one of these schemas stringifies to `"Error"` and nothing else,
  * so every tool that reported one — the drift check, the diagnoser — printed a
  * stack trace through Effect's internals and left the reader to guess. Two shape
  * changes on one live pull request cost an hour of guessing before this existed.
  * Anything that is not a schema refusal is passed through as itself.
+ *
+ * It said what arrived there as well, until effect 4.0.0-beta.107: a union that
+ * matches none of its members now reports the members and drops the value that
+ * missed them. `getActual` restores it upstream and is in no release yet, so the
+ * sentence names the field and the set until one carries it.
  */
 export const whyItWouldNotDecode = (cause: unknown): string => {
   const issue = (cause as { readonly issue?: unknown } | null)?.issue
