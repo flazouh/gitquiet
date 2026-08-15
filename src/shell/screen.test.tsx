@@ -59,6 +59,10 @@ const drawn = async (where: string, said: string): Promise<void> => {
  * held until fourteen dependency updates shifted the timing under it, and then the
  * assertion after it read a tree that was still on its way out. Nothing here waits the
  * full second unless the thing never happens, which is the case worth failing on.
+ *
+ * For a change rather than for a state. Waiting for something to be false returns at once
+ * where it was already false, which asserts what was true before the test began. Two of
+ * the tests below watch for a thing arriving late, so they keep `settled` and say why.
  */
 const until = async (that: () => boolean): Promise<void> => {
   for (let turn = 0; turn < 50; turn++) {
@@ -84,7 +88,7 @@ describe("standing a screen on the page", () => {
     theirPage()
 
     const page = standAScreen({ place: MINE, draw: () => <p>ours</p> })
-    await settled()
+    await drawn("#region", "ours")
 
     expect(document.querySelector("#region")?.textContent).toContain("ours")
     expect(document.documentElement.getAttribute("data-gitquiet-shown")).toBe("test-screen")
@@ -96,9 +100,9 @@ describe("standing a screen on the page", () => {
     theirPage()
 
     const page = standAScreen({ place: MINE, draw: () => <p>ours</p> })
-    await settled()
+    await drawn("#region", "ours")
     page.close()
-    await settled()
+    await until(() => document.getElementById("gitquiet-root") === null)
 
     expect(document.getElementById("gitquiet-root")).toBeNull()
     expect(document.documentElement.hasAttribute("data-gitquiet-taken")).toBe(false)
@@ -118,9 +122,9 @@ describe("standing a screen on the page", () => {
         held = false
       }
     })
-    await settled()
+    await drawn("#region", "ours")
     page.close()
-    await settled()
+    await until(() => !held)
 
     expect(held).toBe(false)
   })
@@ -144,9 +148,9 @@ describe("standing a screen on the page", () => {
         </button>
       )
     })
-    await settled()
+    await drawn("#region", "first")
     document.querySelector("button")?.dispatchEvent(new Event("click", { bubbles: true }))
-    await settled()
+    await drawn("#region", "second")
 
     expect(document.querySelector("#region")?.textContent).toContain("second")
     page.close()
@@ -196,6 +200,9 @@ describe("standing a screen on the page", () => {
     await drawn(`#${BAR_ID}`, "Search")
 
     const again = standAScreen({ place: MINE, draw: () => <TheBar where={{ kind: "home" }} /> })
+    // Twenty milliseconds rather than a condition, because the fault is a second header
+    // and there is no arrival to wait for. `until` counting to one would return on the
+    // header the first screen already drew, before the second had a turn to draw another.
     await settled()
 
     expect(document.querySelectorAll(`#${BAR_ID} > header`).length).toBe(1)
@@ -216,6 +223,9 @@ describe("standing a screen on the page", () => {
     const page = standAScreen({ place: MINE, draw: () => <p>ours</p> })
     page.close()
     history.pushState(null, "", "/mine")
+    // The same, for the same reason. Nothing here ever stood up, so waiting for the root
+    // to be absent returns on the first turn and asserts what was true before the test
+    // began. What is watched for is a tree arriving after the address moved.
     await settled()
 
     expect(document.querySelector("#region")?.textContent).toBe("their page")
