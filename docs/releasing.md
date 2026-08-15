@@ -31,15 +31,20 @@ pending review, ready to publish, or deleted status.
 Review is usually hours and can be days. There is nothing to fix when this
 happens and nothing to re-run: the tag and the GitHub release are already
 written, and the other three targets have already taken it. Once the review
-finishes, send that same tag to the store on its own:
+finishes, send that same tag to the one store that missed it:
 
 ```sh
-gh workflow run release.yml -f tag=v0.2.3
+gh workflow run release.yml -f tag=v0.2.3 -f targets=chrome
 ```
 
-A version that a store already holds cannot be sent again, so if only one target
-was missed, that is the command for it. Any target whose credentials are absent
-is skipped rather than failed.
+Name the target. `targets=all` is the default and is wrong here: a store refuses
+a version it already holds, so the run would go red on a release that worked, and
+both mac jobs would notarise for an hour to attach a DMG that is already
+attached. A dispatch also leaves the release page alone, so the bytes a store is
+reviewing stay the bytes the page offers.
+
+Any target whose credentials are absent is skipped rather than failed, so this is
+also how a store is added later: set its secrets, then send it the last tag.
 
 ## What gets built
 
