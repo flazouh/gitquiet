@@ -142,12 +142,33 @@ export default defineConfig({
    */
   zip: {
     /*
+     * Both names come from the manifest, which reads `RELEASE_VERSION` above.
+     *
+     * WXT names these `{{packageVersion}}` by default, and package.json here
+     * says `0.0.0` on purpose, so the default writes `gitquiet-0.0.0-chrome.zip`
+     * for every release ever cut. The bytes inside are right either way — this
+     * is the label on the tin, which is what a release page shows and what a
+     * download link points at.
+     */
+    artifactTemplate: "{{name}}-{{version}}-{{browser}}.zip",
+    sourcesTemplate: "{{name}}-{{version}}-sources.zip",
+    /*
      * The prose stays in. Mozilla asks a reviewer to rebuild the extension from
      * this archive, and refuses one that arrives without instructions, so the
      * README that carries them is the last thing to drop for size.
+     *
+     * Named directory by directory rather than as `desktop/**` because an
+     * exclusion beats an inclusion, and `desktop/package.json` has to survive:
+     * the root package.json calls `desktop` a workspace, and bun refuses to
+     * install a workspace it cannot find. What is left of that folder is seven
+     * small config files. What is dropped is 154 MB.
      */
     excludeSources: [
-      "desktop/**",
+      "desktop/src/**",
+      "desktop/build/**",
+      "desktop/artifacts/**",
+      "desktop/scripts/**",
+      "desktop/icon.iconset/**",
       "site/**",
       "video/**",
       "shots/**",
@@ -155,15 +176,15 @@ export default defineConfig({
       "public/screens/**"
     ],
     /*
-     * Two files the archive is unusable without.
+     * `**\/*` first, because this list is the allowlist and not an addition to
+     * one. WXT defaults it to `**\/*` and takes whatever is written here
+     * instead, so naming the one dotfile the archive needs is how the archive
+     * came to hold that dotfile and nothing else.
      *
-     * `.bun-version` is the bun the lockfile resolves against, and the `**\/.*`
-     * default above drops it. `desktop/package.json` is there because the root
-     * package.json calls `desktop` a workspace, and bun refuses to install a
-     * workspace it cannot find — so excluding the desktop app wholesale made
-     * `bun install` fail on the first line a reviewer runs.
+     * `.bun-version` is the bun the lockfile resolves against, and the hidden
+     * files are dropped otherwise.
      */
-    includeSources: [".bun-version", "desktop/package.json"]
+    includeSources: ["**/*", ".bun-version"]
   },
   vite: () => ({
     plugins: [tailwindcss()],
