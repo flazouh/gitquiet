@@ -44,6 +44,15 @@ export type Happening = {
     | "closed"
     | "reopened"
     | "commented"
+    /**
+     * A review left on a pull request, which is the act a person is judged by.
+     *
+     * Apart from `commented` because the two answer different questions. A comment is
+     * somebody joining a conversation; a review is somebody doing the work a maintainer
+     * is asked for, and a profile that counts them together says a person who leaves
+     * "+1" is as reliable as one who reads the diff. See `Answering`.
+     */
+    | "reviewed"
     | "raised"
     | "settled"
     | "starred"

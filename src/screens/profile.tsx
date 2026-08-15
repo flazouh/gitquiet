@@ -1,0 +1,153 @@
+import { Effect, Fiber, Option } from "effect"
+import { forgetIntent, intendedPath } from "@/app/intent"
+import { theirWholeList } from "@/app/personRepos"
+import { theirAnswering } from "@/app/profile"
+import { chosenView } from "@/app/settings"
+import type { Answering } from "@/domain/answering"
+import { type PersonPage, profileIn } from "@/domain/person"
+import type { View } from "@/domain/Settings"
+import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { standAScreen } from "@/shell/screen"
+import { settings, throughGitHub } from "@/shell/supplied"
+import { handBack, markPage, reveal, ungate } from "@/ui/mount"
+import { whenAddressChanges } from "@/ui/navigation"
+import { PROFILE } from "@/ui/place"
+import { type Owned, ProfileScreen } from "@/ui/ProfileScreen"
+import "@/ui/styles.css"
+
+/**
+ * Puts one person's profile on the page, and hands back the way to take it off.
+ *
+ * Two reads, neither of which the other waits on. Their events answer whether they reply
+ * to anybody, which is the question the page is arranged around, and their repositories
+ * are the same walk their tab does. The column and the tab row are drawn before either
+ * lands, because both are already in the document GitHub served.
+ */
+const open = (page: PersonPage): (() => void) => {
+  const now = new Date()
+
+  const asking = (partly: (said: Answering) => void) =>
+    theirAnswering(page.login, now, partly).pipe(
+      throughGitHub,
+      Effect.tapError((error) => Effect.sync(() => reportError(error)))
+    )
+
+  const listing = (partly: (owned: Owned) => void) =>
+    theirWholeList(page, document, (list) => partly({ rows: list.rows, reading: true })).pipe(
+      throughGitHub,
+      Effect.map((list): Owned => ({ rows: list.rows, reading: false })),
+      Effect.tapError((error) => Effect.sync(() => reportError(error)))
+    )
+
+  /*
+   * Both started before anything is waited on, as on the repositories tab: reading their
+   * events and waiting for GitHub to render a frame to stand in have nothing to say to
+   * each other. The pair below is the same held-read shape the other screens use — the
+   * fiber is already running when the screen asks for it, so nothing is read twice.
+   */
+  const held = <A, E>(reading: (partly: (value: A) => void) => Effect.Effect<A, E>) => {
+    let report: (value: A) => void = () => {}
+    const first = Effect.runFork(reading((value) => report(value)))
+    let started = false
+
+    return (partly: (value: A) => void) => {
+      if (!started) {
+        started = true
+        report = partly
+        return Fiber.join(first)
+      }
+      return reading(partly)
+    }
+  }
+
+  const answering = held(asking)
+  const owned = held(listing)
+
+  return standAScreen({
+    place: PROFILE,
+    draw: (standing) => (
+      <ProfileScreen
+        login={page.login}
+        answering={answering}
+        owned={owned}
+        onStepAside={standing.stepAside}
+        now={now}
+      />
+    )
+  }).close
+}
+
+/**
+ * Puts this screen in charge of the document, once.
+ *
+ * Called by the shell, which is the one script GitHub cannot navigate away from: see
+ * `src/entrypoints/shell.content.ts`.
+ */
+export const start = (): void => {
+  // First and synchronous, because the rules that hide their page are written per page
+  // and hang on this attribute. A frame late is a frame of their page on the screen.
+  markPage(document, PROFILE)
+
+  initialiseErrorReporting("profile")
+
+  const store = settings()
+
+  let close = (): void => {}
+  let on: string | undefined
+  let view: View = "ours"
+
+  const show = (url: string): void => {
+    const page = profileIn(url)
+
+    // One of their other tabs, or somewhere else entirely. The stylesheet gates this
+    // address and cannot read a URL, so handing the page back is the first thing to do.
+    if (Option.isNone(page)) {
+      close()
+      close = () => {}
+      on = undefined
+      handBack(document)
+      return
+    }
+
+    if (on === page.value.login) return
+
+    close()
+    close = () => {}
+    on = undefined
+
+    // Their page, because that is what was asked for last time.
+    if (view === "github") {
+      reveal(document)
+      ungate(document)
+      return
+    }
+
+    close = open(page.value)
+    on = page.value.login
+  }
+
+  /*
+   * The address and not the path, as on their repositories tab: all three of a person's
+   * pages are one path and differ in the query alone. See `whenAddressChanges`.
+   */
+  whenAddressChanges(window, () => show(window.location.href))
+
+  Effect.runFork(
+    chosenView(store).pipe(
+      Effect.map((chosen) => {
+        view = chosen
+
+        const here = window.location.href
+        const promise = intendedPath(window)
+        forgetIntent(window)
+
+        if (Option.isSome(profileIn(here))) show(here)
+        else if (promise !== null) {
+          const asked = new URL(promise, window.location.origin).toString()
+          if (Option.isSome(profileIn(asked))) show(asked)
+          else reveal(document)
+        } else reveal(document)
+      })
+    )
+  )
+}

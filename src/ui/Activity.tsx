@@ -163,6 +163,7 @@ const VERB: Record<Happening["kind"], string> = {
   closed: "closed",
   reopened: "reopened",
   commented: "commented on",
+  reviewed: "reviewed",
   raised: "raised",
   settled: "settled",
   starred: "starred",

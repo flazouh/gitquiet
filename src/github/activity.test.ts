@@ -125,6 +125,36 @@ describe("the kinds that need reading twice", () => {
     expect(Option.getOrElse(one?.ref ?? Option.none(), () => "")).toBe("widen-the-rail")
   })
 
+  /*
+   * A review is the act a profile is read for: "will this person answer a stranger" is
+   * answered by the reviews they left on work that is not theirs. It was left out while
+   * the only screen reading events was Activity, where a review of your own repository
+   * is a line about you.
+   */
+  test("a review is its own act, pointed at the review itself", async () => {
+    const [one] = await Effect.runPromise(
+      happeningsFrom(
+        oneEvent("PullRequestReviewEvent", {
+          action: "created",
+          pull_request: { number: 12 },
+          review: { html_url: "https://github.com/flazouh/octo-repo/pull/12#pullrequestreview-1" }
+        })
+      )
+    )
+
+    expect(one?.kind).toBe("reviewed")
+    expect(one?.url).toBe("https://github.com/flazouh/octo-repo/pull/12#pullrequestreview-1")
+    expect(Option.getOrElse(one?.number ?? Option.none(), () => 0)).toBe(12)
+  })
+
+  test("a review with no address of its own points at the pull request", async () => {
+    const [one] = await Effect.runPromise(
+      happeningsFrom(oneEvent("PullRequestReviewEvent", { pull_request: { number: 12 } }))
+    )
+
+    expect(one?.url).toBe("https://github.com/flazouh/octo-repo/pull/12")
+  })
+
   test("a new branch is worth a line; a new tag is not", async () => {
     const branched = await Effect.runPromise(
       happeningsFrom(oneEvent("CreateEvent", { ref: "refs/heads/try", ref_type: "branch" }))

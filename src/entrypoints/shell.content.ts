@@ -30,6 +30,7 @@ import {
   ISSUES,
   NOTIFICATIONS,
   PERSON_REPOS,
+  PROFILE,
   RAISE,
   RELEASES,
   REPO_HOME,
@@ -101,6 +102,7 @@ const PLACE_OF: Record<Wanted, Place> = {
   releases: RELEASES,
   notifications: NOTIFICATIONS,
   "person-repos": PERSON_REPOS,
+  profile: PROFILE,
 };
 
 /**

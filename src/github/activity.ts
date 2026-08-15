@@ -106,6 +106,24 @@ const happeningIn = (event: Event): Option.Option<Happening> => {
       })
     }
 
+    /*
+     * A review, which is the act somebody's profile is read for. Their payload carries the
+     * review's own address and the pull request's number, and no title — the same silence
+     * as every other pull request event here.
+     */
+    case "PullRequestReviewEvent": {
+      const pull = event.payload.pull_request
+      if (pull === null || pull === undefined) return Option.none()
+
+      const at = `${inRepository}/pull/${pull.number}`
+      return Option.some({
+        ...common,
+        kind: "reviewed",
+        number: Option.some(pull.number),
+        url: event.payload.review?.html_url ?? at
+      })
+    }
+
     case "IssueCommentEvent": {
       const issue = event.payload.issue
       if (issue === null || issue === undefined) return Option.none()

@@ -56,6 +56,7 @@ export const Section = ({
   heading,
   summary,
   art,
+  aside,
   tone = "plain",
   children
 }: {
@@ -79,6 +80,14 @@ export const Section = ({
    * would be the same sentence twice in two voices.
    */
   readonly art?: ArtName
+  /**
+   * Somewhere to go from the header, at the far end of it.
+   *
+   * For a card that shows part of something and has the whole of it one press away. It
+   * is the header rather than a line under the last row because a reader who has decided
+   * this is the card they want has not read to the bottom of it.
+   */
+  readonly aside?: React.ReactNode
   readonly tone?: Tone
   readonly children: React.ReactNode
 }) => (
@@ -101,6 +110,7 @@ export const Section = ({
       {summary === undefined ? null : (
         <span className="min-w-0 flex-1 truncate text-xs text-ink-muted">{summary}</span>
       )}
+      {aside === undefined ? null : <div className="ml-auto shrink-0">{aside}</div>}
     </div>
     {children}
   </section>
