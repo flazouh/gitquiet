@@ -23,17 +23,28 @@ on:
         type: string
   # The same thing by hand, for a tag that already exists.
   #
-  #   gh workflow run release.yml -f tag=v0.2.2
+  #   gh workflow run release.yml -f tag=v0.2.2 -f targets=chrome
   #
   # "Re-run failed jobs" reruns the workflow the run started with, so it cannot
   # carry a fix to the workflow itself. Without this, a broken step means cutting
   # a version nobody asked for to get the one that was already tagged submitted.
+  #
+  # `targets` because the reason to come back to a published tag is that one store
+  # did not take it, and sending it to the others again is not harmless: a store
+  # refuses a version it already holds, so the run would go red on a release that
+  # worked, and both mac jobs would notarise for an hour to attach what is already
+  # attached.
   workflow_dispatch:
     inputs:
       tag:
         description: The release tag to build and submit
         required: true
         type: string
+      targets:
+        description: Which targets to submit
+        default: all
+        type: choice
+        options: [all, chrome, firefox, desktop, safari]
 
 concurrency:
   group: release-${{ inputs.tag || github.event.release.tag_name }}
@@ -51,7 +62,8 @@ jobs:
       tag: ${{ steps.which.outputs.tag }}
       chrome: ${{ steps.which.outputs.chrome }}
       firefox: ${{ steps.which.outputs.firefox }}
-      apple: ${{ steps.which.outputs.apple }}
+      desktop: ${{ steps.which.outputs.desktop }}
+      safari: ${{ steps.which.outputs.safari }}
     steps:
       # No checkout: this reads the event and the secrets, and nothing else.
       # A `secrets` value cannot be read in a job's own `if`, which is the whole
@@ -61,6 +73,8 @@ jobs:
         env:
           CALLED: ${{ inputs.tag }}
           PUBLISHED: ${{ github.event.release.tag_name }}
+          # Only a hand-run dispatch sets this. Everything else means all of them.
+          TARGETS: ${{ inputs.targets }}
           # The credential each target cannot work without, rather than its id.
           # An extension id is public, so gating on one would call a store
           # configured while it is still missing the key that talks to it, and
@@ -78,12 +92,30 @@ jobs:
             echo "::error::No tag to release."
             exit 1
           fi
-          have() { for one in "$@"; do [ -n "$one" ] || { echo no; return; }; done; echo yes; }
+          # Yes when this run asked for the target and every credential it needs
+          # is set. Both mac jobs answer to the same two, and are asked
+          # separately because a store that refused a tag is asked for it again
+          # on its own.
+          ready() {
+            target=$1
+            shift
+            case "${TARGETS:-all}" in all | "$target") ;; *)
+              echo no
+              return
+              ;;
+            esac
+            for one in "$@"; do [ -n "$one" ] || {
+              echo no
+              return
+            }; done
+            echo yes
+          }
           {
             echo "tag=$tag"
-            echo "chrome=$(have "$CHROME")"
-            echo "firefox=$(have "$FIREFOX")"
-            echo "apple=$(have "$APPLE_CERTIFICATE" "$APPLE_NOTARY")"
+            echo "chrome=$(ready chrome "$CHROME")"
+            echo "firefox=$(ready firefox "$FIREFOX")"
+            echo "desktop=$(ready desktop "$APPLE_CERTIFICATE" "$APPLE_NOTARY")"
+            echo "safari=$(ready safari "$APPLE_CERTIFICATE" "$APPLE_NOTARY")"
           } >> "$GITHUB_OUTPUT"
 
   package:
@@ -135,7 +167,12 @@ jobs:
       - name: Package for Firefox
         run: bun run zip:firefox
 
+      # Not on a hand-run dispatch, which comes back to a tag whose page is
+      # already filled. `--clobber` would replace the exact bytes a store is
+      # reviewing with a fresh build of the same commit, and the two are not
+      # promised to be identical.
       - name: Attach packages to the GitHub release
+        if: github.event_name != 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.gate.outputs.tag }}
@@ -230,7 +267,7 @@ jobs:
     needs: [gate, package]
     # Gatekeeper refuses an unsigned app that arrived over the network, so a DMG
     # nobody can open is worse than no DMG at all.
-    if: needs.gate.outputs.apple == 'yes'
+    if: needs.gate.outputs.desktop == 'yes'
     # An Apple app can only be signed and notarised on a Mac, and `hdiutil`,
     # `codesign` and `notarytool` are all only here.
     runs-on: macos-latest
@@ -296,7 +333,7 @@ jobs:
   safari:
     name: Safari app
     needs: [gate, package]
-    if: needs.gate.outputs.apple == 'yes'
+    if: needs.gate.outputs.safari == 'yes'
     # Safari's own requirement: an extension it will load is one inside a macOS
     # app, and only Xcode builds those.
     runs-on: macos-latest
