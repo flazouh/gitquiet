@@ -1,4 +1,4 @@
-import { Effect, Fiber } from "effect"
+import { Effect, Fiber, Option } from "effect"
 import type { ReactNode } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { reportError } from "../observability/sentry"
@@ -327,7 +327,20 @@ export const standAScreen = ({
 export const held = <A, E>(
   reading: (partly: (value: A) => void) => Effect.Effect<A, E>
 ): ((partly: (value: A) => void) => Effect.Effect<A, E>) => {
-  let report: (value: A) => void = () => {}
+  /**
+   * The last thing the read said while nobody was listening yet.
+   *
+   * Which is most of what a staged read has to say, because the first stage is the one
+   * that costs nothing: page one of a person's repositories is in the document GitHub
+   * served, so it is reported almost at once and React subscribes a frame or two later.
+   * Measured on a live profile before this — thirty rows ready 673ms after the press,
+   * and on the screen at 3.9 seconds, when the walk behind them ended.
+   */
+  let last: Option.Option<A> = Option.none()
+  let report: (value: A) => void = (value) => {
+    last = Option.some(value)
+  }
+
   const first = Effect.runFork(reading((value) => report(value)))
   let started = false
 
@@ -336,6 +349,14 @@ export const held = <A, E>(
 
     started = true
     report = partly
+
+    // On a microtask rather than here, because this runs inside the atom that asked and
+    // a report is a write to another one.
+    Option.match(last, {
+      onNone: () => {},
+      onSome: (value) => queueMicrotask(() => partly(value))
+    })
+
     return Fiber.join(first)
   }
 }

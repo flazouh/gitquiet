@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { standAScreen } from "./screen"
+import { Effect } from "effect"
+import { held, standAScreen } from "./screen"
 import { BAR_ID } from "../ui/barSlot"
 import type { Place } from "../ui/place"
 import { TheBar } from "../ui/TheBar"
@@ -246,5 +247,45 @@ describe("standing a screen on the page", () => {
 
     expect(held).toBe(false)
     expect(mounted(page.container)).toBe(false)
+  })
+})
+
+describe("a read already running by the time the screen asks for it", () => {
+  test("says again what it reported before anybody was listening", async () => {
+    /*
+     * The fault this guards, measured on a live profile: page one of a person's
+     * repositories is in the document GitHub served, so the read reports thirty rows
+     * 673ms after the press — and React subscribes a frame later, so nobody heard it.
+     * The rows went on the screen when the walk behind them ended, 3.9 seconds in.
+     */
+    const reading = (partly: (value: string) => void) =>
+      Effect.gen(function* () {
+        partly("page one")
+        yield* Effect.sleep(20)
+        return "the whole list"
+      })
+
+    const load = held(reading)
+
+    const stages: Array<string> = []
+    const whole = await Effect.runPromise(load((value) => stages.push(value)))
+
+    expect(stages).toEqual(["page one"])
+    expect(whole).toBe("the whole list")
+  })
+
+  test("reports the stages of a later read as they come, having replayed nothing", async () => {
+    const reading = (partly: (value: string) => void) =>
+      Effect.sync(() => {
+        partly("first")
+        return "last"
+      })
+
+    const load = held(reading)
+    await Effect.runPromise(load(() => {}))
+
+    const again: Array<string> = []
+    expect(await Effect.runPromise(load((value) => again.push(value)))).toBe("last")
+    expect(again).toEqual(["first"])
   })
 })
