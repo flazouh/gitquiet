@@ -233,7 +233,7 @@ describe("a repository's runs", () => {
       <Toasts>
         <StrandsScreen
           repo={repo}
-          load={() => Effect.sleep("400 millis").pipe(Effect.as(kept))}
+          load={() => Effect.never}
           preload={() => Effect.succeed(Option.some(kept))}
           onStepAside={() => {}}
         />

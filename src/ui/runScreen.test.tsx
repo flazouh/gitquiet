@@ -300,7 +300,7 @@ describe("a run drawn from what was kept", () => {
     render(
       <Toasts>
         {screenOf({
-          load: () => Effect.sleep("400 millis").pipe(Effect.as(opening)),
+          load: () => Effect.never,
           preload: () => Effect.succeed(Option.some(opening))
         })}
       </Toasts>

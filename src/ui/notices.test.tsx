@@ -265,7 +265,7 @@ describe("the reader's inbox, grouped by who acts next", () => {
     render(
       <Toasts>
         <NoticesScreen
-          load={() => Effect.sleep("400 millis").pipe(Effect.as(kept))}
+          load={() => Effect.never}
           preload={() => Effect.succeed(Option.some(kept))}
           onPress={() => {}}
           onStepAside={() => {}}
