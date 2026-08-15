@@ -126,6 +126,25 @@ html[data-gitquiet-taken] #diff-comparison-viewer-container:has(#gitquiet-root) 
 }
 
 /**
+ * A person's pages, where their own band is the region and carries their inset.
+ *
+ * `container-xl` holds the profile to 1280 pixels and insets it by sixteen, twenty-four
+ * or thirty-two — the same three numbers `--gitquiet-gutter` is taken from, which is why
+ * the inset has to go rather than be doubled. Measured on a pull request first, where the
+ * same pairing put the first card sixty-four pixels in on a wide window.
+ *
+ * Their measure stays. Two columns of somebody's repositories is not a line of prose, but
+ * 1280 is the width every other page of GitHub is read at, and a person's page that ran
+ * to both edges of a five-thousand-pixel screen would be the one page here that does.
+ *
+ * `!important` because theirs is: the number arrives from `tmp-px-3 tmp-px-md-4
+ * tmp-px-lg-5`, and a utility class in their system carries the flag.
+ */
+html[data-gitquiet-taken] main div.container-xl:has(> #gitquiet-root) {
+  padding-inline: 0 !important;
+}
+
+/**
  * The dashboard, where GitHub holds the list to 1200 pixels beside a 296-pixel
  * filter pane.
  *

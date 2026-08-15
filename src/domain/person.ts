@@ -52,6 +52,61 @@ export type PersonPage = {
   readonly narrowing: string
 }
 
+/** Somewhere they said to go, as the one line their page gives it. */
+export type Way = {
+  /** What their page shows: `acepe.dev`, `@sasha_zelts`, `u/SashaZelt`. */
+  readonly label: string
+  readonly href: string
+}
+
+/**
+ * Who the account is, as their own page says it beside their repositories.
+ *
+ * Not a `Portrait`, which is the four lines a hovercard shows over a face in a
+ * row and comes from GitHub's own card endpoint. This is the column down the left of
+ * a person's page — the face at 260 pixels, the name, the words they wrote about
+ * themselves, who they work for, where they are, and the ways they asked to be
+ * reached — read out of the document that was served.
+ *
+ * It exists because this interface now draws that column rather than leaving it. The
+ * page is one page: a reader deciding whether this is the right `alex` reads the face
+ * and the bio, then the list, and a left column in GitHub's type beside a list in
+ * ours is two apps in one window.
+ *
+ * Every field but the login is optional because every field but the login is optional
+ * on GitHub, and the counts are kept as the words their page wrote — "25", "1.2k" —
+ * rather than as numbers. Their own page abbreviates above a thousand and the exact
+ * figure is nowhere in the markup, so a number here would be a number invented.
+ */
+export type Person = {
+  readonly login: string
+  readonly name: Option.Option<string>
+  readonly bio: Option.Option<string>
+  /** Their face at the size a column wants rather than the size a row wants. */
+  readonly faceUrl: Option.Option<string>
+  readonly company: Option.Option<string>
+  readonly location: Option.Option<string>
+  readonly followers: Option.Option<string>
+  readonly following: Option.Option<string>
+  /** The one site their page calls their own, above the rest. */
+  readonly site: Option.Option<Way>
+  /** Everywhere else they said to find them, in their own order. */
+  readonly ways: ReadonlyArray<Way>
+  /** Where to sponsor them, where GitHub offered the button. */
+  readonly sponsorAt: Option.Option<string>
+  /**
+   * The counts on their own tab row, for the row this interface draws instead.
+   *
+   * Read rather than counted. The walk over their list stops at a cap and the stars
+   * tab is not read at all, so a total counted here would disagree with their page on
+   * exactly the accounts where the number matters.
+   */
+  readonly tally: {
+    readonly repositories: Option.Option<string>
+    readonly stars: Option.Option<string>
+  }
+}
+
 /**
  * The site's own one-segment pages, which are not people.
  *

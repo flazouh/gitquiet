@@ -1,0 +1,176 @@
+import { Option } from "effect"
+import type { Person, Way } from "../domain/person"
+import { ASIDE, GHOST, PRESSABLE } from "./dress"
+import { painted } from "./Section"
+
+/**
+ * Who this is, down the left of their page.
+ *
+ * Drawn rather than left as GitHub drew it, which is the correction this page needed
+ * most: their column beside a list of ours was one page in two type scales and two
+ * colour systems, and a reader sees that as a broken page rather than as an interface.
+ * Everything in it is read out of the document they served — see
+ * `personIn` — so nothing on the screen is a request this page did not already pay for.
+ *
+ * It answers one question, and only one: is this the right person. So it holds the
+ * face, the name, the words they wrote and the ways they asked to be reached, in that
+ * order, and it holds no counts of anything a reader came to the list for. Their own
+ * column also carries achievements, organisations, a contribution calendar and a
+ * "block or report" menu; those are five more answers to questions nobody asked while
+ * looking for a repository, and `docs/spec/profile.md` says so.
+ */
+export type PersonAsideProps = {
+  readonly who: Person
+  /**
+   * Hands the page back, for the two acts this interface deliberately cannot do.
+   *
+   * Following somebody and reporting them are writes, and every write on these pages
+   * belongs to GitHub's own form. Rather than draw a button that pretends, the column
+   * offers their page — where the button is, three lines from where the reader pressed.
+   */
+  readonly onStepAside: () => void
+}
+
+/** One of the ways they asked to be reached, in the words they wrote for it. */
+const Line = ({ way }: { readonly way: Way }) => (
+  <a
+    href={way.href}
+    rel="nofollow me noreferrer"
+    className="min-w-0 truncate text-ink text-sm no-underline hover:underline"
+  >
+    {way.label}
+  </a>
+)
+
+/**
+ * A fact of theirs, where they set one.
+ *
+ * Nothing at all where they did not, rather than a label with an empty line beside it:
+ * half of these are unset on most accounts, and a column of headings over nothing is a
+ * column that has to be read to find out it says nothing.
+ */
+const Fact = ({
+  said,
+  what
+}: {
+  readonly said: Option.Option<string>
+  /** What the number counts, where the fact is a number. Absent where it speaks for itself. */
+  readonly what?: string
+}) =>
+  Option.match(said, {
+    onNone: () => null,
+    onSome: (found) => (
+      <p className={`min-w-0 truncate ${ASIDE}`}>
+        <span className="text-ink tabular-nums">{found}</span>
+        {what === undefined ? null : ` ${what}`}
+      </p>
+    )
+  })
+
+export const PersonAside = ({ who, onStepAside }: PersonAsideProps) => {
+  const paint = painted("plain")
+  const name = Option.getOrUndefined(who.name)
+
+  return (
+    /*
+     * Sticky at the width where there is a column to be sticky in, the way a repository's
+     * front page keeps its own side column in view. A reader scrolling forty repositories is
+     * still reading them as this person's, and a face that scrolls away takes the sentence
+     * with it.
+     */
+    <aside
+      aria-label={`About ${who.login}`}
+      className={`t-panel-fade shrink-0 overflow-hidden rounded-md border bg-canvas lg:sticky lg:top-3 lg:w-72 ${paint.edge}`}
+    >
+      <div className="flex min-w-0 flex-col gap-3 p-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {/*
+           * A circle, which is GitHub's own distinction between a person and a place, and
+           * their big file rather than the thumbnail their sticky bar carries. Decoration
+           * beside the name and never instead of it: `alt=""`, because the name is the next
+           * element and a reader being read to does not need it twice.
+           */}
+          {Option.match(who.faceUrl, {
+            onNone: () => null,
+            onSome: (src) => (
+              <img
+                alt=""
+                src={src}
+                width={56}
+                height={56}
+                className="size-14 shrink-0 rounded-full bg-surface"
+              />
+            )
+          })}
+          <div className="flex min-w-0 flex-col">
+            {/*
+             * The name leads and the login follows it, which is the order a reader recognises
+             * somebody in. Where there is no name the login takes the line rather than leaving
+             * an empty one above itself.
+             */}
+            <h1 className="min-w-0 truncate font-semibold text-base text-ink">
+              {name ?? who.login}
+            </h1>
+            {name === undefined ? null : (
+              <p className="min-w-0 truncate text-ink-muted text-sm">{who.login}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Their own words, kept as they wrote them: the newlines in a bio are theirs. */}
+        {Option.match(who.bio, {
+          onNone: () => null,
+          onSome: (said) => (
+            <p className="min-w-0 whitespace-pre-line text-ink text-sm leading-5">{said}</p>
+          )
+        })}
+
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <Fact said={who.followers} what="followers" />
+          <Fact said={who.following} what="following" />
+          <Fact said={who.company} />
+          <Fact said={who.location} />
+        </div>
+
+        {Option.isSome(who.site) || who.ways.length > 0 ? (
+          <div className="flex min-w-0 flex-col gap-0.5">
+            {Option.match(who.site, {
+              onNone: () => null,
+              onSome: (way) => <Line way={way} />
+            })}
+            {who.ways.map((way) => (
+              <Line key={way.href} way={way} />
+            ))}
+          </div>
+        ) : null}
+
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          {/*
+           * Following is a write and writes are GitHub's here, so this is their page rather
+           * than a button of ours that would have to post a form and hold a token. Said as
+           * what it does — it puts their page back — because a control that quietly navigates
+           * is a control a reader presses once and then distrusts.
+           */}
+          <button
+            type="button"
+            onClick={onStepAside}
+            className={`${PRESSABLE} px-2 py-1 text-ink text-xs hover:bg-active`}
+          >
+            Follow, on GitHub's page
+          </button>
+          {Option.match(who.sponsorAt, {
+            onNone: () => null,
+            onSome: (where) => (
+              <a
+                href={where}
+                className={`${GHOST} px-2 py-1 text-ink-muted text-xs no-underline hover:bg-hover hover:text-ink`}
+              >
+                Sponsor
+              </a>
+            )
+          })}
+        </div>
+      </div>
+    </aside>
+  )
+}

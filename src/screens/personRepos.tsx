@@ -4,6 +4,7 @@ import { type TheirList, theirWholeList } from "@/app/personRepos"
 import { chosenView } from "@/app/settings"
 import { type PersonPage, personReposIn } from "@/domain/person"
 import type { View } from "@/domain/Settings"
+import { personIn } from "@/github/person"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
@@ -47,10 +48,24 @@ const open = (page: PersonPage): (() => void) => {
     return reading(partly)
   }
 
+  /*
+   * Who they are, out of the document GitHub served, once. The column this draws is in
+   * the markup the gate hides — the face, the name, the bio, the counts and every link
+   * they set — so reading it costs nothing and is the whole reason the page can be taken
+   * whole rather than in half. Absent on a page that has stopped looking like theirs, and
+   * then the list is drawn without the column rather than not at all.
+   */
+  const who = Option.getOrUndefined(personIn(document))
+
   return standAScreen({
     place: PERSON_REPOS,
     draw: (standing) => (
-      <PersonReposScreen login={page.login} load={read} onStepAside={standing.stepAside} />
+      <PersonReposScreen
+        login={page.login}
+        load={read}
+        who={who}
+        onStepAside={standing.stepAside}
+      />
     )
   }).close
 }

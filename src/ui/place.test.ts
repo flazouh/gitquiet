@@ -545,10 +545,12 @@ describe("the branch banner on a repository's front page", () => {
  * One of a person's three pages, down to the parts a takeover and a gate depend on.
  *
  * Copied from the three fetched documents rather than invented: `/flazouh`,
- * `?tab=repositories` and `?tab=stars` all serve `Layout-sidebar` and
- * `turbo-frame#user-profile-frame`, and each fills the frame with something the
- * other two do not have. Which tab is which is the whole difficulty on these pages,
- * because the address is the same path and the frame is the same element.
+ * `?tab=repositories` and `?tab=stars` all serve one `div.container-xl` holding a
+ * `Layout` whose sidebar is their `h-card` column and whose main is their tab row
+ * above `turbo-frame#user-profile-frame`, with a sticky copy of the face and the tabs
+ * above the lot. Each fills the frame with something the other two do not have, which
+ * is the whole difficulty on these pages: the address is one path and the frame is one
+ * element.
  */
 const person = (tab: "profile" | "repositories" | "stars"): Document => {
   const page = document.implementation.createHTMLDocument("github");
@@ -561,12 +563,26 @@ const person = (tab: "profile" | "repositories" | "stars"): Document => {
   page.body.innerHTML = `
     <div class="application-main">
       <main>
+        <div class="tmp-mt-4 position-sticky top-0" data-turbo-frame="user-profile-frame">
+          <div class="container-xl">
+            <div class="Layout Layout--flowRow-until-md">
+              <div class="Layout-sidebar">
+                <div class="user-profile-sticky-bar">their face and tabs again, floating</div>
+              </div>
+              <div class="Layout-main">their sticky tab row</div>
+            </div>
+          </div>
+        </div>
         <div class="container-xl px-3">
           <div class="Layout Layout--flowRow-until-md">
             <div class="Layout-sidebar">
-              <div class="js-profile-editable-replace">their face, name, bio and follower counts</div>
+              <div class="h-card">
+                <span class="vcard-username">flazouh</span>
+                <div class="js-profile-editable-replace">their face, name, bio and follower counts</div>
+              </div>
             </div>
             <div class="Layout-main">
+              <nav class="UnderlineNav-body">their tab row</nav>
               <turbo-frame id="user-profile-frame">${inside}</turbo-frame>
             </div>
           </div>
@@ -605,18 +621,29 @@ describe("telling a person's three tabs apart", () => {
     expect(person(other).querySelector(proofOf(place))).toBeNull();
   });
 
-  test("all three stand in the frame and leave the sidebar alone", () => {
-    // The face, the name, the bio and the follower counts are the one part of these
-    // pages nobody complains about, and the part a reader uses to decide whether
-    // they are looking at the right person.
+  test("all three take the whole band, their column with it", () => {
+    // The column is drawn by this interface now rather than left in GitHub's type
+    // beside a list in ours: `personIn` reads the face, the name, the bio and the
+    // counts out of the markup this hides, so nothing on the page is lost by hiding
+    // it. One page, one hand.
     const page = person("repositories");
 
     takeOverSlot(page, interfaceContainer(page, PERSON_REPOS), PERSON_REPOS);
 
     expect(visible(page, "their repository rows")).toBe(false);
-    expect(
-      visible(page, "their face, name, bio and follower counts"),
-    ).toBe(true);
+    expect(visible(page, "their tab row")).toBe(false);
+    expect(visible(page, "their face, name, bio and follower counts")).toBe(false);
+  });
+
+  test("and their sticky bar, which would otherwise slide over ours", () => {
+    // A direct child of `main` and outside the region, so it has to be named: their
+    // second copy of the face and the tab row floats at the top of the window as a
+    // reader scrolls.
+    const page = person("repositories");
+
+    takeOverSlot(page, interfaceContainer(page, PERSON_REPOS), PERSON_REPOS);
+
+    expect(visible(page, "their face and tabs again, floating")).toBe(false);
   });
 
   test("and give the page back whole", () => {

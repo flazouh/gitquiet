@@ -197,31 +197,37 @@ html[data-gitquiet-taken] div.feed-content:has(#dashboard.dashboard) aside.feed-
 }
 
 /* profile: before ours is up. */
-html[data-gitquiet-page="profile"]:not([data-gitquiet-revealed]) turbo-frame#user-profile-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+html[data-gitquiet-page="profile"]:not([data-gitquiet-revealed]) main div.container-xl:has(.h-card) > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-page="profile"]:not([data-gitquiet-revealed]) main > div.position-sticky:has(.user-profile-sticky-bar) {
   display: none;
 }
 
 /* profile: for as long as ours is in charge. */
-html[data-gitquiet-taken] turbo-frame#user-profile-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+html[data-gitquiet-taken] main div.container-xl:has(.h-card) > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-taken] main > div.position-sticky:has(.user-profile-sticky-bar) {
   display: none;
 }
 
 /* person-repos: before ours is up. */
-html[data-gitquiet-page="person-repos"]:not([data-gitquiet-revealed]) turbo-frame#user-profile-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+html[data-gitquiet-page="person-repos"]:not([data-gitquiet-revealed]) main div.container-xl:has(.h-card) > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-page="person-repos"]:not([data-gitquiet-revealed]) main > div.position-sticky:has(.user-profile-sticky-bar) {
   display: none;
 }
 
 /* person-repos: for as long as ours is in charge. */
-html[data-gitquiet-taken] turbo-frame#user-profile-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+html[data-gitquiet-taken] main div.container-xl:has(.h-card) > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-taken] main > div.position-sticky:has(.user-profile-sticky-bar) {
   display: none;
 }
 
 /* person-stars: before ours is up. */
-html[data-gitquiet-page="person-stars"]:not([data-gitquiet-revealed]) turbo-frame#user-profile-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+html[data-gitquiet-page="person-stars"]:not([data-gitquiet-revealed]) main div.container-xl:has(.h-card) > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-page="person-stars"]:not([data-gitquiet-revealed]) main > div.position-sticky:has(.user-profile-sticky-bar) {
   display: none;
 }
 
 /* person-stars: for as long as ours is in charge. */
-html[data-gitquiet-taken] turbo-frame#user-profile-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+html[data-gitquiet-taken] main div.container-xl:has(.h-card) > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
+html[data-gitquiet-taken] main > div.position-sticky:has(.user-profile-sticky-bar) {
   display: none;
 }

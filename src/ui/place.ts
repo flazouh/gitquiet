@@ -758,22 +758,44 @@ export const NOTIFICATIONS: Place = {
 /**
  * What all three of a person's pages share, which is everything but the proof.
  *
- * Measured on the three fetched pages rather than guessed: each serves
- * `turbo-frame#user-profile-frame` as its content, with `Layout-sidebar` and
- * `Layout-main` around it and a bare `<main>` above. There is no pjax container and
- * no repository frame anywhere on them, which is why the fallback is `main` as it is
- * on `ISSUES` and `NOTIFICATIONS`.
+ * Measured on four fetched pages rather than guessed. Each of a person's three serves
+ * one `div.container-xl` under a bare `<main>`, holding a `Layout` whose sidebar is
+ * their column and whose main is their tab row above `turbo-frame#user-profile-frame`.
+ * There is no pjax container and no repository frame anywhere on them, which is why
+ * the fallback is `main` as it is on `ISSUES` and `NOTIFICATIONS`.
  *
- * No bands. The sidebar — the face, the name, the bio, the follower counts, the
- * follow button — sits outside the frame and stays exactly as GitHub drew it. It is
- * the one part of these pages nobody complains about, and the part a reader uses to
- * decide whether they are looking at the right person.
+ * The region is that whole band and not the frame inside it, which is the correction
+ * this page needed most. Standing in the frame left GitHub's tab row directly above a
+ * row of ours and GitHub's left column beside a list of ours: one page in two type
+ * scales, two colour systems and two sets of navigation, which reads as a bug rather
+ * than as an interface. A person's page is one page, and a reader deciding whether
+ * this is the right `alex` reads the face, then the bio, then the list — so all three
+ * are drawn by the same hand now. `personIn` in `src/github/person.ts` reads their
+ * column out of the document this hides, so nothing is lost by hiding it.
+ *
+ * Proved on their card rather than on the container, because `container-xl` is a
+ * Primer utility that appears on pages this extension has no business with — twice on
+ * an organisation's page, which shares this address. `h-card` is the microformats
+ * class on their profile column: present on all three of a person's pages, absent
+ * from an organisation's, and free of the per-deploy hash Primer's own names carry.
+ * It also tells the band from the sticky copy above it, which has a `Layout-sidebar`
+ * of its own and no card in it.
+ *
+ * One class inside the `:has`, deliberately, where `.Layout-sidebar .h-card` would say
+ * it more precisely. The tests read these selectors through happy-dom, whose `:has`
+ * ignores a descendant combinator inside itself and answers true for every container
+ * on the page — so a selector written that way would pass a test that had stopped
+ * proving anything. The class is unique to their column either way.
+ *
+ * One band, and it is their sticky bar: a second copy of the mini face and the tab row
+ * that GitHub floats at the top of the window as a reader scrolls. It is a direct child
+ * of `main`, outside the region, and left alone it would slide over ours.
  */
 const PERSON = {
-  regions: ["turbo-frame#user-profile-frame"],
+  regions: ["main div.container-xl:has(.h-card)"],
   fallback: "main",
-  stages: ["turbo-frame#user-profile-frame"],
-  bands: [],
+  stages: ["main div.container-xl:has(.h-card)"],
+  bands: ["main > div.position-sticky:has(.user-profile-sticky-bar)"],
 } as const;
 
 /**

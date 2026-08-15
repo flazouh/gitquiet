@@ -1,5 +1,5 @@
 import { Option } from "effect"
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import {
   type Cell,
   type Group,
@@ -13,11 +13,14 @@ import {
   shares,
   turnedEntry
 } from "../domain/life"
+import type { Person } from "../domain/person"
 import { useArt } from "./art"
-import { ASIDE, CHIP, FIELD, PILL } from "./dress"
-import { ReadFailed, viewerOnPage } from "./ReadFailed"
-import { TheBar } from "./TheBar"
+import { ASIDE, FIELD, PILL } from "./dress"
+import { PersonAside } from "./PersonAside"
 import { PersonTabs } from "./PersonTabs"
+import { ReadFailed, viewerOnPage } from "./ReadFailed"
+import { painted, Section } from "./Section"
+import { TheBar } from "./TheBar"
 import type { Load } from "./useLive"
 import { useLive } from "./useLive"
 import { useSettings } from "./useSettings"
@@ -42,7 +45,14 @@ export type Shown = {
 export type PersonReposScreenProps = {
   readonly login: string
   readonly load: Load<Shown>
-  /** Restores GitHub's own list, which is still on the page behind this. */
+  /**
+   * Who their page says they are, for the column down the left.
+   *
+   * Absent where that column could not be read, and the page is still worth drawing
+   * without it: the list is what the reader came for. See `personIn`.
+   */
+  readonly who?: Person
+  /** Restores GitHub's own page, which is still behind this one. */
   readonly onStepAside: () => void
   readonly signedIn?: () => boolean
   /** The day it is, for the groups and the strip. Only a test ever passes one. */
@@ -62,7 +72,7 @@ const NAMED: Record<Life, { readonly title: string; readonly gist: string }> = {
 /**
  * What they mostly write, over every repository rather than over this page.
  *
- * By row, and the bar says so under itself. GitHub counts a repository's languages
+ * By row, and the card says so under itself. GitHub counts a repository's languages
  * by bytes and these rows carry one language each, so a percentage claimed here
  * would be a different number from the one on the repository's own page under the
  * same word. Counting rows answers the question a reader of somebody's list has —
@@ -72,36 +82,45 @@ const Shares = ({ list }: { readonly list: ReadonlyArray<Share> }) => {
   if (list.length === 0) return null
 
   return (
-    <section aria-label="Languages" className="min-w-0 flex-1">
-      <div className="flex h-1.5 overflow-hidden rounded-full">
-        {list.map((one) => (
-          <span
-            key={one.name}
-            title={`${one.name}: ${one.count} ${one.count === 1 ? "repository" : "repositories"}`}
-            style={{ width: `${Math.max(one.part * 100, 1)}%`, background: one.colour }}
-          />
-        ))}
+    <Section name="Languages" art="code" summary="by repository">
+      <div className="flex flex-col gap-2.5 px-3 py-2.5">
+        <div className="flex h-1.5 overflow-hidden rounded-full bg-inset">
+          {list.map((one) => (
+            <span
+              key={one.name}
+              title={`${one.name}: ${one.count} ${one.count === 1 ? "repository" : "repositories"}`}
+              style={{ width: `${Math.max(one.part * 100, 1)}%`, background: one.colour }}
+            />
+          ))}
+        </div>
+        <p className={`flex flex-wrap items-center gap-x-3 gap-y-1 ${ASIDE}`}>
+          {list.slice(0, 6).map((one) => (
+            <span key={one.name} className="inline-flex items-center gap-1.5">
+              <span aria-hidden className="size-2 rounded-full" style={{ background: one.colour }} />
+              <span className="text-ink">{one.name}</span>
+              <span className="tabular-nums">{one.count}</span>
+            </span>
+          ))}
+        </p>
       </div>
-      <p className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 ${ASIDE}`}>
-        {list.slice(0, 6).map((one) => (
-          <span key={one.name} className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="size-2 rounded-full" style={{ background: one.colour }} />
-            <span className="text-ink">{one.name}</span>
-            <span className="tabular-nums">{one.count}</span>
-          </span>
-        ))}
-      </p>
-    </section>
+    </Section>
   )
 }
 
-/** How dark a cell of the strip is, one step per step of the age. */
+/**
+ * How dark a cell of the strip is, one step per step of the age.
+ *
+ * The pack's own five steps rather than one colour at five opacities. A translucent
+ * fill takes the colour of whatever is behind it, and behind this is GitHub's page in
+ * whichever theme the reader set — so the pale end of an opacity ladder was legible on
+ * their light page and invisible on their dark one.
+ */
 const LEVELS: Record<Cell["level"], string> = {
-  4: "bg-pass",
-  3: "bg-pass/60",
-  2: "bg-ink-muted/50",
-  1: "bg-ink-muted/30",
-  0: "bg-ink-muted/15"
+  4: "bg-pass-emphasis",
+  3: "bg-pass",
+  2: "bg-ink-muted",
+  1: "bg-line",
+  0: "bg-inset"
 }
 
 /**
@@ -120,75 +139,94 @@ const Movement = ({ list }: { readonly list: ReadonlyArray<Cell> }) => {
   if (list.length === 0) return null
 
   return (
-    <section aria-label="Last moved" className="min-w-0 flex-1">
-      <div className="flex flex-wrap gap-0.5">
-        {list.map((one) => (
-          <a
-            key={one.nameWithOwner}
-            href={`/${one.nameWithOwner}`}
-            title={Option.match(one.when, {
-              onNone: () => `${one.nameWithOwner}: never pushed to`,
-              onSome: (when) => `${one.nameWithOwner}: ${momentOf(when)}`
-            })}
-            aria-label={one.nameWithOwner}
-            className={`size-2.5 rounded-sm ${LEVELS[one.level]}`}
-          />
-        ))}
+    <Section name="Last moved" art="clock" summary="newest first">
+      <div className="flex flex-col gap-2.5 px-3 py-2.5">
+        <div className="flex flex-wrap gap-0.5">
+          {list.map((one) => (
+            <a
+              key={one.nameWithOwner}
+              href={`/${one.nameWithOwner}`}
+              title={Option.match(one.when, {
+                onNone: () => `${one.nameWithOwner}: never pushed to`,
+                onSome: (when) => `${one.nameWithOwner}: ${momentOf(when)}`
+              })}
+              aria-label={one.nameWithOwner}
+              className={`size-2.5 rounded-sm ${LEVELS[one.level]}`}
+            />
+          ))}
+        </div>
+        <p className={ASIDE}>
+          {list.length} {list.length === 1 ? "repository" : "repositories"}, most recent first.
+        </p>
       </div>
-      <p className={`mt-2 ${ASIDE}`}>
-        Last moved, newest first. {list.length} {list.length === 1 ? "repository" : "repositories"}.
-      </p>
-    </section>
+    </Section>
   )
 }
 
-/** One repository, as a row of the group it belongs to. */
-const Row = ({ one, now }: { readonly one: ListedRepository; readonly now: Date }) => {
+/**
+ * One repository, as a row of the group it belongs to.
+ *
+ * One line, and it is the line the rest of this extension draws: the name, then what
+ * the repository is, then its facts at the far end. Their own rows are five lines tall
+ * — name, description, topics as chips, language, stars, licence and a date — which is
+ * how thirty repositories become a page nobody scrolls to the end of. The topics are
+ * still how a reader finds one; they are read by the find box above rather than printed
+ * on every row.
+ */
+const Row = ({
+  one,
+  at,
+  now
+}: {
+  readonly one: ListedRepository
+  /** Where in the group it is, for the entrance. Absent where nothing should animate. */
+  readonly at?: number
+  readonly now: Date
+}) => {
   const language = Option.getOrUndefined(one.language)
   const pushed = Option.getOrUndefined(one.pushedAt)
 
   return (
-    <li className="flex min-w-0 flex-col gap-1 px-2 py-2">
-      <div className="flex min-w-0 items-baseline gap-2">
-        <a
-          href={`/${one.nameWithOwner}`}
-          className="min-w-0 truncate font-semibold text-ink no-underline hover:underline"
-        >
-          {one.repo}
-        </a>
-        {one.isPrivate ? <span className={`${PILL} ${ASIDE}`}>Private</span> : null}
-        {Option.match(one.forkedFrom, {
-          onNone: () => null,
-          onSome: (from) => (
-            <span className={ASIDE}>
-              forked from{" "}
-              <a href={`/${from}`} className="text-ink-muted no-underline hover:underline">
-                {from}
-              </a>
-            </span>
-          )
-        })}
-      </div>
-      {Option.match(one.description, {
+    <li
+      data-row=""
+      className={`flex min-w-0 items-baseline gap-2 px-3 py-1.5 hover:bg-hover ${
+        at === undefined ? "" : "t-row-in"
+      }`}
+      style={(at === undefined ? {} : { "--row-at": String(at) }) as React.CSSProperties}
+    >
+      <a
+        href={`/${one.nameWithOwner}`}
+        className="min-w-0 max-w-64 shrink-0 truncate font-semibold text-ink text-sm no-underline hover:underline"
+      >
+        {one.repo}
+      </a>
+
+      {one.isPrivate ? (
+        <span className={`${PILL} shrink-0 text-ink-muted text-xs`}>Private</span>
+      ) : null}
+
+      {Option.match(one.forkedFrom, {
         onNone: () => null,
-        onSome: (said) => <p className="min-w-0 text-sm text-ink-muted">{said}</p>
-      })}
-      {one.topics.length === 0 ? null : (
-        <p className="flex min-w-0 flex-wrap gap-1">
-          {/* Three, as the spec says. A row with eleven topics is a row whose name and
-              description are the last things a reader finds in it. */}
-          {one.topics.slice(0, 3).map((topic) => (
-            <a
-              key={topic}
-              href={`/topics/${topic}`}
-              className={`${CHIP} text-xs text-ink-muted no-underline hover:text-ink`}
-            >
-              {topic}
+        onSome: (from) => (
+          <span className={`shrink-0 ${ASIDE}`}>
+            forked from{" "}
+            <a href={`/${from}`} className="text-ink-muted no-underline hover:underline">
+              {from}
             </a>
-          ))}
-        </p>
-      )}
-      <p className={`flex flex-wrap items-center gap-x-3 ${ASIDE}`}>
+          </span>
+        )
+      })}
+
+      {Option.match(one.description, {
+        onNone: () => <span className="min-w-0 flex-1" />,
+        onSome: (said) => (
+          <span className="min-w-0 flex-1 truncate text-ink-muted text-xs" title={said}>
+            {said}
+          </span>
+        )
+      })}
+
+      <span className={`flex shrink-0 items-center gap-3 ${ASIDE}`}>
         {language === undefined ? null : (
           <span className="inline-flex items-center gap-1.5">
             <span aria-hidden className="size-2 rounded-full" style={{ background: language.colour }} />
@@ -197,12 +235,12 @@ const Row = ({ one, now }: { readonly one: ListedRepository; readonly now: Date 
         )}
         {one.stars === 0 ? null : (
           <span className="tabular-nums">
-            {one.stars} {one.stars === 1 ? "star" : "stars"}
+            {one.stars.toLocaleString()} {one.stars === 1 ? "star" : "stars"}
           </span>
         )}
         {one.forks === 0 ? null : (
           <span className="tabular-nums">
-            {one.forks} {one.forks === 1 ? "fork" : "forks"}
+            {one.forks.toLocaleString()} {one.forks === 1 ? "fork" : "forks"}
           </span>
         )}
         {/* A date and never a distance: "2 years ago" under "3 years ago" is the same
@@ -210,71 +248,105 @@ const Row = ({ one, now }: { readonly one: ListedRepository; readonly now: Date 
         {pushed === undefined ? (
           <span>never pushed to</span>
         ) : (
-          <span title={momentOf(pushed)}>moved {dayOf(pushed, now)}</span>
+          <span title={momentOf(pushed)}>{dayOf(pushed, now)}</span>
         )}
-      </p>
+      </span>
     </li>
   )
 }
 
+/** How many rows carry the staggered entrance before it stops climbing. */
+const STAGGERED = 8
+
 /**
- * One group: its name, its count, and its rows, until the reader shuts it.
+ * One group: its name, its count, its meaning, and its rows until the reader shuts it.
  *
- * The heading is the control, which is how the Home sections work. A separate
+ * A card the size and shape of a Court, because that is what it is — a heading, a count
+ * in the header, and rows under it — and it is painted from `Section`'s own table so the
+ * two cannot drift. The heading is the control, the way a release's own fold is: a
  * chevron beside a heading is a target a third of the size of the thing it opens.
+ *
+ * Native `details` rather than state and a button. A fold GitHub can already open with
+ * the browser's own find-on-page is a fold that behaves the way the rest of the web
+ * does, and the remembering rides on `onToggle` rather than replacing it.
  */
-const Rows = ({
+const Fold = ({
   group,
   shut,
   onTurn,
+  quiet,
   now
 }: {
   readonly group: Group
   readonly shut: boolean
   readonly onTurn: () => void
+  /** Whether the rows should arrive without motion, which is while somebody is typing. */
+  readonly quiet: boolean
   readonly now: Date
 }) => {
   const art = useArt()
-  const Chevron = art["chevron-down"]
+  const Chevron = art["chevron-right"]
+  const paint = painted("plain")
 
   return (
-    <section>
-      <h2>
-        <button
-          type="button"
-          onClick={onTurn}
-          aria-expanded={!shut}
-          className="flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-hover"
-        >
-          <Chevron size={12} className={`t-turn ${shut ? "" : "is-turned"}`} aria-hidden="true" />
-          <span className="font-semibold text-ink">{NAMED[group.life].title}</span>
-          <span className={`${CHIP} text-xs tabular-nums`}>{group.rows.length}</span>
-          <span className={`min-w-0 truncate ${ASIDE}`}>{NAMED[group.life].gist}</span>
-        </button>
-      </h2>
-      {shut ? null : (
-        <ul className="flex flex-col">
-          {group.rows.map((one) => (
-            <Row key={one.nameWithOwner} one={one} now={now} />
-          ))}
-        </ul>
-      )}
-    </section>
+    <details
+      open={!shut}
+      onToggle={(event) => {
+        // React fires this for the state it is already in as well, on the first paint of a
+        // fold that was remembered shut. Answered only when it disagrees, or the remembered
+        // state would be written back inverted the moment the page opened.
+        if (event.currentTarget.open === !shut) return
+        onTurn()
+      }}
+      className={`group shrink-0 overflow-hidden rounded-md border bg-canvas ${paint.edge}`}
+    >
+      <summary
+        className={`flex cursor-pointer list-none items-center gap-2 border-b px-3 py-2 hover:bg-hover [&::-webkit-details-marker]:hidden ${paint.header}`}
+      >
+        <Chevron
+          size={12}
+          aria-hidden="true"
+          className="shrink-0 opacity-80 transition-transform duration-[var(--duration-quick)] ease-[var(--ease-in-out)] group-open:rotate-90"
+        />
+        <h2 className="min-w-0 shrink-0 truncate font-semibold text-xs">
+          {NAMED[group.life].title}
+        </h2>
+        <span className="shrink-0 text-ink-muted text-xs tabular-nums">{group.rows.length}</span>
+        <span className="min-w-0 flex-1 truncate text-ink-muted text-xs">
+          {NAMED[group.life].gist}
+        </span>
+      </summary>
+      <ul className="flex list-none flex-col divide-y divide-line-muted p-0">
+        {group.rows.map((one, index) => (
+          <Row
+            key={one.nameWithOwner}
+            one={one}
+            at={quiet ? undefined : Math.min(index, STAGGERED)}
+            now={now}
+          />
+        ))}
+      </ul>
+    </details>
   )
 }
 
 /**
- * A person's repositories tab, in four groups.
+ * A person's repositories tab, in four groups, beside who they are.
  *
  * The loudest unanswered ask on these pages: three discussions carrying 1,679
  * upvotes, the oldest open since June 2021, all asking for this one thing. Nothing
  * here is tagged by anybody — every group is derived from what the rows already
  * say — because curation by hand is the documented failure mode and has failed
  * since 2014. `docs/spec/profile.md` has the evidence.
+ *
+ * The whole page rather than the list: their column, their tab row and their rows are
+ * all replaced, because a page drawn half in one interface and half in another is read
+ * as a broken page. See `PersonAside` and `PERSON` in `place.ts`.
  */
 export const PersonReposScreen = ({
   login,
   load,
+  who,
   onStepAside,
   signedIn = viewerOnPage,
   now = new Date()
@@ -284,6 +356,7 @@ export const PersonReposScreen = ({
   const waiting = useWaiting(read.status)
   const { settings, change } = useSettings()
   const [typed, setTyped] = useState("")
+  const box = useRef<HTMLInputElement | null>(null)
 
   const shown = read.status === "ready" ? read.value : undefined
   const rows = shown?.rows ?? []
@@ -305,60 +378,84 @@ export const PersonReposScreen = ({
         why={read.why}
         what={`${login}'s repositories`}
         onStepAside={onStepAside}
-        asideLabel="Show GitHub's list"
+        asideLabel="Show GitHub's page"
       />
     )
   }
 
+  const narrowed = typed.trim().length > 0
+
   return (
     <div className="relative">
       <TheBar where={{ kind: "person", login }} />
-      <div className="t-panels flex flex-col gap-3 pt-2 pb-2">
-        <PersonTabs login={login} on="repositories" />
+      <div className="flex min-w-0 flex-col gap-4 py-3 lg:flex-row lg:items-start">
+        {who === undefined ? null : <PersonAside who={who} onStepAside={onStepAside} />}
 
-        {shown === undefined ? null : (
-          <>
-            <div className="flex min-w-0 flex-col gap-4 rounded-lg px-3 py-2.5 sm:flex-row sm:gap-6">
-              <Shares list={languages} />
-              <Movement list={strip} />
-            </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <PersonTabs login={login} on="repositories" who={who} />
 
-            <div className="flex min-w-0 flex-wrap items-center gap-3 px-1">
-              <input
-                type="search"
-                value={typed}
-                onChange={(event) => setTyped(event.target.value)}
-                /* Their own box on this page reads names, which their documentation says
-                   outright. Somebody who kept a library remembers that it parsed dates,
-                   not that it was called `chrono`. */
-                placeholder="Find by name, description or topic"
-                aria-label="Find a repository"
-                className={`${FIELD} min-w-0 flex-1 px-2 py-1 text-sm`}
-              />
-              <p className={`${ASIDE} tabular-nums`}>
-                {found.length === rows.length
-                  ? `${rows.length} ${rows.length === 1 ? "repository" : "repositories"}`
-                  : `${found.length} of ${rows.length}`}
-                {/* Both qualifications on the count, said where the count is. A group
-                    total over part of a list is the wrong answer confidently drawn. */}
-                {shown.reading ? ", reading the rest…" : ""}
-                {shown.capped ? ", the first pages of a longer list" : ""}
-              </p>
-            </div>
+          {shown === undefined ? null : (
+            <div className="t-panels flex min-w-0 flex-col gap-1">
+              <div className="grid min-w-0 gap-1 sm:grid-cols-2">
+                <Shares list={languages} />
+                <Movement list={strip} />
+              </div>
 
-            {groups.length === 0 ? (
-              <p className="px-2 py-6 text-center text-sm text-ink-muted">
-                {rows.length === 0
-                  ? `${login} has no public repository.`
-                  : `Nothing here matches “${typed}”.`}
-              </p>
-            ) : (
-              <div className="flex flex-col gap-1">
-                {groups.map((group) => (
-                  <Rows
+              <div className="flex min-w-0 flex-wrap items-center gap-3 pt-1 pb-0.5">
+                <input
+                  ref={box}
+                  type="search"
+                  value={typed}
+                  onChange={(event) => setTyped(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Escape") return
+                    setTyped("")
+                  }}
+                  /* Their own box on this page reads names, which their documentation says
+                     outright. Somebody who kept a library remembers that it parsed dates,
+                     not that it was called `chrono`. */
+                  placeholder="Find by name, description or topic"
+                  aria-label="Find a repository"
+                  className={`${FIELD} h-8 min-w-0 flex-1 px-3 text-sm`}
+                />
+                <p aria-live="polite" className={`${ASIDE} tabular-nums`}>
+                  {narrowed
+                    ? `${found.length} of ${rows.length}`
+                    : `${rows.length} ${rows.length === 1 ? "repository" : "repositories"}`}
+                  {/* Both qualifications on the count, said where the count is. A group
+                      total over part of a list is the wrong answer confidently drawn. */}
+                  {shown.reading ? ", reading the rest…" : ""}
+                  {shown.capped ? ", the first pages of a longer list" : ""}
+                </p>
+              </div>
+
+              {groups.length === 0 ? (
+                <p className="px-3 py-6 text-center text-ink-muted text-sm">
+                  {rows.length === 0 ? (
+                    `${login} has no public repository.`
+                  ) : (
+                    <>
+                      Nothing matches that.{" "}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTyped("")
+                          box.current?.focus()
+                        }}
+                        className="rounded text-ink-accent text-sm hover:bg-hover"
+                      >
+                        Clear the filter
+                      </button>
+                    </>
+                  )}
+                </p>
+              ) : (
+                groups.map((group) => (
+                  <Fold
                     key={group.life}
                     group={group}
                     shut={isShut(settings.turned, login, group.life)}
+                    quiet={narrowed}
                     now={now}
                     onTurn={() =>
                       change((current) => {
@@ -372,11 +469,11 @@ export const PersonReposScreen = ({
                       })
                     }
                   />
-                ))}
-              </div>
-            )}
-          </>
-        )}
+                ))
+              )}
+            </div>
+          )}
+        </div>
       </div>
       {waiting ? (
         <Waiting what={READING} detail={login} room="list" leaving={shown !== undefined} />
