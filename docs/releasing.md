@@ -69,7 +69,7 @@ tag.yml                     release.yml
   open the release            chrome    Chrome Web Store
                               firefox   Firefox Add-ons, listed
                               desktop   signed, notarised .dmg
-                              safari    Xcode wrapper, signed, notarised .dmg
+                              safari    Xcode wrapper -> .dmg, and the App Store
 ```
 
 Each target is a job of its own, so a store that rejects a package is a job to
@@ -119,10 +119,37 @@ need a paid Apple Developer Program membership.
 | `APPLE_ID_PASSWORD`          | An app-specific password from [account.apple.com](https://account.apple.com), not the account password                   |
 | `APPLE_TEAM_ID`              | The ten characters in brackets after the identity name                                                                   |
 
-Distribution is by Developer ID rather than the App Store: the disk image is
-notarised and stapled, so it opens on a machine that has never seen it, and
-there is no second review queue to wait on. Safari then offers the extension
-once its app has been moved to Applications and opened once.
+The disk image is notarised and stapled, so it opens on a machine that has never
+seen it. Safari then offers the extension once its app has been moved to
+Applications and opened once.
+
+#### The Mac App Store, for Safari
+
+Three more secrets, and the Safari job sends the same build to the App Store as
+well as attaching the image. Leave them and only the image is made.
+
+| Secret                           | Where it comes from                                                                            |
+| -------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `APPLE_DISTRIBUTION_CERTIFICATE` | An **Apple Distribution** certificate as `.p12`, base64 encoded. Signs the app                 |
+| `APPLE_INSTALLER_CERTIFICATE`    | A **Mac Installer Distribution** certificate the same way. Signs the installer around it       |
+| `APPLE_DISTRIBUTION_PASSWORD`    | The password both were exported with                                                           |
+| `APPLE_ASC_KEY`                  | An App Store Connect API key, the `.p8` base64 encoded. Downloadable once, at Users and Access |
+| `APPLE_ASC_KEY_ID`               | The key's ten characters, on the same page                                                     |
+| `APPLE_ASC_ISSUER_ID`            | The issuer id above the key list, one per account                                              |
+
+The key needs **App Manager** access, not Developer: a Developer key can neither
+upload a build nor make a provisioning profile. Profiles are made on each release
+by `scripts/apple-profiles.ts` rather than kept as secrets, because a profile
+expires after a year and a secret does not say so.
+
+Both go out from one archive, exported twice, so the bytes Apple reviews are the
+bytes the disk image holds. The upload is validated first, which is where a
+manifest description over 112 characters is caught: Chrome allows 132 and the App
+Store 112, and `manifest.test.ts` holds every target to the smaller number.
+
+An uploaded build is not a released one. App Store Connect has to be told to
+submit it, and a first submission also wants a product page, screenshots, the
+privacy answers, and the trader status the EU asks for.
 
 ## Adding another store
 

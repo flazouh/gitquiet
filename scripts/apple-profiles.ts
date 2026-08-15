@@ -58,10 +58,21 @@ const token = (keyId: string, issuer: string, pem: string) => {
   return `${head}.${body}.${seal}`
 }
 
+/**
+ * As much of a reply as is read here. Every field is optional because one address
+ * answers with certificates, another with profiles, and a third with identifiers.
+ */
 type Reply = {
   readonly data?: readonly {
     readonly id: string
-    readonly attributes: Record<string, string>
+    readonly attributes: {
+      readonly certificateType?: string
+      readonly identifier?: string
+      readonly name?: string
+      readonly profileState?: string
+      readonly expirationDate?: string
+      readonly profileContent?: string
+    }
     readonly relationships?: { readonly bundleId?: { readonly data?: { readonly id: string } } }
   }[]
   readonly errors?: readonly { readonly title: string; readonly detail: string }[]
@@ -102,16 +113,18 @@ const main = async () => {
 
   const identifiers = await ask("GET", "/v1/bundleIds?limit=200")
   const idOf = new Map(
-    (identifiers.data ?? []).map((one) => [one.attributes.identifier, one.id] as const)
+    (identifiers.data ?? []).map((one) => [one.attributes.identifier ?? "", one.id] as const)
   )
 
   const found = await ask("GET", "/v1/profiles?include=bundleId&limit=200")
+  // A profile missing any of these is one this cannot judge, so it is passed over
+  // and a new one is made rather than signing with something half read.
   const known: Profile[] = (found.data ?? []).map((one) => ({
     id: one.id,
-    name: one.attributes.name,
+    name: one.attributes.name ?? "",
     bundle: one.relationships?.bundleId?.data?.id ?? "",
-    state: one.attributes.profileState,
-    expires: one.attributes.expirationDate
+    state: one.attributes.profileState ?? "",
+    expires: one.attributes.expirationDate ?? ""
   }))
 
   const homes = profileHomes(homedir())
@@ -138,14 +151,16 @@ const main = async () => {
 
     // Read back by name either way, because a create answers with the profile
     // itself where a list answers with a list, and one reader is fewer than two.
-    const whole = (await ask("GET", `/v1/profiles?filter[name]=${encodeURIComponent(name)}`)).data?.[0]
-    if (!whole) throw new Error(`Found no profile named ${name}.`)
+    const whole = (await ask("GET", `/v1/profiles?filter[name]=${encodeURIComponent(name)}`))
+      .data?.[0]
+    if (whole === undefined) throw new Error(`Found no profile named ${name}.`)
+    const content = whole.attributes.profileContent
+    if (content === undefined) throw new Error(`The profile named ${name} came back empty.`)
 
-    const bytes = Buffer.from(whole.attributes.profileContent, "base64")
+    const bytes = Buffer.from(content, "base64")
     for (const home of homes) writeFileSync(join(home, `${name}.provisionprofile`), bytes)
-    console.log(
-      `${bundle}\t${name}\t${already ? "kept" : "made"}\t${whole.attributes.expirationDate}`
-    )
+    const until = whole.attributes.expirationDate
+    console.log(`${bundle}\t${name}\t${already ? "kept" : "made"}\t${until}`)
   }
 }
 
