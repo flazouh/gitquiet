@@ -141,6 +141,28 @@ To load it by hand: `bun run build`, then open `chrome://extensions`, enable
 Developer mode, choose Load unpacked, and select `.output/chrome-mv3`. Open any
 pull request.
 
+For Firefox, `RELEASE_VERSION=0.2.1 bun run zip:firefox` writes
+`.output/gitquiet-0.2.1-firefox.zip` and the sources archive beside it. Without
+`RELEASE_VERSION` the build carries version `0.0.0`, which is what a local build
+wants and what a store rejects.
+
+### Building from the source archive
+
+Mozilla asks a reviewer to rebuild the extension from the sources zip attached
+to a version. That archive is not a clone: there is no git repository in it, and
+`bun install` runs a prepare hook that installs git hooks and clones the Effect
+source, neither of which a reviewer needs.
+
+```sh
+bun install --ignore-scripts   # the prepare hook needs a git repository
+bun run types                  # writes .wxt/tsconfig.json, which the build reads
+bun run build
+RELEASE_VERSION=0.2.1 bun run zip:firefox
+```
+
+`.output/gitquiet-0.2.1-firefox.zip` comes back out, the same 2.71 MB as the
+uploaded one.
+
 `bun run drift` needs a session cookie and is not part of CI; see
 [`fixtures/README.md`](./fixtures/README.md). `bun install` clones the Effect
 source to `.repos/effect` so its API can be read rather than guessed. It is

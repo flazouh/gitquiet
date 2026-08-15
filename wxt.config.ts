@@ -61,7 +61,25 @@ export default defineConfig({
     ...(browser === "firefox"
       ? {
           browser_specific_settings: {
-            gecko: { id: "gitquiet@gitquiet.dev", strict_min_version: "115.0" }
+            gecko: {
+              id: "gitquiet@gitquiet.dev",
+              strict_min_version: "115.0",
+              /*
+               * Nothing is collected, and Firefox refuses a submission that does
+               * not say so either way.
+               *
+               * Mozilla counts anything handled outside the browser, and what
+               * leaves here goes to api.github.com carrying the reader's own
+               * token, which is the extension being a GitHub client rather than
+               * GitHub learning something new. There is no server of ours to
+               * send anything to. Sentry is compiled in but a release build
+               * carries no DSN, so it initialises nothing and reports nowhere.
+               *
+               * `none` cannot be combined with a category, so the day any of
+               * that stops being true this becomes a list instead.
+               */
+              data_collection_permissions: { required: ["none"] }
+            }
           }
         }
       : {}),
@@ -123,18 +141,29 @@ export default defineConfig({
    * those four PNGs are committed, and no script rebuilds them.
    */
   zip: {
+    /*
+     * The prose stays in. Mozilla asks a reviewer to rebuild the extension from
+     * this archive, and refuses one that arrives without instructions, so the
+     * README that carries them is the last thing to drop for size.
+     */
     excludeSources: [
       "desktop/**",
       "site/**",
       "video/**",
       "shots/**",
-      "*.md",
       "public/*.js",
       "public/screens/**"
     ],
-    // Excluded by the `**/.*` default above, and the one dotfile a reviewer
-    // needs: it is the bun the lockfile resolves against.
-    includeSources: [".bun-version"]
+    /*
+     * Two files the archive is unusable without.
+     *
+     * `.bun-version` is the bun the lockfile resolves against, and the `**\/.*`
+     * default above drops it. `desktop/package.json` is there because the root
+     * package.json calls `desktop` a workspace, and bun refuses to install a
+     * workspace it cannot find — so excluding the desktop app wholesale made
+     * `bun install` fail on the first line a reviewer runs.
+     */
+    includeSources: [".bun-version", "desktop/package.json"]
   },
   vite: () => ({
     plugins: [tailwindcss()],
