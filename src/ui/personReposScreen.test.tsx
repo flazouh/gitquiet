@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import type { ListedRepository } from "../domain/life"
@@ -196,10 +196,17 @@ describe("one row", () => {
     expect(one.textContent).toContain("forked from microsoft/vscode")
   })
 
+  /*
+   * One word in the column and the sentence in the label, because the column is five and a
+   * half rems: "never" beside a date is read as a date that is not there, and anybody being
+   * read to still hears the whole of it.
+   */
   test("says a repository has never been pushed to rather than drawing nothing", async () => {
     shown([row({ repo: "empty", pushedAt: Option.none() })])
 
-    expect((await screen.findByRole("listitem")).textContent).toContain("never pushed to")
+    const one = await screen.findByRole("listitem")
+    expect(one.textContent).toContain("never")
+    expect(within(one).getByLabelText("never pushed to")).toBeTruthy()
   })
 })
 

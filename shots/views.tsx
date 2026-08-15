@@ -4,6 +4,7 @@ import { COMMITS_VIEW } from "./mock/commits"
 import { ISSUE_VIEW } from "./mock/issue"
 import { ISSUES_VIEW } from "./mock/issues"
 import { NOTIFICATIONS_VIEW } from "./mock/notifications"
+import { PERSON_REPOS_VIEW } from "./mock/personRepos"
 import { PULL_REQUEST_VIEW } from "./mock/pullRequest"
 import { RAISE_VIEW } from "./mock/raise"
 import { RELEASES_VIEW } from "./mock/releases"
@@ -42,6 +43,7 @@ export const VIEWS: ReadonlyArray<View> = [
   ACTIONS_VIEW,
   RELEASES_VIEW,
   NOTIFICATIONS_VIEW,
+  PERSON_REPOS_VIEW,
   RAISE_VIEW
 ]
 

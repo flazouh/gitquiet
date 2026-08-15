@@ -1,5 +1,6 @@
 import { Option } from "effect"
 import type { Person, Way } from "../domain/person"
+import { type ArtName, useArt } from "./art"
 import { ASIDE, GHOST, PRESSABLE } from "./dress"
 import { painted } from "./Section"
 
@@ -31,16 +32,28 @@ export type PersonAsideProps = {
   readonly onStepAside: () => void
 }
 
-/** One of the ways they asked to be reached, in the words they wrote for it. */
-const Line = ({ way }: { readonly way: Way }) => (
-  <a
-    href={way.href}
-    rel="nofollow me noreferrer"
-    className="min-w-0 truncate text-ink text-sm no-underline hover:underline"
-  >
-    {way.label}
-  </a>
-)
+/**
+ * One of the ways they asked to be reached, in the words they wrote for it.
+ *
+ * A glyph in front, because a column of four bare strings — a domain, two handles and an
+ * address — is four things a reader has to read to find out what kind of thing each one
+ * is. The same glyph on all four: what they have in common is that they lead away from
+ * here, and the label says the rest.
+ */
+const Line = ({ way }: { readonly way: Way }) => {
+  const Link = useArt().link
+
+  return (
+    <a
+      href={way.href}
+      rel="nofollow me noreferrer"
+      className={`flex min-w-0 items-center gap-2 no-underline hover:underline ${ASIDE}`}
+    >
+      <Link size={12} aria-hidden="true" className="shrink-0 opacity-70" />
+      <span className="min-w-0 truncate text-ink">{way.label}</span>
+    </a>
+  )
+}
 
 /**
  * A fact of theirs, where they set one.
@@ -51,21 +64,30 @@ const Line = ({ way }: { readonly way: Way }) => (
  */
 const Fact = ({
   said,
+  art,
   what
 }: {
   readonly said: Option.Option<string>
+  /** The glyph in front, which says what kind of fact this is before it is read. */
+  readonly art: ArtName
   /** What the number counts, where the fact is a number. Absent where it speaks for itself. */
   readonly what?: string
-}) =>
-  Option.match(said, {
+}) => {
+  const Mark = useArt()[art]
+
+  return Option.match(said, {
     onNone: () => null,
     onSome: (found) => (
-      <p className={`min-w-0 truncate ${ASIDE}`}>
-        <span className="text-ink tabular-nums">{found}</span>
-        {what === undefined ? null : ` ${what}`}
+      <p className={`flex min-w-0 items-center gap-2 ${ASIDE}`}>
+        <Mark size={12} aria-hidden="true" className="shrink-0 opacity-70" />
+        <span className="min-w-0 truncate">
+          <span className="text-ink tabular-nums">{found}</span>
+          {what === undefined ? null : ` ${what}`}
+        </span>
       </p>
     )
   })
+}
 
 export const PersonAside = ({ who, onStepAside }: PersonAsideProps) => {
   const paint = painted("plain")
@@ -108,11 +130,11 @@ export const PersonAside = ({ who, onStepAside }: PersonAsideProps) => {
              * somebody in. Where there is no name the login takes the line rather than leaving
              * an empty one above itself.
              */}
-            <h1 className="min-w-0 truncate font-semibold text-base text-ink">
+            <h1 className="min-w-0 truncate font-medium text-base text-ink leading-6">
               {name ?? who.login}
             </h1>
             {name === undefined ? null : (
-              <p className="min-w-0 truncate text-ink-muted text-sm">{who.login}</p>
+              <p className={`min-w-0 truncate ${ASIDE}`}>{who.login}</p>
             )}
           </div>
         </div>
@@ -125,15 +147,15 @@ export const PersonAside = ({ who, onStepAside }: PersonAsideProps) => {
           )
         })}
 
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <Fact said={who.followers} what="followers" />
-          <Fact said={who.following} what="following" />
-          <Fact said={who.company} />
-          <Fact said={who.location} />
+        <div className="flex min-w-0 flex-col gap-1">
+          <Fact said={who.followers} art="person" what="followers" />
+          <Fact said={who.following} art="eye" what="following" />
+          <Fact said={who.company} art="work" />
+          <Fact said={who.location} art="home" />
         </div>
 
         {Option.isSome(who.site) || who.ways.length > 0 ? (
-          <div className="flex min-w-0 flex-col gap-0.5">
+          <div className="flex min-w-0 flex-col gap-1">
             {Option.match(who.site, {
               onNone: () => null,
               onSome: (way) => <Line way={way} />

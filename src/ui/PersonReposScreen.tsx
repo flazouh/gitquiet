@@ -155,98 +155,169 @@ const Movement = ({ list }: { readonly list: ReadonlyArray<Cell> }) => {
             />
           ))}
         </div>
-        <p className={ASIDE}>
-          {list.length} {list.length === 1 ? "repository" : "repositories"}, most recent first.
-        </p>
+        {/* What the brightness means, because a strip of five greys is a legend nobody
+            was given. The count is beside the find field and is not repeated here. */}
+        <p className={ASIDE}>One cell each, brighter the more recently it moved.</p>
       </div>
     </Section>
   )
 }
 
 /**
+ * How wide each of a row's columns is, in the order a row draws them.
+ *
+ * Fixed tracks rather than a line of flexbox, which is the same repair the Working Set
+ * documents and the same reason: read one row at a time, contents-sized cells are right,
+ * and a list is not read one row at a time. Sized to the widest thing each column holds
+ * in a real list — thirty rows of `sindresorhus` and thirty of `tj` — with the
+ * description taking whatever is left, because it is the part worth the width.
+ */
+const TRACK = {
+  name: "14rem",
+  said: "minmax(0,1fr)",
+  language: "7rem",
+  stars: "5.5rem",
+  forks: "5rem",
+  when: "5.5rem"
+} as const
+
+/**
+ * Which of the columns a list reserves room for.
+ *
+ * Over every row rather than each one, so a fact three rows have does not push the
+ * other twenty-seven out of line. Over the whole list rather than the found rows, so
+ * that typing in the field does not walk the columns sideways under the reader's eyes:
+ * the Working Set settled both of these and this is the same list one page along.
+ */
+type Columns = {
+  readonly language: boolean
+  readonly stars: boolean
+  readonly forks: boolean
+}
+
+const columnsIn = (rows: ReadonlyArray<ListedRepository>): Columns => {
+  let language = false
+  let stars = false
+  let forks = false
+
+  for (const one of rows) {
+    if (Option.isSome(one.language)) language = true
+    if (one.stars > 0) stars = true
+    if (one.forks > 0) forks = true
+    if (language && stars && forks) break
+  }
+
+  return { language, stars, forks }
+}
+
+const tracksOf = (columns: Columns): string =>
+  [
+    TRACK.name,
+    TRACK.said,
+    ...(columns.language ? [TRACK.language] : []),
+    ...(columns.stars ? [TRACK.stars] : []),
+    ...(columns.forks ? [TRACK.forks] : []),
+    TRACK.when
+  ].join(" ")
+
+/**
  * One repository, as a row of the group it belongs to.
  *
- * One line, and it is the line the rest of this extension draws: the name, then what
- * the repository is, then its facts at the far end. Their own rows are five lines tall
- * — name, description, topics as chips, language, stars, licence and a date — which is
- * how thirty repositories become a page nobody scrolls to the end of. The topics are
- * still how a reader finds one; they are read by the find box above rather than printed
- * on every row.
+ * One line, and every fact on it in the same column as the row above's. Their own rows
+ * are five lines tall — name, description, topics as chips, language, stars, licence and
+ * a date — which is how thirty repositories become a page nobody scrolls to the end of.
+ * The topics are still how a reader finds one; they are read by the find box above
+ * rather than printed on every row.
+ *
+ * The name is the link and the row is not, the way a Change's row is: a reader who wants
+ * to select a repository's name should not have to open it to do that.
  */
 const Row = ({
   one,
+  columns,
   at,
   now
 }: {
   readonly one: ListedRepository
+  readonly columns: Columns
   /** Where in the group it is, for the entrance. Absent where nothing should animate. */
   readonly at?: number
   readonly now: Date
 }) => {
   const language = Option.getOrUndefined(one.language)
   const pushed = Option.getOrUndefined(one.pushedAt)
+  const from = Option.getOrUndefined(one.forkedFrom)
+  const said = Option.getOrUndefined(one.description)
 
   return (
     <li
       data-row=""
-      className={`flex min-w-0 items-baseline gap-2 px-3 py-1.5 hover:bg-hover ${
+      className={`grid min-w-0 items-center gap-2 px-3 py-1.5 hover:bg-hover ${
         at === undefined ? "" : "t-row-in"
       }`}
-      style={(at === undefined ? {} : { "--row-at": String(at) }) as React.CSSProperties}
+      style={
+        {
+          gridTemplateColumns: tracksOf(columns),
+          ...(at === undefined ? {} : { "--row-at": String(at) })
+        } as React.CSSProperties
+      }
     >
-      <a
-        href={`/${one.nameWithOwner}`}
-        className="min-w-0 max-w-64 shrink-0 truncate font-semibold text-ink text-sm no-underline hover:underline"
-      >
-        {one.repo}
-      </a>
+      <span className="flex min-w-0 items-center gap-1.5">
+        <a
+          href={`/${one.nameWithOwner}`}
+          className="min-w-0 truncate font-semibold text-ink text-sm no-underline hover:underline"
+        >
+          {one.repo}
+        </a>
+        {one.isPrivate ? (
+          <span className={`${PILL} shrink-0 text-ink-muted text-[11px]`}>Private</span>
+        ) : null}
+      </span>
 
-      {one.isPrivate ? (
-        <span className={`${PILL} shrink-0 text-ink-muted text-xs`}>Private</span>
+      {/* What it is, or where it came from where it is somebody else's work and says
+          nothing of its own. One cell either way, so the columns past it stay straight. */}
+      <span className={`min-w-0 truncate ${ASIDE}`} title={said ?? from ?? undefined}>
+        {said ?? (from === undefined ? null : `forked from ${from}`)}
+      </span>
+
+      {columns.language ? (
+        <span className={`flex min-w-0 items-center gap-1.5 ${ASIDE}`}>
+          {language === undefined ? null : (
+            <>
+              <span
+                aria-hidden
+                className="size-2 shrink-0 rounded-full"
+                style={{ background: language.colour }}
+              />
+              <span className="truncate">{language.name}</span>
+            </>
+          )}
+        </span>
       ) : null}
 
-      {Option.match(one.forkedFrom, {
-        onNone: () => null,
-        onSome: (from) => (
-          <span className={`shrink-0 ${ASIDE}`}>
-            forked from{" "}
-            <a href={`/${from}`} className="text-ink-muted no-underline hover:underline">
-              {from}
-            </a>
-          </span>
-        )
-      })}
+      {/* The counts in their own tracks, held open on the rows that have none of them:
+          an empty cell costs nothing and is what keeps the cells either side in line. */}
+      {columns.stars ? (
+        <span className={`text-right tabular-nums ${ASIDE}`}>
+          {one.stars === 0 ? null : `${one.stars.toLocaleString()} ${one.stars === 1 ? "star" : "stars"}`}
+        </span>
+      ) : null}
 
-      {Option.match(one.description, {
-        onNone: () => <span className="min-w-0 flex-1" />,
-        onSome: (said) => (
-          <span className="min-w-0 flex-1 truncate text-ink-muted text-xs" title={said}>
-            {said}
-          </span>
-        )
-      })}
+      {columns.forks ? (
+        <span className={`text-right tabular-nums ${ASIDE}`}>
+          {one.forks === 0 ? null : `${one.forks.toLocaleString()} ${one.forks === 1 ? "fork" : "forks"}`}
+        </span>
+      ) : null}
 
-      <span className={`flex shrink-0 items-center gap-3 ${ASIDE}`}>
-        {language === undefined ? null : (
-          <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="size-2 rounded-full" style={{ background: language.colour }} />
-            {language.name}
-          </span>
-        )}
-        {one.stars === 0 ? null : (
-          <span className="tabular-nums">
-            {one.stars.toLocaleString()} {one.stars === 1 ? "star" : "stars"}
-          </span>
-        )}
-        {one.forks === 0 ? null : (
-          <span className="tabular-nums">
-            {one.forks.toLocaleString()} {one.forks === 1 ? "fork" : "forks"}
-          </span>
-        )}
-        {/* A date and never a distance: "2 years ago" under "3 years ago" is the same
-            three words to somebody scanning thirty rows. See `dayOf`. */}
+      {/* A date and never a distance: "2 years ago" under "3 years ago" is the same
+          three words to somebody scanning thirty rows. See `dayOf`. */}
+      <span className={`text-right tabular-nums ${ASIDE}`}>
         {pushed === undefined ? (
-          <span>never pushed to</span>
+          /* One word in a column this width, and the sentence said aloud beside it: a
+             reader being read to gets "never pushed to", which is the whole fact. */
+          <span aria-label="never pushed to" title="never pushed to">
+            never
+          </span>
         ) : (
           <span title={momentOf(pushed)}>{dayOf(pushed, now)}</span>
         )}
@@ -272,12 +343,14 @@ const STAGGERED = 8
  */
 const Fold = ({
   group,
+  columns,
   shut,
   onTurn,
   quiet,
   now
 }: {
   readonly group: Group
+  readonly columns: Columns
   readonly shut: boolean
   readonly onTurn: () => void
   /** Whether the rows should arrive without motion, which is while somebody is typing. */
@@ -321,6 +394,7 @@ const Fold = ({
           <Row
             key={one.nameWithOwner}
             one={one}
+            columns={columns}
             at={quiet ? undefined : Math.min(index, STAGGERED)}
             now={now}
           />
@@ -370,6 +444,8 @@ export const PersonReposScreen = ({
   const groups = useMemo(() => grouped(found, now), [found, now])
   const languages = useMemo(() => shares(found), [found])
   const strip = useMemo(() => movement(found, now), [found, now])
+  /* From every row and not the found ones, so a word typed here cannot move the columns. */
+  const columns = useMemo(() => columnsIn(rows), [rows])
 
   if (read.status === "failed") {
     return (
@@ -396,7 +472,9 @@ export const PersonReposScreen = ({
 
           {shown === undefined ? null : (
             <div className="t-panels flex min-w-0 flex-col gap-1">
-              <div className="grid min-w-0 gap-1 sm:grid-cols-2">
+              {/* The bar gets the wider half. It is the figure a reader takes a shape
+                  from, and the strip is thirty cells wide whatever room it is given. */}
+              <div className="grid min-w-0 gap-1 sm:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
                 <Shares list={languages} />
                 <Movement list={strip} />
               </div>
@@ -418,7 +496,9 @@ export const PersonReposScreen = ({
                   aria-label="Find a repository"
                   className={`${FIELD} h-8 min-w-0 flex-1 px-3 text-sm`}
                 />
-                <p aria-live="polite" className={`${ASIDE} tabular-nums`}>
+                {/* Held off the edge by the same twelve pixels a row's last column keeps,
+                    so the count reads as the end of a column rather than as a stray. */}
+                <p aria-live="polite" className={`pr-3 ${ASIDE} tabular-nums`}>
                   {narrowed
                     ? `${found.length} of ${rows.length}`
                     : `${rows.length} ${rows.length === 1 ? "repository" : "repositories"}`}
@@ -454,6 +534,7 @@ export const PersonReposScreen = ({
                   <Fold
                     key={group.life}
                     group={group}
+                    columns={columns}
                     shut={isShut(settings.turned, login, group.life)}
                     quiet={narrowed}
                     now={now}
