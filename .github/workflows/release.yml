@@ -281,3 +281,160 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/dmg/GitQuiet.app"
           spctl --assess --type execute --verbose "$RUNNER_TEMP/dmg/GitQuiet.app"
           hdiutil detach "$RUNNER_TEMP/dmg"
+
+  safari:
+    name: Safari app
+    needs: package
+    # Safari's own requirement: an extension it will load is one inside a macOS
+    # app, and only Xcode builds those.
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.package.outputs.tag }}
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: .bun-version
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Read the release version
+        env:
+          RELEASE_TAG: ${{ needs.package.outputs.tag }}
+        run: echo "RELEASE_VERSION=$(bun scripts/release-version.ts "$RELEASE_TAG")" >> "$GITHUB_ENV"
+
+      # Same reason as the macOS app: an unsigned one is an app macOS will not
+      # open, so without a certificate this stops and the extension still ships.
+      - name: Check there is a certificate to sign with
+        id: signable
+        env:
+          CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+        run: |
+          if [ -z "$CERTIFICATE" ]; then
+            echo "::notice::No MACOS_CERTIFICATE secret. Skipping the Safari app."
+            echo "signable=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "signable=yes" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate WXT types
+        if: steps.signable.outputs.signable == 'yes'
+        run: bun run types
+
+      # `bun run build` first, because the scripts in it write the chunks under
+      # `public` that every target imports, and only then the Safari manifest.
+      - name: Build the extension for Safari
+        if: steps.signable.outputs.signable == 'yes'
+        run: |
+          bun run build
+          bun run build:safari
+
+      - name: Unlock a keychain with the certificate in it
+        if: steps.signable.outputs.signable == 'yes'
+        env:
+          CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/release.keychain-db"
+          password=$(uuidgen)
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          echo "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" \
+            -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/certificate.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain"
+          security list-keychain -d user -s "$keychain" login.keychain-db
+
+      # Regenerated on every release rather than committed, so the project can
+      # never describe an older extension than the one built beside it.
+      #
+      # The identifier's last part has to be the app's own name. Apple's
+      # converter reads that part as the app and gives the extension the whole
+      # thing plus `.Extension`, so `dev.gitquiet.safari` produced an app called
+      # `dev.gitquiet.GitQuiet` with an extension under it that Xcode then
+      # refused: "not prefixed with the parent app's bundle identifier".
+      - name: Wrap the extension in an Xcode project
+        if: steps.signable.outputs.signable == 'yes'
+        run: |
+          xcrun safari-web-extension-converter .output/safari-mv3 \
+            --project-location "$RUNNER_TEMP/safari" \
+            --app-name GitQuiet \
+            --bundle-identifier dev.gitquiet.GitQuiet \
+            --macos-only --swift --copy-resources --no-open --no-prompt --force
+
+      # Archive and export, rather than signing the app once it is built. The
+      # extension is a bundle inside a bundle, and this is what signs both from
+      # the inside out and turns the hardened runtime on, which notarising needs.
+      - name: Archive and sign
+        if: steps.signable.outputs.signable == 'yes'
+        env:
+          IDENTITY: ${{ secrets.APPLE_DEVELOPER_ID }}
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          plist="$RUNNER_TEMP/export.plist"
+          plutil -create xml1 "$plist"
+          plutil -insert method -string developer-id "$plist"
+          plutil -insert teamID -string "$TEAM" "$plist"
+          plutil -insert signingStyle -string manual "$plist"
+          plutil -insert signingCertificate -string "Developer ID Application" "$plist"
+          xcodebuild -project "$RUNNER_TEMP/safari/GitQuiet/GitQuiet.xcodeproj" \
+            -scheme GitQuiet -configuration Release archive \
+            -archivePath "$RUNNER_TEMP/GitQuiet.xcarchive" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="$IDENTITY" \
+            DEVELOPMENT_TEAM="$TEAM"
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/GitQuiet.xcarchive" \
+            -exportOptionsPlist "$plist" \
+            -exportPath "$RUNNER_TEMP/safari-export"
+
+      # A disk image with a shortcut to Applications beside the app, because
+      # Safari only offers the extension once its app has been moved there and
+      # opened once.
+      - name: Package a disk image
+        if: steps.signable.outputs.signable == 'yes'
+        run: |
+          staging="$RUNNER_TEMP/safari-dmg"
+          mkdir -p "$staging"
+          cp -R "$RUNNER_TEMP/safari-export/GitQuiet.app" "$staging/"
+          ln -s /Applications "$staging/Applications"
+          hdiutil create -volname "GitQuiet for Safari" -srcfolder "$staging" \
+            -ov -format ULFO "GitQuiet-$RELEASE_VERSION-safari.dmg"
+
+      # Apple has to see the image before Gatekeeper will open what is inside it,
+      # and `stapler` writes that answer into the file so a reader who is offline
+      # still gets it. `--wait` because the queue is minutes rather than seconds.
+      - name: Notarise and staple
+        if: steps.signable.outputs.signable == 'yes'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcrun notarytool submit "GitQuiet-$RELEASE_VERSION-safari.dmg" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$TEAM" \
+            --wait
+          xcrun stapler staple "GitQuiet-$RELEASE_VERSION-safari.dmg"
+
+      - name: Check Gatekeeper accepts it
+        if: steps.signable.outputs.signable == 'yes'
+        run: |
+          hdiutil attach -nobrowse -readonly "GitQuiet-$RELEASE_VERSION-safari.dmg" \
+            -mountpoint "$RUNNER_TEMP/check"
+          codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/check/GitQuiet.app"
+          spctl --assess --type execute --verbose "$RUNNER_TEMP/check/GitQuiet.app"
+          hdiutil detach "$RUNNER_TEMP/check"
+
+      - name: Attach the Safari app to the GitHub release
+        if: steps.signable.outputs.signable == 'yes'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.package.outputs.tag }}
+        run: gh release upload "$RELEASE_TAG" "GitQuiet-$RELEASE_VERSION-safari.dmg" --clobber

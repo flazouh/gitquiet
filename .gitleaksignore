@@ -1,0 +1,28 @@
+# Findings that are already in pushed history, and the reason each is not a
+# secret. The working tree has none: `bun scripts/scrub-fixtures.ts` takes them
+# out of a recording before it is committed, and CI runs it with `--check`.
+#
+# These commits are public and cloned, so rewriting them would cost a force push
+# over a published history to remove values that were expired before anybody
+# could read them. They are listed here instead.
+#
+#   jwt              signed URLs for images on private-user-images.github...,
+#                    issued for five minutes, expired 27 July 2026.
+#   aws-access-token not an AWS key. The rule matches an uppercase run inside
+#                    the base64 payload of the jwt above. No X-Amz- parameter
+#                    appears anywhere in this repository.
+#   generic-api-key  per-page analytics HMACs, one upload token and one CSRF
+#                    token, all scoped to a browser session that ended.
+#
+# Regenerate:  gitleaks git --log-opts=--all -f json -r out.json
+
+4fbef78e7f845ee9727feabf9f5722644a650b45:fixtures/github/description.json:aws-access-token:1
+4fbef78e7f845ee9727feabf9f5722644a650b45:fixtures/github/description.json:jwt:1
+8a07744dec49252156ce04147d1bc8b5c158e2c0:fixtures/github/description.json:aws-access-token:1
+8a07744dec49252156ce04147d1bc8b5c158e2c0:fixtures/github/description.json:jwt:1
+8a07744dec49252156ce04147d1bc8b5c158e2c0:fixtures/github/repo-home.json:generic-api-key:283
+8a07744dec49252156ce04147d1bc8b5c158e2c0:src/github/GitHubGateway.test.ts:generic-api-key:1635
+dc6fd4534c6ba8f152684f41e10870afe23f0385:tests/fixtures/releasesList.html:generic-api-key:280
+f173b2befc6888fd5d08fdcefbee9bab1207f743:tests/fixtures/personRepos.html:generic-api-key:269
+f173b2befc6888fd5d08fdcefbee9bab1207f743:tests/fixtures/personReposArchived.html:generic-api-key:257
+f173b2befc6888fd5d08fdcefbee9bab1207f743:tests/fixtures/personReposCounted.html:generic-api-key:257

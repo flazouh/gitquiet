@@ -18,9 +18,24 @@ stand-ins.
 | `commit.json` | `octo-org/octo-repo@c48f531` | A commit page: 22 files, content for 8, the other 14 held back |
 | `commit-extra-diffs.json` | the same commit | The batch that answers for those 14 |
 
-Both pull requests are from a public repository. The payloads contain Alive
-websocket channel tokens, which are signed, short-lived and scoped to public
-topics.
+Both pull requests are from a public repository.
+
+## What is taken out before a recording is committed
+
+A signed-in page carries values that belong to the session rather than to the
+data: a CSRF token on every form, an HMAC on every analytics click, a signed
+channel name for live updates, an upload token, and a signed URL for each
+private image. They expire, nothing here reads them, and they do not belong in
+a public repository.
+
+`bun scripts/scrub-fixtures.ts` replaces each one and keeps the field's shape,
+so a schema that reads a string still reads one. Two tokens that differed on the
+page still differ afterwards, because a page carries one per form and there are
+tests that tell one form from another by exactly that. A value that is already a
+stand-in is left alone, so a name like `a-token-minted-for-this-page` survives.
+
+Run it after recording, before committing. CI runs it with `--check` and fails
+if a recording arrived with the real values still in.
 
 The two commit payloads are from a private repository and are cut down to the
 fields the schemas read, with each file's diff lines truncated to six — enough to

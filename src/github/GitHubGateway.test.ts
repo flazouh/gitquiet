@@ -1804,7 +1804,7 @@ describe("what the gateway sends to GitHub", () => {
         form: { key: "25705704/632059734.png", acl: "private", policy: "eyJleHBpcm" },
         asset: { id: 632059734, name: "shot.png", href: HREF },
         asset_upload_url: "/upload/assets/632059734",
-        asset_upload_authenticity_token: "frnp-rhRhqWmm46vVa4qzn"
+        asset_upload_authenticity_token: "redacted-authenticity-token"
       }
 
       /** Their three answers in order, and the bodies kept as sent rather than parsed. */
@@ -1890,7 +1890,7 @@ describe("what the gateway sends to GitHub", () => {
 
         const sent = [...(calls[1]?.form?.keys() ?? [])]
         expect(sent).toEqual(["key", "acl", "policy", "file"])
-        expect(calls[2]?.form?.get("authenticity_token")).toBe("frnp-rhRhqWmm46vVa4qzn")
+        expect(calls[2]?.form?.get("authenticity_token")).toBe("redacted-authenticity-token")
       })
 
       test("repeats what GitHub said about a file it would not take", async () => {

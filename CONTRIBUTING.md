@@ -79,6 +79,12 @@ for every run.
 the live site and needs a session cookie, so it is not part of CI. See
 [`fixtures/README.md`](./fixtures/README.md).
 
+If you record a new one, run `bun scripts/scrub-fixtures.ts` before committing
+it. A signed-in page carries a CSRF token per form, an analytics HMAC, a signed
+channel name and a signed URL per private image, and none of those belong in a
+public repository. CI runs the same script with `--check` and fails if they are
+still there.
+
 ## Commits
 
 Read `git log` before your first one. A message here says what the change does
