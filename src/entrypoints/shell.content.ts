@@ -18,6 +18,7 @@ import {
   goTo,
 } from "@/ui/going";
 import { markPage, theScreenShown, unmarkPage } from "@/ui/mount";
+import { linkNear } from "@/ui/near";
 import { type Stop, whenAddressChanges, whenTheyStayPut } from "@/ui/navigation";
 import {
   ACTIONS,
@@ -290,6 +291,57 @@ export default defineContentScript({
     document.addEventListener("pointerout", () => clearTimeout(dwelling), {
       passive: true,
     });
+
+    /*
+     * And the same thing a moment earlier: the link the pointer is heading for, rather
+     * than the one it has arrived at.
+     *
+     * Resting on a link is late. The reader decided a few hundred milliseconds ago, and
+     * what is left is the time it takes them to press the button — which on a page of a
+     * quarter of a megabyte buys a fraction of it. A pointer travelling towards a link
+     * crosses the ground in front of it first, and that ground is the lead this buys.
+     *
+     * The dwell above becomes two looks here: a page has to still be the nearest thing a
+     * frame later before it is read. A reader sweeping across a list passes each row in a
+     * frame or two, and reading every one of them is the request storm this is not.
+     */
+    let nearest: string | undefined;
+    let looking = 0;
+
+    document.addEventListener(
+      "pointermove",
+      (event) => {
+        if (view === "github") return;
+        if (asked.size >= AT_MOST) return;
+        // One look a frame at most. `pointermove` fires far faster than a page can be
+        // read, and seventeen hit tests an event is work in front of a moving pointer.
+        if (looking !== 0) return;
+
+        const at = { x: event.clientX, y: event.clientY };
+
+        looking = window.requestAnimationFrame(() => {
+          looking = 0;
+
+          const link = linkNear(at);
+          const ahead =
+            link === null ? null : warmingFor(link.href, window.location.href);
+
+          if (ahead === null || asked.has(ahead.key)) {
+            nearest = undefined;
+            return;
+          }
+
+          if (nearest !== ahead.key) {
+            nearest = ahead.key;
+            return;
+          }
+
+          asked.add(ahead.key);
+          warm(ahead);
+        });
+      },
+      { passive: true },
+    );
 
     /**
      * Which screens are up and following the address on their own.
