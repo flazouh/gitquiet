@@ -130,10 +130,17 @@ jobs:
 
       # The store jobs below build nothing. They take exactly these bytes, so
       # what a store reviews is what the release page offers to download.
+      #
+      # `include-hidden-files` because WXT writes to `.output`, and this action
+      # has skipped anything under a dotted path since v4.4 unless told not to.
+      # It does not fail on the exclusion, it reports finding no file matching a
+      # path the build had just written, which reads as a build that produced
+      # nothing.
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: packages
           path: .output/*.zip
+          include-hidden-files: true
           retention-days: 7
           if-no-files-found: error
 
