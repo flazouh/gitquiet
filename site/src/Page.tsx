@@ -6,6 +6,7 @@ import { Feature } from "./Feature"
 import { Live } from "./Live"
 import { Mark, Wordmark } from "./Mark"
 import { PAINS } from "./pains"
+import { inShort, useStars } from "./stars"
 
 const STORE_AT =
   "https://chromewebstore.google.com/detail/gitquiet/ichobjnihnofjkpoegikjhefmoekaahe"
@@ -33,16 +34,44 @@ const Octocat = ({ size = 17 }: { readonly size?: number }) => (
   </svg>
 )
 
-const Source = () => (
-  <a
-    href={SOURCE_AT}
-    aria-label="GitQuiet source on GitHub"
-    className="inline-flex items-center gap-2 rounded-full px-2.5 py-2 text-[15px] font-medium text-ink/70 transition-colors duration-[var(--duration-press)] ease-out hover:text-ink sm:px-3"
-  >
-    <Octocat />
-    <span className="hidden sm:inline">GitHub</span>
-  </a>
+const Star = ({ size = 14 }: { readonly size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+    <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.75.75 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z" />
+  </svg>
 )
+
+const Source = () => {
+  const many = useStars()
+
+  return (
+    <a
+      href={SOURCE_AT}
+      aria-label={
+        many === undefined
+          ? "GitQuiet source on GitHub"
+          : `GitQuiet source on GitHub, ${many} ${many === 1 ? "star" : "stars"}`
+      }
+      className="inline-flex items-center gap-2 rounded-full px-2.5 py-2 text-[15px] font-medium text-ink/70 transition-colors duration-[var(--duration-press)] ease-out hover:text-ink sm:px-3"
+    >
+      <Octocat />
+      <span className="hidden sm:inline">GitHub</span>
+      {/*
+       * The count, once it is known, and nothing at all until then.
+       *
+       * A chip with a nought in it while the read runs says the repository has no stars,
+       * which is a worse thing to say than nothing. The fade is the only entrance on this
+       * page, and the number carries none of the layout: the install button is to the
+       * right of it and holds the corner either way.
+       */}
+      {many === undefined ? null : (
+        <span className="live-in flex items-center gap-1 border-l border-rule pl-2 tabular">
+          <Star />
+          {inShort(many)}
+        </span>
+      )}
+    </a>
+  )
+}
 
 const Install = ({ big = false }: { readonly big?: boolean }) => (
   <a
