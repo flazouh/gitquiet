@@ -18,6 +18,14 @@ updates:
       routine:
         patterns: ["*"]
         update-types: [minor, patch]
+    ignore:
+      # 2.0.8 draws a Toaster per mount instead of one per document, and leaves
+      # the ones before it on the page: five containers where the test expects
+      # one, and an Undo button from an earlier toast still answering. Bumped on
+      # its own against this tree it takes the toast tests from 11 passing to 6.
+      # Named by version rather than by package, so 2.0.9 arrives as usual.
+      - dependency-name: sonner
+        versions: ["2.0.8"]
   # `desktop` has no entry of its own. It is a workspace, so its dependencies
   # resolve into the lockfile above and are already covered. A `/desktop` entry
   # looks for a `desktop/bun.lock` that does not exist, and reports nothing
