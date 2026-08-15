@@ -246,8 +246,16 @@ const Row = ({
 }) => {
   const language = Option.getOrUndefined(one.language)
   const pushed = Option.getOrUndefined(one.pushedAt)
-  const from = Option.getOrUndefined(one.forkedFrom)
-  const said = Option.getOrUndefined(one.description)
+  /*
+   * What it is, or where it came from where it is somebody else's work and says nothing
+   * of its own. One sentence either way rather than one of two, so the line and the
+   * tooltip over it cannot say different things about the same cell.
+   */
+  const says = Option.getOrUndefined(
+    Option.orElse(one.description, () =>
+      Option.map(one.forkedFrom, (from) => `forked from ${from}`)
+    )
+  )
 
   return (
     <li
@@ -274,10 +282,9 @@ const Row = ({
         ) : null}
       </span>
 
-      {/* What it is, or where it came from where it is somebody else's work and says
-          nothing of its own. One cell either way, so the columns past it stay straight. */}
-      <span className={`min-w-0 truncate ${ASIDE}`} title={said ?? from ?? undefined}>
-        {said ?? (from === undefined ? null : `forked from ${from}`)}
+      {/* One cell either way, so the columns past it stay straight. */}
+      <span className={`min-w-0 truncate ${ASIDE}`} title={says}>
+        {says}
       </span>
 
       {columns.language ? (
@@ -315,7 +322,7 @@ const Row = ({
         {pushed === undefined ? (
           /* One word in a column this width, and the sentence said aloud beside it: a
              reader being read to gets "never pushed to", which is the whole fact. */
-          <span aria-label="never pushed to" title="never pushed to">
+          <span role="img" aria-label="never pushed to" title="never pushed to">
             never
           </span>
         ) : (

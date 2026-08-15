@@ -2,7 +2,7 @@ import { Option } from "effect"
 import type { ListedRepository } from "@/domain/life"
 import type { Person } from "@/domain/person"
 import { personIn } from "@/github/person"
-import { repositoriesOnPage } from "@/github/personRepos"
+import { repositoriesIn } from "@/github/personRepos"
 import { PersonReposScreen, type Shown } from "@/ui/PersonReposScreen"
 import pageHtml from "../../tests/fixtures/personRepos.html?raw"
 import { settled, STORE, type View } from "../view"
@@ -32,7 +32,7 @@ import { faceOf } from "./faces"
 
 const page: Document = new DOMParser().parseFromString(pageHtml, "text/html")
 
-const ROWS: ReadonlyArray<ListedRepository> = repositoriesOnPage(pageHtml)
+const ROWS: ReadonlyArray<ListedRepository> = repositoriesIn(page)
 
 /**
  * Them, as their own page has them, with the face swapped for a local drawing.

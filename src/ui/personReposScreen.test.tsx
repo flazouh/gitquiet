@@ -208,6 +208,34 @@ describe("one row", () => {
     expect(one.textContent).toContain("never")
     expect(within(one).getByLabelText("never pushed to")).toBeTruthy()
   })
+
+  test("holds every column open on every row, so the facts stay under each other", async () => {
+    // The tracks and the cells are two lists in one file, and a column added to one
+    // and forgotten in the other is a seam down the middle of every group that
+    // nothing else would fail about. The Working Set holds the same line.
+    shown([
+      row({
+        repo: "gitquiet",
+        language: Option.some({ name: "TypeScript", colour: "#3178c6" }),
+        stars: 42,
+        forks: 3
+      }),
+      row({ repo: "notes" })
+    ])
+    const rows = await screen.findAllByRole("listitem")
+
+    expect(rows[0]?.style.gridTemplateColumns).toBe(rows[1]?.style.gridTemplateColumns)
+    expect(rows[0]?.childElementCount).toBe(rows[1]?.childElementCount)
+  })
+
+  test("keeps no column for a fact no row in the list has", async () => {
+    // Seven rems held open on every line for a language none of these rows has is
+    // width taken from the descriptions, which are the part worth reading.
+    shown([row({ repo: "gitquiet" }), row({ repo: "notes" })])
+    const rows = await screen.findAllByRole("listitem")
+
+    expect(rows[0]?.style.gridTemplateColumns).not.toContain("7rem")
+  })
 })
 
 describe("the two figures over the list", () => {
