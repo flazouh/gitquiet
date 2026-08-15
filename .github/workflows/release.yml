@@ -54,19 +54,23 @@ jobs:
           # turn a skipped job into a failed release.
           CHROME: ${{ secrets.CHROME_REFRESH_TOKEN }}
           FIREFOX: ${{ secrets.FIREFOX_JWT_SECRET }}
-          APPLE: ${{ secrets.MACOS_CERTIFICATE }}
+          # Apple takes two, because both mac jobs sign and then notarize, and
+          # an unnotarised build is one Gatekeeper refuses. With the certificate
+          # alone they would start and die at `notarytool`.
+          APPLE_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          APPLE_NOTARY: ${{ secrets.APPLE_ID_PASSWORD }}
         run: |
           tag="${CALLED:-$PUBLISHED}"
           if [ -z "$tag" ]; then
             echo "::error::No tag to release."
             exit 1
           fi
-          have() { if [ -n "$1" ]; then echo yes; else echo no; fi; }
+          have() { for one in "$@"; do [ -n "$one" ] || { echo no; return; }; done; echo yes; }
           {
             echo "tag=$tag"
             echo "chrome=$(have "$CHROME")"
             echo "firefox=$(have "$FIREFOX")"
-            echo "apple=$(have "$APPLE")"
+            echo "apple=$(have "$APPLE_CERTIFICATE" "$APPLE_NOTARY")"
           } >> "$GITHUB_OUTPUT"
 
   package:
