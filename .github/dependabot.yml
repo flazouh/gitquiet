@@ -37,6 +37,12 @@ updates:
   # The workflows pin their actions to a commit rather than a tag, because a tag
   # can be moved to point at other code. This is what tells us a new release
   # exists, since a pin cannot follow one by itself.
+  #
+  # `/` reads `.github/workflows/` and a root `action.yml`, and nothing else. The
+  # composite actions under `.github/actions/` are not read, which does not matter
+  # while they run only shell steps. Move a pinned `uses:` into one of them and it
+  # stops being watched silently, so add `directories: ["/", "/.github/actions/*"]`
+  # in the same change.
   - package-ecosystem: github-actions
     directory: /
     schedule:
