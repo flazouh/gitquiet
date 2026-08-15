@@ -21,6 +21,19 @@ on:
         description: The release tag to build and submit
         required: true
         type: string
+  # The same thing by hand, for a tag that already exists.
+  #
+  #   gh workflow run release.yml -f tag=v0.2.2
+  #
+  # "Re-run failed jobs" reruns the workflow the run started with, so it cannot
+  # carry a fix to the workflow itself. Without this, a broken step means cutting
+  # a version nobody asked for to get the one that was already tagged submitted.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release tag to build and submit
+        required: true
+        type: string
 
 concurrency:
   group: release-${{ inputs.tag || github.event.release.tag_name }}
