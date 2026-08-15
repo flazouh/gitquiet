@@ -142,33 +142,36 @@ export default defineConfig({
    */
   zip: {
     /*
-     * Both names come from the manifest, which reads `RELEASE_VERSION` above.
+     * `{{version}}` is the manifest's, which reads `RELEASE_VERSION` above.
+     * `{{packageVersion}}` is package.json's, and package.json here says `0.0.0`
+     * on purpose, so WXT's default names every zip of every release
+     * `gitquiet-0.0.0-`. The bytes inside are right either way: this is the label
+     * on the tin, which is what a release page shows and what a link points at.
      *
-     * WXT names these `{{packageVersion}}` by default, and package.json here
-     * says `0.0.0` on purpose, so the default writes `gitquiet-0.0.0-chrome.zip`
-     * for every release ever cut. The bytes inside are right either way — this
-     * is the label on the tin, which is what a release page shows and what a
-     * download link points at.
+     * Otherwise these are WXT's defaults, `{{modeSuffix}}` included. It is empty
+     * in production and `-dev` elsewhere, and it is what keeps a development zip
+     * from being written over the release one at the same path.
      */
-    artifactTemplate: "{{name}}-{{version}}-{{browser}}.zip",
-    sourcesTemplate: "{{name}}-{{version}}-sources.zip",
+    artifactTemplate: "{{name}}-{{version}}-{{browser}}{{modeSuffix}}.zip",
+    sourcesTemplate: "{{name}}-{{version}}-sources{{modeSuffix}}.zip",
     /*
      * The prose stays in. Mozilla asks a reviewer to rebuild the extension from
      * this archive, and refuses one that arrives without instructions, so the
      * README that carries them is the last thing to drop for size.
      *
-     * Named directory by directory rather than as `desktop/**` because an
-     * exclusion beats an inclusion, and `desktop/package.json` has to survive:
-     * the root package.json calls `desktop` a workspace, and bun refuses to
-     * install a workspace it cannot find. What is left of that folder is seven
-     * small config files. What is dropped is 154 MB.
+     * `desktop/*\/**` is every file in every folder under `desktop`, and no file
+     * sitting directly in it. Not `desktop/**`, because an exclusion beats an
+     * inclusion and `desktop/package.json` has to survive: the root package.json
+     * calls `desktop` a workspace, and bun refuses to install a workspace it
+     * cannot find. Six small config files stay. 154 MB goes, including the 63 MB
+     * `bun` binary under `build`.
+     *
+     * One pattern rather than a folder each, so a folder added to the desktop app
+     * next year is dropped by default instead of shipping until somebody notices
+     * the archive is large again.
      */
     excludeSources: [
-      "desktop/src/**",
-      "desktop/build/**",
-      "desktop/artifacts/**",
-      "desktop/scripts/**",
-      "desktop/icon.iconset/**",
+      "desktop/*/**",
       "site/**",
       "video/**",
       "shots/**",
@@ -176,13 +179,13 @@ export default defineConfig({
       "public/screens/**"
     ],
     /*
-     * `**\/*` first, because this list is the allowlist and not an addition to
-     * one. WXT defaults it to `**\/*` and takes whatever is written here
-     * instead, so naming the one dotfile the archive needs is how the archive
-     * came to hold that dotfile and nothing else.
+     * This is an allowlist, not an addition to one: WXT defaults it to `**\/*`
+     * and uses whatever is written here instead. So `**\/*` has to be restated
+     * before anything can be added to it.
      *
-     * `.bun-version` is the bun the lockfile resolves against, and the hidden
-     * files are dropped otherwise.
+     * `.bun-version` is the bun the lockfile resolves against, and hidden files
+     * are dropped unless named. Not `zip.dotSources`, which is the switch for
+     * this and takes every dotfile in the repository with it.
      */
     includeSources: ["**/*", ".bun-version"]
   },
