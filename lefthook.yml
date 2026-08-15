@@ -7,13 +7,20 @@
 # `LEFTHOOK=0 git commit` and `LEFTHOOK=0 git push` go past all of it, for work
 # pushed to be read rather than to be merged.
 
-# The linter alone, over the staged files only, which answers in well under a
+# The linter alone, over the staged files only, which answers in two tenths of a
 # second. A try/catch is caught while the change is still in your head rather
 # than a minute later at the push.
+#
+# `root` rather than a `src/**` glob, for two reasons. Lefthook's `**` does not
+# match a file sitting directly in `src`, so `src/**/*.ts` silently inspects
+# nothing and the hook reports success; and the linter has to stay off
+# `scripts`, `desktop` and `tests`, which do not pass these rules and are not
+# asked to. `root` does both, by handing over only what is under `src`.
 pre-commit:
   commands:
     lint:
-      glob: "src/**/*.{ts,tsx}"
+      root: "src/"
+      glob: "*.{ts,tsx}"
       run: bunx oxlint {staged_files}
 
 # The same three commands as `.github/workflows/ci.yml`, in the same order, so a
