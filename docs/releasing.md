@@ -41,10 +41,24 @@ Name the target. `targets=all` is the default and is wrong here: a store refuses
 a version it already holds, so the run would go red on a release that worked, and
 both mac jobs would notarise for an hour to attach a DMG that is already
 attached. A dispatch also leaves the release page alone, so the bytes a store is
-reviewing stay the bytes the page offers.
+reviewing stay the bytes the page offers. Add `-f attach=true` to replace them
+anyway.
 
 Any target whose credentials are absent is skipped rather than failed, so this is
 also how a store is added later: set its secrets, then send it the last tag.
+
+## What Mozilla does with the one before
+
+Mozilla reviews the newest version of a listing and only that one. Cutting a
+release while an earlier version is still in the queue takes the earlier one out
+of it, and the developer hub then shows that version as **Disabled by Mozilla**
+with no reviewer note against it. Nothing was rejected. Read the version at the
+top of
+[the versions page](https://addons.mozilla.org/developers/addon/gitquiet/versions)
+as the one being looked at.
+
+Until the first review finishes, `addons.mozilla.org` answers 404 for the public
+listing, which is why gitquiet.com does not link it yet.
 
 ## What gets built
 

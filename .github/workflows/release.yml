@@ -21,6 +21,11 @@ on:
         description: The release tag to build and submit
         required: true
         type: string
+      # The release page `tag.yml` just opened is empty, so fill it.
+      attach:
+        description: Attach the packages to the GitHub release
+        default: true
+        type: boolean
   # The same thing by hand, for a tag that already exists.
   #
   #   gh workflow run release.yml -f tag=v0.2.2 -f targets=chrome
@@ -45,6 +50,13 @@ on:
         default: all
         type: choice
         options: [all, chrome, firefox, desktop, safari]
+      # Off here, because a dispatch comes back to a page that is already filled,
+      # and replacing an asset would swap the exact bytes a store is reviewing for
+      # a fresh build of the same commit. The two are not promised to be identical.
+      attach:
+        description: Attach the packages to the GitHub release
+        default: false
+        type: boolean
 
 concurrency:
   group: release-${{ inputs.tag || github.event.release.tag_name }}
@@ -167,16 +179,34 @@ jobs:
       - name: Package for Firefox
         run: bun run zip:firefox
 
-      # Not on a hand-run dispatch, which comes back to a tag whose page is
-      # already filled. `--clobber` would replace the exact bytes a store is
-      # reviewing with a fresh build of the same commit, and the two are not
-      # promised to be identical.
+      # Whoever started this run says so, rather than this reading the event.
+      #
+      # `github.event_name` is the caller's event inside a called workflow, and
+      # `tag.yml` is itself a dispatch, so a run through it is indistinguishable
+      # here from a hand-run one. Reading the event cost v0.2.4 its three zips:
+      # the stores took the right bytes, and the release page offered only the two
+      # disk images, which came from jobs that do not ask.
+      #
+      # A release published by hand in the GitHub UI passes no inputs at all, and
+      # its page is as empty as the one `tag.yml` opens.
+      #
+      # The step decides in the shell rather than in `if:`, so that a run which
+      # attaches nothing says which page it left alone and why. A skipped step
+      # says nothing at all, which is how the missing zips got as far as a
+      # published release.
       - name: Attach packages to the GitHub release
-        if: github.event_name != 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.gate.outputs.tag }}
-        run: gh release upload "$RELEASE_TAG" .output/*.zip --clobber
+          ATTACH: ${{ inputs.attach || github.event_name == 'release' }}
+        run: |
+          if [ "$ATTACH" != "true" ]; then
+            echo "Leaving the page of $RELEASE_TAG as it is: this run came back to a tag that already has one. Pass attach=true to replace what it holds."
+            exit 0
+          fi
+          gh release upload "$RELEASE_TAG" .output/*.zip --clobber
+          echo "The page of $RELEASE_TAG now holds:"
+          gh release view "$RELEASE_TAG" --json assets --jq '.assets[] | "  \(.name)"'
 
       # The store jobs below build nothing. They take exactly these bytes, so
       # what a store reviews is what the release page offers to download.
