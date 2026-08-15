@@ -11,6 +11,7 @@ import { Owner } from "./Owner";
 import { participantRows } from "./participant";
 import { tabMark } from "./tabMarks";
 import type { Tab } from "./theirNav";
+import { loginOnPage } from "./viewer";
 
 /**
  * The strip across the top, ours instead of theirs.
@@ -461,14 +462,18 @@ export const Bar = ({
       <Ours here={where.kind === "home"} />
 
       {/*
-       * Their name, on their own pages, and no chevron beside it.
+       * Their name, on somebody else's pages, and no chevron beside it.
        *
        * The chevron on a repository offers the reader's other repositories, which is a list
        * this bar is handed. Nothing hands it a list of people, and a menu built from the
        * owners of a repository list is a column of whoever happens to be in it rather than
        * anyone the reader chose. So one chip, one press, and it goes to their profile.
+       *
+       * Not on the reader's own pages. The menu at the other end of this strip is them, and
+       * its first row is "Your profile" — so on `/your-login` the chip was a second link to
+       * the page already on the screen, a centimetre from the first.
        */}
-      {where.kind === "person" ? (
+      {where.kind === "person" && where.login.toLowerCase() !== (loginOnPage() ?? "").toLowerCase() ? (
         <a
           href={`/${where.login}`}
           className={`flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-ink no-underline hover:bg-active ${TINT}`}

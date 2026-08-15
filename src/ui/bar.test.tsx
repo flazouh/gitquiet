@@ -792,3 +792,38 @@ describe("the way back and the way forward", () => {
     expect(screen.getByRole("button", { name: "Back" })).toBeDefined()
   })
 })
+
+describe("the chip that says whose page this is", () => {
+  const signedInAs = (login: string): void => {
+    const said = document.createElement("meta")
+    said.setAttribute("name", "user-login")
+    said.setAttribute("content", login)
+    document.head.append(said)
+  }
+
+  afterEach(() => {
+    document.head.querySelector('meta[name="user-login"]')?.remove()
+  })
+
+  test("names the person whose pages the reader is on", () => {
+    signedInAs("flazouh")
+    render(<Bar where={{ kind: "person", login: "sindresorhus" }} />)
+
+    expect(screen.getByRole("link", { name: /sindresorhus/ })).toBeTruthy()
+  })
+
+  test("stands down on the reader's own pages, where the menu already goes there", () => {
+    // Two links to `/flazouh` a centimetre apart, one of them to the page already on
+    // the screen. The menu at the right of the strip is the one that stays.
+    signedInAs("flazouh")
+    render(<Bar where={{ kind: "person", login: "flazouh" }} />)
+
+    expect(screen.queryByRole("link", { name: /flazouh/ })).toBeNull()
+  })
+
+  test("names them where nobody is signed in at all", () => {
+    render(<Bar where={{ kind: "person", login: "flazouh" }} />)
+
+    expect(screen.getByRole("link", { name: /flazouh/ })).toBeTruthy()
+  })
+})

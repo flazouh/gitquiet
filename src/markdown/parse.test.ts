@@ -181,6 +181,104 @@ describe("parsing markdown into a document", () => {
     expect(doc.blocks).toEqual([])
   })
 
+  test("keeps an image and the words that describe it", () => {
+    const doc = parseMarkdown("![The working set](https://example.com/shot.png)")
+
+    expect(doc.blocks).toMatchObject([
+      {
+        type: "paragraph",
+        children: [{ type: "image", src: "https://example.com/shot.png", alt: "The working set" }]
+      }
+    ])
+  })
+
+  test("drops an image whose address is not one a reader may follow", () => {
+    const doc = parseMarkdown("![x](javascript:alert)")
+
+    expect(doc.blocks).toMatchObject([{ type: "paragraph", children: [] }])
+  })
+
+  /*
+   * A README says `site/public/store/working-set.png`, which is a file in the repository
+   * rather than an address. GitHub's own rendering points those at their raw host, and a
+   * parse that leaves them alone hands the page an address that resolves against whatever
+   * the reader happens to be standing on.
+   */
+  test("reads a relative image as a file in the repository the markdown belongs to", () => {
+    const doc = parseMarkdown("![The working set](site/public/store/working-set.png)", {
+      owner: "flazouh",
+      repo: "gitquiet"
+    })
+
+    expect(doc.blocks).toMatchObject([
+      {
+        type: "paragraph",
+        children: [
+          {
+            type: "image",
+            src: "https://raw.githubusercontent.com/flazouh/gitquiet/HEAD/site/public/store/working-set.png"
+          }
+        ]
+      }
+    ])
+  })
+
+  test("reads a relative image written as html the same way", () => {
+    const doc = parseMarkdown('<img src="./docs/shot.png" alt="A shot">', {
+      owner: "flazouh",
+      repo: "gitquiet"
+    })
+
+    expect(doc.blocks).toMatchObject([
+      {
+        type: "html",
+        tag: "img",
+        attrs: { src: "https://raw.githubusercontent.com/flazouh/gitquiet/HEAD/docs/shot.png" }
+      }
+    ])
+  })
+
+  test("reads it from the branch it was given, where it was given one", () => {
+    const doc = parseMarkdown("![A shot](docs/shot.png)", {
+      owner: "flazouh",
+      repo: "gitquiet",
+      branch: "next"
+    })
+
+    expect(doc.blocks).toMatchObject([
+      {
+        type: "paragraph",
+        children: [
+          {
+            type: "image",
+            src: "https://raw.githubusercontent.com/flazouh/gitquiet/next/docs/shot.png"
+          }
+        ]
+      }
+    ])
+  })
+
+  test("leaves an address alone where there is no repository to read it from", () => {
+    // A comment box drawing its own preview has no repository behind it. An address left as
+    // written is one the reader can still see; one pointed at a guessed repository is not.
+    const doc = parseMarkdown("![A shot](docs/shot.png)")
+
+    expect(doc.blocks).toMatchObject([
+      { type: "paragraph", children: [{ type: "image", src: "docs/shot.png" }] }
+    ])
+  })
+
+  test("leaves an address that already says where it is", () => {
+    const doc = parseMarkdown("![A shot](https://example.com/shot.png)", {
+      owner: "flazouh",
+      repo: "gitquiet"
+    })
+
+    expect(doc.blocks).toMatchObject([
+      { type: "paragraph", children: [{ type: "image", src: "https://example.com/shot.png" }] }
+    ])
+  })
+
   test("reads a block quote, a rule, and the usual inline marks", () => {
     const doc = parseMarkdown("> note\n\n---\n\n**bold** and *em* and ~~gone~~ and `code`")
 
