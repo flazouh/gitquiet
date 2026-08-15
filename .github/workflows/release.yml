@@ -253,6 +253,13 @@ jobs:
           RELEASE_TAG: ${{ needs.gate.outputs.tag }}
         run: echo "RELEASE_VERSION=$(bun scripts/release-version.ts "$RELEASE_TAG")" >> "$GITHUB_ENV"
 
+      # The window builds the same screens the extension does, so it goes through
+      # the same rolldown, which reads `.wxt/tsconfig.json`. `--ignore-scripts`
+      # above skips the hook that would have written it, and the failure names a
+      # missing tsconfig rather than a missing step.
+      - name: Generate WXT types
+        run: bun run types
+
       - uses: ./.github/actions/apple-keychain
         with:
           certificate: ${{ secrets.MACOS_CERTIFICATE }}
