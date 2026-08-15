@@ -1,0 +1,113 @@
+name: Tag
+
+# The one button a release is. Pick how far to count and this writes the tag,
+# opens the GitHub release, and hands that tag to `release.yml`, which builds
+# every target and submits each store.
+#
+#   gh workflow run tag.yml -f bump=minor
+#
+# Nothing is committed. `package.json` stays at `0.0.0` and both manifests read
+# `EXTENSION_VERSION` at build time, so the tag is the only record of a version
+# and a release never touches the tree — see scripts/next-version.ts.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Which part of the version to raise
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+        required: true
+
+# Two releases at once would race for the same next version and both stores
+# would reject the loser. Queued rather than cancelled: a tag that is half
+# written is worse than a wait.
+concurrency:
+  group: tag
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    name: Write the tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.count.outputs.tag }}
+    steps:
+      # `fetch-depth: 0` because the next version is counted from the tags, and
+      # a shallow clone has none of them.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: .bun-version
+
+      # A store listing is public and a submitted version cannot be taken back,
+      # only replaced by a higher one. So the two things that make a release
+      # deliberate are checked before anything is written: it comes from `main`,
+      # and CI already went green on this exact commit.
+      - name: Refuse a release from anywhere but main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Releases are cut from main. This run is on ${{ github.ref }}."
+          exit 1
+
+      - name: Refuse a release from a commit CI has not greened
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          green=$(gh api \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&status=success" \
+            --jq '.total_count')
+          if [ "$green" = "0" ]; then
+            echo "::error::CI has no successful run for $GITHUB_SHA. Wait for it, or push a fix."
+            exit 1
+          fi
+
+      # Sorted by version rather than by date, so a tag written out of order
+      # cannot make the next release count backwards into a version the stores
+      # have already seen.
+      - name: Count the next version
+        id: count
+        run: |
+          latest=$(git tag -l 'v*' --sort=-version:refname | head -1)
+          tag=$(bun scripts/next-version.ts "$latest" '${{ inputs.bump }}')
+          echo "Counting ${latest:-no tag yet} + ${{ inputs.bump }} = $tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      # Annotated, so the tag carries its own date and author rather than
+      # borrowing the commit's.
+      - name: Write the tag
+        env:
+          TAG: ${{ steps.count.outputs.tag }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "$TAG" -m "$TAG"
+          git push origin "$TAG"
+
+      # `--generate-notes` is GitHub's own summary of what landed since the last
+      # tag, which for a repository that commits its prose straight to main is
+      # the list of commit subjects.
+      - name: Open the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.count.outputs.tag }}
+        run: gh release create "$TAG" --title "$TAG" --generate-notes --verify-tag
+
+  # Called rather than left to the `release: published` trigger above it,
+  # because a release opened with the workflow token deliberately starts no
+  # further workflow — that is GitHub's guard against a run that tags itself
+  # forever. Calling it is what a personal access token would otherwise be for.
+  publish:
+    name: Publish
+    needs: tag
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.tag.outputs.tag }}
+    secrets: inherit
