@@ -17,6 +17,30 @@ run is on `main`, and CI already went green on that exact commit. A store listin
 is public and a submitted version cannot be withdrawn, only replaced by a higher
 one.
 
+## One release at a time
+
+Wait for Chrome to finish reviewing a version before cutting the next one. The
+Chrome Web Store refuses to accept an upload while the item is in review, and the
+job fails with:
+
+```
+ITEM_NOT_UPDATABLE: The item cannot be updated now because it is in
+pending review, ready to publish, or deleted status.
+```
+
+Review is usually hours and can be days. There is nothing to fix when this
+happens and nothing to re-run: the tag and the GitHub release are already
+written, and the other three targets have already taken it. Once the review
+finishes, send that same tag to the store on its own:
+
+```sh
+gh workflow run release.yml -f tag=v0.2.3
+```
+
+A version that a store already holds cannot be sent again, so if only one target
+was missed, that is the command for it. Any target whose credentials are absent
+is skipped rather than failed.
+
 ## What gets built
 
 ```
