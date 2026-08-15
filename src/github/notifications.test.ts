@@ -231,7 +231,7 @@ describe("what the three Courts do to a real inbox", () => {
    */
   test("files a real page into three piles, with no Running to draw", () => {
     expect(docketsOf(notices).map((one) => one.court)).toEqual([
-      "your-move",
+      "needs-you",
       "waiting",
       "settled"
     ])

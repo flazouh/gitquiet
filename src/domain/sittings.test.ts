@@ -44,7 +44,7 @@ const branchesFrom = (known: Record<number, [string, string]>) =>
 
 describe("arranging the Working Set into Courts", () => {
   test("puts each pull request in the Court its shelf implies", () => {
-    // A draft is Your Move, not settled — it is the Author's to finish. Settled
+    // A draft is Needs You, not settled — it is the Author's to finish. Settled
     // is what landing or closing makes a pull request.
     const sittings = sittingsIn(
       [
@@ -56,20 +56,20 @@ describe("arranging the Working Set into Courts", () => {
     )
 
     expect(sittings.map((sitting) => sitting.court)).toEqual([
-      "your-move",
+      "needs-you",
       "waiting",
       "settled"
     ])
   })
 
   test("reads in the order the Courts matter", () => {
-    // Your Move first, always. It is the only one of the three that is a request.
+    // Needs You first, always. It is the only one of the three that is a request.
     const sittings = sittingsIn(
       [on("waiting-for-review", 1, { state: "closed" }), on("needs-action", 2)],
       noBranches
     )
 
-    expect(sittings.map((sitting) => sitting.court)).toEqual(["your-move", "settled"])
+    expect(sittings.map((sitting) => sitting.court)).toEqual(["needs-you", "settled"])
   })
 
   test("leaves out a Court with nothing in it", () => {
@@ -88,7 +88,7 @@ describe("arranging the Working Set into Courts", () => {
       noBranches
     )
 
-    expect(sittings.map((sitting) => sitting.court)).toEqual(["your-move"])
+    expect(sittings.map((sitting) => sitting.court)).toEqual(["needs-you"])
     expect(sittings[0]?.count).toBe(1)
   })
 
@@ -140,11 +140,11 @@ describe("a stack in the Working Set", () => {
 
   test("sits in the Court of its foundation, because nothing above it can land first", () => {
     // Two of the three say ready-to-merge. Neither is: the one underneath them
-    // needs work, and until it lands they cannot. Filing them under Your Move
+    // needs work, and until it lands they cannot. Filing them under Needs You
     // would ask the reader to merge something GitHub would refuse.
     const sittings = sittingsIn(chain, branches)
 
-    expect(sittings.map((sitting) => sitting.court)).toEqual(["your-move"])
+    expect(sittings.map((sitting) => sitting.court)).toEqual(["needs-you"])
   })
 
   test("counts everything in it, not just the pile it draws as", () => {
@@ -172,7 +172,7 @@ describe("a stack in the Working Set", () => {
     const sittings = sittingsIn(landed, branchesFrom({ 1: ["main", "stack-1"], 2: ["stack-1", "stack-2"] }))
     const above = sittings[0]?.piles[0]?.above[0]
 
-    expect(above?.court).toBe("your-move")
+    expect(above?.court).toBe("needs-you")
   })
 
   test("does not stack pull requests that only share branch names across repositories", () => {
@@ -252,12 +252,12 @@ describe("what the list looks like the instant a verb lands", () => {
       branchesFrom({ 1: ["main", "one"], 2: ["one", "two"] })
     )
 
-    expect(sittings.map((sitting) => sitting.court)).toEqual(["your-move"])
+    expect(sittings.map((sitting) => sitting.court)).toEqual(["needs-you"])
     expect(sittings[0]?.piles[0]?.above[0]?.court).toBe("waiting")
 
     const after = afterDoing(sittings, "merge", { owner: "flazouh", repo: "octo-repo", number: 1 })
 
-    expect(after[0]?.piles[0]?.above[0]?.court).toBe("your-move")
+    expect(after[0]?.piles[0]?.above[0]?.court).toBe("needs-you")
   })
 
   test("leaves a list it cannot find the row in exactly as it was", () => {

@@ -71,7 +71,7 @@ describe("the repositories a Participant is at work in", () => {
       owner: "flazouh",
       repo: "octo-repo",
       count: 3,
-      yourMove: 1,
+      needsYou: 1,
     });
   });
 
@@ -125,7 +125,7 @@ describe("the repositories a Participant is at work in", () => {
     const found = repositoriesAtWork(stacked);
 
     expect(found).toHaveLength(1);
-    expect(found[0]).toMatchObject({ name: "octo-repo", count: 3, yourMove: 3 });
+    expect(found[0]).toMatchObject({ name: "octo-repo", count: 3, needsYou: 3 });
   });
 
   test("is empty when nothing has been read, rather than absent", () => {

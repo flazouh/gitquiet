@@ -44,7 +44,7 @@ const AT_MOST = 20
  *
  * Piles are a fold for reading rather than a fold for searching: a reader who half-remembers a
  * title has no idea whether that pull request happens to be the foundation of a stack, so the
- * ones above come out too. Order follows the Courts, which puts Your Move first — the same
+ * ones above come out too. Order follows the Courts, which puts Needs You first — the same
  * order the screen behind the dialog is in.
  */
 export const owedIn = (

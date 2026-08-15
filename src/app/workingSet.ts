@@ -134,7 +134,7 @@ export const warmWorkingSet = Effect.fn("warmWorkingSet")(function* () {
  * The standings were held out of that for a while, on the grounds that a check
  * rollup from half an hour ago is drawn identically to one from a second ago. That
  * weighed only what the rollup looks like, and the rollup is also read: `courtOf`
- * puts a green pull request nobody is required to review under Your Move and the
+ * puts a green pull request nobody is required to review under Needs You and the
  * same row without a rollup under Waiting. So the list opened in one order and the
  * live read re-sorted it two seconds later, rows crossing between headings while
  * the reader was already reading them. A rollup a minute old, under a toast saying

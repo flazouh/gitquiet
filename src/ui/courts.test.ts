@@ -16,7 +16,7 @@ describe("the glyph a Court heading wears", () => {
   })
 
   test("leaves the other three alone, none of them claiming movement", () => {
-    for (const court of ["your-move", "waiting", "settled"] as const) {
+    for (const court of ["needs-you", "waiting", "settled"] as const) {
       expect(courtArt(court, false)).toBe(COURT_ART[court])
       expect(courtArt(court, true)).toBe(COURT_ART[court])
     }

@@ -206,7 +206,7 @@ const oneShelved = (url: string): Response => {
  *
  * `waiting-for-review` means nobody has answered yet, which on a repository requiring
  * no approval is not a wait at all: passing checks and no review required is a live
- * merge button, and `courtOf` calls it Your Move. Read the same row without its rollup
+ * merge button, and `courtOf` calls it Needs You. Read the same row without its rollup
  * and it is Waiting. One row, two headings, decided by a fact the store either kept or
  * did not.
  */
@@ -309,9 +309,9 @@ describe("keeping the Working Set to open again", () => {
     offline()
     const sittings = Option.getOrThrow(await workingSetAgain())
 
-    // `needs-action` is Your Move, and a row that came back without its shelf
+    // `needs-action` is Needs You, and a row that came back without its shelf
     // would be drawn as somebody else's problem.
-    expect(sittings[0]?.court).toBe("your-move")
+    expect(sittings[0]?.court).toBe("needs-you")
     expect(sittings[0]?.piles[0]?.one.shelf).toEqual(Option.some("needs-action"))
   })
 
@@ -366,7 +366,7 @@ describe("keeping the Working Set to open again", () => {
      * This used to be kept out, on the grounds that a rollup from half an hour ago is
      * drawn identically to one from a second ago. True, and the wrong trade: the rollup
      * is not only drawn, it is read — `courtOf` puts a green pull request nobody is
-     * required to review under Your Move and a row with no rollup at all under Waiting.
+     * required to review under Needs You and a row with no rollup at all under Waiting.
      *
      * So a Working Set opened from memory sorted one way and re-sorted the moment the
      * live read landed, two seconds later, with rows crossing between headings. The
@@ -423,7 +423,7 @@ describe("keeping the Working Set to open again", () => {
     offline()
     const remembered = Option.getOrThrow(await workingSetAgain())
 
-    expect(live[0]?.court).toBe("your-move")
+    expect(live[0]?.court).toBe("needs-you")
     expect(remembered.map((sitting) => sitting.court)).toEqual(
       live.map((sitting) => sitting.court)
     )
@@ -460,7 +460,7 @@ describe("keeping a repository's list to open again", () => {
 
   test("still knows which of them are the reader's own", async () => {
     // The rows come from a plain query, which shelves nothing. Crossing them
-    // with the shelves is what puts the reader's own pull requests in Your Move,
+    // with the shelves is what puts the reader's own pull requests in Needs You,
     // and a remembered page that skipped it would open with every row in the
     // wrong Court for the second before the live read lands.
     asGitHub((url) => (url.includes("/pulls?q=") ? Response.json(queryPayload([aRow(1), aRow(2)])) : oneShelved(url)))
@@ -469,7 +469,7 @@ describe("keeping a repository's list to open again", () => {
     offline()
     const remembered = Option.getOrThrow(await repoListAgain())
 
-    expect(remembered.sittings[0]?.court).toBe("your-move")
+    expect(remembered.sittings[0]?.court).toBe("needs-you")
     expect(remembered.sittings[0]?.count).toBe(1)
   })
 

@@ -105,7 +105,7 @@ const Says = ({ over, title }: { readonly over: string; readonly title: string }
 )
 
 const COURTS = [
-  { court: "Your Move", means: "You can act on it now." },
+  { court: "Needs You", means: "You can act on it now." },
   { court: "Waiting", means: "Someone else has to act." },
   { court: "Running", means: "A machine is still working. Nothing to do but wait." },
 

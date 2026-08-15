@@ -66,12 +66,12 @@ export type Sitting = {
 }
 
 /**
- * Your Move first, always: it is the only one of the four that is a request.
+ * Needs You first, always: it is the only one of the four that is a request.
  *
  * Waiting before Running because a wait on a person can be shortened by asking
  * them, and a run cannot be shortened at all.
  */
-const READING_ORDER: ReadonlyArray<Court> = ["your-move", "waiting", "running", "settled"]
+const READING_ORDER: ReadonlyArray<Court> = ["needs-you", "waiting", "running", "settled"]
 
 /**
  * The same order, for deciding which of two shelves to believe.

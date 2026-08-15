@@ -123,7 +123,7 @@ const STATES: ReadonlyArray<string> = ["open", "closed", "merged", "draft"]
  * The shelf GitHub put each of the reader's own pull requests on, by id.
  *
  * More urgent wins where a pull request is on two, for the same reason the Working
- * Set does it: the shelves overlap, and being wrong towards Your Move costs a
+ * Set does it: the shelves overlap, and being wrong towards Needs You costs a
  * glance where being wrong away from it costs the reader their turn.
  */
 const shelvedById = (

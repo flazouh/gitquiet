@@ -47,7 +47,7 @@ describe("the pull request view", () => {
      * the panel opens and so has a heading and no list. All four are worth naming: a
      * mock that filled one Court would photograph as a list, not as a grouping.
      */
-    for (const court of ["Your Move", "Waiting", "Running", "Settled"]) {
+    for (const court of ["Needs You", "Waiting", "Running", "Settled"]) {
       expect(screen.getByRole("heading", { level: 3, name: new RegExp(court) })).toBeDefined()
     }
   })
@@ -55,7 +55,7 @@ describe("the pull request view", () => {
   test("puts the failing check in the reader's own Court", async () => {
     drawn()
 
-    const yours = await screen.findByRole("list", { name: "Your Move" })
+    const yours = await screen.findByRole("list", { name: "Needs You" })
     expect(within(yours).getByText("linux-x64 / test")).toBeDefined()
     expect(within(yours).getByText("3 failing tests in test/js/bun/http")).toBeDefined()
   })
@@ -63,14 +63,14 @@ describe("the pull request view", () => {
   test("names a Bot Finding as a finding rather than as a comment", async () => {
     drawn()
 
-    const yours = await screen.findByRole("list", { name: "Your Move" })
+    const yours = await screen.findByRole("list", { name: "Needs You" })
     expect(within(yours).getAllByText("finding").length).toBeGreaterThan(0)
   })
 
   test("counts what landed since the reader last reviewed", async () => {
     drawn()
 
-    const yours = await screen.findByRole("list", { name: "Your Move" })
+    const yours = await screen.findByRole("list", { name: "Needs You" })
     expect(within(yours).getByText("since you last reviewed")).toBeDefined()
     expect(within(yours).getByText("3 commits")).toBeDefined()
   })

@@ -35,9 +35,9 @@ describe("the notifications view", () => {
     expect(settled.getAllByRole("listitem").length).toBeGreaterThan(NOTICES.length / 2)
   })
 
-  test("keeps Your Move small enough to read in one look", async () => {
+  test("keeps Needs You small enough to read in one look", async () => {
     const shot = drawn()
-    const yours = await courtIn(shot, "Your Move")
+    const yours = await courtIn(shot, "Needs You")
 
     expect(yours.getAllByRole("listitem")).toHaveLength(2)
   })
@@ -76,7 +76,7 @@ describe("the notifications view", () => {
 
   test("offers the presses GitHub puts on the row, and never Save", async () => {
     const shot = drawn()
-    const yours = await courtIn(shot, "Your Move")
+    const yours = await courtIn(shot, "Needs You")
     const first = yours.getAllByRole("listitem")[0]
     if (first === undefined) throw new Error("no rows")
 

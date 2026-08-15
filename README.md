@@ -27,7 +27,7 @@ rather than a description of it.
 
 | Group | Means |
 | --- | --- |
-| **Your Move** | You can act on it now. |
+| **Needs You** | You can act on it now. |
 | **Waiting** | Someone else has to act. |
 | **Running** | A machine is still working. Nothing to do but wait. |
 | **Settled** | Finished. Nothing left to do. |

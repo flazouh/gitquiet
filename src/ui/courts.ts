@@ -18,7 +18,7 @@ import type { Tone } from "./Section"
  * place the words come from.
  */
 export const COURT_NAME: Record<Court, string> = {
-  "your-move": "Your Move",
+  "needs-you": "Needs You",
   waiting: "Waiting",
   running: "Running",
   settled: "Settled"
@@ -27,14 +27,14 @@ export const COURT_NAME: Record<Court, string> = {
 /**
  * The colour a Court's heading wears.
  *
- * Amber for Your Move rather than red, and this is the whole rule the palette
+ * Amber for Needs You rather than red, and this is the whole rule the palette
  * runs on: red is kept for something broken. A pull request can be the reader's
  * to move *and* have a failing check, and if both are red the reader has to open
  * it to find out which. Purple for Settled because purple is already GitHub's
  * word for merged, so it needs no legend.
  */
 export const COURT_TONE: Record<Court, Tone> = {
-  "your-move": "attention",
+  "needs-you": "attention",
   waiting: "plain",
   // Plain as well, and deliberately the same. The two middle Courts differ in who
   // owes the next step, not in how much they matter, and a fourth colour on this
@@ -55,7 +55,7 @@ export const COURT_TONE: Record<Court, Tone> = {
  * it are the rows wearing that mark, so the heading is the same statement made larger.
  */
 export const COURT_ART: Record<Court, ArtName> = {
-  "your-move": "your-move",
+  "needs-you": "needs-you",
   waiting: "clock",
   running: "check-running",
   settled: "tick"

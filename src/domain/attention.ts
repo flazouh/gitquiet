@@ -123,7 +123,7 @@ export type AttentionItem =
   }
 
 /** The Courts in the order a reader asks about them, which is urgency. */
-export const COURTS = ["your-move", "waiting", "running", "settled"] as const satisfies
+export const COURTS = ["needs-you", "waiting", "running", "settled"] as const satisfies
   ReadonlyArray<Court>
 
 /** One Court of one pull request, and the items filed in it. */
@@ -169,9 +169,9 @@ const courtOfThread = (thread: ReviewThread, viewer: string): Court => {
 
   const last = thread.comments.at(-1)
   if (last === undefined) return "settled"
-  if (last.author.login !== viewer) return "your-move"
+  if (last.author.login !== viewer) return "needs-you"
 
-  return startedByMachine(thread) ? "your-move" : "waiting"
+  return startedByMachine(thread) ? "needs-you" : "waiting"
 }
 
 /**
@@ -191,7 +191,7 @@ const courtOfCheck = (check: Check): Court =>
     ? "settled"
     : isUnfinished(check)
       ? "running"
-      : "your-move"
+      : "needs-you"
 
 /**
  * What has moved since the reader last reviewed, said as one thing or as none.
@@ -211,10 +211,10 @@ const sinceLastReview = (
     onNone: (): ReadonlyArray<AttentionItem> => [],
     onSome: (point) => {
       const read = commits.findIndex((one) => one.sha === point)
-      if (read === -1) return [{ kind: "rewritten" as const, court: "your-move" as const, id: "rewritten" }]
+      if (read === -1) return [{ kind: "rewritten" as const, court: "needs-you" as const, id: "rewritten" }]
 
       const landed = commits.slice(read + 1)
-      return landed.length === 0 ? [] : [{ kind: "since" as const, court: "your-move" as const, id: "since", landed }]
+      return landed.length === 0 ? [] : [{ kind: "since" as const, court: "needs-you" as const, id: "since", landed }]
     }
   })
 
@@ -241,9 +241,9 @@ export const attentionIn = (owing: Owing): ReadonlyArray<AttentionItem> => {
     onSome: (update: BranchUpdate) => [
       {
         kind: "branch" as const,
-        // Waiting rather than Your Move where GitHub refuses the button: somebody
+        // Waiting rather than Needs You where GitHub refuses the button: somebody
         // with write access to the fork owes this, and it is not the reader.
-        court: court(update.mayUpdate ? "your-move" : "waiting"),
+        court: court(update.mayUpdate ? "needs-you" : "waiting"),
         id: "branch",
         update
       }

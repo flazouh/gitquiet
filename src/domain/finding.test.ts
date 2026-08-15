@@ -116,11 +116,11 @@ describe("what the Working Set is owed, as the palette searches it", () => {
 
   const SITTINGS = [
     {
-      court: "your-move" as const,
+      court: "needs-you" as const,
       piles: [
         {
           one: involved("flazouh", "gitquiet", 12, "the foundation"),
-          court: "your-move" as const,
+          court: "needs-you" as const,
           above: [
             {
               one: involved("flazouh", "gitquiet", 13, "the one stacked on it"),

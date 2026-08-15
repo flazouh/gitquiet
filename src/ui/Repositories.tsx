@@ -125,9 +125,9 @@ const Row = ({ one, work }: { readonly one: Repository; readonly work?: Reposito
            * request. A count of open pull requests says how busy a repository is; this says
            * it is waiting on the person reading it.
            */}
-          {work.yourMove > 0 ? (
+          {work.needsYou > 0 ? (
             <span className={`${PILL} text-xs text-ink-accent`}>
-              {`${work.yourMove} your move`}
+              {`${work.needsYou} your move`}
             </span>
           ) : null}
           <span className="text-xs text-ink-muted tabular-nums">{`${work.count} open`}</span>

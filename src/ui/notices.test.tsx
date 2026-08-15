@@ -58,7 +58,7 @@ describe("the reader's inbox, grouped by who acts next", () => {
   test("draws its three Courts, so a quiet inbox reads the same as a busy one", async () => {
     show([notice({ id: "one" })])
 
-    for (const court of ["Your Move", "Waiting", "Settled"]) {
+    for (const court of ["Needs You", "Waiting", "Settled"]) {
       expect(await screen.findByRole("region", { name: court })).toBeTruthy()
     }
   })
@@ -72,7 +72,7 @@ describe("the reader's inbox, grouped by who acts next", () => {
   test("draws no Running, which nothing on any inbox can reach", async () => {
     show([notice({ id: "one" })])
 
-    await screen.findByRole("region", { name: "Your Move" })
+    await screen.findByRole("region", { name: "Needs You" })
     expect(screen.queryByRole("region", { name: "Running" })).toBeNull()
   })
 
@@ -89,14 +89,14 @@ describe("the reader's inbox, grouped by who acts next", () => {
     const settled = await screen.findByRole("region", { name: "Settled" })
     expect(within(settled).getByRole("link", { name: "already landed" })).toBeTruthy()
 
-    const yours = await screen.findByRole("region", { name: "Your Move" })
+    const yours = await screen.findByRole("region", { name: "Needs You" })
     expect(within(yours).queryByRole("link", { name: "already landed" })).toBeNull()
   })
 
-  test("files a review request on an open pull request under Your Move", async () => {
+  test("files a review request on an open pull request under Needs You", async () => {
     show([notice({ id: "asked", reason: "review_requested", title: "still open" })])
 
-    const yours = await screen.findByRole("region", { name: "Your Move" })
+    const yours = await screen.findByRole("region", { name: "Needs You" })
     expect(within(yours).getByRole("link", { name: "still open" })).toBeTruthy()
   })
 
@@ -118,7 +118,7 @@ describe("the reader's inbox, grouped by who acts next", () => {
       notice({ id: "c", reason: "subscribed" })
     ])
 
-    const yours = await screen.findByRole("region", { name: "Your Move" })
+    const yours = await screen.findByRole("region", { name: "Needs You" })
     expect(within(yours).getByText("2")).toBeTruthy()
   })
 
@@ -249,7 +249,7 @@ describe("the reader's inbox, grouped by who acts next", () => {
   test("offers no filter box, because it groups instead of filtering", async () => {
     show([notice({ id: "one" })])
 
-    await screen.findByRole("region", { name: "Your Move" })
+    await screen.findByRole("region", { name: "Needs You" })
     expect(screen.queryByRole("textbox")).toBeNull()
   })
 

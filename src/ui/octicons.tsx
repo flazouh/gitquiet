@@ -128,7 +128,7 @@ export const OCTICONS: Set = {
   // Work, as distinct from the pin above it: the repositories the reader is in this week.
   work: BriefcaseIcon,
   // Over to you: an arrow pointing at the reader's own column of rows.
-  "your-move": ArrowRightIcon,
+  "needs-you": ArrowRightIcon,
   "stacked-on": ArrowUpLeftIcon,
   more: KebabHorizontalIcon,
   link: LinkIcon,

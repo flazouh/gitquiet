@@ -154,8 +154,8 @@ export const WorkingSetScreen = ({
    */
   const sittings = read.status === "ready" ? read.value : EMPTY;
   const atWork = useMemo(() => repositoriesAtWork(sittings), [sittings]);
-  const yourMove =
-    sittings.find((sitting) => sitting.court === "your-move")?.count ?? 0;
+  const needsYou =
+    sittings.find((sitting) => sitting.court === "needs-you")?.count ?? 0;
   // What ⌘K searches beside the repositories: a title half-remembered is the usual way
   // back to a pull request, and every one of them is already on this screen.
   const owed = useMemo(() => owedIn(sittings), [sittings]);
@@ -303,7 +303,7 @@ export const WorkingSetScreen = ({
           destination={destination}
           onDestination={onDestination ?? (() => undefined)}
           atWork={atWork}
-          yourMove={yourMove}
+          needsYou={needsYou}
           repositories={repositories}
           collapsed={collapsed}
           onCollapsed={onCollapsed}

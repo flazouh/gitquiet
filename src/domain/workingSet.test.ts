@@ -37,17 +37,17 @@ const checks = (state: CheckRollup["state"], passed = 13): Option.Option<CheckRo
 const opinion = (what: Opinion): Option.Option<Opinion> => Option.some(what)
 
 describe("which Court a pull request of the Working Set sits in", () => {
-  test("GitHub's own three action shelves are Your Move", () => {
+  test("GitHub's own three action shelves are Needs You", () => {
     // The whole reason this reads a shelf rather than working the Court out from
     // checks and reviews: GitHub has already decided, for every pull request the
     // Participant is involved in, and it decided server-side in one request.
-    expect(courtOf(weighing("needs-action"))).toBe("your-move")
-    expect(courtOf(weighing("ready-to-merge"))).toBe("your-move")
-    expect(courtOf(weighing("team-review-requested"))).toBe("your-move")
+    expect(courtOf(weighing("needs-action"))).toBe("needs-you")
+    expect(courtOf(weighing("ready-to-merge"))).toBe("needs-you")
+    expect(courtOf(weighing("team-review-requested"))).toBe("needs-you")
   })
 
   test("a draft of the Participant's own is theirs to finish", () => {
-    expect(courtOf(weighing("your-drafts"))).toBe("your-move")
+    expect(courtOf(weighing("your-drafts"))).toBe("needs-you")
   })
 
   test("one a person has yet to answer about is Waiting", () => {
@@ -64,7 +64,7 @@ describe("which Court a pull request of the Working Set sits in", () => {
     // says somebody else owes the next step is a heading that hides the one row on
     // the page that could land today.
     expect(courtOf(weighing("waiting-for-review", "open", false, { checks: checks("passing") }))).toBe(
-      "your-move"
+      "needs-you"
     )
   })
 
@@ -96,11 +96,11 @@ describe("which Court a pull request of the Working Set sits in", () => {
     // Running demotes the two shelves that have nothing to do but wait. A review
     // asked of the Participant is answerable now, whatever the build is doing.
     expect(courtOf(weighing("needs-action", "open", false, { checks: checks("running", 7) }))).toBe(
-      "your-move"
+      "needs-you"
     )
     expect(
       courtOf(weighing("team-review-requested", "open", false, { checks: checks("running", 7) }))
-    ).toBe("your-move")
+    ).toBe("needs-you")
   })
 
   test("one GitHub is already landing is Running", () => {
@@ -139,8 +139,8 @@ describe("which Court a pull request of the Working Set sits in", () => {
     // Demoting on the stack applies to landing and nothing else. Failing checks
     // on a child are still the Participant's to fix, and they can be fixed now,
     // before the foundation lands.
-    expect(courtOf(weighing("needs-action", "open", true))).toBe("your-move")
-    expect(courtOf(weighing("your-drafts", "open", true))).toBe("your-move")
+    expect(courtOf(weighing("needs-action", "open", true))).toBe("needs-you")
+    expect(courtOf(weighing("your-drafts", "open", true))).toBe("needs-you")
   })
 
   test("one on none of the shelves is Waiting", () => {
@@ -159,7 +159,7 @@ describe("which Court a pull request of the Working Set sits in", () => {
     // Total by construction. An unhandled shelf that fell through to undefined
     // would leave rows out of every group and so off the screen entirely.
     for (const shelf of SHELVES) {
-      expect(["your-move", "waiting", "running", "settled"]).toContain(courtOf(weighing(shelf)))
+      expect(["needs-you", "waiting", "running", "settled"]).toContain(courtOf(weighing(shelf)))
     }
   })
 })

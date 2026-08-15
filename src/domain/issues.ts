@@ -113,7 +113,7 @@ export type InvolvedIssue = ListedIssue & {
 const COURT_OF_INVOLVEMENT: Record<Involvement, Court> = {
   // Somebody has given this to the reader, which is the plainest form the
   // question takes anywhere in this codebase.
-  assigned: "your-move",
+  assigned: "needs-you",
   // The reader raised it and it is on somebody else to pick up. Raising an issue
   // is the act; whoever answers it owes the response, whether that is the person
   // already assigned to it or nobody yet.

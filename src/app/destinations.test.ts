@@ -50,7 +50,7 @@ describe("reading every repository the reader has", () => {
 
     const ranked = await Effect.runPromise(
       loadRepositories([
-        { owner: second.owner, repo: second.repo, name: second.repo, count: 2, yourMove: 1 }
+        { owner: second.owner, repo: second.repo, name: second.repo, count: 2, needsYou: 1 }
       ]).pipe(Effect.provide(layer))
     )
 

@@ -18,13 +18,13 @@ describe("which Court an Involved Issue sits in", () => {
   test("one assigned to the reader is their move", () => {
     // The plainest form the question takes anywhere here: somebody has given
     // this to them, so the next move is theirs and nobody else's.
-    expect(courtOfIssue(weighing("assigned"))).toBe("your-move")
+    expect(courtOfIssue(weighing("assigned"))).toBe("needs-you")
   })
 
   test("one the reader raised is waiting on whoever answers it", () => {
     // Raising an issue is the act. Whether somebody else is already assigned to
     // it or nobody has picked it up yet, the response is not the reader's to
-    // make, and a Your Move list of things nobody can do is a list nobody reads.
+    // make, and a Needs You list of things nobody can do is a list nobody reads.
     expect(courtOfIssue(weighing("authored"))).toBe("waiting")
   })
 
@@ -43,7 +43,7 @@ describe("which Court an Involved Issue sits in", () => {
 
   test("every involvement has a Court, so none of them can be drawn nowhere", () => {
     for (const involvement of INVOLVEMENTS) {
-      expect(["your-move", "waiting", "settled"]).toContain(
+      expect(["needs-you", "waiting", "settled"]).toContain(
         courtOfIssue(weighing(involvement))
       )
     }

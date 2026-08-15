@@ -140,7 +140,7 @@ export const useLive = <T>(
      *
      * Recorded on a live GitHub, arriving at `flazouh/ghpro-scratch/pulls`: the
      * remembered list whole on the screen at 1010ms, the read's first stage over the
-     * top of it at 1423ms — the reader's own five rows regrouped from "Your Move" to
+     * top of it at 1423ms — the reader's own five rows regrouped from "Needs You" to
      * "Waiting", every check gone — and the whole list back at 1736ms. Then walking
      * out of pull request 10 onto that same list: whole at 6394ms, the stage at
      * 7153ms, whole again at 7619ms. Most of a second of a list taking itself apart

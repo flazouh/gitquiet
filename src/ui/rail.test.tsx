@@ -21,13 +21,13 @@ afterEach(cleanup);
 const at = (
   repo: string,
   count: number,
-  yourMove: number,
+  needsYou: number,
 ): RepositoryAtWork => ({
   owner: "flazouh",
   repo,
   name: repo,
   count,
-  yourMove,
+  needsYou,
 });
 
 const owned = (
@@ -50,7 +50,7 @@ const owned = (
 const showing = (
   over: {
     atWork?: ReadonlyArray<RepositoryAtWork>;
-    yourMove?: number;
+    needsYou?: number;
     happened?: number;
     destination?: Destination;
     onDestination?: (destination: Destination) => void;
@@ -69,7 +69,7 @@ const showing = (
       destination={over.destination ?? "working-set"}
       onDestination={over.onDestination ?? (() => undefined)}
       atWork={over.atWork ?? []}
-      yourMove={over.yourMove ?? 0}
+      needsYou={over.needsYou ?? 0}
       happened={over.happened}
       repositories={over.repositories}
       collapsed={over.collapsed}
@@ -116,7 +116,7 @@ describe("the Rail", () => {
   });
 
   test("counts what is the reader's own move beside the Working Set", () => {
-    showing({ yourMove: 4 });
+    showing({ needsYou: 4 });
 
     expect(
       screen.getByRole("button", { name: "Working Set, 4" }),
@@ -246,7 +246,7 @@ describe("narrowing the Rail", () => {
     // Narrow is a working state rather than a hidden one. A reader who narrows the Rail
     // should lose the words and keep the answer to "is anything mine?".
     const person = userEvent.setup();
-    showing({ atWork: [at("octo-repo", 3, 2)], yourMove: 4 });
+    showing({ atWork: [at("octo-repo", 3, 2)], needsYou: 4 });
 
     await person.click(screen.getByRole("button", { name: "Narrow the Rail" }));
 
@@ -285,7 +285,7 @@ describe("narrowing the Rail", () => {
   });
 
   test("starts narrow when that is what was remembered", () => {
-    showing({ collapsed: true, yourMove: 2 });
+    showing({ collapsed: true, needsYou: 2 });
 
     expect(screen.getByRole("button", { name: "Widen the Rail" })).toBeDefined();
     expect(within(rail()).getByText("2")).toBeDefined();
@@ -300,7 +300,7 @@ describe("narrowing the Rail", () => {
         destination="working-set"
         onDestination={() => undefined}
         atWork={[]}
-        yourMove={0}
+        needsYou={0}
         collapsed={false}
       />,
     );
@@ -310,7 +310,7 @@ describe("narrowing the Rail", () => {
         destination="working-set"
         onDestination={() => undefined}
         atWork={[]}
-        yourMove={0}
+        needsYou={0}
         collapsed
       />,
     );

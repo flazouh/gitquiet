@@ -253,7 +253,7 @@ describe("the Working Set screen", () => {
     )
 
     await waitFor(() => expect(screen.getByText("close me")).toBeDefined())
-    expect(screen.getByRole("heading", { name: /Your Move/i })).toBeDefined()
+    expect(screen.getByRole("heading", { name: /Needs You/i })).toBeDefined()
 
     await userEvent.click(screen.getByLabelText("What to do with #1"))
     await userEvent.click(screen.getByText("Close"))
@@ -285,7 +285,7 @@ describe("the Working Set screen", () => {
 
     ask.fail()
 
-    await waitFor(() => expect(screen.getByRole("heading", { name: /Your Move/i })).toBeDefined())
+    await waitFor(() => expect(screen.getByRole("heading", { name: /Needs You/i })).toBeDefined())
   })
 
   /*

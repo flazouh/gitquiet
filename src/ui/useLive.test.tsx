@@ -247,7 +247,7 @@ describe("a memory with a read still running behind it", () => {
  * together in front of them.
  *
  * Recorded on a live GitHub, arriving at `flazouh/ghpro-scratch/pulls`: the remembered
- * list whole at 1010ms, "Waiting 5" without a check on any row at 1423ms, "Your Move 5"
+ * list whole at 1010ms, "Waiting 5" without a check on any row at 1423ms, "Needs You 5"
  * again at 1736ms. Then walking out of pull request 10 back onto the same list: whole
  * at 6394ms, "Waiting 5" at 7153ms, whole again at 7619ms. See
  * `scripts/probe-flicker-dom.js`, which is what recorded it.

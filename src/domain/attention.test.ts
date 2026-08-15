@@ -90,7 +90,7 @@ const bot = machine("copilot")
 
 describe("what a pull request owes, thread by thread", () => {
   test("a thread somebody else spoke in last is yours to answer", () => {
-    expect(courts({ threads: [thread("1", [alex, other])] })).toEqual(["your-move"])
+    expect(courts({ threads: [thread("1", [alex, other])] })).toEqual(["needs-you"])
   })
 
   test("a thread you spoke in last waits on the person you said it to", () => {
@@ -112,7 +112,7 @@ describe("what a pull request owes, thread by thread", () => {
   })
 
   test("a finding nobody has answered is yours", () => {
-    expect(courts({ threads: [thread("1", [bot])] })).toEqual(["your-move"])
+    expect(courts({ threads: [thread("1", [bot])] })).toEqual(["needs-you"])
   })
 
   /*
@@ -126,7 +126,7 @@ describe("what a pull request owes, thread by thread", () => {
    * five still open are what that advice produces.
    */
   test("a finding you answered is yours, a person being the one who ends it", () => {
-    expect(courts({ threads: [thread("1", [bot, alex])] })).toEqual(["your-move"])
+    expect(courts({ threads: [thread("1", [bot, alex])] })).toEqual(["needs-you"])
   })
 
   /*
@@ -148,11 +148,11 @@ describe("what a pull request owes, everything that is not a thread", () => {
       courts({
         checks: [check("test", "failed"), check("build", "running"), check("lint", "succeeded")]
       })
-    ).toEqual(["your-move", "running", "settled"])
+    ).toEqual(["needs-you", "running", "settled"])
   })
 
   test("a check somebody stopped is yours, nothing else being able to start it again", () => {
-    expect(courts({ checks: [check("test", "cancelled")] })).toEqual(["your-move"])
+    expect(courts({ checks: [check("test", "cancelled")] })).toEqual(["needs-you"])
   })
 
   /*
@@ -175,7 +175,7 @@ describe("what a pull request owes, everything that is not a thread", () => {
       update: Option.some({ how: "MERGE", mayUpdate: true, refusal: Option.none() })
     }
 
-    expect(courts({ merge: behind })).toEqual(["your-move"])
+    expect(courts({ merge: behind })).toEqual(["needs-you"])
   })
 
   test("a branch behind waits where somebody else holds the write", () => {
@@ -201,7 +201,7 @@ describe("what has landed since you last reviewed", () => {
     )
 
     expect(item?.kind).toBe("since")
-    expect(item?.court).toBe("your-move")
+    expect(item?.court).toBe("needs-you")
     expect(item?.kind === "since" ? item.landed.map((one) => one.sha) : []).toEqual(["bbb", "ccc"])
   })
 
@@ -224,7 +224,7 @@ describe("what has landed since you last reviewed", () => {
     )
 
     expect(item?.kind).toBe("rewritten")
-    expect(item?.court).toBe("your-move")
+    expect(item?.court).toBe("needs-you")
   })
 })
 
@@ -250,7 +250,7 @@ describe("the four Courts of one pull request", () => {
 
   test("come back in the order a reader asks about them, the empty ones included", () => {
     expect(docketsIn(attentionIn(owing())).map((docket) => docket.court)).toEqual([
-      "your-move",
+      "needs-you",
       "waiting",
       "running",
       "settled"
@@ -260,7 +260,7 @@ describe("the four Courts of one pull request", () => {
   test("count what is in them, which is what a heading says without being opened", () => {
     expect(
       Object.fromEntries(docketsIn(attentionIn(busy)).map((one) => [one.court, one.count]))
-    ).toEqual({ "your-move": 5, waiting: 1, running: 0, settled: 1 })
+    ).toEqual({ "needs-you": 5, waiting: 1, running: 0, settled: 1 })
   })
 
   test("a merged pull request owes nobody anything, whatever is unresolved on it", () => {

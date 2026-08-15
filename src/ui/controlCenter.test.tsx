@@ -43,7 +43,7 @@ describe("what one pull request owes, in four Courts", () => {
   test("names only the Courts that hold something", () => {
     showing({ checks: [aCheck("test", "failed")] })
 
-    expect(court("Your Move")).toBeDefined()
+    expect(court("Needs You")).toBeDefined()
     expect(screen.queryByRole("list", { name: "Waiting" })).toBeNull()
     expect(screen.queryByRole("list", { name: "Running" })).toBeNull()
   })
@@ -54,9 +54,9 @@ describe("what one pull request owes, in four Courts", () => {
       threads: [aThread("t1", [aComment(dana), aComment(viewer)])]
     })
 
-    expect(rowsIn("Your Move").length).toBe(1)
+    expect(rowsIn("Needs You").length).toBe(1)
     expect(rowsIn("Waiting").length).toBe(1)
-    expect(rowsIn("Your Move").length).toBe(1)
+    expect(rowsIn("Needs You").length).toBe(1)
 
     await userEvent.click(screen.getByRole("button", { name: /Settled/ }))
     expect(rowsIn("Settled").length).toBe(1)
@@ -74,28 +74,28 @@ describe("what one pull request owes, in four Courts", () => {
   test("folds a Court that is open, the reader having said what they want to see", async () => {
     showing({ checks: [aCheck("test", "failed")] })
 
-    expect(rowsIn("Your Move").length).toBe(1)
+    expect(rowsIn("Needs You").length).toBe(1)
 
-    await userEvent.click(screen.getByRole("button", { name: /Your Move/ }))
-    expect(screen.queryByRole("list", { name: "Your Move" })).toBeNull()
+    await userEvent.click(screen.getByRole("button", { name: /Needs You/ }))
+    expect(screen.queryByRole("list", { name: "Needs You" })).toBeNull()
   })
 
   test("counts what a Court holds beside its name, so it need not be read to be weighed", () => {
     showing({ checks: [aCheck("a", "failed"), aCheck("b", "failed"), aCheck("c", "failed")] })
 
-    expect(within(screen.getByRole("heading", { name: /Your Move/ })).getByText("3")).toBeDefined()
+    expect(within(screen.getByRole("heading", { name: /Needs You/ })).getByText("3")).toBeDefined()
   })
 
   test("says a check by its name", () => {
     showing({ checks: [aCheck("test", "failed")] })
 
-    expect(rowsIn("Your Move")[0]?.textContent).toContain("test")
+    expect(rowsIn("Needs You")[0]?.textContent).toContain("test")
   })
 
   test("says a thread by whoever spoke in it last, which is who it is waiting on", () => {
     showing({ threads: [aThread("t1", [aComment(viewer), aComment(dana, "still wrong")])] })
 
-    expect(rowsIn("Your Move")[0]?.textContent).toContain("dana")
+    expect(rowsIn("Needs You")[0]?.textContent).toContain("dana")
   })
 
   test("marks a finding as a machine's, six of them not being six colleagues", () => {
@@ -106,7 +106,7 @@ describe("what one pull request owes, in four Courts", () => {
       ]
     })
 
-    const [finding, asked] = rowsIn("Your Move")
+    const [finding, asked] = rowsIn("Needs You")
 
     expect(within(finding as HTMLElement).getByText("finding")).toBeDefined()
     expect(within(asked as HTMLElement).queryByText("finding")).toBeNull()
@@ -117,7 +117,7 @@ describe("what one pull request owes, in four Courts", () => {
     // login with a chip reading "bot" against it.
     showing({ threads: [aThread("t1", [aComment(machine, "possible null"), aComment(dana, "checked")])] })
 
-    const row = rowsIn("Your Move")[0] as HTMLElement
+    const row = rowsIn("Needs You")[0] as HTMLElement
 
     expect(row.textContent).toContain("dana")
     expect(within(row).queryByText("bot")).toBeNull()
@@ -156,7 +156,7 @@ describe("what one pull request owes, in four Courts", () => {
   test("does not name the reader on a finding they answered, nobody waiting on them", () => {
     showing({ threads: [aThread("t1", [aComment(machine, "possible null"), aComment(viewer, "checked, it cannot be")])] })
 
-    const row = rowsIn("Your Move")[0] as HTMLElement
+    const row = rowsIn("Needs You")[0] as HTMLElement
 
     expect(row.textContent).not.toContain(VIEWER)
   })
@@ -169,7 +169,7 @@ describe("what one pull request owes, in four Courts", () => {
   test("leaves a machine's login off a finding, the glyph and the chip having said it", () => {
     showing({ threads: [aThread("t1", [aComment(machine, "possible null"), aComment(viewer, "checked")])] })
 
-    const row = rowsIn("Your Move")[0] as HTMLElement
+    const row = rowsIn("Needs You")[0] as HTMLElement
 
     expect(row.textContent).not.toContain("copilot")
     expect(row.textContent).toContain("possible null")
@@ -178,13 +178,13 @@ describe("what one pull request owes, in four Courts", () => {
   test("leaves it off an unanswered finding too, the two being one kind of row", () => {
     showing({ threads: [aThread("t1", [aComment(machine, "possible null")])] })
 
-    expect((rowsIn("Your Move")[0] as HTMLElement).textContent).not.toContain("copilot")
+    expect((rowsIn("Needs You")[0] as HTMLElement).textContent).not.toContain("copilot")
   })
 
   test("says the finding rather than the reader's own answer to it", () => {
     showing({ threads: [aThread("t1", [aComment(machine, "possible null"), aComment(viewer, "checked, it cannot be")])] })
 
-    const row = rowsIn("Your Move")[0] as HTMLElement
+    const row = rowsIn("Needs You")[0] as HTMLElement
 
     expect(row.textContent).toContain("possible null")
     expect(row.textContent).not.toContain("checked, it cannot be")
@@ -212,7 +212,7 @@ describe("what one pull request owes, in four Courts", () => {
 
       await userEvent.click(screen.getByRole("button", { name: "Resolve" }))
 
-      expect(screen.queryByRole("list", { name: "Your Move" })).toBeNull()
+      expect(screen.queryByRole("list", { name: "Needs You" })).toBeNull()
       expect(screen.getByRole("button", { name: /Settled/ })).toBeDefined()
     })
 
@@ -225,7 +225,7 @@ describe("what one pull request owes, in four Courts", () => {
 
       await userEvent.click(screen.getByRole("button", { name: "Resolve" }))
 
-      expect(rowsIn("Your Move").length).toBe(1)
+      expect(rowsIn("Needs You").length).toBe(1)
     })
 
     test("offers nothing to press where nobody handed the panel a way to do it", () => {
@@ -259,8 +259,8 @@ describe("what one pull request owes, in four Courts", () => {
       ]
     })
 
-    expect(rowsIn("Your Move")[0]?.textContent).toContain("This can be null.")
-    expect(rowsIn("Your Move")[0]?.textContent).not.toContain("devin-review-comment")
+    expect(rowsIn("Needs You")[0]?.textContent).toContain("This can be null.")
+    expect(rowsIn("Needs You")[0]?.textContent).not.toContain("devin-review-comment")
   })
 
   test("reads the marks of a headline rather than saying them out", () => {
@@ -268,20 +268,20 @@ describe("what one pull request owes, in four Courts", () => {
       threads: [aThread("t1", [aComment(machine, "🔍 **Envelope has no counterpart** for `entryId`")])]
     })
 
-    expect(rowsIn("Your Move")[0]?.textContent).toContain("Envelope has no counterpart for entryId")
+    expect(rowsIn("Needs You")[0]?.textContent).toContain("Envelope has no counterpart for entryId")
   })
 
   test("counts what landed since the reader last reviewed, which is their re-read", () => {
     showing(reviewedThen(["bbb", "ccc"]))
 
-    expect(rowsIn("Your Move")[0]?.textContent).toContain("2 commits")
-    expect(rowsIn("Your Move")[0]?.textContent).toContain("since you last reviewed")
+    expect(rowsIn("Needs You")[0]?.textContent).toContain("2 commits")
+    expect(rowsIn("Needs You")[0]?.textContent).toContain("since you last reviewed")
   })
 
   test("says one commit in the singular, a row that cannot count being worth nothing", () => {
     showing(reviewedThen(["bbb"]))
 
-    expect(within(rowsIn("Your Move")[0] as HTMLElement).getByText("1 commit")).toBeDefined()
+    expect(within(rowsIn("Needs You")[0] as HTMLElement).getByText("1 commit")).toBeDefined()
   })
 
   test("owes a first-time reader no delta, the whole pull request being their delta", () => {
@@ -299,7 +299,7 @@ describe("what one pull request owes, in four Courts", () => {
       viewer: { login: VIEWER, lastReviewPoint: Option.some("aaa") }
     })
 
-    expect(rowsIn("Your Move")[0]?.textContent).toContain("Rewritten")
+    expect(rowsIn("Needs You")[0]?.textContent).toContain("Rewritten")
   })
 
   test("owes nothing where the reader's review point is the newest commit", () => {
@@ -330,7 +330,7 @@ describe("what one pull request owes, in four Courts", () => {
       }
     })
 
-    expect(rowsIn("Your Move")[0]?.textContent).toContain("main")
+    expect(rowsIn("Needs You")[0]?.textContent).toContain("main")
   })
 
   test("opens the file a thread hangs off, a remark about a line being about that file", async () => {
@@ -340,7 +340,7 @@ describe("what one pull request owes, in four Courts", () => {
       (path) => opened.push(path)
     )
 
-    await userEvent.click(within(rowsIn("Your Move")[0] as HTMLElement).getByRole("button"))
+    await userEvent.click(within(rowsIn("Needs You")[0] as HTMLElement).getByRole("button"))
 
     expect(opened).toEqual(["src/spin.ts"])
   })
@@ -348,7 +348,7 @@ describe("what one pull request owes, in four Courts", () => {
   test("offers no press where there is no file to open, rather than a button that does nothing", () => {
     showing({ threads: [aThread("t1", [aComment(dana)])] }, () => {})
 
-    expect(within(rowsIn("Your Move")[0] as HTMLElement).queryByRole("button")).toBeNull()
+    expect(within(rowsIn("Needs You")[0] as HTMLElement).queryByRole("button")).toBeNull()
   })
 
   test("says so plainly where a pull request owes nobody anything", () => {
@@ -394,6 +394,6 @@ describe("what one pull request owes, in four Courts", () => {
       () => {}
     )
 
-    expect(within(rowsIn("Your Move")[0] as HTMLElement).queryByRole("button")).toBeNull()
+    expect(within(rowsIn("Needs You")[0] as HTMLElement).queryByRole("button")).toBeNull()
   })
 })
