@@ -6,11 +6,11 @@
  *
  * This is the measurement that matters, and it is not the one you get by typing
  * a pull request into the address bar. A press from the list is a soft
- * navigation — no second document, no second time to first byte — and the
- * pointer resting on the row for 150ms has already read the pull request ahead
- * (src/entrypoints/prefetch.content.ts). Measured from the address bar instead,
- * both of those advantages are thrown away and the interface looks two seconds
- * slower than it is.
+ * navigation — no second document, no second time to first byte — and a pointer
+ * that has lingered in and around the row has already read the pull request
+ * ahead (src/entrypoints/shell.content.ts, src/ui/lingering.ts). Measured from
+ * the address bar instead, both of those advantages are thrown away and the
+ * interface looks two seconds slower than it is.
  *
  * Two traps, both of which produced wrong answers before this script existed:
  *
@@ -29,7 +29,7 @@ const EXTENSION = "/Users/alex/Documents/githubpro/.output/chrome-mv3";
 const LIST = "https://github.com/microsoft/vscode/pulls";
 const RUNS = 4;
 
-/** Long enough to pass the 150ms dwell the prefetch waits for, and no longer than a reader would rest. */
+/** Well past the point the read-ahead fires, and no longer than a reader would rest. */
 const DWELL = 1.5;
 
 const task = await useOrCreateTaskSpace("benchmark click flow");

@@ -14,7 +14,7 @@ const HERE = "https://github.com/flazouh/gitquiet/pull/1"
 
 const warming = (href: string, at: string = HERE) => warmingFor(href, at)
 
-describe("what resting on a link reads", () => {
+describe("what lingering near a link reads", () => {
   const pages: ReadonlyArray<readonly [string, string, string]> = [
     ["a pull request", "https://github.com/oven-sh/bun/pull/36915", "oven-sh/bun/36915"],
     ["their dashboard", "https://github.com/pulls", "/pulls"],

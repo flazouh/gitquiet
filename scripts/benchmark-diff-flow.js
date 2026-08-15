@@ -46,10 +46,11 @@
  * So both halves now open the pull request URL cold. Same pull requests, same
  * starting line, and no hidden anchors. Two consequences worth stating:
  *
- *   - The extension prefetches on a 150ms hover dwell, and opening a URL never
- *     hovers anything. So its number here is worse than the same pull request
- *     opened from its own list, and the comparison is conservative in GitHub's
- *     favour. `DWELL` is gone with the row press that needed it.
+ *   - The extension reads a page ahead once the pointer has lingered in and around
+ *     its link, and opening a URL never puts a pointer anywhere. So its number here
+ *     is worse than the same pull request opened from its own list, and the
+ *     comparison is conservative in GitHub's favour. `DWELL` is gone with the row
+ *     press that needed it.
  *   - Marks are absolute wall clock, `performance.timeOrigin + performance.now()`,
  *     against a `Date.now()` taken in this process before the navigation is
  *     issued. Per-document clocks cannot be used because pressing "Files changed"

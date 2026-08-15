@@ -9,10 +9,15 @@
  *
  * Measured from the press on the row, which is how a pull request is opened. Both
  * sides were hovered for 1.5s before the press, and that dwell is the whole reason
- * these numbers differ as much as they do: ours starts fetching the pull request
- * after 150ms of dwell, and GitHub does not. Checked directly — two seconds of
- * dwell on their list fires exactly one request, `/hovercard`, which is the tooltip
- * and has nothing to do with the page about to be opened.
+ * these numbers differ as much as they do: ours reads the pull request ahead once
+ * the pointer has spent enough time in and around the row, and GitHub does not.
+ * Checked directly — two seconds of dwell on their list fires exactly one request,
+ * `/hovercard`, which is the tooltip and has nothing to do with the page about to
+ * be opened.
+ *
+ * 1.5s is far past the point ours reads at, so the figures below are what a reader
+ * who has clearly settled on a row gets. See `src/ui/lingering.ts` for how much
+ * less than that is actually needed.
  *
  * So the gap is a feature difference rather than a warm cache, and the video has to
  * say so; a viewer who assumes both sides were prefetched is being misled by

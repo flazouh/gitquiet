@@ -31,7 +31,7 @@ const EXTENSION = "/Users/alex/Documents/githubpro/.output/chrome-mv3";
 const REPO = "https://github.com/microsoft/vscode";
 const TAB = 'a[href="/microsoft/vscode/pulls"]';
 
-/** Past the 150ms the prefetch waits for, and no longer than a reader would rest. */
+/** Well past the point the read-ahead fires, and no longer than a reader would rest. */
 const DWELL = 1.5;
 
 /** Long enough for the whole read — search, shelves, standings, branches. */

@@ -76,9 +76,13 @@ const useDwell = (onNear: ((path: string) => void) | undefined) => {
 /**
  * How long the pointer has to rest on a row before the file behind it is read.
  *
- * The same figure the shell uses for links on GitHub's own pages, and for the
- * same reason: a pointer crossing the list on its way somewhere else passes over
- * a dozen rows, and reading all twelve is twelve requests nobody asked for.
+ * A pointer crossing the list on its way somewhere else passes over a dozen rows,
+ * and reading all twelve is twelve requests nobody asked for.
+ *
+ * The same figure the shell spends on a link, though it is spent differently: the
+ * shell adds up time in and around a link and this waits for a rest, because a row
+ * here is a row of a tree the reader is already inside and the pointer arrives at
+ * it from the row above rather than from across the page. See `ui/lingering.ts`.
  */
 const DWELL = 150
 

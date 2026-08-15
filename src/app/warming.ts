@@ -1,5 +1,5 @@
 /**
- * What resting on a link reads, for every page this extension draws.
+ * What lingering near a link reads, for every page this extension draws.
  *
  * One table, and it is the second half of a rule the `Place` table holds the first half
  * of: a page of ours is named by the address that owns it, and every page of ours is read

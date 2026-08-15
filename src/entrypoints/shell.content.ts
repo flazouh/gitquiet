@@ -19,6 +19,8 @@ import {
 } from "@/ui/going";
 import { markPage, theScreenShown, unmarkPage } from "@/ui/mount";
 import { linkNear } from "@/ui/linkNear";
+import { lingerFor, type Lingering, NOTHING } from "@/ui/lingering";
+import type { Point } from "@/ui/near";
 import { type Stop, whenAddressChanges, whenTheyStayPut } from "@/ui/navigation";
 import {
   ACTIONS,
@@ -44,16 +46,6 @@ import {
 import "@/ui/gates.load.css";
 import "@/ui/gates.soft.css";
 import "@/ui/gates.bar.css";
-
-/**
- * How long a pointer has to rest on a link before it counts as interest.
- *
- * Somebody moving the pointer across a list of pull requests on the way to
- * something else crosses a dozen links in far less than this. Somebody who has
- * decided which one they want stops on it, and then takes another two hundred
- * milliseconds or so to press the button — which is the window this is buying.
- */
-const DWELL = 150;
 
 /**
  * How many pull requests one visit to one page will read ahead.
@@ -272,12 +264,8 @@ export default defineContentScript({
       );
     };
 
-    /** Which link the pointer is on, where it is on one at all. */
-    const linkUnder = (target: EventTarget | null): HTMLAnchorElement | null =>
-      target instanceof Element ? target.closest("a") : null;
-
     /**
-     * What resting on a link would read, and the name it is read under.
+     * What lingering near a link would read, and the name it is read under.
      *
      * The table is `app/warming.ts`, where every page of ours is listed and the
      * coverage is tested. This half is the part that needs a document: which link
@@ -309,87 +297,93 @@ export default defineContentScript({
       Effect.runFork(screenFor(page).pipe(Effect.ignore));
     };
 
-    let dwelling: ReturnType<typeof setTimeout> | undefined;
-
-    document.addEventListener(
-      "pointerover",
-      (event) => {
-        if (view === "github") return;
-
-        const link = linkUnder(event.target);
-        if (link === null) return;
-        soon(link);
-
-        if (asked.size >= AT_MOST) return;
-
-        const ahead = aheadOf(link);
-        if (ahead === null || asked.has(ahead.key)) return;
-
-        clearTimeout(dwelling);
-        dwelling = setTimeout(() => warm(ahead), DWELL);
-      },
-      { passive: true },
-    );
-
-    document.addEventListener("pointerout", () => clearTimeout(dwelling), {
-      passive: true,
-    });
+    /*
+     * Which page the pointer is closing on, measured as attention rather than as a rest.
+     *
+     * A reader deciding on a link slows down as they approach it, lands on it, drifts a
+     * few pixels while they read the row, and only then presses. Every one of those
+     * frames is evidence, and `ui/lingering.ts` adds them up: near earns credit slowly,
+     * on the link earns it at full rate, and a link the pointer has left loses what it
+     * had. Enough credit on one link is the signal to read its page.
+     *
+     * A rest is the weakest form of that evidence and it used to be the only one that
+     * counted, so the reader who moved decisively towards a row was charged the whole
+     * dwell again on arrival — and the one whose hand shook lost the timer entirely.
+     */
+    let lingering: Lingering = NOTHING;
+    let at: Point | undefined;
+    let ticking = 0;
+    let lastLook = 0;
 
     /*
-     * And the same thing a moment earlier: the link the pointer is heading for, rather
-     * than the one it has arrived at.
-     *
-     * Resting on a link is late. The reader decided a few hundred milliseconds ago, and
-     * what is left is the time it takes them to press the button — which on a page of a
-     * quarter of a megabyte buys a fraction of it. A pointer travelling towards a link
-     * crosses the ground in front of it first, and that ground is the lead this buys.
-     *
-     * The dwell above becomes two looks here: a page has to still be the nearest thing a
-     * frame later before it is read. A reader sweeping across a list passes each row in a
-     * frame or two, and reading every one of them is the request storm this is not.
+     * On a frame rather than on the event, and it keeps running while there is anything
+     * to add to. `pointermove` fires far faster than a page can be read, and a pointer
+     * that lands without moving again — dropped there by a scroll, or by a hand that is
+     * simply still — sends no more events at all while it earns its read.
      */
-    let nearest: string | undefined;
-    let looking = 0;
+    const look = (now: number): void => {
+      ticking = 0;
 
+      const point = at;
+      if (point === undefined) return;
+
+      // Switched to GitHub's own pages mid-hover. What the pointer earned was earned
+      // against an interface that is no longer on the page, so it is not worth carrying
+      // back if the reader switches again.
+      if (view === "github") {
+        lingering = NOTHING;
+        return;
+      }
+
+      const elapsed = now - lastLook;
+      lastLook = now;
+
+      const found = linkNear(point);
+      // Whatever the reader is near, whether or not it earns anything. The file is
+      // fetched once a session either way, and the pages worth having it are ours.
+      if (found !== null) soon(found.link);
+
+      const ahead = found === null ? null : aheadOf(found.link);
+      const worth =
+        found === null || ahead === null || asked.has(ahead.key) || asked.size >= AT_MOST
+          ? null
+          : { key: ahead.key, reach: found.reach, page: ahead };
+
+      const step = lingerFor(lingering, worth, elapsed);
+      lingering = step.lingering;
+
+      if (step.ripe !== null) warm(step.ripe);
+
+      // Nothing near and nothing part-way there is the pointer at rest over GitHub's own
+      // furniture, and there is no reason to hit test the page sixty times a second for
+      // it. The next move starts this again.
+      if (worth !== null || lingering.size > 0) ticking = window.requestAnimationFrame(look);
+    };
+
+    const keepLooking = (event: PointerEvent): void => {
+      if (view === "github") return;
+
+      at = { x: event.clientX, y: event.clientY };
+      if (ticking !== 0) return;
+
+      lastLook = performance.now();
+      ticking = window.requestAnimationFrame(look);
+    };
+
+    document.addEventListener("pointermove", keepLooking, { passive: true });
+    // The pointer put on a link by a scroll rather than by a hand, which is the one case
+    // that produces no movement to measure and would otherwise never be looked at.
+    document.addEventListener("pointerover", keepLooking, { passive: true });
+
+    /*
+     * A pointer that has left the window is not near anything, whatever the last
+     * position said. Without this, a reader who lands on a row and then leaves for
+     * another window goes on earning a read they are not going to press.
+     */
     document.addEventListener(
-      "pointermove",
-      (event) => {
-        if (view === "github") return;
-        // One look a frame at most. `pointermove` fires far faster than a page can be
-        // read, and seventeen hit tests an event is work in front of a moving pointer.
-        if (looking !== 0) return;
-
-        const at = { x: event.clientX, y: event.clientY };
-
-        looking = window.requestAnimationFrame(() => {
-          looking = 0;
-
-          const link = linkNear(at);
-          if (link === null) {
-            nearest = undefined;
-            return;
-          }
-
-          // Whatever the reader has already read ahead. The file is fetched once a
-          // session either way, and the pages worth having it are the pages of ours.
-          soon(link);
-
-          if (asked.size >= AT_MOST) return;
-
-          const ahead = aheadOf(link);
-
-          if (ahead === null || asked.has(ahead.key)) {
-            nearest = undefined;
-            return;
-          }
-
-          if (nearest !== ahead.key) {
-            nearest = ahead.key;
-            return;
-          }
-
-          warm(ahead);
-        });
+      "pointerleave",
+      () => {
+        at = undefined;
       },
       { passive: true },
     );

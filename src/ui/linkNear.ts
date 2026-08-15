@@ -27,16 +27,27 @@ const AROUND = 8
  *
  * Nearest first because the answer is the first link found, and the nearest link is the
  * one the pointer is most likely headed for. Computed once, as offsets.
+ *
+ * Each offset carries the distance it was drawn at, so the answer can say how far off the
+ * link was without measuring anything: the caller weighs a link under the pointer more
+ * heavily than one the pointer is merely closing on.
  */
-const RING: ReadonlyArray<Point> = [
-  { x: 0, y: 0 },
+const RING: ReadonlyArray<Point & { readonly reach: number }> = [
+  { x: 0, y: 0, reach: 0 },
   ...[AHEAD / 2, AHEAD].flatMap((reach) =>
     Array.from({ length: AROUND }, (_, step) => {
       const turn = (step / AROUND) * 2 * Math.PI
-      return { x: Math.round(Math.cos(turn) * reach), y: Math.round(Math.sin(turn) * reach) }
+      return {
+        x: Math.round(Math.cos(turn) * reach),
+        y: Math.round(Math.sin(turn) * reach),
+        reach
+      }
     })
   )
 ]
+
+/** A link within reach, and how far in front of the pointer it was found. */
+export type Reached = { readonly link: HTMLAnchorElement; readonly reach: number }
 
 /** What is under one point of the page. Only a test ever passes one. */
 export type Pick = (x: number, y: number) => Element | null
@@ -56,12 +67,14 @@ const onThePage: Pick = (x, y) => document.elementFromPoint(x, y)
  * read per link per frame; the browser already knows what is at a point, and answers
  * seventeen of those in a fraction of a millisecond whatever the page is.
  */
-export const linkNear = (at: Point, pick: Pick = onThePage): HTMLAnchorElement | null => {
+export const linkNear = (at: Point, pick: Pick = onThePage): Reached | null => {
   for (const offset of RING) {
     const found = pick(at.x + offset.x, at.y + offset.y)
     const link = found === null ? null : found.closest("a")
 
-    if (link instanceof HTMLAnchorElement && link.href !== "") return link
+    if (link instanceof HTMLAnchorElement && link.href !== "") {
+      return { link, reach: offset.reach }
+    }
   }
 
   return null

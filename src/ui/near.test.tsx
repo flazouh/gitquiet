@@ -151,7 +151,8 @@ describe("the link the pointer is heading for", () => {
   test("is the one under it, where there is one", () => {
     const { pick } = asLaidOut([["flazouh", box(490, 490, 560, 510)]])
 
-    expect(linkNear(AT, pick)?.pathname).toBe("/flazouh")
+    expect(linkNear(AT, pick)?.link.pathname).toBe("/flazouh")
+    expect(linkNear(AT, pick)?.reach).toBe(0)
   })
 
   /*
@@ -162,7 +163,9 @@ describe("the link the pointer is heading for", () => {
   test("is one the pointer has not reached yet", () => {
     const { pick } = asLaidOut([["sindresorhus", box(500, 560, 620, 580)]])
 
-    expect(linkNear(AT, pick)?.pathname).toBe("/sindresorhus")
+    expect(linkNear(AT, pick)?.link.pathname).toBe("/sindresorhus")
+    // And says how far off it was, which is what decides how fast it earns its read.
+    expect(linkNear(AT, pick)?.reach).toBe(AHEAD)
   })
 
   test("is the nearer of two, where both are within reach", () => {
@@ -171,7 +174,7 @@ describe("the link the pointer is heading for", () => {
       ["far", box(490, 580, 620, 600)]
     ])
 
-    expect(linkNear(AT, pick)?.pathname).toBe("/near")
+    expect(linkNear(AT, pick)?.link.pathname).toBe("/near")
   })
 
   test("is nothing where the nearest link is further off than the reach", () => {
