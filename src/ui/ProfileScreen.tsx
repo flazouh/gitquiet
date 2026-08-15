@@ -211,15 +211,28 @@ const Owns = ({
 }
 
 /**
- * One band's place, where that band's read failed.
+ * One band's place, where the band itself is not there to draw.
  *
- * Said rather than left empty, because an empty space is read as "this person does
- * nothing" and the other band on the page is still worth the reader's time. Their own
- * page is one press away in the column beside it, which is where somebody who needs the
- * missing half goes.
+ * Both of the ways that happens, because they are the same shape and only the sentence in
+ * the middle differs. A read that failed is said rather than left empty, because an empty
+ * space is read as "this person does nothing" and the other band is still worth the
+ * reader's time. A read still running is said for a plainer reason: the two bands do not
+ * arrive together — one is on the page a press earlier and the other is a request to
+ * another host — and a band that appears from nothing pushes the band under it down a
+ * second after the reader started reading it.
+ *
+ * The same icon in every state, so that nothing under it moves when the answer lands.
  */
-const Missing = ({ name, what }: { readonly name: string; readonly what: string }) => (
-  <Section name={name} art="info">
+const Instead = ({
+  name,
+  art,
+  what
+}: {
+  readonly name: string
+  readonly art: "comments" | "repositories"
+  readonly what: string
+}) => (
+  <Section name={name} art={art}>
     <p className="px-3 py-6 text-center text-ink-muted text-sm">{what}</p>
   </Section>
 )
@@ -281,18 +294,37 @@ export const ProfileScreen = ({
 
           <div className="t-panels flex min-w-0 flex-col gap-1">
             {said.status === "ready" ? <Answers said={said.value} login={login} now={now} /> : null}
-            {/* A read that failed is said where its answer would have been, rather than
-                left as a gap. The other band is still worth reading. */}
-            {said.status === "failed" ? (
-              <Missing
+            {/* A read still running and a read that failed are both said where the answer
+                would have been, rather than left as a gap that fills a second later. */}
+            {said.status === "loading" ? (
+              <Instead
                 name="Answering"
+                art="comments"
+                what={`Reading what ${login} did on other people's work…`}
+              />
+            ) : null}
+            {said.status === "failed" ? (
+              <Instead
+                name="Answering"
+                art="comments"
                 what={`Could not read what ${login} did on other people's work.`}
               />
             ) : null}
 
             {list.status === "ready" ? <Owns owned={list.value} login={login} now={now} /> : null}
+            {list.status === "loading" ? (
+              <Instead
+                name="Repositories"
+                art="repositories"
+                what={`Reading ${login}'s repositories…`}
+              />
+            ) : null}
             {list.status === "failed" ? (
-              <Missing name="Repositories" what={`Could not read ${login}'s repositories.`} />
+              <Instead
+                name="Repositories"
+                art="repositories"
+                what={`Could not read ${login}'s repositories.`}
+              />
             ) : null}
           </div>
         </div>

@@ -66,12 +66,17 @@ const LIST: ReadonlyArray<ListedRepository> = [
   row({ repo: "old-cli", isArchived: true, pushedAt: daysAgo(3) })
 ]
 
+/** A read that never lands, for the moment before either band has an answer. */
+const never = Effect.callback<never>(() => {})
+
 const shown = (
   over: {
     readonly said?: Answering
     readonly owned?: Owned
     readonly failing?: boolean
     readonly failingAnswering?: boolean
+    /** Both reads still running, which is a press this extension answered a moment ago. */
+    readonly stillReading?: boolean
   } = {}
 ) =>
   render(
@@ -79,14 +84,18 @@ const shown = (
       login="flazouh"
       now={now}
       answering={() =>
-        over.failingAnswering
-          ? Effect.fail(new Error("no") as never)
-          : Effect.succeed(over.said ?? answered())
+        over.stillReading
+          ? never
+          : over.failingAnswering
+            ? Effect.fail(new Error("no") as never)
+            : Effect.succeed(over.said ?? answered())
       }
       owned={() =>
-        over.failing
-          ? Effect.fail(new Error("no") as never)
-          : Effect.succeed(over.owned ?? { rows: LIST, reading: false, capped: false })
+        over.stillReading
+          ? never
+          : over.failing
+            ? Effect.fail(new Error("no") as never)
+            : Effect.succeed(over.owned ?? { rows: LIST, reading: false, capped: false })
       }
       who={who()}
       onStepAside={() => {}}
@@ -156,6 +165,23 @@ describe("their column and their tabs", () => {
 
     expect(aside.textContent).toContain("Alex")
     expect(tabs.querySelector('a[aria-current="page"]')?.textContent).toBe("Overview")
+  })
+})
+
+describe("a read still running", () => {
+  test("holds each band's place, so the page does not shove itself down a second later", async () => {
+    // A press this extension answers itself paints the column and the rows in about a
+    // sixth of a second and hears from their events a second and a half after that.
+    // Measured on a live press: the band used to arrive from nothing and push the
+    // repositories under it down while the reader was reading them.
+    shown({ stillReading: true })
+
+    expect((await screen.findByRole("region", { name: "Answering" })).textContent).toContain(
+      "Reading what flazouh did on other people's work"
+    )
+    expect((await screen.findByRole("region", { name: "Repositories" })).textContent).toContain(
+      "Reading flazouh's repositories"
+    )
   })
 })
 

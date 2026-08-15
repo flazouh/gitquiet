@@ -204,13 +204,30 @@ export default defineContentScript({
 
     const asked = new Set<string>();
     let reading = false;
+    /** The one waiting behind it, which is always the most recently wanted. */
+    let after: Ahead | undefined;
 
     const warm = (ahead: Ahead): void => {
-      // One at a time. A reader sweeping a list would otherwise have every
-      // route in flight per link they passed over, and GitHub is entitled to
-      // think less of us for it.
-      if (reading) return;
+      /*
+       * One at a time. A reader sweeping a list would otherwise have every route
+       * in flight per link they passed over, and GitHub is entitled to think less
+       * of us for it.
+       *
+       * Held rather than dropped, and this is the whole of why the queue exists:
+       * the drop used to happen after the caller had written the page down as
+       * asked for, so a page offered while another was in flight was never read
+       * ahead and never offered again. The one held is the newest, because a
+       * reader who has moved on has moved on.
+       */
+      if (reading) {
+        after = ahead;
+        return;
+      }
+
       reading = true;
+      // Said here rather than by the caller, so that a page nobody got round to
+      // reading is not written down as one that was read.
+      asked.add(ahead.key);
 
       Effect.runFork(
         ahead.read.pipe(
@@ -222,6 +239,9 @@ export default defineContentScript({
           Effect.ensuring(
             Effect.sync(() => {
               reading = false;
+              const held = after;
+              after = undefined;
+              if (held !== undefined && !asked.has(held.key)) warm(held);
             }),
           ),
         ),
@@ -306,10 +326,7 @@ export default defineContentScript({
         if (ahead === null || asked.has(ahead.key)) return;
 
         clearTimeout(dwelling);
-        dwelling = setTimeout(() => {
-          asked.add(ahead.key);
-          warm(ahead);
-        }, DWELL);
+        dwelling = setTimeout(() => warm(ahead), DWELL);
       },
       { passive: true },
     );
@@ -371,7 +388,6 @@ export default defineContentScript({
             return;
           }
 
-          asked.add(ahead.key);
           warm(ahead);
         });
       },
