@@ -9,6 +9,47 @@ afterEach(cleanup)
 const settle = (ms = 40) => act(() => new Promise((rest) => setTimeout(rest, ms)))
 
 /**
+ * Reads the test finishes by hand, in the order they were asked for.
+ *
+ * A `sleep` inside the read with a shorter `settle` beside it says the same
+ * thing in less code, and that pair is a race rather than a fact: the two are
+ * counted by the same clock, so under load the sleep finishes first and an
+ * assertion about a read that is still running reads one that has already
+ * answered. Holding the read open until the test says otherwise makes "still
+ * running" true for as long as the test needs it to be.
+ */
+const held = <A,>(...answers: ReadonlyArray<A>) => {
+  const gates = answers.map(() => {
+    let open!: () => void
+    const shut = new Promise<void>((rest) => {
+      open = rest
+    })
+    return { shut, open }
+  })
+  let asked = 0
+
+  return {
+    load: () => {
+      const at = asked++
+      const gate = gates[at]
+      const answer = answers[at]
+      if (gate === undefined || answer === undefined) {
+        throw new Error(`Read ${at + 1} was not expected`)
+      }
+      return Effect.promise(() => gate.shut).pipe(Effect.as(answer))
+    },
+
+    /** Lets the read at `nth`, counting from one, answer. */
+    answer: (nth: number) => {
+      const gate = gates[nth - 1]
+      if (gate === undefined) throw new Error(`There is no read ${nth} to answer`)
+      gate.open()
+      return settle(1)
+    }
+  }
+}
+
+/**
  * A screen with one list on it, saying which of the three states it is in.
  *
  * The same three `useLiveRead` had, because they are the three a reader can be
@@ -91,16 +132,16 @@ describe("a read that stays live", () => {
   })
 
   test("shows what was remembered until the live read answers", async () => {
-    const load = () => Effect.sleep("30 millis").pipe(Effect.as(["fresh"]))
+    const live = held(["fresh"])
     const preload = () => Effect.succeed(Option.some(["remembered"]))
 
-    render(<Screen load={load} preload={preload} />)
+    render(<Screen load={live.load} preload={preload} />)
 
     await settle(10)
 
     expect(rowsOf()).toBe("remembered")
 
-    await settle(50)
+    await live.answer(1)
 
     expect(rowsOf()).toBe("fresh")
   })
@@ -138,25 +179,25 @@ describe("a read that stays live", () => {
  */
 describe("a memory with a read still running behind it", () => {
   test("says it is catching up, and stops saying it once GitHub answers", async () => {
-    const load = () => Effect.sleep("30 millis").pipe(Effect.as(["fresh"]))
+    const live = held(["fresh"])
     const preload = () => Effect.succeed(Option.some(["remembered"]))
 
-    render(<Screen load={load} preload={preload} />)
+    render(<Screen load={live.load} preload={preload} />)
     await settle(10)
 
     expect(rowsOf()).toBe("remembered")
     expect(catchingUp()).toBe("yes")
 
-    await settle(50)
+    await live.answer(1)
 
     expect(rowsOf()).toBe("fresh")
     expect(catchingUp()).toBe("no")
   })
 
   test("says nothing where there is nothing to look at yet", async () => {
-    const load = () => Effect.sleep("30 millis").pipe(Effect.as(["fresh"]))
+    const live = held(["fresh"])
 
-    render(<Screen load={load} />)
+    render(<Screen load={live.load} />)
     await settle(10)
 
     // The wait is already saying this, in the middle of the screen, at the size
@@ -166,12 +207,10 @@ describe("a memory with a read still running behind it", () => {
   })
 
   test("says it again for the re-read that coming back to the tab starts", async () => {
-    let asked = 0
-    const load = () =>
-      Effect.sleep("20 millis").pipe(Effect.map(() => [`read ${++asked}`]))
+    const live = held(["read 1"], ["read 2"])
 
-    render(<Screen load={load} />)
-    await settle(60)
+    render(<Screen load={live.load} />)
+    await live.answer(1)
 
     expect(catchingUp()).toBe("no")
 
@@ -185,7 +224,7 @@ describe("a memory with a read still running behind it", () => {
     expect(rowsOf()).toBe("read 1")
     expect(catchingUp()).toBe("yes")
 
-    await settle(60)
+    await live.answer(2)
 
     expect(rowsOf()).toBe("read 2")
     expect(catchingUp()).toBe("no")
