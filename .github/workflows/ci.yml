@@ -85,10 +85,30 @@ jobs:
       - name: Gates
         run: bun run gates
 
-      # The zip the release attaches and submits, built here so a packaging
+      # The zips the release attaches and submits, built here so a packaging
       # failure is not first seen after a tag is already published.
+      #
+      # Both, because `wxt zip` only writes the sources archive for firefox and
+      # opera. Building the chrome one alone left the archive untested, and it
+      # broke twice: once at 72 MB of the wrong thing, once at 129 bytes holding
+      # a single file. Both went green here and were found by hand after a tag.
+      #
+      # The two bounds are what a packaging bug looks like from outside. An
+      # archive that lost its contents falls under the floor, one that swallowed
+      # a build folder or a `node_modules` goes over the ceiling, and Mozilla
+      # rebuilds the extension from whichever one it is sent.
       - name: Package
-        run: bun run zip
+        run: |
+          bun run zip
+          bun run zip:firefox
+          sources=$(echo .output/*-sources.zip)
+          files=$(unzip -Z1 "$sources" | wc -l | tr -d ' ')
+          bytes=$(stat -c%s "$sources")
+          echo "$sources holds $files files in $bytes bytes"
+          if [ "$files" -lt 400 ] || [ "$bytes" -gt 5000000 ]; then
+            echo "::error::The sources archive holds $files files in $bytes bytes. Expected over 400 files and under 5 MB. See the zip block in wxt.config.ts."
+            exit 1
+          fi
 
   # Its own job, so it answers in about fifteen seconds next to the two minutes
   # of the one above rather than after them. GitHub's push protection catches a
