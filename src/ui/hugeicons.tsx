@@ -1,5 +1,6 @@
 import {
   Activity03Icon,
+  Archive02Icon,
   Alert02Icon,
   Analytics01Icon,
   ArrowLeft01Icon,
@@ -23,6 +24,7 @@ import {
   Folder01Icon,
   InformationCircleIcon,
   LeftToRightListBulletIcon,
+  LockIcon,
   PaintBrush01Icon,
   QuoteDownIcon,
   SlidersHorizontalIcon,
@@ -34,6 +36,7 @@ import {
   Comment01Icon,
   DotIcon,
   EyeIcon,
+  GitForkIcon,
   GitMergeIcon,
   GitPullRequestClosedIcon,
   GitPullRequestDraftIcon,
@@ -193,6 +196,9 @@ export const HUGEICONS: Set = {
   // This set has an unread tray of its own, with the mark drawn into the glyph.
   "notifications-unread": from(InboxUnreadIcon),
   repositories: from(RepositoryIcon),
+  fork: from(GitForkIcon),
+  archived: from(Archive02Icon),
+  private: from(LockIcon),
   activity: from(Activity03Icon),
   search: from(Search01Icon),
   create: from(PlusSignIcon),

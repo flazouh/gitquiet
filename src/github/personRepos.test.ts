@@ -97,6 +97,22 @@ describe("reading their repositories tab", () => {
     expect(retired.every((row) => row.isArchived)).toBe(true)
   })
 
+  /*
+   * The flag rather than the parent's name, and the row needs both. A fork whose parent
+   * was deleted or made private carries no "Forked from" line at all, so a row that knew
+   * only the parent would draw somebody else's work as this person's.
+   */
+  test("reads a fork off the row, whether or not it names a parent", () => {
+    const rows = repositoriesOnPage(real)
+    const forks = rows.filter((row) => row.isFork)
+
+    expect(forks.length).toBeGreaterThan(0)
+    expect(forks.every((row) => Option.isSome(row.forkedFrom))).toBe(true)
+    expect(rows.filter((row) => !row.isFork).every((row) => Option.isNone(row.forkedFrom))).toBe(
+      true
+    )
+  })
+
   test("comes back empty on a page that is not one of theirs", () => {
     // What the screen sees on an organisation, or on the day their markup changes.
     // Nothing rather than a row of empty strings, so the screen hands the page back.

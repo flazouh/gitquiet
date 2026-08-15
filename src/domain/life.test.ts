@@ -28,6 +28,7 @@ const row = (over: Partial<ListedRepository> & { readonly repo: string }): Liste
   forks: 0,
   pushedAt: Option.some(daysAgo(1)),
   isArchived: false,
+  isFork: false,
   forkedFrom: Option.none(),
   isPrivate: false,
   ...over
@@ -270,10 +271,12 @@ describe("the last-moved strip", () => {
 })
 
 describe("which groups are shut", () => {
-  test("forked starts shut and the other three start open", () => {
+  test("quiet and forked start shut, and the two worth reading start open", () => {
+    // Quiet is the larger half of most accounts and Forked is somebody else's work.
+    // Between them they are what pushed Retired off the bottom of the screen.
+    expect(isShut([], "flazouh", "quiet")).toBe(true)
     expect(isShut([], "flazouh", "forked")).toBe(true)
     expect(isShut([], "flazouh", "moving")).toBe(false)
-    expect(isShut([], "flazouh", "quiet")).toBe(false)
     expect(isShut([], "flazouh", "retired")).toBe(false)
   })
 
@@ -287,10 +290,10 @@ describe("which groups are shut", () => {
   test("is remembered for one person and not for the next", () => {
     // 154 repositories of one account and three of another are not the same list
     // and do not want the same shape.
-    const turned = [turnedEntry("flazouh", "quiet")]
+    const turned = [turnedEntry("flazouh", "moving")]
 
-    expect(isShut(turned, "flazouh", "quiet")).toBe(true)
-    expect(isShut(turned, "sindresorhus", "quiet")).toBe(false)
+    expect(isShut(turned, "flazouh", "moving")).toBe(true)
+    expect(isShut(turned, "sindresorhus", "moving")).toBe(false)
   })
 
   test("answers the same whatever case their name was written in", () => {

@@ -1,5 +1,6 @@
 import {
   AlertFillIcon,
+  ArchiveIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
   ArrowUpLeftIcon,
@@ -38,6 +39,7 @@ import {
   ItalicIcon,
   KebabHorizontalIcon,
   LinkExternalIcon,
+  LockIcon,
   LinkIcon,
   PaperclipIcon,
   ListUnorderedIcon,
@@ -52,6 +54,7 @@ import {
   ProjectIcon,
   PulseIcon,
   QuoteIcon,
+  RepoForkedIcon,
   RepoIcon,
   SearchIcon,
   ShieldIcon,
@@ -113,6 +116,9 @@ export const OCTICONS: Set = {
   // Octicons has no unread tray, so the filled one says it.
   "notifications-unread": InboxFillIcon,
   repositories: RepoIcon,
+  fork: RepoForkedIcon,
+  archived: ArchiveIcon,
+  private: LockIcon,
   activity: PulseIcon,
   search: SearchIcon,
   create: PlusIcon,

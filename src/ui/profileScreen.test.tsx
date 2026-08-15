@@ -23,6 +23,7 @@ const row = (over: Partial<ListedRepository> & { readonly repo: string }): Liste
   forks: 0,
   pushedAt: daysAgo(2),
   isArchived: false,
+  isFork: false,
   forkedFrom: Option.none(),
   isPrivate: false,
   ...over

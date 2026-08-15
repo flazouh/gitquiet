@@ -8,7 +8,8 @@
 
 import { Option } from "effect"
 import type { ListedRepository } from "../domain/life"
-import { ASIDE, PILL } from "./dress"
+import { type ArtName, useArt } from "./art"
+import { ASIDE } from "./dress"
 import { dayOf, momentOf } from "./when"
 
 /**
@@ -20,6 +21,72 @@ import { dayOf, momentOf } from "./when"
  * in a real list — thirty rows of `sindresorhus` and thirty of `tj` — with the
  * description taking whatever is left, because it is the part worth the width.
  */
+/**
+ * What one row is, as a glyph and the sentence behind it.
+ *
+ * Four kinds and one order, because a row can be three of them at once: an archived
+ * private fork is archived first, since finished is the fact that decides whether the
+ * reader opens it. Their own list says none of this on the row — the label beside the
+ * name says "Public", which is the least interesting thing about a repository — and the
+ * fork's parent is a line of prose halfway down a five-line row.
+ */
+const kindOf = (one: ListedRepository): { readonly art: ArtName; readonly said: string } => {
+  if (one.isArchived) return { art: "archived", said: "Archived" }
+  if (one.isFork) return { art: "fork", said: "A fork" }
+  if (one.isPrivate) return { art: "private", said: "Private" }
+  return { art: "repositories", said: "Repository" }
+}
+
+/**
+ * The glyph at the head of a row, with what it means said aloud.
+ *
+ * A title for the pointer and a label for a reader being read to, because a glyph alone
+ * is a shape somebody has to have been taught. The four are distinct at 12 pixels, which
+ * is the size a row can spare.
+ */
+const Kind = ({ one }: { readonly one: ListedRepository }) => {
+  const kind = kindOf(one)
+  const Glyph = useArt()[kind.art]
+  const said = Option.match(one.forkedFrom, {
+    onNone: () => kind.said,
+    onSome: (from) => `Forked from ${from}`
+  })
+
+  /* Said once: the label rides on the wrapper and the glyph is hidden under it, as the
+     date column's "never" already does. Both carrying it announces the row twice. */
+  return (
+    <span role="img" aria-label={said} title={said} className="shrink-0 text-ink-muted">
+      <Glyph size={12} aria-hidden="true" />
+    </span>
+  )
+}
+
+/**
+ * Up to three of their topics, where the row carried any.
+ *
+ * Three, because the spec settled on three and a row of nine chips is the five-line row
+ * this list exists to undo. They are what a reader remembers a library by — that it
+ * parsed dates, rather than that it was called `chrono` — and the find box above reads
+ * every one of them, including the ones past the third.
+ */
+const Topics = ({ topics }: { readonly topics: ReadonlyArray<string> }) => {
+  if (topics.length === 0) return null
+
+  return (
+    <>
+      {topics.slice(0, 3).map((topic) => (
+        <a
+          key={topic}
+          href={`/topics/${topic}`}
+          className="shrink-0 rounded-full bg-inset px-1.5 py-px text-ink-muted text-[11px] no-underline hover:bg-hover hover:text-ink-accent"
+        >
+          {topic}
+        </a>
+      ))}
+    </>
+  )
+}
+
 const TRACK = {
   name: "14rem",
   said: "minmax(0,1fr)",
@@ -119,20 +186,24 @@ export const Row = ({
       }
     >
       <span className="flex min-w-0 items-center gap-1.5">
+        {/* What it is before what it is called: a fork, an archive and a locked
+            repository are three different things to open, and the label their own row
+            carries says "Public", which is the one thing nobody is deciding on. */}
+        <Kind one={one} />
         <a
           href={`/${one.nameWithOwner}`}
           className="min-w-0 truncate font-semibold text-ink text-sm no-underline hover:underline"
         >
           {one.repo}
         </a>
-        {one.isPrivate ? (
-          <span className={`${PILL} shrink-0 text-ink-muted text-[11px]`}>Private</span>
-        ) : null}
       </span>
 
       {/* One cell either way, so the columns past it stay straight. */}
-      <span className={`min-w-0 truncate ${ASIDE}`} title={says}>
-        {says}
+      <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+        <span className={`min-w-0 truncate ${ASIDE}`} title={says}>
+          {says}
+        </span>
+        <Topics topics={one.topics} />
       </span>
 
       {columns.language ? (

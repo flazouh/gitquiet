@@ -23,6 +23,7 @@ const row = (over: Partial<ListedRepository> & { readonly repo: string }): Liste
   forks: 0,
   pushedAt: daysAgo(2),
   isArchived: false,
+  isFork: false,
   forkedFrom: Option.none(),
   isPrivate: false,
   ...over
@@ -173,18 +174,37 @@ describe("one row", () => {
     expect(one.textContent).toContain("3 forks")
   })
 
-  test("keeps the topics out of the line and in the find box", async () => {
-    // Their own rows print every topic as a chip, which is how thirty repositories
-    // become five hundred pixels of chips. The topics are still how a reader finds
-    // one, so they are searched rather than drawn.
-    shown([row({ repo: "gitquiet", topics: ["browser-extension"] })])
+  test("prints three topics at most, and finds by the ones it did not print", async () => {
+    // Their own rows print every topic, which is how thirty repositories become five
+    // hundred pixels of chips. Three is what a row can carry; the find box reads all of
+    // them, so the fourth is still how a reader gets to the row.
+    shown([
+      row({
+        repo: "gitquiet",
+        topics: ["browser-extension", "github", "typescript", "effect-ts"]
+      })
+    ])
     await screen.findByRole("listitem")
 
-    expect(screen.queryByText("browser-extension")).toBeNull()
+    expect(screen.getByText("browser-extension")).toBeTruthy()
+    expect(screen.queryByText("effect-ts")).toBeNull()
 
-    await userEvent.type(screen.getByRole("searchbox"), "browser-ext")
+    await userEvent.type(screen.getByRole("searchbox"), "effect-ts")
 
     expect(names()).toEqual(["gitquiet"])
+  })
+
+  test("says what a row is with a glyph, before its name is read", async () => {
+    shown([
+      row({ repo: "vscode", isFork: true, forkedFrom: Option.some("microsoft/vscode") }),
+      row({ repo: "old-cli", isArchived: true }),
+      row({ repo: "notes", isPrivate: true })
+    ])
+    await screen.findAllByRole("listitem")
+
+    expect(screen.getByLabelText("Forked from microsoft/vscode")).toBeTruthy()
+    expect(screen.getByLabelText("Archived")).toBeTruthy()
+    expect(screen.getByLabelText("Private")).toBeTruthy()
   })
 
   test("names what a fork came from, so the row is not read as their work", async () => {

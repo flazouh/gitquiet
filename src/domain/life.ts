@@ -46,6 +46,14 @@ export type ListedRepository = {
    */
   readonly pushedAt: Option.Option<string>
   readonly isArchived: boolean
+  /**
+   * Whether GitHub calls it a fork at all.
+   *
+   * Apart from {@link forkedFrom}, which is the parent's name and is missing on a fork
+   * whose parent was deleted or made private. The flag is on every fork either way, so a
+   * row can say what it is without being able to say what it came from.
+   */
+  readonly isFork: boolean
   /** A fork, with the repository it came from where the row named one. */
   readonly forkedFrom: Option.Option<string>
   readonly isPrivate: boolean
@@ -178,13 +186,18 @@ const pushedFirst = (left: ListedRepository, right: ListedRepository): number =>
 }
 
 /**
- * The group that starts shut, and it is the only one.
+ * The groups that start shut.
  *
- * Forked, because a fork nobody pushed to is somebody else's work and is most of
- * what makes these lists long. The other three are what the reader came for and a
- * heading with nothing under it answers nothing.
+ * Forked, because a fork nobody pushed to is somebody else's work and is most of what
+ * makes these lists long. Quiet as well, because it is the larger half of most accounts
+ * and it is not what anybody opens a list of repositories to find: 60 of this author's
+ * 90 are quiet, and every one of them sat above Retired and pushed it off the screen.
+ * Moving is what the reader came for and it stays open.
+ *
+ * Shut is not hidden. The heading carries the count, so a shut group still says how many
+ * are in it, and one press is the whole cost of reading them.
  */
-export const SHUT_AT_FIRST: ReadonlySet<Life> = new Set<Life>(["forked"])
+export const SHUT_AT_FIRST: ReadonlySet<Life> = new Set<Life>(["quiet", "forked"])
 
 /** One remembered turn of one group of one person's list. */
 export const turnedEntry = (login: string, life: Life): string => `${login.toLowerCase()}:${life}`

@@ -97,6 +97,16 @@ export type ArtName =
    */
   | "working-set"
   | "repositories"
+  /**
+   * What one repository in a list is, said before its name is read.
+   *
+   * Three states worth a glyph of their own, and they are the three that change what a
+   * row means: a fork is somebody else's work, an archive is finished work, and a lock
+   * is work nobody else can open. Everything else takes `repositories`.
+   */
+  | "fork"
+  | "archived"
+  | "private"
   | "activity"
   | "search"
   | "create"

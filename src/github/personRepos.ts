@@ -116,6 +116,7 @@ const repositoryIn = (row: Element): ReadonlyArray<ListedRepository> => {
        * page GitHub serves.
        */
       isArchived: row.classList.contains("archived"),
+      isFork: row.classList.contains("fork"),
       forkedFrom: forkedFromIn(row),
       isPrivate: row.classList.contains("private")
     }
