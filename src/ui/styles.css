@@ -26,31 +26,37 @@
  *
  * Nothing here reaches their page: these rules only apply to class names this
  * interface writes.
- */
-/**
- * `source("../")` is `src`, and only `src`.
  *
- * Tailwind looks for class names from the directory the build runs in when
- * nothing says otherwise, and both builds that make this sheet run at the
- * repository root. So the desktop window and the marketing site were writing
- * into the sheet the extension ships: 12 KB of rules for pages that never load
- * it. Each of those has its own entry and scopes itself the same way.
+ * `source("../")` is `src`, and only `src`. Tailwind looks for class names from
+ * the directory the build runs in when nothing says otherwise, and both builds
+ * that make this sheet run at the repository root, so the desktop window, the
+ * marketing site, the video project and the planning notes were all writing into
+ * the sheet every reader downloads. Each of those has its own entry and scopes
+ * itself the same way.
  *
- * It also made the build unreproducible. Mozilla rebuilds the extension from the
- * sources archive, which carries no `desktop` and no `site`, so the sheet a
- * reviewer built came out 12 KB shorter than the uploaded one, with nothing in
- * the diff to say why.
+ * The scope also has to match what the sources archive holds, because Mozilla
+ * rebuilds the extension from that archive and compares. Anything scanned here
+ * and missing there is a stylesheet a reviewer cannot reproduce.
+ *
+ * A caveat, because this file is imported by `site/src/index.css` as well:
+ * `source(...)` applies to its own import, while `@source` is collected across
+ * the whole sheet. The site keeps its own scan only because it declares its
+ * utilities first and Tailwind keeps the first declaration it sees.
  */
 @import "tailwindcss/utilities.css" source("../");
 
 /*
- * Tests render the same components, so their class names read as used ones, and
- * half a kilobyte of the shipped sheet was styling assertions. The sources
- * archive holds no test file either, so this is the last thing between the
- * uploaded build and a rebuilt one.
+ * The test files, which the archive drops and this therefore cannot scan. They
+ * render the same components, so their class names read as used ones.
+ *
+ * Written to match WXT's own `excludeSources` default rather than the two
+ * suffixes in use today, because `thing.spec.tsx` is a name bun accepts and the
+ * archive already drops. Narrower patterns would let the first one reopen this
+ * silently.
  */
-@source not "../**/*.test.tsx";
-@source not "../**/*.test.ts";
+@source not "../**/*.test.*";
+@source not "../**/*.spec.*";
+@source not "../**/__tests__/**";
 
 @import "./primer.css";
 @import "./motion.css";
