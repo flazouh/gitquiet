@@ -152,7 +152,7 @@ export const CommitScreen = ({
           sixteen, twenty-four and thirty-two by width — and it landed on top of
           the inset `#gitquiet-root` already carries, so the panel started forty
           pixels in on a narrow window against a bar at sixteen. The shell owns
-          the frame now: see `--gitquiet-gutter` in `widths.css`. */}
+          the frame now, on the container every screen has: see `widths.css`. */}
       <div ref={setOurs} className="flex flex-col pt-2">
         {/* The one panel on the page, given the room left under GitHub's header:
             a diff is read in place, with the tree beside it and the next file a
