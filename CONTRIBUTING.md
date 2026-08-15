@@ -30,6 +30,13 @@ bun run gates   # oxlint over src, then tsc --noEmit, then the whole suite
 The list lives in `package.json`, so the git hooks and
 `.github/workflows/ci.yml` run that script rather than their own copy of it.
 
+A test is given twenty seconds rather than bun's five. `--parallel` runs a worker
+per core and a dozen of these tests parse a real GitHub page of a third of a
+megabyte, so under a full run they take three or four seconds on this machine and
+more than that on a runner with two slow ones. Five seconds was close enough to
+fail a different handful each time, which reads as a fault in the code under it.
+Waiting longer costs nothing where the test passes, because that is when it ends.
+
 `bun install` writes a `pre-commit` hook that lints the staged files, and a
 `pre-push` hook that runs the gates. Both come from `lefthook.yml`. A push that
 would turn the branch red is refused before it leaves your machine.
