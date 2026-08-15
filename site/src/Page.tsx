@@ -12,6 +12,21 @@ const STORE_AT =
 
 const SOURCE_AT = "https://github.com/flazouh/gitquiet"
 
+/*
+ * The two ways in that are not the Chrome store, which is the button.
+ *
+ * `releases/latest/download` and a fixed file name, because that is the only link
+ * to a release asset that survives the next release. So this file is not edited to
+ * cut one, and is not stale between them. The release workflow attaches each disk
+ * image under the version as well, for the downloads folder it lands in.
+ *
+ * Firefox is absent rather than pending. addons.mozilla.org answers 404 for a
+ * listing it has not approved yet, and a dead link reads as a dead product, so it
+ * goes in here on the day the listing is public.
+ */
+const SAFARI_AT = `${SOURCE_AT}/releases/latest/download/GitQuiet-safari.dmg`
+const MAC_AT = `${SOURCE_AT}/releases/latest/download/GitQuiet-macos-arm64.dmg`
+
 const Octocat = ({ size = 17 }: { readonly size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
     <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.07-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.15 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A7.995 7.995 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
@@ -40,6 +55,44 @@ const Install = ({ big = false }: { readonly big?: boolean }) => (
   >
     Add to Chrome
   </a>
+)
+
+/*
+ * The underlined link inside a paragraph, which is every link here that is not a
+ * button. Four places wrote this by hand, and three of them had drifted off the
+ * shared duration the buttons animate on.
+ *
+ * A link that leaves the site opens beside it. That is the rule the four call
+ * sites already followed, so it is read off the address rather than passed in.
+ */
+const Quietly = ({ at, children }: { readonly at: string; readonly children: ReactNode }) => {
+  const away = at.startsWith("http")
+
+  return (
+    <a
+      className="underline decoration-ink/25 underline-offset-2 transition-colors duration-[var(--duration-press)] ease-out hover:decoration-ink/60"
+      href={at}
+      target={away ? "_blank" : undefined}
+      rel={away ? "noreferrer" : undefined}
+    >
+      {children}
+    </a>
+  )
+}
+
+/*
+ * A sentence rather than a joined list, because the ways in are reached three
+ * different ways and no separator makes that read as English. Firefox joins it
+ * here, in prose, on the day the listing is public.
+ *
+ * Centred where it sits under the closing card, without being told to be: that
+ * card centres its text already, and `text-align` is inherited.
+ */
+const Elsewhere = () => (
+  <p className="m-0 text-[15px] leading-relaxed text-ink/60">
+    Also for <Quietly at={SAFARI_AT}>Safari</Quietly>, or as a{" "}
+    <Quietly at={MAC_AT}>macOS app</Quietly>.
+  </p>
 )
 
 const Says = ({ over, title }: { readonly over: string; readonly title: string }) => (
@@ -78,14 +131,9 @@ const AGAINST: readonly {
     aspect: "A comment on code that moved",
     theirs: (
       <>
-        <a
-          className="underline decoration-ink/25 underline-offset-2 transition-colors hover:decoration-ink/60"
-          href="https://github.com/refined-github/refined-github/issues/7255"
-          target="_blank"
-          rel="noreferrer"
-        >
+        <Quietly at="https://github.com/refined-github/refined-github/issues/7255">
           Closed as not planned
-        </a>
+        </Quietly>
         , under the label &ldquo;impossible&rdquo;.
       </>
     ),
@@ -151,7 +199,7 @@ export const Page = () => (
           </h1>
 
           <p className="mt-7 max-w-xl text-pretty text-[clamp(1.05rem,2.2vw,1.3rem)] leading-relaxed text-ink/70">
-            GitQuiet is a Chrome extension for GitHub pull request review. It redraws fourteen
+            GitQuiet is a browser extension for GitHub pull request review. It redraws fourteen
             pages on github.com itself, from a pull request to a failing Actions run. Your work
             is grouped by who has to act next: you, someone else, a machine, or nobody.
           </p>
@@ -161,15 +209,14 @@ export const Page = () => (
             <span className="text-[15px] text-ink/60">Chrome and Edge. No account, no server.</span>
           </div>
 
+          <div className="mt-4">
+            <Elsewhere />
+          </div>
+
           <p className="mt-6 max-w-lg text-[15px] leading-relaxed text-ink/60">
             Your code and reviews stay in your browser. Your teammates see your reviews and
             comments exactly as before, whether they installed it or not.{" "}
-            <a
-              className="underline decoration-ink/25 underline-offset-2 transition-colors hover:decoration-ink/60"
-              href="/privacy.html"
-            >
-              Read the privacy policy
-            </a>
+            <Quietly at="/privacy.html">Read the privacy policy</Quietly>
             .
           </p>
         </div>
@@ -228,14 +275,7 @@ export const Page = () => (
       <section className="border-t border-rule py-24">
         <Says over="The comparison" title="What about Refined GitHub?" />
         <p className="-mt-4 mb-12 max-w-2xl text-pretty text-[17px] leading-relaxed text-muted">
-          <a
-            className="underline decoration-ink/25 underline-offset-2 transition-colors hover:decoration-ink/60"
-            href="https://github.com/refined-github/refined-github"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Refined GitHub
-          </a>{" "}
+          <Quietly at="https://github.com/refined-github/refined-github">Refined GitHub</Quietly>{" "}
           fixes hundreds of small annoyances on GitHub&rsquo;s own pages, and it is good at
           that: the Chrome store counted 100,000 users in August 2026. The two extensions
           differ in where they start.
@@ -327,6 +367,10 @@ export const Page = () => (
             </p>
             <div className="mt-9 flex justify-center">
               <Install big />
+            </div>
+
+            <div className="mt-5">
+              <Elsewhere />
             </div>
           </div>
         </div>

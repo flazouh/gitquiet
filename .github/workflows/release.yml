@@ -324,11 +324,22 @@ jobs:
         with:
           dmg: ${{ env.DMG }}
 
+      # Twice, under two names.
+      #
+      # The versioned one is what somebody ends up with in their downloads
+      # folder, where `GitQuiet.dmg` says nothing about which build it is. The
+      # second is a fixed name, because `releases/latest/download/NAME` is the
+      # only link to a release asset that survives the next release, and it
+      # resolves a name and not a pattern. That link is the download button on
+      # gitquiet.com, so without it the site has to be edited on every release
+      # and is wrong in between.
       - name: Attach the app to the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.gate.outputs.tag }}
-        run: gh release upload "$RELEASE_TAG" "$DMG" --clobber
+        run: |
+          cp "$DMG" GitQuiet-macos-arm64.dmg
+          gh release upload "$RELEASE_TAG" "$DMG" GitQuiet-macos-arm64.dmg --clobber
 
   safari:
     name: Safari app
@@ -443,8 +454,13 @@ jobs:
         with:
           dmg: ${{ env.DMG }}
 
+      # Under a fixed second name as well, for the same reason as the macOS app
+      # above: the site's download link has to outlive the release it was written
+      # against.
       - name: Attach the Safari app to the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.gate.outputs.tag }}
-        run: gh release upload "$RELEASE_TAG" "$DMG" --clobber
+        run: |
+          cp "$DMG" GitQuiet-safari.dmg
+          gh release upload "$RELEASE_TAG" "$DMG" GitQuiet-safari.dmg --clobber
