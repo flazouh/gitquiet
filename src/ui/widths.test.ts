@@ -73,6 +73,11 @@ describe("the measures GitHub's own layout would otherwise hold", () => {
      * The two shapes are what an outer frame looks like here: a padding across beside a
      * padding down the page, on the element holding a whole screen. A card's own `p-4` is
      * not one of them and is left alone.
+     *
+     * `px-6 pt-2` is the seventh, found on `CommitScreen` long after this test was
+     * written and not caught by it: that screen put GitHub's own twenty-four pixels back
+     * by hand, and the shapes listed here were the six that had already been taken off.
+     * A guard that only names the frames somebody has removed catches nothing new.
      */
     const bodies = ["WorkingSet", "History"]
     const screens = [...new Bun.Glob("src/ui/*Screen.tsx").scanSync()]
@@ -82,7 +87,8 @@ describe("the measures GitHub's own layout would otherwise hold", () => {
     for (const path of [...screens, ...bodies.map((one) => `src/ui/${one}.tsx`)]) {
       const written = readFileSync(path, "utf8")
 
-      for (const shape of ["px-4 py-3", "px-4 pt-3", "px-4 pb-6"]) expect(written).not.toContain(shape)
+      for (const shape of ["px-4 py-3", "px-4 pt-3", "px-4 pb-6", "px-6 pt-2"])
+        expect(written).not.toContain(shape)
     }
   })
 
