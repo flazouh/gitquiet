@@ -5,8 +5,9 @@ import { chosenView } from "@/app/settings"
 import { type PersonPage, personReposIn } from "@/domain/person"
 import type { View } from "@/domain/Settings"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
-import { held, standAScreen, theColumn } from "@/shell/screen"
+import { held, standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
+import { theirColumn } from "./theirColumn"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenAddressChanges } from "@/ui/navigation"
 import { PERSON_REPOS } from "@/ui/place"
@@ -38,9 +39,9 @@ const open = (page: PersonPage): (() => void) => {
 
   /*
    * Their column, where the press that brought the reader here loaded no document and
-   * there is none on the page to read. See `theColumn`.
+   * there is none on the page to read. See `theirColumn`.
    */
-  const column = theColumn(page.login)
+  const column = theirColumn(page)
 
   /*
    * Who they are is not read here, and that is deliberate. The column is in the markup

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import { Option } from "effect"
 import type { Person } from "../domain/person"
-import { type Elsewhere, usePerson } from "./usePerson"
+import { type TheirColumn, usePerson } from "./usePerson"
 
 afterEach(cleanup)
 
@@ -34,12 +34,14 @@ const someone = (over: Partial<Person> = {}): Person => ({
  */
 const Probe = ({
   read,
+  login = "flazouh",
   elsewhere
 }: {
   readonly read: (page: Document) => Option.Option<Person>
-  readonly elsewhere?: Elsewhere
+  readonly login?: string
+  readonly elsewhere?: TheirColumn
 }) => {
-  const who = usePerson(read, elsewhere, document, WATCHING)
+  const who = usePerson(read, login, elsewhere, document, WATCHING)
   return <p>{who === undefined ? "nobody" : `${Option.getOrElse(who.followers, () => "no")} followers`}</p>
 }
 
@@ -110,6 +112,28 @@ describe("who the served page says they are", () => {
     await rested()
 
     expect(screen.getByText("25 followers")).toBeTruthy()
+  })
+
+  /*
+   * One person's page pressed from another's. No document loads, and the screen redraws
+   * in the container it is already standing in — so the card in the markup underneath is
+   * still the person the reader left, and reading it would draw their face over the name
+   * of somebody else.
+   */
+  test("declines a card for somebody else, and takes the right one from elsewhere", async () => {
+    render(
+      <Probe
+        login="sindresorhus"
+        read={() => Option.some(someone({ login: "flazouh", followers: Option.some("25") }))}
+        elsewhere={(found) =>
+          found(someone({ login: "sindresorhus", followers: Option.some("11") }))
+        }
+      />
+    )
+
+    await waitFor(() => expect(screen.getByText("11 followers")).toBeTruthy())
+    await rested()
+    expect(screen.getByText("11 followers")).toBeTruthy()
   })
 
   test("stops watching, rather than observing the page behind a reader", async () => {

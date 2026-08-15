@@ -25,7 +25,7 @@ import { painted, Section } from "./Section"
 import { TheBar } from "./TheBar"
 import type { Load } from "./useLive"
 import { useLive } from "./useLive"
-import { type Elsewhere, usePerson } from "./usePerson"
+import { type TheirColumn, usePerson } from "./usePerson"
 import { useSettings } from "./useSettings"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -64,7 +64,7 @@ export type PersonReposScreenProps = {
    * Given on a press this extension answered itself: no document loads, so their card is
    * not on the page and never will be. See `usePerson`.
    */
-  readonly elsewhere?: Elsewhere
+  readonly elsewhere?: TheirColumn
   /** Restores GitHub's own page, which is still behind this one. */
   readonly onStepAside: () => void
   readonly signedIn?: () => boolean
@@ -278,7 +278,7 @@ export const PersonReposScreen = ({
   now = new Date()
 }: PersonReposScreenProps) => {
   /* What was given, or what the page says once it has been parsed. See `usePerson`. */
-  const served = usePerson(readWho, elsewhere)
+  const served = usePerson(readWho, login, elsewhere)
   const them = who ?? served
   const live = useLive(load)
   const { read } = live

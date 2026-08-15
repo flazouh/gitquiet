@@ -1,4 +1,4 @@
-import { Effect, Fiber, Layer, Option, UndefinedOr } from "effect"
+import { Effect, Layer, Option, UndefinedOr } from "effect"
 import type {
   Check,
   CheckState,
@@ -481,30 +481,41 @@ const fetchViewerRoute = Effect.fn("fetchViewerRoute")(function* (route: string)
  * an hour against the address, which is why the answer is kept and why Activity asks once a
  * visit rather than on every draw.
  */
-const eventsAt = (route: string) =>
-  Effect.gen(function* () {
-    const response = yield* Effect.tryPromise({
-      try: () => fetch(route, { credentials: "omit", headers: { Accept: "application/json" } }),
-      catch: (cause) =>
-        new WorkingSetError({ route, reason: "unreachable", detail: String(cause) })
-    })
-
-    if (!response.ok) {
-      return yield* new WorkingSetError({
-        route,
-        reason: "rejected",
-        // Their 403 for a spent rate limit reads the same as any other refusal, and the
-        // remaining count is the thing that tells them apart when this turns up in a log.
-        detail: `HTTP ${response.status} (${response.headers.get("x-ratelimit-remaining") ?? "?"} left)`
+const eventsAt = (route: string): Effect.Effect<Came<unknown>> =>
+  askingOnce(
+    route,
+    Effect.gen(function* () {
+      const response = yield* Effect.tryPromise({
+        try: () => fetch(route, { credentials: "omit", headers: { Accept: "application/json" } }),
+        catch: (cause): Came<unknown> => ({
+          ok: false,
+          why: "unreachable",
+          detail: String(cause)
+        })
       })
-    }
 
-    return yield* Effect.tryPromise({
-      try: () => response.json(),
-      catch: (cause) =>
-        new WorkingSetError({ route, reason: "undecodable", detail: String(cause) })
-    })
-  })
+      if (!response.ok) {
+        return yield* Effect.fail<Came<unknown>>({
+          ok: false,
+          why: "rejected",
+          // Their 403 for a spent rate limit reads the same as any other refusal, and the
+          // remaining count is the thing that tells them apart when this turns up in a log.
+          detail: `HTTP ${response.status} (${response.headers.get("x-ratelimit-remaining") ?? "?"} left)`
+        })
+      }
+
+      const raw = yield* Effect.tryPromise({
+        try: () => response.json(),
+        catch: (cause): Came<unknown> => ({
+          ok: false,
+          why: "unreachable",
+          detail: String(cause)
+        })
+      })
+
+      return { ok: true, value: raw } satisfies Came<unknown>
+    }).pipe(Effect.catch(Effect.succeed))
+  )
 
 /** Their repository list, decoded, or a failure that names the route. */
 const decodedRepositories = (raw: unknown) =>
@@ -1552,129 +1563,72 @@ const repoDocument = Effect.fn("repoDocument")(function* (reference: RepoRef, ro
   })
 })
 
-/**
- * How long a person's page just fetched still answers for the next reader of it.
- *
- * This is not a cache and it is deliberately not one: it is the window between a pointer
- * coming near a link and the screen for that link asking the same question. Reading ahead
- * fetches a quarter of a megabyte of their markup, the press lands a few hundred
- * milliseconds later, and without this the screen fetches all of it again — the first
- * answer is still in the air, so nothing in the store has been written yet.
- *
- * Thirty seconds is far longer than that gap and far shorter than a page a reader would
- * notice going stale. The store behind it is what serves a reader who comes back.
- */
-const IN_THE_AIR = 30_000
+/** A read of one of a person's addresses, or why it did not come. */
+type Came<Value> =
+  | { readonly ok: true; readonly value: Value }
+  | { readonly ok: false; readonly why: "unreachable" | "rejected"; readonly detail: string }
 
 /**
- * How many of those are held at once.
- *
- * One entry per person whose page was read ahead, and each holds their markup for as long
- * as the window above. A reader sweeping a list of contributors passes a dozen names.
- */
-const AT_ONCE = 12
-
-/**
- * One of a person's own pages, as the document they serve it as.
+ * One of a person's own pages, as the document they serve it as, folded together with the
+ * identical read already in the air.
  *
  * Their markup, not a payload: every page under a person's login is Rails-rendered, so the
  * card, the counts and the rows are all in the document and there is no JSON route that
- * answers with any of it.
+ * answers with any of it. A quarter of a megabyte of it, which is why the fold matters —
+ * the pointer coming near a person's link starts this read, and the press a few hundred
+ * milliseconds later asks for the same address while the first answer is still on its way.
+ *
+ * Through `askingOnce`, and that is the only way this can work: the read ahead runs in the
+ * content script and the press runs in a screen, which are two bundles with two copies of
+ * this module and two Effect runtimes. A map here would fold each side's own reads and the
+ * two would never meet. See `flight.ts`, and `servedIssueAt` above, which is the same
+ * problem solved the same way.
  */
-const theirMarkup = Effect.fn("theirMarkup")(function* (route: string) {
-  const response = yield* Effect.tryPromise({
-    try: () => fetch(`https://github.com${route}`, {
-      headers: { Accept: "text/html" },
-      credentials: "include"
-    }),
-    catch: (cause) => new WorkingSetError({ route, reason: "unreachable", detail: String(cause) })
-  })
-
-  if (!response.ok) {
-    return yield* new WorkingSetError({
-      route,
-      reason: "rejected",
-      detail: `HTTP ${response.status}`
-    })
-  }
-
-  return yield* Effect.tryPromise({
-    try: () => response.text(),
-    catch: (cause) => new WorkingSetError({ route, reason: "unreachable", detail: String(cause) })
-  })
-})
-
-/**
- * A read done once however many callers ask for it inside the window above.
- *
- * Reading ahead and opening are the same call made twice — once by a pointer coming near
- * a link, once by the screen a few hundred milliseconds later — and the store cannot tell
- * them apart, because the first answer has not arrived yet and so nothing has been
- * written. Without this the second caller fetches the whole thing again and waits for it,
- * and the lead the read ahead bought is spent.
- *
- * Detached rather than a child of whoever asked first, which is the whole point: nobody
- * waits on a read ahead, so the fiber has to outlive the one that forked it for the press
- * to have anything to join.
- *
- * Not `app/kept.ts`, which is the other half of the same idea and is not this one: that
- * keeps every answer for as long as the page lives, because a sha names something that
- * cannot change. A person's markup is a quarter of a megabyte and a person changes, so
- * this holds a bounded few of them for as long as a press takes and the store keeps the
- * rest.
- */
-const sharedBy = <A>(read: (route: string) => Effect.Effect<A, WorkingSetError>) => {
-  const air = new Map<
-    string,
-    { readonly at: number; readonly reading: Fiber.Fiber<A, WorkingSetError> }
-  >()
-
-  const share = Effect.fn("shared")(function* (route: string) {
-    const held = air.get(route)
-    const fresh = held !== undefined && Date.now() - held.at < IN_THE_AIR ? held.reading : undefined
-
-    const reading = fresh ?? (yield* Effect.forkDetach(read(route)))
-
-    if (fresh === undefined) {
-      const oldest = air.keys().next()
-      if (air.size >= AT_ONCE && !oldest.done) air.delete(oldest.value)
-      air.set(route, { at: Date.now(), reading })
-    }
-
-    return yield* Fiber.join(reading).pipe(
-      // A refusal is not an answer to hand to the next caller. The press that follows a
-      // failed read ahead is the reader asking out loud, and it deserves a fresh attempt.
-      Effect.tapError(() =>
-        Effect.sync(() => {
-          if (air.get(route)?.reading === reading) air.delete(route)
+const theirMarkup = (route: string): Effect.Effect<Came<string>> =>
+  askingOnce(
+    `https://github.com${route}`,
+    Effect.gen(function* () {
+      const response = yield* Effect.tryPromise({
+        try: () =>
+          fetch(`https://github.com${route}`, {
+            headers: { Accept: "text/html" },
+            credentials: "include"
+          }),
+        catch: (cause): Came<string> => ({
+          ok: false,
+          why: "unreachable",
+          detail: String(cause)
         })
-      )
-    )
-  })
+      })
 
-  return { share, forget: () => air.clear() } as const
-}
+      if (!response.ok) {
+        return yield* Effect.fail<Came<string>>({
+          ok: false,
+          why: "rejected",
+          detail: `HTTP ${response.status}`
+        })
+      }
 
-const pages = sharedBy(theirMarkup)
+      const html = yield* Effect.tryPromise({
+        try: () => response.text(),
+        catch: (cause): Came<string> => ({ ok: false, why: "unreachable", detail: String(cause) })
+      })
 
-/** One of a person's own pages, read once for everybody who wants it. */
-const personDocument = pages.share
+      return { ok: true, value: html } satisfies Came<string>
+      // Said in the value rather than thrown, because a rejection does not carry a reason
+      // across a bundle boundary and the joiner is in the other bundle.
+    }).pipe(Effect.catch(Effect.succeed))
+  )
 
-/** The received events of one person, on the same terms. */
-const eventsShared = sharedBy(eventsAt)
+/** The same read, as the answer or the failure the rest of this file is written in. */
+const orFailed = <Value>(route: string, came: Came<Value>) =>
+  came.ok
+    ? Effect.succeed(came.value)
+    : Effect.fail(new WorkingSetError({ route, reason: came.why, detail: came.detail }))
 
-/**
- * Forgets what is still in the air, for a test that means to serve something else.
- *
- * An answer is held for thirty seconds and a test file is faster than that, so two tests
- * asking the same address would otherwise be one fetch and one assertion about the other
- * test's fixture. Nothing in the extension calls this: a reader who wants a page again is
- * a document load away, and a document load is a new module.
- */
-export const forgetWhatIsInTheAir = (): void => {
-  pages.forget()
-  eventsShared.forget()
-}
+const personDocument = Effect.fn("personDocument")(function* (route: string) {
+  return yield* orFailed(route, yield* theirMarkup(route))
+})
 
 /** A person's column, kept under the address it is read at. */
 const personKey = (login: string): string => `person:${login.toLowerCase()}`
@@ -2455,9 +2409,9 @@ export const layer = Layer.succeed(GitHubGateway, {
       keeping: Keeping = "standing"
     ) {
       const route = eventsRoute(login)
-      // Shared, because the profile's read ahead asks this the moment a pointer comes near
-      // a person's link and the screen asks it again on the press. See {@link sharedBy}.
-      const raw = yield* eventsShared.share(route)
+      // Folded, because the profile's read ahead asks this the moment a pointer comes near
+      // a person's link and the screen asks it again on the press. See {@link theirMarkup}.
+      const raw = yield* orFailed(route, yield* eventsAt(route))
       const happenings = yield* decodedHappenings(route, raw)
 
       yield* Effect.forkDetach(rememberRoute(route, raw, keeping))
@@ -3344,10 +3298,10 @@ export const layer = Layer.succeed(GitHubGateway, {
      *
      * Nothing is kept between visits. Every other list here remembers what it read because
      * the read is what the reader waits on; on a page GitHub served, the first page of this
-     * one costs no request at all. What holds it within a visit is the window in
-     * {@link theirMarkup}, which is the case that matters: a press answered without a
-     * document load arrives with no rows on the page, and the read ahead that started when
-     * the pointer came near the link is the one this reuses.
+     * one costs no request at all. What carries the case that matters — a press answered
+     * without a document load, which arrives with no rows on the page — is the fold in
+     * {@link theirMarkup}: the read the pointer started is still in the air, and this waits
+     * on that one rather than asking again.
      */
     personRepositories: Effect.fn("GitHubGateway.personRepositories")(function* (
       login: string,
@@ -3370,13 +3324,19 @@ export const layer = Layer.succeed(GitHubGateway, {
      * reads are one fetch — the profile draws a column and six repositories out of a
      * single document, and the tab draws a column and thirty out of the same one.
      *
+     * Which is why the narrowing is asked for rather than assumed to be empty. The card is
+     * the same whatever the tab is filtered by, so any address would answer; only the one
+     * the list is already fetching costs nothing. Left empty, a reader on
+     * `?tab=repositories&type=fork` paid for a second whole document for a card that was
+     * in the first.
+     *
      * Kept as the column rather than as the markup it was read from — see `keptPerson.ts`
      * — and kept as browsed rather than standing: a person is somewhere a reader went, and
      * the eleven routes Home is built from must not be pushed out by an afternoon of
      * reading other people's profiles.
      */
-    person: Effect.fn("GitHubGateway.person")(function* (login: string) {
-      const route = tabRoute({ login, tab: "repositories", page: 1, find: "", narrowing: "" }, 1)
+    person: Effect.fn("GitHubGateway.person")(function* (login: string, narrowing: string) {
+      const route = tabRoute({ login, tab: "repositories", page: 1, find: "", narrowing }, 1)
       const found = personOnPage(yield* personDocument(route))
 
       yield* Option.match(found, {

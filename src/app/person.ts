@@ -26,7 +26,9 @@ import { GitHubGateway } from "../ports/GitHubGateway"
  */
 export const theirCard = Effect.fn("theirCard")(function* (
   login: string,
-  sofar: (who: Person) => void = () => {}
+  /** The tab's filter, so this asks at the address the list is already fetching. */
+  narrowing: string,
+  sofar: (who: Person) => void
 ) {
   const gateway = yield* GitHubGateway
 
@@ -36,7 +38,7 @@ export const theirCard = Effect.fn("theirCard")(function* (
     onSome: (who) => sofar(who)
   })
 
-  return yield* gateway.person(login)
+  return yield* gateway.person(login, narrowing)
 })
 
 /**
@@ -57,7 +59,9 @@ export const warmPerson = Effect.fn("warmPerson")(function* (page: PersonPage) {
 
   yield* Effect.all(
     [
-      theirCard(page.login),
+      // The card itself rather than `theirCard`, which reads the store first to report
+      // what is remembered. Nobody is here to be reported to.
+      gateway.person(page.login, page.narrowing),
       gateway.personRepositories(page.login, 1, page.narrowing),
       // Their events, for the band the profile leads with. Nothing on the repositories tab
       // reads them, so that tab does not pay for them.

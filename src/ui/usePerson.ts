@@ -1,5 +1,5 @@
 import { Option } from "effect"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import type { Person } from "../domain/person"
 
 /**
@@ -44,30 +44,62 @@ const same = (before: Person | undefined, now: Person): boolean =>
  *
  * The shape is a `Load` without the Effect. See `app/person.ts`, which is what fills it.
  */
-export type Elsewhere = (found: (who: Person) => void) => void
+export type TheirColumn = (found: (who: Person) => void) => void
 
 export const usePerson = (
   read: (page: Document) => Option.Option<Person>,
+  /**
+   * Whose page this is, which the read cannot be trusted to agree with.
+   *
+   * The reader arrives at one person's page from another's without a document loading,
+   * and the screen redraws in the container it is already standing in. So the card in
+   * the markup underneath is the person they left, and `personIn` will hand it over
+   * quite happily: it reads whatever `.h-card` is in the page and has no idea who the
+   * screen is for. On the live page that drew one person's face and counts over
+   * another's name, and it never corrected itself, because a page that had a card does
+   * not stop having one.
+   */
+  login: string,
   /** Where else to look, where the page being stood on is not theirs. */
-  elsewhere?: Elsewhere,
+  elsewhere?: TheirColumn,
   /** The document to read. Only a test ever passes one. */
   page: Document = document,
   /** How long to keep watching. Only a test shortens it, so it does not wait four seconds. */
   settling: number = SETTLING
 ): Person | undefined => {
-  const [found, setFound] = useState(() => Option.getOrUndefined(read(page)))
-  const had = useRef(found)
-  had.current = found
+  const theirs = useCallback(
+    (from: Document) =>
+      Option.filter(read(from), (who) => who.login.toLowerCase() === login.toLowerCase()),
+    [read, login]
+  )
+
+  const [found, setFound] = useState(() => Option.getOrUndefined(theirs(page)))
 
   /**
    * Whether what is on the screen came off the page.
    *
    * The page wins, and this is what lets it: both sources are the same card, so a read
    * over the network that lands after the reader has arrived on a page of theirs would
-   * otherwise put an older name over the one GitHub just served. It never goes back to
-   * false — a document that had their card does not stop having it.
+   * otherwise put an older name over the one GitHub just served.
    */
   const fromThePage = useRef(found !== undefined)
+
+  /*
+   * Whose card is on the screen, and the card dropped when that stops being who the
+   * screen is for. Nothing here is remounted between two people — the container and the
+   * React root are the same ones — so without this the state outlives the page it was
+   * read for, and the reader looks at the last person for as long as the next one takes.
+   */
+  const showing = useRef(login)
+  if (showing.current !== login) {
+    showing.current = login
+    const now = Option.getOrUndefined(theirs(page))
+    fromThePage.current = now !== undefined
+    setFound(now)
+  }
+
+  const had = useRef(found)
+  had.current = found
 
   useEffect(() => {
     if (elsewhere === undefined) return
@@ -85,7 +117,7 @@ export const usePerson = (
 
   useEffect(() => {
     const look = () =>
-      Option.match(read(page), {
+      Option.match(theirs(page), {
         onNone: () => {},
         onSome: (now) => {
           fromThePage.current = true
@@ -102,7 +134,7 @@ export const usePerson = (
       clearTimeout(stop)
       watcher.disconnect()
     }
-  }, [page, read, settling])
+  }, [page, theirs, settling])
 
   return found
 }

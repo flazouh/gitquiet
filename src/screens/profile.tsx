@@ -7,8 +7,9 @@ import type { Answering } from "@/domain/answering"
 import { type PersonPage, profileIn } from "@/domain/person"
 import type { View } from "@/domain/Settings"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
-import { held, standAScreen, theColumn } from "@/shell/screen"
+import { held, standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
+import { theirColumn } from "./theirColumn"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenAddressChanges } from "@/ui/navigation"
 import { PROFILE } from "@/ui/place"
@@ -65,9 +66,9 @@ const open = (page: PersonPage): (() => void) => {
   /*
    * Their column, where the press that brought the reader here loaded no document and
    * there is none on the page to read. Built once rather than per draw, so the screen is
-   * handed the same reader of it every time it renders. See `theColumn`.
+   * handed the same reader of it every time it renders. See `theirColumn`.
    */
-  const column = theColumn(page.login)
+  const column = theirColumn(page)
 
   return standAScreen({
     place: PROFILE,

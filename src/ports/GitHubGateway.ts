@@ -593,7 +593,11 @@ export class GitHubGateway extends Context.Service<
      * refused: `/microsoft` is one path segment like anybody's login, and the proof that
      * it is a person's page is the card itself.
      */
-    readonly person: (login: string) => Effect.Effect<Option.Option<Person>, WorkingSetError>
+    readonly person: (
+      login: string,
+      /** The repositories tab's filter, which is the address their card is read from. */
+      narrowing: string
+    ) => Effect.Effect<Option.Option<Person>, WorkingSetError>
 
     /** Their column as it was last read, for the frame before the live read lands. */
     readonly rememberedPerson: (login: string) => Effect.Effect<Option.Option<Person>>

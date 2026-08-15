@@ -13,7 +13,7 @@ import { Section } from "./Section"
 import { TheBar } from "./TheBar"
 import type { Load } from "./useLive"
 import { useLive } from "./useLive"
-import { type Elsewhere, usePerson } from "./usePerson"
+import { type TheirColumn, usePerson } from "./usePerson"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
 import { dayOf } from "./when"
@@ -42,7 +42,7 @@ export type ProfileScreenProps = {
    * Given on a press this extension answered itself: no document loads, so their card is
    * not on the page and never will be. See `usePerson`.
    */
-  readonly elsewhere?: Elsewhere
+  readonly elsewhere?: TheirColumn
   readonly onStepAside: () => void
   readonly signedIn?: () => boolean
   readonly now?: Date
@@ -259,7 +259,7 @@ export const ProfileScreen = ({
   signedIn = viewerOnPage,
   now = new Date()
 }: ProfileScreenProps) => {
-  const served = usePerson(readWho, elsewhere)
+  const served = usePerson(readWho, login, elsewhere)
   const them = who ?? served
   const said = useLive(answering).read
   const list = useLive(owned).read
