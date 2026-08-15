@@ -48,8 +48,12 @@ jobs:
         env:
           CALLED: ${{ inputs.tag }}
           PUBLISHED: ${{ github.event.release.tag_name }}
-          CHROME: ${{ secrets.CHROME_EXTENSION_ID }}
-          FIREFOX: ${{ secrets.FIREFOX_EXTENSION_ID }}
+          # The credential each target cannot work without, rather than its id.
+          # An extension id is public, so gating on one would call a store
+          # configured while it is still missing the key that talks to it, and
+          # turn a skipped job into a failed release.
+          CHROME: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          FIREFOX: ${{ secrets.FIREFOX_JWT_SECRET }}
           APPLE: ${{ secrets.MACOS_CERTIFICATE }}
         run: |
           tag="${CALLED:-$PUBLISHED}"
