@@ -145,13 +145,15 @@ export const CommitScreen = ({
         recall={recallRepositories}
         onStepAside={onUseGitHub}
       />
-      {/* The gutter GitHub gives this page, put back by hand.
-          A pull request's region arrives already inset, so the interface there
-          only has to leave room above and below. The region a commit is drawn
-          in runs to both edges of the window — their own diff column carries
-          the twenty-four pixels — and taking it over without them left the
-          panel welded to the side of the screen. */}
-      <div ref={setOurs} className="flex flex-col px-6 pt-2">
+      {/* No gutter of its own. This screen put GitHub's twenty-four pixels back
+          by hand, because the region a commit is drawn in runs to both edges of
+          the window and a panel welded to that edge reads as part of the
+          browser. Twenty-four is one number where the bar above reads three —
+          sixteen, twenty-four and thirty-two by width — and it landed on top of
+          the inset `#gitquiet-root` already carries, so the panel started forty
+          pixels in on a narrow window against a bar at sixteen. The shell owns
+          the frame now: see `--gitquiet-gutter` in `widths.css`. */}
+      <div ref={setOurs} className="flex flex-col pt-2">
         {/* The one panel on the page, given the room left under GitHub's header:
             a diff is read in place, with the tree beside it and the next file a
             key away, so it scrolls inside itself rather than running the page
