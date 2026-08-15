@@ -21,17 +21,17 @@ To load the extension by hand instead: `bun run build`, then open
 
 ## The gates
 
-Three commands decide whether a change can land. They are the same three in the
-git hooks and in `.github/workflows/ci.yml`, in the same order.
+One command decides whether a change can land, and it holds the three gates:
 
 ```sh
-bun run lint                 # oxlint over src
-bun run compile              # tsc --noEmit
-bun test --parallel --dots   # 3508 tests, about fourteen seconds
+bun run gates   # oxlint over src, then tsc --noEmit, then the whole suite
 ```
 
+The list lives in `package.json`, so the git hooks and
+`.github/workflows/ci.yml` run that script rather than their own copy of it.
+
 `bun install` writes a `pre-commit` hook that lints the staged files, and a
-`pre-push` hook that runs all three. Both come from `lefthook.yml`. A push that
+`pre-push` hook that runs the gates. Both come from `lefthook.yml`. A push that
 would turn the branch red is refused before it leaves your machine.
 
 `LEFTHOOK=0 git push` goes past them, for a branch pushed to be read rather than

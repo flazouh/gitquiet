@@ -17,7 +17,7 @@ body:
     id: page
     attributes:
       label: Which page
-      description: The fourteen GitQuiet draws are listed in `src/ui/place.ts`.
+      description: Every page GitQuiet draws is listed in `src/ui/place.ts`.
       options:
         - The home dashboard
         - Your pull requests
@@ -33,6 +33,10 @@ body:
         - Workflow runs
         - One run
         - Your notifications
+        - A repository's releases
+        - Somebody's profile
+        - Somebody's repositories
+        - Somebody's stars
         - Somewhere else, or more than one
     validations:
       required: true

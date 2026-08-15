@@ -23,8 +23,6 @@ Closes #
 
 ---
 
-- [ ] `bun run lint` passes
-- [ ] `bun run compile` passes
-- [ ] `bun test --parallel` passes
+- [ ] `bun run gates` passes
 - [ ] The words match [`CONTEXT.md`](../CONTEXT.md), and a new screen groups by the same four
 - [ ] [`docs/spec/`](../docs/spec) is updated if this changes what a screen is for

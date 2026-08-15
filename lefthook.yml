@@ -23,21 +23,16 @@ pre-commit:
       glob: "*.{ts,tsx}"
       run: bunx oxlint {staged_files}
 
-# The same three commands as `.github/workflows/ci.yml`, in the same order, so a
-# push that would turn the branch red is refused here rather than on a runner a
-# minute later. Nothing new is being checked; this is only the check moving to
-# where it can still be acted on.
+# The gates CI runs, run before the push instead of after it, so a push that
+# would turn the branch red is refused here rather than on a runner a minute
+# later. Nothing new is being checked; this is only the check moving to where it
+# can still be acted on.
 #
-# `piped` stops at the first failure. The linter answers first and the tests
-# last, so a rule CI would have caught costs a second here rather than the whole
-# suite. `--parallel` puts the tests across every core, which is the difference
-# between fifty seconds and fourteen.
+# `bun run gates` rather than the three commands written out again: the list
+# lives in `package.json`, CI runs that same script, and the three cannot drift
+# apart. It stops at the first failure, the linter answers first and the tests
+# last, and `--parallel` puts them across every core.
 pre-push:
-  piped: true
   commands:
-    lint:
-      run: bun run lint
-    compile:
-      run: bun run compile
-    test:
-      run: bun test --parallel --dots
+    gates:
+      run: bun run gates

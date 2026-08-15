@@ -18,24 +18,13 @@ updates:
       routine:
         patterns: ["*"]
         update-types: [minor, patch]
-    ignore:
-      # Pinned to whatever the lockfile was written with, and read from
-      # `.bun-version` by both CI and the Railway builder. Moving it is a
-      # deliberate change to that file, not a dependency bump.
-      - dependency-name: bun
-
-  - package-ecosystem: bun
-    directory: /desktop
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: "Update"
-    groups:
-      routine:
-        patterns: ["*"]
-        update-types: [minor, patch]
+  # `desktop` has no entry of its own. It is a workspace, so its dependencies
+  # resolve into the lockfile above and are already covered. A `/desktop` entry
+  # looks for a `desktop/bun.lock` that does not exist, and reports nothing
+  # every Monday while reading as though the app were watched.
+  #
+  # There is no `ignore` for bun either. It is pinned in `.bun-version`, which
+  # is not a dependency of any ecosystem, so nothing would ever be ignored.
 
   # The workflows pin their actions to a commit rather than a tag, because a tag
   # can be moved to point at other code. This is what tells us a new release

@@ -8,17 +8,19 @@
 
 ## Problem
 
-Every fold in this extension is a native `<details>`. The chevron rotates over 150ms and
+Six folds in this extension are a native `<details>`. The chevron rotates over 150ms and
 the content it uncovers appears in a single frame, so the one thing the reader is watching
-is the one thing that does not move. Seven folds behave this way:
+is the one thing that does not move:
 
 - `src/ui/Releases.tsx:234` — the other files of a release
-- `src/ui/Commits.tsx:76` — the wall of commits
-- `src/ui/Checks.tsx:167` — a check's detail
-- `src/ui/CheckSteps.tsx:105` — a check's steps
-- `src/ui/Conversation.tsx:69` and `:115` — a thread and its replies
-- `src/ui/LogPanel.tsx:250` — a log section
-- `src/ui/PersonReposScreen.tsx:296` — a group of somebody's repositories
+- `src/ui/Commits.tsx:72` — the wall of commits
+- `src/ui/Checks.tsx:163` — a check's detail
+- `src/ui/Conversation.tsx:59` and `:111` — a thread and its replies
+- `src/ui/PersonReposScreen.tsx:372` — a group of somebody's repositories
+
+A check's steps at `src/ui/CheckSteps.tsx:105` and a log section at
+`src/ui/LogPanel.tsx:250` are not on this list. They are a button and React state, so
+`::details-content` reaches neither of them. Leave both alone.
 
 ```tsx
 /* src/ui/Releases.tsx:234 — current */
@@ -84,11 +86,12 @@ invent a new duration token.
 
 ## Repo conventions to follow
 
-- Every animating class lives in `src/ui/motion.css`, is named `t-…`, and is scoped with
-  `:is(#gitquiet-root, [data-gitquiet-outside])`. Exemplar: the `.t-turn` block at
-  `src/ui/motion.css:741`.
-- Semantic aliases are declared on the class itself, the way `.t-card` does at
-  `src/ui/motion.css:762`, so a portalled copy carries its own values.
+- Every animating class lives in `src/ui/motion.css` and is named `t-…`. The rule that
+  animates is scoped with `:is(#gitquiet-root, [data-gitquiet-outside])`. Exemplar: the
+  `.t-turn` block at `src/ui/motion.css:741`.
+- The token declarations are the exception, and they sit on the class itself with no
+  scope, the way `.t-card` does at `src/ui/motion.css:762`, so a copy portalled outside
+  the root carries its own values.
 - `src/ui/motion.test.ts` asserts the contract of this sheet — no raw milliseconds in a
   rule, no `will-change`, and a reduced-motion rule for each animating class. Read it
   before writing, and add the `t-fold` case to it.
@@ -103,10 +106,10 @@ invent a new duration token.
 3. `src/ui/motion.test.ts` — add a case proving `.t-fold::details-content` is declared and
    that the reduced-motion block names it. Follow the shape of the cases already there.
 4. Add `t-fold` to the `className` of the `<details>` element in each of these files, and
-   change nothing else on the element: `src/ui/Releases.tsx:234`, `src/ui/Commits.tsx`,
-   `src/ui/Checks.tsx`, `src/ui/CheckSteps.tsx`, `src/ui/Conversation.tsx` (both), 
-   `src/ui/LogPanel.tsx`, `src/ui/PersonReposScreen.tsx:296`. Find every one with
-   `rg -n '<details' src/ui`.
+   change nothing else on the element: `src/ui/Releases.tsx`, `src/ui/Commits.tsx`,
+   `src/ui/Checks.tsx`, `src/ui/Conversation.tsx` (both) and
+   `src/ui/PersonReposScreen.tsx`. Find every one with `rg -n '<details' src/ui`, which
+   answers with those six and nothing in `CheckSteps.tsx` or `LogPanel.tsx`.
 
 ## Boundaries
 

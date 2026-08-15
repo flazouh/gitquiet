@@ -172,13 +172,11 @@ through the Google Cloud setup. Do not commit the `.env.submit` it writes.
 
 ## Contributing
 
-Three commands decide whether a change can land, and `bun install` writes the
-git hooks that run them before a push rather than after it:
+Three gates decide whether a change can land, and `bun install` writes the git
+hooks that run them before a push rather than after it:
 
 ```sh
-bun run lint                 # oxlint over src
-bun run compile              # tsc --noEmit
-bun test --parallel --dots   # 3508 tests, about fourteen seconds
+bun run gates   # oxlint over src, then tsc --noEmit, then the whole suite
 ```
 
 [`CONTRIBUTING.md`](./CONTRIBUTING.md) says what the linter enforces and why,

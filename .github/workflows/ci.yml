@@ -42,6 +42,13 @@ jobs:
       # so it is skipped here in favour of running wxt prepare directly.
       - run: bun install --frozen-lockfile --ignore-scripts
 
+      # A recorded fixture carries the tokens GitHub hands a signed-in page: a
+      # CSRF token per form, an HMAC per analytics click, a signed channel name,
+      # an upload token, a signed URL per private image. The scrubber takes them
+      # out, and this fails the run if a recording arrived with them still in.
+      - name: Recordings carry no session tokens
+        run: bun scripts/scrub-fixtures.ts --check
+
       # Written before anything is bundled, because every chunk the build makes
       # goes through vite, and vite reads the tsconfig this writes.
       - name: Generate WXT types
@@ -63,23 +70,45 @@ jobs:
       - name: Generate WXT types again
         run: bun run types
 
-      # No try/catch anywhere, no promises in `src` outside tests, and no
-      # gateway layer or extension API in the interface. `.oxlintrc.json` says
-      # what each of those means and why.
-      - name: Lint
-        run: bun run lint
+      # The build above rewrote two files that are committed: the gate
+      # stylesheets a content script cannot build while a page loads, and the
+      # icon table. The tests compare those files to what the table says, so
+      # after a build here they cannot fail. Anything that moved is a file
+      # somebody did not regenerate before committing.
+      - name: The generated files under src are the committed ones
+        run: git diff --exit-code -- src
 
-      - name: Typecheck
-        run: bun run compile
-
-      # `--parallel` runs the files across every core the runner has, which took
-      # the suite from fifty seconds to fourteen locally. `--dots` keeps the log
-      # to one character per test; a failure still prints its source and its
-      # diff in full.
-      - name: Tests
-        run: bun test --parallel --dots
+      # The three gates, in one place: `package.json` holds the list, the
+      # `pre-push` hook runs the same script, and `CONTRIBUTING.md` quotes it.
+      # The linter answers first and the tests last, so a rule costs a second
+      # rather than the whole suite.
+      - name: Gates
+        run: bun run gates
 
       # The zip the release attaches and submits, built here so a packaging
       # failure is not first seen after a tag is already published.
       - name: Package
         run: bun run zip
+
+  # Its own job, so it answers in about fifteen seconds next to the two minutes
+  # of the one above rather than after them. GitHub's push protection catches a
+  # known credential on the way in; this catches everything else, and it is what
+  # keeps `.gitleaksignore` honest by failing on anything not listed there.
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install gitleaks
+        env:
+          VERSION: 8.30.1
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+
+      # The checkout is the tracked tree and nothing else, which is exactly what
+      # goes public. `--redact` keeps a finding out of a log anyone can read.
+      - name: Scan for secrets
+        run: gitleaks dir . --redact --no-banner
