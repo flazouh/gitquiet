@@ -16,6 +16,18 @@ export const loginOnPage = (): string | undefined => {
 export const viewerOnPage = (): boolean => loginOnPage() !== undefined
 
 /**
+ * Whether a login is the reader's own.
+ *
+ * Case-insensitively, because a login is written however it was typed and means the same
+ * account either way. False where nobody is signed in, which is right: a page of somebody
+ * called the same as nobody is still somebody else's.
+ */
+export const isViewer = (login: string): boolean => {
+  const mine = loginOnPage()
+  return mine !== undefined && mine.toLowerCase() === login.toLowerCase()
+}
+
+/**
  * The reader's own face, which their page also carries.
  *
  * Their header draws it on every page, so the Rail's menu can show whose account it is

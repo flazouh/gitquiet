@@ -11,7 +11,7 @@ import { Owner } from "./Owner";
 import { participantRows } from "./participant";
 import { tabMark } from "./tabMarks";
 import type { Tab } from "./theirNav";
-import { loginOnPage } from "./viewer";
+import { isViewer } from "./viewer";
 
 /**
  * The strip across the top, ours instead of theirs.
@@ -473,7 +473,7 @@ export const Bar = ({
        * its first row is "Your profile" — so on `/your-login` the chip was a second link to
        * the page already on the screen, a centimetre from the first.
        */}
-      {where.kind === "person" && where.login.toLowerCase() !== (loginOnPage() ?? "").toLowerCase() ? (
+      {where.kind === "person" && !isViewer(where.login) ? (
         <a
           href={`/${where.login}`}
           className={`flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-ink no-underline hover:bg-active ${TINT}`}

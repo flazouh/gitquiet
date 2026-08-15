@@ -18,7 +18,7 @@ import {
   goTo,
 } from "@/ui/going";
 import { markPage, theScreenShown, unmarkPage } from "@/ui/mount";
-import { linkNear } from "@/ui/near";
+import { linkNear } from "@/ui/linkNear";
 import { type Stop, whenAddressChanges, whenTheyStayPut } from "@/ui/navigation";
 import {
   ACTIONS,

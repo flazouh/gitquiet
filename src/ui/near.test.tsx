@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, waitFor } from "@testing-library/react"
-import { AHEAD, type Box, gapTo, linkNear, NEAR, type Pick, useNearby, withinReach } from "./near"
+import { type Box, gapTo, NEAR, useNearby, withinReach } from "./near"
+import { AHEAD, linkNear, type Pick } from "./linkNear"
 
 afterEach(cleanup)
 
