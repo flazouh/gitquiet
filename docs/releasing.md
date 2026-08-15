@@ -99,25 +99,25 @@ with `.output/*-sources.zip` when it asks for sources.
 
 Then three secrets:
 
-| Secret                 | Where it comes from                                                          |
-| ---------------------- | ---------------------------------------------------------------------------- |
-| `FIREFOX_EXTENSION_ID` | `gitquiet@gitquiet.dev`, the id in `wxt.config.ts`                           |
+| Secret                 | Where it comes from                                                                 |
+| ---------------------- | ----------------------------------------------------------------------------------- |
+| `FIREFOX_EXTENSION_ID` | `gitquiet@gitquiet.dev`, the id in `wxt.config.ts`                                  |
 | `FIREFOX_JWT_ISSUER`   | [Manage API keys](https://addons.mozilla.org/developers/addon/api/key/), JWT issuer |
-| `FIREFOX_JWT_SECRET`   | The same page, JWT secret. Shown once                                        |
+| `FIREFOX_JWT_SECRET`   | The same page, JWT secret. Shown once                                               |
 
 ### macOS and Safari
 
 Both Apple jobs share one certificate, so these six turn on both at once. They
 need a paid Apple Developer Program membership.
 
-| Secret                       | Where it comes from                                                      |
-| ---------------------------- | ------------------------------------------------------------------------ |
+| Secret                       | Where it comes from                                                                                                      |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `MACOS_CERTIFICATE`          | A **Developer ID Application** certificate, exported from Keychain Access as `.p12`, then `base64 -i cert.p12 \| pbcopy` |
-| `MACOS_CERTIFICATE_PASSWORD` | The password used for that export                                        |
-| `APPLE_DEVELOPER_ID`         | The identity in full, as `security find-identity -v -p codesigning` prints it |
-| `APPLE_ID`                   | The Apple ID that owns the membership                                    |
-| `APPLE_ID_PASSWORD`          | An app-specific password from [account.apple.com](https://account.apple.com), not the account password |
-| `APPLE_TEAM_ID`              | The ten characters in brackets after the identity name                   |
+| `MACOS_CERTIFICATE_PASSWORD` | The password used for that export                                                                                        |
+| `APPLE_DEVELOPER_ID`         | The identity in full, as `security find-identity -v -p codesigning` prints it                                            |
+| `APPLE_ID`                   | The Apple ID that owns the membership                                                                                    |
+| `APPLE_ID_PASSWORD`          | An app-specific password from [account.apple.com](https://account.apple.com), not the account password                   |
+| `APPLE_TEAM_ID`              | The ten characters in brackets after the identity name                                                                   |
 
 Distribution is by Developer ID rather than the App Store: the disk image is
 notarised and stapled, so it opens on a machine that has never seen it, and
