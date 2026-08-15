@@ -32,6 +32,14 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: echo "EXTENSION_VERSION=$(bun scripts/release-version.ts "$RELEASE_TAG")" >> "$GITHUB_ENV"
 
+      # The install above skips the `prepare` script, which is what writes
+      # `.wxt/tsconfig.json` locally. Every chunk the build makes is bundled through
+      # vite, and vite reads that file, so without this the first of them fails on
+      # "Tsconfig not found" before `wxt build` is reached. `ci.yml` runs the same step
+      # for the same reason.
+      - name: Generate WXT types
+        run: bun run types
+
       - name: Build extension
         run: bun run build
 
