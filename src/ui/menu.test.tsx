@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { useState } from "react"
 import { Menu } from "./Menu"
@@ -53,10 +53,17 @@ describe("shutting a menu", () => {
     expect(screen.queryByText("Sign out")).toBeNull()
   })
 
-  test("still leaves slowly for a press outside, which is a pointer travelling away", async () => {
+  test("still leaves slowly for a press outside, which is a pointer travelling away", () => {
     render(<Opened />)
 
-    await userEvent.click(document.body)
+    /*
+     * Fired rather than acted out, and nothing awaited after it. What is being asked about
+     * lasts 150ms, and every await between the press and the question is a turn of the loop
+     * in which that can finish: on a machine running the whole suite it did, and the test
+     * failed asking a menu that had already gone whether it was still going. Fired this way,
+     * the press and both questions are one turn, and the close cannot land inside it.
+     */
+    fireEvent.pointerDown(document.body)
 
     // Gone as a menu, but still on the page for the length of its own close.
     expect(screen.queryByRole("menu")).toBeNull()
