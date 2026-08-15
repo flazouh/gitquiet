@@ -1,0 +1,22 @@
+# Every pull request goes to the maintainer. The lines below are not narrower
+# ownership, they are the places where a change is easy to make and expensive to
+# get wrong, so they are called out where a reviewer will see them.
+
+*                       @flazouh
+
+# The licence, the notice and what this file itself says.
+/LICENSE                @flazouh
+/NOTICE                 @flazouh
+/.github/               @flazouh
+
+# The vocabulary the whole codebase is written in, and what each screen is for.
+/CONTEXT.md             @flazouh
+/docs/spec/             @flazouh
+
+# The rules the linter enforces, and the gates that run them.
+/.oxlintrc.json         @flazouh
+/lefthook.yml           @flazouh
+
+# What the extension is allowed to reach, and what it reports.
+/wxt.config.ts          @flazouh
+/src/observability/     @flazouh

@@ -1,0 +1,49 @@
+name: Something is missing
+description: A page GitQuiet should draw, or a thing it should let you do.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        GitQuiet groups everything by who acts next: Your Move, Waiting, Running,
+        Settled. Those four are the product's vocabulary and a new idea usually
+        has to fit inside them. [`CONTEXT.md`](../../CONTEXT.md) is the glossary
+        and [`docs/spec/`](../../docs/spec) says what each screen is for.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to find out
+      description: >
+        The question you open the page with, not the feature. "I cannot tell
+        which of my pull requests is waiting on me" says more than "add a
+        filter".
+    validations:
+      required: true
+
+  - type: textarea
+    id: today
+    attributes:
+      label: What you do today instead
+      description: Which tabs you read, in what order, and what you work out again each time.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: group
+    attributes:
+      label: Which of the four groups does this belong to
+      options:
+        - Your Move
+        - Waiting
+        - Running
+        - Settled
+        - None of them, and that is the point
+    validations:
+      required: true
+
+  - type: textarea
+    id: shape
+    attributes:
+      label: What it might look like
+      description: Optional. A sketch, a screenshot with something drawn on it, or nothing at all.

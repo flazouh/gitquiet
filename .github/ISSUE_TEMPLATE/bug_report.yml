@@ -1,0 +1,94 @@
+name: Something is wrong
+description: A screen draws the wrong thing, or an action does not reach GitHub.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before anything else, please check the same page with GitQuiet turned
+        off at `chrome://extensions`. If GitHub does the same thing on its own,
+        the bug is theirs and not ours.
+
+        For a security problem, do not use this form. Use
+        [a private report](https://github.com/flazouh/gitquiet/security/advisories/new)
+        instead.
+
+  - type: dropdown
+    id: page
+    attributes:
+      label: Which page
+      description: The fourteen GitQuiet draws are listed in `src/ui/place.ts`.
+      options:
+        - The home dashboard
+        - Your pull requests
+        - Your issues
+        - A repository's front page
+        - A repository's pull requests
+        - A repository's issues
+        - Raising an issue
+        - One issue
+        - One pull request
+        - A branch's commits
+        - One commit
+        - Workflow runs
+        - One run
+        - Your notifications
+        - Somewhere else, or more than one
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, and what you saw. A screenshot says it fastest.
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-should
+    attributes:
+      label: What should have happened
+    validations:
+      required: true
+
+  - type: input
+    id: url
+    attributes:
+      label: The URL, if it is a public repository
+      description: Leave this out for anything private. We do not need it.
+      placeholder: https://github.com/owner/repo/pull/1
+
+  - type: input
+    id: version
+    attributes:
+      label: GitQuiet version
+      description: From `chrome://extensions`.
+      placeholder: "0.2.0"
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: Chrome 141 on macOS 15
+    validations:
+      required: true
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Anything in the console
+      description: Right click the page, Inspect, Console. This is pasted as code, so no backticks needed.
+      render: text
+
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Before submitting
+      options:
+        - label: GitHub does not do this with GitQuiet turned off.
+          required: true
+        - label: I searched the open issues for the same thing.
+          required: true

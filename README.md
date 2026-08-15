@@ -148,6 +148,7 @@ gitignored.
 
 ## Where to start reading
 
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — the gates, the words, and what a change looks like.
 - [`CONTEXT.md`](./CONTEXT.md) — the glossary. The code uses these terms exactly.
 - [`docs/spec/`](./docs/spec) — what each screen is for.
 - [`src/ui/place.ts`](./src/ui/place.ts) — how a page is taken over.
@@ -168,6 +169,24 @@ copies once Google publishes it.
 Submitting needs `CHROME_EXTENSION_ID`, `CHROME_CLIENT_ID`, `CHROME_CLIENT_SECRET`
 and `CHROME_REFRESH_TOKEN` as repository secrets. `bunx wxt submit init` walks
 through the Google Cloud setup. Do not commit the `.env.submit` it writes.
+
+## Contributing
+
+Three commands decide whether a change can land, and `bun install` writes the
+git hooks that run them before a push rather than after it:
+
+```sh
+bun run lint                 # oxlint over src
+bun run compile              # tsc --noEmit
+bun test --parallel --dots   # 3508 tests, about fourteen seconds
+```
+
+[`CONTRIBUTING.md`](./CONTRIBUTING.md) says what the linter enforces and why,
+and what a commit message here looks like. Open an issue first for anything that
+changes a screen.
+
+Found a security problem? Do not open an issue. See
+[`SECURITY.md`](./SECURITY.md).
 
 ## Licence
 

@@ -1,0 +1,52 @@
+version: 2
+
+updates:
+  # `bun` rather than `npm`, because npm would update `package.json` and leave
+  # `bun.lock` alone, and CI installs with `--frozen-lockfile`. Every one of
+  # those pull requests would fail before it ran a test.
+  - package-ecosystem: bun
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "Update"
+    groups:
+      # One pull request a week for everything routine, so the queue does not
+      # fill with fifteen of them. A major goes on its own, where it can be read.
+      routine:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      # Pinned to whatever the lockfile was written with, and read from
+      # `.bun-version` by both CI and the Railway builder. Moving it is a
+      # deliberate change to that file, not a dependency bump.
+      - dependency-name: bun
+
+  - package-ecosystem: bun
+    directory: /desktop
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "Update"
+    groups:
+      routine:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  # The workflows pin their actions to a commit rather than a tag, because a tag
+  # can be moved to point at other code. This is what tells us a new release
+  # exists, since a pin cannot follow one by itself.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "Update"
+    groups:
+      actions:
+        patterns: ["*"]
