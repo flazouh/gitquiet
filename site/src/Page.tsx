@@ -40,6 +40,29 @@ const Star = ({ size = 14 }: { readonly size?: number }) => (
   </svg>
 )
 
+/**
+ * The corner every button on this page turns.
+ *
+ * One radius for the lot, rather than a pill for the small ones and a rectangle for the
+ * big one: two roundings on one strip is the sort of difference a reader feels without
+ * being able to name. Eight pixels against the twelve the screens are drawn in, so a
+ * control reads as tighter than the thing it acts on.
+ */
+const EDGE = "rounded-md"
+
+/*
+ * The skip link below writes `focus:rounded-md` out in full rather than reaching for the
+ * constant. Tailwind reads this file for whole class names, and a variant glued to a
+ * constant is not one, so the rule would simply never be generated.
+ */
+
+/**
+ * The source button, which is the mark, the count, and nothing else.
+ *
+ * The word "GitHub" went: the cat says it, the count beside it says it again, and the
+ * button sits a centimetre from a heading that names the site. A rule between the two
+ * halves went with it, since a border inside a bordered button is a box in a box.
+ */
 const Source = () => {
   const many = useStars()
 
@@ -51,21 +74,19 @@ const Source = () => {
           ? "GitQuiet source on GitHub"
           : `GitQuiet source on GitHub, ${many} ${many === 1 ? "star" : "stars"}`
       }
-      className="inline-flex items-center gap-2 rounded-full px-2.5 py-2 text-[15px] font-medium text-ink/70 transition-colors duration-[var(--duration-press)] ease-out hover:text-ink sm:px-3"
+      className={`inline-flex items-center gap-1.5 ${EDGE} border border-ink/15 px-3 py-2 text-[14px] font-semibold text-ink/70 transition-[transform,color,border-color] duration-[var(--duration-press)] ease-out hover:border-ink/35 hover:text-ink active:scale-[var(--scale-press)] sm:px-3.5 sm:py-2.5 sm:text-[15px]`}
     >
-      <Octocat />
-      <span className="hidden sm:inline">GitHub</span>
+      <Octocat size={16} />
       {/*
        * The count, once it is known, and nothing at all until then.
        *
-       * A chip with a nought in it while the read runs says the repository has no stars,
-       * which is a worse thing to say than nothing. The fade is the only entrance on this
-       * page, and the number carries none of the layout: the install button is to the
-       * right of it and holds the corner either way.
+       * A nought while the read runs says the repository has no stars, which is a worse
+       * thing to say than nothing. The button holds none of the layout either way: the
+       * install button is to its right and keeps the corner.
        */}
       {many === undefined ? null : (
-        <span className="live-in flex items-center gap-1 border-l border-rule pl-2 tabular">
-          <Star />
+        <span className="live-in flex items-center gap-1 tabular">
+          <Star size={13} />
           {inShort(many)}
         </span>
       )}
@@ -76,7 +97,7 @@ const Source = () => {
 const Install = ({ big = false }: { readonly big?: boolean }) => (
   <a
     href={STORE_AT}
-    className={`inline-flex items-center justify-center whitespace-nowrap rounded-full bg-ink font-semibold text-paper transition-[transform,background-color] duration-[var(--duration-press)] ease-out hover:bg-ink/85 active:scale-[var(--scale-press)] ${
+    className={`inline-flex items-center justify-center whitespace-nowrap ${EDGE} border border-ink bg-ink font-semibold text-paper transition-[transform,background-color,border-color] duration-[var(--duration-press)] ease-out hover:border-ink/85 hover:bg-ink/85 active:scale-[var(--scale-press)] ${
       big
         ? "px-7 py-3.5 text-[17px]"
         : "px-4 py-2 text-[14px] sm:px-5 sm:py-2.5 sm:text-[15px]"
@@ -186,7 +207,7 @@ export const Page = () => (
     <a
       href="#screens"
 
-      className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-ink focus:px-4 focus:py-2 focus:text-paper"
+      className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-ink focus:px-4 focus:py-2 focus:text-paper"
     >
       Skip to the screens
     </a>
