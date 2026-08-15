@@ -50,13 +50,40 @@ const focus = async () => {
   await cdp("Page.bringToFront");
 };
 
-/** Every extension the profile has loaded, by the id its own pages are served from. */
-const loadedExtensions = async () => {
+/**
+ * Every extension on this page, by the id its own files are served from.
+ *
+ * Read from the document rather than from `Target.getTargets`, which only sees an
+ * extension whose service worker happens to be awake. A suspended copy is
+ * invisible there, is never uninstalled, and goes on drawing the page through a
+ * baseline that is supposed to have none of it.
+ *
+ * The profile this was written against held two copies of the interface at once:
+ * the unpacked build, and the one from the web store. Both answered every event.
+ */
+const extensionsOnThePage = async () => {
+  const fromPage = await js(String.raw`(() => {
+    const ids = new Set()
+    const grab = (value) => {
+      const found = String(value || "").match(/chrome-extension:\/\/([a-z]{32})/)
+      if (found !== null) ids.add(found[1])
+    }
+    for (const node of document.querySelectorAll("[src],[href]")) {
+      grab(node.getAttribute("src"))
+      grab(node.getAttribute("href"))
+    }
+    for (const sheet of document.styleSheets) { try { grab(sheet.href) } catch { /* cross-origin */ } }
+    for (const node of document.querySelectorAll("*")) {
+      const image = getComputedStyle(node).backgroundImage
+      if (image.includes("chrome-extension")) grab(image)
+    }
+    return [...ids]
+  })()`);
   const { targetInfos = [] } = await cdp("Target.getTargets", {}, null);
-  const ids = targetInfos
+  const fromTargets = targetInfos
     .map((info) => (String(info.url || "").match(/^chrome-extension:\/\/([a-z]+)/) || [])[1])
     .filter(Boolean);
-  return [...new Set(ids)];
+  return [...new Set([...fromPage, ...fromTargets])];
 };
 
 /**
@@ -66,7 +93,7 @@ const loadedExtensions = async () => {
  * task spaces, so a session accumulates them and each one answers every event.
  */
 const removeEveryExtension = async () => {
-  const ids = await loadedExtensions();
+  const ids = await extensionsOnThePage();
   for (const id of ids) {
     try {
       await cdp("Extensions.uninstall", { id }, null);
@@ -74,6 +101,10 @@ const removeEveryExtension = async () => {
       // Already gone, which is the state this wants.
     }
   }
+  await gotoAndWait(LIST, { timeout: 60, settle: 3 });
+  await wait(2);
+  const left = await js(`!!document.getElementById("gitquiet-root")`);
+  if (left) throw new Error("the interface is still on the page after uninstalling " + ids.join(", "));
   return ids;
 };
 
