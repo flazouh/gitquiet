@@ -51,6 +51,22 @@ const drawn = async (where: string, said: string): Promise<void> => {
 }
 
 /**
+ * Waits for something about the page to become true, up to a second.
+ *
+ * `drawn` for a fact rather than for a word. `settled` waits twenty milliseconds, which
+ * is a guess at how long React takes to come down and not a measurement of it: the guess
+ * held until fourteen dependency updates shifted the timing under it, and then the
+ * assertion after it read a tree that was still on its way out. Nothing here waits the
+ * full second unless the thing never happens, which is the case worth failing on.
+ */
+const until = async (that: () => boolean): Promise<void> => {
+  for (let turn = 0; turn < 50; turn++) {
+    if (that()) return
+    await settled()
+  }
+}
+
+/**
  * Whether the screen's tree is still rendered, wherever its container happens to be.
  *
  * Asked of the container rather than of the page because the two answers differ in the
@@ -226,7 +242,7 @@ describe("standing a screen on the page", () => {
     })
     await settled()
     page.close()
-    await settled()
+    await until(() => !mounted(page.container))
 
     expect(held).toBe(false)
     expect(mounted(page.container)).toBe(false)
