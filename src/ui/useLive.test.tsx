@@ -6,6 +6,14 @@ import { type Load, useLive } from "./useLive"
 
 afterEach(cleanup)
 
+/**
+ * Wall clock, so it is a guess at how long a flush takes rather than a fact.
+ * That is fine for giving a held read somewhere to be, and it is not fine for
+ * the assertion after it: `bun test --parallel` runs a worker per core, and ten
+ * milliseconds bought on an idle machine buys nothing on a loaded one. Where a
+ * test waits for a value to arrive, `waitFor` reads the value until it is the
+ * one expected, which is the same intent without the clock in it.
+ */
 const settle = (ms = 40) => act(() => new Promise((rest) => setTimeout(rest, ms)))
 
 /**
@@ -183,14 +191,13 @@ describe("a memory with a read still running behind it", () => {
     const preload = () => Effect.succeed(Option.some(["remembered"]))
 
     render(<Screen load={live.load} preload={preload} />)
-    await settle(10)
 
-    expect(rowsOf()).toBe("remembered")
+    await waitFor(() => expect(rowsOf()).toBe("remembered"))
     expect(catchingUp()).toBe("yes")
 
     await live.answer(1)
 
-    expect(rowsOf()).toBe("fresh")
+    await waitFor(() => expect(rowsOf()).toBe("fresh"))
     expect(catchingUp()).toBe("no")
   })
 
@@ -198,11 +205,10 @@ describe("a memory with a read still running behind it", () => {
     const live = held(["fresh"])
 
     render(<Screen load={live.load} />)
-    await settle(10)
 
     // The wait is already saying this, in the middle of the screen, at the size
     // of the thing that is missing. A toast beside it says it twice.
-    expect(stateOf()).toBe("loading")
+    await waitFor(() => expect(stateOf()).toBe("loading"))
     expect(catchingUp()).toBe("no")
   })
 
@@ -212,21 +218,20 @@ describe("a memory with a read still running behind it", () => {
     render(<Screen load={live.load} />)
     await live.answer(1)
 
-    expect(catchingUp()).toBe("no")
+    await waitFor(() => expect(catchingUp()).toBe("no"))
 
     await act(async () => {
       document.dispatchEvent(new Event("visibilitychange"))
       window.dispatchEvent(new Event("visibilitychange"))
     })
-    await settle(5)
 
     // Still the first read's rows, and the second read already running under them.
+    await waitFor(() => expect(catchingUp()).toBe("yes"))
     expect(rowsOf()).toBe("read 1")
-    expect(catchingUp()).toBe("yes")
 
     await live.answer(2)
 
-    expect(rowsOf()).toBe("read 2")
+    await waitFor(() => expect(rowsOf()).toBe("read 2"))
     expect(catchingUp()).toBe("no")
   })
 })
