@@ -76,6 +76,7 @@ jobs:
       firefox: ${{ steps.which.outputs.firefox }}
       desktop: ${{ steps.which.outputs.desktop }}
       safari: ${{ steps.which.outputs.safari }}
+      store: ${{ steps.which.outputs.store }}
     steps:
       # No checkout: this reads the event and the secrets, and nothing else.
       # A `secrets` value cannot be read in a job's own `if`, which is the whole
@@ -98,6 +99,13 @@ jobs:
           # alone they would start and die at `notarytool`.
           APPLE_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           APPLE_NOTARY: ${{ secrets.APPLE_ID_PASSWORD }}
+          # The Mac App Store takes three more: one certificate signs the app,
+          # another signs the installer around it, and the key is what uploads and
+          # what mints the profiles. Read apart from the rest so that a fork with
+          # none of them still gets its disk image.
+          APPLE_STORE_APP: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE }}
+          APPLE_STORE_INSTALLER: ${{ secrets.APPLE_INSTALLER_CERTIFICATE }}
+          APPLE_STORE_KEY: ${{ secrets.APPLE_ASC_KEY }}
         run: |
           tag="${CALLED:-$PUBLISHED}"
           if [ -z "$tag" ]; then
@@ -128,6 +136,7 @@ jobs:
             echo "firefox=$(ready firefox "$FIREFOX")"
             echo "desktop=$(ready desktop "$APPLE_CERTIFICATE" "$APPLE_NOTARY")"
             echo "safari=$(ready safari "$APPLE_CERTIFICATE" "$APPLE_NOTARY")"
+            echo "store=$(ready safari "$APPLE_STORE_APP" "$APPLE_STORE_INSTALLER" "$APPLE_STORE_KEY")"
           } >> "$GITHUB_OUTPUT"
 
   package:
@@ -521,3 +530,104 @@ jobs:
         run: |
           cp "$DMG" GitQuiet-safari.dmg
           gh release upload "$RELEASE_TAG" "$DMG" GitQuiet-safari.dmg --clobber
+
+      # What follows sends the same archive to the Mac App Store, which is where a
+      # Safari reader looks for an extension and the only place Safari before 18.4
+      # accepts one from. The disk image above stays: it is the answer for anyone
+      # who would rather not sign in to the store, and it is what the site links to.
+      #
+      # Two more certificates, into the keychain the Developer ID one is already in.
+      # One signs the app, the other signs the installer wrapped around it, and
+      # Apple issues them as two because the tools that read them are two.
+      - uses: ./.github/actions/apple-keychain
+        if: needs.gate.outputs.store == 'yes'
+        with:
+          certificate: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE }}
+          password: ${{ secrets.APPLE_DISTRIBUTION_PASSWORD }}
+
+      - uses: ./.github/actions/apple-keychain
+        if: needs.gate.outputs.store == 'yes'
+        with:
+          certificate: ${{ secrets.APPLE_INSTALLER_CERTIFICATE }}
+          password: ${{ secrets.APPLE_DISTRIBUTION_PASSWORD }}
+
+      # `altool` reads the key from this folder and this file name, and takes only
+      # the id on the command line. Nothing else looks here, so the profile script
+      # below is told the path outright.
+      - name: Put the App Store key where its tools look for it
+        if: needs.gate.outputs.store == 'yes'
+        env:
+          ASC_KEY: ${{ secrets.APPLE_ASC_KEY }}
+          ASC_KEY_ID: ${{ secrets.APPLE_ASC_KEY_ID }}
+        run: |
+          keys="$HOME/.appstoreconnect/private_keys"
+          mkdir -p "$keys"
+          key="$keys/AuthKey_$ASC_KEY_ID.p8"
+          (umask 077 && echo "$ASC_KEY" | base64 --decode > "$key")
+          echo "APPLE_ASC_KEY_PATH=$key" >> "$GITHUB_ENV"
+
+      - name: Make sure a provisioning profile exists for each bundle
+        if: needs.gate.outputs.store == 'yes'
+        env:
+          APPLE_ASC_KEY_ID: ${{ secrets.APPLE_ASC_KEY_ID }}
+          APPLE_ASC_ISSUER_ID: ${{ secrets.APPLE_ASC_ISSUER_ID }}
+        run: |
+          id="dev.gitquiet.${APP// /-}"
+          bun scripts/apple-profiles.ts "$id" "$id.Extension" | tee "$RUNNER_TEMP/profiles.tsv"
+
+      # A second export of the archive above, rather than a second build of it, so
+      # that the bytes the store reviews are the bytes the disk image holds.
+      #
+      # PlistBuddy rather than plutil, because a bundle identifier is full of dots
+      # and plutil reads a dot in a key path as a step down into the tree.
+      #
+      # Both certificates are named in full, and read out of the keychain rather
+      # than written here, because the name is the account holder's. Given the
+      # short name instead, Xcode picked the installer certificate to sign the app
+      # with and then refused its own choice: "provisioning profile doesn't include
+      # signing certificate".
+      - name: Export a package for the App Store
+        if: needs.gate.outputs.store == 'yes'
+        env:
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          id="dev.gitquiet.${APP// /-}"
+          name() { awk -F'\t' -v want="$1" '$1 == want { print $2 }' "$RUNNER_TEMP/profiles.tsv"; }
+          identity() {
+            security find-identity -v "$RUNNER_TEMP/release.keychain-db" |
+              sed -n "s/.*\"\($1: [^\"]*\)\".*/\1/p" | head -1
+          }
+          signs=$(identity "Apple Distribution")
+          wraps=$(identity "3rd Party Mac Developer Installer")
+          echo "signing the app with $signs and the installer with $wraps"
+          plist="$RUNNER_TEMP/store.plist"
+          buddy=/usr/libexec/PlistBuddy
+          plutil -create xml1 "$plist"
+          "$buddy" -c "Add :method string app-store-connect" "$plist"
+          "$buddy" -c "Add :teamID string $TEAM" "$plist"
+          "$buddy" -c "Add :signingStyle string manual" "$plist"
+          "$buddy" -c "Add :signingCertificate string '$signs'" "$plist"
+          "$buddy" -c "Add :installerSigningCertificate string '$wraps'" "$plist"
+          "$buddy" -c "Add :provisioningProfiles dict" "$plist"
+          "$buddy" -c "Add :provisioningProfiles:$id string '$(name "$id")'" "$plist"
+          "$buddy" -c "Add :provisioningProfiles:$id.Extension string '$(name "$id.Extension")'" "$plist"
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/safari.xcarchive" \
+            -exportOptionsPlist "$plist" \
+            -exportPath "$RUNNER_TEMP/safari-store"
+          echo "PKG=$RUNNER_TEMP/safari-store/$APP.pkg" >> "$GITHUB_ENV"
+
+      # Checked before it is sent, because the same reading arrives either way and
+      # a refusal here names the file rather than arriving as mail an hour later.
+      # This is where a manifest description over 112 characters was caught.
+      - name: Upload the package to App Store Connect
+        if: needs.gate.outputs.store == 'yes'
+        env:
+          ASC_KEY_ID: ${{ secrets.APPLE_ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPLE_ASC_ISSUER_ID }}
+        run: |
+          xcrun altool --validate-app -f "$PKG" -t macos \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+          xcrun altool --upload-app -f "$PKG" -t macos \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+          echo "Build $RELEASE_VERSION is with Apple. It has to be released by hand from App Store Connect once review passes."

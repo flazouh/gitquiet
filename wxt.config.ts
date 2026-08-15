@@ -37,14 +37,21 @@ export default defineConfig({
   manifest: ({ browser }) => ({
     /*
      * Chrome Web Store search weighs the package name and this short description
-     * (the listing summary, ≤132 chars) hardest. Brand alone does not match the
-     * queries people type (`github pull request`, `github pr review`). Keep the
-     * long store description in the developer dashboard, not here.
+     * (the listing summary) hardest. Brand alone does not match the queries people
+     * type (`github pull request`, `github pr review`). Keep the long store
+     * description in the developer dashboard, not here.
+     *
+     * One sentence for every store, and it is the App Store that sets the length:
+     * Chrome allows 132 characters and Apple 112, counted after the browser's name
+     * goes in. A 128 character one passed Chrome and Firefox for four releases and
+     * was refused on upload to the App Store. Two descriptions would have let one
+     * of them drift, so `manifest.test.ts` holds this to the smaller number for
+     * every target, the unnamed one included, where "your browser" is longest.
      */
     name: "GitQuiet - GitHub Pull Request Review",
     // Toolbar / overflow menus. Store listing keeps the longer `name`.
     short_name: "GitQuiet",
-    description: `GitHub pull request review in ${readIn[browser] ?? "your browser"}. See every PR that needs you, waiting, or still running. One screen, sorted by next action.`,
+    description: `GitHub pull request review in ${readIn[browser] ?? "your browser"}. Every PR on one screen, sorted by who has to act next.`,
     ...(process.env.RELEASE_VERSION === undefined
       ? {}
       : { version: process.env.RELEASE_VERSION }),

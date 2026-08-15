@@ -1,8 +1,10 @@
-name: Unlock a keychain holding the signing certificate
+name: Unlock a keychain holding a signing certificate
 description: >
-  Puts the Developer ID certificate in a keychain of its own, in the runner's
-  temp folder, so it lives as long as the job and no longer. Both Apple builds
-  need this and neither should own it.
+  Puts a certificate in a keychain of its own, in the runner's temp folder, so it
+  lives as long as the job and no longer. Call it once per certificate: the
+  keychain is made on the first call and added to on the rest, because a job that
+  signs an app, an installer and a disk image needs three of them at once and
+  `codesign` reads one keychain.
 
 inputs:
   certificate:
@@ -16,22 +18,35 @@ runs:
   using: composite
   steps:
     # `set-key-partition-list` is what lets `codesign` read the key without the
-    # prompt no runner can answer. The keychain's own password is made here and
-    # thrown away with it, because nothing outside this job opens it again.
+    # prompt no runner can answer. Without it the tool does not fail, it waits,
+    # and the job is killed at its timeout with nothing to read.
+    #
+    # The keychain's own password is made on the first call and kept in a file
+    # beside it, because a later call has to unlock what the first one made and
+    # `uuidgen` would answer differently. Both go when the runner does.
     - shell: bash
       env:
         CERTIFICATE: ${{ inputs.certificate }}
         CERTIFICATE_PASSWORD: ${{ inputs.password }}
       run: |
         keychain="$RUNNER_TEMP/release.keychain-db"
-        password=$(uuidgen)
-        security create-keychain -p "$password" "$keychain"
-        security set-keychain-settings -lut 21600 "$keychain"
+        secret="$RUNNER_TEMP/release.keychain.password"
+        if [ ! -f "$secret" ]; then
+          (umask 077 && uuidgen > "$secret")
+          security create-keychain -p "$(cat "$secret")" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          # Ahead of the login keychain rather than instead of it, so an Apple
+          # intermediate the runner already trusts is still found.
+          security list-keychain -d user -s "$keychain" login.keychain-db
+        fi
+        password=$(cat "$secret")
         security unlock-keychain -p "$password" "$keychain"
         echo "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+        # `productbuild` and `productsign` as well as `codesign`, because an
+        # installer certificate is read by those two and never by `codesign`.
         security import "$RUNNER_TEMP/certificate.p12" \
-          -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          -k "$keychain" -P "$CERTIFICATE_PASSWORD" \
+          -T /usr/bin/codesign -T /usr/bin/productbuild -T /usr/bin/productsign
         rm "$RUNNER_TEMP/certificate.p12"
         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain"
-        security list-keychain -d user -s "$keychain" login.keychain-db
-        security find-identity -v -p codesigning "$keychain"
+        security find-identity -v "$keychain"
