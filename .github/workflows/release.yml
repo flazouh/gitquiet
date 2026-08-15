@@ -1,26 +1,57 @@
 name: Release
 
+# Builds the tag once, attaches what it built to the GitHub release, then hands
+# the same zips to each store as a job of its own. One job per store because a
+# store that is down, or a review queue that rejects a package, is a thing to
+# re-run on its own — "Re-run failed jobs" then talks to that store and no other.
 on:
   release:
     types: [published]
+  # `tag.yml` calls this after it writes a tag. A release opened by the workflow
+  # token raises no `published` event, by design, so the caller says which tag.
+  workflow_call:
+    inputs:
+      tag:
+        description: The release tag to build and submit
+        required: true
+        type: string
 
 concurrency:
-  group: chrome-web-store-release
+  group: release-${{ inputs.tag || github.event.release.tag_name }}
   cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
-  publish:
-    name: Publish extension
+  package:
+    name: Build and attach
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      tag: ${{ steps.which.outputs.tag }}
     steps:
+      # Before the checkout, because it is what the checkout is given. Either a
+      # caller named the tag or a person published a release; nothing else
+      # starts this workflow.
+      - name: Read which tag this is
+        id: which
+        env:
+          CALLED: ${{ inputs.tag }}
+          PUBLISHED: ${{ github.event.release.tag_name }}
+        run: |
+          tag="${CALLED:-$PUBLISHED}"
+          if [ -z "$tag" ]; then
+            echo "::error::No tag to release."
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
       # Pinned to the commit rather than the tag, because a tag can be moved to
       # point at other code, and this workflow holds the store credentials.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ steps.which.outputs.tag }}
 
       # `.bun-version`, the same as `ci.yml`. On `latest` the build that ships is
       # not the build that went green, and the difference only shows after the
@@ -34,7 +65,7 @@ jobs:
 
       - name: Set extension version
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ steps.which.outputs.tag }}
         run: echo "EXTENSION_VERSION=$(bun scripts/release-version.ts "$RELEASE_TAG")" >> "$GITHUB_ENV"
 
       # The install above skips the `prepare` script, which is what writes
@@ -45,22 +76,109 @@ jobs:
       - name: Generate WXT types
         run: bun run types
 
+      # Once. Both packages are the same interface; what differs is the manifest
+      # each store reads, and the chunks under `public` that the scripts in this
+      # step write are shared by both.
       - name: Build extension
         run: bun run build
 
-      - name: Package extension
+      - name: Package for Chrome
         run: bun run zip
 
-      - name: Attach package to GitHub release
+      # Also writes the sources zip, which Firefox asks for next to the package
+      # because a reviewer has to rebuild a bundle to see what is in it.
+      - name: Package for Firefox
+        run: bun run zip:firefox
+
+      - name: Attach packages to the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-        run: gh release upload "$RELEASE_TAG" .output/*-chrome.zip --clobber
+          RELEASE_TAG: ${{ steps.which.outputs.tag }}
+        run: gh release upload "$RELEASE_TAG" .output/*.zip --clobber
 
-      - name: Submit to Chrome Web Store
+      # The store jobs below build nothing. They take exactly these bytes, so
+      # what a store reviews is what the release page offers to download.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: packages
+          path: .output/*.zip
+          retention-days: 7
+          if-no-files-found: error
+
+  chrome:
+    name: Chrome Web Store
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.package.outputs.tag }}
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: .bun-version
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: packages
+          path: .output
+
+      # A store nobody has given this workflow credentials for is skipped rather
+      # than failed, so the same release works before every store is set up and
+      # adding one is only adding its secrets.
+      - name: Submit to the Chrome Web Store
         env:
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
           CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
           CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
           CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
-        run: bunx wxt submit --chrome-zip .output/*-chrome.zip
+        run: |
+          if [ -z "$CHROME_EXTENSION_ID" ]; then
+            echo "::notice::No CHROME_EXTENSION_ID secret. Skipping the Chrome Web Store."
+            exit 0
+          fi
+          bunx wxt submit --chrome-zip .output/*-chrome.zip
+
+  firefox:
+    name: Firefox Add-ons
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.package.outputs.tag }}
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: .bun-version
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: packages
+          path: .output
+
+      # `listed` is the public directory. The sources zip goes up with the
+      # package, because everything a reader runs here was bundled and a
+      # reviewer is owed the input rather than the output.
+      - name: Submit to Firefox Add-ons
+        env:
+          FIREFOX_EXTENSION_ID: ${{ secrets.FIREFOX_EXTENSION_ID }}
+          FIREFOX_JWT_ISSUER: ${{ secrets.FIREFOX_JWT_ISSUER }}
+          FIREFOX_JWT_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}
+          FIREFOX_CHANNEL: listed
+        run: |
+          if [ -z "$FIREFOX_EXTENSION_ID" ]; then
+            echo "::notice::No FIREFOX_EXTENSION_ID secret. Skipping Firefox Add-ons."
+            exit 0
+          fi
+          bunx wxt submit \
+            --firefox-zip .output/*-firefox.zip \
+            --firefox-sources-zip .output/*-sources.zip

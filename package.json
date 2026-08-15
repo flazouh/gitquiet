@@ -19,6 +19,7 @@
     "build:markdown-mermaid": "bun scripts/build-markdown-mermaid.ts",
     "reload": "bun run build && ego-browser nodejs < scripts/ego-extension.js",
     "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox --mv3",
     "compile": "tsc --noEmit",
     "lint": "oxlint src",
     "shots:dev": "vite --config shots/vite.config.ts",
