@@ -1,0 +1,25 @@
+name: Check Gatekeeper accepts a disk image
+description: >
+  Opens the image, verifies the signature on the app inside it and asks macOS
+  whether it would run it. This is the difference between an app that opens and
+  one that tells a reader it is damaged, and it is worth failing a release over.
+
+inputs:
+  dmg:
+    description: Path to the disk image
+    required: true
+  app:
+    description: Name of the app bundle inside it
+    required: false
+    default: GitQuiet.app
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        mount="$RUNNER_TEMP/gatekeeper-check"
+        hdiutil attach -nobrowse -readonly '${{ inputs.dmg }}' -mountpoint "$mount"
+        codesign --verify --deep --strict --verbose=2 "$mount/${{ inputs.app }}"
+        spctl --assess --type execute --verbose "$mount/${{ inputs.app }}"
+        hdiutil detach "$mount"

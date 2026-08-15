@@ -1,9 +1,15 @@
 name: Release
 
 # Builds the tag once, attaches what it built to the GitHub release, then hands
-# the same zips to each store as a job of its own. One job per store because a
-# store that is down, or a review queue that rejects a package, is a thing to
-# re-run on its own — "Re-run failed jobs" then talks to that store and no other.
+# the same bytes to a job per target. One job per target because a store that is
+# down, or a review queue that rejects a package, is a thing to re-run on its
+# own — "Re-run failed jobs" then talks to that one and no other.
+#
+# Every target is skipped rather than failed when nobody has given this workflow
+# the credentials for it, which is what lets a release work before all of them
+# are set up: adding a store is adding its secrets. `gate` below is where that is
+# decided, once, so the answer shows in the run as a skipped job rather than as a
+# green one that quietly did nothing.
 on:
   release:
     types: [published]
@@ -24,38 +30,56 @@ permissions:
   contents: write
 
 jobs:
-  package:
-    name: Build and attach
+  gate:
+    name: Read which targets are configured
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
     outputs:
       tag: ${{ steps.which.outputs.tag }}
+      chrome: ${{ steps.which.outputs.chrome }}
+      firefox: ${{ steps.which.outputs.firefox }}
+      apple: ${{ steps.which.outputs.apple }}
     steps:
-      # Before the checkout, because it is what the checkout is given. Either a
-      # caller named the tag or a person published a release; nothing else
-      # starts this workflow.
-      - name: Read which tag this is
+      # No checkout: this reads the event and the secrets, and nothing else.
+      # A `secrets` value cannot be read in a job's own `if`, which is the whole
+      # reason this job exists rather than a condition on each of the others.
+      - name: Read the tag and the credentials
         id: which
         env:
           CALLED: ${{ inputs.tag }}
           PUBLISHED: ${{ github.event.release.tag_name }}
+          CHROME: ${{ secrets.CHROME_EXTENSION_ID }}
+          FIREFOX: ${{ secrets.FIREFOX_EXTENSION_ID }}
+          APPLE: ${{ secrets.MACOS_CERTIFICATE }}
         run: |
           tag="${CALLED:-$PUBLISHED}"
           if [ -z "$tag" ]; then
             echo "::error::No tag to release."
             exit 1
           fi
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          have() { if [ -n "$1" ]; then echo yes; else echo no; fi; }
+          {
+            echo "tag=$tag"
+            echo "chrome=$(have "$CHROME")"
+            echo "firefox=$(have "$FIREFOX")"
+            echo "apple=$(have "$APPLE")"
+          } >> "$GITHUB_OUTPUT"
 
+  package:
+    name: Build and attach
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
       # Pinned to the commit rather than the tag, because a tag can be moved to
-      # point at other code, and this workflow holds the store credentials.
+      # point at other code, and these jobs hold the store credentials.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ steps.which.outputs.tag }}
+          ref: ${{ needs.gate.outputs.tag }}
 
       # `.bun-version`, the same as `ci.yml`. On `latest` the build that ships is
-      # not the build that went green, and the difference only shows after the
-      # tag is published.
+      # not the build that went green, and the difference only shows after the tag
+      # is published.
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version-file: .bun-version
@@ -63,16 +87,16 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts
 
-      - name: Set extension version
+      - name: Set the release version
         env:
-          RELEASE_TAG: ${{ steps.which.outputs.tag }}
+          RELEASE_TAG: ${{ needs.gate.outputs.tag }}
         run: echo "RELEASE_VERSION=$(bun scripts/release-version.ts "$RELEASE_TAG")" >> "$GITHUB_ENV"
 
-      # The install above skips the `prepare` script, which is what writes
-      # `.wxt/tsconfig.json` locally. Every chunk the build makes is bundled through
-      # vite, and vite reads that file, so without this the first of them fails on
-      # "Tsconfig not found" before `wxt build` is reached. `ci.yml` runs the same step
-      # for the same reason.
+      # The install skips the `prepare` script, which is what writes
+      # `.wxt/tsconfig.json` locally. Every chunk the build makes is bundled
+      # through vite, and vite reads that file, so without this the first of them
+      # fails on "Tsconfig not found" before `wxt build` is reached. `ci.yml` runs
+      # the same step for the same reason.
       - name: Generate WXT types
         run: bun run types
 
@@ -93,7 +117,7 @@ jobs:
       - name: Attach packages to the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.which.outputs.tag }}
+          RELEASE_TAG: ${{ needs.gate.outputs.tag }}
         run: gh release upload "$RELEASE_TAG" .output/*.zip --clobber
 
       # The store jobs below build nothing. They take exactly these bytes, so
@@ -107,13 +131,14 @@ jobs:
 
   chrome:
     name: Chrome Web Store
-    needs: package
+    needs: [gate, package]
+    if: needs.gate.outputs.chrome == 'yes'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ needs.package.outputs.tag }}
+          ref: ${{ needs.gate.outputs.tag }}
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
@@ -127,31 +152,24 @@ jobs:
           name: packages
           path: .output
 
-      # A store nobody has given this workflow credentials for is skipped rather
-      # than failed, so the same release works before every store is set up and
-      # adding one is only adding its secrets.
       - name: Submit to the Chrome Web Store
         env:
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
           CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
           CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
           CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
-        run: |
-          if [ -z "$CHROME_EXTENSION_ID" ]; then
-            echo "::notice::No CHROME_EXTENSION_ID secret. Skipping the Chrome Web Store."
-            exit 0
-          fi
-          bunx wxt submit --chrome-zip .output/*-chrome.zip
+        run: bunx wxt submit --chrome-zip .output/*-chrome.zip
 
   firefox:
     name: Firefox Add-ons
-    needs: package
+    needs: [gate, package]
+    if: needs.gate.outputs.firefox == 'yes'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ needs.package.outputs.tag }}
+          ref: ${{ needs.gate.outputs.tag }}
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
@@ -166,8 +184,8 @@ jobs:
           path: .output
 
       # `listed` is the public directory. The sources zip goes up with the
-      # package, because everything a reader runs here was bundled and a
-      # reviewer is owed the input rather than the output.
+      # package, because everything a reader runs here was bundled and a reviewer
+      # is owed the input rather than the output.
       - name: Submit to Firefox Add-ons
         env:
           FIREFOX_EXTENSION_ID: ${{ secrets.FIREFOX_EXTENSION_ID }}
@@ -175,17 +193,16 @@ jobs:
           FIREFOX_JWT_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}
           FIREFOX_CHANNEL: listed
         run: |
-          if [ -z "$FIREFOX_EXTENSION_ID" ]; then
-            echo "::notice::No FIREFOX_EXTENSION_ID secret. Skipping Firefox Add-ons."
-            exit 0
-          fi
           bunx wxt submit \
             --firefox-zip .output/*-firefox.zip \
             --firefox-sources-zip .output/*-sources.zip
 
   desktop:
     name: macOS app
-    needs: package
+    needs: [gate, package]
+    # Gatekeeper refuses an unsigned app that arrived over the network, so a DMG
+    # nobody can open is worse than no DMG at all.
+    if: needs.gate.outputs.apple == 'yes'
     # An Apple app can only be signed and notarised on a Mac, and `hdiutil`,
     # `codesign` and `notarytool` are all only here.
     runs-on: macos-latest
@@ -194,63 +211,28 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ needs.package.outputs.tag }}
+          ref: ${{ needs.gate.outputs.tag }}
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version-file: .bun-version
 
-      # Not `--ignore-scripts` here: the desktop app is a workspace, and this is
-      # what puts Electrobun's own binary in place.
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: bun install --frozen-lockfile --ignore-scripts
 
-      - name: Read the release version
+      - name: Set the release version
         env:
-          RELEASE_TAG: ${{ needs.package.outputs.tag }}
+          RELEASE_TAG: ${{ needs.gate.outputs.tag }}
         run: echo "RELEASE_VERSION=$(bun scripts/release-version.ts "$RELEASE_TAG")" >> "$GITHUB_ENV"
 
-      # Gatekeeper refuses an unsigned app that arrived over the network, so a
-      # DMG nobody can open is worse than no DMG. Without a certificate this job
-      # says so and stops, and the extension still ships.
-      - name: Check there is a certificate to sign with
-        id: signable
-        env:
-          CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-        run: |
-          if [ -z "$CERTIFICATE" ]; then
-            echo "::notice::No MACOS_CERTIFICATE secret. Skipping the macOS app."
-            echo "signable=no" >> "$GITHUB_OUTPUT"
-          else
-            echo "signable=yes" >> "$GITHUB_OUTPUT"
-          fi
-
-      # A keychain of its own, in the runner's temp folder, so the certificate
-      # lives as long as the job and no longer. `set-key-partition-list` is what
-      # lets `codesign` read the key without a prompt no runner can answer.
-      - name: Unlock a keychain with the certificate in it
-        if: steps.signable.outputs.signable == 'yes'
-        env:
-          CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-          CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
-        run: |
-          keychain="$RUNNER_TEMP/release.keychain-db"
-          password=$(uuidgen)
-          security create-keychain -p "$password" "$keychain"
-          security set-keychain-settings -lut 21600 "$keychain"
-          security unlock-keychain -p "$password" "$keychain"
-          echo "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
-          security import "$RUNNER_TEMP/certificate.p12" \
-            -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          rm "$RUNNER_TEMP/certificate.p12"
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain"
-          security list-keychain -d user -s "$keychain" login.keychain-db
-          security find-identity -v -p codesigning "$keychain"
+      - uses: ./.github/actions/apple-keychain
+        with:
+          certificate: ${{ secrets.MACOS_CERTIFICATE }}
+          password: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
 
       # `ELECTROBUN_DEVELOPER_ID` is what turns signing on: see
       # desktop/electrobun.config.ts, which reads it to decide.
       - name: Build, sign and notarise
-        if: steps.signable.outputs.signable == 'yes'
         working-directory: desktop
         env:
           ELECTROBUN_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
@@ -261,30 +243,25 @@ jobs:
 
       # Renamed on the way up. Electrobun names an artifact for the build it came
       # from, which reads as nothing at all in somebody's downloads folder.
+      - name: Name the disk image for what it is
+        run: |
+          echo "DMG=GitQuiet-$RELEASE_VERSION-macos-arm64.dmg" >> "$GITHUB_ENV"
+          mv desktop/artifacts/*-GitQuiet.dmg "GitQuiet-$RELEASE_VERSION-macos-arm64.dmg"
+
+      - uses: ./.github/actions/gatekeeper
+        with:
+          dmg: ${{ env.DMG }}
+
       - name: Attach the app to the GitHub release
-        if: steps.signable.outputs.signable == 'yes'
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ needs.package.outputs.tag }}
-        run: |
-          dmg="GitQuiet-$RELEASE_VERSION-macos-arm64.dmg"
-          mv desktop/artifacts/*-GitQuiet.dmg "$dmg"
-          gh release upload "$RELEASE_TAG" "$dmg" --clobber
-
-      # Proof the signature is real and Apple stapled its ticket to it, which is
-      # the difference between an app that opens and one that says it is damaged.
-      - name: Check Gatekeeper accepts it
-        if: steps.signable.outputs.signable == 'yes'
-        run: |
-          hdiutil attach -nobrowse -readonly "GitQuiet-$RELEASE_VERSION-macos-arm64.dmg" \
-            -mountpoint "$RUNNER_TEMP/dmg"
-          codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/dmg/GitQuiet.app"
-          spctl --assess --type execute --verbose "$RUNNER_TEMP/dmg/GitQuiet.app"
-          hdiutil detach "$RUNNER_TEMP/dmg"
+          RELEASE_TAG: ${{ needs.gate.outputs.tag }}
+        run: gh release upload "$RELEASE_TAG" "$DMG" --clobber
 
   safari:
     name: Safari app
-    needs: package
+    needs: [gate, package]
+    if: needs.gate.outputs.apple == 'yes'
     # Safari's own requirement: an extension it will load is one inside a macOS
     # app, and only Xcode builds those.
     runs-on: macos-latest
@@ -292,7 +269,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ needs.package.outputs.tag }}
+          ref: ${{ needs.gate.outputs.tag }}
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
@@ -301,57 +278,28 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile --ignore-scripts
 
-      - name: Read the release version
+      - name: Set the release version
         env:
-          RELEASE_TAG: ${{ needs.package.outputs.tag }}
+          RELEASE_TAG: ${{ needs.gate.outputs.tag }}
         run: echo "RELEASE_VERSION=$(bun scripts/release-version.ts "$RELEASE_TAG")" >> "$GITHUB_ENV"
 
-      # Same reason as the macOS app: an unsigned one is an app macOS will not
-      # open, so without a certificate this stops and the extension still ships.
-      - name: Check there is a certificate to sign with
-        id: signable
-        env:
-          CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-        run: |
-          if [ -z "$CERTIFICATE" ]; then
-            echo "::notice::No MACOS_CERTIFICATE secret. Skipping the Safari app."
-            echo "signable=no" >> "$GITHUB_OUTPUT"
-          else
-            echo "signable=yes" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Generate WXT types
-        if: steps.signable.outputs.signable == 'yes'
         run: bun run types
 
       # `bun run build` first, because the scripts in it write the chunks under
       # `public` that every target imports, and only then the Safari manifest.
       - name: Build the extension for Safari
-        if: steps.signable.outputs.signable == 'yes'
         run: |
           bun run build
           bun run build:safari
 
-      - name: Unlock a keychain with the certificate in it
-        if: steps.signable.outputs.signable == 'yes'
-        env:
-          CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-          CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
-        run: |
-          keychain="$RUNNER_TEMP/release.keychain-db"
-          password=$(uuidgen)
-          security create-keychain -p "$password" "$keychain"
-          security set-keychain-settings -lut 21600 "$keychain"
-          security unlock-keychain -p "$password" "$keychain"
-          echo "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
-          security import "$RUNNER_TEMP/certificate.p12" \
-            -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          rm "$RUNNER_TEMP/certificate.p12"
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain"
-          security list-keychain -d user -s "$keychain" login.keychain-db
+      - uses: ./.github/actions/apple-keychain
+        with:
+          certificate: ${{ secrets.MACOS_CERTIFICATE }}
+          password: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
 
-      # Regenerated on every release rather than committed, so the project can
-      # never describe an older extension than the one built beside it.
+      # Generated on every release and committed nowhere, so the project cannot
+      # describe an older extension than the one built beside it.
       #
       # The identifier's last part has to be the app's own name. Apple's
       # converter reads that part as the app and gives the extension the whole
@@ -359,7 +307,6 @@ jobs:
       # `dev.gitquiet.GitQuiet` with an extension under it that Xcode then
       # refused: "not prefixed with the parent app's bundle identifier".
       - name: Wrap the extension in an Xcode project
-        if: steps.signable.outputs.signable == 'yes'
         run: |
           xcrun safari-web-extension-converter .output/safari-mv3 \
             --project-location "$RUNNER_TEMP/safari" \
@@ -371,7 +318,6 @@ jobs:
       # extension is a bundle inside a bundle, and this is what signs both from
       # the inside out and turns the hardened runtime on, which notarising needs.
       - name: Archive and sign
-        if: steps.signable.outputs.signable == 'yes'
         env:
           IDENTITY: ${{ secrets.APPLE_DEVELOPER_ID }}
           TEAM: ${{ secrets.APPLE_TEAM_ID }}
@@ -393,12 +339,11 @@ jobs:
             -exportOptionsPlist "$plist" \
             -exportPath "$RUNNER_TEMP/safari-export"
 
-      # A disk image with a shortcut to Applications beside the app, because
-      # Safari only offers the extension once its app has been moved there and
-      # opened once.
+      # A shortcut to Applications beside the app, because Safari only offers the
+      # extension once its app has been moved there and opened once.
       - name: Package a disk image
-        if: steps.signable.outputs.signable == 'yes'
         run: |
+          echo "DMG=GitQuiet-$RELEASE_VERSION-safari.dmg" >> "$GITHUB_ENV"
           staging="$RUNNER_TEMP/safari-dmg"
           mkdir -p "$staging"
           cp -R "$RUNNER_TEMP/safari-export/GitQuiet.app" "$staging/"
@@ -408,33 +353,26 @@ jobs:
 
       # Apple has to see the image before Gatekeeper will open what is inside it,
       # and `stapler` writes that answer into the file so a reader who is offline
-      # still gets it. `--wait` because the queue is minutes rather than seconds.
+      # still gets it. `--wait` because the queue is minutes, not seconds.
       - name: Notarise and staple
-        if: steps.signable.outputs.signable == 'yes'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           TEAM: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          xcrun notarytool submit "GitQuiet-$RELEASE_VERSION-safari.dmg" \
+          xcrun notarytool submit "$DMG" \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_ID_PASSWORD" \
             --team-id "$TEAM" \
             --wait
-          xcrun stapler staple "GitQuiet-$RELEASE_VERSION-safari.dmg"
+          xcrun stapler staple "$DMG"
 
-      - name: Check Gatekeeper accepts it
-        if: steps.signable.outputs.signable == 'yes'
-        run: |
-          hdiutil attach -nobrowse -readonly "GitQuiet-$RELEASE_VERSION-safari.dmg" \
-            -mountpoint "$RUNNER_TEMP/check"
-          codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/check/GitQuiet.app"
-          spctl --assess --type execute --verbose "$RUNNER_TEMP/check/GitQuiet.app"
-          hdiutil detach "$RUNNER_TEMP/check"
+      - uses: ./.github/actions/gatekeeper
+        with:
+          dmg: ${{ env.DMG }}
 
       - name: Attach the Safari app to the GitHub release
-        if: steps.signable.outputs.signable == 'yes'
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ needs.package.outputs.tag }}
-        run: gh release upload "$RELEASE_TAG" "GitQuiet-$RELEASE_VERSION-safari.dmg" --clobber
+          RELEASE_TAG: ${{ needs.gate.outputs.tag }}
+        run: gh release upload "$RELEASE_TAG" "$DMG" --clobber

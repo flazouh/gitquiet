@@ -1,0 +1,37 @@
+name: Unlock a keychain holding the signing certificate
+description: >
+  Puts the Developer ID certificate in a keychain of its own, in the runner's
+  temp folder, so it lives as long as the job and no longer. Both Apple builds
+  need this and neither should own it.
+
+inputs:
+  certificate:
+    description: The certificate, exported as a .p12 and base64 encoded
+    required: true
+  password:
+    description: The password the .p12 was exported with
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # `set-key-partition-list` is what lets `codesign` read the key without the
+    # prompt no runner can answer. The keychain's own password is made here and
+    # thrown away with it, because nothing outside this job opens it again.
+    - shell: bash
+      env:
+        CERTIFICATE: ${{ inputs.certificate }}
+        CERTIFICATE_PASSWORD: ${{ inputs.password }}
+      run: |
+        keychain="$RUNNER_TEMP/release.keychain-db"
+        password=$(uuidgen)
+        security create-keychain -p "$password" "$keychain"
+        security set-keychain-settings -lut 21600 "$keychain"
+        security unlock-keychain -p "$password" "$keychain"
+        echo "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+        security import "$RUNNER_TEMP/certificate.p12" \
+          -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+        rm "$RUNNER_TEMP/certificate.p12"
+        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain"
+        security list-keychain -d user -s "$keychain" login.keychain-db
+        security find-identity -v -p codesigning "$keychain"
