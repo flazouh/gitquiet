@@ -37,7 +37,9 @@ const same = (before: Person | undefined, now: Person): boolean =>
 export const usePerson = (
   read: (page: Document) => Option.Option<Person>,
   /** The document to read. Only a test ever passes one. */
-  page: Document = document
+  page: Document = document,
+  /** How long to keep watching. Only a test shortens it, so it does not wait four seconds. */
+  settling: number = SETTLING
 ): Person | undefined => {
   const [found, setFound] = useState(() => Option.getOrUndefined(read(page)))
   const had = useRef(found)
@@ -55,13 +57,13 @@ export const usePerson = (
 
     const watcher = new MutationObserver(look)
     watcher.observe(page.documentElement, { childList: true, subtree: true })
-    const stop = setTimeout(() => watcher.disconnect(), SETTLING)
+    const stop = setTimeout(() => watcher.disconnect(), settling)
 
     return () => {
       clearTimeout(stop)
       watcher.disconnect()
     }
-  }, [page, read])
+  }, [page, read, settling])
 
   return found
 }

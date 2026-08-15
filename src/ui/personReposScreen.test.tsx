@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { act, cleanup, render, screen, within } from "@testing-library/react"
+import { cleanup, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import type { ListedRepository } from "../domain/life"
@@ -60,21 +60,6 @@ const shown = (
       signedIn={() => true}
     />
   )
-
-/**
- * GitHub writing to their half of the page, which is what the column waits for.
- *
- * A node in and a node out again, because the content is nobody's business here: the read
- * is a function a test passes in, and all this has to do is make the screen run it again.
- */
-const stirred = async (): Promise<void> => {
-  const stir = document.createElement("div")
-  await act(async () => {
-    document.body.append(stir)
-    await Promise.resolve()
-  })
-  stir.remove()
-}
 
 /**
  * One group's card, found by its heading.
@@ -405,64 +390,27 @@ describe("the column down the left", () => {
   })
 
   /*
-   * The fault this covers, and it was on the live page rather than in a test: the screen
-   * starts at `document_start`, so the card their column is read out of has not been
-   * parsed yet and the read comes back with nothing. Read once more when the document
-   * says it is finished, and the column arrives a beat behind the list — which is the
-   * order that matters anyway, since the list is what the reader came for.
+   * Where the column comes from, rather than when. The screen reads it off the served
+   * page and reads it again while GitHub is still writing that page, and the reading is
+   * `usePerson`'s: see `usePerson.test.tsx`, which holds the fault this had — a first
+   * read against a document a few kilobytes long, answering with a name and nothing
+   * under it. Tested there, it is a hook and a mutation. Tested here, it was a screen,
+   * a list, a watcher and a four second window, and it failed about one run in four on
+   * a machine running the whole suite.
    */
-  test("reads that column again when their markup is parsed", async () => {
-    const later: Person = who({ name: Option.some("Alex Late") })
-    let served = false
-
+  test("draws the column the read hands over, whenever it arrives", async () => {
     render(
       <PersonReposScreen
         login="flazouh"
         now={now}
         load={() => Effect.succeed({ rows: LIST, reading: false, capped: false })}
         onStepAside={() => {}}
-        readWho={() => (served ? Option.some(later) : Option.none())}
-        signedIn={() => true}
-      />
-    )
-
-    await screen.findByRole("heading", { name: /^Moving$/ })
-    expect(screen.queryByRole("complementary")).toBeNull()
-
-    served = true
-    await stirred()
-
-    const aside = await screen.findByRole("complementary", { name: "About flazouh" })
-    expect(aside.textContent).toContain("Alex Late")
-  })
-
-  /*
-   * The same fault one step further along, and the one that was actually on the screen:
-   * the card is half parsed rather than absent, so the first read succeeds and comes back
-   * with a name, a login and nothing under them. A read that stopped at the first answer
-   * left a column with no counts and no links on every cold load.
-   */
-  test("reads it again even where the half-parsed card already answered", async () => {
-    const half: Person = who({ followers: Option.none(), ways: [], site: Option.none() })
-    let parsed = false
-
-    render(
-      <PersonReposScreen
-        login="flazouh"
-        now={now}
-        load={() => Effect.succeed({ rows: LIST, reading: false, capped: false })}
-        onStepAside={() => {}}
-        readWho={() => Option.some(parsed ? who() : half)}
+        readWho={() => Option.some(who())}
         signedIn={() => true}
       />
     )
 
     const aside = await screen.findByRole("complementary", { name: "About flazouh" })
-    expect(aside.textContent).not.toContain("25 followers")
-
-    parsed = true
-    await stirred()
-
     expect(aside.textContent).toContain("25 followers")
     expect(aside.textContent).toContain("acepe.dev")
   })
