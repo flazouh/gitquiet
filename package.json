@@ -6,7 +6,7 @@
   "type": "module",
   "workspaces": ["desktop"],
   "scripts": {
-    "prepare": "./scripts/prepare-effect.sh && lefthook install && bun run types",
+    "prepare": "./scripts/prepare.sh",
     "types": "wxt prepare",
     "dev": "bun scripts/dev.ts",
     "dev:wxt": "wxt",
