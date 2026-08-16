@@ -26,6 +26,19 @@ export type Viewer = {
  * one: the device code is single-use, expires in fifteen minutes, and is
  * useless without the reader typing the user code into GitHub themselves.
  */
+/**
+ * The two ways in, and whether this build can offer each.
+ *
+ * Both are false in a build nobody gave credentials to, which is the state every
+ * release shipped in until the id and the secret were baked in at build time.
+ */
+export type WaysToSignIn = {
+  /** The authorization code flow, through the reader's own browser. */
+  readonly browser: boolean
+  /** The device flow, for a machine with no browser to open. */
+  readonly code: boolean
+}
+
 export type Pending = {
   /** The short code the reader types into GitHub. */
   readonly code: string
@@ -286,6 +299,23 @@ export type Wire = {
     requests: {
       /** Who is already signed in, from the token the keychain is holding. */
       viewer: { params: void; response: Viewer | null }
+      /**
+       * Which sign-ins this build was given credentials for.
+       *
+       * Asked before the panel draws, so it never offers a button that cannot
+       * work. Answered from two constants with nothing over the network: the
+       * browser flow needs the client secret GitHub asks for at the token
+       * endpoint, the code flow needs only the client id.
+       */
+      waysToSignIn: { params: void; response: WaysToSignIn }
+      /**
+       * Opens the reader's own browser, waits for them there, keeps the token.
+       *
+       * One request rather than two, because nothing has to be shown while it
+       * runs: the reader is looking at github.com, and this answers when they
+       * come back.
+       */
+      signInThroughBrowser: { params: void; response: Answered<Viewer> }
       /** Asks GitHub for a code pair and hands back what to show the reader. */
       beginSignIn: { params: void; response: Answered<Pending> }
       /** Waits for GitHub to say the reader typed it, then keeps the token. */

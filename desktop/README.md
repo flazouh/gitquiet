@@ -66,22 +66,52 @@ Two things about the build are not obvious:
 
 ## Signing in
 
-The app uses GitHub's **device flow**: it shows a short code, you type it into
-github.com, and the token it gets back goes into your keychain. There is no
-embedded login form, and no client secret — a secret shipped inside a
-downloadable app is not a secret.
+One press: your own browser opens on github.com, you approve, and the window is
+signed in. That is the **authorization code flow with PKCE**, which is what
+GitHub asks a windowed application to use — the browser is sent back to a server
+the app started on `127.0.0.1` a moment earlier, and the code it carries is
+worthless to anyone else because the verifier never left the app.
+
+There is no embedded login form. An app that draws its own GitHub password field
+is an app teaching its readers to type their password into anything that looks
+the part.
+
+The **device flow** is still there, behind "No browser on this machine? Use a
+code", for a machine with nothing to open.
 
 It needs an OAuth app of your own:
 
 1. GitHub → Settings → Developer settings → **New OAuth App**.
-2. Tick **Enable Device Flow**.
-3. Copy the Client ID and run with it set:
+2. Authorization callback URL: `http://127.0.0.1/callback`. The port is left off
+   on purpose: the app listens on one the system picks, and GitHub matches the
+   host and the path and lets the port vary.
+3. Tick **Enable Device Flow**, for the second way in.
+4. Generate a client secret. GitHub asks for one when a code is exchanged even
+   with PKCE, and it is shipped inside the app because there is nowhere else for
+   it to be — the same way their own command line tool and their MCP server ship
+   theirs. PKCE is what makes the exchange safe, not that.
+5. Build with both set:
 
 ```bash
-GITHUB_CLIENT_ID=Ov23li… bun run dev
+GITHUB_CLIENT_ID=Ov23li… GITHUB_CLIENT_SECRET=… bun run dev
 ```
 
-Until that is set, the sign-in button says so rather than failing quietly.
+They are read **while bundling**, not at launch: `electrobun.config.ts` hands
+both to Bun's `define`, so a packaged app carries them. An app opened from Finder
+inherits launchd's environment, which has neither, which is why every build
+before this shipped a sign-in button that refused before it reached the network.
+
+With the id and no secret, the panel offers the code flow only. With neither, it
+says so instead of drawing a button that cannot work.
+
+To check an OAuth app without building anything:
+
+```bash
+GITHUB_CLIENT_ID=… GITHUB_CLIENT_SECRET=… bun desktop/scripts/try-sign-in.ts
+```
+
+Add `--pretend` and it plays the browser itself, which checks the loopback door
+and leaves the last leg — a person approving — untested.
 
 **On a development machine you can skip all of that.** If the GitHub CLI is
 signed in, the app uses its token, so a fresh checkout draws a real Working Set

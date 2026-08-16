@@ -1,32 +1,76 @@
 import { AnimatePresence, motion } from "framer-motion"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "../components/ui/button"
 import { Elevated } from "../lib/elevated"
 import { fontWeights } from "../lib/font-weight"
 import { spring } from "../lib/springs"
-import type { Pending, Viewer } from "../shared/wire"
+import type { Pending, Viewer, WaysToSignIn } from "../shared/wire"
 import { ask } from "./rpc"
 
 /**
- * Signing in, as four things a reader can be looking at.
+ * Signing in, as five things a reader can be looking at.
  *
- * Asleep, waiting on GitHub for a code, holding a code and waiting on the
- * reader, or turned away. They are one union rather than four booleans because
- * three of them have something on screen that the others must not — a code that
- * has expired, a spinner over a code, an error under a button that is already
- * gone — and a union makes each of those unrepresentable rather than merely
- * unlikely.
+ * Asleep, waiting on their browser, waiting on GitHub for a code, holding a code
+ * and waiting on the reader, or turned away. They are one union rather than five
+ * booleans because several of them have something on screen that the others must
+ * not — a code that has expired, a spinner over a code, an error under a button
+ * that is already gone — and a union makes each of those unrepresentable rather
+ * than merely unlikely.
  */
 type Step =
   | { readonly at: "asleep" }
+  | { readonly at: "inTheBrowser" }
   | { readonly at: "asking" }
   | { readonly at: "waiting"; readonly pending: Pending }
   | { readonly at: "refused"; readonly why: string }
 
+/**
+ * Said here rather than by the main process, because it is the one refusal a
+ * reader can act on: it is their build that has no OAuth app, and the fix is on
+ * github.com. Everything else on this panel is GitHub's own words.
+ */
+const NO_APP = "This build was made without an OAuth app of its own, so it has nothing to sign in with."
+
 export const SignIn = ({ onSignedIn }: { readonly onSignedIn: (viewer: Viewer) => void }) => {
   const [step, setStep] = useState<Step>({ at: "asleep" })
 
-  const start = async () => {
+  /**
+   * Which ways in this build has credentials for, which is not known until the
+   * main process answers. Null until then, and the button waits rather than
+   * being drawn as something that might not work: a button that refuses on
+   * press is how the shipped app looked broken.
+   */
+  const [ways, setWays] = useState<WaysToSignIn | null>(null)
+
+  useEffect(() => {
+    let listening = true
+    void ask("waysToSignIn", undefined).then((it) => {
+      if (listening) setWays(it)
+    })
+    return () => {
+      listening = false
+    }
+  }, [])
+
+  /**
+   * The way GitHub asks a window to sign somebody in: their own browser opens,
+   * they approve there, and this answers when they come back. One request, held
+   * open for as long as they take, because the main process is the one waiting.
+   */
+  const throughBrowser = async () => {
+    setStep({ at: "inTheBrowser" })
+
+    const done = await ask("signInThroughBrowser", undefined)
+    if (!done.ok) {
+      setStep({ at: "refused", why: done.why })
+      return
+    }
+
+    onSignedIn(done.it)
+  }
+
+  /** The second way, for a machine with no browser to open. */
+  const withACode = async () => {
     setStep({ at: "asking" })
 
     const begun = await ask("beginSignIn", undefined)
@@ -48,6 +92,8 @@ export const SignIn = ({ onSignedIn }: { readonly onSignedIn: (viewer: Viewer) =
 
     onSignedIn(done.it)
   }
+
+  const nothingToSignInWith = ways !== null && !ways.browser && !ways.code
 
   return (
     <Elevated offset={2} className="w-[360px] rounded-xl px-8 py-9">
@@ -116,9 +162,46 @@ export const SignIn = ({ onSignedIn }: { readonly onSignedIn: (viewer: Viewer) =
               )}
             </AnimatePresence>
 
-            <Button className="mt-3" size="lg" loading={step.at === "asking"} onClick={start}>
-              {step.at === "asking" ? "Asking GitHub…" : "Sign in with GitHub"}
-            </Button>
+            {nothingToSignInWith ? (
+              <p className="m-0 mt-3 text-xs text-muted-foreground">{NO_APP}</p>
+            ) : (
+              <>
+                {ways?.browser === false ? (
+                  <Button
+                    className="mt-3"
+                    size="lg"
+                    loading={step.at === "asking"}
+                    disabled={ways === null}
+                    onClick={withACode}
+                  >
+                    {step.at === "asking" ? "Asking GitHub…" : "Sign in with a code"}
+                  </Button>
+                ) : (
+                  <Button
+                    className="mt-3"
+                    size="lg"
+                    loading={step.at === "inTheBrowser"}
+                    disabled={ways === null}
+                    onClick={throughBrowser}
+                  >
+                    {step.at === "inTheBrowser" ? "Waiting for your browser…" : "Sign in with GitHub"}
+                  </Button>
+                )}
+
+                {step.at === "inTheBrowser" ? (
+                  <p className="m-0 mt-1 text-xs text-muted-foreground">
+                    Approve it in the tab that opened. This window will move on by itself.
+                  </p>
+                ) : (
+                  ways?.browser === true &&
+                  ways.code && (
+                    <Button variant="ghost" size="sm" onClick={withACode}>
+                      No browser on this machine? Use a code
+                    </Button>
+                  )
+                )}
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

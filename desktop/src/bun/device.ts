@@ -1,61 +1,26 @@
 import { Duration, Effect } from "effect"
 import type { Pending } from "../shared/wire"
 import { GitHubUnreachable } from "./api"
+import { CLIENT_ID, postForm, SCOPE, TOKEN } from "./oauth"
 
 /**
- * Signing in without a password, a redirect, or a browser we control.
+ * Signing in on a machine with no browser to open.
  *
- * GitHub's device flow, which exists for exactly this shape of app: we ask for a
- * pair of codes, the reader types the short one into github.com on whatever
- * device they like, and we poll until GitHub says they did. No embedded login
- * form — an app that draws its own GitHub password field is an app teaching its
- * readers to type their password into anything that looks the part — and no
- * client secret, because a secret shipped inside a downloadable app is not one.
+ * GitHub's device flow: we ask for a pair of codes, the reader types the short
+ * one into github.com on whatever device they like, and we poll until GitHub
+ * says they did. No embedded login form — an app that draws its own GitHub
+ * password field is an app teaching its readers to type their password into
+ * anything that looks the part — and no client secret, because their own
+ * documentation says the secret "is not needed for the device flow".
+ *
+ * The second way rather than the first. `authorize.ts` is what the panel offers,
+ * because GitHub asks a windowed application to use the authorization code flow
+ * and warns that a device code is a code somebody can be talked into typing.
+ * This stays for the case their warning excepts: a machine over SSH, a machine
+ * with no browser, a build with an id and no secret.
  */
 
 const CODE = "https://github.com/login/device/code"
-const TOKEN = "https://github.com/login/oauth/access_token"
-
-/**
- * What the token is allowed to do.
- *
- * `repo` because a Working Set that silently omitted private pull requests would
- * be worse than no Working Set: the reader cannot see what is missing. Nothing
- * else — no `write`, no `delete_repo`, no organisation administration — and the
- * scope stays this short until a screen needs more.
- */
-const SCOPE = "repo"
-
-/**
- * The OAuth app this asks on behalf of.
- *
- * Not a secret: a device-flow client id is published in the app that uses it,
- * which is why GitHub issues no secret alongside it. It is still yours to
- * create — one OAuth app, "Enable Device Flow" ticked — because an app asking
- * for a reader's private repositories should say whose app it is.
- *
- * The environment wins where it is set, which is how this is run against a
- * throwaway OAuth app without editing tracked code.
- */
-export const CLIENT_ID = process.env["GITHUB_CLIENT_ID"] ?? ""
-
-const form = (fields: Record<string, string>) =>
-  Object.entries(fields)
-    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-    .join("&")
-
-const post = <A>(url: string, fields: Record<string, string>) =>
-  Effect.tryPromise({
-    try: async () => {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" },
-        body: form(fields)
-      })
-      return (await response.json()) as A
-    },
-    catch: (cause) => new GitHubUnreachable(String(cause))
-  })
 
 /**
  * Asks GitHub for a code pair.
@@ -65,7 +30,7 @@ const post = <A>(url: string, fields: Record<string, string>) =>
  * and then a refusal.
  */
 export const beginSignIn = Effect.fn("beginSignIn")(function* () {
-  const it = yield* post<{
+  const it = yield* postForm<{
     device_code?: string
     user_code?: string
     verification_uri?: string
@@ -118,7 +83,7 @@ export const finishSignIn = Effect.fn("finishSignIn")(function* (pending: Pendin
 
     yield* Effect.sleep(Duration.seconds(wait))
 
-    const it = yield* post<{ access_token?: string; error?: string; error_description?: string }>(
+    const it = yield* postForm<{ access_token?: string; error?: string; error_description?: string }>(
       TOKEN,
       {
         client_id: CLIENT_ID,

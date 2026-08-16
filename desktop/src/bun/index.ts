@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 import { ApplicationMenu, BrowserWindow, defineElectrobunRPC } from "electrobun/bun"
-import type { Answered, Asked, Card, Pending, Viewer, Wire } from "../shared/wire"
+import type { Answered, Asked, Card, Pending, Viewer, WaysToSignIn, Wire } from "../shared/wire"
 import { whoAmI } from "./api"
 import { readCard, readPatches } from "./card"
 import { readCommit } from "./commit"
@@ -22,7 +22,9 @@ import {
 } from "./demo"
 import { fileFor, inFile, keepingLatest, readAcrossRuns } from "./acrossRuns"
 import { IDENTIFIER } from "./identity"
-import { beginSignIn, CLIENT_ID, finishSignIn } from "./device"
+import { signInThroughBrowser } from "./authorize"
+import { beginSignIn, finishSignIn } from "./device"
+import { canSignInThroughBrowser, canSignInWithACode } from "./oauth"
 import { forgetToken, keepToken } from "./keychain"
 import { currentToken } from "./token"
 import { readWorkingSet } from "./workingSet"
@@ -193,13 +195,28 @@ const rpc = defineElectrobunRPC<Wire, "bun">("bun", {
        */
       viewer: (): Promise<Viewer | null> => Effect.runPromise(whoIsSignedIn),
 
+      waysToSignIn: (): Promise<WaysToSignIn> =>
+        Promise.resolve({ browser: canSignInThroughBrowser, code: canSignInWithACode }),
+
+      /**
+       * The sign-in the panel offers first, and the one GitHub asks a window to
+       * use. Kept before it is read, for the reason `finishSignIn` gives below.
+       */
+      signInThroughBrowser: () =>
+        said(
+          signInThroughBrowser().pipe(
+            Effect.tap((token) => keepToken(token)),
+            Effect.flatMap((token) => whoAmI(token))
+          )
+        ),
+
       beginSignIn: () =>
-        CLIENT_ID === ""
-          ? Promise.resolve<Answered<Pending>>({
+        canSignInWithACode
+          ? said(beginSignIn())
+          : Promise.resolve<Answered<Pending>>({
               ok: false,
-              why: "No OAuth client id. Create a GitHub OAuth app with device flow enabled and set GITHUB_CLIENT_ID."
-            })
-          : said(beginSignIn()),
+              why: "This build has no OAuth app. Create one on GitHub and build with GITHUB_CLIENT_ID set."
+            }),
 
       /**
        * Waits out the sign-in, then keeps the token before answering.

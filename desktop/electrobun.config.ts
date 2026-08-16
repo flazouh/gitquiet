@@ -32,7 +32,33 @@ export default {
      * `bun run aliases` is what answers it instead, by settling the alias in the
      * files a registry wrote before this ever sees them.
      */
-    bun: { entrypoint: "src/bun/index.ts" },
+    bun: {
+      entrypoint: "src/bun/index.ts",
+      /*
+       * The OAuth app, put into the bundle rather than left to be read at
+       * launch.
+       *
+       * An app opened from Finder inherits launchd's environment, which is
+       * `/usr/bin:/bin:/usr/sbin:/sbin` and nothing else — no `GITHUB_CLIENT_ID`,
+       * whatever the shell that built it had. So every release shipped a sign-in
+       * button that refused before it reached the network, saying the client id
+       * was missing, and pressing it again said the same thing. Bun's `define`
+       * replaces each expression below with a literal while bundling, which is
+       * how GitHub's own MCP server ships the same pair through linker flags.
+       *
+       * Neither is a secret. A device-flow client id is published in the app
+       * that uses it, and the "secret" GitHub asks for when exchanging a code is
+       * one every reader can pull out of the bundle: PKCE is what makes the
+       * exchange safe. See `src/bun/oauth.ts`.
+       *
+       * Empty where nobody set them, which is a build that offers no sign-in and
+       * says so on the panel rather than on a press.
+       */
+      define: {
+        "process.env.GITHUB_CLIENT_ID": JSON.stringify(process.env.GITHUB_CLIENT_ID ?? ""),
+        "process.env.GITHUB_CLIENT_SECRET": JSON.stringify(process.env.GITHUB_CLIENT_SECRET ?? "")
+      }
+    },
     views: { main: { entrypoint: "src/view/index.tsx" } },
     copy: {
       "src/view/index.html": "views/main/index.html",
