@@ -15,6 +15,10 @@ import { heldToken } from "./keychain"
  * Order matters and this order is deliberate: having signed in through the app
  * beats whatever a shell happened to export, so a sign-out is a sign-out rather
  * than a fall back to a token the reader forgot they had.
+ *
+ * Ahead of all three, `GITQUIET_SIGNED_OUT` answers nothing for the whole run. See
+ * `signedOutOnPurpose`: it is how the welcome screen is opened by somebody who has a
+ * token, and it is the only way in here that does not consult the keychain at all.
  */
 
 /**
@@ -56,7 +60,23 @@ const fromCommand = (args: ReadonlyArray<string>) =>
     catch: () => new Error("unreachable")
   }).pipe(Effect.orElseSucceed(() => ""))
 
+/**
+ * Whether this run should answer "nobody" whatever the keychain holds.
+ *
+ * `GITQUIET_SIGNED_OUT=1`, and it exists for the welcome screen. That screen is the
+ * only one a developer who is signed in cannot open, and the way to open it was to
+ * sign out — which spends a real sign-in, and a token, to look at a card. This asks
+ * nothing of the keychain and writes nothing to it.
+ *
+ * Empty counts as off, because `GITQUIET_SIGNED_OUT=$SOMETHING_UNSET` is a shell
+ * exporting an empty string rather than a reader asking for anything.
+ */
+export const signedOutOnPurpose = (env: Record<string, string | undefined>): boolean =>
+  (env["GITQUIET_SIGNED_OUT"] ?? "") !== ""
+
 export const currentToken = Effect.fn("currentToken")(function* () {
+  if (signedOutOnPurpose(process.env)) return null
+
   const kept = yield* heldToken().pipe(Effect.orElseSucceed(() => null))
   if (kept !== null) return kept
 
