@@ -52,8 +52,8 @@
 
 @import "../../../src/ui/motion.css";
 @import "../../../src/ui/stack.css";
-/* The onboarding, which is one screen in three places: this window, gitquiet.com, and
-   the tab the extension opens the first time it is installed. See `onboarding.css`. */
+/* The onboarding, which is one screen drawn in two: this window and gitquiet.com, which
+   is also the tab the extension opens when it installs itself. See `onboarding.css`. */
 @import "../../../src/ui/onboarding.css";
 
 @custom-variant dark (&:where(.dark, .dark *));

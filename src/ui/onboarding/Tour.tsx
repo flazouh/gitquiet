@@ -23,8 +23,8 @@ export type Ending = Beat & {
  * The onboarding, in one component, drawn in a window and on a page.
  *
  * A reader presses through it and can leave at any point, which is the only honest
- * shape for something nobody asked to read: three beats, a picture of the screen each
- * beat is about, one sentence under it, and a way out on every one of them.
+ * shape for something nobody asked to read: a welcome, then a screen at a time, one
+ * sentence under each, and a way out on every one of them.
  *
  * The pictures are the host's to draw. The site mounts the real screens and runs them,
  * because it can — they are the extension's own components with fixture data. The app

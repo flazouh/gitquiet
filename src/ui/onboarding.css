@@ -2,8 +2,8 @@
  * The onboarding, which is one component drawn in two places.
  *
  * Its own stylesheet for the same reason the component is shared: the app's window and
- * the site — which is also the tab the extension opens on install — say the same three
- * things, and a look maintained twice is two looks.
+ * the site — which is also the tab the extension opens on install — say the same things,
+ * and a look maintained twice is two looks.
  *
  * Quiet on purpose, and the product is the reason. This screen is the front door of an
  * interface whose whole argument is that it is calm: hairlines, one radius, one ink, no
@@ -35,7 +35,7 @@
    * the whole shape of this screen: a photograph that runs to the edge, words that do
    * not.
    */
-  --tour-inset: 30px;
+  --tour-inset: 22px;
 
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
@@ -46,7 +46,7 @@
    */
   flex: 1 1 auto;
   height: 100%;
-  padding-bottom: 18px;
+  padding-bottom: 12px;
   color: var(--bed-ink);
   text-align: left;
 }
@@ -87,7 +87,7 @@
 }
 
 /*
- * The screen this beat is about, edge to edge, cut off at the bottom by a mask.
+ * The screen this beat is about, edge to edge, ending on a line.
  *
  * Full bleed, and it is the one decision this screen is built on. A capture is a whole
  * window, sixteen by ten; scaled to fit a wide strip it came out a third of the panel
@@ -95,17 +95,18 @@
  * instead, it is the top of that screen at a size the shape of it reads at: one column,
  * grouped rows, no tabs.
  *
- * The mask is what makes the cut deliberate. A photograph that stops on a straight line
- * mid-window looks cropped by accident; one that dissolves into the panel it is drawn on
- * reads as a view of something larger, which is exactly what it is.
+ * A hairline where it stops, and no fade. This used to dissolve into the panel through a
+ * mask, on the argument that a photograph cut on a straight line looks cropped by
+ * accident. It is not a photograph: it is a piece of the interface, and the interface
+ * ends on hairlines everywhere else in the app. Faded out, it read as a picture bleeding
+ * into the card rather than as a component sitting in it.
  */
 .tour-shot {
   display: grid;
   place-items: stretch;
   min-height: 0;
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(to bottom, #000 80%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 80%, transparent 100%);
+  border-bottom: 1px solid color-mix(in srgb, var(--bed-ink) 8%, transparent);
 }
 
 /* The site puts a running screen here, which sizes itself and must not be stretched. */

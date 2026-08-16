@@ -1,3 +1,6 @@
+/* Written by shots/capture.js. Do not edit: a view's name and caption belong to
+   shots/views.tsx, and this file is regenerated every time the pictures are. */
+
 export type Shot = {
   readonly name: string
   readonly caption: string
@@ -69,6 +72,24 @@ export const SHOTS: ReadonlyArray<Shot> = [
   {
     "name": "actions",
     "caption": "A repository's runs folded into the work they belong to, so an afternoon of CI reads as the handful of changes it is about",
+    "width": 1280,
+    "height": 800
+  },
+  {
+    "name": "releases",
+    "caption": "A repository's releases as the one file this machine should take, and one row per change rather than one card per tag",
+    "width": 1280,
+    "height": 800
+  },
+  {
+    "name": "notifications",
+    "caption": "The inbox filed by who acts next, so the work that is already merged stops looking like work",
+    "width": 1280,
+    "height": 800
+  },
+  {
+    "name": "person-repos",
+    "caption": "Somebody's repositories in four groups they never had to tag, with what they write and what still moves said above the list",
     "width": 1280,
     "height": 800
   },

@@ -3,11 +3,12 @@ import { COURT_NAME } from "../courts"
 /**
  * What a reader is told the first time, in the order it is worth telling.
  *
- * Three beats, a screen each, one sentence each. This is read by somebody who has just
- * installed something and wants to get on with their work: the product explains itself
- * once they are inside it, and every sentence here is a sentence between them and that.
+ * A welcome, then a screen at a time, one sentence each. This is read by somebody who has
+ * just installed something and wants to get on with their work: the product explains
+ * itself once they are inside it, and every sentence here is a sentence between them and
+ * that.
  *
- * Shared, because the same three are said in two places now: the app's first window and
+ * Shared, because the same ones are said in two places now: the app's first window and
  * the site, which is also the page a reader lands on when the extension installs
  * itself. Two copies of the same explanation is two explanations, and they drift.
  *
@@ -49,6 +50,17 @@ export type Beat = {
 }
 
 export const BEATS: ReadonlyArray<Beat> = [
+  /*
+   * The welcome, and the only beat with nothing to show.
+   *
+   * It says how long this costs and nothing else. A line about what the product is for
+   * belongs to the screens that follow, where a reader can see the thing being described:
+   * said here it is a slogan, and a slogan is a sentence between somebody and the door.
+   */
+  {
+    title: "Welcome to GitQuiet.",
+    says: ["Three screens, thirty seconds."]
+  },
   {
     title: "Every pull request you are in, in one list.",
     says: [`${FIRST_COURT} at the top. Nothing to sort and nothing to configure.`],
