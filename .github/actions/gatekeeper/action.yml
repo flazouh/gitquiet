@@ -16,10 +16,17 @@ inputs:
 runs:
   using: composite
   steps:
+    # Through `env` rather than into the script, as everything else here does it.
+    # Both names hold spaces now, and an interpolated value is text the shell
+    # parses: it works while the quotes fall right and stops working the day
+    # somebody moves them.
     - shell: bash
+      env:
+        DMG: ${{ inputs.dmg }}
+        APP: ${{ inputs.app }}
       run: |
         mount="$RUNNER_TEMP/gatekeeper-check"
-        hdiutil attach -nobrowse -readonly '${{ inputs.dmg }}' -mountpoint "$mount"
-        codesign --verify --deep --strict --verbose=2 "$mount/${{ inputs.app }}"
-        spctl --assess --type execute --verbose "$mount/${{ inputs.app }}"
+        hdiutil attach -nobrowse -readonly "$DMG" -mountpoint "$mount"
+        codesign --verify --deep --strict --verbose=2 "$mount/$APP"
+        spctl --assess --type execute --verbose "$mount/$APP"
         hdiutil detach "$mount"

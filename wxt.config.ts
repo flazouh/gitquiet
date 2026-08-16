@@ -41,12 +41,9 @@ export default defineConfig({
      * type (`github pull request`, `github pr review`). Keep the long store
      * description in the developer dashboard, not here.
      *
-     * One sentence for every store, and it is the App Store that sets the length:
-     * Chrome allows 132 characters and Apple 112, counted after the browser's name
-     * goes in. A 128 character one passed Chrome and Firefox for four releases and
-     * was refused on upload to the App Store. Two descriptions would have let one
-     * of them drift, so `manifest.test.ts` holds this to the smaller number for
-     * every target, the unnamed one included, where "your browser" is longest.
+     * One sentence for every store, because two would have let one of them drift.
+     * The length that fits all of them is the App Store's, and `manifest.test.ts`
+     * holds every target to it and says what happened without it.
      */
     name: "GitQuiet - GitHub Pull Request Review",
     // Toolbar / overflow menus. Store listing keeps the longer `name`.

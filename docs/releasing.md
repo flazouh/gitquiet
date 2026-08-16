@@ -125,8 +125,8 @@ Applications and opened once.
 
 #### The Mac App Store, for Safari
 
-Three more secrets, and the Safari job sends the same build to the App Store as
-well as attaching the image. Leave them and only the image is made.
+Six more secrets, and the Safari job sends the same build to the App Store as
+well as attaching the image. Leave any of them out and only the image is made.
 
 | Secret                           | Where it comes from                                                                            |
 | -------------------------------- | ---------------------------------------------------------------------------------------------- |
@@ -144,8 +144,13 @@ expires after a year and a secret does not say so.
 
 Both go out from one archive, exported twice, so the bytes Apple reviews are the
 bytes the disk image holds. The upload is validated first, which is where a
-manifest description over 112 characters is caught: Chrome allows 132 and the App
-Store 112, and `manifest.test.ts` holds every target to the smaller number.
+manifest description too long for the App Store is caught. `manifest.test.ts`
+holds the limit and says why.
+
+The store leg lives in the Safari job rather than in one of its own, so re-running
+`targets=safari` is the way back to it. That re-run is safe: Apple refuses a build
+number it has already seen, so the job asks first and says "Apple already holds
+build 0.2.5" instead of failing on an upload that worked.
 
 An uploaded build is not a released one. App Store Connect has to be told to
 submit it, and a first submission also wants a product page, screenshots, the

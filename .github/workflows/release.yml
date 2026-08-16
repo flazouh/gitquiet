@@ -99,13 +99,18 @@ jobs:
           # alone they would start and die at `notarytool`.
           APPLE_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           APPLE_NOTARY: ${{ secrets.APPLE_ID_PASSWORD }}
-          # The Mac App Store takes three more: one certificate signs the app,
-          # another signs the installer around it, and the key is what uploads and
-          # what mints the profiles. Read apart from the rest so that a fork with
-          # none of them still gets its disk image.
+          # The Mac App Store takes more again: one certificate signs the app,
+          # another signs the installer around it, and three parts of an API key
+          # upload the result and mint the profiles it is signed under. Read apart
+          # from the rest so that a fork with none of them still gets its disk
+          # image. Every one of them is read, because a gate that reads half of a
+          # credential fails the release it exists to skip.
           APPLE_STORE_APP: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE }}
           APPLE_STORE_INSTALLER: ${{ secrets.APPLE_INSTALLER_CERTIFICATE }}
+          APPLE_STORE_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_PASSWORD }}
           APPLE_STORE_KEY: ${{ secrets.APPLE_ASC_KEY }}
+          APPLE_STORE_KEY_ID: ${{ secrets.APPLE_ASC_KEY_ID }}
+          APPLE_STORE_ISSUER: ${{ secrets.APPLE_ASC_ISSUER_ID }}
         run: |
           tag="${CALLED:-$PUBLISHED}"
           if [ -z "$tag" ]; then
@@ -136,7 +141,12 @@ jobs:
             echo "firefox=$(ready firefox "$FIREFOX")"
             echo "desktop=$(ready desktop "$APPLE_CERTIFICATE" "$APPLE_NOTARY")"
             echo "safari=$(ready safari "$APPLE_CERTIFICATE" "$APPLE_NOTARY")"
-            echo "store=$(ready safari "$APPLE_STORE_APP" "$APPLE_STORE_INSTALLER" "$APPLE_STORE_KEY")"
+            # The safari credentials as well as the store ones, because the store
+            # steps live in that job: without them the job never starts, and a
+            # `yes` here that nothing can read is a silence to debug later.
+            echo "store=$(ready safari "$APPLE_CERTIFICATE" "$APPLE_NOTARY" \
+              "$APPLE_STORE_APP" "$APPLE_STORE_INSTALLER" "$APPLE_STORE_PASSWORD" \
+              "$APPLE_STORE_KEY" "$APPLE_STORE_KEY_ID" "$APPLE_STORE_ISSUER")"
           } >> "$GITHUB_OUTPUT"
 
   package:
@@ -389,8 +399,8 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 90
     # The app's name, which is also its folder, its project, its scheme and its
-    # bundle. Written once here rather than eight times below, where one of the
-    # eight would eventually be missed.
+    # bundle. Written once here rather than at each use below, where one use would
+    # eventually be missed.
     env:
       APP: GitQuiet for Safari
     steps:
@@ -541,6 +551,7 @@ jobs:
       # Apple issues them as two because the tools that read them are two.
       - uses: ./.github/actions/apple-keychain
         if: needs.gate.outputs.store == 'yes'
+        id: store-keychain
         with:
           certificate: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE }}
           password: ${{ secrets.APPLE_DISTRIBUTION_PASSWORD }}
@@ -573,13 +584,15 @@ jobs:
           APPLE_ASC_ISSUER_ID: ${{ secrets.APPLE_ASC_ISSUER_ID }}
         run: |
           id="dev.gitquiet.${APP// /-}"
-          bun scripts/apple-profiles.ts "$id" "$id.Extension" | tee "$RUNNER_TEMP/profiles.tsv"
+          # The script writes the file, rather than this piping its output into
+          # one. A step here runs under `bash -e` with no `pipefail`, so through a
+          # pipe the status read is `tee`'s: a throw from the script would leave a
+          # green step and a file with nothing in it, and the export below would
+          # fail on a profile that was never asked for.
+          bun scripts/apple-profiles.ts "$RUNNER_TEMP/profiles.tsv" "$id" "$id.Extension"
 
       # A second export of the archive above, rather than a second build of it, so
       # that the bytes the store reviews are the bytes the disk image holds.
-      #
-      # PlistBuddy rather than plutil, because a bundle identifier is full of dots
-      # and plutil reads a dot in a key path as a step down into the tree.
       #
       # Both certificates are named in full, and read out of the keychain rather
       # than written here, because the name is the account holder's. Given the
@@ -590,64 +603,129 @@ jobs:
         if: needs.gate.outputs.store == 'yes'
         env:
           TEAM: ${{ secrets.APPLE_TEAM_ID }}
+          # Asked of the action that made it, rather than written twice.
+          KEYCHAIN: ${{ steps.store-keychain.outputs.keychain }}
         run: |
           id="dev.gitquiet.${APP// /-}"
-          identity() {
-            security find-identity -v "$RUNNER_TEMP/release.keychain-db" |
-              sed -n "s/.*\"\($1: [^\"]*\)\".*/\1/p" | head -1
+          identities() {
+            security find-identity -v "$KEYCHAIN" | sed -n "s/.*\"\($1: [^\"]*\)\".*/\1/p"
           }
-          name() { awk -F'\t' -v want="$1" '$1 == want { print $2 }' "$RUNNER_TEMP/profiles.tsv"; }
-          signs=$(identity "Apple Distribution")
-          wraps=$(identity "3rd Party Mac Developer Installer")
-          app=$(name "$id")
-          extension=$(name "$id.Extension")
-          # Checked here rather than inside those two, because a check that runs
-          # inside `$( )` runs in a shell of its own: its `exit` ends that shell and
-          # not this step, and the message it prints is read as the value asked for.
+          profile() { awk -F'\t' -v want="$1" '$1 == want { print $2 }' "$RUNNER_TEMP/profiles.tsv"; }
+          signs=$(identities "Apple Distribution")
+          wraps=$(identities "3rd Party Mac Developer Installer")
+          app=$(profile "$id")
+          extension=$(profile "$id.Extension")
+
+          # Each of the four has to be exactly one line. Checked out here rather
+          # than inside those two functions, because a check inside `$( )` runs in
+          # a shell of its own: its `exit` ends that shell and not this step, and
+          # what it printed is read as the answer.
           #
-          # Empty is what a missing certificate or a missing profile looks like from
-          # here, and xcodebuild answers an empty setting with a complaint about a
-          # profile not matching a certificate that neither of us named.
-          missing=""
-          add() { missing="${missing:+$missing, }$1"; }
-          [ -n "$signs" ] || add "an Apple Distribution certificate"
-          [ -n "$wraps" ] || add "a Mac Installer Distribution certificate"
-          [ -n "$app" ] || add "a profile for $id"
-          [ -n "$extension" ] || add "a profile for $id.Extension"
-          if [ -n "$missing" ]; then
-            echo "::error::This job is missing $missing. Read the two steps above it."
+          # Nothing is a certificate that was never imported or a profile that was
+          # never made, and xcodebuild answers an empty setting with a complaint
+          # about a profile and a certificate that neither of us named. Two lines
+          # is a keychain holding both sides of a renewal, where taking the first
+          # is a coin toss and the losing side gives the same complaint.
+          trouble=""
+          note() { trouble="${trouble:+$trouble; }$1"; }
+          check() {
+            case "$(printf '%s' "$2" | grep -c . || true)" in
+              1) ;;
+              0) note "no $1" ;;
+              *) note "more than one $1" ;;
+            esac
+          }
+          check "Apple Distribution certificate" "$signs"
+          check "Mac Installer Distribution certificate" "$wraps"
+          check "profile for $id" "$app"
+          check "profile for $id.Extension" "$extension"
+          if [ -n "$trouble" ]; then
+            echo "::error::This job found $trouble. Read the three steps above it."
             exit 1
           fi
           echo "signing the app with $signs and the installer with $wraps"
           echo "under the profiles $app and $extension"
+
+          # Written whole, by the shell, rather than a key at a time through
+          # PlistBuddy. PlistBuddy parses its own argument for quotes, so an
+          # account holder named O'Brien closed the quote early: it answered
+          # "Parse Error: Unclosed Quotes", exited 0, and left the key out of the
+          # file altogether.
+          #
+          # The three characters XML keeps for itself are spelled out first,
+          # because the name here is a person's or a company's and "Smith & Sons"
+          # is a name. `plutil -lint` then reads the file back, so a mistake in
+          # this step is caught here rather than by xcodebuild a minute later.
+          xml() { printf '%s' "$1" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'; }
+          signs=$(xml "$signs")
+          wraps=$(xml "$wraps")
           plist="$RUNNER_TEMP/store.plist"
-          buddy=/usr/libexec/PlistBuddy
-          plutil -create xml1 "$plist"
-          "$buddy" -c "Add :method string app-store-connect" "$plist"
-          "$buddy" -c "Add :teamID string $TEAM" "$plist"
-          "$buddy" -c "Add :signingStyle string manual" "$plist"
-          "$buddy" -c "Add :signingCertificate string '$signs'" "$plist"
-          "$buddy" -c "Add :installerSigningCertificate string '$wraps'" "$plist"
-          "$buddy" -c "Add :provisioningProfiles dict" "$plist"
-          "$buddy" -c "Add :provisioningProfiles:$id string '$app'" "$plist"
-          "$buddy" -c "Add :provisioningProfiles:$id.Extension string '$extension'" "$plist"
+          cat > "$plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>$TEAM</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>$signs</string>
+            <key>installerSigningCertificate</key><string>$wraps</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>$id</key><string>$app</string>
+              <key>$id.Extension</key><string>$extension</string>
+            </dict>
+          </dict>
+          </plist>
+          PLIST
+          plutil -lint "$plist"
+
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/safari.xcarchive" \
             -exportOptionsPlist "$plist" \
             -exportPath "$RUNNER_TEMP/safari-store"
-          echo "PKG=$RUNNER_TEMP/safari-store/$APP.pkg" >> "$GITHUB_ENV"
+          # Found rather than named, because the name is Xcode's to choose and a
+          # guessed path is how the rename to "GitQuiet for Safari" first broke.
+          found=("$RUNNER_TEMP/safari-store"/*.pkg)
+          if [ "${#found[@]}" != 1 ] || [ ! -f "${found[0]}" ]; then
+            echo "::error::Expected one package from the export, found ${#found[@]}: ${found[*]}"
+            exit 1
+          fi
+          echo "PKG=${found[0]}" >> "$GITHUB_ENV"
 
       # Checked before it is sent, because the same reading arrives either way and
       # a refusal here names the file rather than arriving as mail an hour later.
-      # This is where a manifest description over 112 characters was caught.
+      # The description limit `manifest.test.ts` holds every target to is the one
+      # this step is where you find out about.
       - name: Upload the package to App Store Connect
         if: needs.gate.outputs.store == 'yes'
         env:
           ASC_KEY_ID: ${{ secrets.APPLE_ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.APPLE_ASC_ISSUER_ID }}
+          APPLE_ASC_KEY_ID: ${{ secrets.APPLE_ASC_KEY_ID }}
+          APPLE_ASC_ISSUER_ID: ${{ secrets.APPLE_ASC_ISSUER_ID }}
         run: |
+          # Asked first, because Apple refuses a build number it has already seen
+          # and the tag is the build number. This job is one job for two targets:
+          # re-running it because notarisation timed out, or because the release
+          # upload failed, would otherwise always end red here on an upload that
+          # had already worked.
+          # Read into a variable first, on a line of its own, because a command
+          # that fails inside an `if` condition is the one place `bash -e` looks
+          # away: the answer would come back empty and be read as `new`.
+          held=$(bun scripts/apple-build.ts "dev.gitquiet.${APP// /-}" "$RELEASE_VERSION")
+          if [ "$held" = held ]; then
+            echo "Apple already holds build $RELEASE_VERSION. Nothing to send."
+            exit 0
+          fi
           xcrun altool --validate-app -f "$PKG" -t macos \
             --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
           xcrun altool --upload-app -f "$PKG" -t macos \
             --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
           echo "Build $RELEASE_VERSION is with Apple. It has to be released by hand from App Store Connect once review passes."
+
+      # The runner is thrown away, so this is tidiness rather than exposure. The
+      # keychain action deletes its .p12 the moment it is imported; this matches it.
+      - name: Take the App Store key back off the disk
+        if: always() && needs.gate.outputs.store == 'yes'
+        run: '[ -z "$APPLE_ASC_KEY_PATH" ] || rm -f "$APPLE_ASC_KEY_PATH"'

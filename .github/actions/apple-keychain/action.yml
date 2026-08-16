@@ -2,8 +2,8 @@ name: Unlock a keychain holding a signing certificate
 description: >
   Puts a certificate in a keychain of its own, in the runner's temp folder, so it
   lives as long as the job and no longer. Call it once per certificate: the
-  keychain is made on the first call and added to on the rest, because a job that
-  signs an app, an installer and a disk image needs three of them at once and
+  keychain is made on the first call and added to on the rest, because signing an
+  app for two stores and the installer around one of them needs three at once and
   `codesign` reads one keychain.
 
 inputs:
@@ -13,6 +13,11 @@ inputs:
   password:
     description: The password the .p12 was exported with
     required: true
+
+outputs:
+  keychain:
+    description: The keychain the certificate went into, for a step that has to read it
+    value: ${{ steps.into.outputs.keychain }}
 
 runs:
   using: composite
@@ -24,12 +29,14 @@ runs:
     # The keychain's own password is made on the first call and kept in a file
     # beside it, because a later call has to unlock what the first one made and
     # `uuidgen` would answer differently. Both go when the runner does.
-    - shell: bash
+    - id: into
+      shell: bash
       env:
         CERTIFICATE: ${{ inputs.certificate }}
         CERTIFICATE_PASSWORD: ${{ inputs.password }}
       run: |
         keychain="$RUNNER_TEMP/release.keychain-db"
+        echo "keychain=$keychain" >> "$GITHUB_OUTPUT"
         secret="$RUNNER_TEMP/release.keychain.password"
         if [ ! -f "$secret" ]; then
           (umask 077 && uuidgen > "$secret")
