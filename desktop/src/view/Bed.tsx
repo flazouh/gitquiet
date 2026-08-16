@@ -1,7 +1,7 @@
 import { MeshGradient, StaticMeshGradient } from "@paper-design/shaders-react"
 import type { CSSProperties } from "react"
 import { useEffect, useState } from "react"
-import { BED_IN_CSS, BED_MOTION, BED_SHADER } from "../../../src/ui/bed"
+import { BED_BEHIND, BED_IN_CSS, BED_MOTION, BED_SHADER } from "../../../src/ui/bed"
 
 /**
  * Whether this reader has asked their machine for less movement.
@@ -9,13 +9,16 @@ import { BED_IN_CSS, BED_MOTION, BED_SHADER } from "../../../src/ui/bed"
  * Asked rather than assumed, and asked again if they change their mind while the
  * window is open: this is the one surface in the app that moves on its own, so it is
  * the one that has to listen.
+ *
+ * Read at the first render rather than in the effect. Read afterwards, a reader who
+ * asked for less motion got one frame of the animated shader and then a canvas swapped
+ * out from under them, which is the movement they turned off.
  */
 const useCalm = (): boolean => {
-  const [calm, setCalm] = useState(false)
+  const [calm, setCalm] = useState(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches)
 
   useEffect(() => {
     const ask = window.matchMedia("(prefers-reduced-motion: reduce)")
-    setCalm(ask.matches)
 
     const heard = (event: MediaQueryListEvent) => setCalm(event.matches)
     ask.addEventListener("change", heard)
@@ -35,13 +38,10 @@ const useCalm = (): boolean => {
  *
  * Its own component rather than the site's, which looks like a copy and is not: the
  * page composes several beds at different rotations with content inside them, and
- * this is one bed behind a whole window with a CSS floor under it. Sharing the file
- * would mean a component with four props for one caller, in a folder the extension's
- * bundle also reaches, importing WebGL.
- *
- * Rotated and over-scaled deliberately. The mesh's seams run corner to corner at
- * rest, and a window is wider than it is tall, so at `scale: 1` the middle of the
- * screen — where every word on this screen is — sat in the flattest part of it.
+ * this is one bed behind a whole window. Sharing the file would mean a component with
+ * four props for one caller, in a folder the extension's bundle also reaches,
+ * importing WebGL. What must not differ is in `bed.ts`: the stops, the two numbers it
+ * is turned by, and the CSS floor.
  */
 export const Bed = ({ className }: { readonly className?: string }) => {
   const calm = useCalm()
@@ -56,9 +56,9 @@ export const Bed = ({ className }: { readonly className?: string }) => {
      */
     <div className={className} style={{ background: BED_IN_CSS, overflow: "hidden" }}>
       {calm ? (
-        <StaticMeshGradient {...BED_SHADER} rotation={14} scale={1.45} fit="cover" style={canvas} />
+        <StaticMeshGradient {...BED_SHADER} {...BED_BEHIND} fit="cover" style={canvas} />
       ) : (
-        <MeshGradient {...BED_MOTION} rotation={14} scale={1.45} fit="cover" style={canvas} />
+        <MeshGradient {...BED_MOTION} {...BED_BEHIND} fit="cover" style={canvas} />
       )}
     </div>
   )

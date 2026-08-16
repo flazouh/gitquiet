@@ -1,12 +1,13 @@
 import { AnimatePresence, motion } from "framer-motion"
 import { useEffect, useState } from "react"
 import { SpinnerIcon } from "../../../src/ui/art"
-import { INK } from "../../../src/ui/bed"
+import { BED_COLOURS, INK } from "../../../src/ui/bed"
 import { Mark, Wordmark } from "../../../src/ui/Mark"
+import type { Shot } from "../../../src/ui/onboarding/beats"
 import { Tour } from "../../../src/ui/onboarding/Tour"
 import { spring } from "../lib/springs"
 import type { Pending, Viewer, WayIn } from "../shared/wire"
-import { Bed } from "./bed"
+import { Bed } from "./Bed"
 import { ask } from "./rpc"
 
 /**
@@ -51,7 +52,7 @@ const KEPT = "No account and no server. Your token stays in the macOS keychain, 
  * picture nobody is going to read the code in, so the window shows the photograph.
  * `scripts/copy-shots.ts` puts them here.
  */
-const shotAt = (shot: string) => `shots/${shot}@2x.png`
+const shotAt = (shot: Shot) => `shots/${shot}@2x.png`
 
 /**
  * The button the last step is built around, in the brand's own clothes.
@@ -111,9 +112,21 @@ export const Welcome = ({ onSignedIn }: { readonly onSignedIn: (viewer: Viewer) 
 
   useEffect(() => {
     let listening = true
-    void ask("wayIn", undefined).then((it) => {
-      if (listening) setWay(it)
-    })
+
+    /*
+     * Refused rather than swallowed. `ask` gives up on its own deadline, and without
+     * this the screen keeps a disabled button and no explanation for it: the reader is
+     * looking at a sign-in that cannot be pressed and says nothing about why.
+     */
+    void ask("wayIn", undefined).then(
+      (it) => {
+        if (listening) setWay(it)
+      },
+      (cause: unknown) => {
+        if (listening) setStep({ at: "refused", why: cause instanceof Error ? cause.message : String(cause) })
+      }
+    )
+
     return () => {
       listening = false
     }
@@ -199,7 +212,14 @@ export const Welcome = ({ onSignedIn }: { readonly onSignedIn: (viewer: Viewer) 
    * below, where the only differences were the label, the handler and which step
    * counts as waiting — and where the reason for two of them was invisible.
    */
-  const first =
+  const first: {
+    readonly label: string
+    readonly waiting: string
+    /* Typed, rather than the `string` it widens to on its own: `step.at === first.while`
+       compares two strings, so a mistyped name compiles and simply never spins. */
+    readonly while: Step["at"]
+    readonly go: () => Promise<void>
+  } =
     way === "code"
       ? { label: "Sign in with a code", waiting: "Asking GitHub…", while: "asking", go: withACode }
       : {
@@ -287,7 +307,14 @@ export const Welcome = ({ onSignedIn }: { readonly onSignedIn: (viewer: Viewer) 
   )
 
   return (
-    <main className="welcome">
+    /*
+     * The brand's three colours, declared here rather than on the tour inside: the line
+     * under the panel is a sibling of it, and a custom property is only visible below
+     * where it is declared. Declared on the tour, that line fell through to the
+     * interface's own ink — near-white in dark mode, on a gradient that is light in
+     * both.
+     */
+    <main className="welcome" style={BED_COLOURS}>
       <Bed className="welcome-bed" />
 
       {/* The lockup a reader saw on gitquiet.com, above the panel and on every step. */}

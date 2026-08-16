@@ -1,14 +1,16 @@
 import { MeshGradient, StaticMeshGradient } from "@paper-design/shaders-react"
 import type { CSSProperties, ReactNode } from "react"
 import { useEffect, useState } from "react"
-import { BED_MOTION, BED_SHADER, STORE_BED_SHADER } from "./brand"
+import { BED_MOTION, BED_SHADER } from "@/ui/bed"
+import { STORE_BED_SHADER } from "./brand"
 
+/* Read at the first render rather than in the effect: read afterwards, a reader who
+   asked for less motion gets one frame of the animated shader and a canvas swap. */
 const useCalm = (): boolean => {
-  const [calm, setCalm] = useState(false)
+  const [calm, setCalm] = useState(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches)
 
   useEffect(() => {
     const ask = window.matchMedia("(prefers-reduced-motion: reduce)")
-    setCalm(ask.matches)
 
     const heard = (event: MediaQueryListEvent) => setCalm(event.matches)
     ask.addEventListener("change", heard)

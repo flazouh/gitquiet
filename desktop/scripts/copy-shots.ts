@@ -15,9 +15,12 @@
  */
 import { cp, mkdir, rm } from "node:fs/promises"
 import { join } from "node:path"
+import { fileURLToPath } from "node:url"
 import { BEATS } from "../../src/ui/onboarding/beats"
 
-const here = new URL("..", import.meta.url).pathname
+/* `fileURLToPath` rather than `.pathname`, which leaves a space in a checkout's path
+   as `%20` and then looks for a directory nobody has. */
+const here = fileURLToPath(new URL("..", import.meta.url))
 const from = join(here, "../site/public/shots")
 const beside = join(here, "src/view/shots")
 

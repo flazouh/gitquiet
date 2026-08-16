@@ -1,11 +1,12 @@
 import "@fontsource-variable/inter"
+import { BED_BEHIND, BED_COLOURS, BED_IN_CSS, INK } from "@/ui/bed"
 import { Mark, Wordmark } from "@/ui/Mark"
+import type { Shot } from "@/ui/onboarding/beats"
 import { Tour } from "@/ui/onboarding/Tour"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { viewNamed } from "../../shots/views"
 import { Bed } from "./Bed"
-import { INK } from "./brand"
 import { Live } from "./Live"
 import "./index.css"
 import "@/ui/onboarding.css"
@@ -28,7 +29,7 @@ const THEIR_PULLS = "https://github.com/pulls"
 const DEEP = 460
 
 /** Less, on the beat that names the four Courts under the picture and needs the room. */
-const ROOM: Record<string, number> = { "working-set": 330 }
+const ROOM: Partial<Record<Shot, number>> = { "working-set": 330 }
 
 /**
  * Whether the extension sent the reader here, which it does once, on the install.
@@ -56,7 +57,7 @@ const Welcome = () => {
   const already = fromTheExtension()
 
   return (
-    <div className="relative min-h-dvh">
+    <div className="relative min-h-dvh" style={BED_COLOURS}>
       {/*
         Fixed through `style` rather than through a class, because `Bed` writes
         `position: relative` into its own inline style and a class cannot outrank
@@ -64,8 +65,14 @@ const Welcome = () => {
         `z-index: 0` under content at `z-index: 1`, rather than the tidier-looking
         `-1`: a negative one puts the gradient behind the page's own background,
         which is paper, and paper is not see-through. The screen went white.
+        `BED_IN_CSS` is the floor under the shader: without it this page is white
+        until WebGL has compiled, and white for good on a machine with no WebGL.
       */}
-      <Bed style={{ position: "fixed", inset: 0, zIndex: 0 }} rotation={14} scale={1.45} alive />
+      <Bed
+        style={{ position: "fixed", inset: 0, zIndex: 0, background: BED_IN_CSS }}
+        {...BED_BEHIND}
+        alive
+      />
 
       <div className="relative z-1 mx-auto flex min-h-dvh w-full max-w-[1040px] flex-col items-center justify-center gap-4 px-5 py-10">
         <a href="/" className="flex items-center gap-2" aria-label="GitQuiet">
@@ -80,7 +87,8 @@ const Welcome = () => {
           window, because a screen is eight hundred pixels tall and asked for all of
           them. Told how tall it is, it gives the picture what the words leave.
         */}
-        <div className="flex h-[min(700px,calc(100dvh-170px))] w-full flex-col rounded-2xl bg-white/70 p-6 shadow-[0_1px_2px_rgba(27,23,37,0.05),0_24px_60px_-24px_rgba(27,23,37,0.22)] backdrop-blur-[10px] sm:p-9">
+        {/* `overflow-hidden`: whatever the tour does inside, nothing leaves through a corner. */}
+        <div className="flex h-[min(700px,calc(100dvh-170px))] w-full flex-col overflow-hidden rounded-2xl bg-white/70 p-6 shadow-[0_1px_2px_rgba(27,23,37,0.05),0_24px_60px_-24px_rgba(27,23,37,0.22)] backdrop-blur-[10px] sm:p-9">
           <Tour
             /*
              * The top of the screen rather than all of it, and eager rather than when it
@@ -98,12 +106,27 @@ const Welcome = () => {
               const view = viewNamed(shot)
               if (view === undefined) return null
 
+              const deep = ROOM[shot] ?? DEEP
+
+              /*
+               * Held to the height, at the shape of the crop.
+               *
+               * A running screen takes the width it is given and works out its own
+               * height from it, so a holder that only limits its height cuts the bottom
+               * off instead of making it smaller — which is what a short window did to
+               * the Courts screen. Given the crop's own ratio, the width the screen
+               * measures is a width whose height already fits.
+               */
               return (
-                <Live
-                  view={view}
-                  eager
-                  focus={{ x: 0, y: 0, width: view.width, height: ROOM[shot] ?? DEEP }}
-                />
+                <div
+                  style={{
+                    height: "100%",
+                    maxWidth: "100%",
+                    aspectRatio: `${view.width} / ${deep}`
+                  }}
+                >
+                  <Live view={view} eager focus={{ x: 0, y: 0, width: view.width, height: deep }} />
+                </div>
               )
             }}
             ending={

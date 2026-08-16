@@ -1,19 +1,21 @@
 /*
- * The gradient and the ink now live in `src/ui/bed.ts`, because the desktop app's
- * first screen draws them too. Passed straight through rather than re-typed here, so
- * that this file stays the one place the page imports its brand from.
+ * What only the page needs. The gradient, the ink and the mark are in `src/ui/bed.ts`,
+ * because the app's first screen draws them too, and the page imports them from there
+ * rather than through this file: a name that arrives by two roads is a name somebody
+ * changes on one of them.
  */
-export {
-  BED,
-  BED_IN_CSS,
-  BED_MOTION,
-  BED_SHADER,
-  INK,
-  MARK,
-  MUTED,
-  PAPER,
-  STORE_BED_SHADER
-} from "../../src/ui/bed"
+
+import { BED_SHADER } from "@/ui/bed"
+
+/** The same bed, mixed harder, for a store listing that is looked at rather than read. */
+export const STORE_BED_SHADER = {
+  ...BED_SHADER,
+  positions: 72,
+  mixing: 0.16,
+  waveX: 0.55,
+  waveY: 0.45,
+  grainMixer: 0.34
+}
 
 export const RULE = "rgba(27, 23, 37, 0.12)"
 

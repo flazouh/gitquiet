@@ -1,9 +1,9 @@
 /**
- * The onboarding, which is one component drawn in three places.
+ * The onboarding, which is one component drawn in two places.
  *
- * Its own stylesheet for the same reason the component is shared: the app's window,
- * the site, and the tab the extension opens when it installs itself all say the same
- * four things, and a look maintained three times is three looks.
+ * Its own stylesheet for the same reason the component is shared: the app's window and
+ * the site — which is also the tab the extension opens on install — say the same four
+ * things, and a look maintained twice is two looks.
  *
  * Every value that has a name elsewhere is read through a fallback —
  * `var(--duration-fast, 250ms)`. The motion scale is declared on `#gitquiet-root` and
@@ -11,9 +11,13 @@
  * page of ours does not, so the fallbacks are that scale's own numbers rather than
  * new ones. See `motion.css`.
  *
- * The three colours come the other way, from `bed.ts` through the component, as
- * `--bed-ink`, `--bed-muted` and `--bed-paper`. They are the site's ink on the site's
- * gradient, and they do not turn over in dark mode: the gradient is light in both.
+ * The three colours come the other way and have no fallback: `--bed-ink`,
+ * `--bed-muted` and `--bed-paper`, declared by whatever the host mounts this inside,
+ * as `BED_COLOURS` from `bed.ts`. On the host's own root rather than on `.tour`,
+ * because a host says things beside the tour that are on the same gradient — and a
+ * custom property is only visible below where it is declared. They are the site's ink
+ * on the site's gradient, and they do not turn over in dark mode: the gradient is
+ * light in both.
  */
 
 /*
@@ -35,21 +39,22 @@
 }
 
 /*
- * One beat. Built again on every move — the component keys it by the step — so this
- * entrance runs each time, and what the reader sees is the next thing being said
- * rather than the same paragraph correcting itself.
- */
-/*
- * The picture takes what the words leave, rather than its own height.
+ * One beat: the picture above, the words below.
  *
- * `auto` here read the same and let the captures — twelve hundred and eighty by eight
- * hundred — ask for five hundred pixels inside a panel six hundred tall, which pushed
- * the sentence explaining the picture off the bottom of it. With `1fr` the row has a
- * height, so the `max-height: 100%` below has something to be a hundred per cent of.
+ * The picture takes what the words leave rather than its own height. At its own height
+ * a capture asks for five hundred pixels inside a panel six hundred tall, and the
+ * sentence explaining it goes off the bottom.
+ *
+ * Both rows can shrink to nothing — `minmax(0, auto)` on the words, not `auto`. A row
+ * that cannot shrink cannot be contained: in a short window, or on a phone where the
+ * four Courts wrap to three lines each, the words grew past the card and out through
+ * its rounded corners. Now the words keep the room they need and scroll when there is
+ * not enough, which is a reader scrolling a paragraph rather than a paragraph leaving
+ * the box it was drawn in.
  */
 .tour-beat {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) minmax(0, auto);
   gap: 22px;
   align-content: center;
   min-height: 0;
@@ -104,17 +109,26 @@
   overflow: hidden;
 }
 
-.tour-shot img,
+/* The site puts a running screen here, which sizes itself and must not be stretched. */
 .tour-shot > * {
   max-width: 100%;
   max-height: 100%;
 }
 
-/* A capture scales to fit the room it was given and keeps its shape doing it. The site
-   puts a running screen here instead, which sizes itself and must not be stretched. */
+/*
+ * A capture fills the width and is cut off at the bottom, rather than scaling to fit.
+ *
+ * A capture is a whole window — sixteen by ten, two and a half thousand pixels wide —
+ * and the room here is a wide strip. Scaled to fit, it came out three hundred pixels
+ * across in an eight hundred pixel panel: a grey smudge with a heading under it. Cut
+ * off instead, it is the top of that screen at a size the words on it can be read at,
+ * which is the same part of the same screen the site shows.
+ */
 .tour-shot img {
-  width: auto;
-  height: auto;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
   border-radius: 10px;
   box-shadow:
     0 1px 2px rgba(27, 23, 37, 0.05),
@@ -133,6 +147,10 @@
   align-content: start;
   gap: 0;
   max-width: 62ch;
+  /* The pair that lets the row above shrink: a scroll area needs a floor of zero,
+     or its content is its height and the grid overflows instead. */
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* Which beat this is, said before the heading rather than in the footer: a reader who

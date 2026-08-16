@@ -314,6 +314,8 @@ body {
   flex: 0 1 620px;
   min-height: 0;
   border-radius: 16px;
+  /* Whatever else changes inside, nothing leaves the rounded box through a corner. */
+  overflow: hidden;
   background: rgba(255, 255, 255, 0.72);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);

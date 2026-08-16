@@ -1,8 +1,9 @@
 import type { CSSProperties, ReactNode } from "react"
+import { COURTS as ALL_COURTS } from "@/domain/attention"
+import { INK, MUTED } from "@/ui/bed"
 import { COURT_MEANS, COURT_NAME } from "@/ui/courts"
 import { VIEWS } from "../../shots/views"
 import { Bed } from "./Bed"
-import { INK, MUTED } from "./brand"
 import { Feature } from "./Feature"
 import { Live } from "./Live"
 import { Mark, Wordmark } from "@/ui/Mark"
@@ -161,11 +162,11 @@ const Says = ({ over, title }: { readonly over: string; readonly title: string }
 /*
  * The four the interface sorts everything into, read off the interface itself.
  *
- * Their names and their one-line meanings used to be typed out again here, which is
- * how the page and the app came to word the same four things differently. The order
- * is the order the list draws them in.
+ * The order, the names and the meanings are all the interface's own, from
+ * `attention.ts` and `courts.ts`. Typed out again here, the page and the app came to
+ * word the same four things differently.
  */
-const COURTS = (["your-move", "waiting", "running", "settled"] as const).map((court) => ({
+const COURTS = ALL_COURTS.map((court) => ({
   court: COURT_NAME[court],
   means: COURT_MEANS[court]
 }))

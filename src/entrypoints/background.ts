@@ -33,7 +33,7 @@ export default defineBackground(() => {
    * uninstalled.
    */
   browser.runtime.onInstalled.addListener((details) => {
-    const at = welcomeFor(details.reason)
+    const at = welcomeFor(details.reason, { development: import.meta.env.DEV })
     if (at === null) return
 
     void browser.tabs.create({ url: at })

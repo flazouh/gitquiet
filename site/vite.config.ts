@@ -60,8 +60,9 @@ export default defineConfig({
          *
          * A page of its own rather than a route: there is no router here, and one
          * would be a dependency and a history to maintain for a second address.
-         * `serve dist -s` answers `/welcome` with `welcome.html` before it falls
-         * back to the landing page, so the address needs nothing else to work.
+         * `serve dist` resolves `/welcome` to this file. It is served without `-s`,
+         * which rewrote every address to `index.html` and answered `/welcome` with
+         * the landing page — see `railway.toml`.
          */
         welcome: fileURLToPath(new URL("./welcome.html", import.meta.url))
       }

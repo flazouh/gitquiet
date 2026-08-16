@@ -11,10 +11,29 @@
  * so the numbers are shared and the canvas that draws them is not.
  */
 
+import type { CSSProperties } from "react"
+
 /** Paper, ink, and the quiet grey between them. The three the page is built out of. */
 export const PAPER = "#fbf9f7"
 export const INK = "#1b1725"
 export const MUTED = "#5f596d"
+
+/**
+ * The same three, as the custom properties `onboarding.css` reads.
+ *
+ * Set by whatever a host puts the onboarding inside rather than by the onboarding
+ * itself, because a custom property is only visible below where it is declared. The
+ * app's window says the private line under the panel in `--bed-muted`, and that line
+ * is a sibling of the panel: declared on the tour, it fell through to the interface's
+ * own ink, which is near-white in dark mode and invisible on this gradient.
+ *
+ * One cast, here, because React's own type has no room for a custom property.
+ */
+export const BED_COLOURS = {
+  "--bed-ink": INK,
+  "--bed-muted": MUTED,
+  "--bed-paper": PAPER
+} as CSSProperties
 
 /**
  * The five stops, in the order the mesh mixes them.
@@ -41,16 +60,6 @@ export const BED_SHADER = {
   grainOverlay: 0.12
 }
 
-/** The same bed, mixed harder, for a store listing that is looked at rather than read. */
-export const STORE_BED_SHADER = {
-  ...BED_SHADER,
-  positions: 72,
-  mixing: 0.16,
-  waveX: 0.55,
-  waveY: 0.45,
-  grainMixer: 0.34
-}
-
 /**
  * The bed while it moves, slowly enough that nobody watching it can say what changed.
  *
@@ -70,6 +79,16 @@ export const BED_MOTION = {
 
 /** The mark's own purple, which is the logo and never a background. */
 export const MARK = "#8b5cf6"
+
+/**
+ * How the bed is turned and over-scaled where it stands behind a whole screen.
+ *
+ * The mesh's seams run corner to corner at rest, and both screens that use it this way
+ * are wider than they are tall, so at `scale: 1` the middle — where every word is —
+ * sat in the flattest part of it. The app's window and the site's welcome page have to
+ * agree on these two numbers, because a reader arrives at the second from the first.
+ */
+export const BED_BEHIND = { rotation: 14, scale: 1.45 } as const
 
 /**
  * The bed as plain CSS, for the moment before the shader has compiled and for a
