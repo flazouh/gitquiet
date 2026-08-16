@@ -1,7 +1,7 @@
-import type { CheckState } from "@/domain/PullRequest"
-import type { RepoRef } from "@/domain/PullRequestRef"
-import { type Listed, type Ref, type Strand, strandsIn } from "@/domain/strand"
-import { StrandsScreen } from "@/ui/StrandsScreen"
+import type { CheckState } from "../../src/domain/PullRequest"
+import type { RepoRef } from "../../src/domain/PullRequestRef"
+import { type Listed, type Ref, type Strand, strandsIn } from "../../src/domain/strand"
+import { StrandsScreen } from "../../src/ui/StrandsScreen"
 import { alreadyKnown, nothingRemembered, settled, STORE, type View } from "../view"
 import { minutesAgo } from "./when"
 

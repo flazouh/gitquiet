@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Option } from "effect"
-import type { ChangedFile } from "@/domain/PullRequest"
-import { toPatch } from "@/domain/toPatch"
+import type { ChangedFile } from "../../src/domain/PullRequest"
+import { toPatch } from "../../src/domain/toPatch"
 import { COMMIT } from "./commit"
 import { SNAPSHOT } from "./pullRequest"
 

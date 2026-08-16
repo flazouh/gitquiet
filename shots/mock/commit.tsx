@@ -1,6 +1,6 @@
 import { Option } from "effect"
-import type { CommitDetail } from "@/domain/PullRequest"
-import { CommitScreen } from "@/ui/CommitScreen"
+import type { CommitDetail } from "../../src/domain/PullRequest"
+import { CommitScreen } from "../../src/ui/CommitScreen"
 import { alreadyKnown, nothingRemembered, settled, STORE, type View } from "../view"
 import { faceOf } from "./faces"
 import { fileFrom } from "./patch"

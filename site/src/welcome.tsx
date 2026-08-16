@@ -1,15 +1,20 @@
 import "@fontsource-variable/inter"
 import { BED_BEHIND, BED_COLOURS, BED_IN_CSS, INK } from "@/ui/bed"
+import { SETTINGS } from "@/ui/keeping"
 import { Mark, Wordmark } from "@/ui/Mark"
 import type { Shot } from "@/ui/onboarding/beats"
+import { Held } from "@/ui/onboarding/Held"
 import { Tour } from "@/ui/onboarding/Tour"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
+import { Supplied } from "../../shots/Supplied"
 import { viewNamed } from "../../shots/views"
 import { Bed } from "./Bed"
-import { Live } from "./Live"
 import "./index.css"
 import "@/ui/onboarding.css"
+
+/** Light, whatever the reader's own machine prefers: the card it stands in is white. */
+const LIGHT = { [SETTINGS]: { theme: { appearance: "light", pack: "gitquiet" } } }
 
 const STORE_AT =
   "https://chromewebstore.google.com/detail/gitquiet/ichobjnihnofjkpoegikjhefmoekaahe"
@@ -21,15 +26,32 @@ const MAC_AT =
 const THEIR_PULLS = "https://github.com/pulls"
 
 /**
- * How much of a screen a beat shows, in the screen's own pixels.
+ * One screen in the tour's picture row, running, under this page's own fixture stage.
  *
- * Four hundred and sixty is the list down its first Court, or a pull request down to its
- * first file: in each case the part the beat is about.
+ * `Held` measures the row and scales the screen into it, which is what the app's window
+ * does with the same component. What is left here is what a page has to answer and a
+ * window already has: `Supplied` is the stage every screen on this site runs under, and
+ * `element` keeps its theme and its portalled bar inside the card rather than on `<html>`.
+ *
+ * Not `Live`, which the landing page uses. That draws the site's own bordered frame
+ * around a screen and holds it back until it scrolls into view. Both are right in a
+ * column of twelve screens and wrong here: this card is already the frame, and a frame
+ * inside it is the double edge this panel was redrawn to get rid of.
  */
-const DEEP = 460
+const Screen = ({ shot }: { readonly shot: Shot }) => {
+  const view = viewNamed(shot)
+  if (view === undefined) return null
 
-/** Less, on the list, where the first group is the part the beat is about. */
-const ROOM: Partial<Record<Shot, number>> = { "working-set": 400 }
+  return (
+    <Held view={view}>
+      {(host) => (
+        <Supplied chosen={{ ...view.chosen, ...LIGHT }} element={host}>
+          {view.draw()}
+        </Supplied>
+      )}
+    </Held>
+  )
+}
 
 /**
  * Whether the extension sent the reader here, which it does once, on the install.
@@ -45,10 +67,10 @@ const fromTheExtension = (): boolean =>
 /**
  * The onboarding, on the web, at `/welcome`.
  *
- * The same four beats the app's first window shows, with one difference: here the
- * screens are mounted and running rather than photographed. They are the extension's
- * own components under fixture data, which is what this site has always drawn — a
- * picture of a screen is a claim about it, and a screen is the thing itself.
+ * The same four beats the app's first window shows, drawn the same way: the screens are
+ * mounted and running rather than photographed. They are the extension's own components
+ * under fixture data, which is what this site has always drawn — a picture of a screen
+ * is a claim about it, and a screen is the thing itself.
  *
  * Three ways in: the extension opens it on install, the landing page links to it for
  * anybody who wants the tour first, and the store listing points at it.
@@ -74,12 +96,20 @@ const Welcome = () => {
         alive
       />
 
-      <div className="relative z-1 mx-auto flex min-h-dvh w-full max-w-[1040px] flex-col items-center justify-center gap-4 px-5 py-10">
-        <a href="/" className="flex items-center gap-2" aria-label="GitQuiet">
-          <Mark size={26} color={INK} />
-          <Wordmark size={24} color={INK} />
-        </a>
+      {/*
+        In the corner of the page rather than over the card, which is the app's own first
+        window: where a product puts its name is the top left.
 
+        Outside the column below, and this is the whole point of it being out here. Inside
+        it, `absolute` measured from a box capped at 1040 and centred — so on a wide window
+        the name stood in the middle of the page with nothing under it.
+      */}
+      <a href="/" className="absolute top-6 left-6 z-2 flex items-center gap-2" aria-label="GitQuiet">
+        <Mark size={26} color={INK} />
+        <Wordmark size={24} color={INK} />
+      </a>
+
+      <div className="relative z-1 mx-auto flex min-h-dvh w-full max-w-[1040px] flex-col items-center justify-center px-5 py-10">
         {/*
           One sheet, no padding, clipped to its own radius: the tour's picture reaches
           all four edges of it. The same card the app's window draws.
@@ -89,48 +119,14 @@ const Welcome = () => {
           has to find their place in again — and a card free to grow grew past the
           window, because a screen is eight hundred pixels tall and asked for all of
           them. Told how tall it is, it gives the picture what the words leave.
+
+          A hundred and twenty pixels of room around it, which is the page's own padding
+          twice over. The lockup used to be counted in here as well; it stands in the
+          corner now and takes none of the column.
         */}
-        <div className="flex h-[min(660px,calc(100dvh-150px))] w-full flex-col overflow-hidden rounded-[14px] bg-white/80 shadow-[inset_0_0_0_1px_rgba(27,23,37,0.06),0_1px_2px_rgba(27,23,37,0.05),0_24px_60px_-26px_rgba(27,23,37,0.24)] backdrop-blur-[12px]">
+        <div className="flex h-[min(660px,calc(100dvh-120px))] w-full flex-col overflow-hidden rounded-[14px] bg-white/80 shadow-[inset_0_0_0_1px_rgba(27,23,37,0.06),0_1px_2px_rgba(27,23,37,0.05),0_24px_60px_-26px_rgba(27,23,37,0.24)] backdrop-blur-[12px]">
           <Tour
-            /*
-             * The top of the screen rather than all of it, and eager rather than when it
-             * scrolls into view.
-             *
-             * The crop is the whole reason this reads: a screen is eight hundred pixels
-             * tall, and showing all of it pushes the sentence explaining it off the
-             * bottom of the window. A running screen scales itself to the width it is
-             * given and cannot be squeezed to a height, so the crop is what makes it
-             * fit — hence `ROOM`. `Live` holds a screen back until it is near the
-             * viewport, which is right on a page carrying twelve of them and wrong here,
-             * where there is one and it is the point.
-             */
-            show={(shot) => {
-              const view = viewNamed(shot)
-              if (view === undefined) return null
-
-              const deep = ROOM[shot] ?? DEEP
-
-              /*
-               * Held to the height, at the shape of the crop.
-               *
-               * A running screen takes the width it is given and works out its own
-               * height from it, so a holder that only limits its height cuts the bottom
-               * off instead of making it smaller — which is what a short window did to
-               * the Courts screen. Given the crop's own ratio, the width the screen
-               * measures is a width whose height already fits.
-               */
-              return (
-                <div
-                  style={{
-                    height: "100%",
-                    maxWidth: "100%",
-                    aspectRatio: `${view.width} / ${deep}`
-                  }}
-                >
-                  <Live view={view} eager focus={{ x: 0, y: 0, width: view.width, height: deep }} />
-                </div>
-              )
-            }}
+            show={(shot) => <Screen shot={shot} />}
             ending={
               already
                 ? {

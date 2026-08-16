@@ -1,6 +1,6 @@
 import { Effect } from "effect"
-import type { Raising } from "@/domain/raising"
-import { RaiseScreen } from "@/ui/RaiseScreen"
+import type { Raising } from "../../src/domain/raising"
+import { RaiseScreen } from "../../src/ui/RaiseScreen"
 import { nothingRemembered, STORE, type View } from "../view"
 
 /**

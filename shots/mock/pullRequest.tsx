@@ -9,9 +9,9 @@ import type {
   ReviewThread,
   ThreadAnchor,
   ThreadComment
-} from "@/domain/PullRequest"
-import { hold } from "@/ui/held"
-import { PullRequestScreen } from "@/ui/PullRequestScreen"
+} from "../../src/domain/PullRequest"
+import { hold } from "../../src/ui/held"
+import { PullRequestScreen } from "../../src/ui/PullRequestScreen"
 import { alreadyKnown, nothingRemembered, settled, STORE, type View } from "../view"
 import { faceOf, MOCK_VIEWER } from "./faces"
 import { fileFrom } from "./patch"

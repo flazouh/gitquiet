@@ -5,8 +5,7 @@
   "scripts": {
     "aliases": "bun run scripts/settle-aliases.ts",
     "fonts": "bun run scripts/copy-inter.ts",
-    "shots": "bun run scripts/copy-shots.ts",
-    "css": "bun run aliases && bun run fonts && bun run shots && bun run engine && bun run view:demo && tailwindcss -i src/view/style.css -o src/view/index.css",
+    "css": "bun run aliases && bun run fonts && bun run engine && bun run view:demo && tailwindcss -i src/view/style.css -o src/view/index.css",
     "view:demo": "bun run scripts/build-demo-view.ts",
     "css:watch": "bun run css && tailwindcss -i src/view/style.css -o src/view/index.css --watch",
     "dev": "bun run css && bun run scripts/dev-hmr.ts",

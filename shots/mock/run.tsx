@@ -1,7 +1,7 @@
 import { Option } from "effect"
-import type { CheckNote } from "@/domain/PullRequest"
-import { gathered, type Job, type Run, type RunOpening, type RunRef } from "@/domain/run"
-import { RunScreen } from "@/ui/RunScreen"
+import type { CheckNote } from "../../src/domain/PullRequest"
+import { gathered, type Job, type Run, type RunOpening, type RunRef } from "../../src/domain/run"
+import { RunScreen } from "../../src/ui/RunScreen"
 import { alreadyKnown, settled, STORE, type View } from "../view"
 import { minutesAgo } from "./when"
 

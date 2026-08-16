@@ -7,6 +7,8 @@ import { defineConfig } from "vite"
 const here = path.dirname(fileURLToPath(import.meta.url))
 const viewRoot = path.join(here, "src/view")
 const sharedSrc = path.join(here, "../src")
+/** The fixtures the onboarding's screens are drawn from, shared with the site. */
+const fixtures = path.join(here, "../shots")
 
 /**
  * Dev-only Vite server for view HMR.
@@ -48,9 +50,10 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     fs: {
-      // View imports shared UI under ../src; Inter lives in the workspace
-      // node_modules, which Vite blocks unless listed.
-      allow: [here, sharedSrc, path.join(here, "../node_modules")]
+      // View imports shared UI under ../src and the onboarding's fixtures under
+      // ../shots; Inter lives in the workspace node_modules, which Vite blocks
+      // unless listed.
+      allow: [here, sharedSrc, fixtures, path.join(here, "../node_modules")]
     }
   },
   optimizeDeps: {

@@ -28,21 +28,28 @@ describe("the onboarding", () => {
     expect(screen.getByText(BEATS[0]!.title)).toBeTruthy()
   })
 
-  test("draws the screen each beat is about", async () => {
-    const shown = BEATS[1]?.shot
-    if (shown === undefined) throw new Error("the beat after the welcome is about a screen")
+  test("draws the screen each beat is about, from the first one", () => {
+    const shown = BEATS[0]?.picture
+    if (shown === undefined) throw new Error("the welcome is about a screen")
 
     tour()
-    // The welcome shows nothing, so the first screen is one press in.
-    await userEvent.click(screen.getByRole("button", { name: "Next" }))
 
     expect(screen.getByTestId("shot").textContent).toBe(shown)
   })
 
-  test("shows no screen on the welcome, which is about the app rather than about a screen", () => {
+  /*
+   * The welcome and the beat after it are about the same screen, and the picture is keyed
+   * by the screen rather than by the beat — so the press between them changes the words
+   * and leaves the list alone. Keyed by the beat, a running screen was torn down and
+   * built again on a press that was meant to say one more thing about it.
+   */
+  test("leaves the screen where it is across two beats about the same one", async () => {
     tour()
+    const first = screen.getByTestId("shot")
 
-    expect(screen.queryByTestId("shot")).toBeNull()
+    await userEvent.click(screen.getByRole("button", { name: "Next" }))
+
+    expect(screen.getByTestId("shot")).toBe(first)
   })
 
   test("says nothing of a screen on the host's own beat, which has none", async () => {
@@ -119,15 +126,14 @@ describe("what the onboarding says", () => {
   })
 
   /*
-   * A welcome, then a screen at a time. The welcome is words only on purpose: it is the
-   * one beat that is not about anything on the screen, so a picture beside it would be a
-   * picture of nothing being said.
+   * Every beat is about a screen, the welcome included. A beat whose picture row is empty
+   * is a card that reads as still loading, and a beat that fills it with a logo is a
+   * splash screen — which costs a press and shows nothing. Both were tried here.
    */
-  test("opens with a welcome that shows no screen, then shows one on every beat after it", () => {
+  test("is about a screen on every beat, the welcome included", () => {
     expect(BEATS.length).toBeGreaterThan(1)
-    expect(BEATS[0]?.shot).toBeUndefined()
 
-    for (const beat of BEATS.slice(1)) expect(beat.shot).toBeTruthy()
+    for (const beat of BEATS) expect(beat.picture).toBeTruthy()
   })
 
   /*
@@ -137,8 +143,10 @@ describe("what the onboarding says", () => {
    * it. Nothing failed, which is why it took a person noticing.
    */
   test("names the first Court as the list names it, rather than as it was once named", () => {
-    const list = BEATS.find((beat) => beat.shot === "working-set")
+    const named = BEATS.some((beat) =>
+      beat.says.some((sentence) => sentence.includes(COURT_NAME["needs-you"]))
+    )
 
-    expect(list?.says[0]).toContain(COURT_NAME["needs-you"])
+    expect(named).toBe(true)
   })
 })

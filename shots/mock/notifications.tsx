@@ -1,6 +1,6 @@
 import { Option } from "effect"
-import type { Notice, Press, PressKind, Standing } from "@/domain/notices"
-import { NoticesScreen } from "@/ui/NoticesScreen"
+import type { Notice, Press, PressKind, Standing } from "../../src/domain/notices"
+import { NoticesScreen } from "../../src/ui/NoticesScreen"
 import { alreadyKnown, nothingRemembered, settled, STORE, type View } from "../view"
 import { faceOf, MOCK_VIEWER } from "./faces"
 import { minutesAgo } from "./when"

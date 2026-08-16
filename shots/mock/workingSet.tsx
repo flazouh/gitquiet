@@ -1,14 +1,14 @@
 import { Effect, Option } from "effect"
-import type { Branches } from "@/domain/sittings"
-import { sittingsIn } from "@/domain/sittings"
+import type { Branches } from "../../src/domain/sittings"
+import { sittingsIn } from "../../src/domain/sittings"
 import type {
   CheckRollup,
   InvolvedPullRequest,
   Opinion,
   Shelf,
   Size
-} from "@/domain/workingSet"
-import { WorkingSetScreen } from "@/ui/WorkingSetScreen"
+} from "../../src/domain/workingSet"
+import { WorkingSetScreen } from "../../src/ui/WorkingSetScreen"
 import { alreadyKnown, nothingRemembered, settled, STORE, type View } from "../view"
 import { faceOf, MOCK_VIEWER } from "./faces"
 import { hoursAgo } from "./when"

@@ -85,14 +85,7 @@ export default {
        * The mermaid renderer, built by `scripts/build-markdown-mermaid.ts` and
        * fetched on the first mermaid fence. Same reason as the highlighter.
        */
-      "src/view/markdown-mermaid.js": "views/main/markdown-mermaid.js",
-      /*
-       * The captures the onboarding shows, copied out of the site by
-       * `scripts/copy-shots.ts`. Which ones there are is decided by `beats.ts`, and
-       * that script fails the build if the tour names a screen the site has never
-       * photographed.
-       */
-      "src/view/shots": "views/main/shots"
+      "src/view/markdown-mermaid.js": "views/main/markdown-mermaid.js"
     },
     /*
      * Signed and notarised only where there is an identity to sign with, which is

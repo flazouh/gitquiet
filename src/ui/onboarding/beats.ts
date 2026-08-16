@@ -40,40 +40,42 @@ export type Beat = {
   readonly title: string
   /** One sentence. Two is a beat that has started explaining itself. */
   readonly says: ReadonlyArray<string>
-  /**
-   * Which screen is shown beside the words.
-   *
-   * The host draws it: the site mounts the screen itself and runs it, the app shows
-   * the capture of it. Absent on a beat whose picture is the words.
-   */
-  readonly shot?: Shot
+  /** What stands above the words. Both hosts mount the real screen and run it. */
+  readonly picture?: Shot
 }
 
 export const BEATS: ReadonlyArray<Beat> = [
   /*
-   * The welcome, and the only beat with nothing to show.
+   * The welcome, greeting a reader over the product rather than over a logo.
    *
-   * It says how long this costs and nothing else. A line about what the product is for
-   * belongs to the screens that follow, where a reader can see the thing being described:
-   * said here it is a slogan, and a slogan is a sentence between somebody and the door.
+   * The same screen as the beat after it, on purpose, and this is the third answer to
+   * what belongs here. A greeting on its own left a card that read as still loading. A
+   * greeting under the mark was a splash screen: it costs a press and shows nothing, and
+   * nothing is what a reader who has just installed something has the least patience for.
+   * So the first thing on screen is the thing they installed, and the words in front of it
+   * are the sentence they arrived with — the site's own, word for word.
+   *
+   * The picture is keyed by the screen rather than by the beat, so pressing Next here
+   * leaves the list exactly where it is and only the words change.
    */
   {
     title: "Welcome to GitQuiet.",
-    says: ["Three screens, thirty seconds."]
+    says: ["GitHub is where your work lives. GitQuiet is where you do it."],
+    picture: "working-set"
   },
   {
     title: "Every pull request you are in, in one list.",
     says: [`${FIRST_COURT} at the top. Nothing to sort and nothing to configure.`],
-    shot: "working-set"
+    picture: "working-set"
   },
   {
     title: "One pull request, one screen.",
     says: ["The conversation and the files together, with nothing unresolved hidden in a tab."],
-    shot: "pull-request"
+    picture: "pull-request"
   },
   {
     title: "On github.com, not beside it.",
-    says: ["Commits, issues, checks and releases, redrawn on the pages you already use."],
-    shot: "commit"
+    says: ["Commits, issues, checks and releases, on the pages you already use."],
+    picture: "commit"
   }
 ]

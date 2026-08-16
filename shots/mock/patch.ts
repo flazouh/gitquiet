@@ -1,5 +1,5 @@
 import { Option } from "effect"
-import type { ChangedFile, ChangeType, DiffLine } from "@/domain/PullRequest"
+import type { ChangedFile, ChangeType, DiffLine } from "../../src/domain/PullRequest"
 
 /**
  * A changed file written as the patch a reader would see, rather than as lines.

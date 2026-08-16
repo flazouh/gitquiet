@@ -3,11 +3,11 @@ import { useEffect, useState } from "react"
 import { SpinnerIcon } from "../../../src/ui/art"
 import { BED_COLOURS, INK } from "../../../src/ui/bed"
 import { Mark, Wordmark } from "../../../src/ui/Mark"
-import type { Shot } from "../../../src/ui/onboarding/beats"
 import { Tour } from "../../../src/ui/onboarding/Tour"
 import { spring } from "../lib/springs"
 import type { Pending, Viewer, WayIn } from "../shared/wire"
 import { Bed } from "./Bed"
+import { Fixture } from "./Fixture"
 import { ask } from "./rpc"
 
 /**
@@ -33,17 +33,6 @@ type Step =
  * github.com. Everything else on this panel is GitHub's own words.
  */
 const NO_APP = "This build was made without an OAuth app of its own, so it has nothing to sign in with."
-
-/**
- * The captures, which live beside the built view.
- *
- * The site draws these screens for real, because on a page it can: they are the
- * extension's own components with fixture data, and the page already ships them for
- * its own live demos. A window would be fetching a four-megabyte diff engine to draw a
- * picture nobody is going to read the code in, so the window shows the photograph.
- * `scripts/copy-shots.ts` puts them here.
- */
-const shotAt = (shot: Shot) => `shots/${shot}@2x.png`
 
 /**
  * The button the last step is built around, in the brand's own clothes.
@@ -316,7 +305,7 @@ export const Welcome = ({ onSignedIn }: { readonly onSignedIn: (viewer: Viewer) 
 
       <div className="welcome-sheet">
         <Tour
-          show={(shot) => <img src={shotAt(shot)} alt="" />}
+          show={(shot) => <Fixture shot={shot} />}
           ending={{
             title: "Ready when you are.",
             says: ["Your token stays in the macOS keychain. There is no account and no server."],

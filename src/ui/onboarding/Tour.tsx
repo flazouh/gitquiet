@@ -19,6 +19,7 @@ export type Ending = Beat & {
   readonly act?: ReactNode
 }
 
+
 /**
  * The onboarding, in one component, drawn in a window and on a page.
  *
@@ -26,11 +27,11 @@ export type Ending = Beat & {
  * shape for something nobody asked to read: a welcome, then a screen at a time, one
  * sentence under each, and a way out on every one of them.
  *
- * The pictures are the host's to draw. The site mounts the real screens and runs them,
- * because it can — they are the extension's own components with fixture data. The app
- * shows the capture of the same screen instead, which is four hundred kilobytes rather
- * than a diff engine. The extension has no copy of its own: on install it opens the
- * site's.
+ * The screens are the host's to draw, and both hosts mount the real thing and run it:
+ * they are the extension's own components under fixture data, which the app is already
+ * shipping because it draws them for real once somebody is signed in. The welcome's
+ * picture is not a screen and is drawn here, the same in both. The extension has no
+ * copy of its own: on install it opens the site's.
  */
 export const Tour = ({
   show,
@@ -77,19 +78,20 @@ export const Tour = ({
       <div
         className="tour-beat"
         /* Whether this beat has a picture, said out here rather than worked out in CSS:
-           the first beat and the last one are words only, and a row kept for a picture
-           that is not coming is a hole above the sentence a reader is meant to read. */
-        data-shows={step.shot === undefined ? "words" : "screen"}
+           the last beat is words only, and a row kept for a picture that is not coming
+           is a hole above the sentence a reader is meant to read. */
+        data-shows={step.picture === undefined ? "words" : "screen"}
       >
         {/*
-          Keyed by the screen rather than by the step, so two beats about one screen
-          leave it where it is. The site mounts a running screen here: keyed by the step
-          it was torn down and built again on every press, which pulled the eye back to
-          a picture the reader had already looked at.
+          Keyed by the picture rather than by the step, so two beats about one screen
+          leave it where it is. A running screen keyed by the step was torn down and
+          built again on every press, which pulled the eye back to a picture the reader
+          had already looked at — and on a screen that fetches a diff engine, rebuilt it
+          from nothing.
         */}
-        {step.shot === undefined ? null : (
-          <div key={step.shot} className="tour-shot">
-            {show(step.shot)}
+        {step.picture === undefined ? null : (
+          <div key={step.picture} className="tour-shot">
+            {show(step.picture)}
           </div>
         )}
 

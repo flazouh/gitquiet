@@ -8,8 +8,8 @@ import type {
   Tongue,
   Touch,
   Welcome
-} from "@/domain/repoHome"
-import { RepoHomeScreen } from "@/ui/RepoHomeScreen"
+} from "../../src/domain/repoHome"
+import { RepoHomeScreen } from "../../src/ui/RepoHomeScreen"
 import { alreadyKnown, nothingRemembered, settled, STORE, type View } from "../view"
 import { faceDataUri } from "./faces"
 import { daysAgo, hoursAgo } from "./when"

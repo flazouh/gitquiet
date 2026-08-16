@@ -256,6 +256,7 @@ body {
  * in dark mode: the gradient is light in both, so the words on it stay dark in both.
  */
 .welcome {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -279,13 +280,25 @@ body {
   z-index: -1;
 }
 
-/* The mark and the wordmark, small, above the panel: the brand is the room this is
-   standing in rather than a heading inside it. */
+/**
+ * The mark and the wordmark, in the corner of the room rather than over the panel.
+ *
+ * Out of the flow, which is the point of moving it: centred above the sheet it was a
+ * heading the panel had to make room for, and the panel is the thing worth the room.
+ * Where an application puts its name is the top left, and this is the top left the
+ * window has to give — under the title bar, because the corner above it belongs to the
+ * traffic lights.
+ *
+ * No `z-index`, deliberately. The strip above holds the drag region, and a strip
+ * competing with a stacking context is a window macOS will not let anybody move.
+ */
 .welcome-lockup {
+  position: absolute;
+  top: 12px;
+  left: 24px;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-bottom: 14px;
 }
 
 /**

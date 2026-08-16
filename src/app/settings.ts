@@ -1,5 +1,5 @@
 import { Duration, Effect } from "effect"
-import { DEFAULTS, type View } from "../domain/Settings"
+import { DEFAULTS, type Settings, type View } from "../domain/Settings"
 import type { Store } from "../ports/Settings"
 
 /**
@@ -10,9 +10,13 @@ import type { Store } from "../ports/Settings"
  * all. Every one of those means the same thing from here, which is that a choice
  * applies to what the reader is looking at and is gone afterwards — which is far
  * better than a panel that refuses to draw because a disk said no.
+ *
+ * Started from something other than the defaults by a caller drawing a screen it
+ * has already decided how to draw: the onboarding mounts the real screens under
+ * fixture data on a light gradient, in a window that may itself be dark.
  */
-export const forgetful = (): Store => {
-  let held = DEFAULTS
+export const forgetful = (from: Settings = DEFAULTS): Store => {
+  let held = from
 
   return {
     read: Effect.sync(() => held),

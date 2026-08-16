@@ -109,19 +109,18 @@
   border-bottom: 1px solid color-mix(in srgb, var(--bed-ink) 8%, transparent);
 }
 
-/* The site puts a running screen here, which sizes itself and must not be stretched. */
-.tour-shot > * {
-  justify-self: center;
-  max-width: 100%;
-  max-height: 100%;
-}
-
-/* A capture fills the width and is cut off at the bottom, rather than scaling to fit. */
-.tour-shot img {
+/**
+ * Where a running screen is held. See `Held.tsx`.
+ *
+ * The screen inside is drawn at its fixture's own width — 1280 pixels — and scaled down
+ * to whatever this is. So this has to be told to take the row's width rather than its
+ * content's, and to cut off what does not fit: without `overflow: hidden` the card is as
+ * wide as the fixture and the page scrolls sideways.
+ */
+.tour-held {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: top center;
+  overflow: hidden;
 }
 
 /*
@@ -144,12 +143,41 @@
      or its content is its height and the grid overflows instead. */
   min-height: 0;
   overflow-y: auto;
-  animation: tour-said-in var(--duration-moderate, 300ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)) both;
 }
 
 .tour-beat[data-shows="words"] .tour-said {
   padding: 0;
   max-width: 52ch;
+}
+
+/*
+ * The heading, then the sentence, then the button, each behind the last by the scale's
+ * own stagger.
+ *
+ * One entrance for the block read as a card being swapped in. Taken apart, the same
+ * three hundred milliseconds read as the screen saying one thing and then the next —
+ * which is what a beat is. The order is the reading order, which is the only order a
+ * stagger is allowed to be in.
+ *
+ * On the children rather than on the block, because two animations on nested elements
+ * multiply their opacities: the words came in at a quarter strength when both ran.
+ *
+ * Opacity and transform only. They are the two a compositor carries on its own, and
+ * anything else here is a heading being laid out again every frame.
+ */
+.tour-title,
+.tour-says,
+.tour-act {
+  animation: tour-said-in var(--duration-moderate, 300ms)
+    var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)) both;
+}
+
+.tour-says {
+  animation-delay: var(--duration-stagger, 40ms);
+}
+
+.tour-act {
+  animation-delay: calc(var(--duration-stagger, 40ms) * 2);
 }
 
 @keyframes tour-said-in {
@@ -338,7 +366,11 @@
  * a reader reads as a page reloading.
  */
 @media (prefers-reduced-motion: reduce) {
-  .tour-said {
+  /* The three still arrive in order: the setting is about travel rather than about
+     sequence, and a sequence is what a stagger is for. */
+  .tour-title,
+  .tour-says,
+  .tour-act {
     animation-name: tour-said-fade;
   }
 
