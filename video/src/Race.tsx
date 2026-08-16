@@ -14,7 +14,7 @@ import { GRADIENT, INK, ON_GRADIENT, ON_GRADIENT_MUTED, PAGE } from "./palette";
  */
 
 /** When each side had the pull request on the screen, read off the frames. */
-const READABLE = {
+export const READABLE = {
   theirs: 2050,
   ours: 287,
 } as const;
@@ -25,7 +25,7 @@ const HOLD_MS = 900;
 
 export const RACE_DURATION_IN_FRAMES = Math.round(((RUNS_FOR_MS + HOLD_MS) / 1000) * 30);
 
-const Clock: React.FC<{ readableAt: number; ms: number }> = ({ readableAt, ms }) => {
+export const Clock: React.FC<{ readableAt: number; ms: number }> = ({ readableAt, ms }) => {
   const landed = ms >= readableAt;
   const shown = landed ? readableAt : ms;
   return (
@@ -49,13 +49,16 @@ const Clock: React.FC<{ readableAt: number; ms: number }> = ({ readableAt, ms })
   );
 };
 
-const Pane: React.FC<{ title: string; file: string; readableAt: number; ms: number }> = ({
-  title,
-  file,
-  readableAt,
-  ms,
-}) => (
-  <div style={{ display: "flex", flexDirection: "column", gap: 14, width: "50%" }}>
+export const Pane: React.FC<{
+  title: string;
+  file: string;
+  readableAt: number;
+  ms: number;
+  width?: string;
+  /** Pins the recording's own width, which is how the stacked cut is made to fit its frame. */
+  videoWidth?: number;
+}> = ({ title, file, readableAt, ms, width = "50%", videoWidth }) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: 14, width, alignItems: "stretch" }}>
     <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
       <span style={{ fontSize: 30, fontWeight: 620, color: ON_GRADIENT, letterSpacing: "-0.02em" }}>
         {title}
@@ -68,6 +71,8 @@ const Pane: React.FC<{ title: string; file: string; readableAt: number; ms: numb
         overflow: "hidden",
         boxShadow: "0 24px 60px -24px rgba(20,10,40,0.55)",
         background: "#0d1117",
+        width: videoWidth === undefined ? "100%" : videoWidth,
+        alignSelf: "center",
       }}
     >
       <OffthreadVideo src={staticFile(file)} style={{ width: "100%", display: "block" }} muted />
