@@ -63,7 +63,6 @@
  */
 
 const EXTENSION = "/Users/alex/Documents/githubpro/.output/chrome-mv3";
-const EXTENSION_ID = "ablmcookkmabldlblkojbpchnbdlogjd";
 const LIST = "https://github.com/microsoft/vscode/pulls?page=2";
 
 /**
@@ -207,10 +206,56 @@ await wait(2);
 const numbers = (await numbersOnTheList()).slice(0, RUNS);
 cliLog("pull requests: " + numbers.join(", "));
 
-try {
-  await cdp("Extensions.uninstall", { id: EXTENSION_ID }, null);
-} catch {
-  // Not installed, which is the state this half wants anyway.
+/*
+ * Every copy, not the one id this script used to name.
+ *
+ * `Extensions.loadUnpacked` assigns an id per profile, and a profile can also
+ * carry the build from the web store, so uninstalling one hard-coded id leaves
+ * the other drawing the page through a baseline that is meant to have none of
+ * it. `Target.getTargets` is not enough on its own either: it only lists an
+ * extension whose service worker is awake. Read the ids off the document, where
+ * every content script leaves its own URLs behind.
+ */
+const installedHere = async () => {
+  const fromPage = await js(String.raw`(() => {
+    const ids = new Set()
+    const grab = (value) => {
+      const found = String(value || "").match(/chrome-extension:\/\/([a-z]{32})/)
+      if (found !== null) ids.add(found[1])
+    }
+    for (const node of document.querySelectorAll("[src],[href]")) {
+      grab(node.getAttribute("src"))
+      grab(node.getAttribute("href"))
+    }
+    for (const sheet of document.styleSheets) { try { grab(sheet.href) } catch { /* cross-origin */ } }
+    return [...ids]
+  })()`);
+  const { targetInfos = [] } = await cdp("Target.getTargets", {}, null);
+  const fromTargets = targetInfos
+    .map((info) => (String(info.url || "").match(/^chrome-extension:\/\/([a-z]+)/) || [])[1])
+    .filter(Boolean);
+  return [...new Set([...fromPage, ...fromTargets])];
+};
+
+for (const id of await installedHere()) {
+  try {
+    await cdp("Extensions.uninstall", { id }, null);
+  } catch {
+    // Not installed, which is the state this half wants anyway.
+  }
+}
+
+/*
+ * Refuse to measure around a copy that would not uninstall.
+ *
+ * A copy installed through Chrome's own UI does not come out over the protocol.
+ * Reporting a baseline drawn by the interface as if it were GitHub's is worse
+ * than reporting nothing, and reporting nothing is what hid this for months.
+ */
+await gotoAndWait(LIST, { timeout: 60, settle: 3 });
+await wait(2);
+if (await js(`!!document.getElementById("gitquiet-root")`)) {
+  throw new Error("the interface is still on the page; disable every copy in chrome://extensions first");
 }
 
 cliLog("\nGitHub, extension uninstalled — open the pull request, then press Files changed:");

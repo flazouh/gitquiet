@@ -37,7 +37,15 @@
 
 const EXTENSION = "/Users/alex/Documents/githubpro/.output/chrome-mv3";
 const LIST = "https://github.com/microsoft/vscode/pulls";
-const RUNS = 4;
+/**
+ * Eight, so warm and cold can have four each.
+ *
+ * They must not be the same four. Pressing a pull request warm and then pressing
+ * it again cold reads it out of the interface's own cache the second time, and
+ * the cold column comes back at warm speed having measured nothing. Two runs of
+ * this script disagreed by a factor of twenty-five on exactly that.
+ */
+const RUNS = 8;
 
 /** Long enough to pass the 150ms dwell the prefetch waits for, and no longer than a reader would rest. */
 const DWELL = 1.5;
@@ -109,75 +117,85 @@ const removeEveryExtension = async () => {
 };
 
 /**
- * Starts the clock in the page, where the press happens.
+ * Records, in every document, when the pull request became readable.
  *
- * `sessionStorage` rather than `window`, because GitHub's own list leaves the
- * document when a row is pressed and anything held on `window` leaves with it.
- * That is what made every baseline cell read `—`. `Date.now()` rather than
- * `performance.now()`, because the second document starts that clock again and
- * the elapsed time would be measured from the wrong zero.
+ * Installed through `Page.addScriptToEvaluateOnNewDocument` so the timer is
+ * running before the first byte of the page it is timing. GitHub's own list
+ * leaves the document when a row is pressed, so a timer injected afterwards
+ * would be measuring a page it arrived too late to see the start of, and
+ * anything held on `window` would have left with the first document.
+ *
+ * The clock is `Date.now()` and the press time lives in `sessionStorage`, both
+ * for the same reason: `performance.now()` starts again in the second document
+ * and the elapsed time would be measured from the wrong zero.
  */
-const install = () =>
-  js(String.raw`(() => {
-    sessionStorage.setItem("__bench", JSON.stringify({ t0: null }))
+const RECORDER = String.raw`(() => {
+  if (window.__benchRunning) return
+  window.__benchRunning = true
+  const KEY = "__bench"
+  const read = () => { try { return JSON.parse(sessionStorage.getItem(KEY) || "null") } catch { return null } }
+  setInterval(() => {
+    const marks = read()
+    if (marks === null || marks.t0 === null || marks.done) return
+    const since = () => Date.now() - marks.t0
+    if (marks.gate === null && document.documentElement.hasAttribute("data-gitquiet-gating")) {
+      marks.gate = since()
+    }
+    if (location.pathname.includes("/pull/")) {
+      const root = document.getElementById("gitquiet-root")
+      // Ours is readable when the interface says it is showing the conversation
+      // and the skeleton has gone. The attribute matters: without it the timer
+      // catches the list still standing under the new URL and reports the gate
+      // twice, which is how cold once came out faster than warm.
+      if (marks.ours === null &&
+          document.documentElement.getAttribute("data-gitquiet-shown") === "conversation" &&
+          root !== null && root.querySelector("h2") !== null &&
+          root.querySelector("[data-gitquiet-loading]") === null) {
+        marks.ours = since()
+        marks.done = true
+      }
+      if (marks.theirs === null && document.querySelector(".timeline-comment") !== null) {
+        marks.theirs = since()
+        marks.done = true
+      }
+    }
+    sessionStorage.setItem(KEY, JSON.stringify(marks))
+  }, 16)
+})()`
+
+await cdp("Page.addScriptToEvaluateOnNewDocument", { source: RECORDER });
+
+/** Clears the last press and starts the clock on the next one. */
+const install = async () => {
+  await js(String.raw`(() => {
+    sessionStorage.setItem("__bench", JSON.stringify({ t0: null, gate: null, ours: null, theirs: null, done: false }))
     document.addEventListener("click", () => {
-      sessionStorage.setItem("__bench", JSON.stringify({ t0: Date.now() }))
+      const marks = JSON.parse(sessionStorage.getItem("__bench"))
+      marks.t0 = Date.now()
+      sessionStorage.setItem("__bench", JSON.stringify(marks))
     }, { capture: true, once: true })
     return true
   })()`);
+  await js(RECORDER);
+};
 
-/**
- * One reading of the page, with the elapsed time the page itself computes.
- *
- * The end is sampled from here rather than by a timer in the page. A timer would
- * be finer, but it cannot be put into GitHub's second document without
- * `Page.addScriptToEvaluateOnNewDocument`, which this runtime does not carry.
- * Both sides are therefore read the same way, and both carry the same round-trip
- * error, which is what keeps the two columns comparable.
- */
-const sample = () =>
-  js(String.raw`(() => {
-    const marks = JSON.parse(sessionStorage.getItem("__bench") || "null")
-    if (marks === null || marks.t0 === null) return { armed: false }
-    const root = document.getElementById("gitquiet-root")
-    return {
-      armed: true,
-      at: Date.now() - marks.t0,
-      onPull: location.pathname.includes("/pull/"),
-      gating: document.documentElement.hasAttribute("data-gitquiet-gating"),
-      // Ours is readable when the interface says it is showing the conversation
-      // and the skeleton has gone. The attribute matters: without it the reading
-      // catches the list still standing under the new URL and reports the gate
-      // twice, which is how cold once came out faster than warm.
-      oursReady: document.documentElement.getAttribute("data-gitquiet-shown") === "conversation" &&
-        root !== null && root.querySelector("h2") !== null &&
-        root.querySelector("[data-gitquiet-loading]") === null,
-      theirsReady: document.querySelector(".timeline-comment") !== null
-    }
-  })()`);
-
-/** Reads until the pull request is readable, or until the wait runs out. */
+/** Waits for the timer to say the pull request is readable, or gives up. */
 const watch = async (seconds) => {
-  const marks = { gate: null, ours: null, theirs: null };
   const until = Date.now() + seconds * 1000;
+  let last = { gate: null, ours: null, theirs: null };
   while (Date.now() < until) {
-    let state;
     try {
-      state = await sample();
+      const marks = await js(String.raw`JSON.parse(sessionStorage.getItem("__bench") || "null")`);
+      if (marks !== null) {
+        last = marks;
+        if (marks.done) return marks;
+      }
     } catch {
       // The document is being swapped under us, which is the navigation itself.
-      continue;
     }
-    if (state.armed) {
-      if (marks.gate === null && state.gating) marks.gate = state.at;
-      if (state.onPull) {
-        if (marks.ours === null && state.oursReady) marks.ours = state.at;
-        if (marks.theirs === null && state.theirsReady) marks.theirs = state.at;
-      }
-      if (marks.ours !== null || marks.theirs !== null) return marks;
-    }
+    await wait(0.25);
   }
-  return marks;
+  return last;
 };
 
 /**
@@ -245,11 +263,15 @@ await wait(2);
 const numbers = (await numbersOnTheList("")).slice(0, RUNS);
 cliLog("pull requests: " + numbers.join(", "));
 
+/** Warm takes the first half of the list, cold the second, so neither warms the other. */
+const half = (which) =>
+  which === "warm" ? numbers.slice(0, numbers.length / 2) : numbers.slice(numbers.length / 2);
+
 const theirs = { warm: [], cold: [] };
 for (const dwell of [DWELL, 0]) {
   const which = dwell > 0 ? "warm" : "cold";
   cliLog(`\nGitHub's own page, no extension, ${which}:`);
-  for (const number of numbers) {
+  for (const number of half(which)) {
     const marks = await clickThrough(number, "", dwell);
     if (typeof marks.theirs === "number") theirs[which].push(marks.theirs);
     cliLog(`  #${number}  ${show(marks.theirs ?? undefined)} to their conversation`);
@@ -270,7 +292,8 @@ cliLog(`\nThe interface, extension ${id}. Pressing: ${pressed.join(", ")}`);
 for (const dwell of [DWELL, 0]) {
   const which = dwell > 0 ? "warm" : "cold";
   cliLog(`\nThe interface, ${which}:`);
-  for (const number of pressed) {
+  const mineFor = which === "warm" ? pressed.slice(0, pressed.length / 2) : pressed.slice(pressed.length / 2);
+  for (const number of mineFor) {
     const marks = await clickThrough(number, "#gitquiet-root ", dwell);
     if (typeof marks.ours === "number") ours[which].push(marks.ours);
     if (typeof marks.gate === "number") gates[which].push(marks.gate);
@@ -281,7 +304,7 @@ for (const dwell of [DWELL, 0]) {
 }
 
 cliLog(`\n${"-".repeat(64)}`);
-cliLog(`Press to readable pull request, median of ${RUNS}\n`);
+cliLog(`Press to readable pull request, median of ${RUNS / 2} per column\n`);
 cliLog(`             warm (1.5s dwell)   cold (no dwell)`);
 cliLog(`  GitHub     ${show(median(theirs.warm)).padEnd(19)}${show(median(theirs.cold))}`);
 cliLog(`  ours       ${show(median(ours.warm)).padEnd(19)}${show(median(ours.cold))}`);
