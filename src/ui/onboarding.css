@@ -35,7 +35,7 @@
    * the whole shape of this screen: a photograph that runs to the edge, words that do
    * not.
    */
-  --tour-inset: 22px;
+  --tour-inset: 20px;
 
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
@@ -46,7 +46,7 @@
    */
   flex: 1 1 auto;
   height: 100%;
-  padding-bottom: 12px;
+  padding-bottom: 8px;
   color: var(--bed-ink);
   text-align: left;
 }
@@ -139,7 +139,7 @@
   align-content: start;
   gap: 0;
   max-width: 58ch;
-  padding: 16px var(--tour-inset) 0;
+  padding: 12px var(--tour-inset) 0;
   /* The pair that lets the row above shrink: a scroll area needs a floor of zero,
      or its content is its height and the grid overflows instead. */
   min-height: 0;
@@ -194,7 +194,7 @@
 }
 
 .tour-act {
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 .tour-feet {
@@ -202,7 +202,7 @@
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 12px;
-  padding: 12px var(--tour-inset) 0;
+  padding: 8px var(--tour-inset) 0;
 }
 
 .tour-feet-start {
