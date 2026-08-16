@@ -127,7 +127,7 @@ describe("reading one page of a repository's pull requests", () => {
 
     const listed = await read()
 
-    expect(listed.sittings[0]?.court).toBe("your-move")
+    expect(listed.sittings[0]?.court).toBe("needs-you")
   })
 
   test("says where the page sits in the whole of them", async () => {
@@ -198,7 +198,7 @@ describe("reading one page of a repository's pull requests", () => {
     // Whose move it is comes off the shelves, which the first stage has not waited for.
     expect(stages[0]?.sittings[0]?.court).toBe("waiting")
     expect(stages[0]?.sittings[0]?.count).toBe(1)
-    expect(listed.sittings[0]?.court).toBe("your-move")
+    expect(listed.sittings[0]?.court).toBe("needs-you")
   })
 
   test("reads how many lines each row changes", async () => {

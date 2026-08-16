@@ -197,10 +197,10 @@ describe("a repository's front page", () => {
   test("draws the README from its source, in this interface's own chrome", async () => {
     showing(() => Effect.succeed(front("caller")), {
       loadReadme: () =>
-        Effect.succeed("| Group | Means |\n| --- | --- |\n| Your Move | You can act on it now. |")
+        Effect.succeed("| Group | Means |\n| --- | --- |\n| Needs You | You can act on it now. |")
     })
 
-    expect(await screen.findByText("Your Move")).toBeTruthy()
+    expect(await screen.findByText("Needs You")).toBeTruthy()
     expect(document.querySelector(".markdown-table")).toBeTruthy()
   })
 

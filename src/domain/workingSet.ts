@@ -45,7 +45,7 @@ export const SHELVES: ReadonlyArray<Shelf> = [
  * three unrelated situations tells a reader to relax about all of them. What
  * separates them is who owes the next step: the reader, a person, or a machine.
  */
-export type Court = "your-move" | "waiting" | "running" | "settled"
+export type Court = "needs-you" | "waiting" | "running" | "settled"
 
 /**
  * How a pull request's whole run of checks stands, in one line.
@@ -220,12 +220,12 @@ export type Weighing = {
 const COURT_OF_SHELF: Record<Shelf, Court> = {
   // GitHub says this one needs the Participant. It is the shelf that carries a
   // `category` saying why — `CI_FAILING` and its siblings.
-  "needs-action": "your-move",
-  "team-review-requested": "your-move",
+  "needs-action": "needs-you",
+  "team-review-requested": "needs-you",
   // Ready to land is a move: the pressing of the button is the Participant's.
-  "ready-to-merge": "your-move",
+  "ready-to-merge": "needs-you",
   // A draft nobody has been asked to look at yet is the Author's to finish.
-  "your-drafts": "your-move",
+  "your-drafts": "needs-you",
   // The Participant has put it up and owes nothing until somebody reads it.
   "waiting-for-review": "waiting",
   // GitHub is testing it against whatever is ahead of it in the queue. Nothing
@@ -290,7 +290,7 @@ export const courtOf = (weighing: Weighing): Court => {
 
   // On none of the reader's shelves, which is most of a repository's own list.
   // Somebody has to review it or land it and that somebody is not the reader.
-  // Not Your Move, which is a list of things to actually go and do.
+  // Not Needs You, which is a list of things to actually go and do.
   if (Option.isNone(shelf)) return "waiting"
 
   // Only landing is held back by the stack. Anything else on a child can be
@@ -299,7 +299,7 @@ export const courtOf = (weighing: Weighing): Court => {
 
   if (NOTHING_BUT_THE_RUN.includes(shelf.value)) {
     if (Option.isSome(weighing.checks) && weighing.checks.value.state === "running") return "running"
-    if (landable(weighing)) return "your-move"
+    if (landable(weighing)) return "needs-you"
   }
 
   return COURT_OF_SHELF[shelf.value]

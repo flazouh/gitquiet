@@ -46,7 +46,7 @@ describe("the repository pull requests view", () => {
     const held = (court: string) =>
       rowsIn(within(shot.getByRole("region", { name: court }))).length
 
-    expect(held("Your Move")).toBe(2)
+    expect(held("Needs You")).toBe(2)
     expect(held("Waiting")).toBe(12)
   })
 
@@ -82,7 +82,7 @@ describe("the repository pull requests view", () => {
     const shot = drawn()
     await shot.findByText(/Allow suppressing TypeScript plugin diagnostics/)
 
-    const yours = within(shot.getByRole("region", { name: "Your Move" }))
+    const yours = within(shot.getByRole("region", { name: "Needs You" }))
     expect(yours.getByText(/Use OIDC tokens to read private preview builds/)).toBeTruthy()
     expect(yours.getAllByText("83 of 100").length).toBe(2)
   })

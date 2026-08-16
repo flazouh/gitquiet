@@ -27,7 +27,7 @@ export type ControlCenterProps = {
    *
    * The delta row needs it. "2 commits since you last reviewed" leaves the
    * reader's next question — which two — unanswered, and it was the one row in
-   * Your Move that went nowhere while every thread beside it opened its line.
+   * Needs You that went nowhere while every thread beside it opened its line.
    */
   readonly onOpenCommit?: (sha: string) => void
   /**
@@ -376,7 +376,7 @@ export const ControlCenter = ({
   )
 
   const held = dockets.filter((docket) => docket.count > 0)
-  const yours = dockets.find((docket) => docket.court === "your-move")?.count ?? 0
+  const yours = dockets.find((docket) => docket.court === "needs-you")?.count ?? 0
   /*
    * Whether anything is owed, which is not whether anything is held.
    *
@@ -393,7 +393,7 @@ export const ControlCenter = ({
   return (
     <Section
       name="What is owed"
-      art="your-move"
+      art="needs-you"
       // Amber only while something is the reader's to move. A pull request whose
       // every piece is settled has earned the done edge, and one waiting on
       // somebody else has earned neither.

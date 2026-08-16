@@ -242,7 +242,7 @@ const SIZE = "size:"
  * This was deliberately left out, on the grounds that a check rollup is the fact
  * most certain to have moved and a stale one is drawn exactly like a fresh one.
  * That reasoning only weighed what the rollup looks like. It is also read:
- * `courtOf` calls a green pull request nobody is required to review Your Move,
+ * `courtOf` calls a green pull request nobody is required to review Needs You,
  * and the same row with no rollup Waiting.
  *
  * So the list opened from memory sorted one way, and the live read re-sorted it

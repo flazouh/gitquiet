@@ -34,7 +34,7 @@ _Avoid_: owner, assignee, status
 
 Courts sort the Working Set — the Participant's pull requests across repositories. They do not sort what is inside one pull request: that screen is laid out by kind, description then checks then conversation then commits then merge. Grouping a single pull request by Court is a thing that could be built and has not been.
 
-**Your Move**:
+**Needs You**:
 The Court holding pull requests the viewing Participant can act on now. Includes one GitHub's own dashboard leaves elsewhere: their own pull request, green, with no rule requiring an approval, which is a live merge button rather than a wait.
 _Avoid_: open, actionable, pending
 

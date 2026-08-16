@@ -122,7 +122,7 @@ const row = (
  * on screen is the stack: three pull requests in `vercel/next.js` where each one
  * is based on the branch below it, which is the arrangement GitHub itself only
  * learned to draw in July and the reason this product exists. The foundation is
- * approved and green, so the pile sits in Your Move and the two above it say
+ * approved and green, so the pile sits in Needs You and the two above it say
  * they are waiting on it rather than claiming to be ready.
  *
  * The rest is a Saturday's worth of ordinary: somebody else's fix waiting on the

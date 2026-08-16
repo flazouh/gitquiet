@@ -22,7 +22,7 @@ import { hoursAgo } from "./when"
  * the kind of work they do. Nothing here is anybody's private repository.
  *
  * The Courts are the argument, so the rows are chosen to fill all four. A list
- * where everything is Your Move says nothing about what the grouping is for.
+ * where everything is Needs You says nothing about what the grouping is for.
  */
 
 const VIEWER = MOCK_VIEWER

@@ -87,13 +87,13 @@ describe("the Working Set", () => {
       on("needs-action", 4, { state: "merged" })
     ])
 
-    expect(screen.getByRole("region", { name: "Your Move" })).toBeDefined()
+    expect(screen.getByRole("region", { name: "Needs You" })).toBeDefined()
     expect(screen.getByRole("region", { name: "Waiting" })).toBeDefined()
     expect(screen.getByRole("region", { name: "Running" })).toBeDefined()
     expect(screen.getByRole("region", { name: "Settled" })).toBeDefined()
   })
 
-  test("puts a green pull request nobody must approve under Your Move", () => {
+  test("puts a green pull request nobody must approve under Needs You", () => {
     // The row GitHub's own dashboard files under a wait. Nothing is required of
     // anybody else, the run is green, and the merge button is live — so a heading
     // saying somebody else owes the next step would hide the one row on the page
@@ -105,7 +105,7 @@ describe("the Working Set", () => {
       })
     ])
 
-    const court = screen.getByRole("region", { name: "Your Move" })
+    const court = screen.getByRole("region", { name: "Needs You" })
 
     expect(within(court).getByText("price claude turns from the streamed usage")).toBeDefined()
     expect(screen.queryByRole("region", { name: "Waiting" })).toBeNull()
@@ -114,7 +114,7 @@ describe("the Working Set", () => {
   test("says how many are in a Court beside its name", () => {
     showing([on("needs-action", 1), on("needs-action", 2)])
 
-    const court = screen.getByRole("region", { name: "Your Move" })
+    const court = screen.getByRole("region", { name: "Needs You" })
 
     expect(within(court).getByText("2")).toBeDefined()
   })
@@ -287,7 +287,7 @@ describe("Involved Issues in the Working Set", () => {
     // which is the whole argument for the default being mixed.
     render(<WorkingSet sittings={alongside([on("needs-action", 1)], [flaky])} onOpen={() => {}} />)
 
-    const court = screen.getByRole("region", { name: "Your Move" })
+    const court = screen.getByRole("region", { name: "Needs You" })
 
     expect(within(court).getByText("the flaky test")).toBeDefined()
   })
@@ -384,7 +384,7 @@ describe("Involved Issues in the Working Set", () => {
       />
     )
 
-    const court = screen.getByRole("region", { name: "Your Move" })
+    const court = screen.getByRole("region", { name: "Needs You" })
 
     expect(within(court).getByText(/^Issues$/)).toBeDefined()
     expect(within(court).getByText(/^Pull requests$/)).toBeDefined()
@@ -404,7 +404,7 @@ describe("Involved Issues in the Working Set", () => {
       />
     )
 
-    const court = screen.getByRole("region", { name: "Your Move" })
+    const court = screen.getByRole("region", { name: "Needs You" })
     const bands = [...court.querySelectorAll("div")].filter((one) =>
       /^(Pull requests|Issues)/.test(one.textContent ?? "")
     )
@@ -423,7 +423,7 @@ describe("Involved Issues in the Working Set", () => {
       />
     )
 
-    const court = screen.getByRole("region", { name: "Your Move" })
+    const court = screen.getByRole("region", { name: "Needs You" })
 
     expect(within(court).queryByText(/^Issues$/)).toBeNull()
   })
@@ -435,14 +435,14 @@ describe("Involved Issues in the Working Set", () => {
     render(
       <WorkingSet
         sittings={[
-          { court: "your-move", count: 0, piles: [], issues: [] },
+          { court: "needs-you", count: 0, piles: [], issues: [] },
           ...alongside([on("waiting-for-review", 2)], [])
         ]}
         onOpen={() => {}}
       />
     )
 
-    expect(screen.queryByRole("region", { name: "Your Move" })).toBeNull()
+    expect(screen.queryByRole("region", { name: "Needs You" })).toBeNull()
     expect(screen.getByRole("region", { name: "Waiting" })).toBeDefined()
   })
 
@@ -452,7 +452,7 @@ describe("Involved Issues in the Working Set", () => {
     // line between two kinds, so a kind that is not there gets no line.
     render(<WorkingSet sittings={alongside([on("needs-action", 1)], [])} onOpen={() => {}} />)
 
-    const court = screen.getByRole("region", { name: "Your Move" })
+    const court = screen.getByRole("region", { name: "Needs You" })
 
     expect(within(court).queryByText(/^Issues$/)).toBeNull()
     expect(within(court).queryByText(/^Pull requests$/)).toBeNull()
@@ -471,7 +471,7 @@ describe("Involved Issues in the Working Set", () => {
 
     expect(within(apart).getByText("the flaky test")).toBeDefined()
     expect(
-      within(screen.getByRole("region", { name: "Your Move" })).queryByText("the flaky test")
+      within(screen.getByRole("region", { name: "Needs You" })).queryByText("the flaky test")
     ).toBeNull()
   })
 
@@ -501,7 +501,7 @@ describe("Involved Issues in the Working Set", () => {
       />
     )
 
-    const court = screen.getByRole("region", { name: "Your Move" })
+    const court = screen.getByRole("region", { name: "Needs You" })
 
     expect(within(court).getAllByRole("link", { name: /Issue flazouh\/octo-repo#/ })).toHaveLength(5)
     expect(within(court).getByRole("button", { name: "3 more issues" })).toBeDefined()
@@ -523,7 +523,7 @@ describe("Involved Issues in the Working Set", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "3 more issues" }))
 
-    const court = screen.getByRole("region", { name: "Your Move" })
+    const court = screen.getByRole("region", { name: "Needs You" })
 
     expect(within(court).getAllByRole("link", { name: /Issue flazouh\/octo-repo#/ })).toHaveLength(8)
     expect(within(court).queryByRole("button", { name: /more issues/ })).toBeNull()
@@ -547,7 +547,7 @@ describe("Involved Issues in the Working Set", () => {
     // Past the pull request and past all five issues that the fold leaves showing.
     await userEvent.keyboard("jjjjjjj")
 
-    const court = screen.getByRole("region", { name: "Your Move" })
+    const court = screen.getByRole("region", { name: "Needs You" })
 
     expect(within(court).getAllByRole("link", { name: /Issue flazouh\/octo-repo#/ })).toHaveLength(8)
     expect(screen.getByRole("link", { name: /^issue 6\./ }).getAttribute("aria-current")).toBe("true")
@@ -601,7 +601,7 @@ describe("a stack in the Working Set", () => {
   test("keeps the whole stack in one Court, under its foundation", () => {
     render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
 
-    const court = screen.getByRole("region", { name: "Your Move" })
+    const court = screen.getByRole("region", { name: "Needs You" })
 
     expect(within(court).getByText(/the top/)).toBeDefined()
     expect(screen.queryByRole("region", { name: "Waiting" })).toBeNull()

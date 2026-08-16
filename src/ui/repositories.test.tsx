@@ -22,12 +22,12 @@ const repository = (nameWithOwner: string, over: Partial<Repository> = {}): Repo
   }
 }
 
-const atWork = (owner: string, repo: string, count: number, yourMove: number): RepositoryAtWork => ({
+const atWork = (owner: string, repo: string, count: number, needsYou: number): RepositoryAtWork => ({
   owner,
   repo,
   name: repo,
   count,
-  yourMove
+  needsYou
 })
 
 const showing = (

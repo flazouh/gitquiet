@@ -99,7 +99,7 @@ describe("reading a page of GitHub's pull request search", () => {
   test("reads the rows as pull requests on no shelf at all", async () => {
     // The whole difference from a shelf read. These rows were not put anywhere by
     // GitHub on the reader's behalf, and saying so is what keeps a stranger's work
-    // out of Your Move.
+    // out of Needs You.
     intercept(() => Response.json(searchPayload([aRow()])))
 
     const found = await Effect.runPromise(searching("repo:vercel/next.js is:pr"))

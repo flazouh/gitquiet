@@ -8,7 +8,7 @@ import { WorkingSetScreen } from "./WorkingSetScreen"
 afterEach(cleanup)
 
 const nothing: ReadonlyArray<Sitting> = [
-  { court: "your-move", count: 0, piles: [], issues: [] },
+  { court: "needs-you", count: 0, piles: [], issues: [] },
   { court: "waiting", count: 0, piles: [], issues: [] },
   { court: "settled", count: 0, piles: [], issues: [] }
 ]

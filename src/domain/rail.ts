@@ -29,7 +29,7 @@ export type RepositoryAtWork = {
    */
   readonly count: number;
   /** How many of those are the Participant's own move. */
-  readonly yourMove: number;
+  readonly needsYou: number;
 };
 
 const everyOne = (piles: ReadonlyArray<Piled>): ReadonlyArray<Piled> =>
@@ -52,21 +52,21 @@ export const repositoriesAtWork = (
 ): ReadonlyArray<RepositoryAtWork> => {
   const found = new Map<
     string,
-    { owner: string; repo: string; count: number; yourMove: number }
+    { owner: string; repo: string; count: number; needsYou: number }
   >();
 
   for (const sitting of sittings) {
     for (const pile of everyOne(sitting.piles)) {
       const { owner, repo } = pile.one.reference;
       const key = `${owner}/${repo}`;
-      const already = found.get(key) ?? { owner, repo, count: 0, yourMove: 0 };
+      const already = found.get(key) ?? { owner, repo, count: 0, needsYou: 0 };
 
       found.set(key, {
         ...already,
         count: already.count + 1,
         // The pile member's own Court rather than the Court it is filed under: nothing
         // above a foundation is the reader's move until the foundation has landed.
-        yourMove: already.yourMove + (pile.court === "your-move" ? 1 : 0),
+        needsYou: already.needsYou + (pile.court === "needs-you" ? 1 : 0),
       });
     }
   }
@@ -75,7 +75,7 @@ export const repositoriesAtWork = (
     .map((one) => ({ ...one, name: one.repo }))
     .sort(
       (left, right) =>
-        right.yourMove - left.yourMove ||
+        right.needsYou - left.needsYou ||
         right.count - left.count ||
         left.name.localeCompare(right.name),
     );

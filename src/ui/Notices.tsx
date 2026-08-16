@@ -16,7 +16,7 @@ import { ageOf, momentOf } from "./when"
  * "assigned", `state_change` reads "state change" — which says what happened to the thread and
  * not what it has to do with the reader. These are the second thing, because that is the
  * question the Court the row is in has already half answered: a reader who sees "Review asked
- * of you" under Your Move has read one sentence rather than two words.
+ * of you" under Needs You has read one sentence rather than two words.
  *
  * All fifteen, and the fall-through is deliberately vague. A reason nobody here has seen goes
  * to Waiting and should say as little as the row really knows.

@@ -106,12 +106,12 @@ describe("which Court a Notice sits in", () => {
 
   test("asks the reader to move where somebody asked them for something", () => {
     for (const reason of ["review_requested", "approval_requested", "assign", "mention"]) {
-      expect(courtOf(notice({ reason, standing: "open" }))).toBe("your-move")
+      expect(courtOf(notice({ reason, standing: "open" }))).toBe("needs-you")
     }
   })
 
   test("keeps the reader's own repository's vulnerabilities theirs to fix", () => {
-    expect(courtOf(notice({ reason: "security_alert", standing: "unknown" }))).toBe("your-move")
+    expect(courtOf(notice({ reason: "security_alert", standing: "unknown" }))).toBe("needs-you")
   })
 
   /*
@@ -137,7 +137,7 @@ describe("which Court a Notice sits in", () => {
    */
   test("reads a finished run by its outcome", () => {
     expect(courtOf(notice({ reason: "ci_activity", standing: "closed" }))).toBe("settled")
-    expect(courtOf(notice({ reason: "ci_activity", standing: "unknown" }))).toBe("your-move")
+    expect(courtOf(notice({ reason: "ci_activity", standing: "unknown" }))).toBe("needs-you")
   })
 
   test("waits on a reason it has never been shown", () => {
@@ -163,7 +163,7 @@ describe("the three piles", () => {
   test("gives three even where two are empty, and no Running", () => {
     const dockets = docketsOf([notice({ reason: "subscribed", standing: "open" })])
 
-    expect(dockets.map((one) => one.court)).toEqual(["your-move", "waiting", "settled"])
+    expect(dockets.map((one) => one.court)).toEqual(["needs-you", "waiting", "settled"])
     expect(dockets.map((one) => one.count)).toEqual([0, 1, 0])
   })
 
@@ -179,9 +179,9 @@ describe("the three piles", () => {
    * who owes the next move. It orders within a Court and never moves a Notice between two.
    */
   test("puts the unread above the read, then the newest first", () => {
-    const yourMove = docketsOf(some).find((one) => one.court === "your-move")
+    const needsYou = docketsOf(some).find((one) => one.court === "needs-you")
 
-    expect(yourMove?.notices.map((one) => one.id)).toEqual(["a", "b"])
+    expect(needsYou?.notices.map((one) => one.id)).toEqual(["a", "b"])
   })
 
   /*
@@ -195,7 +195,7 @@ describe("the three piles", () => {
    */
   test("files every reason and every state in one of the three", () => {
     const standings: ReadonlyArray<Standing> = ["open", "merged", "closed", "unknown"]
-    const drawn = ["your-move", "waiting", "settled"]
+    const drawn = ["needs-you", "waiting", "settled"]
 
     for (const reason of [...REASONS, "something_new"]) {
       for (const standing of standings) {

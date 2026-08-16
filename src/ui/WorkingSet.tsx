@@ -363,7 +363,7 @@ const Row = ({
          * Unread leads, because it is the one thing here that decides whether to
          * look at all, and the row's own Court closes: read aloud, a pull request
          * in the middle of a stack has to say that it is waiting even though the
-         * heading above it says Your Move.
+         * heading above it says Needs You.
          */
         aria-label={`${one.readByViewer ? "" : "Unread. "}${one.title}. ${
           here ? `#${one.reference.number}` : address
@@ -1141,7 +1141,7 @@ export const WorkingSet = ({
    *
    * Court by Court rather than every pull request and then every issue, because
    * the walk is a line drawn down what is on the screen: a reader pressing `j`
-   * through Your Move and finding themselves in Waiting is following
+   * through Needs You and finding themselves in Waiting is following
    * the page, and one who finds themselves back at the top of it is not.
    */
   const stops = useMemo(() => {

@@ -86,7 +86,7 @@ describe("reading the whole Working Set", () => {
     const sittings = await read()
 
     expect(sittings).toHaveLength(1)
-    expect(sittings[0]?.court).toBe("your-move")
+    expect(sittings[0]?.court).toBe("needs-you")
     expect(sittings[0]?.count).toBe(1)
   })
 

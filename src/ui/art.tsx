@@ -115,7 +115,7 @@ export type ArtName =
   | "widen"
   | "work"
   /** A Court's own glyph: the reader's move. The other two are `clock` and `tick` above. */
-  | "your-move"
+  | "needs-you"
   /**
    * The inbox, kept from their bar, in the two states it has.
    *
@@ -166,7 +166,7 @@ export type ArtName =
   /**
    * The other way along the reader's own path, which is the pair to `back`.
    *
-   * Not `your-move`, which is the same arrow drawn for a different reason: that
+   * Not `needs-you`, which is the same arrow drawn for a different reason: that
    * one is a Court, and a set is named by meaning here rather than by picture. A
    * pack is free to draw the two alike, and nothing that says `forward` has to
    * change on the day one of them stops.

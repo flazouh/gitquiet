@@ -191,18 +191,18 @@ export const standingOf = (icon: string): Standing => {
  *
  * Waiting is the fall-through, and it is the right one for a reason nobody here has seen.
  * The two mistakes a default can make are not the same size: a Notice wrongly in Waiting is
- * one the reader scrolls past, and a Notice wrongly in Your Move is a to-do list nobody can
+ * one the reader scrolls past, and a Notice wrongly in Needs You is a to-do list nobody can
  * trust.
  */
 const COURT_OF_REASON: Readonly<Record<string, Court>> = {
   // Somebody asked the reader for something, by name.
-  review_requested: "your-move",
-  approval_requested: "your-move",
-  assign: "your-move",
-  mention: "your-move",
+  review_requested: "needs-you",
+  approval_requested: "needs-you",
+  assign: "needs-you",
+  mention: "needs-you",
   // A vulnerability in the reader's own repository, which only a person closes.
-  security_alert: "your-move",
-  member_feature_requested: "your-move",
+  security_alert: "needs-you",
+  member_feature_requested: "needs-you",
   // The reader opened it, spoke in it, subscribed to it or watches the repository. Somebody
   // else owes the next step, which is what `courtOfThread` says about the reader's own last
   // word on a review thread.
@@ -212,7 +212,7 @@ const COURT_OF_REASON: Readonly<Record<string, Court>> = {
   subscribed: "waiting",
   /*
    * A team was named and not a person. Somebody on it owes an answer and the row does not say
-   * who, so calling this Your Move is what makes a busy team's inbox indistinguishable from a
+   * who, so calling this Needs You is what makes a busy team's inbox indistinguishable from a
    * personal one — the same reason `courtOf` refuses to call a stranger's pull request the
    * reader's move.
    */
@@ -246,7 +246,7 @@ const COURT_OF_REASON: Readonly<Record<string, Court>> = {
  */
 export const courtOf = (notice: Notice): Court => {
   if (notice.standing === "merged" || notice.standing === "closed") return "settled"
-  if (notice.reason === "ci_activity") return "your-move"
+  if (notice.reason === "ci_activity") return "needs-you"
   return COURT_OF_REASON[notice.reason] ?? "waiting"
 }
 

@@ -35,7 +35,7 @@ export type RailProps = {
   /** Ranked by `repositoriesAtWork`; drawn in the order it is given. */
   readonly atWork: ReadonlyArray<RepositoryAtWork>
   /** How much of the Working Set is the reader's own move, for the Destination's count. */
-  readonly yourMove: number
+  readonly needsYou: number
   /** How much happened elsewhere, for Activity's count. Absent until that read lands. */
   readonly happened?: number
   /**
@@ -244,7 +244,7 @@ export const Rail = ({
   destination,
   onDestination,
   atWork,
-  yourMove,
+  needsYou,
   happened,
   repositories = [],
   pinned = NONE_PINNED,
@@ -437,7 +437,7 @@ export const Rail = ({
 
   const countFor = (which: Destination): number | undefined =>
     which === "working-set"
-      ? yourMove
+      ? needsYou
       : which === "activity"
         ? happened
         : repositories.length === 0

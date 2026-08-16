@@ -13,7 +13,7 @@ import { minutesAgo } from "./when"
  * GitHub's own reason queries 41 rows of 51 concerned something finished — all of them drawn
  * at the same height and the same weight as the work. So the rows here keep that shape: a
  * Settled Court that is the largest of the three, holding merged pull requests and closed
- * issues that their page puts at the top of the list, and a Your Move Court small enough to
+ * issues that their page puts at the top of the list, and a Needs You Court small enough to
  * read in one look.
  *
  * Every reason on these rows is one of GitHub's fifteen and every subject state is one of the

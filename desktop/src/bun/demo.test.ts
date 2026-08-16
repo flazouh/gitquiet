@@ -42,14 +42,14 @@ describe("the demo's list", () => {
 
     expect(over.baseBranch).toBe(under.headBranch)
     // The foundation is unreviewed, which is what puts this pile in Waiting while
-    // the `next.js` one sits in Your Move.
+    // the `next.js` one sits in Needs You.
     expect(under.reviewed).toBe("review-required")
   })
 
   test("fills all four Courts, so no heading is missing on camera", async () => {
     const rows = await run(demoRows())
 
-    // Your Move needs a shelf of the reader's own. Waiting needs one out for
+    // Needs You needs a shelf of the reader's own. Waiting needs one out for
     // review, where a person owes the answer. Running needs a machine to owe it,
     // which is either a run still going or the merge queue. Settled needs
     // something landed or closed.

@@ -206,7 +206,7 @@ export const HUGEICONS: Set = {
   narrow: from(SidebarLeft01Icon),
   widen: from(SidebarRight01Icon),
   work: from(Briefcase01Icon),
-  "your-move": from(ArrowRight01Icon),
+  "needs-you": from(ArrowRight01Icon),
   "stacked-on": from(turned(ArrowMoveUpRightIcon, -90)),
   more: from(MoreHorizontalIcon),
   link: from(Link01Icon),
