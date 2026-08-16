@@ -27,6 +27,7 @@ import {
   type Seen,
   smoothed,
 } from "@/ui/lingering";
+import { hintRead, showLingering } from "@/ui/lingeringHint";
 import type { Point } from "@/ui/near";
 import { type Stop, whenAddressChanges, whenTheyStayPut } from "@/ui/navigation";
 import {
@@ -400,6 +401,20 @@ export default defineContentScript({
       lingering = step.lingering;
 
       if (step.ripe !== null) warm(step.ripe);
+
+      // Gone from a built extension entirely: `import.meta.env.DEV` is `false` before the
+      // bundler runs, so the branch goes and the module with it. See `ui/lingeringHint`.
+      if (import.meta.env.DEV) {
+        if (step.ripe !== null) hintRead(step.ripe.key);
+        showLingering({
+          travel,
+          lingering,
+          seen: worth,
+          read: asked.size,
+          atMost: AT_MOST,
+          sparing: !dataToSpare(connectionNow()),
+        });
+      }
 
       // Nothing near and nothing part-way there is the pointer at rest over GitHub's own
       // furniture, and there is no reason to hit test the page sixty times a second for
