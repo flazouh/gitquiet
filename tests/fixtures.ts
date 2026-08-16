@@ -60,6 +60,14 @@ export type FixtureName =
   // branch on each entry is what the stack condition's own entries never carry,
   // and it is what names the branch the chain would land on.
   | "preview-stack"
+  // The same route on a pull request standing on a stack that already exists,
+  // recorded off `flazouh/stack-probe` #82 on 16 August 2026: #80 and #81 are
+  // stack 83, and #82 sits on top of them and is in nothing. So `stackId` is
+  // null on the top entry and 391704 on the two underneath, which is the fact
+  // the write has to read — the offer here is an addition to stack 83 rather
+  // than a stack to make, and sending all three ids is refused 422
+  // `ALREADY_STACKED`.
+  | "preview-stack-append"
 
 /**
  * Fixtures are returned as `unknown` on purpose: decoders must earn their

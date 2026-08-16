@@ -1245,13 +1245,31 @@ export type MergeBoxRoute = typeof MergeBoxRoute["Type"]
  * what those entries never carry, so the branch the whole chain would land on is
  * the foundation's base rather than a field of its own.
  *
- * `stackId` and `stackNumber` arrive null on every entry and are left out. They are
- * the fields a stack GitHub holds would have filled, which is the same thing the
- * body being an array at all has already said.
+ * `stackId` is the one field here that is not about drawing, and it was read as
+ * null on every entry because the first chain measured had no stack anywhere in
+ * it. On a pull request standing on a stack that already exists it is filled on
+ * the layers that are in one and null on the layers that are not: measured on
+ * `flazouh/stack-probe` #82 over stack 83, and on `OpenRouterIncubator/ori`
+ * #2038 over stack 2003. So an offer is not always a stack to make — it can be
+ * an addition to one — and this field is the only thing that says which. See
+ * `makeStack`, which sends it.
+ *
+ * `stackNumber` arrives beside it, filled on the same entries. Left out: it is
+ * the name a reader would see and no drawing here shows one, because the strip
+ * draws a chain nobody has made and nothing names a stack on it.
  */
 export const PreviewStackRoute = Schema.NullOr(
   Schema.Array(
     Schema.Struct({
+      /**
+       * Which stack this layer is in already, or null where it is in none.
+       *
+       * Null on every layer is a chain to make. Filled on some of them is an
+       * addition to the stack they are in, and the write sends only the layers
+       * that are in nothing: sent all of them, GitHub answers 422 and
+       * `ALREADY_STACKED`.
+       */
+      stackId: Schema.NullOr(Schema.Number),
       /**
        * GitHub's own numeric id, which is the only name the route that makes the
        * stack will accept: it takes `pullRequestIds` and knows nothing of the

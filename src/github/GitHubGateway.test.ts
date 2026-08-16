@@ -1301,6 +1301,59 @@ describe("what the gateway sends to GitHub", () => {
       expect(calls[1]!.body).toEqual({ pullRequestIds: [4205778980, 4205779207] })
     })
 
+    /**
+     * The offer on a pull request standing on a stack that already exists, which
+     * is an addition to that stack rather than a stack to make.
+     *
+     * Measured on `flazouh/stack-probe` #82 over stack 83, and it is the shape
+     * this write got wrong: sent every id the offer carries, GitHub answers 422
+     * `ALREADY_STACKED` and names the layers that are already in one. Their own
+     * dialog knows the difference — the same route is `createStackOrAppend` in
+     * their bundle, its button reads "Add to stack" here, and what it sends is
+     * the layers that are in nothing plus the id of the stack to add them to.
+     */
+    describe("adding to a stack that already exists", () => {
+      test("sends the layers that are in no stack, and the stack to add them to", async () => {
+        const calls = offering(loadFixture("preview-stack-append"))
+
+        await Effect.runPromise(making)
+
+        // #82 alone, because #80 and #81 are stack 83 already, and the stack's
+        // own id beside it. Foundation first still, which for one layer is the
+        // same list either way.
+        expect(calls[1]!.body).toEqual({ pullRequestIds: [4289436418], stackId: 391704 })
+      })
+
+      test("writes nothing where every layer is in the stack already", async () => {
+        // Not a shape GitHub has been seen to answer with — a pull request in a
+        // stack is answered `null` — so this is the press having been made
+        // twice, or somebody else having made it between the read and the write.
+        // Their own dialog sends nothing on an empty list either.
+        const calls = offering(
+          (loadFixture("preview-stack-append") as ReadonlyArray<Record<string, unknown>>).map(
+            (layer) => ({ ...layer, stackId: 391704, stackNumber: 83 })
+          )
+        )
+
+        const error = await Effect.runPromise(Effect.flip(making))
+
+        expect(calls).toHaveLength(1)
+        expect(error.reason).toBe("rejected")
+        expect(error.detail).toContain("already stack")
+      })
+
+      test("names no stack where there is none to add to", async () => {
+        const calls = offering(loadFixture("preview-stack"))
+
+        await Effect.runPromise(making)
+
+        // The making case, unchanged: a body carrying `stackId: null` is a
+        // different request from a body that does not mention one, and this
+        // route is only known to accept the second.
+        expect(calls[1]!.body).not.toHaveProperty("stackId")
+      })
+    })
+
     test("writes nothing at all where GitHub has stopped offering one", async () => {
       // Their answer for a pull request already in a stack, and for one with
       // nothing standing on it. Somebody else pressing first looks like this.

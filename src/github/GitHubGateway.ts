@@ -1184,7 +1184,9 @@ const inBatches = (ids: ReadonlyArray<number>): ReadonlyArray<ReadonlyArray<numb
 const writing = Effect.fn("writing")(function* (
   reference: PullRequestRef,
   route: string,
-  body?: Readonly<Record<string, string | boolean | ReadonlyArray<number>>>,
+  // A number among them because one route names a stack by GitHub's own id for
+  // it, which is a number and not one of the numbers in a list.
+  body?: Readonly<Record<string, string | number | boolean | ReadonlyArray<number>>>,
   method: "POST" | "PUT" = "POST"
 ) {
   const url = `https://github.com/${reference.owner}/${reference.repo}/pull/${reference.number}${route}`
@@ -2235,6 +2237,21 @@ export const layer = Layer.succeed(GitHubGateway, {
      * and the order their own button sends. Whether the route reads the order at
      * all is not known; sending it the other way up to find out is not a thing to
      * learn on somebody's open work.
+     *
+     * One route and two writes. A chain whose foundation is already in a stack is
+     * an addition to that stack rather than a stack to make, and it is the common
+     * shape rather than an edge: a reader who stacks four pull requests and then
+     * opens a fifth on top of them is in it. GitHub's own name for the route says
+     * so — `createStackOrAppend` in their bundle — and their dialog's button reads
+     * "Add to stack" there. What separates the two is the body: an addition names
+     * the stack in `stackId` and sends only the layers that are in no stack. Sent
+     * every id the offer carries, GitHub answers 422 `ALREADY_STACKED` and names
+     * the layers that were already in one, having written nothing.
+     *
+     * Measured on `flazouh/stack-probe` #82 standing on stack 83 (#80, #81): all
+     * three ids answered 422, and `{pullRequestIds: [#82's id], stackId}` answered
+     * 200 with `{"stackNumber":83}`, after which `preview_stack` answered null and
+     * the stack held three pull requests.
      */
     makeStack: Effect.fn("GitHubGateway.makeStack")(function* (reference: PullRequestRef) {
       const raw = yield* fetchRoute(reference, PREVIEW_STACK)
@@ -2265,8 +2282,33 @@ export const layer = Layer.succeed(GitHubGateway, {
         })
       }
 
+      const landing = offered.toReversed()
+      // The foundation's, because that is the stack this chain would join: a
+      // layer higher up carrying another stack's id would be a chain GitHub has
+      // no addition to offer for, and it answers the refusal above rather than
+      // being sorted out here.
+      const joining = landing[0]?.stackId ?? null
+      const adding = landing.filter((layer) => layer.stackId === null).map((layer) => layer.id)
+
+      // Every layer already in the stack it would be added to, which is the
+      // press having been made twice or somebody else having made it. Nothing
+      // to send, and their own dialog sends nothing here either.
+      if (adding.length === 0) {
+        return yield* new GatewayError({
+          reference,
+          route: PREVIEW_STACK,
+          reason: "rejected",
+          detail: "These pull requests already stack. Read the pull request again."
+        })
+      }
+
       yield* writing(reference, MAKE_STACK, {
-        pullRequestIds: offered.map((layer) => layer.id).toReversed()
+        pullRequestIds: adding,
+        // Left out rather than sent as null where there is no stack to join. A
+        // body naming a stack is the addition, a body that does not is the
+        // making, and only the second is known to be accepted by a route asked
+        // to make one.
+        ...(joining === null ? {} : { stackId: joining })
       })
     }),
 

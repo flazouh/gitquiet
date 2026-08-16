@@ -7,6 +7,7 @@ import {
   CommitAnswer,
   CommitDiffsRoute,
   MergeBoxRoute,
+  PreviewStackRoute,
   StatusChecksRoute,
   whyItWouldNotDecode
 } from "./wire"
@@ -35,7 +36,13 @@ const contracts: ReadonlyArray<readonly [FixtureName, Decoder]> = [
   ["merge-box-stacked-top", finding(MergeBoxRoute)],
   ["merge-box-stacked-draft-below", finding(MergeBoxRoute)],
   ["commit", finding(CommitAnswer)],
-  ["commit-extra-diffs", finding(CommitDiffsRoute)]
+  ["commit-extra-diffs", finding(CommitDiffsRoute)],
+  // Both offers their stack route answers with: a chain to make, and a chain to
+  // add to a stack that exists. The second is here because the field that tells
+  // them apart is null on every entry of the first, which is how it came to be
+  // left out of the schema and how the write came to send the wrong body.
+  ["preview-stack", finding(PreviewStackRoute)],
+  ["preview-stack-append", finding(PreviewStackRoute)]
 ]
 
 describe("recorded GitHub payloads still match the schemas we decode with", () => {
