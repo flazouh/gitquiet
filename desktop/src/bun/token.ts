@@ -1,4 +1,5 @@
 import { Effect } from "effect"
+import { existsSync } from "node:fs"
 import { heldToken } from "./keychain"
 
 /**
@@ -15,6 +16,34 @@ import { heldToken } from "./keychain"
  * beats whatever a shell happened to export, so a sign-out is a sign-out rather
  * than a fall back to a token the reader forgot they had.
  */
+
+/**
+ * Where the GitHub CLI is, for a run that no shell started.
+ *
+ * `PATH` is asked first, because that is the answer on a machine where somebody
+ * put `gh` somewhere of their own. What follows is the list to try when `PATH`
+ * has nothing, and it exists because of the one launch that matters: an app
+ * opened from Finder or the Dock inherits `launchd`'s environment, which is
+ * `/usr/bin:/bin:/usr/sbin:/sbin` and nothing else. Homebrew installs to
+ * `/opt/homebrew/bin`, so a reader with `gh` signed in got the sign-in panel
+ * while the same app started from a terminal drew their Working Set.
+ */
+const GH_PREFIXES: ReadonlyArray<string> = [
+  "/opt/homebrew/bin",
+  "/usr/local/bin",
+  "/opt/local/bin",
+  "/usr/bin"
+]
+
+export const whereGhIs = (opts: {
+  readonly onPath?: (name: string) => string | null
+  readonly exists?: (path: string) => boolean
+} = {}): string | null => {
+  const onPath = opts.onPath ?? ((name: string) => Bun.which(name))
+  const exists = opts.exists ?? existsSync
+
+  return onPath("gh") ?? GH_PREFIXES.map((prefix) => `${prefix}/gh`).find(exists) ?? null
+}
 
 const fromCommand = (args: ReadonlyArray<string>) =>
   Effect.tryPromise({
@@ -35,6 +64,9 @@ export const currentToken = Effect.fn("currentToken")(function* () {
   const exported = process.env["GITHUB_TOKEN"] ?? ""
   if (exported !== "") return exported
 
-  const cli = yield* fromCommand(["gh", "auth", "token"])
+  const gh = whereGhIs()
+  if (gh === null) return null
+
+  const cli = yield* fromCommand([gh, "auth", "token"])
   return cli === "" ? null : cli
 })
