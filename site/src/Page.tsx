@@ -60,8 +60,11 @@ const EDGE = "rounded-md"
  * The source button, which is the mark, the count, and nothing else.
  *
  * The word "GitHub" went: the cat says it, the count beside it says it again, and the
- * button sits a centimetre from a heading that names the site. A rule between the two
- * halves went with it, since a border inside a bordered button is a box in a box.
+ * button sits a centimetre from a heading that names the site.
+ *
+ * No outline either. One filled button is what a nav wants a reader to press, and an
+ * outlined one beside it argues with that. What says this is a button is the shape the
+ * hover fills in, which is the shape it has all along.
  */
 const Source = () => {
   const many = useStars()
@@ -74,7 +77,7 @@ const Source = () => {
           ? "GitQuiet source on GitHub"
           : `GitQuiet source on GitHub, ${many} ${many === 1 ? "star" : "stars"}`
       }
-      className={`inline-flex items-center gap-1.5 ${EDGE} border border-ink/15 px-3 py-2 text-[14px] font-semibold text-ink/70 transition-[transform,color,border-color] duration-[var(--duration-press)] ease-out hover:border-ink/35 hover:text-ink active:scale-[var(--scale-press)] sm:px-3.5 sm:py-2.5 sm:text-[15px]`}
+      className={`inline-flex items-center gap-1.5 ${EDGE} px-3 py-2 text-[14px] font-semibold text-ink/70 transition-[transform,color,background-color] duration-[var(--duration-press)] ease-out hover:bg-ink/[0.06] hover:text-ink active:scale-[var(--scale-press)] sm:px-3.5 sm:py-2.5 sm:text-[15px]`}
     >
       <Octocat size={16} />
       {/*
@@ -97,7 +100,7 @@ const Source = () => {
 const Install = ({ big = false }: { readonly big?: boolean }) => (
   <a
     href={STORE_AT}
-    className={`inline-flex items-center justify-center whitespace-nowrap ${EDGE} border border-ink bg-ink font-semibold text-paper transition-[transform,background-color,border-color] duration-[var(--duration-press)] ease-out hover:border-ink/85 hover:bg-ink/85 active:scale-[var(--scale-press)] ${
+    className={`inline-flex items-center justify-center whitespace-nowrap ${EDGE} bg-ink font-semibold text-paper transition-[transform,background-color] duration-[var(--duration-press)] ease-out hover:bg-ink/85 active:scale-[var(--scale-press)] ${
       big
         ? "px-7 py-3.5 text-[17px]"
         : "px-4 py-2 text-[14px] sm:px-5 sm:py-2.5 sm:text-[15px]"
