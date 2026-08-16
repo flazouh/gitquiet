@@ -2,8 +2,13 @@
  * The onboarding, which is one component drawn in two places.
  *
  * Its own stylesheet for the same reason the component is shared: the app's window and
- * the site — which is also the tab the extension opens on install — say the same four
+ * the site — which is also the tab the extension opens on install — say the same three
  * things, and a look maintained twice is two looks.
+ *
+ * Quiet on purpose, and the product is the reason. This screen is the front door of an
+ * interface whose whole argument is that it is calm: hairlines, one radius, one ink, no
+ * ornament that is not carrying something. The picture is the loud thing here, because
+ * the picture is the product.
  *
  * Every value that has a name elsewhere is read through a fallback —
  * `var(--duration-fast, 250ms)`. The motion scale is declared on `#gitquiet-root` and
@@ -18,24 +23,38 @@
  * custom property is only visible below where it is declared. They are the site's ink
  * on the site's gradient, and they do not turn over in dark mode: the gradient is
  * light in both.
+ *
+ * The host gives this a box with no padding on it. The picture reaches all four edges
+ * of that box and the words are inset from it, which is one rule the host cannot help
+ * with: a card that pads its own contents cannot hold a picture that touches its rim.
  */
 
-/*
- * `flex: 1` as well as a height, because the two hosts hold this two different ways.
- * The window's panel is a fixed height, where `height: 100%` is an answer. The page's
- * card has a floor and grows, where a percentage of an auto height is auto — so the
- * tour stood at its content's height, the footer rode up under the last sentence, and
- * a beat with no picture left half a card empty under it. Both hosts are flex columns,
- * and this fills whichever one it is in.
- */
 .tour {
+  /*
+   * How far the words stand off the rim. The picture ignores it, and that difference is
+   * the whole shape of this screen: a photograph that runs to the edge, words that do
+   * not.
+   */
+  --tour-inset: 30px;
+
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
-  gap: 20px;
+  /*
+   * `flex: 1` as well as a height, because the two hosts hold this two different ways.
+   * The window's panel is a fixed height, where `height: 100%` is an answer. The page's
+   * card has a floor and grows, where a percentage of an auto height is auto.
+   */
   flex: 1 1 auto;
   height: 100%;
+  padding-bottom: 18px;
   color: var(--bed-ink);
   text-align: left;
+}
+
+@media (max-width: 640px) {
+  .tour {
+    --tour-inset: 20px;
+  }
 }
 
 /*
@@ -46,43 +65,93 @@
  * sentence explaining it goes off the bottom.
  *
  * Both rows can shrink to nothing — `minmax(0, auto)` on the words, not `auto`. A row
- * that cannot shrink cannot be contained: in a short window, or on a phone where the
- * four Courts wrap to three lines each, the words grew past the card and out through
- * its rounded corners. Now the words keep the room they need and scroll when there is
- * not enough, which is a reader scrolling a paragraph rather than a paragraph leaving
- * the box it was drawn in.
+ * that cannot shrink cannot be contained: in a short window, or on a phone where a
+ * sentence wraps to three lines, the words grew past the card and out through its
+ * rounded corners.
  */
 .tour-beat {
   display: grid;
   grid-template-rows: minmax(0, 1fr) minmax(0, auto);
-  gap: 22px;
-  align-content: center;
   min-height: 0;
-  animation: tour-beat-in var(--duration-fast, 250ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)) both;
 }
 
 /*
- * The first beat and the last one are words. One row, centred in the panel, and set a
- * size up: a paragraph at fifteen pixels in the middle of a panel built to hold a
- * screenshot reads as a caption that has lost its picture. At this size it is the thing
- * being said.
+ * A beat with no picture is the words held in the middle of the panel, inset on both
+ * sides and set a size up. The host's last beat is the only one: it is the thing being
+ * said rather than a caption under something.
  */
 .tour-beat[data-shows="words"] {
-  grid-template-rows: auto;
+  grid-template-rows: minmax(0, auto);
+  align-content: center;
+  padding: var(--tour-inset);
 }
 
-.tour-beat[data-shows="words"] .tour-title {
-  font-size: 32px;
-  font-variation-settings: "wght" 600, "opsz" 32;
+/*
+ * The screen this beat is about, edge to edge, cut off at the bottom by a mask.
+ *
+ * Full bleed, and it is the one decision this screen is built on. A capture is a whole
+ * window, sixteen by ten; scaled to fit a wide strip it came out a third of the panel
+ * across, a grey smudge floating in white with a heading beneath it. Filling the width
+ * instead, it is the top of that screen at a size the shape of it reads at: one column,
+ * grouped rows, no tabs.
+ *
+ * The mask is what makes the cut deliberate. A photograph that stops on a straight line
+ * mid-window looks cropped by accident; one that dissolves into the panel it is drawn on
+ * reads as a view of something larger, which is exactly what it is.
+ */
+.tour-shot {
+  display: grid;
+  place-items: stretch;
+  min-height: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 80%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 80%, transparent 100%);
 }
 
-.tour-beat[data-shows="words"] .tour-says {
-  margin-top: 12px;
-  font-size: 16px;
-  max-width: 54ch;
+/* The site puts a running screen here, which sizes itself and must not be stretched. */
+.tour-shot > * {
+  justify-self: center;
+  max-width: 100%;
+  max-height: 100%;
 }
 
-@keyframes tour-beat-in {
+/* A capture fills the width and is cut off at the bottom, rather than scaling to fit. */
+.tour-shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+
+/*
+ * `align-content: start`, and it is not tidiness. A grid whose rows are all `auto`
+ * stretches them to fill a taller parent, and this one is as tall as the panel — so the
+ * heading and the sentence stood eighty pixels apart, in a column that read as two
+ * unrelated lines. Packed at the top, the twelve pixels between them mean what they say.
+ *
+ * Keyed by the step in the component, so this is built again on every move and the
+ * entrance below runs with it: words that change in place read as a correction rather
+ * than as the next thing being said.
+ */
+.tour-said {
+  display: grid;
+  align-content: start;
+  gap: 0;
+  max-width: 58ch;
+  padding: 16px var(--tour-inset) 0;
+  /* The pair that lets the row above shrink: a scroll area needs a floor of zero,
+     or its content is its height and the grid overflows instead. */
+  min-height: 0;
+  overflow-y: auto;
+  animation: tour-said-in var(--duration-moderate, 300ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)) both;
+}
+
+.tour-beat[data-shows="words"] .tour-said {
+  padding: 0;
+  max-width: 52ch;
+}
+
+@keyframes tour-said-in {
   from {
     opacity: 0;
     transform: translateY(6px);
@@ -93,130 +162,38 @@
   }
 }
 
-/*
- * The screen this beat is about.
- *
- * Held to a height rather than a width, because the pictures are 1280 by 800 and the
- * frames they are drawn in are not: a picture given the width takes six hundred pixels
- * of a window that has to hold two sentences under it. Scaled whole rather than
- * cropped — at this size the words in it are not for reading, the shape is: one
- * column, grouped rows, no tabs.
- */
-.tour-shot {
-  display: grid;
-  place-items: center;
-  min-height: 0;
-  overflow: hidden;
-}
-
-/* The site puts a running screen here, which sizes itself and must not be stretched. */
-.tour-shot > * {
-  max-width: 100%;
-  max-height: 100%;
-}
-
-/*
- * A capture fills the width and is cut off at the bottom, rather than scaling to fit.
- *
- * A capture is a whole window — sixteen by ten, two and a half thousand pixels wide —
- * and the room here is a wide strip. Scaled to fit, it came out three hundred pixels
- * across in an eight hundred pixel panel: a grey smudge with a heading under it. Cut
- * off instead, it is the top of that screen at a size the words on it can be read at,
- * which is the same part of the same screen the site shows.
- */
-.tour-shot img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top center;
-  border-radius: 10px;
-  box-shadow:
-    0 1px 2px rgba(27, 23, 37, 0.05),
-    0 18px 44px -22px rgba(27, 23, 37, 0.2);
-}
-
-/*
- * `align-content: start`, and it is not tidiness. A grid whose rows are all `auto`
- * stretches them to fill a taller parent, and this one is as tall as the panel — so the
- * count, the heading and the two sentences stood eighty pixels apart, in a column that
- * read as four unrelated lines. Packed at the top, the ten pixels below mean what they
- * say.
- */
-.tour-said {
-  display: grid;
-  align-content: start;
-  gap: 0;
-  max-width: 62ch;
-  /* The pair that lets the row above shrink: a scroll area needs a floor of zero,
-     or its content is its height and the grid overflows instead. */
-  min-height: 0;
-  overflow-y: auto;
-}
-
-/* Which beat this is, said before the heading rather than in the footer: a reader who
-   has just been handed something to read wants to know how much of it there is. */
-.tour-count {
-  margin: 0 0 8px;
-  font-size: 12px;
-  font-variation-settings: "wght" 550, "opsz" 14;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--bed-muted);
-}
-
 .tour-title {
   margin: 0;
-  font-size: 26px;
-  line-height: 1.15;
-  letter-spacing: -0.025em;
-  font-variation-settings: "wght" 600, "opsz" 26;
+  font-size: 21px;
+  line-height: 1.2;
+  letter-spacing: -0.022em;
+  font-variation-settings: "wght" 600, "opsz" 24;
+  text-wrap: balance;
+}
+
+/* On a beat with no picture the heading is the picture, so it takes the size the
+   picture would have taken. */
+.tour-beat[data-shows="words"] .tour-title {
+  font-size: 28px;
+  letter-spacing: -0.03em;
+  font-variation-settings: "wght" 620, "opsz" 32;
 }
 
 .tour-says {
-  margin: 10px 0 0;
-  font-size: 15px;
+  margin: 9px 0 0;
+  font-size: 14px;
   line-height: 1.55;
   color: var(--bed-muted);
+  text-wrap: pretty;
+}
+
+.tour-beat[data-shows="words"] .tour-says {
+  margin-top: 12px;
+  font-size: 15px;
 }
 
 .tour-act {
-  margin-top: 18px;
-}
-
-/*
- * The four Courts, laid out the way the list lays one out: the glyph, whose move it
- * is, then what that means. The name column is fixed so the four meanings start on one
- * left edge — four sentences each at a different indent is four things to find rather
- * than one column to read.
- */
-.tour-courts {
-  display: grid;
-  gap: 10px;
-  margin: 18px 0 0;
-}
-
-.tour-court {
-  display: grid;
-  grid-template-columns: 16px 92px 1fr;
-  align-items: center;
-  gap: 10px;
-  animation: tour-beat-in var(--duration-fast, 250ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)) backwards;
-}
-
-.tour-court-art {
-  color: var(--bed-muted);
-}
-
-.tour-court-name {
-  font-size: 14px;
-  font-variation-settings: "wght" 550, "opsz" 15;
-}
-
-.tour-court-means {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.4;
-  color: var(--bed-muted);
+  margin-top: 20px;
 }
 
 .tour-feet {
@@ -224,6 +201,7 @@
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 12px;
+  padding: 12px var(--tour-inset) 0;
 }
 
 .tour-feet-start {
@@ -235,30 +213,31 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 2px;
 }
 
 .tour-dots {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 /*
- * A step, pressable. Eight pixels across, and the one the reader is on is wider rather
+ * A step, pressable. Five pixels across, and the one the reader is on is wider rather
  * than merely darker: a row of dots where the current one is a shade off the others is
- * a row nobody can read at a glance.
+ * a row nobody can read at a glance. It is also the only thing on this screen counting
+ * the steps, which is why it is here and there is no "1 of 4" above the heading.
  */
 .tour-dot {
   display: block;
-  width: 8px;
-  height: 8px;
+  width: 5px;
+  height: 5px;
   border: 0;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--bed-ink) 22%, transparent);
+  background: color-mix(in srgb, var(--bed-ink) 20%, transparent);
   padding: 0;
   cursor: pointer;
   transition:
@@ -267,59 +246,70 @@
 }
 
 .tour-dot:hover {
-  background: color-mix(in srgb, var(--bed-ink) 40%, transparent);
+  background: color-mix(in srgb, var(--bed-ink) 42%, transparent);
 }
 
 .tour-dot[aria-current="step"] {
-  width: 20px;
+  width: 16px;
   background: var(--bed-ink);
 }
 
 /*
  * The ink button and the quiet one, which are the site's install button and the site's
  * quiet link. A reader pressed the first of those a minute ago on gitquiet.com.
+ *
+ * Twenty-eight pixels tall, at the interface's own eight-pixel radius. This is a
+ * control in a panel, not a call to action on a landing page: the buttons in the rest
+ * of the app are this size, and one twice their height on the first screen is the app
+ * shouting before it has said anything.
  */
 .tour-press {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   border: 0;
   border-radius: 8px;
   background: var(--bed-ink);
-  padding: 11px 22px;
+  padding: 0 14px;
+  height: 28px;
   color: var(--bed-paper);
-  font-size: 15px;
-  font-variation-settings: "wght" 550, "opsz" 18;
+  font-size: 13px;
+  font-variation-settings: "wght" 550, "opsz" 14;
   cursor: pointer;
   text-decoration: none;
+  white-space: nowrap;
   transition:
     transform var(--duration-press, 160ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
     background-color var(--duration-press, 160ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
 }
 
 .tour-press:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--bed-ink) 86%, white);
+  background: color-mix(in srgb, var(--bed-ink) 88%, white);
 }
 
 .tour-quietly {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   border: 0;
   border-radius: 8px;
   background: transparent;
-  padding: 9px 12px;
+  padding: 0 10px;
+  height: 28px;
   color: var(--bed-muted);
-  font-size: 14px;
-  font-variation-settings: "wght" 450, "opsz" 15;
+  font-size: 13px;
+  font-variation-settings: "wght" 470, "opsz" 14;
   cursor: pointer;
   text-decoration: none;
+  white-space: nowrap;
   transition:
     transform var(--duration-press, 160ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+    background-color var(--duration-press, 160ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
     color var(--duration-press, 160ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
 }
 
 .tour-quietly:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--bed-ink) 6%, transparent);
   color: var(--bed-ink);
 }
 
@@ -347,10 +337,8 @@
  * a reader reads as a page reloading.
  */
 @media (prefers-reduced-motion: reduce) {
-  .tour-beat,
-  .tour-court {
-    animation-name: tour-beat-fade;
-    animation-delay: 0ms;
+  .tour-said {
+    animation-name: tour-said-fade;
   }
 
   .tour-press:active:not(:disabled),
@@ -359,7 +347,7 @@
   }
 }
 
-@keyframes tour-beat-fade {
+@keyframes tour-said-fade {
   from {
     opacity: 0;
   }

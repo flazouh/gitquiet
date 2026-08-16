@@ -2,7 +2,6 @@ import type { ReactNode } from "react"
 import { useEffect, useState } from "react"
 import type { Beat, Shot } from "./beats"
 import { BEATS } from "./beats"
-import { Courts } from "./Courts"
 
 /**
  * The last beat, which is the only one that differs between the places this runs:
@@ -24,8 +23,8 @@ export type Ending = Beat & {
  * The onboarding, in one component, drawn in a window and on a page.
  *
  * A reader presses through it and can leave at any point, which is the only honest
- * shape for something nobody asked to read: four beats, a picture of the screen each
- * beat is about, and a way out on every one of them.
+ * shape for something nobody asked to read: three beats, a picture of the screen each
+ * beat is about, one sentence under it, and a way out on every one of them.
  *
  * The pictures are the host's to draw. The site mounts the real screens and runs them,
  * because it can — they are the extension's own components with fixture data. The app
@@ -75,33 +74,38 @@ export const Tour = ({
 
   return (
     <section className="tour" aria-label="What GitQuiet does">
-      {/*
-        Keyed by the step, so React builds this again on every move and the CSS
-        entrance runs again with it. Without the key it is one element whose text
-        changes, and text that changes in place reads as a correction rather than as
-        the next thing being said.
-      */}
       <div
-        key={at}
         className="tour-beat"
         /* Whether this beat has a picture, said out here rather than worked out in CSS:
            the first beat and the last one are words only, and a row kept for a picture
            that is not coming is a hole above the sentence a reader is meant to read. */
         data-shows={step.shot === undefined ? "words" : "screen"}
       >
-        {step.shot === undefined ? null : <div className="tour-shot">{show(step.shot)}</div>}
+        {/*
+          Keyed by the screen rather than by the step, so two beats about one screen
+          leave it where it is. The site mounts a running screen here: keyed by the step
+          it was torn down and built again on every press, which pulled the eye back to
+          a picture the reader had already looked at.
+        */}
+        {step.shot === undefined ? null : (
+          <div key={step.shot} className="tour-shot">
+            {show(step.shot)}
+          </div>
+        )}
 
-        <div className="tour-said">
-          <p className="tour-count">
-            {at + 1} of {steps.length}
-          </p>
+        {/*
+          The words are keyed by the step, so React builds them again on every move and
+          the CSS entrance runs with them. Without the key they are one element whose
+          text changes, and text that changes in place reads as a correction rather than
+          as the next thing being said.
+        */}
+        <div key={at} className="tour-said">
           <h2 className="tour-title">{step.title}</h2>
           {step.says.map((sentence) => (
             <p key={sentence} className="tour-says">
               {sentence}
             </p>
           ))}
-          {step.courts === true && <Courts />}
           {step.act !== undefined && <div className="tour-act">{step.act}</div>}
         </div>
       </div>

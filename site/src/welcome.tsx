@@ -28,8 +28,8 @@ const THEIR_PULLS = "https://github.com/pulls"
  */
 const DEEP = 460
 
-/** Less, on the beat that names the four Courts under the picture and needs the room. */
-const ROOM: Partial<Record<Shot, number>> = { "working-set": 330 }
+/** Less, on the list, where the first group is the part the beat is about. */
+const ROOM: Partial<Record<Shot, number>> = { "working-set": 400 }
 
 /**
  * Whether the extension sent the reader here, which it does once, on the install.
@@ -81,14 +81,16 @@ const Welcome = () => {
         </a>
 
         {/*
+          One sheet, no padding, clipped to its own radius: the tour's picture reaches
+          all four edges of it. The same card the app's window draws.
+
           A height, not a floor under one, and the tour depends on it both ways. A card
           that grows by three hundred pixels on the press of Next is a card the reader
           has to find their place in again — and a card free to grow grew past the
           window, because a screen is eight hundred pixels tall and asked for all of
           them. Told how tall it is, it gives the picture what the words leave.
         */}
-        {/* `overflow-hidden`: whatever the tour does inside, nothing leaves through a corner. */}
-        <div className="flex h-[min(700px,calc(100dvh-170px))] w-full flex-col overflow-hidden rounded-2xl bg-white/70 p-6 shadow-[0_1px_2px_rgba(27,23,37,0.05),0_24px_60px_-24px_rgba(27,23,37,0.22)] backdrop-blur-[10px] sm:p-9">
+        <div className="flex h-[min(660px,calc(100dvh-150px))] w-full flex-col overflow-hidden rounded-[14px] bg-white/80 shadow-[inset_0_0_0_1px_rgba(27,23,37,0.06),0_1px_2px_rgba(27,23,37,0.05),0_24px_60px_-26px_rgba(27,23,37,0.24)] backdrop-blur-[12px]">
           <Tour
             /*
              * The top of the screen rather than all of it, and eager rather than when it
@@ -133,10 +135,7 @@ const Welcome = () => {
               already
                 ? {
                     title: "It is already working.",
-                    says: [
-                      "Nothing left to set up. Open any pull request on github.com and you are looking at the screen you have just seen.",
-                      "GitQuiet reads the page you are on and nothing else. No account, and no server of ours in the middle."
-                    ],
+                    says: ["Open any pull request on github.com. Nothing to set up, no account, no server."],
                     act: (
                       <a className="tour-press" href={THEIR_PULLS}>
                         Open your pull requests
@@ -145,10 +144,7 @@ const Welcome = () => {
                   }
                 : {
                     title: "Add it to Chrome.",
-                    says: [
-                      "It works on the pages you already use, so there is nothing to import and nobody to invite.",
-                      "There is a Mac app as well, with the same screens in a window of their own."
-                    ],
+                    says: ["It works on the pages you already use. There is a Mac app as well."],
                     act: (
                       <div className="flex flex-wrap items-center gap-2">
                         <a className="tour-press" href={STORE_AT}>
@@ -163,10 +159,6 @@ const Welcome = () => {
             }
           />
         </div>
-
-        <p className="text-[13px] text-muted">
-          No account and no server. Your token stays on your machine.
-        </p>
       </div>
     </div>
   )

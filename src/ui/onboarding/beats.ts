@@ -1,11 +1,11 @@
 /**
  * What a reader is told the first time, in the order it is worth telling.
  *
- * Four beats and no more. This is read by somebody who has just installed something
- * and wants to get on with their work, so each beat is one screen, one idea, and two
- * sentences at most. Everything else the product does is discoverable in the product.
+ * Three beats, a screen each, one sentence each. This is read by somebody who has just
+ * installed something and wants to get on with their work: the product explains itself
+ * once they are inside it, and every sentence here is a sentence between them and that.
  *
- * Shared, because the same four are said in two places now: the app's first window and
+ * Shared, because the same three are said in two places now: the app's first window and
  * the site, which is also the page a reader lands on when the extension installs
  * itself. Two copies of the same explanation is two explanations, and they drift.
  *
@@ -25,7 +25,7 @@ export type Shot = "working-set" | "pull-request" | "commit"
 
 export type Beat = {
   readonly title: string
-  /** One or two sentences. A third is a beat that should have been two. */
+  /** One sentence. Two is a beat that has started explaining itself. */
   readonly says: ReadonlyArray<string>
   /**
    * Which screen is shown beside the words.
@@ -34,41 +34,22 @@ export type Beat = {
    * the capture of it. Absent on a beat whose picture is the words.
    */
   readonly shot?: Shot
-  /** Whether the four Courts are named under the words. True on exactly one beat. */
-  readonly courts?: boolean
 }
 
 export const BEATS: ReadonlyArray<Beat> = [
   {
-    title: "GitQuiet redraws GitHub.",
-    says: [
-      "Fourteen pages on github.com are drawn again: a pull request, a commit, an issue, a failing check.",
-      "Nothing leaves GitHub. Your reviews, comments and merges go through them exactly as before, and a colleague who never installed this sees your work as usual."
-    ]
-  },
-  {
-    title: "Is it my turn?",
-    says: [
-      "That is the question a list of pull requests never answers, so this one is built out of the answer.",
-      "Everything you are involved in lands in one of four groups, by who has to act next."
-    ],
-    shot: "working-set",
-    courts: true
+    title: "Your pull requests, grouped by whose move it is.",
+    says: ["Your move, waiting, running, settled. Nothing to sort and nothing to configure."],
+    shot: "working-set"
   },
   {
     title: "One pull request, one screen.",
-    says: [
-      "The conversation and the files are the same screen. There are no tabs to switch between and nothing to scroll past twice.",
-      "Everything still unresolved sits above the diff, so you read the questions before you read the code."
-    ],
+    says: ["The conversation and the files together, with everything unresolved above the diff."],
     shot: "pull-request"
   },
   {
-    title: "The same reading, everywhere else.",
-    says: [
-      "A commit, a failing Actions run, an issue, a release: the same screen, sorted by the same four groups.",
-      "Nothing here needs setting up. Every choice already has an answer, and they are all in Settings when one of them is wrong for you."
-    ],
+    title: "The same reading everywhere else.",
+    says: ["Commits, issues, checks and releases, on the pages you already use."],
     shot: "commit"
   }
 ]

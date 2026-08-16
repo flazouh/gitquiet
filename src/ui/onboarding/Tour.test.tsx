@@ -9,7 +9,7 @@ afterEach(cleanup)
 
 const ENDING = {
   title: "Ready when you are.",
-  says: ["Sign in and this window fills with your own pull requests."],
+  says: ["Your token stays in the macOS keychain."],
   act: <button type="button">Sign in with GitHub</button>
 }
 
@@ -21,35 +21,27 @@ const tour = () => render(<Tour show={show} ending={ENDING} />)
 const last = BEATS.length + 1
 
 describe("the onboarding", () => {
-  test("opens on the first beat and says how many there are", () => {
+  test("opens on the first beat", () => {
     tour()
 
     expect(screen.getByText(BEATS[0]!.title)).toBeTruthy()
-    expect(screen.getByText(`1 of ${last}`)).toBeTruthy()
   })
 
-  test("draws the screen each beat is about, and none where a beat has no screen", async () => {
-    const second = BEATS[1]?.shot
-    if (second === undefined) throw new Error("the second beat is the one that shows a screen")
+  test("draws the screen each beat is about", () => {
+    const first = BEATS[0]?.shot
+    if (first === undefined) throw new Error("the first beat is about a screen")
 
     tour()
 
-    // The first beat is the words: nothing of the product is on screen yet to point at.
+    expect(screen.getByTestId("shot").textContent).toBe(first)
+  })
+
+  test("says nothing of a screen on the host's own beat, which has none", async () => {
+    tour()
+    await userEvent.click(screen.getByRole("button", { name: "Skip" }))
+
     expect(screen.queryByTestId("shot")).toBeNull()
-
-    await userEvent.click(screen.getByRole("button", { name: "Next" }))
-
-    expect(screen.getByTestId("shot").textContent).toBe(second)
-  })
-
-  test("names the four Courts on the beat that is about them, in the list's own words", async () => {
-    tour()
-    await userEvent.click(screen.getByRole("button", { name: "Next" }))
-
-    // The words a reader is taught here are the words the list's own headings use.
-    expect(screen.getByText("Your Move")).toBeTruthy()
-    expect(screen.getByText("You can act on it now.")).toBeTruthy()
-    expect(screen.getByText("Settled")).toBeTruthy()
+    expect(screen.getByText(ENDING.title)).toBeTruthy()
   })
 
   test("goes back, which is the whole reason Back is there", async () => {
@@ -61,7 +53,7 @@ describe("the onboarding", () => {
     await userEvent.click(screen.getByRole("button", { name: "Next" }))
     await userEvent.click(screen.getByRole("button", { name: "Back" }))
 
-    expect(screen.getByText(`1 of ${last}`)).toBeTruthy()
+    expect(screen.getByText(BEATS[0]!.title)).toBeTruthy()
   })
 
   /*
@@ -73,7 +65,6 @@ describe("the onboarding", () => {
     tour()
     await userEvent.click(screen.getByRole("button", { name: "Skip" }))
 
-    expect(screen.getByText(ENDING.title)).toBeTruthy()
     expect(screen.getByRole("button", { name: "Sign in with GitHub" })).toBeTruthy()
   })
 
@@ -85,46 +76,41 @@ describe("the onboarding", () => {
     expect(screen.queryByRole("button", { name: "Next" })).toBeNull()
   })
 
-  test("goes to a beat by its dot, so the second one is one press away from the fourth", async () => {
+  test("goes to a beat by its dot, so the second one is one press away from the last", async () => {
     tour()
 
     const dots = screen.getAllByRole("button", { name: BEATS[1]!.title })
     await userEvent.click(dots[0]!)
 
-    expect(screen.getByText(`2 of ${last}`)).toBeTruthy()
+    expect(screen.getByText(BEATS[1]!.title)).toBeTruthy()
   })
 
   test("walks on the arrow keys, and stops at both ends rather than counting past them", async () => {
     tour()
 
     await userEvent.keyboard("{ArrowRight}")
-    expect(screen.getByText(`2 of ${last}`)).toBeTruthy()
+    expect(screen.getByText(BEATS[1]!.title)).toBeTruthy()
 
     await userEvent.keyboard("{ArrowLeft}{ArrowLeft}{ArrowLeft}")
-    expect(screen.getByText(`1 of ${last}`)).toBeTruthy()
+    expect(screen.getByText(BEATS[0]!.title)).toBeTruthy()
 
     await userEvent.keyboard("{ArrowRight}".repeat(last + 3))
-    expect(screen.getByText(`${last} of ${last}`)).toBeTruthy()
     expect(screen.getByText(ENDING.title)).toBeTruthy()
   })
 })
 
 describe("what the onboarding says", () => {
   /*
-   * Four beats and no more, and the reason is the reader rather than the layout: this
-   * is read by somebody who has just installed something and wants to get on with
-   * their work. A fifth beat is a beat that should have been two products.
+   * Three beats and one sentence each, and the reason is the reader rather than the
+   * layout: this is read by somebody who has just installed something and wants to get
+   * on with their work. A second sentence is a beat that has started explaining itself.
    */
-  test("is four beats, each of one or two sentences", () => {
-    expect(BEATS).toHaveLength(4)
+  test("is three beats of one sentence, each about a screen", () => {
+    expect(BEATS).toHaveLength(3)
 
     for (const beat of BEATS) {
-      expect(beat.says.length).toBeGreaterThan(0)
-      expect(beat.says.length).toBeLessThanOrEqual(2)
+      expect(beat.says).toHaveLength(1)
+      expect(beat.shot).toBeTruthy()
     }
-  })
-
-  test("names the Courts once, because a thing explained twice reads as two things", () => {
-    expect(BEATS.filter((beat) => beat.courts === true)).toHaveLength(1)
   })
 })

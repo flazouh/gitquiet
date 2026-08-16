@@ -291,38 +291,37 @@ body {
 /**
  * The panel the onboarding is read in.
  *
- * A sheet on the gradient rather than the gradient itself. Held to a size in both
- * directions, and centred: a maximised window is fifteen hundred pixels wide, and four
- * sentences across all of it is not a welcome, it is a billboard.
+ * One sheet on the gradient. A hairline, one radius, and a shadow soft enough to say
+ * only that the sheet is above the bed — the same restraint as every surface inside the
+ * app, because this is the same app. It held a second box around it for a while, a rim
+ * for the picture to stop against, and two rounded boxes on a gradient read as
+ * packaging.
  *
- * White at seventy-two per cent over a blur, which is the card the site uses on its own
- * paper. No stroke: on a surface this light a hairline is the heaviest mark on the
- * screen, and the shadow already says the sheet is above the bed.
+ * No padding on it, because the onboarding's picture reaches all four of its edges.
+ * `overflow: hidden` is what cuts the picture to the corner radius.
  */
 .welcome-sheet {
   display: flex;
   flex-direction: column;
-  width: min(880px, 100%);
+  width: min(860px, 100%);
   /*
-   * Six hundred and twenty tall where the window has it, and less where it does not.
-   * A height of `min(620px, 100%)` looks like the same thing and is not: the panel has
-   * a lockup above it and a promise below it, so `100%` of the column is more room than
-   * the panel can have, and on a short window it took the promise off the bottom edge.
-   * `flex-basis` with shrinking allowed is the same intent, arrived at by asking the
-   * column rather than the window.
+   * Six hundred tall where the window has it, and less where it does not. A height of
+   * `min(600px, 100%)` looks like the same thing and is not: the panel has a lockup
+   * above it, so `100%` of the column is more room than the panel can have, and on a
+   * short window it ran off the bottom edge. `flex-basis` with shrinking allowed is the
+   * same intent, arrived at by asking the column rather than the window.
    */
-  flex: 0 1 620px;
+  flex: 0 1 600px;
   min-height: 0;
-  border-radius: 16px;
-  /* Whatever else changes inside, nothing leaves the rounded box through a corner. */
+  border-radius: 14px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.72);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  padding: 30px 34px 24px;
+  background: rgba(255, 255, 255, 0.8);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   box-shadow:
+    inset 0 0 0 1px rgba(27, 23, 37, 0.06),
     0 1px 2px rgba(27, 23, 37, 0.05),
-    0 24px 60px -24px rgba(27, 23, 37, 0.22);
+    0 24px 60px -26px rgba(27, 23, 37, 0.24);
 }
 
 /* The two ways in, stacked, on the last step. */
@@ -390,17 +389,6 @@ body {
   font-size: 13px;
   line-height: 1.5;
   color: var(--bed-muted);
-}
-
-/* The promise, at the foot of the window, where a reader looks once and does not
-   need again. */
-.welcome-kept {
-  margin: 0;
-  max-width: 460px;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--bed-muted);
-  text-align: center;
 }
 
 /* The list, which wants the window rather than the middle of it. */

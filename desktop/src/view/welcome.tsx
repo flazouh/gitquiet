@@ -35,15 +35,6 @@ type Step =
 const NO_APP = "This build was made without an OAuth app of its own, so it has nothing to sign in with."
 
 /**
- * What the app promises before it asks for anything.
- *
- * Under the panel rather than in it, because it is true of the whole app rather than
- * of the step a reader happens to be on — and because the moment they are about to
- * hand over a GitHub token is the moment it is worth the most.
- */
-const KEPT = "No account and no server. Your token stays in the macOS keychain, on this machine."
-
-/**
  * The captures, which live beside the built view.
  *
  * The site draws these screens for real, because on a page it can: they are the
@@ -328,16 +319,11 @@ export const Welcome = ({ onSignedIn }: { readonly onSignedIn: (viewer: Viewer) 
           show={(shot) => <img src={shotAt(shot)} alt="" />}
           ending={{
             title: "Ready when you are.",
-            says: [
-              "Sign in with GitHub and this window fills with your own pull requests, grouped the way you have just seen.",
-              "GitQuiet asks GitHub for the one thing it needs: the repositories you can already read."
-            ],
+            says: ["Your token stays in the macOS keychain. There is no account and no server."],
             act
           }}
         />
       </div>
-
-      <p className="welcome-kept">{KEPT}</p>
     </main>
   )
 }
