@@ -29,15 +29,24 @@ import type { UpdateStanding } from "../shared/wire"
  * what was not found, never say ready when the download did not finish — and
  * every one of those cases in the real updater is a network round trip and a
  * twenty megabyte write.
+ *
+ * Both answers are sums, which is the whole point of having a seam here.
+ * Electrobun answers with every field always present and an empty `error` string
+ * meaning nothing went wrong, so `{ updateAvailable: true, error: "…" }` is a
+ * reading that can be taken and means nothing. `theUpdater` is the one place that
+ * knows about the empty string; everything below reads a word.
  */
+export type Found =
+  | { readonly at: "none" }
+  | { readonly at: "new"; readonly version: string }
+  | { readonly at: "failed"; readonly why: string }
+
+export type Fetched = { readonly at: "ready" } | { readonly at: "failed"; readonly why: string }
+
 export type Ledger = {
   readonly channel: () => Promise<string>
-  readonly look: () => Promise<{
-    readonly updateAvailable: boolean
-    readonly version: string
-    readonly error: string
-  }>
-  readonly fetch: () => Promise<{ readonly ready: boolean; readonly error: string }>
+  readonly look: () => Promise<Found>
+  readonly fetch: () => Promise<Fetched>
   readonly apply: () => Promise<void>
 }
 
@@ -53,19 +62,45 @@ const updater = async () => (await import("electrobun/bun")).Updater
 
 export const theUpdater: Ledger = {
   channel: async () => (await (await updater()).getLocalInfo()).channel,
+
   look: async () => {
     const it = await (await updater()).checkForUpdate()
-    return { updateAvailable: it.updateAvailable, version: it.version, error: it.error }
+    if (it.error !== "") return { at: "failed", why: it.error }
+    return it.updateAvailable ? { at: "new", version: it.version } : { at: "none" }
   },
+
   fetch: async () => {
     const it = await updater()
     await it.downloadUpdate()
+    // Read off the updater afterwards, because `downloadUpdate` answers with
+    // nothing and reports by leaving `updateReady` or `error` behind it.
     const said = it.updateInfo()
-    return { ready: said?.updateReady === true, error: said?.error ?? "" }
+    if (said?.updateReady === true) return { at: "ready" }
+    return { at: "failed", why: said?.error === undefined || said.error === "" ? "The download did not finish." : said.error }
   },
+
   // Replaces the bundle and restarts, so nothing after this line runs.
   apply: async () => (await updater()).applyUpdate()
 }
+
+/**
+ * How long the whole look gets before it is called off.
+ *
+ * Neither Electrobun's check nor its download has a deadline of its own, and the
+ * download is twenty megabytes: a connection that stalls halfway leaves the
+ * standing at `looking` for the rest of the run, and the window asks again every
+ * three seconds for as long as it is open. Ten minutes is far longer than the
+ * download takes on a bad connection and short enough to be a state that ends.
+ */
+const GIVE_UP_AFTER = 10 * 60 * 1000
+
+const tooLong = (waitMs: number): Promise<UpdateStanding> =>
+  new Promise((resolve) =>
+    setTimeout(
+      () => resolve({ at: "failed", why: "Looking for an update took too long." }),
+      waitMs
+    ).unref()
+  )
 
 export type Watch = {
   readonly standing: () => UpdateStanding
@@ -81,35 +116,27 @@ export type Watch = {
  * that does not exist yet is a message nobody hears, and it would need a channel
  * from this process into the interface that nothing else in this app needs.
  */
-export const watchForUpdates = (ledger: Ledger): Watch => {
+export const watchForUpdates = (ledger: Ledger, waitMs: number = GIVE_UP_AFTER): Watch => {
   let standing: UpdateStanding = { at: "looking" }
+
+  const wholeLook = async (): Promise<UpdateStanding> => {
+    if ((await ledger.channel()) === "dev") return { at: "off" }
+
+    const found = await ledger.look()
+    if (found.at === "failed") return { at: "failed", why: found.why }
+    if (found.at === "none") return { at: "current" }
+
+    const got = await ledger.fetch()
+    return got.at === "ready" ? { at: "ready", version: found.version } : got
+  }
 
   const looked = (async () => {
     try {
-      if ((await ledger.channel()) === "dev") {
-        standing = { at: "off" }
-        return
-      }
-
-      const found = await ledger.look()
-      if (found.error !== "") {
-        standing = { at: "failed", why: found.error }
-        return
-      }
-
-      if (!found.updateAvailable) {
-        standing = { at: "current" }
-        return
-      }
-
-      const got = await ledger.fetch()
-      standing = got.ready
-        ? { at: "ready", version: found.version }
-        : { at: "failed", why: got.error === "" ? "The download did not finish." : got.error }
+      standing = await Promise.race([wholeLook(), tooLong(waitMs)])
     } catch (cause) {
       // Caught rather than left to reject: this runs while the window is opening,
-      // and an unhandled rejection there is an app that does not open because a
-      // release page was briefly unreachable.
+      // and an unhandled rejection ends a Bun process — the app would fail to
+      // open because a release page was briefly unreachable.
       standing = { at: "failed", why: cause instanceof Error ? cause.message : String(cause) }
     }
   })()

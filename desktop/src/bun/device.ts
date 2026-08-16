@@ -1,7 +1,15 @@
 import { Duration, Effect } from "effect"
 import type { Pending } from "../shared/wire"
 import { GitHubUnreachable } from "./api"
-import { CLIENT_ID, postForm, SCOPE, TOKEN } from "./oauth"
+import {
+  canSignInWithACode,
+  CLIENT_ID,
+  NO_OAUTH_APP,
+  postForm,
+  SCOPE,
+  SignInRefused,
+  TOKEN
+} from "./oauth"
 
 /**
  * Signing in on a machine with no browser to open.
@@ -30,6 +38,11 @@ const CODE = "https://github.com/login/device/code"
  * and then a refusal.
  */
 export const beginSignIn = Effect.fn("beginSignIn")(function* () {
+  // Guarded here as well as on the panel, which asks `wayIn` and offers no
+  // button this build cannot honour. Without this, a caller that did not ask
+  // sends GitHub an empty client id and gets their wording rather than ours.
+  if (!canSignInWithACode) return yield* Effect.fail(new SignInRefused(NO_OAUTH_APP))
+
   const it = yield* postForm<{
     device_code?: string
     user_code?: string

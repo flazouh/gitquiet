@@ -1,6 +1,16 @@
 import { Effect } from "effect"
 import { GitHubUnreachable } from "./api"
-import { AUTHORIZE, CLIENT_ID, CLIENT_SECRET, postForm, SCOPE, TOKEN } from "./oauth"
+import {
+  AUTHORIZE,
+  canSignInThroughBrowser,
+  CLIENT_ID,
+  CLIENT_SECRET,
+  NO_OAUTH_APP,
+  postForm,
+  SCOPE,
+  SignInRefused,
+  TOKEN
+} from "./oauth"
 
 /**
  * Signing in the way GitHub asks a windowed app to.
@@ -32,6 +42,7 @@ import { AUTHORIZE, CLIENT_ID, CLIENT_SECRET, postForm, SCOPE, TOKEN } from "./o
 
 /** The path GitHub is told to come back to, and the one this answers. */
 const CALLBACK = "/callback"
+
 
 const base64url = (bytes: Uint8Array) => Buffer.from(bytes).toString("base64url")
 
@@ -144,12 +155,21 @@ export const doorOnLoopback = (opts: {
   /** How long a person gets. GitHub's own code expires after ten minutes. */
   readonly waitMs?: number
 }): Door => {
-  let settle: (code: string) => void = () => {}
-  let refuse: (why: Error) => void = () => {}
-  const code = new Promise<string>((resolve, reject) => {
-    settle = resolve
-    refuse = reject
-  })
+  const { promise: code, resolve, reject } = Promise.withResolvers<string>()
+
+  /*
+   * Both answers are handed over on a later turn of the loop, and that timer is
+   * the whole reason the reader ever sees either page.
+   *
+   * Settling here resumes whoever is awaiting `code`, which is
+   * `signInThroughBrowser`, whose `finally` closes this server — and closing it
+   * force-closes the connection this reply is still being written to. Twenty
+   * tries out of twenty gave the browser a reset connection rather than a page,
+   * on a sign-in that had in fact worked: the window signed itself in while
+   * their tab said the site could not be reached.
+   */
+  const settle = (given: string) => setTimeout(() => resolve(given), 0)
+  const refuse = (why: Error) => setTimeout(() => reject(why), 0)
 
   const server = Bun.serve({
     hostname: "127.0.0.1",
@@ -160,7 +180,7 @@ export const doorOnLoopback = (opts: {
       if (said.at === "elsewhere") return new Response("Nothing here.", { status: 404 })
 
       if (said.at === "refused") {
-        refuse(new Error(said.why))
+        refuse(new SignInRefused(said.why))
         return page("GitQuiet did not sign you in.", "You can close this tab.")
       }
 
@@ -170,7 +190,7 @@ export const doorOnLoopback = (opts: {
   })
 
   const giveUp = setTimeout(
-    () => refuse(new Error("The sign-in did not finish in time.")),
+    () => refuse(new SignInRefused("The sign-in did not finish in time.")),
     opts.waitMs ?? 10 * 60 * 1000
   )
 
@@ -186,7 +206,7 @@ export const doorOnLoopback = (opts: {
   const port = server.port
   if (port === undefined) {
     close()
-    throw new Error("Nothing was listening for the sign-in to come back to.")
+    throw new SignInRefused("Nothing was listening for the sign-in to come back to.")
   }
 
   return { redirect: `http://127.0.0.1:${port}${CALLBACK}`, code, close }
@@ -213,8 +233,21 @@ export const signInThroughBrowser = Effect.fn("signInThroughBrowser")(function* 
     readonly waitMs?: number
   } = {}
 ) {
+  // Guarded here as well as on the panel. The panel asks `wayIn` and never
+  // offers a button this build cannot honour; this is for anything that did not
+  // ask, which would otherwise send a reader to github.com with no client id and
+  // let GitHub explain it.
+  if (!canSignInThroughBrowser) return yield* Effect.fail(new SignInRefused(NO_OAUTH_APP))
+
   const open = opts.open ?? openOutside
   const verifier = newVerifier()
+
+  /*
+   * A second random string, from the same source as the verifier and for a
+   * different job: this one is handed to GitHub and comes back, which is how a
+   * reply is known to belong to this sign-in. `whatTheReplySays` is where it is
+   * checked.
+   */
   const state = newVerifier()
 
   const code = yield* Effect.tryPromise({
@@ -235,8 +268,10 @@ export const signInThroughBrowser = Effect.fn("signInThroughBrowser")(function* 
       }
     },
     // Said in the door's own words where it has any: every one of them is a
-    // sentence the panel can put under the button.
-    catch: (cause) => (cause instanceof Error ? cause : new GitHubUnreachable(String(cause)))
+    // sentence the panel can put under the button. Anything else came from
+    // `open`, which is a process this app spawned rather than a network read.
+    catch: (cause) =>
+      cause instanceof SignInRefused ? cause : new SignInRefused(String(cause))
   })
 
   const it = yield* postForm<{

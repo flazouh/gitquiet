@@ -27,13 +27,12 @@ import { heldToken } from "./keychain"
  * `/usr/bin:/bin:/usr/sbin:/sbin` and nothing else. Homebrew installs to
  * `/opt/homebrew/bin`, so a reader with `gh` signed in got the sign-in panel
  * while the same app started from a terminal drew their Working Set.
+ *
+ * Three places, and none of them one that `launchd`'s own `PATH` already covers:
+ * a fourth entry for `/usr/bin` was in here and could never be reached, because
+ * `Bun.which` had already looked there.
  */
-const GH_PREFIXES: ReadonlyArray<string> = [
-  "/opt/homebrew/bin",
-  "/usr/local/bin",
-  "/opt/local/bin",
-  "/usr/bin"
-]
+const GH_PREFIXES: ReadonlyArray<string> = ["/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin"]
 
 export const whereGhIs = (opts: {
   readonly onPath?: (name: string) => string | null

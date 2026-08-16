@@ -32,13 +32,22 @@ const LOOK_AGAIN = 3_000
 export const Update = () => {
   const [standing, setStanding] = useState<UpdateStanding>({ at: "looking" })
   const [restarting, setRestarting] = useState(false)
+  /** Why the restart did not happen, which is the only failure a reader sees. */
+  const [refused, setRefused] = useState<string | null>(null)
 
   useEffect(() => {
     let watching = true
     let waiting: ReturnType<typeof setTimeout> | undefined
 
     const look = async () => {
-      const it = await ask("updateStanding", undefined)
+      // Caught, because a bridge that gave up would otherwise stop the asking
+      // silently and leave this at `looking` for the rest of the run.
+      const it = await ask("updateStanding", undefined).catch(
+        (cause: unknown): UpdateStanding => ({
+          at: "failed",
+          why: cause instanceof Error ? cause.message : String(cause)
+        })
+      )
       if (!watching) return
 
       setStanding(it)
@@ -69,15 +78,33 @@ export const Update = () => {
             size="sm"
             variant="secondary"
             loading={restarting}
-            title={`GitQuiet ${standing.version} is downloaded and waiting.`}
+            disabled={refused !== null}
+            title={refused ?? `GitQuiet ${standing.version} is downloaded and waiting.`}
             onClick={() => {
               setRestarting(true)
-              // Nothing follows: the main process swaps the bundle, starts the
-              // new one and quits, so this window goes away mid-press.
-              void ask("applyUpdate", undefined)
+              /*
+               * An answer arrives only when the restart did not happen: a restart
+               * that works replaces the bundle, starts it and quits this window
+               * mid-press. So the reader is left looking at a button that says
+               * "Restarting…" precisely in the case where nothing is going to
+               * happen, and it has to say so.
+               */
+              void ask("applyUpdate", undefined).then(
+                (said) => {
+                  if (said.ok) return
+                  console.warn("[working-set] update:", said.why)
+                  setRestarting(false)
+                  setRefused(said.why)
+                },
+                (cause: unknown) => {
+                  console.warn("[working-set] update:", cause)
+                  setRestarting(false)
+                  setRefused(cause instanceof Error ? cause.message : String(cause))
+                }
+              )
             }}
           >
-            {restarting ? "Restarting…" : "Restart to update"}
+            {refused !== null ? "Update failed" : restarting ? "Restarting…" : "Restart to update"}
           </Button>
         </motion.div>
       )}

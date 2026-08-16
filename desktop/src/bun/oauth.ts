@@ -1,4 +1,5 @@
 import { Effect } from "effect"
+import type { WayIn } from "../shared/wire"
 import { GitHubUnreachable } from "./api"
 
 /**
@@ -47,16 +48,42 @@ export const CLIENT_ID = process.env.GITHUB_CLIENT_ID ?? ""
 export const CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET ?? ""
 
 /**
- * Which sign-in this build can offer.
+ * The best sign-in this build can offer, which is one fact and not two.
  *
  * The browser flow needs both credentials, because GitHub asks for the secret
  * when a code is exchanged even though PKCE is what secures the exchange. The
  * device flow needs only the id — their own documentation says the secret "is
  * not needed for the device flow" — so a build with half the pair still signs
- * somebody in rather than refusing to try.
+ * somebody in rather than refusing to try. With neither there is no way in.
+ *
+ * Ordered, so it crosses the wire as one word: a build that can open a browser
+ * can also show a code, and the panel offers that as the second way.
  */
-export const canSignInThroughBrowser = CLIENT_ID !== "" && CLIENT_SECRET !== ""
-export const canSignInWithACode = CLIENT_ID !== ""
+export const WAY_IN: WayIn = CLIENT_ID === "" ? "none" : CLIENT_SECRET === "" ? "code" : "browser"
+
+export const canSignInThroughBrowser = WAY_IN === "browser"
+export const canSignInWithACode = WAY_IN !== "none"
+
+/**
+ * What a caller that did not ask `wayIn` first is told.
+ *
+ * Written for whoever reads a log or a script's output, not for the reader
+ * looking at the panel — the panel has its own sentence, because it can say
+ * what to do about it and this cannot.
+ */
+export const NO_OAUTH_APP = "This build carries no OAuth app: nothing was baked in when it was built."
+
+/**
+ * A sign-in that did not happen for a reason worth repeating to the reader.
+ *
+ * Its own error rather than `GitHubUnreachable`, because none of these is a
+ * network fault: a reader pressed cancel, a reply arrived for a sign-in this
+ * window did not start, nobody came back in time, this build has no OAuth app.
+ * Every message it carries is meant to be read.
+ */
+export class SignInRefused extends Error {
+  readonly _tag = "SignInRefused"
+}
 
 const form = (fields: Record<string, string>) =>
   Object.entries(fields)

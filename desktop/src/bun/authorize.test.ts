@@ -134,4 +134,24 @@ describe("doorOnLoopback", () => {
       door.close()
     }
   })
+
+  /*
+   * The third fact, which cannot be read from in here: whether the browser gets
+   * the page before the door is closed on it. Settling the code resumes
+   * `signInThroughBrowser`, whose `finally` force-closes this server, and the
+   * reply is still being written when it does — twenty tries out of twenty gave
+   * the browser a reset connection on a sign-in that had worked.
+   *
+   * Spawned rather than written here because reading the body is the whole check
+   * and happy-dom's `Response`, which this file runs under, never reaches the
+   * socket. The script exits non-zero on its own; this is the run.
+   */
+  test("hands the browser the page before it closes the door", async () => {
+    const ran = Bun.spawnSync(["bun", `${import.meta.dir}/../../scripts/check-door.ts`], {
+      env: { ...process.env, GITHUB_CLIENT_ID: "checking", GITHUB_CLIENT_SECRET: "checking" }
+    })
+
+    expect(ran.stdout.toString().trim()).toEndWith("connections reset: 0/6")
+    expect(ran.exitCode).toBe(0)
+  }, 20_000)
 })

@@ -387,6 +387,35 @@ jobs:
           GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
         run: bun run build:stable
 
+      # Read out of the built bundle, not out of the environment.
+      #
+      # The step above sets two environment variables and trusts that they end up
+      # inside the app. What puts them there is `define` in
+      # `desktop/electrobun.config.ts`, and every way that can quietly stop
+      # working — an Electrobun release that reads the config differently, a
+      # renamed key, a bundler that no longer substitutes — leaves the secrets
+      # perfectly well set and the app unable to sign anybody in. That is the
+      # exact release this whole change exists to stop shipping, so the check is
+      # on the artifact.
+      #
+      # Skipped rather than failed where there is no secret to look for, which is
+      # a fork building an app it knows has no OAuth app.
+      - name: Make sure the OAuth app reached the bundle
+        env:
+          OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
+        run: |
+          if [ -z "$OAUTH_CLIENT_ID" ]; then
+            echo "No OAUTH_CLIENT_ID to look for. Nothing to check."
+            exit 0
+          fi
+          # Every file, because the bundle's layout is Electrobun's to change.
+          if grep -rqF "$OAUTH_CLIENT_ID" desktop/build/stable-macos-arm64; then
+            echo "The client id is in the bundle."
+          else
+            echo "::error::The client id never reached the bundle. Read the define block in desktop/electrobun.config.ts."
+            exit 1
+          fi
+
       # Renamed on the way up. Electrobun names an artifact for the build it came
       # from, which reads as nothing at all in somebody's downloads folder.
       - name: Name the disk image for what it is

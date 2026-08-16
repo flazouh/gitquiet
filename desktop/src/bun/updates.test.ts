@@ -12,8 +12,8 @@ const ledger = (it: {
   readonly fetch?: Ledger["fetch"]
 }): Ledger => ({
   channel: async () => it.channel ?? "stable",
-  look: it.look ?? (async () => ({ updateAvailable: false, version: "0.2.4", error: "" })),
-  fetch: it.fetch ?? (async () => ({ ready: true, error: "" })),
+  look: it.look ?? (async () => ({ at: "none" })),
+  fetch: it.fetch ?? (async () => ({ at: "ready" })),
   apply: async () => {}
 })
 
@@ -42,10 +42,10 @@ describe("watchForUpdates", () => {
     let fetched = 0
     const watch = watchForUpdates(
       ledger({
-        look: async () => ({ updateAvailable: true, version: "0.3.0", error: "" }),
+        look: async () => ({ at: "new", version: "0.3.0" }),
         fetch: async () => {
           fetched++
-          return { ready: true, error: "" }
+          return { at: "ready" }
         }
       })
     )
@@ -61,7 +61,7 @@ describe("watchForUpdates", () => {
       ledger({
         fetch: async () => {
           fetched++
-          return { ready: true, error: "" }
+          return { at: "ready" }
         }
       })
     )
@@ -72,9 +72,7 @@ describe("watchForUpdates", () => {
 
   test("carries the reason a check was refused", async () => {
     const watch = watchForUpdates(
-      ledger({
-        look: async () => ({ updateAvailable: false, version: "", error: "Failed to fetch update info" })
-      })
+      ledger({ look: async () => ({ at: "failed", why: "Failed to fetch update info" }) })
     )
     await watch.looked
 
@@ -84,13 +82,31 @@ describe("watchForUpdates", () => {
   test("carries the reason a download did not finish", async () => {
     const watch = watchForUpdates(
       ledger({
-        look: async () => ({ updateAvailable: true, version: "0.3.0", error: "" }),
-        fetch: async () => ({ ready: false, error: "Failed to download latest version" })
+        look: async () => ({ at: "new", version: "0.3.0" }),
+        fetch: async () => ({ at: "failed", why: "Failed to download latest version" })
       })
     )
     await watch.looked
 
     expect(watch.standing()).toEqual({ at: "failed", why: "Failed to download latest version" })
+  })
+
+  /*
+   * The one state that could otherwise never end: neither the check nor the
+   * download has a deadline of its own, and the window asks again every three
+   * seconds for as long as the standing is `looking`.
+   */
+  test("gives up on a download that never finishes", async () => {
+    const watch = watchForUpdates(
+      ledger({
+        look: async () => ({ at: "new", version: "0.3.0" }),
+        fetch: () => new Promise<never>(() => {})
+      }),
+      10
+    )
+    await watch.looked
+
+    expect(watch.standing()).toEqual({ at: "failed", why: "Looking for an update took too long." })
   })
 
   /*

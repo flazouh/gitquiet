@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 import { ApplicationMenu, BrowserWindow, defineElectrobunRPC } from "electrobun/bun"
-import type { Answered, Asked, Card, Pending, Viewer, WaysToSignIn, Wire } from "../shared/wire"
+import type { Answered, Asked, Card, Pending, Viewer, WayIn, Wire } from "../shared/wire"
 import { whoAmI } from "./api"
 import { readCard, readPatches } from "./card"
 import { readCommit } from "./commit"
@@ -24,7 +24,7 @@ import { fileFor, inFile, keepingLatest, readAcrossRuns } from "./acrossRuns"
 import { IDENTIFIER } from "./identity"
 import { signInThroughBrowser } from "./authorize"
 import { beginSignIn, finishSignIn } from "./device"
-import { canSignInThroughBrowser, canSignInWithACode } from "./oauth"
+import { WAY_IN } from "./oauth"
 import { forgetToken, keepToken } from "./keychain"
 import { currentToken } from "./token"
 import { theUpdater, watchForUpdates } from "./updates"
@@ -198,10 +198,20 @@ void watchingForUpdates.looked.then(() => {
   console.log("[working-set] update:", it.at === "failed" ? `failed — ${it.why}` : it.at)
 })
 
+// Said on every launch, because a packaged build that carries no OAuth app looks
+// exactly like a working one until somebody presses the button, and the panel is
+// the only other place that mentions it.
+console.log("[working-set] sign-in:", WAY_IN)
+
 const rpc = defineElectrobunRPC<Wire, "bun">("bun", {
-  // Fifteen minutes, which is not a timeout for a request so much as one for a
-  // person: `finishSignIn` is held open while the reader types a code into
-  // GitHub, and the default would give up on them after a few seconds.
+  /*
+   * The bound on what this side asks of the window, which is almost nothing.
+   *
+   * Not the bound on the requests below, however it reads: Electrobun starts the
+   * timer inside the function that sends a request, so each side bounds its own
+   * outgoing calls. The window's bound on `signInThroughBrowser` is in
+   * `view/rpc.ts`, and it is the one that has to outlast a person.
+   */
   maxRequestTime: 15 * 60 * 1000,
   handlers: {
     requests: {
@@ -214,8 +224,7 @@ const rpc = defineElectrobunRPC<Wire, "bun">("bun", {
        */
       viewer: (): Promise<Viewer | null> => Effect.runPromise(whoIsSignedIn),
 
-      waysToSignIn: (): Promise<WaysToSignIn> =>
-        Promise.resolve({ browser: canSignInThroughBrowser, code: canSignInWithACode }),
+      wayIn: (): Promise<WayIn> => Promise.resolve(WAY_IN),
 
       /**
        * The sign-in the panel offers first, and the one GitHub asks a window to
@@ -229,13 +238,9 @@ const rpc = defineElectrobunRPC<Wire, "bun">("bun", {
           )
         ),
 
-      beginSignIn: () =>
-        canSignInWithACode
-          ? said(beginSignIn())
-          : Promise.resolve<Answered<Pending>>({
-              ok: false,
-              why: "This build has no OAuth app. Create one on GitHub and build with GITHUB_CLIENT_ID set."
-            }),
+      // Guarded in `device.ts` and `authorize.ts` rather than here, so a caller
+      // that skipped `wayIn` gets one sentence wherever it asked from.
+      beginSignIn: () => said(beginSignIn()),
 
       /**
        * Waits out the sign-in, then keeps the token before answering.
@@ -256,12 +261,17 @@ const rpc = defineElectrobunRPC<Wire, "bun">("bun", {
 
       updateStanding: () => Promise.resolve(watchingForUpdates.standing()),
 
-      // Answered before the app is replaced, because after `apply` there is no
-      // process left to answer with: it swaps the bundle, respawns the launcher
-      // and quits.
-      applyUpdate: async () => {
-        void theUpdater.apply()
-      },
+      /*
+       * Awaited, so a restart that cannot happen is answered rather than thrown.
+       *
+       * An update that works never reaches the reply: the bundle is replaced, the
+       * new one is started and this process quits. What is left is the reader
+       * still sitting in front of a button that says it is restarting, and a
+       * rejection handed to `void` instead of to them would take the window down
+       * with it — Bun ends a process on an unhandled rejection, which I checked
+       * rather than assumed.
+       */
+      applyUpdate: () => said(Effect.tryPromise(() => theUpdater.apply())),
 
       /**
        * The list, read with a token the interface never sees.

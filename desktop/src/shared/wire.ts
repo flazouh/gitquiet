@@ -18,15 +18,6 @@ export type Viewer = {
 }
 
 /**
- * What to put on screen while GitHub waits for the reader to type a code.
- *
- * The device code is handed back to the interface and then handed straight in
- * again to finish. It could have been kept in the main process, but a sign-in
- * that survives a reloaded webview is worth more than a secret that was never
- * one: the device code is single-use, expires in fifteen minutes, and is
- * useless without the reader typing the user code into GitHub themselves.
- */
-/**
  * Whether a newer build is waiting, as the five things the window can say.
  *
  * The looking and the downloading happen on launch without being asked, so what
@@ -42,18 +33,26 @@ export type UpdateStanding =
   | { readonly at: "failed"; readonly why: string }
 
 /**
- * The two ways in, and whether this build can offer each.
+ * The best way in this build can offer.
  *
- * Both are false in a build nobody gave credentials to, which is the state every
- * release shipped in until the id and the secret were baked in at build time.
+ * One word rather than a flag per flow, because the three states are ordered and
+ * only three exist: with both credentials the reader's browser can be opened,
+ * with the client id alone a code can be shown, with neither there is nothing to
+ * sign in with — which is the state every release shipped in until the pair was
+ * baked in at build time. A build that can open a browser can also show a code,
+ * and the panel offers that as the second way.
  */
-export type WaysToSignIn = {
-  /** The authorization code flow, through the reader's own browser. */
-  readonly browser: boolean
-  /** The device flow, for a machine with no browser to open. */
-  readonly code: boolean
-}
+export type WayIn = "browser" | "code" | "none"
 
+/**
+ * What to put on screen while GitHub waits for the reader to type a code.
+ *
+ * The device code is handed back to the interface and then handed straight in
+ * again to finish. It could have been kept in the main process, but a sign-in
+ * that survives a reloaded webview is worth more than a secret that was never
+ * one: the device code is single-use, expires in fifteen minutes, and is
+ * useless without the reader typing the user code into GitHub themselves.
+ */
 export type Pending = {
   /** The short code the reader types into GitHub. */
   readonly code: string
@@ -315,14 +314,12 @@ export type Wire = {
       /** Who is already signed in, from the token the keychain is holding. */
       viewer: { params: void; response: Viewer | null }
       /**
-       * Which sign-ins this build was given credentials for.
+       * The best sign-in this build can offer.
        *
        * Asked before the panel draws, so it never offers a button that cannot
-       * work. Answered from two constants with nothing over the network: the
-       * browser flow needs the client secret GitHub asks for at the token
-       * endpoint, the code flow needs only the client id.
+       * work. Answered from one constant with nothing over the network.
        */
-      waysToSignIn: { params: void; response: WaysToSignIn }
+      wayIn: { params: void; response: WayIn }
       /**
        * Opens the reader's own browser, waits for them there, keeps the token.
        *
@@ -348,10 +345,13 @@ export type Wire = {
       /**
        * Restarts into the build that was downloaded.
        *
-       * Nothing comes back: this process replaces the bundle and quits, and the
-       * window that asked is gone before an answer could reach it.
+       * An answer arrives only when it did not happen. A restart that works
+       * replaces the bundle, starts it and quits this process, so the window
+       * that asked is gone before a reply could reach it — which means the one
+       * case worth a reply is the one where the reader is still sitting there
+       * looking at a button that said it was restarting.
        */
-      applyUpdate: { params: void; response: void }
+      applyUpdate: { params: void; response: Answered<void> }
       /** Every pull request the reader is in, in one GraphQL round trip. */
       workingSet: { params: void; response: Answered<ReadonlyArray<WorkingSetRow>> }
       /** One pull request, whole: everything its card draws except file content. */

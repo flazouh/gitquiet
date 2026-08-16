@@ -4,7 +4,7 @@ import { Button } from "../components/ui/button"
 import { Elevated } from "../lib/elevated"
 import { fontWeights } from "../lib/font-weight"
 import { spring } from "../lib/springs"
-import type { Pending, Viewer, WaysToSignIn } from "../shared/wire"
+import type { Pending, Viewer, WayIn } from "../shared/wire"
 import { ask } from "./rpc"
 
 /**
@@ -35,17 +35,17 @@ export const SignIn = ({ onSignedIn }: { readonly onSignedIn: (viewer: Viewer) =
   const [step, setStep] = useState<Step>({ at: "asleep" })
 
   /**
-   * Which ways in this build has credentials for, which is not known until the
-   * main process answers. Null until then, and the button waits rather than
-   * being drawn as something that might not work: a button that refuses on
-   * press is how the shipped app looked broken.
+   * The best way in this build has credentials for, which is not known until the
+   * main process answers. Null until then, and the button is drawn disabled: a
+   * button that refuses on press is how the shipped app looked broken, and a
+   * button that is not there yet is a panel that jumps as the answer lands.
    */
-  const [ways, setWays] = useState<WaysToSignIn | null>(null)
+  const [way, setWay] = useState<WayIn | null>(null)
 
   useEffect(() => {
     let listening = true
-    void ask("waysToSignIn", undefined).then((it) => {
-      if (listening) setWays(it)
+    void ask("wayIn", undefined).then((it) => {
+      if (listening) setWay(it)
     })
     return () => {
       listening = false
@@ -53,47 +53,94 @@ export const SignIn = ({ onSignedIn }: { readonly onSignedIn: (viewer: Viewer) =
   }, [])
 
   /**
+   * A bridge that gives up, said in the panel rather than swallowed.
+   *
+   * `ask` rejects on its own deadline, and a sign-in is the one request here that
+   * waits on a person. Without this the panel keeps a spinning button nobody can
+   * press, on a sign-in the main process may well have finished — which is the
+   * exact fault this whole panel was rewritten to remove.
+   */
+  const orRefuse = async (work: Promise<void>) => {
+    try {
+      await work
+    } catch (cause) {
+      setStep({ at: "refused", why: cause instanceof Error ? cause.message : String(cause) })
+    }
+  }
+
+  /**
    * The way GitHub asks a window to sign somebody in: their own browser opens,
    * they approve there, and this answers when they come back. One request, held
    * open for as long as they take, because the main process is the one waiting.
    */
-  const throughBrowser = async () => {
-    setStep({ at: "inTheBrowser" })
+  const throughBrowser = () =>
+    orRefuse(
+      (async () => {
+        setStep({ at: "inTheBrowser" })
 
-    const done = await ask("signInThroughBrowser", undefined)
-    if (!done.ok) {
-      setStep({ at: "refused", why: done.why })
-      return
-    }
+        const done = await ask("signInThroughBrowser", undefined)
+        if (!done.ok) {
+          setStep({ at: "refused", why: done.why })
+          return
+        }
 
-    onSignedIn(done.it)
-  }
+        onSignedIn(done.it)
+      })()
+    )
 
   /** The second way, for a machine with no browser to open. */
-  const withACode = async () => {
-    setStep({ at: "asking" })
+  const withACode = () =>
+    orRefuse(
+      (async () => {
+        setStep({ at: "asking" })
 
-    const begun = await ask("beginSignIn", undefined)
-    if (!begun.ok) {
-      setStep({ at: "refused", why: begun.why })
-      return
-    }
+        const begun = await ask("beginSignIn", undefined)
+        if (!begun.ok) {
+          setStep({ at: "refused", why: begun.why })
+          return
+        }
 
-    setStep({ at: "waiting", pending: begun.it })
+        setStep({ at: "waiting", pending: begun.it })
 
-    // Held open for as long as the reader takes. The main process is the one
-    // polling GitHub, so this is a single request that answers when they are
-    // done — no timer here, and nothing to keep in step with GitHub's interval.
-    const done = await ask("finishSignIn", begun.it)
-    if (!done.ok) {
-      setStep({ at: "refused", why: done.why })
-      return
-    }
+        // Held open for as long as the reader takes. The main process is the one
+        // polling GitHub, so this is a single request that answers when they are
+        // done — no timer here, and nothing to keep in step with GitHub's interval.
+        const done = await ask("finishSignIn", begun.it)
+        if (!done.ok) {
+          setStep({ at: "refused", why: done.why })
+          return
+        }
 
-    onSignedIn(done.it)
-  }
+        onSignedIn(done.it)
+      })()
+    )
 
-  const nothingToSignInWith = ways !== null && !ways.browser && !ways.code
+  /*
+   * One sign-in at a time.
+   *
+   * Both ways end with a token in the keychain, and a reader who pressed the
+   * browser button and then the code button had two of them racing there: the
+   * one that lands second wins, and the window is signed in as whoever that was.
+   */
+  const busy = step.at === "inTheBrowser" || step.at === "asking"
+
+  /*
+   * The one button at the top of the panel, which is a different sign-in in a
+   * build with no client secret.
+   *
+   * Read out here rather than as two nearly identical buttons in the markup
+   * below, where the only differences were the label, the handler and which step
+   * counts as waiting — and where the reason for two of them was invisible.
+   */
+  const first =
+    way === "code"
+      ? { label: "Sign in with a code", waiting: "Asking GitHub…", while: "asking", go: withACode }
+      : {
+          label: "Sign in with GitHub",
+          waiting: "Waiting for your browser…",
+          while: "inTheBrowser",
+          go: throughBrowser
+        }
 
   return (
     <Elevated offset={2} className="w-[360px] rounded-xl px-8 py-9">
@@ -162,40 +209,33 @@ export const SignIn = ({ onSignedIn }: { readonly onSignedIn: (viewer: Viewer) =
               )}
             </AnimatePresence>
 
-            {nothingToSignInWith ? (
+            {way === "none" ? (
               <p className="m-0 mt-3 text-xs text-muted-foreground">{NO_APP}</p>
             ) : (
               <>
-                {ways?.browser === false ? (
-                  <Button
-                    className="mt-3"
-                    size="lg"
-                    loading={step.at === "asking"}
-                    disabled={ways === null}
-                    onClick={withACode}
-                  >
-                    {step.at === "asking" ? "Asking GitHub…" : "Sign in with a code"}
-                  </Button>
-                ) : (
-                  <Button
-                    className="mt-3"
-                    size="lg"
-                    loading={step.at === "inTheBrowser"}
-                    disabled={ways === null}
-                    onClick={throughBrowser}
-                  >
-                    {step.at === "inTheBrowser" ? "Waiting for your browser…" : "Sign in with GitHub"}
-                  </Button>
-                )}
+                <Button
+                  className="mt-3"
+                  size="lg"
+                  loading={step.at === first.while}
+                  disabled={way === null || busy}
+                  onClick={() => void first.go()}
+                >
+                  {step.at === first.while ? first.waiting : first.label}
+                </Button>
 
                 {step.at === "inTheBrowser" ? (
                   <p className="m-0 mt-1 text-xs text-muted-foreground">
                     Approve it in the tab that opened. This window will move on by itself.
                   </p>
                 ) : (
-                  ways?.browser === true &&
-                  ways.code && (
-                    <Button variant="ghost" size="sm" onClick={withACode}>
+                  way === "browser" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      loading={step.at === "asking"}
+                      disabled={busy}
+                      onClick={() => void withACode()}
+                    >
                       No browser on this machine? Use a code
                     </Button>
                   )
