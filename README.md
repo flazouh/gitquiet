@@ -3,7 +3,7 @@
 ![GitQuiet](site/public/store/marquee.png)
 
 **A faster, quieter GitHub.**
-Pull requests, issues, commits and checks, grouped by who acts next.
+GitHub is where your work lives. GitQuiet is where you do it.
 
 [Install for Chrome](https://chromewebstore.google.com/detail/gitquiet/ichobjnihnofjkpoegikjhefmoekaahe) · [gitquiet.com](https://gitquiet.com) · [Licence](#licence)
 
@@ -15,10 +15,10 @@ GitHub splits a pull request by record type: Conversation, Commits, Checks, File
 None of those four tabs answers the question you opened it with, so you read all
 of them and work it out again on the next visit.
 
-GitQuiet redraws fourteen pages on github.com itself and groups the same data by
-who acts next. It runs inside GitHub's own page, in Primer tokens and Octicons,
-so it follows whichever theme you already use. Their header, nav and repository
-tabs are left exactly as they are.
+GitQuiet is its own interface on that data, and it files everything by what needs
+you. It opens on github.com's own addresses, in Primer tokens and Octicons, so it
+follows whichever theme you already use. Their header, nav and repository tabs
+are left exactly as they are.
 
 ## Four groups
 

@@ -11,7 +11,7 @@ export type Shot = {
 export const SHOTS: ReadonlyArray<Shot> = [
   {
     "name": "working-set",
-    "caption": "Every pull request you are in, filed by whose move it is rather than by which repository it came from",
+    "caption": "Every pull request you are in, filed by what needs you rather than by which repository it came from",
     "width": 1280,
     "height": 800
   },
@@ -29,7 +29,7 @@ export const SHOTS: ReadonlyArray<Shot> = [
   },
   {
     "name": "repo-pulls",
-    "caption": "One repository's pull requests, filed by whose move it is, with a seven-deep stack folded into one row",
+    "caption": "One repository's pull requests, filed by what needs you, with a seven-deep stack folded into one row",
     "width": 1280,
     "height": 800
   },
@@ -83,7 +83,7 @@ export const SHOTS: ReadonlyArray<Shot> = [
   },
   {
     "name": "notifications",
-    "caption": "The inbox filed by who acts next, so the work that is already merged stops looking like work",
+    "caption": "The inbox filed by what needs you, so the work that is already merged stops looking like work",
     "width": 1280,
     "height": 800
   },

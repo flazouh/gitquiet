@@ -148,7 +148,7 @@ const Marquee = () => (
             color: INK
           }}
         >
-          GitHub pull request review. Every PR you are in, grouped by who acts next.
+          GitHub is where your work lives. GitQuiet is where you do it.
         </p>
       </div>
       <div style={{ position: "relative", height: 460 }}>
@@ -290,7 +290,7 @@ const SocialCard = () => (
             color: MUTED
           }}
         >
-          Pull requests, issues, commits and checks, grouped by who acts next.
+          Pull requests, issues, commits and checks, filed by what needs you.
         </p>
       </div>
       <div style={{ position: "relative", overflow: "hidden" }}>

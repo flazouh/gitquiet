@@ -328,7 +328,7 @@ export const LIST: Listed = {
 export const REPO_PULLS_VIEW: View = {
   name: "repo-pulls",
   caption:
-    "One repository's pull requests, filed by whose move it is, with a seven-deep stack folded into one row",
+    "One repository's pull requests, filed by what needs you, with a seven-deep stack folded into one row",
   ...STORE,
   draw: () => (
     <RepoPullsScreen

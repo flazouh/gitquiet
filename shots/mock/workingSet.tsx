@@ -476,7 +476,7 @@ export const PARTICIPANT = { login: VIEWER, faceUrl: faceOf(VIEWER) }
 export const WORKING_SET_VIEW: View = {
   name: "working-set",
   caption:
-    "Every pull request you are in, filed by whose move it is rather than by which repository it came from",
+    "Every pull request you are in, filed by what needs you rather than by which repository it came from",
   ...STORE,
   draw: () => (
     <WorkingSetScreen

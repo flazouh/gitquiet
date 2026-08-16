@@ -39,7 +39,7 @@ describe("the repository pull requests view", () => {
    * looks like to a person who does not maintain it. A mock that filed every row under
    * one heading would photograph a list rather than a grouping.
    */
-  test("files the rows by whose move it is", async () => {
+  test("files the rows by what needs you", async () => {
     const shot = drawn()
     await shot.findByText(/Allow suppressing TypeScript plugin diagnostics/)
 

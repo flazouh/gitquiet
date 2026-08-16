@@ -28,7 +28,7 @@ const PANES = { x: 0, y: 0, width: 660, height: 470 } as const
 
 export const FEATURES: Readonly<Record<string, Feature>> = {
   "working-set": {
-    title: "Sorted by whose move it is",
+    title: "Sorted by what needs you",
     description: "Every pull request you are in, from every repository, in one list.",
     focus: WINDOW
   },

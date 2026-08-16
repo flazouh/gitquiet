@@ -6,7 +6,7 @@ import { faceOf, MOCK_VIEWER } from "./faces"
 import { minutesAgo } from "./when"
 
 /**
- * The reader's inbox, filed by who acts next.
+ * The reader's inbox, filed by what needs you.
  *
  * The argument this picture has to make is the proportion. On a real inbox read on
  * 2026-08-13, 15 rows carried 7 pull requests that were already merged, and across three of
@@ -263,7 +263,7 @@ export const NOTICES: ReadonlyArray<Notice> = TOLD.map(noticeOf)
 export const NOTIFICATIONS_VIEW: View = {
   name: "notifications",
   caption:
-    "The inbox filed by who acts next, so the work that is already merged stops looking like work",
+    "The inbox filed by what needs you, so the work that is already merged stops looking like work",
   ...STORE,
   draw: () => (
     <NoticesScreen
