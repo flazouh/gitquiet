@@ -1,3 +1,5 @@
+import { COURT_NAME } from "../courts"
+
 /**
  * What a reader is told the first time, in the order it is worth telling.
  *
@@ -23,6 +25,16 @@
  */
 export type Shot = "working-set" | "pull-request" | "commit"
 
+/**
+ * The first heading a reader will see on the list, taken from the list itself.
+ *
+ * The first beat names it, and naming it is the whole beat: a reader who has read the
+ * words "Needs You" here recognises the heading thirty seconds later and needs nothing
+ * else explained. Written out again instead, this sentence promised a heading the app
+ * had stopped drawing under that name.
+ */
+const FIRST_COURT = COURT_NAME["needs-you"]
+
 export type Beat = {
   readonly title: string
   /** One sentence. Two is a beat that has started explaining itself. */
@@ -38,18 +50,18 @@ export type Beat = {
 
 export const BEATS: ReadonlyArray<Beat> = [
   {
-    title: "Your pull requests, grouped by whose move it is.",
-    says: ["Your move, waiting, running, settled. Nothing to sort and nothing to configure."],
+    title: "Every pull request you are in, in one list.",
+    says: [`${FIRST_COURT} at the top. Nothing to sort and nothing to configure.`],
     shot: "working-set"
   },
   {
     title: "One pull request, one screen.",
-    says: ["The conversation and the files together, with everything unresolved above the diff."],
+    says: ["The conversation and the files together, with nothing unresolved hidden in a tab."],
     shot: "pull-request"
   },
   {
-    title: "The same reading everywhere else.",
-    says: ["Commits, issues, checks and releases, on the pages you already use."],
+    title: "On github.com, not beside it.",
+    says: ["Commits, issues, checks and releases, redrawn on the pages you already use."],
     shot: "commit"
   }
 ]

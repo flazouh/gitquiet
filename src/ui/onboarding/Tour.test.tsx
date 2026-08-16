@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { COURT_NAME } from "../courts"
 import { BEATS } from "./beats"
 import { Tour } from "./Tour"
 
@@ -112,5 +113,15 @@ describe("what the onboarding says", () => {
       expect(beat.says).toHaveLength(1)
       expect(beat.shot).toBeTruthy()
     }
+  })
+
+  /*
+   * The first beat promises a heading, and the promise is the beat. This is the fault
+   * that guard was written for: the Court was renamed from Your Move to Needs You in
+   * the app, and the tour went on naming the old one to a reader who would never see
+   * it. Nothing failed, which is why it took a person noticing.
+   */
+  test("names the first Court as the list names it, rather than as it was once named", () => {
+    expect(BEATS[0]?.says[0]).toContain(COURT_NAME["needs-you"])
   })
 })
