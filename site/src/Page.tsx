@@ -62,9 +62,9 @@ const EDGE = "rounded-md"
  * The word "GitHub" went: the cat says it, the count beside it says it again, and the
  * button sits a centimetre from a heading that names the site.
  *
- * No outline either. One filled button is what a nav wants a reader to press, and an
- * outlined one beside it argues with that. What says this is a button is the shape the
- * hover fills in, which is the shape it has all along.
+ * No outline, and no plate under the pointer either. One filled button is what a nav
+ * wants a reader to press, and anything drawn around this one argues with that. The
+ * darkening ink and the press are the whole of the feedback.
  */
 const Source = () => {
   const many = useStars()
@@ -77,7 +77,7 @@ const Source = () => {
           ? "GitQuiet source on GitHub"
           : `GitQuiet source on GitHub, ${many} ${many === 1 ? "star" : "stars"}`
       }
-      className={`inline-flex items-center gap-1.5 ${EDGE} px-3 py-2 text-[14px] font-semibold text-ink/70 transition-[transform,color,background-color] duration-[var(--duration-press)] ease-out hover:bg-ink/[0.06] hover:text-ink active:scale-[var(--scale-press)] sm:px-3.5 sm:py-2.5 sm:text-[15px]`}
+      className={`inline-flex items-center gap-1.5 ${EDGE} px-3 py-2 text-[14px] font-semibold text-ink/70 transition-[transform,color] duration-[var(--duration-press)] ease-out hover:text-ink active:scale-[var(--scale-press)] sm:px-3.5 sm:py-2.5 sm:text-[15px]`}
     >
       <Octocat size={16} />
       {/*
