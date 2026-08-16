@@ -2268,37 +2268,26 @@ export const layer = Layer.succeed(GitHubGateway, {
         )
       )
 
-      // `null` is GitHub's answer for a pull request already in a stack and for
-      // one with nothing standing on it, and a chain of one is nothing to make.
-      // Each of them is the offer having gone rather than the write failing, and
-      // the sentence says so: the reader is looking at a strip that was true when
-      // it was drawn.
-      if (offered === null || offered.length < 2) {
+      const landing = offered === null ? [] : offered.toReversed()
+      // The foundation's stack, because that is the one this chain would join.
+      const joining = landing[0]?.stackId ?? null
+      // The layers in no stack, which is every layer of a chain nobody has
+      // stacked and the top ones of a chain standing on a stack.
+      const adding = landing.flatMap((layer) => (layer.stackId === null ? [layer.id] : []))
+
+      // Three ways for there to be nothing to write, and one sentence for them:
+      // the offer the strip was drawn from has gone. `null` is GitHub's answer on
+      // a pull request already in a stack and on one with nothing standing on it,
+      // a chain of one is nothing to make, and a chain whose every layer is in
+      // the stack already is nothing to add — that last one is somebody else
+      // having pressed first, and GitHub answers `null` for it a moment later.
+      // None of the three is the write failing, so nothing is sent.
+      if (landing.length < 2 || adding.length === 0) {
         return yield* new GatewayError({
           reference,
           route: PREVIEW_STACK,
           reason: "rejected",
           detail: "GitHub no longer offers this stack. Read the pull request again."
-        })
-      }
-
-      const landing = offered.toReversed()
-      // The foundation's, because that is the stack this chain would join: a
-      // layer higher up carrying another stack's id would be a chain GitHub has
-      // no addition to offer for, and it answers the refusal above rather than
-      // being sorted out here.
-      const joining = landing[0]?.stackId ?? null
-      const adding = landing.filter((layer) => layer.stackId === null).map((layer) => layer.id)
-
-      // Every layer already in the stack it would be added to, which is the
-      // press having been made twice or somebody else having made it. Nothing
-      // to send, and their own dialog sends nothing here either.
-      if (adding.length === 0) {
-        return yield* new GatewayError({
-          reference,
-          route: PREVIEW_STACK,
-          reason: "rejected",
-          detail: "These pull requests already stack. Read the pull request again."
         })
       }
 

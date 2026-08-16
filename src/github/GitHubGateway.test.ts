@@ -1325,10 +1325,9 @@ describe("what the gateway sends to GitHub", () => {
       })
 
       test("writes nothing where every layer is in the stack already", async () => {
-        // Not a shape GitHub has been seen to answer with — a pull request in a
-        // stack is answered `null` — so this is the press having been made
-        // twice, or somebody else having made it between the read and the write.
-        // Their own dialog sends nothing on an empty list either.
+        // Somebody else having pressed first, between the read and the write.
+        // GitHub answers `null` on a pull request in a stack, so this array is
+        // the same staleness as that answer and gets the same sentence.
         const calls = offering(
           (loadFixture("preview-stack-append") as ReadonlyArray<Record<string, unknown>>).map(
             (layer) => ({ ...layer, stackId: 391704, stackNumber: 83 })
@@ -1339,7 +1338,7 @@ describe("what the gateway sends to GitHub", () => {
 
         expect(calls).toHaveLength(1)
         expect(error.reason).toBe("rejected")
-        expect(error.detail).toContain("already stack")
+        expect(error.detail).toContain("no longer")
       })
 
       test("names no stack where there is none to add to", async () => {
