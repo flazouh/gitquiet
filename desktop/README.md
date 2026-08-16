@@ -96,6 +96,13 @@ It needs an OAuth app of your own:
 GITHUB_CLIENT_ID=Ov23li… GITHUB_CLIENT_SECRET=… bun run dev
 ```
 
+Kept in `~/.config/gitquiet/oauth.env` on a machine that builds this often, outside
+the repository so no `.gitignore` line stands between a secret and a commit:
+
+```bash
+set -a && . ~/.config/gitquiet/oauth.env && set +a && bun run dev
+```
+
 They are read **while bundling**, not at launch: `electrobun.config.ts` hands
 both to Bun's `define`, so a packaged app carries them. An app opened from Finder
 inherits launchd's environment, which has neither, which is why every build

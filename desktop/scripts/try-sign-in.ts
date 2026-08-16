@@ -17,12 +17,21 @@ import { CLIENT_ID, CLIENT_SECRET } from "../src/bun/oauth"
  * and comes back with a made-up code, which GitHub then refuses. That is the
  * whole loop except the one leg that needs a person, so it is the way to check
  * the loopback door on a machine with no browser.
+ *
+ * With `--show` it prints the URL and waits, rather than opening a browser of its
+ * own. That is the whole loop including the person, when the person is an agent
+ * driving a browser it can see: the authorize page, the approval, the redirect
+ * back, and a real token at the end.
  */
 
 const pretending = process.argv.includes("--pretend")
+const showing = process.argv.includes("--show")
 
+// The id is published in every request this app makes. The secret is not, and
+// four characters of it in a terminal is four characters of it in a transcript,
+// a CI log, or a screen recording — so it is counted rather than shown.
 console.log(`client id     ${CLIENT_ID === "" ? "(none set)" : CLIENT_ID}`)
-console.log(`client secret ${CLIENT_SECRET === "" ? "(none set)" : `${CLIENT_SECRET.slice(0, 4)}…`}`)
+console.log(`client secret ${CLIENT_SECRET === "" ? "(none set)" : `${CLIENT_SECRET.length} characters`}`)
 
 const pretendBrowser = async (url: string) => {
   const asked = new URL(url)
@@ -40,8 +49,15 @@ const pretendBrowser = async (url: string) => {
   )
 }
 
+/** Hands the URL over and waits, for whoever is driving a browser themselves. */
+const showTheUrl = async (url: string) => {
+  console.log(`approve this  ${url}`)
+}
+
+const browser = pretending ? { open: pretendBrowser } : showing ? { open: showTheUrl } : {}
+
 const said = await Effect.runPromise(
-  signInThroughBrowser(pretending ? { open: pretendBrowser } : {}).pipe(
+  signInThroughBrowser(browser).pipe(
     Effect.map((token) => `signed in, token ${token.slice(0, 7)}…`),
     Effect.catch((cause) =>
       Effect.succeed(`refused: ${cause instanceof Error ? cause.message : String(cause)}`)
