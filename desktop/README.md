@@ -101,6 +101,19 @@ both to Bun's `define`, so a packaged app carries them. An app opened from Finde
 inherits launchd's environment, which has neither, which is why every build
 before this shipped a sign-in button that refused before it reached the network.
 
+A release build reads them from two repository secrets, named without the
+`GITHUB_` prefix because GitHub refuses to store a secret under one:
+
+| Secret | What it is |
+| --- | --- |
+| `OAUTH_CLIENT_ID` | the OAuth app's client id |
+| `OAUTH_CLIENT_SECRET` | its client secret, for the code exchange |
+
+`release.yml` then greps the built bundle for the id, so a release that lost them
+somewhere between the secret and the app fails there rather than on somebody's
+machine. Every launch also says which way in it has, as `sign-in: browser`,
+`sign-in: code` or `sign-in: none`, in the first lines of the log.
+
 With the id and no secret, the panel offers the code flow only. With neither, it
 says so instead of drawing a button that cannot work.
 
@@ -130,14 +143,6 @@ https://github.com/flazouh/gitquiet/releases/latest/download/stable-macos-arm64-
 leaves in `desktop/artifacts` once the disk image has been moved out. Without
 them a build checks, finds nothing, writes one line to the log and says nothing
 on screen.
-
-Two repository secrets feed the build, named without the `GITHUB_` prefix because
-GitHub refuses to store a secret under one:
-
-| Secret | What it is |
-| --- | --- |
-| `OAUTH_CLIENT_ID` | the OAuth app's client id |
-| `OAUTH_CLIENT_SECRET` | its client secret, for the code exchange |
 
 A development build never checks: Electrobun's updater refuses on the `dev`
 channel, which is the `off` standing in `src/bun/updates.ts`.
