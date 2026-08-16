@@ -113,6 +113,39 @@ GITHUB_CLIENT_ID=… GITHUB_CLIENT_SECRET=… bun desktop/scripts/try-sign-in.ts
 Add `--pretend` and it plays the browser itself, which checks the loopback door
 and leaves the last leg — a person approving — untested.
 
+## Updating itself
+
+A released app looks for a newer one on launch, downloads it, and then offers one
+press: **Restart to update**, in the title bar. Nothing asks permission to look
+or to download, because the only part that interrupts a reader is the restart.
+
+It reads its own release page, over the link that outlives the release it was
+written against:
+
+```
+https://github.com/flazouh/gitquiet/releases/latest/download/stable-macos-arm64-update.json
+```
+
+`release.yml` attaches that file and the tarball beside it — everything the build
+leaves in `desktop/artifacts` once the disk image has been moved out. Without
+them a build checks, finds nothing, writes one line to the log and says nothing
+on screen.
+
+Two repository secrets feed the build, named without the `GITHUB_` prefix because
+GitHub refuses to store a secret under one:
+
+| Secret | What it is |
+| --- | --- |
+| `OAUTH_CLIENT_ID` | the OAuth app's client id |
+| `OAUTH_CLIENT_SECRET` | its client secret, for the code exchange |
+
+A development build never checks: Electrobun's updater refuses on the `dev`
+channel, which is the `off` standing in `src/bun/updates.ts`.
+
+Nothing here verifies a signature of its own. What it rests on is macOS: the
+tarball holds a bundle signed with this project's Developer ID and notarised by
+Apple, and the system refuses to launch one whose signature does not match.
+
 **On a development machine you can skip all of that.** If the GitHub CLI is
 signed in, the app uses its token, so a fresh checkout draws a real Working Set
 before anybody has created an OAuth app. The order is keychain, then

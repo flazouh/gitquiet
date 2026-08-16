@@ -107,5 +107,31 @@ export default {
       notarize: process.env.ELECTROBUN_DEVELOPER_ID !== undefined,
       createDmg: true
     }
+  },
+  /*
+   * Where a built app looks for the next one.
+   *
+   * This address is written into the bundle, so it is the one thing here that a
+   * shipped app cannot be talked out of. `releases/latest/download/NAME` is the
+   * only link to a release asset that outlives the release it was written
+   * against, which is what makes it usable from inside a build that was made
+   * months ago — the same reason `release.yml` attaches the disk image under a
+   * fixed second name. The updater asks for `stable-macos-arm64-update.json`
+   * under it, compares the hash with its own, and fetches
+   * `stable-macos-arm64-GitQuiet.app.tar.zst` when they differ.
+   *
+   * Patches are asked for and will not be found, which costs a reader a twenty
+   * megabyte download instead of a few hundred kilobytes. Generating one means
+   * reading the previous release's `update.json` from this address while
+   * building, and by then the tag being built is itself the latest release with
+   * nothing attached to it yet. The updater falls back to the whole tarball on
+   * its own, so this is a size rather than a fault, and it is left as a size
+   * rather than being fixed with a second address that could go stale.
+   *
+   * A development build never asks: Electrobun's updater refuses on the `dev`
+   * channel before it reads this.
+   */
+  release: {
+    baseUrl: "https://github.com/flazouh/gitquiet/releases/latest/download"
   }
 } satisfies ElectrobunConfig

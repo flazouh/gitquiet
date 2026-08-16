@@ -27,6 +27,21 @@ export type Viewer = {
  * useless without the reader typing the user code into GitHub themselves.
  */
 /**
+ * Whether a newer build is waiting, as the five things the window can say.
+ *
+ * The looking and the downloading happen on launch without being asked, so what
+ * crosses the wire is only ever what was found. `off` is a development build,
+ * which has no release to compare itself against.
+ */
+export type UpdateStanding =
+  | { readonly at: "off" }
+  | { readonly at: "looking" }
+  | { readonly at: "current" }
+  /** Downloaded, unpacked, and waiting for a restart. */
+  | { readonly at: "ready"; readonly version: string }
+  | { readonly at: "failed"; readonly why: string }
+
+/**
  * The two ways in, and whether this build can offer each.
  *
  * Both are false in a build nobody gave credentials to, which is the state every
@@ -322,6 +337,21 @@ export type Wire = {
       finishSignIn: { params: Pending; response: Answered<Viewer> }
       /** Forgets the token, which is the whole of signing out. */
       signOut: { params: void; response: void }
+      /**
+       * Whether a newer build is already downloaded and waiting.
+       *
+       * Asked rather than pushed, because the check starts before the window
+       * exists. Answered with `looking` while it is still going, which is the
+       * one answer worth asking again after.
+       */
+      updateStanding: { params: void; response: UpdateStanding }
+      /**
+       * Restarts into the build that was downloaded.
+       *
+       * Nothing comes back: this process replaces the bundle and quits, and the
+       * window that asked is gone before an answer could reach it.
+       */
+      applyUpdate: { params: void; response: void }
       /** Every pull request the reader is in, in one GraphQL round trip. */
       workingSet: { params: void; response: Answered<ReadonlyArray<WorkingSetRow>> }
       /** One pull request, whole: everything its card draws except file content. */

@@ -27,6 +27,7 @@ import { beginSignIn, finishSignIn } from "./device"
 import { canSignInThroughBrowser, canSignInWithACode } from "./oauth"
 import { forgetToken, keepToken } from "./keychain"
 import { currentToken } from "./token"
+import { theUpdater, watchForUpdates } from "./updates"
 import { readWorkingSet } from "./workingSet"
 
 /**
@@ -179,6 +180,24 @@ const zoomed = (how: PageZoomHow): Effect.Effect<{ readonly zoom: number }> =>
     return { zoom }
   })
 
+/**
+ * The look for a newer build, started here rather than when a window asks.
+ *
+ * On launch, once, before the window is drawn: a reader who is offered an update
+ * a minute after opening the app has already started reading something. In a
+ * demo there is nothing to update — the bundle is a recording — and in a
+ * development build the updater refuses on its own, which is the `off` standing.
+ */
+const watchingForUpdates = watchForUpdates(theUpdater)
+
+// Said in the log as well as on screen, because the window draws nothing at all
+// for three of the five standings and a release page that is missing the
+// updater's files looks exactly like an app that is up to date.
+void watchingForUpdates.looked.then(() => {
+  const it = watchingForUpdates.standing()
+  console.log("[working-set] update:", it.at === "failed" ? `failed — ${it.why}` : it.at)
+})
+
 const rpc = defineElectrobunRPC<Wire, "bun">("bun", {
   // Fifteen minutes, which is not a timeout for a request so much as one for a
   // person: `finishSignIn` is held open while the reader types a code into
@@ -234,6 +253,15 @@ const rpc = defineElectrobunRPC<Wire, "bun">("bun", {
         ),
 
       signOut: () => Effect.runPromise(forgetToken().pipe(Effect.orElseSucceed(() => undefined))),
+
+      updateStanding: () => Promise.resolve(watchingForUpdates.standing()),
+
+      // Answered before the app is replaced, because after `apply` there is no
+      // process left to answer with: it swaps the bundle, respawns the launcher
+      // and quits.
+      applyUpdate: async () => {
+        void theUpdater.apply()
+      },
 
       /**
        * The list, read with a token the interface never sees.

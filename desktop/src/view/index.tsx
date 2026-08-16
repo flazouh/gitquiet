@@ -15,6 +15,7 @@ import { ask } from "./rpc"
 import { Settings } from "./settings"
 import { SignIn } from "./signIn"
 import { Supplied } from "./supplied"
+import { Update } from "./update"
 import { WorkingSet } from "./workingSet"
 
 // Before anything else runs, so a failure while the interface is being built is
@@ -115,11 +116,17 @@ const Chrome = ({
         </Button>
       </div>
     )}
-    {who.at === "someone" && (
-      <div className="chrome-end">
+    {/*
+      Drawn whether or not anybody is signed in, because an update is about the
+      app rather than about the reader: a window sitting on the sign-in panel is
+      exactly where a restart costs nothing.
+    */}
+    <div className="chrome-end">
+      <Update />
+      {who.at === "someone" && (
         <Account viewer={who.viewer} onSettings={onSettings} onSignedOut={onSignedOut} />
-      </div>
-    )}
+      )}
+    </div>
   </div>
 )
 

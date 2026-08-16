@@ -351,8 +351,31 @@ jobs:
           certificate: ${{ secrets.MACOS_CERTIFICATE }}
           password: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
 
+      # Said out loud, because a build with no OAuth app offers no way in and the
+      # panel is the only place that would ever mention it.
+      #
+      # A warning rather than a failure. This job is also what attaches the disk
+      # image the site's download link resolves to, so refusing to build would
+      # take that link down for everyone who is already signed in — a worse fault
+      # than a sign-in panel that says what is missing.
+      - name: Say if this build has no OAuth app
+        env:
+          OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
+          OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
+        run: |
+          [ -n "$OAUTH_CLIENT_ID" ] ||
+            echo "::warning::No OAUTH_CLIENT_ID: this build can sign nobody in. Set it in the repository secrets."
+          [ -n "$OAUTH_CLIENT_SECRET" ] ||
+            echo "::warning::No OAUTH_CLIENT_SECRET: this build offers the device flow only, not the browser sign-in."
+
       # `ELECTROBUN_DEVELOPER_ID` is what turns signing on: see
       # desktop/electrobun.config.ts, which reads it to decide.
+      #
+      # The OAuth app is read here, while the bundle is being built, and not by
+      # the app at launch: an app opened from Finder inherits launchd's
+      # environment and would find nothing. The secrets are named without the
+      # `GITHUB_` prefix because GitHub refuses to store a secret under one, and
+      # they are mapped to the names the build reads.
       - name: Build, sign and notarise
         working-directory: desktop
         env:
@@ -360,6 +383,8 @@ jobs:
           ELECTROBUN_APPLEID: ${{ secrets.APPLE_ID }}
           ELECTROBUN_APPLEIDPASS: ${{ secrets.APPLE_ID_PASSWORD }}
           ELECTROBUN_TEAMID: ${{ secrets.APPLE_TEAM_ID }}
+          GITHUB_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
+          GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
         run: bun run build:stable
 
       # Renamed on the way up. Electrobun names an artifact for the build it came
@@ -389,6 +414,22 @@ jobs:
         run: |
           cp "$DMG" GitQuiet-macos-arm64.dmg
           gh release upload "$RELEASE_TAG" "$DMG" GitQuiet-macos-arm64.dmg --clobber
+
+      # What the app already installed reads to find this one.
+      #
+      # Every build writes these beside the disk image and no release has ever
+      # carried them, which is why the updater in every shipped build has been
+      # asking for a file that was not there. The names are Electrobun's own and
+      # are what a bundle asks for by name — `stable-macos-arm64-update.json`
+      # holds the hash to compare, the tarball beside it is the app itself — so
+      # they go up as they are rather than being renamed for a downloads folder.
+      # The step above moved the disk image out of that folder, so whatever is
+      # left is the updater's, including a patch file if one was generated.
+      - name: Attach what the updater reads
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.gate.outputs.tag }}
+        run: gh release upload "$RELEASE_TAG" desktop/artifacts/* --clobber
 
   safari:
     name: Safari app
