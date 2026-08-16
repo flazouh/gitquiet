@@ -2,7 +2,7 @@ import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { Bed } from "./Bed"
 import { HERO_SHADOW, INK, MUTED, PAPER, SCREEN_EDGE, SCREEN_SHADOW } from "./brand"
-import { Mark, Wordmark } from "./Mark"
+import { Mark, Wordmark } from "@/ui/Mark"
 import "@fontsource-variable/inter"
 import "./index.css"
 

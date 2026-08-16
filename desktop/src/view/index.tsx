@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { createRoot } from "react-dom/client"
 import type { PullRequestRef } from "../../../src/domain/PullRequestRef"
 import { THE_ART } from "../../../src/ui/art"
+import { WithinProvider } from "../../../src/ui/within"
 import { Button } from "../components/ui/button"
 import { ShapeProvider } from "../lib/shape-context"
 import type { Viewer } from "../shared/wire"
@@ -13,9 +14,9 @@ import { record } from "./recorded"
 import { pageZoomFromPress } from "../shared/pageZoom"
 import { ask } from "./rpc"
 import { Settings } from "./settings"
-import { SignIn } from "./signIn"
 import { Supplied } from "./supplied"
 import { Update } from "./update"
+import { Welcome } from "./welcome"
 import { WorkingSet } from "./workingSet"
 
 // Before anything else runs, so a failure while the interface is being built is
@@ -139,6 +140,8 @@ const App = () => {
    * while looking at the list should not have to open a card to do it.
    */
   const [tweaking, setTweaking] = useState(false)
+  /** The page element, for the bar that has to be told it is not on a page of GitHub's. */
+  const [page, setPage] = useState<HTMLElement | null>(null)
 
   useEffect(() => {
     let watching = true
@@ -199,6 +202,55 @@ const App = () => {
     return () => document.removeEventListener("keydown", onKey)
   }, [])
 
+  /**
+   * What the window is showing, under the strip.
+   *
+   * Three layouts rather than two, because they want three different things: the
+   * welcome wants the whole window and paints its own gradient across it, the
+   * Working Set wants the whole window with a scrollbar, and the moment before
+   * either wants nothing at all.
+   *
+   * Nothing at all is deliberate. The keychain answers in a few milliseconds, and a
+   * welcome screen that flashes up in front of somebody who signed in last week is
+   * worse than a moment of nothing.
+   */
+  const screen = () => {
+    switch (who.at) {
+      case "asking":
+        return <main className="middle" />
+      case "nobody":
+        return <Welcome onSignedIn={(viewer) => setWho({ at: "someone", viewer })} />
+      case "someone":
+        return (
+          /*
+           * The page, and the element the screens' own bar is told to stand inside.
+           *
+           * Without being told, the bar portals to the top of the document, which is
+           * where it belongs on github.com and is the wrong place twice over here: it
+           * lands under the traffic lights, and it pushes this window's own strip —
+           * the drag region — down out of the title bar, so the window cannot be
+           * moved at all. Told this element, it stops at the page's own top edge and
+           * stands under the strip, which is where a toolbar goes in a Mac window.
+           *
+           * Drawn on the second render, once there is an element to name. One frame
+           * of an empty page rather than a bar that appears at the top of the window
+           * and jumps.
+           */
+          <main className="page" ref={setPage}>
+            {page !== null && (
+              <WithinProvider value={page}>
+                {showing.at === "card" ? (
+                  <PullRequest reference={showing.reference} onBack={() => setShowing({ at: "list" })} />
+                ) : (
+                  <WorkingSet onOpen={(reference) => setShowing({ at: "card", reference })} />
+                )}
+              </WithinProvider>
+            )}
+          </main>
+        )
+    }
+  }
+
   return (
     // Everything, so the sheet the strip opens has the same store the screens
     // under it are already reading. Each screen still supplies itself: they are
@@ -211,31 +263,7 @@ const App = () => {
         onSettings={() => setTweaking(true)}
         onSignedOut={() => setWho({ at: "nobody" })}
       />
-      {/*
-        Two layouts, because a panel and a list want opposite things: the sign-in
-        panel wants the middle of the window and the Working Set wants all of it,
-        with its own scrollbar.
-
-        Nothing at all while the keychain is asked. It answers in a few
-        milliseconds, and a sign-in panel that flashes up in front of somebody who
-        is already signed in is worse than a moment of nothing.
-      */}
-      {who.at === "someone" ? (
-        <main className="page">
-          {showing.at === "card" ? (
-            <PullRequest
-              reference={showing.reference}
-              onBack={() => setShowing({ at: "list" })}
-            />
-          ) : (
-            <WorkingSet onOpen={(reference) => setShowing({ at: "card", reference })} />
-          )}
-        </main>
-      ) : (
-        <main className="middle">
-          {who.at === "nobody" && <SignIn onSignedIn={(viewer) => setWho({ at: "someone", viewer })} />}
-        </main>
-      )}
+      {screen()}
       {tweaking ? <Settings onClose={() => setTweaking(false)} /> : null}
     </Supplied>
   )

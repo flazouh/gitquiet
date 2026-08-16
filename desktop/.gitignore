@@ -27,3 +27,6 @@ src/view/markdown-mermaid.js
 
 # Built by scripts/build-demo-view.ts out of index.html, which is the page to edit.
 src/view/demo.html
+
+# Copied out of site/public/shots by `bun run shots` for the onboarding.
+src/view/shots

@@ -1,4 +1,5 @@
 import { defineBackground } from "wxt/utils/define-background"
+import { welcomeFor } from "@/app/welcoming"
 import { initialiseErrorReporting } from "@/observability/sentry"
 
 /**
@@ -22,4 +23,19 @@ import { initialiseErrorReporting } from "@/observability/sentry"
  */
 export default defineBackground(() => {
   initialiseErrorReporting("service-worker")
+
+  /*
+   * The onboarding, once, on the install.
+   *
+   * Which reasons deserve a tab is `welcoming.ts`'s to say and is tested there: this
+   * listener fires on an update as well, and a tab that opens by itself because
+   * something updated in the background is the behaviour that gets an extension
+   * uninstalled.
+   */
+  browser.runtime.onInstalled.addListener((details) => {
+    const at = welcomeFor(details.reason)
+    if (at === null) return
+
+    void browser.tabs.create({ url: at })
+  })
 })

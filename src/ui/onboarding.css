@@ -1,0 +1,309 @@
+/**
+ * The onboarding, which is one component drawn in three places.
+ *
+ * Its own stylesheet for the same reason the component is shared: the app's window,
+ * the site, and the tab the extension opens when it installs itself all say the same
+ * four things, and a look maintained three times is three looks.
+ *
+ * Every value that has a name elsewhere is read through a fallback —
+ * `var(--duration-fast, 250ms)`. The motion scale is declared on `#gitquiet-root` and
+ * on `[data-gitquiet-outside]`, which the window and the extension have and a plain
+ * page of ours does not, so the fallbacks are that scale's own numbers rather than
+ * new ones. See `motion.css`.
+ *
+ * The three colours come the other way, from `bed.ts` through the component, as
+ * `--bed-ink`, `--bed-muted` and `--bed-paper`. They are the site's ink on the site's
+ * gradient, and they do not turn over in dark mode: the gradient is light in both.
+ */
+
+/*
+ * `flex: 1` as well as a height, because the two hosts hold this two different ways.
+ * The window's panel is a fixed height, where `height: 100%` is an answer. The page's
+ * card has a floor and grows, where a percentage of an auto height is auto — so the
+ * tour stood at its content's height, the footer rode up under the last sentence, and
+ * a beat with no picture left half a card empty under it. Both hosts are flex columns,
+ * and this fills whichever one it is in.
+ */
+.tour {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 20px;
+  flex: 1 1 auto;
+  height: 100%;
+  color: var(--bed-ink);
+  text-align: left;
+}
+
+/*
+ * One beat. Built again on every move — the component keys it by the step — so this
+ * entrance runs each time, and what the reader sees is the next thing being said
+ * rather than the same paragraph correcting itself.
+ */
+.tour-beat {
+  display: grid;
+  grid-template-rows: minmax(0, auto) auto;
+  gap: 22px;
+  align-content: center;
+  min-height: 0;
+  animation: tour-beat-in var(--duration-fast, 250ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)) both;
+}
+
+@keyframes tour-beat-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * The screen this beat is about.
+ *
+ * Held to a height rather than a width, because the pictures are 1280 by 800 and the
+ * frames they are drawn in are not: a picture given the width takes six hundred pixels
+ * of a window that has to hold two sentences under it. Scaled whole rather than
+ * cropped — at this size the words in it are not for reading, the shape is: one
+ * column, grouped rows, no tabs.
+ */
+.tour-shot {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+}
+
+.tour-shot img,
+.tour-shot > * {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.tour-shot img {
+  border-radius: 10px;
+  box-shadow:
+    0 1px 2px rgba(27, 23, 37, 0.05),
+    0 18px 44px -22px rgba(27, 23, 37, 0.2);
+}
+
+.tour-said {
+  display: grid;
+  gap: 0;
+  max-width: 62ch;
+}
+
+/* Which beat this is, said before the heading rather than in the footer: a reader who
+   has just been handed something to read wants to know how much of it there is. */
+.tour-count {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-variation-settings: "wght" 550, "opsz" 14;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bed-muted);
+}
+
+.tour-title {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  font-variation-settings: "wght" 600, "opsz" 26;
+}
+
+.tour-says {
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--bed-muted);
+}
+
+.tour-act {
+  margin-top: 18px;
+}
+
+/*
+ * The four Courts, laid out the way the list lays one out: the glyph, whose move it
+ * is, then what that means. The name column is fixed so the four meanings start on one
+ * left edge — four sentences each at a different indent is four things to find rather
+ * than one column to read.
+ */
+.tour-courts {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 0;
+}
+
+.tour-court {
+  display: grid;
+  grid-template-columns: 16px 92px 1fr;
+  align-items: center;
+  gap: 10px;
+  animation: tour-beat-in var(--duration-fast, 250ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)) backwards;
+}
+
+.tour-court-art {
+  color: var(--bed-muted);
+}
+
+.tour-court-name {
+  font-size: 14px;
+  font-variation-settings: "wght" 550, "opsz" 15;
+}
+
+.tour-court-means {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--bed-muted);
+}
+
+.tour-feet {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.tour-feet-start {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.tour-feet-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.tour-dots {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * A step, pressable. Eight pixels across, and the one the reader is on is wider rather
+ * than merely darker: a row of dots where the current one is a shade off the others is
+ * a row nobody can read at a glance.
+ */
+.tour-dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bed-ink) 22%, transparent);
+  padding: 0;
+  cursor: pointer;
+  transition:
+    width var(--duration-press, 160ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+    background-color var(--duration-press, 160ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+.tour-dot:hover {
+  background: color-mix(in srgb, var(--bed-ink) 40%, transparent);
+}
+
+.tour-dot[aria-current="step"] {
+  width: 20px;
+  background: var(--bed-ink);
+}
+
+/*
+ * The ink button and the quiet one, which are the site's install button and the site's
+ * quiet link. A reader pressed the first of those a minute ago on gitquiet.com.
+ */
+.tour-press {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--bed-ink);
+  padding: 11px 22px;
+  color: var(--bed-paper);
+  font-size: 15px;
+  font-variation-settings: "wght" 550, "opsz" 18;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    transform var(--duration-press, 160ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+    background-color var(--duration-press, 160ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+.tour-press:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--bed-ink) 86%, white);
+}
+
+.tour-quietly {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 9px 12px;
+  color: var(--bed-muted);
+  font-size: 14px;
+  font-variation-settings: "wght" 450, "opsz" 15;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    transform var(--duration-press, 160ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)),
+    color var(--duration-press, 160ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+.tour-quietly:hover:not(:disabled) {
+  color: var(--bed-ink);
+}
+
+.tour-press:active:not(:disabled),
+.tour-quietly:active:not(:disabled) {
+  transform: scale(var(--scale-press, 0.97));
+}
+
+.tour-press:disabled,
+.tour-quietly:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.tour-press:focus-visible,
+.tour-quietly:focus-visible,
+.tour-dot:focus-visible {
+  outline: 2px solid var(--bed-ink);
+  outline-offset: 3px;
+}
+
+/*
+ * Travel is what the setting is about, so travel is what goes. The beats still fade
+ * from one to the next, because a step that swaps with no transition at all is a step
+ * a reader reads as a page reloading.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .tour-beat,
+  .tour-court {
+    animation-name: tour-beat-fade;
+    animation-delay: 0ms;
+  }
+
+  .tour-press:active:not(:disabled),
+  .tour-quietly:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+@keyframes tour-beat-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

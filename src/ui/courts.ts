@@ -25,6 +25,23 @@ export const COURT_NAME: Record<Court, string> = {
 }
 
 /**
+ * What each Court means, in one sentence, for a reader who has never seen the list.
+ *
+ * Said twice before this existed: once on the page that sells the app and once in the
+ * window that opens it, thirty seconds apart, in wording that had already begun to
+ * differ. They are the same four sentences either way, so they are written once.
+ *
+ * Whose move it is, in every one of them. That is the only idea the list rests on,
+ * and a reader who has it can read the whole screen without being shown around it.
+ */
+export const COURT_MEANS: Record<Court, string> = {
+  "your-move": "You can act on it now.",
+  waiting: "Someone else has to act.",
+  running: "A machine is still working. Nothing to do but wait.",
+  settled: "Finished. Nothing left to do."
+}
+
+/**
  * The colour a Court's heading wears.
  *
  * Amber for Your Move rather than red, and this is the whole rule the palette

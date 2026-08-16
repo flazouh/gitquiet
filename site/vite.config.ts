@@ -54,7 +54,16 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: fileURLToPath(new URL("./index.html", import.meta.url)),
-        assets: fileURLToPath(new URL("./assets.html", import.meta.url))
+        assets: fileURLToPath(new URL("./assets.html", import.meta.url)),
+        /*
+         * `/welcome`, which the extension opens the first time it is installed.
+         *
+         * A page of its own rather than a route: there is no router here, and one
+         * would be a dependency and a history to maintain for a second address.
+         * `serve dist -s` answers `/welcome` with `welcome.html` before it falls
+         * back to the landing page, so the address needs nothing else to work.
+         */
+        welcome: fileURLToPath(new URL("./welcome.html", import.meta.url))
       }
     }
   }

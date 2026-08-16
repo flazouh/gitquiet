@@ -3,7 +3,13 @@ builder = "RAILPACK"
 buildCommand = "bun install --frozen-lockfile && bun run build"
 
 [deploy]
-startCommand = "bunx --bun serve dist -s -l ${PORT:-3000}"
+# `-s` is gone, and the onboarding is why. It rewrites every address to
+# `index.html`, so `/welcome` — the page the extension opens the first time it is
+# installed — answered with the landing page. Without it, `serve` resolves
+# `/welcome` to `welcome.html` and `/privacy` to `privacy.html` as before, and an
+# address this site does not have answers 404 rather than pretending to be the
+# front page.
+startCommand = "bunx --bun serve dist -l ${PORT:-3000}"
 healthcheckPath = "/"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"

@@ -52,6 +52,9 @@
 
 @import "../../../src/ui/motion.css";
 @import "../../../src/ui/stack.css";
+/* The onboarding, which is one screen in three places: this window, gitquiet.com, and
+   the tab the extension opens the first time it is installed. See `onboarding.css`. */
+@import "../../../src/ui/onboarding.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -238,6 +241,164 @@ body {
   place-items: center;
   height: calc(100% - var(--chrome));
   padding: 0 24px 38px;
+}
+
+/**
+ * The first screen, which is the site's gradient and one button.
+ *
+ * The whole window rather than the middle of it, and that is the difference between
+ * this and the panel it replaced: a 360-pixel card centred in a maximised window said
+ * the app had not finished loading. The gradient runs under the title bar too — the
+ * strip above stacks over it — so there is no grey border around the brand.
+ *
+ * Ink and paper are handed down from `src/ui/bed.ts` by the screen itself, because
+ * they are the site's colours rather than the interface's, and they do not turn over
+ * in dark mode: the gradient is light in both, so the words on it stay dark in both.
+ */
+.welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: calc(100% - var(--chrome));
+  padding: 12px 24px 22px;
+  color: var(--bed-ink);
+}
+
+/*
+ * Behind the whole window, the title bar included, and behind it by being under
+ * everything rather than by anything else being over it.
+ *
+ * Nothing on this screen carries a positive `z-index`, which is not tidiness: the
+ * strip above holds the window's drag region, and a strip inside a stacking context
+ * is a window macOS will not let anybody move.
+ */
+.welcome-bed {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+}
+
+/* The mark and the wordmark, small, above the panel: the brand is the room this is
+   standing in rather than a heading inside it. */
+.welcome-lockup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 14px;
+}
+
+/**
+ * The panel the onboarding is read in.
+ *
+ * A sheet on the gradient rather than the gradient itself. Held to a size in both
+ * directions, and centred: a maximised window is fifteen hundred pixels wide, and four
+ * sentences across all of it is not a welcome, it is a billboard.
+ *
+ * White at seventy-two per cent over a blur, which is the card the site uses on its own
+ * paper. No stroke: on a surface this light a hairline is the heaviest mark on the
+ * screen, and the shadow already says the sheet is above the bed.
+ */
+.welcome-sheet {
+  display: flex;
+  flex-direction: column;
+  width: min(880px, 100%);
+  /*
+   * Six hundred and twenty tall where the window has it, and less where it does not.
+   * A height of `min(620px, 100%)` looks like the same thing and is not: the panel has
+   * a lockup above it and a promise below it, so `100%` of the column is more room than
+   * the panel can have, and on a short window it took the promise off the bottom edge.
+   * `flex-basis` with shrinking allowed is the same intent, arrived at by asking the
+   * column rather than the window.
+   */
+  flex: 0 1 620px;
+  min-height: 0;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  padding: 30px 34px 24px;
+  box-shadow:
+    0 1px 2px rgba(27, 23, 37, 0.05),
+    0 24px 60px -24px rgba(27, 23, 37, 0.22);
+}
+
+/* The two ways in, stacked, on the last step. */
+.welcome-ways {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+}
+
+/*
+ * GitHub's own red, which is the one colour on this screen that is not the brand's.
+ * A refusal is the one thing here a reader has to notice, and it arrives on a
+ * gradient made of pinks: ink on paper would have been a sentence in the flow.
+ */
+.welcome-refused {
+  margin: 0 0 16px;
+  border-radius: 8px;
+  background: rgba(207, 34, 46, 0.1);
+  padding: 8px 12px;
+  color: #8b1a26;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* The code, in a panel of its own inside the sheet: it is the one thing on this screen
+   that is copied by hand, so it is given its own edge to sit in. */
+.welcome-code {
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.75);
+  padding: 16px 20px;
+  box-shadow: inset 0 0 0 1px rgba(27, 23, 37, 0.08);
+}
+
+.welcome-code-say {
+  margin: 0;
+  font-size: 15px;
+  font-variation-settings: "wght" 550, "opsz" 20;
+}
+
+/* Read off a screen and typed somewhere else, so: tabular figures, real letter
+   spacing, and selectable in one press. */
+.welcome-code-is {
+  margin: 8px 0 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 32px;
+  letter-spacing: 0.16em;
+  font-variant-numeric: tabular-nums;
+  user-select: all;
+}
+
+.welcome-code-at {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--bed-muted);
+}
+
+.welcome-code-at span {
+  color: var(--bed-ink);
+}
+
+/* The sentence under a control: what is happening, or why nothing can. */
+.welcome-code-hint {
+  margin: 10px 0 0;
+  max-width: 420px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--bed-muted);
+}
+
+/* The promise, at the foot of the window, where a reader looks once and does not
+   need again. */
+.welcome-kept {
+  margin: 0;
+  max-width: 460px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--bed-muted);
+  text-align: center;
 }
 
 /* The list, which wants the window rather than the middle of it. */
