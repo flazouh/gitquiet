@@ -100,19 +100,27 @@ export const Race: React.FC = () => {
         The headline sits in what would otherwise be a black band above the bed.
         The panes are wide and short, so a 16:9 frame has room over them whether
         it is used or not, and an empty third reads as a crop that went wrong.
+
+        It states the thing the footage proves rather than describing the setup.
+        The two launches worth copying both did that: the one that reached eight
+        million opened on "Get paid to wait", not on what was about to be shown.
+        "One press, on the same pull request" was housekeeping in the three
+        seconds that decide whether the rest is watched.
       */}
       <h1
         style={{
           margin: 0,
-          fontSize: 60,
+          fontSize: 62,
           fontWeight: 620,
           letterSpacing: "-0.03em",
           lineHeight: 1.05,
           color: INK,
           textAlign: "center",
+          maxWidth: 1500,
+          alignSelf: "center",
         }}
       >
-        One press, on the same pull request.
+        GitHub keeps showing you the page you just left.
       </h1>
       <div
         style={{
