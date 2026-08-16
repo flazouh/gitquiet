@@ -592,14 +592,34 @@ jobs:
           TEAM: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           id="dev.gitquiet.${APP// /-}"
-          name() { awk -F'\t' -v want="$1" '$1 == want { print $2 }' "$RUNNER_TEMP/profiles.tsv"; }
           identity() {
             security find-identity -v "$RUNNER_TEMP/release.keychain-db" |
               sed -n "s/.*\"\($1: [^\"]*\)\".*/\1/p" | head -1
           }
+          name() { awk -F'\t' -v want="$1" '$1 == want { print $2 }' "$RUNNER_TEMP/profiles.tsv"; }
           signs=$(identity "Apple Distribution")
           wraps=$(identity "3rd Party Mac Developer Installer")
+          app=$(name "$id")
+          extension=$(name "$id.Extension")
+          # Checked here rather than inside those two, because a check that runs
+          # inside `$( )` runs in a shell of its own: its `exit` ends that shell and
+          # not this step, and the message it prints is read as the value asked for.
+          #
+          # Empty is what a missing certificate or a missing profile looks like from
+          # here, and xcodebuild answers an empty setting with a complaint about a
+          # profile not matching a certificate that neither of us named.
+          missing=""
+          add() { missing="${missing:+$missing, }$1"; }
+          [ -n "$signs" ] || add "an Apple Distribution certificate"
+          [ -n "$wraps" ] || add "a Mac Installer Distribution certificate"
+          [ -n "$app" ] || add "a profile for $id"
+          [ -n "$extension" ] || add "a profile for $id.Extension"
+          if [ -n "$missing" ]; then
+            echo "::error::This job is missing $missing. Read the two steps above it."
+            exit 1
+          fi
           echo "signing the app with $signs and the installer with $wraps"
+          echo "under the profiles $app and $extension"
           plist="$RUNNER_TEMP/store.plist"
           buddy=/usr/libexec/PlistBuddy
           plutil -create xml1 "$plist"
@@ -609,8 +629,8 @@ jobs:
           "$buddy" -c "Add :signingCertificate string '$signs'" "$plist"
           "$buddy" -c "Add :installerSigningCertificate string '$wraps'" "$plist"
           "$buddy" -c "Add :provisioningProfiles dict" "$plist"
-          "$buddy" -c "Add :provisioningProfiles:$id string '$(name "$id")'" "$plist"
-          "$buddy" -c "Add :provisioningProfiles:$id.Extension string '$(name "$id.Extension")'" "$plist"
+          "$buddy" -c "Add :provisioningProfiles:$id string '$app'" "$plist"
+          "$buddy" -c "Add :provisioningProfiles:$id.Extension string '$extension'" "$plist"
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/safari.xcarchive" \
             -exportOptionsPlist "$plist" \
