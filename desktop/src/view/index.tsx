@@ -214,42 +214,7 @@ const App = () => {
    * welcome screen that flashes up in front of somebody who signed in last week is
    * worse than a moment of nothing.
    */
-  const screen = () => {
-    switch (who.at) {
-      case "asking":
-        return <main className="middle" />
-      case "nobody":
-        return <Welcome onSignedIn={(viewer) => setWho({ at: "someone", viewer })} />
-      case "someone":
-        return (
-          /*
-           * The page, and the element the screens' own bar is told to stand inside.
-           *
-           * Without being told, the bar portals to the top of the document, which is
-           * where it belongs on github.com and is the wrong place twice over here: it
-           * lands under the traffic lights, and it pushes this window's own strip —
-           * the drag region — down out of the title bar, so the window cannot be
-           * moved at all. Told this element, it stops at the page's own top edge and
-           * stands under the strip, which is where a toolbar goes in a Mac window.
-           *
-           * Drawn on the second render, once there is an element to name. One frame
-           * of an empty page rather than a bar that appears at the top of the window
-           * and jumps.
-           */
-          <main className="page" ref={setPage}>
-            {page !== null && (
-              <WithinProvider value={page}>
-                {showing.at === "card" ? (
-                  <PullRequest reference={showing.reference} onBack={() => setShowing({ at: "list" })} />
-                ) : (
-                  <WorkingSet onOpen={(reference) => setShowing({ at: "card", reference })} />
-                )}
-              </WithinProvider>
-            )}
-          </main>
-        )
-    }
-  }
+  const signedIn = who.at === "someone"
 
   return (
     // Everything, so the sheet the strip opens has the same store the screens
@@ -263,7 +228,46 @@ const App = () => {
         onSettings={() => setTweaking(true)}
         onSignedOut={() => setWho({ at: "nobody" })}
       />
-      {screen()}
+
+      {/*
+        Nothing at all while the keychain is asked, which is deliberate: it answers
+        in a few milliseconds, and a welcome screen that flashes up in front of
+        somebody who signed in last week is worse than a moment of nothing.
+      */}
+      {who.at === "nobody" && (
+        <Welcome onSignedIn={(viewer) => setWho({ at: "someone", viewer })} />
+      )}
+
+      {/*
+        The page, and the element the screens' own bar is told to stand inside.
+
+        Without being told, the bar portals to the top of the document, which is
+        where it belongs on github.com and is wrong twice over here: it lands under
+        the traffic lights, and it pushes this window's own strip — the drag region
+        — down out of the title bar, so the window cannot be moved at all. Told
+        this element, it stops at the page's own top edge and stands under the
+        strip, which is where a toolbar goes in a Mac window.
+
+        Hidden rather than taken away when nobody is signed in, and that is the
+        whole reason it is out here rather than inside a branch. Signing out
+        unmounted this element and the bar portalled into it in one commit, and
+        React removes the portal's children from their container afterwards: the
+        container was already gone, `removeChild` threw NotFoundError, and the
+        window went blank on the way to the welcome. Kept mounted, there is always
+        something for those children to be taken out of.
+      */}
+      <main className="page" ref={setPage} hidden={!signedIn}>
+        {signedIn && page !== null && (
+          <WithinProvider value={page}>
+            {showing.at === "card" ? (
+              <PullRequest reference={showing.reference} onBack={() => setShowing({ at: "list" })} />
+            ) : (
+              <WorkingSet onOpen={(reference) => setShowing({ at: "card", reference })} />
+            )}
+          </WithinProvider>
+        )}
+      </main>
+
       {tweaking ? <Settings onClose={() => setTweaking(false)} /> : null}
     </Supplied>
   )
