@@ -97,6 +97,29 @@ carries two entries, and `stackedBaseRefName` moved from `probe-x1` to `main`. S
 a proposal is not a suggestion about the future; it is a description of the stack
 one POST would make.
 
+**The same route adds to a stack, and the offer says which it is doing.** Their
+bundle names the mutation `createStackOrAppend` and the route behind both halves
+is the one above. Measured on `flazouh/stack-probe` #82, opened on `probe-ap2`
+after #80 and #81 were made into stack 83:
+
+| Body posted | Answer |
+| --- | --- |
+| `{"pullRequestIds":[#80, #81, #82]}` | 422, `Pull requests #80, #81 are already part of a stack`, `failureReason: ALREADY_STACKED` |
+| `{"pullRequestIds":[#82],"stackId":391704}` | 200, `{"stackNumber":83}` |
+
+So an offer whose lower layers are in a stack is an addition to that stack, and
+`stackId` on the entries is the only thing that says so: null on every entry of a
+chain nobody has stacked, filled on the layers that are in one. Their dialog
+reads the foundation's, drops every entry carrying one, and sends the rest with
+the stack named beside them; its button reads "Add to stack" there rather than
+"Create stack". After the 200 `preview_stack` answers `null` and the stack holds
+three pull requests, exactly as it does after a making.
+
+This is the common shape rather than an edge. A reader who stacks four pull
+requests and opens a fifth on top of them is in it, and GitHub's banner offers
+the press there as it does anywhere else: `canStackBanner.render` was `true` on
+`OpenRouterIncubator/ori` #2038 standing on stack 2003.
+
 **The ids run foundation first, which the recording above reads the wrong way
 round.** `4205801354` is the smaller of the two and therefore the older, which is
 `#17`, the layer sitting on `main`. Their dialog lists the chain newest first and
@@ -289,7 +312,8 @@ cannot be acted on is worse than the banner it replaced: GitHub's banner leads t
 a press, and ours would lead nowhere.
 
 **What the write sends is read again at the press, not kept from the draw.** The
-gateway asks `preview_stack` and POSTs the ids it answers with, foundation first.
+gateway asks `preview_stack` and POSTs the ids it answers with, foundation first,
+less any layer already in a stack and with that stack named beside them.
 The strip can sit on the screen for as long as the reader is reading, and in that
 time a branch can move, somebody else can stack the same pull requests, or a layer
 can be merged. Ids kept from the draw would send GitHub a chain that no longer
@@ -417,6 +441,10 @@ would otherwise do.
 19. A layer nobody has counted, because the read failed or has not answered, is
     the row exactly as it was drawn — no zeroes, and no space held for a count.
 20. The chain in the header carries no counts on any row.
+21. On a pull request standing on a stack GitHub already holds, one press adds it
+    to that stack: the write sends the layers in no stack and names the stack to
+    add them to, and GitHub is not asked to make a second stack out of layers it
+    has already stacked.
 
 ## Related
 
