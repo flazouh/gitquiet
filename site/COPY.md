@@ -1,10 +1,34 @@
 # Landing page copy
 
-Rewritten 2026-08-16. Three things changed it: the first Court is `Needs You`
-now, the speed claim finally has measurements behind it, and the hero was three
-times longer than any comparable site's.
+Rewritten 2026-08-16.
 
-## What the measurements say about length
+## The frame
+
+GitHub is where the work lives. GitQuiet is where you do it.
+
+That is the whole positioning, and every line on the page has to sit inside it.
+GitHub keeps being the system of record: the repositories, the reviews, the
+merges, the permissions, the teammates. GitQuiet is the place you actually sit
+and work, and it happens to open on github.com's own URLs today and in a window
+tomorrow.
+
+**Words that are now banned from the page.** Each of them describes the
+plumbing, and each of them makes GitQuiet sound like a patch on somebody else's
+product rather than a place of its own:
+
+- redraws
+- fourteen pages
+- on github.com itself
+- improves, fixes, replaces
+
+They survive in exactly one place, the Refined GitHub comparison, because that
+section is a question about mechanism and deserves a mechanical answer.
+
+**The analogue to hold in your head.** Gmail is where the mail lives; Superhuman
+is where you read it. Superhuman's page never says it redraws Gmail's pages. It
+says what it is like to work there.
+
+## What the length measurements said
 
 Hero copy, read off the live pages on 2026-08-16:
 
@@ -17,12 +41,8 @@ Hero copy, read off the live pages on 2026-08-16:
 | CodeRabbit | 8 words | 10 words | 3166 words |
 | **GitQuiet, before** | **4 words** | **44 words** | **~870 words** |
 
-The headline was already the right length. The subhead was two to four times
-everyone else's, and the page argued rather than showed. Whole-page length is
-not the problem: CodeRabbit runs to 3166 words. The hero is.
-
-Rule taken from that table and applied below: **headline 4 to 6 words, subhead
-16 words or fewer, one idea per section.**
+Headline 4 to 6 words, subhead 16 or fewer, one idea per section. Whole-page
+length is not the constraint. CodeRabbit runs to 3166 words.
 
 ---
 
@@ -36,10 +56,9 @@ Rule taken from that table and applied below: **headline 4 to 6 words, subhead
 
 > A faster, quieter GitHub.
 
-**Subhead** (16 words)
+**Subhead** (12 words)
 
-> Redraws fourteen pages on github.com so you can see what needs you. Opens a
-> pull request in 287ms.
+> GitHub is where your work lives. GitQuiet is where you do it.
 
 **Primary button:** Add to Chrome
 
@@ -48,71 +67,35 @@ Also for Safari, or as a macOS app.
 
 **Trust line**
 
-> Your code and reviews stay in your browser. Your teammates see your reviews
-> and comments exactly as before, whether they installed it or not.
+> Your reviews, comments and merges all go through GitHub, so your teammates see
+> your work exactly as before. Your code stays in your browser.
 > [Read the privacy policy.](#)
-
-Cut from the old hero: "GitQuiet is a browser extension for GitHub pull request
-review", and "from a pull request to a failing Actions run", and the four-way
-list of who acts next. The first is a category label the reader can see from the
-button. The second is detail. The third is the mechanism, and it now has its own
-section below.
 
 ---
 
 ## 2. The Working Set
 
-No copy. The live screen carries it. The four group headings are the only words
-on it, and they are the product's own:
+No copy. The live screen carries it, and the only words on it are the product's
+own group names:
 
 **Needs You** · **Waiting** · **Running** · **Settled**
 
 ---
 
-## 3. Speed *(new section)*
-
-**Eyebrow:** Measured on microsoft/vscode, August 2026
-
-**Heading**
-
-> Two seconds, or a fifth of one.
-
-**Body**
-
-> Rest on a row for a moment and GitQuiet has already read the pull request
-> ahead. Press it and the page is there in 287ms. GitHub is still showing you
-> the list you clicked away from, and it stays there for two seconds.
-
-**The numbers, as a pair**
-
-| | GitHub | GitQuiet |
-| --- | --- | --- |
-| The page you pressed, readable | 2050ms | 287ms |
-| Pressed with no pause first | 2138ms | 1635ms |
-
-**Caption under the table**
-
-> The gap is the reading-ahead. Press without pausing and GitQuiet saves you
-> about half a second, not two. Both numbers are medians of four, signed in,
-> reproducible with `scripts/benchmark-click-flow.js`.
-
-Put the race video here. It shows exactly this and needs no further words.
-
----
-
-## 4. The idea
+## 3. What it is like
 
 **Eyebrow:** The idea
 
-**Heading** (was "Is it my turn?")
+**Heading**
 
-> Does this one need me?
+> You open it and you already know.
 
-**Body** (was 5 sentences, now 3)
+**Body**
 
 > A review thread waiting on your reply. A failing check. A file that changed
-> since you read it. GitHub shows those in five different places, and not one of
-> them says whether it is yours to move. Here they are one list, in four groups.
+> since you read it. GitHub keeps those in five different places and none of
+> them says whether it is yours. GitQuiet opens on one list, in four groups, and
+> the first group is the only one you have to read.
 
 **The four groups**
 
@@ -123,14 +106,40 @@ Put the race video here. It shows exactly this and needs no further words.
 | **Running** | A machine is working. Nothing to do but wait. |
 | **Settled** | Finished. |
 
-Changed: `Your Move` is `Needs You`. The module is called Courts, after the ball
-being in someone's court, and `Your Move` was a chess word inside a tennis
-metaphor. It was also the only two-word name in a set built on one-word names.
-`Needs You` says what the group is for instead of naming the mechanism, and it
-still means something in the desktop app, where there is no github.com in sight.
+`Your Move` is `Needs You` now. The module is called Courts, after the ball being
+in someone's court, and `Your Move` was a chess word inside a tennis metaphor. It
+was also the only two-word name in a set built on one-word names. `Needs You`
+says what the group is for rather than naming the mechanism, and it still means
+something in the desktop window, where there is no github.com in sight.
 
-Also cut: "A comment from a bot" and "A branch that needs the latest main" from
-the opening list. Five examples is a paragraph. Three is a point.
+---
+
+## 4. Speed *(new section)*
+
+**Eyebrow:** Measured on microsoft/vscode, August 2026
+
+**Heading**
+
+> Two seconds, or a fifth of one.
+
+**Body**
+
+> Rest on a row for a moment and GitQuiet has already read the pull request
+> ahead. Press it and you are reading in 287ms. GitHub is still showing you the
+> list you clicked away from, and it stays there for two seconds.
+
+| | GitHub | GitQuiet |
+| --- | --- | --- |
+| The page you pressed, readable | 2050ms | 287ms |
+| Pressed with no pause first | 2138ms | 1635ms |
+
+**Caption**
+
+> The gap is the reading-ahead. Press without pausing and GitQuiet saves you
+> about half a second, not two. Medians of four, signed in, reproducible with
+> `scripts/benchmark-click-flow.js`.
+
+The race video goes here and needs no further words.
 
 ---
 
@@ -142,8 +151,8 @@ the opening list. Five examples is a paragraph. Three is a point.
 
 > Four complaints, and the answer to each.
 
-Keep all four verbatim. They are quotations with counts attached and they are the
-most persuasive thing on the page. No changes.
+All four kept verbatim. They are quotations with counts attached, and they are
+the most persuasive thing on the page.
 
 ---
 
@@ -155,24 +164,28 @@ most persuasive thing on the page. No changes.
 
 > What about Refined GitHub?
 
-**Body** (was 3 sentences, now 2)
+**Body**
 
 > Refined GitHub fixes hundreds of small annoyances on GitHub's own pages, and
-> 100,000 people use it. The two extensions differ in where they start.
+> 100,000 people use it. It is a better GitHub. GitQuiet is somewhere else to
+> work.
 
 | | Refined GitHub | GitQuiet |
 | --- | --- | --- |
-| The approach | Improves the pages GitHub drew, one annoyance at a time. | Redraws fourteen pages on github.com itself. |
+| What it is | A set of fixes on GitHub's pages. | Its own interface, on GitHub's data. |
 | A pull request | Conversation and Files changed stay separate tabs. | One screen. No tabs. |
 | A comment on code that moved | Closed as not planned, under the label "impossible". | Stays visible, on the version of the code you wrote it about. |
-| Your work across repositories | GitHub's own lists, improved. | One list, grouped by what needs you. |
+| Your work across repositories | GitHub's own lists, improved. | One list, and the first group is what needs you. |
 
-**Note under the table** (was 2 sentences, now 2, tightened)
+**Note under the table**
 
 > The third row is the tracker's own verdict, and it is fair: keeping a comment
 > on code that moved means fetching every comment in the pull request's history,
-> which a tool that improves GitHub's page cannot reasonably do. GitQuiet draws
-> that page itself, so the comment stays.
+> which a set of fixes on somebody else's page cannot reasonably do. GitQuiet
+> draws that screen itself, so the comment stays.
+
+This is the one section where the plumbing belongs, because the question is about
+plumbing.
 
 ---
 
@@ -184,9 +197,7 @@ most persuasive thing on the page. No changes.
 
 > These are the real screens, not pictures of them.
 
-Captions, unchanged except where marked:
-
-1. **Sorted by what needs you** *(was "Sorted by whose move it is")*
+1. **Sorted by what needs you**
    Every pull request you are in, from every repository, in one list.
 2. **Everything still unresolved, above the diff**
    Review threads, failing checks, bot comments and the commits pushed since you
@@ -231,9 +242,6 @@ Captions, unchanged except where marked:
 **Button:** Add to Chrome
 **Under it:** Also for Safari, or as a macOS app.
 
-Cut: "and your code stays in your browser" here, because the hero already says
-it and saying it twice reads as protesting.
-
 ---
 
 ## 9. Footer
@@ -242,16 +250,14 @@ gitquiet · Source, under AGPL-3.0 · Not affiliated with GitHub.
 
 ---
 
-## Files to change
+## Where the old language still lives
 
-| What | Where |
+Each of these says "grouped by who acts next" or counts pages, and each needs the
+same pass:
+
+| File | Line |
 | --- | --- |
-| Hero headline, subhead, trust line | `site/src/Page.tsx` |
-| The four group names and meanings | `site/src/Page.tsx` (`COURTS`) |
-| Screen captions | `site/src/features.ts` |
-| Comparison table | `site/src/Page.tsx` (`AGAINST`) |
-| Complaints | `site/src/pains.ts`, unchanged |
-| Speed section | new, numbers from `video/src/measurements.ts` |
-
-`site/src/assets.tsx` lines 150 and 292 still say "grouped by who acts next" and
-need the same treatment. So does `README.md:6`.
+| `README.md` | 6, 19 |
+| `site/src/assets.tsx` | 150, 292 |
+| `site/src/Page.tsx` | hero, `COURTS`, `AGAINST` |
+| `site/src/features.ts` | caption 1 |
