@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useContext } from "react"
+import { createContext, type ReactNode, useContext, useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { Toaster, toast } from "sonner"
 import { OVER_ID, outsideHost } from "./outside"
@@ -93,6 +93,34 @@ export const Toasts = ({ children }: { readonly children?: ReactNode }) => {
 }
 
 /**
+ * Sentences asked for before the surface that shows them was on the page.
+ *
+ * Sonner's `Toaster` is not free to mount. It reads the document's writing
+ * direction, which is `getComputedStyle` on the root of GitHub's page, and it
+ * flushes React synchronously to measure the toasts it is holding. Measured on a
+ * press between two pull requests: 94ms in `getDocumentDirection` and 123ms in
+ * the flush, on every screen this extension stands up — for a corner of the
+ * screen that is empty on all but a handful of them.
+ *
+ * So it is mounted when there is something to say and not before. A screen that
+ * never refuses anything never pays for it, and a screen that does pays once,
+ * after the press it is reporting on rather than during it.
+ */
+const queued: Array<() => void> = []
+let standing = false
+let wake: (() => void) | undefined
+
+/** Says it now, or as soon as there is somewhere to say it. */
+const whenStanding = (say: () => void): void => {
+  if (standing) {
+    say()
+    return
+  }
+  queued.push(say)
+  wake?.()
+}
+
+/**
  * Where the toasts are hung, which is not where this component is mounted.
  *
  * Sonner asks for `z-index: 999999999` and was still losing. GitHub wraps their whole page in
@@ -110,9 +138,30 @@ export const Toasts = ({ children }: { readonly children?: ReactNode }) => {
  * fixed layer at the end of it is where a toast belongs anyway.
  */
 const Stand = () => {
+  const [needed, setNeeded] = useState(() => queued.length > 0)
+
+  useEffect(() => {
+    wake = () => setNeeded(true)
+    return () => {
+      wake = undefined
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!needed) return
+    standing = true
+    // In the order they were asked for, which `freshening` depends on: the
+    // spinner has to exist before the verdict can be written over it.
+    for (const say of queued.splice(0)) say()
+    return () => {
+      standing = false
+    }
+  }, [needed])
+
   // From render, which `outsideHost` is built for: idempotent, so the second Toasts in a nested
   // shell would get the same host rather than a second one.
-  const host = typeof document === "undefined" ? null : outsideHost(document, OVER_ID)
+  const host = typeof document === "undefined" || !needed ? null : outsideHost(document, OVER_ID)
+  if (!needed) return null
   const stand = (
     <Toaster
       position="bottom-right"
@@ -147,7 +196,7 @@ const Stand = () => {
  * control that asked is usually gone by then, which is what the toast is for.
  */
 export const refused = (said: string): void => {
-  toast.error(said)
+  whenStanding(() => toast.error(said))
 }
 
 /**
@@ -188,10 +237,12 @@ const LONG_ENOUGH_TO_UNDO = 10_000
  * both is charging the reader twice for one mistake.
  */
 export const done = (said: string, back?: WayBack): void => {
-  toast.success(said, {
-    duration: back === undefined ? undefined : LONG_ENOUGH_TO_UNDO,
-    action: back === undefined ? undefined : { label: back.said, onClick: back.go }
-  })
+  whenStanding(() =>
+    toast.success(said, {
+      duration: back === undefined ? undefined : LONG_ENOUGH_TO_UNDO,
+      action: back === undefined ? undefined : { label: back.said, onClick: back.go }
+    })
+  )
 }
 
 /** What the interface says when the read agreed with what was already on screen. */
@@ -244,18 +295,26 @@ export type Freshening = {
  * the end of the sentence the spinner started.
  */
 export const freshening = (said: string): Freshening => {
-  const which = toast.loading(said, { duration: Infinity })
+  // Written by the queued call above rather than returned from it, because the
+  // spinner may not have been raised yet: see `whenStanding`. Both endings are
+  // queued behind it, so by the time either runs the id is the one it names.
+  let which: string | number | undefined
+  whenStanding(() => {
+    which = toast.loading(said, { duration: Infinity })
+  })
 
   return {
     landed: () => {
-      toast.success(UP_TO_DATE, {
-        id: which,
-        duration: SETTLED,
-        // The tone comes from `LOOK.success`, which is where every icon in this file gets
-        // its colour. Said twice would be two places to change it.
-        icon: <SettledIcon size={14} />
-      })
+      whenStanding(() =>
+        toast.success(UP_TO_DATE, {
+          id: which,
+          duration: SETTLED,
+          // The tone comes from `LOOK.success`, which is where every icon in this file gets
+          // its colour. Said twice would be two places to change it.
+          icon: <SettledIcon size={14} />
+        })
+      )
     },
-    take: () => toast.dismiss(which)
+    take: () => whenStanding(() => toast.dismiss(which))
   }
 }

@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Effect, Fiber, Option } from "effect";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { screenFor, type Wanted } from "@/app/screens";
 import { intendTo, intendedPath } from "@/app/intent";
@@ -206,6 +206,66 @@ export default defineContentScript({
     let reading = false;
     /** The one waiting behind it, which is always the most recently wanted. */
     let after: Ahead | undefined;
+    /** The read in the air, and which page it is for, so a press can call it off. */
+    let inFlight: Fiber.Fiber<void> | undefined;
+    let inFlightKey: string | undefined;
+
+    /**
+     * How long a page the reader pressed for is given to arrive before reading
+     * ahead starts again.
+     *
+     * The same figure `goTo` waits before carrying the press out by hand, and for
+     * the same reason: past it, whatever was going to happen has happened.
+     */
+    const ARRIVING = 1_500;
+
+    /**
+     * The page the reader is waiting for, while they are still waiting for it.
+     *
+     * Reading ahead exists to spend a moment nobody is watching. A press ends that
+     * moment: from there until the screen is up, every request this makes is
+     * competing with the one the reader is actually waiting on, over one connection
+     * to one host.
+     *
+     * Measured on a press between two pull requests, with the pointer resting on
+     * the row first — which is how anybody presses anything. The read-ahead fired
+     * at 423ms before the press, was still in the air when it landed, and the
+     * screen's own seven requests went out 1,141ms after it. Press to a readable
+     * page: 2,252ms rested against 341ms for the same press made cold. Resting on
+     * the row, the one thing reading ahead is built to reward, made it six times
+     * slower.
+     */
+    let arriving: { readonly there: () => boolean; readonly by: number } | undefined;
+
+    /** Whether the reader is still waiting on the page they pressed for. */
+    const stillArriving = (now: number): boolean => {
+      if (arriving === undefined) return false;
+      if (now > arriving.by || arriving.there()) {
+        arriving = undefined;
+        return false;
+      }
+      return true;
+    };
+
+    /**
+     * Called off, because the reader has asked for something and this is not it.
+     *
+     * `keep` is the page they did ask for, and it is the whole of the judgement
+     * here. A read for anywhere else is competing with them and is dropped. The
+     * read for the page being opened is the one thing the rest before the press
+     * bought: it lands in the store, and the screen draws that store before
+     * GitHub has answered anything. Calling it off cost what it was worth —
+     * measured on a press from the list, 238ms rested became 1,256ms.
+     */
+    const stopReadingAhead = (keep?: string): void => {
+      after = undefined;
+      if (inFlight === undefined || inFlightKey === keep) return;
+
+      const held = inFlight;
+      inFlight = undefined;
+      inFlightKey = undefined;
+      Effect.runFork(Fiber.interrupt(held));
+    };
 
     const warm = (ahead: Ahead): void => {
       /*
@@ -229,7 +289,8 @@ export default defineContentScript({
       // reading is not written down as one that was read.
       asked.add(ahead.key);
 
-      Effect.runFork(
+      inFlightKey = ahead.key;
+      inFlight = Effect.runFork(
         ahead.read.pipe(
           Effect.provide(gatewayLayer),
           // Nobody asked for this and nobody is waiting for it. A page that
@@ -239,6 +300,8 @@ export default defineContentScript({
           Effect.ensuring(
             Effect.sync(() => {
               reading = false;
+              inFlight = undefined;
+              inFlightKey = undefined;
               const held = after;
               after = undefined;
               if (held !== undefined && !asked.has(held.key)) warm(held);
@@ -378,6 +441,14 @@ export default defineContentScript({
       // against an interface that is no longer on the page, so it is not worth carrying
       // back if the reader switches again.
       if (view === "github") {
+        lingering = NOTHING;
+        return;
+      }
+
+      // Waiting on a press. Credit earned against the page being left is credit
+      // towards reading it again, and the pointer sits exactly where it pressed
+      // while the new screen draws underneath it. See `arriving`.
+      if (stillArriving(now)) {
         lingering = NOTHING;
         return;
       }
@@ -624,7 +695,16 @@ export default defineContentScript({
       const push = mine?.push;
       if (push !== undefined) {
         const wanted = placeFor(what, push).name;
-        goTo(window, push, () => theScreenShown(document) === wanted);
+        const there = () => theScreenShown(document) === wanted;
+
+        // From here until that screen is up, the connection belongs to the reader.
+        // See `arriving`, which is where the cost of not doing this is measured.
+        // The read for the page being opened is spared: it is the one the rest
+        // before the press paid for, and the screen draws what it leaves behind.
+        stopReadingAhead(warmingFor(new URL(push, location.origin).href, location.href)?.key);
+        arriving = { there, by: performance.now() + ARRIVING };
+
+        goTo(window, push, there);
       }
     };
 
