@@ -13,7 +13,7 @@ export type Records<Fields> = {
 }
 
 export type Ask = <Fields>(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PATCH",
   path: string,
   payload?: unknown
 ) => Promise<Records<Fields>>
@@ -68,9 +68,17 @@ export const connect = (read: (path: string) => string): Ask => {
       },
       ...(payload === undefined ? {} : { body: JSON.stringify(payload) })
     })
+    // A write to a relationship answers 204 with nothing in it, so the body is
+    // read as text first and only parsed when there is one. `json()` on an empty
+    // body returns null, and reading `errors` off that throws a TypeError which
+    // says nothing about the address that was asked.
+    const body = await answer.text()
     // The one cast, because JSON arrives untyped and the caller is the only one
     // who knows which address it asked and so which fields come back.
-    const reply = (await answer.json()) as Failure & { readonly data?: unknown }
+    const reply = (body === "" ? {} : JSON.parse(body)) as Failure & { readonly data?: unknown }
+    if (!answer.ok && reply.errors === undefined) {
+      throw new Error(`${method} ${path}: Apple answered ${answer.status} with ${body || "nothing"}.`)
+    }
     if (reply.errors) {
       throw new Error(
         `${method} ${path}: ${reply.errors.map((e) => `${e.title} ${e.detail}`).join("; ")}`

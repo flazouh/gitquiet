@@ -472,6 +472,12 @@ jobs:
       #
       # The category is passed in for the same reason: the converter leaves it out,
       # the build warns about it, and the App Store rejects an app without one.
+      #
+      # The encryption key says what is true of this extension: it implements no
+      # encryption and only calls github.com over the HTTPS the system provides,
+      # which the export regulations exempt. Without the key in the app, the
+      # uploaded build sits at "Missing Compliance" and cannot be submitted until
+      # somebody answers the same question by hand in App Store Connect.
       - name: Archive and sign
         env:
           IDENTITY: ${{ secrets.APPLE_DEVELOPER_ID }}
@@ -491,7 +497,8 @@ jobs:
             DEVELOPMENT_TEAM="$TEAM" \
             MARKETING_VERSION="$RELEASE_VERSION" \
             CURRENT_PROJECT_VERSION="$RELEASE_VERSION" \
-            INFOPLIST_KEY_LSApplicationCategoryType=public.app-category.developer-tools
+            INFOPLIST_KEY_LSApplicationCategoryType=public.app-category.developer-tools \
+            INFOPLIST_KEY_ITSAppUsesNonExemptEncryption=NO
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/safari.xcarchive" \
             -exportOptionsPlist "$plist" \
