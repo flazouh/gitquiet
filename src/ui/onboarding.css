@@ -39,13 +39,42 @@
  * entrance runs each time, and what the reader sees is the next thing being said
  * rather than the same paragraph correcting itself.
  */
+/*
+ * The picture takes what the words leave, rather than its own height.
+ *
+ * `auto` here read the same and let the captures — twelve hundred and eighty by eight
+ * hundred — ask for five hundred pixels inside a panel six hundred tall, which pushed
+ * the sentence explaining the picture off the bottom of it. With `1fr` the row has a
+ * height, so the `max-height: 100%` below has something to be a hundred per cent of.
+ */
 .tour-beat {
   display: grid;
-  grid-template-rows: minmax(0, auto) auto;
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 22px;
   align-content: center;
   min-height: 0;
   animation: tour-beat-in var(--duration-fast, 250ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1)) both;
+}
+
+/*
+ * The first beat and the last one are words. One row, centred in the panel, and set a
+ * size up: a paragraph at fifteen pixels in the middle of a panel built to hold a
+ * screenshot reads as a caption that has lost its picture. At this size it is the thing
+ * being said.
+ */
+.tour-beat[data-shows="words"] {
+  grid-template-rows: auto;
+}
+
+.tour-beat[data-shows="words"] .tour-title {
+  font-size: 32px;
+  font-variation-settings: "wght" 600, "opsz" 32;
+}
+
+.tour-beat[data-shows="words"] .tour-says {
+  margin-top: 12px;
+  font-size: 16px;
+  max-width: 54ch;
 }
 
 @keyframes tour-beat-in {
@@ -72,6 +101,7 @@
   display: grid;
   place-items: center;
   min-height: 0;
+  overflow: hidden;
 }
 
 .tour-shot img,
@@ -80,15 +110,27 @@
   max-height: 100%;
 }
 
+/* A capture scales to fit the room it was given and keeps its shape doing it. The site
+   puts a running screen here instead, which sizes itself and must not be stretched. */
 .tour-shot img {
+  width: auto;
+  height: auto;
   border-radius: 10px;
   box-shadow:
     0 1px 2px rgba(27, 23, 37, 0.05),
     0 18px 44px -22px rgba(27, 23, 37, 0.2);
 }
 
+/*
+ * `align-content: start`, and it is not tidiness. A grid whose rows are all `auto`
+ * stretches them to fill a taller parent, and this one is as tall as the panel — so the
+ * count, the heading and the two sentences stood eighty pixels apart, in a column that
+ * read as four unrelated lines. Packed at the top, the ten pixels below mean what they
+ * say.
+ */
 .tour-said {
   display: grid;
+  align-content: start;
   gap: 0;
   max-width: 62ch;
 }

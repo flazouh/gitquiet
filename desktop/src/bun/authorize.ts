@@ -194,9 +194,31 @@ export const doorOnLoopback = (opts: {
     opts.waitMs ?? 10 * 60 * 1000
   )
 
+  /**
+   * How long a reply in flight gets before the socket is taken away from it.
+   *
+   * The graceful stop below is what lets the page arrive; this is what stops a
+   * browser holding a keep-alive connection from keeping the port. A quarter of
+   * a second is far longer than a two-kilobyte page needs on the loopback
+   * interface and far shorter than a reader notices.
+   */
+  const CLOSING_MS = 250
+
+  /*
+   * Stopped twice, gently and then not.
+   *
+   * A single forced stop cut the reply off mid-write: the settle above resumes
+   * `signInThroughBrowser`, whose `finally` lands here while the page is still
+   * going out, and the reader's tab said the site could not be reached on a
+   * sign-in that had worked. Deferring the settle alone was not enough — under
+   * load the write had still not finished a turn later, and the check flaked.
+   * A graceful stop waits for it, and the timer below makes sure nothing is
+   * still listening a moment later either way.
+   */
   const close = () => {
     clearTimeout(giveUp)
-    void server.stop(true)
+    void server.stop()
+    setTimeout(() => void server.stop(true), CLOSING_MS).unref()
   }
 
   // Read once and checked, because the port is the one part of the redirect

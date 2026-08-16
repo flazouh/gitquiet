@@ -20,6 +20,17 @@ const MAC_AT =
 const THEIR_PULLS = "https://github.com/pulls"
 
 /**
+ * How much of a screen a beat shows, in the screen's own pixels.
+ *
+ * Four hundred and sixty is the list down its first Court, or a pull request down to its
+ * first file: in each case the part the beat is about.
+ */
+const DEEP = 460
+
+/** Less, on the beat that names the four Courts under the picture and needs the room. */
+const ROOM: Record<string, number> = { "working-set": 330 }
+
+/**
  * Whether the extension sent the reader here, which it does once, on the install.
  *
  * Read off the address rather than asked of the browser: this page is served by the
@@ -63,30 +74,36 @@ const Welcome = () => {
         </a>
 
         {/*
-          A floor under the height rather than a fixed one: the card holds a running
-          screen and four sentences, and a card that grows by three hundred pixels on
-          the press of Next is a card the reader has to find their place in again.
+          A height, not a floor under one, and the tour depends on it both ways. A card
+          that grows by three hundred pixels on the press of Next is a card the reader
+          has to find their place in again — and a card free to grow grew past the
+          window, because a screen is eight hundred pixels tall and asked for all of
+          them. Told how tall it is, it gives the picture what the words leave.
         */}
-        <div className="flex min-h-[min(680px,calc(100dvh-180px))] w-full flex-col rounded-2xl bg-white/70 p-6 shadow-[0_1px_2px_rgba(27,23,37,0.05),0_24px_60px_-24px_rgba(27,23,37,0.22)] backdrop-blur-[10px] sm:p-9">
+        <div className="flex h-[min(700px,calc(100dvh-170px))] w-full flex-col rounded-2xl bg-white/70 p-6 shadow-[0_1px_2px_rgba(27,23,37,0.05),0_24px_60px_-24px_rgba(27,23,37,0.22)] backdrop-blur-[10px] sm:p-9">
           <Tour
             /*
-             * The top of the screen rather than all of it, and eager rather than when
-             * it scrolls into view.
+             * The top of the screen rather than all of it, and eager rather than when it
+             * scrolls into view.
              *
              * The crop is the whole reason this reads: a screen is eight hundred pixels
-             * tall, and a card that shows all of it pushes the sentence explaining it
-             * off the bottom of the window. Four hundred and eighty is the list's own
-             * first two Courts, or a pull request down to its first file — in each case
-             * the part the beat is about. `Live` holds a screen back until it is near
-             * the viewport, which is right on a page carrying twelve of them and wrong
-             * on a page showing one at a time.
+             * tall, and showing all of it pushes the sentence explaining it off the
+             * bottom of the window. A running screen scales itself to the width it is
+             * given and cannot be squeezed to a height, so the crop is what makes it
+             * fit — hence `ROOM`. `Live` holds a screen back until it is near the
+             * viewport, which is right on a page carrying twelve of them and wrong here,
+             * where there is one and it is the point.
              */
             show={(shot) => {
               const view = viewNamed(shot)
               if (view === undefined) return null
 
               return (
-                <Live view={view} eager focus={{ x: 0, y: 0, width: view.width, height: 480 }} />
+                <Live
+                  view={view}
+                  eager
+                  focus={{ x: 0, y: 0, width: view.width, height: ROOM[shot] ?? DEEP }}
+                />
               )
             }}
             ending={

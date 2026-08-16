@@ -78,7 +78,14 @@ export const Tour = ({
         changes, and text that changes in place reads as a correction rather than as
         the next thing being said.
       */}
-      <div key={at} className="tour-beat">
+      <div
+        key={at}
+        className="tour-beat"
+        /* Whether this beat has a picture, said out here rather than worked out in CSS:
+           the first beat and the last one are words only, and a row kept for a picture
+           that is not coming is a hole above the sentence a reader is meant to read. */
+        data-shows={beat?.shot === undefined ? "words" : "screen"}
+      >
         {beat?.shot === undefined ? null : <div className="tour-shot">{show(beat.shot)}</div>}
 
         <div className="tour-said">
