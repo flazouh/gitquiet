@@ -117,8 +117,7 @@ const Install = () => {
             Install GitQuiet.
           </h1>
           <p className="mt-6 max-w-xl text-pretty text-[17px] leading-relaxed text-ink/70">
-            One codebase, four ways in. No account, no server, and nothing to configure
-            after any of them.
+            One codebase, four ways in. Nothing to configure after any of them.
           </p>
 
           {/*
@@ -197,8 +196,7 @@ const Install = () => {
 
         <section className="border-t border-rule py-16">
           <p className="m-0 max-w-2xl text-pretty text-[17px] leading-relaxed text-muted">
-            All four are the same code, under AGPL-3.0. None of them has a server: GitQuiet
-            reads github.com from your own browser and talks to nothing else.{" "}
+            All four are the same code, under AGPL-3.0.{" "}
             <Quietly at="/privacy.html">Read the privacy policy</Quietly>, or{" "}
             <Quietly at="/welcome">take the tour first</Quietly>.
           </p>

@@ -129,7 +129,7 @@ const Welcome = () => {
               already
                 ? {
                     title: "It is already working.",
-                    says: ["Open any pull request on github.com. Nothing to set up, no account, no server."],
+                    says: ["Open any pull request on github.com. Nothing to set up."],
                     act: (
                       <a className="tour-press" href={THEIR_PULLS}>
                         Open your pull requests

@@ -146,7 +146,7 @@ export const Page = () => (
 
         <div className="mt-10 flex flex-wrap items-center gap-5">
           <AddToChrome big />
-          <span className="text-[15px] text-ink/60">Chrome and Edge. No account, no server.</span>
+          <span className="text-[15px] text-ink/60">Chrome and Edge. No account needed.</span>
         </div>
 
         <div className="mt-4">
@@ -339,8 +339,8 @@ export const Page = () => (
             </h2>
             <p className="mx-auto mt-5 max-w-xl text-[17px] leading-relaxed text-ink/70">
               Every review, comment and merge goes through GitHub, so a colleague who has never
-              installed GitQuiet sees your work exactly as usual. No account, no server.
-              GitQuiet uses the GitHub session you already have.
+              installed GitQuiet sees your work exactly as usual. GitQuiet uses the GitHub
+              session you already have.
             </p>
             <div className="mt-9 flex justify-center">
               <AddToChrome big />

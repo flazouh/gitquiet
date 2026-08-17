@@ -308,7 +308,7 @@ export const Welcome = ({ onSignedIn }: { readonly onSignedIn: (viewer: Viewer) 
           show={(shot) => <Fixture shot={shot} />}
           ending={{
             title: "Ready when you are.",
-            says: ["Your token stays in the macOS keychain. There is no account and no server."],
+            says: ["Your token stays in the macOS keychain."],
             act
           }}
         />

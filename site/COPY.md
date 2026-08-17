@@ -62,7 +62,7 @@ length is not the constraint. CodeRabbit runs to 3166 words.
 
 **Primary button:** Add to Chrome
 
-**Under the button:** Chrome and Edge. No account, no server.
+**Under the button:** Chrome and Edge. No account needed.
 Also for Safari, or as a macOS app.
 
 **Trust line**
@@ -236,8 +236,8 @@ plumbing.
 **Body**
 
 > Every review, comment and merge goes through GitHub, so a colleague who has
-> never installed GitQuiet sees your work exactly as usual. No account, no
-> server. GitQuiet uses the GitHub session you already have.
+> never installed GitQuiet sees your work exactly as usual. GitQuiet uses the
+> GitHub session you already have.
 
 **Button:** Add to Chrome
 **Under it:** Also for Safari, or as a macOS app.

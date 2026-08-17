@@ -13,4 +13,4 @@ WHY INSTALL
 Stop working out what is waiting on you. Install GitQuiet, open a pull request on github.com, and read the list.
 
 PRIVACY
-No separate login and no server of ours. GitQuiet uses the GitHub session you already have, and your code and reviews stay in your browser. No analytics and no remote code.
+No separate login. GitQuiet uses the GitHub session you already have, and your code and reviews stay in your browser. No analytics and no remote code.
