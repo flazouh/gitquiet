@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useRead } from "./read"
 
 /**
  * How many people have starred the repository, for the nav to say so.
@@ -9,12 +10,14 @@ import { useEffect, useState } from "react"
  * stars the repository. The route needs no token for a public repository and answers a
  * few hundred bytes.
  *
- * A failure says nothing. The count is decoration next to a link that works either way,
- * so a rate limit, an offline reader or a shape GitHub changed all end as a chip with no
- * number in it rather than as anything a reader has to read.
+ * `useRead` holds what happens when it does not answer, which for a count beside a link
+ * is a chip with no number in it. What is left here is the remembering, which is this
+ * read's alone.
  */
 
 const COUNT_AT = "https://api.github.com/repos/flazouh/gitquiet"
+
+const ASKING = { Accept: "application/vnd.github+json" }
 
 /**
  * Where the last answer is kept.
@@ -48,28 +51,16 @@ const countIn = (body: unknown): number | undefined => {
 }
 
 export const useStars = (): number | undefined => {
-  const [many, setMany] = useState<number | undefined>(remembered)
+  // Read once, at the mount, rather than on every render: storage is only asked for
+  // the frames before the live count lands, and after that the live one is the answer.
+  const [kept] = useState(remembered)
+  const now = useRead(COUNT_AT, countIn, ASKING)
 
   useEffect(() => {
-    let gone = false
+    if (now !== undefined) remember(now)
+  }, [now])
 
-    fetch(COUNT_AT, { headers: { Accept: "application/vnd.github+json" } })
-      .then((response) => (response.ok ? response.json() : undefined))
-      .then((body) => {
-        const now = countIn(body)
-        if (gone || now === undefined) return
-
-        remember(now)
-        setMany(now)
-      })
-      .catch(() => {})
-
-    return () => {
-      gone = true
-    }
-  }, [])
-
-  return many
+  return now ?? kept
 }
 
 /**

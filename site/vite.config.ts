@@ -64,7 +64,14 @@ export default defineConfig({
          * which rewrote every address to `index.html` and answered `/welcome` with
          * the landing page — see `railway.toml`.
          */
-        welcome: fileURLToPath(new URL("./welcome.html", import.meta.url))
+        welcome: fileURLToPath(new URL("./welcome.html", import.meta.url)),
+
+        /*
+         * `/install`, which is every way in with the state each one is in. Reached
+         * from the hero, from the footer, and from the store listings, so it is a
+         * page of its own for the same reason `/welcome` is.
+         */
+        install: fileURLToPath(new URL("./install.html", import.meta.url))
       }
     }
   }
