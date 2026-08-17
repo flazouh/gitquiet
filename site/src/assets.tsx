@@ -147,7 +147,7 @@ const Marquee = () => (
             color: INK
           }}
         >
-          GitHub pull request review. Every PR you are in, sorted by whose move it is.
+          GitHub is where your work lives. GitQuiet is where you do it.
         </p>
       </div>
       <div style={{ position: "relative", height: 460 }}>
@@ -289,7 +289,7 @@ const SocialCard = () => (
             color: MUTED
           }}
         >
-          Pull requests, issues, commits and checks, sorted by whose move it is.
+          GitHub is where your work lives. GitQuiet is where you do it.
         </p>
       </div>
       <div style={{ position: "relative", overflow: "hidden" }}>
@@ -318,7 +318,7 @@ const LISTING_SHOTS = [
   },
   {
     view: "issues",
-    caption: "Issues filed the same way: your move, waiting, settled."
+    caption: "Issues in the same four groups: needs you, waiting, running, settled."
   },
   {
     view: "actions",

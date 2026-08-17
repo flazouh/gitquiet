@@ -119,8 +119,8 @@ const AGAINST: readonly {
 }[] = [
   {
     aspect: "The approach",
-    theirs: "Improves the pages GitHub drew, one annoyance at a time.",
-    ours: "Redraws fourteen pages on github.com itself."
+    theirs: "A set of fixes on the pages GitHub drew.",
+    ours: "Its own interface, on GitHub's data."
   },
   {
     aspect: "A pull request",
@@ -199,9 +199,8 @@ export const Page = () => (
           </h1>
 
           <p className="mt-7 max-w-xl text-pretty text-[clamp(1.05rem,2.2vw,1.3rem)] leading-relaxed text-ink/70">
-            GitQuiet is a browser extension for GitHub pull request review. It redraws fourteen
-            pages on github.com itself, from a pull request to a failing Actions run. Your work
-            is grouped by who has to act next: you, someone else, a machine, or nobody.
+            GitHub is where your work lives. GitQuiet is where you do it. Everything you are
+            in arrives in one list, and the first group is what needs you.
           </p>
 
           <div className="mt-10 flex flex-wrap items-center gap-5">
@@ -231,12 +230,12 @@ export const Page = () => (
       )}
 
       <section className="border-t border-rule py-24">
-        <Says over="The idea" title="Is it my turn?" />
+        <Says over="The idea" title="You open it and you already know." />
         <p className="-mt-4 mb-12 max-w-2xl text-pretty text-[17px] leading-relaxed text-muted">
           A review thread waiting on your reply. A failing check. A comment from a bot. A
           file that changed since you read it. A branch that needs the latest main. GitHub
-          shows those in five different places, and not one of them tells you whose move it
-          is. Here they are one list, in four groups.
+          shows those in five different places, and not one of them tells you which of them
+          needs you. Here they are one list, in four groups.
         </p>
 
         <dl className="m-0 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">

@@ -3,7 +3,7 @@
 ![GitQuiet](site/public/store/marquee.png)
 
 **A faster, quieter GitHub.**
-Pull requests, issues, commits and checks, sorted by whose move it is.
+GitHub is where your work lives. GitQuiet is where you do it.
 
 [Install for Chrome](https://chromewebstore.google.com/detail/gitquiet/ichobjnihnofjkpoegikjhefmoekaahe) · [gitquiet.com](https://gitquiet.com) · [Licence](#licence)
 
@@ -15,10 +15,10 @@ GitHub splits a pull request by record type: Conversation, Commits, Checks, File
 None of those four tabs answers the question you opened it with, so you read all
 of them and work it out again on the next visit.
 
-GitQuiet redraws fourteen pages on github.com itself and sorts the same data by
-whose move it is. It runs inside GitHub's own page, in Primer tokens and Octicons,
-so it follows whichever theme you already use. Their header, nav and repository
-tabs are left exactly as they are.
+GitQuiet is its own interface on GitHub's data. Everything you are in arrives in
+one list, in four groups, and the first group is what needs you. It opens on the
+URLs you already use, in Primer tokens and Octicons, so it follows whichever theme
+you have. Their header, nav and repository tabs are left exactly as they are.
 
 ## Four groups
 
@@ -56,7 +56,7 @@ you last looked, all above the diff.
 
 </details>
 
-## The fourteen pages
+## Where it opens
 
 Listed in [`src/ui/place.ts`](./src/ui/place.ts), which is the one list both the
 router and the takeover read.

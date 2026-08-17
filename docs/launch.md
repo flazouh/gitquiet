@@ -42,23 +42,23 @@ Tuesday to Thursday, 08:00 to 10:00 ET. Not the weekend.
 **Title**
 
 ```
-Show HN: GitQuiet, GitHub redrawn so you can see what needs you
+Show HN: GitQuiet, a different place to do your GitHub work
 ```
 
 **Body**
 
 ```
-Hi HN. GitQuiet is a browser extension that redraws fourteen pages on
-github.com. There is no account and no server of mine: it uses the GitHub
-session you already have, and your code and reviews stay in your browser.
-Every review, comment and merge goes back through GitHub, so a colleague who
-has never installed it sees your work exactly as usual.
+Hi HN. GitHub is where my work lives and GitQuiet is where I do it. There is
+no account and no server of mine: it uses the GitHub session you already have,
+and your code and reviews stay in your browser. Every review, comment and merge
+goes back through GitHub, so a colleague who has never installed it sees your
+work exactly as usual.
 
 GitHub splits a pull request by record type: Conversation, Commits, Checks,
 Files. None of those four tabs answers the question you opened it with, so you
-read all of them and work it out again on the next visit. GitQuiet sorts the
-same data by whose move it is, in four groups that every list uses: Needs You,
-Waiting, Running, Settled.
+read all of them and work it out again on the next visit. GitQuiet is its own
+interface on the same data. Everything you are in arrives in one list, in four
+groups that every screen uses: Needs You, Waiting, Running, Settled.
 
 It also reads a pull request ahead when the pointer rests on its row. Resting
 for a moment and then pressing opens it in about 290ms against GitHub's 2100ms
@@ -67,8 +67,8 @@ most of that gap is the prefetch rather than the rendering, and I would rather
 say so than have somebody find it. The benchmark scripts and the medians are in
 the repo.
 
-Source, the four groups and the fourteen pages are all in the README. Happy to
-answer anything.
+Source, the four groups and every screen it opens on are in the README. Happy
+to answer anything.
 ```
 
 The first paragraph is the privacy answer on purpose. Across three comparable
@@ -86,7 +86,7 @@ comment if the form will not take both.
 **Title**
 
 ```
-I redrew 14 GitHub pages so every PR sorts into: needs you, waiting, running, settled
+I built a different place to do my GitHub work, and the first group is what needs me
 ```
 
 **Body**
@@ -96,16 +96,16 @@ GitHub splits a pull request by record type: Conversation, Commits, Checks,
 Files. None of those four tabs answers the question you opened it with, so you
 read all of them and work it out again on the next visit.
 
-GitQuiet redraws fourteen pages on github.com itself and sorts the same data by
-whose move it is:
+GitQuiet is its own interface on the same data. Everything you are in arrives in
+one list, in four groups:
 
 - Needs You: you can act on it now
 - Waiting: someone else has to act
 - Running: a machine is still working
 - Settled: finished
 
-It runs inside GitHub's own page, in Primer tokens and Octicons, so it follows
-whichever theme you already use. Their header, nav and repository tabs are left
+It opens on the URLs you already use, in Primer tokens and Octicons, so it
+follows whichever theme you have. Their header, nav and repository tabs are left
 exactly as they are.
 
 No account and no server of mine. It uses the GitHub session you already have,
@@ -124,7 +124,7 @@ Same day, same image, different title so the two do not read as one crosspost.
 **Title**
 
 ```
-A Chrome extension that redraws GitHub's pull request pages, sorted by whose move it is
+A Chrome extension that gives GitHub pull request review its own interface
 ```
 
 Body as above.
@@ -142,10 +142,10 @@ Answer every real reply after that, which is where the long tail comes from.
 ```
 Introducing GitQuiet
 
-GitHub, redrawn so you can see what needs you
+GitHub is where your work lives. GitQuiet is where you do it.
 
-- Every PR you're in, sorted into Needs You / Waiting / Running / Settled
-- Fourteen pages, redrawn inside github.com itself
+- Every PR you're in, in one list: Needs You / Waiting / Running / Settled
+- Opens on the URLs you already use, and in its own window soon
 - No account, no server. Your own GitHub session
 
 gitquiet.com
@@ -170,11 +170,11 @@ in your browser, and every review, comment and merge goes back through GitHub,
 so a colleague who has never installed it sees your work exactly as usual.
 ```
 
-**Post 4**, image, the fourteen pages grid from the README
+**Post 4**, image, the screens grid from the README
 
 ```
-Fourteen pages, not one. Pull requests, issues, commits, checks, runs,
-repository home, and the rest.
+It is not one screen. Pull requests, issues, commits, checks, runs, repository
+home, and the rest.
 ```
 
 **Post 5**, text
@@ -199,7 +199,7 @@ Worth holding until the HN thread has given you a line to quote.
 **Title**
 
 ```
-I rebuilt 14 GitHub pages around one question: is this my move?
+I built somewhere else to do my GitHub work, around one question: does this need me?
 ```
 
 Body as r/SideProject.
