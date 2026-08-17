@@ -14,6 +14,7 @@ import { type Doing, faceOf, type MergeFace } from "../domain/doable"
 import { holdingItUp } from "../domain/pressing"
 import { useArt } from "./art"
 import { changeWord, FileMark } from "./FileHeading"
+import { MergeUnread } from "./MergeUnread"
 import { reasonFor } from "./refusal"
 import { Says } from "./says"
 import { Section } from "./Section"
@@ -130,12 +131,19 @@ export const Merge = ({
   running = 0,
   url,
   files = [],
-  reviews = [],
+  reviews = NONE_GIVEN,
   state,
   headRef = { mayDelete: false, mayRestore: false },
   actions
 }: {
-  readonly merge: MergeState
+  /**
+   * What GitHub said about landing this, where GitHub would say.
+   *
+   * None means the merge box did not answer, and the card wears its unread face —
+   * unless the pull request has already landed or been closed, which is decided by
+   * the state alone and needs no merge box at all. See `faceOf`.
+   */
+  readonly merge: Option.Option<MergeState>
   /** Checks that have not finished, which merging now would not wait for. */
   readonly running?: number
   /** This pull request on GitHub, where the queue is joined. */
@@ -149,8 +157,15 @@ export const Merge = ({
    * no files is not a card that should guess at counts.
    */
   readonly files?: ReadonlyArray<ChangedFile>
-  /** Everyone who has given a verdict, so the card says whether it has one. */
-  readonly reviews?: ReadonlyArray<Review>
+  /**
+   * Everyone who has given a verdict, so the card says whether it has one.
+   *
+   * None where the merge box did not answer, which the card says rather than draws as
+   * an empty list. Defaulted to the empty list and not to None: a card nobody handed
+   * reviews to has not been told there are none, and a test that is about a queue
+   * should not have to deny knowing about verdicts to make its point.
+   */
+  readonly reviews?: Option.Option<ReadonlyArray<Review>>
   /**
    * Open, draft, closed or merged.
    *
@@ -386,6 +401,9 @@ const VERDICT_WORD: Record<ReviewDecision, string> = {
   dismissed: "review dismissed"
 }
 
+/** A card nobody handed reviews to, which is not a card told there are none. */
+const NONE_GIVEN: Option.Option<ReadonlyArray<Review>> = Option.some([])
+
 const VERDICT_TONE: Record<ReviewDecision, string> = {
   approved: "text-pass",
   "changes-requested": "text-fail",
@@ -413,14 +431,31 @@ const RANK: Record<ReviewDecision, number> = {
  * which left "has anyone actually reviewed this" as a question the interface
  * could not answer — asked directly above the button that lands the change.
  */
-const Verdicts = ({ reviews }: { readonly reviews: ReadonlyArray<Review> }) => {
+const Verdicts = ({ reviews }: { readonly reviews: Option.Option<ReadonlyArray<Review>> }) => {
   const art = useArt()
   const Err = art.error
   const Tick = art.tick
 
-  if (reviews.length === 0) return null
+  /*
+   * Said out loud, where the list at rest draws nothing at all.
+   *
+   * The two absences are opposite facts and the row is the only place either shows.
+   * An empty list is GitHub saying nobody has judged this, and a card asking to merge
+   * something nobody has looked at is a card with nothing to add. None is the merge
+   * box not answering, and drawing nothing there would be this card reporting an
+   * unread pull request as unreviewed — under a merge button.
+   */
+  if (Option.isNone(reviews)) {
+    return (
+      <p className="border-b border-line-muted px-3 py-2 text-xs leading-snug text-ink-muted">
+        GitHub did not say who has reviewed this.
+      </p>
+    )
+  }
 
-  const ordered = [...reviews].sort((one, other) => RANK[one.decision] - RANK[other.decision])
+  if (reviews.value.length === 0) return null
+
+  const ordered = [...reviews.value].sort((one, other) => RANK[one.decision] - RANK[other.decision])
 
   return (
     <ul className="divide-y divide-line-muted border-b border-line-muted">
@@ -443,47 +478,6 @@ const Verdicts = ({ reviews }: { readonly reviews: ReadonlyArray<Review> }) => {
         )
       })}
     </ul>
-  )
-}
-
-/**
- * What stands where the card would, when GitHub would not serve the merge box.
- *
- * A card and not a gap. A gap is read as "there is nothing to decide here", which is
- * the one thing this cannot say: whether this can land is exactly what nobody knows.
- * So the panel keeps the box's place in the column, wears the box's name, and spends
- * its two sentences saying which fact is missing and what to do about it.
- *
- * No buttons, greyed or otherwise. Every verb the live card offers is offered on the
- * strength of something the merge box said — that GitHub would take a merge, that
- * there is a queue to join, that the branch is behind — and a control that cannot say
- * why it is refusing is worse than no control at all. No press of its own either: the
- * screen reads this pull request again on its own schedule, and a second way to ask
- * for the same read would be a second answer to a question already answered.
- *
- * The pull request around it is untouched. The diff, the checks, the conversation and
- * the commits come from other routes, and a reader who came to read the change can
- * still read it.
- */
-export const MergeUnread = () => {
-  const Alert = useArt()["check-failed"]
-
-  return (
-    <Section
-      name="Merge"
-      summary={
-        <span className="flex items-center gap-1.5">
-          <Alert size={12} className="text-ink-muted" />
-          not known
-        </span>
-      }
-    >
-      <p className="px-3 py-2 text-xs leading-snug text-ink-muted">
-        GitHub did not answer for this one, so whether it can land, what is holding it
-        up and where it sits in a queue are all unknown. Nothing here is a no. It is the
-        question going unanswered, and the next read asks it again.
-      </p>
-    </Section>
   )
 }
 
@@ -524,7 +518,7 @@ const Settled = ({
   onCancel
 }: {
   readonly how: "merged" | "closed"
-  readonly reviews: ReadonlyArray<Review>
+  readonly reviews: Option.Option<ReadonlyArray<Review>>
   readonly headRef: HeadRef
   readonly merging: Merging
   readonly may: ReadonlySet<Asking>
@@ -656,7 +650,7 @@ const MergeCard = ({
   readonly url?: string
   /** This pull request's changed files, for the metadata on a conflicted path. */
   readonly files: ReadonlyArray<ChangedFile>
-  readonly reviews: ReadonlyArray<Review>
+  readonly reviews: Option.Option<ReadonlyArray<Review>>
   readonly headRef: HeadRef
   /** Everything this card may ask for, the branch included. */
   readonly may: ReadonlySet<Asking>
@@ -684,6 +678,11 @@ const MergeCard = ({
       />
     )
   }
+
+  // Third and last, so a pull request that has landed keeps its settled card whether
+  // or not the merge box answered — the state that decides that comes off another
+  // route. See `faceOf`, which is where the order is argued.
+  if (face.kind === "unread") return <MergeUnread />
 
   const merge = face.merge
   const wiring = { merging, can: face.can, actions, press, onCancel }

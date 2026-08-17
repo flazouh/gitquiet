@@ -184,12 +184,14 @@ describe("what the gateway sends to GitHub", () => {
    *
    * Their crash page: `Unicorn! · GitHub` as HTML, under a 503 or a 504. Measured on
    * `OpenRouterIncubator/ori#2087` on 2026-08-17, during an incident GitHub reported at
-   * a 20% error rate across pull requests. Three of the six routes this batch asks for
-   * died and three answered, and the whole pull request was refused over it.
+   * a 20% error rate across pull requests. Three of the seven routes this batch asks
+   * for came back that way — `changes`, `merge_box` and `header` — and the whole pull
+   * request was refused over it.
    *
-   * The rate is what makes this worth a shape rather than a retry alone. Six routes that
-   * each fail one time in five are all six answered about a quarter of the time, so a
-   * page that needs every one of them is a page that mostly does not appear.
+   * The rate is what makes this worth a shape rather than a retry alone. Six required
+   * routes that each fail one time in five are all six answered about a quarter of the
+   * time, so a page that needs every one of them is a page that mostly does not appear.
+   * Two of the six moved out of that product here, which takes it to about two in five.
    */
   const UNICORN = "<html><head><title>Unicorn! &middot; GitHub</title></head></html>"
 
@@ -239,6 +241,26 @@ describe("what the gateway sends to GitHub", () => {
       // Absent reads as no, which is the reading that cannot go wrong: a control
       // this never offers is one GitHub was never asked to refuse.
       expect(snapshot.headRef).toEqual({ mayDelete: false, mayRestore: false })
+    })
+
+    /*
+     * The other half of the rule, and the one worth more than the page it costs.
+     *
+     * A route that did not answer and a route that answered in a shape this does not
+     * know are opposite facts about GitHub, and only the first is an outage. The second
+     * is a drift: the next read does not fix it, somebody has to change `wire.ts`, and
+     * the reader has to be told rather than shown a card saying the question went
+     * unanswered. Making these two routes droppable must not buy the page at the price
+     * of the alarm, so a merge box in good JSON and the wrong shape still fails.
+     */
+    test("still refuses a merge box that answered in a shape it does not know", async () => {
+      intercept((url) =>
+        Response.json(url.includes("merge_box") ? { pullRequest: { renamed: true } } : payloadFor(url))
+      )
+
+      const error = await Effect.runPromise(Effect.flip(live))
+
+      expect(error.reason).toBe("undecodable")
     })
 
     /*

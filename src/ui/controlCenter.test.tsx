@@ -333,6 +333,20 @@ describe("what one pull request owes, in four Courts", () => {
     expect(rowsIn("Needs You")[0]?.textContent).toContain("main")
   })
 
+  /*
+   * The claim this panel makes is that what is left fits on the screen, and without a
+   * merge box it cannot make it. Every other item here comes off a route that is still
+   * required; the branch is the one that does not, so a pull request behind its base
+   * with green checks and no open thread would read "Nothing is owed here" over work
+   * somebody has to do.
+   */
+  test("does not claim nothing is owed while GitHub will not say about the branch", () => {
+    showing({ merge: Option.none() })
+
+    expect(screen.queryByText("Nothing is owed here")).toBeNull()
+    expect(screen.getByText(/GitHub did not say whether the branch is behind/)).toBeDefined()
+  })
+
   test("opens the file a thread hangs off, a remark about a line being about that file", async () => {
     const opened: Array<string> = []
     showing(

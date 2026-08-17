@@ -220,15 +220,22 @@ const mayTouchTheQueue = (standing: Standing, merge: MergeState): boolean => {
 }
 
 /**
- * The two shapes a merge card can have, so it cannot wear the wrong one.
+ * The three shapes a merge card can have, so it cannot wear the wrong one.
  *
  * A settled pull request has no merge state worth showing — no blockers to
  * clear, no queue to join, no branch to catch up — and the type says so by not
  * carrying any. That is the invariant the card kept breaking while both faces
  * were one bag of optional facts.
+ *
+ * Unread is the same argument made about a merge box GitHub would not serve. It
+ * carries nothing either, and for a stronger reason: there is nothing to carry.
+ * Building a live face out of an absent merge box would mean `isMergeable: false`
+ * and an empty list of blockers, which is the worst reading available — it says no
+ * and will not say why.
  */
 export type MergeFace =
   | { readonly kind: "settled"; readonly how: "merged" | "closed" }
+  | { readonly kind: "unread" }
   | {
       readonly kind: "live"
       readonly merge: MergeState
@@ -239,15 +246,35 @@ export type MergeFace =
       readonly drafting: "markReady" | "toDraft"
     }
 
-export const faceOf = (wanting: Wanting): MergeFace => {
-  if (wanting.state === "merged") return { kind: "settled", how: "merged" }
-  if (wanting.state === "closed") return { kind: "settled", how: "closed" }
+/** The state, and what the merge box said about it where GitHub served one. */
+export type Facing = {
+  readonly state: PullRequestState
+  readonly merge: Option.Option<MergeState>
+}
+
+/**
+ * Which face to wear, in the one order that cannot put the wrong one on.
+ *
+ * Settled is answered first and off the state alone, which is deliberate: the state
+ * comes from the `changes` route, the merge box is a different route, and a pull
+ * request known to have landed has landed whether or not that second route answered.
+ * Asking about the merge box first would put "nobody knows whether this can land"
+ * under a badge reading Merged, which is a sentence about a decision that was made.
+ *
+ * Only what is left needs a merge box, so only what is left can be unread. Below that
+ * line `whatCanBeDone` and `standingIn` see a real merge state and nothing else, which
+ * is what keeps every verb on the card answerable.
+ */
+export const faceOf = ({ state, merge }: Facing): MergeFace => {
+  if (state === "merged") return { kind: "settled", how: "merged" }
+  if (state === "closed") return { kind: "settled", how: "closed" }
+  if (Option.isNone(merge)) return { kind: "unread" }
 
   return {
     kind: "live",
-    merge: wanting.merge,
-    can: whatCanBeDone(wanting),
-    queueing: standingIn(wanting.merge),
-    drafting: wanting.state === "draft" ? "markReady" : "toDraft"
+    merge: merge.value,
+    can: whatCanBeDone({ state, merge: merge.value }),
+    queueing: standingIn(merge.value),
+    drafting: state === "draft" ? "markReady" : "toDraft"
   }
 }

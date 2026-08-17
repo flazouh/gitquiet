@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Deferred, Effect, Option } from "effect"
 import { aMergeState, aSnapshot } from "../../tests/snapshots"
-import type { PullRequestState } from "../domain/PullRequest"
+import type { PullRequestSnapshot, PullRequestState } from "../domain/PullRequest"
 import type { PullRequestRef } from "../domain/PullRequestRef"
 import { PullRequestScreen } from "./PullRequestScreen"
 
@@ -23,7 +23,7 @@ const failing = (signedIn: boolean) =>
   )
 
 /** A pull request on a repository that merges through a queue. */
-const queued = () =>
+const queued = (over: Partial<PullRequestSnapshot> = {}) =>
   aSnapshot({
     reference,
     merge: aMergeState({
@@ -35,7 +35,8 @@ const queued = () =>
         mayJoin: true,
         url: Option.some("https://github.com/acme/widgets/queue/main")
       })
-    })
+    }),
+    ...over
   })
 
 /** A write GitHub has not answered yet, and will answer when this test says so. */
@@ -419,6 +420,47 @@ describe("a pull request GitHub says has changed", () => {
     fire()
 
     await waitFor(() => expect(reads).toBe(2))
+  })
+
+  /*
+   * The socket's tokens come off the merge box, so an outage leaves nothing to join.
+   *
+   * Opening it late is the case worth pinning. The effect is keyed on the tokens
+   * themselves — see the dependency array in `PullRequestScreen` — so the move from
+   * nothing to a token string re-runs it, and the reader who arrives during an incident
+   * is listening again the moment GitHub serves the box, without a remount.
+   */
+  test("joins the socket on the read that finally brings a merge box", async () => {
+    let listening: ReadonlyArray<string> | undefined
+    let served = false
+
+    render(
+      <PullRequestScreen
+        reference={reference}
+        load={() => {
+          const snapshot = served
+            ? queued()
+            : queued({ merge: Option.none(), reviews: Option.none() })
+          served = true
+          return Effect.succeed({ snapshot })
+        }}
+        fetchDiffs={() => Effect.succeed([])}
+        onStepAside={() => {}}
+        watch={(channels) => {
+          listening = channels
+          return () => {}
+        }}
+      />
+    )
+
+    await waitFor(() => expect(screen.getByText(/GitHub did not answer for this one/)).toBeDefined())
+    expect(listening).toBeUndefined()
+
+    // Bubbling, as the platform's own is: the listener behind `revalidateOnFocus` is on
+    // `window`, and a `visibilitychange` fired at the document reaches it by propagation.
+    document.dispatchEvent(new Event("visibilitychange", { bubbles: true }))
+
+    await waitFor(() => expect(listening).toEqual(["queue-channel"]))
   })
 
   test("stops listening when the reader leaves", async () => {

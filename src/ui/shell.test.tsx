@@ -8,9 +8,11 @@ import {
   aComment,
   aFile,
   aMergeState,
+  aReview,
   aSnapshot,
   aThread,
-  person
+  person,
+  VIEWER
 } from "../../tests/snapshots"
 import { loadPullRequest } from "../app/pullRequest"
 import type { FetchedDiff, NewComment, PullRequestSnapshot } from "../domain/PullRequest"
@@ -360,6 +362,45 @@ describe("what the pull request is, in four sections", () => {
     expect(merge.textContent).toContain("GitHub did not answer for this one")
     expect(within(merge).queryByRole("button", { name: /Squash and merge/ })).toBeNull()
     expect(within(merge).queryByRole("button", { name: /Close pull request/ })).toBeNull()
+  })
+
+  /*
+   * The state comes off `changes`, which is required, so a pull request known to have
+   * landed has landed whether or not the merge box answered.
+   *
+   * Drawn as "nobody knows whether this can land" under a badge reading Merged while
+   * the absent case was matched before the state was. That is a sentence about a
+   * decision already made, and it also took away the list of who reviewed it, which is
+   * the one thing a settled card keeps on purpose.
+   */
+  test("keeps the settled card on one that has landed, which needs no merge box", async () => {
+    showing(
+      aSnapshot({
+        state: "merged",
+        merge: Option.none(),
+        reviews: Option.some([aReview(VIEWER, "approved")])
+      })
+    )
+    await awaitPage()
+
+    const merge = section("Merge")
+    expect(merge.textContent).toContain("This one has landed")
+    expect(merge.textContent).not.toContain("GitHub did not answer for this one")
+    // The verdicts list, which the settled face keeps and the unread one has no way to.
+    expect(merge.textContent).toContain(VIEWER)
+    expect(within(merge).getByText("approved")).toBeDefined()
+  })
+
+  /*
+   * An empty list and no list are opposite facts, and this row is the only place
+   * either shows. Drawing nothing for both would report an unread pull request as
+   * unreviewed, directly above the button that lands it.
+   */
+  test("says the record of who reviewed it is missing, not that nobody has", async () => {
+    showing(aSnapshot({ state: "merged", merge: Option.none(), reviews: Option.none() }))
+    await awaitPage()
+
+    expect(section("Merge").textContent).toContain("GitHub did not say who has reviewed this")
   })
 })
 

@@ -1954,11 +1954,22 @@ export const layer = Layer.succeed(GitHubGateway, {
 
       const snapshot = yield* decodeInto(reference, raw)
 
-      // Kept only once it has decoded, and forked rather than waited for. The
-      // pull request this was read for is about to be on the screen either way;
-      // the write only affects how quickly the next visit is, and paying for
-      // that now would be an odd trade.
-      yield* Effect.forkDetach(remember(reference, raw))
+      /*
+       * Kept only once it has decoded, and forked rather than waited for. The
+       * pull request this was read for is about to be on the screen either way;
+       * the write only affects how quickly the next visit is, and paying for
+       * that now would be an odd trade.
+       *
+       * Not kept at all where a droppable route came back empty. What would go in
+       * is the hole rather than the pull request, and a hole keeps: one read
+       * during an incident would have every later cold open of that pull request
+       * draw "GitHub did not answer for this one" first, on a GitHub that is
+       * answering perfectly well. The page still draws now; it is only the next
+       * visit that goes back to GitHub, which is where the answer is.
+       */
+      if (raw.mergeBox !== null && raw.header !== null) {
+        yield* Effect.forkDetach(remember(reference, raw))
+      }
 
       return snapshot
     }),

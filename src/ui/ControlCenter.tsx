@@ -389,6 +389,17 @@ export const ControlCenter = ({
    * else on it at all.
    */
   const owed = held.some((docket) => docket.court !== "settled")
+  /*
+   * The one fact this panel cannot see when GitHub will not serve the merge box.
+   *
+   * Everything else here comes off routes that are still required, so an empty panel
+   * over a merge box that answered means what it says. Without one, the branch item is
+   * missing: a pull request behind its base, with green checks and no open thread,
+   * would read "Nothing is owed here" over a branch somebody has to catch up. The
+   * claim this panel makes is that what is left fits on the screen, so it says which
+   * word it is short of rather than making the claim anyway.
+   */
+  const everything = Option.isSome(snapshot.merge)
 
   return (
     <Section
@@ -400,7 +411,13 @@ export const ControlCenter = ({
       tone={yours > 0 ? "attention" : held.length === 0 ? "plain" : "done"}
       summary={yours > 0 ? `${yours} for you` : undefined}
     >
-      {owed ? null : <p className="px-3 py-2 text-sm text-ink-muted">Nothing is owed here</p>}
+      {owed ? null : (
+        <p className="px-3 py-2 text-sm text-ink-muted">
+          {everything
+            ? "Nothing is owed here"
+            : "Nothing else is owed here. GitHub did not say whether the branch is behind."}
+        </p>
+      )}
       {held.map((docket) => {
           // Turning only while a job is turning. A check that is queued has not
           // started, which is the same nothing as a finding waiting on a machine

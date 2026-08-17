@@ -48,8 +48,17 @@ import {
 export type RawPayloads = {
   readonly changes: unknown
   readonly statusChecks: unknown
+  /**
+   * What `page_data/merge_box` said, or `null` where GitHub would not serve it.
+   *
+   * `null` is the gateway's word for a route that did not answer at all — see
+   * `whateverIsAt` — and it is the only value here that skips a decode. Anything
+   * else is put through the shape in `wire.ts` and fails the read if it has
+   * changed, which is what keeps an outage and a drift telling apart.
+   */
   readonly mergeBox: unknown
   readonly description: unknown
+  /** What `page_data/header` said, or `null`. Read as `mergeBox` above. */
   readonly header: unknown
   readonly issueComments: unknown
   /**
@@ -912,19 +921,30 @@ export const toSnapshot = Effect.fn("toSnapshot")(function* (
    * see `merge` on `PullRequestSnapshot`. What it costs the page is the card, the
    * verdicts given so far, and the two branch permissions.
    *
-   * GitHub served all three of these routes their crash page on
+   * GitHub served the header and the merge box their crash page on
    * `OpenRouterIncubator/ori` #2087 during their incident of 2026-08-17, at a
    * reported 20% error rate, and the whole pull request was refused over it.
    */
   const preview = yield* decodePreviewStack(raw.preview ?? null).pipe(
     Effect.catch(() => Effect.succeed(null))
   )
-  const headerPayload = yield* decodeHeader(raw.header).pipe(
-    Effect.catch(() => Effect.succeed(null))
-  )
-  const mergePayload = yield* decodeMergeBox(raw.mergeBox).pipe(
-    Effect.catch(() => Effect.succeed(null))
-  )
+  /*
+   * Asked only where GitHub sent something, and still allowed to fail on the shape.
+   *
+   * The gateway already tells the two apart: `whateverIsAt` hands back nothing for a
+   * refusal, an unreachable network or a body that is not JSON, and the payload itself
+   * for everything else. Catching a decode failure here as well would fold the two into
+   * one, and they are opposite facts about GitHub. A route that did not answer is an
+   * outage, and the next read fixes it. A route that answered in a shape this does not
+   * know is a drift, and the next read does not fix anything — somebody has to change
+   * this file. That is the whole reason the shapes in `wire.ts` are strict, and it is
+   * the alarm the reader gets the "Something GitHub sends has changed" screen from.
+   *
+   * `preview` above is the exception because `null` is an answer there: GitHub sends it
+   * under a 200 for a pull request they would not stack.
+   */
+  const headerPayload = raw.header === null ? null : yield* decodeHeader(raw.header)
+  const mergePayload = raw.mergeBox === null ? null : yield* decodeMergeBox(raw.mergeBox)
 
   const route = changes
   const viewerLogin = route.user.currentUserLogin
@@ -990,15 +1010,16 @@ export const toSnapshot = Effect.fn("toSnapshot")(function* (
     durationSeconds: check.durationInSeconds
   }))
 
+  /** What the merge box said, absent as one value so the two fields off it agree. */
+  const box = Option.fromNullOr(mergePayload)
+
   // A pending review is an unsubmitted draft, so it is not yet a review at all.
-  const reviews: Option.Option<ReadonlyArray<Review>> = Option.map(
-    Option.fromNullOr(mergePayload),
-    (said) =>
-      said.pullRequest.latestOpinionatedReviews.flatMap((review) =>
-        review.state === "PENDING"
-          ? []
-          : [{ reviewer: participantOf(review.author), decision: decisionOf(review.state) }]
-      )
+  const reviews: Option.Option<ReadonlyArray<Review>> = Option.map(box, (said) =>
+    said.pullRequest.latestOpinionatedReviews.flatMap((review) =>
+      review.state === "PENDING"
+        ? []
+        : [{ reviewer: participantOf(review.author), decision: decisionOf(review.state) }]
+    )
   )
 
   const snapshot: PullRequestSnapshot = {
@@ -1049,7 +1070,7 @@ export const toSnapshot = Effect.fn("toSnapshot")(function* (
     remarks,
     checks,
     reviews,
-    merge: Option.map(Option.fromNullOr(mergePayload), (said) =>
+    merge: Option.map(box, (said) =>
       mergeState(
         said.mergeRequirements,
         mergeQueue(said.pullRequest),

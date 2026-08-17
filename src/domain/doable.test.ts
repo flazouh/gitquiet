@@ -207,20 +207,27 @@ describe("what puts each verb back", () => {
   })
 })
 
+/** The card asked about a pull request whose merge box GitHub did serve. */
+const said = (state: PullRequestState, merge: MergeState = ready) =>
+  faceOf({ state, merge: Option.some(merge) })
+
+/** The same card, asked during an outage: GitHub served everything but the merge box. */
+const unserved = (state: PullRequestState) => faceOf({ state, merge: Option.none() })
+
 describe("the face the merge card wears", () => {
   test("is settled for one that has landed, and says which way it went", () => {
-    const face = faceOf({ state: "merged", merge: inA({}) })
+    const face = said("merged", inA({}))
 
     expect(face.kind).toBe("settled")
     expect(face.kind === "settled" ? face.how : null).toBe("merged")
   })
 
   test("is settled for a closed one too", () => {
-    expect(faceOf({ state: "closed", merge: ready }).kind).toBe("settled")
+    expect(said("closed").kind).toBe("settled")
   })
 
   test("carries the merge state and the verbs while it is still live", () => {
-    const face = faceOf({ state: "open", merge: behind(true) })
+    const face = said("open", behind(true))
 
     expect(face.kind).toBe("live")
     expect(face.kind === "live" ? face.can.has("update") : false).toBe(true)
@@ -228,7 +235,7 @@ describe("the face the merge card wears", () => {
 
   test("says which of the three queue verbs this one is at, so nothing else has to", () => {
     const at = (merge: MergeState) => {
-      const face = faceOf({ state: "open", merge })
+      const face = said("open", merge)
       return face.kind === "live" ? Option.getOrNull(face.queueing) : "settled"
     }
 
@@ -244,18 +251,51 @@ describe("the face the merge card wears", () => {
     // Which button to show and whether it may be pressed are two questions. A
     // reader without the permission still gets told what the control would do,
     // greyed out, rather than being shown nothing at all.
-    const face = faceOf({ state: "open", merge: inA({ waiting: true, viewerCanQueue: false }) })
+    const face = said("open", inA({ waiting: true, viewerCanQueue: false }))
 
     expect(face.kind === "live" ? Option.getOrNull(face.queueing) : null).toBe("dequeue")
     expect(face.kind === "live" ? face.can.has("dequeue") : true).toBe(false)
   })
 
   test("says whether the draft door goes in or out, which the state decides", () => {
-    expect(faceOf({ state: "draft", merge: ready }).kind === "live").toBe(true)
-    const draft = faceOf({ state: "draft", merge: ready })
-    const open = faceOf({ state: "open", merge: ready })
+    expect(said("draft").kind === "live").toBe(true)
+    const draft = said("draft")
+    const open = said("open")
 
     expect(draft.kind === "live" ? draft.drafting : null).toBe("markReady")
     expect(open.kind === "live" ? open.drafting : null).toBe("toDraft")
+  })
+
+  /*
+   * The third face, for a merge box GitHub would not serve.
+   *
+   * Not a fourth kind of no. A live face built out of an absent merge box would carry
+   * `isMergeable: false` and no blockers, which is the reading this file exists to
+   * stop: it says no and will not say why.
+   */
+  test("is unread where GitHub would not say, rather than a card full of no", () => {
+    expect(unserved("open").kind).toBe("unread")
+  })
+
+  test("is unread for a draft too, the draft door turning on the same missing box", () => {
+    expect(unserved("draft").kind).toBe("unread")
+  })
+
+  /*
+   * The order that matters, and the one that was wrong when this face was first drawn
+   * at the call site instead of here.
+   *
+   * The state comes off the `changes` route and the merge box off another, so a pull
+   * request known to have landed has landed whether or not the second one answered.
+   * Asked the other way round, the card put "nobody knows whether this can land" under
+   * a badge reading Merged, which is a sentence about a decision already made — and it
+   * took away the list of who reviewed it, which is the one thing a settled card keeps.
+   */
+  test("is settled before it is unread, a landed one needing no merge box to say so", () => {
+    const merged = unserved("merged")
+
+    expect(merged.kind).toBe("settled")
+    expect(merged.kind === "settled" ? merged.how : null).toBe("merged")
+    expect(unserved("closed").kind).toBe("settled")
   })
 })
