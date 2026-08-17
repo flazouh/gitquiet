@@ -180,6 +180,29 @@ describe("what the gateway sends to GitHub", () => {
   })
 
   /**
+   * The merge box weighs its rules against the method it is handed, so we hand it none.
+   *
+   * This route took `?merge_method=MERGE`, and GitHub answered every question about
+   * that method rather than about the one a press would use. On a repository that
+   * allows only a squash, two separate rules refused a merge commit — the repository
+   * setting and the base branch ruleset — and the card printed both, over a button
+   * that squashes. Measured on `flazouh/ghpro-scratch#12` with merge commits turned
+   * off: asked with `MERGE` the box answers `UNMERGEABLE` and one failed condition,
+   * asked with `SQUASH` it answers `MERGEABLE` and none, and asked with no method at
+   * all it answers `MERGEABLE` — GitHub falls back to the repository's own default,
+   * which is what their page opens on.
+   */
+  test("asks the merge box without naming a merge method", async () => {
+    const calls = intercept((url) => Response.json(payloadFor(url)))
+
+    await Effect.runPromise(live)
+
+    const asked = calls.find((call) => call.url.includes("page_data/merge_box"))
+    expect(asked).toBeDefined()
+    expect(new URL(asked!.url).searchParams.get("merge_method")).toBeNull()
+  })
+
+  /**
    * A route GitHub itself could not serve, which is not a payload that changed shape.
    *
    * Their crash page: `Unicorn! · GitHub` as HTML, under a 503 or a 504. Measured on

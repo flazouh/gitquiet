@@ -451,6 +451,96 @@ const throughAQueue = (
   }
 }
 
+/**
+ * The draft's payloads, with GitHub allowing a different set of ways in.
+ *
+ * Only the direct merge's entry is rewritten. The queue's entry carries a list
+ * of its own and is left alone, so a test about which method a press would use
+ * cannot pass by reading the wrong one of the two.
+ */
+const landingWith = (
+  methods: ReadonlyArray<{
+    readonly name: string
+    readonly isDefault: boolean
+    readonly allowableStatus: string
+  }>
+) => {
+  const box = draftWithBotFindings.mergeBox as {
+    readonly pullRequest: Record<string, unknown> & {
+      readonly viewerMergeActions: ReadonlyArray<{ readonly name: string }>
+    }
+  }
+
+  return {
+    ...draftWithBotFindings,
+    mergeBox: {
+      ...box,
+      pullRequest: {
+        ...box.pullRequest,
+        viewerMergeActions: box.pullRequest.viewerMergeActions.map((action) =>
+          action.name === "DIRECT_MERGE" ? { ...action, mergeMethods: methods } : action
+        )
+      }
+    }
+  }
+}
+
+/**
+ * Which way a press would land this, which is the repository's answer and not ours.
+ *
+ * The card said "Squash and merge" on every pull request in the world and posted
+ * `SQUASH` to match, so a repository that allows only a merge commit got a button
+ * that could not work. The read had the same word hardcoded into the address it
+ * asked at — `?merge_method=MERGE` — which is the other half of the same bug:
+ * GitHub weighs every rule against the method it is handed, so on a squash-only
+ * repository it answered with two failed conditions about a merge commit nobody
+ * had asked for. Reported by Ahmed on `OpenRouterInternal/ori`, where the card
+ * listed the merge method as refused twice over.
+ */
+describe("the way a press would land a pull request", () => {
+  test("is the repository's own default, where GitHub allows that one", async () => {
+    const snapshot = await snapshotOf(draft, draftWithBotFindings)
+
+    expect(merging(snapshot).method).toEqual(Option.some("MERGE"))
+  })
+
+  test("is one GitHub does allow, where the default is refused", async () => {
+    const snapshot = await snapshotOf(
+      draft,
+      landingWith([
+        { name: "MERGE", isDefault: true, allowableStatus: "BLOCKED" },
+        { name: "SQUASH", isDefault: false, allowableStatus: "ALLOWED" },
+        { name: "REBASE", isDefault: false, allowableStatus: "ALLOWED" }
+      ])
+    )
+
+    expect(merging(snapshot).method).toEqual(Option.some("SQUASH"))
+  })
+
+  test("is nothing at all where GitHub allows none of the three", async () => {
+    const snapshot = await snapshotOf(
+      draft,
+      landingWith([
+        { name: "MERGE", isDefault: true, allowableStatus: "BLOCKED" },
+        { name: "SQUASH", isDefault: false, allowableStatus: "BLOCKED" }
+      ])
+    )
+
+    expect(Option.isNone(merging(snapshot).method)).toBe(true)
+  })
+
+  test("is nothing at all where GitHub names a method this cannot send", async () => {
+    // Their enum is theirs to grow. A fourth way of merging arrives here as a
+    // method nobody can post rather than as a string handed to a write route.
+    const snapshot = await snapshotOf(
+      draft,
+      landingWith([{ name: "FAST_FORWARD", isDefault: true, allowableStatus: "ALLOWED" }])
+    )
+
+    expect(Option.isNone(merging(snapshot).method)).toBe(true)
+  })
+})
+
 describe("a pull request nobody wrote a description for", () => {
   test("reads it, with nothing where the description would be", async () => {
     // GitHub sends `"body": null` rather than an empty string, and refusing that

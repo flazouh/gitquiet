@@ -4,6 +4,7 @@ import type {
   BlockerAbout,
   ChangedFile,
   HeadRef,
+  MergeMethod,
   MergeQueue,
   MergeState,
   PullRequestState,
@@ -342,7 +343,11 @@ const WORDS: Record<
   { readonly rest: string; readonly working: string; readonly done: string }
 > = {
   deleteBranch: { rest: "Delete branch", working: "Deleting…", done: "Branch deleted" },
-  merge: { rest: "Squash and merge", working: "Merging…", done: "Merged" },
+  // The way in is the repository's to decide, so the resting word is replaced by
+  // {@link wordsOf} wherever the merge state names one. What stands here is the
+  // word for a press whose method nothing has said — greyed out, since
+  // `whatCanBeDone` refuses a merge it cannot name a method for.
+  merge: { rest: "Merge", working: "Merging…", done: "Merged" },
   // "Joining the queue…" once, which was the one waiting word longer than its own
   // verb. Every word a button says now stands in one cell as wide as the widest of
   // them — see {@link Says} — so a long wait is paid for by a resting button that
@@ -392,6 +397,36 @@ const TONE: Record<Asking, { readonly rest: string; readonly armed: string }> = 
   toDraft: { rest: "bg-surface text-ink-muted", armed: "bg-accent-emphasis text-ink-on-emphasis" },
   reopen: { rest: "bg-surface text-ink", armed: "bg-pass-emphasis text-ink-on-emphasis" }
 }
+
+/**
+ * What the press that lands the change is called, per way of merging.
+ *
+ * GitHub's own three words, from their own button. The card said "Squash and
+ * merge" on every repository there is and posted a squash to match, so on one
+ * that allows only a merge commit the label named a commit GitHub would never
+ * write, over a press GitHub would refuse. Which of the three applies is on the
+ * merge state — see `MergeState.method`.
+ */
+const MERGE_WORD: Record<MergeMethod, string> = {
+  MERGE: "Merge pull request",
+  SQUASH: "Squash and merge",
+  REBASE: "Rebase and merge"
+}
+
+/**
+ * What a button says, once the repository has had its say about merging.
+ *
+ * Every verb but the merge reads straight off {@link WORDS}. The merge is the
+ * one whose resting word is not ours: it names the commit the repository writes,
+ * and a card that has not been told which keeps the plain word.
+ */
+const wordsOf = (
+  doing: Asking,
+  method: Option.Option<MergeMethod>
+): { readonly rest: string; readonly working: string; readonly done: string } =>
+  doing === "merge" && Option.isSome(method)
+    ? { ...WORDS.merge, rest: MERGE_WORD[method.value] }
+    : WORDS[doing]
 
 /** What each verdict is called, in GitHub's own words for it. */
 const VERDICT_WORD: Record<ReviewDecision, string> = {
@@ -685,7 +720,7 @@ const MergeCard = ({
   if (face.kind === "unread") return <MergeUnread />
 
   const merge = face.merge
-  const wiring = { merging, can: face.can, actions, press, onCancel }
+  const wiring = { merging, can: face.can, actions, press, onCancel, method: merge.method }
   // A stack makes GitHub's own word for this pull request the wrong answer for
   // the card. Asked about the top of a stack with a draft under it they say
   // MERGEABLE, which is true of the pull request being read and not true of the
@@ -873,8 +908,13 @@ const CONFIRM = "Confirm"
  * machine's step without checking whose it was — so asking to close said
  * "Merging…" on the button beside it.
  */
-const labelFor = (merging: Merging, doing: Asking, asking: boolean): string => {
-  const words = WORDS[doing]
+const labelFor = (
+  merging: Merging,
+  doing: Asking,
+  asking: boolean,
+  method: Option.Option<MergeMethod>
+): string => {
+  const words = wordsOf(doing, method)
   if (asking) return CONFIRM
   if (merging.step === "working" && merging.doing === doing) return words.working
   if (merging.step === "done" && merging.doing === doing) return words.done
@@ -889,12 +929,13 @@ const labelFor = (merging: Merging, doing: Asking, asking: boolean): string => {
  * way. It is also the width of the button, for the whole time it is on the screen
  * — see {@link Says}.
  */
-const wordsFor = (doing: Asking): ReadonlyArray<string> => [
-  WORDS[doing].rest,
-  CONFIRM,
-  WORDS[doing].working,
-  WORDS[doing].done
-]
+const wordsFor = (
+  doing: Asking,
+  method: Option.Option<MergeMethod>
+): ReadonlyArray<string> => {
+  const words = wordsOf(doing, method)
+  return [words.rest, CONFIRM, words.working, words.done]
+}
 
 const Ask = ({
   doing,
@@ -903,6 +944,7 @@ const Ask = ({
   actions,
   press,
   onCancel,
+  method = Option.none(),
   className = ""
 }: {
   /** What this button asks for, which decides its words, its colours and its name. */
@@ -920,11 +962,18 @@ const Ask = ({
   readonly actions?: MergeActions
   readonly press: (doing: Asking) => void
   readonly onCancel: () => void
+  /**
+   * The way this repository merges, which only the merge button reads.
+   *
+   * Defaulted to none, which is the settled face: the one control there deletes
+   * a branch, and nothing about how a landed pull request landed is in reach.
+   */
+  readonly method?: Option.Option<MergeMethod>
   readonly className?: string
 }) => {
   const art = useArt()
   const Close = art.close
-  const verb = WORDS[doing].rest
+  const verb = wordsOf(doing, method).rest
   const tone = TONE[doing]
   const named = `${verb.charAt(0).toLowerCase()}${verb.slice(1)}`
   const asking = merging.step === "asking" && merging.doing === doing
@@ -965,8 +1014,8 @@ const Ask = ({
         }`}
       >
         <Says
-          among={wordsFor(doing)}
-          said={labelFor(merging, doing, asking)}
+          among={wordsFor(doing, method)}
+          said={labelFor(merging, doing, asking, method)}
           waiting={WORDS[doing].working}
         />
       </button>

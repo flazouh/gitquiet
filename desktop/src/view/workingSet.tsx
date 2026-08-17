@@ -78,7 +78,10 @@ const remembered = () => {
  * the card builds its own — empty, and answered over the wire.
  */
 const WRITES = {
-  merge: mergePullRequest,
+  // The way in is named here, a row having no merge state to read it off. The
+  // same gap the extension's own list has, and the reason the card is where a
+  // merge belongs — see `MergeState.method`.
+  merge: (reference: PullRequestRef) => mergePullRequest(reference, "SQUASH"),
   close: closePullRequest,
   reopen: reopenPullRequest,
   markReady: markReadyForReview,

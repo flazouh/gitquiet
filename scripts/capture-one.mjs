@@ -60,7 +60,7 @@ await gotoAndWait(PULL, { timeout: 60, settle: 6 })
 
 await grab("changes", `${PULL}/changes`)
 await grab("status_checks", `${PULL}/page_data/status_checks`)
-await grab("merge_box", `${PULL}/page_data/merge_box?merge_method=MERGE&bypass_requirements=false`)
+await grab("merge_box", `${PULL}/page_data/merge_box?bypass_requirements=false`)
 await grab("header", `${PULL}/page_data/header`)
 await grab("issue_comments", `${PULL}/page_data/issue_comments`)
 await grab("description", `${PULL}/page_data/description`)

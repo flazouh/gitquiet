@@ -179,7 +179,20 @@ const mergeOf = (facts: CardFacts): MergeState => {
     mayBypass: facts.merge.mayBypass,
     // Their signed socket tokens are minted for a page of theirs, and there is no
     // page of theirs here.
-    channels: []
+    channels: [],
+    /*
+     * The way in, which the facts this window reads do not carry.
+     *
+     * The extension reads it off GitHub's own merge box, which answers with the
+     * three methods and a verdict apiece. Nothing in {@link MergeFacts} says, so
+     * this keeps posting the commonest of the three and repeats GitHub's refusal
+     * on a repository that allows only a merge commit. What would fill it is the
+     * repository itself — `allow_merge_commit`, `allow_squash_merge` and
+     * `allow_rebase_merge` are documented fields — read into `MergeFacts` on the
+     * other side of this wire, where every other conclusion about merging is
+     * drawn.
+     */
+    method: Option.some("SQUASH")
   }
 }
 

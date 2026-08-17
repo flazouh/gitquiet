@@ -194,8 +194,24 @@ const open = (
     writing(
       Effect.gen(function* () {
         const { snapshot } = yield* Fiber.join(latest)
-        const stacked = Option.flatMap(snapshot.merge, (said) => said.stack)
-        return yield* mergePullRequest(reference, Option.isSome(stacked))
+        const said = snapshot.merge
+        const stacked = Option.flatMap(said, (state) => state.stack)
+        /*
+         * The way this repository merges, which is GitHub's answer and not ours.
+         * Every press posted `SQUASH` before this, so a repository that allows
+         * only a merge commit had one control that could not work.
+         *
+         * A press with no method behind it cannot arrive here — the button is
+         * greyed where the merge state names none, see `whatCanBeDone` — and the
+         * repository default is what GitHub itself falls back to when a request
+         * names nothing, so it is what the refusal should come back about.
+         */
+        const method = Option.flatMap(said, (state) => state.method)
+        return yield* mergePullRequest(
+          reference,
+          Option.getOrElse(method, () => "MERGE" as const),
+          Option.isSome(stacked)
+        )
       })
     )
   const enqueue = () => writing(enqueuePullRequest(reference))

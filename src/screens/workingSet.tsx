@@ -44,7 +44,17 @@ import "@/ui/styles.css";
  * serve a surface whose gateway is nothing like this one.
  */
 const WRITES = {
-  merge: mergePullRequest,
+  /*
+   * The way in is named here, because a row is the one surface that cannot read
+   * it. Which of the three a repository allows is on the merge state, and a row
+   * carries six fields with no merge state among them — so this posts the
+   * commonest of the three and repeats GitHub's refusal where it is not allowed.
+   *
+   * The card is where a merge belongs for exactly this reason, and now says so
+   * on the button: it reads the method off the merge box and asks for that one.
+   * See `MergeState.method`.
+   */
+  merge: (reference: PullRequestRef) => mergePullRequest(reference, "SQUASH"),
   close: closePullRequest,
   reopen: reopenPullRequest,
   markReady: markReadyForReview,

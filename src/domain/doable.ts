@@ -107,7 +107,10 @@ export const whatCanBeDone = ({ state, merge }: Wanting): ReadonlySet<Doing> => 
 
   const standing = standingIn(merge)
   if (Option.isNone(standing)) {
-    if (merge.isMergeable && !held) can.add("merge")
+    // A press has to name a way of merging, so a merge box that named none this
+    // can send is a no. Every press used to post the same word regardless, which
+    // GitHub refuses outright on a repository that does not allow it.
+    if (merge.isMergeable && !held && Option.isSome(merge.method)) can.add("merge")
     return can
   }
 

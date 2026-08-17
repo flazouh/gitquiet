@@ -390,6 +390,18 @@ export type AutoMerge = {
 }
 
 /**
+ * The three ways GitHub will put a branch into another one.
+ *
+ * In the domain rather than beside the write that sends one, because it is not a
+ * detail of the request: which of the three a repository allows decides what the
+ * button says, what the press posts, and which rules GitHub weighs the pull
+ * request against. A repository allows any subset of them and names one the
+ * default, and a fourth word arriving in that field is a method this cannot
+ * send — see `MergeState.method`.
+ */
+export type MergeMethod = "MERGE" | "SQUASH" | "REBASE"
+
+/**
  * The line a repository makes pull requests stand in before they land.
  *
  * A queue changes what merging even means: nothing goes straight into the base
@@ -534,6 +546,26 @@ export type MergeState = {
    * would be reading somebody else's private format.
    */
   readonly channels: ReadonlyArray<string>
+  /**
+   * The way a press would land this, which the repository decides and not us.
+   *
+   * Every press used to post `SQUASH`, and the button said so, on every
+   * repository in the world. A repository that allows only a merge commit got a
+   * control that GitHub refuses and a word above it naming a commit GitHub would
+   * never write. The same word was hardcoded into the address the merge box is
+   * read at, which is the half a reader saw: GitHub weighs its rules against the
+   * method it is handed, so a squash-only repository answered with two failed
+   * conditions about a merge commit nobody had asked for.
+   *
+   * The repository's own default where GitHub allows it, since that is the one
+   * their page opens on, and any other allowed one where the default is refused.
+   *
+   * None where GitHub named no way in this can send, which is a no rather than a
+   * shrug: the button greys out instead of guessing at a method. It happens on a
+   * repository that allows nothing but a queue, and it would happen on a fourth
+   * word in that field — theirs to add, and not ours to post.
+   */
+  readonly method: Option.Option<MergeMethod>
 }
 
 /**

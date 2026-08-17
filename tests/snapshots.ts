@@ -103,7 +103,12 @@ const NOTHING_IN_THE_WAY: MergeState = {
   mayBypass: false,
   update: Option.none(),
   channels: [],
-  stack: Option.none()
+  stack: Option.none(),
+  // The commonest of the three, so a test that is not about the way in reads as
+  // the repositories most tests are written against. A merge state naming none
+  // is a merge nobody may press — see `whatCanBeDone` — which is a fact worth
+  // one test of its own rather than the default every other test inherits.
+  method: Option.some("SQUASH")
 }
 
 /**

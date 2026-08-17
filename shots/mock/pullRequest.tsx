@@ -547,7 +547,8 @@ export const SNAPSHOT: PullRequestSnapshot = {
      */
     update: Option.some({ how: "MERGE", mayUpdate: true, refusal: Option.none() }),
     mayBypass: false,
-    channels: []
+    channels: [],
+    method: Option.some("SQUASH")
   })
 }
 

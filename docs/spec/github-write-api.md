@@ -42,7 +42,26 @@ https://github.com/{owner}/{repo}/pull/{number}/page_data/{route}
 ```
 
 The same prefix serves both halves. `merge_box` takes a query string
-(`?merge_method=MERGE&bypass_requirements=false`); the rest take none.
+(`?bypass_requirements=false`); the rest take none.
+
+`merge_box` also reads `merge_method`, and what it does with it is worth knowing
+before you send one: every requirement in the answer is weighed against that
+method. Measured on a repository with merge commits turned off:
+
+| asked with | `mergeRequirements.state` | failed conditions |
+| --- | --- | --- |
+| `merge_method=MERGE` | `UNMERGEABLE` | `PULL_REQUEST_MERGE_METHOD` |
+| `merge_method=SQUASH` | `MERGEABLE` | none |
+| no `merge_method` | `MERGEABLE` | none |
+| `merge_method=NOT_A_METHOD` | 500 | — |
+
+With the parameter absent GitHub weighs the repository's own default method,
+which is what their page opens on, so this extension leaves it out. Which method
+a press then sends is read out of the answer instead:
+`pullRequest.viewerMergeActions` carries one entry per way in — `MERGE_QUEUE`,
+`DIRECT_MERGE`, `AUTO_MERGE` — and each carries `mergeMethods`, a list of the
+three with `allowableStatus` and `isDefault` apiece. Those verdicts do not move
+with the parameter: they are the same in all four rows above.
 
 ## Headers
 

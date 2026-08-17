@@ -16,7 +16,8 @@ const ready: MergeState = {
   mayBypass: false,
   update: Option.none(),
   channels: [],
-  stack: Option.none()
+  stack: Option.none(),
+  method: Option.some("SQUASH")
 }
 const button = (name: RegExp) => screen.getByRole("button", { name })
 
@@ -59,6 +60,53 @@ const inA = (queue: Partial<MergeQueue>): MergeState => ({
     mayJoin: true,
     url: Option.some("https://github.com/o/r/queue/main"),
     ...queue
+  })
+})
+
+/*
+ * The button used to say "Squash and merge" on every repository there is.
+ *
+ * It posted `SQUASH` to match, so on a repository that allows only a merge commit
+ * the one control that lands a change could not work, and the word above it named
+ * a commit GitHub would never write. Which ways in are allowed is the merge box's
+ * answer, and their own three words for them are the ones on their own button.
+ */
+describe("the word on the button that lands the change", () => {
+  const landingWith = (method: "MERGE" | "SQUASH" | "REBASE"): MergeState => ({
+    ...ready,
+    method: Option.some(method)
+  })
+
+  test("names the merge commit, where that is what the repository writes", () => {
+    render(<Merge state="open" merge={Option.some(landingWith("MERGE"))} actions={{ merge: () => Effect.void }} />)
+
+    expect(button(/Merge pull request/)).toBeDefined()
+    expect(screen.queryByRole("button", { name: /Squash and merge/ })).toBeNull()
+  })
+
+  test("names the rebase, where that is what the repository writes", () => {
+    render(<Merge state="open" merge={Option.some(landingWith("REBASE"))} actions={{ merge: () => Effect.void }} />)
+
+    expect(button(/Rebase and merge/)).toBeDefined()
+  })
+
+  test("asks a second time in its own words", async () => {
+    render(<Merge state="open" merge={Option.some(landingWith("MERGE"))} actions={{ merge: () => Effect.void }} />)
+
+    await userEvent.click(button(/Merge pull request/))
+
+    expect(button(/Confirm merge pull request/)).toBeDefined()
+  })
+
+  test("cannot be pressed where GitHub named no way of merging at all", () => {
+    render(
+      <Merge state="open"
+        merge={Option.some({ ...ready, method: Option.none() })}
+        actions={{ merge: () => Effect.void }}
+      />
+    )
+
+    expect(button(/Merge/)).toHaveProperty("disabled", true)
   })
 })
 

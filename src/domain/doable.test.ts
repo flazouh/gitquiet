@@ -11,7 +11,8 @@ const ready: MergeState = {
   mayBypass: false,
   update: Option.none(),
   channels: [],
-  stack: Option.none()
+  stack: Option.none(),
+  method: Option.some("SQUASH")
 }
 
 const inA = (queue: Partial<MergeQueue>): MergeState => ({
@@ -78,6 +79,21 @@ describe("what can be done to a pull request", () => {
 
     expect(can("open", blocked).has("merge")).toBe(false)
     expect(can("open", blocked).has("close")).toBe(true)
+  })
+
+  /*
+   * A press has to name a way of merging, so not knowing one is a no.
+   *
+   * The way in used to be hardcoded — every press posted `SQUASH`, on every
+   * repository — which is a merge GitHub refuses outright where a squash is not
+   * allowed. Read off the merge box now, and a merge box that names no method we
+   * can send leaves the button greyed rather than sending a guess.
+   */
+  test("not merging where GitHub named no way of doing it", () => {
+    const unnamed: MergeState = { ...ready, method: Option.none() }
+
+    expect(can("open", unnamed).has("merge")).toBe(false)
+    expect(can("open", unnamed).has("close")).toBe(true)
   })
 
   test("merging a layer whose whole landing is ready", () => {

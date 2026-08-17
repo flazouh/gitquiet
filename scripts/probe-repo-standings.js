@@ -96,7 +96,7 @@ await probe(
     if (row === undefined) return 'no rows'
 
     const started = performance.now()
-    const box = await fetch('https://github.com/${STRANGER}/pull/' + row.number + '/page_data/merge_box?merge_method=MERGE&bypass_requirements=false', { headers: ${JSON.stringify(ASK)}, credentials: 'include' })
+    const box = await fetch('https://github.com/${STRANGER}/pull/' + row.number + '/page_data/merge_box?bypass_requirements=false', { headers: ${JSON.stringify(ASK)}, credentials: 'include' })
     const took = Math.round(performance.now() - started)
     if (!box.ok) return JSON.stringify({ status: box.status, took })
     const body = await box.json()

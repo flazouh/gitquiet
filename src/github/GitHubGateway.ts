@@ -152,7 +152,27 @@ const eventFor = (verdict: Verdict): string =>
 
 const CHANGES = "/changes"
 const STATUS_CHECKS = "/page_data/status_checks"
-const MERGE_BOX = "/page_data/merge_box?merge_method=MERGE&bypass_requirements=false"
+/**
+ * The merge box, asked without naming a way of merging.
+ *
+ * The method is not ours to choose here, and naming one was read as a question
+ * about that method: GitHub weighs every rule against whatever is in this
+ * parameter, so `merge_method=MERGE` on a squash-only repository came back with
+ * two separate conditions refusing a merge commit — the repository setting and
+ * the base branch ruleset — over a button that squashes. Ahmed reported the pair
+ * of them on `OpenRouterInternal/ori`.
+ *
+ * Left out, GitHub weighs the repository's own default, which is what their page
+ * opens on. Measured on `flazouh/ghpro-scratch#12` with merge commits turned
+ * off: `MERGE` answers `UNMERGEABLE` with one failed condition, `SQUASH` and no
+ * method at all both answer `MERGEABLE` with none. A method GitHub cannot read
+ * is not ignored the way the auto-merge route ignores one — `merge_method=NOT_A_METHOD`
+ * answers 500 — so this parameter is either right or absent.
+ *
+ * Which method a press then sends is read out of the answer, off the direct
+ * merge's own list of allowed methods. See `landingMethod` in `snapshot.ts`.
+ */
+const MERGE_BOX = "/page_data/merge_box?bypass_requirements=false"
 // The stack GitHub would make out of this pull request, which is the only place
 // that state is knowable from — their merge box says the same thing about a pull
 // request that can be stacked and one with nothing to stack. A few hundred bytes,

@@ -337,7 +337,10 @@ const routes: ReadonlyArray<Check> = [
   }),
   checking({
     name: "merge_box",
-    url: () => `${PULL}/page_data/merge_box?merge_method=MERGE&bypass_requirements=false`,
+    // No merge method named, as the gateway asks it: GitHub weighs its rules
+    // against whatever is in that parameter, so naming one asks about a merge
+    // the reader may not be making. See `MERGE_BOX` in `GitHubGateway.ts`.
+    url: () => `${PULL}/page_data/merge_box?bypass_requirements=false`,
     schema: MergeBoxRoute
   }),
   checking({ name: "header", url: () => `${PULL}/page_data/header`, schema: HeaderRoute }),

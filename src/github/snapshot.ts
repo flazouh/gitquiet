@@ -4,6 +4,7 @@ import type {
   BlockerAbout,
   BranchUpdate,
   Chain,
+  MergeMethod,
   MergeQueue,
   MergeState,
   ChangeType,
@@ -414,28 +415,20 @@ const mergeState = (
       readonly isConflictResolvableInWeb?: boolean | null | undefined
     }>
   } | null,
-  queue: Option.Option<MergeQueue>,
-  autoMerge: Option.Option<AutoMerge>,
-  mayBypass: boolean,
-  update: Option.Option<BranchUpdate>,
-  channels: ReadonlyArray<string>,
-  stack: Option.Option<Stack>
+  /**
+   * Everything about merging this that is read elsewhere, in one argument.
+   *
+   * Named rather than counted. Seven positional arguments went in here, all but
+   * one of them an Option, and the eighth was the merge method — which is to say
+   * the next reader of the call site would have been asked to tell
+   * `Option.none()` from `Option.none()` by position.
+   */
+  rest: Omit<MergeState, "isMergeable" | "blockers">
 ): MergeState => {
   // Null once it has landed. Nothing is required of a pull request that is
   // already in, and saying "not ready to merge" over one would be this reading
   // an absence as a refusal.
-  if (requirements === null) {
-    return {
-      isMergeable: false,
-      blockers: [],
-      queue,
-      autoMerge,
-      mayBypass,
-      update,
-      channels,
-      stack
-    }
-  }
+  if (requirements === null) return { isMergeable: false, blockers: [], ...rest }
 
   const isMergeable =
     requirements.state === "MERGEABLE" || requirements.state === "MERGEABLE_IF_STATUSES_PASS"
@@ -453,7 +446,6 @@ const mergeState = (
       mayResolve: condition.isConflictResolvableInWeb === true
     }))
 
-  const rest = { queue, autoMerge, mayBypass, update, channels, stack }
   if (isMergeable || failed.length > 0) return { isMergeable, blockers: failed, ...rest }
 
   return {
@@ -470,6 +462,54 @@ const mergeState = (
       }
     ]
   }
+}
+
+/** One of the three this can post, rather than any word GitHub puts in that field. */
+const sendable = (name: string): name is MergeMethod =>
+  name === "MERGE" || name === "SQUASH" || name === "REBASE"
+
+/**
+ * Which way a press would land this, out of the ways GitHub says are allowed.
+ *
+ * Read off the direct merge's own list of methods. GitHub answers per way in —
+ * the queue, the direct merge — and each carries the three methods with a
+ * verdict apiece and one of them marked the default. The direct merge's list is
+ * the one that decides here, because a repository with a queue is not sent a
+ * merge method at all: joining the line posts `GROUP` or `SOLO` instead.
+ *
+ * The default first, since that is the one their own page opens on, and any
+ * other allowed one after it. A repository that allows only a squash has
+ * `MERGE: BLOCKED` here whatever the default says, and picking the default
+ * regardless would put back the bug this field exists to fix.
+ *
+ * None where nothing in the list is both allowed and sendable, which greys the
+ * button. Not a shrug: a press has to name a method, and the alternative was a
+ * word hardcoded at the call site that GitHub refuses on some repositories.
+ */
+const landingMethod = (pullRequest: {
+  readonly viewerMergeActions?:
+    | ReadonlyArray<{
+      readonly name: string
+      readonly mergeMethods?:
+        | ReadonlyArray<{
+          readonly name: string
+          readonly allowableStatus?: string | null | undefined
+          readonly isDefault?: boolean | null | undefined
+        }>
+        | null
+        | undefined
+    }>
+    | null
+    | undefined
+}): Option.Option<MergeMethod> => {
+  const direct = pullRequest.viewerMergeActions?.find(({ name }) => name === "DIRECT_MERGE")
+  const allowed = (direct?.mergeMethods ?? []).flatMap((method) =>
+    method.allowableStatus === "ALLOWED" && sendable(method.name)
+      ? [{ name: method.name, isDefault: method.isDefault === true }]
+      : []
+  )
+
+  return Option.fromNullishOr((allowed.find((method) => method.isDefault) ?? allowed[0])?.name)
 }
 
 /**
@@ -1071,20 +1111,20 @@ export const toSnapshot = Effect.fn("toSnapshot")(function* (
     checks,
     reviews,
     merge: Option.map(box, (said) =>
-      mergeState(
-        said.mergeRequirements,
-        mergeQueue(said.pullRequest),
-        autoMergeOf(said.pullRequest),
-        said.pullRequest.viewerCanAdminBypassMergeRequirements === true,
-        branchUpdate(said.pullRequest),
-        worthWatching(said.pullRequest.mergeBoxAliveChannels),
-        stackIn(
+      mergeState(said.mergeRequirements, {
+        queue: mergeQueue(said.pullRequest),
+        autoMerge: autoMergeOf(said.pullRequest),
+        mayBypass: said.pullRequest.viewerCanAdminBypassMergeRequirements === true,
+        update: branchUpdate(said.pullRequest),
+        channels: worthWatching(said.pullRequest.mergeBoxAliveChannels),
+        stack: stackIn(
           reference,
           route.pullRequest.baseBranch,
           said.pullRequest.stackedBaseRefName,
           said.mergeRequirements?.conditions ?? []
-        )
-      )
+        ),
+        method: landingMethod(said.pullRequest)
+      })
     )
   }
 

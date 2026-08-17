@@ -66,7 +66,8 @@ const level: MergeState = {
   update: Option.none(),
   mayBypass: false,
   channels: [],
-  stack: Option.none()
+  stack: Option.none(),
+  method: Option.some("SQUASH")
 }
 
 const owing = (some: Partial<Owing> = {}): Owing => ({

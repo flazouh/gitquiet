@@ -27,7 +27,7 @@ const PAGE = `https://github.com/${TARGET}`
 const ROUTES = [
   "/changes",
   "/page_data/status_checks",
-  "/page_data/merge_box?merge_method=MERGE&bypass_requirements=false",
+  "/page_data/merge_box?bypass_requirements=false",
   "/page_data/description"
 ]
 

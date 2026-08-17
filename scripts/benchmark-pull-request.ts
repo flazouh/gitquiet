@@ -133,7 +133,7 @@ const visit = async (url: string): Promise<Visit> => {
 const ROUTES = [
   "/changes",
   "/page_data/status_checks",
-  "/page_data/merge_box?merge_method=MERGE&bypass_requirements=false",
+  "/page_data/merge_box?bypass_requirements=false",
   "/page_data/description",
   "/page_data/header",
   "/page_data/issue_comments"

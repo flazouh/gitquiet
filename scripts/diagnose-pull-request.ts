@@ -14,7 +14,7 @@
  *     for (const [name, route] of [
  *       ["changes", "/changes"],
  *       ["status-checks", "/page_data/status_checks"],
- *       ["merge-box", "/page_data/merge_box?merge_method=MERGE&bypass_requirements=false"],
+ *       ["merge-box", "/page_data/merge_box?bypass_requirements=false"],
  *       ["description", "/page_data/description"],
  *       ["header", "/page_data/header"],
  *       ["issue-comments", "/page_data/issue_comments"]
