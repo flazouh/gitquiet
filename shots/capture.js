@@ -24,7 +24,23 @@
 import { mkdirSync, writeFileSync } from "node:fs"
 
 const STAGE = "http://localhost:5199"
-const REPO = "/Users/alex/Documents/githubpro"
+/*
+ * The checkout this was run from, substituted by the `bun run` script.
+ *
+ * It was hard-coded to the main checkout, so a run inside a git worktree
+ * photographed the worktree's screens and wrote them over the main tree's
+ * assets. The worktree's own `site/public` stayed untouched and the run still
+ * reported success, which is a quiet way to lose an afternoon.
+ *
+ * ego's runtime cannot work the path out for itself: it reads this from stdin
+ * with a cwd of `/` and forwards none of `PWD`, `INIT_CWD` or `OLDPWD`. So the
+ * package script seds it in, and a direct `ego-browser nodejs < shots/...`
+ * fails loudly on the placeholder rather than writing somewhere unexpected.
+ */
+const REPO = "__REPO__"
+if (REPO.startsWith("__")) {
+  throw new Error("run this through `bun run shots` / `bun run assets`, which fills in the checkout path")
+}
 const RETINA = `${REPO}/site/public/shots`
 
 /**

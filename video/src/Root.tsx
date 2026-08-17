@@ -3,6 +3,7 @@ import { Composition } from "remotion";
 import { Comparison, DURATION_IN_FRAMES } from "./Comparison";
 import { Race, RACE_DURATION_IN_FRAMES } from "./Race";
 import { RaceTall, RACE_TALL_DURATION_IN_FRAMES } from "./RaceTall";
+import { Courts, COURTS_DURATION_IN_FRAMES } from "./Courts";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -14,6 +15,15 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
+      />
+      {/* The second post in the thread: the idea, once the race has bought the attention. */}
+      <Composition
+        id="Courts"
+        component={Courts}
+        durationInFrames={COURTS_DURATION_IN_FRAMES}
+        fps={30}
+        width={1080}
+        height={1350}
       />
       {/* The cut X and any other vertical feed gets. */}
       <Composition
