@@ -398,6 +398,15 @@ jobs:
       # exact release this whole change exists to stop shipping, so the check is
       # on the artifact.
       #
+      # The tarball under `artifacts`, which is the app. What a finished build
+      # leaves under `build` is a small app that carries that tarball and unpacks
+      # it on the first launch, so nothing there holds a readable copy of a line
+      # the bundler wrote — the first version of this check searched `build` and
+      # failed a build whose client id was in fact where it belongs.
+      #
+      # Unpacked with Electrobun's own zstd, which the step above downloaded and
+      # which is therefore the one version that agrees with the file.
+      #
       # Skipped rather than failed where there is no secret to look for, which is
       # a fork building an app it knows has no OAuth app.
       - name: Make sure the OAuth app reached the bundle
@@ -408,13 +417,16 @@ jobs:
             echo "No OAUTH_CLIENT_ID to look for. Nothing to check."
             exit 0
           fi
-          # Every file, because the bundle's layout is Electrobun's to change.
-          if grep -rqF "$OAUTH_CLIENT_ID" desktop/build/stable-macos-arm64; then
+          node_modules/electrobun/dist-macos-arm64/zig-zstd decompress \
+            -i desktop/artifacts/stable-macos-arm64-GitQuiet.app.tar.zst \
+            -o "$RUNNER_TEMP/GitQuiet.app.tar"
+          if grep -qF "$OAUTH_CLIENT_ID" "$RUNNER_TEMP/GitQuiet.app.tar"; then
             echo "The client id is in the bundle."
           else
             echo "::error::The client id never reached the bundle. Read the define block in desktop/electrobun.config.ts."
             exit 1
           fi
+          rm "$RUNNER_TEMP/GitQuiet.app.tar"
 
       # Renamed on the way up. Electrobun names an artifact for the build it came
       # from, which reads as nothing at all in somebody's downloads folder.
