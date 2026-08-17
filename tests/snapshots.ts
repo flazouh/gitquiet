@@ -3,6 +3,7 @@ import type {
   ChangedFile,
   Check,
   Commit,
+  MergeState,
   Participant,
   PullRequestSnapshot,
   Remark,
@@ -94,6 +95,17 @@ export const aReview = (login: string, decision: Review["decision"]): Review => 
   decision
 })
 
+const NOTHING_IN_THE_WAY: MergeState = {
+  isMergeable: true,
+  blockers: [],
+  queue: Option.none(),
+  autoMerge: Option.none(),
+  mayBypass: false,
+  update: Option.none(),
+  channels: [],
+  stack: Option.none()
+}
+
 /**
  * A snapshot with nothing on it, so each test adds only what it is about.
  * The viewer is a Reviewer by default; pass `viewer: { login: AUTHOR, … }` to
@@ -124,19 +136,20 @@ export const aSnapshot = (
   threads: [],
   remarks: [],
   checks: [],
-  reviews: [],
-  merge: {
-    isMergeable: true,
-    blockers: [],
-    queue: Option.none(),
-    autoMerge: Option.none(),
-    mayBypass: false,
-    update: Option.none(),
-    channels: [],
-    stack: Option.none()
-  },
+  reviews: Option.some([]),
+  merge: Option.some(NOTHING_IN_THE_WAY),
   ...parts
 })
+
+/**
+ * The merge box a test gets unless it says otherwise: answered, and answering yes.
+ *
+ * Exported because a test that wants one fact of it changed has to rebuild the whole
+ * state around that fact, and `aSnapshot().merge` is an Option it would have to unwrap
+ * first. `aMergeState({ update: ... })` is the same edit in one line.
+ */
+export const aMergeState = (parts: Partial<MergeState> = {}): Option.Option<MergeState> =>
+  Option.some({ ...NOTHING_IN_THE_WAY, ...parts })
 
 export const asAuthor = (parts: Partial<PullRequestSnapshot> = {}): PullRequestSnapshot =>
   aSnapshot({ ...parts, viewer: { login: AUTHOR, lastReviewPoint: Option.none() } })

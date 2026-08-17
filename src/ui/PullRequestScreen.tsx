@@ -312,7 +312,17 @@ export const PullRequestScreen = ({
     [makeStack, again]
   )
 
-  const channels = read.status === "ready" ? read.value.snapshot.merge.channels : undefined
+  /*
+   * The tokens GitHub's own socket is joined with, which the merge box carries.
+   *
+   * Undefined where the merge box did not answer, exactly as it is before the first
+   * read lands: there is no socket to open, because the thing it would report changes
+   * to is not on the screen. The next read that gets a merge box opens it.
+   */
+  const channels =
+    read.status === "ready"
+      ? Option.getOrUndefined(Option.map(read.value.snapshot.merge, (said) => said.channels))
+      : undefined
 
   useEffect(() => {
     if (watch === undefined || channels === undefined || channels.length === 0) return

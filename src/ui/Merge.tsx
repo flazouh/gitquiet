@@ -446,6 +446,47 @@ const Verdicts = ({ reviews }: { readonly reviews: ReadonlyArray<Review> }) => {
   )
 }
 
+/**
+ * What stands where the card would, when GitHub would not serve the merge box.
+ *
+ * A card and not a gap. A gap is read as "there is nothing to decide here", which is
+ * the one thing this cannot say: whether this can land is exactly what nobody knows.
+ * So the panel keeps the box's place in the column, wears the box's name, and spends
+ * its two sentences saying which fact is missing and what to do about it.
+ *
+ * No buttons, greyed or otherwise. Every verb the live card offers is offered on the
+ * strength of something the merge box said — that GitHub would take a merge, that
+ * there is a queue to join, that the branch is behind — and a control that cannot say
+ * why it is refusing is worse than no control at all. No press of its own either: the
+ * screen reads this pull request again on its own schedule, and a second way to ask
+ * for the same read would be a second answer to a question already answered.
+ *
+ * The pull request around it is untouched. The diff, the checks, the conversation and
+ * the commits come from other routes, and a reader who came to read the change can
+ * still read it.
+ */
+export const MergeUnread = () => {
+  const Alert = useArt()["check-failed"]
+
+  return (
+    <Section
+      name="Merge"
+      summary={
+        <span className="flex items-center gap-1.5">
+          <Alert size={12} className="text-ink-muted" />
+          not known
+        </span>
+      }
+    >
+      <p className="px-3 py-2 text-xs leading-snug text-ink-muted">
+        GitHub did not answer for this one, so whether it can land, what is holding it
+        up and where it sits in a queue are all unknown. Nothing here is a no. It is the
+        question going unanswered, and the next read asks it again.
+      </p>
+    </Section>
+  )
+}
+
 /** What a pull request past deciding says, in place of everything below. */
 const SETTLED: Record<
   "merged" | "closed",

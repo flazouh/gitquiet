@@ -161,6 +161,9 @@ export const Header = ({
   const added = snapshot.files.reduce((sum, file) => sum + file.linesAdded, 0)
   const deleted = snapshot.files.reduce((sum, file) => sum + file.linesDeleted, 0)
   const url = toUrl(snapshot.reference)
+  // A merge box GitHub would not serve reads the same as one that named no stack:
+  // both leave the chip and the tree off, which is what this row would draw anyway.
+  const stack = Option.flatMap(snapshot.merge, (said) => said.stack)
   const [copied, setCopied] = useState(false)
 
   return (
@@ -267,7 +270,7 @@ export const Header = ({
         <Branch name={snapshot.headBranch} />
         <YourMove size={12} className="shrink-0" />
         <Branch name={snapshot.baseBranch} />
-        {Option.isSome(snapshot.merge.stack) ? <Layer stack={snapshot.merge.stack.value} /> : null}
+        {Option.isSome(stack) ? <Layer stack={stack.value} /> : null}
         <span className="ml-auto shrink-0 tabular-nums">
           {`${snapshot.files.length} ${snapshot.files.length === 1 ? "file" : "files"}`}{" "}
           <span className="text-pass">+{added}</span> <span className="text-fail">−{deleted}</span>
@@ -279,9 +282,7 @@ export const Header = ({
           are and which way the thing is going, which a count cannot. It draws
           nothing at all unless there is a stack with more than one layer in it,
           so an ordinary pull request keeps the two-row card it had. */}
-      {Option.isSome(snapshot.merge.stack) ? (
-        <StackTree chain={snapshot.merge.stack.value} />
-      ) : null}
+      {Option.isSome(stack) ? <StackTree chain={stack.value} /> : null}
     </section>
   )
 }

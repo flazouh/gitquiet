@@ -516,8 +516,8 @@ export const SNAPSHOT: PullRequestSnapshot = {
   threads: THREADS,
   remarks: REMARKS,
   checks: CHECKS,
-  reviews: REVIEWS,
-  merge: {
+  reviews: Option.some(REVIEWS),
+  merge: Option.some({
     isMergeable: false,
     blockers: [
       {
@@ -548,7 +548,7 @@ export const SNAPSHOT: PullRequestSnapshot = {
     update: Option.some({ how: "MERGE", mayUpdate: true, refusal: Option.none() }),
     mayBypass: false,
     channels: []
-  }
+  })
 }
 
 const LOADED = { snapshot: SNAPSHOT }

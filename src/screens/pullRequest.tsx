@@ -180,15 +180,22 @@ const open = (
   const readSteps = (check: Check) =>
     loadCheckSteps(reference, check).pipe(throughGitHub)
 
-  // Which of GitHub's two merge routes this press goes to, read off the
-  // snapshot the card is showing: a layer of a stack lands through one and
-  // everything else through the other, and each refuses the other's pull
-  // request with a sentence about the branch being out of date.
+  /*
+   * Which of GitHub's two merge routes this press goes to, read off the
+   * snapshot the card is showing: a layer of a stack lands through one and
+   * everything else through the other, and each refuses the other's pull
+   * request with a sentence about the branch being out of date.
+   *
+   * A merge box GitHub would not serve reads the same way as one that named no
+   * stack, and neither press can arrive here anyway: the card that carries the
+   * button is not drawn without a merge box.
+   */
   const merge = () =>
     writing(
       Effect.gen(function* () {
         const { snapshot } = yield* Fiber.join(latest)
-        return yield* mergePullRequest(reference, Option.isSome(snapshot.merge.stack))
+        const stacked = Option.flatMap(snapshot.merge, (said) => said.stack)
+        return yield* mergePullRequest(reference, Option.isSome(stacked))
       })
     )
   const enqueue = () => writing(enqueuePullRequest(reference))
@@ -206,9 +213,10 @@ const open = (
     writing(
       Effect.gen(function* () {
         const { snapshot } = yield* Fiber.join(latest)
+        const catchUp = Option.flatMap(snapshot.merge, (said) => said.update)
         return yield* updatePullRequestBranch(
           reference,
-          Option.isSome(snapshot.merge.update) ? snapshot.merge.update.value.how : "MERGE"
+          Option.isSome(catchUp) ? catchUp.value.how : "MERGE"
         )
       })
     )

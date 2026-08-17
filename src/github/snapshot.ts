@@ -890,14 +890,14 @@ export const toSnapshot = Effect.fn("toSnapshot")(function* (
 ) {
   const changes = yield* decodeChanges(raw.changes)
   const checksPayload = yield* decodeStatusChecks(raw.statusChecks)
-  const mergePayload = yield* decodeMergeBox(raw.mergeBox)
   const descriptionPayload = yield* decodeDescription(raw.description)
   const issueComments = yield* decodeIssueComments(raw.issueComments)
   /*
-   * The two payloads here allowed to be missing.
+   * The three payloads here allowed to be missing.
    *
-   * Every other route above fails the read, because a pull request drawn without
-   * its checks or its threads is a lie in the right shape. These two are not.
+   * The routes above fail the read, because a pull request drawn without its
+   * checks or its threads is a lie in the right shape. These three are not, and
+   * what separates them is whether a reader could act on the wrong answer.
    *
    * A proposal is a strip above the header saying these two could be one stack:
    * absent, the interface is exactly what it was yesterday, and refusing the whole
@@ -905,14 +905,24 @@ export const toSnapshot = Effect.fn("toSnapshot")(function* (
    *
    * The header carries three moments and nothing else, each already an Option
    * below. Absent, the reader loses the age beside the badge and keeps everything
-   * they came to act on. GitHub served that route a 503 on `OpenRouterIncubator/ori`
-   * #2087 during their incident of 2026-08-17, and the whole pull request was
-   * refused over three dates.
+   * they came to act on.
+   *
+   * The merge box is the one whose absence has to be said out loud, and it is
+   * carried as None rather than as an empty merge state for exactly that reason —
+   * see `merge` on `PullRequestSnapshot`. What it costs the page is the card, the
+   * verdicts given so far, and the two branch permissions.
+   *
+   * GitHub served all three of these routes their crash page on
+   * `OpenRouterIncubator/ori` #2087 during their incident of 2026-08-17, at a
+   * reported 20% error rate, and the whole pull request was refused over it.
    */
   const preview = yield* decodePreviewStack(raw.preview ?? null).pipe(
     Effect.catch(() => Effect.succeed(null))
   )
   const headerPayload = yield* decodeHeader(raw.header).pipe(
+    Effect.catch(() => Effect.succeed(null))
+  )
+  const mergePayload = yield* decodeMergeBox(raw.mergeBox).pipe(
     Effect.catch(() => Effect.succeed(null))
   )
 
@@ -981,12 +991,15 @@ export const toSnapshot = Effect.fn("toSnapshot")(function* (
   }))
 
   // A pending review is an unsubmitted draft, so it is not yet a review at all.
-  const reviews: ReadonlyArray<Review> =
-    mergePayload.pullRequest.latestOpinionatedReviews.flatMap((review) =>
-      review.state === "PENDING"
-        ? []
-        : [{ reviewer: participantOf(review.author), decision: decisionOf(review.state) }]
-    )
+  const reviews: Option.Option<ReadonlyArray<Review>> = Option.map(
+    Option.fromNullOr(mergePayload),
+    (said) =>
+      said.pullRequest.latestOpinionatedReviews.flatMap((review) =>
+        review.state === "PENDING"
+          ? []
+          : [{ reviewer: participantOf(review.author), decision: decisionOf(review.state) }]
+      )
+  )
 
   const snapshot: PullRequestSnapshot = {
     reference,
@@ -1006,8 +1019,8 @@ export const toSnapshot = Effect.fn("toSnapshot")(function* (
     // asked to refuse, and an offer made off a payload that said nothing is a
     // branch deleted on a guess.
     headRef: {
-      mayDelete: mergePayload.pullRequest.viewerCanDeleteHeadRef === true,
-      mayRestore: mergePayload.pullRequest.viewerCanRestoreHeadRef === true
+      mayDelete: mergePayload?.pullRequest.viewerCanDeleteHeadRef === true,
+      mayRestore: mergePayload?.pullRequest.viewerCanRestoreHeadRef === true
     },
     proposal: preview === null ? Option.none() : proposalIn(reference, preview),
     headSha: route.comparison.fullDiff.headOid,
@@ -1036,18 +1049,20 @@ export const toSnapshot = Effect.fn("toSnapshot")(function* (
     remarks,
     checks,
     reviews,
-    merge: mergeState(
-      mergePayload.mergeRequirements,
-      mergeQueue(mergePayload.pullRequest),
-      autoMergeOf(mergePayload.pullRequest),
-      mergePayload.pullRequest.viewerCanAdminBypassMergeRequirements === true,
-      branchUpdate(mergePayload.pullRequest),
-      worthWatching(mergePayload.pullRequest.mergeBoxAliveChannels),
-      stackIn(
-        reference,
-        route.pullRequest.baseBranch,
-        mergePayload.pullRequest.stackedBaseRefName,
-        mergePayload.mergeRequirements?.conditions ?? []
+    merge: Option.map(Option.fromNullOr(mergePayload), (said) =>
+      mergeState(
+        said.mergeRequirements,
+        mergeQueue(said.pullRequest),
+        autoMergeOf(said.pullRequest),
+        said.pullRequest.viewerCanAdminBypassMergeRequirements === true,
+        branchUpdate(said.pullRequest),
+        worthWatching(said.pullRequest.mergeBoxAliveChannels),
+        stackIn(
+          reference,
+          route.pullRequest.baseBranch,
+          said.pullRequest.stackedBaseRefName,
+          said.mergeRequirements?.conditions ?? []
+        )
       )
     )
   }

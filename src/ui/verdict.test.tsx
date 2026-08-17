@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test"
 import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { Effect } from "effect"
+import { Effect, Option } from "effect"
 import { person } from "../../tests/snapshots"
 import type { Review as Given } from "../domain/PullRequest"
 import { Verdict } from "./Verdict"
@@ -11,7 +11,8 @@ afterEach(cleanup)
 beforeEach(() => localStorage.clear())
 afterEach(() => localStorage.clear())
 
-const NONE: ReadonlyArray<Given> = []
+/** GitHub answering that nobody has judged this yet, which is not GitHub saying nothing. */
+const NONE: Option.Option<ReadonlyArray<Given>> = Option.some([])
 const HEAD = "9f2c1d4a77e0b3c5"
 const reader = { login: "ana" }
 const author = person("ben")
@@ -126,15 +127,43 @@ describe("saying what you think of a pull request", () => {
   })
 
   test("says what this reader already said about it", () => {
-    shown({ reviews: [{ reviewer: person("ana"), decision: "approved" }] })
+    shown({ reviews: Option.some([{ reviewer: person("ana"), decision: "approved" }]) })
 
     expect(screen.getByText("You approved this")).toBeDefined()
   })
 
   test("says nothing about a verdict somebody else gave", () => {
-    shown({ reviews: [{ reviewer: person("ben"), decision: "changes-requested" }] })
+    shown({ reviews: Option.some([{ reviewer: person("ben"), decision: "changes-requested" }]) })
 
     expect(screen.getByText("not read yet by you")).toBeDefined()
+  })
+
+  /*
+   * GitHub not saying and GitHub saying nobody has judged this are different facts, and
+   * the fold is the one line that reports either. "Not read yet by you" over a merge box
+   * that never arrived would be this panel inventing the record: the reader may well have
+   * approved it an hour ago and be about to do it twice.
+   */
+  test("says the record is missing, rather than that nobody has read it", () => {
+    shown({ reviews: Option.none() })
+
+    expect(screen.getByText("not known")).toBeDefined()
+    expect(screen.queryByText("not read yet by you")).toBeNull()
+  })
+
+  /* Still worth saying, because it is a note about this session and not about their record. */
+  test("still says what this session sent, where GitHub would not say what it holds", async () => {
+    const first = shown({ keep: "verdict:ana/four#4" })
+    await opened()
+
+    await userEvent.type(screen.getByRole("textbox"), "one thing")
+    await userEvent.click(screen.getByRole("button", { name: "Comment" }))
+    await waitFor(() => expect(screen.getByText("You commented on this")).toBeDefined())
+    first.unmount()
+
+    shown({ keep: "verdict:ana/four#4", reviews: Option.none() })
+
+    expect(screen.getByText("You commented on this")).toBeDefined()
   })
 
   /*
@@ -198,7 +227,7 @@ describe("saying what you think of a pull request", () => {
 
     shown({
       keep: "verdict:ana/three#3",
-      reviews: [{ reviewer: person("ana"), decision: "dismissed" }]
+      reviews: Option.some([{ reviewer: person("ana"), decision: "dismissed" }])
     })
 
     expect(screen.getByText("Your review was dismissed")).toBeDefined()

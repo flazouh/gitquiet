@@ -440,19 +440,23 @@ const fetchRoute = Effect.fn("fetchRoute")(function* (
  * A refusal, an unreachable network and a body nothing can read all arrive here as
  * nothing, and the mapper draws the pull request with that region absent.
  *
- * Two routes are asked this way. `preview_stack` carries a strip above the header
+ * Three routes are asked this way. `preview_stack` carries a strip above the header
  * saying that these two pull requests could be one stack, and refusing the whole page
  * over it would trade the pull request for a decoration. `header` carries three
  * moments — opened, closed, landed — which are already an Option apiece on the
  * snapshot, because the age beside a badge is worth less than the pull request under
- * it.
+ * it. `merge_box` carries the card, and its absence is the one the reader is told
+ * about in words rather than by a line going missing.
  *
  * `changes` is the counter-example and stays required: it is the title, the state, the
  * files, the commits and the threads, so there is no page to draw without it.
  *
  * What decides which list a route belongs to is whether a reader could act on a wrong
- * answer. A missing moment is a line that does not appear. A missing check or a missing
- * thread is a pull request that looks finished, which is a lie in the right shape.
+ * answer, not how much the route carries. A missing check or a missing thread is a
+ * pull request that looks finished, which is a lie in the right shape and stays a
+ * refusal. A missing merge box carries more than either and is still safe here,
+ * because the snapshot holds it as None and nothing downstream can read an answer out
+ * of that.
  */
 const whateverIsAt = Effect.fn("whateverIsAt")(function* (
   reference: PullRequestRef,
@@ -1939,7 +1943,7 @@ export const layer = Layer.succeed(GitHubGateway, {
         {
           changes: fetchRoute(reference, CHANGES),
           statusChecks: fetchRoute(reference, STATUS_CHECKS),
-          mergeBox: fetchRoute(reference, MERGE_BOX),
+          mergeBox: whateverIsAt(reference, MERGE_BOX),
           description: fetchRoute(reference, DESCRIPTION),
           header: whateverIsAt(reference, HEADER),
           issueComments: fetchRoute(reference, ISSUE_COMMENTS),

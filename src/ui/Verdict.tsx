@@ -66,6 +66,9 @@ const alreadySaid = (
 ): Option.Option<ReviewDecision> =>
   Option.fromNullishOr(reviews.find((review) => review.reviewer.login === login)?.decision)
 
+/** What the fold says where GitHub would not tell us what has been said so far. */
+const UNREAD = "not known"
+
 const SAID: Record<ReviewDecision, string> = {
   approved: "You approved this",
   "changes-requested": "You asked for changes",
@@ -111,7 +114,16 @@ export const Verdict = ({
   onUpload,
   onReview
 }: {
-  readonly reviews: ReadonlyArray<Given>
+  /**
+   * Every verdict on the record, or None where GitHub would not say.
+   *
+   * The two are told apart because the fold says something different for each. Empty
+   * means nobody has judged this, so "not read yet by you" is true of it. None means
+   * the merge box did not answer, and the same words would be this panel inventing a
+   * fact: the reader may well have approved it an hour ago. The three buttons stay
+   * either way — sending a verdict goes to a route of its own, which is answering.
+   */
+  readonly reviews: Option.Option<ReadonlyArray<Given>>
   readonly viewer: { readonly login: string; readonly faceUrl?: string }
   /** Whoever wrote it, since GitHub refuses an approval from them. */
   readonly author: Participant
@@ -153,7 +165,7 @@ export const Verdict = ({
     if (keep !== undefined) hold(keep, said)
   }
 
-  const already = alreadySaid(reviews, viewer.login)
+  const already = Option.flatMap(reviews, (given) => alreadySaid(given, viewer.login))
 
   /*
    * GitHub answers an approval of your own pull request with 422, so it is not offered.
@@ -200,12 +212,19 @@ export const Verdict = ({
    *
    * That order and not the other: a verdict of theirs is the record, and one of ours is a note
    * about a route they answer nothing on.
+   *
+   * "Not read yet by you" is the last of the four and the only one that needs the record
+   * to have arrived. Where the merge box did not answer, what this interface sent is
+   * still worth saying — it is a note about this session, not about GitHub's record —
+   * and where there is not even that, the fold says the record is what is missing.
    */
   const summary = Option.isSome(already)
     ? SAID[already.value]
-    : ours === undefined
-      ? "not read yet by you"
-      : `${OURS[ours.verdict]}${ours.headSha === headSha ? "" : ", at an older commit"}`
+    : ours !== undefined
+      ? `${OURS[ours.verdict]}${ours.headSha === headSha ? "" : ", at an older commit"}`
+      : Option.isNone(reviews)
+        ? UNREAD
+        : "not read yet by you"
 
   /*
    * A verdict on the record turns the panel's edge, the way a merged pull request turns the

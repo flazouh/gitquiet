@@ -12,6 +12,7 @@ import {
   withInjectedContext,
   withNoDescription
 } from "../../tests/fixtures"
+import type { MergeState, PullRequestSnapshot } from "../domain/PullRequest"
 import type { PullRequestRef } from "../domain/PullRequestRef"
 import { whatCanBeDone } from "../domain/doable"
 import { toSnapshot } from "./snapshot"
@@ -21,6 +22,15 @@ const merged: PullRequestRef = { owner: "microsoft", repo: "vscode", number: 327
 
 const snapshotOf = (reference: PullRequestRef, raw: Parameters<typeof toSnapshot>[1]) =>
   Effect.runPromise(toSnapshot(reference, raw))
+
+/**
+ * The merge state a test asserts on, unwrapped.
+ *
+ * An Option on the snapshot because GitHub does not always serve the merge box, and
+ * never None here: every fixture in this file carries one. Unwrapped in one place
+ * rather than at forty assertions.
+ */
+const merging = (snapshot: PullRequestSnapshot): MergeState => Option.getOrThrow(snapshot.merge)
 
 /** The draft's payloads, with GitHub answering something else about merging. */
 const withMergeState = (state: string) => {
@@ -263,13 +273,13 @@ describe("a draft pull request carrying bot findings", () => {
   test("explains why the pull request cannot be merged", async () => {
     const snapshot = await snapshotOf(draft, draftWithBotFindings)
 
-    expect(snapshot.merge.isMergeable).toBe(false)
-    expect(snapshot.merge.blockers.map((blocker) => blocker.name)).toEqual([
+    expect(merging(snapshot).isMergeable).toBe(false)
+    expect(merging(snapshot).blockers.map((blocker) => blocker.name)).toEqual([
       "Pull request state",
       "Pull request user state",
       "Repo rules"
     ])
-    expect(snapshot.merge.blockers.every((blocker) => blocker.explanation.length > 0)).toBe(
+    expect(merging(snapshot).blockers.every((blocker) => blocker.explanation.length > 0)).toBe(
       true
     )
   })
@@ -280,7 +290,7 @@ describe("a draft pull request carrying bot findings", () => {
     // and the verdict is the only part worth the row it takes up.
     const snapshot = await snapshotOf(draft, draftWithBotFindings)
 
-    const rules = snapshot.merge.blockers.find((blocker) => blocker.name === "Repo rules")
+    const rules = merging(snapshot).blockers.find((blocker) => blocker.name === "Repo rules")
     expect(rules?.explanation).toBe(
       "New changes require approval from someone other than the last pusher. 2 of 25 required status checks are in progress."
     )
@@ -289,7 +299,7 @@ describe("a draft pull request carrying bot findings", () => {
   test("prefers what GitHub decided to what GitHub requires", async () => {
     const snapshot = await snapshotOf(draft, draftWithBotFindings)
 
-    const user = snapshot.merge.blockers.find(
+    const user = merging(snapshot).blockers.find(
       (blocker) => blocker.name === "Pull request user state"
     )
     expect(user?.explanation).toBe("User is not allowed to push to this repository")
@@ -314,7 +324,7 @@ describe("a draft pull request carrying bot findings", () => {
 
     const snapshot = await snapshotOf(draft, silent)
 
-    const rules = snapshot.merge.blockers.find((blocker) => blocker.name === "Repo rules")
+    const rules = merging(snapshot).blockers.find((blocker) => blocker.name === "Repo rules")
     expect(rules?.explanation).toBe("Pull request repository rules")
   })
 
@@ -324,22 +334,22 @@ describe("a draft pull request carrying bot findings", () => {
     // disabled with nothing said about why.
     const snapshot = await snapshotOf(draft, withMergeState("MERGEABLE_IF_STATUSES_PASS"))
 
-    expect(snapshot.merge.isMergeable).toBe(true)
-    expect(snapshot.merge.blockers).toEqual([])
+    expect(merging(snapshot).isMergeable).toBe(true)
+    expect(merging(snapshot).blockers).toEqual([])
   })
 
   test("names the state when it cannot merge and GitHub lists no reason", async () => {
     const snapshot = await snapshotOf(draft, withMergeState("SOMETHING_NEW"))
 
-    expect(snapshot.merge.isMergeable).toBe(false)
-    expect(snapshot.merge.blockers).toHaveLength(1)
-    expect(snapshot.merge.blockers[0]?.explanation).toContain("SOMETHING_NEW")
+    expect(merging(snapshot).isMergeable).toBe(false)
+    expect(merging(snapshot).blockers).toHaveLength(1)
+    expect(merging(snapshot).blockers[0]?.explanation).toContain("SOMETHING_NEW")
   })
 
   test("has no reviews on it", async () => {
     const snapshot = await snapshotOf(draft, draftWithBotFindings)
 
-    expect(snapshot.reviews).toEqual([])
+    expect(Option.getOrThrow(snapshot.reviews)).toEqual([])
   })
 })
 
@@ -459,7 +469,7 @@ describe("a repository that merges through a queue", () => {
   test("says there is no queue when GitHub sends none", async () => {
     const snapshot = await snapshotOf(draft, draftWithBotFindings)
 
-    expect(Option.isNone(snapshot.merge.queue)).toBe(true)
+    expect(Option.isNone(merging(snapshot).queue)).toBe(true)
   })
 
   test("reads one GitHub calls QUEUED as open, standing in the line", async () => {
@@ -478,7 +488,7 @@ describe("a repository that merges through a queue", () => {
   test("reads the queue, and where in it this pull request is waiting", async () => {
     const snapshot = await snapshotOf(draft, throughAQueue({ position: 3 }))
 
-    const queue = snapshot.merge.queue
+    const queue = merging(snapshot).queue
     if (Option.isNone(queue)) throw new Error("expected a merge queue")
     expect(queue.value.waiting).toBe(true)
     expect(queue.value.position).toEqual(Option.some(3))
@@ -491,7 +501,7 @@ describe("a repository that merges through a queue", () => {
   test("reads a queue this pull request is not in yet", async () => {
     const snapshot = await snapshotOf(draft, throughAQueue({ waiting: false }))
 
-    const queue = snapshot.merge.queue
+    const queue = merging(snapshot).queue
     if (Option.isNone(queue)) throw new Error("expected a merge queue")
     expect(queue.value.waiting).toBe(false)
     expect(Option.isNone(queue.value.position)).toBe(true)
@@ -500,7 +510,7 @@ describe("a repository that merges through a queue", () => {
   test("reads GitHub's own verdict on whether the queue may be joined", async () => {
     const snapshot = await snapshotOf(draft, throughAQueue({ waiting: false }))
 
-    const queue = snapshot.merge.queue
+    const queue = merging(snapshot).queue
     if (Option.isNone(queue)) throw new Error("expected a merge queue")
     expect(queue.value.mayJoin).toBe(true)
   })
@@ -514,7 +524,7 @@ describe("a repository that merges through a queue", () => {
       throughAQueue({ waiting: false, queueing: "BLOCKED" })
     )
 
-    const queue = snapshot.merge.queue
+    const queue = merging(snapshot).queue
     if (Option.isNone(queue)) throw new Error("expected a merge queue")
     expect(queue.value.viewerCanQueue).toBe(true)
     expect(queue.value.mayJoin).toBe(false)
@@ -527,7 +537,7 @@ describe("a repository that merges through a queue", () => {
     // the queue sees nothing and offers to arm it a second time.
     const snapshot = await snapshotOf(merged, mergedWithApproval)
 
-    const armed = snapshot.merge.autoMerge
+    const armed = merging(snapshot).autoMerge
     if (Option.isNone(armed)) throw new Error("expected an armed auto-merge")
     expect(armed.value.method).toEqual(Option.some("SQUASH"))
   })
@@ -535,7 +545,7 @@ describe("a repository that merges through a queue", () => {
   test("says nothing is armed when GitHub sent no auto-merge", async () => {
     const snapshot = await snapshotOf(draft, draftWithBotFindings)
 
-    expect(Option.isNone(snapshot.merge.autoMerge)).toBe(true)
+    expect(Option.isNone(merging(snapshot).autoMerge)).toBe(true)
   })
 
   test("says which failed rules an admin could go past", async () => {
@@ -566,10 +576,10 @@ describe("a repository that merges through a queue", () => {
 
     const snapshot = await snapshotOf(draft, bypassable)
 
-    expect(snapshot.merge.mayBypass).toBe(true)
-    const rules = snapshot.merge.blockers.find((blocker) => blocker.name === "Repo rules")
+    expect(merging(snapshot).mayBypass).toBe(true)
+    const rules = merging(snapshot).blockers.find((blocker) => blocker.name === "Repo rules")
     expect(rules?.bypassable).toBe(true)
-    const state = snapshot.merge.blockers.find(
+    const state = merging(snapshot).blockers.find(
       (blocker) => blocker.name === "Pull request state"
     )
     expect(state?.bypassable).toBe(false)
@@ -609,8 +619,8 @@ describe("a repository that merges through a queue", () => {
     // limiting.
     const snapshot = await snapshotOf(draft, draftWithBotFindings)
 
-    expect(snapshot.merge.channels.length).toBeGreaterThan(0)
-    expect(snapshot.merge.channels.every((channel) => channel.includes("--"))).toBe(true)
+    expect(merging(snapshot).channels.length).toBeGreaterThan(0)
+    expect(merging(snapshot).channels.every((channel) => channel.includes("--"))).toBe(true)
   })
 
   test("watches every topic that changes what this page says", async () => {
@@ -621,7 +631,7 @@ describe("a repository that merges through a queue", () => {
     // draft that nobody can merge for an entirely different reason.
     const snapshot = await snapshotOf(draft, draftWithBotFindings)
 
-    const topics = snapshot.merge.channels.map(topicOf)
+    const topics = merging(snapshot).channels.map(topicOf)
 
     expect(topics).toContain("state")
     expect(topics).toContain("workflow_run")
@@ -660,7 +670,7 @@ describe("a repository that merges through a queue", () => {
     )
 
     const about = (name: string) =>
-      snapshot.merge.blockers.find((blocker) => blocker.name === name)?.about
+      merging(snapshot).blockers.find((blocker) => blocker.name === name)?.about
     expect(about("Repo rules")).toEqual(Option.some("checks"))
     expect(about("Conversations")).toEqual(Option.some("conversation"))
     // Nothing on this page fixes a draft, so there is nowhere to send anyone.
@@ -688,7 +698,7 @@ describe("a repository that merges through a queue", () => {
       ])
     )
 
-    const conflict = snapshot.merge.blockers.find(
+    const conflict = merging(snapshot).blockers.find(
       (blocker) => blocker.name === "Pull request merge conflict state"
     )
     expect(conflict?.files).toEqual(["format.js", "parse.js"])
@@ -709,7 +719,7 @@ describe("a repository that merges through a queue", () => {
       ])
     )
 
-    const threads = snapshot.merge.blockers.find((blocker) => blocker.name === "Conversations")
+    const threads = merging(snapshot).blockers.find((blocker) => blocker.name === "Conversations")
     expect(threads?.files).toEqual([])
     expect(threads?.mayResolve).toBe(false)
   })
@@ -735,7 +745,7 @@ describe("a repository that merges through a queue", () => {
       ])
     )
 
-    const conflict = snapshot.merge.blockers.find(
+    const conflict = merging(snapshot).blockers.find(
       (blocker) => blocker.name === "Pull request merge conflict state"
     )
     expect(conflict?.files).toEqual([])
@@ -745,7 +755,7 @@ describe("a repository that merges through a queue", () => {
   test("says nothing about updating a branch that is not behind", async () => {
     const snapshot = await snapshotOf(draft, draftWithBotFindings)
 
-    expect(Option.isNone(snapshot.merge.update)).toBe(true)
+    expect(Option.isNone(merging(snapshot).update)).toBe(true)
   })
 
   test("reads a branch the base has moved on from, and how GitHub would catch it up", async () => {
@@ -754,7 +764,7 @@ describe("a repository that merges through a queue", () => {
       { name: "REBASE", allowableStatus: "UNAVAILABLE" }
     ]))
 
-    const update = snapshot.merge.update
+    const update = merging(snapshot).update
     if (Option.isNone(update)) throw new Error("expected an update to be offered")
     expect(update.value.how).toBe("MERGE")
     expect(update.value.mayUpdate).toBe(true)
@@ -772,7 +782,7 @@ describe("a repository that merges through a queue", () => {
       }
     ]))
 
-    const update = snapshot.merge.update
+    const update = merging(snapshot).update
     if (Option.isNone(update)) throw new Error("expected an update to be offered")
     expect(update.value.mayUpdate).toBe(false)
     expect(update.value.refusal).toEqual(
@@ -798,7 +808,7 @@ describe("a repository that merges through a queue", () => {
 
     const snapshot = await snapshotOf(draft, withoutActions)
 
-    const queue = snapshot.merge.queue
+    const queue = merging(snapshot).queue
     if (Option.isNone(queue)) throw new Error("expected a merge queue")
     expect(queue.value.mayJoin).toBe(false)
   })
@@ -814,7 +824,7 @@ describe("a pull request that is one layer of a stack", () => {
 
   const stackOf = async (raw: Parameters<typeof toSnapshot>[1]) => {
     const snapshot = await snapshotOf(stacked, raw)
-    const stack = snapshot.merge.stack
+    const stack = merging(snapshot).stack
     if (Option.isNone(stack)) throw new Error("expected a stack")
     return stack.value
   }
@@ -822,7 +832,7 @@ describe("a pull request that is one layer of a stack", () => {
   const floorOf = async (raw: Parameters<typeof toSnapshot>[1]) => (await stackOf(raw)).floor
 
   test("says there is no stack on a pull request standing on its own", async () => {
-    expect(Option.isNone((await snapshotOf(draft, draftWithBotFindings)).merge.stack)).toBe(
+    expect(Option.isNone(merging(await snapshotOf(draft, draftWithBotFindings)).stack)).toBe(
       true
     )
   })
@@ -957,7 +967,7 @@ describe("a merged pull request that was approved", () => {
   test("reads the approval and who gave it", async () => {
     const snapshot = await snapshotOf(merged, mergedWithApproval)
 
-    expect(snapshot.reviews).toEqual([
+    expect(Option.getOrThrow(snapshot.reviews)).toEqual([
       {
         reviewer: {
           login: "vijayupadya",
@@ -995,7 +1005,7 @@ describe("a merged pull request that was approved", () => {
     // merged change a place in the line.
     const snapshot = await snapshotOf(merged, mergedWithApproval)
 
-    expect([...whatCanBeDone(snapshot)]).toEqual([])
+    expect([...whatCanBeDone({ state: snapshot.state, merge: merging(snapshot) })]).toEqual([])
   })
 
   test("leaves the diff absent for the files GitHub sent no content for", async () => {
@@ -1045,8 +1055,8 @@ describe("a merged pull request that was approved", () => {
     const snapshot = await snapshotOf(merged, landed)
 
     expect(snapshot.state).toBe("merged")
-    expect(snapshot.merge.isMergeable).toBe(false)
-    expect(snapshot.merge.blockers).toEqual([])
+    expect(merging(snapshot).isMergeable).toBe(false)
+    expect(merging(snapshot).blockers).toEqual([])
   })
 })
 

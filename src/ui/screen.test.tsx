@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Deferred, Effect, Option } from "effect"
-import { aSnapshot } from "../../tests/snapshots"
+import { aMergeState, aSnapshot } from "../../tests/snapshots"
 import type { PullRequestState } from "../domain/PullRequest"
 import type { PullRequestRef } from "../domain/PullRequestRef"
 import { PullRequestScreen } from "./PullRequestScreen"
@@ -26,13 +26,7 @@ const failing = (signedIn: boolean) =>
 const queued = () =>
   aSnapshot({
     reference,
-    merge: {
-      isMergeable: true,
-      blockers: [],
-      autoMerge: Option.none(),
-      mayBypass: false,
-      update: Option.none(),
-      stack: Option.none(),
+    merge: aMergeState({
       channels: ["queue-channel"],
       queue: Option.some({
         waiting: false,
@@ -41,7 +35,7 @@ const queued = () =>
         mayJoin: true,
         url: Option.some("https://github.com/acme/widgets/queue/main")
       })
-    }
+    })
   })
 
 /** A write GitHub has not answered yet, and will answer when this test says so. */
@@ -61,16 +55,7 @@ const held = () => {
 const ready = () =>
   aSnapshot({
     reference,
-    merge: {
-      isMergeable: true,
-      blockers: [],
-      autoMerge: Option.none(),
-      mayBypass: false,
-      update: Option.none(),
-      channels: [],
-      stack: Option.none(),
-      queue: Option.none()
-    }
+    merge: aMergeState()
   })
 
 describe("a verb pressed on the merge card", () => {

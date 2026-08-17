@@ -619,6 +619,28 @@ export type PullRequestSnapshot = {
   /** What was said about the pull request itself, which no thread carries. */
   readonly remarks: ReadonlyArray<Remark>
   readonly checks: ReadonlyArray<Check>
-  readonly reviews: ReadonlyArray<Review>
-  readonly merge: MergeState
+  /**
+   * Every verdict given so far, where GitHub would say.
+   *
+   * None and not an empty array when the merge box did not answer, because the two
+   * mean opposite things to the panel that reads them: empty is "nobody has judged
+   * this yet", which is a sentence, and None is "we were not told", which is a
+   * different one. Told apart so the reader is never shown the first when the second
+   * is true. Absent together with `merge` below — one route carries both.
+   */
+  readonly reviews: Option.Option<ReadonlyArray<Review>>
+  /**
+   * Whether this can land and what stands in the way, where GitHub would say.
+   *
+   * None when the merge box did not answer. GitHub served that route their crash page
+   * through the incident of 2026-08-17, and the whole pull request was refused over
+   * it, so the route is now one the page can do without.
+   *
+   * An Option and not a merge state built out of nothing, which is the shape this
+   * would otherwise take: unmergeable, with an empty list of reasons. That reading
+   * says no and will not say why, and every control on the card would be greyed under
+   * it with nothing to explain itself. None cannot be mistaken for an answer, and the
+   * screen draws a panel that says so where the card would be.
+   */
+  readonly merge: Option.Option<MergeState>
 }

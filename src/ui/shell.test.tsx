@@ -3,7 +3,15 @@ import { act, cleanup, render, screen, waitFor, within } from "@testing-library/
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import { afterwards } from "../../tests/afterwards"
-import { aCheck, aComment, aFile, aSnapshot, aThread, person } from "../../tests/snapshots"
+import {
+  aCheck,
+  aComment,
+  aFile,
+  aMergeState,
+  aSnapshot,
+  aThread,
+  person
+} from "../../tests/snapshots"
 import { loadPullRequest } from "../app/pullRequest"
 import type { FetchedDiff, NewComment, PullRequestSnapshot } from "../domain/PullRequest"
 import type { DiffRequest, Note } from "../ports/Renderer"
@@ -95,7 +103,7 @@ const aPullRequest = () =>
       aCheck("typecheck", "failed"),
       aCheck("lint", "succeeded")
     ],
-    merge: {
+    merge: aMergeState({
       isMergeable: false,
       blockers: [
         {
@@ -106,14 +114,8 @@ const aPullRequest = () =>
           mayResolve: false,
           about: Option.some("checks" as const)
         }
-      ],
-      queue: Option.none(),
-      autoMerge: Option.none(),
-      mayBypass: false,
-      update: Option.none(),
-      channels: [],
-      stack: Option.none()
-    }
+      ]
+    })
   })
 
 describe("a blocker with somewhere to send the reader", () => {
@@ -334,6 +336,30 @@ describe("what the pull request is, in four sections", () => {
       true
     )
     expect(within(merge).getByRole("button", { name: /Close pull request/ })).toBeDefined()
+  })
+
+  /*
+   * The page GitHub could only half serve, which is the page their incident of
+   * 2026-08-17 produced: the merge box answered with their crash page and the rest of
+   * the routes answered properly. What the reader gets is the whole pull request and
+   * one card saying which fact is missing.
+   *
+   * The card keeps its place rather than going away. A missing card reads as "there is
+   * nothing to decide here", and the one thing this cannot say is anything about the
+   * decision. No verb either, since every verb the live card offers is offered on the
+   * strength of something the merge box said.
+   */
+  test("keeps the pull request and says which card GitHub would not answer for", async () => {
+    showing(aSnapshot({ ...aPullRequest(), merge: Option.none(), reviews: Option.none() }))
+    await awaitPage()
+
+    expect(section("Description")).toBeDefined()
+    expect(section("Checks").textContent).toContain("2 of 3 failing")
+
+    const merge = section("Merge")
+    expect(merge.textContent).toContain("GitHub did not answer for this one")
+    expect(within(merge).queryByRole("button", { name: /Squash and merge/ })).toBeNull()
+    expect(within(merge).queryByRole("button", { name: /Close pull request/ })).toBeNull()
   })
 })
 

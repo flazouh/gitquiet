@@ -8,6 +8,7 @@ import {
   aCommit,
   aFile,
   anchoredAt,
+  aMergeState,
   aSnapshot,
   aThread,
   bot,
@@ -324,10 +325,9 @@ describe("what one pull request owes, in four Courts", () => {
   test("says the branch is behind the branch it would land on, by name", () => {
     showing({
       baseBranch: "main",
-      merge: {
-        ...aSnapshot().merge,
+      merge: aMergeState({
         update: Option.some({ how: "MERGE", mayUpdate: true, refusal: Option.none() })
-      }
+      })
     })
 
     expect(rowsIn("Needs You")[0]?.textContent).toContain("main")

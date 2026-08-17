@@ -29,7 +29,12 @@ export type Owing = {
   readonly commits: ReadonlyArray<Commit>
   /** Where the reader's last review left off, absent until they have made one. */
   readonly lastReviewPoint: Option.Option<string>
-  readonly merge: MergeState
+  /**
+   * None where GitHub would not serve the merge box, which costs this the branch item
+   * and nothing else. A branch nobody can prove is behind is one this declines to
+   * chase, rather than one it reports as level.
+   */
+  readonly merge: Option.Option<MergeState>
 }
 
 /**
@@ -236,7 +241,7 @@ export const attentionIn = (owing: Owing): ReadonlyArray<AttentionItem> => {
   const over = state === "merged" || state === "closed"
   const court = (worked: Court): Court => (over ? "settled" : worked)
 
-  const branch = Option.match(merge.update, {
+  const branch = Option.match(Option.flatMap(merge, (said) => said.update), {
     onNone: (): ReadonlyArray<AttentionItem> => [],
     onSome: (update: BranchUpdate) => [
       {

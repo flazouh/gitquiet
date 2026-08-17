@@ -21,7 +21,7 @@
  *     ]) { ... fetch and save ... }
  */
 import { readFileSync } from "node:fs"
-import { Effect } from "effect"
+import { Effect, Option } from "effect"
 import type { PullRequestRef } from "../src/domain/PullRequestRef"
 import { toSnapshot } from "../src/github/snapshot"
 import { whyItWouldNotDecode } from "../src/github/wire"
@@ -67,5 +67,7 @@ console.log({
   state: snapshot.state,
   files: snapshot.files.length,
   checks: snapshot.checks.length,
-  blockers: snapshot.merge.blockers.map((blocker) => blocker.name)
+  // None where GitHub would not serve the merge box, which is a thing this script is
+  // run to find out: the read now succeeds without one, so the difference has to show.
+  blockers: Option.map(snapshot.merge, (merge) => merge.blockers.map((blocker) => blocker.name))
 })

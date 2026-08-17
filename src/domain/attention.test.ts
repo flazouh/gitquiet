@@ -76,7 +76,7 @@ const owing = (some: Partial<Owing> = {}): Owing => ({
   checks: [],
   commits: [],
   lastReviewPoint: Option.none(),
-  merge: level,
+  merge: Option.some(level),
   ...some
 })
 
@@ -166,7 +166,16 @@ describe("what a pull request owes, everything that is not a thread", () => {
   })
 
   test("a branch level with its base is not something owed", () => {
-    expect(attentionIn(owing({ merge: level }))).toEqual([])
+    expect(attentionIn(owing({ merge: Option.some(level) }))).toEqual([])
+  })
+
+  /*
+   * A merge box GitHub would not serve says nothing about the branch, and this says
+   * nothing back. The alternative is a row reading "catch this branch up" built out of
+   * a payload that never arrived, which is a move against facts nobody has.
+   */
+  test("a branch nobody can prove is behind is not chased", () => {
+    expect(attentionIn(owing({ merge: Option.none() }))).toEqual([])
   })
 
   test("a branch behind is yours where you may catch it up", () => {
@@ -175,7 +184,7 @@ describe("what a pull request owes, everything that is not a thread", () => {
       update: Option.some({ how: "MERGE", mayUpdate: true, refusal: Option.none() })
     }
 
-    expect(courts({ merge: behind })).toEqual(["needs-you"])
+    expect(courts({ merge: Option.some(behind) })).toEqual(["needs-you"])
   })
 
   test("a branch behind waits where somebody else holds the write", () => {
@@ -188,7 +197,7 @@ describe("what a pull request owes, everything that is not a thread", () => {
       })
     }
 
-    expect(courts({ merge: behind })).toEqual(["waiting"])
+    expect(courts({ merge: Option.some(behind) })).toEqual(["waiting"])
   })
 })
 
@@ -234,10 +243,10 @@ describe("the four Courts of one pull request", () => {
     checks: [check("test", "failed"), check("lint", "succeeded")],
     commits: [commit("aaa"), commit("bbb")],
     lastReviewPoint: Option.some("aaa"),
-    merge: {
+    merge: Option.some({
       ...level,
       update: Option.some({ how: "REBASE", mayUpdate: true, refusal: Option.none() })
-    }
+    })
   })
 
   test("hold every item between them, each in exactly one", () => {

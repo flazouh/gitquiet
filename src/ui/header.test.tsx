@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen } from "@testing-library/react"
 import { Option } from "effect"
-import { AUTHOR, aSnapshot } from "../../tests/snapshots"
+import { AUTHOR, aMergeState, aSnapshot } from "../../tests/snapshots"
 import type { Seat } from "../domain/PullRequest"
 import { Header } from "./Header"
 
@@ -147,8 +147,7 @@ describe("a pull request that is one layer of a stack", () => {
       state: "open",
       headBranch: "feat-c",
       baseBranch: "feat-b",
-      merge: {
-        ...aSnapshot().merge,
+      merge: aMergeState({
         stack: Option.some({
           number: 11,
           floor: Option.none(),
@@ -160,7 +159,7 @@ describe("a pull request that is one layer of a stack", () => {
             seat
           }))
         })
-      }
+      })
     })
 
   test("says which layer it is, beside the branches that are the reason to ask", () => {

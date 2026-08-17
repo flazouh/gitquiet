@@ -1,4 +1,4 @@
-import type { Effect } from "effect"
+import { type Effect, Option } from "effect"
 import { stillRunning } from "../domain/checks"
 import type { PullRequestSnapshot, Remark } from "../domain/PullRequest"
 import { toUrl } from "../domain/PullRequestRef"
@@ -12,7 +12,7 @@ import { Verdict } from "./Verdict"
 import type { Review as Said } from "../ports/GitHubGateway"
 import { ControlCenter } from "./ControlCenter"
 import { Description } from "./Description"
-import { Merge, type MergeActions } from "./Merge"
+import { Merge, type MergeActions, MergeUnread } from "./Merge"
 
 /**
  * The column that answers "what is this pull request, and can it land".
@@ -143,15 +143,27 @@ export const About = ({
       onWarm={onWarmCommit}
       opened={openedCommit}
     />
-    <Merge
-      merge={snapshot.merge}
-      files={snapshot.files}
-      reviews={snapshot.reviews}
-      running={stillRunning(snapshot.checks)}
-      url={toUrl(snapshot.reference)}
-      state={snapshot.state}
-      headRef={snapshot.headRef}
-      actions={actions}
-    />
+    {/*
+     * The card, or the sentence saying why there is no card.
+     *
+     * Matched here rather than inside the card, because the two are not two faces of
+     * one thing: `Merge` answers "what can be done about this", and there is no such
+     * answer to wear a face. The card is handed a merge state it can rely on, which is
+     * what keeps every control in it honest.
+     */}
+    {Option.isNone(snapshot.merge) ? (
+      <MergeUnread />
+    ) : (
+      <Merge
+        merge={snapshot.merge.value}
+        files={snapshot.files}
+        reviews={Option.getOrElse(snapshot.reviews, () => [])}
+        running={stillRunning(snapshot.checks)}
+        url={toUrl(snapshot.reference)}
+        state={snapshot.state}
+        headRef={snapshot.headRef}
+        actions={actions}
+      />
+    )}
   </div>
 )

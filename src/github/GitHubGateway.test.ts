@@ -60,7 +60,7 @@ describe("asking the gateway for a pull request", () => {
     const snapshot = await Effect.runPromise(askFor(merged))
 
     expect(snapshot.state).toBe("merged")
-    expect(snapshot.reviews).toHaveLength(1)
+    expect(Option.getOrThrow(snapshot.reviews)).toHaveLength(1)
   })
 
   test("reads a deleted file, which GitHub calls REMOVED here", async () => {
@@ -217,6 +217,28 @@ describe("what the gateway sends to GitHub", () => {
       expect(snapshot.openedAt).toEqual(Option.none())
       expect(snapshot.closedAt).toEqual(Option.none())
       expect(snapshot.mergedAt).toEqual(Option.none())
+    })
+
+    /*
+     * The merge box is the one droppable route whose absence has to be said out loud.
+     * Everything it carries is a fact somebody would act on — whether this can land,
+     * what stands in the way, where it sits in a queue — so a card drawn from nothing
+     * would say "not mergeable" with an empty list of reasons, which is the worst
+     * reading available: it says no and will not say why. None instead, and the card
+     * wears a third face.
+     */
+    test("keeps the pull request and admits it cannot say, where the merge box died", async () => {
+      crashingAt("page_data/merge_box")
+
+      const snapshot = await Effect.runPromise(live)
+
+      expect(snapshot.title).toBe("Polish multi-file diffs in Agents window")
+      expect(snapshot.files.length).toBeGreaterThan(0)
+      expect(snapshot.merge).toEqual(Option.none())
+      expect(snapshot.reviews).toEqual(Option.none())
+      // Absent reads as no, which is the reading that cannot go wrong: a control
+      // this never offers is one GitHub was never asked to refuse.
+      expect(snapshot.headRef).toEqual({ mayDelete: false, mayRestore: false })
     })
 
     /*
