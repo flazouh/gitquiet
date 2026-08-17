@@ -58,8 +58,15 @@ import "@/ui/gates.bar.css";
 /**
  * How many pull requests one visit to one page will read ahead.
  *
- * Reading a pull request is four requests to GitHub, made with the reader's own
- * session. A list they linger over should not turn into a hundred of them.
+ * Reading a pull request is seven requests to GitHub, made with the reader's own
+ * session: the changes, and the six `page_data` routes their own page asks for.
+ * A list they linger over should not turn into a hundred of them.
+ *
+ * Twelve is eighty-four requests, which is close enough to their limit to be
+ * worth knowing about. Benchmarking this repository tripped it — GitHub answered
+ * 503 to every route for several minutes, and what the reader sees when that
+ * happens is "Something GitHub sends has changed" on a page that reads fine a
+ * quarter of an hour later.
  */
 const AT_MOST = 12;
 

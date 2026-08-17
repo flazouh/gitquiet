@@ -19,6 +19,12 @@
  * 3. Start the clock on the page's own press event. A clock started by the
  *    script that asked for a press counts the pointer's travel as latency, and
  *    that alone reported 1,535ms for a press that took 297ms.
+ *
+ * And one about GitHub rather than about the measurement: a full run is a few
+ * hundred requests with your own session, and they will throttle you for it.
+ * Every route comes back 503, the interface says the pull request could not be
+ * read, and a run made in that state reports numbers that describe the throttle.
+ * So the run stops when GitHub stops answering, and waits between presses.
  */
 
 const EXTENSION = "/Users/alex/Documents/githubpro/.output/chrome-mv3"
@@ -28,6 +34,15 @@ const OWNER = "OpenRouterIncubator/ori"
 
 /** Enough presses to have a median that is not one unlucky run. */
 const RUNS = 3
+
+/**
+ * How long to leave GitHub alone between presses.
+ *
+ * Each press is fourteen requests or so with the reader's own session, and a run
+ * makes a few hundred. Without this the run trips their throttle about two thirds
+ * of the way through and measures it for the rest.
+ */
+const BREATHE = 3
 
 /**
  * The moves, each one a page to start on and a link to press on it.
@@ -168,7 +183,25 @@ const median = (numbers) => {
 
 const show = (value) => (value === undefined ? "—" : `${value}ms`)
 
+/**
+ * Whether GitHub is still answering us, asked of the route every read starts with.
+ *
+ * Anything but 200 means the rest of this run would be timing their error page.
+ */
+const stillAnswering = async () => {
+  const status = await js(String.raw`(async () => {
+    try {
+      const answer = await fetch("https://github.com/${OWNER}/pull/2051/changes", {
+        headers: { accept: "application/json" }, credentials: "include"
+      })
+      return answer.status
+    } catch { return 0 }
+  })()`)
+  return status === 200 ? null : `GitHub answered ${status}`
+}
+
 const once = async (move, rest) => {
+  await wait(BREATHE)
   await gotoAndWait(move.from, { timeout: 60, settle: 4 })
   try {
     await waitForElement("#gitquiet-root", { timeout: 20 })
@@ -219,11 +252,25 @@ const { id } = await cdp("Extensions.loadUnpacked", { path: EXTENSION }, null)
 cliLog(`one copy installed: ${id}`)
 await focus()
 
+const throttled = await stillAnswering()
+if (throttled !== null) {
+  cliLog(`${throttled}. Nothing measured; wait for the throttle to clear and run this again.`)
+  await completeTaskSpace(task.id, { keep: false })
+  throw new Error(throttled)
+}
+
 const table = []
-for (const move of MOVES) {
+walking: for (const move of MOVES) {
   for (const rest of [0, 1.2]) {
     const runs = []
     for (let run = 0; run < RUNS; run++) runs.push(await once(move, rest))
+
+    const throttledNow = await stillAnswering()
+    if (throttledNow !== null) {
+      cliLog(`\n${throttledNow} part way through. Everything from here would measure the throttle.`)
+      break walking
+    }
+
     const skipped = runs.find((r) => r.skipped)
     if (skipped !== undefined && runs.every((r) => r.skipped)) {
       cliLog(`${move.name} (${rest > 0 ? "rested" : "cold"}): skipped, ${skipped.skipped}`)
