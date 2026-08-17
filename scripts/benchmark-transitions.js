@@ -263,6 +263,28 @@ const once = async (move, rest) => {
 
 await gotoAndWait(OPEN_PULLS, { timeout: 60, settle: 3 })
 await focus()
+
+/*
+ * Down to one copy before anything is read, rather than before anything is timed.
+ *
+ * `Extensions.loadUnpacked` persists in a task space, so a copy is left behind by
+ * every run and they all answer every event. Two of them fight over `#gitquiet-root`
+ * — each sees the other's tree as a stray, removes it, and unmounts — and what they
+ * leave is an empty page. Cleaned up after the list was read, that empty page was
+ * read as "this account has no pull requests open" and the run stopped on it.
+ */
+for (const id of await copiesHere()) {
+  try {
+    await cdp("Extensions.uninstall", { id }, null)
+  } catch {
+    // Already gone, which is the state this wants.
+  }
+}
+const { id } = await cdp("Extensions.loadUnpacked", { path: EXTENSION }, null)
+cliLog(`one copy installed: ${id}`)
+await focus()
+
+await gotoAndWait(OPEN_PULLS, { timeout: 60, settle: 3 })
 await wait(3)
 
 /**
@@ -319,17 +341,6 @@ if (found === null) {
   throw new Error(refused ? "GitHub is throttling this account" : "no pull requests to press")
 }
 cliLog(`pressing around ${found.repo}, ${found.open} open, starting at #${found.number}`)
-
-for (const id of await copiesHere()) {
-  try {
-    await cdp("Extensions.uninstall", { id }, null)
-  } catch {
-    // Already gone, which is the state this wants.
-  }
-}
-const { id } = await cdp("Extensions.loadUnpacked", { path: EXTENSION }, null)
-cliLog(`one copy installed: ${id}`)
-await focus()
 
 const HERE = `https://github.com/${found.repo}/pull/${found.number}`
 const MOVES = movesFor(found.repo, found.number)
