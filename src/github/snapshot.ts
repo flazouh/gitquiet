@@ -892,18 +892,27 @@ export const toSnapshot = Effect.fn("toSnapshot")(function* (
   const checksPayload = yield* decodeStatusChecks(raw.statusChecks)
   const mergePayload = yield* decodeMergeBox(raw.mergeBox)
   const descriptionPayload = yield* decodeDescription(raw.description)
-  const headerPayload = yield* decodeHeader(raw.header)
   const issueComments = yield* decodeIssueComments(raw.issueComments)
   /*
-   * The one payload here allowed to be wrong.
+   * The two payloads here allowed to be missing.
    *
    * Every other route above fails the read, because a pull request drawn without
-   * its checks or its threads is a lie in the right shape. A proposal is a strip
-   * above the header saying these two could be one stack: absent, the interface
-   * is exactly what it was yesterday, and refusing the whole pull request over it
-   * would trade the page for a decoration.
+   * its checks or its threads is a lie in the right shape. These two are not.
+   *
+   * A proposal is a strip above the header saying these two could be one stack:
+   * absent, the interface is exactly what it was yesterday, and refusing the whole
+   * pull request over it would trade the page for a decoration.
+   *
+   * The header carries three moments and nothing else, each already an Option
+   * below. Absent, the reader loses the age beside the badge and keeps everything
+   * they came to act on. GitHub served that route a 503 on `OpenRouterIncubator/ori`
+   * #2087 during their incident of 2026-08-17, and the whole pull request was
+   * refused over three dates.
    */
   const preview = yield* decodePreviewStack(raw.preview ?? null).pipe(
+    Effect.catch(() => Effect.succeed(null))
+  )
+  const headerPayload = yield* decodeHeader(raw.header).pipe(
     Effect.catch(() => Effect.succeed(null))
   )
 
@@ -986,9 +995,9 @@ export const toSnapshot = Effect.fn("toSnapshot")(function* (
     // downstream asks whether there is anything to draw, and "" answers that.
     description: { markdown: descriptionPayload.body ?? "", html: descriptionPayload.bodyHtml },
     state: stateOf(route.pullRequest.state),
-    openedAt: Option.fromNullishOr(headerPayload.pullRequest.createdTime),
-    closedAt: Option.fromNullishOr(headerPayload.pullRequest.closedTime),
-    mergedAt: Option.fromNullishOr(headerPayload.pullRequest.mergedTime),
+    openedAt: Option.fromNullishOr(headerPayload?.pullRequest.createdTime),
+    closedAt: Option.fromNullishOr(headerPayload?.pullRequest.closedTime),
+    mergedAt: Option.fromNullishOr(headerPayload?.pullRequest.mergedTime),
     author: participantOf(route.pullRequest.author),
     baseBranch: route.pullRequest.baseBranch,
     headBranch: route.pullRequest.headBranch,

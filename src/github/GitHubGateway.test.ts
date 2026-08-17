@@ -180,6 +180,60 @@ describe("what the gateway sends to GitHub", () => {
   })
 
   /**
+   * A route GitHub itself could not serve, which is not a payload that changed shape.
+   *
+   * Their crash page: `Unicorn! · GitHub` as HTML, under a 503 or a 504. Measured on
+   * `OpenRouterIncubator/ori#2087` on 2026-08-17, during an incident GitHub reported at
+   * a 20% error rate across pull requests. Three of the six routes this batch asks for
+   * died and three answered, and the whole pull request was refused over it.
+   *
+   * The rate is what makes this worth a shape rather than a retry alone. Six routes that
+   * each fail one time in five are all six answered about a quarter of the time, so a
+   * page that needs every one of them is a page that mostly does not appear.
+   */
+  const UNICORN = "<html><head><title>Unicorn! &middot; GitHub</title></head></html>"
+
+  const crashingAt = (route: string) =>
+    intercept((url) =>
+      url.includes(route)
+        ? new Response(UNICORN, { status: 503, headers: { "Content-Type": "text/html" } })
+        : Response.json(payloadFor(url))
+    )
+
+  describe("a route GitHub would not serve", () => {
+    /*
+     * The header carries three moments and nothing else: when it opened, when it
+     * closed, when it landed. Every one of them is already an Option on the snapshot,
+     * because the age beside a badge is worth less than the pull request under it — so
+     * the route going missing costs exactly those three and the reader loses nothing
+     * they would have acted on.
+     */
+    test("draws the pull request without the moments, where the header died", async () => {
+      crashingAt("page_data/header")
+
+      const snapshot = await Effect.runPromise(live)
+
+      expect(snapshot.title).toBe("Polish multi-file diffs in Agents window")
+      expect(snapshot.openedAt).toEqual(Option.none())
+      expect(snapshot.closedAt).toEqual(Option.none())
+      expect(snapshot.mergedAt).toEqual(Option.none())
+    })
+
+    /*
+     * The changes route is the pull request itself — its title, its state, its files,
+     * its commits and its threads — so there is no page to draw without it. This is the
+     * one route in the batch whose absence is still the whole failure.
+     */
+    test("still refuses the whole read where the changes route died", async () => {
+      crashingAt("/changes")
+
+      const error = await Effect.runPromise(Effect.flip(live))
+
+      expect(error.reason).toBe("rejected")
+    })
+  })
+
+  /**
    * The one thing their pull request payload cannot say, and the one read it
    * costs to find out.
    *
