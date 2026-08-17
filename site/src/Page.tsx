@@ -127,7 +127,7 @@ export const Page = () => (
     <Above>
       <Nav>
         <Source />
-        <Aside at={INSTALL_AT}>Other ways in</Aside>
+        <Aside at={INSTALL_AT}>Downloads</Aside>
         <AddToChrome />
       </Nav>
 
