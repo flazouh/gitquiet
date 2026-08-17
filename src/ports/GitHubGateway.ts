@@ -130,6 +130,19 @@ export const askedToSignOn = (cause: unknown): Option.Option<string> => {
 export const gitHubIsDown = (cause: unknown): boolean => why(cause) === "down"
 
 /**
+ * Whether the request never got to GitHub at all.
+ *
+ * Apart from {@link gitHubIsDown} because the two send a reader to different places.
+ * GitHub answering with an error is answered by their status page and by waiting; a
+ * request that never left is answered by the connection, a proxy, or whatever else
+ * on this machine is standing in the way, and their status page will say everything
+ * is fine because for everybody else it is.
+ *
+ * Both were being drawn as "something GitHub sends has changed", which is neither.
+ */
+export const couldNotReachGitHub = (cause: unknown): boolean => why(cause) === "unreachable"
+
+/**
  * The reason off whatever a screen is holding, which is a cause and not an error.
  *
  * Both readers above take `unknown` rather than one of the two errors, because that

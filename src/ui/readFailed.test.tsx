@@ -105,6 +105,43 @@ describe("what a list shows when GitHub would not answer for it", () => {
   })
 
   /**
+   * The neighbour of the case above, and the one that proves the pair is worth two
+   * cards rather than one.
+   *
+   * A request that never left this machine and an error GitHub sent back are both
+   * "the read failed and the next one may not", and they send the reader to opposite
+   * places: their status page is the answer to one and will say everything is fine
+   * about the other. Blocking the route on a live page is how this was found, still
+   * saying a payload had changed.
+   */
+  describe("a request that never reached GitHub", () => {
+    const nowhere = new WorkingSetError({
+      route: "/pulls",
+      reason: "unreachable",
+      detail: "TypeError: Failed to fetch"
+    })
+
+    test("says nothing reached GitHub, not that GitHub changed", () => {
+      render(card({ why: nowhere }))
+
+      expect(screen.getByText("Nothing reached GitHub")).toBeTruthy()
+      expect(screen.queryByText("Something GitHub sends has changed")).toBeNull()
+    })
+
+    /*
+     * The distinction the two cards exist for. Sending somebody to a status page that
+     * reports all well, about a request their own machine stopped, is worse than
+     * saying nothing.
+     */
+    test("does not send the reader to a status page that would say all is well", () => {
+      render(card({ why: nowhere }))
+
+      expect(screen.queryByRole("link", { name: "GitHub status" })).toBeNull()
+      expect(screen.queryByText("GitHub is having trouble")).toBeNull()
+    })
+  })
+
+  /**
    * The case this card used to get wrong, and the reason it is worth its own
    * wording: a reader who has only to press a button was being told GitHub had
    * changed shape, about a repository they could see the name of.

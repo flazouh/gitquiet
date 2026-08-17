@@ -341,6 +341,42 @@ export const theScreenShown = (target: Document): string | null =>
   target.documentElement.getAttribute(SHOWN)
 
 /**
+ * Which address the screen on the page has drawn, as a path.
+ *
+ * {@link SHOWN} says which kind of screen is up and cannot say more, because a screen
+ * that shows a second page of its own kind never comes down: a reader moving between
+ * two pull requests keeps the same container and the same React root, and only draws
+ * again. So the kind reads "conversation" from the pull request they left, through the
+ * press, and on into the one they arrived at.
+ */
+const AT = "data-gitquiet-at"
+
+/**
+ * Said by a screen each time it draws, which is the moment it accepts an address.
+ *
+ * Before the drawing rather than after it, and the difference is the tens of
+ * milliseconds React takes to commit. What the callers need to know is that this
+ * screen has taken the new address on, not that the last pixel of it is down.
+ */
+export const theScreenIsAt = (target: Document, path: string): void => {
+  target.documentElement.setAttribute(AT, path)
+}
+
+/**
+ * Whether the screen a press asked for is the one on the page.
+ *
+ * Both halves are needed and neither is enough. The kind alone says yes on the first
+ * frame of a move between two pull requests, because it never changed. The address
+ * alone would say yes while a screen of the wrong kind is still standing on it, which
+ * is exactly the window a press opens.
+ *
+ * Asked by the push in `going.ts`, which repairs the address by hand if the screen
+ * never came, and by the shell, which keeps reading ahead quiet until it has.
+ */
+export const theScreenArrived = (target: Document, place: string, path: string): boolean =>
+  theScreenShown(target) === place && target.documentElement.getAttribute(AT) === path
+
+/**
  * Says when the document has a body, which at `document_start` it does not.
  *
  * A detached container renders as well as an attached one, so a screen is drawn

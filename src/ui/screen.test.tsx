@@ -595,4 +595,48 @@ describe("a pull request that could not be read", () => {
       expect(screen.getByRole("button", { name: /Show GitHub's conversation/ })).toBeDefined()
     )
   })
+
+  /**
+   * This screen drew its own version of the card until 2026-08-17, when the copy was
+   * measured against a real failure and found to be two cases behind.
+   *
+   * `useLive` says a screen hands a failure to `ReadFailed`, and every list does. This
+   * one had the two cases that existed when it was written, so an organisation waiting
+   * to be signed on to and GitHub itself being down both reached every list and
+   * neither reached a pull request. Blocking `/changes` on a live page drew "something
+   * GitHub sends has changed" over a 503 that had already been asked three times.
+   *
+   * The two tests below are about the card being the shared one, not about its
+   * wording. A third case written next has to reach this screen without anybody
+   * remembering that it exists.
+   */
+  describe("the same card every other screen shows", () => {
+    const failingWith = (why: unknown) =>
+      render(
+        <PullRequestScreen
+          reference={reference}
+          load={() => Effect.fail(why)}
+          fetchDiffs={() => Effect.succeed([])}
+          onStepAside={() => {}}
+          signedIn={() => true}
+        />
+      )
+
+    test("says GitHub is having trouble, where GitHub is having trouble", async () => {
+      failingWith({ reason: "down", detail: "HTTP 503" })
+
+      await waitFor(() =>
+        expect(screen.getByRole("heading").textContent).toContain("GitHub is having trouble")
+      )
+      expect(screen.getByRole("link", { name: "GitHub status" })).toBeDefined()
+    })
+
+    test("names the organisation, where one is waiting to be signed on to", async () => {
+      failingWith({ reason: "sign-on", reference, detail: "HTTP 401" })
+
+      await waitFor(() =>
+        expect(screen.getByRole("heading").textContent).toContain("acme wants a single sign-on")
+      )
+    })
+  })
 })

@@ -27,6 +27,7 @@ import { TheBar } from "./TheBar"
 import { useFreshening } from "./useFreshening"
 import type { AskLayerSizes } from "./useLayerSizes"
 import { type Load, useLive } from "./useLive"
+import { ReadFailed } from "./ReadFailed"
 
 export type Loaded = {
   readonly snapshot: PullRequestSnapshot
@@ -333,37 +334,31 @@ export const PullRequestScreen = ({
     // that hands back different tokens must.
   }, [watch, channels?.join(" "), again])
 
+  /*
+   * The same card every other screen shows, which this one drew for itself until it
+   * was measured against a real failure.
+   *
+   * `useLive` says what a screen does with a failure and it is this; a copy of the
+   * two cases here meant the two written since — an organisation waiting to be
+   * signed on to, and GitHub itself being down — reached every list and never
+   * reached a pull request. Blocking `/changes` on a live page still drew "something
+   * GitHub sends has changed" over a 503 that had been asked three times.
+   *
+   * The wording is the screen's own, because a pull request is answered as if it
+   * were not there where a list is answered as if it were empty, and what is behind
+   * this is their conversation rather than a page.
+   */
   if (read.status === "failed") {
-    // Every route answers 404 to a signed-out reader on a private repository,
-    // which looks exactly like a payload that changed shape. Blaming GitHub for
-    // an expired session sends the reader looking for a bug in the wrong place,
-    // when the fix is one link away.
-    const out = !signedIn()
-
     return (
-      <div className="Box p-4">
-        <h2 className="mb-1 text-base font-semibold">
-          {out ? "You are signed out of GitHub" : "Something GitHub sends has changed"}
-        </h2>
-        <p className="mb-3 max-w-prose text-sm text-ink-muted">
-          {out
-            ? "GitHub answers as if this pull request does not exist while nobody is signed in. Sign in and open it again."
-            : "This pull request could not be read, so nothing is shown rather than part of it. GitHub's own conversation is still here."}
-        </p>
-        {out ? (
-          <a
-            className="btn btn-sm btn-primary mr-2"
-            href={`https://github.com/login?return_to=${encodeURIComponent(location.href)}`}
-          >
-            Sign in to GitHub
-          </a>
-        ) : null}
-        {/* Not a link back to the same page: their conversation was never
-            removed, only hidden, so this is a button that gives it back. */}
-        <button type="button" className="btn btn-sm" onClick={onStepAside}>
-          Show GitHub's conversation
-        </button>
-      </div>
+      <ReadFailed
+        signedOut={!signedIn()}
+        what="This pull request"
+        why={read.why}
+        asIf="this pull request does not exist"
+        theirs="conversation"
+        onStepAside={onStepAside}
+        asideLabel="Show GitHub's conversation"
+      />
     )
   }
 
