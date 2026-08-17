@@ -556,7 +556,37 @@ export default defineContentScript({
        * screen being left is holding. Said before the fetch below, because that
        * screen reads this the instant it starts.
        */
-      if (mine !== undefined) drawingOurOwnRows(window, true);
+      if (mine !== undefined) {
+        drawingOurOwnRows(window, true);
+
+        /*
+         * And from here the connection belongs to the reader. `readAhead` is where
+         * the cost of not saying so is measured.
+         *
+         * Said on the first event of the press rather than the third, which is about
+         * a hundred milliseconds earlier. This is already the moment the shell
+         * decided the press is happening: the gate goes up below and the screen's
+         * own file is fetched, several hundred kilobytes of it, while GitHub is
+         * still thinking about their page. A guess left running against that fetch
+         * is competing with the press twice over.
+         *
+         * The read for the page being opened is spared. It is the one thing the
+         * resting before the press bought — it lands in the store, and the screen
+         * draws that store before GitHub has answered anything — and calling it off
+         * cost exactly what it was worth: 238ms rested became 1,256ms.
+         */
+        const target = mine.push ?? going ?? window.location.pathname;
+        const wanted = placeFor(what, target).name;
+        const opening = warmingFor(
+          new URL(target, window.location.origin).href,
+          window.location.href,
+        );
+
+        readAhead.pressed(opening?.key ?? null, {
+          there: () => theScreenShown(document) === wanted,
+          by: performance.now() + ARRIVING,
+        });
+      }
 
       /*
        * Said before anything else and whoever is already up, because it is the page
@@ -606,22 +636,7 @@ export default defineContentScript({
       const push = mine?.push;
       if (push !== undefined) {
         const wanted = placeFor(what, push).name;
-        const there = () => theScreenShown(document) === wanted;
-
-        // From here until that screen is up, the connection belongs to the reader,
-        // and `readAhead` is where the cost of not doing this is measured. The read
-        // for the page being opened is spared: it is the one the resting before the
-        // press paid for, and the screen draws what it leaves behind.
-        const opening = warmingFor(
-          new URL(push, window.location.origin).href,
-          window.location.href,
-        );
-        readAhead.pressed(opening?.key ?? null, {
-          there,
-          by: performance.now() + ARRIVING,
-        });
-
-        goTo(window, push, there);
+        goTo(window, push, () => theScreenShown(document) === wanted);
       }
     };
 

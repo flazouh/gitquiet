@@ -92,8 +92,12 @@ export const Toasts = ({ children }: { readonly children?: ReactNode }) => {
   )
 }
 
-/**
- * Sentences asked for before the surface that shows them was on the page.
+/*
+ * Sentences asked for before the surface that shows them was on the page, the
+ * screens that could raise one, and how many have.
+ *
+ * A section rather than three doc comments, because no one of these three names
+ * means anything without the other two.
  *
  * Sonner's `Toaster` is not free to mount. It reads the document's writing
  * direction, which is `getComputedStyle` on the root of GitHub's page, and it
@@ -105,23 +109,21 @@ export const Toasts = ({ children }: { readonly children?: ReactNode }) => {
  * So it is mounted when there is something to say and not before. A screen that
  * never refuses anything never pays for it, and a screen that does pays once,
  * after the press it is reporting on rather than during it.
+ *
+ * Counted and held by identity, for the same reason `Standing` above counts. Two
+ * screens are on the page at once at every navigation, on purpose: `screen.tsx`
+ * takes the outgoing root down from `whenAnotherBarStands`, up to `HANDOVER`
+ * after the incoming one has already mounted. A single slot and a single flag are
+ * written by whichever screen ran last and cleared by whichever screen leaves
+ * first, and those are not the same screen. The leaving one took the surface away
+ * from the one still standing, and the extension went mute for the rest of the
+ * document: press a pull request from a list, press back, and no refusal, no way
+ * back and no read in progress was ever said again.
+ *
+ * A set and a count are right under any overlap and any order of leaving. A slot
+ * and a flag are right under neither.
  */
 const queued: Array<() => void> = []
-
-/**
- * Counted and held by identity, for the same reason {@link Standing} counts.
- *
- * Two screens are on the page at once at every navigation, on purpose: `screen.tsx` takes the
- * outgoing root down from `whenAnotherBarStands`, up to `HANDOVER` after the incoming one has
- * already mounted. A single slot and a single flag are written by whichever screen ran last and
- * cleared by whichever screen leaves first, and those are not the same screen. The leaving one
- * took the surface away from the one still standing, and the extension went mute for the rest of
- * the document: press a pull request from a list, press back, and no refusal, no way back and no
- * read in progress was ever said again.
- *
- * A set and a count are right under any overlap and any order of leaving. A slot and a flag are
- * right under neither.
- */
 const waking = new Set<() => void>()
 let stands = 0
 
