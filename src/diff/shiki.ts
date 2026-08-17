@@ -10,7 +10,8 @@
  * This module stands in for `shiki` (see the alias in wxt.config.ts) and offers
  * the same five things Pierre reaches for, with a language map holding the ones
  * people actually open a pull request about. Anything else renders as plain
- * text: unhighlighted code is legible, a ten megabyte content script is not.
+ * text — see `bundledLanguages` for how, because for a while it threw instead:
+ * unhighlighted code is legible, a ten megabyte content script is not.
  *
  * The list is a judgement, not a limit — adding a language here costs its
  * grammar and nothing else. Longer term this moves into the worker Pierre
@@ -20,14 +21,19 @@
 export * from "shiki/core"
 export { createJavaScriptRegexEngine } from "shiki/engine/javascript"
 
-import { createHighlighterCore, type HighlighterCore } from "shiki/core"
+import { Effect } from "effect"
+import {
+  createHighlighterCore,
+  type HighlighterCore,
+  type LanguageRegistration
+} from "shiki/core"
 
 /**
  * The grammars worth their bytes, in rough order of how often a diff contains
  * them. `text` and `ansi` are Shiki's own specials and are not listed: core
  * already knows them.
  */
-export const bundledLanguages = {
+const GRAMMARS: Record<string, Grammars> = {
   typescript: () => import("@shikijs/langs/typescript"),
   tsx: () => import("@shikijs/langs/tsx"),
   javascript: () => import("@shikijs/langs/javascript"),
@@ -57,7 +63,56 @@ export const bundledLanguages = {
   docker: () => import("@shikijs/langs/docker"),
   graphql: () => import("@shikijs/langs/graphql"),
   diff: () => import("@shikijs/langs/diff")
-} as const
+}
+
+type Grammars = () => PromiseLike<{ readonly default: ReadonlyArray<LanguageRegistration> }>
+
+/**
+ * The language a reader opened, with nothing to colour it with: its own name, so
+ * the highlighter has something to register, and no patterns, so every line comes
+ * back as one plain token.
+ */
+const plain =
+  (lang: string): Grammars =>
+  () =>
+    Effect.runPromise(
+      Effect.succeed({
+        default: [{ name: lang, scopeName: `source.${lang}`, patterns: [], repository: {} }]
+      })
+    )
+
+/**
+ * A name the map was asked for and has nothing for, answered where it is a
+ * language and left alone where it is not.
+ *
+ * `then` is the one name here that means something to JavaScript rather than to a
+ * reader: an object that answers it is a promise, so answering it would hang the
+ * first thing that ever awaited this map.
+ */
+const standIn = (name: string | symbol): Grammars | undefined =>
+  typeof name === "string" && name !== "then" ? plain(name) : undefined
+
+/**
+ * Every name, whether or not a grammar came with it.
+ *
+ * The name reaching this map is read off a filename in a diff GitHub served, so
+ * the set of names is the set of things people write, and the list above is a
+ * judgement about bytes. Pierre asks whether the map holds a name and throws
+ * where it does not, which arrived as an unhandled rejection and a card that drew
+ * nothing: one Zig file in a pull request took the whole file view down. So the
+ * map answers for everything, and the answer for a language nobody bundled is
+ * the file without colour.
+ */
+export const bundledLanguages: Record<string, Grammars> = new Proxy(GRAMMARS, {
+  get: (grammars, name) => Reflect.get(grammars, name) ?? standIn(name),
+  getOwnPropertyDescriptor: (grammars, name) => {
+    const held = Reflect.getOwnPropertyDescriptor(grammars, name)
+    if (held !== undefined) return held
+
+    const loader = standIn(name)
+    return loader === undefined ? undefined : { value: loader, enumerable: true, configurable: true }
+  }
+})
 
 /**
  * Pierre asks for this with a name-based language list, which core does not
