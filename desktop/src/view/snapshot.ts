@@ -177,6 +177,14 @@ const mergeOf = (facts: CardFacts): MergeState => {
           })
         : Option.none(),
     mayBypass: facts.merge.mayBypass,
+    /*
+     * None, because a stack is a thing GitHub keeps and only tells their own page
+     * about. The merge box on github.com carries the stack's number, its layers and
+     * the branch they land on; the documented API carries none of it, so this window
+     * cannot say whether a pull request is a layer of one. None is that, and the
+     * screen draws an ordinary merge rather than a stack it half knows about.
+     */
+    stack: Option.none(),
     // Their signed socket tokens are minted for a page of theirs, and there is no
     // page of theirs here.
     channels: []
@@ -197,6 +205,21 @@ export const snapshotFrom = (
   author: faceOf(facts.author),
   baseBranch: facts.baseBranch,
   headBranch: facts.headBranch,
+  /*
+   * Neither verb offered, because the crossing does not carry the two answers yet.
+   *
+   * Both false is the ordinary reading of this rather than a gap being papered over:
+   * it is what a repository that deletes its own head branches leaves behind, and what
+   * a branch on somebody else's fork says. The card draws no offer to delete or to put
+   * back, which is worth more than an offer built on a guess — GitHub refuses a delete
+   * this reader may not make, and the refusal arrives after the press.
+   */
+  headRef: { mayDelete: false, mayRestore: false },
+  /*
+   * None, for the reason `stack` above is None: what GitHub would stack out of this
+   * branch is something their merge box says and the documented API does not.
+   */
+  proposal: Option.none(),
   headSha: facts.headSha,
   baseSha: facts.baseSha,
   viewer: {
@@ -225,9 +248,25 @@ export const snapshotFrom = (
       durationSeconds: check.durationSeconds
     })
   ),
-  reviews: facts.reviews.map(
-    (one): Review => ({ reviewer: faceOf(one.reviewer), decision: one.decision })
+  /*
+   * Some, always, and the two Options below are the same answer to the same question.
+   *
+   * On GitHub's page both of these come out of one private route — the merge box —
+   * which served a crash page through the incident of 2026-08-17, so the screen learned
+   * to draw a pull request without them. Here they come out of the documented API,
+   * which either answers the pull request or fails the read: there is no half of a card
+   * to represent, so what this window has is always an answer.
+   *
+   * Wrapped rather than left bare, which is the bug this replaced. `PullRequestScreen`
+   * reads the merge state with `Option.map`, and a plain object handed to that is not a
+   * None — it is taken for a Some and mapped over its `value`, which is `undefined`. So
+   * every card threw on `said.channels` during render, and with no error boundary above
+   * it React took the whole window down: pressing any row in the Working Set blanked
+   * the app.
+   */
+  reviews: Option.some(
+    facts.reviews.map((one): Review => ({ reviewer: faceOf(one.reviewer), decision: one.decision }))
   ),
-  merge: mergeOf(facts)
+  merge: Option.some(mergeOf(facts))
 })
 

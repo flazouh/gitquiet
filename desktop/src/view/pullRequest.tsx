@@ -53,8 +53,14 @@ const through = <A, E>(work: Effect.Effect<A, E, GitHubGateway>) =>
  * said so, and asking for one anyway is a refusal the reader did not need.
  */
 const howToCatchUp = (snapshot: PullRequestSnapshot | null): "MERGE" | "REBASE" => {
-  const update = snapshot?.merge.update
-  return update !== undefined && Option.isSome(update) ? update.value.how : "MERGE"
+  if (snapshot === null) return "MERGE"
+
+  // Two Options deep, and a miss at either depth is the same answer: nothing was
+  // said, so ask for the merge GitHub would have chosen anyway.
+  return Option.match(Option.flatMap(snapshot.merge, (said) => said.update), {
+    onNone: () => "MERGE" as const,
+    onSome: (update) => update.how
+  })
 }
 
 export const PullRequest = ({
