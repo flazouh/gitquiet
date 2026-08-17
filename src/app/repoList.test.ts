@@ -260,7 +260,9 @@ describe("reading one page of a repository's pull requests", () => {
 
     const listed = await read()
 
-    expect(asked.filter((url) => url.includes("merge_box"))).toHaveLength(2)
+    // Distinct addresses rather than requests: a 500 is asked again, so counting
+    // requests here would be counting the retry policy rather than the two rows.
+    expect(new Set(asked.filter((url) => url.includes("merge_box"))).size).toBe(2)
     // And a branch read that failed leaves flat rows rather than an invented stack.
     expect(listed.sittings[0]?.piles).toHaveLength(2)
   })

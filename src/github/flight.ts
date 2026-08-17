@@ -77,3 +77,22 @@ export const askingOnce = <Value>(url: string, ask: Effect.Effect<Value>): Effec
 
     return Effect.promise(() => started)
   })
+
+/**
+ * Empties the map, for a test that is about to intercept `fetch` differently.
+ *
+ * The one thing here that a browser never needs. A read forks the work that fills in
+ * sizes and stacks, so the promise a caller waits on can settle while requests it
+ * started are still in the air — which is exactly the design, and across a test
+ * boundary it means the next test's identical address joins the last test's request
+ * and is answered by an intercept that has since been replaced. That went unnoticed
+ * while every intercepted answer was immediate; a route asked again after a wait
+ * holds the entry long enough to be found, and a test asserting that a size could not
+ * be read got the size the test before it had been served.
+ *
+ * Nothing is cancelled. The requests go on and settle into a map nobody is reading,
+ * which is what the reading-ahead does in a browser every time a reader walks away.
+ */
+export const forgetFlights = (): void => {
+  ;(globalThis as World)[FLIGHTS] = undefined
+}

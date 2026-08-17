@@ -62,6 +62,16 @@ import type { InvolvedPullRequest, Shelf, Size, Sizes, Standings } from "../doma
 export type GatewayFailure =
   | "unreachable"
   | "rejected"
+  /**
+   * GitHub answered with a status only GitHub owns: 500, 502, 503, 504.
+   *
+   * Apart from `rejected` because the two are opposite facts and only one of them is
+   * about the reader. A refusal means GitHub read the request and said no, and the
+   * next read says no again. This means GitHub did not get as far as reading it, and
+   * the next read may well work — which is both why it is asked again before anybody
+   * is told, and why what they are told is that GitHub is having trouble.
+   */
+  | "down"
   | "undecodable"
   | "not-recorded"
   | "sign-on"
@@ -103,12 +113,31 @@ export class WorkingSetError extends Data.TaggedError("WorkingSetError")<{
  * better off saying nothing about it.
  */
 export const askedToSignOn = (cause: unknown): Option.Option<string> => {
-  const failure = cause as { reason?: unknown; reference?: { owner?: unknown } }
-  if (failure?.reason !== "sign-on") return Option.none()
+  if (why(cause) !== "sign-on") return Option.none()
 
-  const owner = failure.reference?.owner
+  const owner = (cause as { reference?: { owner?: unknown } })?.reference?.owner
   return typeof owner === "string" && owner !== "" ? Option.some(owner) : Option.none()
 }
+
+/**
+ * Whether GitHub was the thing that broke.
+ *
+ * It matters because the sentence a screen shows for everything else is "something
+ * GitHub sends has changed", which is a report of a fault in this extension. Saying
+ * that during an outage sends the reader to file a bug about a page that is fine, and
+ * it goes on saying it for as long as the incident lasts.
+ */
+export const gitHubIsDown = (cause: unknown): boolean => why(cause) === "down"
+
+/**
+ * The reason off whatever a screen is holding, which is a cause and not an error.
+ *
+ * Both readers above take `unknown` rather than one of the two errors, because that
+ * is what a screen has: the cause a read failed with. One cast in one place, so the
+ * two questions asked of it are asked the same way, and a {@link WorkingSetError}
+ * answers them as a {@link GatewayError} does.
+ */
+const why = (cause: unknown): unknown => (cause as { reason?: unknown })?.reason
 
 /**
  * Where a page of results sits in the whole of them.

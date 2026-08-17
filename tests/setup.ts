@@ -1,5 +1,7 @@
 import { GlobalRegistrator } from "@happy-dom/global-registrator"
-import { setDefaultTimeout } from "bun:test"
+import { afterEach, setDefaultTimeout } from "bun:test"
+import { forgetFlights } from "../src/github/flight"
+import { forgetEverything } from "./storage"
 
 /**
  * On GitHub, because that is where every one of these documents lives.
@@ -49,3 +51,35 @@ configure({ asyncUtilTimeout: 4_000 })
  * one of the two rather than by neither.
  */
 setDefaultTimeout(20_000)
+
+/**
+ * Nothing a test starts is allowed to be joined by the test after it.
+ *
+ * A read folds requests for the same address together and forks the work that fills
+ * in sizes and stacks, so the promise a test waits on can settle with requests it
+ * started still in the air. A test file replaces the `fetch` intercept between tests;
+ * an address left in flight is joined rather than asked again, and the next test is
+ * answered by the last test's intercept.
+ *
+ * Here rather than in the fourteen files that intercept `fetch`, because it is not a
+ * fact about any of them and the fifteenth would not know to do it. It went unnoticed
+ * for as long as every intercepted answer was immediate, and appeared the moment a
+ * route that failed was asked again after a wait: a test asserting that a size could
+ * not be read was handed the size the test before it had been served.
+ */
+afterEach(forgetFlights)
+
+/**
+ * And nothing a test kept is allowed to answer the test after it.
+ *
+ * `installStorage` writes `browser` onto the global and never takes it off, so the
+ * four files that call it hand a working store to every file that runs afterwards.
+ * Those four clear it before each of their own tests; the files that never asked for
+ * a store do not know there is one to clear, and a read that keeps what it finds
+ * keeps it into them.
+ *
+ * The same wait made this one visible too. A size is written from a forked fiber, so
+ * with every intercepted answer immediate the write had not landed before the next
+ * test began, and with a route asked again after a wait it had.
+ */
+afterEach(forgetEverything)

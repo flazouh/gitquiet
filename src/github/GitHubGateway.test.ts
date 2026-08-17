@@ -273,7 +273,104 @@ describe("what the gateway sends to GitHub", () => {
 
       const error = await Effect.runPromise(Effect.flip(live))
 
+      expect(error.reason).toBe("down")
+    })
+
+    /*
+     * A 503 and a 403 are not the same sentence. The first is GitHub having a bad
+     * afternoon and the next read fixes it; the second is GitHub saying no, and the
+     * next read says no again. Filing both as `rejected` sent the reader looking for
+     * a fault in a page that had none, which is what happened on 2026-08-17.
+     */
+    test("blames the outage rather than the reader, on a status only GitHub owns", async () => {
+      crashingAt("/changes")
+
+      const error = await Effect.runPromise(Effect.flip(live))
+
+      expect(error.detail).toBe("HTTP 503")
+    })
+  })
+
+  /**
+   * Asking again, which is the cheapest thing that can be done about an incident.
+   *
+   * At the 20% error rate GitHub reported on 2026-08-17, one ask answers all five
+   * required routes about a third of the time. Three asks each take a route's own odds
+   * of never answering from a fifth to a hundred and twenty-fifth, and the five
+   * together to about 96%. That is the difference between a page that mostly appears
+   * and one that mostly does not.
+   */
+  describe("asking a second time", () => {
+    /**
+     * Fails the first `times` asks for a route, then answers.
+     *
+     * Counted per route rather than overall, because the routes go out together and a
+     * counter shared between them would answer whichever arrived third.
+     */
+    const failingFirst = (route: string, times: number, status = 503) => {
+      let seen = 0
+      return intercept((url) => {
+        if (!url.includes(route)) return Response.json(payloadFor(url))
+        seen += 1
+        return seen <= times
+          ? new Response(UNICORN, { status, headers: { "Content-Type": "text/html" } })
+          : Response.json(payloadFor(url))
+      })
+    }
+
+    test("draws the pull request where a route answered on the third ask", async () => {
+      const calls = failingFirst("/changes", 2)
+
+      const snapshot = await Effect.runPromise(live)
+
+      expect(snapshot.title).toBe("Polish multi-file diffs in Agents window")
+      expect(calls.filter((call) => call.url.includes("/changes"))).toHaveLength(3)
+    })
+
+    /*
+     * The other half of it. A retry is worth having because a 503 is a coin toss, and
+     * that reasoning does not reach a refusal: GitHub will say 403 to the same request
+     * all afternoon, and asking three times costs the reader three round trips to be
+     * told the same thing. Only what could be different next time is asked again.
+     */
+    test("takes a refusal at its word and asks once", async () => {
+      const calls = intercept((url) =>
+        url.includes("/changes") ? new Response("no", { status: 403 }) : Response.json(payloadFor(url))
+      )
+
+      const error = await Effect.runPromise(Effect.flip(live))
+
       expect(error.reason).toBe("rejected")
+      expect(calls.filter((call) => call.url.includes("/changes"))).toHaveLength(1)
+    })
+
+    /*
+     * A wall is not an outage either, and this one the reader can walk through. Asking
+     * again would delay the only screen that tells them how.
+     */
+    test("does not ask again where an organisation wants a single sign-on", async () => {
+      const calls = intercept((url) =>
+        url.includes("/changes") ? new Response("", { status: 401 }) : Response.json(payloadFor(url))
+      )
+
+      const error = await Effect.runPromise(Effect.flip(live))
+
+      expect(error.reason).toBe("sign-on")
+      expect(calls.filter((call) => call.url.includes("/changes"))).toHaveLength(1)
+    })
+
+    /*
+     * A droppable route gets the same three asks before it is dropped. Dropping it on
+     * the first 503 would spend the whole of this on the routes that cannot be dropped
+     * and leave the merge card missing on a page that could have had it.
+     */
+    test("asks again for the merge box too, rather than dropping it at once", async () => {
+      const calls = failingFirst("merge_box", 1)
+
+      const snapshot = await Effect.runPromise(live)
+
+      expect(Option.isSome(snapshot.merge)).toBe(true)
+      expect(calls.filter((call) => call.url.includes("merge_box"))).toHaveLength(2)
     })
   })
 
