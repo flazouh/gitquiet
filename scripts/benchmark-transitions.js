@@ -39,6 +39,18 @@ const EXTENSION = "/Users/alex/Documents/githubpro/.output/chrome-mv3"
  */
 const OPEN_PULLS = "https://github.com/pulls"
 
+/**
+ * Where to start when that list will not answer, which happens.
+ *
+ * GitHub times out their own list pages on a repository with enough pull
+ * requests open — their unicorn, on `/pulls` and on the repository's own tab,
+ * while every pull request page in the same repository answers in full. A run
+ * blocked on the list measures nothing, so set this to any pull request and the
+ * rest are read off the stack strip on it. It will go stale, and the run says so
+ * rather than timing their 404 page.
+ */
+const START = "https://github.com/OpenRouterIncubator/ori/pull/2087"
+
 /** Enough presses to have a median that is not one unlucky run. */
 const RUNS = 3
 
@@ -274,6 +286,16 @@ let found = null
 for (let look = 0; look < 6 && found === null; look++) {
   found = await lookForPulls()
   if (found === null) await wait(2)
+}
+
+if (found === null && START !== "") {
+  const named = START.match(/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/)
+  if (named !== null) {
+    await gotoAndWait(START, { timeout: 60, settle: 4 })
+    await wait(4)
+    found = { repo: named[1], number: named[2], open: 0 }
+    cliLog(`their list would not answer, so starting from ${START}`)
+  }
 }
 
 if (found === null) {
