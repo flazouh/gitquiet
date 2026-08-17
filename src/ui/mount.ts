@@ -363,6 +363,19 @@ export const theScreenIsAt = (target: Document, path: string): void => {
 }
 
 /**
+ * Said the moment the address moves: whatever is drawn is drawn for the last one.
+ *
+ * Without this the mark goes stale rather than wrong-and-obvious. A screen that draws
+ * again on its own account — the back button is the one that showed it — never passes
+ * through the shell's redraw, so the mark went on naming the address the reader had
+ * just left, and the next press to that address would have been called an arrival
+ * before anything was drawn for it.
+ */
+export const theScreenIsMoving = (target: Document): void => {
+  target.documentElement.removeAttribute(AT)
+}
+
+/**
  * Whether the screen a press asked for is the one on the page.
  *
  * Both halves are needed and neither is enough. The kind alone says yes on the first
@@ -819,6 +832,9 @@ export const takeOverSlot = (
 
       target.documentElement.removeAttribute(TAKEN)
       target.documentElement.removeAttribute(SHOWN)
+      // With the kind, because a stale address left behind would answer for whatever
+      // stands here next.
+      target.documentElement.removeAttribute(AT)
       // Everything hidden anywhere, not only within the slot: their tab row
       // lives in the header above it and has to come back too.
       for (const theirs of target.querySelectorAll(`[${HIDDEN}]`)) {

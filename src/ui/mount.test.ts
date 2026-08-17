@@ -1117,11 +1117,9 @@ describe("knowing that the screen a press asked for is the one on the page", () 
    * callers were told the new page had arrived on the first frame, and the quiet period
    * that reading ahead depends on never happened on the one route that needed it most.
    */
-  const page = (): Document => document.implementation.createHTMLDocument("github")
-
   test("a move to another page of the same kind is not an arrival until it is drawn", () => {
-    const target = page()
-    takeOverSlot(target, target.body, undefined, CONVERSATION)
+    const target = githubPage()
+    takeOverSlot(target)
     theScreenIsAt(target, "/o/r/pull/2002")
 
     expect(theScreenArrived(target, CONVERSATION.name, "/o/r/pull/1999")).toBe(false)
@@ -1132,14 +1130,14 @@ describe("knowing that the screen a press asked for is the one on the page", () 
   })
 
   test("the kind still has to match, for a move to another kind of page", () => {
-    const target = page()
-    takeOverSlot(target, target.body, undefined, CONVERSATION)
+    const target = githubPage()
+    takeOverSlot(target)
     theScreenIsAt(target, "/o/r/pull/2002")
 
     expect(theScreenArrived(target, "repo-pulls", "/o/r/pull/2002")).toBe(false)
   })
 
   test("nothing of ours on the page is not an arrival", () => {
-    expect(theScreenArrived(page(), CONVERSATION.name, "/o/r/pull/1999")).toBe(false)
+    expect(theScreenArrived(githubPage(), CONVERSATION.name, "/o/r/pull/1999")).toBe(false)
   })
 })

@@ -12,6 +12,7 @@ import {
   ourSurface,
   reveal,
   takeOverSlotWhenReady,
+  theScreenIsAt,
   ungate,
   whenTakenOver,
   whenThereIsAPage
@@ -273,7 +274,19 @@ export const standAScreen = ({
   const standing: Standing = {
     container,
     stepAside: () => stepAside(),
-    redraw: () => root.render(<Supplied root={container}>{draw(standing)}</Supplied>),
+    redraw: () => {
+      /*
+       * Which address this screen is drawing, said where every drawing goes through.
+       *
+       * A screen that shows a second page of its own kind never comes down — the
+       * reader moving between two pull requests keeps this container, this root, and
+       * only draws again — so the mark saying which kind of screen is up cannot tell
+       * anyone the second page arrived. It read "conversation" before the press and
+       * reads it after. See {@link theScreenArrived}.
+       */
+      theScreenIsAt(document, window.location.pathname)
+      root.render(<Supplied root={container}>{draw(standing)}</Supplied>)
+    },
     close: () => {
       watching = false
       clearTimeout(failsafe)

@@ -19,7 +19,7 @@ import {
   drawingOurOwnRows,
   goTo,
 } from "@/ui/going";
-import { markPage, theScreenShown, unmarkPage } from "@/ui/mount";
+import { markPage, theScreenArrived, theScreenIsMoving, unmarkPage } from "@/ui/mount";
 import { linkNear, type Reached } from "@/ui/linkNear";
 import {
   forwardness,
@@ -532,6 +532,9 @@ export default defineContentScript({
       // a reader who has turned this off never sees a frame of it.
       if (view === "github") return;
 
+      /** Whether the screen this press asked for is up. Set once the press is ours. */
+      let arrived: (() => boolean) | undefined;
+
       /*
        * The press, carried out here if their router drops it — which on their
        * issues page it reliably does. One at a time: a reader who presses twice
@@ -575,15 +578,23 @@ export default defineContentScript({
          * draws that store before GitHub has answered anything — and calling it off
          * cost exactly what it was worth: 238ms rested became 1,256ms.
          */
-        const target = mine.push ?? going ?? window.location.pathname;
-        const wanted = placeFor(what, target).name;
-        const opening = warmingFor(
-          new URL(target, window.location.origin).href,
-          window.location.href,
+        const target = new URL(
+          mine.push ?? going ?? window.location.pathname,
+          window.location.origin,
         );
+        const wanted = placeFor(what, target.pathname).name;
 
-        readAhead.pressed(opening?.key ?? null, {
-          there: () => theScreenShown(document) === wanted,
+        /*
+         * Both the kind of screen and the address it has drawn, which is one question
+         * asked in two halves. The kind alone answers yes on the first frame of a move
+         * between two pull requests, because it never changed: measured on that press,
+         * it still read "conversation" at 0.4s, 1s, 2s, 4s and 8s. So the quiet period
+         * below ended before it began, on the one route that needed it most.
+         */
+        arrived = () => theScreenArrived(document, wanted, target.pathname);
+
+        readAhead.pressed(warmingFor(target.href, window.location.href)?.key ?? null, {
+          there: arrived,
           by: performance.now() + ARRIVING,
         });
       }
@@ -633,11 +644,10 @@ export default defineContentScript({
        * avoid. The page name is the honest test: it is set by the takeover, and
        * only by the screen the address is now about.
        */
+      // The same answer the quiet period above waits on, and for the same reason: a
+      // repair made while the screen is on its way loads the whole document.
       const push = mine?.push;
-      if (push !== undefined) {
-        const wanted = placeFor(what, push).name;
-        goTo(window, push, () => theScreenShown(document) === wanted);
-      }
+      if (push !== undefined && arrived !== undefined) goTo(window, push, arrived);
     };
 
     const pressed = (event: Event): void => {
@@ -732,6 +742,10 @@ export default defineContentScript({
       // would have carried it out by hand has nothing left to do.
       stayingPut();
       stayingPut = () => {};
+
+      // Whatever a screen has drawn, it drew it for the address before this one.
+      // See `theScreenIsMoving`, and the back button, which is what found it.
+      theScreenIsMoving(document);
 
       const page = pageAt(path, search);
       if (page === null) {
