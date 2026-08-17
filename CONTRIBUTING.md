@@ -21,14 +21,24 @@ To load the extension by hand instead: `bun run build`, then open
 
 ## The gates
 
-One command decides whether a change can land, and it holds the three gates:
+One command decides whether a change can land, and it holds the gates:
 
 ```sh
-bun run gates   # oxlint over src, then tsc --noEmit, then the whole suite
+bun run gates   # oxlint over src, then tsc --noEmit, then the whole suite,
+                # then the compiler again over the desktop app
 ```
 
 The list lives in `package.json`, so the git hooks and
 `.github/workflows/ci.yml` run that script rather than their own copy of it.
+
+The desktop app needs a fourth gate because it is a workspace with a
+`tsconfig.json` of its own, and the root one compiles `src`, `tests`, `scripts`
+and `shots`. Its tests were always run — `bun test` from here finds
+`desktop/src` like anything else — but a test does not typecheck the code it
+never calls. So the day the shared domain changed shape, the one place still
+holding the old shape said nothing until somebody pressed a row in the window
+and the whole app went blank. `bun run gates:desktop` is that compiler on its
+own.
 
 A test is given twenty seconds rather than bun's five. `--parallel` runs a worker
 per core and a dozen of these tests parse a real GitHub page of a third of a

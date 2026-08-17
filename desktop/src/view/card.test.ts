@@ -16,6 +16,17 @@ import { snapshotFrom } from "./snapshot"
 
 const reference = { owner: "cli", repo: "cli", number: 14003 }
 
+/**
+ * The merge state of a card, which in this window is always there to be had.
+ *
+ * An Option because the extension's card can be drawn without one: GitHub's merge box
+ * is a route of theirs, and it has served a crash page. Here the merge state comes out
+ * of the documented API along with everything else, so a None would mean the read
+ * failed and there would be no snapshot to ask. `getOrThrow` says exactly that, and is
+ * the assertion the throw would be — the tests below all read the state itself.
+ */
+const mergeIn = (some: CardFacts) => Option.getOrThrow(snapshotFrom(reference, some).merge)
+
 const facts = (some: Partial<CardFacts> = {}): CardFacts => ({
   title: "Add a code review agent skill",
   markdown: "It reviews.",
@@ -149,15 +160,14 @@ describe("a card, built from what the main process read", () => {
   })
 
   it("offers the merge when GitHub says it would take one", () => {
-    const clean = snapshotFrom(reference, facts()).merge
+    const clean = mergeIn(facts())
     expect(clean.isMergeable).toBe(true)
     expect(clean.blockers).toEqual([])
     expect(clean.update).toEqual(Option.none())
   })
 
   it("counts only the required checks into what is holding it", () => {
-    const merge = snapshotFrom(
-      reference,
+    const merge = mergeIn(
       facts({
         merge: { ...facts().merge, status: "UNSTABLE" },
         checks: [
@@ -165,14 +175,13 @@ describe("a card, built from what the main process read", () => {
           { name: "lint", state: "failed", isRequired: false, summary: "", url: "", durationSeconds: 1 }
         ]
       })
-    ).merge
+    )
 
     expect(merge.blockers.map((one) => one.name)).toEqual(["A check has not passed"])
   })
 
   it("offers to catch a branch up only while it is behind", () => {
-    const merge = snapshotFrom(
-      reference,
+    const merge = mergeIn(
       facts({
         merge: {
           ...facts().merge,
@@ -181,7 +190,7 @@ describe("a card, built from what the main process read", () => {
           whyNotUpdate: ["INSUFFICIENT_ACCESS"]
         }
       })
-    ).merge
+    )
 
     const update = Option.getOrThrow(merge.update)
     expect(update.how).toBe("MERGE")
@@ -191,17 +200,16 @@ describe("a card, built from what the main process read", () => {
   })
 
   it("draws a queue only where the repository has one", () => {
-    expect(snapshotFrom(reference, facts()).merge.queue).toEqual(Option.none())
+    expect(mergeIn(facts()).queue).toEqual(Option.none())
 
-    const queued = snapshotFrom(
-      reference,
+    const queued = mergeIn(
       facts({
         merge: {
           ...facts().merge,
           queue: { waiting: true, position: 3, mayQueue: true, url: "https://github.com/queue" }
         }
       })
-    ).merge
+    )
 
     const queue = Option.getOrThrow(queued.queue)
     expect(queue.waiting).toBe(true)
@@ -214,6 +222,19 @@ describe("a card, built from what the main process read", () => {
    * says the merge state moved; there is no page here to get them from.
    */
   it("has no live channels to listen on", () => {
-    expect(snapshotFrom(reference, facts()).merge.channels).toEqual([])
+    expect(mergeIn(facts()).channels).toEqual([])
+  })
+
+  /*
+   * The shape the card is read through, and the bug that made it worth a test of its
+   * own. `PullRequestScreen` reads the merge state with `Option.map`; a plain object
+   * given to that is taken for a Some and mapped over its `value`, which is nothing at
+   * all, so the card threw during render and the window went blank. Asserting the tag
+   * rather than the contents, because the contents are every test above.
+   */
+  it("hands the merge state and the reviews over as Options", () => {
+    const snapshot = snapshotFrom(reference, facts())
+    expect(Option.isSome(snapshot.merge)).toBe(true)
+    expect(snapshot.reviews).toEqual(Option.some([]))
   })
 })

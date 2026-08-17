@@ -1,5 +1,6 @@
 import { Effect, Layer, Option } from "effect"
 import type { PullRequestRef, RepoRef } from "../../../src/domain/PullRequestRef"
+import type { Stats } from "../../../src/domain/commitList"
 import type { Check, NewComment } from "../../../src/domain/PullRequest"
 import type { Branches } from "../../../src/domain/sittings"
 import { shelfOf } from "../../../src/domain/shelving"
@@ -40,6 +41,42 @@ const keyOf = (reference: PullRequestRef): string =>
 
 const refused = (route: string, detail: string) =>
   new WorkingSetError({ route, reason: "rejected", detail })
+
+/** No page in particular, for a refusal about a route rather than about a repository. */
+const NOWHERE: RepoRef = { owner: "", repo: "" }
+
+/**
+ * The page a failure is about, where the call named one.
+ *
+ * Every {@link GatewayError} carries the repository the read was for, and most of the
+ * routes below take it as their first argument under one name or another — a run, an
+ * issue and a commit all carry an owner and a repo. Read off the call rather than left
+ * blank, so a refusal that ever does reach a screen says which page it was about.
+ */
+const pageIn = (it: unknown): RepoRef =>
+  typeof it === "object" && it !== null && "owner" in it && "repo" in it ? (it as RepoRef) : NOWHERE
+
+/**
+ * A screen this window does not have, refused by name.
+ *
+ * Apart from `missing` inside the layer, which is about a route the card would reach if
+ * this platform could serve it. This is about the rest of the port: the extension took
+ * over most of github.com, every one of those reads is declared on the one gateway, and
+ * this window draws two screens.
+ */
+const unbuilt = (what: string) => (where?: unknown) =>
+  Effect.fail(
+    new GatewayError({
+      reference: pageIn(where),
+      route: what,
+      reason: "not-recorded",
+      detail: `The desktop app has no ${what}.`
+    })
+  )
+
+/** The same, for the reads that have no repository to name in the first place. */
+const unbuiltHere = (what: string) => () =>
+  Effect.fail(refused(what, `The desktop app has no ${what}.`))
 
 /**
  * The one place a row becomes a pull request the interface understands.
@@ -138,6 +175,24 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
       })
     )
 
+  /**
+   * The checks and the verdicts these rows arrived with, for whichever of them is asked about.
+   *
+   * Two callers want the same map of two different sets of rows — one names the ids it is
+   * drawing, the other asks for everything kept about the page — so the row filter is the
+   * argument and the shape is written once.
+   */
+  const standingsOf = (which: (row: WorkingSetRow) => boolean): Standings =>
+    new Map(
+      rows.filter(which).map((row) => [
+        row.id,
+        {
+          checks: Option.fromNullishOr(row.checks),
+          reviewed: Option.fromNullishOr(row.reviewed)
+        }
+      ])
+    )
+
   return Layer.succeed(GitHubGateway, {
     workingSet: (shelf: Shelf) =>
       Effect.succeed(
@@ -170,19 +225,7 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
 
     standingsFor: (ids: ReadonlyArray<number>) => {
       const wanted = new Set(ids)
-      return Effect.succeed<Standings>(
-        new Map(
-          rows
-            .filter((row) => wanted.has(row.id))
-            .map((row) => [
-              row.id,
-              {
-                checks: Option.fromNullishOr(row.checks),
-                reviewed: Option.fromNullishOr(row.reviewed)
-              }
-            ])
-        )
-      )
+      return Effect.succeed(standingsOf((row) => wanted.has(row.id)))
     },
 
     branches: (reference: PullRequestRef) =>
@@ -217,7 +260,11 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
             { baseBranch: row.baseBranch, headBranch: row.headBranch }
           ])
         ),
-        sizes: new Map(rows.map((row) => [row.id, { added: row.added, deleted: row.deleted }]))
+        sizes: new Map(rows.map((row) => [row.id, { added: row.added, deleted: row.deleted }])),
+        // And the standings, for the same reason and out of the same rows. The list asks
+        // for all three in one read; leaving this one out held the checks and the verdicts
+        // back until `standingsFor` answered, on a page where they had already arrived.
+        standings: standingsOf(() => true)
       }),
 
     // Not on this screen and not faked. A hovercard with a real face and no
@@ -331,6 +378,105 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
     // A review is not offered on this card: it needs a verdict — approve, request
     // changes, or merely comment — and a place to choose one, which is its own
     // screen's worth of work. Left as an error that names itself.
-    review: missing("review")
+    review: missing("review"),
+
+    /*
+     * Everything the extension has a screen for and this window does not, answered.
+     *
+     * The port is one port, and it has grown: the extension took over a repository's
+     * front page, its branches, its commits, its releases, its runs, the inbox, a
+     * person's profile and the issues, and every one of those reads was declared here
+     * as well. This window has two screens. What it does not have, it says so about.
+     *
+     * Said rather than left off, which is the whole point of the block. A property
+     * this layer never defines is a call on `undefined` — a defect, not a failure —
+     * and a defect does not reach the screen's word for "this went wrong": the read
+     * stops where it stands and the window goes on saying it is still reading. That
+     * fault has been shipped once from this file already; `gateway.test.ts` is the
+     * test that came out of it.
+     *
+     * A memory is answered with nothing rather than with a failure, because nothing
+     * is the true answer: this window keeps no store for any of these, and "we have
+     * not kept one" is what None means to every caller that asks.
+     */
+    repoHome: unbuilt("a repository's front page"),
+    rememberedRepoHome: () => Effect.succeed(Option.none()),
+    tabs: unbuilt("a repository's tabs"),
+    rememberedTabs: () => Effect.succeed(Option.none()),
+    standing: unbuilt("a repository's standing"),
+    star: unbuilt("star a repository"),
+    branchesOf: unbuilt("a repository's branches"),
+    rememberedBranchesOf: () => Effect.succeed(Option.none()),
+    authorsOf: unbuilt("a repository's authors"),
+    rememberedAuthorsOf: () => Effect.succeed(Option.none()),
+    strands: unbuilt("a repository's branch list"),
+    rememberedStrands: () => Effect.succeed(Option.none()),
+    releases: unbuilt("a repository's releases"),
+    rememberedReleases: () => Effect.succeed(Option.none()),
+    builds: unbuilt("the files attached to a release"),
+    repositories: unbuiltHere("a repository list"),
+    rememberedRepositories: () => Effect.succeed(Option.none()),
+
+    // The code browser, which is the largest screen this window has none of.
+    treePaths: unbuilt("browse a repository's files"),
+    treeCommits: unbuilt("what last touched each file"),
+    whoTouched: unbuilt("who last touched a folder"),
+    fileAt: unbuilt("open a file"),
+    rawFileAt: unbuilt("read a file"),
+
+    // The commit list, and the sizes and the marks that hang off it.
+    commits: unbuilt("a repository's commits"),
+    rememberedCommits: () => Effect.succeed(Option.none()),
+    rememberedCommit: () => Effect.succeed(Option.none()),
+    commitStat: unbuilt("how large a commit is"),
+    rememberedStats: () => Effect.succeed<Stats>(new Map()),
+    commitMarks: unbuilt("what a commit landed as"),
+
+    // A workflow run on its own page, which is where a failing check leads on
+    // GitHub's and leads nowhere here.
+    run: unbuilt("a workflow run"),
+    rememberedRun: () => Effect.succeed(Option.none()),
+    rerunRun: unbuilt("run a workflow again"),
+    cancelRun: unbuilt("cancel a workflow run"),
+
+    // The inbox, which is a screen and not a list this window can borrow.
+    notices: unbuiltHere("an inbox"),
+    rememberedNotices: () => Effect.succeed(Option.none()),
+    pressNotice: unbuiltHere("an inbox"),
+
+    // Somebody's profile, and the repositories on it.
+    person: unbuiltHere("a profile"),
+    rememberedPerson: () => Effect.succeed(Option.none()),
+    personRepositories: unbuiltHere("a profile"),
+    activity: unbuiltHere("somebody's activity"),
+    rememberedActivity: () => Effect.succeed(Option.none()),
+
+    // The issues, which are the other half of what the extension took over.
+    issue: unbuilt("an issue"),
+    rememberedIssue: () => Effect.succeed(Option.none()),
+    issueSearch: unbuiltHere("an issue search"),
+    rememberedIssueSearch: () => Effect.succeed(Option.none()),
+    settleIssue: unbuilt("close an issue"),
+    reopenIssue: unbuilt("reopen an issue"),
+    sayOnIssue: unbuilt("say something on an issue"),
+    raise: unbuilt("raise an issue"),
+
+    /*
+     * On the card and not wired to it, which is a different sentence from the rest.
+     *
+     * Every one of these is a control `PullRequestScreen` draws only when it is handed
+     * the callback for it, and `pullRequest.tsx` hands over none of them — so the
+     * button is not on the card and this cannot be reached from the interface. Here so
+     * that the day one is wired, what answers is a failure with a name rather than a
+     * read that stops in the middle.
+     */
+    settle: missing("resolve a thread"),
+    unsettle: missing("reopen a thread"),
+    reply: missing("reply in a thread"),
+    suggesting: unbuilt("suggest who to mention"),
+    upload: unbuilt("attach a file"),
+    makeStack: missing("make a stack"),
+    mergeStack: missing("merge a stack"),
+    deleteBranch: missing("delete the head branch")
   })
 }
