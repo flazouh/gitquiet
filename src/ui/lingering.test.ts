@@ -9,7 +9,8 @@ import {
   RIPE,
   type Seen,
   smoothed,
-  STALL
+  STALL,
+  stillWaiting
 } from "./lingering"
 
 /** One frame at sixty a second, which is every tick this ever sees in a browser. */
@@ -199,5 +200,45 @@ describe("where the pointer is going, across frames", () => {
     // second: slow enough to ignore one bad frame, quick enough to follow a real turn.
     expect(travel.x).toBeCloseTo(0, 0)
     expect(travel.y).toBeCloseTo(10, 0)
+  })
+})
+
+describe("waiting on a page the reader pressed for", () => {
+  const by = 1_500
+
+  test("goes on waiting while the screen is not up and the deadline has not passed", () => {
+    const waiting = stillWaiting({ there: () => false, by }, 900)
+
+    expect(waiting).not.toBeUndefined()
+  })
+
+  test("stops the moment the screen the press asked for is on the page", () => {
+    expect(stillWaiting({ there: () => true, by }, 900)).toBeUndefined()
+  })
+
+  test("stops at the deadline, for a press that never became a navigation", () => {
+    expect(stillWaiting({ there: () => false, by }, by + 1)).toBeUndefined()
+  })
+
+  test("is nothing to wait for when nobody pressed anything", () => {
+    expect(stillWaiting(undefined, 900)).toBeUndefined()
+  })
+
+  test("does not ask whether the screen is up once the deadline has passed", () => {
+    // The press was swallowed and the answer cannot change; asking every frame for
+    // the rest of the session is a listener nobody turned off.
+    let asked = 0
+    stillWaiting(
+      {
+        there: () => {
+          asked += 1
+          return false
+        },
+        by
+      },
+      by + 1
+    )
+
+    expect(asked).toBe(0)
   })
 })

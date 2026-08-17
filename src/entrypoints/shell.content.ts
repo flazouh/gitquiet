@@ -26,6 +26,8 @@ import {
   NOTHING,
   type Seen,
   smoothed,
+  stillWaiting,
+  type Waiting,
 } from "@/ui/lingering";
 import { hintRead, showLingering } from "@/ui/lingeringHint";
 import type { Point } from "@/ui/near";
@@ -226,33 +228,8 @@ export default defineContentScript({
      */
     const ARRIVING = 1_500;
 
-    /**
-     * The page the reader is waiting for, while they are still waiting for it.
-     *
-     * Reading ahead exists to spend a moment nobody is watching. A press ends that
-     * moment: from there until the screen is up, every request this makes is
-     * competing with the one the reader is actually waiting on, over one connection
-     * to one host.
-     *
-     * Measured on a press between two pull requests, with the pointer resting on
-     * the row first — which is how anybody presses anything. The read-ahead fired
-     * at 423ms before the press, was still in the air when it landed, and the
-     * screen's own seven requests went out 1,141ms after it. Press to a readable
-     * page: 2,252ms rested against 341ms for the same press made cold. Resting on
-     * the row, the one thing reading ahead is built to reward, made it six times
-     * slower.
-     */
-    let arriving: { readonly there: () => boolean; readonly by: number } | undefined;
-
-    /** Whether the reader is still waiting on the page they pressed for. */
-    const stillArriving = (now: number): boolean => {
-      if (arriving === undefined) return false;
-      if (now > arriving.by || arriving.there()) {
-        arriving = undefined;
-        return false;
-      }
-      return true;
-    };
+    /** The page the reader pressed for, until it is up. See `stillWaiting`. */
+    let arriving: Waiting | undefined;
 
     /**
      * Called off, because the reader has asked for something and this is not it.
@@ -454,8 +431,9 @@ export default defineContentScript({
 
       // Waiting on a press. Credit earned against the page being left is credit
       // towards reading it again, and the pointer sits exactly where it pressed
-      // while the new screen draws underneath it. See `arriving`.
-      if (stillArriving(now)) {
+      // while the new screen draws underneath it. See `stillWaiting`.
+      arriving = stillWaiting(arriving, now);
+      if (arriving !== undefined) {
         lingering = NOTHING;
         return;
       }
