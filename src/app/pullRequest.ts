@@ -1,12 +1,12 @@
 import { Effect, Option } from "effect"
-import type { Check, NewComment, PullRequestSnapshot } from "../domain/PullRequest"
+import type {
+  Check,
+  MergeMethod,
+  NewComment,
+  PullRequestSnapshot
+} from "../domain/PullRequest"
 import type { PullRequestRef, RepoRef } from "../domain/PullRequestRef"
-import {
-  GitHubGateway,
-  type MergeMethod,
-  type Review,
-  type UpdateMethod
-} from "../ports/GitHubGateway"
+import { GitHubGateway, type Review, type UpdateMethod } from "../ports/GitHubGateway"
 
 /**
  * Everything the page needs to render, gathered in one place so the React layer
@@ -208,24 +208,19 @@ export const postRemark = Effect.fn("postRemark")(function* (
 /**
  * Merges it, the way the repository merges.
  *
- * The method is handed in rather than chosen here, and it used to be neither:
- * every press posted `SQUASH`, which a repository that allows only a merge
- * commit refuses outright. Which of the three is allowed is GitHub's answer,
- * read off the merge box and carried on the merge state — see
- * `MergeState.method` — so the surface holding one says which, and the button
- * says the same word GitHub's own does.
+ * The method is handed in rather than chosen here, because which of the three
+ * a repository allows is GitHub's answer and only a surface holding a merge
+ * state has read it — see `MergeState.method`.
  *
  * Two routes, because GitHub has two and each refuses the other's pull request.
  * Which one is not a guess this can make for itself: a stack is only visible in
  * the merge state, so the surface holding one says so, and a surface that holds
  * no merge state gets the ordinary route.
  *
- * That default is what a Working Set row gets. A row carries six fields and no
- * merge state, so it cannot know, and merging a layer of a stack from the list
- * comes back with GitHub's sentence about the branch being out of date. Better
- * than the alternative, which is a read of the merge box for every row before
- * anybody presses anything, and still the reason the card is where a stack is
- * merged from.
+ * That default is what a Working Set row gets, along with a named method it
+ * cannot have read: a row carries six fields and no merge state. The
+ * alternative is a merge box read for every row before anybody presses
+ * anything, and it is why the card is where a stack is merged from.
  */
 export const mergePullRequest = Effect.fn("mergePullRequest")(function* (
   reference: PullRequestRef,

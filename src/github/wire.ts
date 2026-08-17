@@ -1004,6 +1004,22 @@ const MergeQueue = Schema.Struct({
 })
 
 /**
+ * One way of merging inside a way in, and GitHub's verdict on it.
+ *
+ * Their own dropdown, as data: three entries on an ordinary repository, one of
+ * them marked the default, each `ALLOWED` or `BLOCKED` on its own. The verdicts
+ * are per repository and per base branch, so a squash-only repository answers
+ * `MERGE: BLOCKED` here whether or not anybody asked about a merge commit.
+ *
+ * Read because a press has to name one — see `MergeState.method`.
+ */
+const MergeMethodChoice = Schema.Struct({
+  name: Schema.String,
+  allowableStatus: Schema.optional(Schema.NullOr(Schema.String)),
+  isDefault: Schema.optional(Schema.NullOr(Schema.Boolean))
+})
+
+/**
  * GitHub's own verdict on each way of merging, which is not the same question
  * as whether the Participant is allowed to merge.
  *
@@ -1014,27 +1030,10 @@ const MergeQueue = Schema.Struct({
  * It is the field their own button reads, and it says in one place what would
  * otherwise be assembled from a permission flag and a pile of conditions.
  */
-/**
- * One way of merging inside a way in, and GitHub's verdict on it.
- *
- * Their own dropdown, as data: three entries on an ordinary repository, one of
- * them marked the default, each `ALLOWED` or `BLOCKED` on its own. The verdicts
- * are per repository and per base branch, so a squash-only repository answers
- * `MERGE: BLOCKED` here whether or not anybody asked about a merge commit.
- *
- * Read because a press has to name one. Without it the write posted the same
- * word everywhere, which a repository that allows only a merge commit refuses.
- */
-const MergeMethodOption = Schema.Struct({
-  name: Schema.String,
-  allowableStatus: Schema.optional(Schema.NullOr(Schema.String)),
-  isDefault: Schema.optional(Schema.NullOr(Schema.Boolean))
-})
-
 const MergeAction = Schema.Struct({
   name: Schema.String,
   allowableStatus: Schema.optional(Schema.NullOr(Schema.String)),
-  mergeMethods: Schema.optional(Schema.NullOr(Schema.Array(MergeMethodOption)))
+  mergeMethods: Schema.optional(Schema.NullOr(Schema.Array(MergeMethodChoice)))
 })
 
 /**

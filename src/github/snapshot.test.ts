@@ -539,6 +539,30 @@ describe("the way a press would land a pull request", () => {
 
     expect(Option.isNone(merging(snapshot).method)).toBe(true)
   })
+
+  test("is one this can send, where the one GitHub prefers is not", async () => {
+    // The default is read for which of ours to prefer, not for whether to have
+    // one: a word nobody can post is no reason to grey a button over a squash
+    // GitHub has just said it allows.
+    const snapshot = await snapshotOf(
+      draft,
+      landingWith([
+        { name: "FAST_FORWARD", isDefault: true, allowableStatus: "ALLOWED" },
+        { name: "SQUASH", isDefault: false, allowableStatus: "ALLOWED" }
+      ])
+    )
+
+    expect(merging(snapshot).method).toEqual(Option.some("SQUASH"))
+  })
+
+  test("is nothing at all where the payload carries no ways in", async () => {
+    // The whole field going missing is the shape a schema change would take,
+    // and it must grey the button rather than send a guess. `mergeMethods` is
+    // optional in the wire schema, so nothing else would notice.
+    const snapshot = await snapshotOf(draft, landingWith([]))
+
+    expect(Option.isNone(merging(snapshot).method)).toBe(true)
+  })
 })
 
 describe("a pull request nobody wrote a description for", () => {

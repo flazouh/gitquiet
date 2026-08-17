@@ -1,13 +1,12 @@
 import { Effect, Layer, Option } from "effect"
 import type { PullRequestRef, RepoRef } from "../../../src/domain/PullRequestRef"
-import type { Check, NewComment } from "../../../src/domain/PullRequest"
+import type { Check, MergeMethod, NewComment } from "../../../src/domain/PullRequest"
 import type { Branches } from "../../../src/domain/sittings"
 import { shelfOf } from "../../../src/domain/shelving"
 import type { InvolvedPullRequest, Shelf, Size, Standings } from "../../../src/domain/workingSet"
 import {
   GatewayError,
   GitHubGateway,
-  type MergeMethod,
   type QueueMethod,
   type RememberedRows,
   type UpdateMethod,

@@ -17,12 +17,7 @@ import {
   rememberedPullRequest,
   updatePullRequestBranch
 } from "../../../src/app/pullRequest"
-import type {
-  MergeMethod,
-  MergeState,
-  NewComment,
-  PullRequestSnapshot
-} from "../../../src/domain/PullRequest"
+import type { NewComment, PullRequestSnapshot } from "../../../src/domain/PullRequest"
 import type { PullRequestRef } from "../../../src/domain/PullRequestRef"
 import type { GitHubGateway } from "../../../src/ports/GitHubGateway"
 import { PullRequestScreen } from "../../../src/ui/PullRequestScreen"
@@ -60,23 +55,6 @@ const through = <A, E>(work: Effect.Effect<A, E, GitHubGateway>) =>
 const howToCatchUp = (snapshot: PullRequestSnapshot | null): "MERGE" | "REBASE" => {
   const update = snapshot?.merge.update
   return update !== undefined && Option.isSome(update) ? update.value.how : "MERGE"
-}
-
-/**
- * Which way this press would merge, or the one GitHub itself falls back to.
- *
- * Read off the snapshot rather than chosen, exactly as the catch-up above is: a
- * repository that allows only a squash has said so, and posting a merge commit
- * anyway is a refusal the reader did not need. What this window reads carries no
- * such answer yet — see `mergeOf` in `snapshot.ts` — so it is the fallback that
- * arrives here today.
- */
-const howToMerge = (snapshot: PullRequestSnapshot | null): MergeMethod => {
-  const said = snapshot === null ? Option.none<MergeState>() : snapshot.merge
-  return Option.getOrElse(
-    Option.flatMap(said, (state) => state.method),
-    () => "MERGE" as const
-  )
 }
 
 export const PullRequest = ({
@@ -161,7 +139,9 @@ export const PullRequest = ({
         postComment={say}
         postRemark={remark}
         actions={{
-          merge: () => through(mergePullRequest(reference, howToMerge(latest.current))),
+          // The card hands down the way this repository merges, having read it
+          // off the state it drew the button from. Nothing here reads it again.
+          merge: (method) => through(mergePullRequest(reference, method)),
           enqueue: () => through(enqueuePullRequest(reference)),
           dequeue: () => through(dequeuePullRequest(reference)),
           cancel: () => through(cancelAutoMerge(reference)),

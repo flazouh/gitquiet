@@ -11,110 +11,16 @@ import type {
   Review,
   ReviewDecision
 } from "../domain/PullRequest"
-import { type Doing, faceOf, type MergeFace } from "../domain/doable"
+import { faceOf, type MergeFace } from "../domain/doable"
 import { holdingItUp } from "../domain/pressing"
+import { Ask, type Asking, type MergeActions, type Merging } from "./Ask"
 import { useArt } from "./art"
 import { changeWord, FileMark } from "./FileHeading"
 import { MergeUnread } from "./MergeUnread"
 import { reasonFor } from "./refusal"
-import { Says } from "./says"
 import { Section } from "./Section"
 import { TheStack } from "./TheStack"
 import { Who } from "./Who"
-
-export type MergeActions = {
-  /** Merges it. Rejects with something worth reading when GitHub refuses. */
-  readonly merge?: () => Effect.Effect<void, unknown>
-  /** Puts it in the queue, on the repositories that land through one. */
-  readonly enqueue?: () => Effect.Effect<void, unknown>
-  /** Takes it back out of the queue it is standing in. */
-  readonly dequeue?: () => Effect.Effect<void, unknown>
-  /** Calls off a merge GitHub is holding until this becomes mergeable. */
-  readonly cancel?: () => Effect.Effect<void, unknown>
-  /** Catches the branch up with the one it would land on. */
-  readonly update?: () => Effect.Effect<void, unknown>
-  /** Called once the merge lands, for whoever wants the page read again. */
-  readonly onMerged?: () => void
-  /**
-   * Called after a write that changed the pull request without ending it.
-   *
-   * Joining a queue and leaving one both move facts this card cannot work out
-   * for itself — a place in the line is GitHub's to know — so the card asks to
-   * be told again rather than guessing at the state it just caused.
-   */
-  readonly onChanged?: () => void
-  /**
-   * Closes it without merging.
-   *
-   * Asked for twice, like the merge, and for the same reason: it is the other
-   * control here that ends the reading. Nothing is destroyed by it — GitHub
-   * keeps the branch, the comments and the diff, and will reopen it — so what
-   * the second press agrees to says so.
-   */
-  readonly close?: () => Effect.Effect<void, unknown>
-  /**
-   * Takes it out of draft.
-   *
-   * The one blocker on this card that is nobody's rule: a draft is a state its
-   * author chose and can unchoose, and GitHub's own words for it — the pull
-   * request must not be in draft mode — read like a condition being reported
-   * rather than a switch being offered.
-   */
-  readonly markReady?: () => Effect.Effect<void, unknown>
-  /** Puts it back into draft, so the offer above is a door both ways. */
-  readonly toDraft?: () => Effect.Effect<void, unknown>
-  /**
-   * Opens a closed one again.
-   *
-   * The card never asks for this — a settled pull request wears the settled
-   * face and that face has no controls — but the verb is the domain's, and the
-   * list offers it on rows this card is never shown for.
-   */
-  readonly reopen?: () => Effect.Effect<void, unknown>
-  /**
-   * Deletes the branch the pull request was made from.
-   *
-   * The one thing this card asks for that is not about the pull request, and the
-   * only control on the settled face: a merged pull request has no decisions
-   * left, and the branch it came from is the one loose end it leaves behind.
-   * Asked twice, because GitHub restores a deleted branch from their own page
-   * and this does not.
-   */
-  readonly deleteBranch?: () => Effect.Effect<void, unknown>
-}
-
-/**
- * Everything a press on this card can ask for.
- *
- * The domain's verbs, and one more that is not one of them. `Doing` is what can
- * be done to a pull request, and deleting a branch is not that — it survives the
- * pull request, and GitHub answers whether it may go in a field of its own
- * rather than through the merge requirements every `Doing` is weighed against.
- * So the card carries the wider vocabulary and the domain keeps the narrower.
- */
-type Asking = Doing | "deleteBranch"
-
-/**
- * Which of the things asked for is in flight.
- *
- * One state machine rather than eight, because they cannot overlap: a pull
- * request being queued is not also being merged, and a second machine would
- * only make that expressible. Which of them may be asked for at all is not this
- * card's to decide — see `whatCanBeDone` in the domain.
- */
-type Merging =
-  | { readonly step: "idle" }
-  | { readonly step: "asking"; readonly doing: Asking }
-  | { readonly step: "working"; readonly doing: Asking }
-  /**
-   * What GitHub agreed to, said on the button that asked for it.
-   *
-   * A word and not a hold. The pull request behind it is being read again, and
-   * what comes back decides what may be pressed next — see `whatCanBeDone`,
-   * which is the only thing entitled to grey a verb once nothing is in flight.
-   */
-  | { readonly step: "done"; readonly doing: Asking }
-  | { readonly step: "refused"; readonly said: string }
 
 /**
  * Merging and closing, in the one place someone looks for them.
@@ -200,8 +106,27 @@ export const Merge = ({
     ...(headRef.mayDelete ? (["deleteBranch"] as const) : [])
   ])
 
+  /**
+   * The action a verb stands for, with the merge's own argument bound to it.
+   *
+   * Nine of the ten take nothing. The merge takes the way this repository
+   * merges, which is read here, off the state this card is already drawing the
+   * button from — so the label and the write cannot disagree.
+   *
+   * Absent where no method is known, which is also where the domain refuses the
+   * verb, so the two say no together rather than one of them guessing.
+   */
+  const actionFor = (doing: Asking): (() => Effect.Effect<void, unknown>) | undefined => {
+    if (doing !== "merge") return actions?.[doing]
+
+    const merge = actions?.merge
+    const method = face.kind === "live" ? face.merge.method : Option.none<MergeMethod>()
+    if (merge === undefined || Option.isNone(method)) return undefined
+    return () => merge(method.value)
+  }
+
   const press = (doing: Asking) => {
-    const act = actions?.[doing]
+    const act = actionFor(doing)
     // Refused here as well as greyed out in the button: a keyboard, a stale
     // render or a second window all reach this, and the domain's answer is the
     // one that counts either way.
@@ -328,105 +253,6 @@ const QueueLink = ({ queue, url }: { readonly queue: MergeQueue; readonly url?: 
     </a>
   )
 }
-
-/**
- * What each verb calls itself, at rest, while running, and once it is done.
- *
- * One table for the eight of them, keyed by the domain's own word for what is
- * being asked. Before this, every button carried its three words as three props
- * at the call site, and the queue's three were a second table beside it — so
- * whether a control existed, whether it could be pressed and what it said were
- * decided in three different places for each one.
- */
-const WORDS: Record<
-  Asking,
-  { readonly rest: string; readonly working: string; readonly done: string }
-> = {
-  deleteBranch: { rest: "Delete branch", working: "Deleting…", done: "Branch deleted" },
-  // The way in is the repository's to decide, so the resting word is replaced by
-  // {@link wordsOf} wherever the merge state names one. What stands here is the
-  // word for a press whose method nothing has said — greyed out, since
-  // `whatCanBeDone` refuses a merge it cannot name a method for.
-  merge: { rest: "Merge", working: "Merging…", done: "Merged" },
-  // "Joining the queue…" once, which was the one waiting word longer than its own
-  // verb. Every word a button says now stands in one cell as wide as the widest of
-  // them — see {@link Says} — so a long wait is paid for by a resting button that
-  // is wider than the words on it, and the queue is named in the paragraph above.
-  enqueue: { rest: "Merge when ready", working: "Joining…", done: "Queued" },
-  dequeue: { rest: "Remove from the queue", working: "Removing…", done: "Removed" },
-  cancel: { rest: "Cancel merge when ready", working: "Cancelling…", done: "Cancelled" },
-  update: { rest: "Update branch", working: "Updating…", done: "Updated" },
-  close: { rest: "Close pull request", working: "Closing…", done: "Closed" },
-  markReady: {
-    rest: "Mark ready for review",
-    working: "Marking ready…",
-    done: "Ready for review"
-  },
-  toDraft: { rest: "Convert to draft", working: "Converting…", done: "Draft" },
-  reopen: { rest: "Reopen pull request", working: "Reopening…", done: "Open" }
-}
-
-/**
- * How each verb is dressed, at rest and once it is armed.
- *
- * Green for the ones that land a change, red for the ones that end a pull
- * request or take it out of the line, blue for the rest. Never the same pair
- * twice over: a control that looks identical before and after a press has not
- * told anybody that the next one acts.
- */
-const TONE: Record<Asking, { readonly rest: string; readonly armed: string }> = {
-  // Red on both, like closing: the branch is the one thing here a press takes
-  // away rather than moves.
-  deleteBranch: { rest: "bg-surface text-fail", armed: "bg-fail-emphasis text-ink-on-emphasis" },
-  merge: {
-    rest: "bg-pass-emphasis text-ink-on-emphasis",
-    armed: "bg-pass-emphasis text-ink-on-emphasis"
-  },
-  enqueue: {
-    rest: "bg-pass-emphasis text-ink-on-emphasis",
-    armed: "bg-pass-emphasis text-ink-on-emphasis"
-  },
-  dequeue: { rest: "bg-surface text-fail", armed: "bg-fail-emphasis text-ink-on-emphasis" },
-  cancel: { rest: "bg-surface text-fail", armed: "bg-fail-emphasis text-ink-on-emphasis" },
-  update: { rest: "bg-surface text-ink", armed: "bg-accent-emphasis text-ink-on-emphasis" },
-  close: { rest: "bg-surface text-fail", armed: "bg-fail-emphasis text-ink-on-emphasis" },
-  markReady: {
-    rest: "bg-accent-emphasis text-ink-on-emphasis",
-    armed: "bg-accent-emphasis text-ink-on-emphasis"
-  },
-  toDraft: { rest: "bg-surface text-ink-muted", armed: "bg-accent-emphasis text-ink-on-emphasis" },
-  reopen: { rest: "bg-surface text-ink", armed: "bg-pass-emphasis text-ink-on-emphasis" }
-}
-
-/**
- * What the press that lands the change is called, per way of merging.
- *
- * GitHub's own three words, from their own button. The card said "Squash and
- * merge" on every repository there is and posted a squash to match, so on one
- * that allows only a merge commit the label named a commit GitHub would never
- * write, over a press GitHub would refuse. Which of the three applies is on the
- * merge state — see `MergeState.method`.
- */
-const MERGE_WORD: Record<MergeMethod, string> = {
-  MERGE: "Merge pull request",
-  SQUASH: "Squash and merge",
-  REBASE: "Rebase and merge"
-}
-
-/**
- * What a button says, once the repository has had its say about merging.
- *
- * Every verb but the merge reads straight off {@link WORDS}. The merge is the
- * one whose resting word is not ours: it names the commit the repository writes,
- * and a card that has not been told which keeps the plain word.
- */
-const wordsOf = (
-  doing: Asking,
-  method: Option.Option<MergeMethod>
-): { readonly rest: string; readonly working: string; readonly done: string } =>
-  doing === "merge" && Option.isSome(method)
-    ? { ...WORDS.merge, rest: MERGE_WORD[method.value] }
-    : WORDS[doing]
 
 /** What each verdict is called, in GitHub's own words for it. */
 const VERDICT_WORD: Record<ReviewDecision, string> = {
@@ -883,158 +709,3 @@ const MergeCard = ({
     </Section>
   )
 }
-
-/**
- * A button that asks before it acts, without becoming somewhere else.
- *
- * The asking used to happen around the button rather than in it: the label grew
- * a "Confirm" in front of it, a Cancel appeared at the end of the row, and a
- * sentence arrived above the whole card. Three changes to read, none of them
- * where the finger already was, for one press.
- *
- * So it splits in place instead. The verb stays exactly where it was and keeps
- * saying what it does, and a cross grows onto its edge as the way out. The
- * accessible names carry what the shape shows a sighted reader — that this press
- * is the one that acts, and that one is the one that does not — because
- * "Convert to draft" said twice would be two buttons nobody could tell apart.
- */
-/** What the second press is called, on a control that asks before it acts. */
-const CONFIRM = "Confirm"
-
-/**
- * What a button says: its verb, unless the thing being done is its own.
- *
- * Every button on this row shares one state machine, and each used to read that
- * machine's step without checking whose it was — so asking to close said
- * "Merging…" on the button beside it.
- */
-const labelFor = (
-  merging: Merging,
-  doing: Asking,
-  asking: boolean,
-  method: Option.Option<MergeMethod>
-): string => {
-  const words = wordsOf(doing, method)
-  if (asking) return CONFIRM
-  if (merging.step === "working" && merging.doing === doing) return words.working
-  if (merging.step === "done" && merging.doing === doing) return words.done
-  return words.rest
-}
-
-/**
- * The four things one of these buttons can say, in the order a press says them.
- *
- * The order is what the words travel along: each one leaves upward as the next
- * arrives from below, and a press that is backed out runs the same pair the other
- * way. It is also the width of the button, for the whole time it is on the screen
- * — see {@link Says}.
- */
-const wordsFor = (
-  doing: Asking,
-  method: Option.Option<MergeMethod>
-): ReadonlyArray<string> => {
-  const words = wordsOf(doing, method)
-  return [words.rest, CONFIRM, words.working, words.done]
-}
-
-const Ask = ({
-  doing,
-  merging,
-  can,
-  actions,
-  press,
-  onCancel,
-  method = Option.none(),
-  className = ""
-}: {
-  /** What this button asks for, which decides its words, its colours and its name. */
-  readonly doing: Asking
-  readonly merging: Merging
-  /**
-   * What may be asked of this pull request, from the domain.
-   *
-   * The whole of why a button is grey, in one answer: past deciding, refused by
-   * GitHub, or beyond the reader's permissions. Each button used to work its own
-   * out of whichever facts it had to hand, which is how a merged pull request
-   * came to be offered a place in the merge queue.
-   */
-  readonly can: ReadonlySet<Asking>
-  readonly actions?: MergeActions
-  readonly press: (doing: Asking) => void
-  readonly onCancel: () => void
-  /**
-   * The way this repository merges, which only the merge button reads.
-   *
-   * Defaulted to none, which is the settled face: the one control there deletes
-   * a branch, and nothing about how a landed pull request landed is in reach.
-   */
-  readonly method?: Option.Option<MergeMethod>
-  readonly className?: string
-}) => {
-  const art = useArt()
-  const Close = art.close
-  const verb = wordsOf(doing, method).rest
-  const tone = TONE[doing]
-  const named = `${verb.charAt(0).toLowerCase()}${verb.slice(1)}`
-  const asking = merging.step === "asking" && merging.doing === doing
-  /*
-   * Nothing may be pressed while GitHub is being asked, and nothing at all
-   * where the screen it lives on wired no action to it.
-   *
-   * While it is being asked, and no longer. `done` held the row down as well,
-   * and nothing ever leaves `done` — so a verb that worked and left a pull
-   * request still worth reading killed every control on the card for the rest
-   * of the session. Marking a draft ready, joining a queue, catching a branch
-   * up: each of them ends with nine dead verbs and no way back but a reload.
-   * Recorded on `flazouh/stack-probe#51`, where marking it ready left Squash
-   * and merge, Convert to draft and Close pull request all greyed out over a
-   * card that had already read the pull request again and drawn it correctly.
-   *
-   * A refusal has always handed the controls back, and a write GitHub agreed
-   * to has more claim to than one it turned down. What `done` is for is the
-   * word on the button, which is a thing to read rather than a state to be
-   * held in.
-   */
-  const busy = merging.step === "working"
-  const disabled = !can.has(doing) || actions?.[doing] === undefined || busy
-
-  return (
-    <span className={`t-ask ${className}`} data-asking={asking ? "" : undefined}>
-      <button
-        type="button"
-        disabled={disabled && !asking}
-        aria-label={asking ? `Confirm ${named}` : undefined}
-        // Said as well as drawn. The word swaps and a circle turns, both of which
-        // are for the eye; this is the same fact for a reader who is being told
-        // what the control they are standing on is doing.
-        aria-busy={busy && merging.doing === doing ? true : undefined}
-        onClick={() => press(doing)}
-        className={`t-ask-yes text-xs font-semibold disabled:opacity-50 ${
-          asking ? tone.armed : tone.rest
-        }`}
-      >
-        <Says
-          among={wordsFor(doing, method)}
-          said={labelFor(merging, doing, asking, method)}
-          waiting={WORDS[doing].working}
-        />
-      </button>
-      {/* Mounted only while it is wanted, and grown from nothing rather than
-          dropped in: the cell it lives in opens from no width at all, so the
-          control gains a half instead of the row gaining a button. */}
-      {asking ? (
-        <span className="t-ask-out">
-          <button
-            type="button"
-            aria-label={`Do not ${named}`}
-            onClick={onCancel}
-            className="t-ask-no bg-surface text-ink-muted hover:text-ink"
-          >
-            <Close size={12} />
-          </button>
-        </span>
-      ) : null}
-    </span>
-  )
-}
-

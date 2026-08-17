@@ -12,7 +12,8 @@ import { Verdict } from "./Verdict"
 import type { Review as Said } from "../ports/GitHubGateway"
 import { ControlCenter } from "./ControlCenter"
 import { Description } from "./Description"
-import { Merge, type MergeActions } from "./Merge"
+import type { MergeActions } from "./Ask"
+import { Merge } from "./Merge"
 
 /**
  * The column that answers "what is this pull request, and can it land".

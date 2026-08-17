@@ -33,7 +33,7 @@ import { loadSuggesting } from "@/app/suggesting"
 import { forgetIntent, intendedPath } from "@/app/intent"
 import { answerPressesIn, ourOwnRowsDrawn } from "@/ui/going"
 import { isDashboard } from "@/domain/pages"
-import type { Check, NewComment } from "@/domain/PullRequest"
+import type { Check, MergeMethod, NewComment } from "@/domain/PullRequest"
 import { fromPathname, type PullRequestRef } from "@/domain/PullRequestRef"
 import type { Size } from "@/domain/workingSet"
 import type { GitHubGateway, Review } from "@/ports/GitHubGateway"
@@ -189,29 +189,16 @@ const open = (
    * A merge box GitHub would not serve reads the same way as one that named no
    * stack, and neither press can arrive here anyway: the card that carries the
    * button is not drawn without a merge box.
+   *
+   * The way in comes the other way, down from the card rather than up out of the
+   * snapshot, because the card has already read it to put a word on the button.
    */
-  const merge = () =>
+  const merge = (method: MergeMethod) =>
     writing(
       Effect.gen(function* () {
         const { snapshot } = yield* Fiber.join(latest)
-        const said = snapshot.merge
-        const stacked = Option.flatMap(said, (state) => state.stack)
-        /*
-         * The way this repository merges, which is GitHub's answer and not ours.
-         * Every press posted `SQUASH` before this, so a repository that allows
-         * only a merge commit had one control that could not work.
-         *
-         * A press with no method behind it cannot arrive here — the button is
-         * greyed where the merge state names none, see `whatCanBeDone` — and the
-         * repository default is what GitHub itself falls back to when a request
-         * names nothing, so it is what the refusal should come back about.
-         */
-        const method = Option.flatMap(said, (state) => state.method)
-        return yield* mergePullRequest(
-          reference,
-          Option.getOrElse(method, () => "MERGE" as const),
-          Option.isSome(stacked)
-        )
+        const stacked = Option.flatMap(snapshot.merge, (said) => said.stack)
+        return yield* mergePullRequest(reference, method, Option.isSome(stacked))
       })
     )
   const enqueue = () => writing(enqueuePullRequest(reference))

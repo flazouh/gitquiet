@@ -98,6 +98,21 @@ describe("the word on the button that lands the change", () => {
     expect(button(/Confirm merge pull request/)).toBeDefined()
   })
 
+  test("sends the way it named, rather than a word of its own", async () => {
+    const sent: Array<string> = []
+    render(
+      <Merge state="open"
+        merge={Option.some(landingWith("REBASE"))}
+        actions={{ merge: (method) => Effect.sync(() => void sent.push(method)) }}
+      />
+    )
+
+    await userEvent.click(button(/Rebase and merge/))
+    await userEvent.click(button(/Confirm rebase and merge/))
+
+    await waitFor(() => expect(sent).toEqual(["REBASE"]))
+  })
+
   test("cannot be pressed where GitHub named no way of merging at all", () => {
     render(
       <Merge state="open"

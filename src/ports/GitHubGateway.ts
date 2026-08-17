@@ -1316,15 +1316,6 @@ export class GitHubGateway extends Context.Service<
 >()("GitHubGateway") {}
 
 /**
- * The three ways GitHub will put a branch into another one.
- *
- * The domain's type, passed along here because every write that sends one reads
- * it off this port. Which of the three to send is not a choice a caller makes:
- * it is on the merge state, put there by the repository. See `MergeState.method`.
- */
-export type { MergeMethod }
-
-/**
  * The two ways into a merge queue.
  *
  * `GROUP` is what their own button sends: batched with whatever else is
