@@ -80,6 +80,28 @@ describe("what the interface says when GitHub says no", () => {
     expect(toaster?.closest("[data-gitquiet-outside]")?.id).toBe("gitquiet-over")
   })
 
+  test("goes on speaking after one screen hands over to the next", async () => {
+    /*
+     * The two screens overlap on purpose. `screen.tsx` takes the outgoing root down from
+     * `whenAnotherBarStands`, up to `HANDOVER` after the incoming one is already mounted, so
+     * for those 400ms both trees are on the page and the one that leaves is the one that
+     * mounted first. Anything the leaving screen holds on behalf of the whole document is
+     * therefore taken away from the screen that is still standing.
+     *
+     * Which is every navigation. Press a pull request from a list, press back, and from then
+     * on the extension had nothing to say: no refusal, no way back, no read in progress. The
+     * rows still moved and still moved back, silently.
+     */
+    const leaving = render(<Toasts />)
+    render(<Toasts />)
+
+    leaving.unmount()
+
+    act(() => refused("GitHub would not merge this"))
+
+    await waitFor(() => expect(screen.getByText("GitHub would not merge this")).toBeDefined())
+  })
+
   test("one to a document, however many times the shell wraps itself", async () => {
     // Which is what both shells do: the window wraps its screens and each screen
     // wraps itself again, and three toasters stacked in one place drew every

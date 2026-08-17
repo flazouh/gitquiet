@@ -107,17 +107,32 @@ export const Toasts = ({ children }: { readonly children?: ReactNode }) => {
  * after the press it is reporting on rather than during it.
  */
 const queued: Array<() => void> = []
-let standing = false
-let wake: (() => void) | undefined
+
+/**
+ * Counted and held by identity, for the same reason {@link Standing} counts.
+ *
+ * Two screens are on the page at once at every navigation, on purpose: `screen.tsx` takes the
+ * outgoing root down from `whenAnotherBarStands`, up to `HANDOVER` after the incoming one has
+ * already mounted. A single slot and a single flag are written by whichever screen ran last and
+ * cleared by whichever screen leaves first, and those are not the same screen. The leaving one
+ * took the surface away from the one still standing, and the extension went mute for the rest of
+ * the document: press a pull request from a list, press back, and no refusal, no way back and no
+ * read in progress was ever said again.
+ *
+ * A set and a count are right under any overlap and any order of leaving. A slot and a flag are
+ * right under neither.
+ */
+const waking = new Set<() => void>()
+let stands = 0
 
 /** Says it now, or as soon as there is somewhere to say it. */
 const whenStanding = (say: () => void): void => {
-  if (standing) {
+  if (stands > 0) {
     say()
     return
   }
   queued.push(say)
-  wake?.()
+  for (const wake of waking) wake()
 }
 
 /**
@@ -141,27 +156,42 @@ const Stand = () => {
   const [needed, setNeeded] = useState(() => queued.length > 0)
 
   useEffect(() => {
-    wake = () => setNeeded(true)
+    const wake = () => setNeeded(true)
+    waking.add(wake)
+    // Asked for between this component rendering and this effect running, which is a
+    // window nothing else closes.
+    if (queued.length > 0) wake()
     return () => {
-      wake = undefined
+      waking.delete(wake)
+      // Nothing of ours is on the page any more, so a sentence still waiting for
+      // somewhere to be said is about a screen the reader has left. Said late, it would
+      // be a claim about the wrong page.
+      if (waking.size === 0) queued.length = 0
     }
   }, [])
 
   useEffect(() => {
     if (!needed) return
-    standing = true
-    // In the order they were asked for, which `freshening` depends on: the
-    // spinner has to exist before the verdict can be written over it.
+    stands += 1
+    /*
+     * In the order they were asked for, which `freshening` depends on: the spinner has
+     * to exist before the verdict can be written over it.
+     *
+     * And after the Toaster below is listening, which is what makes this the right
+     * effect rather than the render. Sonner publishes to an observer and drops anything
+     * said before its own subscribe; that subscribe is a child effect of this one, and
+     * React runs children first.
+     */
     for (const say of queued.splice(0)) say()
     return () => {
-      standing = false
+      stands -= 1
     }
   }, [needed])
 
   // From render, which `outsideHost` is built for: idempotent, so the second Toasts in a nested
   // shell would get the same host rather than a second one.
-  const host = typeof document === "undefined" || !needed ? null : outsideHost(document, OVER_ID)
   if (!needed) return null
+  const host = typeof document === "undefined" ? null : outsideHost(document, OVER_ID)
   const stand = (
     <Toaster
       position="bottom-right"
@@ -295,9 +325,17 @@ export type Freshening = {
  * the end of the sentence the spinner started.
  */
 export const freshening = (said: string): Freshening => {
-  // Written by the queued call above rather than returned from it, because the
-  // spinner may not have been raised yet: see `whenStanding`. Both endings are
-  // queued behind it, so by the time either runs the id is the one it names.
+  /*
+   * Written by the queued call above rather than returned from it, because the spinner
+   * may not have been raised yet: see `whenStanding`. An ending asked for before the
+   * spinner is queued behind it, so by the time it runs the id is the one it names.
+   *
+   * An ending asked for after a Toaster has come down and another has gone up is a
+   * different matter: sonner's list belongs to the Toaster, so the new one has never
+   * heard of this id and would add a toast rather than write over one. `useFreshening`
+   * is what keeps that from happening — it takes the spinner down when its screen goes,
+   * so no spinner outlives the surface it was raised on.
+   */
   let which: string | number | undefined
   whenStanding(() => {
     which = toast.loading(said, { duration: Infinity })
