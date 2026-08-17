@@ -1,8 +1,9 @@
-import { Effect, Fiber, Option } from "effect";
+import { Effect, Option } from "effect";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { screenFor, type Wanted } from "@/app/screens";
 import { intendTo, intendedPath } from "@/app/intent";
 import { oursToOpen } from "@/app/pressing";
+import { readingAhead } from "@/app/readAhead";
 import { type Ahead, type Connection, dataToSpare, warmingFor } from "@/app/warming";
 import { isHome } from "@/domain/pages";
 import { elsewhereThan, type PullRequestRef } from "@/domain/PullRequestRef";
@@ -14,6 +15,7 @@ import {
   addressIn,
   answerPress,
   aPlainPress,
+  ARRIVING,
   drawingOurOwnRows,
   goTo,
 } from "@/ui/going";
@@ -26,8 +28,6 @@ import {
   NOTHING,
   type Seen,
   smoothed,
-  stillWaiting,
-  type Waiting,
 } from "@/ui/lingering";
 import { hintRead, showLingering } from "@/ui/lingeringHint";
 import type { Point } from "@/ui/near";
@@ -211,89 +211,14 @@ export default defineContentScript({
       view = stored.page.view;
     });
 
-    const asked = new Set<string>();
-    let reading = false;
-    /** The one waiting behind it, which is always the most recently wanted. */
-    let after: Ahead | undefined;
-    /** The read in the air, and which page it is for, so a press can call it off. */
-    let inFlight: Fiber.Fiber<void> | undefined;
-    let inFlightKey: string | undefined;
-
     /**
-     * How long a page the reader pressed for is given to arrive before reading
-     * ahead starts again.
+     * Pages read on a guess, and the rules about when not to.
      *
-     * The same figure `goTo` waits before carrying the press out by hand, and for
-     * the same reason: past it, whatever was going to happen has happened.
+     * In `app/readAhead.ts` rather than here, because both of its rules are about
+     * time and cancellation and neither could be asserted about from inside this
+     * closure. See that file: every bug it has had was in the part with no test.
      */
-    const ARRIVING = 1_500;
-
-    /** The page the reader pressed for, until it is up. See `stillWaiting`. */
-    let arriving: Waiting | undefined;
-
-    /**
-     * Called off, because the reader has asked for something and this is not it.
-     *
-     * `keep` is the page they did ask for, and it is the whole of the judgement
-     * here. A read for anywhere else is competing with them and is dropped. The
-     * read for the page being opened is the one thing the rest before the press
-     * bought: it lands in the store, and the screen draws that store before
-     * GitHub has answered anything. Calling it off cost what it was worth —
-     * measured on a press from the list, 238ms rested became 1,256ms.
-     */
-    const stopReadingAhead = (keep?: string): void => {
-      after = undefined;
-      if (inFlight === undefined || inFlightKey === keep) return;
-
-      const held = inFlight;
-      inFlight = undefined;
-      inFlightKey = undefined;
-      Effect.runFork(Fiber.interrupt(held));
-    };
-
-    const warm = (ahead: Ahead): void => {
-      /*
-       * One at a time. A reader sweeping a list would otherwise have every route
-       * in flight per link they passed over, and GitHub is entitled to think less
-       * of us for it.
-       *
-       * Held rather than dropped, and this is the whole of why the queue exists:
-       * the drop used to happen after the caller had written the page down as
-       * asked for, so a page offered while another was in flight was never read
-       * ahead and never offered again. The one held is the newest, because a
-       * reader who has moved on has moved on.
-       */
-      if (reading) {
-        after = ahead;
-        return;
-      }
-
-      reading = true;
-      // Said here rather than by the caller, so that a page nobody got round to
-      // reading is not written down as one that was read.
-      asked.add(ahead.key);
-
-      inFlightKey = ahead.key;
-      inFlight = Effect.runFork(
-        ahead.read.pipe(
-          Effect.provide(gatewayLayer),
-          // Nobody asked for this and nobody is waiting for it. A page that
-          // could not be read ahead is read again, out loud, when it is
-          // opened — and that is where saying so belongs.
-          Effect.ignore,
-          Effect.ensuring(
-            Effect.sync(() => {
-              reading = false;
-              inFlight = undefined;
-              inFlightKey = undefined;
-              const held = after;
-              after = undefined;
-              if (held !== undefined && !asked.has(held.key)) warm(held);
-            }),
-          ),
-        ),
-      );
-    };
+    const readAhead = readingAhead();
 
     /*
      * The pull request a press is headed for, where that is one other than the
@@ -394,12 +319,12 @@ export default defineContentScript({
      * than it saves.
      */
     const worthReading = (found: Reached | null): Seen<Ahead> | null => {
-      if (found === null || asked.size >= AT_MOST || !dataToSpare(connectionNow())) {
+      if (found === null || readAhead.read() >= AT_MOST || !dataToSpare(connectionNow())) {
         return null;
       }
 
       const ahead = aheadOf(found.link);
-      if (ahead === null || asked.has(ahead.key)) return null;
+      if (ahead === null || readAhead.already(ahead.key)) return null;
 
       return {
         key: ahead.key,
@@ -429,11 +354,10 @@ export default defineContentScript({
         return;
       }
 
-      // Waiting on a press. Credit earned against the page being left is credit
-      // towards reading it again, and the pointer sits exactly where it pressed
-      // while the new screen draws underneath it. See `stillWaiting`.
-      arriving = stillWaiting(arriving, now);
-      if (arriving !== undefined) {
+      // Waiting on a press. The pointer sits exactly where it pressed while the new
+      // screen draws underneath it, so what it earns there is credit towards reading
+      // the page the reader is leaving. See `readAhead`.
+      if (readAhead.waiting(now)) {
         lingering = NOTHING;
         return;
       }
@@ -456,7 +380,9 @@ export default defineContentScript({
       const step = lingerFor(lingering, worth, elapsed);
       lingering = step.lingering;
 
-      if (step.ripe !== null) warm(step.ripe);
+      if (step.ripe !== null) {
+        readAhead.offer(step.ripe.key, step.ripe.read.pipe(Effect.provide(gatewayLayer)));
+      }
 
       // Gone from a built extension entirely: `import.meta.env.DEV` is `false` before the
       // bundler runs, so the branch goes and the module with it. See `ui/lingeringHint`.
@@ -466,7 +392,7 @@ export default defineContentScript({
           travel,
           lingering,
           seen: worth,
-          read: asked.size,
+          read: readAhead.read(),
           atMost: AT_MOST,
           sparing: !dataToSpare(connectionNow()),
         });
@@ -682,12 +608,18 @@ export default defineContentScript({
         const wanted = placeFor(what, push).name;
         const there = () => theScreenShown(document) === wanted;
 
-        // From here until that screen is up, the connection belongs to the reader.
-        // See `arriving`, which is where the cost of not doing this is measured.
-        // The read for the page being opened is spared: it is the one the rest
-        // before the press paid for, and the screen draws what it leaves behind.
-        stopReadingAhead(warmingFor(new URL(push, location.origin).href, location.href)?.key);
-        arriving = { there, by: performance.now() + ARRIVING };
+        // From here until that screen is up, the connection belongs to the reader,
+        // and `readAhead` is where the cost of not doing this is measured. The read
+        // for the page being opened is spared: it is the one the resting before the
+        // press paid for, and the screen draws what it leaves behind.
+        const opening = warmingFor(
+          new URL(push, window.location.origin).href,
+          window.location.href,
+        );
+        readAhead.pressed(opening?.key ?? null, {
+          there,
+          by: performance.now() + ARRIVING,
+        });
 
         goTo(window, push, there);
       }

@@ -114,36 +114,6 @@ export const smoothed = (previous: Point, step: Point): Point => ({
 })
 
 /**
- * A page the reader pressed for, while they are still waiting for it.
- *
- * `there` is asked whether that page is on the screen yet, and `by` is when to stop
- * asking — the press was swallowed, or it turned into a document load, and either way
- * nobody is waiting on this any more.
- */
-export type Waiting = {
-  readonly there: () => boolean
-  readonly by: number
-}
-
-/**
- * The same, once `now` has been taken into account, or nothing if the wait is over.
- *
- * Reading ahead exists to spend a moment nobody is watching, and a press ends that
- * moment: from there until the screen is up, every request made on a guess is competing
- * with the one the reader is actually waiting on, over one connection to one host.
- *
- * Measured on a press between two pull requests with the pointer rested on the row
- * first, which is how anybody presses anything: the read-ahead was still in the air when
- * the press landed, the screen's own seven requests went out 1,141ms behind it, and the
- * page took 2,252ms to become readable — against 341ms for the same press made cold.
- *
- * Returned rather than mutated, so that the rule is a function of the two things it
- * depends on and can be read in a test.
- */
-export const stillWaiting = (waiting: Waiting | undefined, now: number): Waiting | undefined =>
-  waiting === undefined || now > waiting.by || waiting.there() ? undefined : waiting
-
-/**
  * One frame of attention, and the link it was enough for.
  *
  * The caller must stop offering a key once it is returned as ripe: this drops what that

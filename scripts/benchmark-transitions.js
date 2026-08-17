@@ -45,11 +45,14 @@ const OPEN_PULLS = "https://github.com/pulls"
  * GitHub times out their own list pages on a repository with enough pull
  * requests open — their unicorn, on `/pulls` and on the repository's own tab,
  * while every pull request page in the same repository answers in full. A run
- * blocked on the list measures nothing, so set this to any pull request and the
- * rest are read off the stack strip on it. It will go stale, and the run says so
- * rather than timing their 404 page.
+ * blocked on the list measures nothing, so put any pull request here and the rest
+ * are read off the stack strip on it.
+ *
+ * Empty by default, and it belongs empty: a pull request number written into this
+ * file rots within the day, which is the reason the discovery above exists at all.
+ * Fill it in for the run you are doing and take it out again.
  */
-const START = "https://github.com/OpenRouterIncubator/ori/pull/2087"
+const START = ""
 
 /** Enough presses to have a median that is not one unlucky run. */
 const RUNS = 3
@@ -359,7 +362,11 @@ walking: for (const move of MOVES) {
       name: `${move.name} ${rest > 0 ? "(rested 1.2s)" : "(cold)"}`,
       address: median(runs.map((r) => r.address)),
       drawn: median(runs.map((r) => r.drawn)),
-      blank: median(runs.map((r) => r.blank))
+      blank: median(runs.map((r) => r.blank)),
+      // How many presses the middle number is actually the middle of. One or two of
+      // three can be thrown away above, and a row reading "median of 3" that is one
+      // sample is the kind of number somebody quotes in a comment for a year.
+      of: runs.filter((r) => typeof r.drawn === "number").length
     }
     table.push(row)
     cliLog(
@@ -369,9 +376,11 @@ walking: for (const move of MOVES) {
 }
 
 cliLog(`\n${"-".repeat(78)}`)
-cliLog(`Press to a readable page, median of ${RUNS}\n`)
+cliLog("Press to a readable page\n")
 for (const row of table) {
-  cliLog(`  ${row.name.padEnd(44)}${show(row.drawn).padStart(9)}`)
+  cliLog(
+    `  ${row.name.padEnd(44)}${show(row.drawn).padStart(9)}   median of ${row.of}${row.of < RUNS ? ` (${RUNS - row.of} thrown away)` : ""}`
+  )
 }
 
 await completeTaskSpace(task.id, { keep: false })

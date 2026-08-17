@@ -33,8 +33,11 @@ type World = Window & { gitquietOwnRows?: true }
  * within about a fifth of a second — but it is a separate script, so it can fail
  * to arrive at all, and an address pointing at a page nobody drew is the worst
  * of the outcomes here. See {@link goTo}.
+ *
+ * Exported because the shell holds reading ahead for the same span, on the same
+ * argument: past this, whatever the press was going to do it has done.
  */
-const ARRIVING = 1_500
+export const ARRIVING = 1_500
 
 /**
  * Whether the screen on the page is one of ours, drawing rows of its own.
