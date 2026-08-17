@@ -10,6 +10,7 @@ import { PAINS } from "./pains"
 import {
   Above,
   AddToChrome,
+  Aside,
   Footer,
   HELD,
   INSTALL_AT,
@@ -126,6 +127,7 @@ export const Page = () => (
     <Above>
       <Nav>
         <Source />
+        <Aside at={INSTALL_AT}>Other ways in</Aside>
         <AddToChrome />
       </Nav>
 

@@ -51,14 +51,22 @@ const Star = ({ size = 14 }: { readonly size?: number }) => (
 )
 
 /**
+ * A control in the nav that is not the one to press.
+ *
+ * No outline, and no plate under the pointer either. One filled button is what a nav
+ * wants a reader to press, and anything drawn around the rest argues with that. The
+ * darkening ink and the press are the whole of the feedback.
+ *
+ * Shared by the source and by the word beside it, so the two keep the same height as
+ * each other and the same corner as the filled button they stand next to.
+ */
+const WORD = `items-center ${EDGE} px-3 py-2 text-[14px] font-semibold text-ink/70 transition-[transform,color] duration-[var(--duration-press)] ease-out hover:text-ink active:scale-[var(--scale-press)] sm:px-3.5 sm:py-2.5 sm:text-[15px]`
+
+/**
  * The source button, which is the mark, the count, and nothing else.
  *
  * The word "GitHub" went: the cat says it, the count beside it says it again, and the
  * button sits a centimetre from a heading that names the site.
- *
- * No outline, and no plate under the pointer either. One filled button is what a nav
- * wants a reader to press, and anything drawn around this one argues with that. The
- * darkening ink and the press are the whole of the feedback.
  */
 export const Source = () => {
   const many = useStars()
@@ -71,7 +79,7 @@ export const Source = () => {
           ? "GitQuiet source on GitHub"
           : `GitQuiet source on GitHub, ${many} ${many === 1 ? "star" : "stars"}`
       }
-      className={`inline-flex items-center gap-1.5 ${EDGE} px-3 py-2 text-[14px] font-semibold text-ink/70 transition-[transform,color] duration-[var(--duration-press)] ease-out hover:text-ink active:scale-[var(--scale-press)] sm:px-3.5 sm:py-2.5 sm:text-[15px]`}
+      className={`inline-flex ${WORD} gap-1.5`}
     >
       <Octocat size={16} />
       {/*
@@ -90,6 +98,24 @@ export const Source = () => {
     </a>
   )
 }
+
+/**
+ * A word in the nav, next to the button rather than instead of it.
+ *
+ * The store button is the press this site wants, and a reader on Safari or on Firefox
+ * needs the other route said out loud rather than found in a footer. So it is a word
+ * and not a second button: two filled controls a centimetre apart is a reader choosing
+ * between them instead of pressing one.
+ *
+ * Away below 640px, where the nav has the mark, the source and the store button in
+ * about three hundred pixels. The hero says the same thing directly under its button,
+ * so a phone loses the shortcut rather than the route.
+ */
+export const Aside = ({ at, children }: { readonly at: string; readonly children: ReactNode }) => (
+  <a href={at} className={`hidden sm:inline-flex ${WORD}`}>
+    {children}
+  </a>
+)
 
 /** The filled button, wherever a page wants one press to be the obvious one. */
 export const Press = ({
