@@ -87,8 +87,17 @@ describe("the moment the pull request arrives", () => {
     // exists to make quick.
     arriving()
 
+    /*
+     * Held before the card arrives, and asked afterwards. The leave takes the wait off
+     * the page when it finishes, so a look for it after the card is a look that finds
+     * nothing on a loaded machine — the test failed on a dissolve that had run exactly
+     * as it should have. The element that was up keeps the mark it left under, whether
+     * or not it is still on the page.
+     */
+    const shown = await drawn()
+
     await waitFor(() => expect(screen.getByRole("region", { name: "Merge" })).toBeDefined())
-    expect(wait()?.hasAttribute("data-leaving")).toBe(true)
+    await waitFor(() => expect(shown.hasAttribute("data-leaving")).toBe(true))
   })
 
   test("keeps the very element that was on the page, so it has something to fade from", async () => {

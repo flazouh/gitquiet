@@ -46,12 +46,40 @@ const standing = () =>
 
 const toldOf = () => (standing() === 0 ? null : screen.queryByText(SAID))
 
+const remembering = () => Effect.succeed(Option.some(["remembered"]))
+
+/**
+ * A read that answers when the test says so, rather than after a number of milliseconds.
+ *
+ * Every test below has to see a sentence that is held back 150ms and taken down the
+ * instant the read lands. On a timer that leaves a window of a few hundred milliseconds
+ * for the assertion to run in, and under a loaded parallel suite the first `waitFor`
+ * poll arrived after the window had closed: the tests failed on a sentence that had been
+ * shown exactly as it should have been. A read waiting to be told cannot close the window
+ * early, so the assertion cannot be late.
+ */
+const asked = () => {
+  let answer = () => {}
+  const answered = new Promise<void>((keep) => {
+    answer = keep
+  })
+
+  return {
+    load: () => Effect.promise(() => answered).pipe(Effect.as(["fresh"])),
+    /** GitHub answering, awaited so React has drawn what came of it. */
+    land: () =>
+      act(async () => {
+        answer()
+        await answered
+      })
+  }
+}
+
 describe("what a screen says while it is checking what it remembered", () => {
   test("says it, over the memory the reader is already reading", async () => {
-    const load = () => Effect.sleep("400 millis").pipe(Effect.as(["fresh"]))
-    const preload = () => Effect.succeed(Option.some(["remembered"]))
+    const read = asked()
 
-    render(<Screen load={load} preload={preload} />)
+    render(<Screen load={read.load} preload={remembering} />)
     await settle(10)
 
     // The list is there first. That is the point of the memory, and the sentence
@@ -67,14 +95,12 @@ describe("what a screen says while it is checking what it remembered", () => {
      * already right does not change when GitHub agrees with it, so a spinner that simply
      * disappeared was indistinguishable from a read that gave up.
      */
-    const load = () => Effect.sleep("300 millis").pipe(Effect.as(["fresh"]))
-    const preload = () => Effect.succeed(Option.some(["remembered"]))
+    const read = asked()
 
-    render(<Screen load={load} preload={preload} />)
+    render(<Screen load={read.load} preload={remembering} />)
     await waitFor(() => expect(toldOf()).not.toBeNull())
 
-    // Awaited rather than slept past: 400ms is a hundred more than the read takes
-    // here, and a loaded machine spends that on less than this.
+    await read.land()
     await waitFor(() => {
       expect(rowsOf()).toBe("fresh")
       expect(screen.getByText(UP_TO_DATE)).toBeDefined()
@@ -89,12 +115,11 @@ describe("what a screen says while it is checking what it remembered", () => {
 
   test("says nothing at all where the screen went away mid-read", async () => {
     // Not "Up to date": nobody has told this screen anything, and it is no longer reading.
-    const load = () => Effect.sleep("2 seconds").pipe(Effect.as(["fresh"]))
-    const preload = () => Effect.succeed(Option.some(["remembered"]))
+    const read = asked()
 
     const shown = render(
       <Toasts>
-        <Reading load={load} preload={preload} />
+        <Reading load={read.load} preload={remembering} />
       </Toasts>
     )
     await waitFor(() => expect(toldOf()).not.toBeNull())
