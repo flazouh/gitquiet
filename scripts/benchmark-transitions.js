@@ -210,6 +210,12 @@ const show = (value) => (value === undefined ? "—" : `${value}ms`)
  *
  * Anything but 200 means the rest of this run would be timing their error page.
  * Both headers are needed: they answer 406 to these routes without the second.
+ *
+ * The status is worth reading out rather than reporting a stopped run as one
+ * thing. A 5xx is their throttle and passes on its own if you leave it alone. A
+ * 401 is the session, and waiting for that to pass is an hour spent on the one
+ * cause that will not: single sign-on for the organisation has run out and only
+ * the reader can renew it.
  */
 const stillAnswering = async (at) => {
   const status = await js(String.raw`(async () => {
@@ -221,7 +227,11 @@ const stillAnswering = async (at) => {
       return answer.status
     } catch { return 0 }
   })()`)
-  return status === 200 ? null : `GitHub answered ${status}`
+  if (status === 200) return null
+  if (status === 401 || status === 403) {
+    return `GitHub answered ${status}: this session has lost access to the repository. Sign in, or renew single sign-on for the organisation, and run this again`
+  }
+  return `GitHub answered ${status}: they are throttling this account. Leave them alone for a few minutes and run this again`
 }
 
 const once = async (move, rest) => {
@@ -325,31 +335,43 @@ if (found === null && START !== "") {
 
 if (found === null) {
   /*
-   * Their unicorn, which is what being throttled looks like from a browser: a 503
-   * dressed as an apology, on every page, for minutes at a time. Worth naming,
-   * because the honest reading of an empty list is "you have no pull requests"
-   * and that sends the next hour in the wrong direction.
+   * Two things that are not an empty list, and both of them look like one here.
+   *
+   * Their unicorn is what being throttled looks like from a browser: a 503
+   * dressed as an apology, on every page, for minutes at a time. Their sign-on
+   * prompt is what an organisation's single sign-on looks like once it has run
+   * out: the list draws, and every pull request behind that organisation is
+   * missing from it.
+   *
+   * Both are worth naming, because the honest reading of an empty list is "you
+   * have no pull requests" and that sends the next hour in the wrong direction.
+   * It sent one there already.
    */
-  const refused = await js(String.raw`document.title.includes("Unicorn") ||
-    document.body.innerText.includes("No server is currently available")`)
-  cliLog(
-    refused
-      ? "GitHub is refusing this account: every page is their 503. Wait for it to pass and run this again."
-      : "No pull request open to this account, so there is nothing to press. Nothing measured."
-  )
+  const page = await js(String.raw`JSON.stringify({
+    title: document.title,
+    text: document.body.innerText.slice(0, 4000)
+  })`)
+  const { title, text } = JSON.parse(page)
+  const cause =
+    title.includes("Unicorn") || text.includes("No server is currently available")
+      ? "GitHub is refusing this account: every page is their 503. Leave them alone for a few minutes and run this again."
+      : /single sign-on/i.test(text)
+        ? "GitHub is asking for single sign-on, so their list is hiding the pull requests behind that organisation. Renew it in the browser and run this again."
+        : "No pull request open to this account, so there is nothing to press."
+  cliLog(`Nothing measured. ${cause}`)
   await completeTaskSpace(task.id, { keep: false })
-  throw new Error(refused ? "GitHub is throttling this account" : "no pull requests to press")
+  throw new Error(cause)
 }
 cliLog(`pressing around ${found.repo}, ${found.open} open, starting at #${found.number}`)
 
 const HERE = `https://github.com/${found.repo}/pull/${found.number}`
 const MOVES = movesFor(found.repo, found.number)
 
-const throttled = await stillAnswering(HERE)
-if (throttled !== null) {
-  cliLog(`${throttled}. Nothing measured; wait for the throttle to clear and run this again.`)
+const stopped = await stillAnswering(HERE)
+if (stopped !== null) {
+  cliLog(`Nothing measured. ${stopped}.`)
   await completeTaskSpace(task.id, { keep: false })
-  throw new Error(throttled)
+  throw new Error(stopped)
 }
 
 const table = []
@@ -358,9 +380,10 @@ walking: for (const move of MOVES) {
     const runs = []
     for (let run = 0; run < RUNS; run++) runs.push(await once(move, rest))
 
-    const throttledNow = await stillAnswering(HERE)
-    if (throttledNow !== null) {
-      cliLog(`\n${throttledNow} part way through. Everything from here would measure the throttle.`)
+    const stoppedNow = await stillAnswering(HERE)
+    if (stoppedNow !== null) {
+      cliLog(`\nStopping here, part way through: everything below would be their error page.`)
+      cliLog(stoppedNow)
       break walking
     }
 
