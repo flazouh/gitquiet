@@ -24,18 +24,25 @@
  * on the site's gradient, and they do not turn over in dark mode: the gradient is
  * light in both.
  *
- * The host gives this a box with no padding on it. The picture reaches all four edges
- * of that box and the words are inset from it, which is one rule the host cannot help
- * with: a card that pads its own contents cannot hold a picture that touches its rim.
+ * The host gives this a box with no padding on it, and this file insets everything from
+ * it. The card cannot do that itself: the picture and the words stand off the rim by
+ * different amounts, and the picture keeps the bottom edge.
  */
 
 .tour {
-  /*
-   * How far the words stand off the rim. The picture ignores it, and that difference is
-   * the whole shape of this screen: a photograph that runs to the edge, words that do
-   * not.
-   */
+  /* How far the words stand off the rim. */
   --tour-inset: 20px;
+
+  /*
+   * And how far the screen does, on three sides.
+   *
+   * Less than the words, because a screen with as much air around it as a sentence has
+   * reads as a picture pasted into the card. Not nought, which is where this started: a
+   * screen against the rim shares its top edge with the card, so the card's own hairline
+   * became the screen's top border and the toolbar inside it sat in the corner of the
+   * window. Nothing framed anything, and it read as a screenshot that had slipped.
+   */
+  --tour-air: 12px;
 
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
@@ -87,24 +94,28 @@
 }
 
 /*
- * The screen this beat is about, edge to edge, ending on a line.
+ * The screen this beat is about: the full width of the card less a little air, and
+ * ending on a line.
  *
- * Full bleed, and it is the one decision this screen is built on. A capture is a whole
- * window, sixteen by ten; scaled to fit a wide strip it came out a third of the panel
- * across, a grey smudge floating in white with a heading beneath it. Filling the width
- * instead, it is the top of that screen at a size the shape of it reads at: one column,
- * grouped rows, no tabs.
+ * Wide, and that is the one decision this screen is built on. Scaled to fit inside a
+ * comfortable margin it came out a third of the card across, a grey smudge floating in
+ * white with a heading beneath it. Given nearly the whole width, it is the top of that
+ * screen at a size the shape of it reads at: one column, grouped rows, no tabs.
  *
- * A hairline where it stops, and no fade. This used to dissolve into the panel through a
- * mask, on the argument that a photograph cut on a straight line looks cropped by
- * accident. It is not a photograph: it is a piece of the interface, and the interface
- * ends on hairlines everywhere else in the app. Faded out, it read as a picture bleeding
- * into the card rather than as a component sitting in it.
+ * Air on three sides and none at the bottom. The bottom is not a margin, it is where the
+ * screen is cut, and a cut needs the line under it to be the card's own — inset there
+ * too, the screen would float and the crop would read as a picture that came out short.
+ *
+ * A hairline where it stops, and no fade. This used to dissolve into the card through a
+ * mask, on the argument that a picture cut on a straight line looks cropped by accident.
+ * It is not a picture: it is a piece of the interface, and the interface ends on
+ * hairlines everywhere else in the app.
  */
 .tour-shot {
   display: grid;
   place-items: stretch;
   min-height: 0;
+  padding: var(--tour-air) var(--tour-air) 0;
   overflow: hidden;
   border-bottom: 1px solid color-mix(in srgb, var(--bed-ink) 8%, transparent);
 }
@@ -121,6 +132,12 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
+  /*
+   * Rounded where the air is and square where the cut is, which is the same statement the
+   * padding above makes. Eight against the card's own fourteen: a thing inside a rounded
+   * box takes a smaller radius, or the two curves fight along the same corner.
+   */
+  border-radius: 8px 8px 0 0;
 }
 
 /*
