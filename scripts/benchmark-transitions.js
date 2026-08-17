@@ -29,8 +29,15 @@
 
 const EXTENSION = "/Users/alex/Documents/githubpro/.output/chrome-mv3"
 
-/** A repository with a stack of pull requests open, so every route has somewhere to go. */
-const OWNER = "OpenRouterIncubator/ori"
+/**
+ * Where to look for something to press, rather than a repository named here.
+ *
+ * Pull request numbers rot. This script was written against three of them and
+ * every one was merged within the day; the run that followed reported 404s as
+ * transitions and a repository that plainly worked as "Page not found". So the
+ * pull requests come from the reader's own list of them, at run time.
+ */
+const OPEN_PULLS = "https://github.com/pulls"
 
 /** Enough presses to have a median that is not one unlucky run. */
 const RUNS = 3
@@ -52,25 +59,25 @@ const BREATHE = 3
  * document at zero by zero on every page this takes over, and pressing one goes
  * nowhere at all.
  */
-const MOVES = [
+const movesFor = (repo, number) => [
   {
     name: "list to pull request",
-    from: `https://github.com/${OWNER}/pulls`,
+    from: `https://github.com/${repo}/pulls`,
     find: `[...root.querySelectorAll('a[href*="/pull/"]')]`
   },
   {
     name: "pull request to pull request",
-    from: `https://github.com/${OWNER}/pull/2051`,
-    find: `[...root.querySelectorAll('a[href*="/pull/"]')].filter((a) => !a.href.endsWith("2051"))`
+    from: `https://github.com/${repo}/pull/${number}`,
+    find: `[...root.querySelectorAll('a[href*="/pull/"]')].filter((a) => !a.href.endsWith("/${number}"))`
   },
   {
     name: "pull request to the list",
-    from: `https://github.com/${OWNER}/pull/2051`,
+    from: `https://github.com/${repo}/pull/${number}`,
     find: `[...root.querySelectorAll('a[href$="/pulls"]')]`
   },
   {
     name: "list to issues",
-    from: `https://github.com/${OWNER}/pulls`,
+    from: `https://github.com/${repo}/pulls`,
     find: `[...root.querySelectorAll('a[href*="/issues"]')]`
   },
   {
@@ -187,12 +194,14 @@ const show = (value) => (value === undefined ? "—" : `${value}ms`)
  * Whether GitHub is still answering us, asked of the route every read starts with.
  *
  * Anything but 200 means the rest of this run would be timing their error page.
+ * Both headers are needed: they answer 406 to these routes without the second.
  */
-const stillAnswering = async () => {
+const stillAnswering = async (at) => {
   const status = await js(String.raw`(async () => {
     try {
-      const answer = await fetch("https://github.com/${OWNER}/pull/2051/changes", {
-        headers: { accept: "application/json" }, credentials: "include"
+      const answer = await fetch(${JSON.stringify(`${at}/changes`)}, {
+        headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
+        credentials: "include"
       })
       return answer.status
     } catch { return 0 }
@@ -237,9 +246,54 @@ const once = async (move, rest) => {
   return { to: spot.to, ...readable(marks) }
 }
 
-await gotoAndWait(`https://github.com/${OWNER}/pulls`, { timeout: 60, settle: 3 })
+await gotoAndWait(OPEN_PULLS, { timeout: 60, settle: 3 })
 await focus()
-await wait(2)
+await wait(3)
+
+/**
+ * The repository with the most pull requests open to the reader, and one of them.
+ *
+ * Asked more than once. Whichever copy of the interface is installed gates their
+ * list while its own is being read, so a single look a few seconds in finds an
+ * empty page and concludes the reader has no pull requests at all.
+ */
+const lookForPulls = () => js(String.raw`(() => {
+  const seen = new Map()
+  for (const link of document.querySelectorAll('a[href*="/pull/"]')) {
+    const parts = (link.getAttribute("href") || "").match(/^\/([^/]+\/[^/]+)\/pull\/(\d+)/)
+    if (parts === null) continue
+    const numbers = seen.get(parts[1]) ?? []
+    if (!numbers.includes(parts[2])) numbers.push(parts[2])
+    seen.set(parts[1], numbers)
+  }
+  const best = [...seen].sort((left, right) => right[1].length - left[1].length)[0]
+  return best === undefined ? null : { repo: best[0], number: best[1][0], open: best[1].length }
+})()`)
+
+let found = null
+for (let look = 0; look < 6 && found === null; look++) {
+  found = await lookForPulls()
+  if (found === null) await wait(2)
+}
+
+if (found === null) {
+  /*
+   * Their unicorn, which is what being throttled looks like from a browser: a 503
+   * dressed as an apology, on every page, for minutes at a time. Worth naming,
+   * because the honest reading of an empty list is "you have no pull requests"
+   * and that sends the next hour in the wrong direction.
+   */
+  const refused = await js(String.raw`document.title.includes("Unicorn") ||
+    document.body.innerText.includes("No server is currently available")`)
+  cliLog(
+    refused
+      ? "GitHub is refusing this account: every page is their 503. Wait for it to pass and run this again."
+      : "No pull request open to this account, so there is nothing to press. Nothing measured."
+  )
+  await completeTaskSpace(task.id, { keep: false })
+  throw new Error(refused ? "GitHub is throttling this account" : "no pull requests to press")
+}
+cliLog(`pressing around ${found.repo}, ${found.open} open, starting at #${found.number}`)
 
 for (const id of await copiesHere()) {
   try {
@@ -252,7 +306,10 @@ const { id } = await cdp("Extensions.loadUnpacked", { path: EXTENSION }, null)
 cliLog(`one copy installed: ${id}`)
 await focus()
 
-const throttled = await stillAnswering()
+const HERE = `https://github.com/${found.repo}/pull/${found.number}`
+const MOVES = movesFor(found.repo, found.number)
+
+const throttled = await stillAnswering(HERE)
 if (throttled !== null) {
   cliLog(`${throttled}. Nothing measured; wait for the throttle to clear and run this again.`)
   await completeTaskSpace(task.id, { keep: false })
@@ -265,7 +322,7 @@ walking: for (const move of MOVES) {
     const runs = []
     for (let run = 0; run < RUNS; run++) runs.push(await once(move, rest))
 
-    const throttledNow = await stillAnswering()
+    const throttledNow = await stillAnswering(HERE)
     if (throttledNow !== null) {
       cliLog(`\n${throttledNow} part way through. Everything from here would measure the throttle.`)
       break walking
