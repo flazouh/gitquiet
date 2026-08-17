@@ -195,7 +195,9 @@ body {
    *
    * `animation-timeline: view()` rather than an IntersectionObserver, because there is
    * nothing here for JavaScript to decide: the card fades up as it crosses the fold and
-   * the browser runs it off the compositor. `--stagger` is set per card in `Page.tsx`.
+   * the browser runs it off the compositor. `Page.tsx` sets `--stagger` per card, so its
+   * four arrive in order; the install page sets none and its four arrive together, which
+   * is what the `0ms` fallback is for.
    *
    * `both` on the fill, so a card below the fold is at the start of the animation rather
    * than at rest. Without it the whole set is fully drawn before the timeline is

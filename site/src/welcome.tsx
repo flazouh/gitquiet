@@ -4,8 +4,7 @@ import { SETTINGS } from "@/ui/keeping"
 import type { Shot } from "@/ui/onboarding/beats"
 import { Held } from "@/ui/onboarding/Held"
 import { Tour } from "@/ui/onboarding/Tour"
-import { StrictMode } from "react"
-import { createRoot } from "react-dom/client"
+import { mount } from "./mount"
 import { Supplied } from "../../shots/Supplied"
 import { viewNamed } from "../../shots/views"
 import { Bed } from "./Bed"
@@ -163,11 +162,4 @@ const Welcome = () => {
   )
 }
 
-const page = document.getElementById("page")
-if (page === null) throw new Error("#page is missing from welcome.html")
-
-createRoot(page).render(
-  <StrictMode>
-    <Welcome />
-  </StrictMode>
-)
+mount("page", <Welcome />)

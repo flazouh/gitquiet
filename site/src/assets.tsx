@@ -1,5 +1,4 @@
-import { StrictMode } from "react"
-import { createRoot } from "react-dom/client"
+import { mount } from "./mount"
 import { Bed } from "./Bed"
 import { INK, MUTED, PAPER } from "@/ui/bed"
 import { HERO_SHADOW, SCREEN_EDGE, SCREEN_SHADOW } from "./brand"
@@ -359,35 +358,25 @@ const LISTING_SHOTS = [
   }
 ] as const
 
-const sheet = document.getElementById("sheet")
-if (sheet === null) throw new Error("the sheet is missing from assets.html")
-
-createRoot(sheet).render(
-  <StrictMode>
-    <div style={{ padding: 48, background: PAPER, minHeight: "100vh" }}>
-      <Frame name="icon-128" width={128} height={128} note="transparent, 96 of 128 drawn">
-        <Icon />
+mount(
+  "sheet",
+  <div style={{ padding: 48, background: PAPER, minHeight: "100vh" }}>
+    <Frame name="icon-128" width={128} height={128} note="transparent, 96 of 128 drawn">
+      <Icon />
+    </Frame>
+    <Frame name="promo-tile" width={440} height={280} note="required by the store">
+      <PromoTile />
+    </Frame>
+    <Frame name="marquee" width={1400} height={560} note="needed to be featured">
+      <Marquee />
+    </Frame>
+    <Frame name="social-card" width={1200} height={630} note="og:image for the site">
+      <SocialCard />
+    </Frame>
+    {LISTING_SHOTS.map(({ view, caption }) => (
+      <Frame key={view} name={view} width={1280} height={800} note="store screenshot on the bed">
+        <StoreScreenshot view={view} caption={caption} />
       </Frame>
-      <Frame name="promo-tile" width={440} height={280} note="required by the store">
-        <PromoTile />
-      </Frame>
-      <Frame name="marquee" width={1400} height={560} note="needed to be featured">
-        <Marquee />
-      </Frame>
-      <Frame name="social-card" width={1200} height={630} note="og:image for the site">
-        <SocialCard />
-      </Frame>
-      {LISTING_SHOTS.map(({ view, caption }) => (
-        <Frame
-          key={view}
-          name={view}
-          width={1280}
-          height={800}
-          note="store screenshot on the bed"
-        >
-          <StoreScreenshot view={view} caption={caption} />
-        </Frame>
-      ))}
-    </div>
-  </StrictMode>
+    ))}
+  </div>
 )

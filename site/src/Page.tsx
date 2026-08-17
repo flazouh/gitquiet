@@ -7,13 +7,18 @@ import { Bed } from "./Bed"
 import { Feature } from "./Feature"
 import { Live } from "./Live"
 import { PAINS } from "./pains"
-import { AddToChrome, Footer, HELD, INSTALL_AT, Nav, Quietly, SOURCE_AT, Source } from "./Shell"
-
-/*
- * The skip link below writes `focus:rounded-md` out in full rather than reaching for the
- * radius constant. Tailwind reads this file for whole class names, and a variant glued to
- * a constant is not one, so the rule would simply never be generated.
- */
+import {
+  Above,
+  AddToChrome,
+  Footer,
+  HELD,
+  INSTALL_AT,
+  Nav,
+  Quietly,
+  SkipTo,
+  SOURCE_AT,
+  Source
+} from "./Shell"
 
 /*
  * The ways in that are not the Chrome store, which is the button.
@@ -116,69 +121,47 @@ const stagger = (at: number): CSSProperties => ({ "--stagger": `${at * 60}ms` })
 
 export const Page = () => (
   <>
-    <a
-      href="#screens"
+    <SkipTo id="screens" says="Skip to the screens" />
 
-      className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-ink focus:px-4 focus:py-2 focus:text-paper"
-    >
-      Skip to the screens
-    </a>
+    <Above>
+      <Nav>
+        <Source />
+        <AddToChrome />
+      </Nav>
 
-    <header className="relative isolate overflow-hidden">
-      <Bed
-        alive
-        rotation={14}
-        scale={1.45}
-        className="pointer-events-none absolute inset-0"
-        style={{
-          position: "absolute",
-          zIndex: -10,
+      <div className="pb-44 pt-12 sm:pt-20">
+        <h1 className="m-0 max-w-4xl text-balance text-[clamp(2.5rem,7vw,4.5rem)] font-semibold leading-[1.02] tracking-[-0.04em]">
+          A faster, quieter GitHub.
+        </h1>
 
-          maskImage: "linear-gradient(to bottom, black 58%, transparent 100%)",
-          WebkitMaskImage: "linear-gradient(to bottom, black 58%, transparent 100%)"
-        }}
-      />
+        {/*
+          Twelve words, and they say where you are rather than what is modified.
+          The subhead this replaced ran to forty-four: it named the category, counted
+          the pages and described the mechanism before saying what a reader gets, at
+          three times the length of every page it was measured against. See `COPY.md`.
+        */}
+        <p className="mt-7 max-w-xl text-pretty text-[clamp(1.05rem,2.2vw,1.3rem)] leading-relaxed text-ink/70">
+          GitHub is where your work lives. GitQuiet is where you do it.
+        </p>
 
-      <div className={HELD}>
-        <Nav>
-          <Source />
-          <AddToChrome />
-        </Nav>
-
-        <div className="pb-44 pt-12 sm:pt-20">
-          <h1 className="m-0 max-w-4xl text-balance text-[clamp(2.5rem,7vw,4.5rem)] font-semibold leading-[1.02] tracking-[-0.04em]">
-            A faster, quieter GitHub.
-          </h1>
-
-          {/*
-            Twelve words, and they say where you are rather than what is modified.
-            The subhead this replaced ran to forty-four: it named the category, counted
-            the pages and described the mechanism before saying what a reader gets, at
-            three times the length of every page it was measured against. See `COPY.md`.
-          */}
-          <p className="mt-7 max-w-xl text-pretty text-[clamp(1.05rem,2.2vw,1.3rem)] leading-relaxed text-ink/70">
-            GitHub is where your work lives. GitQuiet is where you do it.
-          </p>
-
-          <div className="mt-10 flex flex-wrap items-center gap-5">
-            <AddToChrome big />
-            <span className="text-[15px] text-ink/60">Chrome and Edge. No account, no server.</span>
-          </div>
-
-          <div className="mt-4">
-            <Elsewhere />
-          </div>
-
-          {/* The short half of the promise. The whole of it is the closing card, which is
-              where a reader who has seen the screens is deciding whether to install. */}
-          <p className="mt-6 max-w-lg text-[15px] leading-relaxed text-ink/60">
-            Your code stays in your browser.{" "}
-            <Quietly at="/privacy.html">Read the privacy policy</Quietly>
-            .
-          </p>
+        <div className="mt-10 flex flex-wrap items-center gap-5">
+          <AddToChrome big />
+          <span className="text-[15px] text-ink/60">Chrome and Edge. No account, no server.</span>
         </div>
+
+        <div className="mt-4">
+          <Elsewhere />
+        </div>
+
+        {/* The short half of the promise. The whole of it is the closing card, which is
+            where a reader who has seen the screens is deciding whether to install. */}
+        <p className="mt-6 max-w-lg text-[15px] leading-relaxed text-ink/60">
+          Your code stays in your browser.{" "}
+          <Quietly at="/privacy.html">Read the privacy policy</Quietly>
+          .
+        </p>
       </div>
-    </header>
+    </Above>
 
     <div className={HELD}>
       {first === undefined ? null : (
