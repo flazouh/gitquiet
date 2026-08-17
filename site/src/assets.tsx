@@ -147,7 +147,7 @@ const Marquee = () => (
             color: INK
           }}
         >
-          GitHub pull request review. Every PR you are in, grouped by who acts next.
+          GitHub pull request review. Every PR you are in, sorted by whose move it is.
         </p>
       </div>
       <div style={{ position: "relative", height: 460 }}>
@@ -289,7 +289,7 @@ const SocialCard = () => (
             color: MUTED
           }}
         >
-          Pull requests, issues, commits and checks, grouped by who acts next.
+          Pull requests, issues, commits and checks, sorted by whose move it is.
         </p>
       </div>
       <div style={{ position: "relative", overflow: "hidden" }}>
