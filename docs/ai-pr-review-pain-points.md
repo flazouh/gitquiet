@@ -462,20 +462,134 @@ Greptile was also told to answer its own channels:
 
 ---
 
+### 12. The "200–400 comments/week, 70–90% dismissed" pair is one vendor's uncited bullet
+
+Traced on 2026-08-19. The origin is a single marketing page by CodeAnt AI, a
+company that sells an AI code review tool:
+
+> "Comment explosion: 200-400 AI comments per week, with 70-90% ignored as false
+> positives"
+
+https://codeant.ai/blogs/prevent-ai-code-review-overload
+
+What sits behind that bullet, on the page itself:
+
+- No citation. I extracted every external `href` on the page. There are none to
+  any study, dataset, survey or customer. The only outbound links are a trust
+  portal, a Google Form, fonts, and Framer asset bundles.
+- The article opens on an admitted hypothetical: *"A senior engineer opens their
+  review queue Monday morning to find 23 PRs waiting. The AI reviewer left 187
+  comments."* The 187 is narrative, not measurement.
+- The number is derived by arithmetic elsewhere in the same page: *"When AI code
+  generation increases PR volume 3-5x, a tool flagging 40 issues per PR
+  generates 200+ comments weekly."* The 40-issues-per-PR input is itself
+  unsourced.
+- An exact-phrase web search for `"200-400 AI comments per week"` returns this
+  page and pages quoting it. No earlier source exists.
+
+**Both halves of your "#1 complaint" claim come from this one bullet.** The
+200–400 figure and the 70–90% dismissal figure are the same sentence on a
+competitor's blog. Do not cite them.
+
+Worth noting: "200 to 400" is also the long-standing SmartBear code review
+guideline for *lines of code per review sitting*, a real research finding. The
+same numeral appearing here for *comments per week* may be number laundering.
+I have not proven that, but the coincidence is worth your suspicion.
+
+**What real comment volume looks like, measured:**
+
+| Source | Volume | Type |
+|---|---|---|
+| Cloudflare production system, 159,103 findings total | **1.2 findings per review** | `[VENDOR, first-party]` |
+| c-CRAB, Claude Code and Devin on 184 PRs | **7.3 comments per PR** | `[INDEPENDENT]` |
+| LycheeOrg, CodeRabbit, 290 findings over 28 PRs in one month | **10.4 per PR, ~67 per week** | `[INDEPENDENT, single project]` |
+| GitHub discussion #189767, Copilot on one PR | **24 comments over 5 rounds** | user report |
+
+Cloudflare is explicit that low volume was the design goal:
+
+> "That is about 1.2 findings per review on average, which is deliberately low.
+> We biased hard for signal over noise, and the 'What NOT to Flag' prompt
+> sections are a big part of why the numbers look like this rather than 10+
+> findings per review of dubious quality."
+> — https://blog.cloudflare.com/ai-code-review/
+
+At a measured 7–10 comments per PR, a team would need 20 to 60 PRs a week to
+reach 200–400 comments. That is an ordinary rate for a large org, so the number
+is not absurd. It is simply unevidenced, and it is published by a competitor.
+
+---
+
+### 13. The CodeRabbit "28% noise" figure is real, and its author disagrees with your framing
+
+Primary source found and read in full: LycheeOrg (the Lychee photo management
+project), post by ildyria, 13 September 2025.
+https://lycheeorg.dev/2025-09-13-code-rabbit/
+
+Not sponsored, stated up front:
+
+> "this post is not an ad, I have no affiliation with CodeRabbit, nor have I
+> been paid to write this."
+
+Sample: one month of CodeRabbit reviews over 28 pull requests, 32,784 lines
+added, 4,768 removed, 693 files changed, producing **290 findings**, which the
+author categorised by hand one at a time.
+
+| Category | Share |
+|---|---|
+| Quality improvements | 35% |
+| Nitpicking | 21% |
+| Useless / trash | 15% |
+| Wrong assumption | 13% |
+| Thoughtful (made him re-check) | 13% |
+| Security / critical | 3% |
+
+The 28% is the sum of the two bad buckets:
+
+> "Which means that 28% of the findings were not much interesting, but also that
+> 72% of the findings were relevant, of which a bit less than 3 over 4 (51/72
+> =~ 71%) brought actual value. This is a very good ratio, and I am very happy
+> with that. It means that the tool is not just spamming useless comments, but
+> actually helps improve the code quality."
+
+So the figure is confirmed, and the framing in the brief is backwards. The one
+person who actually counted reports 28% as a **good** result and recommends the
+tool. His overall verdict:
+
+> "Overall, I am very happy with CodeRabbit. ... If you are an opensource
+> maintainer, I highly recommend you give it a try."
+
+Three caveats to carry with the number:
+
+1. He scopes it himself: *"Note that those are specific to our codebase and
+   practices. What is useless for us may be relevant for others."*
+2. n = 290 findings on one PHP/Laravel open-source project, one maintainer
+   doing the labelling, no second rater.
+3. The percentages were corrected after publication. The post ends: *"PS: Thank
+   to u/Asphias for double checking my basic Maths skills…"* The table above is
+   the corrected version.
+
+The concrete security findings he lists are the strongest argument in the post,
+and they are the kind of thing the noise debate usually leaves out: Zip Slip on
+archive extraction, cross-user basket deletion, an IDOR on baskets, and a
+discount exploit where a user could buy a cheaper album to get an unintended
+discount on a photo.
+
+---
+
 ## Claim audit
 
 | Claim as given | Verdict | What the page actually says |
 |---|---|---|
 | False positives are the #1 complaint | **Confirmed** as the dominant *developer* complaint, in every source | See §1. But AIMultiple's benchmark found the opposite failure mode dominant under test: "the most significant concern was false negatives" |
 | 70–90% of AI comments dismissed | **Partly supported, source-dependent** | Practitioner claim of 80% off-base (u/SterlingAdmiral). Independent addressing rate is far worse: 0.9%–19.2% (arXiv:2508.18771). Atlassian reports 60–70% unresolved. arXiv:2607.21997 reports the *opposite*: 72.9% resolved for Copilot |
-| Teams seeing 200–400 comments/week | **Not found** | No primary source located. Nearest real figures: 7.3 comments per PR (c-CRAB), 24 comments over 5 rounds on one PR (GH #189767) |
+| Teams seeing 200–400 comments/week | **Traced. Uncited vendor assertion** | Origin is one CodeAnt AI marketing page. No source, no dataset. See §12 |
 | Greptile 82% catch, CodeRabbit 44% | **Confirmed verbatim** `[VENDOR]` | greptile.com/benchmarks. Also Bugbot 58%, Copilot 54%, Graphite 6% |
 | Greptile ~11 FPs, CodeRabbit 2 FPs | **Unsupported** | No false-positive counts exist anywhere on Greptile's benchmark or comparison pages |
 | Greptile's benchmark measures recall only | **Confirmed, and stated by Greptile** | "false positives, style suggestions, and unrelated comments did not affect the catch rate" |
 | Other sources cite CodeRabbit 82%, Greptile 76% | **Close, numbers wrong** | AIMultiple RevEval: CodeRabbit 80.3, Greptile 69.5, Copilot 69.1, Bugbot 62.3 |
 | Any independent benchmark exists | **No** | Nothing independent covers both catch rate and FP rate for these products. See §4 |
 | CodeRabbit leaves the most comments per PR | **Not verified** | No primary source found that counts comments per PR by tool. Comment-volume data exists only for Claude Code / Codex / Devin / PR-Agent (c-CRAB) |
-| CodeRabbit ~28% noise | **Not found** | No primary source |
+| CodeRabbit ~28% noise | **Confirmed at source, verdict inverted** | LycheeOrg, 290 findings over 28 PRs. 15% useless + 13% wrong assumption = 28%. The author's conclusion is positive. See §13 |
 | CodeRabbit shipped a "Quiet" profile | **Confirmed** `[VENDOR]` | docs.coderabbit.ai/reference/configuration: "quiet for only the most important feedback ... assertive for more feedback (which may feel nitpicky)" |
 | Copilot regenerates comments every push | **Confirmed with counts** | GH discussion #189767, 10→6→4→2→2 over 5 rounds, ~3 of ~24 useful, still Unanswered |
 | AI adoption 16.6% vs 56.5% human | **Numbers wrong, direction right** | arXiv:2508.18771 (22,000+ comments, 16 tools, 178 repos): AI 0.9%–19.2% addressed vs human 60%. Best tool was coderabbitai/ai-pr-reviewer at 19.2% |
@@ -528,7 +642,10 @@ Atlassian products.
 
 1. Precision and recall for the same commercial tool, from a party that does not
    sell one of them.
-2. Comments per PR by tool, at scale.
+2. Comments per PR by tool, at scale. The only counts that exist are 1.2 per
+   review (Cloudflare, own system), 7.3 per PR (c-CRAB, Claude Code and Devin),
+   and 10.4 per PR (LycheeOrg, CodeRabbit, one project). Nobody has compared
+   Greptile against CodeRabbit against Bugbot on volume.
 3. Whether comment volume causes the higher abandonment in arXiv:2604.03196, or
    merely correlates with it. The authors say so: "correlation does not imply
    causation."
@@ -557,5 +674,8 @@ Atlassian products.
 - uber.com/en-US/blog/ureview/
 - research.aimultiple.com/ai-code-review-tools/
 - linearb.io/resources/engineering-benchmarks
+- lycheeorg.dev/2025-09-13-code-rabbit/
+- codeant.ai/blogs/prevent-ai-code-review-overload
+- blog.cloudflare.com/ai-code-review/
 - r/ExperiencedDevs threads 1o1a601, 1grd2d9, 1q525yn, 1r0iepg
 - r/devops threads 1onfv66, 1qntnva
