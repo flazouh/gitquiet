@@ -310,7 +310,7 @@ const SocialCard = () => (
 const LISTING_SHOTS = [
   {
     view: "working-set",
-    caption: "Every pull request you are in, sorted by next action."
+    caption: "Every pull request you are in. The first group is what needs you."
   },
   {
     view: "pull-request",
@@ -326,7 +326,7 @@ const LISTING_SHOTS = [
   },
   {
     view: "repo-home",
-    caption: "Repo home with the same attention model."
+    caption: "The README and the file tree on one screen."
   },
   {
     view: "commits",

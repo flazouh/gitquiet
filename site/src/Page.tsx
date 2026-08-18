@@ -142,7 +142,7 @@ const AGAINST: readonly {
   {
     aspect: "Your work across repositories",
     theirs: "GitHub’s own lists, improved.",
-    ours: "One list, grouped by who has to act next."
+    ours: "One list. The first group is what needs you."
   }
 ]
 
@@ -229,7 +229,7 @@ export const Page = () => (
       )}
 
       <section className="border-t border-rule py-24">
-        <Says over="The idea" title="You open it and you already know." />
+        <Says over="The idea" title="Does this one need me?" />
         <p className="-mt-4 mb-12 max-w-2xl text-pretty text-[17px] leading-relaxed text-muted">
           A review thread waiting on your reply. A failing check. A comment from a bot. A
           file that changed since you read it. A branch that needs the latest main. GitHub
@@ -275,8 +275,8 @@ export const Page = () => (
         <p className="-mt-4 mb-12 max-w-2xl text-pretty text-[17px] leading-relaxed text-muted">
           <Quietly at="https://github.com/refined-github/refined-github">Refined GitHub</Quietly>{" "}
           fixes hundreds of small annoyances on GitHub&rsquo;s own pages, and it is good at
-          that: the Chrome store counted 100,000 users in August 2026. The two extensions
-          differ in where they start.
+          that: the Chrome store counted 100,000 users in August 2026. It is a better
+          GitHub. GitQuiet is somewhere else to work.
         </p>
 
         <table className="hidden w-full border-collapse text-left md:table">
