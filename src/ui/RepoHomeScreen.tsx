@@ -94,6 +94,8 @@ export type RepoHomeScreenProps = {
   readonly loadReadme?: (branch: string, path: string) => Effect.Effect<string, unknown>
   /** The file the address names, or nothing for the README. */
   readonly reading?: string | null
+  /** The branch GitHub resolved for a file link, when it differs from the tree. */
+  readonly readingBranch?: string
   /** A file was chosen in the tree. The address follows. */
   readonly onRead?: (path: string | null) => void
 }
@@ -454,12 +456,14 @@ const Facts = ({
 const Paper = ({
   front,
   reading,
+  readingBranch,
   opened,
   loadReadme,
   onRead
 }: {
   readonly front: Front
   readonly reading: string | null
+  readonly readingBranch?: string
   readonly opened: Read
   readonly loadReadme: RepoHomeScreenProps["loadReadme"]
   readonly onRead?: (path: string | null) => void
@@ -472,7 +476,7 @@ const Paper = ({
       opened={opened.file}
       failed={opened.failed}
       repo={front.repo}
-      branch={front.branch}
+      branch={readingBranch ?? front.branch}
       onClose={() => onRead?.(null)}
     />
   )
@@ -563,6 +567,7 @@ export const RepoHomeScreen = ({
   loadReadme,
   shelf,
   reading = null,
+  readingBranch,
   onRead
 }: RepoHomeScreenProps) => {
   const live = useLive(load, preload, where)
@@ -575,7 +580,7 @@ export const RepoHomeScreen = ({
   const stands = useStanding(loadStanding)
 
   const front = read.status === "ready" ? read.value : undefined
-  const opened = useOpened(reading, front?.branch, shelf)
+  const opened = useOpened(reading, readingBranch ?? front?.branch, shelf)
 
   // The pointer resting on a row, on the branch the page is of. Held steady so
   // the tree, which reads its options once, is not rebuilt for a new function.
@@ -635,6 +640,7 @@ export const RepoHomeScreen = ({
               <Paper
                 front={front}
                 reading={reading}
+                readingBranch={readingBranch}
                 opened={opened}
                 loadReadme={loadReadme}
                 onRead={onRead}
@@ -667,6 +673,7 @@ export const RepoHomeScreen = ({
               <Paper
                 front={front}
                 reading={reading}
+                readingBranch={readingBranch}
                 opened={opened}
                 loadReadme={loadReadme}
                 onRead={onRead}

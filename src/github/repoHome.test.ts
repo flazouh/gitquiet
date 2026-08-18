@@ -11,6 +11,7 @@ import {
   frontFrom,
   frontFromKept,
   keptFrom,
+  repoHomeInDocument,
   touchesFrom,
   wroteIn
 } from "./repoHome"
@@ -269,5 +270,57 @@ describe("what survives the store", () => {
 
   test("holds the README back, which is nearly all of the weight", () => {
     expect(Option.isNone(roundTrip(read()).welcome)).toBe(true)
+  })
+})
+
+const codeViewDocument = (branch: string, path: string): Document => {
+  const page = document.implementation.createHTMLDocument()
+  const app = page.createElement("react-app")
+  app.setAttribute("app-name", "code-view")
+
+  const script = page.createElement("script")
+  script.type = "application/json"
+  script.textContent = JSON.stringify({
+    payload: {
+      codeViewLayoutRoute: {
+        path,
+        refInfo: { name: branch },
+        repo: { name: "ori", ownerLogin: "OpenRouterIncubator" }
+      }
+    }
+  })
+  app.append(script)
+  page.body.append(app)
+  return page
+}
+
+describe("a repository address resolved by GitHub", () => {
+  test("keeps a slash inside the branch instead of moving it into the file path", () => {
+    const branch = "alexdepape/ori-harness-default"
+    const path = "framework/engine/threads/src/service.ts"
+    const url = `https://github.com/OpenRouterIncubator/ori/blob/${branch}/${path}`
+
+    expect(Option.getOrNull(repoHomeInDocument(url, codeViewDocument(branch, path)))).toEqual({
+      repo: { owner: "OpenRouterIncubator", repo: "ori" },
+      branch,
+      reading: path
+    })
+  })
+
+  test("does not use a location left behind by GitHub's previous page", () => {
+    const url = "https://github.com/OpenRouterIncubator/ori/blob/main/src/index.ts"
+
+    expect(
+      Option.getOrNull(
+        repoHomeInDocument(
+          url,
+          codeViewDocument("alexdepape/ori-harness-default", "framework/engine/threads/src/service.ts")
+        )
+      )
+    ).toEqual({
+      repo: { owner: "OpenRouterIncubator", repo: "ori" },
+      branch: "main",
+      reading: "src/index.ts"
+    })
   })
 })

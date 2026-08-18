@@ -17,7 +17,7 @@ import { shelfOf } from "@/app/shelf"
 import type { Front, RepoHome, Touch } from "@/domain/repoHome"
 import { repoHomeIn } from "@/domain/repoHome"
 import type { View } from "@/domain/Settings"
-import { frontInDocument } from "@/github/repoHome"
+import { frontInDocument, repoHomeInDocument } from "@/github/repoHome"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
@@ -62,7 +62,7 @@ let asLastSeen: { readonly address: string; readonly front: Front } | undefined
  */
 type Open = {
   readonly close: () => void
-  readonly retarget: (reading: string | null) => void
+  readonly retarget: (reading: string | null, branch: string | null) => void
 }
 
 const open = (home: RepoHome): Open => {
@@ -190,11 +190,12 @@ const open = (home: RepoHome): Open => {
           .join("/")}`
     if (window.location.pathname === at) return
     window.history.pushState(null, "", at)
-    show(reading)
+    show(reading, branchNow)
   }
 
   // Which file is open in the reading pane, or the README where none is.
   let showing = home.reading
+  let showingBranch = home.branch ?? undefined
 
   const page = standAScreen({
     place: REPO_HOME,
@@ -214,21 +215,23 @@ const open = (home: RepoHome): Open => {
         loadReadme={readme}
         shelf={shelf}
         reading={showing}
+        readingBranch={showingBranch}
         onRead={goTo}
       />
     )
   })
 
   /** Another file in the same tree, which is a redraw rather than a new page. */
-  function show(reading: string | null): void {
+  function show(reading: string | null, branch: string | null): void {
     showing = reading
+    showingBranch = branch ?? undefined
     page.redraw()
   }
 
   return {
     close: page.close,
-    retarget: (reading) => {
-      if (reading !== showing) show(reading)
+    retarget: (reading, branch) => {
+      if (reading !== showing || (branch ?? undefined) !== showingBranch) show(reading, branch)
     }
   }
 }
@@ -251,7 +254,7 @@ export const start = (): void => {
   let view: View = "ours"
 
   const show = (url: string): void => {
-    const home = repoHomeIn(url)
+    const home = repoHomeInDocument(url, document)
 
     if (Option.isNone(home)) {
       up?.close()
@@ -269,7 +272,7 @@ export const start = (): void => {
      */
     if (up !== undefined && on !== undefined && sameTree(on, home.value)) {
       on = home.value
-      up.retarget(home.value.reading)
+      up.retarget(home.value.reading, home.value.branch)
       return
     }
 
@@ -294,16 +297,24 @@ export const start = (): void => {
       Effect.map((chosen) => {
         view = chosen
 
-        const here = window.location.href
-        const promise = intendedPath(window)
-        forgetIntent(window)
+        const arrive = () => {
+          const here = window.location.href
+          const promise = intendedPath(window)
+          forgetIntent(window)
 
-        if (Option.isSome(repoHomeIn(here))) show(here)
-        else if (promise !== null) {
-          const asked = new URL(promise, window.location.origin).toString()
-          if (Option.isSome(repoHomeIn(asked))) show(asked)
-          else reveal(document)
-        } else reveal(document)
+          if (Option.isSome(repoHomeIn(here))) show(here)
+          else if (promise !== null) {
+            const asked = new URL(promise, window.location.origin).toString()
+            if (Option.isSome(repoHomeIn(asked))) show(asked)
+            else reveal(document)
+          } else reveal(document)
+        }
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", arrive, { once: true })
+        } else {
+          arrive()
+        }
       })
     )
   )

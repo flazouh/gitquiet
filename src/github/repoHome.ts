@@ -14,10 +14,21 @@
  */
 
 import { Effect, Option } from "effect"
-import type { About, Entry, Front, Kind, Starring, Touch, TouchWho, Welcome } from "../domain/repoHome"
-import { footingOf, inReadingOrder } from "../domain/repoHome"
+import type {
+  About,
+  Entry,
+  Front,
+  Kind,
+  RepoHome,
+  Starring,
+  Touch,
+  TouchWho,
+  Welcome
+} from "../domain/repoHome"
+import { footingOf, inReadingOrder, repoHomeIn } from "../domain/repoHome"
 import { plainText } from "./plainText"
 import {
+  CodeViewLocation,
   LatestCommitRoute,
   RepoAbout,
   RepoFooting,
@@ -35,6 +46,7 @@ import { maybeAmong, whereverAmong, whereverItIs } from "./wherever"
  * panel, and a reader treated as a Caller, which is the safe way round.
  */
 export const findTheTree = whereverAmong(RepoTree)
+const findTheLocation = maybeAmong(CodeViewLocation)
 export const findTheAbout = maybeAmong(RepoAbout)
 export const findTheFooting = maybeAmong(RepoFooting)
 export const decodeTreeCommitInfo = whereverItIs(TreeCommitInfoRoute)
@@ -159,6 +171,55 @@ export const frontFrom = (
  * markup the browser has already parsed once.
  */
 const EMBEDDED = 'react-app[app-name="code-view"] script[type="application/json"]'
+
+const unescaped = (segment: string): string =>
+  Option.getOrElse(Option.liftThrowable(decodeURIComponent)(segment), () => segment)
+
+/**
+ * A repository address with GitHub's resolved branch and path.
+ *
+ * The URL alone cannot separate `feat/x` from `feat` plus `x/file.ts`. GitHub
+ * already resolved that choice in the code-view payload, so this reads the
+ * answer from the loaded document and keeps the URL parser as the fallback.
+ */
+export const repoHomeInDocument = (url: string, doc: Document): Option.Option<RepoHome> => {
+  const parsed = repoHomeIn(url)
+  if (Option.isNone(parsed) || parsed.value.branch === null) return parsed
+
+  const script = doc.querySelector(EMBEDDED)
+  if (script === null) return parsed
+
+  const raw = Option.liftThrowable(JSON.parse)(script.textContent ?? "")
+  if (Option.isNone(raw)) return parsed
+
+  const location = findTheLocation([raw.value])
+  if (Option.isNone(location)) return parsed
+
+  const sameRepo =
+    location.value.repo.ownerLogin.toLowerCase() === parsed.value.repo.owner.toLowerCase() &&
+    location.value.repo.name.toLowerCase() === parsed.value.repo.repo.toLowerCase()
+  if (!sameRepo) return parsed
+
+  const address = URL.parse(url)
+  if (address === null) return parsed
+
+  const routeTail = address.pathname
+    .split("/")
+    .filter((part) => part.length > 0)
+    .slice(3)
+    .map(unescaped)
+    .join("/")
+  const resolvedTail = [location.value.refInfo.name, location.value.path]
+    .filter((part) => part.length > 0)
+    .join("/")
+  if (routeTail !== resolvedTail) return parsed
+
+  return Option.some({
+    repo: parsed.value.repo,
+    branch: location.value.refInfo.name,
+    reading: location.value.path === "" ? null : location.value.path
+  })
+}
 
 /**
  * The front page out of the document the reader is already looking at.
