@@ -9,9 +9,10 @@ import {
 import { loadWorkingSet, rememberedWorkingSet } from "../../../src/app/workingSet"
 import type { RowDoing } from "../../../src/domain/doable"
 import type { PullRequestRef } from "../../../src/domain/PullRequestRef"
+import { THE_DASHBOARD } from "../../../src/domain/pages"
 import type { Sitting } from "../../../src/domain/sittings"
 import { WorkingSetScreen } from "../../../src/ui/WorkingSetScreen"
-import { pressed } from "./following"
+import { pressed, THEIRS } from "./following"
 import { askForRows, gatewayFrom } from "./gateway"
 import { keepRows, keptRows } from "./kept"
 import { openOutside } from "./outside"
@@ -111,13 +112,20 @@ export const WorkingSet = ({
      */}
     <div
       onClick={(event) => {
-        // Already dealt with by the rule that keeps links out of this window: an
-        // outward link was opened outside before this ran, and opening it again
-        // here would give the reader two tabs for one press.
-        if (event.defaultPrevented) return
-
         const what = pressed(event.target, event.nativeEvent)
         if (what.at === "nothing") return
+
+        /*
+         * Outward links are already dealt with by the rule that keeps every link out
+         * of this window: it opened one before this ran, and opening it again would
+         * give the reader two tabs for one press.
+         *
+         * Only that arm. Every press on an anchor arrives here stopped now — the rule
+         * above stops the webview before it works out where the link went — and a
+         * guard that read the stopping as "somebody has dealt with this" was a guard
+         * that stopped opening cards.
+         */
+        if (what.at === "browser" && event.defaultPrevented) return
 
         event.preventDefault()
         if (what.at === "card") onOpen(what.reference)
@@ -155,7 +163,7 @@ export const WorkingSet = ({
          * above — a button in the corner of every window that did nothing at all.
          * The offer a window can keep is the browser, so that is the offer.
          */
-        onStepAside={() => openOutside("https://github.com/pulls")}
+        onStepAside={() => openOutside(`${THEIRS}${THE_DASHBOARD}`)}
         ask={askFor}
       />
     </div>

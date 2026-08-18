@@ -160,12 +160,14 @@ export type BarProps = {
   readonly behind?: ReadonlyArray<Row>;
   readonly onStepAside?: () => void;
   /**
-   * Whatever the shell keeps in the tray beside the inbox — in the extension, the way into the
-   * reader's settings.
+   * The way into the reader's own choices, which stands beside the inbox.
    *
    * A slot rather than the control itself, because the strip is drawn from what it is handed and
    * a settings sheet needs a store, a schema and somewhere to write. `TheBar` has all three and
    * this has none of them, which is the only reason the two are separate components.
+   *
+   * Filled on both hosts, unlike {@link tray}, which is what the surroundings add and a page
+   * leaves empty.
    */
   readonly corner?: ReactNode;
   /**
@@ -179,14 +181,14 @@ export type BarProps = {
    */
   readonly onHome?: () => void;
   /**
-   * Whatever the host keeps at the far end of the tray, past everything about the page.
+   * Whatever is around this bar keeps past everything about the page.
    *
    * The window's update and account, and nothing in a tab: a tab has no version of its
-   * own and its account is the browser's. Last in the row because the far corner is
-   * where every window on the machine keeps who is signed in, and because it is the one
-   * spot nothing in this strip can push along.
+   * own and its account is the browser's. Last in the row because that corner is where
+   * every window on the machine keeps who is signed in, and because it is the one spot
+   * nothing in this strip can push along. See `around.ts`.
    */
-  readonly far?: ReactNode;
+  readonly tray?: ReactNode;
 };
 
 /**
@@ -304,7 +306,7 @@ export const Bar = ({
   onStepAside,
   corner,
   onHome,
-  far,
+  tray,
 }: BarProps) => {
   const art = useArt();
   const Chevron = art["chevron-down"];
@@ -847,8 +849,8 @@ export const Bar = ({
           </button>
         )}
 
-        {/* And past all of it, whatever the host itself keeps here: see {@link far}. */}
-        {far}
+        {/* And past all of it, whatever is around this bar: see {@link tray}. */}
+        {tray}
       </div>
     </header>
   );

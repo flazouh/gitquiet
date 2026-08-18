@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { createRoot } from "react-dom/client"
 import type { PullRequestRef } from "../../../src/domain/PullRequestRef"
-import { type Host, HostProvider } from "../../../src/ui/host"
-import { WithinProvider } from "../../../src/ui/within"
+import { AroundProvider } from "../../../src/ui/around"
 import { ShapeProvider } from "../lib/shape-context"
 import type { Viewer } from "../shared/wire"
 import "./index.css"
@@ -105,33 +104,9 @@ const App = () => {
     }
   }, [])
 
-  const back = showing.at === "card" ? () => setShowing({ at: "list" }) : null
-
-  /*
-   * What this window answers about itself, for the bar the screens draw.
-   *
-   * Home, because in here the Working Set is a screen this window becomes rather
-   * than an address it goes to — the mark used to be a link to `/`, and following
-   * it unloaded the app. And the tray, because the update and the account are
-   * about the window rather than about anything on the screen, and this is the one
-   * strip that is on every screen.
-   */
-  const host = useMemo<Host>(
-    () => ({
-      home: () => setShowing({ at: "list" }),
-      tray: (
-        <>
-          {/* Drawn whether or not anybody is signed in, because an update is about
-              the app rather than about the reader. */}
-          <Update />
-          {who.at === "someone" && (
-            <Account viewer={who.viewer} onSignedOut={() => setWho({ at: "nobody" })} />
-          )}
-        </>
-      )
-    }),
-    [who]
-  )
+  /** The list, which is the screen this window goes back to and starts on. */
+  const theList = useCallback(() => setShowing({ at: "list" }), [])
+  const back = showing.at === "card" ? theList : null
 
   /*
    * Escape goes back, once nothing inside the card wants it.
@@ -225,15 +200,42 @@ const App = () => {
       */}
       <main className="page" hidden={!signedIn}>
         {signedIn && row !== null && (
-          <WithinProvider value={row}>
-            <HostProvider value={host}>
-              {showing.at === "card" ? (
-                <PullRequest reference={showing.reference} />
-              ) : (
-                <WorkingSet onOpen={(reference) => setShowing({ at: "card", reference })} />
-              )}
-            </HostProvider>
-          </WithinProvider>
+          /*
+           * What this window answers about itself, for the bar the screens draw.
+           *
+           * Home, because in here the Working Set is a screen this window becomes
+           * rather than an address it goes to — the mark used to be a link to `/`, and
+           * following it unloaded the app. The tray, because the update and the account
+           * are about the window rather than about anything on the screen, and this is
+           * the one strip that is on every screen.
+           *
+           * Written out on every render rather than held in a `useMemo`. The tray is a
+           * subtree, and a memoized subtree is a subtree React is entitled to skip: it
+           * works while both of those hold their own state and goes quietly stale the
+           * first time either takes a prop from this component.
+           */
+          <AroundProvider
+            value={{
+              within: row,
+              home: theList,
+              tray: (
+                <>
+                  {/* Drawn whether or not anybody is signed in, because an update is
+                      about the app rather than about the reader. */}
+                  <Update />
+                  {who.at === "someone" && (
+                    <Account viewer={who.viewer} onSignedOut={() => setWho({ at: "nobody" })} />
+                  )}
+                </>
+              )
+            }}
+          >
+            {showing.at === "card" ? (
+              <PullRequest reference={showing.reference} />
+            ) : (
+              <WorkingSet onOpen={(reference) => setShowing({ at: "card", reference })} />
+            )}
+          </AroundProvider>
         )}
       </main>
     </Supplied>

@@ -19,6 +19,16 @@ import type { PullRequestRef } from "../../../src/domain/PullRequestRef"
 const PULL = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:$|[/#?])/
 
 /**
+ * Where a path written in this window means, which is never this window.
+ *
+ * The interface above is written for a page of GitHub's, so a path in it is a path on
+ * theirs. This webview's own origin is a build directory, so anything resolved against
+ * it is a file that has never existed. Named once, because two files resolve against it
+ * and a reader has to be able to see that they agree — see `theirPage.ts`.
+ */
+export const THEIRS = "https://github.com"
+
+/**
  * The pull request an address names, if it names one.
  *
  * Read from the path rather than matched against the whole string, so a link to a
@@ -29,7 +39,7 @@ export const pullRequestAt = (href: string): PullRequestRef | null => {
   let path: string
 
   try {
-    const url = new URL(href, "https://github.com")
+    const url = new URL(href, THEIRS)
     // Anything that is not GitHub is somebody's own link in a description, and
     // following it is the browser's business rather than this window's.
     if (url.hostname !== "github.com") return null

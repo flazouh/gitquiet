@@ -17,7 +17,7 @@ import { RendererProvider } from "../src/ui/renderer"
 import { SettingsProvider } from "../src/ui/settings"
 import { Theme } from "../src/ui/Theme"
 import { Toasts } from "../src/ui/Toasts"
-import { WithinProvider } from "../src/ui/within"
+import { AroundProvider } from "../src/ui/around"
 
 /**
  * What the stage can answer, where `shell/supplied.tsx` answers for a page on
@@ -177,13 +177,16 @@ export const Supplied = ({
 
   return (
     /*
-     * `WithinProvider` for the same reason the theme takes an element: given one, the
+     * `AroundProvider` for the same reason the theme takes an element: given one, the
      * screen keeps its chrome inside it. The bar is what needs telling. It is portalled
      * rather than rendered in place, and left to itself it goes to the top of the
      * window, which on a page with twelve screens down a column is eleven bars in the
      * wrong place and one across the headline.
+     *
+     * The element and nothing else, which is what a page means: Home is an address here
+     * as it is on GitHub, and a page keeps nothing of its own in the tray.
      */
-    <WithinProvider value={element}>
+    <AroundProvider value={{ within: element }}>
     <RegistryProvider registry={AtomRegistry.make()}>
       <SettingsProvider store={store}>
         <Theme scope={element === undefined ? "document" : "root"} element={element}>
@@ -199,6 +202,6 @@ export const Supplied = ({
         </Theme>
       </SettingsProvider>
     </RegistryProvider>
-    </WithinProvider>
+    </AroundProvider>
   )
 }

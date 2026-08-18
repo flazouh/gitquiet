@@ -46,17 +46,24 @@ export const keepLinksOutside = (): void => {
       const href = anchor.getAttribute("href")
       if (href === null) return
 
-      const absolute = theirPage(
-        href,
-        anchor instanceof HTMLAnchorElement ? anchor.href : undefined
-      )
-      if (absolute === null) return
+      const meant = theirPage(href, anchor instanceof HTMLAnchorElement ? anchor.href : undefined)
+      if (meant.at === "nowhere") return
 
-      // Never let the webview navigate. Where the app can show the destination,
-      // stop here and leave the press for its handler; otherwise open outside.
+      /*
+       * Stopped first, and stopped whatever it turns out to mean.
+       *
+       * The one invariant in here is that the webview never navigates, and the way to
+       * hold it is to answer that question before asking any other. It used to be
+       * answered last, after this rule had worked out where the link goes, so a link
+       * it could not place was a link it did not stop.
+       */
       event.preventDefault()
+      if (meant.at === "inside") return
+
+      // A commit is a page of theirs the card can draw, so the press is left for the
+      // panel rather than sent to a browser the reader did not ask for.
       if (
-        opensInside(absolute, {
+        opensInside(meant.url, {
           metaKey: event.metaKey,
           ctrlKey: event.ctrlKey,
           shiftKey: event.shiftKey,
@@ -67,7 +74,7 @@ export const keepLinksOutside = (): void => {
         return
       }
 
-      openOutside(absolute)
+      openOutside(meant.url)
     },
     { capture: true }
   )

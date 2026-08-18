@@ -8,8 +8,8 @@ import type { Repository } from "../domain/repositories";
 import { keepTabs, keptTabs } from "../github/repoTabs";
 import { type ArtName } from "./art";
 import { Bar, type BarProps } from "./Bar";
+import { useAround } from "./around";
 import { goBack, goBackTo, goForward, theTrail, watchTheTrail } from "./going";
-import { useHost } from "./host";
 import { keepTheBarSlot, theBarSlot, theBarStands } from "./barSlot";
 import { keepRepositories, keptRepositories } from "./keptRepositories";
 import { Palette } from "./Palette";
@@ -21,7 +21,6 @@ import { useSettings } from "./useSettings";
 import { tabMark } from "./tabMarks";
 import { participantOnPage } from "./viewer";
 import { visited, visiting } from "./visited";
-import { useWithin } from "./within";
 import {
   readingTheCode,
   repositoryTabs,
@@ -72,16 +71,12 @@ export const TheBar = ({
   >;
 }) => {
   /*
-   * The page, unless something told this screen it is inside an element.
-   *
-   * Nothing in the extension does, so `within` is `undefined` there and the slot is the
-   * page's one sticky bar as before. See `within.ts` for who does and why.
+   * Whatever is around this screen, which in the extension is a page and answers none
+   * of it: no element to stand in, Home an address, and nothing of its own in the
+   * tray. See `around.ts` for who answers otherwise and why.
    */
-  const within = useWithin();
-  const slot = useMemo(() => theBarSlot(document, within), [within]);
-  /* Whatever the thing around this screen answers for itself: a window answers two
-     things, a page answers neither. See `host.tsx`. */
-  const host = useHost();
+  const around = useAround();
+  const slot = useMemo(() => theBarSlot(document, around.within), [around.within]);
   const drawing = useOursToDraw();
   /*
    * The reader's own choices, read here so the way into them can stand in the strip.
@@ -129,8 +124,8 @@ export const TheBar = ({
     // The pane's glass is a filter, and a filter has to be in the document to be referenced from
     // one. See `refraction.ts`; the stylesheet asks for it by name in `glass.css`.
     keepRefraction(document);
-    return keepTheBarSlot(document, slot, within);
-  }, [slot, within]);
+    return keepTheBarSlot(document, slot, around.within);
+  }, [slot, around.within]);
 
   /*
    * A list handed straight in is the freshest one this bar ever sees: Home and the
@@ -363,14 +358,14 @@ export const TheBar = ({
         )}
         corner={<SettingsDialog settings={settings} onChange={change} />}
         /*
-         * The two things the host knows and this does not: what Home means where it is
-         * not an address, and what the host itself keeps in the corner. Both are absent
-         * on a page, which is why they are read here rather than taken as props — every
-         * screen in the extension would have had to carry two it never fills. See
-         * `host.tsx`.
+         * The two things the surroundings know and this does not: what Home means where
+         * it is not an address, and what they keep past everything about the page. Both
+         * are absent on a page, which is why they are read here rather than taken as
+         * props — every screen in the extension would have had to carry two it never
+         * fills. See `around.ts`.
          */
-        onHome={host.home}
-        far={host.tray}
+        onHome={around.home}
+        tray={around.tray}
       />
       {finding ? (
         <Palette

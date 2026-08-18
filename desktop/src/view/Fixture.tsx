@@ -8,7 +8,7 @@ import type { Shot } from "../../../src/ui/onboarding/beats"
 import { Held } from "../../../src/ui/onboarding/Held"
 import { SettingsProvider } from "../../../src/ui/settings"
 import { Theme } from "../../../src/ui/Theme"
-import { WithinProvider } from "../../../src/ui/within"
+import { AroundProvider } from "../../../src/ui/around"
 
 /**
  * The screens the onboarding shows, running, under the same fixture data the site's own
@@ -53,25 +53,29 @@ const LIGHT = forgetful({
  * the markdown painter and the toaster are all already provided above this point, and
  * answering them again would fetch a second copy of a four-megabyte renderer.
  *
- * `WithinProvider` is the one of these three that is not about looks. Every screen
- * portals its bar rather than drawing it in place, and left to itself that portal goes to
- * the top of the document — which here is the window's title bar, over the region macOS
- * needs in order to let anybody move the window. Told this element, the bar stays inside
- * the panel.
+ * The element is the one of these three that is not about looks. Every screen portals its
+ * bar rather than drawing it in place, and left to itself that portal goes to the top of
+ * the document — which here is the window's title bar, over the region macOS needs in
+ * order to let anybody move the window. Told this element, the bar stays inside the panel.
+ *
+ * Told nothing else, on purpose. Home stays the link it is on a page and the tray stays
+ * empty, because this is a picture of the window rather than the window: there is no
+ * reader signed in yet to draw an avatar for, and nothing in a picture is pressed — see
+ * `onboarding.css`.
  */
 export const Fixture = ({ shot }: { readonly shot: Shot }) => {
   const view = VIEWS[shot]
 
   return (
     <Held view={view}>
-      {(host) => (
-        <WithinProvider value={host}>
+      {(panel) => (
+        <AroundProvider value={{ within: panel }}>
           <SettingsProvider store={LIGHT}>
-            <Theme scope="root" element={host}>
+            <Theme scope="root" element={panel}>
               {view.draw()}
             </Theme>
           </SettingsProvider>
-        </WithinProvider>
+        </AroundProvider>
       )}
     </Held>
   )

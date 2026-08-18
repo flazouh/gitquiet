@@ -829,8 +829,8 @@ describe("the chip that says whose page this is", () => {
 })
 
 /*
- * The two things the bar cannot work out for itself, which the thing around it
- * answers: see `host.tsx`. A page answers neither, and everything above is that
+ * The two things the bar cannot work out for itself, which whatever is around it
+ * answers: see `around.ts`. A page answers neither, and everything above is that
  * page.
  */
 describe("the bar, in a window rather than in a tab", () => {
@@ -864,7 +864,7 @@ describe("the bar, in a window rather than in a tab", () => {
       <Bar
         where={{ kind: "home" }}
         onStepAside={() => undefined}
-        far={<button type="button">Signed in as flazouh</button>}
+        tray={<button type="button">Signed in as flazouh</button>}
       />
     )
 
