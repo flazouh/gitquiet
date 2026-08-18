@@ -458,13 +458,17 @@ export type DescriptionRoute = typeof DescriptionRoute["Type"]
  * an empty default branch has no `refInfo` worth reading, and a repository nobody
  * has starred still has to draw.
  */
-export const CodeViewLocation = Schema.Struct({
+const CodeViewLocationFields = {
   path: Schema.String,
   refInfo: Schema.Struct({
     name: Schema.String
-  }),
-  blob: Schema.Unknown
-})
+  })
+}
+
+export const CodeViewLocation = Schema.Union([
+  Schema.Struct({ ...CodeViewLocationFields, blob: Schema.Unknown }),
+  Schema.Struct({ ...CodeViewLocationFields, tree: Schema.Unknown })
+])
 
 export type CodeViewLocation = typeof CodeViewLocation["Type"]
 

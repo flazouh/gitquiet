@@ -482,8 +482,8 @@ const Paper = ({
   )
 
 type Read = {
-  /** The file this answer is about, so a late one for another file is ignored. */
-  readonly of: string | null
+  /** The branch and file this answer is about, so another answer is ignored. */
+  readonly of: { readonly branch: string; readonly path: string } | null
   readonly file: Opened | undefined
   readonly failed: boolean
 }
@@ -520,10 +520,10 @@ const useOpened = (
       shelf.ask(branch, reading).pipe(
         Effect.match({
           onSuccess: (file) => {
-            if (wanted) setArrived({ of: reading, file, failed: false })
+            if (wanted) setArrived({ of: { branch, path: reading }, file, failed: false })
           },
           onFailure: () => {
-            if (wanted) setArrived({ of: reading, file: undefined, failed: true })
+            if (wanted) setArrived({ of: { branch, path: reading }, file: undefined, failed: true })
           }
         })
       )
@@ -535,8 +535,10 @@ const useOpened = (
   }, [reading, branch, shelf])
 
   if (reading === null) return NOTHING
-  if (held !== undefined) return { of: reading, file: held, failed: false }
-  return arrived.of === reading ? arrived : NOTHING
+  if (held !== undefined && branch !== undefined) {
+    return { of: { branch, path: reading }, file: held, failed: false }
+  }
+  return arrived.of?.branch === branch && arrived.of?.path === reading ? arrived : NOTHING
 }
 
 /**

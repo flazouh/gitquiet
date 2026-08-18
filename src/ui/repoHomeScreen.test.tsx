@@ -159,6 +159,41 @@ describe("a repository's front page", () => {
     })
   })
 
+  test("does not show the same path from a branch read earlier", async () => {
+    const load = () => Effect.succeed(front("keeper"))
+    const shelf: Shelf = {
+      ask: (branch, path) =>
+        branch === "branch-a"
+          ? Effect.succeed({
+              path,
+              lines: ["from branch A"],
+              rendered: Option.some("<p>from branch A</p>")
+            })
+          : Effect.never,
+      held: () => undefined,
+      warm: () => {}
+    }
+    const reading = "notes.md"
+    const view = showing(load, { reading, readingBranch: "branch-a", shelf })
+
+    expect(await screen.findByText("from branch A")).toBeTruthy()
+
+    view.rerender(
+      <RepoHomeScreen
+        repo={{ owner: "flowline-labs", repo: "flowline" }}
+        load={load}
+        onStepAside={() => {}}
+        signedIn={() => true}
+        reading={reading}
+        readingBranch="branch-b"
+        shelf={shelf}
+      />
+    )
+
+    expect(await screen.findByText("Reading this file…")).toBeTruthy()
+    expect(screen.queryByText("from branch A")).toBeNull()
+  })
+
   test("offers the other branches from that control rather than only naming this one", async () => {
     showing(() => Effect.succeed(front("caller")))
 

@@ -274,14 +274,21 @@ describe("what survives the store", () => {
   })
 })
 
-const codeViewDocument = (branch: string, path: string): Document => {
+const embeddedDocument = (raw: unknown): Document => {
   const page = document.implementation.createHTMLDocument()
   const app = page.createElement("react-app")
   app.setAttribute("app-name", "code-view")
 
   const script = page.createElement("script")
   script.type = "application/json"
-  script.textContent = JSON.stringify({
+  script.textContent = JSON.stringify(raw)
+  app.append(script)
+  page.body.append(app)
+  return page
+}
+
+const codeViewDocument = (branch: string, path: string): Document =>
+  embeddedDocument({
     payload: {
       codeViewLayoutRoute: {
         path,
@@ -295,28 +302,35 @@ const codeViewDocument = (branch: string, path: string): Document => {
       }
     }
   })
-  app.append(script)
-  page.body.append(app)
-  return page
-}
 
 describe("a repository address resolved by GitHub", () => {
   test("reads the location from GitHub's recorded blob payload", () => {
-    const page = document.implementation.createHTMLDocument()
-    const app = page.createElement("react-app")
-    app.setAttribute("app-name", "code-view")
-    const script = page.createElement("script")
-    script.type = "application/json"
-    script.textContent = JSON.stringify(code)
-    app.append(script)
-    page.body.append(app)
-
     expect(
-      Option.getOrNull(repoHomeInDocument("https://github.com/react/react/blob/main/package.json", page))
+      Option.getOrNull(
+        repoHomeInDocument(
+          "https://github.com/react/react/blob/main/package.json",
+          embeddedDocument(code)
+        )
+      )
     ).toEqual({
       repo: { owner: "react", repo: "react" },
       branch: "main",
       reading: "package.json"
+    })
+  })
+
+  test("reads a root tree from GitHub's recorded repository payload", () => {
+    expect(
+      Option.getOrNull(
+        repoHomeInDocument(
+          "https://github.com/flazouh/githubpro/tree/main",
+          embeddedDocument(payload)
+        )
+      )
+    ).toEqual({
+      repo: { owner: "flazouh", repo: "githubpro" },
+      branch: "main",
+      reading: null
     })
   })
 

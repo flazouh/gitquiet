@@ -214,7 +214,8 @@ export const repoHomeInDocument = (url: string, doc: Document): Option.Option<Re
     .slice(3)
     .map(unescaped)
     .join("/")
-  const resolvedTail = [location.value.refInfo.name, location.value.path]
+  const resolvedPath = location.value.path === "/" ? "" : location.value.path
+  const resolvedTail = [location.value.refInfo.name, resolvedPath]
     .filter((part) => part.length > 0)
     .join("/")
   if (routeTail !== resolvedTail) return Option.none()
@@ -222,7 +223,7 @@ export const repoHomeInDocument = (url: string, doc: Document): Option.Option<Re
   return Option.some({
     repo: parsed.value.repo,
     branch: location.value.refInfo.name,
-    reading: location.value.path === "" ? null : location.value.path
+    reading: resolvedPath === "" ? null : resolvedPath
   })
 }
 
