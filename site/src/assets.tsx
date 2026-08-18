@@ -147,7 +147,7 @@ const Marquee = () => (
             color: INK
           }}
         >
-          GitHub is where your work lives. GitQuiet is where you do it.
+          GitQuiet is the fastest and quietest way to work on GitHub.
         </p>
       </div>
       <div style={{ position: "relative", height: 460 }}>
@@ -277,7 +277,7 @@ const SocialCard = () => (
             color: INK
           }}
         >
-          A faster, quieter GitHub.
+          Less to hold in your head.
         </p>
         <p
           style={{
@@ -289,7 +289,7 @@ const SocialCard = () => (
             color: MUTED
           }}
         >
-          GitHub is where your work lives. GitQuiet is where you do it.
+          GitQuiet is the fastest and quietest way to work on GitHub.
         </p>
       </div>
       <div style={{ position: "relative", overflow: "hidden" }}>

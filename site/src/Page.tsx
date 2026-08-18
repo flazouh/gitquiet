@@ -195,12 +195,11 @@ export const Page = () => (
 
         <div className="pb-44 pt-12 sm:pt-20">
           <h1 className="m-0 max-w-4xl text-balance text-[clamp(2.5rem,7vw,4.5rem)] font-semibold leading-[1.02] tracking-[-0.04em]">
-            A faster, quieter GitHub.
+            Less to hold in your head.
           </h1>
 
           <p className="mt-7 max-w-xl text-pretty text-[clamp(1.05rem,2.2vw,1.3rem)] leading-relaxed text-ink/70">
-            GitHub is where your work lives. GitQuiet is where you do it. Everything you are
-            in arrives in one list, and the first group is what needs you.
+            GitQuiet is the fastest and quietest way to work on GitHub.
           </p>
 
           <div className="mt-10 flex flex-wrap items-center gap-5">

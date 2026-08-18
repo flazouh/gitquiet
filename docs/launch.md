@@ -48,7 +48,7 @@ Show HN: GitQuiet, a different place to do your GitHub work
 **Body**
 
 ```
-Hi HN. GitHub is where my work lives and GitQuiet is where I do it. There is
+Hi HN. GitQuiet is the fastest and quietest way to work on GitHub. There is
 no account and no server of mine: it uses the GitHub session you already have,
 and your code and reviews stay in your browser. Every review, comment and merge
 goes back through GitHub, so a colleague who has never installed it sees your
@@ -142,7 +142,7 @@ Answer every real reply after that, which is where the long tail comes from.
 ```
 Introducing GitQuiet
 
-GitHub is where your work lives. GitQuiet is where you do it.
+GitQuiet is the fastest and quietest way to work on GitHub.
 
 - Every PR you're in, in one list: Needs You / Waiting / Running / Settled
 - Opens on the URLs you already use, and in its own window soon
