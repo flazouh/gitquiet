@@ -148,40 +148,53 @@ describe("a card, built from what the main process read", () => {
     expect(thread?.comments[0]?.author.faceUrl).toEqual(Option.none())
   })
 
+  /**
+   * The merge box, as an answer rather than as a fact.
+   *
+   * `Option` on the way across because the screen reads it as one: the extension
+   * gets this from a route of GitHub's that can fail on its own, and None is how it
+   * says nobody told us. This window's wire carries the merge with the card or
+   * carries neither, so what it hands over is always an answer — but it has to be
+   * shaped like one, and it once was not. A plain state where an `Option` was
+   * expected read as None with a value inside it, and the screen threw on the first
+   * field it took out: every pull request opened in this window was a blank page.
+   */
+  const mergeIn = (some: Partial<CardFacts> = {}) =>
+    Option.getOrThrow(snapshotFrom(reference, facts(some)).merge)
+
+  it("hands the merge box over as an answer, which is what the screen reads", () => {
+    expect(Option.isSome(snapshotFrom(reference, facts()).merge)).toBe(true)
+    expect(Option.isSome(snapshotFrom(reference, facts()).reviews)).toBe(true)
+  })
+
   it("offers the merge when GitHub says it would take one", () => {
-    const clean = snapshotFrom(reference, facts()).merge
+    const clean = mergeIn()
     expect(clean.isMergeable).toBe(true)
     expect(clean.blockers).toEqual([])
     expect(clean.update).toEqual(Option.none())
   })
 
   it("counts only the required checks into what is holding it", () => {
-    const merge = snapshotFrom(
-      reference,
-      facts({
-        merge: { ...facts().merge, status: "UNSTABLE" },
-        checks: [
-          { name: "build", state: "failed", isRequired: true, summary: "", url: "", durationSeconds: 3 },
-          { name: "lint", state: "failed", isRequired: false, summary: "", url: "", durationSeconds: 1 }
-        ]
-      })
-    ).merge
+    const merge = mergeIn({
+      merge: { ...facts().merge, status: "UNSTABLE" },
+      checks: [
+        { name: "build", state: "failed", isRequired: true, summary: "", url: "", durationSeconds: 3 },
+        { name: "lint", state: "failed", isRequired: false, summary: "", url: "", durationSeconds: 1 }
+      ]
+    })
 
     expect(merge.blockers.map((one) => one.name)).toEqual(["A check has not passed"])
   })
 
   it("offers to catch a branch up only while it is behind", () => {
-    const merge = snapshotFrom(
-      reference,
-      facts({
-        merge: {
-          ...facts().merge,
-          status: "BEHIND",
-          mayUpdateBranch: false,
-          whyNotUpdate: ["INSUFFICIENT_ACCESS"]
-        }
-      })
-    ).merge
+    const merge = mergeIn({
+      merge: {
+        ...facts().merge,
+        status: "BEHIND",
+        mayUpdateBranch: false,
+        whyNotUpdate: ["INSUFFICIENT_ACCESS"]
+      }
+    })
 
     const update = Option.getOrThrow(merge.update)
     expect(update.how).toBe("MERGE")
@@ -191,17 +204,14 @@ describe("a card, built from what the main process read", () => {
   })
 
   it("draws a queue only where the repository has one", () => {
-    expect(snapshotFrom(reference, facts()).merge.queue).toEqual(Option.none())
+    expect(mergeIn().queue).toEqual(Option.none())
 
-    const queued = snapshotFrom(
-      reference,
-      facts({
-        merge: {
-          ...facts().merge,
-          queue: { waiting: true, position: 3, mayQueue: true, url: "https://github.com/queue" }
-        }
-      })
-    ).merge
+    const queued = mergeIn({
+      merge: {
+        ...facts().merge,
+        queue: { waiting: true, position: 3, mayQueue: true, url: "https://github.com/queue" }
+      }
+    })
 
     const queue = Option.getOrThrow(queued.queue)
     expect(queue.waiting).toBe(true)
@@ -214,6 +224,15 @@ describe("a card, built from what the main process read", () => {
    * says the merge state moved; there is no page here to get them from.
    */
   it("has no live channels to listen on", () => {
-    expect(snapshotFrom(reference, facts()).merge.channels).toEqual([])
+    expect(mergeIn().channels).toEqual([])
+  })
+
+  /*
+   * A stack is one of GitHub's private routes, and the window reads the documented
+   * API. None rather than an empty chain: the panel that draws it asks whether there
+   * is a stack, and an empty one is a stack of no layers, which no pull request is in.
+   */
+  it("knows of no stack, the route that answers that not being a documented one", () => {
+    expect(mergeIn().stack).toEqual(Option.none())
   })
 })

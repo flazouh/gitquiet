@@ -192,7 +192,16 @@ const mergeOf = (facts: CardFacts): MergeState => {
      * other side of this wire, where every other conclusion about merging is
      * drawn.
      */
-    method: Option.some("SQUASH")
+    method: Option.some("SQUASH"),
+    /*
+     * The stack, which GitHub keeps and only their own routes report.
+     *
+     * None rather than a chain of one layer: what reads this asks whether a press
+     * would land more than this pull request, and a stack this window invented would
+     * answer yes about pull requests nobody stacked. The window merges one at a time
+     * until the documented API grows a way to say otherwise.
+     */
+    stack: Option.none()
   }
 }
 
@@ -212,6 +221,20 @@ export const snapshotFrom = (
   headBranch: facts.headBranch,
   headSha: facts.headSha,
   baseSha: facts.baseSha,
+  /*
+   * Nothing to do with the branch after the fact, because nothing on this wire says.
+   *
+   * Both false is the ordinary reading rather than a gap: a repository that deletes
+   * its head branches on merge has already done it, and a branch on somebody else's
+   * fork was never this reader's to touch. What it costs is the pair of buttons on a
+   * merged pull request, and the alternative is offering a press that fails.
+   */
+  headRef: { mayDelete: false, mayRestore: false },
+  /*
+   * And no stack GitHub would offer to make out of this one. Their preview route is
+   * private, and this window reads the documented API.
+   */
+  proposal: Option.none(),
   viewer: {
     login: facts.viewerLogin,
     lastReviewPoint: Option.fromNullishOr(facts.lastReviewPoint)
@@ -238,9 +261,20 @@ export const snapshotFrom = (
       durationSeconds: check.durationSeconds
     })
   ),
-  reviews: facts.reviews.map(
-    (one): Review => ({ reviewer: faceOf(one.reviewer), decision: one.decision })
+  /*
+   * The verdicts and the merge box, as answers rather than as facts.
+   *
+   * Both are `Option` on the screen, and both are `Some` here, which is not the same
+   * statement twice. On GitHub's page they arrive on one private route that can fail
+   * on its own, and None is how the screen is told nobody said. This wire carries
+   * them with the card or carries no card at all, so there is always an answer — and
+   * it has to be shaped like one. Handed over bare, a plain state read as None with
+   * a value inside it, and the screen threw on the first field it took out: every
+   * pull request opened in this window was a blank page.
+   */
+  reviews: Option.some(
+    facts.reviews.map((one): Review => ({ reviewer: faceOf(one.reviewer), decision: one.decision }))
   ),
-  merge: mergeOf(facts)
+  merge: Option.some(mergeOf(facts))
 })
 

@@ -53,10 +53,13 @@ const through = <A, E>(work: Effect.Effect<A, E, GitHubGateway>) =>
  * Read off the snapshot rather than chosen: a repository that forbids rebasing has
  * said so, and asking for one anyway is a refusal the reader did not need.
  */
-const howToCatchUp = (snapshot: PullRequestSnapshot | null): "MERGE" | "REBASE" => {
-  const update = snapshot?.merge.update
-  return update !== undefined && Option.isSome(update) ? update.value.how : "MERGE"
-}
+const howToCatchUp = (snapshot: PullRequestSnapshot | null): "MERGE" | "REBASE" =>
+  Option.match(
+    Option.flatMap(Option.fromNullishOr(snapshot), (read) =>
+      Option.flatMap(read.merge, (merge) => merge.update)
+    ),
+    { onNone: () => "MERGE", onSome: (update) => update.how }
+  )
 
 export const PullRequest = ({ reference }: { readonly reference: PullRequestRef }) => {
   /*
