@@ -857,6 +857,48 @@ describe("the bar, in a window rather than in a tab", () => {
     expect(screen.getByLabelText("Home").getAttribute("href")).toBe("/")
   })
 
+  test("presses the tab that lists pull requests, since that list is a screen in here", async () => {
+    /*
+     * It stood over a card as the way back up to the list, and it was an anchor: pressed
+     * in the window it opened the reader's browser at GitHub's own list of pull requests
+     * while the app's list was the screen directly behind it.
+     */
+    let went = 0
+    render(
+      <Bar
+        where={{ kind: "repository", owner: "flazouh", repo: "gitquiet" }}
+        tabs={[
+          { name: "Pull requests", href: "/flazouh/gitquiet/pulls", here: false },
+          { name: "Issues", href: "/flazouh/gitquiet/issues", here: false }
+        ]}
+        onHome={() => (went += 1)}
+      />
+    )
+
+    const list = screen.getByRole("button", { name: /Pull requests/ })
+    await userEvent.click(list)
+    expect(went).toBe(1)
+
+    /* And Issues stays a link, because a repository's issues are a page and nothing in
+       this window draws one. */
+    expect(screen.getByRole("link", { name: /Issues/ }).getAttribute("href")).toBe(
+      "/flazouh/gitquiet/issues"
+    )
+  })
+
+  test("keeps that tab a link on a page, where the list is an address", () => {
+    render(
+      <Bar
+        where={{ kind: "repository", owner: "flazouh", repo: "gitquiet" }}
+        tabs={[{ name: "Pull requests", href: "/flazouh/gitquiet/pulls", here: false }]}
+      />
+    )
+
+    expect(screen.getByRole("link", { name: /Pull requests/ }).getAttribute("href")).toBe(
+      "/flazouh/gitquiet/pulls"
+    )
+  })
+
   test("holds the window's own controls past everything about the page", () => {
     // The update and the account, which stood in a strip of their own above this one
     // until that strip became this row. Last in the tray, where a window keeps them.

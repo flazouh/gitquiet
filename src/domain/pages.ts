@@ -32,6 +32,21 @@ export const isDashboard = (path: string): boolean =>
 export const THE_DASHBOARD = "/pulls";
 
 /**
+ * Whether an address is a list of pull requests: theirs across everything, or a
+ * repository's own.
+ *
+ * Asked by a host that has a list of its own and no page to navigate to. In the
+ * window there is one webview and two screens, so the tab reading "Pull requests"
+ * over a card was an anchor to a page — pressed, it opened the reader's browser at
+ * a list of pull requests while a list of pull requests was the screen behind it.
+ *
+ * Not `/owner/repo/pull/42`, which is one of them rather than a list, and not
+ * `/pullsomething` either.
+ */
+export const listsPullRequests = (path: string): boolean =>
+  isDashboard(path) || /^\/[^/]+\/[^/]+\/pulls(\/|$)/.test(path);
+
+/**
  * The home dashboard: the root of the site, and the alias GitHub serves it under.
  *
  * Both, because they are the same page. `scripts/probe-home-dom.js` read the two

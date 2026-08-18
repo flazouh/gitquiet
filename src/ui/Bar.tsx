@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Option } from "effect";
-import { THE_HOME } from "../domain/pages";
+import { listsPullRequests, THE_HOME } from "../domain/pages";
 import { switchable, type Repository } from "../domain/repositories";
 import { useArt } from "./art";
 import { Cap } from "./Cap";
@@ -177,7 +177,7 @@ export type BarProps = {
    * reader is in a tab, and the Working Set has an address. In the window it is not one.
    * There is a single webview and no way back into it, so following `/` there replaced
    * the app with GitHub's own dashboard and left the reader inside a window with no
-   * address bar. See `host.tsx`.
+   * address bar. See `around.ts`.
    */
   readonly onHome?: () => void;
   /**
@@ -633,11 +633,23 @@ export const Bar = ({
         >
           {strip.map((one) => {
             const Mark = art[tabMark(one.name)];
+            /*
+             * The list of pull requests, where that is a screen rather than an address.
+             *
+             * In the window this tab stands over a card and read as the way back up to
+             * the list. It was an anchor, so it opened the reader's browser at GitHub's
+             * own list while the app's list was the screen directly behind it. Same
+             * destination as the mark in the corner, for the same reason: see
+             * `around.ts`, and `outside.ts` in the window's view.
+             */
+            const up =
+              onHome !== undefined && listsPullRequests(one.href) ? onHome : undefined;
 
             return (
-              <a
+              <Chip
                 key={one.href}
                 href={one.href}
+                press={up}
                 {...said(one.standing)}
                 /*
                  * Where the reader is, a step deeper than the grey the tab beside it takes
@@ -674,7 +686,7 @@ export const Bar = ({
                     {one.count}
                   </span>
                 )}
-              </a>
+              </Chip>
             );
           })}
 
@@ -857,6 +869,44 @@ export const Bar = ({
 };
 
 /**
+ * A thing in the strip that is an address on a page and a press in a window.
+ *
+ * The same statement `Ours` makes about Home, made once for the row of tabs beside it.
+ * A tab is a link and belongs in an anchor: on GitHub a reader opens it in a new tab,
+ * copies it, middle-clicks it, and the address is what says where it goes. In the
+ * window some of those destinations are screens rather than pages — there is one
+ * webview and nothing behind it — and an anchor to one of them sends the reader out to
+ * a browser for something they are already looking at.
+ *
+ * Given no press it is the anchor it has always been, which is every page.
+ */
+const Chip = ({
+  href,
+  press,
+  className,
+  children,
+  ...said
+}: {
+  readonly href: string;
+  readonly press?: (() => void) | undefined;
+  readonly className: string;
+  readonly children: ReactNode;
+} & { readonly "aria-current"?: "page" | "location" }) => {
+  if (press !== undefined)
+    return (
+      <button type="button" onClick={press} className={className} {...said}>
+        {children}
+      </button>
+    );
+
+  return (
+    <a href={href} className={className} {...said}>
+      {children}
+    </a>
+  );
+};
+
+/**
  * What stands where their logo stood, on every page rather than only on Home.
  *
  * A mark and nothing else. This said "Working Set — 4 yours" until the Rail below it was drawing
@@ -883,7 +933,7 @@ const Ours = ({
    * One drawing, two kinds of control, because the two hosts mean different things by
    * Home. On a page it is an address and belongs in an anchor: a reader opens it in a
    * new tab, copies it, middle-clicks it. In the window it is a screen this one becomes,
-   * there is no address to copy, and an anchor to `/` unloaded the app. See `host.tsx`.
+   * there is no address to copy, and an anchor to `/` unloaded the app. See `around.ts`.
    */
   const shape =
     "flex size-7 shrink-0 items-center justify-center rounded-md text-ink-muted no-underline hover:bg-hover hover:text-ink";
