@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Option } from "effect"
+import code from "../../fixtures/github/blob-code.json"
 import touches from "../../fixtures/github/repo-home-touches.json"
 import payload from "../../fixtures/github/repo-home.json"
 import { reParented } from "../../tests/reParented"
@@ -286,6 +287,11 @@ const codeViewDocument = (branch: string, path: string): Document => {
         path,
         refInfo: { name: branch },
         repo: { name: "ori", ownerLogin: "OpenRouterIncubator" }
+      },
+      codeViewBlobLayoutRoute: {
+        path,
+        refInfo: { name: branch },
+        blob: {}
       }
     }
   })
@@ -295,6 +301,25 @@ const codeViewDocument = (branch: string, path: string): Document => {
 }
 
 describe("a repository address resolved by GitHub", () => {
+  test("reads the location from GitHub's recorded blob payload", () => {
+    const page = document.implementation.createHTMLDocument()
+    const app = page.createElement("react-app")
+    app.setAttribute("app-name", "code-view")
+    const script = page.createElement("script")
+    script.type = "application/json"
+    script.textContent = JSON.stringify(code)
+    app.append(script)
+    page.body.append(app)
+
+    expect(
+      Option.getOrNull(repoHomeInDocument("https://github.com/react/react/blob/main/package.json", page))
+    ).toEqual({
+      repo: { owner: "react", repo: "react" },
+      branch: "main",
+      reading: "package.json"
+    })
+  })
+
   test("keeps a slash inside the branch instead of moving it into the file path", () => {
     const branch = "alexdepape/ori-harness-default"
     const path = "framework/engine/threads/src/service.ts"
@@ -307,20 +332,13 @@ describe("a repository address resolved by GitHub", () => {
     })
   })
 
-  test("does not use a location left behind by GitHub's previous page", () => {
-    const url = "https://github.com/OpenRouterIncubator/ori/blob/main/src/index.ts"
+  test("does not guess a slash branch from a location left behind by GitHub's previous page", () => {
+    const branch = "alexdepape/ori-harness-default"
+    const path = "framework/engine/threads/src/service.ts"
+    const url = `https://github.com/OpenRouterIncubator/ori/blob/${branch}/${path}`
 
-    expect(
-      Option.getOrNull(
-        repoHomeInDocument(
-          url,
-          codeViewDocument("alexdepape/ori-harness-default", "framework/engine/threads/src/service.ts")
-        )
-      )
-    ).toEqual({
-      repo: { owner: "OpenRouterIncubator", repo: "ori" },
-      branch: "main",
-      reading: "src/index.ts"
-    })
+    expect(repoHomeInDocument(url, codeViewDocument("main", "src/index.ts"))).toEqual(
+      Option.none()
+    )
   })
 })

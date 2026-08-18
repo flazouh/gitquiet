@@ -463,13 +463,19 @@ export const CodeViewLocation = Schema.Struct({
   refInfo: Schema.Struct({
     name: Schema.String
   }),
+  blob: Schema.Unknown
+})
+
+export type CodeViewLocation = typeof CodeViewLocation["Type"]
+
+export const CodeViewRepository = Schema.Struct({
   repo: Schema.Struct({
     name: Schema.String,
     ownerLogin: Schema.String
   })
 })
 
-export type CodeViewLocation = typeof CodeViewLocation["Type"]
+export type CodeViewRepository = typeof CodeViewRepository["Type"]
 
 export const RepoTree = Schema.Struct({
   refInfo: Schema.Struct({

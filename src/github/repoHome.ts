@@ -29,6 +29,7 @@ import { footingOf, inReadingOrder, repoHomeIn } from "../domain/repoHome"
 import { plainText } from "./plainText"
 import {
   CodeViewLocation,
+  CodeViewRepository,
   LatestCommitRoute,
   RepoAbout,
   RepoFooting,
@@ -47,6 +48,7 @@ import { maybeAmong, whereverAmong, whereverItIs } from "./wherever"
  */
 export const findTheTree = whereverAmong(RepoTree)
 const findTheLocation = maybeAmong(CodeViewLocation)
+const findTheRepository = maybeAmong(CodeViewRepository)
 export const findTheAbout = maybeAmong(RepoAbout)
 export const findTheFooting = maybeAmong(RepoFooting)
 export const decodeTreeCommitInfo = whereverItIs(TreeCommitInfoRoute)
@@ -187,21 +189,23 @@ export const repoHomeInDocument = (url: string, doc: Document): Option.Option<Re
   if (Option.isNone(parsed) || parsed.value.branch === null) return parsed
 
   const script = doc.querySelector(EMBEDDED)
-  if (script === null) return parsed
+  if (script === null) return Option.none()
 
   const raw = Option.liftThrowable(JSON.parse)(script.textContent ?? "")
-  if (Option.isNone(raw)) return parsed
+  if (Option.isNone(raw)) return Option.none()
 
   const location = findTheLocation([raw.value])
-  if (Option.isNone(location)) return parsed
+  if (Option.isNone(location)) return Option.none()
 
-  const sameRepo =
-    location.value.repo.ownerLogin.toLowerCase() === parsed.value.repo.owner.toLowerCase() &&
-    location.value.repo.name.toLowerCase() === parsed.value.repo.repo.toLowerCase()
-  if (!sameRepo) return parsed
+  const repository = findTheRepository([raw.value])
+  if (
+    Option.isSome(repository) &&
+    (repository.value.repo.ownerLogin.toLowerCase() !== parsed.value.repo.owner.toLowerCase() ||
+      repository.value.repo.name.toLowerCase() !== parsed.value.repo.repo.toLowerCase())
+  ) return Option.none()
 
   const address = URL.parse(url)
-  if (address === null) return parsed
+  if (address === null) return Option.none()
 
   const routeTail = address.pathname
     .split("/")
@@ -212,7 +216,7 @@ export const repoHomeInDocument = (url: string, doc: Document): Option.Option<Re
   const resolvedTail = [location.value.refInfo.name, location.value.path]
     .filter((part) => part.length > 0)
     .join("/")
-  if (routeTail !== resolvedTail) return parsed
+  if (routeTail !== resolvedTail) return Option.none()
 
   return Option.some({
     repo: parsed.value.repo,

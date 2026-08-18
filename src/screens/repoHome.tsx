@@ -65,7 +65,7 @@ type Open = {
   readonly retarget: (reading: string | null, branch: string | null) => void
 }
 
-const open = (home: RepoHome): Open => {
+const open = (home: RepoHome, onMove: (path: string) => void): Open => {
   /*
    * The payload GitHub already put in this document, where it put one.
    *
@@ -189,6 +189,7 @@ const open = (home: RepoHome): Open => {
           .map(encodeURIComponent)
           .join("/")}`
     if (window.location.pathname === at) return
+    onMove(at)
     window.history.pushState(null, "", at)
     show(reading, branchNow)
   }
@@ -252,8 +253,37 @@ export const start = (): void => {
   let up: Open | undefined
   let on: RepoHome | undefined
   let view: View = "ours"
+  let handledPath: string | undefined
+  let waiting: MutationObserver | undefined
+  let waitingFor: string | undefined
+
+  const stopWaiting = (): void => {
+    waiting?.disconnect()
+    waiting = undefined
+    waitingFor = undefined
+  }
+
+  const waitForDocument = (url: string): void => {
+    if (waitingFor === url) return
+    stopWaiting()
+    waitingFor = url
+
+    waiting = new MutationObserver(() => {
+      if (URL.parse(url)?.pathname !== window.location.pathname) {
+        stopWaiting()
+        return
+      }
+
+      if (Option.isSome(repoHomeInDocument(url, document))) {
+        stopWaiting()
+        show(url)
+      }
+    })
+    waiting.observe(document.documentElement, { childList: true, subtree: true, characterData: true })
+  }
 
   const show = (url: string): void => {
+    const address = repoHomeIn(url)
     const home = repoHomeInDocument(url, document)
 
     if (Option.isNone(home)) {
@@ -261,8 +291,12 @@ export const start = (): void => {
       up = undefined
       on = undefined
       handBack(document)
+      if (Option.isSome(address) && address.value.branch !== null) waitForDocument(url)
+      else stopWaiting()
       return
     }
+
+    stopWaiting()
 
     /*
      * The same page with another document in one column, which is a press in
@@ -286,11 +320,20 @@ export const start = (): void => {
       return
     }
 
-    up = open(home.value)
+    up = open(home.value, (path) => {
+      handledPath = path
+    })
     on = home.value
   }
 
-  whenLocationChanges(window, () => show(window.location.href))
+  whenLocationChanges(window, (path) => {
+    if (path === handledPath) {
+      handledPath = undefined
+      return
+    }
+    handledPath = undefined
+    show(window.location.href)
+  })
 
   Effect.runFork(
     chosenView(store).pipe(
