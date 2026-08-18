@@ -827,3 +827,52 @@ describe("the chip that says whose page this is", () => {
     expect(screen.getByRole("link", { name: /flazouh/ })).toBeTruthy()
   })
 })
+
+/*
+ * The two things the bar cannot work out for itself, which the thing around it
+ * answers: see `host.tsx`. A page answers neither, and everything above is that
+ * page.
+ */
+describe("the bar, in a window rather than in a tab", () => {
+  test("presses Home instead of going there, where Home is not an address", async () => {
+    /*
+     * The mark is an anchor to `/` on a page, which is correct there: a reader opens
+     * it in a new tab or copies it. In the window it unloaded the app — one webview,
+     * no address bar, and GitHub's dashboard where the interface had been.
+     */
+    let went = 0
+    render(<Bar where={{ kind: "repository", owner: "flazouh", repo: "gitquiet" }} onHome={() => (went += 1)} />)
+
+    const home = screen.getByLabelText("Home")
+    expect(home.tagName).toBe("BUTTON")
+    expect(home.getAttribute("href")).toBeNull()
+
+    await userEvent.click(home)
+    expect(went).toBe(1)
+  })
+
+  test("keeps the address where nothing says otherwise, which is every page", () => {
+    render(<Bar where={{ kind: "repository", owner: "flazouh", repo: "gitquiet" }} />)
+
+    expect(screen.getByLabelText("Home").getAttribute("href")).toBe("/")
+  })
+
+  test("holds the window's own controls past everything about the page", () => {
+    // The update and the account, which stood in a strip of their own above this one
+    // until that strip became this row. Last in the tray, where a window keeps them.
+    render(
+      <Bar
+        where={{ kind: "home" }}
+        onStepAside={() => undefined}
+        far={<button type="button">Signed in as flazouh</button>}
+      />
+    )
+
+    const tray = screen.getByRole("button", { name: "Signed in as flazouh" })
+    expect(tray).toBeDefined()
+    expect(
+      tray.compareDocumentPosition(screen.getByRole("button", { name: "Show GitHub's own page" })) &
+        Node.DOCUMENT_POSITION_PRECEDING
+    ).toBeGreaterThan(0)
+  })
+})

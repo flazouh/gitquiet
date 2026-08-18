@@ -18,10 +18,11 @@ import {
   updatePullRequestBranch
 } from "../../../src/app/pullRequest"
 import type { NewComment, PullRequestSnapshot } from "../../../src/domain/PullRequest"
-import type { PullRequestRef } from "../../../src/domain/PullRequestRef"
+import { type PullRequestRef, toUrl } from "../../../src/domain/PullRequestRef"
 import type { GitHubGateway } from "../../../src/ports/GitHubGateway"
 import { PullRequestScreen } from "../../../src/ui/PullRequestScreen"
 import { gatewayFrom } from "./gateway"
+import { openOutside } from "./outside"
 import { Supplied } from "./supplied"
 
 /**
@@ -57,14 +58,7 @@ const howToCatchUp = (snapshot: PullRequestSnapshot | null): "MERGE" | "REBASE" 
   return update !== undefined && Option.isSome(update) ? update.value.how : "MERGE"
 }
 
-export const PullRequest = ({
-  reference,
-  onBack
-}: {
-  readonly reference: PullRequestRef
-  /** Back to the list, which is the only place a window can have come from. */
-  readonly onBack: () => void
-}) => {
+export const PullRequest = ({ reference }: { readonly reference: PullRequestRef }) => {
   /*
    * The last read, kept for the one write that needs to know what it is acting on:
    * whether a branch is caught up by merging or rebasing is GitHub's verdict, and
@@ -163,22 +157,16 @@ export const PullRequest = ({
            */
         }}
         /*
-         * Stepping aside is going back, because there is nothing behind this. On a
-         * page, a failed read hands the reader GitHub's own card underneath ours;
-         * here the same failure has to hand them something, and the list they came
-         * from is the only something there is.
+         * Stepping aside is this pull request in the reader's browser, because
+         * there is no page behind this one to give back.
+         *
+         * It was the way back to the list, which read as the truth on the failure
+         * screen and as a lie in the bar: the same callback draws GitHub's own mark
+         * up there, so the corner of the window offered GitHub's page and returned
+         * the list. Going back is the mark for Home now, in that same strip, on both
+         * screens — so this can say what it does.
          */
-        onStepAside={onBack}
-        /*
-         * No offer to read GitHub's page instead, because that offer is a promise
-         * this window cannot keep. On a page it means handing the tab back to
-         * GitHub and remembering that the reader wants that from now on — a real
-         * choice between two interfaces over the same thing. Here the alternative
-         * would be a browser we do not have, so what the button did was navigate
-         * the webview to github.com and leave the reader inside an app that had
-         * become a page with no way out of it. The link beside it still goes to
-         * GitHub; it opens where links open.
-         */
+        onStepAside={() => openOutside(toUrl(reference))}
         // Signed in by the time this is drawn: the keychain answered and GitHub
         // named the reader before the window rendered anything at all.
         signedIn={() => true}

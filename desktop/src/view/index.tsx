@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { createRoot } from "react-dom/client"
 import type { PullRequestRef } from "../../../src/domain/PullRequestRef"
-import { THE_ART } from "../../../src/ui/art"
+import { type Host, HostProvider } from "../../../src/ui/host"
 import { WithinProvider } from "../../../src/ui/within"
-import { Button } from "../components/ui/button"
 import { ShapeProvider } from "../lib/shape-context"
 import type { Viewer } from "../shared/wire"
 import "./index.css"
@@ -13,7 +12,6 @@ import { keepLinksOutside } from "./outside"
 import { record } from "./recorded"
 import { pageZoomFromPress } from "../shared/pageZoom"
 import { ask } from "./rpc"
-import { Settings } from "./settings"
 import { Supplied } from "./supplied"
 import { Update } from "./update"
 import { Welcome } from "./welcome"
@@ -50,27 +48,23 @@ type Showing =
   | { readonly at: "card"; readonly reference: PullRequestRef }
 
 /**
- * The strip the traffic lights sit in, and the only thing allowed to share it.
+ * The row the traffic lights sit in, which is also the row the bar stands in.
  *
- * Nothing may be drawn across the draggable region — a window whose title bar is
- * covered in buttons is a window nobody can move — so who is signed in, and the
- * way to stop being, sit at the far end of it where the drag is given up
- * deliberately.
+ * There were two: this one, holding the lights and the account, and the screens'
+ * own bar directly under it. Two strips of chrome over one list, and the top one
+ * could only be drawn in at its right-hand end — a window whose title bar is
+ * covered in controls is a window nobody can move. So this row holds the bar
+ * itself, the lights keep the space to its left, and what used to sit up here
+ * alone is handed to the bar's own tray. See `host.tsx`.
+ *
+ * Empty of React children on purpose: the bar is portalled in rather than
+ * rendered here, because the screens draw it and the screens live below. What
+ * this element supplies is the place, the drag, and the gesture.
  */
-const Chrome = ({
-  who,
-  onBack,
-  onSettings,
-  onSignedOut
-}: {
-  readonly who: Who
-  /** The way back to the list, drawn only while there is one to go back to. */
-  readonly onBack: (() => void) | null
-  readonly onSettings: () => void
-  readonly onSignedOut: () => void
-}) => (
+const Chrome = ({ hold }: { readonly hold: (row: HTMLElement | null) => void }) => (
   <div
     className="chrome"
+    ref={hold}
     /*
      * Double-click to zoom, which macOS gives every window and this one had lost.
      *
@@ -89,59 +83,14 @@ const Chrome = ({
 
       void ask("shapeWindow", { how: "zoom" })
     }}
-  >
-    {onBack !== null && (
-      /*
-       * The one control the window needs and the screens cannot supply.
-       *
-       * The card's own way out is `onStepAside`, which it draws when a read fails
-       * and hands the reader GitHub's page instead — on a page that is the right
-       * answer, because GitHub's own conversation tab is underneath. Here there is
-       * nothing underneath, so a card that loaded perfectly had no way back at all.
-       *
-       * In the title bar rather than on the card, because it is about the window
-       * rather than about the pull request, and because a control that appears in a
-       * fixed place is one a reader can find without looking.
-       *
-       * The registry's button, with the window's own arrow in it. It used to draw
-       * a twenty-pixel pill, which was the only corner of that radius on screen —
-       * not chosen, though: `Button` takes its shape from a context this window
-       * never provided, so it fell back to the registry's pill default. The shape
-       * is declared where the app is mounted now, and the glyph is the same one
-       * the Previous and Next buttons inside the card already use, rather than the
-       * `‹` that was standing in for one.
-       */
-      <div className="chrome-start">
-        <Button size="sm" variant="ghost" leadingIcon={THE_ART.back} onClick={onBack}>
-          Working Set
-        </Button>
-      </div>
-    )}
-    {/*
-      Drawn whether or not anybody is signed in, because an update is about the
-      app rather than about the reader: a window sitting on the sign-in panel is
-      exactly where a restart costs nothing.
-    */}
-    <div className="chrome-end">
-      <Update />
-      {who.at === "someone" && (
-        <Account viewer={who.viewer} onSettings={onSettings} onSignedOut={onSignedOut} />
-      )}
-    </div>
-  </div>
+  />
 )
 
 const App = () => {
   const [who, setWho] = useState<Who>({ at: "asking" })
   const [showing, setShowing] = useState<Showing>({ at: "list" })
-  /*
-   * Held by the window rather than by either screen, because it is opened from
-   * the strip above both of them and a reader who changes how diffs are drawn
-   * while looking at the list should not have to open a card to do it.
-   */
-  const [tweaking, setTweaking] = useState(false)
-  /** The page element, for the bar that has to be told it is not on a page of GitHub's. */
-  const [page, setPage] = useState<HTMLElement | null>(null)
+  /** The title row, which is the element the bar is told to stand in. */
+  const [row, setRow] = useState<HTMLElement | null>(null)
 
   useEffect(() => {
     let watching = true
@@ -157,6 +106,32 @@ const App = () => {
   }, [])
 
   const back = showing.at === "card" ? () => setShowing({ at: "list" }) : null
+
+  /*
+   * What this window answers about itself, for the bar the screens draw.
+   *
+   * Home, because in here the Working Set is a screen this window becomes rather
+   * than an address it goes to — the mark used to be a link to `/`, and following
+   * it unloaded the app. And the tray, because the update and the account are
+   * about the window rather than about anything on the screen, and this is the one
+   * strip that is on every screen.
+   */
+  const host = useMemo<Host>(
+    () => ({
+      home: () => setShowing({ at: "list" }),
+      tray: (
+        <>
+          {/* Drawn whether or not anybody is signed in, because an update is about
+              the app rather than about the reader. */}
+          <Update />
+          {who.at === "someone" && (
+            <Account viewer={who.viewer} onSignedOut={() => setWho({ at: "nobody" })} />
+          )}
+        </>
+      )
+    }),
+    [who]
+  )
 
   /*
    * Escape goes back, once nothing inside the card wants it.
@@ -222,12 +197,7 @@ const App = () => {
     // mounted and thrown away as the window changes what it is showing, and the
     // store beneath them is one either way.
     <Supplied>
-      <Chrome
-        who={who}
-        onBack={back}
-        onSettings={() => setTweaking(true)}
-        onSignedOut={() => setWho({ at: "nobody" })}
-      />
+      <Chrome hold={setRow} />
 
       {/*
         Nothing at all while the keychain is asked, which is deliberate: it answers
@@ -239,36 +209,33 @@ const App = () => {
       )}
 
       {/*
-        The page, and the element the screens' own bar is told to stand inside.
+        The page, under the row the bar stands in.
 
-        Without being told, the bar portals to the top of the document, which is
-        where it belongs on github.com and is wrong twice over here: it lands under
-        the traffic lights, and it pushes this window's own strip — the drag region
-        — down out of the title bar, so the window cannot be moved at all. Told
-        this element, it stops at the page's own top edge and stands under the
-        strip, which is where a toolbar goes in a Mac window.
+        Without being told where it is, the bar portals to the top of the document,
+        which is where it belongs on github.com and is wrong twice over here: it
+        lands under the traffic lights, and it pushes the drag region down out of
+        the title bar, so the window cannot be moved at all. Told the row above, it
+        stands beside the lights, which is where a Mac window keeps its toolbar.
 
-        Hidden rather than taken away when nobody is signed in, and that is the
-        whole reason it is out here rather than inside a branch. Signing out
-        unmounted this element and the bar portalled into it in one commit, and
-        React removes the portal's children from their container afterwards: the
-        container was already gone, `removeChild` threw NotFoundError, and the
-        window went blank on the way to the welcome. Kept mounted, there is always
-        something for those children to be taken out of.
+        Hidden rather than taken away when nobody is signed in. Signing out
+        unmounted the screens and the bar in one commit, and React removes a
+        portal's children from their container afterwards — with the container gone,
+        `removeChild` threw NotFoundError and the window went blank on the way to
+        the welcome. The container is the row now, which is never unmounted at all.
       */}
-      <main className="page" ref={setPage} hidden={!signedIn}>
-        {signedIn && page !== null && (
-          <WithinProvider value={page}>
-            {showing.at === "card" ? (
-              <PullRequest reference={showing.reference} onBack={() => setShowing({ at: "list" })} />
-            ) : (
-              <WorkingSet onOpen={(reference) => setShowing({ at: "card", reference })} />
-            )}
+      <main className="page" hidden={!signedIn}>
+        {signedIn && row !== null && (
+          <WithinProvider value={row}>
+            <HostProvider value={host}>
+              {showing.at === "card" ? (
+                <PullRequest reference={showing.reference} />
+              ) : (
+                <WorkingSet onOpen={(reference) => setShowing({ at: "card", reference })} />
+              )}
+            </HostProvider>
           </WithinProvider>
         )}
       </main>
-
-      {tweaking ? <Settings onClose={() => setTweaking(false)} /> : null}
     </Supplied>
   )
 }

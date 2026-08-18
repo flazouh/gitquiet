@@ -40,11 +40,9 @@ const SCHEMES: ReadonlyArray<{ readonly scheme: Scheme; readonly word: string }>
 
 export const Account = ({
   viewer,
-  onSettings,
   onSignedOut
 }: {
   readonly viewer: Viewer
-  readonly onSettings: () => void
   readonly onSignedOut: () => void
 }) => {
   // Their own photograph, and their initial while it arrives or if it never does:
@@ -85,18 +83,17 @@ export const Account = ({
         <DropdownMenuSeparator />
 
         {/*
-          Settings first, because it is the only item here that changes this app.
-          They used to be reachable from one small button on the pull request card
-          and nowhere else, which meant the Working Set — the screen this app opens
-          on — had no way into them at all. A corner that already holds who you are
-          is where anybody looks for what you have chosen.
-        */}
-        {/*
           Which palette, beside the rest of what this app has been told rather
-          than inside the sheet below it. The sheet is about how a diff is drawn
-          and is asked for over the wire; this is one word about the window in
+          than inside the sheet the strip opens. That sheet is about how a diff is
+          drawn and is asked for over the wire; this is one word about the window in
           front of you, and a reader comparing light against dark wants to press
           twice without a dialog opening and closing between the presses.
+
+          The sheet itself is not offered here any more. It used to be, because the
+          strip that holds it stood on the card alone and the list had no way in —
+          and the bar is in this same row now, four controls to the left, with the
+          way in on every screen. Two rows for one sheet in one strip is one of them
+          being wrong eventually.
         */}
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>Appearance</DropdownMenuSubTrigger>
@@ -113,8 +110,6 @@ export const Account = ({
             </DropdownMenuRadioGroup>
           </DropdownMenuSubContent>
         </DropdownMenuSub>
-
-        <DropdownMenuItem onSelect={onSettings}>Settings</DropdownMenuItem>
 
         <DropdownMenuSeparator />
 

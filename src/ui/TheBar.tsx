@@ -9,6 +9,7 @@ import { keepTabs, keptTabs } from "../github/repoTabs";
 import { type ArtName } from "./art";
 import { Bar, type BarProps } from "./Bar";
 import { goBack, goBackTo, goForward, theTrail, watchTheTrail } from "./going";
+import { useHost } from "./host";
 import { keepTheBarSlot, theBarSlot, theBarStands } from "./barSlot";
 import { keepRepositories, keptRepositories } from "./keptRepositories";
 import { Palette } from "./Palette";
@@ -78,6 +79,9 @@ export const TheBar = ({
    */
   const within = useWithin();
   const slot = useMemo(() => theBarSlot(document, within), [within]);
+  /* Whatever the thing around this screen answers for itself: a window answers two
+     things, a page answers neither. See `host.tsx`. */
+  const host = useHost();
   const drawing = useOursToDraw();
   /*
    * The reader's own choices, read here so the way into them can stand in the strip.
@@ -358,6 +362,15 @@ export const TheBar = ({
           })),
         )}
         corner={<SettingsDialog settings={settings} onChange={change} />}
+        /*
+         * The two things the host knows and this does not: what Home means where it is
+         * not an address, and what the host itself keeps in the corner. Both are absent
+         * on a page, which is why they are read here rather than taken as props — every
+         * screen in the extension would have had to carry two it never fills. See
+         * `host.tsx`.
+         */
+        onHome={host.home}
+        far={host.tray}
       />
       {finding ? (
         <Palette

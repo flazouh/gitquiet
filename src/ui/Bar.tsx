@@ -168,6 +168,25 @@ export type BarProps = {
    * this has none of them, which is the only reason the two are separate components.
    */
   readonly corner?: ReactNode;
+  /**
+   * Home as a press, from a host where Home is not an address.
+   *
+   * Left out and the mark is the link it has always been, which is right on a page: the
+   * reader is in a tab, and the Working Set has an address. In the window it is not one.
+   * There is a single webview and no way back into it, so following `/` there replaced
+   * the app with GitHub's own dashboard and left the reader inside a window with no
+   * address bar. See `host.tsx`.
+   */
+  readonly onHome?: () => void;
+  /**
+   * Whatever the host keeps at the far end of the tray, past everything about the page.
+   *
+   * The window's update and account, and nothing in a tab: a tab has no version of its
+   * own and its account is the browser's. Last in the row because the far corner is
+   * where every window on the machine keeps who is signed in, and because it is the one
+   * spot nothing in this strip can push along.
+   */
+  readonly far?: ReactNode;
 };
 
 /**
@@ -284,6 +303,8 @@ export const Bar = ({
   behind = NOTHING,
   onStepAside,
   corner,
+  onHome,
+  far,
 }: BarProps) => {
   const art = useArt();
   const Chevron = art["chevron-down"];
@@ -459,7 +480,7 @@ export const Bar = ({
         </button>
       )}
 
-      <Ours here={where.kind === "home"} />
+      <Ours here={where.kind === "home"} onHome={onHome} />
 
       {/*
        * Their name, on somebody else's pages, and no chevron beside it.
@@ -825,6 +846,9 @@ export const Bar = ({
             <TheirMark size={16} />
           </button>
         )}
+
+        {/* And past all of it, whatever the host itself keeps here: see {@link far}. */}
+        {far}
       </div>
     </header>
   );
@@ -844,29 +868,50 @@ export const Bar = ({
  * GitHub's own logo in a bar this extension hides. Home is where the Working Set is, and that
  * is the address a reader wants next more often than any other.
  */
-const Ours = ({ here }: { readonly here: boolean }) => {
+const Ours = ({
+  here,
+  onHome,
+}: {
+  readonly here: boolean;
+  readonly onHome?: (() => void) | undefined;
+}) => {
   const art = useArt();
   const Mark = art.home;
+  /*
+   * One drawing, two kinds of control, because the two hosts mean different things by
+   * Home. On a page it is an address and belongs in an anchor: a reader opens it in a
+   * new tab, copies it, middle-clicks it. In the window it is a screen this one becomes,
+   * there is no address to copy, and an anchor to `/` unloaded the app. See `host.tsx`.
+   */
+  const shape =
+    "flex size-7 shrink-0 items-center justify-center rounded-md text-ink-muted no-underline hover:bg-hover hover:text-ink";
+  /*
+   * Said aloud but not painted.
+   *
+   * It wore the accent fill on Home, on the reasoning that the accent is this pack's own
+   * "you are here". Two things were wrong with that. The Rail is beside the list on Home
+   * and already says which Destination is showing, so the fill was the third place one
+   * fact was drawn; and this is the leftmost thing in the bar and the only mark of ours
+   * up there, so a coloured square in that corner reads as a badge for the extension
+   * rather than as the way back to the Working Set. `aria-current` still carries it for
+   * anyone being read to, which is where the fact was load-bearing.
+   */
+  const said = {
+    "aria-label": "Home",
+    title: "Home",
+    className: shape,
+    ...(here ? { "aria-current": "page" as const } : {}),
+  };
+
+  if (onHome !== undefined)
+    return (
+      <button type="button" onClick={onHome} {...said}>
+        <Mark size={16} />
+      </button>
+    );
 
   return (
-    <a
-      href={THE_HOME}
-      aria-label="Home"
-      title="Home"
-      /*
-       * Said aloud but not painted.
-       *
-       * It wore the accent fill on Home, on the reasoning that the accent is this pack's own
-       * "you are here". Two things were wrong with that. The Rail is beside the list on Home
-       * and already says which Destination is showing, so the fill was the third place one
-       * fact was drawn; and this is the leftmost thing in the bar and the only mark of ours
-       * up there, so a coloured square in that corner reads as a badge for the extension
-       * rather than as the way back to the Working Set. `aria-current` still carries it for
-       * anyone being read to, which is where the fact was load-bearing.
-       */
-      {...(here ? { "aria-current": "page" as const } : {})}
-      className="flex size-7 shrink-0 items-center justify-center rounded-md text-ink-muted no-underline hover:bg-hover hover:text-ink"
-    >
+    <a href={THE_HOME} {...said}>
       <Mark size={16} />
     </a>
   );

@@ -437,7 +437,16 @@ const window = new BrowserWindow({
   url: view.url,
   frame: { x: 200, y: 120, width: 1100, height: 760 },
   titleBarStyle: "hiddenInset",
-  trafficLightOffset: { x: 12, y: 10 },
+  /*
+   * The lights, on the line the bar's pane is centred on.
+   *
+   * They were at ten, which was the middle of a thirty-eight pixel strip that held
+   * nothing else. The strip holds the bar now — a forty pixel pane floating in eight
+   * either side — so the middle moved to twenty-eight, and three system buttons
+   * sitting eleven pixels above everything drawn beside them read as a row that had
+   * come apart. Twenty-two puts a twelve pixel light's own middle there.
+   */
+  trafficLightOffset: { x: 12, y: 22 },
   rpc
 })
 // Fill the screen without entering macOS fullscreen (no separate Space).

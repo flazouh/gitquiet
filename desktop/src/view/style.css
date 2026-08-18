@@ -52,6 +52,11 @@
 
 @import "../../../src/ui/motion.css";
 @import "../../../src/ui/stack.css";
+/* The bar's pane: the corner, the cast, the lens and the lit edge, all of it the
+   same file the extension wears. What the lens reads in here is the window rather
+   than a page of GitHub's — see `.chrome` below, and `.page` for why the list
+   stops at the row instead of passing behind it. */
+@import "../../../src/ui/glass.css";
 /* The onboarding, which is one screen drawn in two: this window and gitquiet.com, which
    is also the tab the extension opens when it installs itself. See `onboarding.css`. */
 @import "../../../src/ui/onboarding.css";
@@ -188,59 +193,97 @@ body {
  * is already taken. In a page the answer is a margin; here the top-left corner of
  * the window holds the traffic lights, and a sheet centred in 86% of the window
  * put its own first heading directly under them — a heading nobody could read and
- * three buttons nobody could press. Twice the strip's height, since centring
- * gives half of it to each edge.
+ * three buttons nobody could press. Twice thirty-eight, because centring gives half
+ * of it to each edge and thirty-eight is where the lights end.
  */
 :root {
   --sheet-away: 76px;
-  /* The strip's own height, which three rules below and one above need to agree
-     on: the two layouts take it off the window, and the wait takes it off the
-     window as well to find the middle of what is left. */
-  --chrome: 38px;
-}
-
-/* The strip the traffic lights sit in. Nothing is drawn in it and nothing may
-   be: a window whose title bar is covered in buttons is a window nobody can
-   drag. */
-.chrome {
-  -webkit-app-region: drag;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  height: var(--chrome);
-  padding-right: 8px;
-}
-
-/* Given back, and only here: everything in this corner is meant to be pressed,
-   and a drag region over a button is a button that moves the window. */
-.chrome-end {
-  -webkit-app-region: no-drag;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  /* The title row's own height: the pane the bar draws, and the air it floats in
+     above and below. */
+  --chrome: 56px;
+  /* The room the traffic lights need before anything of ours may be drawn. They
+     are the system's and they are drawn over this webview, so this is the one
+     measurement in the window that is somebody else's. */
+  --lights: 78px;
 }
 
 /*
- * The way back, at the left of the strip and clear of the traffic lights.
+ * The window down the middle: the title row, then whatever is under it.
  *
- * `margin-right: auto` rather than `justify-content: space-between` on the strip,
- * because there is usually nothing here at all — the list has nowhere to go back
- * to — and a strip that changes how it distributes what is in it depending on
- * whether a button exists moves the signed-in name every time a card is opened.
+ * A column rather than three heights of `calc(100% - var(--chrome))`. Every screen
+ * in here wants the rest of the window, which is what a flexible row means, and
+ * the arithmetic version had to be repeated in each of them and kept in step with
+ * a number the row above is free to change.
  */
-.chrome-start {
-  -webkit-app-region: no-drag;
+#gitquiet-root {
   display: flex;
-  align-items: center;
-  margin-left: 78px;
-  margin-right: auto;
+  flex-direction: column;
 }
 
-.middle {
-  display: grid;
-  place-items: center;
-  height: calc(100% - var(--chrome));
-  padding: 0 24px 38px;
+/*
+ * The row the traffic lights sit in, which is the row the bar stands in.
+ *
+ * There were two rows: this one, and the screens' own bar directly beneath it.
+ * Two strips of chrome over one list — and this one holds the drag region, so
+ * three quarters of it could not be drawn in at all. One row, the lights keeping
+ * the space at its left, and everything that used to sit up here on its own
+ * handed to the bar's tray. See `host.tsx`.
+ *
+ * `flex-start` rather than centred, because the air above the pane is the slot's
+ * own padding and comes from `glass.css`.
+ *
+ * Its left padding is the room the lights need, less the gutter the slot inside it
+ * already adds, so that the two together come to exactly where the lights end.
+ */
+.chrome {
+  /*
+   * The frame the pane floats in, which in here is eight all round.
+   *
+   * `glass.css` reads this and the page declares it per width — sixteen to
+   * thirty-two — because over there the bar has to start on the same left edge as
+   * the columns under it. There are no columns in this window and no inset of
+   * anybody else's to match, so it is the eight the pane has always floated on.
+   */
+  --gitquiet-gutter: 8px;
+
+  -webkit-app-region: drag;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+  height: var(--chrome);
+  padding-left: calc(var(--lights) - var(--gitquiet-gutter));
+}
+
+/*
+ * The bar's slot, which `barSlot.ts` puts in this row rather than at the top of
+ * the document. It is the only thing in here, so it takes what is left.
+ */
+.chrome > [data-gitquiet-bar] {
+  flex: 1;
+  min-width: 0;
+}
+
+/*
+ * The drag is kept by the space between the controls, which is mostly this pane's
+ * own empty middle: a title bar a reader cannot grab is the fault this merge could
+ * most easily have introduced.
+ */
+.chrome > [data-gitquiet-bar] > header {
+  -webkit-app-region: drag;
+}
+
+/*
+ * And given back by everything in it, because a drag region over a button is a
+ * button that moves the window instead of being pressed.
+ *
+ * `> header *` rather than the slot, so that what the bar puts in the slot beside
+ * the pane — the palette, and any sheet it opens — is never inside a drag region
+ * at all.
+ */
+.chrome > [data-gitquiet-bar] > header * {
+  -webkit-app-region: no-drag;
 }
 
 /**
@@ -258,10 +301,11 @@ body {
 .welcome {
   position: relative;
   display: flex;
+  flex: 1;
+  min-height: 0;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: calc(100% - var(--chrome));
   padding: 12px 24px 22px;
   color: var(--bed-ink);
 }
@@ -404,13 +448,27 @@ body {
   color: var(--bed-muted);
 }
 
-/* The list, which wants the window rather than the middle of it. */
+/*
+ * The list, which wants the rest of the window under the row and stops there.
+ *
+ * Not under the row. The pane is glass, and what glass wants behind it is the
+ * reader's own content moving past — the extension gets that for free, and the way
+ * to get it here is a scroll box that climbs back up the height of the row while
+ * its content still starts below it. That was drawn and taken out: the strip left
+ * of the pane belongs to the traffic lights, and a row passing behind them put an
+ * avatar and a branch icon in a line with the green light, at the same size and
+ * spacing as the lights. A fourth light nobody can press.
+ *
+ * So the lens reads the window's own fill and hands it back a shade off it, and the
+ * lit edge and the cast are what make the corner read. See `glass.css`.
+ */
 .page {
-  /* Named because the wait has to take it off the window too, and a wait that
-     centred itself in the window while the page it stands in is shorter by this
+  /* Named because the wait has to take it off the page too, and a wait that
+     centred itself in the page while the page it stands in is shorter by this
      much would sit low by half of it. */
   --page-away: 32px;
-  height: calc(100% - var(--chrome));
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 0 20px var(--page-away);
 }
@@ -429,7 +487,7 @@ body {
  * over the list that has arrived, and that is the list's height to decide.
  */
 .page .t-waiting:not([data-leaving]) {
-  min-height: calc(100vh - var(--chrome) - var(--page-away));
+  min-height: calc(100% - var(--page-away));
 }
 /*---break---
  */

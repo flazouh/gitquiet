@@ -1,5 +1,6 @@
 import { opensInside } from "./opensInside"
 import { ask } from "./rpc"
+import { theirPage } from "./theirPage"
 
 /**
  * Where a link goes, in a window that must not follow one.
@@ -27,17 +28,12 @@ export const openOutside = (url: string): void => {
   })
 }
 
-/** Whether this is a link out of the app rather than something of ours. */
-const outward = (href: string): boolean => href.startsWith("http://") || href.startsWith("https://")
-
 /**
  * Nothing in this window follows a link.
  *
  * Installed once, for the life of the window. It answers a press on an anchor
  * before any handler of ours sees it — the list's own reading of a press runs
- * after, and turns a row into a card — and a plain path is left alone: there is
- * nothing in here that navigates to one, and if something ever does, refusing it
- * silently would be worse than letting it fail loudly.
+ * after, and turns a row into a card.
  */
 export const keepLinksOutside = (): void => {
   document.addEventListener(
@@ -48,12 +44,17 @@ export const keepLinksOutside = (): void => {
       if (anchor === null) return
 
       const href = anchor.getAttribute("href")
-      if (href === null || !outward(href)) return
+      if (href === null) return
+
+      const absolute = theirPage(
+        href,
+        anchor instanceof HTMLAnchorElement ? anchor.href : undefined
+      )
+      if (absolute === null) return
 
       // Never let the webview navigate. Where the app can show the destination,
       // stop here and leave the press for its handler; otherwise open outside.
       event.preventDefault()
-      const absolute = anchor instanceof HTMLAnchorElement ? anchor.href : href
       if (
         opensInside(absolute, {
           metaKey: event.metaKey,

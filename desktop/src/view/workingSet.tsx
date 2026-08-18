@@ -146,9 +146,16 @@ export const WorkingSet = ({
          * thing that was not broken.
          */
         signedIn={() => true}
-        // Nothing to step aside from: the extension's Working Set can hand the page
-        // back to GitHub's own list, and this window has no such list behind it.
-        onStepAside={() => {}}
+        /*
+         * Stepping aside is GitHub's list in the reader's browser, because there is
+         * no page behind this one to give back.
+         *
+         * It was `() => {}` on that reasoning, which left two controls pressing into
+         * nothing: the failure screen's own way out, and the mark for it in the bar
+         * above — a button in the corner of every window that did nothing at all.
+         * The offer a window can keep is the browser, so that is the offer.
+         */
+        onStepAside={() => openOutside("https://github.com/pulls")}
         ask={askFor}
       />
     </div>

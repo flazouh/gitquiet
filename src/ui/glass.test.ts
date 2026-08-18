@@ -72,15 +72,20 @@ describe("the bar as glass", () => {
      * twelve, twenty-four and sixteen, and a reader saw a bar at one left edge with a Rail
      * at another twenty-eight pixels in.
      *
-     * The window declares no gutter and takes the fallback, because its bar spans the frame
-     * instead of floating in it.
+     * The window wears this file and declares the number itself, which is the whole use of
+     * a token: there are no columns in a window for the bar to start level with, so it
+     * floats on the eight it always did, and the room the traffic lights take is the row's
+     * to hold rather than the pane's.
      */
     expect(readFileSync("src/ui/widths.css", "utf8")).toContain("--gitquiet-gutter: 16px")
     expect(readFileSync("src/ui/widths.css", "utf8")).toContain("padding-inline: 0")
     expect(readFileSync("src/ui/widths.css", "utf8")).toContain(
       "padding-inline: var(--gitquiet-gutter)"
     )
-    expect(readFileSync("desktop/src/view/style.css", "utf8")).not.toContain("--gitquiet-gutter")
+
+    const window = readFileSync("desktop/src/view/style.css", "utf8")
+    expect(window).toContain("--gitquiet-gutter: 8px")
+    expect(window).toContain("padding-left: calc(var(--lights) - var(--gitquiet-gutter))")
   })
 
   test("is GitHub's own three numbers, so their body needs no rule of ours", () => {
@@ -151,11 +156,38 @@ describe("the bar as glass", () => {
     expect(slot).toContain("backdrop-filter: none")
   })
 
-  test("is worn on the page and not in the window", () => {
-    // The window has no page to blur and no reason to float over one, so the extension's
-    // stylesheet imports this and the desktop's does not.
+  test("is worn by both hosts, off one file rather than off a copy of it", () => {
+    /*
+     * The window floats its bar in the row the traffic lights sit in, and it was given the
+     * corner and the cast by hand: two of these declarations retyped, and the lens left out
+     * on the grounds that a window has nothing behind the pane to bend. It has. The list
+     * reaches back up under the row — see `.page` — so the same four layers read the same
+     * kind of thing in both places, and one pane drawn twice was one pane that would drift.
+     */
     expect(readFileSync("src/ui/styles.css", "utf8")).toContain('@import "./glass.css"')
-    expect(readFileSync("desktop/src/view/style.css", "utf8")).not.toContain("glass.css")
+    expect(readFileSync("desktop/src/view/style.css", "utf8")).toContain(
+      '@import "../../../src/ui/glass.css"'
+    )
+  })
+
+  test("reads the window's own surface in there, since the list stops at the row", () => {
+    /*
+     * What the lens hands back in the window is the window: the pane comes off it a shade
+     * darker on a dark pack and lighter on a light one, with the same lit edge and the same
+     * cast, which is what makes the corner read.
+     *
+     * The list scrolling under the row was tried and taken out. It is the better backdrop and
+     * it cannot be had here: the strip left of the pane belongs to the traffic lights, and a
+     * row of ours passing behind them put an avatar and a branch icon in a line with the green
+     * one, at the same size and the same spacing. So the row keeps its own height in the flow.
+     */
+    const window = readFileSync("desktop/src/view/style.css", "utf8")
+    const page = window.slice(
+      window.indexOf(".page {"),
+      window.indexOf("}", window.indexOf(".page {"))
+    )
+
+    expect(page).not.toContain("margin-top")
   })
 
   /*
