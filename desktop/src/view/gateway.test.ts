@@ -81,9 +81,10 @@ describe("the working set the window builds out of the rows it was handed", () =
    */
   test("hands back the list it kept, which is what makes going back instant", async () => {
     const build = await gatewayFrom()
+    const green = { state: "passing", total: 3, passed: 3 } as const
 
     const remembered = await Effect.runPromise(
-      rememberedWorkingSet().pipe(Effect.provide(build([{ ...ROW, checks: "green" }])))
+      rememberedWorkingSet().pipe(Effect.provide(build([{ ...ROW, checks: green }])))
     )
 
     const sittings = Option.getOrThrow(remembered)
@@ -92,10 +93,10 @@ describe("the working set the window builds out of the rows it was handed", () =
       sittings.flatMap((sitting) => sitting.piles.map((pile) => pile.one.reference.number))
     ).toEqual([7])
     // The standings among them, those being the half that was missing: a list drawn
-    // without them is a row with no word for its checks.
-    expect(
-      sittings.flatMap((sitting) => sitting.piles.map((pile) => pile.one.checks))
-    ).toEqual([Option.some("green")])
+    // without them is a row of pull requests with no word for their checks.
+    expect(sittings.flatMap((sitting) => sitting.piles.map((pile) => pile.one.checks))).toEqual([
+      Option.some(green)
+    ])
   })
 
   test("keeps nothing at all when it was handed nothing, rather than an empty list", async () => {

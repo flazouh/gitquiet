@@ -470,8 +470,8 @@ body {
  * lit edge and the cast are what make the corner read. See `glass.css`.
  */
 .page {
-  /* Named because two rules spend it: the air under the last card, and the height
-     the wait takes before it centres anything in itself. */
+  /* Named because two rules spend it: the air under the last card, and the wait
+     below, which takes it off the window before it centres anything in itself. */
   --page-away: 32px;
   flex: 1;
   min-height: 0;
@@ -492,14 +492,16 @@ body {
  * Only while it is still waiting. On the way out it is taken out of flow and laid
  * over the list that has arrived, and that is the list's height to decide.
  *
- * All of it, and nothing taken off. A percentage height is measured against the
- * content box, and the page spends `--page-away` on its own padding, so anything
- * subtracted here is subtracted twice: it was `100vh` less the row less that
- * padding, which was right against the viewport and is 32px short against the box.
- * The words centred in it then sat 16px high.
+ * Measured off the window rather than off the page, and the arithmetic is not a
+ * duplicate of the padding. A percentage would be the shorter way to write this and
+ * it does not work here: the page's own height comes from `flex: 1`, which this
+ * engine treats as indefinite for the purpose of resolving a percentage, so
+ * `min-height: 100%` computes to `100%` and lays out as `auto` — 51 pixels of words
+ * at the top of an empty window. Both forms were measured in the running app in the
+ * same frame: 51 against 775, where the page's content box is 775.
  */
 .page .t-waiting:not([data-leaving]) {
-  min-height: 100%;
+  min-height: calc(100vh - var(--chrome) - var(--page-away));
 }
 /*---break---
  */
