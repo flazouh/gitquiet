@@ -160,13 +160,22 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
   const sizesIn = () =>
     new Map(rows.map((row) => [row.id, { added: row.added, deleted: row.deleted }]))
 
+  /**
+   * A route this window has not built, answering with its own name.
+   *
+   * Every method of the port is written out, and this is why: a method left off is a
+   * call on nothing, which is a defect rather than a failure, and a defect never
+   * reaches the screen's word for "this went wrong". The window sits there saying it
+   * is still reading. That cost eight seconds on one press before anything typechecked
+   * this file — see `rememberedRows`.
+   */
   const missing = (what: string) => (reference: PullRequestRef | RepoRef) =>
     Effect.fail(
       new GatewayError({
         reference,
         route: what,
         reason: "not-recorded",
-        detail: `The desktop app cannot ${what} yet. Only the Working Set is wired up.`
+        detail: `The desktop app cannot ${what} yet. It has the list and the card.`
       })
     )
 
@@ -350,6 +359,139 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
     // A review is not offered on this card: it needs a verdict — approve, request
     // changes, or merely comment — and a place to choose one, which is its own
     // screen's worth of work. Left as an error that names itself.
-    review: missing("review")
+    review: missing("review"),
+
+    /*
+     * The conversation, read but not written back to.
+     *
+     * The card draws every thread on it and a reader can add one — see `comment`
+     * above. Settling one and replying to one are two more writes, and each of them
+     * is a route on the bridge that nobody has opened yet.
+     */
+    settle: missing("resolve a thread"),
+    unsettle: missing("reopen a thread"),
+    reply: missing("reply to a thread"),
+
+    /*
+     * Stacks, which this window says it knows nothing about and then holds to.
+     *
+     * `snapshot.ts` hands the merge box `stack: Option.none()`, so the controls that
+     * would reach these are never drawn. They are here for the day it answers
+     * otherwise, and until then a call is a mistake rather than a reader's press.
+     */
+    mergeStack: missing("merge a stack"),
+    makeStack: missing("make a stack"),
+    // The same arrangement for the branch: `headRef.mayDelete` is false in every
+    // snapshot this window builds, so nothing offers this.
+    deleteBranch: missing("delete the branch"),
+
+    /*
+     * A commit as it was last read.
+     *
+     * This window keeps rows and cards — see `kept.ts` — and does not keep commits:
+     * a commit is a read of a few hundred milliseconds against a card that is
+     * already on the screen, so there is nothing here worth the disk. Nothing
+     * remembered is the true answer rather than a gap.
+     */
+    rememberedCommit: () => Effect.succeed(Option.none()),
+
+    /*
+     * A repository's own pages: its home, its tree, its tabs, its files.
+     *
+     * This window has two screens and neither of them is a repository. Every one of
+     * these stands on a page it has not built, so each says its own name rather than
+     * answering with a confident nothing — a file browser drawn from an empty tree
+     * reads as a repository with no files in it.
+     */
+    repoHome: missing("read repository home"),
+    rememberedRepoHome: () => Effect.succeed(Option.none()),
+    standing: missing("read repository standing"),
+    star: missing("star a repository"),
+    tabs: missing("read repository tabs"),
+    rememberedTabs: () => Effect.succeed(Option.none()),
+    suggesting: missing("read suggestions"),
+    upload: missing("upload a file"),
+    treePaths: missing("read file tree"),
+    fileAt: missing("read a file"),
+    rawFileAt: missing("read raw file"),
+    treeCommits: missing("read tree commits"),
+    whoTouched: missing("read commit author"),
+    branchesOf: missing("list branches"),
+    rememberedBranchesOf: () => Effect.succeed(Option.none()),
+    authorsOf: missing("list authors"),
+    rememberedAuthorsOf: () => Effect.succeed(Option.none()),
+
+    /*
+     * A repository's history, rather than one commit of it.
+     *
+     * One commit is answered above, that being what a card's own commit panel opens.
+     * The page listing them all is a screen this window has not built, and the marks
+     * and the sizes belong to its rows. The kept sizes are an empty map rather than a
+     * failure, because the caller reads that map for a row it is already drawing.
+     */
+    commits: (list) => missing("read commits")(list.repo),
+    rememberedCommits: () => Effect.succeed(Option.none()),
+    commitMarks: missing("read commit marks"),
+    commitStat: missing("read commit size"),
+    rememberedStats: () => Effect.succeed(new Map()),
+
+    /*
+     * The Actions tab: runs, the workflows behind them, and the two buttons that act.
+     *
+     * Named against the repository a run is in, that being the widest thing its own
+     * reference carries and the only part of it a failure has a word for.
+     */
+    run: (reference) => missing("read a run")(reference.repo),
+    rerunRun: (reference) => missing("re-run a run")(reference.repo),
+    cancelRun: (reference) => missing("cancel a run")(reference.repo),
+    rememberedRun: () => Effect.succeed(Option.none()),
+    strands: missing("read workflow runs"),
+    rememberedStrands: () => Effect.succeed(Option.none()),
+
+    // The Releases tab, which is a screen this window has not built either.
+    releases: missing("read releases"),
+    builds: missing("read release files"),
+    rememberedReleases: () => Effect.succeed(Option.none()),
+
+    /*
+     * The inbox, a person's pages, the repository list and the activity feed.
+     *
+     * All of them are about the reader rather than about any one pull request, and
+     * this window opens none of them: the bar's own inbox is a link that goes to the
+     * browser. Refused rather than answered with nothing, because an empty inbox and
+     * an empty feed are both things a reader would believe.
+     */
+    notices: () =>
+      Effect.fail(refused("notices", "The desktop app has no notifications view yet.")),
+    rememberedNotices: () => Effect.succeed(Option.none()),
+    pressNotice: () =>
+      Effect.fail(refused("pressNotice", "The desktop app has no notifications view yet.")),
+    personRepositories: () =>
+      Effect.fail(refused("personRepositories", "The desktop app has no profile view yet.")),
+    person: () => Effect.fail(refused("person", "The desktop app has no profile view yet.")),
+    rememberedPerson: () => Effect.succeed(Option.none()),
+    repositories: () =>
+      Effect.fail(refused("repositories", "The desktop app has no repository list yet.")),
+    rememberedRepositories: () => Effect.succeed(Option.none()),
+    activity: () =>
+      Effect.fail(refused("activity", "The desktop app has no activity feed yet.")),
+    rememberedActivity: () => Effect.succeed(Option.none()),
+
+    /*
+     * Issues, which the list has a Court for and this window has no rows in.
+     *
+     * `involvedIssues` above answers with none, so the Court stands empty and nothing
+     * in here opens an issue. Reading one, searching them and the three writes are
+     * all a screen that has not been built.
+     */
+    issue: missing("read an issue"),
+    rememberedIssue: () => Effect.succeed(Option.none()),
+    issueSearch: () =>
+      Effect.fail(refused("issueSearch", "The desktop app has no issue search yet.")),
+    rememberedIssueSearch: () => Effect.succeed(Option.none()),
+    settleIssue: missing("close an issue"),
+    reopenIssue: missing("reopen an issue"),
+    sayOnIssue: missing("comment on an issue"),
+    raise: missing("raise an issue")
   })
 }

@@ -78,10 +78,14 @@ jobs:
       - name: The generated files under src are the committed ones
         run: git diff --exit-code -- src
 
-      # The three gates, in one place: `package.json` holds the list, the
+      # The four gates, in one place: `package.json` holds the list, the
       # `pre-push` hook runs the same script, and `CONTRIBUTING.md` quotes it.
       # The linter answers first and the tests last, so a rule costs a second
       # rather than the whole suite.
+      #
+      # Two of the four are typechecks, one per program: the extension's and the
+      # app's. The app's ran nowhere for a while, and a gateway missing fifty-six
+      # of the port's methods is what grew in the gap.
       - name: Gates
         run: bun run gates
 
