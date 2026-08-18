@@ -244,18 +244,36 @@ const once = async (move, rest) => {
   }
   await wait(2)
 
-  const spot = await js(String.raw`(() => {
-    const root = document.querySelector("#gitquiet-root")
-    if (root === null) return null
-    const links = ${move.find}
-    const link = links.find((a) => {
-      const box = a.getBoundingClientRect()
-      return box.width > 4 && box.height > 4 && box.top >= 0 && box.top < innerHeight - 40
-    })
-    if (link === undefined) return null
-    const box = link.getBoundingClientRect()
-    return { x: Math.round(box.left + box.width / 2), y: Math.round(box.top + box.height / 2), to: link.pathname }
-  })()`)
+  /*
+   * Looked for until it is there, rather than once.
+   *
+   * The root goes up before the read behind it comes back, so on a cold copy of
+   * the extension there is a second or two where our screen is standing and holds
+   * no rows at all. Asked once, at whatever moment that is, the whole run reports
+   * "no link of ours to press" and measures nothing — which is what it did, for
+   * ten minutes, on a build that turned out to be fine.
+   */
+  const lookForSpot = async () => {
+    for (let look = 0; look < 10; look++) {
+      const found = await js(String.raw`(() => {
+        const root = document.querySelector("#gitquiet-root")
+        if (root === null) return null
+        const links = ${move.find}
+        const link = links.find((a) => {
+          const box = a.getBoundingClientRect()
+          return box.width > 4 && box.height > 4 && box.top >= 0 && box.top < innerHeight - 40
+        })
+        if (link === undefined) return null
+        const box = link.getBoundingClientRect()
+        return { x: Math.round(box.left + box.width / 2), y: Math.round(box.top + box.height / 2), to: link.pathname }
+      })()`)
+      if (found !== null) return found
+      await wait(1)
+    }
+    return null
+  }
+
+  const spot = await lookForSpot()
   if (spot === null) return { skipped: "no link of ours to press" }
 
   await hover([spot.x, spot.y])
