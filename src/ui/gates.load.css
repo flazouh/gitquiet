@@ -10,6 +10,16 @@
  * if this file is out of date.
  */
 
+/* sign-on: before ours is up. */
+html[data-gitquiet-page="sign-on"]:not([data-gitquiet-revealed]) main:has(div.org-sso) > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
+/* sign-on: for as long as ours is in charge. */
+html[data-gitquiet-taken] main:has(div.org-sso) > *:not(#gitquiet-root):not(:has(#gitquiet-root)) {
+  display: none;
+}
+
 /* conversation: before ours is up. */
 html[data-gitquiet-page="conversation"]:not([data-gitquiet-revealed]) react-app[app-name="pull-requests"] [class*="PageLayoutContent"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
 html[data-gitquiet-page="conversation"]:not([data-gitquiet-revealed]) [class*="PageLayoutContent"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)),

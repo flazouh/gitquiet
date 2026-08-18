@@ -1,4 +1,5 @@
 import { Option } from "effect";
+import { mayBeTheWall, THE_WALL_BOX } from "../github/signOn";
 import { fromPathname as commitIn } from "../domain/CommitRef";
 import { commitListIn } from "../domain/commitList";
 import { issueDashboardIn } from "../domain/issueDashboard";
@@ -58,6 +59,21 @@ export type Place = {
    * all three and the wrong screen would stand on two of them.
    */
   readonly owns: (path: string, search?: string) => boolean;
+  /**
+   * How to recognise this page in the document, for the one page no address names.
+   *
+   * Absent from every place but the wall, and the wall is why it exists: GitHub
+   * serves an organisation's single sign-on *in place of* the page that was asked
+   * for and under that page's own URL, so there is no address for `owns` above to
+   * answer, and `owns` says so by refusing every address.
+   *
+   * Two things read it, and both of them are the questions `owns` answers for
+   * everywhere else. `placeLoadedOn` routes a loaded document by it. And `mount.ts`
+   * takes it as the address already being this screen's own — which it is, in the
+   * only sense that rule cares about: no address is on its way, because the
+   * document in front of the reader is already the page.
+   */
+  readonly found?: (page: Document) => boolean;
   /**
    * The regions worth taking, best first. Only these are accepted while the
    * document is still parsing, because anything further up the tree is parsed
@@ -850,6 +866,66 @@ export const PERSON_STARS: Place = {
 };
 
 /**
+ * An organisation's single sign-on, standing where the page the reader asked for
+ * should be.
+ *
+ * The one place here with no address of its own, and that is the fact the whole
+ * of it turns on. GitHub serves this wall *in place of* whatever was asked for and
+ * under that page's own URL: `/octo-org/octo-repo/pull/7` is the wall this minute
+ * and the pull request the next, and nothing in the address says which. Measured
+ * on `OpenRouterIncubator/ori`, where the address never moved and the title read
+ * "Sign in to OpenRouterIncubator".
+ *
+ * So this is found in the document instead — `mayBeTheWall` at `document_start`,
+ * then `wallIn` once their form is parsed — and `owns` refuses every address,
+ * which is the plain truth: not one of them routes here. It was written as `owns:
+ * () => true` first, to satisfy the rule in `mount.ts` that a screen may not stand
+ * until the address is its own. True everywhere and false everywhere are both
+ * lies about a page that has no address, and the first of them is the dangerous
+ * one — it claims the whole site, and it walks straight through the test in
+ * `place.test.ts` that exists to catch a rule that answers nothing. `found` says
+ * the real thing once, and both readers of `owns` were taught to ask it.
+ */
+/** Their wall's own region: the `main` that holds the box, and only that one. */
+const THE_WALL = `main:has(${THE_WALL_BOX})`;
+
+export const SIGN_ON: Place = {
+  name: "sign-on",
+  owns: () => false,
+  found: mayBeTheWall,
+  /*
+   * Their whole `main`, proved by the one child that says which auth page this is.
+   *
+   * The proof matters more here than anywhere else in this table. GitHub serves
+   * their password box, their second factor and their device check under the same
+   * root class `found` above recognises, and every one of those is a page a reader
+   * has to be able to use. The box is on the organisation wall and on none of them
+   * — measured on the live wall, where `main` holds exactly one child and it is
+   * `div.org-sso.text-center` — so a guess that was wrong hides nothing at all
+   * while it is being corrected.
+   *
+   * `stages` is left out, so it is this. What to hide and where to stand are the
+   * same answer here, and the wall is the one page in this table where they cannot
+   * come apart: it is a whole document GitHub served instead of another one, not a
+   * region swapped into a page that is already up.
+   */
+  regions: [THE_WALL],
+  /*
+   * The same selector. There is nothing worse to fall back to and nothing worth
+   * falling back for: their wall is one box on an otherwise empty page, so a
+   * takeover that cannot find it has not found the wall.
+   */
+  fallback: THE_WALL,
+  /*
+   * Nothing. The wall is a server's answer to a request for another page, so it
+   * arrives as a document every time and is never swapped in under a reader.
+   */
+  soft: undefined,
+  // Nothing. The region is their heading and their form together.
+  bands: []
+}
+
+/**
  * Every page this extension stands on, for the rules that hide GitHub's version of
  * them.
  *
@@ -858,6 +934,7 @@ export const PERSON_STARS: Place = {
  * `scripts/build-gates.ts`, which turns it into the two stylesheets.
  */
 export const PLACES: ReadonlyArray<Place> = [
+  SIGN_ON,
   CONVERSATION,
   COMMIT,
   COMMITS,
@@ -887,6 +964,9 @@ export const PLACES: ReadonlyArray<Place> = [
  *
  * Home is not here. It is the Working Set standing somewhere else, and the dashboard
  * already owns that address — `placeFor` in the shell is what tells the two apart.
+ *
+ * Nor is the wall, though leaving it out is no longer what keeps it out: it refuses
+ * every address, so adding it here would change nothing. See `SIGN_ON`.
  */
 const BY_ADDRESS: ReadonlyArray<Place> = [
   CONVERSATION,
@@ -937,3 +1017,28 @@ const BY_ADDRESS: ReadonlyArray<Place> = [
  */
 export const placeOwning = (path: string, search?: string): Place | null =>
   BY_ADDRESS.find((place) => place.owns(path, search)) ?? null;
+
+/**
+ * Whose page the document in front of the reader is, markup and address together.
+ *
+ * The address alone answers for every page but one. An organisation's single
+ * sign-on is served *in place of* whatever was asked for and under that page's own
+ * URL, so `placeOwning` reads it as the pull request or the repository it is
+ * standing in front of — and that screen then waits for a region their wall does
+ * not have. Which is what a reader saw: eight seconds of nothing, then the wall.
+ *
+ * Asked of the page a document was loaded on and of nothing else. A press is
+ * routed by `placeOwning` above, because a link is an address and there is no
+ * document behind it yet to read.
+ *
+ * The document is asked first and the address second, which is the order the two
+ * facts deserve: a place that recognises the markup in front of the reader is
+ * looking at the page, and a place that recognises the address is looking at what
+ * was asked for. The wall is the whole of the difference between those.
+ */
+export const placeLoadedOn = (
+  page: Document,
+  path: string,
+  search?: string
+): Place | null =>
+  PLACES.find((place) => place.found?.(page) === true) ?? placeOwning(path, search);

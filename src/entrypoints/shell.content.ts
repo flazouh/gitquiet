@@ -50,7 +50,9 @@ import {
   REPO_ISSUES,
   REPO_PULLS,
   RUN,
+  SIGN_ON,
   type Place,
+  placeLoadedOn,
   placeOwning,
 } from "@/ui/place";
 import "@/ui/gates.load.css";
@@ -113,6 +115,12 @@ const PLACE_OF: Record<Wanted, Place> = {
   notifications: NOTIFICATIONS,
   "person-repos": PERSON_REPOS,
   profile: PROFILE,
+  /*
+   * The one entry here that `pageAt` can never return, because its place is
+   * deliberately absent from the routing table: a wall has no address of its own.
+   * It is reached from the bottom of `main` instead, where the document is read.
+   */
+  "sign-on": SIGN_ON,
 };
 
 /**
@@ -168,6 +176,26 @@ const hereNow = (): readonly [string, string] => [
   window.location.pathname,
   window.location.search,
 ];
+
+/**
+ * Which of this extension's pages the reader is on now, markup and address together.
+ *
+ * `pageAt` above answers for an address, which is what a press is: a destination with
+ * no document behind it yet. This answers for the page in front of the reader, and the
+ * two differ on exactly one page — an organisation's single sign-on, which GitHub
+ * serves in place of what was asked for and under that page's own URL. Read by the
+ * address alone, the wall is the pull request it stands in front of.
+ *
+ * Which is not a nicety. The fetch below drops any screen the reader has since left,
+ * and it tells them apart by asking this: asked for an address, the sign-on screen is
+ * fetched, found to be standing on a pull request, and thrown away — leaving the page
+ * named, GitHub's wall held back by the rules that name carries, and nothing at all on
+ * the screen.
+ */
+const wantedNow = (): Wanted | null => {
+  const place = placeLoadedOn(document, ...hereNow());
+  return place === null ? null : (SCREEN_OF.get(place) ?? null);
+};
 
 /**
  * Reads a pull request ahead of being asked for it, so that opening it is a
@@ -491,11 +519,7 @@ export default defineContentScript({
             // reader may have gone somewhere else entirely — and a screen started for
             // a page nobody is on gates a page it is not about.
             if (up.has(what)) return;
-            if (
-              pageAt(...hereNow()) !== what &&
-              intendedPath(window) === null
-            )
-              return;
+            if (wantedNow() !== what && intendedPath(window) === null) return;
             up.add(what);
             screen.start();
           }),
@@ -774,7 +798,17 @@ export default defineContentScript({
      * at `document_start`, before their markup has been parsed, and an attribute set
      * a frame later is a frame of their page on the screen.
      */
-    const loadedOn = pageAt(...hereNow());
+    /*
+     * The markup as well as the address, which is the one thing this decision needs
+     * and a press never does: an organisation's single sign-on is served in place of
+     * the page that was asked for, under that page's own URL. See `placeLoadedOn`.
+     *
+     * Read at `document_start`, where the root element is all the parser has
+     * produced, because their page is displayed a frame later. It is a guess at that
+     * point and the screen settles it — handing the page straight back where the
+     * answer turns out to be no.
+     */
+    const loadedOn = wantedNow();
     if (loadedOn !== null) {
       markPage(document, placeFor(loadedOn, window.location.pathname));
       fetchIt(loadedOn);

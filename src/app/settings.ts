@@ -55,16 +55,30 @@ export const rememberView = (store: Store, view: View): Effect.Effect<void> =>
 const CHOICE = 250
 
 /**
+ * Everything the reader chose, with the defaults as the answer when storage is
+ * silent.
+ *
+ * The timeout is the whole of this. A page that also needs a second setting used
+ * to ask for the view through the race below and for the rest through a bare
+ * `store.read`, in one `Effect.all` — which buys nothing at all: the guarded half
+ * gives up on time, the unguarded half never answers, and the two together never
+ * settle. The screen waiting on them then draws nothing, on a page whose own
+ * content it is already holding back.
+ */
+export const chosenSettings = (store: Store): Effect.Effect<Settings> =>
+  store.read.pipe(
+    Effect.timeoutOrElse({
+      duration: Duration.millis(CHOICE),
+      orElse: () => Effect.succeed(DEFAULTS)
+    })
+  )
+
+/**
  * Which interface to put up, with ours as the answer when storage is silent.
  *
  * Every content script asks this before it draws anything, and each of them
- * used to write the race out again.
+ * used to write the race out again. `DEFAULTS.page.view` is ours, so the silence
+ * is answered the same way it always was.
  */
 export const chosenView = (store: Store): Effect.Effect<View> =>
-  store.read.pipe(
-    Effect.map((settings) => settings.page.view),
-    Effect.timeoutOrElse({
-      duration: Duration.millis(CHOICE),
-      orElse: () => Effect.succeed<View>("ours")
-    })
-  )
+  chosenSettings(store).pipe(Effect.map((settings) => settings.page.view))

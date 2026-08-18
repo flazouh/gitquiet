@@ -12,6 +12,7 @@ import {
   NOTIFICATIONS,
   PERSON_REPOS,
   PERSON_STARS,
+  placeLoadedOn,
   placeOwning,
   PLACES,
   PROFILE,
@@ -21,6 +22,7 @@ import {
   REPO_ISSUES,
   REPO_PULLS,
   RUN,
+  SIGN_ON,
   type Place,
 } from "./place";
 
@@ -135,10 +137,31 @@ describe("which addresses belong to which page", () => {
     expect(owningOf(address)).toBeNull();
   });
 
-  test("every place says which addresses are its own", () => {
-    // The compiler already asks for the field. This asks that it was answered with
-    // something, rather than with a rule that is false everywhere.
-    const said = PLACES.filter((place) =>
+  /*
+   * The wall's own guard, and the reason it is written as a rule about every
+   * address rather than about the table it is left out of. `SIGN_ON.owns` said
+   * true everywhere once, on the grounds that the wall really is served at every
+   * address, and the only thing keeping it off every press was its absence from
+   * one hand-kept list. This asserts the property instead: whatever list it is in,
+   * no address routes there.
+   */
+  test("no address routes to the wall, which is recognised in the document", () => {
+    for (const address of [...ADDRESSES.map(([one]) => one), ...THEIRS]) {
+      expect(owningOf(address)?.name).not.toBe(SIGN_ON.name)
+    }
+  })
+
+  test("every place says how it is recognised, and answers with a real rule", () => {
+    /*
+     * The compiler asks for `owns` and this asks that it was answered with
+     * something — a rule false everywhere is a page nothing ever routes to, and a
+     * rule true everywhere is a page everything routes to. Both compile.
+     *
+     * `found` is the one honest way out of it: a page with no address of its own
+     * says so by refusing every address and being recognised in the document
+     * instead. Answering neither is the failure this catches.
+     */
+    const byAddress = PLACES.filter((place) =>
       ADDRESSES.some(([address]) => {
         const at = address.indexOf("?");
         return at === -1
@@ -146,8 +169,11 @@ describe("which addresses belong to which page", () => {
           : place.owns(address.slice(0, at), address.slice(at));
       }),
     );
+    const byDocument = PLACES.filter((place) => place.found !== undefined);
 
-    expect(said).toHaveLength(PLACES.length);
+    expect(byAddress.length + byDocument.length).toBe(PLACES.length);
+    // And never both, which would be two answers to one question.
+    expect(byAddress.filter((place) => byDocument.includes(place))).toHaveLength(0);
   });
 });
 
@@ -673,6 +699,115 @@ describe("telling a person's three tabs apart", () => {
     }
   });
 });
+
+/**
+ * An organisation's wall, and the two other auth pages it has to be told apart
+ * from.
+ *
+ * Copied from the live wall rather than invented: `main` holds one child,
+ * `div.org-sso.text-center`, and inside it their heading and the form that posts
+ * to `saml/initiate`. The login and second-factor pages carry the same
+ * `class="html-auth"` on the root and nothing that names an organisation, which is
+ * why the proof here is the child and never the class.
+ */
+const authPage = (inside: string): Document => {
+  const page = document.implementation.createHTMLDocument("github")
+  page.documentElement.className = "html-auth"
+  page.body.innerHTML = `<main>${inside}</main>`
+  return page
+}
+
+const theWall = (): Document =>
+  authPage(`<div class="org-sso text-center">
+    <h1>Single sign-on to <strong>octo-org</strong></h1>
+    <form action="https://github.com/orgs/octo-org/saml/initiate?return_to=%2F" method="post">
+      <input type="hidden" name="authenticity_token" value="a-real-token" />
+      <button type="submit">their Continue button</button>
+    </form>
+  </div>`)
+
+/**
+ * The routing decision the whole feature turns on, which the address alone cannot
+ * make.
+ *
+ * A reader opens a pull request, GitHub answers with the wall, and the address is
+ * the pull request's either way. Read by the address alone, the card's screen is
+ * started and waits for a region their wall does not have — eight seconds of
+ * nothing, and then GitHub's wall. Which is exactly what a reader reported.
+ */
+describe("which page a loaded document is", () => {
+  const ordinary = (): Document => document.implementation.createHTMLDocument("github")
+
+  test("is the address, on every page GitHub really served", () => {
+    expect(placeLoadedOn(ordinary(), "/facebook/react/pull/1749")?.name).toBe(
+      CONVERSATION.name
+    )
+  })
+
+  test("is the wall, where the wall was served under that same address", () => {
+    const walled = ordinary()
+    walled.documentElement.className = "html-auth"
+
+    expect(placeLoadedOn(walled, "/facebook/react/pull/1749")?.name).toBe(SIGN_ON.name)
+  })
+
+  /*
+   * The wall stands in front of everything an organisation owns, including pages
+   * this extension has no screen for. Read by the address that would be nothing at
+   * all, and the reader would be left looking at GitHub's wall with no card on it.
+   */
+  test("is the wall even where the address is a page nothing here claims", () => {
+    const walled = ordinary()
+    walled.documentElement.className = "html-auth"
+
+    expect(placeLoadedOn(walled, "/facebook/react/settings")?.name).toBe(SIGN_ON.name)
+  })
+
+  test("keeps a person's three apart, so the search is still read", () => {
+    expect(placeLoadedOn(ordinary(), "/flazouh", "?tab=repositories")?.name).toBe(
+      PERSON_REPOS.name
+    )
+  })
+})
+
+describe("standing in front of an organisation's single sign-on", () => {
+  test("takes their heading and their button, which ours says again", () => {
+    const page = theWall()
+
+    takeOverSlot(page, interfaceContainer(page, SIGN_ON), SIGN_ON)
+
+    expect(visible(page, "their Continue button")).toBe(false)
+  })
+
+  test("gives the page back whole, so their own button still works", () => {
+    // The way out of every mistake this screen could make. A reader who steps
+    // aside gets GitHub's wall exactly as it was served.
+    const page = theWall()
+
+    takeOverSlot(page, interfaceContainer(page, SIGN_ON), SIGN_ON)?.stepAside()
+
+    expect(visible(page, "their Continue button")).toBe(true)
+    expect(page.getElementById(ROOT_ID)).toBeNull()
+  })
+
+  /*
+   * The rule that matters most in this file. These are the pages a reader signs in
+   * on, and a gate that fired on one of them would hide the box they have to type
+   * into — on a page where this extension has nothing to put in its place.
+   */
+  test.each([
+    ["their password box", `<div class="auth-form"><form action="/session">their password box</form></div>`],
+    ["their second factor", `<div class="auth-form"><form action="/sessions/two-factor">their code box</form></div>`],
+    ["their device check", `<div class="auth-form"><form action="/sessions/verified-device">their device box</form></div>`]
+  ])("matches nothing on %s, which wears the same class", (_what, inside) => {
+    const page = authPage(inside)
+
+    for (const stage of SIGN_ON.stages ?? SIGN_ON.regions) {
+      expect(page.querySelector(stage)).toBeNull()
+    }
+    expect(findSlot(page, SIGN_ON)).toBeNull()
+  })
+})
 
 /**
  * A reader moving from the Working Set to a pull request, which is the case that

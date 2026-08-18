@@ -454,11 +454,39 @@ export const HOME_KNOBS = [
   )
 ] as const
 
+/**
+ * What happens when an organisation puts its single sign-on in the way.
+ *
+ * Out of the menu, as the page knob above is, and for a related reason: the menu
+ * is inside our own screens and this knob is about a page where none of them can
+ * stand. It is offered on the card that replaces their wall instead, which is the
+ * one moment a reader has an opinion about it.
+ *
+ * Off to start with, and this is the only default here that is about consent
+ * rather than about taste. On means this posts their form for the reader — their
+ * own session, their own click, but made without them — and that is a thing to be
+ * asked for rather than assumed. One tick on the card is the whole of the asking.
+ */
+export const SIGN_ON_KNOBS = [
+  knob(
+    "byItself",
+    "Signing on again",
+    "Answer their single sign-on without being asked",
+    "What happens when an organisation's single sign-on stands between you and a page. Ask draws the card and waits for you. By itself posts the same form the card's button posts, the moment the page loads, so the wall passes by without a click. Either way your identity provider still decides: if it wants a password or a second factor, its own screen appears and nothing here can skip it.",
+    [
+      { value: "ask", label: "Ask" },
+      { value: "always", label: "By itself" }
+    ],
+    "ask"
+  )
+] as const
+
 type Values<Knobs extends ReadonlyArray<Knob<string, string>>> = {
   readonly [K in Knobs[number] as K["key"]]: K["choices"][number]["value"]
 }
 
 export type PageSettings = Values<typeof PAGE_KNOBS>
+export type SignOnSettings = Values<typeof SIGN_ON_KNOBS>
 export type ThemeSettings = Values<typeof THEME_KNOBS>
 export type DiffSettings = Values<typeof DIFF_KNOBS>
 export type TreeSettings = Values<typeof TREE_KNOBS>
@@ -472,6 +500,7 @@ export type View = PageSettings["view"]
 
 export type Settings = {
   readonly page: PageSettings
+  readonly signOn: SignOnSettings
   readonly theme: ThemeSettings
   readonly diff: DiffSettings
   readonly tree: TreeSettings
@@ -560,6 +589,7 @@ const fallbacks = <Knobs extends ReadonlyArray<Knob<string, string>>>(
 
 export const DEFAULTS: Settings = {
   page: fallbacks(PAGE_KNOBS),
+  signOn: fallbacks(SIGN_ON_KNOBS),
   theme: fallbacks(THEME_KNOBS),
   diff: fallbacks(DIFF_KNOBS),
   tree: fallbacks(TREE_KNOBS),
@@ -601,6 +631,7 @@ export const readSettings = (stored: unknown): Settings => {
       : {}
   return {
     page: readGroup(PAGE_KNOBS, held["page"]),
+    signOn: readGroup(SIGN_ON_KNOBS, held["signOn"]),
     theme: readGroup(THEME_KNOBS, held["theme"]),
     diff: readGroup(DIFF_KNOBS, held["diff"]),
     tree: readGroup(TREE_KNOBS, held["tree"]),

@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import {
   DIFF_KNOBS,
+  SIGN_ON_KNOBS,
   THEME_KNOBS,
   type Knob,
   type Settings,
@@ -263,6 +264,8 @@ export const SettingsSheet = ({
     onChange({ ...settings, diff: { ...settings.diff, [key]: value } })
   const pickTree: Pick = (key, value) =>
     onChange({ ...settings, tree: { ...settings.tree, [key]: value } })
+  const pickSignOn: Pick = (key, value) =>
+    onChange({ ...settings, signOn: { ...settings.signOn, [key]: value } })
 
   const plain = (knob: Knob<string, string>) => !knob.advanced
   const deep = (knob: Knob<string, string>) => knob.advanced
@@ -273,7 +276,20 @@ export const SettingsSheet = ({
     files: [{ knobs: TREE_KNOBS.filter(plain), chosen: settings.tree, onPick: pickTree }],
     advanced: [
       { heading: "Diff", knobs: DIFF_KNOBS.filter(deep), chosen: settings.diff, onPick: pickDiff },
-      { heading: "Files", knobs: TREE_KNOBS.filter(deep), chosen: settings.tree, onPick: pickTree }
+      { heading: "Files", knobs: TREE_KNOBS.filter(deep), chosen: settings.tree, onPick: pickTree },
+      /*
+       * Here as well as on the wall's own card, and this is the half that matters.
+       * The card is drawn on a page a reader only reaches when an organisation puts
+       * it in their way, and turning the knob on there is what stops that page ever
+       * being drawn again — so the card alone is a switch with no way back. This row
+       * is the way back.
+       */
+      {
+        heading: "Signing on",
+        knobs: SIGN_ON_KNOBS,
+        chosen: settings.signOn,
+        onPick: pickSignOn
+      }
     ]
   }
 

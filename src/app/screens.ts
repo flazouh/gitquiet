@@ -48,6 +48,15 @@ export type Wanted =
    */
   | "person-repos"
   | "profile"
+  /**
+   * The odd one, and the only one here that is not a page of GitHub's at all.
+   *
+   * Every other name in this list is an address. This one is a state a page can be
+   * in: an organisation's single sign-on served in place of whatever was asked for,
+   * under that page's own URL. So the shell picks it by reading the document rather
+   * than by reading the address — see `SIGN_ON` in `src/ui/place.ts`.
+   */
+  | "sign-on"
 
 export const WANTED: ReadonlyArray<Wanted> = [
   "pull-request",
@@ -65,7 +74,8 @@ export const WANTED: ReadonlyArray<Wanted> = [
   "releases",
   "notifications",
   "person-repos",
-  "profile"
+  "profile",
+  "sign-on"
 ]
 
 export const isWanted = (what: string): what is Wanted =>
