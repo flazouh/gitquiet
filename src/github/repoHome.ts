@@ -182,7 +182,8 @@ const unescaped = (segment: string): string =>
  *
  * The URL alone cannot separate `feat/x` from `feat` plus `x/file.ts`. GitHub
  * already resolved that choice in the code-view payload, so this reads the
- * answer from the loaded document and keeps the URL parser as the fallback.
+ * answer from the loaded document. Nothing while GitHub still holds data for
+ * the previous page, because guessing would read a different file.
  */
 export const repoHomeInDocument = (url: string, doc: Document): Option.Option<RepoHome> => {
   const parsed = repoHomeIn(url)
