@@ -23,6 +23,7 @@ import type { View } from "@/domain/Settings";
 import { chosenView } from "@/app/settings";
 import { isHome, showsWorkingSet } from "@/domain/pages";
 import { answerPressesIn, drawingOurOwnRows, goTo } from "@/ui/going";
+import { THE_WORKING_SET } from "@/ui/lastDrawn";
 import { handBack, markPage, reveal, ungate } from "@/ui/mount";
 import { whenLocationChanges } from "@/ui/navigation";
 import { DASHBOARD, HOME, type Place } from "@/ui/place";
@@ -231,6 +232,10 @@ const open = (place: Place): (() => void) => {
         <Home
           load={read}
           preload={remembered}
+          // The same list under the same name on both addresses, which is what
+          // `warming.ts` already treats them as: walking from `/` to a pull
+          // request and back is the same Back as from `/pulls`.
+          where={THE_WORKING_SET}
           onOpen={openWithTheKeyboard}
           onStepAside={standing.stepAside}
           ask={askFor}
@@ -256,6 +261,7 @@ const open = (place: Place): (() => void) => {
         <WorkingSetScreen
           load={read}
           preload={remembered}
+          where={THE_WORKING_SET}
           onOpen={openWithTheKeyboard}
           onStepAside={standing.stepAside}
           ask={askFor}

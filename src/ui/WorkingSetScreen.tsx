@@ -27,6 +27,8 @@ export type WorkingSetScreenProps = {
    * remembered, which is the only age nothing here can bound.
    */
   readonly preload?: () => Effect.Effect<Option.Option<ReadonlyArray<Sitting>>>;
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string;
   readonly onOpen: (reference: PullRequestRef) => void;
   /** Restores GitHub's own list, which is still on the page behind this. */
   readonly onStepAside: () => void;
@@ -122,6 +124,7 @@ const EMPTY: ReadonlyArray<Sitting> = [];
 export const WorkingSetScreen = ({
   load,
   preload,
+  where,
   onOpen,
   onStepAside,
   pinned,
@@ -139,7 +142,7 @@ export const WorkingSetScreen = ({
   recallRepositories,
   elsewhere,
 }: WorkingSetScreenProps) => {
-  const live = useLive(load, preload);
+  const live = useLive(load, preload, where);
   const { read, meanwhile } = live;
   const waiting = useWaiting(read.status);
   useFreshening(live.catchingUp, CHECKING);

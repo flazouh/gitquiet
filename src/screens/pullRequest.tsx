@@ -32,6 +32,7 @@ import { uploadFile } from "@/app/attaching"
 import { loadSuggesting } from "@/app/suggesting"
 import { forgetIntent, intendedPath } from "@/app/intent"
 import { answerPressesIn, ourOwnRowsDrawn } from "@/ui/going"
+import { pullRequestNamed } from "@/ui/lastDrawn"
 import { isDashboard } from "@/domain/pages"
 import type { Check, MergeMethod, NewComment } from "@/domain/PullRequest"
 import { fromPathname, type PullRequestRef } from "@/domain/PullRequestRef"
@@ -297,6 +298,7 @@ const open = (
         load={read}
         recallRepositories={recallRepositories}
         preload={() => Fiber.join(remembered)}
+        where={pullRequestNamed(reference)}
         fetchDiffs={fetchDiffs}
         onStepAside={standing.stepAside}
         onUseGitHub={onUseGitHub}

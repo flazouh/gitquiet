@@ -3,6 +3,7 @@ import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import * as Atom from "effect/unstable/reactivity/Atom"
 import { useCallback, useMemo } from "react"
 import { useAtomAsk, useAtomRefresh, useAtomValue } from "./atoms"
+import { keepDrawn, lastDrawn } from "./lastDrawn"
 
 /**
  * Reading something from GitHub and never resting on what was remembered.
@@ -115,19 +116,37 @@ const shownFrom = <T>(live: AsyncResult.AsyncResult<T, unknown>, early: Option.O
 
 export const useLive = <T>(
   load: Load<T>,
-  preload?: () => Effect.Effect<Option.Option<T>>
+  preload?: () => Effect.Effect<Option.Option<T>>,
+  /**
+   * A name for the page this read is of, the same on every visit to it.
+   *
+   * Given one, what GitHub last said stays in this document's memory and is on
+   * the screen on the first frame of the next visit — which is what makes Back
+   * instant rather than a skeleton over a storage read. See {@link lastDrawn}.
+   *
+   * Named by the caller rather than worked out here, because the name has to be
+   * the same on both visits and nothing in this hook knows what it is reading.
+   * The names are in `lastDrawn.ts`, together, so that two of them claiming one
+   * page is a thing you can see. Left out by every screen that has not been
+   * given one yet, and by the two that read twice on one page — `ProfileScreen`
+   * and `Home` — until each of their reads is named separately.
+   */
+  where?: string
 ): Live<T> => {
   const atoms = useMemo(() => {
+    /** What this document last drew for this page, if it drew it. */
+    const kept = where === undefined ? Option.none<T>() : lastDrawn<T>(where)
+
     /**
      * Whatever arrived before the answer did.
      *
-     * Two things end up here: what the last visit left in the store, and the
-     * stages a staged read reports on its way to being finished. Both are worth
-     * looking at and neither is the answer. They are not the same kind of thing
-     * though, and which of them is here decides whether the other may land on
-     * top of it — see `remembered`.
+     * Three things end up here: what this document drew here last, what the last
+     * visit left in the store, and the stages a staged read reports on its way to
+     * being finished. All are worth looking at and none is the answer. They are
+     * not the same kind of thing though, and which of them is here decides
+     * whether the other may land on top of it — see `remembered`.
      */
-    const early = Atom.make(Option.none<T>())
+    const early = Atom.make(kept)
 
     /**
      * Whether what `early` holds is a memory rather than a stage of the live read.
@@ -152,14 +171,24 @@ export const useLive = <T>(
      * where a memory arrived, there is a whole page on the screen already, and the
      * read has an answer coming that is better than either.
      */
-    let remembered = false
+    let remembered = Option.isSome(kept)
 
-    const read = Atom.make((get: Atom.AtomContext) =>
-      load((value) => {
+    const read = Atom.make((get: Atom.AtomContext) => {
+      const running = load((value) => {
         if (remembered) return
         get.set(early, Option.some(value))
       })
-    )
+
+      /*
+       * Written down only where GitHub answered. A stage is half a page and a
+       * failure is not a page at all, and drawing either of them again on the
+       * next visit — over a GitHub that has since recovered — is worse than the
+       * skeleton this exists to remove.
+       */
+      return where === undefined
+        ? running
+        : running.pipe(Effect.tap((value) => Effect.sync(() => keepDrawn(where, value))))
+    })
 
     /*
      * Coming back to the tab is a re-read, every time. A list of pull requests
@@ -218,7 +247,7 @@ export const useLive = <T>(
     )
 
     return { early, read: watched, shown, meanwhile, remembering }
-  }, [load, preload])
+  }, [load, preload, where])
 
   const live = useAtomValue(atoms.shown)
   /*

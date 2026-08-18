@@ -32,6 +32,8 @@ export type RepoHomeScreenProps = {
   readonly repo: { readonly owner: string; readonly repo: string }
   readonly load: Load<Front>
   readonly preload?: () => Effect.Effect<Option.Option<Front>>
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
   /** Restores GitHub's own page, which is still behind this one. */
   readonly onStepAside: () => void
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
@@ -549,6 +551,7 @@ export const RepoHomeScreen = ({
   repo,
   load,
   preload,
+  where,
   onStepAside,
   recallRepositories,
   signedIn = viewerOnPage,
@@ -562,7 +565,7 @@ export const RepoHomeScreen = ({
   reading = null,
   onRead
 }: RepoHomeScreenProps) => {
-  const live = useLive(load, preload)
+  const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
   useFreshening(live.catchingUp, CHECKING)

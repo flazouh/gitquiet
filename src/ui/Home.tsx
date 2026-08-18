@@ -31,6 +31,8 @@ import { useSettings } from "./useSettings"
 export type HomeProps = {
   readonly load: Load<ReadonlyArray<Sitting>>
   readonly preload?: () => Effect.Effect<Option.Option<ReadonlyArray<Sitting>>>
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
   readonly onOpen: (reference: PullRequestRef) => void
   readonly onStepAside: () => void
   readonly ask?: (
@@ -55,6 +57,7 @@ export type HomeProps = {
 export const Home = ({
   load,
   preload,
+  where,
   onOpen,
   onStepAside,
   ask,
@@ -99,6 +102,7 @@ export const Home = ({
     <WorkingSetScreen
       load={load}
       preload={preload}
+      where={where}
       onOpen={onOpen}
       onStepAside={onStepAside}
       ask={ask}

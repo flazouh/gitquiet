@@ -1,6 +1,7 @@
 import { GlobalRegistrator } from "@happy-dom/global-registrator"
 import { afterEach, setDefaultTimeout } from "bun:test"
 import { forgetFlights } from "../src/github/flight"
+import { forgetDrawn } from "../src/ui/lastDrawn"
 import { forgetEverything } from "./storage"
 
 /**
@@ -83,3 +84,14 @@ afterEach(forgetFlights)
  * test began, and with a route asked again after a wait it had.
  */
 afterEach(forgetEverything)
+
+/**
+ * And nothing a test drew is allowed to be drawn again for the test after it.
+ *
+ * The same rule once more, for the memory that makes Back instant. A screen given a
+ * name keeps what GitHub said under it for the rest of the document, which is what
+ * one reader walking in and out of a pull request wants and is not what a suite
+ * wants: two tests standing the same screen up are one document, and the second
+ * would paint the first one's answer before its own intercept was ever asked.
+ */
+afterEach(forgetDrawn)

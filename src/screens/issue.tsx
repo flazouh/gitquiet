@@ -13,6 +13,7 @@ import { chosenView, rememberView } from "@/app/settings"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { IssueScreen } from "@/ui/IssueScreen"
+import { issueNamed } from "@/ui/lastDrawn"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { ISSUE } from "@/ui/place"
 import { whenLocationChanges } from "@/ui/navigation"
@@ -92,6 +93,7 @@ const open = (reference: IssueRef, onUseGitHub?: () => void): (() => void) => {
         reference={reference}
         load={read}
         preload={() => Fiber.join(remembered)}
+        where={issueNamed(reference)}
         row={row}
         recallRepositories={recallRepositories}
         /*

@@ -21,6 +21,7 @@ import { frontInDocument } from "@/github/repoHome"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
+import { repoNamed } from "@/ui/lastDrawn"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { REPO_HOME } from "@/ui/place"
@@ -202,6 +203,7 @@ const open = (home: RepoHome): Open => {
         repo={home.repo}
         load={read}
         preload={remembered}
+        where={repoNamed(home.repo)}
         recallRepositories={recallRepositories}
         onStepAside={standing.stepAside}
         onStar={(to) => starRepo(home.repo, to).pipe(throughGitHub)}

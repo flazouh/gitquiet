@@ -30,6 +30,8 @@ export type IssueScreenProps = {
    * worth the half second, never rested on.
    */
   readonly preload?: () => Effect.Effect<Option.Option<LoadedIssue>>
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
   /**
    * The row the list drew for this issue, where the reader pressed one.
    *
@@ -126,6 +128,7 @@ export const IssueScreen = ({
   reference,
   load,
   preload,
+  where,
   row,
   onStepAside,
   onUseGitHub,
@@ -137,7 +140,7 @@ export const IssueScreen = ({
   recallRepositories,
   signedIn = viewerOnPage
 }: IssueScreenProps) => {
-  const live = useLive(load, preload)
+  const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
   useFreshening(live.catchingUp, CHECKING)

@@ -54,6 +54,8 @@ export type PullRequestScreenProps = {
    * than what was remembered, which is the only age nothing here can bound.
    */
   readonly preload?: () => Effect.Effect<Option.Option<Loaded>>
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
   /** Content for a file the page arrived without, fetched when it is opened. */
   readonly fetchDiffs: (
     paths: ReadonlyArray<string>,
@@ -204,6 +206,7 @@ export const PullRequestScreen = ({
   recallRepositories,
   load,
   preload,
+  where,
   fetchDiffs,
   onStepAside,
   onUseGitHub,
@@ -244,7 +247,7 @@ export const PullRequestScreen = ({
    * an hour out of date answers that wrongly while looking exactly like one that
    * is right.
    */
-  const live = useLive(load, preload)
+  const live = useLive(load, preload, where)
   const { read, again, meanwhile } = live
   const waiting = useWaiting(read.status)
   useFreshening(live.catchingUp, CHECKING)
