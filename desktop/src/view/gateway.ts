@@ -127,6 +127,39 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
   const involved = rows.map(involvedFrom)
   const byKey = new Map(rows.map((row) => [`${row.owner}/${row.repo}#${row.number}`, row]))
 
+  /**
+   * Where every row's checks and reviews are read off, for both callers that ask.
+   *
+   * One function rather than two, because the two are the same answer to the same
+   * question asked at two moments: `standingsFor` is the live read arriving, and the
+   * standings inside {@link RememberedRows} are the kept read being stood up. They were
+   * written out separately and then one of them was not written at all, which is a
+   * whole list drawn with no word for its checks.
+   */
+  const standings = (wanted?: ReadonlySet<number>): Standings =>
+    new Map(
+      rows
+        .filter((row) => wanted === undefined || wanted.has(row.id))
+        .map((row) => [
+          row.id,
+          {
+            checks: Option.fromNullishOr(row.checks),
+            reviewed: Option.fromNullishOr(row.reviewed)
+          }
+        ])
+    )
+
+  const branchesIn = (): ReadonlyMap<string, Branches> =>
+    new Map(
+      rows.map((row) => [
+        keyOf({ owner: row.owner, repo: row.repo, number: row.number }),
+        { baseBranch: row.baseBranch, headBranch: row.headBranch }
+      ])
+    )
+
+  const sizesIn = () =>
+    new Map(rows.map((row) => [row.id, { added: row.added, deleted: row.deleted }]))
+
   const missing = (what: string) => (reference: PullRequestRef | RepoRef) =>
     Effect.fail(
       new GatewayError({
@@ -167,22 +200,7 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
             )
       ),
 
-    standingsFor: (ids: ReadonlyArray<number>) => {
-      const wanted = new Set(ids)
-      return Effect.succeed<Standings>(
-        new Map(
-          rows
-            .filter((row) => wanted.has(row.id))
-            .map((row) => [
-              row.id,
-              {
-                checks: Option.fromNullishOr(row.checks),
-                reviewed: Option.fromNullishOr(row.reviewed)
-              }
-            ])
-        )
-      )
-    },
+    standingsFor: (ids: ReadonlyArray<number>) => Effect.succeed(standings(new Set(ids))),
 
     branches: (reference: PullRequestRef) =>
       Effect.succeed(
@@ -199,24 +217,26 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
     },
 
     /**
-     * The stacks and the sizes, both of them, in the one answer the list asks for.
+     * The branches, the sizes and the standings, in the one answer the list asks for.
      *
      * On GitHub's page this is the store: the branches and the sizes are a read
      * per row there, so what was kept from last time is stood under the list
      * while those reads go out. Here they arrived with the rows — the same
-     * request that filled the list carried both — so this is not a memory of an
-     * older read at all. It is the read, answered again in the shape the caller
+     * request that filled the list carried all three — so this is not a memory of
+     * an older read at all. It is the read, answered again in the shape the caller
      * wants it in.
+     *
+     * All three, the standings included. They were left off, and the answer was
+     * therefore an object the caller reads a `Map` off of and finds nothing at: the
+     * kept list died on the way to the screen, so pressing back to the list showed
+     * "Reading your pull requests…" for eight seconds with fifty-two rows already on
+     * disk. Measured, before and after.
      */
     rememberedRows: () =>
       Effect.succeed<RememberedRows>({
-        branches: new Map(
-          rows.map((row) => [
-            `${row.owner}/${row.repo}#${row.number}`,
-            { baseBranch: row.baseBranch, headBranch: row.headBranch }
-          ])
-        ),
-        sizes: new Map(rows.map((row) => [row.id, { added: row.added, deleted: row.deleted }]))
+        branches: branchesIn(),
+        sizes: sizesIn(),
+        standings: standings()
       }),
 
     // Not on this screen and not faked. A hovercard with a real face and no
