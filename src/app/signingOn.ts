@@ -37,18 +37,44 @@ export const ROUND_AGAIN = 30_000
  * nothing tomorrow — it exists to recognise a loop that is happening now, and a
  * loop cannot outlive the tab it is looping in.
  */
+/**
+ * What the tab has to say about an organisation, which is three things and not
+ * two.
+ *
+ * `cannot` is the one that has to exist. It was folded into `never` while this was
+ * a `number | undefined`, and the two are opposite instructions: "nothing has been
+ * answered here, so go ahead" against "this tab cannot tell you, so do not". A
+ * browser that refuses storage answered the second and was read as the first, so
+ * the guard failed open — a private window would have posted their form at every
+ * wall, without limit, which is the loop this whole module exists to stop. The
+ * comment below promised the safe behaviour and the type made it unsayable.
+ */
+export type Remembered =
+  | { readonly _tag: "never" }
+  | { readonly _tag: "cannot" }
+  | { readonly _tag: "at"; readonly when: number }
+
+const NEVER: Remembered = { _tag: "never" }
+const CANNOT: Remembered = { _tag: "cannot" }
+
 export type Lately = {
-  /** When this organisation was last answered here, or nothing. */
-  readonly when: (organisation: string) => number | undefined
+  /** What this tab knows about when this organisation was last answered here. */
+  readonly when: (organisation: string) => Remembered
   readonly note: (organisation: string, at: number) => void
 }
 
 /** Where it is kept, which is the tab's own storage and nowhere else. */
 const KEY = (organisation: string): string => `gitquiet:signed-on:${organisation}`
 
-/** Storage, which throws rather than answers where a profile has switched it off. */
+/**
+ * Storage, which throws rather than answers where a profile has switched it off.
+ *
+ * Their own `null` is kept rather than folded into the lifted `undefined`, because
+ * the two are the facts this has to tell apart: nothing is written under that key,
+ * against this tab will not answer at all.
+ */
 const reading = UndefinedOr.liftThrowable((store: Storage, key: string) =>
-  store.getItem(key) ?? undefined
+  store.getItem(key)
 )
 const writing = UndefinedOr.liftThrowable((store: Storage, key: string, value: string) =>
   store.setItem(key, value)
@@ -59,25 +85,31 @@ const writing = UndefinedOr.liftThrowable((store: Storage, key: string, value: s
  *
  * Nothing here is required to work. Storage throws rather than answers in a
  * private window and behind some managed profiles, and reaching for the property
- * at all throws in a few of those — which is why the absence is a value this
- * takes rather than a failure it catches. A reader whose browser will not remember
- * this gets the card every time, which is the safe half of the trade: the loop
- * this guards against is one the card already breaks.
+ * at all throws in a few of those — which is why the absence is a value this takes
+ * rather than a failure it catches.
+ *
+ * A tab that cannot remember says so, and a wall it cannot remember gets the card.
+ * That is the safe half of the trade and the only half on offer: a guard that
+ * cannot see the last answer cannot recognise the second one, so answering by
+ * itself there is answering forever.
  */
 export const inSession = (store: Storage | undefined): Lately => ({
   when: (organisation) => {
-    if (store === undefined) return undefined
+    if (store === undefined) return CANNOT
 
     const kept = reading(store, KEY(organisation))
-    if (kept === undefined) return undefined
+    // The read threw, so this tab will not answer.
+    if (kept === undefined) return CANNOT
+    // Their own answer, meaning nothing is written under that key.
+    if (kept === null) return NEVER
 
-    // Anything else in there was not written by this. Read as never rather than
-    // as now, so a spoiled value asks the reader instead of blocking them.
+    // Something is written and this did not write it, so there is no knowing what
+    // it means. Read as `cannot` rather than as never, and the card repairs it:
+    // answering from the card writes the key again.
     const at = Number(kept)
-    return Number.isFinite(at) ? at : undefined
+    return Number.isFinite(at) ? { _tag: "at", when: at } : CANNOT
   },
   note: (organisation, at) => {
-    // A tab that cannot remember asks the reader instead. See above.
     if (store !== undefined) writing(store, KEY(organisation), String(at))
   }
 })
@@ -134,7 +166,16 @@ export const whatTheWallGets = (
   if (settings.signOn.byItself !== "always") return { go: "ask", wall: wall.value, cameRound: false }
 
   const last = lately.when(wall.value.organisation)
-  return last === undefined || now - last >= ROUND_AGAIN
+
+  /*
+   * A tab that cannot remember gets the card, and the card is not told why: as far
+   * as the reader is concerned nothing came round again, because nothing was
+   * posted. Saying "this was answered for you a moment ago" on the first wall of a
+   * private window would be a sentence about something that did not happen.
+   */
+  if (last._tag === "cannot") return { go: "ask", wall: wall.value, cameRound: false }
+
+  return last._tag === "never" || now - last.when >= ROUND_AGAIN
     ? { go: "answer", wall: wall.value }
     : { go: "ask", wall: wall.value, cameRound: true }
 }

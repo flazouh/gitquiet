@@ -17,6 +17,7 @@
 import { Option } from "effect"
 import { signOnPage } from "../github/signOn"
 import { askedToSignOn, couldNotReachGitHub, gitHubIsDown } from "../ports/GitHubGateway"
+import { SignOnAsk } from "./SignOnAsk"
 
 export type ReadFailedProps = {
   /**
@@ -65,23 +66,23 @@ export const ReadFailed = ({
   if (Option.isSome(organisation)) {
     return (
       <div className="Box p-4">
-        <h2 className="mb-1 text-base font-semibold">
-          {organisation.value} wants a single sign-on
-        </h2>
-        <p className="mb-3 max-w-prose text-sm text-ink-muted">
-          {`GitHub will not serve ${what} until you sign on to ${organisation.value}. Nothing is wrong here, and this page reads normally once you have.`}
-        </p>
-        {/* Their own page for it, rather than the form on it: that one posts with a
-            token this cannot have. */}
-        <a
-          className="btn btn-sm btn-primary mr-2"
-          href={signOnPage(organisation.value, location.href)}
+        <SignOnAsk
+          organisation={organisation.value}
+          what={what}
+          then="Nothing is wrong here, and this page reads normally once you have."
         >
-          Sign on to {organisation.value}
-        </a>
-        <button type="button" className="btn btn-sm" onClick={onStepAside}>
-          {asideLabel}
-        </button>
+          {/* Their own page for it, rather than the form on it: that one posts with
+              a token this cannot have, because this card is not on that page. */}
+          <a
+            className="btn btn-sm btn-primary mr-2"
+            href={signOnPage(organisation.value, location.href)}
+          >
+            Sign on to {organisation.value}
+          </a>
+          <button type="button" className="btn btn-sm" onClick={onStepAside}>
+            {asideLabel}
+          </button>
+        </SignOnAsk>
       </div>
     )
   }

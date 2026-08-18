@@ -14,6 +14,7 @@
  * the setting's side.
  */
 import { pathIn, type Wall } from "../github/signOn"
+import { SignOnAsk } from "./SignOnAsk"
 
 export type SignOnProps = {
   readonly wall: Wall
@@ -53,26 +54,27 @@ export const SignOn = ({
   return (
     <div className="mx-auto max-w-prose p-6">
       <div className="Box p-4">
-        <h2 className="mb-1 text-base font-semibold">
-          {wall.organisation} wants a single sign-on
-        </h2>
-        <p className="mb-3 text-sm text-ink-muted">
-          {going === ""
-            ? `GitHub will not serve this page until you sign on to ${wall.organisation}. Continuing hands you to their identity provider and brings you back.`
-            : `GitHub will not serve ${going} until you sign on to ${wall.organisation}. Continuing hands you to their identity provider and brings you back here.`}
-        </p>
+        <SignOnAsk
+          organisation={wall.organisation}
+          what={going === "" ? "this page" : going}
+          // The one place this card can promise more than the other one: their form
+          // is in this document, so the button below really does answer the wall.
+          then="Continuing hands you to their identity provider and brings you back here."
+        >
+          {/* Only where it happened, and a reader who never switched this on is
+              never told: the sentence would read as an error about a mechanism
+              they have not met.
 
-        {/* Only where it happened. A reader who never switched this on is being told
-            about a mechanism they have not met, and the sentence would read as an
-            error rather than as a note. */}
-        {/* What it says is what this knows: the same organisation was answered here a
-            moment ago and the wall is up again. Why is their provider's business, and
-            "wants to see you" is the likely reason rather than a reported one. */}
-        {cameRound ? (
-          <p className="mb-3 text-sm text-ink-muted">
-            {`This was answered for you a moment ago and ${wall.organisation} is asking again, so it is being left to you rather than posted a second time. Usually that means their identity provider wants to see you rather than the session.`}
-          </p>
-        ) : null}
+              What it says is what this knows — the same organisation was answered
+              here a moment ago and the wall is up again. Why is their provider's
+              business, so "wants to see you" is offered as the usual reason and
+              never as a report. */}
+          {cameRound ? (
+            <p className="mb-3 text-sm text-ink-muted">
+              {`This was answered for you a moment ago and ${wall.organisation} is asking again, so it is being left to you rather than posted a second time. Usually that means their identity provider wants to see you rather than the session.`}
+            </p>
+          ) : null}
+        </SignOnAsk>
 
         <div className="mb-3 flex items-center gap-2">
           <button type="button" className="btn btn-sm btn-primary" onClick={onContinue}>

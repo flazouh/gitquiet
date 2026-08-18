@@ -157,8 +157,8 @@ describe("which addresses belong to which page", () => {
      * something — a rule false everywhere is a page nothing ever routes to, and a
      * rule true everywhere is a page everything routes to. Both compile.
      *
-     * `found` is the one honest way out of it: a page with no address of its own
-     * says so by refusing every address and being recognised in the document
+     * `loadedWhen` is the one honest way out of it: a page with no address of its
+     * own says so by refusing every address and being recognised in the document
      * instead. Answering neither is the failure this catches.
      */
     const byAddress = PLACES.filter((place) =>
@@ -169,7 +169,7 @@ describe("which addresses belong to which page", () => {
           : place.owns(address.slice(0, at), address.slice(at));
       }),
     );
-    const byDocument = PLACES.filter((place) => place.found !== undefined);
+    const byDocument = PLACES.filter((place) => place.loadedWhen !== undefined);
 
     expect(byAddress.length + byDocument.length).toBe(PLACES.length);
     // And never both, which would be two answers to one question.

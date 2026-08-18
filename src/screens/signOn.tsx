@@ -55,8 +55,12 @@ const answerIt = (wall: Wall): void => {
  * Generous, because what is being waited for is the request leaving rather than
  * their provider answering: the moment it is answered this document is gone, and
  * a document that is gone has no timers.
+ *
+ * It also covers the tab that comes back out of the browser's cache with the gate
+ * still up. A frozen timer resumes on restore, so the page is handed back a moment
+ * later rather than staying blank.
  */
-const LEAVING = 4000
+const GIVE_UP_POSTING = 4000
 
 /**
  * Answers the wall with nothing drawn, and keeps the way back out of it.
@@ -72,7 +76,7 @@ const LEAVING = 4000
  */
 const answerItAlone = (wall: Wall): void => {
   answerIt(wall)
-  setTimeout(() => handBack(document), LEAVING)
+  setTimeout(() => handBack(document), GIVE_UP_POSTING)
 }
 
 /**

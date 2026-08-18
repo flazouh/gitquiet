@@ -132,13 +132,20 @@ describe("answering their single sign-on without being asked", () => {
     expect(whatTheWallGets(theWall("other-org"), byItself, lately, 2_000).go).toBe("answer")
   })
 
+  /*
+   * The guard's own failure mode, and it has to fail towards the reader. A tab
+   * that cannot remember the last answer cannot recognise the second wall either,
+   * so answering by itself there is answering at every wall for as long as the
+   * loop runs. The card is what breaks it.
+   *
+   * These two were written the other way round once, asserting `answer` under
+   * names that said `asks`, which is how the bug got past a test suite.
+   */
   test("asks the reader where the tab will not remember anything", () => {
-    // A private window throws rather than answers. The card is the safe half of
-    // that trade: it is what breaks the loop this guard is for.
     const lately = inSession(aSealedTab())
     lately.note("octo-org", 1_000)
 
-    expect(whatTheWallGets(theWall(), byItself, lately, 1_000).go).toBe("answer")
+    expect(whatTheWallGets(theWall(), byItself, lately, 1_000).go).toBe("ask")
   })
 
   test("and where reaching for the storage threw before there was one", () => {
@@ -147,7 +154,29 @@ describe("answering their single sign-on without being asked", () => {
     const lately = inSession(undefined)
     lately.note("octo-org", 1_000)
 
-    expect(whatTheWallGets(theWall(), byItself, lately, 1_000).go).toBe("answer")
+    expect(whatTheWallGets(theWall(), byItself, lately, 1_000).go).toBe("ask")
+  })
+
+  /*
+   * And says nothing about it. Nothing was posted, so a card explaining that the
+   * wall was answered a moment ago would be describing something that did not
+   * happen.
+   */
+  test("and does not explain a bounce that never happened", () => {
+    const doing = whatTheWallGets(theWall(), byItself, inSession(undefined), 1_000)
+
+    expect(doing).toMatchObject({ go: "ask", cameRound: false })
+  })
+
+  /*
+   * A value this did not write. There is no reading it, so the reader is asked,
+   * and answering from the card writes the key again — which is what repairs it.
+   */
+  test("asks the reader where something else wrote to its key", () => {
+    const tab = aTab()
+    tab.setItem("gitquiet:signed-on:octo-org", "yesterday")
+
+    expect(whatTheWallGets(theWall(), byItself, inSession(tab), 1_000).go).toBe("ask")
   })
 
   /*

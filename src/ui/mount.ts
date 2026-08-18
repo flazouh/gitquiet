@@ -877,9 +877,9 @@ const whenTheAddressIsOurs = (
    * is how it was recognised. An organisation's single sign-on is the one of them —
    * served in place of what was asked for and under that page's own URL, so waiting
    * for its address to arrive would be waiting for the address it already has to
-   * turn into something else. See `Place.found`.
+   * turn into something else. See `Place.loadedWhen`.
    */
-  if (place.found?.(target) === true) return Effect.succeed(true)
+  if (place.loadedWhen !== undefined) return Effect.succeed(true)
 
   if (place.owns(view.location.pathname, view.location.search)) return Effect.succeed(true)
 

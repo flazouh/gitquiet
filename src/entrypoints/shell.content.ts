@@ -708,7 +708,10 @@ export default defineContentScript({
        * request, which is what `wanted` is the judge of.
        */
       const what =
-        oursToOpen(page, pageAt(...hereNow())) &&
+        // The link is an address and the page under it is a document, so the two
+        // are asked differently. See `wantedNow`: on a wall the address alone says
+        // the reader is on the pull request their organisation is refusing them.
+        oursToOpen(page, wantedNow()) &&
         (page !== "pull-request" || wanted(target) !== null)
           ? page
           : null;
@@ -797,16 +800,12 @@ export default defineContentScript({
      * Synchronous as far as the page name, which is what the gate hangs on: this runs
      * at `document_start`, before their markup has been parsed, and an attribute set
      * a frame later is a frame of their page on the screen.
-     */
-    /*
-     * The markup as well as the address, which is the one thing this decision needs
-     * and a press never does: an organisation's single sign-on is served in place of
-     * the page that was asked for, under that page's own URL. See `placeLoadedOn`.
      *
-     * Read at `document_start`, where the root element is all the parser has
-     * produced, because their page is displayed a frame later. It is a guess at that
-     * point and the screen settles it — handing the page straight back where the
-     * answer turns out to be no.
+     * Which is also why the markup is read here and never on a press: at this moment
+     * the root element is all the parser has produced, and it is enough to recognise
+     * the one page whose address belongs to something else — an organisation's single
+     * sign-on, served in place of the page that was asked for. A guess at that point,
+     * and the screen settles it. See `wantedNow`.
      */
     const loadedOn = wantedNow();
     if (loadedOn !== null) {

@@ -1,5 +1,5 @@
 import { Option } from "effect";
-import { mayBeTheWall, THE_WALL_BOX } from "../github/signOn";
+import { AUTH_CLASS, THE_WALL_BOX } from "../github/signOn";
 import { fromPathname as commitIn } from "../domain/CommitRef";
 import { commitListIn } from "../domain/commitList";
 import { issueDashboardIn } from "../domain/issueDashboard";
@@ -60,20 +60,24 @@ export type Place = {
    */
   readonly owns: (path: string, search?: string) => boolean;
   /**
-   * How to recognise this page in the document, for the one page no address names.
+   * A selector that proves this page from its markup, for a page no address names.
    *
    * Absent from every place but the wall, and the wall is why it exists: GitHub
    * serves an organisation's single sign-on *in place of* the page that was asked
    * for and under that page's own URL, so there is no address for `owns` above to
    * answer, and `owns` says so by refusing every address.
    *
-   * Two things read it, and both of them are the questions `owns` answers for
-   * everywhere else. `placeLoadedOn` routes a loaded document by it. And `mount.ts`
-   * takes it as the address already being this screen's own — which it is, in the
-   * only sense that rule cares about: no address is on its way, because the
-   * document in front of the reader is already the page.
+   * Two things read it, and both are the questions `owns` answers everywhere else.
+   * `placeLoadedOn` routes a loaded document by it. And `mount.ts` takes it as the
+   * address already being this screen's own — which it is, in the only sense that
+   * rule cares about: no address is on its way, because the document in front of
+   * the reader is already the page.
+   *
+   * A selector rather than a function, so this table stays a table. Written as
+   * `found: mayBeTheWall` first, which made the file every page here is described
+   * in import a DOM reader out of `github/` for the sake of one row.
    */
-  readonly found?: (page: Document) => boolean;
+  readonly loadedWhen?: string;
   /**
    * The regions worth taking, best first. Only these are accepted while the
    * document is still parsing, because anything further up the tree is parsed
@@ -876,7 +880,7 @@ export const PERSON_STARS: Place = {
  * on `OpenRouterIncubator/ori`, where the address never moved and the title read
  * "Sign in to OpenRouterIncubator".
  *
- * So this is found in the document instead — `mayBeTheWall` at `document_start`,
+ * So this is found in the document instead — the root class at `document_start`,
  * then `wallIn` once their form is parsed — and `owns` refuses every address,
  * which is the plain truth: not one of them routes here. It was written as `owns:
  * () => true` first, to satisfy the rule in `mount.ts` that a screen may not stand
@@ -892,7 +896,16 @@ const THE_WALL = `main:has(${THE_WALL_BOX})`;
 export const SIGN_ON: Place = {
   name: "sign-on",
   owns: () => false,
-  found: mayBeTheWall,
+  /*
+   * The root element and its class, which is the first thing a parser produces and
+   * so the only thing there is to read at `document_start` — the one moment early
+   * enough to hold their page back without a frame of it on the screen.
+   *
+   * A guess at that moment, deliberately: the class is on their login box, their
+   * second factor and their device check as well. `regions` below is what makes a
+   * wrong guess free, and `wallIn` is what settles it a few milliseconds later.
+   */
+  loadedWhen: `html.${AUTH_CLASS}`,
   /*
    * Their whole `main`, proved by the one child that says which auth page this is.
    *
@@ -917,11 +930,13 @@ export const SIGN_ON: Place = {
    */
   fallback: THE_WALL,
   /*
-   * Nothing. The wall is a server's answer to a request for another page, so it
-   * arrives as a document every time and is never swapped in under a reader.
+   * No `soft` rules, and none possible: the wall is a server's answer to a request
+   * for another page, so it arrives as a document every time and is never swapped
+   * in under a reader.
+   *
+   * No `bands` either. The region is their heading and their form together, and
+   * there is nothing else on the page.
    */
-  soft: undefined,
-  // Nothing. The region is their heading and their form together.
   bands: []
 }
 
@@ -1041,4 +1056,6 @@ export const placeLoadedOn = (
   path: string,
   search?: string
 ): Place | null =>
-  PLACES.find((place) => place.found?.(page) === true) ?? placeOwning(path, search);
+  PLACES.find(
+    (place) => place.loadedWhen !== undefined && page.querySelector(place.loadedWhen) !== null,
+  ) ?? placeOwning(path, search);
