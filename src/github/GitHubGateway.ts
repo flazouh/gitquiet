@@ -4041,9 +4041,10 @@ export const layer = Layer.succeed(GitHubGateway, {
       // Checked rather than trusted: the store outlives the code, and an entry
       // written before an update is the one shape that would reach the screen
       // and fail there.
-      return isKeptFront(raw.value)
-        ? Option.some(frontFromKept(reference, raw.value))
-        : Option.none<Front>()
+      if (!isKeptFront(raw.value)) return Option.none<Front>()
+
+      const front = frontFromKept(reference, raw.value)
+      return branch === null || front.branch === branch ? Option.some(front) : Option.none()
     }),
 
     rememberedCommits: Effect.fn("GitHubGateway.rememberedCommits")(function* (

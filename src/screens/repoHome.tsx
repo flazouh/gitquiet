@@ -116,7 +116,6 @@ const open = (home: RepoHome, onMove: (path: string) => void): Open => {
       ? Effect.succeed(Option.some(held))
       : rememberedRepoHome(home.repo, home.branch).pipe(
           throughGitHub,
-          Effect.map(Option.filter((front) => home.branch === null || front.branch === home.branch)),
           Effect.catch(() => Effect.succeed(Option.none<Front>()))
         )
 
