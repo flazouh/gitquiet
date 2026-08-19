@@ -7,7 +7,7 @@ import type { Viewer } from "../shared/wire"
 import "./index.css"
 import { PullRequest } from "./pullRequest"
 import { Account } from "./Account"
-import { keepLinksOutside } from "./outside"
+import { cardsOpenHere, keepLinksOutside } from "./outside"
 import { record } from "./recorded"
 import { pageZoomFromPress } from "../shared/pageZoom"
 import { ask } from "./rpc"
@@ -107,6 +107,16 @@ const App = () => {
   /** The list, which is the screen this window goes back to and starts on. */
   const theList = useCallback(() => setShowing({ at: "list" }), [])
   const back = showing.at === "card" ? theList : null
+
+  /*
+   * And the other direction, for every link to a pull request anywhere in the window.
+   *
+   * The rule that stops the webview following a link is installed before this component
+   * exists, so this is where it is told what a pull request press means. A row in the
+   * list is one; so is a cross-reference in somebody's comment, which used to be
+   * stopped and then dropped, because the only screen listening was the list.
+   */
+  useEffect(() => cardsOpenHere((reference) => setShowing({ at: "card", reference })), [])
 
   /*
    * Escape goes back, once nothing inside the card wants it.

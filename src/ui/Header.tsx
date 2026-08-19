@@ -104,11 +104,22 @@ const Layer = ({ stack }: { readonly stack: Stack }) => {
 const Action = ({
   label,
   href,
+  browser,
   onClick,
   children
 }: {
   readonly label: string
   readonly href?: string
+  /**
+   * That this link means the reader's browser, whichever page it points at.
+   *
+   * Only the window reads it, and it is the difference between a control that works and
+   * one that does nothing: in there no link is followed, and a link to a pull request is
+   * that pull request being drawn. This one points at the pull request already on the
+   * screen, so without saying so it was answered by drawing that screen again — which
+   * looks exactly like a press that did not land. See `desktop/src/view/where.ts`.
+   */
+  readonly browser?: boolean
   readonly onClick?: () => void
   readonly children: React.ReactNode
 }) => {
@@ -122,7 +133,13 @@ const Action = ({
       {children}
     </button>
   ) : (
-    <a href={href} aria-label={label} title={label} className={dressed}>
+    <a
+      href={href}
+      aria-label={label}
+      title={label}
+      className={dressed}
+      {...(browser === true ? { "data-gitquiet-browser": "" } : {})}
+    >
       {children}
     </a>
   )
@@ -250,7 +267,7 @@ export const Header = ({
             instead of on this one. What is left is for a window that is not
             GitHub's page: there the link goes somewhere. */}
         {onUseGitHub === undefined ? (
-          <Action label="Open on GitHub" href={url}>
+          <Action label="Open on GitHub" href={url} browser>
             <External size={14} />
           </Action>
         ) : null}
