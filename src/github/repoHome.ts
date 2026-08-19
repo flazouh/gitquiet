@@ -242,6 +242,7 @@ export const repoHomeInDocument = (url: string, doc: Document): Option.Option<Re
  */
 export const frontInDocument = Effect.fn("repoHome.frontInDocument")(function* (
   repo: { readonly owner: string; readonly repo: string },
+  branch: string | null,
   doc: Document
 ) {
   const script = doc.querySelector(EMBEDDED)
@@ -251,6 +252,10 @@ export const frontInDocument = Effect.fn("repoHome.frontInDocument")(function* (
   if (Option.isNone(raw)) return Option.none<Front>()
 
   return yield* frontFrom(repo, [raw.value]).pipe(
+    Effect.filterOrFail(
+      (front) => branch === null || front.branch === branch,
+      () => "another branch is in the document" as const
+    ),
     Effect.map(Option.some),
     // Not an error worth reporting. The payload belongs to whatever page this
     // document last was, and the live read is the answer either way.

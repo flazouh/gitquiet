@@ -9,6 +9,7 @@ import type { KeptFront } from "./repoHome"
 import {
   decodeLatestCommit,
   decodeTreeCommitInfo,
+  frontInDocument,
   frontFrom,
   frontFromKept,
   keptFrom,
@@ -304,6 +305,22 @@ const codeViewDocument = (branch: string, path: string): Document =>
   })
 
 describe("a repository address resolved by GitHub", () => {
+  test("does not use another branch's embedded front page for the requested branch", () => {
+    const wanted = "alexdepape/ori-harness-default"
+
+    expect(
+      Effect.runSync(frontInDocument(repo, wanted, embeddedDocument(payload)))
+    ).toEqual(Option.none())
+  })
+
+  test("uses embedded front-page data for the requested branch", () => {
+    const branch = read().branch
+
+    expect(
+      Option.isSome(Effect.runSync(frontInDocument(repo, branch, embeddedDocument(payload))))
+    ).toBe(true)
+  })
+
   test("reads the location from GitHub's recorded blob payload", () => {
     expect(
       Option.getOrNull(

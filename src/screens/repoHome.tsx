@@ -49,7 +49,9 @@ const sameTree = (one: RepoHome, two: RepoHome): boolean =>
  * again on every visit. See `KeptFront` in `src/domain/repoHome.ts`, which is the
  * lighter thing the store does hold.
  */
-let asLastSeen: { readonly address: string; readonly front: Front } | undefined
+let asLastSeen:
+  | { readonly address: string; readonly branch: string | null; readonly front: Front }
+  | undefined
 
 /**
  * A screen that is up, and the two things the shell can still do to it.
@@ -76,7 +78,7 @@ const open = (home: RepoHome, onMove: (path: string) => void): Open => {
    * a soft navigation between repositories.
    */
   const having = () =>
-    frontInDocument(home.repo, document).pipe(
+    frontInDocument(home.repo, home.branch, document).pipe(
       Effect.catch(() => Effect.succeed(Option.none<Front>()))
     )
 
@@ -96,7 +98,7 @@ const open = (home: RepoHome, onMove: (path: string) => void): Open => {
       throughGitHub,
       Effect.tap((front) =>
         Effect.sync(() => {
-          asLastSeen = { address: addressOf(home), front }
+          asLastSeen = { address: addressOf(home), branch: home.branch, front }
           branchNow = front.branch
         })
       ),
@@ -104,13 +106,17 @@ const open = (home: RepoHome, onMove: (path: string) => void): Open => {
     )
 
   /** This very page, as this document last had it up. */
-  const held = asLastSeen?.address === addressOf(home) ? asLastSeen.front : undefined
+  const held =
+    asLastSeen?.address === addressOf(home) && asLastSeen.branch === home.branch
+      ? asLastSeen.front
+      : undefined
 
   const remembered = () =>
     held !== undefined
       ? Effect.succeed(Option.some(held))
       : rememberedRepoHome(home.repo).pipe(
           throughGitHub,
+          Effect.map(Option.filter((front) => home.branch === null || front.branch === home.branch)),
           Effect.catch(() => Effect.succeed(Option.none<Front>()))
         )
 
