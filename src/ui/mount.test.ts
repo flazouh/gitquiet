@@ -14,6 +14,7 @@ import {
   takeOverSlotWhenReady,
   theScreenArrived,
   theScreenIsAt,
+  theScreenIsNotElsewhere,
   theScreenLeft,
   theScreenMoved,
   whenTheScreenMoves
@@ -1121,11 +1122,11 @@ describe("knowing that the screen a press asked for is the one on the page", () 
   test("a move to another page of the same kind is not an arrival until it is drawn", () => {
     const target = githubPage()
     takeOverSlot(target)
-    theScreenIsAt(target, "/o/r/pull/2002")
+    theScreenIsAt(target, "/o/r/pull/2002", Symbol("leaving"))
 
     expect(theScreenArrived(target, CONVERSATION.name, "/o/r/pull/1999")).toBe(false)
 
-    theScreenIsAt(target, "/o/r/pull/1999")
+    theScreenIsAt(target, "/o/r/pull/1999", Symbol("arriving"))
 
     expect(theScreenArrived(target, CONVERSATION.name, "/o/r/pull/1999")).toBe(true)
   })
@@ -1133,7 +1134,7 @@ describe("knowing that the screen a press asked for is the one on the page", () 
   test("the kind still has to match, for a move to another kind of page", () => {
     const target = githubPage()
     takeOverSlot(target)
-    theScreenIsAt(target, "/o/r/pull/2002")
+    theScreenIsAt(target, "/o/r/pull/2002", Symbol("standing"))
 
     expect(theScreenArrived(target, "repo-pulls", "/o/r/pull/2002")).toBe(false)
   })
@@ -1145,21 +1146,65 @@ describe("knowing that the screen a press asked for is the one on the page", () 
   test("a screen leaving withdraws its own address", () => {
     const target = githubPage()
     takeOverSlot(target)
-    theScreenIsAt(target, "/o/r/pull/1999")
+    const standing = Symbol("standing")
+    theScreenIsAt(target, "/o/r/pull/1999", standing)
 
-    theScreenLeft(target, "/o/r/pull/1999")
+    theScreenLeft(target, standing)
 
     expect(theScreenArrived(target, CONVERSATION.name, "/o/r/pull/1999")).toBe(false)
   })
 
-  test("and leaves alone an address another screen has since published", () => {
+  /*
+   * Two screens for one address, which is what a place with two containers produces:
+   * see the inbox above, drawn twice. Both publish the same path, so a guard that
+   * compared paths would let the stray one withdraw the survivor's mark.
+   */
+  test("and a stray screen leaving does not withdraw the standing screen's address", () => {
     const target = githubPage()
     takeOverSlot(target)
-    theScreenIsAt(target, "/o/r/pull/2002")
+    const stray = Symbol("stray")
+    theScreenIsAt(target, "/o/r/pull/1999", stray)
+    theScreenIsAt(target, "/o/r/pull/1999", Symbol("standing"))
 
-    // The screen arriving got there first, which is the order every navigation has.
-    theScreenLeft(target, "/o/r/pull/1999")
+    theScreenLeft(target, stray)
 
-    expect(theScreenArrived(target, CONVERSATION.name, "/o/r/pull/2002")).toBe(true)
+    expect(theScreenArrived(target, CONVERSATION.name, "/o/r/pull/1999")).toBe(true)
+  })
+})
+
+/*
+ * The repair in `going.ts` loads a whole document when it is told the screen never
+ * came, so what it asks has to fall the other way from the strict test above: silence
+ * from a screen that publishes nothing is not evidence of a failure.
+ */
+describe("knowing that a press went wrong, for the caller that reloads the page", () => {
+  test("a screen that says nothing about its address is left alone", () => {
+    const target = githubPage()
+    takeOverSlot(target)
+
+    expect(theScreenIsNotElsewhere(target, CONVERSATION.name, "/o/r/pull/1999")).toBe(true)
+  })
+
+  test("a screen standing for the address that was pushed is right where it should be", () => {
+    const target = githubPage()
+    takeOverSlot(target)
+    theScreenIsAt(target, "/o/r/pull/1999", Symbol("standing"))
+
+    expect(theScreenIsNotElsewhere(target, CONVERSATION.name, "/o/r/pull/1999")).toBe(true)
+  })
+
+  test("a screen standing for another address is the case worth repairing", () => {
+    const target = githubPage()
+    takeOverSlot(target)
+    theScreenIsAt(target, "/o/r/pull/2002", Symbol("standing"))
+
+    expect(theScreenIsNotElsewhere(target, CONVERSATION.name, "/o/r/pull/1999")).toBe(false)
+  })
+
+  test("and so is a screen of another kind entirely", () => {
+    const target = githubPage()
+    takeOverSlot(target)
+
+    expect(theScreenIsNotElsewhere(target, "repo-pulls", "/o/r/pull/1999")).toBe(false)
   })
 })

@@ -251,11 +251,12 @@ export const PullRequestScreen = ({
   const live = useLive(load, preload, where)
   const { read, again, meanwhile } = live
   /*
-   * Only once the card on the screen is this pull request's. Loading and failing
-   * both leave the last pull request's card standing, which is what the reader is
-   * looking at and therefore what anyone asking has to be told.
+   * Once the card on the screen is this pull request's, which a refusal is as much
+   * as an answer: `ReadFailed` below is drawn for this reference, so the reader is
+   * looking at this pull request's page and the press is over. Only `loading` leaves
+   * the pull request they came from standing, and that is the one to keep quiet for.
    */
-  useDrawnAt(read.status === "ready" ? pathOf(reference) : null)
+  useDrawnAt(read.status === "loading" ? null : pathOf(reference))
   const waiting = useWaiting(read.status)
   useFreshening(live.catchingUp, CHECKING)
 

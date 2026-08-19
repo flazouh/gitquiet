@@ -352,6 +352,17 @@ export const theScreenShown = (target: Document): string | null =>
 const AT = "data-gitquiet-at"
 
 /**
+ * Who has the mark up, so that only they can take it down.
+ *
+ * A path is not an identity. Two screens can stand for one address at once — see the
+ * inbox drawn twice below, where one place ends up with two containers — and a guard
+ * that compares the path lets the stray one withdraw the survivor's mark on its way
+ * out. The same shape as `ours` above and as the root owner in `screen.tsx`, for the
+ * same reason: the question is "is this still mine", and only a token answers it.
+ */
+let holder: symbol | null = null
+
+/**
  * Said by a screen that has the page for this address to show, and not before.
  *
  * From the data rather than from the press, which is the whole of what this mark is
@@ -365,47 +376,52 @@ const AT = "data-gitquiet-at"
  * being held back at 55ms and went back to competing with the read the reader is
  * waiting for, on the one route where that read is seven requests long.
  */
-export const theScreenIsAt = (target: Document, path: string): void => {
+export const theScreenIsAt = (target: Document, path: string, owner: symbol): void => {
+  holder = owner
   target.documentElement.setAttribute(AT, path)
 }
 
 /**
- * Said by a screen on its way off the page, and only about its own address.
+ * Said by a screen on its way off the page, about the mark if it is still its own.
  *
- * The guard is not caution. Two screens are on the page at every navigation, on
- * purpose — the one arriving stands on the surface of the one leaving — and the one
- * leaving goes last. Clearing the mark unconditionally would take down the arriving
- * screen's claim a moment after it made it, which is the same fault the toasts had
- * when a single slot was written by one screen and cleared by another.
+ * Two screens are on the page at every navigation, on purpose — the one arriving
+ * stands on the surface of the one leaving — and the one leaving goes last. Clearing
+ * the mark unconditionally would take down the arriving screen's claim a moment after
+ * it made it, which is the fault the toasts had when one slot was written by one
+ * screen and cleared by another.
  */
-export const theScreenLeft = (target: Document, path: string): void => {
-  if (target.documentElement.getAttribute(AT) === path) target.documentElement.removeAttribute(AT)
-}
-
-/**
- * Said the moment the address moves: whatever is drawn is drawn for the last one.
- *
- * Without this the mark goes stale rather than wrong-and-obvious. A screen that draws
- * again on its own account — the back button is the one that showed it — never passes
- * through the shell's redraw, so the mark went on naming the address the reader had
- * just left, and the next press to that address would have been called an arrival
- * before anything was drawn for it.
- */
-export const theScreenIsMoving = (target: Document): void => {
+export const theScreenLeft = (target: Document, owner: symbol): void => {
+  if (holder !== owner) return
+  holder = null
   target.documentElement.removeAttribute(AT)
 }
 
 /**
- * Whether the screen a press asked for is the one on the page.
+ * Whether the screen for this address is somewhere it should not be, asked by the one
+ * caller that loads a whole document when the answer is yes.
  *
- * Both halves are needed and neither is enough. The kind alone says yes on the first
- * frame of a move between two pull requests, because it never changed. The address
- * alone would say yes while a screen of the wrong kind is still standing on it, which
- * is exactly the window a press opens.
+ * Not the strict test, and the difference is which way an unanswered question falls.
+ * A screen that has not been wired to publish an address never says one, and read as
+ * "it never arrived" that silence is a document load a second and a half after a press
+ * that worked perfectly well. So no mark is not an answer here.
  *
- * Asked by the push in `going.ts`, which repairs the address by hand if the screen
- * never came, and by the shell, which keeps reading ahead quiet until it has.
+ * A mark for another address is an answer, and it is the one the repair exists for: a
+ * screen standing with the wrong page under an address this pushed. Before the mark
+ * was published from the data, nothing could tell that case from a screen that had
+ * simply not finished, and the repair went toothless on every move between two pages
+ * of one kind.
  */
+export const theScreenIsNotElsewhere = (
+  target: Document,
+  place: string,
+  path: string
+): boolean => {
+  if (theScreenShown(target) !== place) return false
+
+  const at = target.documentElement.getAttribute(AT)
+  return at === null || at === path
+}
+
 export const theScreenArrived = (target: Document, place: string, path: string): boolean =>
   theScreenShown(target) === place && target.documentElement.getAttribute(AT) === path
 
@@ -852,9 +868,12 @@ export const takeOverSlot = (
 
       target.documentElement.removeAttribute(TAKEN)
       target.documentElement.removeAttribute(SHOWN)
-      // With the kind, because a stale address left behind would answer for whatever
-      // stands here next.
-      target.documentElement.removeAttribute(AT)
+      /*
+       * The address is not withdrawn here, and that is deliberate. It has an owner
+       * now, and the owner is the screen that published it: taking it down from a
+       * second place leaves a mark that nothing can put back, because the hook that
+       * publishes it only runs again when its own address changes.
+       */
       // Everything hidden anywhere, not only within the slot: their tab row
       // lives in the header above it and has to come back too.
       for (const theirs of target.querySelectorAll(`[${HIDDEN}]`)) {

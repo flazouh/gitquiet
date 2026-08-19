@@ -83,15 +83,15 @@ export const elsewhereThan = (
 export const keyOf = (reference: PullRequestRef): string =>
   `${reference.owner}/${reference.repo}#${reference.number}`
 
-export const toUrl = (ref: PullRequestRef): string =>
-  `https://github.com/${ref.owner}/${ref.repo}/pull/${ref.number}`
-
 /**
- * The same address without the origin, which is what a path is compared against.
+ * The address without the origin, which is the form everything here compares.
  *
- * Next to {@link fromPathname} because they are one thing read in two directions,
- * and a builder that drifts from its parser is a comparison that quietly never
- * matches. See `useDrawnAt`, whose whole job is that comparison.
+ * Next to {@link fromPathname} because they are one thing read in two directions, and
+ * a builder that drifts from its parser is a comparison that quietly never matches.
+ * `theScreenArrived` is the comparison in question: it holds a path from a link
+ * against the path a screen published, so the two have to be spelt the same way.
  */
 export const pathOf = (ref: PullRequestRef): string =>
   `/${ref.owner}/${ref.repo}/pull/${ref.number}`
+
+export const toUrl = (ref: PullRequestRef): string => `https://github.com${pathOf(ref)}`

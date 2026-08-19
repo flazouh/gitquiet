@@ -57,6 +57,20 @@ describe("which address the screen has the page for", () => {
    * arrive again for the rest of the document. Which is exactly what a single slot
    * did to the toasts. See `theScreenLeft`.
    */
+  /*
+   * The arrangement a place with two containers produces, which is the only way two
+   * screens are ever mounted for one address at once. Both publish the same path, so
+   * nothing about the path itself tells the stray one from the one on the page.
+   */
+  test("a stray copy leaving does not take down the address the screen on the page has", () => {
+    const stray = render(<Screen at="/o/r/pull/1999" />)
+    render(<Screen at="/o/r/pull/1999" />)
+
+    stray.unmount()
+
+    expect(drawn()).toBe("/o/r/pull/1999")
+  })
+
   test("a screen leaving does not take down the address the next one just published", () => {
     const leaving = render(<Screen at="/o/r/pull/1999" />)
     render(<Screen at="/o/r/pull/2002" />)

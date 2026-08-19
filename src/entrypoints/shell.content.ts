@@ -22,8 +22,7 @@ import {
 import {
   markPage,
   theScreenArrived,
-  theScreenIsMoving,
-  theScreenShown,
+  theScreenIsNotElsewhere,
   unmarkPage,
 } from "@/ui/mount";
 import { linkNear, type Reached } from "@/ui/linkNear";
@@ -564,8 +563,11 @@ export default defineContentScript({
 
       /** Whether the screen this press asked for is up, address and all. Set once the press is ours. */
       let arrived: (() => boolean) | undefined;
-      /** The same, forgiving the address. See where it is set. */
-      let theKindIsUp: (() => boolean) | undefined;
+      /**
+       * Whether the screen for this address is somewhere it should not be, which is
+       * the only question the repair below is entitled to act on.
+       */
+      let goneWrong: (() => boolean) | undefined;
 
       /*
        * The press, carried out here if their router drops it — which on their
@@ -625,23 +627,16 @@ export default defineContentScript({
          *
          * Strict, and only ever asked where a wrong "no" costs nothing. This one holds
          * reading ahead back, so being told no while the page is still arriving is the
-         * answer that was wanted anyway. What it is deliberately not asked by is the
-         * address repair below. See {@link standingFor}.
+         * answer that was wanted anyway.
          */
         arrived = () => theScreenArrived(document, wanted, target.pathname);
 
         /*
-         * The same question with the address left out, for the one caller that reloads
-         * the document when the answer is no.
-         *
-         * Which screens publish an address is a screen-by-screen matter — `useDrawnAt`,
-         * called where a read is ready — and one that has not been wired to say it
-         * would never be seen to arrive. Asked by the repair, that silence is a whole
-         * document load a second and a half after a press that worked perfectly well.
-         * Asked by the quiet period above, it is a pause. So the expensive caller gets
-         * the forgiving test, which is the one this shipped with for a year.
+         * The repair asks a weaker question, because it answers a no by loading the
+         * whole document. A screen nobody has wired to publish an address says nothing
+         * at all, and read strictly that silence is a reload after a press that worked.
          */
-        theKindIsUp = () => theScreenShown(document) === wanted;
+        goneWrong = () => theScreenIsNotElsewhere(document, wanted, target.pathname);
 
         readAhead.pressed(warmingFor(target.href, window.location.href)?.key ?? null, {
           there: arrived,
@@ -697,7 +692,7 @@ export default defineContentScript({
       // The same answer the quiet period above waits on, and for the same reason: a
       // repair made while the screen is on its way loads the whole document.
       const push = mine?.push;
-      if (push !== undefined && theKindIsUp !== undefined) goTo(window, push, theKindIsUp);
+      if (push !== undefined && goneWrong !== undefined) goTo(window, push, goneWrong);
     };
 
     const pressed = (event: Event): void => {
@@ -795,10 +790,6 @@ export default defineContentScript({
       // would have carried it out by hand has nothing left to do.
       stayingPut();
       stayingPut = () => {};
-
-      // Whatever a screen has drawn, it drew it for the address before this one.
-      // See `theScreenIsMoving`, and the back button, which is what found it.
-      theScreenIsMoving(document);
 
       const page = pageAt(path, search);
       if (page === null) {
