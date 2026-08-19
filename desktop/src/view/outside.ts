@@ -1,6 +1,5 @@
-import type { PullRequestRef } from "../../../src/domain/PullRequestRef"
-import { toUrl } from "../../../src/domain/PullRequestRef"
 import { ask } from "./rpc"
+import { openCard } from "./showing"
 import { where } from "./where"
 
 /**
@@ -13,9 +12,9 @@ import { where } from "./where"
  * here left the reader on github.com inside something that looked like our window and
  * behaved like nothing at all.
  *
- * So the window never follows a link. `where.ts` decides what each press means and
- * this installs it, in the capture phase at the document, so that a link added anywhere
- * later is caught by the same rule. Nothing about a link is the screens' business.
+ * So the window never follows a link. `where.ts` decides what each press means and this
+ * installs it, in the capture phase at the document, so that a link added anywhere later
+ * is caught by the same rule. Nothing about a link is the screens' business.
  */
 
 export const openOutside = (url: string): void => {
@@ -25,29 +24,18 @@ export const openOutside = (url: string): void => {
 }
 
 /**
- * How this window becomes a pull request, once something is here that can be one.
+ * Nothing in this window follows a link, and every press is answered by name.
  *
- * The rule is installed before React is, because a press that arrives before the first
- * render still must not navigate the webview. So the way to draw a card is handed over
- * afterwards, by whatever is holding which screen the window is showing.
- */
-let drawsCards: ((reference: PullRequestRef) => void) | null = null
-
-export const cardsOpenHere = (open: (reference: PullRequestRef) => void): (() => void) => {
-  drawsCards = open
-  return () => {
-    if (drawsCards === open) drawsCards = null
-  }
-}
-
-/**
- * Nothing in this window follows a link, and no link in it ends in nothing.
+ * Installed once, for the life of the window, and before React is: a press that arrives
+ * during the first render still must not navigate. Which is why what a pull request
+ * press means is `openCard` and not a callback a component hands over — see
+ * `showing.ts`, where that state lives for this reason.
  *
- * Installed once, for the life of the window. Both halves matter, and the second one
- * is the half that was missing: a press that was stopped and then handed to nobody is a
- * control that does nothing, which is worse than one that goes to the wrong place
- * because there is nothing on the screen to say so. A card nobody can draw is opened
- * outside instead.
+ * The four answers are all answered here, including the two silences. A press that was
+ * stopped and then quietly dropped is a control that does nothing, which is worse than
+ * one that goes to the wrong place: nothing on the screen says so. One of those silences
+ * is a screen about to draw the page itself, and the other is this window not knowing
+ * where a link was going, which is worth saying out loud in a log somebody reads.
  */
 export const keepLinksOutside = (): void => {
   const answer = (event: MouseEvent, mine: number) => {
@@ -63,20 +51,22 @@ export const keepLinksOutside = (): void => {
     event.preventDefault()
     if (event.button !== mine) return
 
-    if (meant.at === "stopped") return
+    if (meant.at === "drawn") return
+    if (meant.at === "unplaceable") {
+      return void console.warn("[working-set] nowhere to send this link:", meant.written)
+    }
     if (meant.at === "outside") return openOutside(meant.url)
 
-    if (drawsCards === null) return openOutside(toUrl(meant.reference))
-    drawsCards(meant.reference)
+    openCard(meant.reference)
   }
 
   /*
    * Two listeners, and each acts on one button only.
    *
-   * A middle press is `auxclick` in every engine written since 2018 and was `click`
-   * with button 1 before that, and engines that did both existed in between. Both are
-   * listened for so that no press escapes the rule above, and each answers only its own
-   * button, so a press that raises both is opened once rather than in two tabs.
+   * `click` is raised for the primary button and `auxclick` for the middle one, so in
+   * this engine each press reaches one of these. Both are listened for so that no press
+   * escapes the rule above whatever the engine does, and each answers only its own
+   * button, so a press that somehow raised both is opened once rather than in two tabs.
    */
   document.addEventListener("click", (event) => answer(event, 0), { capture: true })
   document.addEventListener("auxclick", (event) => answer(event, 1), { capture: true })

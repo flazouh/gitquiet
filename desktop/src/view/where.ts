@@ -1,4 +1,5 @@
 import type { PullRequestRef } from "../../../src/domain/PullRequestRef"
+import { BROWSER } from "../../../src/ui/marks"
 
 /**
  * Where a press in this window goes, decided in one place.
@@ -27,13 +28,18 @@ export type Where =
   | { readonly at: "card"; readonly reference: PullRequestRef }
   /** Handed to the main process, which opens it where the reader's browser is. */
   | { readonly at: "outside"; readonly url: string }
+  /** Stopped, and drawn by the screen the press was on: a commit, in a panel of the card's own. */
+  | { readonly at: "drawn" }
   /**
-   * Stopped, and left to whichever screen the press was on — a commit is drawn in a
-   * panel of the card's own. Also what an address this cannot place gets: the webview
-   * must not follow it either way, and a link nobody can name is the one case where
-   * saying nothing is the safe answer.
+   * Stopped, and nobody can say where it was going.
+   *
+   * Its own arm rather than a second meaning for the one above, which is the fault the
+   * three files this replaces were built out of: one value that meant both "somebody
+   * here is about to answer this" and "nobody ever will". They read the same at the
+   * press and they are opposite facts, and the button in the corner of the card spent a
+   * month being the second while every comment in the code said it was the first.
    */
-  | { readonly at: "stopped" }
+  | { readonly at: "unplaceable"; readonly written: string }
 
 /** Which keys were down, which is the difference between here and elsewhere. */
 export type Press = {
@@ -43,20 +49,6 @@ export type Press = {
   readonly shiftKey: boolean
   readonly altKey: boolean
 }
-
-/**
- * What a link wears to say that it means the reader's browser, whatever it points at.
- *
- * One control has that intent — the card's external-link mark — and it points at the
- * pull request on the screen, which every other rule in here would keep. Read off the
- * markup rather than matched by address, because the intent belongs to the control and
- * not to the destination.
- *
- * Named for the browser rather than for "outside", `data-gitquiet-outside` being taken:
- * `primer.css` puts that on markup drawn outside our own root, and a second meaning for
- * it would also hand this anchor a stylesheet written for somebody else's HTML.
- */
-export const BROWSER = "data-gitquiet-browser"
 
 /**
  * Where a path written in this window means, which is never this window.
@@ -106,10 +98,11 @@ const WHOLE = /^https?:\/\//i
 /**
  * The whole address a written one means.
  *
- * A path is GitHub's, because the interface above was written for their page. This
- * webview's own origin is a build folder, so a path resolved against it names a file
- * that has never existed — which is why the resolution is written out here rather than
- * taken from the anchor's own `href`.
+ * A path is GitHub's, because the interface above was written for their page, and it is
+ * resolved against theirs by hand rather than read off the anchor: this webview's own
+ * origin is a build folder, so the anchor's own `href` for a path names a file that has
+ * never existed. An address already written out in full is taken from the anchor, which
+ * is what normalises the odd ones — a case-shifted scheme, or a `..` in the middle.
  */
 const whole = (href: string, resolved: string | undefined): string | null => {
   if (WHOLE.test(href)) return resolved ?? href
@@ -135,21 +128,29 @@ export const where = (target: EventTarget | null, how: Press): Where => {
   if (anchor === null) return { at: "nothing" }
 
   const written = (anchor.getAttribute("href") ?? "").trim()
-  if (written === "" || NOT_A_PLACE.test(written)) return { at: "nothing" }
+  if (NOT_A_PLACE.test(written)) return { at: "nothing" }
+  // An empty one is not nothing. A browser reloads the document for it, and a reload in
+  // here is the app starting over with everything the reader had done thrown away.
+  if (written === "") return { at: "unplaceable", written }
 
   const address = whole(written, anchor instanceof HTMLAnchorElement ? anchor.href : undefined)
-  if (address === null) return { at: "stopped" }
+  if (address === null) return { at: "unplaceable", written }
 
   if (anchor.hasAttribute(BROWSER)) return { at: "outside", url: address }
 
-  // A held key or the middle button is the reader asking for somewhere that is not
-  // here, and a window that swallowed that would be taking away the one thing an
-  // anchor was for.
-  if (how.button === 1 || how.metaKey || how.ctrlKey || how.shiftKey || how.altKey) {
+  /*
+   * A held key or the middle button is the reader asking for somewhere that is not here,
+   * and a window that swallowed that would be taking away the one thing an anchor was
+   * for.
+   *
+   * Not Alt, which in a browser means download rather than elsewhere. Nobody holds it
+   * meaning "open this where my tabs are", so it is left to mean a plain press.
+   */
+  if (how.button === 1 || how.metaKey || how.ctrlKey || how.shiftKey) {
     return { at: "outside", url: address }
   }
 
-  if (isCommit(address)) return { at: "stopped" }
+  if (isCommit(address)) return { at: "drawn" }
 
   const reference = pullRequestAt(address)
   return reference === null ? { at: "outside", url: address } : { at: "card", reference }

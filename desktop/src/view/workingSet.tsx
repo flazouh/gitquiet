@@ -16,6 +16,7 @@ import { THEIRS } from "./where"
 import { askForRows, gatewayFrom } from "./gateway"
 import { keepRows, keptRows } from "./kept"
 import { openOutside } from "./outside"
+import { openCard } from "./showing"
 import { Supplied } from "./supplied"
 
 /**
@@ -92,12 +93,7 @@ const WRITES = {
 const askFor = (doing: RowDoing, reference: PullRequestRef) =>
   Effect.provide(WRITES[doing](reference), gatewayFrom([]))
 
-export const WorkingSet = ({
-  onOpen
-}: {
-  /** Pressing a row, which the window answers by becoming the card. */
-  readonly onOpen: (reference: PullRequestRef) => void
-}) => (
+export const WorkingSet = () => (
   <Supplied>
     {/*
      * No handler of its own for a press on a row.
@@ -105,14 +101,18 @@ export const WorkingSet = ({
      * There was one, and it was half of a rule that lives in `where.ts` now: a row is
      * an anchor to github.com, following one in a window means becoming that card, and
      * deciding that twice in two places is what left the card's own way out pressing
-     * into nothing. The rule stops every anchor in the window and hands a pull request
-     * to whoever is drawing screens. `onOpen` is still here for Enter, which the screen
-     * binds itself and which no link rule ever sees.
+     * into nothing. The rule stops every anchor in the window and opens the card itself.
+     *
+     * `onOpen` is still handed over, for the one way into a card that is not a press on
+     * a link: Enter on the selected row, which the screen binds itself. Enter on an
+     * issue row is not that — the screen presses the row's own anchor for those, which
+     * is the rule's business again and goes to the browser, an issue being a page this
+     * window does not draw.
      */}
     <WorkingSetScreen
       load={read}
       preload={remembered}
-      onOpen={onOpen}
+      onOpen={openCard}
       /*
        * Always signed in, because this screen is only drawn once the keychain has
        * answered and GitHub has named the reader. The default asks the page

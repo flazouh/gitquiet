@@ -6,6 +6,7 @@ import { whichLayer } from "../domain/pressing"
 import { useArt } from "./art"
 import { CHIP, GHOST } from "./dress"
 import { pullRequestArt } from "./Icon"
+import { BROWSER } from "./marks"
 import { StackTree } from "./StackTree"
 import { ageOf, momentOf } from "./when"
 import { Who } from "./Who"
@@ -104,25 +105,32 @@ const Layer = ({ stack }: { readonly stack: Stack }) => {
 const Action = ({
   label,
   href,
-  browser,
+  outward,
   onClick,
   children
 }: {
   readonly label: string
-  readonly href?: string
-  /**
-   * That this link means the reader's browser, whichever page it points at.
-   *
-   * Only the window reads it, and it is the difference between a control that works and
-   * one that does nothing: in there no link is followed, and a link to a pull request is
-   * that pull request being drawn. This one points at the pull request already on the
-   * screen, so without saying so it was answered by drawing that screen again — which
-   * looks exactly like a press that did not land. See `desktop/src/view/where.ts`.
-   */
-  readonly browser?: boolean
-  readonly onClick?: () => void
   readonly children: React.ReactNode
-}) => {
+} & (
+  | {
+      readonly href: string
+      /**
+       * That this link leaves the interface, for wherever the reader keeps their tabs.
+       *
+       * A claim about the control rather than about its address, which is why it is said
+       * here and not worked out from the URL. Only the window reads it, and there it is
+       * the difference between a control that works and one that does nothing: in that
+       * window no link is followed, and a link to a pull request means that pull request
+       * being drawn. This one points at the pull request already on the screen, so
+       * unsaid it was answered by drawing that same screen again, which looks exactly
+       * like a press that did not land. The rule is `desktop/src/view/where.ts`.
+       */
+      readonly outward?: boolean
+      readonly onClick?: never
+    }
+  /* A press, which has no address and so nothing to leave for. */
+  | { readonly onClick: () => void; readonly href?: never; readonly outward?: never }
+)) => {
   // Nothing until it is pointed at: this stands on the card's own fill, and a tint on a
   // tint is a raised square rather than a button. The hover is where the control appears,
   // and it is spelt without `enabled:` because this also renders as an anchor.
@@ -138,7 +146,7 @@ const Action = ({
       aria-label={label}
       title={label}
       className={dressed}
-      {...(browser === true ? { "data-gitquiet-browser": "" } : {})}
+      {...{ [BROWSER]: outward === true ? "" : undefined }}
     >
       {children}
     </a>
@@ -267,7 +275,7 @@ export const Header = ({
             instead of on this one. What is left is for a window that is not
             GitHub's page: there the link goes somewhere. */}
         {onUseGitHub === undefined ? (
-          <Action label="Open on GitHub" href={url} browser>
+          <Action label="Open on GitHub" href={url} outward>
             <External size={14} />
           </Action>
         ) : null}

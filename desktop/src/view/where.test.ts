@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test"
-import { BROWSER, pullRequestAt, where } from "./where"
+import { BROWSER } from "../../../src/ui/marks"
+import { pullRequestAt, where } from "./where"
 
 /**
  * A press, as the three things the answer depends on: what is under the pointer, what
@@ -103,18 +104,38 @@ describe("a press some screen in here is about to answer", () => {
   it("is a commit, which the card draws in a panel of its own", () => {
     expect(
       on('<a data-hit href="https://github.com/citrolabs/ego-lite/commit/3d3c42e">A commit</a>').at
-    ).toBe("stopped")
+    ).toBe("drawn")
+  })
+})
+
+/*
+ * The invariant this file exists for. There is no address bar and no back button in
+ * here, so a link the webview follows does not open a page — it replaces the app with
+ * one, and the only way back is to quit.
+ *
+ * Its own answer rather than the one above, which is the fault the three files this
+ * replaces were built out of: one value for "a screen is about to draw this" and for
+ * "nobody knows what this was". They are opposite facts, and told apart nowhere, the
+ * second one gets read as the first and the press is dropped in silence.
+ */
+describe("a press nobody can place, and which is stopped for that reason", () => {
+  it("is an address this window cannot resolve", () => {
+    for (const href of ["//example.com/elsewhere", "./relative", "sftp://box/thing"]) {
+      expect(on(`<a data-hit href="${href}">Nowhere this knows</a>`).at).toBe("unplaceable")
+    }
   })
 
-  /*
-   * The invariant this file exists for. There is no address bar and no back button in
-   * here, so a link the webview follows does not open a page — it replaces the app
-   * with one, and the only way back is to quit.
-   */
-  it("is anything else that cannot be placed, because following one ends the app", () => {
-    for (const href of ["//example.com/elsewhere", "./relative", "sftp://box/thing"]) {
-      expect(on(`<a data-hit href="${href}">Nowhere this knows</a>`).at).toBe("stopped")
-    }
+  // A browser answers an empty one by reloading the document, which in here is the app
+  // starting over with everything the reader had done thrown away.
+  it("is an empty one, which a browser answers by reloading", () => {
+    expect(on('<a data-hit href="">Nowhere at all</a>').at).toBe("unplaceable")
+  })
+
+  it("says what was written, there being nothing else to say about it", () => {
+    expect(on('<a data-hit href="sftp://box/thing">Nowhere this knows</a>')).toEqual({
+      at: "unplaceable",
+      written: "sftp://box/thing"
+    })
   })
 })
 
@@ -141,12 +162,18 @@ describe("a press the reader's browser answers", () => {
   })
 
   it("is a held key or the middle button, that being the reader asking for elsewhere", () => {
-    for (const how of [{ metaKey: true }, { ctrlKey: true }, { shiftKey: true }, { altKey: true }, { button: 1 }]) {
+    for (const how of [{ metaKey: true }, { ctrlKey: true }, { shiftKey: true }, { button: 1 }]) {
       expect(on(A_ROW, how)).toEqual({
         at: "outside",
         url: "https://github.com/citrolabs/ego-lite/pull/193"
       })
     }
+  })
+
+  // Alt is not one of them. In a browser it means download, so nobody holds it meaning
+  // "open this where my tabs are", and a plain press is the better guess at what they want.
+  it("is not Alt, which in a browser means download rather than elsewhere", () => {
+    expect(on(A_ROW, { altKey: true }).at).toBe("card")
   })
 
   /*

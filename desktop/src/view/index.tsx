@@ -1,16 +1,16 @@
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState, useSyncExternalStore } from "react"
 import { createRoot } from "react-dom/client"
-import type { PullRequestRef } from "../../../src/domain/PullRequestRef"
 import { AroundProvider } from "../../../src/ui/around"
 import { ShapeProvider } from "../lib/shape-context"
 import type { Viewer } from "../shared/wire"
 import "./index.css"
 import { PullRequest } from "./pullRequest"
 import { Account } from "./Account"
-import { cardsOpenHere, keepLinksOutside } from "./outside"
+import { keepLinksOutside } from "./outside"
 import { record } from "./recorded"
 import { pageZoomFromPress } from "../shared/pageZoom"
 import { ask } from "./rpc"
+import { nowShowing, openTheList, watchShowing } from "./showing"
 import { Supplied } from "./supplied"
 import { Update } from "./update"
 import { Welcome } from "./welcome"
@@ -33,18 +33,6 @@ keepLinksOutside()
 
 /** Whether anybody is signed in, which is not known until the keychain answers. */
 type Who = { readonly at: "asking" } | { readonly at: "nobody" } | { readonly at: "someone"; readonly viewer: Viewer }
-
-/**
- * Which of the two screens the window is showing.
- *
- * A pair of states rather than an address. The extension navigates because it
- * lives inside somebody else's navigation; here there is one window, and going
- * back to the list is the list being drawn again — which also means it is read
- * again, and a pull request the reader has just dealt with is gone from it.
- */
-type Showing =
-  | { readonly at: "list" }
-  | { readonly at: "card"; readonly reference: PullRequestRef }
 
 /**
  * The row the traffic lights sit in, which is also the row the bar stands in.
@@ -87,7 +75,14 @@ const Chrome = ({ hold }: { readonly hold: (row: HTMLElement | null) => void }) 
 
 const App = () => {
   const [who, setWho] = useState<Who>({ at: "asking" })
-  const [showing, setShowing] = useState<Showing>({ at: "list" })
+  /*
+   * Which screen, read from outside this component.
+   *
+   * Two things move it and only one of them is React: a row is pressed, and so is a link
+   * in somebody's comment, and the rule that answers a link is on the document before
+   * anything renders. See `showing.ts`.
+   */
+  const showing = useSyncExternalStore(watchShowing, nowShowing)
   /** The title row, which is the element the bar is told to stand in. */
   const [row, setRow] = useState<HTMLElement | null>(null)
 
@@ -104,19 +99,7 @@ const App = () => {
     }
   }, [])
 
-  /** The list, which is the screen this window goes back to and starts on. */
-  const theList = useCallback(() => setShowing({ at: "list" }), [])
-  const back = showing.at === "card" ? theList : null
-
-  /*
-   * And the other direction, for every link to a pull request anywhere in the window.
-   *
-   * The rule that stops the webview following a link is installed before this component
-   * exists, so this is where it is told what a pull request press means. A row in the
-   * list is one; so is a cross-reference in somebody's comment, which used to be
-   * stopped and then dropped, because the only screen listening was the list.
-   */
-  useEffect(() => cardsOpenHere((reference) => setShowing({ at: "card", reference })), [])
+  const back = showing.at === "card" ? openTheList : null
 
   /*
    * Escape goes back, once nothing inside the card wants it.
@@ -227,7 +210,7 @@ const App = () => {
           <AroundProvider
             value={{
               within: row,
-              home: theList,
+              home: openTheList,
               tray: (
                 <>
                   {/* Drawn whether or not anybody is signed in, because an update is
@@ -240,11 +223,7 @@ const App = () => {
               )
             }}
           >
-            {showing.at === "card" ? (
-              <PullRequest reference={showing.reference} />
-            ) : (
-              <WorkingSet onOpen={(reference) => setShowing({ at: "card", reference })} />
-            )}
+            {showing.at === "card" ? <PullRequest reference={showing.reference} /> : <WorkingSet />}
           </AroundProvider>
         )}
       </main>

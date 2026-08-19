@@ -4,6 +4,7 @@ import { Option } from "effect"
 import { AUTHOR, aMergeState, aSnapshot } from "../../tests/snapshots"
 import type { Seat } from "../domain/PullRequest"
 import { Header } from "./Header"
+import { BROWSER } from "./marks"
 
 afterEach(cleanup)
 
@@ -244,12 +245,24 @@ describe("the way out to GitHub", () => {
 
     const out = screen.getByLabelText("Open on GitHub")
     expect(out.getAttribute("href")).toContain("/pull/")
-    expect(out.hasAttribute("data-gitquiet-browser")).toBe(true)
+    expect(out.hasAttribute(BROWSER)).toBe(true)
   })
 
   test("is not drawn at all where the page itself is the way back", () => {
     render(<Header snapshot={aSnapshot({ state: "open" })} onUseGitHub={() => {}} />)
 
     expect(screen.queryByLabelText("Open on GitHub")).toBeNull()
+  })
+
+  /*
+   * Said by the control that means it, and by no other. A mark on every anchor on this
+   * card would send the reader's browser a pull request this window draws itself.
+   */
+  test("is said by that one control and not by the card's own links", () => {
+    render(<Header snapshot={aSnapshot({ state: "open" })} />)
+
+    const marked = document.querySelectorAll(`a[${BROWSER}]`)
+    expect(marked.length).toBe(1)
+    expect(marked[0]?.getAttribute("aria-label")).toBe("Open on GitHub")
   })
 })
