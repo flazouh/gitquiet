@@ -94,7 +94,7 @@ const open = (home: RepoHome, onMove: (path: string) => void): Open => {
 
   const reading = (partly: (front: Front) => void) =>
     having().pipe(
-      Effect.flatMap((inPage) => loadRepoHome(home.repo, inPage, partly)),
+      Effect.flatMap((inPage) => loadRepoHome(home.repo, home.branch, inPage, partly)),
       throughGitHub,
       Effect.tap((front) =>
         Effect.sync(() => {
@@ -114,7 +114,7 @@ const open = (home: RepoHome, onMove: (path: string) => void): Open => {
   const remembered = () =>
     held !== undefined
       ? Effect.succeed(Option.some(held))
-      : rememberedRepoHome(home.repo).pipe(
+      : rememberedRepoHome(home.repo, home.branch).pipe(
           throughGitHub,
           Effect.map(Option.filter((front) => home.branch === null || front.branch === home.branch)),
           Effect.catch(() => Effect.succeed(Option.none<Front>()))
@@ -211,7 +211,7 @@ const open = (home: RepoHome, onMove: (path: string) => void): Open => {
         repo={home.repo}
         load={read}
         preload={remembered}
-        where={repoNamed(home.repo)}
+        where={repoNamed(home.repo, home.branch)}
         recallRepositories={recallRepositories}
         onStepAside={standing.stepAside}
         onStar={(to) => starRepo(home.repo, to).pipe(throughGitHub)}

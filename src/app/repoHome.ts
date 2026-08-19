@@ -21,7 +21,7 @@ import { GitHubGateway } from "../ports/GitHubGateway"
  */
 export const warmRepoHome = Effect.fn("warmRepoHome")(function* (repo: RepoRef) {
   const gateway = yield* GitHubGateway
-  yield* Effect.asVoid(gateway.repoHome(repo))
+  yield* Effect.asVoid(gateway.repoHome(repo, null))
 })
 
 /**
@@ -33,9 +33,12 @@ export const warmRepoHome = Effect.fn("warmRepoHome")(function* (repo: RepoRef) 
  * what a Keeper came for, and a Caller reading a README a moment after the page
  * appears has lost nothing they would notice.
  */
-export const rememberedRepoHome = Effect.fn("rememberedRepoHome")(function* (repo: RepoRef) {
+export const rememberedRepoHome = Effect.fn("rememberedRepoHome")(function* (
+  repo: RepoRef,
+  branch: string | null
+) {
   const gateway = yield* GitHubGateway
-  return yield* gateway.rememberedRepoHome(repo)
+  return yield* gateway.rememberedRepoHome(repo, branch)
 })
 
 /**
@@ -146,12 +149,13 @@ export const fillWho = Effect.fn("fillWho")(function* (
  */
 export const loadRepoHome = Effect.fn("loadRepoHome")(function* (
   repo: RepoRef,
+  branch: string | null,
   having: Option.Option<Front>,
   partly: (front: Front) => void = () => {}
 ) {
   const gateway = yield* GitHubGateway
 
-  const front = Option.isSome(having) ? having.value : yield* gateway.repoHome(repo)
+  const front = Option.isSome(having) ? having.value : yield* gateway.repoHome(repo, branch)
 
   // Announced before the column is asked for, which is the whole point of the
   // split: the rows are complete and the reader can act on them now.

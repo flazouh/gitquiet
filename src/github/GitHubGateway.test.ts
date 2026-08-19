@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import type { Settling } from "../domain/Issue"
 import { Effect, Option } from "effect"
+import repoHomePayload from "../../fixtures/github/repo-home.json"
 import {
   draftWithBotFindings,
   loadFixture,
@@ -151,6 +152,26 @@ describe("what the gateway sends to GitHub", () => {
     const gateway = yield* GitHubGateway
     return yield* gateway.snapshot(draft)
   }).pipe(Effect.provide(layer))
+
+  test("asks for the named branch when reading its repository tree", async () => {
+    const calls = intercept(
+      () =>
+        new Response(
+          `<script type="application/json" data-target="react-app.embeddedData">${JSON.stringify(repoHomePayload)}</script>`,
+          { headers: { "Content-Type": "text/html" } }
+        )
+    )
+
+    const front = await Effect.runPromise(
+      Effect.gen(function* () {
+        const gateway = yield* GitHubGateway
+        return yield* gateway.repoHome({ owner: "flazouh", repo: "githubpro" }, "main")
+      }).pipe(Effect.provide(layer))
+    )
+
+    expect(front.branch).toBe("main")
+    expect(new URL(calls[0]?.url ?? "").pathname).toBe("/flazouh/githubpro/tree/main")
+  })
 
   test("asks for every route as JSON, with the header GitHub demands", async () => {
     const calls = intercept((url) => Response.json(payloadFor(url)))
@@ -1312,7 +1333,7 @@ describe("what the gateway sends to GitHub", () => {
         Effect.flip(
           Effect.gen(function* () {
             const gateway = yield* GitHubGateway
-            return yield* gateway.repoHome({ owner: "octo-org", repo: "octo-repo" })
+            return yield* gateway.repoHome({ owner: "octo-org", repo: "octo-repo" }, null)
           }).pipe(Effect.provide(layer))
         )
       )
@@ -1328,7 +1349,7 @@ describe("what the gateway sends to GitHub", () => {
         Effect.flip(
           Effect.gen(function* () {
             const gateway = yield* GitHubGateway
-            return yield* gateway.repoHome({ owner: "oven-sh", repo: "bun" })
+            return yield* gateway.repoHome({ owner: "oven-sh", repo: "bun" }, null)
           }).pipe(Effect.provide(layer))
         )
       )

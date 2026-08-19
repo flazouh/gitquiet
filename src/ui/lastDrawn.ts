@@ -90,6 +90,7 @@ export const pullRequestNamed = (reference: PullRequestRef): string => `pull ${k
 
 export const issueNamed = (reference: IssueRef): string => `issue ${keyOf(reference)}`
 
-export const repoNamed = (repo: RepoRef): string => `repo ${repo.owner}/${repo.repo}`
+export const repoNamed = (repo: RepoRef, branch: string | null): string =>
+  `repo ${repo.owner}/${repo.repo}${branch === null ? "" : `@${branch}`}`
 
 export const THE_WORKING_SET = "the working set"
