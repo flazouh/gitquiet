@@ -280,11 +280,27 @@ const once = async (move, rest) => {
   if (rest > 0) await wait(rest)
   await js(SAMPLER)
   await click([spot.x, spot.y])
-  await wait(8)
+
+  /*
+   * Waited out rather than waited for a fixed span.
+   *
+   * Eight seconds was the fixed span, and on a slow evening it threw away most of
+   * a run: a press that becomes readable at 8.4s reports nothing at all, and a
+   * table of dashes says the same thing whether the interface is slow or broken.
+   * The cap is what keeps a press their router really did drop from holding the
+   * whole run, and polling is what stops a fast press paying for the cap.
+   */
+  const marks = await (async () => {
+    for (let waited = 0; waited < 20; waited += 0.25) {
+      const seen = JSON.parse(await js(String.raw`JSON.stringify(window.__moves?.marks ?? [])`))
+      if (seen.length > 0 && readable(seen).drawn !== undefined) return seen
+      await wait(0.25)
+    }
+    return JSON.parse(await js(String.raw`JSON.stringify(window.__moves?.marks ?? [])`))
+  })()
 
   // Gone means the press loaded a document rather than swapping a screen, which
   // takes the sampler with it. That is a result about the move, not a crash.
-  const marks = JSON.parse(await js(String.raw`JSON.stringify(window.__moves?.marks ?? [])`))
   if (marks.length === 0) return { skipped: "the press loaded a whole document" }
   return { to: spot.to, ...readable(marks) }
 }
