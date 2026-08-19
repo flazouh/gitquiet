@@ -352,14 +352,34 @@ export const theScreenShown = (target: Document): string | null =>
 const AT = "data-gitquiet-at"
 
 /**
- * Said by a screen each time it draws, which is the moment it accepts an address.
+ * Said by a screen that has the page for this address to show, and not before.
  *
- * Before the drawing rather than after it, and the difference is the tens of
- * milliseconds React takes to commit. What the callers need to know is that this
- * screen has taken the new address on, not that the last pixel of it is down.
+ * From the data rather than from the press, which is the whole of what this mark is
+ * for and the one way it has been wrong. It used to be set by the shell's redraw off
+ * `window.location.pathname` — the address the screen was *asked* for — so it went up
+ * within about fifty milliseconds of the press while the pull request the reader had
+ * just left was still the one on the screen. Measured between two of them: the mark
+ * read the new address at 55ms and the rows underneath read the old one until 3,380ms.
+ *
+ * Which made every question it answers answerable wrongly. Reading ahead stopped
+ * being held back at 55ms and went back to competing with the read the reader is
+ * waiting for, on the one route where that read is seven requests long.
  */
 export const theScreenIsAt = (target: Document, path: string): void => {
   target.documentElement.setAttribute(AT, path)
+}
+
+/**
+ * Said by a screen on its way off the page, and only about its own address.
+ *
+ * The guard is not caution. Two screens are on the page at every navigation, on
+ * purpose — the one arriving stands on the surface of the one leaving — and the one
+ * leaving goes last. Clearing the mark unconditionally would take down the arriving
+ * screen's claim a moment after it made it, which is the same fault the toasts had
+ * when a single slot was written by one screen and cleared by another.
+ */
+export const theScreenLeft = (target: Document, path: string): void => {
+  if (target.documentElement.getAttribute(AT) === path) target.documentElement.removeAttribute(AT)
 }
 
 /**

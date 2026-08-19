@@ -85,3 +85,13 @@ export const keyOf = (reference: PullRequestRef): string =>
 
 export const toUrl = (ref: PullRequestRef): string =>
   `https://github.com/${ref.owner}/${ref.repo}/pull/${ref.number}`
+
+/**
+ * The same address without the origin, which is what a path is compared against.
+ *
+ * Next to {@link fromPathname} because they are one thing read in two directions,
+ * and a builder that drifts from its parser is a comparison that quietly never
+ * matches. See `useDrawnAt`, whose whole job is that comparison.
+ */
+export const pathOf = (ref: PullRequestRef): string =>
+  `/${ref.owner}/${ref.repo}/pull/${ref.number}`

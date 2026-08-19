@@ -14,6 +14,7 @@ import {
   takeOverSlotWhenReady,
   theScreenArrived,
   theScreenIsAt,
+  theScreenLeft,
   theScreenMoved,
   whenTheScreenMoves
 } from "./mount"
@@ -1139,5 +1140,26 @@ describe("knowing that the screen a press asked for is the one on the page", () 
 
   test("nothing of ours on the page is not an arrival", () => {
     expect(theScreenArrived(githubPage(), CONVERSATION.name, "/o/r/pull/1999")).toBe(false)
+  })
+
+  test("a screen leaving withdraws its own address", () => {
+    const target = githubPage()
+    takeOverSlot(target)
+    theScreenIsAt(target, "/o/r/pull/1999")
+
+    theScreenLeft(target, "/o/r/pull/1999")
+
+    expect(theScreenArrived(target, CONVERSATION.name, "/o/r/pull/1999")).toBe(false)
+  })
+
+  test("and leaves alone an address another screen has since published", () => {
+    const target = githubPage()
+    takeOverSlot(target)
+    theScreenIsAt(target, "/o/r/pull/2002")
+
+    // The screen arriving got there first, which is the order every navigation has.
+    theScreenLeft(target, "/o/r/pull/1999")
+
+    expect(theScreenArrived(target, CONVERSATION.name, "/o/r/pull/2002")).toBe(true)
   })
 })

@@ -12,7 +12,6 @@ import {
   ourSurface,
   reveal,
   takeOverSlotWhenReady,
-  theScreenIsAt,
   ungate,
   whenTakenOver,
   whenThereIsAPage
@@ -274,17 +273,16 @@ export const standAScreen = ({
   const standing: Standing = {
     container,
     stepAside: () => stepAside(),
+    /*
+     * Nothing is said here about which address arrived, and that absence is the
+     * point. This runs at the press, before the screen has read anything, so an
+     * address published from here is the address the reader *asked* for — and on the
+     * one route where the question matters, a move between two pull requests, the
+     * screen goes on showing the pull request they left for another three seconds.
+     * `useDrawnAt` is where a screen says it, out of the read rather than out of the
+     * address bar.
+     */
     redraw: () => {
-      /*
-       * Which address this screen is drawing, said where every drawing goes through.
-       *
-       * A screen that shows a second page of its own kind never comes down — the
-       * reader moving between two pull requests keeps this container, this root, and
-       * only draws again — so the mark saying which kind of screen is up cannot tell
-       * anyone the second page arrived. It read "conversation" before the press and
-       * reads it after. See {@link theScreenArrived}.
-       */
-      theScreenIsAt(document, window.location.pathname)
       root.render(<Supplied root={container}>{draw(standing)}</Supplied>)
     },
     close: () => {

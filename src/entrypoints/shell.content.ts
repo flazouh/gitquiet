@@ -19,7 +19,13 @@ import {
   drawingOurOwnRows,
   goTo,
 } from "@/ui/going";
-import { markPage, theScreenArrived, theScreenIsMoving, unmarkPage } from "@/ui/mount";
+import {
+  markPage,
+  theScreenArrived,
+  theScreenIsMoving,
+  theScreenShown,
+  unmarkPage,
+} from "@/ui/mount";
 import { linkNear, type Reached } from "@/ui/linkNear";
 import {
   forwardness,
@@ -556,8 +562,10 @@ export default defineContentScript({
       // a reader who has turned this off never sees a frame of it.
       if (view === "github") return;
 
-      /** Whether the screen this press asked for is up. Set once the press is ours. */
+      /** Whether the screen this press asked for is up, address and all. Set once the press is ours. */
       let arrived: (() => boolean) | undefined;
+      /** The same, forgiving the address. See where it is set. */
+      let theKindIsUp: (() => boolean) | undefined;
 
       /*
        * The press, carried out here if their router drops it — which on their
@@ -614,8 +622,26 @@ export default defineContentScript({
          * between two pull requests, because it never changed: measured on that press,
          * it still read "conversation" at 0.4s, 1s, 2s, 4s and 8s. So the quiet period
          * below ended before it began, on the one route that needed it most.
+         *
+         * Strict, and only ever asked where a wrong "no" costs nothing. This one holds
+         * reading ahead back, so being told no while the page is still arriving is the
+         * answer that was wanted anyway. What it is deliberately not asked by is the
+         * address repair below. See {@link standingFor}.
          */
         arrived = () => theScreenArrived(document, wanted, target.pathname);
+
+        /*
+         * The same question with the address left out, for the one caller that reloads
+         * the document when the answer is no.
+         *
+         * Which screens publish an address is a screen-by-screen matter — `useDrawnAt`,
+         * called where a read is ready — and one that has not been wired to say it
+         * would never be seen to arrive. Asked by the repair, that silence is a whole
+         * document load a second and a half after a press that worked perfectly well.
+         * Asked by the quiet period above, it is a pause. So the expensive caller gets
+         * the forgiving test, which is the one this shipped with for a year.
+         */
+        theKindIsUp = () => theScreenShown(document) === wanted;
 
         readAhead.pressed(warmingFor(target.href, window.location.href)?.key ?? null, {
           there: arrived,
@@ -671,7 +697,7 @@ export default defineContentScript({
       // The same answer the quiet period above waits on, and for the same reason: a
       // repair made while the screen is on its way loads the whole document.
       const push = mine?.push;
-      if (push !== undefined && arrived !== undefined) goTo(window, push, arrived);
+      if (push !== undefined && theKindIsUp !== undefined) goTo(window, push, theKindIsUp);
     };
 
     const pressed = (event: Event): void => {

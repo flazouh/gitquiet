@@ -14,7 +14,7 @@ import type {
   PullRequestSnapshot,
   ReviewThread
 } from "../domain/PullRequest"
-import type { PullRequestRef } from "../domain/PullRequestRef"
+import { pathOf, type PullRequestRef } from "../domain/PullRequestRef"
 import { type Doing, DOINGS, stateAfter } from "../domain/doable"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -26,6 +26,7 @@ import type { Repository } from "../domain/repositories"
 import { TheBar } from "./TheBar"
 import { useFreshening } from "./useFreshening"
 import type { AskLayerSizes } from "./useLayerSizes"
+import { useDrawnAt } from "./drawnAt"
 import { type Load, useLive } from "./useLive"
 import { ReadFailed } from "./ReadFailed"
 
@@ -249,6 +250,12 @@ export const PullRequestScreen = ({
    */
   const live = useLive(load, preload, where)
   const { read, again, meanwhile } = live
+  /*
+   * Only once the card on the screen is this pull request's. Loading and failing
+   * both leave the last pull request's card standing, which is what the reader is
+   * looking at and therefore what anyone asking has to be told.
+   */
+  useDrawnAt(read.status === "ready" ? pathOf(reference) : null)
   const waiting = useWaiting(read.status)
   useFreshening(live.catchingUp, CHECKING)
 
