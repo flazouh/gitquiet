@@ -130,16 +130,46 @@ describe("reading one page of a repository's pull requests", () => {
     expect(listed.sittings[0]?.court).toBe("needs-you")
   })
 
-  test("says where the page sits in the whole of them", async () => {
-    intercept((url) =>
-      url.includes("/pulls?q=")
-        ? searchAnswer([aRow()], { currentPage: 2, totalPages: 40, totalCount: 1989 })
-        : oneStranger(url)
-    )
+  test("reads every page of the list, so nothing is behind a pager", async () => {
+    const asked = intercept((url) => {
+      if (url.includes("/pulls?q=")) {
+        const page = new URL(url).searchParams.get("page")
+        return page === "2"
+          ? searchAnswer([aRow({ id: 42, number: 96114, title: "the second page" })], {
+              currentPage: 2,
+              totalPages: 2,
+              totalCount: 2
+            })
+          : searchAnswer([aRow()], { currentPage: 1, totalPages: 2, totalCount: 2 })
+      }
+      if (url.includes("merge_box")) return new Response("nope", { status: 500 })
+      return oneStranger(url)
+    })
 
-    const listed = await read({ page: 2 })
+    const listed = await read()
 
-    expect(listed.pages).toEqual(Option.some({ current: 2, total: 40, count: 1989 }))
+    expect(asked.filter((url) => url.includes("/pulls?q="))).toHaveLength(2)
+    expect(listed.sittings[0]?.count).toBe(2)
+    // Every page is here, so there is no paging left to describe.
+    expect(listed.pages).toEqual(Option.none())
+  })
+
+  test("stops reading pages at the cap, and says the list is cut rather than complete", async () => {
+    // A repository with two thousand open pull requests is eighty pages. The cap is
+    // what "safely" means: the list holds the first thousand, and the paging info is
+    // kept so the screen can say how much of the whole this is.
+    const asked = intercept((url) => {
+      if (url.includes("/pulls?q=")) {
+        return searchAnswer([aRow()], { currentPage: 1, totalPages: 80, totalCount: 1989 })
+      }
+      if (url.includes("merge_box")) return new Response("nope", { status: 500 })
+      return oneStranger(url)
+    })
+
+    const listed = await read()
+
+    expect(asked.filter((url) => url.includes("/pulls?q="))).toHaveLength(40)
+    expect(listed.pages).toEqual(Option.some({ current: 1, total: 80, count: 1989 }))
   })
 
   test("refuses to show a repository whose list would not load", async () => {

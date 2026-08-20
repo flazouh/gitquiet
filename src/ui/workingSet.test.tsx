@@ -588,14 +588,37 @@ describe("a stack in the Working Set", () => {
     )
   )
 
-  test("draws what stands on what, rather than three unrelated rows", () => {
+  /** Two pull requests standing on the same foundation, rather than on each other. */
+  const siblings = sittingsIn(chain, (one) =>
+    Option.some(
+      [
+        { baseBranch: "main", headBranch: "stack-1" },
+        { baseBranch: "stack-1", headBranch: "stack-2" },
+        { baseBranch: "stack-1", headBranch: "stack-3" }
+      ][one.reference.number - 1]!
+    )
+  )
+
+  const theCard = (): HTMLElement => {
+    const card = document.querySelector("[data-stack]")
+    if (!(card instanceof HTMLElement)) throw new Error("No stack card on the page")
+    return card
+  }
+
+  test("draws the stack as one card of flat rows, base first, with no tree semantics", () => {
     render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
 
-    // A tree, so a reader can see that the top cannot land until the foundation
-    // does. Three sibling rows would say nothing about the order they land in.
-    const tree = screen.getByRole("tree", { name: /the foundation/ })
+    // A card of flat rows rather than a tree widget: these are links to pages,
+    // and the tree role brings arrow-key expectations nobody is met with here.
+    expect(screen.queryByRole("tree")).toBeNull()
+    expect(document.querySelector('[role="treeitem"]')).toBeNull()
 
-    expect(within(tree).getAllByRole("treeitem")).toHaveLength(3)
+    const rows = within(theCard()).getAllByRole("link")
+    expect(rows.map((row) => row.textContent)).toEqual([
+      expect.stringContaining("the foundation"),
+      expect.stringContaining("the middle"),
+      expect.stringContaining("the top")
+    ])
   })
 
   test("keeps the whole stack in one Court, under its foundation", () => {
@@ -605,6 +628,79 @@ describe("a stack in the Working Set", () => {
 
     expect(within(court).getByText(/the top/)).toBeDefined()
     expect(screen.queryByRole("region", { name: "Waiting" })).toBeNull()
+  })
+
+  test("steps every dependent in by the same sixteen pixels, however deep it stands", () => {
+    render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
+
+    const [base, middle, top] = within(theCard()).getAllByRole("link")
+
+    expect(base?.style.paddingLeft).toBe("28px")
+    expect(middle?.style.paddingLeft).toBe("44px")
+    // A grandchild is no further in than its parent: the arrow says what it
+    // stands on, and a staircase three gutters deep would push its title off.
+    expect(top?.style.paddingLeft).toBe("44px")
+  })
+
+  test("draws the relations as one overlay on the card rather than a mark on each row", () => {
+    render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
+
+    const overlays = theCard().querySelectorAll("svg[data-stack-relations]")
+
+    expect(overlays).toHaveLength(1)
+    expect(overlays[0]?.getAttribute("aria-hidden")).toBe("true")
+  })
+
+  test("gives siblings on one base a single family: an arm each, one arrowhead into the base", () => {
+    render(<WorkingSet sittings={siblings} onOpen={() => {}} />)
+
+    const overlay = theCard().querySelector("svg[data-stack-relations]")
+    const families = overlay?.querySelectorAll("[data-stack-family]") ?? []
+
+    expect(families).toHaveLength(1)
+    expect(overlay?.querySelectorAll("[data-stack-arrow]")).toHaveLength(1)
+    // One arm leaving each child at the dependent gutter, joining the family's
+    // own vertical rather than each drawing a run of its own.
+    const drawn = families[0]?.querySelector("path")?.getAttribute("d") ?? ""
+    expect(drawn.match(/M44/g)).toHaveLength(2)
+  })
+
+  test("points a grandchild at its actual parent, from the other lane", () => {
+    render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
+
+    const overlay = theCard().querySelector("svg[data-stack-relations]")
+    const families = [...(overlay?.querySelectorAll("[data-stack-family]") ?? [])]
+
+    // Two families — the middle on the foundation, the top on the middle — in
+    // alternating lanes, so the two verticals cannot read as one spine running
+    // the whole card from the top to the foundation.
+    expect(families).toHaveLength(2)
+    expect(families.map((family) => family.getAttribute("data-lane"))).toEqual(["20", "12"])
+  })
+
+  test("says aloud what each row stands on, by the base's own number and title", () => {
+    render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
+
+    expect(
+      screen.getByRole("link", { name: /the middle.*Stacked on #1 the foundation/ })
+    ).toBeDefined()
+    // The top stands on the middle, not on the card's foundation.
+    expect(screen.getByRole("link", { name: /the top.*Stacked on #2 the middle/ })).toBeDefined()
+  })
+
+  test("counts nothing on the rows: the numbers there are the pull requests' own", () => {
+    render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
+
+    // No stack index beside a row. A bare digit here could only be one.
+    expect(within(theCard()).queryByText(/^\d+$/)).toBeNull()
+  })
+
+  test("keeps the titles readable, shrinking the status details first", () => {
+    render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
+
+    const [row] = within(theCard()).getAllByRole("link")
+
+    expect(row?.style.gridTemplateColumns).toContain("minmax(240px,1fr)")
   })
 })
 

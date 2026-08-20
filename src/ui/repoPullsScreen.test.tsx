@@ -53,7 +53,6 @@ const showing = (
       load={load}
       onOpen={() => {}}
       onStepAside={() => {}}
-      onPage={() => {}}
       signedIn={() => true}
       {...over}
     />
@@ -116,59 +115,34 @@ describe("a repository's pull request list", () => {
     expect(within(row).getByText("#1")).toBeTruthy()
   })
 
-  test("says how many there are altogether, not how many are on this page", async () => {
-    // A page holds twenty-five. Saying "25" for a repository with two thousand open
-    // would be the most misleading true thing on the screen.
+  test("says how much of a cut list is showing, when the read stopped at its cap", async () => {
+    // The read gathers every page onto this one, and leaves the paging info only
+    // when it had to stop. A thousand rows drawn as everything there is would be
+    // the most misleading true-looking thing on the screen.
     showing(() =>
       Effect.succeed(
-        listed([involved(1)], Option.some({ current: 2, total: 40, count: 1989 }))
+        listed([involved(1)], Option.some({ current: 1, total: 80, count: 1989 }))
       )
     )
 
-    expect(await screen.findByText(/1,989 pull requests/)).toBeTruthy()
-    expect(screen.getByText(/page 2 of 40/)).toBeTruthy()
+    expect(await screen.findByText(/1 of 1,989 pull requests/)).toBeTruthy()
   })
 
-  test("counts the rows itself when GitHub said nothing about paging", async () => {
+  test("counts the rows itself when every page is here", async () => {
     showing(() => Effect.succeed(listed([involved(1), involved(2)])))
 
     expect(await screen.findByText("2 pull requests")).toBeTruthy()
   })
 
-  test("offers the rest of them when there is more than one page", async () => {
-    const asked: Array<number> = []
-    showing(
-      () =>
-        Effect.succeed(listed([involved(1)], Option.some({ current: 2, total: 40, count: 989 }))),
-      { onPage: (page) => asked.push(page) }
-    )
-
-    await userEvent.click(await screen.findByRole("button", { name: "Next" }))
-    await userEvent.click(screen.getByRole("button", { name: "Previous" }))
-
-    expect(asked).toEqual([3, 1])
-  })
-
-  test("offers no pager for a repository that fits on one page", async () => {
+  test("offers no pager: every pull request is on this one page", async () => {
     showing(() =>
-      Effect.succeed(listed([involved(1)], Option.some({ current: 1, total: 1, count: 3 })))
+      Effect.succeed(listed([involved(1)], Option.some({ current: 1, total: 80, count: 1989 })))
     )
 
     await screen.findByText("vercel/next.js")
 
     expect(screen.queryByRole("button", { name: "Next" })).toBeNull()
-  })
-
-  test("will not offer a page before the first or past the last", async () => {
-    showing(() =>
-      Effect.succeed(listed([involved(1)], Option.some({ current: 1, total: 2, count: 30 })))
-    )
-
-    const back = await screen.findByRole("button", { name: "Previous" })
-    const on = screen.getByRole("button", { name: "Next" })
-
-    expect(back.hasAttribute("disabled")).toBe(true)
-    expect(on.hasAttribute("disabled")).toBe(false)
+    expect(screen.queryByRole("button", { name: "Previous" })).toBeNull()
   })
 
   test("blames GitHub rather than itself when a read fails", async () => {
