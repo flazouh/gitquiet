@@ -694,7 +694,7 @@ export const Rail = ({
           // `toggle` reads its first argument as "a key did this".
           onClick={() => toggle()}
           aria-label={narrow ? "Widen the Rail" : "Narrow the Rail"}
-          className={`${narrow ? NARROW_CONTROL : "mx-auto size-9"} grid place-items-center rounded-md text-ink-muted hover:bg-hover hover:text-ink`}
+          className={`${narrow ? NARROW_CONTROL : "size-9"} grid place-items-center rounded-md text-ink-muted hover:bg-hover hover:text-ink`}
         >
           {narrow ? (
             <art.widen size={14} aria-hidden="true" />
