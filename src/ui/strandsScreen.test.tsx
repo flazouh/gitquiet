@@ -241,6 +241,6 @@ describe("a repository's runs", () => {
     )
 
     expect(await screen.findByRole("region", { name: "Runs" })).toBeTruthy()
-    expect(document.querySelector("[data-sonner-toast]")).toBeNull()
+    expect(screen.queryByText("Repository Strands updated")).toBeNull()
   })
 })

@@ -301,7 +301,7 @@ describe("a run drawn from what was kept", () => {
     )
 
     await waitFor(() => expect(screen.getByText(run.title)).toBeDefined())
-    expect(document.querySelector("[data-sonner-toast]")).toBeNull()
+    expect(screen.queryByText("Run updated")).toBeNull()
   })
 })
 

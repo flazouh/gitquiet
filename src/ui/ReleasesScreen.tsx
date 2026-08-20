@@ -39,7 +39,7 @@ export type ReleasesScreenProps = {
 
 const READING = "Reading this repository's releases…"
 
-const UPDATED = "Repository releases updated"
+const UPDATED = "Repository Versions updated"
 
 /**
  * A repository's releases: every Change, and the one file this reader should take.

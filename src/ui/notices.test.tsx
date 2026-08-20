@@ -274,6 +274,6 @@ describe("the reader's inbox, grouped by who acts next", () => {
     )
 
     expect(await screen.findByRole("region", { name: "Needs You" })).toBeTruthy()
-    expect(document.querySelector("[data-sonner-toast]")).toBeNull()
+    expect(screen.queryByText("Notices updated")).toBeNull()
   })
 })

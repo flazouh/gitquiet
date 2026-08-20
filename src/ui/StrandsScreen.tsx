@@ -39,7 +39,7 @@ export type StrandsScreenProps = {
 
 const READING = "Reading this repository's runs…"
 
-const UPDATED = "Repository runs updated"
+const UPDATED = "Repository Strands updated"
 
 /**
  * What the fold came to, in one line above the rows.

@@ -30,7 +30,7 @@ export type NoticesScreenProps = {
 
 const READING = "Reading your notifications…"
 
-const UPDATED = "Notifications updated"
+const UPDATED = "Notices updated"
 
 /**
  * What a press did to a Notice, held here until the next read confirms it.

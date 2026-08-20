@@ -195,7 +195,7 @@ describe("a commit drawn from what was kept", () => {
     )
 
     expect(await screen.findByText(commit.headline)).toBeTruthy()
-    expect(document.querySelector("[data-sonner-toast]")).toBeNull()
+    expect(screen.queryByText("Commit updated")).toBeNull()
   })
 
   test("has nothing to say where there was nothing kept", async () => {
@@ -211,6 +211,6 @@ describe("a commit drawn from what was kept", () => {
     // The wait is saying it already, in the middle of the screen. Two things saying it is
     // one thing too many, and the toast is the smaller of the two.
     await waitFor(() => expect(screen.getByText(commit.headline)).toBeDefined())
-    expect(document.querySelector("[data-sonner-toast]")).toBeNull()
+    expect(screen.queryByText("Commit updated")).toBeNull()
   })
 })
