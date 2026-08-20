@@ -588,17 +588,6 @@ describe("a stack in the Working Set", () => {
     )
   )
 
-  /** Two pull requests standing on the same foundation, rather than on each other. */
-  const siblings = sittingsIn(chain, (one) =>
-    Option.some(
-      [
-        { baseBranch: "main", headBranch: "stack-1" },
-        { baseBranch: "stack-1", headBranch: "stack-2" },
-        { baseBranch: "stack-1", headBranch: "stack-3" }
-      ][one.reference.number - 1]!
-    )
-  )
-
   const theCard = (): HTMLElement => {
     const card = document.querySelector("[data-stack]")
     if (!(card instanceof HTMLElement)) throw new Error("No stack card on the page")
@@ -630,69 +619,59 @@ describe("a stack in the Working Set", () => {
     expect(screen.queryByRole("region", { name: "Waiting" })).toBeNull()
   })
 
-  test("steps every dependent in by the same sixteen pixels, however deep it stands", () => {
+  test("numbers every row from the base upward without indenting the dependents", () => {
     render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
 
     const [base, middle, top] = within(theCard()).getAllByRole("link")
 
-    expect(base?.style.paddingLeft).toBe("28px")
-    expect(middle?.style.paddingLeft).toBe("44px")
-    // A grandchild is no further in than its parent: the arrow says what it
-    // stands on, and a staircase three gutters deep would push its title off.
-    expect(top?.style.paddingLeft).toBe("44px")
-  })
-
-  test("draws the relations as one overlay on the card rather than a mark on each row", () => {
-    render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
-
-    const overlays = theCard().querySelectorAll("svg[data-stack-relations]")
-
-    expect(overlays).toHaveLength(1)
-    expect(overlays[0]?.getAttribute("aria-hidden")).toBe("true")
-  })
-
-  test("gives siblings on one base a single family: an arm each, one arrowhead into the base", () => {
-    render(<WorkingSet sittings={siblings} onOpen={() => {}} />)
-
-    const overlay = theCard().querySelector("svg[data-stack-relations]")
-    const families = overlay?.querySelectorAll("[data-stack-family]") ?? []
-
-    expect(families).toHaveLength(1)
-    expect(overlay?.querySelectorAll("[data-stack-arrow]")).toHaveLength(1)
-    // One arm leaving each child at the dependent gutter, joining the family's
-    // own vertical rather than each drawing a run of its own.
-    const drawn = families[0]?.querySelector("path")?.getAttribute("d") ?? ""
-    expect(drawn.match(/M44/g)).toHaveLength(2)
-  })
-
-  test("points a grandchild at its actual parent, from the other lane", () => {
-    render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
-
-    const overlay = theCard().querySelector("svg[data-stack-relations]")
-    const families = [...(overlay?.querySelectorAll("[data-stack-family]") ?? [])]
-
-    // Two families — the middle on the foundation, the top on the middle — in
-    // alternating lanes, so the two verticals cannot read as one spine running
-    // the whole card from the top to the foundation.
-    expect(families).toHaveLength(2)
-    expect(families.map((family) => family.getAttribute("data-lane"))).toEqual(["20", "12"])
-  })
-
-  test("says aloud what each row stands on, by the base's own number and title", () => {
-    render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
-
+    expect(base?.style.paddingLeft).toBe("48px")
+    expect(middle?.style.paddingLeft).toBe("48px")
+    expect(top?.style.paddingLeft).toBe("48px")
     expect(
-      screen.getByRole("link", { name: /the middle.*Stacked on #1 the foundation/ })
-    ).toBeDefined()
-    // The top stands on the middle, not on the card's foundation.
-    expect(screen.getByRole("link", { name: /the top.*Stacked on #2 the middle/ })).toBeDefined()
+      [...theCard().querySelectorAll("[data-stack-position]")].map((position) =>
+        position.textContent?.trim()
+      )
+    ).toEqual(["#1", "#2", "#3"])
   })
 
-  test("counts nothing on the rows: the numbers there are the pull requests' own", () => {
+  test("keeps a double-digit stack position on one line", () => {
+    const ten = Array.from({ length: 10 }, (_, at) =>
+      on(at === 0 ? "needs-action" : "ready-to-merge", at + 1)
+    )
+    const tenStacked = sittingsIn(ten, (one) =>
+      Option.some({
+        baseBranch: one.reference.number === 1 ? "main" : `stack-${one.reference.number - 1}`,
+        headBranch: `stack-${one.reference.number}`
+      })
+    )
+
+    render(<WorkingSet sittings={tenStacked} onOpen={() => {}} />)
+
+    const positions = [...theCard().querySelectorAll<HTMLElement>("[data-stack-position]")]
+    expect(positions.at(-1)?.textContent).toBe("#10")
+    expect(positions.at(-1)?.classList.contains("whitespace-nowrap")).toBe(true)
+  })
+
+  test("draws no connector or relation icon", () => {
     render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
 
-    // No stack index beside a row. A bare digit here could only be one.
-    expect(within(theCard()).queryByText(/^\d+$/)).toBeNull()
+    expect(theCard().querySelector("svg[data-stack-relations]")).toBeNull()
+    expect(theCard().querySelector(".t-stack-mark")).toBeNull()
+  })
+
+  test("keeps one stack icon beside the card label", () => {
+    render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
+
+    const label = theCard().querySelector("[data-stack-label]")
+
+    expect(label?.textContent).toBe("Stack")
+    expect(label?.querySelectorAll("svg")).toHaveLength(1)
+  })
+
+  test("says each stack position aloud", () => {
+    render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
+
+    expect(screen.getByRole("link", { name: /the middle.*Stack position #2 of 3/ })).toBeDefined()
   })
 
   test("keeps the titles readable, shrinking the status details first", () => {

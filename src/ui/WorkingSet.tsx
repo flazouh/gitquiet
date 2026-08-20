@@ -30,7 +30,6 @@ import { loginOnPage } from "./viewer"
 import { ageOf, momentOf } from "./when"
 import { Owner } from "./Owner"
 import { Who } from "./Who"
-import { flattenPile, StackRelations } from "./StackRelations"
 
 /**
  * The colour a reason wears, which is the same rule again one row down.
@@ -321,8 +320,7 @@ const Row = ({
   within,
   columns,
   asking,
-  inStack = false,
-  stackedOn
+  stackPosition
 }: {
   readonly one: InvolvedPullRequest
   readonly court: Court
@@ -331,8 +329,7 @@ const Row = ({
   readonly within?: Within
   readonly columns: Columns
   readonly asking?: Asking
-  readonly inStack?: boolean
-  readonly stackedOn?: InvolvedPullRequest
+  readonly stackPosition?: { readonly at: number; readonly of: number }
 }) => {
   const art = useArt()
   const Art = art[pullRequestName(one.state)]
@@ -354,7 +351,7 @@ const Row = ({
       data-row=""
       className={`group grid items-center pr-1 hover:bg-hover ${chosen ? "bg-hover" : ""} ${
         at === undefined ? "" : "t-row-in"
-      } ${inStack ? "relative z-10 h-[33px]" : ""}`}
+      }`}
       style={
         {
           gridTemplateColumns: "minmax(0,1fr) auto",
@@ -373,9 +370,9 @@ const Row = ({
         aria-label={`${one.readByViewer ? "" : "Unread. "}${one.title}. ${
           here ? `#${one.reference.number}` : address
         }. ${COURT_NAME[court]}${
-          stackedOn === undefined
+          stackPosition === undefined
             ? ""
-            : `. Stacked on #${stackedOn.reference.number} ${stackedOn.title}`
+            : `. Stack position #${stackPosition.at} of ${stackPosition.of}`
         }`}
         aria-current={chosen ? "true" : undefined}
         /*
@@ -389,12 +386,23 @@ const Row = ({
          * the way a link behaves, which is how an extension avoids being an
          * obstacle.
          */
-        className="grid min-w-0 items-center gap-2 px-3 py-1.5 no-underline"
+        className={`grid min-w-0 items-center gap-2 px-3 py-1.5 no-underline ${
+          stackPosition === undefined ? "" : "relative"
+        }`}
         style={{
           gridTemplateColumns: tracksOf(columns),
-          ...(inStack ? { paddingLeft: stackedOn === undefined ? 28 : 44 } : {})
+          ...(stackPosition === undefined ? {} : { paddingLeft: 48 })
         }}
       >
+        {stackPosition === undefined ? null : (
+          <span
+            data-stack-position=""
+            aria-hidden="true"
+            className="absolute left-2 w-8 whitespace-nowrap text-center font-mono text-[10px] text-ink-muted tabular-nums"
+          >
+            #{stackPosition.at}
+          </span>
+        )}
         {/*
          * Who, first. A column of faces down the left edge is the one thing in a row
          * that is recognised rather than read, and a reader scanning a repository's
@@ -861,6 +869,11 @@ const Issues = ({
   )
 }
 
+const flattenPile = (pile: Piled): ReadonlyArray<Piled> => [
+  pile,
+  ...pile.above.flatMap(flattenPile)
+]
+
 const Pile = ({
   pile,
   chosen,
@@ -876,17 +889,19 @@ const Pile = ({
   readonly columns: Columns
   readonly asking?: Asking
 }) => {
+  const StackIcon = useArt().fork
+
   if (pile.above.length === 0) {
     return (
-    <Row
-      one={pile.one}
-      court={pile.court}
-      chosen={chosen === addressOf(pile.one.reference)}
-      arriving={arriving}
-      within={within}
-      columns={columns}
-      asking={asking}
-    />
+      <Row
+        one={pile.one}
+        court={pile.court}
+        chosen={chosen === addressOf(pile.one.reference)}
+        arriving={arriving}
+        within={within}
+        columns={columns}
+        asking={asking}
+      />
     )
   }
 
@@ -895,12 +910,14 @@ const Pile = ({
   return (
     <section data-stack="" className="m-1 overflow-hidden rounded-md border border-line bg-surface">
       <div className="flex items-center justify-between border-b border-line-muted px-3 py-1 text-xs text-ink-muted">
-        <span>Stack</span>
+        <span data-stack-label="" className="flex items-center gap-1.5">
+          <StackIcon size={12} aria-hidden="true" className="text-ink-accent" />
+          <span>Stack</span>
+        </span>
         <span className="tabular-nums">{`${rows.length} pull requests`}</span>
       </div>
-      <div className="relative divide-y divide-line-muted">
-        <StackRelations rows={rows} />
-        {rows.map(({ pile: row, parent }) => (
+      <div className="divide-y divide-line-muted">
+        {rows.map((row, at) => (
           <Row
             key={addressOf(row.one.reference)}
             one={row.one}
@@ -910,8 +927,7 @@ const Pile = ({
             within={within}
             columns={columns}
             asking={asking}
-            inStack
-            stackedOn={parent?.one}
+            stackPosition={{ at: at + 1, of: rows.length }}
           />
         ))}
       </div>
