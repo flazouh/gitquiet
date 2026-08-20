@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { done, freshening, SETTLED, Toasts, refused } from "./Toasts"
+import { done, Toasts, refused } from "./Toasts"
 
 afterEach(cleanup)
 
@@ -155,66 +155,5 @@ describe("what the interface says when it did the thing", () => {
     await waitFor(() => expect(screen.getByText("flazouh/octo-repo#12 merged")).toBeDefined())
 
     expect(screen.queryByRole("button", { name: "Undo" })).toBeNull()
-  })
-})
-
-describe("what the interface says while it is reading, and when the read lands", () => {
-  test("answers its own sentence: the spinner becomes a check and a word", async () => {
-    /*
-     * One toast, twice. A loading sentence that is dismissed leaves a reader who watched
-     * something spin at the top of the screen with no idea whether it finished or gave up —
-     * and the list underneath cannot say, because a list that was already right does not
-     * change when the read agrees with it. So the same toast answers itself.
-     */
-    render(<Toasts />)
-
-    const reading = freshening("Checking your pull requests…")
-
-    await waitFor(() => expect(screen.getByText("Checking your pull requests…")).toBeDefined())
-
-    act(() => reading.landed())
-
-    await waitFor(() => expect(screen.getByText("Up to date")).toBeDefined())
-
-    // In place, rather than a second toast under the first.
-    expect(document.querySelectorAll('[data-sonner-toast]:not([data-removed="true"])')).toHaveLength(
-      1
-    )
-    // And the check draws itself, which is the only part of this a reader watches.
-    expect(document.querySelector(".t-drawn")).not.toBeNull()
-  })
-
-  test("goes on its own once it has said so, unlike the sentence before it", async () => {
-    render(<Toasts />)
-
-    const reading = freshening("Checking your repositories…")
-    await waitFor(() => expect(screen.getByText("Checking your repositories…")).toBeDefined())
-
-    act(() => reading.landed())
-    await waitFor(() => expect(screen.getByText("Up to date")).toBeDefined())
-
-    await act(() => new Promise((rest) => setTimeout(rest, SETTLED + 400)))
-
-    expect(
-      document.querySelectorAll('[data-sonner-toast]:not([data-removed="true"])')
-    ).toHaveLength(0)
-  })
-
-  test("comes down with no verdict where the read never landed", async () => {
-    // The screen went away, or the sentence changed. Neither is an answer, and "Up to date"
-    // about a read that was abandoned is a lie the reader would act on.
-    render(<Toasts />)
-
-    const reading = freshening("Checking what has happened…")
-    await waitFor(() => expect(screen.getByText("Checking what has happened…")).toBeDefined())
-
-    act(() => reading.take())
-
-    await waitFor(() =>
-      expect(
-        document.querySelectorAll('[data-sonner-toast]:not([data-removed="true"])')
-      ).toHaveLength(0)
-    )
-    expect(screen.queryByText("Up to date")).toBeNull()
   })
 })

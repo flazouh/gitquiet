@@ -4,7 +4,7 @@ import type { Repository } from "../domain/repositories"
 import { IssueList } from "./IssueList"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import { TheBar } from "./TheBar"
-import { useFreshening } from "./useFreshening"
+import { useUpdated } from "./useUpdated"
 import { type Load, useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -42,8 +42,7 @@ export type IssueListScreenProps = {
 
 const WORKING = "Reading this repository's issues…"
 
-/** The same read, said over a list that is already on the screen. */
-const CHECKING = "Checking this repository's issues…"
+const UPDATED = "Repository issues updated"
 
 /**
  * A repository's issues — `/owner/repo/issues`.
@@ -72,7 +71,7 @@ export const IssueListScreen = ({
   const live = useLive(load, preload)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useFreshening(live.catchingUp, CHECKING)
+  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
 
   const named = `${repo.owner}/${repo.repo}`
 

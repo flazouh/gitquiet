@@ -24,7 +24,7 @@ import type { Answering } from "./ThreadView"
 import type { Review as Said } from "../ports/GitHubGateway"
 import type { Repository } from "../domain/repositories"
 import { TheBar } from "./TheBar"
-import { useFreshening } from "./useFreshening"
+import { useUpdated } from "./useUpdated"
 import type { AskLayerSizes } from "./useLayerSizes"
 import { useDrawnAt } from "./drawnAt"
 import { type Load, useLive } from "./useLive"
@@ -152,8 +152,7 @@ const viewerOnPage = (): boolean =>
 
 const READING = "Reading this pull request…"
 
-/** The same read, said over a card that is already on the screen. */
-const CHECKING = "Checking this pull request…"
+const UPDATED = "Pull request updated"
 
 /**
  * The card as it will be, the moment a verb is asked for.
@@ -258,7 +257,7 @@ export const PullRequestScreen = ({
    */
   useDrawnAt(read.status === "loading" ? null : pathOf(reference))
   const waiting = useWaiting(read.status)
-  useFreshening(live.catchingUp, CHECKING)
+  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
 
   /**
    * Every verb the shell wired, asked for against a card that has already moved.

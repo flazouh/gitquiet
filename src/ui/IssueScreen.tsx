@@ -12,7 +12,7 @@ import { reasonFor } from "./refusal"
 import { SETTLED } from "./Settle"
 import { done, refused } from "./Toasts"
 import { TheBar } from "./TheBar"
-import { useFreshening } from "./useFreshening"
+import { useUpdated } from "./useUpdated"
 import { useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -114,8 +114,7 @@ const sentenceFor = (settling: Settled): string =>
 
 const READING = "Reading this issue…"
 
-/** The same read, said over an issue that is already on the screen. */
-const CHECKING = "Checking this issue…"
+const UPDATED = "Issue updated"
 
 /**
  * One issue, in one column.
@@ -143,7 +142,7 @@ export const IssueScreen = ({
   const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useFreshening(live.catchingUp, CHECKING)
+  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
 
   /*
    * What the reader just said, held here until the next read carries it.

@@ -7,7 +7,7 @@ import type { DiffChoices, TreeChoices } from "../domain/choices"
 import { useArt } from "./art"
 import { FileBrowser, type FileBrowserProps } from "./FileBrowser"
 import { GitHubHtml } from "./GitHubHtml"
-import { useFreshening } from "./useFreshening"
+import { useUpdated } from "./useUpdated"
 import { ageOf, momentOf } from "./when"
 import { Who } from "./Who"
 
@@ -60,13 +60,7 @@ export type CommitViewProps = {
   readonly display?: FileBrowserProps["display"]
 }
 
-/**
- * The sentence over a commit that came out of the store.
- *
- * A landed commit does not change, so this is the most honest of these sentences and the
- * shortest-lived: what the read behind it adds is the diffs, not a different commit.
- */
-const CHECKING = "Checking this commit…"
+const UPDATED = "Commit updated"
 
 type Reading =
   | { readonly step: "loading" }
@@ -111,8 +105,7 @@ export const CommitView = ({
    * Whether what is on the screen is a memory with a live read still running behind it.
    *
    * The same bit `useLive` hands the lists, arrived at the long way round because this
-   * component has been following a sha of its own since before that hook existed. What says
-   * it out loud is `useFreshening` below.
+   * component has been following a sha of its own since before that hook existed.
    */
   const [checking, setChecking] = useState(false)
 
@@ -176,7 +169,7 @@ export const CommitView = ({
     }
   }, [held, load, preload, sha])
 
-  useFreshening(checking, CHECKING)
+  useUpdated(checking, reading.step === "ready" ? reading.commit : undefined, UPDATED)
 
   const meta = (
     <div className="flex items-center gap-2 bg-surface px-3 py-2">

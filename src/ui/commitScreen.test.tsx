@@ -184,7 +184,7 @@ describe("a commit drawn from what was kept", () => {
     expect(screen.getByLabelText("Open file").textContent).toContain("one.ts")
   })
 
-  test("says it is being checked, a kept commit and a current one being the same picture", async () => {
+  test("keeps a background check silent over the known commit", async () => {
     render(
       <Toasts>
         {screenOf({
@@ -194,7 +194,8 @@ describe("a commit drawn from what was kept", () => {
       </Toasts>
     )
 
-    expect(await screen.findByText(/Checking this commit/)).toBeTruthy()
+    expect(await screen.findByText(commit.headline)).toBeTruthy()
+    expect(document.querySelector("[data-sonner-toast]")).toBeNull()
   })
 
   test("has nothing to say where there was nothing kept", async () => {
@@ -210,6 +211,6 @@ describe("a commit drawn from what was kept", () => {
     // The wait is saying it already, in the middle of the screen. Two things saying it is
     // one thing too many, and the toast is the smaller of the two.
     await waitFor(() => expect(screen.getByText(commit.headline)).toBeDefined())
-    expect(screen.queryByText(/Checking this commit/)).toBeNull()
+    expect(document.querySelector("[data-sonner-toast]")).toBeNull()
   })
 })

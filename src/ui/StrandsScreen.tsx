@@ -9,7 +9,7 @@ import { CHIP } from "./dress"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import { Strands } from "./Strands"
 import { TheBar } from "./TheBar"
-import { useFreshening } from "./useFreshening"
+import { useUpdated } from "./useUpdated"
 import { useLive } from "./useLive"
 import { useSettings } from "./useSettings"
 import { useWaiting } from "./useWaiting"
@@ -39,8 +39,7 @@ export type StrandsScreenProps = {
 
 const READING = "Reading this repository's runs…"
 
-/** The same read, said over a list of runs that is already on the screen. */
-const CHECKING = "Checking this repository's runs…"
+const UPDATED = "Repository runs updated"
 
 /**
  * What the fold came to, in one line above the rows.
@@ -122,7 +121,7 @@ export const StrandsScreen = ({
   const live = useLive(load, preload)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useFreshening(live.catchingUp, CHECKING)
+  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
   const { settings, change } = useSettings()
 
   /*

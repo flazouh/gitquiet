@@ -10,7 +10,7 @@ import { HERE } from "./dress"
 import { IssueList } from "./IssueList"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import { TheBar } from "./TheBar"
-import { useFreshening } from "./useFreshening"
+import { useUpdated } from "./useUpdated"
 import { type Load, useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -65,8 +65,7 @@ const NOTHING: ReadonlyArray<Owed> = []
 
 const WORKING = "Reading your issues…"
 
-/** The same read, said over a list that is already on the screen. */
-const CHECKING = "Checking your issues…"
+const UPDATED = "Issues updated"
 
 /**
  * GitHub's three tabs, as tabs.
@@ -145,7 +144,7 @@ export const IssuesScreen = ({
   const live = useLive(load, preload)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useFreshening(live.catchingUp, CHECKING)
+  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
 
   /*
    * What ⌘K searches beside the repositories, for the reason the Working Set gives: a

@@ -2,7 +2,6 @@ import { createContext, type ReactNode, useContext, useEffect, useState } from "
 import { createPortal } from "react-dom"
 import { Toaster, toast } from "sonner"
 import { OVER_ID, outsideHost } from "./outside"
-import { SettledIcon } from "./settled"
 
 /**
  * What the interface says when the thing it showed you turns out to be wrong.
@@ -277,84 +276,12 @@ export const done = (said: string, back?: WayBack): void => {
   )
 }
 
-/** What the interface says when the read agreed with what was already on screen. */
-export const UP_TO_DATE = "Up to date"
-
 /**
- * How long the answer stands.
+ * Known content changed when GitHub answered a background read.
  *
- * Long enough to be seen and not long enough to be in the way. The check takes about 400ms to
- * draw, so anything under a second would be a mark that is still arriving as it leaves.
+ * Neutral rather than successful: nothing was asked for and nothing completed. The useful
+ * fact is only that the content the reader was already looking at is different now.
  */
-export const SETTLED = 1600
-
-/** A read in progress, and the two ways it can end. */
-export type Freshening = {
-  /**
-   * GitHub answered. The same toast says so and then goes on its own.
-   *
-   * The same toast, by id: a second one under the first would be two sentences about one read,
-   * and the reader watched the first one spin.
-   */
-  readonly landed: () => void
-  /**
-   * Down with no verdict, because there is none: the screen went away or the sentence changed.
-   *
-   * Distinct from {@link Freshening.landed} on purpose. "Up to date" about a read that was
-   * abandoned is a claim the reader would act on.
-   */
-  readonly take: () => void
-}
-
-/**
- * What you are reading is a moment old, and the newest is on its way.
- *
- * The third sentence this file can say, and the first that is about a read
- * rather than a write. Every list here shows what it remembers the instant it
- * opens, which is the whole reason the interface feels immediate — and it is
- * also a small lie, because the reader is looking at the last answer and
- * deciding what to do from it.
- *
- * Stays up until the read lands rather than for a few seconds, because it is not
- * an announcement: it is the state of one thing, and the thing it describes ends
- * at a moment this can be told about. Hands back both endings, so a caller can
- * neither forget which toast was theirs nor take down somebody else's.
- *
- * And it answers itself, which it did not use to. A spinner that is dismissed on landing is a
- * thing that spun at the top of the screen and then was not there, and a reader cannot tell that
- * from a read that gave up — least of all when the list underneath does not change, which is what
- * happens every time GitHub agrees with what was already shown. The word and the drawn check are
- * the end of the sentence the spinner started.
- */
-export const freshening = (said: string): Freshening => {
-  /*
-   * Written by the queued call above rather than returned from it, because the spinner
-   * may not have been raised yet: see `whenStanding`. An ending asked for before the
-   * spinner is queued behind it, so by the time it runs the id is the one it names.
-   *
-   * An ending asked for after a Toaster has come down and another has gone up is a
-   * different matter: sonner's list belongs to the Toaster, so the new one has never
-   * heard of this id and would add a toast rather than write over one. `useFreshening`
-   * is what keeps that from happening — it takes the spinner down when its screen goes,
-   * so no spinner outlives the surface it was raised on.
-   */
-  let which: string | number | undefined
-  whenStanding(() => {
-    which = toast.loading(said, { duration: Infinity })
-  })
-
-  return {
-    landed: () => {
-      whenStanding(() =>
-        toast.success(UP_TO_DATE, {
-          id: which,
-          duration: SETTLED,
-          // The tone comes from `LOOK.success`, which is where every icon in this file gets
-          // its colour. Said twice would be two places to change it.
-          icon: <SettledIcon size={14} />
-        })
-      )
-    },
-    take: () => whenStanding(() => toast.dismiss(which))
-  }
+export const updated = (said: string): void => {
+  whenStanding(() => toast(said))
 }

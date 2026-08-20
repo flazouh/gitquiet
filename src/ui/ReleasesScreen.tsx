@@ -5,7 +5,7 @@ import type { Repository } from "../domain/repositories"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import { Releases, Yours } from "./Releases"
 import { TheBar } from "./TheBar"
-import { useFreshening } from "./useFreshening"
+import { useUpdated } from "./useUpdated"
 import { useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -39,8 +39,7 @@ export type ReleasesScreenProps = {
 
 const READING = "Reading this repository's releases…"
 
-/** The same read, said over a list of releases that is already on the screen. */
-const CHECKING = "Checking this repository's releases…"
+const UPDATED = "Repository releases updated"
 
 /**
  * A repository's releases: every Change, and the one file this reader should take.
@@ -61,7 +60,7 @@ export const ReleasesScreen = ({
   const live = useLive(load, preload)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useFreshening(live.catchingUp, CHECKING)
+  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
 
   if (read.status === "failed") {
     return (

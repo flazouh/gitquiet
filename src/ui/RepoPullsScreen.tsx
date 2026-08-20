@@ -5,7 +5,7 @@ import { DEFAULT_PROFILE, type Profile } from "../keys/commands"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
-import { useFreshening } from "./useFreshening"
+import { useUpdated } from "./useUpdated"
 import { type Load, useLive } from "./useLive"
 import type { Repository } from "../domain/repositories"
 import { TheBar } from "./TheBar"
@@ -52,8 +52,7 @@ export type RepoPullsScreenProps = {
 
 const WORKING = "Reading this repository's pull requests…"
 
-/** The same read, said over a list that is already on the screen. */
-const CHECKING = "Checking this repository's pull requests…"
+const UPDATED = "Repository pull requests updated"
 
 /**
  * How many there are, and whether the safe read limit cut the list.
@@ -91,7 +90,7 @@ export const RepoPullsScreen = ({
   const live = useLive(load, preload)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useFreshening(live.catchingUp, CHECKING)
+  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
 
   if (read.status === "failed") {
     return (
