@@ -74,7 +74,7 @@ type Standing = {
 /** Shared so a default prop is not a new array on every render. */
 const NONE_PINNED: ReadonlyArray<string> = []
 
-const NARROW_CONTROL = "mx-auto size-9 flex-none justify-center p-0"
+const NARROW_CONTROL = "mx-auto size-8 flex-none justify-center p-0"
 
 /**
  * The three Destinations, in the order they are offered, each with its glyph.
@@ -694,7 +694,7 @@ export const Rail = ({
           // `toggle` reads its first argument as "a key did this".
           onClick={() => toggle()}
           aria-label={narrow ? "Widen the Rail" : "Narrow the Rail"}
-          className="mx-auto grid size-9 place-items-center rounded-md text-ink-muted hover:bg-hover hover:text-ink"
+          className="mx-auto grid size-8 place-items-center rounded-md text-ink-muted hover:bg-hover hover:text-ink"
         >
           {narrow ? (
             <art.widen size={14} aria-hidden="true" />
