@@ -113,6 +113,71 @@ const focus = async () => {
   await cdp("Page.bringToFront")
 }
 
+/**
+ * Leaves the freshly built copy of this on and every other copy of it off, in
+ * this task space.
+ *
+ * Every measurement is worthless without it, and it has to happen here rather
+ * than in a script of its own: a space is its own browser, so a switch flipped
+ * in one is not flipped in the next. A copy from the store cannot be uninstalled
+ * at all — "extension is not an unpacked extension" — and two copies switched on
+ * sweep each other's root off the page, which is a blank page rather than a slow
+ * one. Both were measured and reported before this existed.
+ */
+const leaveOneCopy = async (path) => {
+  const { id: mine } = await cdp("Extensions.loadUnpacked", { path }, null)
+
+  const READ_THEM = String.raw`(() => {
+    const manager = document.querySelector("extensions-manager")
+    const list = manager?.shadowRoot?.querySelector("extensions-item-list")
+    if (list == null) return JSON.stringify({ trouble: "their extensions page will not answer" })
+    return JSON.stringify([...list.shadowRoot.querySelectorAll("extensions-item")].map((item) => ({
+      id: item.id,
+      name: item.shadowRoot.querySelector("#name")?.textContent?.trim(),
+      on: item.shadowRoot.querySelector("#enableToggle")?.getAttribute("aria-pressed") === "true"
+    })))
+  })()`
+
+  const listThem = async () => {
+    await gotoAndWait("chrome://extensions/", { timeout: 60, settle: 2 })
+    await wait(2)
+    const answer = JSON.parse(await js(READ_THEM))
+    if (answer.trouble !== undefined) throw new Error(answer.trouble)
+    return answer
+  }
+
+  // By name, because an unpacked id is derived from its path: a build in a
+  // worktree has another one, and a list written by id leaves it running.
+  for (const one of await listThem()) {
+    if (!/gitquiet/i.test(one.name ?? "")) continue
+    if (one.on === (one.id === mine)) continue
+    await js(String.raw`(() => {
+      const manager = document.querySelector("extensions-manager")
+      const list = manager?.shadowRoot?.querySelector("extensions-item-list")
+      const item = list?.shadowRoot?.querySelector("extensions-item#" + ${JSON.stringify(one.id)})
+      item?.shadowRoot?.querySelector("#enableToggle")?.click()
+      return true
+    })()`)
+    await wait(1)
+  }
+
+  return mine
+}
+
+/** Every copy of anything serving the page in front of us. */
+const servingHere = async () =>
+  JSON.parse(
+    await js(String.raw`(() => {
+      const ids = new Set()
+      for (const node of document.querySelectorAll("[src],[href]")) {
+        const found = String(node.getAttribute("src") || node.getAttribute("href") || "")
+          .match(/chrome-extension:\/\/([a-z]{32})/)
+        if (found !== null) ids.add(found[1])
+      }
+      return JSON.stringify([...ids])
+    })()`)
+  )
+
 /** Every extension serving files into this page, however it got installed. */
 const copiesHere = async () => {
   const fromPage = await js(String.raw`(() => {
@@ -312,30 +377,23 @@ await gotoAndWait(OPEN_PULLS, { timeout: 60, settle: 3 })
 await focus()
 
 /*
- * Down to one copy before anything is read, rather than before anything is timed.
+ * Down to one copy answering before anything is read, rather than before anything
+ * is timed.
  *
- * `Extensions.loadUnpacked` persists in a task space, so a copy is left behind by
- * every run and they all answer every event. Two of them fight over `#gitquiet-root`
- * — each sees the other's tree as a stray, removes it, and unmounts — and what they
- * leave is an empty page. Cleaned up after the list was read, that empty page was
- * read as "this account has no pull requests open" and the run stopped on it.
+ * Two of them fight over `#gitquiet-root` — each sees the other's tree as a stray,
+ * removes it, and unmounts — and what they leave is an empty page. Worse than
+ * empty, lately: the pair wedge the renderer between them, and `Page.navigate`
+ * timed out three runs in a row against a site that answers in five seconds.
  */
-for (const id of await copiesHere()) {
-  try {
-    await cdp("Extensions.uninstall", { id }, null)
-  } catch {
-    // Already gone, which is the state this wants.
-  }
-}
-const { id } = await cdp("Extensions.loadUnpacked", { path: EXTENSION }, null)
-cliLog(`one copy installed: ${id}`)
+const id = await leaveOneCopy(EXTENSION)
+cliLog(`the build under test is ${id}`)
 await focus()
 
 await gotoAndWait(OPEN_PULLS, { timeout: 60, settle: 3 })
 await wait(3)
-const answering = await copiesHere()
-if (!answering.includes(id)) {
-  const cause = `The build under test (${id}) is not the one answering: ${JSON.stringify(answering)}. Run scripts/one-copy.js and try again.`
+const answering = await servingHere()
+if (answering.length !== 1 || answering[0] !== id) {
+  const cause = `The build under test (${id}) is not the one answering: ${JSON.stringify(answering)}.`
   cliLog(`Nothing measured. ${cause}`)
   await completeTaskSpace(task.id, { keep: false })
   throw new Error(cause)

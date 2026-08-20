@@ -16,6 +16,17 @@
 const EXTENSION = "/Users/alex/Documents/githubpro/.output/chrome-mv3"
 const OPEN_PULLS = "https://github.com/pulls"
 
+/**
+ * The pull request to press from, when it has to be a particular one.
+ *
+ * Empty by default, which takes the first of the reader's own that carries a
+ * link to another. Size decides this measurement more than anything else does: a
+ * small pull request is readable in 618ms and a stacked one of forty thousand
+ * characters takes three times that, so a run against whichever came first can
+ * disagree with the benchmark by a factor of three and both are right.
+ */
+const FROM = "1999"
+
 const task = await useOrCreateTaskSpace("probe pr to pr")
 await takeOverTaskSpace(task.id)
 
@@ -92,7 +103,31 @@ const servingHere = async () =>
 const mine = await leaveOneCopy(EXTENSION)
 cliLog(`the build under test is ${mine}`)
 
-await gotoAndWait(OPEN_PULLS, { timeout: 60, settle: 3 })
+/*
+ * A moment for the switches to settle, and a second go at the first navigation.
+ * Chrome is starting and stopping extensions as those switches are flipped, and a
+ * navigation asked for during that has timed out at the transport twice.
+ */
+await wait(8)
+await cdp("Emulation.setFocusEmulationEnabled", { enabled: true })
+await cdp("Page.bringToFront")
+
+const land = async (where, how) => {
+  try {
+    await gotoAndWait(where, how)
+  } catch (trouble) {
+    cliLog(`${where} would not answer, trying again: ${String(trouble)}`)
+    await wait(8)
+    try {
+      await gotoAndWait(where, how)
+    } catch {
+      await wait(15)
+      await gotoAndWait(where, how)
+    }
+  }
+}
+
+await land(OPEN_PULLS, { timeout: 60, settle: 3 })
 await wait(3)
 
 const lookForPulls = () => js(String.raw`(() => {
@@ -248,8 +283,8 @@ const lookForSpot = (number) => js(String.raw`(() => {
 
 let spot = null
 let from = null
-for (const number of found.numbers) {
-  await gotoAndWait(`https://github.com/${found.repo}/pull/${number}`, { timeout: 60, settle: 4 })
+for (const number of FROM === "" ? found.numbers : [FROM]) {
+  await land(`https://github.com/${found.repo}/pull/${number}`, { timeout: 60, settle: 4 })
   try {
     await waitForElement("#gitquiet-root", { timeout: 20 })
   } catch {
