@@ -952,6 +952,8 @@ const Pile = ({
   readonly columns: Columns
   readonly asking?: Asking
 }) => {
+  const StackIcon = useArt().fork
+
   if (pile.above.length === 0) {
     return (
       <Row
@@ -969,8 +971,14 @@ const Pile = ({
   const rows = flattenPile(pile)
 
   return (
-    <section data-stack="" aria-label={`Stack, ${rows.length} pull requests`}>
-      <Seam art="fork" name="Stack" many={rows.length} />
+    <section data-stack="" className="m-1 overflow-hidden rounded-md border border-line bg-surface">
+      <div className="flex items-center justify-between border-b border-line-muted px-3 py-1 text-xs text-ink-muted">
+        <span data-stack-label="" className="flex items-center gap-1.5">
+          <StackIcon size={12} aria-hidden="true" className="text-ink-accent" />
+          <span>Stack</span>
+        </span>
+        <span className="tabular-nums">{`${rows.length} pull requests`}</span>
+      </div>
       <div className="divide-y divide-line-muted">
         {rows.map((row, at) => (
           <Row

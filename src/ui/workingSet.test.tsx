@@ -611,19 +611,21 @@ describe("a stack in the Working Set", () => {
     )
   )
 
-  const theStack = (): HTMLElement => {
-    return screen.getByRole("region", { name: /^Stack, \d+ pull requests$/ })
+  const theCard = (): HTMLElement => {
+    const card = document.querySelector("[data-stack]")
+    if (!(card instanceof HTMLElement)) throw new Error("No stack card on the page")
+    return card
   }
 
-  test("draws the stack as one group of flat rows, base first, with no tree semantics", () => {
+  test("draws the stack as one card of flat rows, base first, with no tree semantics", () => {
     render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
 
-    // A group of flat rows rather than a tree widget: these are links to pages,
+    // A card of flat rows rather than a tree widget: these are links to pages,
     // and the tree role brings arrow-key expectations nobody is met with here.
     expect(screen.queryByRole("tree")).toBeNull()
     expect(document.querySelector('[role="treeitem"]')).toBeNull()
 
-    const rows = within(theStack()).getAllByRole("link")
+    const rows = within(theCard()).getAllByRole("link")
     expect(rows.map((row) => row.textContent)).toEqual([
       expect.stringContaining("the foundation"),
       expect.stringContaining("the middle"),
@@ -643,7 +645,7 @@ describe("a stack in the Working Set", () => {
   test("gives every stack position its own column without padding the row", () => {
     render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
 
-    const [base, middle, top] = within(theStack()).getAllByRole("link")
+    const [base, middle, top] = within(theCard()).getAllByRole("link")
 
     expect(base?.style.paddingLeft).toBe("")
     expect(middle?.style.paddingLeft).toBe("")
@@ -652,7 +654,7 @@ describe("a stack in the Working Set", () => {
     expect(middle?.style.gridTemplateColumns).toBe(base?.style.gridTemplateColumns)
     expect(top?.style.gridTemplateColumns).toBe(base?.style.gridTemplateColumns)
     expect(
-      [...theStack().querySelectorAll("[data-stack-position]")].map((position) =>
+      [...theCard().querySelectorAll("[data-stack-position]")].map((position) =>
         position.textContent?.trim()
       )
     ).toEqual(["#1", "#2", "#3"])
@@ -671,7 +673,7 @@ describe("a stack in the Working Set", () => {
 
     render(<WorkingSet sittings={tenStacked} onOpen={() => {}} />)
 
-    const positions = [...theStack().querySelectorAll<HTMLElement>("[data-stack-position]")]
+    const positions = [...theCard().querySelectorAll<HTMLElement>("[data-stack-position]")]
     expect(positions.at(-1)?.textContent).toBe("#10")
     expect(positions.at(-1)?.classList.contains("whitespace-nowrap")).toBe(true)
   })
@@ -679,14 +681,17 @@ describe("a stack in the Working Set", () => {
   test("draws no connector or relation icon", () => {
     render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
 
-    expect(theStack().querySelector("svg[data-stack-relations]")).toBeNull()
-    expect(theStack().querySelector(".t-stack-mark")).toBeNull()
+    expect(theCard().querySelector("svg[data-stack-relations]")).toBeNull()
+    expect(theCard().querySelector(".t-stack-mark")).toBeNull()
   })
 
-  test("names the stack group", () => {
+  test("keeps one stack icon beside the card label", () => {
     render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
 
-    expect(within(theStack()).getByText("Stack")).toBeDefined()
+    const label = theCard().querySelector("[data-stack-label]")
+
+    expect(label?.textContent).toBe("Stack")
+    expect(label?.querySelectorAll("svg")).toHaveLength(1)
   })
 
   test("says each stack position aloud", () => {
