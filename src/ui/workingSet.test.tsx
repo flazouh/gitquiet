@@ -181,6 +181,8 @@ describe("the Working Set", () => {
     expect(tracks).toContain("calc(1rem + 7ch)")
     expect(tracks).toContain("calc(1rem + 1ch)")
     expect(tracks).toContain("calc(0.25rem + 6ch)")
+    expect(tracks).not.toContain("8.5rem")
+    expect(tracks).not.toContain("5.5rem")
   })
 
   test("keeps no column for a fact no row in the list has", () => {
@@ -711,7 +713,7 @@ describe("a stack in the Working Set", () => {
 
     const row = screen.getByRole("link", { name: /the foundation/ })
 
-    expect(row.style.gridTemplateColumns).toContain("minmax(0,1fr)")
+    expect(row.style.gridTemplateColumns).toContain("minmax(160px,1fr)")
     expect(row.style.gridTemplateColumns).not.toContain("minmax(0,4rem)")
   })
 })

@@ -130,7 +130,7 @@ const TRACK = {
   face: "1rem",
   state: "0.875rem",
   number: "2.75rem",
-  title: "minmax(0,1fr)",
+  title: "minmax(160px,1fr)",
   age: "minmax(0,3.5rem)"
 } as const
 
@@ -149,15 +149,24 @@ type TrackFits = {
 
 const EMPTY_FIT: TrackFit = { fixedRem: 0, characters: 0 }
 
+const EMPTY_FITS: TrackFits = {
+  repo: EMPTY_FIT,
+  standing: EMPTY_FIT,
+  checks: EMPTY_FIT,
+  comments: EMPTY_FIT,
+  size: EMPTY_FIT
+}
+
+// This estimate only chooses the widest candidate. CSS performs the actual sizing.
 const wider = (current: TrackFit, candidate: TrackFit): TrackFit =>
   current.fixedRem + current.characters * 0.5 >=
   candidate.fixedRem + candidate.characters * 0.5
     ? current
     : candidate
 
-const fittedTrack = (fit: TrackFit, atMost: string): string => {
+const fittedTrack = (fit: TrackFit): string => {
   if (fit.fixedRem === 0 && fit.characters === 0) return "0rem"
-  return `minmax(0,min(${atMost},calc(${fit.fixedRem}rem + ${fit.characters}ch)))`
+  return `minmax(0,calc(${fit.fixedRem}rem + ${fit.characters}ch))`
 }
 
 const checkFit = (rollup: Option.Option<CheckRollup>): TrackFit =>
@@ -279,13 +288,7 @@ export type Columns = {
 const columnsIn = (sittings: ReadonlyArray<Sitting>, within: Within | undefined): Columns => {
   let standing = false
   let repo = false
-  let fits: TrackFits = {
-    repo: EMPTY_FIT,
-    standing: EMPTY_FIT,
-    checks: EMPTY_FIT,
-    comments: EMPTY_FIT,
-    size: EMPTY_FIT
-  }
+  let fits = EMPTY_FITS
 
   for (const one of walkThrough(sittings)) {
     if (Option.isSome(one.why) || Option.isSome(one.reviewed)) standing = true
@@ -314,13 +317,7 @@ export const columnsForIssues = (
   within: Within | undefined
 ): Columns => {
   let repo = false
-  let fits: TrackFits = {
-    repo: EMPTY_FIT,
-    standing: EMPTY_FIT,
-    checks: EMPTY_FIT,
-    comments: EMPTY_FIT,
-    size: EMPTY_FIT
-  }
+  let fits = EMPTY_FITS
 
   for (const one of rows) {
     if (!isWithin(one.reference, within)) repo = true
@@ -349,11 +346,11 @@ const tracksOf = (columns: Columns): string =>
     TRACK.state,
     TRACK.number,
     TRACK.title,
-    ...(columns.repo ? [fittedTrack(columns.fits.repo, "8.5rem")] : []),
-    ...(columns.standing ? [fittedTrack(columns.fits.standing, "9rem")] : []),
-    fittedTrack(columns.fits.checks, "5.5rem"),
-    fittedTrack(columns.fits.comments, "2.75rem"),
-    fittedTrack(columns.fits.size, "7rem"),
+    ...(columns.repo ? [fittedTrack(columns.fits.repo)] : []),
+    ...(columns.standing ? [fittedTrack(columns.fits.standing)] : []),
+    fittedTrack(columns.fits.checks),
+    fittedTrack(columns.fits.comments),
+    fittedTrack(columns.fits.size),
     TRACK.age
   ].join(" ")
 
