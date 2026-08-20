@@ -130,15 +130,87 @@ const TRACK = {
   face: "1rem",
   state: "0.875rem",
   number: "2.75rem",
-  title: "minmax(240px,1fr)",
-  repo: "minmax(0,8.5rem)",
-  standing: "minmax(0,7.5rem)",
-  checks: "minmax(0,5.5rem)",
-  comments: "minmax(0,2.75rem)",
-  labels: "minmax(0,4rem)",
-  size: "minmax(0,6rem)",
+  title: "minmax(0,1fr)",
   age: "minmax(0,3.5rem)"
 } as const
+
+type TrackFit = {
+  readonly fixedRem: number
+  readonly characters: number
+}
+
+type TrackFits = {
+  readonly repo: TrackFit
+  readonly standing: TrackFit
+  readonly checks: TrackFit
+  readonly comments: TrackFit
+  readonly size: TrackFit
+}
+
+const EMPTY_FIT: TrackFit = { fixedRem: 0, characters: 0 }
+
+const wider = (current: TrackFit, candidate: TrackFit): TrackFit =>
+  current.fixedRem + current.characters * 0.5 >=
+  candidate.fixedRem + candidate.characters * 0.5
+    ? current
+    : candidate
+
+const fittedTrack = (fit: TrackFit, atMost: string): string => {
+  if (fit.fixedRem === 0 && fit.characters === 0) return "0rem"
+  return `minmax(0,min(${atMost},calc(${fit.fixedRem}rem + ${fit.characters}ch)))`
+}
+
+const checkFit = (rollup: Option.Option<CheckRollup>): TrackFit =>
+  Option.match(rollup, {
+    onNone: () => EMPTY_FIT,
+    onSome: (found) => ({
+      fixedRem: 1,
+      characters: found.passed < found.total ? `${found.passed} of ${found.total}`.length : 0
+    })
+  })
+
+const sizeFit = (size: Option.Option<Size>): TrackFit =>
+  Option.match(size, {
+    onNone: () => EMPTY_FIT,
+    onSome: (found) => ({
+      fixedRem: 0.25,
+      characters: `+${found.added}`.length + `−${found.deleted}`.length
+    })
+  })
+
+const standingFit = (one: InvolvedPullRequest): TrackFit =>
+  Option.match(one.why, {
+    onSome: (reason) => ({ fixedRem: 1, characters: reasonRead(reason).words.length }),
+    onNone: () =>
+      Option.match(one.reviewed, {
+        onNone: () => EMPTY_FIT,
+        onSome: (opinion) => ({ fixedRem: 0, characters: OPINION_WORDS[opinion].length })
+      })
+  })
+
+const fitsWithPullRequest = (fits: TrackFits, one: InvolvedPullRequest): TrackFits => ({
+  repo: wider(fits.repo, { fixedRem: 1.25, characters: one.reference.repo.length }),
+  standing: wider(fits.standing, standingFit(one)),
+  checks: wider(fits.checks, checkFit(one.checks)),
+  comments: wider(
+    fits.comments,
+    one.comments === 0
+      ? EMPTY_FIT
+      : { fixedRem: 1, characters: String(one.comments).length }
+  ),
+  size: wider(fits.size, sizeFit(one.size))
+})
+
+const fitsWithIssue = (fits: TrackFits, one: ListedIssue): TrackFits => ({
+  ...fits,
+  repo: wider(fits.repo, { fixedRem: 1.25, characters: one.reference.repo.length }),
+  comments: wider(
+    fits.comments,
+    one.comments === 0
+      ? EMPTY_FIT
+      : { fixedRem: 1, characters: String(one.comments).length }
+  )
+})
 
 /**
  * Where a row is in the run of rows arriving, or nothing if it was already here.
@@ -201,37 +273,32 @@ const isWithin = (
 export type Columns = {
   readonly repo: boolean
   readonly standing: boolean
-  /**
-   * Labels, which only an Involved Issue says here.
-   *
-   * A pull request carries a count of them too and this list has never drawn
-   * it: what a reader of one of those rows is deciding on is where it stands and
-   * how big it is, and the labels would be four rems taken from the titles to
-   * repeat what the reason beside them already says. An issue has neither of
-   * those facts and its labels are how GitHub's own issue list is read, so the
-   * column arrives with the issues and leaves with them.
-   */
-  readonly labels: boolean
+  readonly fits: TrackFits
 }
 
 const columnsIn = (sittings: ReadonlyArray<Sitting>, within: Within | undefined): Columns => {
   let standing = false
   let repo = false
-  let labels = false
+  let fits: TrackFits = {
+    repo: EMPTY_FIT,
+    standing: EMPTY_FIT,
+    checks: EMPTY_FIT,
+    comments: EMPTY_FIT,
+    size: EMPTY_FIT
+  }
 
   for (const one of walkThrough(sittings)) {
     if (Option.isSome(one.why) || Option.isSome(one.reviewed)) standing = true
     if (!isWithin(one.reference, within)) repo = true
-    if (standing && repo) break
+    fits = fitsWithPullRequest(fits, one)
   }
 
   for (const one of sittings.flatMap((sitting) => sitting.issues)) {
     if (!isWithin(one.reference, within)) repo = true
-    if (one.labels.length > 0) labels = true
-    if (repo && labels) break
+    fits = fitsWithIssue(fits, one)
   }
 
-  return { repo, standing, labels }
+  return { repo, standing, fits }
 }
 
 /**
@@ -247,15 +314,20 @@ export const columnsForIssues = (
   within: Within | undefined
 ): Columns => {
   let repo = false
-  let labels = false
+  let fits: TrackFits = {
+    repo: EMPTY_FIT,
+    standing: EMPTY_FIT,
+    checks: EMPTY_FIT,
+    comments: EMPTY_FIT,
+    size: EMPTY_FIT
+  }
 
   for (const one of rows) {
     if (!isWithin(one.reference, within)) repo = true
-    if (one.labels.length > 0) labels = true
-    if (repo && labels) break
+    fits = fitsWithIssue(fits, one)
   }
 
-  return { repo, standing: false, labels }
+  return { repo, standing: false, fits }
 }
 
 /**
@@ -266,7 +338,7 @@ export const columnsForIssues = (
  * the other is a seam down the middle of every Court that nothing would fail about.
  */
 const spanOf = (columns: Columns): number =>
-  (columns.standing ? 1 : 0) + (columns.labels ? 1 : 0) + 3
+  (columns.standing ? 1 : 0) + 3
 
 /** How many labels are named before the rest become a number. */
 const NAMED = 2
@@ -277,12 +349,11 @@ const tracksOf = (columns: Columns): string =>
     TRACK.state,
     TRACK.number,
     TRACK.title,
-    ...(columns.repo ? [TRACK.repo] : []),
-    ...(columns.standing ? [TRACK.standing] : []),
-    TRACK.checks,
-    TRACK.comments,
-    ...(columns.labels ? [TRACK.labels] : []),
-    TRACK.size,
+    ...(columns.repo ? [fittedTrack(columns.fits.repo, "8.5rem")] : []),
+    ...(columns.standing ? [fittedTrack(columns.fits.standing, "9rem")] : []),
+    fittedTrack(columns.fits.checks, "5.5rem"),
+    fittedTrack(columns.fits.comments, "2.75rem"),
+    fittedTrack(columns.fits.size, "7rem"),
     TRACK.age
   ].join(" ")
 
@@ -514,8 +585,6 @@ const Row = ({
             </>
           ) : null}
         </span>
-
-        {columns.labels ? <span aria-hidden="true" /> : null}
 
         <Sized size={one.size} />
 

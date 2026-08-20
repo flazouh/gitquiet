@@ -162,6 +162,27 @@ describe("the Working Set", () => {
     expect(rows[0]?.childElementCount).toBe(rows[1]?.childElementCount)
   })
 
+  test("sizes shared fact columns from the values in this list", () => {
+    showing([
+      involved(1, {
+        reference: { owner: "openrouter", repo: "ori", number: 1 },
+        why: Option.some("READY_TO_MERGE"),
+        checks: Option.some({ state: "failing", passed: 1, total: 10 }),
+        comments: 1,
+        size: Option.some({ added: 77, deleted: 43 })
+      })
+    ])
+
+    const row = screen.getByRole("link", { name: /openrouter\/ori#1/ })
+    const tracks = row.style.gridTemplateColumns
+
+    expect(tracks).toContain("calc(1.25rem + 3ch)")
+    expect(tracks).toContain("calc(1rem + 14ch)")
+    expect(tracks).toContain("calc(1rem + 7ch)")
+    expect(tracks).toContain("calc(1rem + 1ch)")
+    expect(tracks).toContain("calc(0.25rem + 6ch)")
+  })
+
   test("keeps no column for a fact no row in the list has", () => {
     // Seven rems held open on every line for a reason none of these rows has is
     // width taken from the titles, which are the part worth reading.
@@ -677,12 +698,21 @@ describe("a stack in the Working Set", () => {
     expect(screen.getByRole("link", { name: /the middle.*Stack position #2 of 3/ })).toBeDefined()
   })
 
-  test("keeps the titles readable, shrinking the status details first", () => {
-    render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
+  test("gives the title the width left after its visible facts", () => {
+    render(
+      <WorkingSet
+        sittings={alongside(
+          stacked.flatMap((sitting) => sitting.piles.map((pile) => pile.one)),
+          [raised(7, { labels: ["bug"] })]
+        )}
+        onOpen={() => {}}
+      />
+    )
 
-    const [row] = within(theCard()).getAllByRole("link")
+    const row = screen.getByRole("link", { name: /the foundation/ })
 
-    expect(row?.style.gridTemplateColumns).toContain("minmax(240px,1fr)")
+    expect(row.style.gridTemplateColumns).toContain("minmax(0,1fr)")
+    expect(row.style.gridTemplateColumns).not.toContain("minmax(0,4rem)")
   })
 })
 
