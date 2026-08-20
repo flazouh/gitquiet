@@ -14,8 +14,11 @@
  * 1. Load the built extension, not the one the dev server is writing. A rebuild
  *    lands mid-run, the content script is injected again, and one press in five
  *    comes back two seconds slow for a reason that is not in the code.
- * 2. Leave exactly one copy installed. Two copies each sweep the other's root
- *    off the page, and the reader gets a blank page rather than a slow one.
+ * 2. Leave exactly one copy answering. Two copies each sweep the other's root
+ *    off the page, and the reader gets a blank page rather than a slow one. A
+ *    copy from the store cannot be uninstalled from here at all, and it wins the
+ *    page whenever it is switched on: `scripts/one-copy.js` switches it off, and
+ *    the check below is what stops a run reporting its numbers as the branch's.
  * 3. Start the clock on the page's own press event. A clock started by the
  *    script that asked for a press counts the pointer's travel as latency, and
  *    that alone reported 1,535ms for a press that took 297ms.
@@ -327,6 +330,16 @@ for (const id of await copiesHere()) {
 const { id } = await cdp("Extensions.loadUnpacked", { path: EXTENSION }, null)
 cliLog(`one copy installed: ${id}`)
 await focus()
+
+await gotoAndWait(OPEN_PULLS, { timeout: 60, settle: 3 })
+await wait(3)
+const answering = await copiesHere()
+if (!answering.includes(id)) {
+  const cause = `The build under test (${id}) is not the one answering: ${JSON.stringify(answering)}. Run scripts/one-copy.js and try again.`
+  cliLog(`Nothing measured. ${cause}`)
+  await completeTaskSpace(task.id, { keep: false })
+  throw new Error(cause)
+}
 
 await gotoAndWait(OPEN_PULLS, { timeout: 60, settle: 3 })
 await wait(3)

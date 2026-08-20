@@ -24,35 +24,27 @@ const focus = async () => {
   await cdp("Page.bringToFront")
 }
 
-const copiesHere = async () => {
-  const fromPage = await js(String.raw`(() => {
-    const ids = new Set()
-    for (const node of document.querySelectorAll("[src],[href]")) {
-      const found = String(node.getAttribute("src") || node.getAttribute("href") || "")
-        .match(/chrome-extension:\/\/([a-z]{32})/)
-      if (found !== null) ids.add(found[1])
-    }
-    return [...ids]
-  })()`)
-  const { targetInfos = [] } = await cdp("Target.getTargets", {}, null)
-  const fromTargets = targetInfos
-    .map((info) => (String(info.url || "").match(/^chrome-extension:\/\/([a-z]+)/) || [])[1])
-    .filter(Boolean)
-  return [...new Set([...fromPage, ...fromTargets])]
-}
+/*
+ * Which copy answers, rather than which copy is installed. A copy from the store
+ * cannot be uninstalled from here — "extension is not an unpacked extension" —
+ * and it wins the page whenever it is switched on, so two runs were reported
+ * against a build nobody had changed. `scripts/one-copy.js` is what puts the
+ * build under test in charge; this only refuses to measure when it is not.
+ */
+const { id: mine } = await cdp("Extensions.loadUnpacked", { path: EXTENSION }, null)
 
-await gotoAndWait(OPEN_PULLS, { timeout: 60, settle: 3 })
-await focus()
-
-for (const id of await copiesHere()) {
-  try {
-    await cdp("Extensions.uninstall", { id }, null)
-  } catch {
-    // Already gone, which is the state this wants.
-  }
-}
-await cdp("Extensions.loadUnpacked", { path: EXTENSION }, null)
-await focus()
+const servingHere = async () =>
+  JSON.parse(
+    await js(String.raw`(() => {
+      const ids = new Set()
+      for (const node of document.querySelectorAll("[src],[href]")) {
+        const found = String(node.getAttribute("src") || node.getAttribute("href") || "")
+          .match(/chrome-extension:\/\/([a-z]{32})/)
+        if (found !== null) ids.add(found[1])
+      }
+      return JSON.stringify([...ids])
+    })()`)
+  )
 
 await gotoAndWait(OPEN_PULLS, { timeout: 60, settle: 3 })
 await wait(3)
@@ -238,6 +230,11 @@ const serving = await js(String.raw`(() => {
   return JSON.stringify([...ids])
 })()`)
 cliLog(`serving this page: ${serving}`)
+if (!JSON.parse(serving).includes(mine)) {
+  cliLog(`This is not the build under test (${mine}). Run scripts/one-copy.js and try again.`)
+  await completeTaskSpace(task.id, { keep: false })
+  throw new Error("the wrong copy is answering")
+}
 
 await hover([spot.x, spot.y])
 await wait(2)
