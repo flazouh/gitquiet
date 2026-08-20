@@ -375,7 +375,7 @@ export const Bar = ({
        * applied to the inside of the pane as well as the outside of it. The controls are twenty-
        * eight pixels in a forty pixel strip, so the room they need is vertical and already there.
        */
-      className="flex h-10 items-center gap-2 bg-surface px-2 text-sm text-ink shadow-pop"
+      className="flex h-10 items-center gap-2 bg-surface px-2 text-sm text-ink"
     >
       {/*
        * The way back and the way forward, first in the strip, before the mark for

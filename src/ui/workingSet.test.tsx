@@ -619,14 +619,17 @@ describe("a stack in the Working Set", () => {
     expect(screen.queryByRole("region", { name: "Waiting" })).toBeNull()
   })
 
-  test("numbers every row from the base upward without indenting the dependents", () => {
+  test("gives every stack position its own column without padding the row", () => {
     render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
 
     const [base, middle, top] = within(theCard()).getAllByRole("link")
 
-    expect(base?.style.paddingLeft).toBe("48px")
-    expect(middle?.style.paddingLeft).toBe("48px")
-    expect(top?.style.paddingLeft).toBe("48px")
+    expect(base?.style.paddingLeft).toBe("")
+    expect(middle?.style.paddingLeft).toBe("")
+    expect(top?.style.paddingLeft).toBe("")
+    expect(base?.style.gridTemplateColumns.startsWith("1.25rem ")).toBe(true)
+    expect(middle?.style.gridTemplateColumns).toBe(base?.style.gridTemplateColumns)
+    expect(top?.style.gridTemplateColumns).toBe(base?.style.gridTemplateColumns)
     expect(
       [...theCard().querySelectorAll("[data-stack-position]")].map((position) =>
         position.textContent?.trim()

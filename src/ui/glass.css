@@ -175,64 +175,19 @@
  * a media query the reader may have overridden.
  */
 /*
- * The light on the inside of the edge, which is the other half of it.
+ * Light caught just inside the edge, with no ring around the pane.
  *
- * A glow pulled inward rather than a line drawn round, and it has to stay a rim. The iOS 26 demo's
- * `inset 0 0 20px -5px` is a rim on the card it lights and a wash on this pane: measured across the
- * left edge, twenty pixels of blur on a forty pixel strip ramped from 38 down to 23 over thirteen
- * pixels and never arrived at a fill, so the pane read as a thick grey border with a gradient in it
- * rather than as a lit edge. Six pixels pulled in by four falls off inside three and leaves the rest
- * of the pane flat, which is what glass looks like: even, with light caught at the edge.
- *
- * The flatness is the thing to hold on to if these numbers are touched. Sample a row across the edge
- * and the interior should not move.
- *
- * One ring, from a spread and not from an offset. The macOS demo lights two opposite edges with a
- * pair of offset shadows — `inset 2px 2px` and `inset -1px -1px` — which is a real lens: the edge
- * facing the light and the edge the light leaves through. It cannot be made even on a rounded
- * rectangle, and this was measured before it was believed. Sampling the luminance across the
- * boundary at eight places, four straights and the four corners along the normal:
- *
- *   offset pair   top 63  left 63  bottom 49  right 50   corners 65, 83, 83, 51
- *                 width 0.95px on every straight, 1.40px at two corners, 0.10px at the other two
- *   spread ring   58 on all four straights, 60 at all four corners, 0.95px wide everywhere
- *
- * An offset crosses a curve at an angle, so where the offset points along the corner's normal the
- * band comes out √2 times wider, and at the two corners where the pair hands over from one shadow to
- * the other the light pinches to nothing. That is four corners lit four different ways on a shape
- * whose four corners are the same. A spread has no direction, so it is the same width all the way
- * round by construction.
- *
- * What that loses is the light having a direction, which the sheen would have to carry instead: a
- * gradient down the fill rather than a brighter edge. Not done, because a gradient in a forty pixel
- * fill is the thing that read as a border in the first place.
- *
- * And the ring is faint, because this interface does not draw borders. Fourteen percent white put
- * the ring at 58 against a fill of 20 and a page of 16, which is a line round the pane, and a line
- * round a pane is the border every other surface here goes without. Five percent puts it at 36, so
- * the edge lifts and stops short of being drawn. The measurements, ring against fill on a dark pack:
- *
- *   0.14 → 58   0.10 → 49   0.07 → 42   0.05 → 36   0.03 → 33   (the fill is 20)
- *
- * Three percent is the floor rather than a subtler choice: the rim glow alone already reaches about
- * thirty at the boundary, so below that the ring is paying for nothing.
- *
- * The strengths differ by scheme and have to. On a light pack the page behind the pane is already
- * near white, so the light has to be brighter than it to show at all; on a dark pack the same
- * strength is a lit tube. Both came down by the same share.
+ * The small inset glow falls away inside three pixels. A one-pixel spread shadow looked like the
+ * border the rest of this interface does not draw, so the glow now carries the edge by itself.
  */
 :is(#gitquiet-bar, [data-gitquiet-bar]).dark > header::before {
   backdrop-filter: blur(3px) url(#gitquiet-refraction) saturate(1.8) brightness(0.74);
-  box-shadow:
-    inset 0 0 6px -4px rgb(255 255 255 / 0.28),
-    inset 0 0 0 1px rgb(255 255 255 / 0.05);
+  box-shadow: inset 0 0 6px -4px rgb(255 255 255 / 0.28);
 }
 
 :is(#gitquiet-bar, [data-gitquiet-bar]):not(.dark) > header::before {
   backdrop-filter: blur(3px) url(#gitquiet-refraction) saturate(1.8) brightness(1.18);
-  box-shadow:
-    inset 0 0 6px -4px rgb(255 255 255 / 0.45),
-    inset 0 0 0 1px rgb(255 255 255 / 0.18);
+  box-shadow: inset 0 0 6px -4px rgb(255 255 255 / 0.45);
 }
 
 /*

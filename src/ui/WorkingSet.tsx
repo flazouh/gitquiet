@@ -386,19 +386,16 @@ const Row = ({
          * the way a link behaves, which is how an extension avoids being an
          * obstacle.
          */
-        className={`grid min-w-0 items-center gap-2 px-3 py-1.5 no-underline ${
-          stackPosition === undefined ? "" : "relative"
-        }`}
+        className="grid min-w-0 items-center gap-2 px-3 py-1.5 no-underline"
         style={{
-          gridTemplateColumns: tracksOf(columns),
-          ...(stackPosition === undefined ? {} : { paddingLeft: 48 })
+          gridTemplateColumns: `${stackPosition === undefined ? "" : "1.25rem "}${tracksOf(columns)}`
         }}
       >
         {stackPosition === undefined ? null : (
           <span
             data-stack-position=""
             aria-hidden="true"
-            className="absolute left-2 w-8 whitespace-nowrap text-center font-mono text-[10px] text-ink-muted tabular-nums"
+            className="justify-self-center whitespace-nowrap text-center font-mono text-[10px] text-ink-muted tabular-nums"
           >
             #{stackPosition.at}
           </span>
