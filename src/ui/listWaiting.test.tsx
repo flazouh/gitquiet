@@ -51,7 +51,6 @@ const waitingRepo = async () => {
       load={() => Effect.never as Effect.Effect<never>}
       onOpen={() => {}}
       onStepAside={() => {}}
-      onPage={() => {}}
     />
   )
   await drawn()

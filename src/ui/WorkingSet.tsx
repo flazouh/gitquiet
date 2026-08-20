@@ -30,6 +30,7 @@ import { loginOnPage } from "./viewer"
 import { ageOf, momentOf } from "./when"
 import { Owner } from "./Owner"
 import { Who } from "./Who"
+import { flattenPile, StackRelations } from "./StackRelations"
 
 /**
  * The colour a reason wears, which is the same rule again one row down.
@@ -130,14 +131,14 @@ const TRACK = {
   face: "1rem",
   state: "0.875rem",
   number: "2.75rem",
-  title: "minmax(0,1fr)",
-  repo: "8.5rem",
-  standing: "7.5rem",
-  checks: "5.5rem",
-  comments: "2.75rem",
-  labels: "4rem",
-  size: "6rem",
-  age: "3.5rem"
+  title: "minmax(240px,1fr)",
+  repo: "minmax(0,8.5rem)",
+  standing: "minmax(0,7.5rem)",
+  checks: "minmax(0,5.5rem)",
+  comments: "minmax(0,2.75rem)",
+  labels: "minmax(0,4rem)",
+  size: "minmax(0,6rem)",
+  age: "minmax(0,3.5rem)"
 } as const
 
 /**
@@ -319,7 +320,9 @@ const Row = ({
   arriving,
   within,
   columns,
-  asking
+  asking,
+  inStack = false,
+  stackedOn
 }: {
   readonly one: InvolvedPullRequest
   readonly court: Court
@@ -328,6 +331,8 @@ const Row = ({
   readonly within?: Within
   readonly columns: Columns
   readonly asking?: Asking
+  readonly inStack?: boolean
+  readonly stackedOn?: InvolvedPullRequest
 }) => {
   const art = useArt()
   const Art = art[pullRequestName(one.state)]
@@ -349,7 +354,7 @@ const Row = ({
       data-row=""
       className={`group grid items-center pr-1 hover:bg-hover ${chosen ? "bg-hover" : ""} ${
         at === undefined ? "" : "t-row-in"
-      }`}
+      } ${inStack ? "relative z-10 h-[33px]" : ""}`}
       style={
         {
           gridTemplateColumns: "minmax(0,1fr) auto",
@@ -367,7 +372,11 @@ const Row = ({
          */
         aria-label={`${one.readByViewer ? "" : "Unread. "}${one.title}. ${
           here ? `#${one.reference.number}` : address
-        }. ${COURT_NAME[court]}`}
+        }. ${COURT_NAME[court]}${
+          stackedOn === undefined
+            ? ""
+            : `. Stacked on #${stackedOn.reference.number} ${stackedOn.title}`
+        }`}
         aria-current={chosen ? "true" : undefined}
         /*
          * A plain link, and deliberately nothing more. The prefetch script already
@@ -381,7 +390,10 @@ const Row = ({
          * obstacle.
          */
         className="grid min-w-0 items-center gap-2 px-3 py-1.5 no-underline"
-        style={{ gridTemplateColumns: tracksOf(columns) }}
+        style={{
+          gridTemplateColumns: tracksOf(columns),
+          ...(inStack ? { paddingLeft: stackedOn === undefined ? 28 : 44 } : {})
+        }}
       >
         {/*
          * Who, first. A column of faces down the left edge is the one thing in a row
@@ -849,70 +861,6 @@ const Issues = ({
   )
 }
 
-/**
- * A pile as a tree, so the order things land in is visible.
- *
- * Indentation with a rail down the left and an arrow into each row, rather than
- * three sibling rows: the top of a stack cannot land until the foundation does,
- * and a flat list says nothing about that at all. The rail is `stack.css`; the
- * arrow is a glyph, so each shell draws it in its own set.
- *
- * The arrow is on the rows that sit on something and not on the foundation,
- * which is the whole of what it says. A foundation with an arrow beside it
- * would be pointing at nothing above it.
- */
-const Tier = ({
-  pile,
-  chosen,
-  arriving,
-  within,
-  columns,
-  asking,
-  stacked = false
-}: {
-  readonly pile: Piled
-  readonly chosen: string | undefined
-  readonly arriving: Arriving
-  readonly within?: Within
-  readonly columns: Columns
-  readonly asking?: Asking
-  /** Whether this row is standing on the one before it, rather than on nothing. */
-  readonly stacked?: boolean
-}) => {
-  const StackedOn = useArt()["stacked-on"]
-
-  return (
-    <div role="treeitem" aria-expanded={pile.above.length > 0 ? true : undefined}>
-      {stacked ? <StackedOn size={12} className="t-stack-mark shrink-0 text-ink-accent" /> : null}
-      <Row
-        one={pile.one}
-        court={pile.court}
-        chosen={chosen === addressOf(pile.one.reference)}
-        arriving={arriving}
-        within={within}
-        columns={columns}
-        asking={asking}
-      />
-      {pile.above.length > 0 ? (
-        <div role="group" className="t-stack ml-4">
-          {pile.above.map((higher) => (
-            <Tier
-              key={addressOf(higher.one.reference)}
-              pile={higher}
-              chosen={chosen}
-              arriving={arriving}
-              within={within}
-              columns={columns}
-              asking={asking}
-              stacked
-            />
-          ))}
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
 const Pile = ({
   pile,
   chosen,
@@ -927,8 +875,9 @@ const Pile = ({
   readonly within?: Within
   readonly columns: Columns
   readonly asking?: Asking
-}) =>
-  pile.above.length === 0 ? (
+}) => {
+  if (pile.above.length === 0) {
+    return (
     <Row
       one={pile.one}
       court={pile.court}
@@ -938,18 +887,37 @@ const Pile = ({
       columns={columns}
       asking={asking}
     />
-  ) : (
-    <div role="tree" aria-label={`Stacked on ${pile.one.title}`}>
-      <Tier
-        pile={pile}
-        chosen={chosen}
-        arriving={arriving}
-        within={within}
-        columns={columns}
-        asking={asking}
-      />
-    </div>
+    )
+  }
+
+  const rows = flattenPile(pile)
+
+  return (
+    <section data-stack="" className="m-1 overflow-hidden rounded-md border border-line bg-surface">
+      <div className="flex items-center justify-between border-b border-line-muted px-3 py-1 text-xs text-ink-muted">
+        <span>Stack</span>
+        <span className="tabular-nums">{`${rows.length} pull requests`}</span>
+      </div>
+      <div className="relative divide-y divide-line-muted">
+        <StackRelations rows={rows} />
+        {rows.map(({ pile: row, parent }) => (
+          <Row
+            key={addressOf(row.one.reference)}
+            one={row.one}
+            court={row.court}
+            chosen={chosen === addressOf(row.one.reference)}
+            arriving={arriving}
+            within={within}
+            columns={columns}
+            asking={asking}
+            inStack
+            stackedOn={parent?.one}
+          />
+        ))}
+      </div>
+    </section>
   )
+}
 
 export const WorkingSet = ({
   sittings,

@@ -7,7 +7,7 @@ import { type RepoList, repoListIn, seeding } from "@/domain/repoList"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import type { View } from "@/domain/Settings"
 import { chosenView } from "@/app/settings"
-import { goTo as moveTheAddress, goWithin } from "@/ui/going"
+import { goTo as moveTheAddress } from "@/ui/going"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { REPO_PULLS } from "@/ui/place"
@@ -25,14 +25,12 @@ import "@/ui/styles.css"
 const recallRepositories = () => rememberedRepositories().pipe(throughGitHub)
 
 /**
- * One page of one repository's list, told apart from every other.
+ * One repository's list, told apart from every other.
  *
- * The search and the page are in it because they are what the address is a view
- * of: page four of "closed, authored by me" is not page one of the default
- * search, and coming back to the one must not draw the other.
+ * The search is in it because a filtered list must not reuse an unfiltered list.
  */
 const addressOf = (list: RepoList): string =>
-  `${list.repo.owner}/${list.repo.repo}?${list.query}#${list.page}`
+  `${list.repo.owner}/${list.repo.repo}?${list.query}`
 
 /**
  * The list as the reader last saw it, kept for as long as this document lives.
@@ -48,25 +46,20 @@ const addressOf = (list: RepoList): string =>
  * back to a list that has lost its shape reads as a list that has been reloaded,
  * which is precisely what did not happen.
  *
- * One page held rather than every page visited: going back means the page just
- * left, and a document open for an afternoon should not accumulate every list
- * its reader has passed through.
+ * One complete result is held. A document open for an afternoon must not keep
+ * every filter its reader has passed through.
  */
 let asLastSeen: { readonly address: string; readonly listed: Listed } | undefined
 
 /**
- * Puts one page of a repository's list on the page, and hands back the way to take
+ * Puts one repository's list on the page, and hands back the way to take
  * it off again.
  *
  * The closing half is not tidiness. GitHub navigates within a repository without
  * loading a page, so the list would otherwise still be standing over the Code tab,
  * and the attribute holding GitHub's own content out of sight would still be set.
  */
-const open = (
-  list: RepoList,
-  /** Another view of this same screen, without a document. See {@link goWithin}. */
-  press: (path: string) => void
-): (() => void) => {
+const open = (list: RepoList): (() => void) => {
   // Started before anything is waited on. Reading the list and waiting for GitHub to
   // render a region to stand in have nothing to say to each other.
   const reading = (partly: (listed: Listed) => void) =>
@@ -170,20 +163,6 @@ const open = (
     moveTheAddress(window, `/${reference.owner}/${reference.repo}/pull/${reference.number}`)
   }
 
-  /**
-   * Another page of the same list, asked for the way the address asks for it.
-   *
-   * Written into the address rather than read straight off GitHub, because the address
-   * is what this page is a view of: a reader who pages to the fourth page and sends
-   * somebody the link has sent them the fourth page.
-   */
-  const goToPage = (page: number): void => {
-    const address = new URL(window.location.href)
-    if (page <= 1) address.searchParams.delete("page")
-    else address.searchParams.set("page", String(page))
-    press(`${address.pathname}${address.search}`)
-  }
-
   return standAScreen({
     place: REPO_PULLS,
     draw: (standing) => (
@@ -193,7 +172,6 @@ const open = (
         recallRepositories={recallRepositories}
         preload={remembered}
         onOpen={goTo}
-        onPage={goToPage}
         seed={seeding(list)}
         onStepAside={standing.stepAside}
       />
@@ -236,15 +214,6 @@ export const start = (): void => {
    */
   let standingFor: string | undefined
 
-  /** Another view of this screen, which here means another page of the list. */
-  const press = (path: string): void =>
-    goWithin(
-      window,
-      path,
-      () => show(window.location.href),
-      () => standingFor
-    )
-
   const show = (url: string): void => {
     // One address asked for twice, which is one screen. A press within this
     // screen redraws for the new address itself.
@@ -279,12 +248,11 @@ export const start = (): void => {
       return
     }
 
-    close = open(list.value, press)
+    close = open(list.value)
     standingFor = url
   }
 
-  // The whole address, not the path: which page of which search this is lives in the
-  // query, and a reader pressing Next changes nothing else.
+  // The whole address, not the path: the search lives in the query.
   whenLocationChanges(window, () => show(window.location.href))
 
   Effect.runFork(
@@ -298,8 +266,7 @@ export const start = (): void => {
          *
          * The intended path is a path where the address is a whole URL, so it
          * is read against this origin. A press carries no query, which is
-         * right: pressing "Pull requests" asks for the first page of the
-         * default search.
+         * right: pressing "Pull requests" asks for the default search.
          */
         const here = window.location.href
         const promise = intendedPath(window)

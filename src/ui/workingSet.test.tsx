@@ -1005,7 +1005,7 @@ describe("moving through the Working Set without the mouse", () => {
 
     await userEvent.keyboard("jj")
 
-    expect(screen.getByRole("link", { name: /the middle/ }).getAttribute("aria-current")).toBe(
+    expect(screen.getByRole("link", { name: /^the middle\./ }).getAttribute("aria-current")).toBe(
       "true"
     )
   })
