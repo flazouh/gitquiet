@@ -24,15 +24,58 @@ const focus = async () => {
   await cdp("Page.bringToFront")
 }
 
-/*
- * Which copy answers, rather than which copy is installed. A copy from the store
- * cannot be uninstalled from here — "extension is not an unpacked extension" —
- * and it wins the page whenever it is switched on, so two runs were reported
- * against a build nobody had changed. `scripts/one-copy.js` is what puts the
- * build under test in charge; this only refuses to measure when it is not.
+/**
+ * Leaves the freshly built copy of this on and every other copy of it off, in
+ * this task space.
+ *
+ * Every measurement is worthless without it, and it has to happen here rather
+ * than in a script of its own: a space is its own browser, so a switch flipped
+ * in one is not flipped in the next. A copy from the store cannot be uninstalled
+ * at all — "extension is not an unpacked extension" — and two copies switched on
+ * sweep each other's root off the page, which is a blank page rather than a slow
+ * one. Both were measured and reported before this existed.
  */
-const { id: mine } = await cdp("Extensions.loadUnpacked", { path: EXTENSION }, null)
+const leaveOneCopy = async (path) => {
+  const { id: mine } = await cdp("Extensions.loadUnpacked", { path }, null)
 
+  const READ_THEM = String.raw`(() => {
+    const manager = document.querySelector("extensions-manager")
+    const list = manager?.shadowRoot?.querySelector("extensions-item-list")
+    if (list == null) return JSON.stringify({ trouble: "their extensions page will not answer" })
+    return JSON.stringify([...list.shadowRoot.querySelectorAll("extensions-item")].map((item) => ({
+      id: item.id,
+      name: item.shadowRoot.querySelector("#name")?.textContent?.trim(),
+      on: item.shadowRoot.querySelector("#enableToggle")?.getAttribute("aria-pressed") === "true"
+    })))
+  })()`
+
+  const listThem = async () => {
+    await gotoAndWait("chrome://extensions/", { timeout: 60, settle: 2 })
+    await wait(2)
+    const answer = JSON.parse(await js(READ_THEM))
+    if (answer.trouble !== undefined) throw new Error(answer.trouble)
+    return answer
+  }
+
+  // By name, because an unpacked id is derived from its path: a build in a
+  // worktree has another one, and a list written by id leaves it running.
+  for (const one of await listThem()) {
+    if (!/gitquiet/i.test(one.name ?? "")) continue
+    if (one.on === (one.id === mine)) continue
+    await js(String.raw`(() => {
+      const manager = document.querySelector("extensions-manager")
+      const list = manager?.shadowRoot?.querySelector("extensions-item-list")
+      const item = list?.shadowRoot?.querySelector("extensions-item#" + ${JSON.stringify(one.id)})
+      item?.shadowRoot?.querySelector("#enableToggle")?.click()
+      return true
+    })()`)
+    await wait(1)
+  }
+
+  return mine
+}
+
+/** Every copy of anything serving the page in front of us. */
 const servingHere = async () =>
   JSON.parse(
     await js(String.raw`(() => {
@@ -45,6 +88,9 @@ const servingHere = async () =>
       return JSON.stringify([...ids])
     })()`)
   )
+
+const mine = await leaveOneCopy(EXTENSION)
+cliLog(`the build under test is ${mine}`)
 
 await gotoAndWait(OPEN_PULLS, { timeout: 60, settle: 3 })
 await wait(3)
@@ -103,6 +149,8 @@ const RECORDER = String.raw`(() => {
   document.addEventListener("pointerdown", () => {
     if (window.__probe.started !== null) return
     window.__probe.started = performance.now()
+    window.__probe.wall = Date.now()
+    document.documentElement.removeAttribute("data-gq-trace")
     marks.push({ at: 0, what: "pointerdown", ...look() })
   }, { capture: true })
 
@@ -126,6 +174,28 @@ const RECORDER = String.raw`(() => {
       say("long task", { ms: Math.round(entry.duration) })
     }
   }).observe({ entryTypes: ["longtask"] })
+
+  /*
+   * Who spent it, which a long task cannot say. Their profiler is not reachable
+   * from here, and this is the part of it that matters: every script that ran
+   * inside a slow frame, with the function and the file it came from.
+   */
+  try {
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        for (const script of entry.scripts ?? []) {
+          if (script.duration < 8) continue
+          say("script", {
+            ms: Math.round(script.duration),
+            fn: script.sourceFunctionName || script.invoker || "(anonymous)",
+            url: String(script.sourceURL || "").split("/").slice(-1)[0].slice(0, 40)
+          })
+        }
+      }
+    }).observe({ type: "long-animation-frame", buffered: true })
+  } catch (trouble) {
+    // Older Chrome, where the timeline above is all there is.
+  }
 
   new PerformanceObserver((list) => {
     for (const entry of list.getEntries()) {
@@ -220,17 +290,9 @@ if (spot === null) {
  * before the navigation looks clean and the press is answered by a build that is
  * not the one under test.
  */
-const serving = await js(String.raw`(() => {
-  const ids = new Set()
-  for (const node of document.querySelectorAll("[src],[href]")) {
-    const found = String(node.getAttribute("src") || node.getAttribute("href") || "")
-      .match(/chrome-extension:\/\/([a-z]{32})/)
-    if (found !== null) ids.add(found[1])
-  }
-  return JSON.stringify([...ids])
-})()`)
-cliLog(`serving this page: ${serving}`)
-if (!JSON.parse(serving).includes(mine)) {
+const serving = await servingHere()
+cliLog(`serving this page: ${JSON.stringify(serving)}`)
+if (serving.length !== 1 || serving[0] !== mine) {
   cliLog(`This is not the build under test (${mine}). Run scripts/one-copy.js and try again.`)
   await completeTaskSpace(task.id, { keep: false })
   throw new Error("the wrong copy is answering")
@@ -239,6 +301,7 @@ if (!JSON.parse(serving).includes(mine)) {
 await hover([spot.x, spot.y])
 await wait(2)
 await js(RECORDER)
+
 await click([spot.x, spot.y])
 await wait(9)
 
@@ -255,7 +318,9 @@ for (const mark of marks) {
     continue
   }
   const extra =
-    mark.ms !== undefined
+    mark.fn !== undefined
+      ? `${mark.ms}ms  ${mark.fn}  ${mark.url}`
+      : mark.ms !== undefined
       ? `${mark.ms}ms ${mark.url ?? ""}`
       : mark.to !== undefined
         ? mark.to
@@ -263,9 +328,40 @@ for (const mark of marks) {
   cliLog(`${String(mark.at).padStart(6)}ms  ${mark.what.padEnd(10)}${extra}`)
 }
 
+/*
+ * The extension's own timeline, which it writes into the document element
+ * because nothing else crosses from its world into this one.
+ */
+const trail = JSON.parse(
+  await js(String.raw`JSON.stringify({
+    said: document.documentElement.getAttribute("data-gq-trace"),
+    from: window.__probe?.wall ?? null
+  })`)
+)
+if (trail.said !== null && trail.from !== null) {
+  cliLog("\nwhat the extension says it did\n")
+  for (const step of String(trail.said).split("|").filter(Boolean)) {
+    const [what, when] = step.split("@")
+    cliLog(`${String(Number(when) - trail.from).padStart(6)}ms  ${what}`)
+  }
+}
+
 const blocked = marks
   .filter((mark) => mark.what === "long task")
   .reduce((total, mark) => total + mark.ms, 0)
 cliLog(`\nmain thread blocked for ${blocked}ms in total`)
+
+const mark_is_script = (one) => one.what === "script"
+const byName = new Map()
+for (const mark of marks.filter((one) => mark_is_script(one))) {
+  const key = `${mark.fn}  ${mark.url}`
+  byName.set(key, (byName.get(key) ?? 0) + mark.ms)
+}
+if (byName.size > 0) {
+  cliLog("\nwhere it went, by script, milliseconds\n")
+  for (const [key, ms] of [...byName].sort((left, right) => right[1] - left[1]).slice(0, 20)) {
+    cliLog(`${String(ms).padStart(6)}ms  ${key}`)
+  }
+}
 
 await completeTaskSpace(task.id, { keep: false })

@@ -361,7 +361,9 @@ const lookForPulls = () => js(String.raw`(() => {
     seen.set(parts[1], numbers)
   }
   const best = [...seen].sort((left, right) => right[1].length - left[1].length)[0]
-  return best === undefined ? null : { repo: best[0], number: best[1][0], open: best[1].length }
+  return best === undefined
+    ? null
+    : { repo: best[0], numbers: best[1].slice(0, 8), open: best[1].length }
 })()`)
 
 let found = null
@@ -375,7 +377,7 @@ if (found === null && START !== "") {
   if (named !== null) {
     await gotoAndWait(START, { timeout: 60, settle: 4 })
     await wait(4)
-    found = { repo: named[1], number: named[2], open: 0 }
+    found = { repo: named[1], numbers: [named[2]], open: 0 }
     cliLog(`their list would not answer, so starting from ${START}`)
   }
 }
@@ -409,10 +411,46 @@ if (found === null) {
   await completeTaskSpace(task.id, { keep: false })
   throw new Error(cause)
 }
-cliLog(`pressing around ${found.repo}, ${found.open} open, starting at #${found.number}`)
+/**
+ * A pull request with a link to another one on it, rather than the first one on
+ * the reader's list.
+ *
+ * Only a stacked pull request carries its neighbours, and which pull request is
+ * first changes by the hour. Asked once, a whole run reported "no link of ours to
+ * press" for every route that starts on one: the candidate it happened to pick
+ * held exactly one link, to itself.
+ */
+const stacked = async () => {
+  for (const number of found.numbers) {
+    await gotoAndWait(`https://github.com/${found.repo}/pull/${number}`, {
+      timeout: 60,
+      settle: 4
+    })
+    try {
+      await waitForElement("#gitquiet-root", { timeout: 20 })
+    } catch {
+      continue
+    }
+    for (let look = 0; look < 8; look++) {
+      const has = await js(String.raw`(() => {
+        const root = document.querySelector("#gitquiet-root")
+        if (root === null) return false
+        return [...root.querySelectorAll('a[href*="/pull/"]')]
+          .some((a) => !a.pathname.endsWith("/" + ${JSON.stringify(number)}))
+      })()`)
+      if (has) return number
+      await wait(1)
+    }
+    cliLog(`#${number} carries no link to another pull request, trying the next`)
+  }
+  return found.numbers[0]
+}
 
-const HERE = `https://github.com/${found.repo}/pull/${found.number}`
-const MOVES = movesFor(found.repo, found.number)
+const number = await stacked()
+cliLog(`pressing around ${found.repo}, ${found.open} open, starting at #${number}`)
+
+const HERE = `https://github.com/${found.repo}/pull/${number}`
+const MOVES = movesFor(found.repo, number)
 
 const stopped = await stillAnswering(HERE)
 if (stopped !== null) {
