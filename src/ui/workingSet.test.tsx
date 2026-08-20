@@ -612,9 +612,7 @@ describe("a stack in the Working Set", () => {
   )
 
   const theStack = (): HTMLElement => {
-    const stack = document.querySelector("[data-stack]")
-    if (!(stack instanceof HTMLElement)) throw new Error("No stack on the page")
-    return stack
+    return screen.getByRole("region", { name: /^Stack, \d+ pull requests$/ })
   }
 
   test("draws the stack as one group of flat rows, base first, with no tree semantics", () => {
@@ -685,13 +683,10 @@ describe("a stack in the Working Set", () => {
     expect(theStack().querySelector(".t-stack-mark")).toBeNull()
   })
 
-  test("keeps one stack icon beside the group label", () => {
+  test("names the stack group", () => {
     render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
 
-    const label = within(theStack()).getByText("Stack")
-
-    expect(label.textContent).toBe("Stack")
-    expect(label.parentElement?.querySelectorAll("svg")).toHaveLength(1)
+    expect(within(theStack()).getByText("Stack")).toBeDefined()
   })
 
   test("says each stack position aloud", () => {

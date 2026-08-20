@@ -969,7 +969,7 @@ const Pile = ({
   const rows = flattenPile(pile)
 
   return (
-    <section data-stack="">
+    <section data-stack="" aria-label={`Stack, ${rows.length} pull requests`}>
       <Seam art="fork" name="Stack" many={rows.length} />
       <div className="divide-y divide-line-muted">
         {rows.map((row, at) => (
