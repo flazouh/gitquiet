@@ -7,7 +7,10 @@ import type {
   MergeState,
   Participant,
   ReviewThread,
-  ThreadComment
+  ThreadComment,
+  PullRequestState,
+  Seat,
+  StackLayer
 } from "./PullRequest"
 import { attentionIn, docketsIn, type Owing } from "./attention"
 
@@ -285,5 +288,94 @@ describe("the four Courts of one pull request", () => {
     expect(new Set(attentionIn({ ...busy, state: "closed" }).map((one) => one.court))).toEqual(
       new Set(["settled"])
     )
+  })
+})
+
+/*
+ * A layer whose foundation was closed keeps comparing against a branch nobody
+ * is landing, and GitHub will not retarget it while the stack holds it. The
+ * files tab then answers with somebody else's work plus this one's, unmarked.
+ */
+describe("a stack layer left on a closed foundation", () => {
+  const layer = (
+    headBranch: string,
+    state: PullRequestState,
+    seat: Seat
+  ): StackLayer => ({
+    reference: { owner: "octo-org", repo: "octo-repo", number: 1 },
+    title: headBranch,
+    headBranch,
+    state,
+    seat
+  })
+
+  const stacked = (layers: ReadonlyArray<StackLayer>): MergeState => ({
+    ...level,
+    stack: Option.some({ number: 368218, layers, floor: Option.some("main") })
+  })
+
+  test("is owed to the reader, naming the branch it is stuck on", () => {
+    const items = attentionIn(
+      owing({
+        merge: Option.some(
+          stacked([
+            layer("feat-a", "closed", "below"),
+            layer("feat-b", "open", "here")
+          ])
+        )
+      })
+    )
+
+    expect(items).toEqual([
+      {
+        kind: "misbased",
+        court: "needs-you",
+        id: "misbased",
+        foundation: layer("feat-a", "closed", "below")
+      }
+    ])
+  })
+
+  test("a merged foundation is how a stack drains, not a fault", () => {
+    expect(
+      attentionIn(
+        owing({
+          merge: Option.some(
+            stacked([
+              layer("feat-a", "merged", "below"),
+              layer("feat-b", "open", "here")
+            ])
+          )
+        })
+      )
+    ).toEqual([])
+  })
+
+  test("the foundation is the nearest layer below, not the earliest", () => {
+    const items = attentionIn(
+      owing({
+        merge: Option.some(
+          stacked([
+            layer("feat-a", "merged", "below"),
+            layer("feat-b", "closed", "below"),
+            layer("feat-c", "open", "here")
+          ])
+        )
+      })
+    )
+
+    expect(items.map((item) => item.kind === "misbased" && item.foundation.headBranch)).toEqual([
+      "feat-b"
+    ])
+  })
+
+  test("a foundation of one is nothing to compare against", () => {
+    expect(
+      attentionIn(owing({ merge: Option.some(stacked([layer("feat-a", "open", "here")])) }))
+    ).toEqual([])
+  })
+
+  test("a pull request GitHub keeps no stack for is left alone", () => {
+    expect(attentionIn(owing({ merge: Option.some(level) }))).toEqual([])
   })
 })
