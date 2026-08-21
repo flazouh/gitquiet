@@ -1,5 +1,6 @@
-import { describe, expect, test } from "bun:test"
+import { describe, expect, spyOn, test } from "bun:test"
 import { Effect } from "effect"
+import mermaid from "mermaid"
 import { draw, paperforgeLayout, paperforgeTheme } from "./mermaid"
 
 describe("drawing a mermaid fence", () => {
@@ -64,5 +65,16 @@ describe("drawing a mermaid fence", () => {
 
   test("returns nothing for a diagram that does not parse", async () => {
     expect(await Effect.runPromise(draw("this is not mermaid"))).toBeNull()
+  })
+
+  test("lays one diagram out once when a screen draws it again", async () => {
+    const render = spyOn(mermaid, "render")
+    const source = "graph TD\nCacheA-->CacheB"
+
+    await Effect.runPromise(draw(source))
+    await Effect.runPromise(draw(source))
+
+    expect(render).toHaveBeenCalledTimes(1)
+    render.mockRestore()
   })
 })
