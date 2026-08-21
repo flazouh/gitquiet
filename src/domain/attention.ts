@@ -7,7 +7,8 @@ import type {
   MergeState,
   Participant,
   PullRequestState,
-  ReviewThread
+  ReviewThread,
+  StackLayer
 } from "./PullRequest"
 import type { Court } from "./workingSet"
 
@@ -126,6 +127,28 @@ export type AttentionItem =
     readonly id: string
     readonly update: BranchUpdate
   }
+  | {
+    /**
+     * The layer this one is stacked on is closed, so the diff below is wrong.
+     *
+     * GitHub keeps a stacked pull request's base on the stack rather than on
+     * the pull request, and it will not let the base be changed while the
+     * stack holds it — not through the API and not through their own page.
+     * So a layer whose foundation was closed keeps comparing against a branch
+     * nobody is landing, and the files tab answers with somebody else's work
+     * plus this one's.
+     *
+     * Worth an item rather than a footnote because nothing else on the page
+     * says it. The diff is not marked as suspect, the file count is not marked
+     * as inflated, and a reader who trusts either reviews a change that is not
+     * the change. Two files became sixteen this way, unremarked, for hours.
+     */
+    readonly kind: "misbased"
+    readonly court: Court
+    readonly id: string
+    /** The closed layer being compared against, which names the branch. */
+    readonly foundation: StackLayer
+  }
 
 /** The Courts in the order a reader asks about them, which is urgency. */
 export const COURTS = ["needs-you", "waiting", "running", "settled"] as const satisfies
@@ -138,6 +161,27 @@ export type Docket = {
   /** What a heading says without the Court being opened. */
   readonly count: number
 }
+
+/**
+ * The layer this one sits on, when that layer is closed without landing.
+ *
+ * Layers run foundation first, so the one underneath the reader is the last
+ * `below` seat. Merged is not this: a merged foundation is the ordinary way a
+ * stack drains, and GitHub retargets what is left. Closed is the case nothing
+ * retargets, because closing a layer abandons it without moving anything.
+ *
+ * None where GitHub kept no stack, since a pull request based on a branch is
+ * retargeted by GitHub itself when that branch is deleted, and by a person
+ * otherwise. The block only exists inside a stack GitHub holds.
+ */
+const foundationIfClosed = (merge: MergeState): Option.Option<StackLayer> =>
+  Option.flatMap(merge.stack, (stack) => {
+    const below = stack.layers.filter((layer) => layer.seat === "below")
+    const foundation = below.at(-1)
+    return foundation !== undefined && foundation.state === "closed"
+      ? Option.some(foundation)
+      : Option.none()
+  })
 
 /** A thread an automated reviewer opened, whoever has replied to it since. */
 const startedByMachine = (thread: ReviewThread): boolean =>
@@ -241,6 +285,21 @@ export const attentionIn = (owing: Owing): ReadonlyArray<AttentionItem> => {
   const over = state === "merged" || state === "closed"
   const court = (worked: Court): Court => (over ? "settled" : worked)
 
+  const misbased = Option.match(Option.flatMap(merge, foundationIfClosed), {
+    onNone: (): ReadonlyArray<AttentionItem> => [],
+    onSome: (foundation: StackLayer) => [
+      {
+        kind: "misbased" as const,
+        // Needs You: nobody else can see it, and the move is the reader's —
+        // recreate this pull request against a base that is still open, since
+        // GitHub will not retarget a layer while the stack holds it.
+        court: court("needs-you"),
+        id: "misbased",
+        foundation
+      }
+    ]
+  })
+
   const branch = Option.match(Option.flatMap(merge, (said) => said.update), {
     onNone: (): ReadonlyArray<AttentionItem> => [],
     onSome: (update: BranchUpdate) => [
@@ -256,6 +315,7 @@ export const attentionIn = (owing: Owing): ReadonlyArray<AttentionItem> => {
   })
 
   return [
+    ...misbased,
     ...branch,
     ...sinceLastReview(commits, lastReviewPoint).map((item) => ({ ...item, court: court(item.court) })),
     ...checks.map((check) => ({

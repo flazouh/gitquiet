@@ -163,6 +163,24 @@ const Said = ({
     )
   }
 
+  if (item.kind === "misbased") {
+    const Mark = art["stacked-on"]
+
+    return (
+      <>
+        <Mark size={14} aria-hidden="true" className="shrink-0 text-warn" />
+        <span className="min-w-0 flex-1 truncate text-xs">
+          {/* The branch, not "the base": the reader has to recognise which dead
+              layer this is stacked on to know what the diff is showing them. */}
+          Stacked on {item.foundation.headBranch}, which is closed
+        </span>
+        <span className="min-w-0 truncate text-xs text-ink-muted">
+          the diff below is not this change
+        </span>
+      </>
+    )
+  }
+
   if (item.kind === "branch") {
     const Mark = art["stacked-on"]
 
