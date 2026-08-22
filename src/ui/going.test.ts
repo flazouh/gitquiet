@@ -11,12 +11,13 @@ import {
   goForward,
   goTo,
   goWithin,
+  holdForRedraw,
   ourOwnRowsDrawn,
   oursToAnswer,
   theTrail,
   watchTheTrail
 } from "./going"
-import { ROOT_ID } from "./mount"
+import { ourSurface, ROOT_ID } from "./mount"
 
 /** What a list of pull requests can hand its surface over to, which is any of them. */
 const aPullRequest = (path: string): boolean => Option.isSome(fromPathname(path))
@@ -89,6 +90,18 @@ const aPageOfOurs = (): {
 
   return { window: target, screen, recorded }
 }
+
+describe("returning within one standing screen", () => {
+  test("keeps its surface until the returned page redraws", () => {
+    const page = aPageOfOurs()
+    drawingOurOwnRows(page.window, true)
+
+    const inPlace = holdForRedraw(page.window, true)
+
+    expect(inPlace).toBe(true)
+    expect(ourSurface(page.window.document)).toBe(page.window.document.body)
+  })
+})
 
 /** A press, as a browser makes one: on the row, and heard by the container. */
 const press = (on: Element, held?: "meta"): Event => {

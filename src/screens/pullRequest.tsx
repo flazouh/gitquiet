@@ -31,7 +31,7 @@ import { layerSizes } from "@/app/sizes"
 import { uploadFile } from "@/app/attaching"
 import { loadSuggesting } from "@/app/suggesting"
 import { forgetIntent, intendedPath } from "@/app/intent"
-import { answerPressesIn, ourOwnRowsDrawn } from "@/ui/going"
+import { answerPressesIn, holdForRedraw, ourOwnRowsDrawn } from "@/ui/going"
 import { pullRequestNamed } from "@/ui/lastDrawn"
 import { isDashboard } from "@/domain/pages"
 import type { Check, MergeMethod, NewComment } from "@/domain/PullRequest"
@@ -474,7 +474,7 @@ export const start = (): void => {
     // fact about the screen on the page now. A reader back on the Working Set
     // and pressing a second row is this, and it is not the same answer as the
     // one that was true when this script started on a pull request.
-    show(path, false, ourOwnRowsDrawn(window))
+    show(path, false, holdForRedraw(window, Option.isSome(fromPathname(path))))
   })
 
   // Nothing is drawn until the choice is known, so that a reader who wants

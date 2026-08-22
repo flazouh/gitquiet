@@ -57,6 +57,19 @@ export const ourOwnRowsDrawn = (target: Window): boolean =>
   (target as World).gitquietOwnRows === true
 
 /**
+ * Keeps the current surface while one screen redraws for a browser traversal.
+ *
+ * A press calls {@link goTo}, which already holds the surface before it changes
+ * history. Back and Forward do not pass through that function. Without this
+ * matching hold, the screen closes its root before its returned page can draw.
+ */
+export const holdForRedraw = (target: Window, redraws: boolean): boolean => {
+  const inPlace = ourOwnRowsDrawn(target)
+  if (inPlace && redraws) holdTheSurface(target.document)
+  return inPlace
+}
+
+/**
  * The browser's own account of where this tab has been.
  *
  * `history` will not say. It answers a count and nothing else, so a control built
