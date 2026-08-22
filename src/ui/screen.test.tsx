@@ -391,6 +391,64 @@ describe("a pull request GitHub offers to stack", () => {
   })
 })
 
+/*
+ * A verdict is the one write on this screen GitHub answers with an empty body and
+ * reports nowhere else. Without a read behind it, the merge card at the top of the
+ * column went on asking for the approving review that had just been given, and the
+ * reader had pressed a button that changed nothing they could see.
+ */
+describe("a verdict sent from the panel under the conversation", () => {
+  test("reads the pull request again, so the merge card hears about it", async () => {
+    let reads = 0
+
+    render(
+      <PullRequestScreen
+        reference={reference}
+        load={() => {
+          reads += 1
+          return Effect.succeed({ snapshot: ready() })
+        }}
+        fetchDiffs={() => Effect.succeed([])}
+        onStepAside={() => {}}
+        onReview={() => Effect.void}
+      />
+    )
+
+    await waitFor(() => expect(screen.getByRole("region", { name: "Verdict" })).toBeDefined())
+    expect(reads).toBe(1)
+
+    await userEvent.click(screen.getByRole("button", { name: "Approve" }))
+
+    await waitFor(() => expect(reads).toBe(2))
+  })
+
+  test("does not read again where GitHub refused the verdict", async () => {
+    // Nothing was recorded, so there is nothing new to read. The panel keeps the
+    // words and prints what GitHub said, which is the whole report.
+    let reads = 0
+
+    render(
+      <PullRequestScreen
+        reference={reference}
+        load={() => {
+          reads += 1
+          return Effect.succeed({ snapshot: ready() })
+        }}
+        fetchDiffs={() => Effect.succeed([])}
+        onStepAside={() => {}}
+        onReview={() => Effect.fail(new Error("GitHub said no"))}
+      />
+    )
+
+    await waitFor(() => expect(screen.getByRole("region", { name: "Verdict" })).toBeDefined())
+
+    await userEvent.click(screen.getByRole("button", { name: "Approve" }))
+
+    await waitFor(() => expect(screen.getByText(/GitHub said no/)).toBeDefined())
+    expect(reads).toBe(1)
+  })
+})
+
 describe("a pull request GitHub says has changed", () => {
   test("reads it again when a channel it is listening to fires", async () => {
     let reads = 0

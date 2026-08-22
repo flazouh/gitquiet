@@ -84,7 +84,7 @@ export type PullRequestScreenProps = {
    * a file arrived in it. See `attaching.ts`.
    */
   readonly onUpload?: (file: File) => Effect.Effect<Uploaded, unknown>
-  /** Marks one thread resolved, which is how a finding leaves the owed panel. */
+  /** Marks one thread resolved, which is how a finding leaves the conversation. */
   readonly onSettle?: (threadId: string) => Effect.Effect<unknown, unknown>
   /** Opens a resolved thread again, which is the other half of resolving one. */
   readonly onUnsettle?: Answering["onUnsettle"]
@@ -318,6 +318,27 @@ export const PullRequestScreen = ({
     [makeStack, again]
   )
 
+  /**
+   * A verdict, and the read that has to follow it.
+   *
+   * GitHub answers their review route with an empty body and reports the verdict
+   * nowhere else, so everything on this screen that reads the record — the merge
+   * card's list of reviewers, the requirement asking for an approving review — is
+   * a page old until the next read lands. The panel itself paints what it sent, and
+   * the rest of the column would go on contradicting it for as long as the reader
+   * stayed put.
+   *
+   * On success only. A refused verdict was not recorded, so there is nothing new to
+   * read, and the panel keeps both the words and GitHub's own sentence about them.
+   */
+  const judging = useMemo(
+    () =>
+      onReview === undefined
+        ? undefined
+        : (review: Said) => onReview(review).pipe(Effect.tap(() => Effect.sync(again))),
+    [onReview, again]
+  )
+
   /*
    * The tokens GitHub's own socket is joined with, which the merge box carries.
    *
@@ -404,7 +425,7 @@ export const PullRequestScreen = ({
           onSettle={onSettle}
           onUnsettle={onUnsettle}
           onReply={onReply}
-          onReview={onReview}
+          onReview={judging}
           makeStack={stacking}
           layerSizes={layerSizes}
           loadCommit={loadCommit}
