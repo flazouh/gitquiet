@@ -75,6 +75,7 @@ export const PullRequestRow: React.FC<{
   approved?: boolean;
   width?: number;
 }> = ({ hover = 0, prefetch = 0, approved = false, width = 980 }) => {
+  const titleSize = approved ? 24 : 25;
   return (
     <div
       style={{
@@ -111,7 +112,7 @@ export const PullRequestRow: React.FC<{
       <span style={{ fontSize: 24, color: MUTED, flexShrink: 0 }}>#18742</span>
       <span
         style={{
-          fontSize: 25,
+          fontSize: titleSize,
           fontWeight: 600,
           color: INK,
           whiteSpace: "nowrap",
@@ -184,7 +185,7 @@ export const SettleMove: React.FC<{ moveAt: number }> = ({ moveAt }) => {
         gap: 0,
       }}
     >
-      <div style={{ width: 980, display: "flex", flexDirection: "column" }}>
+      <div style={{ width: 1120, display: "flex", flexDirection: "column" }}>
         <div style={{ position: "relative", zIndex: 1, background: "#121212" }}>
           <GroupHeader
             label="Needs You"
@@ -203,7 +204,7 @@ export const SettleMove: React.FC<{ moveAt: number }> = ({ moveAt }) => {
               transform: `translateY(${t * 186}px)`,
             }}
           >
-            <PullRequestRow approved={approved} />
+            <PullRequestRow approved={approved} width={1120} />
           </div>
         </div>
         <div style={{ height: 26 }} />

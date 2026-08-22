@@ -194,7 +194,7 @@ const RestScene: React.FC = () => {
     ...CLAMP,
     easing: EXPO,
   });
-  const press = interpolate(frame, [96, 100, 106], [1, 0.985, 1], CLAMP);
+  const press = interpolate(frame, [104, 108, 112], [1, 0.985, 1], CLAMP);
   return (
     <Dark>
       <div
@@ -216,7 +216,7 @@ const RestScene: React.FC = () => {
       <SimulatedCursor
         points={[
           { x: 1150, y: 664, hold: 0 },
-          { x: 702, y: 392, hold: 44 },
+          { x: 702, y: 392, hold: 56 },
           { x: 705, y: 394, hold: 18, click: true },
         ]}
         size={30}
@@ -387,7 +387,7 @@ const ThreadsScene: React.FC = () => (
       top={40}
       views={[
         { at: 8, x: 0, y: 0, w: 2560 },
-        { at: 88, x: 0, y: 150, w: 1150 },
+        { at: 88, x: 0, y: 80, w: 1350 },
       ]}
     />
     <Caption text="Every unresolved thread, above the diff." at={30} />
@@ -404,7 +404,7 @@ const CiScene: React.FC = () => (
       top={40}
       views={[
         { at: 6, x: 0, y: 0, w: 2560 },
-        { at: 76, x: 0, y: 180, w: 1560 },
+        { at: 76, x: 0, y: 90, w: 1400 },
       ]}
     />
     <Caption text="CI failed. Opened on the line that broke." at={26} />
