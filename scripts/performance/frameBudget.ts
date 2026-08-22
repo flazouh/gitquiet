@@ -5,7 +5,6 @@ export type TraceEvent = {
   readonly tid: number
   readonly ts: number
   readonly dur?: number
-  readonly args?: { readonly name?: unknown }
 }
 
 export type Thread = {
@@ -28,15 +27,6 @@ export type FrameDrop = {
 export const FRAME_BUDGET_US = 1_000_000 / 60
 
 const MAIN_TASKS = new Set(["RunTask", "ThreadControllerImpl::RunTask"])
-
-/** Finds the browser thread that runs page JavaScript, style, and layout. */
-export const rendererMainThread = (events: ReadonlyArray<TraceEvent>): Thread | undefined => {
-  const named = events.find(
-    (event) =>
-      event.ph === "M" && event.name === "thread_name" && event.args?.name === "CrRendererMain"
-  )
-  return named === undefined ? undefined : { pid: named.pid, tid: named.tid }
-}
 
 /** Reports each renderer task that can consume more than one 60 Hz frame. */
 export const frameDropsIn = (
