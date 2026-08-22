@@ -68,6 +68,30 @@ const theirTabsIn = (page: Document) =>
   page.querySelector('[aria-label="Pull request navigation tabs"]')!
 
 describe("slotting into GitHub's pull request page", () => {
+  test("seeds a returned address when two routes use the same screen kind", () => {
+    const page = document
+    page.body.innerHTML = githubPage().body.innerHTML
+    history.replaceState(null, "", "/owner/repo/pull/1")
+
+    const first = interfaceContainer(page, CONVERSATION)
+    first.innerHTML = "<h1>first pull request</h1>"
+    takeOverSlot(page, first, CONVERSATION)
+
+    history.replaceState(null, "", "/owner/repo/pull/2")
+    const second = interfaceContainer(page, CONVERSATION)
+    second.innerHTML = "<h1>second pull request</h1>"
+    takeOverSlot(page, second, CONVERSATION)
+
+    history.replaceState(null, "", "/owner/repo/pull/1")
+    const returned = interfaceContainer(page, CONVERSATION)
+
+    expect(returned).not.toBe(second)
+    expect(returned.textContent).toContain("first pull request")
+
+    takeOverSlot(page, returned, CONVERSATION)?.stepAside()
+    page.body.innerHTML = ""
+  })
+
   test("finds the region GitHub fills with the conversation", () => {
     const page = githubPage()
 

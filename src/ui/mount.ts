@@ -544,24 +544,32 @@ export const interfaceContainer = (
     // again — a reader who pressed a pull request and came back before the card
     // arrived is looking at this list, and it never left the page.
     if (already.getAttribute(BELONGS_TO) === place.name) {
-      already.removeAttribute(LEAVING)
-      if (marked === already) marked = null
-      ours = already
-      theScreenMoved(target)
-      return already
-    }
+      const route = routeNow(target)
+      const drawnRoute = already.getAttribute(ROUTE)
+      if (route === null || drawnRoute === null || route === drawnRoute) {
+        already.removeAttribute(LEAVING)
+        if (marked === already) marked = null
+        ours = already
+        theScreenMoved(target)
+        return already
+      }
 
-    /*
-     * Another interface's, which means that interface is being replaced — a
-     * reader leaving the Working Set for a pull request has our list on the page
-     * while the card's script is starting.
-     *
-     * Marked rather than taken out: it is the page the reader is looking at, and
-     * it stays there until this container is in the document to replace it. A
-     * container of its own rather than that one adopted, because two React roots
-     * on one node is not a race worth running.
-     */
-    markAsLeaving(already)
+      // One screen kind, another exact address. Keep this finished route until
+      // a new container, seeded from its own cache entry, replaces it.
+      markAsLeaving(already)
+    } else {
+      /*
+       * Another interface's, which means that interface is being replaced — a
+       * reader leaving the Working Set for a pull request has our list on the page
+       * while the card's script is starting.
+       *
+       * Marked rather than taken out: it is the page the reader is looking at, and
+       * it stays there until this container is in the document to replace it. A
+       * container of its own rather than that one adopted, because two React roots
+       * on one node is not a race worth running.
+       */
+      markAsLeaving(already)
+    }
   }
 
   const made = target.createElement("div")
