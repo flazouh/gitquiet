@@ -1,5 +1,6 @@
 import { Option } from "effect"
-import { termsIn, understood } from "./sieve"
+import type { PullRequestState } from "./PullRequest"
+import { sieveOf, termsIn, understood } from "./sieve"
 import { urgencyOf } from "./sittings"
 import { courtOfOne, type InvolvedPullRequest } from "./workingSet"
 
@@ -85,20 +86,55 @@ const readerTerms = (query: string): ReadonlyArray<string> =>
   )
 
 /**
+ * The terms the sieve answers on its own, held out of the search.
+ *
+ * `is:failing`, `review:approved`, `is:unread`, `has:comments`, `is:stale` are
+ * this interface's vocabulary, not GitHub's — their search reads `is:failing` as
+ * a term it has never heard of. Each of them only ever narrows rows already
+ * fetched, so the sieve applies them over whatever the search returns and the
+ * search is not asked a question it would answer wrongly.
+ */
+const sieveAnswers = (term: string): boolean => {
+  const alone = sieveOf(term)
+  return (
+    alone.checks.size > 0 || alone.review.size > 0 || alone.unread || alone.commented || alone.stale
+  )
+}
+
+/** The states the reader's terms name, read the way the sieve reads them. */
+const statesAsked = (terms: ReadonlyArray<string>): ReadonlySet<PullRequestState> =>
+  sieveOf(terms.join(" ")).states
+
+/**
  * The search that reads one page of a repository's list.
  *
  * Three things are ours and the rest is the reader's: the repository and the
  * kind, which {@link readerTerms} takes out, and `is:open`, added here but only
  * where the reader has not said otherwise — `is:open` on top of `is:closed`
  * matches nothing and leaves an empty list with no visible cause.
+ *
+ * Two of the reader's spellings are theirs and not GitHub's. `author:me` is what
+ * the filter box says, and their search reads it as somebody whose login is the
+ * word "me"; it goes out as the `author:@me` they do understand. And two states
+ * at once — `is:open is:merged` — is an either to the sieve but a both to their
+ * search, which a pull request cannot be: the states are left out of the search,
+ * which then returns every state for the sieve to narrow to the two asked.
  */
 export const queryFor = ({ repo, query }: RepoList): string => {
   const asked = readerTerms(query)
-  const state = asked.some((term) => term.startsWith("is:") && STATES.includes(term.slice(3)))
+  const states = statesAsked(asked)
 
-  return [`repo:${repo.owner}/${repo.repo}`, "is:pr", ...(state ? [] : ["is:open"]), ...asked].join(
-    " "
-  )
+  const sent = asked
+    .filter((term) => !sieveAnswers(term))
+    .filter((term) => states.size <= 1 || statesAsked([term]).size === 0)
+    .map((term) => (term.toLowerCase() === "author:me" ? "author:@me" : term))
+
+  return [
+    `repo:${repo.owner}/${repo.repo}`,
+    "is:pr",
+    ...(states.size === 0 ? ["is:open"] : []),
+    ...sent
+  ].join(" ")
 }
 
 /**
@@ -117,7 +153,63 @@ export const seeding = ({ query }: RepoList): string =>
   readerTerms(query).filter(understood).join(" ")
 
 /** The states GitHub understands, so that asking for one is recognised as having asked. */
-const STATES: ReadonlyArray<string> = ["open", "closed", "merged", "draft"]
+const STATES: ReadonlyArray<PullRequestState> = ["open", "closed", "merged", "draft"]
+
+/**
+ * The states the rows of a search could be in, given the states its address named.
+ *
+ * Wider than the terms in three places, each a fact about GitHub's search rather
+ * than a choice here. Naming no state fetches their default, which is open pull
+ * requests with the drafts among them. `is:closed` includes the merged, because a
+ * merged pull request is a closed one to their search. And two states at once go
+ * out as none — see {@link queryFor} — which fetches every state there is.
+ */
+const fetched = (named: ReadonlySet<PullRequestState>): ReadonlySet<PullRequestState> => {
+  if (named.size > 1) return new Set(STATES)
+  if (named.has("closed")) return new Set(["closed", "merged"])
+  if (named.has("draft") || named.has("merged")) return named
+  return new Set(["open", "draft"])
+}
+
+/**
+ * The address that fetches what the filter box is asking, or nothing while this
+ * page's rows can already answer it.
+ *
+ * The box narrows the rows on the screen and asks GitHub for nothing, which is
+ * right for every term but a state: the rows were fetched open unless the address
+ * said otherwise, so `is:merged` typed into the box excludes every row there is —
+ * an empty list under a chip this interface offered. A state the fetch did not
+ * carry is a new question, and a new question is a new address.
+ *
+ * The new address keeps the terms the box never showed — a `label:` or a `sort:`
+ * from a link, which the search applied and the box cannot undo — and says what
+ * the box now says, so the seed on the far side agrees with it. Words stay out:
+ * the sieve reads them as letters to find and their search reads them as words,
+ * and the reader's half-typed `fla` fetching nothing would be this page emptying
+ * a list it was asked to widen. They keep narrowing on the reader's side of it.
+ *
+ * Asking for less needs no new address — the sieve narrows fetched rows as
+ * readily as ever — but a box that no longer names any state stands over rows
+ * that are still merged or closed, reading as everything when it is not, so that
+ * one goes back to the default list.
+ */
+export const addressFor = (list: RepoList, box: string): Option.Option<string> => {
+  const had = statesAsked(readerTerms(list.query))
+  const asking = sieveOf(box).states
+
+  const answered =
+    asking.size === 0
+      ? fetched(had).has("open")
+      : [...asking].every((state) => fetched(had).has(state))
+  if (answered) return Option.none()
+
+  const kept = readerTerms(list.query).filter((term) => !understood(term))
+  const terms = [...kept, ...termsIn(box).filter(understood)]
+
+  const path = `/${list.repo.owner}/${list.repo.repo}/pulls`
+  if (terms.length === 0) return Option.some(path)
+  return Option.some(`${path}?${new URLSearchParams({ q: terms.join(" ") }).toString()}`)
+}
 
 /**
  * The shelf GitHub put each of the reader's own pull requests on, by id.

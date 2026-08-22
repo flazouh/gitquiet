@@ -145,6 +145,34 @@ describe("a repository's pull request list", () => {
     expect(screen.queryByRole("button", { name: "Previous" })).toBeNull()
   })
 
+  test("hands the filter up when a chip asks for a state this page never fetched", async () => {
+    // The rows here were fetched open. Merged names rows that are not on this
+    // page to narrow, so the screen above answers by moving the address — all it
+    // needs from here is to hear what the box now says.
+    const heard: Array<string> = []
+    showing(() => Effect.succeed(listed([involved(1)])), { onQuery: (query) => heard.push(query) })
+
+    await screen.findByText("vercel/next.js")
+    await userEvent.click(screen.getByRole("button", { name: /State/ }))
+    await userEvent.click(screen.getByRole("menuitemcheckbox", { name: "Merged" }))
+
+    expect(heard.at(-1)).toBe("is:merged")
+  })
+
+  test("hands the filter up as it mounts, for the one the list remembered", async () => {
+    // A remembered `is:merged` narrows an open fetch to nothing with no keystroke
+    // ever typed. The screen above can only answer an ask it hears.
+    localStorage.setItem("gitquiet:filter:vercel/next.js", "is:merged")
+    const heard: Array<string> = []
+
+    showing(() => Effect.succeed(listed([involved(1)])), { onQuery: (query) => heard.push(query) })
+
+    await screen.findByText("vercel/next.js")
+    await waitFor(() => expect(heard).toContain("is:merged"))
+
+    localStorage.clear()
+  })
+
   test("blames GitHub rather than itself when a read fails", async () => {
     showing(() => Effect.fail(new Error("500")))
 

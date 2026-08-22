@@ -3,11 +3,11 @@ import { rememberedRepositories } from "@/app/destinations"
 import { forgetIntent, intendedPath } from "@/app/intent"
 import { type Listed, loadRepoList, rememberedRepoList } from "@/app/repoList"
 import type { PullRequestRef } from "@/domain/PullRequestRef"
-import { type RepoList, repoListIn, seeding } from "@/domain/repoList"
+import { addressFor, type RepoList, repoListIn, seeding } from "@/domain/repoList"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import type { View } from "@/domain/Settings"
 import { chosenView } from "@/app/settings"
-import { goTo as moveTheAddress } from "@/ui/going"
+import { goTo as moveTheAddress, goWithin } from "@/ui/going"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { REPO_PULLS } from "@/ui/place"
@@ -59,7 +59,11 @@ let asLastSeen: { readonly address: string; readonly listed: Listed } | undefine
  * loading a page, so the list would otherwise still be standing over the Code tab,
  * and the attribute holding GitHub's own content out of sight would still be set.
  */
-const open = (list: RepoList): (() => void) => {
+const open = (
+  list: RepoList,
+  /** Another view of this same screen, without a document. See {@link goWithin}. */
+  press: (path: string) => void
+): (() => void) => {
   // Started before anything is waited on. Reading the list and waiting for GitHub to
   // render a region to stand in have nothing to say to each other.
   const reading = (partly: (listed: Listed) => void) =>
@@ -163,6 +167,31 @@ const open = (list: RepoList): (() => void) => {
     moveTheAddress(window, `/${reference.owner}/${reference.repo}/pull/${reference.number}`)
   }
 
+  /**
+   * The filter box, asking for rows this page was never fetched with.
+   *
+   * The box narrows the rows on the screen and that is almost always the whole
+   * answer — but a state the search did not carry names rows that are not here
+   * to narrow. `addressFor` says when the box has asked exactly that, and the
+   * answer is the answer to any new question: a new address, which stands this
+   * screen up again over a search that has the rows. The box itself survives the
+   * move — the list remembers its own filter, and takes it back on the far side.
+   *
+   * Through {@link press} rather than a plain move, for the reason the pager
+   * went that way when there was one: the watcher a screen hears the address on
+   * reads the pathname alone, and this address differs only in its search.
+   *
+   * A tick later rather than in the call. The list announces a remembered
+   * filter from inside its own first render, and the move takes the screen
+   * down — React must not be asked to unmount the tree it is standing up.
+   */
+  const asked = (box: string): void => {
+    Option.match(addressFor(list, box), {
+      onNone: () => {},
+      onSome: (address) => queueMicrotask(() => press(address))
+    })
+  }
+
   return standAScreen({
     place: REPO_PULLS,
     draw: (standing) => (
@@ -173,6 +202,7 @@ const open = (list: RepoList): (() => void) => {
         preload={remembered}
         onOpen={goTo}
         seed={seeding(list)}
+        onQuery={asked}
         onStepAside={standing.stepAside}
       />
     )
@@ -214,6 +244,15 @@ export const start = (): void => {
    */
   let standingFor: string | undefined
 
+  /** Another view of this screen, which here means the same list under a new search. */
+  const press = (path: string): void =>
+    goWithin(
+      window,
+      path,
+      () => show(window.location.href),
+      () => standingFor
+    )
+
   const show = (url: string): void => {
     // One address asked for twice, which is one screen. A press within this
     // screen redraws for the new address itself.
@@ -248,7 +287,7 @@ export const start = (): void => {
       return
     }
 
-    close = open(list.value)
+    close = open(list.value, press)
     standingFor = url
   }
 
