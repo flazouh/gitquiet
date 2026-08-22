@@ -27,6 +27,13 @@ curl -sf -X POST "https://api.elevenlabs.io/v1/music?output_format=mp3_44100_128
   }' --output video/public/music.mp3
 echo "wrote video/public/music.mp3 ($(stat -f%z video/public/music.mp3) bytes)"
 
+# The API ignores music_length_ms and returns ~48s; cut to the video's 29.5s
+# with a fade so the track ends with the picture instead of mid-phrase.
+ffmpeg -y -v error -i video/public/music.mp3 -t 29.53 \
+  -af "afade=t=out:st=27.3:d=2.2" video/public/music-cut.mp3
+mv video/public/music-cut.mp3 video/public/music.mp3
+echo "trimmed music to 29.53s with a fade"
+
 VOICE_ID=$(curl -sf "https://api.elevenlabs.io/v1/voices" -H "xi-api-key: $ELEVENLABS_API_KEY" \
   | python3 -c "import json,sys; print(json.load(sys.stdin)['voices'][0]['voice_id'])")
 echo "voice-over: voice $VOICE_ID"
