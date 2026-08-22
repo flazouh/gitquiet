@@ -24,9 +24,9 @@ const LOOK_AGAIN = 200
  * The browser saying the address has changed, which beats guessing at it.
  *
  * `currententrychange` fires once the entry is the current one, whatever moved it:
- * a Turbo push, a replace, the back button. Where the interval was up to two
- * hundred milliseconds of the interface standing over a page it is not about, this
- * is the same turn of the event loop.
+ * a Turbo push, a replace, the back button. It schedules the screen change for the
+ * next task. This keeps route rendering out of the input task while still beating
+ * the two-hundred-millisecond interval.
  *
  * The interval stays underneath it. This is a young API and the page belongs to
  * somebody else — a browser without it, or a way of moving it does not report,
@@ -170,15 +170,18 @@ export const whenAddressChanges = (
   for (const name of THEIR_EVENTS) target.document.addEventListener(name, soon, true)
   target.addEventListener("popstate", soon)
   const said = theirWord(target)
-  // Straight to `look`, not `soon`: this one fires after the address has changed
-  // rather than around it, so there is nothing to wait a turn for.
-  said?.addEventListener("currententrychange", look)
+  // The address is already current. Move the screen in the next task so a route
+  // render cannot turn the reader's click into a dropped frame.
+  const afterInput = (): void => {
+    target.setTimeout(look, 0)
+  }
+  said?.addEventListener("currententrychange", afterInput)
   const ticking = target.setInterval(look, lookAgain)
 
   return () => {
     for (const name of THEIR_EVENTS) target.document.removeEventListener(name, soon, true)
     target.removeEventListener("popstate", soon)
-    said?.removeEventListener("currententrychange", look)
+    said?.removeEventListener("currententrychange", afterInput)
     target.clearInterval(ticking)
   }
 }

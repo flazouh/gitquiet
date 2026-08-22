@@ -10,6 +10,7 @@ const browser = (path: string, withNavigation = true) => {
   const listeners = new Set<() => void>()
   const timers = new Set<() => void>()
   const entries = new Set<() => void>()
+  const nextTasks = new Set<() => void>()
   let now = path
 
   const target = {
@@ -29,8 +30,8 @@ const browser = (path: string, withNavigation = true) => {
     },
     clearInterval: () => timers.clear(),
     setTimeout: (run: () => void) => {
-      run()
-      return 0
+      nextTasks.add(run)
+      return nextTasks.size
     }
   } as unknown as Window
 
@@ -52,6 +53,10 @@ const browser = (path: string, withNavigation = true) => {
     /** What the browser itself says, the moment the entry becomes the current one. */
     entered: () => {
       for (const run of [...entries]) run()
+    },
+    nextTask: () => {
+      for (const run of [...nextTasks]) run()
+      nextTasks.clear()
     },
     watching: () => ({ entries: entries.size, timers: timers.size })
   }
@@ -155,7 +160,7 @@ describe("noticing GitHub navigate without loading a page", () => {
     expect(seen).toEqual(["/o/r/pull/9"])
   })
 
-  test("takes the browser's own word for it, without waiting for a tick", () => {
+  test("moves the screen on the next task after the browser's word", () => {
     /*
      * The interval was up to two hundred milliseconds of the interface standing
      * over the wrong page, on every soft navigation — and none of GitHub's own
@@ -168,6 +173,9 @@ describe("noticing GitHub navigate without loading a page", () => {
 
     it.goTo("/o/r/pull/7")
     it.entered()
+
+    expect(seen).toEqual([])
+    it.nextTask()
 
     expect(seen).toEqual(["/o/r/pull/7"])
   })
