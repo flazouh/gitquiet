@@ -19,12 +19,21 @@ const READING = "[data-gitquiet-loading]"
 /** Do not retain a screen that never finishes its read. */
 const READING_LIMIT_MS = 20_000
 
+/** The one unread screen a document is still waiting to measure. */
+const readingWait = new WeakMap<Document, () => void>()
+
+const cancelReadingWait = (target: Document): void => {
+  readingWait.get(target)?.()
+  readingWait.delete(target)
+}
+
 /** Starts one extension-owned route measurement at the input handler. */
 export const beginNavigation = (target: Window): void => {
   const document = target.document
   const performance = target.performance
   if (document?.documentElement === undefined || performance?.now === undefined) return
 
+  cancelReadingWait(document)
   performance.clearMarks?.(NAVIGATION_START_MARK)
   performance.clearMarks?.(NAVIGATION_END_MARK)
   performance.mark?.(NAVIGATION_START_MARK)
@@ -49,6 +58,7 @@ export const finishNavigation = (target: Document, route: string, screen: Elemen
   // Attachment is a mutation of the parent, not this screen. The takeover path
   // calls again after attachment, so an observer here can only retain dead work.
   if (!screen.isConnected) return
+  cancelReadingWait(target)
 
   const readable = (): boolean =>
     screen.isConnected && screen.querySelector(READING) === null && screen.textContent.trim() !== ""
@@ -60,6 +70,7 @@ export const finishNavigation = (target: Document, route: string, screen: Elemen
     observer = undefined
     if (deadline !== undefined) view.clearTimeout(deadline)
     deadline = undefined
+    if (readingWait.get(target) === stop) readingWait.delete(target)
   }
   const publish = (): void => {
     if (target.documentElement.getAttribute(NAVIGATION_STARTED) !== started) {
@@ -83,5 +94,10 @@ export const finishNavigation = (target: Document, route: string, screen: Elemen
 
   observer = new view.MutationObserver(publish)
   observer.observe(screen, { childList: true, subtree: true })
-  deadline = view.setTimeout(stop, READING_LIMIT_MS)
+  deadline = view.setTimeout(() => {
+    if (target.documentElement.getAttribute(NAVIGATION_STARTED) === started)
+      target.documentElement.removeAttribute(NAVIGATION_STARTED)
+    stop()
+  }, READING_LIMIT_MS)
+  readingWait.set(target, stop)
 }

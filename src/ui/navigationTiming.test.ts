@@ -85,6 +85,50 @@ describe("extension navigation timing", () => {
     view.close()
   })
 
+  test("cancels an unread screen when the next navigation starts", () => {
+    const view = new HappyWindow({ url: "https://github.com/pulls/inbox" })
+    const page = view.document as unknown as Document
+    const screen = page.createElement("div")
+    screen.setAttribute("data-gitquiet-loading", "")
+    page.body.append(screen)
+    let cancelled = 0
+    const clearTimeout = view.clearTimeout.bind(view)
+    view.clearTimeout = ((handle: Parameters<typeof view.clearTimeout>[0]) => {
+      cancelled += 1
+      clearTimeout(handle)
+    }) as typeof view.clearTimeout
+
+    beginNavigation(view as unknown as Window)
+    finishNavigation(page, "/owner/repo/pull/2", screen)
+    beginNavigation(view as unknown as Window)
+
+    expect(cancelled).toBe(1)
+    view.close()
+  })
+
+  test("forgets a measurement that never becomes readable", () => {
+    const view = new HappyWindow({ url: "https://github.com/pulls/inbox" })
+    const page = view.document as unknown as Document
+    const screen = page.createElement("div")
+    screen.setAttribute("data-gitquiet-loading", "")
+    page.body.append(screen)
+    let expire = () => {}
+    const timeoutHandle = view.setTimeout(() => {}, 0)
+    view.clearTimeout(timeoutHandle)
+    view.setTimeout = ((run: () => void) => {
+      expire = run
+      return timeoutHandle
+    }) as typeof view.setTimeout
+    view.clearTimeout = (() => {}) as typeof view.clearTimeout
+
+    beginNavigation(view as unknown as Window)
+    finishNavigation(page, "/owner/repo/pull/2", screen)
+    expire()
+
+    expect(page.documentElement.getAttribute("data-gitquiet-navigation-started")).toBeNull()
+    view.close()
+  })
+
   test("keeps the earlier Back-button press when the browser announces the traversal", () => {
     const page = document.implementation.createHTMLDocument("github")
     let now = 42
