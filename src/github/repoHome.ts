@@ -14,10 +14,22 @@
  */
 
 import { Effect, Option } from "effect"
-import type { About, Entry, Front, Kind, Starring, Touch, TouchWho, Welcome } from "../domain/repoHome"
-import { footingOf, inReadingOrder } from "../domain/repoHome"
+import type {
+  About,
+  Entry,
+  Front,
+  Kind,
+  RepoHome,
+  Starring,
+  Touch,
+  TouchWho,
+  Welcome
+} from "../domain/repoHome"
+import { footingOf, inReadingOrder, repoHomeIn } from "../domain/repoHome"
 import { plainText } from "./plainText"
 import {
+  CodeViewLocation,
+  CodeViewRepository,
   LatestCommitRoute,
   RepoAbout,
   RepoFooting,
@@ -35,6 +47,8 @@ import { maybeAmong, whereverAmong, whereverItIs } from "./wherever"
  * panel, and a reader treated as a Caller, which is the safe way round.
  */
 export const findTheTree = whereverAmong(RepoTree)
+const findTheLocation = maybeAmong(CodeViewLocation)
+const findTheRepository = maybeAmong(CodeViewRepository)
 export const findTheAbout = maybeAmong(RepoAbout)
 export const findTheFooting = maybeAmong(RepoFooting)
 export const decodeTreeCommitInfo = whereverItIs(TreeCommitInfoRoute)
@@ -160,6 +174,59 @@ export const frontFrom = (
  */
 const EMBEDDED = 'react-app[app-name="code-view"] script[type="application/json"]'
 
+const unescaped = (segment: string): string =>
+  Option.getOrElse(Option.liftThrowable(decodeURIComponent)(segment), () => segment)
+
+/**
+ * A repository address with GitHub's resolved branch and path.
+ *
+ * The URL alone cannot separate `feat/x` from `feat` plus `x/file.ts`. GitHub
+ * already resolved that choice in the code-view payload, so this reads the
+ * answer from the loaded document. Nothing while GitHub still holds data for
+ * the previous page, because guessing would read a different file.
+ */
+export const repoHomeInDocument = (url: string, doc: Document): Option.Option<RepoHome> => {
+  const parsed = repoHomeIn(url)
+  if (Option.isNone(parsed) || parsed.value.branch === null) return parsed
+
+  const script = doc.querySelector(EMBEDDED)
+  if (script === null) return Option.none()
+
+  const raw = Option.liftThrowable(JSON.parse)(script.textContent ?? "")
+  if (Option.isNone(raw)) return Option.none()
+
+  const location = findTheLocation([raw.value])
+  if (Option.isNone(location)) return Option.none()
+
+  const repository = findTheRepository([raw.value])
+  if (
+    Option.isSome(repository) &&
+    (repository.value.repo.ownerLogin.toLowerCase() !== parsed.value.repo.owner.toLowerCase() ||
+      repository.value.repo.name.toLowerCase() !== parsed.value.repo.repo.toLowerCase())
+  ) return Option.none()
+
+  const address = URL.parse(url)
+  if (address === null) return Option.none()
+
+  const routeTail = address.pathname
+    .split("/")
+    .filter((part) => part.length > 0)
+    .slice(3)
+    .map(unescaped)
+    .join("/")
+  const resolvedPath = location.value.path === "/" ? "" : location.value.path
+  const resolvedTail = [location.value.refInfo.name, resolvedPath]
+    .filter((part) => part.length > 0)
+    .join("/")
+  if (routeTail !== resolvedTail) return Option.none()
+
+  return Option.some({
+    repo: parsed.value.repo,
+    branch: location.value.refInfo.name,
+    reading: resolvedPath === "" ? null : resolvedPath
+  })
+}
+
 /**
  * The front page out of the document the reader is already looking at.
  *
@@ -175,6 +242,7 @@ const EMBEDDED = 'react-app[app-name="code-view"] script[type="application/json"
  */
 export const frontInDocument = Effect.fn("repoHome.frontInDocument")(function* (
   repo: { readonly owner: string; readonly repo: string },
+  branch: string | null,
   doc: Document
 ) {
   const script = doc.querySelector(EMBEDDED)
@@ -184,7 +252,9 @@ export const frontInDocument = Effect.fn("repoHome.frontInDocument")(function* (
   if (Option.isNone(raw)) return Option.none<Front>()
 
   return yield* frontFrom(repo, [raw.value]).pipe(
-    Effect.map(Option.some),
+    Effect.map((front) =>
+      branch === null || front.branch === branch ? Option.some(front) : Option.none()
+    ),
     // Not an error worth reporting. The payload belongs to whatever page this
     // document last was, and the live read is the answer either way.
     Effect.catch(() => Effect.succeed(Option.none<Front>()))

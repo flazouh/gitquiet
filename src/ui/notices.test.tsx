@@ -259,7 +259,7 @@ describe("the reader's inbox, grouped by who acts next", () => {
     expect(await screen.findByText("Nothing is in your inbox.")).toBeTruthy()
   })
 
-  test("says it is checking, over the inbox the reader is already reading", async () => {
+  test("keeps a background check silent over the known inbox", async () => {
     const kept = [notice({ id: "one" })]
 
     render(
@@ -273,6 +273,7 @@ describe("the reader's inbox, grouped by who acts next", () => {
       </Toasts>
     )
 
-    expect(await screen.findByText(/Checking your notifications/)).toBeTruthy()
+    expect(await screen.findByRole("region", { name: "Needs You" })).toBeTruthy()
+    expect(screen.queryByText("Notices updated")).toBeNull()
   })
 })

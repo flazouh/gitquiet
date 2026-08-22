@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Option } from "effect"
+import code from "../../fixtures/github/blob-code.json"
 import touches from "../../fixtures/github/repo-home-touches.json"
 import payload from "../../fixtures/github/repo-home.json"
 import { reParented } from "../../tests/reParented"
@@ -8,9 +9,11 @@ import type { KeptFront } from "./repoHome"
 import {
   decodeLatestCommit,
   decodeTreeCommitInfo,
+  frontInDocument,
   frontFrom,
   frontFromKept,
   keptFrom,
+  repoHomeInDocument,
   touchesFrom,
   wroteIn
 } from "./repoHome"
@@ -269,5 +272,104 @@ describe("what survives the store", () => {
 
   test("holds the README back, which is nearly all of the weight", () => {
     expect(Option.isNone(roundTrip(read()).welcome)).toBe(true)
+  })
+})
+
+const embeddedDocument = (raw: unknown): Document => {
+  const page = document.implementation.createHTMLDocument()
+  const app = page.createElement("react-app")
+  app.setAttribute("app-name", "code-view")
+
+  const script = page.createElement("script")
+  script.type = "application/json"
+  script.textContent = JSON.stringify(raw)
+  app.append(script)
+  page.body.append(app)
+  return page
+}
+
+const codeViewDocument = (branch: string, path: string): Document =>
+  embeddedDocument({
+    payload: {
+      codeViewLayoutRoute: {
+        path,
+        refInfo: { name: branch },
+        repo: { name: "ori", ownerLogin: "OpenRouterIncubator" }
+      },
+      codeViewBlobLayoutRoute: {
+        path,
+        refInfo: { name: branch },
+        blob: {}
+      }
+    }
+  })
+
+describe("a repository address resolved by GitHub", () => {
+  test("does not use another branch's embedded front page for the requested branch", () => {
+    const wanted = "alexdepape/ori-harness-default"
+
+    expect(
+      Effect.runSync(frontInDocument(repo, wanted, embeddedDocument(payload)))
+    ).toEqual(Option.none())
+  })
+
+  test("uses embedded front-page data for the requested branch", () => {
+    const branch = read().branch
+
+    expect(
+      Option.isSome(Effect.runSync(frontInDocument(repo, branch, embeddedDocument(payload))))
+    ).toBe(true)
+  })
+
+  test("reads the location from GitHub's recorded blob payload", () => {
+    expect(
+      Option.getOrNull(
+        repoHomeInDocument(
+          "https://github.com/react/react/blob/main/package.json",
+          embeddedDocument(code)
+        )
+      )
+    ).toEqual({
+      repo: { owner: "react", repo: "react" },
+      branch: "main",
+      reading: "package.json"
+    })
+  })
+
+  test("reads a root tree from GitHub's recorded repository payload", () => {
+    expect(
+      Option.getOrNull(
+        repoHomeInDocument(
+          "https://github.com/flazouh/githubpro/tree/main",
+          embeddedDocument(payload)
+        )
+      )
+    ).toEqual({
+      repo: { owner: "flazouh", repo: "githubpro" },
+      branch: "main",
+      reading: null
+    })
+  })
+
+  test("keeps a slash inside the branch instead of moving it into the file path", () => {
+    const branch = "alexdepape/ori-harness-default"
+    const path = "framework/engine/threads/src/service.ts"
+    const url = `https://github.com/OpenRouterIncubator/ori/blob/${branch}/${path}`
+
+    expect(Option.getOrNull(repoHomeInDocument(url, codeViewDocument(branch, path)))).toEqual({
+      repo: { owner: "OpenRouterIncubator", repo: "ori" },
+      branch,
+      reading: path
+    })
+  })
+
+  test("does not guess a slash branch from a location left behind by GitHub's previous page", () => {
+    const branch = "alexdepape/ori-harness-default"
+    const path = "framework/engine/threads/src/service.ts"
+    const url = `https://github.com/OpenRouterIncubator/ori/blob/${branch}/${path}`
+
+    expect(repoHomeInDocument(url, codeViewDocument("main", "src/index.ts"))).toEqual(
+      Option.none()
+    )
   })
 })

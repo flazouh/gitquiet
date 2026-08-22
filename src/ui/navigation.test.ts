@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { whenLocationChanges, whenTheyStayPut } from "./navigation"
+import { whenLocationChanges, whenTheyStayPut, whenTraversalStarts } from "./navigation"
 
 /**
  * Enough of a window to navigate in: the address is writable, GitHub's events
@@ -58,6 +58,30 @@ const browser = (path: string, withNavigation = true) => {
 }
 
 describe("noticing GitHub navigate without loading a page", () => {
+  test("reports a traversal destination before its address commits", () => {
+    const listeners = new Set<(event: Event) => void>()
+    const target = {
+      location: { origin: "https://github.com" },
+      navigation: {
+        addEventListener: (_name: string, listener: (event: Event) => void) =>
+          listeners.add(listener),
+        removeEventListener: (_name: string, listener: (event: Event) => void) =>
+          listeners.delete(listener)
+      }
+    } as unknown as Window
+    const seen: Array<string> = []
+    whenTraversalStarts(target, (path) => seen.push(path))
+
+    for (const listener of listeners) {
+      listener({
+        navigationType: "traverse",
+        destination: { url: "https://github.com/o/r/pull/2?tab=files" }
+      } as unknown as Event)
+    }
+
+    expect(seen).toEqual(["/o/r/pull/2?tab=files"])
+  })
+
   test("reports the new path when the address changes", () => {
     const seen: Array<string> = []
     const it = browser("/o/r/pull/1")

@@ -493,14 +493,19 @@ describe("keeping a repository's list to open again", () => {
     expect(piles[0]?.one.size).toEqual(Option.some({ added: 40, deleted: 4 }))
   })
 
-  test("keeps each page of a list apart from the next", async () => {
-    asGitHub((url) => (url.includes("/pulls?q=") ? Response.json(queryPayload([aRow(1)])) : oneShelved(url)))
+  test("keeps every page the complete read collected", async () => {
+    asGitHub((url) => {
+      if (!url.includes("/pulls?q=")) return oneShelved(url)
+      const page = Number(new URL(url).searchParams.get("page") ?? "1")
+      return Response.json(queryPayload([aRow(page)]))
+    })
     await readRepoList()
 
     offline()
-
-    expect(
+    const remembered = Option.getOrThrow(
       await Effect.runPromise(rememberedRepoList({ ...list, page: 2 }).pipe(Effect.provide(layer)))
-    ).toEqual(Option.none())
+    )
+
+    expect(remembered.sittings[0]?.piles[0]?.one.reference.number).toBe(2)
   })
 })

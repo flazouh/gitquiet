@@ -10,7 +10,7 @@ import type { Profile } from "../keys/commands"
 import { Activity } from "./Activity"
 import { Repositories } from "./Repositories"
 import { WorkingSetScreen } from "./WorkingSetScreen"
-import { useFreshening } from "./useFreshening"
+import { useUpdated } from "./useUpdated"
 import { type Load, useLive } from "./useLive"
 import { useSettings } from "./useSettings"
 
@@ -31,6 +31,8 @@ import { useSettings } from "./useSettings"
 export type HomeProps = {
   readonly load: Load<ReadonlyArray<Sitting>>
   readonly preload?: () => Effect.Effect<Option.Option<ReadonlyArray<Sitting>>>
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
   readonly onOpen: (reference: PullRequestRef) => void
   readonly onStepAside: () => void
   readonly ask?: (
@@ -55,6 +57,7 @@ export type HomeProps = {
 export const Home = ({
   load,
   preload,
+  where,
   onOpen,
   onStepAside,
   ask,
@@ -69,7 +72,7 @@ export const Home = ({
 
   const everything = useLive(repositories, rememberedRepositories)
   const known = everything.read.status === "ready" ? everything.read.value : undefined
-  useFreshening(everything.catchingUp, "Checking your repositories…")
+  useUpdated(everything.catchingUp, known, "Repositories updated")
 
   // Both written against whatever the settings are at the moment of the press rather than
   // against this render's copy of them: pressing a Destination and then narrowing the Rail
@@ -99,6 +102,7 @@ export const Home = ({
     <WorkingSetScreen
       load={load}
       preload={preload}
+      where={where}
       onOpen={onOpen}
       onStepAside={onStepAside}
       ask={ask}
@@ -142,7 +146,11 @@ const Elsewhere = ({
   readonly remembered?: () => Effect.Effect<Option.Option<ReadonlyArray<RepositoryActivity>>>
 }) => {
   const live = useLive(read, remembered)
-  useFreshening(live.catchingUp, "Checking what has happened…")
+  useUpdated(
+    live.catchingUp,
+    live.read.status === "ready" ? live.read.value : undefined,
+    "Activity updated"
+  )
 
   return (
     <Activity

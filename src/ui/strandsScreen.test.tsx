@@ -226,7 +226,7 @@ describe("a repository's runs", () => {
     expect(screen.queryByText("Put away")).toBeNull()
   })
 
-  test("says it is being checked, over the runs the reader is already reading", async () => {
+  test("keeps a background check silent over known runs", async () => {
     const kept = strandsIn(threeOfOneBranch)
 
     render(
@@ -240,6 +240,7 @@ describe("a repository's runs", () => {
       </Toasts>
     )
 
-    expect(await screen.findByText(/Checking this repository's runs/)).toBeTruthy()
+    expect(await screen.findByRole("region", { name: "Runs" })).toBeTruthy()
+    expect(screen.queryByText("Repository Strands updated")).toBeNull()
   })
 })

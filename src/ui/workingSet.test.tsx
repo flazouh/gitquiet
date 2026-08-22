@@ -162,6 +162,29 @@ describe("the Working Set", () => {
     expect(rows[0]?.childElementCount).toBe(rows[1]?.childElementCount)
   })
 
+  test("sizes shared fact columns from the values in this list", () => {
+    showing([
+      involved(1, {
+        reference: { owner: "openrouter", repo: "ori", number: 1 },
+        why: Option.some("READY_TO_MERGE"),
+        checks: Option.some({ state: "failing", passed: 1, total: 10 }),
+        comments: 1,
+        size: Option.some({ added: 77, deleted: 43 })
+      })
+    ])
+
+    const row = screen.getByRole("link", { name: /openrouter\/ori#1/ })
+    const tracks = row.style.gridTemplateColumns
+
+    expect(tracks).toContain("calc(1.25rem + 3ch)")
+    expect(tracks).toContain("calc(1rem + 14ch)")
+    expect(tracks).toContain("calc(1rem + 7ch)")
+    expect(tracks).toContain("calc(1rem + 1ch)")
+    expect(tracks).toContain("calc(0.25rem + 6ch)")
+    expect(tracks).not.toContain("8.5rem")
+    expect(tracks).not.toContain("5.5rem")
+  })
+
   test("keeps no column for a fact no row in the list has", () => {
     // Seven rems held open on every line for a reason none of these rows has is
     // width taken from the titles, which are the part worth reading.
@@ -588,14 +611,26 @@ describe("a stack in the Working Set", () => {
     )
   )
 
-  test("draws what stands on what, rather than three unrelated rows", () => {
+  const theCard = (): HTMLElement => {
+    const card = document.querySelector("[data-stack]")
+    if (!(card instanceof HTMLElement)) throw new Error("No stack card on the page")
+    return card
+  }
+
+  test("draws the stack as one card of flat rows, base first, with no tree semantics", () => {
     render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
 
-    // A tree, so a reader can see that the top cannot land until the foundation
-    // does. Three sibling rows would say nothing about the order they land in.
-    const tree = screen.getByRole("tree", { name: /the foundation/ })
+    // A card of flat rows rather than a tree widget: these are links to pages,
+    // and the tree role brings arrow-key expectations nobody is met with here.
+    expect(screen.queryByRole("tree")).toBeNull()
+    expect(document.querySelector('[role="treeitem"]')).toBeNull()
 
-    expect(within(tree).getAllByRole("treeitem")).toHaveLength(3)
+    const rows = within(theCard()).getAllByRole("link")
+    expect(rows.map((row) => row.textContent)).toEqual([
+      expect.stringContaining("the foundation"),
+      expect.stringContaining("the middle"),
+      expect.stringContaining("the top")
+    ])
   })
 
   test("keeps the whole stack in one Court, under its foundation", () => {
@@ -605,6 +640,81 @@ describe("a stack in the Working Set", () => {
 
     expect(within(court).getByText(/the top/)).toBeDefined()
     expect(screen.queryByRole("region", { name: "Waiting" })).toBeNull()
+  })
+
+  test("gives every stack position its own column without padding the row", () => {
+    render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
+
+    const [base, middle, top] = within(theCard()).getAllByRole("link")
+
+    expect(base?.style.paddingLeft).toBe("")
+    expect(middle?.style.paddingLeft).toBe("")
+    expect(top?.style.paddingLeft).toBe("")
+    expect(base?.style.gridTemplateColumns.startsWith("1.25rem ")).toBe(true)
+    expect(middle?.style.gridTemplateColumns).toBe(base?.style.gridTemplateColumns)
+    expect(top?.style.gridTemplateColumns).toBe(base?.style.gridTemplateColumns)
+    expect(
+      [...theCard().querySelectorAll("[data-stack-position]")].map((position) =>
+        position.textContent?.trim()
+      )
+    ).toEqual(["#1", "#2", "#3"])
+  })
+
+  test("keeps a double-digit stack position on one line", () => {
+    const ten = Array.from({ length: 10 }, (_, at) =>
+      on(at === 0 ? "needs-action" : "ready-to-merge", at + 1)
+    )
+    const tenStacked = sittingsIn(ten, (one) =>
+      Option.some({
+        baseBranch: one.reference.number === 1 ? "main" : `stack-${one.reference.number - 1}`,
+        headBranch: `stack-${one.reference.number}`
+      })
+    )
+
+    render(<WorkingSet sittings={tenStacked} onOpen={() => {}} />)
+
+    const positions = [...theCard().querySelectorAll<HTMLElement>("[data-stack-position]")]
+    expect(positions.at(-1)?.textContent).toBe("#10")
+    expect(positions.at(-1)?.classList.contains("whitespace-nowrap")).toBe(true)
+  })
+
+  test("draws no connector or relation icon", () => {
+    render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
+
+    expect(theCard().querySelector("svg[data-stack-relations]")).toBeNull()
+    expect(theCard().querySelector(".t-stack-mark")).toBeNull()
+  })
+
+  test("keeps one stack icon beside the card label", () => {
+    render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
+
+    const label = theCard().querySelector("[data-stack-label]")
+
+    expect(label?.textContent).toBe("Stack")
+    expect(label?.querySelectorAll("svg")).toHaveLength(1)
+  })
+
+  test("says each stack position aloud", () => {
+    render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
+
+    expect(screen.getByRole("link", { name: /the middle.*Stack position #2 of 3/ })).toBeDefined()
+  })
+
+  test("gives the title the width left after its visible facts", () => {
+    render(
+      <WorkingSet
+        sittings={alongside(
+          stacked.flatMap((sitting) => sitting.piles.map((pile) => pile.one)),
+          [raised(7, { labels: ["bug"] })]
+        )}
+        onOpen={() => {}}
+      />
+    )
+
+    const row = screen.getByRole("link", { name: /the foundation/ })
+
+    expect(row.style.gridTemplateColumns).toContain("minmax(160px,1fr)")
+    expect(row.style.gridTemplateColumns).not.toContain("minmax(0,4rem)")
   })
 })
 
@@ -909,7 +1019,7 @@ describe("moving through the Working Set without the mouse", () => {
 
     await userEvent.keyboard("jj")
 
-    expect(screen.getByRole("link", { name: /the middle/ }).getAttribute("aria-current")).toBe(
+    expect(screen.getByRole("link", { name: /^the middle\./ }).getAttribute("aria-current")).toBe(
       "true"
     )
   })

@@ -1,8 +1,12 @@
 import { Effect, type Fiber } from "effect"
+import { runWhenIdle } from "./idle"
 import { type Stop, whenAddressChanges } from "./navigation"
 import { CONVERSATION, type Place } from "./place"
+import { PREPARED_TRAVERSAL_ROUTE } from "./preparedNavigation"
+import { finishNavigation } from "./navigationTiming"
 
 export const ROOT_ID = "gitquiet-root"
+export const SCREEN_ACTIVITY = "data-gitquiet-screen-activity"
 
 const firstOf = (
   target: Document,
@@ -62,6 +66,165 @@ const HIDDEN = "data-gitquiet-hidden"
  */
 const BELONGS_TO = "data-gitquiet-for"
 
+/** The exact address whose finished DOM this container holds. */
+const ROUTE = "data-gitquiet-route"
+
+type Snapshot = {
+  readonly place: string
+  readonly html: string
+  readonly prepared?: {
+    readonly element: HTMLElement
+    readonly dispose: () => void
+  }
+}
+
+type World = Window & { gitquietScreens?: Map<string, Snapshot> }
+
+/** Enough for a short Back trail without retaining a whole browsing session. */
+const HOW_MANY_SCREENS = 8
+
+const screenSnapshots = (target: Document): Map<string, Snapshot> | null => {
+  const view = target.defaultView as World | null
+  if (view === null) return null
+  view.gitquietScreens ??= new Map<string, Snapshot>()
+  return view.gitquietScreens
+}
+
+const keepScreenSnapshot = (
+  screens: Map<string, Snapshot>,
+  route: string,
+  snapshot: Snapshot
+): void => {
+  screens.get(route)?.prepared?.dispose()
+  screens.delete(route)
+  screens.set(route, snapshot)
+
+  const oldest = screens.keys().next()
+  if (screens.size > HOW_MANY_SCREENS && !oldest.done) {
+    screens.get(oldest.value)?.prepared?.dispose()
+    screens.delete(oldest.value)
+  }
+}
+
+const routeNow = (target: Document, exact?: string): string | null => {
+  if (exact !== undefined) return exact
+  const view = target.defaultView
+  return view === null ? null : `${view.location.pathname}${view.location.search}`
+}
+
+const rememberScreen = (element: Element): void => {
+  const route = element.getAttribute(ROUTE)
+  const place = element.getAttribute(BELONGS_TO)
+  const screens = screenSnapshots(element.ownerDocument)
+  if (route === null || place === null || screens === null || element.innerHTML === "") return
+
+  // The screen left as a live React tree. Keep that stronger entry rather than
+  // replacing it with an inert HTML copy on the idle task queued before it left.
+  if (screens.get(route)?.prepared?.element === element) return
+
+  keepScreenSnapshot(screens, route, { place, html: element.innerHTML })
+}
+
+/**
+ * Keeps a finished detached screen under the route it was built for.
+ *
+ * The next navigation seeds this HTML before React starts. It is the same short-lived
+ * cache used for Back, with no second storage tier and the same eight-route bound.
+ */
+export const rememberPreparedScreen = (
+  target: Document,
+  route: string,
+  place: Place,
+  prepared: Element,
+  dispose?: () => void
+): void => {
+  const screens = screenSnapshots(target)
+  if (screens === null || prepared.innerHTML === "") return
+
+  keepScreenSnapshot(screens, route, {
+    place: place.name,
+    html: prepared.innerHTML,
+    prepared:
+      dispose === undefined ? undefined : { element: prepared as HTMLElement, dispose }
+  })
+}
+
+/** Keeps a screen that just left as a live history entry, where it named its route. */
+export const rememberLiveScreen = (
+  element: Element,
+  place: Place,
+  dispose: () => void
+): boolean => {
+  const route = element.getAttribute(ROUTE)
+  if (route === null || element.innerHTML === "") return false
+
+  rememberPreparedScreen(element.ownerDocument, route, place, element, dispose)
+  return true
+}
+
+/** Whether this exact route has a live React root ready to claim. */
+export const hasPreparedScreen = (
+  target: Document,
+  route: string,
+  place: Place
+): boolean => {
+  const snapshot = screenSnapshots(target)?.get(route)
+  return snapshot?.place === place.name && snapshot.prepared !== undefined
+}
+
+/** Arms an exact live cache entry for Back, Forward, or another history traversal. */
+export const prepareCachedTraversal = (
+  target: Document,
+  route: string,
+  place: Place
+): boolean => {
+  if (!hasPreparedScreen(target, route, place)) return false
+
+  target.documentElement.setAttribute(PREPARED_TRAVERSAL_ROUTE, route)
+  return true
+}
+
+/** Takes a live route pre-render out of the cache without disposing its React root. */
+const claimPreparedScreen = (
+  target: Document,
+  place: Place,
+  exactRoute?: string
+): HTMLElement | null => {
+  const route = routeNow(target, exactRoute)
+  const screens = screenSnapshots(target)
+  if (route === null || screens === null) return null
+
+  const snapshot = screens.get(route)
+  if (snapshot?.place !== place.name || snapshot.prepared === undefined) return null
+
+  screens.delete(route)
+  if (target.documentElement.getAttribute(PREPARED_TRAVERSAL_ROUTE) === route)
+    target.documentElement.removeAttribute(PREPARED_TRAVERSAL_ROUTE)
+  const claimed = snapshot.prepared.element
+  claimed.id = ROOT_ID
+  claimed.setAttribute(BELONGS_TO, place.name)
+  claimed.removeAttribute(LEAVING)
+  return claimed
+}
+
+const seedRememberedScreen = (
+  target: Document,
+  container: Element,
+  place: Place,
+  exactRoute?: string
+): void => {
+  const route = routeNow(target, exactRoute)
+  const screens = screenSnapshots(target)
+  if (route === null || screens === null) return
+
+  const snapshot = screens.get(route)
+  if (snapshot === undefined || snapshot.place !== place.name) return
+
+  screens.delete(route)
+  screens.set(route, snapshot)
+  container.innerHTML = snapshot.html
+}
+
 /**
  * Marks the container of an interface on its way out: still on the screen, no
  * longer being looked after.
@@ -91,9 +254,11 @@ const LEAVING = "data-gitquiet-leaving"
  */
 export const GOING = "gitquiet:going"
 
-const takeOffThePage = (element: Element): void => {
+const takeOffThePage = (element: Element, rememberLive = false): void => {
   const page = element.ownerDocument
-  element.dispatchEvent(new CustomEvent(GOING))
+  runWhenIdle(() => rememberScreen(element))
+  theScreenActivityChanged(element)
+  element.dispatchEvent(new CustomEvent(GOING, { detail: rememberLive }))
   element.remove()
   if (element === ours) ours = null
   theScreenMoved(page)
@@ -110,6 +275,9 @@ const takeOffThePage = (element: Element): void => {
  */
 let ours: Element | null = null
 
+/** Whether this bundle still owns this container. */
+const isOurContainer = (container: Element): boolean => container === ours
+
 /**
  * Said on the document when the screen that has the page changes.
  *
@@ -122,9 +290,22 @@ let ours: Element | null = null
  */
 export const SCREEN_MOVED = "gitquiet:screen-moved"
 
+/** One pending announcement per document, so one takeover causes one React update. */
+const moving = new WeakSet<Document>()
+
 /** Says so, to every screen's script rather than only to this one's. */
 export const theScreenMoved = (page: Document): void => {
-  page.documentElement.dispatchEvent(new CustomEvent(SCREEN_MOVED))
+  if (moving.has(page)) return
+  moving.add(page)
+  setTimeout(() => {
+    moving.delete(page)
+    page.documentElement.dispatchEvent(new CustomEvent(SCREEN_MOVED))
+  }, 0)
+}
+
+/** Wakes a detached screen when its connection to the page changes. */
+export const theScreenActivityChanged = (element: Element): void => {
+  element.toggleAttribute(SCREEN_ACTIVITY)
 }
 
 /**
@@ -352,40 +533,76 @@ export const theScreenShown = (target: Document): string | null =>
 const AT = "data-gitquiet-at"
 
 /**
- * Said by a screen each time it draws, which is the moment it accepts an address.
+ * Who has the mark up, so that only they can take it down.
  *
- * Before the drawing rather than after it, and the difference is the tens of
- * milliseconds React takes to commit. What the callers need to know is that this
- * screen has taken the new address on, not that the last pixel of it is down.
+ * A path is not an identity. Two screens can stand for one address at once — see the
+ * inbox drawn twice below, where one place ends up with two containers — and a guard
+ * that compares the path lets the stray one withdraw the survivor's mark on its way
+ * out. The same shape as `ours` above and as the root owner in `screen.tsx`, for the
+ * same reason: the question is "is this still mine", and only a token answers it.
  */
-export const theScreenIsAt = (target: Document, path: string): void => {
+let holder: symbol | null = null
+
+/**
+ * Said by a screen that has the page for this address to show, and not before.
+ *
+ * From the data rather than from the press, which is the whole of what this mark is
+ * for and the one way it has been wrong. It used to be set by the shell's redraw off
+ * `window.location.pathname` — the address the screen was *asked* for — so it went up
+ * within about fifty milliseconds of the press while the pull request the reader had
+ * just left was still the one on the screen. Measured between two of them: the mark
+ * read the new address at 55ms and the rows underneath read the old one until 3,380ms.
+ *
+ * Which made every question it answers answerable wrongly. Reading ahead stopped
+ * being held back at 55ms and went back to competing with the read the reader is
+ * waiting for, on the one route where that read is seven requests long.
+ */
+export const theScreenIsAt = (target: Document, path: string, owner: symbol): void => {
+  holder = owner
   target.documentElement.setAttribute(AT, path)
 }
 
 /**
- * Said the moment the address moves: whatever is drawn is drawn for the last one.
+ * Said by a screen on its way off the page, about the mark if it is still its own.
  *
- * Without this the mark goes stale rather than wrong-and-obvious. A screen that draws
- * again on its own account — the back button is the one that showed it — never passes
- * through the shell's redraw, so the mark went on naming the address the reader had
- * just left, and the next press to that address would have been called an arrival
- * before anything was drawn for it.
+ * Two screens are on the page at every navigation, on purpose — the one arriving
+ * stands on the surface of the one leaving — and the one leaving goes last. Clearing
+ * the mark unconditionally would take down the arriving screen's claim a moment after
+ * it made it, which is the fault the toasts had when one slot was written by one
+ * screen and cleared by another.
  */
-export const theScreenIsMoving = (target: Document): void => {
+export const theScreenLeft = (target: Document, owner: symbol): void => {
+  if (holder !== owner) return
+  holder = null
   target.documentElement.removeAttribute(AT)
 }
 
 /**
- * Whether the screen a press asked for is the one on the page.
+ * Whether the screen for this address is somewhere it should not be, asked by the one
+ * caller that loads a whole document when the answer is yes.
  *
- * Both halves are needed and neither is enough. The kind alone says yes on the first
- * frame of a move between two pull requests, because it never changed. The address
- * alone would say yes while a screen of the wrong kind is still standing on it, which
- * is exactly the window a press opens.
+ * Not the strict test, and the difference is which way an unanswered question falls.
+ * A screen that has not been wired to publish an address never says one, and read as
+ * "it never arrived" that silence is a document load a second and a half after a press
+ * that worked perfectly well. So no mark is not an answer here.
  *
- * Asked by the push in `going.ts`, which repairs the address by hand if the screen
- * never came, and by the shell, which keeps reading ahead quiet until it has.
+ * A mark for another address is an answer, and it is the one the repair exists for: a
+ * screen standing with the wrong page under an address this pushed. Before the mark
+ * was published from the data, nothing could tell that case from a screen that had
+ * simply not finished, and the repair went toothless on every move between two pages
+ * of one kind.
  */
+export const theScreenIsNotElsewhere = (
+  target: Document,
+  place: string,
+  path: string
+): boolean => {
+  if (theScreenShown(target) !== place) return false
+
+  const at = target.documentElement.getAttribute(AT)
+  return at === null || at === path
+}
+
 export const theScreenArrived = (target: Document, place: string, path: string): boolean =>
   theScreenShown(target) === place && target.documentElement.getAttribute(AT) === path
 
@@ -445,7 +662,8 @@ export const whenThereIsAPage = (page: Document, ready: () => void): (() => void
  */
 export const interfaceContainer = (
   target: Document,
-  place: Place = CONVERSATION
+  place: Place = CONVERSATION,
+  exactRoute?: string
 ): HTMLElement => {
   const already = target.getElementById(ROOT_ID)
   if (already !== null) {
@@ -453,29 +671,43 @@ export const interfaceContainer = (
     // again — a reader who pressed a pull request and came back before the card
     // arrived is looking at this list, and it never left the page.
     if (already.getAttribute(BELONGS_TO) === place.name) {
-      already.removeAttribute(LEAVING)
-      if (marked === already) marked = null
-      ours = already
-      theScreenMoved(target)
-      return already
-    }
+      const route = routeNow(target, exactRoute)
+      const drawnRoute = already.getAttribute(ROUTE)
+      if (route === null || drawnRoute === null || route === drawnRoute) {
+        already.removeAttribute(LEAVING)
+        if (marked === already) marked = null
+        ours = already
+        theScreenMoved(target)
+        return already
+      }
 
-    /*
-     * Another interface's, which means that interface is being replaced — a
-     * reader leaving the Working Set for a pull request has our list on the page
-     * while the card's script is starting.
-     *
-     * Marked rather than taken out: it is the page the reader is looking at, and
-     * it stays there until this container is in the document to replace it. A
-     * container of its own rather than that one adopted, because two React roots
-     * on one node is not a race worth running.
-     */
-    markAsLeaving(already)
+      // One screen kind, another exact address. Keep this finished route until
+      // a new container, seeded from its own cache entry, replaces it.
+      markAsLeaving(already)
+    } else {
+      /*
+       * Another interface's, which means that interface is being replaced — a
+       * reader leaving the Working Set for a pull request has our list on the page
+       * while the card's script is starting.
+       *
+       * Marked rather than taken out: it is the page the reader is looking at, and
+       * it stays there until this container is in the document to replace it. A
+       * container of its own rather than that one adopted, because two React roots
+       * on one node is not a race worth running.
+       */
+      markAsLeaving(already)
+    }
   }
 
-  const made = target.createElement("div")
-  made.id = ROOT_ID
-  made.setAttribute(BELONGS_TO, place.name)
+  const prepared = claimPreparedScreen(target, place, exactRoute)
+  const made = prepared ?? target.createElement("div")
+  if (prepared === null) {
+    made.id = ROOT_ID
+    made.setAttribute(BELONGS_TO, place.name)
+    seedRememberedScreen(target, made, place, exactRoute)
+  }
+  const madeRoute = routeNow(target, exactRoute)
+  if (madeRoute !== null) made.setAttribute(ROUTE, madeRoute)
   ours = made
   theScreenMoved(target)
   return made
@@ -502,6 +734,46 @@ export const ourSurface = (target: Document): Element | null =>
  */
 export const theScreenOnThePage = (target: Document): Element | null =>
   target.getElementById(ROOT_ID)
+
+/** Whether the screen already on the page draws this exact route. */
+export const theScreenHasRoute = (target: Document, route: string): boolean =>
+  theScreenOnThePage(target)?.getAttribute(ROUTE) === route
+
+/** Updates the exact route after the browser redirects within the same screen. */
+export const markScreenRoute = (target: Document, route: string): void => {
+  const screen = theScreenOnThePage(target) ?? (ours?.ownerDocument === target ? ours : null)
+  screen?.setAttribute(ROUTE, route)
+  finishNavigation(target, route)
+}
+
+/** Puts an exact live history target on the current surface before traversal commits. */
+export const activatePreparedTraversal = (
+  target: Document,
+  route: string,
+  place: Place
+): boolean => {
+  const leaving = theScreenOnThePage(target)
+  const slot = leaving?.parentElement
+  if (leaving === null || slot == null) return false
+
+  const arriving = claimPreparedScreen(target, place, route)
+  if (arriving === null) return false
+
+  leaving.setAttribute(LEAVING, "")
+  takeOffThePage(leaving, true)
+  slot.append(arriving)
+  theScreenActivityChanged(arriving)
+  arriving.setAttribute(ROUTE, route)
+  target.documentElement.setAttribute(TAKEN, "")
+  target.documentElement.setAttribute(SHOWN, place.name)
+  hideTheirs(slot, arriving)
+  hideTheirBands(target, place)
+  reveal(target)
+  ungate(target)
+  finishNavigation(target, route)
+  theScreenMoved(target)
+  return true
+}
 
 /**
  * Keeps a screen on the page until the one replacing it is in the document.
@@ -672,7 +944,8 @@ export const takeOverSlot = (
    * standing on, which is already held, already gated, and already the page as
    * far as the reader is concerned.
    */
-  ours?: Element
+  ours?: Element,
+  exactRoute?: string
 ): Takeover | null => {
   const slot = ours ?? findSlot(target, place)
   if (slot === null) return null
@@ -690,8 +963,9 @@ export const takeOverSlot = (
     // afterwards would name a container that has just been told once already.
     // See `marked`.
     const missed = marked !== null && marked !== container && !marked.isConnected ? marked : null
-    for (const leaving of target.querySelectorAll(`[${LEAVING}]`)) takeOffThePage(leaving)
-    if (missed !== null) takeOffThePage(missed)
+    for (const leaving of target.querySelectorAll(`[${LEAVING}]`))
+      takeOffThePage(leaving, true)
+    if (missed !== null) takeOffThePage(missed, true)
     marked = null
     /*
      * And any other of ours standing there unmarked, which is the same invariant asked at the
@@ -719,12 +993,28 @@ export const takeOverSlot = (
      * The mark is how a watcher is told to stand down, and the sweep above never has to set it
      * because a marked container is what that sweep is looking for.
      */
-    for (const stray of target.querySelectorAll(`#${ROOT_ID}`)) {
-      if (stray === container) continue
+    let stray = target.getElementById(ROOT_ID)
+    while (stray !== null && stray !== container) {
       stray.setAttribute(LEAVING, "")
       takeOffThePage(stray)
+      stray = target.getElementById(ROOT_ID)
+    }
+    // Only a reused container can be the first result while another duplicate
+    // follows it. The normal route stays on the constant-time id lookup above.
+    if (stray === container) {
+      for (const duplicate of target.querySelectorAll(`#${ROOT_ID}`)) {
+        if (duplicate === container) continue
+        duplicate.setAttribute(LEAVING, "")
+        takeOffThePage(duplicate)
+      }
     }
     into.append(container)
+    theScreenActivityChanged(container)
+    const route = routeNow(target, exactRoute)
+    if (route !== null) {
+      container.setAttribute(ROUTE, route)
+      finishNavigation(target, route)
+    }
     hideTheirs(into, container)
     hideTheirBands(target, place)
     // Set before revealing, so that the rule keeping their conversation out of
@@ -783,7 +1073,18 @@ export const takeOverSlot = (
     const standing = ours !== undefined && ours.isConnected ? ours : undefined
 
     if (!container.isConnected) {
-      const fresh = standing ?? findSlot(target, place)
+      /*
+       * A history traversal can remove the old region before GitHub creates a
+       * new one. Keep the finished interface in the stable page surface during
+       * that gap. The observer will move it into the proper region if one lands.
+       */
+      const view = target.defaultView
+      const stillHere =
+        view === null || place.owns(view.location.pathname, view.location.search)
+      const temporary = isOurContainer(container) && stillHere
+        ? (target.querySelector("main") ?? target.body)
+        : null
+      const fresh = standing ?? findSlot(target, place) ?? temporary
       if (fresh !== null) settle(fresh)
       return
     }
@@ -832,9 +1133,12 @@ export const takeOverSlot = (
 
       target.documentElement.removeAttribute(TAKEN)
       target.documentElement.removeAttribute(SHOWN)
-      // With the kind, because a stale address left behind would answer for whatever
-      // stands here next.
-      target.documentElement.removeAttribute(AT)
+      /*
+       * The address is not withdrawn here, and that is deliberate. It has an owner
+       * now, and the owner is the screen that published it: taking it down from a
+       * second place leaves a mark that nothing can put back, because the hook that
+       * publishes it only runs again when its own address changes.
+       */
       // Everything hidden anywhere, not only within the slot: their tab row
       // lives in the header above it and has to come back too.
       for (const theirs of target.querySelectorAll(`[${HIDDEN}]`)) {
@@ -930,7 +1234,8 @@ export const takeOverSlotWhenReady = Effect.fn("mount.takeOverSlotWhenReady")(fu
   settling: number = SETTLING,
   place: Place = CONVERSATION,
   /** Where to stand outright, for an arrival with no document coming. */
-  ours?: Element
+  ours?: Element,
+  exactRoute?: string
 ) {
   // The address first, always. See {@link whenTheAddressIsOurs}: a screen that stands
   // before the address moves takes the link being pressed off the page with it.
@@ -948,7 +1253,7 @@ export const takeOverSlotWhenReady = Effect.fn("mount.takeOverSlotWhenReady")(fu
     return null
   }
 
-  const takeover = takeOverSlot(target, container, place, ours)
+  const takeover = takeOverSlot(target, container, place, ours, exactRoute)
   if (takeover === null) {
     reveal(target)
     ungate(target)

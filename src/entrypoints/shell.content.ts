@@ -1,12 +1,19 @@
 import { Effect, Option } from "effect";
 import { defineContentScript } from "wxt/utils/define-content-script";
-import { screenFor, type Wanted } from "@/app/screens";
-import { intendTo, intendedPath } from "@/app/intent";
+import { screenFor, type Screen, startScreenOnce, type Wanted } from "@/app/screens";
+import { claimShell } from "@/app/shellClaim";
+import { intendTo, intendedPath, prepareTo, whenPreparing } from "@/app/intent";
+import {
+  markOwnedRoute,
+  OWNED_ROUTE,
+  restoreOwnedRoute,
+  whenOwnedRouteIsOffered,
+} from "@/app/navigationGuard";
 import { oursToOpen } from "@/app/pressing";
 import { readingAhead } from "@/app/readAhead";
 import { type Ahead, type Connection, dataToSpare, warmingFor } from "@/app/warming";
 import { isHome } from "@/domain/pages";
-import { elsewhereThan, type PullRequestRef } from "@/domain/PullRequestRef";
+import { elsewhereThan } from "@/domain/PullRequestRef";
 import { layer as gatewayLayer } from "@/github/GitHubGateway";
 import { initialiseErrorReporting, reportError } from "@/observability/sentry";
 import type { View } from "@/domain/Settings";
@@ -19,7 +26,17 @@ import {
   drawingOurOwnRows,
   goTo,
 } from "@/ui/going";
-import { markPage, theScreenArrived, theScreenIsMoving, unmarkPage } from "@/ui/mount";
+import {
+  activatePreparedTraversal,
+  hasPreparedScreen,
+  holdTheSurface,
+  markPage,
+  prepareCachedTraversal,
+  theScreenArrived,
+  theScreenHasRoute,
+  theScreenIsNotElsewhere,
+  unmarkPage,
+} from "@/ui/mount";
 import { linkNear, type Reached } from "@/ui/linkNear";
 import {
   forwardness,
@@ -29,9 +46,18 @@ import {
   type Seen,
   smoothed,
 } from "@/ui/lingering";
+import {
+  OWNED_TRAVERSAL,
+  whenPreparedTraversalIsOffered,
+} from "@/ui/preparedNavigation";
 import { hintRead, showLingering } from "@/ui/lingeringHint";
 import type { Point } from "@/ui/near";
-import { type Stop, whenAddressChanges, whenTheyStayPut } from "@/ui/navigation";
+import {
+  type Stop,
+  whenAddressChanges,
+  whenTheyStayPut,
+  whenTraversalStarts,
+} from "@/ui/navigation";
 import {
   ACTIONS,
   COMMIT,
@@ -220,6 +246,8 @@ export default defineContentScript({
    */
   runAt: "document_start",
   main() {
+    if (!claimShell(document)) return;
+
     initialiseErrorReporting("prefetch");
 
     // Everything below is in aid of an interface that a reader can turn off,
@@ -239,6 +267,59 @@ export default defineContentScript({
       view = stored.page.view;
     });
 
+    /** The loaded screen for the one exact route armed for an instant traversal. */
+    const preparedScreens = new Map<string, Screen>();
+    /** The screen kinds already following this document's address. */
+    const up = new Set<Wanted>();
+
+    /** Builds the target screen itself once a route has earned its data warm. */
+    const prepareScreen = (path: string): void => {
+      if (view === "github") return;
+
+      const address = new URL(path, window.location.origin);
+      const page = pageAt(address.pathname, address.search);
+      if (page === null) return;
+
+      Effect.runFork(
+        screenFor(page).pipe(
+          Effect.tap((screen) =>
+            Effect.sync(() => {
+              preparedScreens.clear();
+              preparedScreens.set(path, screen);
+              if (prepareCachedTraversal(document, path, placeFor(page, address.pathname))) return;
+              screen.prepare?.(address.pathname);
+            }),
+          ),
+          Effect.ignore,
+        ),
+      );
+    };
+    whenPreparing(window, prepareScreen);
+
+    const openPreparedTraversal = (path: string): void => {
+      const screen = preparedScreens.get(path);
+      if (screen === undefined) return;
+
+      const address = new URL(path, window.location.origin);
+      const page = pageAt(address.pathname, address.search);
+      if (page === null) return;
+
+      const place = placeFor(page, address.pathname);
+      const prepared = hasPreparedScreen(document, path, place);
+      document.dispatchEvent(new CustomEvent(OWNED_TRAVERSAL, { detail: path }));
+      const screenClaimedTheRoute = prepared && !hasPreparedScreen(document, path, place);
+      const routeAlreadyStands = theScreenHasRoute(document, path);
+      if (
+        !screenClaimedTheRoute &&
+        !routeAlreadyStands &&
+        !activatePreparedTraversal(document, path, place)
+      )
+        holdTheSurface(document);
+      startScreenOnce(up, page, screen);
+    };
+    whenTraversalStarts(window, openPreparedTraversal);
+    whenPreparedTraversalIsOffered(document, openPreparedTraversal);
+
     /**
      * Pages read on a guess, and the rules about when not to.
      *
@@ -248,29 +329,8 @@ export default defineContentScript({
      */
     const readAhead = readingAhead();
 
-    /*
-     * The pull request a press is headed for, where that is one other than the
-     * page being read — which is the page the address names now, and not the one
-     * this document was loaded on. See {@link elsewhereThan}, which is where the
-     * two are compared, and why reading the live address is the whole of it: a
-     * reader who moves between two layers of a stack moves the address and
-     * nothing else, so a page held from the start goes stale on the first press.
-     *
-     * The one already open is declined, both here and for reading ahead. Reading
-     * a page the reader is already on is a race with the screen reading it for
-     * real, for a result nobody is going to wait for.
-     */
-    const wanted = (target: EventTarget | null): PullRequestRef | null => {
-      if (!(target instanceof Element)) return null;
-
-      const link = target.closest("a");
-      if (link === null || link.hostname !== window.location.hostname)
-        return null;
-
-      return Option.getOrNull(
-        elsewhereThan(window.location.pathname, link.pathname),
-      );
-    };
+    const linkAddress = (link: HTMLAnchorElement): URL =>
+      new URL(link.getAttribute(OWNED_ROUTE) ?? link.href, window.location.origin);
 
     /**
      * What lingering near a link would read, and the name it is read under.
@@ -280,7 +340,7 @@ export default defineContentScript({
      * the pointer is over, and where the reader is while it is there.
      */
     const aheadOf = (link: HTMLAnchorElement): Ahead | null =>
-      warmingFor(link.href, window.location.href);
+      warmingFor(linkAddress(link).href, window.location.href);
 
     /**
      * And the screen's own file, fetched while the pointer is still on its way.
@@ -298,7 +358,8 @@ export default defineContentScript({
     const fetched = new Set<Wanted>();
 
     const soon = (link: HTMLAnchorElement): void => {
-      const page = pageAt(link.pathname, link.search);
+      const address = linkAddress(link);
+      const page = pageAt(address.pathname, address.search);
       if (page === null || fetched.has(page)) return;
 
       fetched.add(page);
@@ -346,7 +407,9 @@ export default defineContentScript({
      * visit has read its share, or the reader is on a connection where a guess costs more
      * than it saves.
      */
-    const worthReading = (found: Reached | null): Seen<Ahead> | null => {
+    const worthReading = (
+      found: Reached | null,
+    ): Seen<{ readonly ahead: Ahead; readonly path: string }> | null => {
       if (found === null || readAhead.read() >= AT_MOST || !dataToSpare(connectionNow())) {
         return null;
       }
@@ -358,7 +421,7 @@ export default defineContentScript({
         key: ahead.key,
         reach: found.from.reach,
         forward: forwardness(travel, found.from),
-        page: ahead,
+        page: { ahead, path: linkAddress(found.link).pathname },
       };
     };
 
@@ -409,13 +472,19 @@ export default defineContentScript({
       lingering = step.lingering;
 
       if (step.ripe !== null) {
-        readAhead.offer(step.ripe.key, step.ripe.read.pipe(Effect.provide(gatewayLayer)));
+        if (found !== null && linkAddress(found.link).pathname === step.ripe.path)
+          markOwnedRoute(found.link);
+        prepareTo(window, step.ripe.path);
+        readAhead.offer(
+          step.ripe.ahead.key,
+          step.ripe.ahead.read.pipe(Effect.provide(gatewayLayer)),
+        );
       }
 
       // Gone from a built extension entirely: `import.meta.env.DEV` is `false` before the
       // bundler runs, so the branch goes and the module with it. See `ui/lingeringHint`.
       if (import.meta.env.DEV) {
-        if (step.ripe !== null) hintRead(step.ripe.key);
+        if (step.ripe !== null) hintRead(step.ripe.ahead.key);
         showLingering({
           travel,
           lingering,
@@ -451,6 +520,19 @@ export default defineContentScript({
     // The pointer put on a link by a scroll rather than by a hand, which is the one case
     // that produces no movement to measure and would otherwise never be looked at.
     document.addEventListener("pointerover", keepLooking, { passive: true });
+    document.addEventListener(
+      "pointerout",
+      (event) => {
+        if (!(event.target instanceof Element)) return;
+        const link = event.target.closest<HTMLAnchorElement>(
+          "a[data-gitquiet-owned-route]",
+        );
+        if (link === null || event.relatedTarget instanceof Node && link.contains(event.relatedTarget))
+          return;
+        restoreOwnedRoute(link);
+      },
+      { passive: true },
+    );
 
     /*
      * A pointer that has left the window is not near anything, whatever the last
@@ -476,7 +558,6 @@ export default defineContentScript({
      * itself — between pull requests, between pages of a list — so a second press
      * of the same kind of page is not this script's business at all.
      */
-    const up = new Set<Wanted>();
     let givingUp: ReturnType<typeof setTimeout> | undefined;
     /** The way to call off the last press, where GitHub has since acted on it. */
     let stayingPut: Stop = () => {};
@@ -518,10 +599,8 @@ export default defineContentScript({
             // Started here rather than at the fetch, because between the two the
             // reader may have gone somewhere else entirely — and a screen started for
             // a page nobody is on gates a page it is not about.
-            if (up.has(what)) return;
             if (wantedNow() !== what && intendedPath(window) === null) return;
-            up.add(what);
-            screen.start();
+            startScreenOnce(up, what, screen);
           }),
           Effect.catch((cause) => Effect.sync(() => failed(cause))),
         ),
@@ -556,8 +635,13 @@ export default defineContentScript({
       // a reader who has turned this off never sees a frame of it.
       if (view === "github") return;
 
-      /** Whether the screen this press asked for is up. Set once the press is ours. */
+      /** Whether the screen this press asked for is up, address and all. Set once the press is ours. */
       let arrived: (() => boolean) | undefined;
+      /**
+       * Whether the screen for this address is somewhere it should not be, which is
+       * the only question the repair below is entitled to act on.
+       */
+      let goneWrong: (() => boolean) | undefined;
 
       /*
        * The press, carried out here if their router drops it — which on their
@@ -606,6 +690,7 @@ export default defineContentScript({
           mine.push ?? going ?? window.location.pathname,
           window.location.origin,
         );
+        prepareTo(window, target.pathname);
         const wanted = placeFor(what, target.pathname).name;
 
         /*
@@ -614,8 +699,19 @@ export default defineContentScript({
          * between two pull requests, because it never changed: measured on that press,
          * it still read "conversation" at 0.4s, 1s, 2s, 4s and 8s. So the quiet period
          * below ended before it began, on the one route that needed it most.
+         *
+         * Strict, and only ever asked where a wrong "no" costs nothing. This one holds
+         * reading ahead back, so being told no while the page is still arriving is the
+         * answer that was wanted anyway.
          */
         arrived = () => theScreenArrived(document, wanted, target.pathname);
+
+        /*
+         * The repair asks a weaker question, because it answers a no by loading the
+         * whole document. A screen nobody has wired to publish an address says nothing
+         * at all, and read strictly that silence is a reload after a press that worked.
+         */
+        goneWrong = () => theScreenIsNotElsewhere(document, wanted, target.pathname);
 
         readAhead.pressed(warmingFor(target.href, window.location.href)?.key ?? null, {
           there: arrived,
@@ -647,7 +743,6 @@ export default defineContentScript({
         // Said before the screen is fetched, so that it is already there to be read
         // the instant it starts — which is a full second before the address agrees.
         if (going !== undefined) intendTo(window, going);
-
         document.documentElement.setAttribute(GATING, "");
 
         clearTimeout(givingUp);
@@ -671,19 +766,22 @@ export default defineContentScript({
       // The same answer the quiet period above waits on, and for the same reason: a
       // repair made while the screen is on its way loads the whole document.
       const push = mine?.push;
-      if (push !== undefined && arrived !== undefined) goTo(window, push, arrived);
+      if (push !== undefined && goneWrong !== undefined) goTo(window, push, goneWrong);
     };
 
-    const pressed = (event: Event): void => {
-      // A plain press only. Anything held down turns this into a new tab, a new
-      // window or a download, and the page stays exactly where it is — so
-      // taking it over would replace a list the reader is still looking at.
-      if (!aPlainPress(event as MouseEvent)) return;
-
-      const target = event.target;
-      if (!(target instanceof Element)) return;
+    const opening = (
+      target: EventTarget | null,
+      destination?: URL,
+    ): {
+      readonly link: HTMLAnchorElement;
+      readonly what: Wanted;
+      readonly destination: URL;
+    } | null => {
+      if (!(target instanceof Element)) return null;
       const link = target.closest("a");
-      if (link === null || link.hostname !== window.location.hostname) return;
+      if (link === null) return null;
+      const address = destination ?? linkAddress(link);
+      if (address.hostname !== window.location.hostname) return null;
 
       /*
        * Their nav's own "Pull requests", a repository's own tab of the same name,
@@ -693,7 +791,7 @@ export default defineContentScript({
        * script's matches for the same reason: no document loads, so the match is
        * never tested again and the script for the page never runs.
        */
-      const page = pageAt(link.pathname, link.search);
+      const page = pageAt(address.pathname, address.search);
 
       /*
        * Every link to a page of ours, and their router in none of them.
@@ -712,10 +810,22 @@ export default defineContentScript({
         // are asked differently. See `wantedNow`: on a wall the address alone says
         // the reader is on the pull request their organisation is refusing them.
         oursToOpen(page, wantedNow()) &&
-        (page !== "pull-request" || wanted(target) !== null)
+        (page !== "pull-request" ||
+          Option.isSome(elsewhereThan(window.location.pathname, address.pathname)))
           ? page
           : null;
-      if (what === null) return;
+      return what === null ? null : { link, what, destination: address };
+    };
+
+    const pressed = (event: Event): void => {
+      // A plain press only. Anything held down turns this into a new tab, a new
+      // window or a download, and the page stays exactly where it is — so
+      // taking it over would replace a list the reader is still looking at.
+      if (!aPlainPress(event as MouseEvent)) return;
+
+      const route = opening(event.target);
+      if (route === null) return;
+      const { link, what } = route;
 
       /*
        * The one rule, asked of every event of every press, and kept in one place
@@ -735,7 +845,31 @@ export default defineContentScript({
 
         go: () => open(what, link.pathname, { push: addressIn(link) }),
       });
+      if (event.type !== "click") markOwnedRoute(link);
     };
+
+    whenOwnedRouteIsOffered(document, (kind, href, link) => {
+      const route = opening(link, new URL(href, window.location.origin));
+      if (route === null) return;
+      const { pathname, search, hash } = route.destination;
+      if (kind === "click") {
+        open(route.what, pathname, { push: `${pathname}${search}${hash}` });
+        return;
+      }
+      open(route.what, pathname, {});
+      markOwnedRoute(link);
+    });
+
+    const protectOwnedLinks = (): void => {
+      for (const link of document.querySelectorAll<HTMLAnchorElement>(
+        "#gitquiet-root a[href], #gitquiet-bar a[href]",
+      )) {
+        if (opening(link) !== null) markOwnedRoute(link);
+      }
+    };
+    const linksChanging = new MutationObserver(protectOwnedLinks);
+    linksChanging.observe(document.documentElement, { childList: true, subtree: true });
+    protectOwnedLinks();
 
     // All three, because the gate has to be up before GitHub renders and no one
     // of them can be relied on to say so. A pointer fires all three in order; a
@@ -743,7 +877,7 @@ export default defineContentScript({
     // odd browser skip whichever they like. Asking twice costs an attribute
     // that is already set and a message that is never sent again.
     for (const name of ["pointerdown", "mousedown"]) {
-      document.addEventListener(name, pressed, {
+      window.addEventListener(name, pressed, {
         passive: true,
         capture: true,
       });
@@ -753,7 +887,7 @@ export default defineContentScript({
     // answered here rather than by the browser, and answering it means cancelling
     // it. The two above cannot — a passive listener may not, and neither of them
     // is the event that loads a document anyway.
-    document.addEventListener("click", pressed, { capture: true });
+    window.addEventListener("click", pressed, { capture: true });
 
     // The presses this misses: the back button, a middle-click promoted to this
     // tab, anything GitHub navigates on its own account. Later than a press —
@@ -769,11 +903,6 @@ export default defineContentScript({
       // would have carried it out by hand has nothing left to do.
       stayingPut();
       stayingPut = () => {};
-
-      // Whatever a screen has drawn, it drew it for the address before this one.
-      // See `theScreenIsMoving`, and the back button, which is what found it.
-      theScreenIsMoving(document);
-
       const page = pageAt(path, search);
       if (page === null) {
         ungate();

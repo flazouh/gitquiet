@@ -290,13 +290,7 @@ describe("a run that passed", () => {
 })
 
 describe("a run drawn from what was kept", () => {
-  /*
-   * A run's page is half a megabyte of their markup, so the read behind this screen is the
-   * slowest of the eleven. Which makes the memory worth the most here and the sentence over
-   * it worth the most too: a kept run and a current one look identical, and the reader is
-   * about to decide whether a job really failed.
-   */
-  test("says it is being checked, over the run the reader is already reading", async () => {
+  test("keeps a background check silent over the known run", async () => {
     render(
       <Toasts>
         {screenOf({
@@ -306,7 +300,8 @@ describe("a run drawn from what was kept", () => {
       </Toasts>
     )
 
-    await waitFor(() => expect(screen.getByText(/Checking this run/)).toBeDefined())
+    await waitFor(() => expect(screen.getByText(run.title)).toBeDefined())
+    expect(screen.queryByText("Run updated")).toBeNull()
   })
 })
 

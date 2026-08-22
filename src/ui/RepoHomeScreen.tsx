@@ -23,7 +23,7 @@ import { RepoTree } from "./RepoTree"
 import { Languages, Standing, useStanding } from "./Standing"
 import { Star } from "./Star"
 import { TheBar } from "./TheBar"
-import { useFreshening } from "./useFreshening"
+import { useUpdated } from "./useUpdated"
 import { type Load, useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -32,6 +32,8 @@ export type RepoHomeScreenProps = {
   readonly repo: { readonly owner: string; readonly repo: string }
   readonly load: Load<Front>
   readonly preload?: () => Effect.Effect<Option.Option<Front>>
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
   /** Restores GitHub's own page, which is still behind this one. */
   readonly onStepAside: () => void
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
@@ -92,13 +94,15 @@ export type RepoHomeScreenProps = {
   readonly loadReadme?: (branch: string, path: string) => Effect.Effect<string, unknown>
   /** The file the address names, or nothing for the README. */
   readonly reading?: string | null
+  /** The branch GitHub resolved for a file link, when it differs from the tree. */
+  readonly readingBranch?: string
   /** A file was chosen in the tree. The address follows. */
   readonly onRead?: (path: string | null) => void
 }
 
 const WORKING = "Reading this repository…"
 
-const CHECKING = "Checking this repository…"
+const UPDATED = "Repository updated"
 
 /**
  * How many topics fit on a line that has a description and a star on it too.
@@ -452,11 +456,13 @@ const Facts = ({
 const Paper = ({
   front,
   reading,
+  readingBranch,
   opened,
   loadReadme
 }: {
   readonly front: Front
   readonly reading: string | null
+  readonly readingBranch?: string
   readonly opened: Read
   readonly loadReadme: RepoHomeScreenProps["loadReadme"]
 }) =>
@@ -468,14 +474,14 @@ const Paper = ({
       opened={opened.file}
       failed={opened.failed}
       repo={front.repo}
-      branch={front.branch}
+      branch={readingBranch ?? front.branch}
       head={front.head}
     />
   )
 
 type Read = {
-  /** The file this answer is about, so a late one for another file is ignored. */
-  readonly of: string | null
+  /** The branch and file this answer is about, so another answer is ignored. */
+  readonly of: { readonly branch: string; readonly path: string } | null
   readonly file: Opened | undefined
   readonly failed: boolean
 }
@@ -512,10 +518,10 @@ const useOpened = (
       shelf.ask(branch, reading).pipe(
         Effect.match({
           onSuccess: (file) => {
-            if (wanted) setArrived({ of: reading, file, failed: false })
+            if (wanted) setArrived({ of: { branch, path: reading }, file, failed: false })
           },
           onFailure: () => {
-            if (wanted) setArrived({ of: reading, file: undefined, failed: true })
+            if (wanted) setArrived({ of: { branch, path: reading }, file: undefined, failed: true })
           }
         })
       )
@@ -527,8 +533,10 @@ const useOpened = (
   }, [reading, branch, shelf])
 
   if (reading === null) return NOTHING
-  if (held !== undefined) return { of: reading, file: held, failed: false }
-  return arrived.of === reading ? arrived : NOTHING
+  if (held !== undefined && branch !== undefined) {
+    return { of: { branch, path: reading }, file: held, failed: false }
+  }
+  return arrived.of?.branch === branch && arrived.of?.path === reading ? arrived : NOTHING
 }
 
 /**
@@ -547,6 +555,7 @@ export const RepoHomeScreen = ({
   repo,
   load,
   preload,
+  where,
   onStepAside,
   recallRepositories,
   signedIn = viewerOnPage,
@@ -558,19 +567,20 @@ export const RepoHomeScreen = ({
   loadReadme,
   shelf,
   reading = null,
+  readingBranch,
   onRead
 }: RepoHomeScreenProps) => {
-  const live = useLive(load, preload)
+  const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useFreshening(live.catchingUp, CHECKING)
+  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
 
   // One read for two cards. The languages are their own card over the tree and
   // the people are on the row above, and both arrive in the same answer.
   const stands = useStanding(loadStanding)
 
   const front = read.status === "ready" ? read.value : undefined
-  const opened = useOpened(reading, front?.branch, shelf)
+  const opened = useOpened(reading, readingBranch ?? front?.branch, shelf)
 
   // The pointer resting on a row, on the branch the page is of. Held steady so
   // the tree, which reads its options once, is not rebuilt for a new function.
@@ -638,6 +648,7 @@ export const RepoHomeScreen = ({
               <Paper
                 front={front}
                 reading={reading}
+                readingBranch={readingBranch}
                 opened={opened}
                 loadReadme={loadReadme}
               />
@@ -669,6 +680,7 @@ export const RepoHomeScreen = ({
               <Paper
                 front={front}
                 reading={reading}
+                readingBranch={readingBranch}
                 opened={opened}
                 loadReadme={loadReadme}
               />

@@ -4,6 +4,7 @@ import { Option } from "effect"
 import { AUTHOR, aMergeState, aSnapshot } from "../../tests/snapshots"
 import type { Seat } from "../domain/PullRequest"
 import { Header } from "./Header"
+import { BROWSER } from "./marks"
 
 afterEach(cleanup)
 
@@ -226,5 +227,42 @@ describe("a pull request that is one layer of a stack", () => {
     const drawn = screen.getByRole("list", { name: "Stack, layer 3 of 3" })
 
     expect(drawn.textContent).not.toMatch(/[+\u2212]\d/)
+  })
+})
+
+/**
+ * The one control on this card that means a browser.
+ *
+ * It is drawn only where there is no page behind the card to hand back — the window —
+ * and there a link is not something that gets followed: the rule that keeps the webview
+ * from navigating reads a pull request address as "draw that card", which is this card.
+ * So the press was stopped and answered by redrawing the screen it was already on, and
+ * the mark did nothing at all. It says what it means on itself now.
+ */
+describe("the way out to GitHub", () => {
+  test("says on itself that it means the reader's browser", () => {
+    render(<Header snapshot={aSnapshot({ state: "open" })} />)
+
+    const out = screen.getByLabelText("Open on GitHub")
+    expect(out.getAttribute("href")).toContain("/pull/")
+    expect(out.hasAttribute(BROWSER)).toBe(true)
+  })
+
+  test("is not drawn at all where the page itself is the way back", () => {
+    render(<Header snapshot={aSnapshot({ state: "open" })} onUseGitHub={() => {}} />)
+
+    expect(screen.queryByLabelText("Open on GitHub")).toBeNull()
+  })
+
+  /*
+   * Said by the control that means it, and by no other. A mark on every anchor on this
+   * card would send the reader's browser a pull request this window draws itself.
+   */
+  test("is said by that one control and not by the card's own links", () => {
+    render(<Header snapshot={aSnapshot({ state: "open" })} />)
+
+    const marked = document.querySelectorAll(`a[${BROWSER}]`)
+    expect(marked.length).toBe(1)
+    expect(marked[0]?.getAttribute("aria-label")).toBe("Open on GitHub")
   })
 })

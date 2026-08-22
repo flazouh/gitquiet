@@ -415,7 +415,10 @@ export class GitHubGateway extends Context.Service<
      * it, and the screen prefers the document it is already standing on to any of
      * this.
      */
-    readonly repoHome: (reference: RepoRef) => Effect.Effect<Front, GatewayError>
+    readonly repoHome: (
+      reference: RepoRef,
+      branch: string | null
+    ) => Effect.Effect<Front, GatewayError>
 
     /**
      * A workflow run: its own facts, every job it ran, and everything those jobs
@@ -746,7 +749,8 @@ export class GitHubGateway extends Context.Service<
      * moment later.
      */
     readonly rememberedRepoHome: (
-      reference: RepoRef
+      reference: RepoRef,
+      branch: string | null
     ) => Effect.Effect<Option.Option<Front>, GatewayError>
     /**
      * The facts their own commit list defers, for the page it just answered.

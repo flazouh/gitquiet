@@ -5,7 +5,7 @@ import { DEFAULT_PROFILE, type Profile } from "../keys/commands"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
-import { useFreshening } from "./useFreshening"
+import { useUpdated } from "./useUpdated"
 import { type Load, useLive } from "./useLive"
 import type { Repository } from "../domain/repositories"
 import { TheBar } from "./TheBar"
@@ -30,8 +30,6 @@ export type RepoPullsScreenProps = {
   readonly onOpen: (reference: PullRequestRef) => void
   /** Restores GitHub's own list, which is still on the page behind this. */
   readonly onStepAside: () => void
-  /** Goes to another page of the same list, by changing the address GitHub reads. */
-  readonly onPage: (page: number) => void
   /**
    * What the address already asked for, where it asked for anything.
    *
@@ -54,16 +52,13 @@ export type RepoPullsScreenProps = {
 
 const WORKING = "Reading this repository's pull requests…"
 
-/** The same read, said over a list that is already on the screen. */
-const CHECKING = "Checking this repository's pull requests…"
+const UPDATED = "Repository pull requests updated"
 
 /**
- * How many there are, and which of them this is.
+ * How many there are, and whether the safe read limit cut the list.
  *
  * The one thing this page has to say that the Working Set does not. A repository can
- * have two thousand pull requests open and a page holds twenty-five: without the
- * count, the first page of something enormous and the whole of something small are
- * the same picture.
+ * A capped read must say how much of the repository it could show.
  */
 const Tally = ({ pages, rows }: { readonly pages: Listed["pages"]; readonly rows: number }) =>
   Option.match(pages, {
@@ -74,50 +69,11 @@ const Tally = ({ pages, rows }: { readonly pages: Listed["pages"]; readonly rows
     ),
     onSome: (where) => (
       <span className="text-sm text-ink-muted">
-        {where.count.toLocaleString()} {where.count === 1 ? "pull request" : "pull requests"}
-        {where.total > 1 ? ` · page ${where.current} of ${where.total}` : ""}
+        {`${rows.toLocaleString()} of ${where.count.toLocaleString()} ${
+          where.count === 1 ? "pull request" : "pull requests"
+        }`}
       </span>
     )
-  })
-
-/**
- * The way to the rest of them.
- *
- * Two buttons rather than a row of numbered pages. GitHub's own numbered pager exists
- * because their list is the only way through a repository's pull requests; here the
- * filter above the rows answers most of what somebody would page around looking for,
- * and a page of twenty-five is a scroll rather than a destination.
- */
-const Pager = ({
-  pages,
-  onPage
-}: {
-  readonly pages: Listed["pages"]
-  readonly onPage: (page: number) => void
-}) =>
-  Option.match(pages, {
-    onNone: () => null,
-    onSome: (where) =>
-      where.total <= 1 ? null : (
-        <div className="flex items-center justify-center gap-2 py-3">
-          <button
-            type="button"
-            className="btn btn-sm"
-            disabled={where.current <= 1}
-            onClick={() => onPage(where.current - 1)}
-          >
-            Previous
-          </button>
-          <button
-            type="button"
-            className="btn btn-sm"
-            disabled={where.current >= where.total}
-            onClick={() => onPage(where.current + 1)}
-          >
-            Next
-          </button>
-        </div>
-      )
   })
 
 export const RepoPullsScreen = ({
@@ -127,7 +83,6 @@ export const RepoPullsScreen = ({
   preload,
   onOpen,
   onStepAside,
-  onPage,
   seed,
   keys = DEFAULT_PROFILE,
   signedIn = viewerOnPage
@@ -135,7 +90,7 @@ export const RepoPullsScreen = ({
   const live = useLive(load, preload)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useFreshening(live.catchingUp, CHECKING)
+  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
 
   if (read.status === "failed") {
     return (
@@ -187,7 +142,6 @@ export const RepoPullsScreen = ({
             within={repo}
             keys={keys}
           />
-          <Pager pages={listed.pages} onPage={onPage} />
         </div>
       )}
       {waiting ? (

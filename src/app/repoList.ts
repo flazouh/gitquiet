@@ -21,6 +21,32 @@ import { sizesOf } from "./sizes"
  * rounds of a second each before the tree appeared.
  */
 const BRANCHES_AT_ONCE = 8
+const SEARCH_PAGES_AT_ONCE = 4
+const MAX_SEARCH_PAGES = 40
+
+const allPages = Effect.fn("repoList.allPages")(function* (list: RepoList) {
+  const gateway = yield* GitHubGateway
+  const first = yield* gateway.search(queryFor(list), 1)
+  const total = Option.match(first.pages, {
+    onNone: () => 1,
+    onSome: (pages) => pages.total
+  })
+  const lastPage = Math.min(total, MAX_SEARCH_PAGES)
+  const rest = yield* Effect.all(
+    Array.from({ length: Math.max(0, lastPage - 1) }, (_, at) =>
+      gateway.search(queryFor(list), at + 2)
+    ),
+    { concurrency: SEARCH_PAGES_AT_ONCE }
+  )
+
+  return {
+    rows: [first, ...rest].flatMap((found) => found.rows),
+    pages:
+      total > MAX_SEARCH_PAGES
+        ? Option.map(first.pages, (pages) => ({ ...pages, current: 1 }))
+        : Option.none<Pages>()
+  }
+})
 
 const branchesOf = Effect.fn("repoList.branchesOf")(function* (
   rows: ReadonlyArray<InvolvedPullRequest>
@@ -40,7 +66,7 @@ const branchesOf = Effect.fn("repoList.branchesOf")(function* (
   return new Map(found)
 })
 
-/** One page of a repository's pull requests, arranged into Courts, ready for the screen. */
+/** A repository's pull requests, arranged into Courts, ready for the screen. */
 export type Listed = {
   readonly sittings: ReadonlyArray<Sitting>
   readonly pages: Option.Option<Pages>
@@ -66,7 +92,7 @@ export const warmRepoList = Effect.fn("warmRepoList")(function* (list: RepoList)
 })
 
 /**
- * One page of a repository's list as it was last read, without asking GitHub.
+ * One cached page of a repository's list, without asking GitHub.
  *
  * Nothing without the page itself, which is the read that is the list. The
  * shelves are wanted but not required, exactly as they are in the live read
@@ -103,7 +129,7 @@ export const rememberedRepoList = Effect.fn("rememberedRepoList")(function* (lis
 })
 
 /**
- * One page of a repository's own pull request list.
+ * One repository's pull request list.
  *
  * Four reads, and as with the Working Set they fail differently on purpose.
  *
@@ -144,7 +170,7 @@ export const loadRepoList = Effect.fn("loadRepoList")(function* (
     { startImmediately: true }
   )
 
-  const found = yield* gateway.search(queryFor(list), list.page)
+  const found = yield* allPages(list)
 
   /*
    * What the store already knows about these rows, before the reads that find it

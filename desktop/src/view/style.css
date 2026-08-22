@@ -182,28 +182,30 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-#gitquiet-root {
-  height: 100%;
-}
-
-/*
- * How much room a dialog leaves around itself in this window.
- *
- * The shared interface centres its sheets and asks the shell how much of the edge
- * is already taken. In a page the answer is a margin; here the top-left corner of
- * the window holds the traffic lights, and a sheet centred in 86% of the window
- * put its own first heading directly under them — a heading nobody could read and
- * three buttons nobody could press. Twice thirty-eight, because centring gives half
- * of it to each edge and thirty-eight is where the lights end.
- */
 :root {
-  --sheet-away: 76px;
+  /*
+   * How much room a dialog leaves around itself in this window.
+   *
+   * The shared interface centres its sheets and asks the shell how much of the edge
+   * is already taken. In a page the answer is a margin; here the top-left corner of
+   * the window holds the traffic lights, and a sheet centred in 86% of the window
+   * put its own first heading directly under them — a heading nobody could read and
+   * three buttons nobody could press.
+   *
+   * Twice the row, because centring gives half of it to each edge and the row is
+   * what is in the way. Written as the row rather than as a number: it was seventy-six
+   * against a strip of thirty-eight, the strip then became fifty-six, and a sheet in a
+   * short window went back to opening under the bar.
+   */
+  --sheet-away: calc(2 * var(--chrome));
   /* The title row's own height: the pane the bar draws, and the air it floats in
      above and below. */
   --chrome: 56px;
   /* The room the traffic lights need before anything of ours may be drawn. They
      are the system's and they are drawn over this webview, so this is the one
-     measurement in the window that is somebody else's. */
+     measurement in the window that is somebody else's. Their own offset is set
+     where the window is made — see `trafficLightOffset` in `src/bun/index.ts`,
+     which is read against this row by `lights.test.ts`. */
   --lights: 78px;
 }
 
@@ -218,6 +220,7 @@ body {
 #gitquiet-root {
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 /*
@@ -246,9 +249,13 @@ body {
    */
   --gitquiet-gutter: 8px;
 
+  /*
+   * No `position` and no `z-index`, which is the same rule the screen below keeps
+   * for the same reason: a strip inside a stacking context is a window macOS will
+   * not let anybody move. Nothing needs one either — the list starts below this row
+   * rather than under it, so the pane's cast falls on the window's own fill.
+   */
   -webkit-app-region: drag;
-  position: relative;
-  z-index: 1;
   display: flex;
   flex: none;
   align-items: flex-start;
@@ -463,9 +470,8 @@ body {
  * lit edge and the cast are what make the corner read. See `glass.css`.
  */
 .page {
-  /* Named because the wait has to take it off the page too, and a wait that
-     centred itself in the page while the page it stands in is shorter by this
-     much would sit low by half of it. */
+  /* Named because two rules spend it: the air under the last card, and the wait
+     below, which takes it off the window before it centres anything in itself. */
   --page-away: 32px;
   flex: 1;
   min-height: 0;
@@ -485,9 +491,17 @@ body {
  *
  * Only while it is still waiting. On the way out it is taken out of flow and laid
  * over the list that has arrived, and that is the list's height to decide.
+ *
+ * Measured off the window rather than off the page, and the arithmetic is not a
+ * duplicate of the padding. A percentage would be the shorter way to write this and
+ * it does not work here: the page's own height comes from `flex: 1`, which this
+ * engine treats as indefinite for the purpose of resolving a percentage, so
+ * `min-height: 100%` computes to `100%` and lays out as `auto` — 51 pixels of words
+ * at the top of an empty window. Both forms were measured in the running app in the
+ * same frame: 51 against 775, where the page's content box is 775.
  */
 .page .t-waiting:not([data-leaving]) {
-  min-height: calc(100% - var(--page-away));
+  min-height: calc(100vh - var(--chrome) - var(--page-away));
 }
 /*---break---
  */

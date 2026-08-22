@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { Effect } from "effect"
-import { loadWorkingSet } from "../../../src/app/workingSet"
+import { Effect, Option } from "effect"
+import { loadWorkingSet, rememberedWorkingSet } from "../../../src/app/workingSet"
 import type { WorkingSetRow } from "../shared/wire"
 
 /*
@@ -66,5 +66,50 @@ describe("the working set the window builds out of the rows it was handed", () =
     expect(
       sittings.flatMap((sitting) => sitting.piles.map((pile) => pile.one.reference.number))
     ).toEqual([7])
+  })
+
+  /*
+   * The same fault, one question over, and this one is the whole reason the window
+   * keeps anything at all.
+   *
+   * Pressing back to the list read the rows off disk in about a millisecond and then
+   * stopped: `rememberedRows` answered with the branches and the sizes and left the
+   * standings off, so arranging them was a read of a property that was not there.
+   * The memory never reached the screen. What the reader got instead was "Reading
+   * your pull requests…" for eight seconds — measured — with a list of fifty-two rows
+   * sitting in `localStorage` the entire time.
+   */
+  test("hands back the list it kept, which is what makes going back instant", async () => {
+    const build = await gatewayFrom()
+    const green = { state: "passing", total: 3, passed: 3 } as const
+
+    const remembered = await Effect.runPromise(
+      rememberedWorkingSet().pipe(Effect.provide(build([{ ...ROW, checks: green }])))
+    )
+
+    const sittings = Option.getOrThrow(remembered)
+
+    expect(
+      sittings.flatMap((sitting) => sitting.piles.map((pile) => pile.one.reference.number))
+    ).toEqual([7])
+    // The standings among them, those being the half that was missing: a list drawn
+    // without them is a row of pull requests with no word for their checks.
+    expect(sittings.flatMap((sitting) => sitting.piles.map((pile) => pile.one.checks))).toEqual([
+      Option.some(green)
+    ])
+  })
+
+  test("keeps nothing at all when it was handed nothing, rather than an empty list", async () => {
+    /*
+     * A confident empty list painted over a read that has not finished is worse than
+     * the bones: it says "nothing needs you" to a reader who has fifty rows waiting.
+     */
+    const build = await gatewayFrom()
+
+    const nothing = await Effect.runPromise(
+      rememberedWorkingSet().pipe(Effect.provide(build([])))
+    )
+
+    expect(nothing).toEqual(Option.none())
   })
 })

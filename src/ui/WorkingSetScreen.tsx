@@ -14,7 +14,7 @@ import { useWaiting } from "./useWaiting";
 import { Waiting } from "./Waiting";
 import { ReadFailed, viewerOnPage } from "./ReadFailed";
 import type { Asking } from "./Doings";
-import { useFreshening } from "./useFreshening";
+import { useUpdated } from "./useUpdated";
 import { type Load, useLive } from "./useLive";
 import { WorkingSet } from "./WorkingSet";
 
@@ -27,6 +27,8 @@ export type WorkingSetScreenProps = {
    * remembered, which is the only age nothing here can bound.
    */
   readonly preload?: () => Effect.Effect<Option.Option<ReadonlyArray<Sitting>>>;
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string;
   readonly onOpen: (reference: PullRequestRef) => void;
   /** Restores GitHub's own list, which is still on the page behind this. */
   readonly onStepAside: () => void;
@@ -113,8 +115,7 @@ export type WorkingSetScreenProps = {
 
 const WORKING = "Reading your pull requests…";
 
-/** The same read, said over a list that is already on the screen. */
-const CHECKING = "Checking your pull requests…";
+const UPDATED = "Pull requests updated";
 
 /** One array rather than a new one per render, so the fold below is not redone hourly. */
 const EMPTY: ReadonlyArray<Sitting> = [];
@@ -122,6 +123,7 @@ const EMPTY: ReadonlyArray<Sitting> = [];
 export const WorkingSetScreen = ({
   load,
   preload,
+  where,
   onOpen,
   onStepAside,
   pinned,
@@ -139,10 +141,10 @@ export const WorkingSetScreen = ({
   recallRepositories,
   elsewhere,
 }: WorkingSetScreenProps) => {
-  const live = useLive(load, preload);
+  const live = useLive(load, preload, where);
   const { read, meanwhile } = live;
   const waiting = useWaiting(read.status);
-  useFreshening(live.catchingUp, CHECKING);
+  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED);
 
   /*
    * The Rail's repositories, out of the read that is already on the screen.
@@ -298,7 +300,7 @@ export const WorkingSetScreen = ({
        * keeps it and where a hand already goes for it. Two of the same menu on one screen is
        * a reader wondering which of them is the real one.
        */}
-      <div className="flex items-start gap-4 py-3">
+      <div className="flex items-start gap-1 py-3">
         <Rail
           destination={destination}
           onDestination={onDestination ?? (() => undefined)}

@@ -17,10 +17,11 @@ import { shelfOf } from "@/app/shelf"
 import type { Front, RepoHome, Touch } from "@/domain/repoHome"
 import { repoHomeIn } from "@/domain/repoHome"
 import type { View } from "@/domain/Settings"
-import { frontInDocument } from "@/github/repoHome"
+import { frontInDocument, repoHomeInDocument } from "@/github/repoHome"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
+import { repoNamed } from "@/ui/lastDrawn"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { REPO_HOME } from "@/ui/place"
@@ -48,7 +49,9 @@ const sameTree = (one: RepoHome, two: RepoHome): boolean =>
  * again on every visit. See `KeptFront` in `src/domain/repoHome.ts`, which is the
  * lighter thing the store does hold.
  */
-let asLastSeen: { readonly address: string; readonly front: Front } | undefined
+let asLastSeen:
+  | { readonly address: string; readonly branch: string | null; readonly front: Front }
+  | undefined
 
 /**
  * A screen that is up, and the two things the shell can still do to it.
@@ -61,10 +64,10 @@ let asLastSeen: { readonly address: string; readonly front: Front } | undefined
  */
 type Open = {
   readonly close: () => void
-  readonly retarget: (reading: string | null) => void
+  readonly retarget: (reading: string | null, branch: string | null) => void
 }
 
-const open = (home: RepoHome): Open => {
+const open = (home: RepoHome, onMove: (path: string) => void): Open => {
   /*
    * The payload GitHub already put in this document, where it put one.
    *
@@ -75,7 +78,7 @@ const open = (home: RepoHome): Open => {
    * a soft navigation between repositories.
    */
   const having = () =>
-    frontInDocument(home.repo, document).pipe(
+    frontInDocument(home.repo, home.branch, document).pipe(
       Effect.catch(() => Effect.succeed(Option.none<Front>()))
     )
 
@@ -91,11 +94,11 @@ const open = (home: RepoHome): Open => {
 
   const reading = (partly: (front: Front) => void) =>
     having().pipe(
-      Effect.flatMap((inPage) => loadRepoHome(home.repo, inPage, partly)),
+      Effect.flatMap((inPage) => loadRepoHome(home.repo, home.branch, inPage, partly)),
       throughGitHub,
       Effect.tap((front) =>
         Effect.sync(() => {
-          asLastSeen = { address: addressOf(home), front }
+          asLastSeen = { address: addressOf(home), branch: home.branch, front }
           branchNow = front.branch
         })
       ),
@@ -103,12 +106,15 @@ const open = (home: RepoHome): Open => {
     )
 
   /** This very page, as this document last had it up. */
-  const held = asLastSeen?.address === addressOf(home) ? asLastSeen.front : undefined
+  const held =
+    asLastSeen?.address === addressOf(home) && asLastSeen.branch === home.branch
+      ? asLastSeen.front
+      : undefined
 
   const remembered = () =>
     held !== undefined
       ? Effect.succeed(Option.some(held))
-      : rememberedRepoHome(home.repo).pipe(
+      : rememberedRepoHome(home.repo, home.branch).pipe(
           throughGitHub,
           Effect.catch(() => Effect.succeed(Option.none<Front>()))
         )
@@ -188,12 +194,14 @@ const open = (home: RepoHome): Open => {
           .map(encodeURIComponent)
           .join("/")}`
     if (window.location.pathname === at) return
+    onMove(at)
     window.history.pushState(null, "", at)
-    show(reading)
+    show(reading, branchNow)
   }
 
   // Which file is open in the reading pane, or the README where none is.
   let showing = home.reading
+  let showingBranch = home.branch ?? undefined
 
   const page = standAScreen({
     place: REPO_HOME,
@@ -202,6 +210,7 @@ const open = (home: RepoHome): Open => {
         repo={home.repo}
         load={read}
         preload={remembered}
+        where={repoNamed(home.repo, home.branch)}
         recallRepositories={recallRepositories}
         onStepAside={standing.stepAside}
         onStar={(to) => starRepo(home.repo, to).pipe(throughGitHub)}
@@ -212,21 +221,23 @@ const open = (home: RepoHome): Open => {
         loadReadme={readme}
         shelf={shelf}
         reading={showing}
+        readingBranch={showingBranch}
         onRead={goTo}
       />
     )
   })
 
   /** Another file in the same tree, which is a redraw rather than a new page. */
-  function show(reading: string | null): void {
+  function show(reading: string | null, branch: string | null): void {
     showing = reading
+    showingBranch = branch ?? undefined
     page.redraw()
   }
 
   return {
     close: page.close,
-    retarget: (reading) => {
-      if (reading !== showing) show(reading)
+    retarget: (reading, branch) => {
+      if (reading !== showing || (branch ?? undefined) !== showingBranch) show(reading, branch)
     }
   }
 }
@@ -247,17 +258,50 @@ export const start = (): void => {
   let up: Open | undefined
   let on: RepoHome | undefined
   let view: View = "ours"
+  let handledPath: string | undefined
+  let waiting: MutationObserver | undefined
+  let waitingFor: string | undefined
+
+  const stopWaiting = (): void => {
+    waiting?.disconnect()
+    waiting = undefined
+    waitingFor = undefined
+  }
+
+  const waitForDocument = (url: string): void => {
+    if (waitingFor === url) return
+    stopWaiting()
+    waitingFor = url
+
+    waiting = new MutationObserver(() => {
+      if (URL.parse(url)?.pathname !== window.location.pathname) {
+        stopWaiting()
+        return
+      }
+
+      if (Option.isSome(repoHomeInDocument(url, document))) {
+        stopWaiting()
+        show(url)
+      }
+    })
+    waiting.observe(document.documentElement, { childList: true, subtree: true, characterData: true })
+  }
 
   const show = (url: string): void => {
-    const home = repoHomeIn(url)
+    const address = repoHomeIn(url)
+    const home = repoHomeInDocument(url, document)
 
     if (Option.isNone(home)) {
       up?.close()
       up = undefined
       on = undefined
       handBack(document)
+      if (Option.isSome(address) && address.value.branch !== null) waitForDocument(url)
+      else stopWaiting()
       return
     }
+
+    stopWaiting()
 
     /*
      * The same page with another document in one column, which is a press in
@@ -267,7 +311,7 @@ export const start = (): void => {
      */
     if (up !== undefined && on !== undefined && sameTree(on, home.value)) {
       on = home.value
-      up.retarget(home.value.reading)
+      up.retarget(home.value.reading, home.value.branch)
       return
     }
 
@@ -281,27 +325,44 @@ export const start = (): void => {
       return
     }
 
-    up = open(home.value)
+    up = open(home.value, (path) => {
+      handledPath = path
+    })
     on = home.value
   }
 
-  whenLocationChanges(window, () => show(window.location.href))
+  whenLocationChanges(window, (path) => {
+    if (path === handledPath) {
+      handledPath = undefined
+      return
+    }
+    handledPath = undefined
+    show(window.location.href)
+  })
 
   Effect.runFork(
     chosenView(store).pipe(
       Effect.map((chosen) => {
         view = chosen
 
-        const here = window.location.href
-        const promise = intendedPath(window)
-        forgetIntent(window)
+        const arrive = () => {
+          const here = window.location.href
+          const promise = intendedPath(window)
+          forgetIntent(window)
 
-        if (Option.isSome(repoHomeIn(here))) show(here)
-        else if (promise !== null) {
-          const asked = new URL(promise, window.location.origin).toString()
-          if (Option.isSome(repoHomeIn(asked))) show(asked)
-          else reveal(document)
-        } else reveal(document)
+          if (Option.isSome(repoHomeIn(here))) show(here)
+          else if (promise !== null) {
+            const asked = new URL(promise, window.location.origin).toString()
+            if (Option.isSome(repoHomeIn(asked))) show(asked)
+            else reveal(document)
+          } else reveal(document)
+        }
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", arrive, { once: true })
+        } else {
+          arrive()
+        }
       })
     )
   )

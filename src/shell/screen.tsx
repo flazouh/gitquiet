@@ -3,21 +3,24 @@ import type { ReactNode } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { reportError } from "../observability/sentry"
 import { whenAnotherBarStands } from "../ui/barSlot"
+import { runWhenIdle } from "../ui/idle"
 import {
   GOING,
   gate,
   handBack,
+  hasPreparedScreen,
   interfaceContainer,
   markPage,
   ourSurface,
+  rememberLiveScreen,
   reveal,
   takeOverSlotWhenReady,
-  theScreenIsAt,
   ungate,
   whenTakenOver,
   whenThereIsAPage
 } from "../ui/mount"
 import type { Place } from "../ui/place"
+import { OWNED_TRAVERSAL } from "../ui/preparedNavigation"
 import { Supplied } from "./supplied"
 
 /**
@@ -68,6 +71,8 @@ const FAILSAFE = 20_000
  * looking at with it.
  */
 const roots = new WeakMap<Element, { readonly root: Root; owner: symbol }>()
+const preparedRoots = new WeakSet<Element>()
+const preparedBridges = new WeakMap<Element, { adopt: (standing: Standing) => void }>()
 
 const rootOn = (container: Element, owner: symbol): Root => {
   const had = roots.get(container)
@@ -110,6 +115,8 @@ export type Standing = {
 export type Screen = {
   /** Which of GitHub's pages this stands on, and which addresses are its own. */
   readonly place: Place
+  /** The exact route this screen draws, including before a traversal commits. */
+  readonly route?: string
   /** What to draw. Called again on every {@link Standing.redraw}. */
   readonly draw: (standing: Standing) => ReactNode
   /**
@@ -138,13 +145,8 @@ export type Screen = {
  * loading a page, so a screen left standing would still be over the next one, and the
  * attribute holding GitHub's own content out of sight would still be set.
  */
-export const standAScreen = ({
-  place,
-  draw,
-  holding,
-  borrowing = true,
-  settling
-}: Screen): Standing => {
+export const standAScreen = (screen: Screen): Standing => {
+  const { place, route, draw, holding, borrowing = true, settling } = screen
   /*
    * Named before anything else. The rules that hide GitHub's version of this page are
    * written per page and hang on this attribute, and on a move between two of our own
@@ -169,11 +171,17 @@ export const standAScreen = ({
   // waits on an address and on GitHub's React, and can finish long afterwards.
   let watching = true
 
-  const container = interfaceContainer(document, place)
+  const container = interfaceContainer(document, place, route)
+  const prepared = preparedRoots.delete(container)
   /** This stand-up, told apart from another on the same container. */
   const mine = Symbol(place.name)
   const root = rootOn(container, mine)
   const letGo = holding?.(container) ?? (() => {})
+
+  /** The new standing that claimed this live tree from the history cache. */
+  let adopted: Standing | undefined
+  /** Stops the one return listener installed while this live tree is cached. */
+  let stopResuming = (): void => {}
 
   let down = false
   // Assigned by the wait at the foot of this function, and called from `standDown` above
@@ -195,17 +203,53 @@ export const standAScreen = ({
    * under it jumped up by the height of one and back down. So the slot says when: see
    * {@link whenAnotherBarStands}, and `glass.css` for the one frame they overlap.
    */
-  const standDown = (): void => {
+  const unmount = (): void => {
+    stopResuming()
+    if (!stillOwned(container, mine)) return
+    roots.delete(container)
+    root.unmount()
+  }
+  const standDown = (event?: Event): void => {
     if (down) return
     down = true
+    const keepLive = event instanceof CustomEvent && event.detail === true
     stopWaitingForABody()
     letGo()
     whenAnotherBarStands(document, () => {
       // Another stand-up on this container has the tree now, which is the screen on the
       // page: this one's tree stopped existing the moment that render replaced it.
-      if (!stillOwned(container, mine)) return
-      roots.delete(container)
-      root.unmount()
+      // Cleanup can be expensive on a large pull request. Leave the navigation task
+      // free to paint the prepared route before React runs every outgoing cleanup.
+      const remembered =
+        keepLive &&
+        rememberLiveScreen(container, place, () => {
+          stopResuming()
+          runWhenIdle(unmount, 2_000)
+        })
+      if (remembered) {
+        preparedRoots.add(container)
+        preparedBridges.set(container, {
+          adopt: (screen) => {
+            adopted = screen
+          }
+        })
+        const exactRoute = container.getAttribute("data-gitquiet-route")
+        if (exactRoute !== null) {
+          const resume = (event: Event): void => {
+            if ((event as CustomEvent<string>).detail !== exactRoute) return
+            if (!hasPreparedScreen(document, exactRoute, place)) return
+            stopResuming()
+            standAScreen(screen)
+          }
+          document.addEventListener(OWNED_TRAVERSAL, resume)
+          stopResuming = () => {
+            document.removeEventListener(OWNED_TRAVERSAL, resume)
+            stopResuming = () => {}
+          }
+        }
+        return
+      }
+      runWhenIdle(unmount, 2_000)
     })
   }
 
@@ -232,10 +276,21 @@ export const standAScreen = ({
      * rather than gone, and nothing is going to make them render it again: no document
      * is coming, because answering the press without one is the whole point.
      */
-    const surface = borrowing ? (ourSurface(document) ?? undefined) : undefined
+    const surface = borrowing
+      ? (container.parentElement ?? ourSurface(document) ?? undefined)
+      : undefined
 
     waiting = whenTakenOver(
-      () => takeOverSlotWhenReady(document, container, undefined, settling, place, surface),
+      () =>
+        takeOverSlotWhenReady(
+          document,
+          container,
+          undefined,
+          settling,
+          place,
+          surface,
+          route
+        ),
       {
         taken: (takeover) => {
           /*
@@ -268,26 +323,27 @@ export const standAScreen = ({
       }
     )
 
-    standing.redraw()
+    if (!prepared) standing.redraw()
   }
 
   const standing: Standing = {
     container,
-    stepAside: () => stepAside(),
+    stepAside: () => adopted?.stepAside() ?? stepAside(),
+    // Nothing is said here about which address is up. This runs at the press, before
+    // the screen has read anything, so the only address available is the one asked
+    // for. `useDrawnAt` publishes the one that is drawn.
     redraw: () => {
-      /*
-       * Which address this screen is drawing, said where every drawing goes through.
-       *
-       * A screen that shows a second page of its own kind never comes down — the
-       * reader moving between two pull requests keeps this container, this root, and
-       * only draws again — so the mark saying which kind of screen is up cannot tell
-       * anyone the second page arrived. It read "conversation" before the press and
-       * reads it after. See {@link theScreenArrived}.
-       */
-      theScreenIsAt(document, window.location.pathname)
+      if (adopted !== undefined) {
+        adopted.redraw()
+        return
+      }
       root.render(<Supplied root={container}>{draw(standing)}</Supplied>)
     },
     close: () => {
+      if (adopted !== undefined) {
+        adopted.close()
+        return
+      }
       watching = false
       clearTimeout(failsafe)
       // Nothing is waiting for this page any more. Left alone the wait holds an address
@@ -314,6 +370,11 @@ export const standAScreen = ({
       handBack(document)
     }
   }
+  if (prepared) {
+    const bridge = preparedBridges.get(container)
+    bridge?.adopt(standing)
+    preparedBridges.delete(container)
+  }
   /*
    * Everything above this line is a statement about the document; everything in
    * {@link standUp} needs a page to put a screen on, and at `document_start` there is
@@ -325,6 +386,55 @@ export const standAScreen = ({
     standUp()
   })
 
+  return standing
+}
+
+/**
+ * Builds one screen in a detached container, without naming or taking the page.
+ *
+ * A route pre-render uses this during pointer rest. The finished HTML can enter the
+ * route cache, while the current screen keeps every event handler until the click.
+ */
+export const prepareAScreen = (draw: (standing: Standing) => ReactNode): Standing => {
+  const container = document.createElement("div")
+  const owner = Symbol("prepared screen")
+  const root = rootOn(container, owner)
+  let closed = false
+  let adopted: Standing | undefined
+
+  const standing: Standing = {
+    container,
+    stepAside: () => adopted?.stepAside() ?? false,
+    redraw: () => {
+      if (adopted !== undefined) {
+        adopted.redraw()
+        return
+      }
+      if (closed) return
+      root.render(<Supplied root={container} quiet>{draw(standing)}</Supplied>)
+    },
+    close: () => {
+      if (adopted !== undefined) {
+        adopted.close()
+        return
+      }
+      if (closed) return
+      closed = true
+      runWhenIdle(() => {
+        if (!stillOwned(container, owner)) return
+        roots.delete(container)
+        root.unmount()
+      }, 2_000)
+    }
+  }
+
+  preparedRoots.add(container)
+  preparedBridges.set(container, {
+    adopt: (screen) => {
+      adopted = screen
+    }
+  })
+  standing.redraw()
   return standing
 }
 
@@ -373,4 +483,3 @@ export const held = <A, E>(
     return Fiber.join(first)
   }
 }
-

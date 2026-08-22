@@ -21,14 +21,23 @@ To load the extension by hand instead: `bun run build`, then open
 
 ## The gates
 
-One command decides whether a change can land, and it holds the three gates:
+One command decides whether a change can land, and it holds the four gates:
 
 ```sh
-bun run gates   # oxlint over src, then tsc --noEmit, then the whole suite
+bun run gates   # oxlint over src, tsc for the extension, tsc for the app, then the whole suite
 ```
 
 The list lives in `package.json`, so the git hooks and
 `.github/workflows/ci.yml` run that script rather than their own copy of it.
+
+Two typechecks, because there are two programs. The extension's `tsconfig.json`
+reads `src`, `tests`, `scripts` and `shots`; the app has its own under
+`desktop/`, with its own paths and its own DOM. The app's was not run by
+anything for a while, and what grew in the gap was a gateway missing fifty-six
+of the port's methods. One of them was reached on a press: calling a method that
+is not there is a defect rather than a failure, so it never became the screen's
+word for "this went wrong" and the window waited eight seconds with the answer
+already on disk.
 
 A test is given twenty seconds rather than bun's five. `--parallel` runs a worker
 per core and a dozen of these tests parse a real GitHub page of a third of a

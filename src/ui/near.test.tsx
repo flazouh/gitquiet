@@ -155,6 +155,13 @@ describe("the link the pointer is heading for", () => {
     expect(linkNear(AT, pick)?.from.reach).toBe(0)
   })
 
+  test("keeps finding a warmed route while its native address is inert", () => {
+    const link = document.createElement("a")
+    link.setAttribute("data-gitquiet-owned-route", "/flazouh")
+
+    expect(linkNear(AT, () => link)?.link).toBe(link)
+  })
+
   /*
    * The whole point of this one. By the time the pointer is on the button the reader has
    * already decided, and all that is left to read ahead in is the couple of hundred

@@ -160,34 +160,19 @@ describe("the bar as glass", () => {
     /*
      * The window floats its bar in the row the traffic lights sit in, and it was given the
      * corner and the cast by hand: two of these declarations retyped, and the lens left out
-     * on the grounds that a window has nothing behind the pane to bend. It has. The list
-     * reaches back up under the row — see `.page` — so the same four layers read the same
-     * kind of thing in both places, and one pane drawn twice was one pane that would drift.
+     * on the grounds that a window has nothing behind the pane to bend. It has. What it
+     * reads is the window's own fill, which comes back a shade darker on a dark pack and
+     * lighter on a light one, and the lit edge and the cast are what make the corner read.
+     *
+     * The list scrolling under the row was tried and taken out — the strip left of the pane
+     * belongs to the traffic lights — so the two hosts give the lens different things to
+     * read. They read it with the same four layers, because one pane drawn twice is one
+     * pane that drifts.
      */
     expect(readFileSync("src/ui/styles.css", "utf8")).toContain('@import "./glass.css"')
     expect(readFileSync("desktop/src/view/style.css", "utf8")).toContain(
       '@import "../../../src/ui/glass.css"'
     )
-  })
-
-  test("reads the window's own surface in there, since the list stops at the row", () => {
-    /*
-     * What the lens hands back in the window is the window: the pane comes off it a shade
-     * darker on a dark pack and lighter on a light one, with the same lit edge and the same
-     * cast, which is what makes the corner read.
-     *
-     * The list scrolling under the row was tried and taken out. It is the better backdrop and
-     * it cannot be had here: the strip left of the pane belongs to the traffic lights, and a
-     * row of ours passing behind them put an avatar and a branch icon in a line with the green
-     * one, at the same size and the same spacing. So the row keeps its own height in the flow.
-     */
-    const window = readFileSync("desktop/src/view/style.css", "utf8")
-    const page = window.slice(
-      window.indexOf(".page {"),
-      window.indexOf("}", window.indexOf(".page {"))
-    )
-
-    expect(page).not.toContain("margin-top")
   })
 
   /*
@@ -242,21 +227,11 @@ describe("the bar as glass", () => {
     }
   })
 
-  test("keeps the ring faint, because nothing else in this interface has a border", () => {
-    /*
-     * The ring is the edge of the glass and not a line round a pane. At fourteen percent white it
-     * measured 58 against a fill of 20, which is a border; at five percent it measures 36, which is
-     * an edge that lifts. The ceilings are held here because the reason is not local to the file:
-     * `dress.ts` spends a file taking borders off this interface, and the bar cannot be the one
-     * surface that keeps one.
-     */
-    const alpha = (rule: string): number => {
-      const ring = shadowsOf(rule).find((one) => /^inset 0 0 0 \d+px/.test(one)) ?? ""
-      return Number.parseFloat(ring.slice(ring.indexOf("/") + 1))
+  test("draws no ring around the top bar", () => {
+    for (const rule of [schemeRule("dark"), schemeRule("light")]) {
+      const ring = shadowsOf(rule).find((one) => /^inset 0 0 0 \d+px/.test(one))
+      expect(ring).toBeUndefined()
     }
-
-    expect(alpha(schemeRule("dark"))).toBeLessThanOrEqual(0.08)
-    expect(alpha(schemeRule("light"))).toBeLessThanOrEqual(0.2)
   })
 
   test("keeps that glow a rim, so the rest of the pane is one flat fill", () => {
@@ -274,29 +249,6 @@ describe("the bar as glass", () => {
 
       expect(spread.length).toBeGreaterThan(0)
       for (const blur of spread) expect(blur).toBeLessThanOrEqual(8)
-    }
-  })
-
-  test("lights the edge with a ring, because a ring is the only even shape on a curve", () => {
-    /*
-     * The macOS demo lights two opposite edges with a pair of offset shadows, and on a rounded
-     * rectangle that pair cannot be even. Measured across the boundary at the four straights and
-     * the four corners, the offset pair gave a band 0.95px wide on every straight, 1.40px at the
-     * two corners whose normal the offset points along, and 0.10px at the other two, where the two
-     * shadows hand over and the light pinches out. Peaks ran from 49 to 83. The same measurement of
-     * a spread ring: 0.95px wide at all eight, peaks 58 and 60.
-     *
-     * So no offset on the edge light. A spread has no direction and therefore no corner it prefers.
-     */
-    for (const rule of [schemeRule("dark"), schemeRule("light")]) {
-      const inset = shadowsOf(rule).filter((one) => one.startsWith("inset"))
-      const ring = inset.filter((one) => /^inset 0 0 0 \d+px/.test(one))
-
-      expect(ring.length).toBe(1)
-      for (const one of inset) {
-        const [x, y] = one.split(/\s+/).slice(1, 3)
-        expect([x, y]).toEqual(["0", "0"])
-      }
     }
   })
 

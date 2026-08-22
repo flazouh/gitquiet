@@ -1397,8 +1397,9 @@ const AUTHORS_ROUTE = "/commits/deferred_commit_contributors"
 const authorsKey = (reference: RepoRef): string =>
   `/${reference.owner}/${reference.repo}${AUTHORS_ROUTE}`
 
-/** A repository's front page, kept under its own address. */
-const frontKey = (reference: RepoRef): string => `/${reference.owner}/${reference.repo}`
+/** A repository tree, kept under the branch address it was read from. */
+const frontKey = (reference: RepoRef, branch: string | null): string =>
+  `/${reference.owner}/${reference.repo}${branch === null ? "" : `/tree/${branch}`}`
 
 /**
  * One run, kept under the address it is read at.
@@ -3532,15 +3533,18 @@ export const layer = Layer.succeed(GitHubGateway, {
       }
     }),
 
-    repoHome: Effect.fn("GitHubGateway.repoHome")(function* (reference: RepoRef) {
-      const route = ""
+    repoHome: Effect.fn("GitHubGateway.repoHome")(function* (
+      reference: RepoRef,
+      branch: string | null
+    ) {
+      const route = branch === null ? "" : `/tree/${branch}`
       const page = yield* readRepoPage(reference, route)
 
       const front = yield* frontFrom(reference, page.payloads).pipe(
         Effect.catch(undecodableFrom(reference, route))
       )
 
-      yield* Effect.forkDetach(rememberRoute(frontKey(reference), keptFrom(front)))
+      yield* Effect.forkDetach(rememberRoute(frontKey(reference, branch), keptFrom(front)))
       // The tab row out of the same document, at the cost of one parse. See `tabs` below.
       yield* Effect.forkDetach(keepTheTabs(reference, page.html))
 
@@ -4028,17 +4032,19 @@ export const layer = Layer.succeed(GitHubGateway, {
     }),
 
     rememberedRepoHome: Effect.fn("GitHubGateway.rememberedRepoHome")(function* (
-      reference: RepoRef
+      reference: RepoRef,
+      branch: string | null
     ) {
-      const raw = yield* recallRoute(frontKey(reference))
+      const raw = yield* recallRoute(frontKey(reference, branch))
       if (Option.isNone(raw)) return Option.none<Front>()
 
       // Checked rather than trusted: the store outlives the code, and an entry
       // written before an update is the one shape that would reach the screen
       // and fail there.
-      return isKeptFront(raw.value)
-        ? Option.some(frontFromKept(reference, raw.value))
-        : Option.none<Front>()
+      if (!isKeptFront(raw.value)) return Option.none<Front>()
+
+      const front = frontFromKept(reference, raw.value)
+      return branch === null || front.branch === branch ? Option.some(front) : Option.none()
     }),
 
     rememberedCommits: Effect.fn("GitHubGateway.rememberedCommits")(function* (

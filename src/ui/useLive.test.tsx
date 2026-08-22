@@ -66,16 +66,19 @@ const held = <A,>(...answers: ReadonlyArray<A>) => {
 const Screen = ({
   load,
   preload,
+  keep,
   change,
   onRefusal
 }: {
   readonly load: Load<ReadonlyArray<string>>
   readonly preload?: () => Effect.Effect<Option.Option<ReadonlyArray<string>>>
+  /** What this page is called in this document's memory. See `lastDrawn.ts`. */
+  readonly keep?: string
   readonly change?: () => Effect.Effect<void, unknown>
   /** Told what GitHub said, where it said no, as the row menu is. */
   readonly onRefusal?: (said: unknown) => void
 }) => {
-  const live = useLive(load, preload)
+  const live = useLive(load, preload, keep)
 
   return (
     <div>
@@ -470,5 +473,107 @@ describe("a change shown before GitHub has agreed to it", () => {
       expect(rowsOf()).toBe("open")
       expect(refusal).toBeDefined()
     })
+  })
+})
+
+/**
+ * A page the reader has already seen, drawn again without being read again first.
+ *
+ * The back button is what this is for. A screen is closed and stood up again on
+ * every navigation of ours, and until now that threw away everything the last one
+ * knew: new atoms, an empty `early`, and a skeleton on the screen until either the
+ * store or GitHub answered. Pressing Back onto a list read a second ago cost a
+ * storage round trip to redraw a list that had not changed.
+ */
+describe("a page that has been on the screen before", () => {
+  // The memory outlives a test as it outlives a screen, and `tests/setup.ts`
+  // empties it after every test in the suite for that reason. These are the tests
+  // that would read each other's pages without it.
+  test("draws on the first frame, with no wait in between", async () => {
+    const first = held(["open", "open"])
+    const { unmount } = render(<Screen load={first.load} keep="/octo-org/octo-repo/pull/7" />)
+    await first.answer(1)
+    await waitFor(() => expect(rowsOf()).toBe("open,open"))
+    unmount()
+
+    // A read that never answers, so what is on the screen can only be the memory.
+    const again = held(["never"])
+    render(<Screen load={again.load} keep="/octo-org/octo-repo/pull/7" />)
+
+    expect(stateOf()).toBe("ready")
+    expect(rowsOf()).toBe("open,open")
+  })
+
+  test("says it is catching up, because what is shown is a moment old", async () => {
+    const first = held(["open"])
+    const { unmount } = render(<Screen load={first.load} keep="/one" />)
+    await first.answer(1)
+    await waitFor(() => expect(rowsOf()).toBe("open"))
+    unmount()
+
+    const again = held(["never"])
+    render(<Screen load={again.load} keep="/one" />)
+    await settle(1)
+
+    expect(catchingUp()).toBe("yes")
+  })
+
+  test("is replaced the moment GitHub answers, which is the whole policy", async () => {
+    const first = held(["open"])
+    const { unmount } = render(<Screen load={first.load} keep="/one" />)
+    await first.answer(1)
+    await waitFor(() => expect(rowsOf()).toBe("open"))
+    unmount()
+
+    const again = held(["closed"])
+    render(<Screen load={again.load} keep="/one" />)
+    await again.answer(1)
+
+    await waitFor(() => expect(rowsOf()).toBe("closed"))
+  })
+
+  test("is one page's memory and not another's", async () => {
+    const first = held(["open"])
+    const { unmount } = render(<Screen load={first.load} keep="/one" />)
+    await first.answer(1)
+    await waitFor(() => expect(rowsOf()).toBe("open"))
+    unmount()
+
+    const other = held(["never"])
+    render(<Screen load={other.load} keep="/two" />)
+
+    expect(stateOf()).toBe("loading")
+  })
+
+  /*
+   * A screen with no address of its own keeps nothing, which is most of them: two
+   * reads on one page would otherwise answer each other's questions.
+   */
+  test("keeps nothing at all for a screen that named no page", async () => {
+    const first = held(["open"])
+    const { unmount } = render(<Screen load={first.load} />)
+    await first.answer(1)
+    await waitFor(() => expect(rowsOf()).toBe("open"))
+    unmount()
+
+    const again = held(["never"])
+    render(<Screen load={again.load} />)
+
+    expect(stateOf()).toBe("loading")
+  })
+
+  /*
+   * A read that failed is not a page. Keeping it would draw the failure again on
+   * the next visit, over a GitHub that has since recovered.
+   */
+  test("remembers nothing from a read that failed", async () => {
+    const { unmount } = render(<Screen load={() => Effect.fail("no")} keep="/one" />)
+    await waitFor(() => expect(stateOf()).toBe("failed"))
+    unmount()
+
+    const again = held(["never"])
+    render(<Screen load={again.load} keep="/one" />)
+
+    expect(stateOf()).toBe("loading")
   })
 })

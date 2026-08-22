@@ -51,16 +51,15 @@ describe("the repository pull requests view", () => {
   })
 
   /*
-   * The count and the page number, because the rows cannot say either. Fourteen rows
+   * The count and the safe-read limit, because the rows cannot say either. Fourteen rows
    * under a bar that says `vercel/next.js` and nothing else would be the most
    * misleading true thing this screen could draw.
    */
-  test("says how many there are and which page this is", async () => {
+  test("says how much of the repository this cut list holds", async () => {
     const shot = drawn()
     await shot.findByText(/Allow suppressing TypeScript plugin diagnostics/)
 
-    expect(shot.getByText(/2,136 pull requests/)).toBeTruthy()
-    expect(shot.getByText(/page 1 of 86/)).toBeTruthy()
+    expect(shot.getByText(/14 of 2,136 pull requests/)).toBeTruthy()
   })
 
   /*
@@ -72,9 +71,10 @@ describe("the repository pull requests view", () => {
     const shot = drawn()
     await shot.findByText(/Allow suppressing TypeScript plugin diagnostics/)
 
-    const stack = shot.getByRole("tree", {
-      name: /Stacked on turbo-persistence: add key-value tombstones/
-    })
+    const stack = shot
+      .getByText(/turbo-persistence: add key-value tombstones/)
+      .closest("[data-stack]")
+    if (!(stack instanceof HTMLElement)) throw new Error("No stack card in the view")
     expect(rowsIn(within(stack)).length).toBe(7)
   })
 

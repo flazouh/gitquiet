@@ -43,7 +43,15 @@ const LEVELS: ReadonlyArray<readonly [string, CheckNoteLevel]> = [
  * say plainly.
  */
 export const notesIn = (html: string): ReadonlyArray<CheckNote> => {
-  const page = new DOMParser().parseFromString(html, "text/html")
+  const open = html.indexOf("<annotation-message")
+  const close = html.lastIndexOf("</annotation-message>")
+  if (open < 0 || close < open) return []
+
+  // The checks document is hundreds of kilobytes. Only these custom elements
+  // hold notes, so parsing the surrounding application shell blocks the page
+  // for no result.
+  const notes = html.slice(open, close + "</annotation-message>".length)
+  const page = new DOMParser().parseFromString(notes, "text/html")
 
   return [...page.querySelectorAll("annotation-message")].flatMap((one) => {
     const message = text(one.querySelector('[data-target="annotation-message.annotationContainer"]'))

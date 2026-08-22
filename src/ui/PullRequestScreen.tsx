@@ -14,7 +14,7 @@ import type {
   PullRequestSnapshot,
   ReviewThread
 } from "../domain/PullRequest"
-import type { PullRequestRef } from "../domain/PullRequestRef"
+import { pathOf, type PullRequestRef } from "../domain/PullRequestRef"
 import { type Doing, DOINGS, stateAfter } from "../domain/doable"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -24,10 +24,12 @@ import type { Answering } from "./ThreadView"
 import type { Review as Said } from "../ports/GitHubGateway"
 import type { Repository } from "../domain/repositories"
 import { TheBar } from "./TheBar"
-import { useFreshening } from "./useFreshening"
+import { useUpdated } from "./useUpdated"
 import type { AskLayerSizes } from "./useLayerSizes"
+import { useDrawnAt } from "./drawnAt"
 import { type Load, useLive } from "./useLive"
 import { ReadFailed } from "./ReadFailed"
+import { usePreparedActive } from "./usePreparedActive"
 
 export type Loaded = {
   readonly snapshot: PullRequestSnapshot
@@ -35,6 +37,14 @@ export type Loaded = {
 
 export type PullRequestScreenProps = {
   readonly reference: PullRequestRef
+  /** Whether this screen is being built off the page for the route cache. */
+  readonly preparing?: boolean
+  /** The detached root whose connection activates a prepared screen. */
+  readonly preparedRoot?: Element
+  /** Says when a prepared screen contains the full pull request. */
+  readonly onPrepared?: () => void
+  /** Builds an exact history route before a Back or Forward press. */
+  readonly onPrepareRoute?: (path: string) => void
   /**
    * The pull request, said as soon as GitHub's own routes answer and again once
    * the runs behind its failing checks have been read.
@@ -54,6 +64,8 @@ export type PullRequestScreenProps = {
    * than what was remembered, which is the only age nothing here can bound.
    */
   readonly preload?: () => Effect.Effect<Option.Option<Loaded>>
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
   /** Content for a file the page arrived without, fetched when it is opened. */
   readonly fetchDiffs: (
     paths: ReadonlyArray<string>,
@@ -149,8 +161,34 @@ const viewerOnPage = (): boolean =>
 
 const READING = "Reading this pull request…"
 
-/** The same read, said over a card that is already on the screen. */
-const CHECKING = "Checking this pull request…"
+const UPDATED = "Pull request updated"
+
+const DrawnAt = ({ path, root }: { readonly path: string | null; readonly root?: Element }) => {
+  const active = usePreparedActive(root)
+  useDrawnAt(active ? path : null)
+  return null
+}
+
+const LiveWatch = ({
+  root,
+  watch,
+  channels,
+  again
+}: {
+  readonly root?: Element
+  readonly watch?: PullRequestScreenProps["watch"]
+  readonly channels?: ReadonlyArray<string>
+  readonly again: () => void
+}) => {
+  const active = usePreparedActive(root)
+
+  useEffect(() => {
+    if (!active || watch === undefined || channels === undefined || channels.length === 0) return
+    return watch(channels, again)
+  }, [active, watch, channels?.join(" "), again])
+
+  return null
+}
 
 /**
  * The card as it will be, the moment a verb is asked for.
@@ -201,9 +239,14 @@ const alsoOnRefusal = (
 
 export const PullRequestScreen = ({
   reference,
+  preparing = false,
+  preparedRoot,
+  onPrepared,
+  onPrepareRoute,
   recallRepositories,
   load,
   preload,
+  where,
   fetchDiffs,
   onStepAside,
   onUseGitHub,
@@ -244,10 +287,20 @@ export const PullRequestScreen = ({
    * an hour out of date answers that wrongly while looking exactly like one that
    * is right.
    */
-  const live = useLive(load, preload)
+  const live = useLive(load, preload, where)
   const { read, again, meanwhile } = live
+  /*
+   * Once the card on the screen is this pull request's, which a refusal is as much
+   * as an answer: `ReadFailed` below is drawn for this reference, so the reader is
+   * looking at this pull request's page and the press is over. Only `loading` leaves
+   * the pull request they came from standing, and that is the one to keep quiet for.
+   */
+  useEffect(() => {
+    if (!preparing || read.status !== "ready") return
+    onPrepared?.()
+  }, [onPrepared, preparing, read.status])
   const waiting = useWaiting(read.status)
-  useFreshening(live.catchingUp, CHECKING)
+  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
 
   /**
    * Every verb the shell wired, asked for against a card that has already moved.
@@ -325,15 +378,6 @@ export const PullRequestScreen = ({
       ? Option.getOrUndefined(Option.map(read.value.snapshot.merge, (said) => said.channels))
       : undefined
 
-  useEffect(() => {
-    if (watch === undefined || channels === undefined || channels.length === 0) return
-
-    return watch(channels, again)
-    // Joined because the channels themselves are the identity: a re-read that
-    // hands back the same tokens must not close and reopen the socket, and one
-    // that hands back different tokens must.
-  }, [watch, channels?.join(" "), again])
-
   /*
    * The same card every other screen shows, which this one drew for itself until it
    * was measured against a real failure.
@@ -350,15 +394,18 @@ export const PullRequestScreen = ({
    */
   if (read.status === "failed") {
     return (
-      <ReadFailed
-        signedOut={!signedIn()}
-        what="This pull request"
-        why={read.why}
-        asIf="this pull request does not exist"
-        theirs="conversation"
-        onStepAside={onStepAside}
-        asideLabel="Show GitHub's conversation"
-      />
+      <>
+        <DrawnAt path={pathOf(reference)} root={preparedRoot} />
+        <ReadFailed
+          signedOut={!signedIn()}
+          what="This pull request"
+          why={read.why}
+          asIf="this pull request does not exist"
+          theirs="conversation"
+          onStepAside={onStepAside}
+          asideLabel="Show GitHub's conversation"
+        />
+      </>
     )
   }
 
@@ -373,6 +420,11 @@ export const PullRequestScreen = ({
     // milliseconds lying over the card. The wait comes second so it is painted on
     // top without a stacking order to maintain.
     <div className="relative">
+      <DrawnAt
+        path={read.status === "loading" ? null : pathOf(reference)}
+        root={preparedRoot}
+      />
+      <LiveWatch root={preparedRoot} watch={watch} channels={channels} again={again} />
       {/*
        * Ours at the top of the document, theirs hidden by the fact of it. Their repository nav
        * comes with it — this bar carries Code, Issues and Pull requests itself and puts the
@@ -386,6 +438,8 @@ export const PullRequestScreen = ({
         }}
         recall={recallRepositories}
         onStepAside={onUseGitHub}
+        preparedRoot={preparedRoot}
+        onPrepareRoute={onPrepareRoute}
       />
       {read.status === "ready" ? (
         <Shell

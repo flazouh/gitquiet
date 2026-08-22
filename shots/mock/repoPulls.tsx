@@ -12,9 +12,8 @@ import { hoursAgo, minutesAgo } from "./when"
  * One repository's open pull requests, with a real stack standing in them.
  *
  * `vercel/next.js`, which had 2,136 open when this was read. That number is the whole
- * reason this screen exists beside the Working Set: a page holds twenty-five, so the
- * first page of something enormous and the whole of something small are the same
- * picture without it.
+ * reason this screen exists beside the Working Set: a safe read can stop before the
+ * end, so a cut list must say how much it holds.
  *
  * The seven `mvenn/gc-*` rows are one stack and are not arranged into one here.
  * Each of them is really based on the one below it — `gc-02-tombstone-plumbing` on
@@ -338,7 +337,6 @@ export const REPO_PULLS_VIEW: View = {
       recallRepositories={nothingRemembered()}
       signedIn={() => true}
       onOpen={() => {}}
-      onPage={() => {}}
       onStepAside={() => {}}
     />
   )

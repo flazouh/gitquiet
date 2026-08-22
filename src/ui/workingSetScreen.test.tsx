@@ -100,6 +100,20 @@ describe("the Working Set screen", () => {
     await waitFor(() => expect(screen.getByText(/price claude turns/)).toBeDefined())
   })
 
+  test("uses the Working Set gap between Home's Rail and content", async () => {
+    render(
+      <WorkingSetScreen
+        load={() => Effect.succeed(listOf("price claude turns"))}
+        onOpen={() => {}}
+        onStepAside={() => {}}
+        home
+      />
+    )
+
+    const rail = await screen.findByRole("navigation", { name: "Rail" })
+    expect(rail.parentElement?.className.split(" ")).toContain("gap-1")
+  })
+
   test("shows what was remembered before GitHub answers, and replaces it", async () => {
     // The point of remembering is that a reader who has opened this before waits
     // for nothing. The remembered list must not outlive the answer, though.

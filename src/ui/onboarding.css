@@ -133,6 +133,16 @@
   height: 100%;
   overflow: hidden;
   /*
+   * A picture, so nothing in it is pressed.
+   *
+   * These are the running screens rather than photographs of them, which is what makes
+   * them worth showing and is also the trap: every row in there is a real anchor to a
+   * real pull request. Pressed on the site it left the tour for a page about somebody
+   * else's work, and pressed in the window it opened the reader's browser two beats
+   * before they had signed in.
+   */
+  pointer-events: none;
+  /*
    * Rounded where the air is and square where the cut is, which is the same statement the
    * padding above makes. Eight against the card's own fourteen: a thing inside a rounded
    * box takes a smaller radius, or the two curves fight along the same corner.

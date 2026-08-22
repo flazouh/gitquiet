@@ -8,8 +8,8 @@ import type { Repository } from "../domain/repositories";
 import { keepTabs, keptTabs } from "../github/repoTabs";
 import { type ArtName } from "./art";
 import { Bar, type BarProps } from "./Bar";
+import { useAround } from "./around";
 import { goBack, goBackTo, goForward, theTrail, watchTheTrail } from "./going";
-import { useHost } from "./host";
 import { keepTheBarSlot, theBarSlot, theBarStands } from "./barSlot";
 import { keepRepositories, keptRepositories } from "./keptRepositories";
 import { Palette } from "./Palette";
@@ -17,11 +17,13 @@ import { keepRefraction } from "./refraction";
 import { SettingsDialog } from "./SettingsDialog";
 import { Theme } from "./Theme";
 import { useOursToDraw } from "./useOursToDraw";
+import { whenTheScreenMoves } from "./mount";
 import { useSettings } from "./useSettings";
+import { useScreenActivity } from "./screenActivity";
 import { tabMark } from "./tabMarks";
 import { participantOnPage } from "./viewer";
 import { visited, visiting } from "./visited";
-import { useWithin } from "./within";
+import { prepareTo } from "../app/intent";
 import {
   readingTheCode,
   repositoryTabs,
@@ -31,6 +33,8 @@ import {
 } from "./theirNav";
 
 const NOTHING: ReadonlyArray<never> = [];
+
+const prepareOnThisPage = (path: string): void => prepareTo(window, path);
 
 /**
  * The bar, put where a bar goes, with the palette behind its search.
@@ -47,10 +51,19 @@ export const TheBar = ({
   owed = NOTHING,
   recall,
   participant,
+  preparedRoot,
+  onPrepareRoute,
   ...props
 }: Omit<
   BarProps,
-  "tabs" | "onSearch" | "corner" | "onBack" | "onForward" | "behind"
+  | "tabs"
+  | "onSearch"
+  | "corner"
+  | "onBack"
+  | "onPrepareBack"
+  | "onForward"
+  | "onPrepareForward"
+  | "behind"
 > & {
   /**
    * Every repository the reader has, for the palette. Left out and no search is offered at
@@ -70,19 +83,28 @@ export const TheBar = ({
   readonly recall?: () => Effect.Effect<
     Option.Option<ReadonlyArray<Repository>>
   >;
+  /** A detached route root whose bar is being built before navigation. */
+  readonly preparedRoot?: Element;
+  /** Builds an exact history route before the reader presses Back or Forward. */
+  readonly onPrepareRoute?: (path: string) => void;
 }) => {
+  const active = useScreenActivity();
+  const prepareRoute = onPrepareRoute ?? prepareOnThisPage;
   /*
-   * The page, unless something told this screen it is inside an element.
-   *
-   * Nothing in the extension does, so `within` is `undefined` there and the slot is the
-   * page's one sticky bar as before. See `within.ts` for who does and why.
+   * Whatever is around this screen, which in the extension is a page and answers none
+   * of it: no element to stand in, Home an address, and nothing of its own in the
+   * tray. See `around.ts` for who answers otherwise and why.
    */
-  const within = useWithin();
-  const slot = useMemo(() => theBarSlot(document, within), [within]);
-  /* Whatever the thing around this screen answers for itself: a window answers two
-     things, a page answers neither. See `host.tsx`. */
-  const host = useHost();
-  const drawing = useOursToDraw();
+  const around = useAround();
+  const pageSlot = useMemo(() => theBarSlot(document, around.within), [around.within]);
+  const [preparedSlot] = useState(() => {
+    if (preparedRoot === undefined) return null;
+    const made = document.createElement("div");
+    made.style.display = "contents";
+    return made;
+  });
+  const slot = preparedSlot ?? pageSlot;
+  const drawing = useOursToDraw() && active;
   /*
    * The reader's own choices, read here so the way into them can stand in the strip.
    *
@@ -129,8 +151,8 @@ export const TheBar = ({
     // The pane's glass is a filter, and a filter has to be in the document to be referenced from
     // one. See `refraction.ts`; the stylesheet asks for it by name in `glass.css`.
     keepRefraction(document);
-    return keepTheBarSlot(document, slot, within);
-  }, [slot, within]);
+    return keepTheBarSlot(document, slot, around.within);
+  }, [slot, around.within]);
 
   /*
    * A list handed straight in is the freshest one this bar ever sees: Home and the
@@ -276,12 +298,49 @@ export const TheBar = ({
    */
   const [trail, setTrail] = useState(() => theTrail(window));
 
-  useEffect(() => watchTheTrail(window, () => setTrail(theTrail(window))), []);
+  useEffect(() => {
+    const update = () => {
+      if (!active || (preparedRoot !== undefined && !preparedRoot.isConnected)) return;
+      setTrail(theTrail(window));
+    };
+    update();
+    const stopTrail = watchTheTrail(window, update);
+    const stopScreen =
+      preparedRoot === undefined ? () => {} : whenTheScreenMoves(document, update);
+    return () => {
+      stopTrail();
+      stopScreen();
+    };
+  }, [active, preparedRoot]);
 
   useEffect(() => {
-    if (props.where.kind !== "repository") return;
+    if (preparedSlot === null || preparedRoot === undefined) {
+      if (drawing) theBarStands(document);
+      return;
+    }
+
+    const activate = () => {
+      if (!preparedRoot.isConnected) return;
+      pageSlot.append(preparedSlot);
+      if (drawing) theBarStands(document);
+    };
+    activate();
+    const stop = whenTheScreenMoves(document, activate);
+    return () => {
+      stop();
+      preparedSlot.remove();
+    };
+  }, [drawing, pageSlot, preparedRoot, preparedSlot]);
+
+  useEffect(() => {
+    if (
+      !active ||
+      props.where.kind !== "repository" ||
+      (preparedRoot !== undefined && !preparedRoot.isConnected)
+    )
+      return;
     visiting(`${props.where.owner}/${props.where.repo}`);
-  }, [props.where]);
+  }, [active, preparedRoot, props.where]);
 
   /*
    * ⌘K, and on the document rather than on the bar: the reader is looking at a list, a diff or
@@ -290,9 +349,10 @@ export const TheBar = ({
    * over the page — and left alone entirely while something of ours is already typing.
    */
   useEffect(() => {
-    if (!searchable) return;
+    if (!active || !searchable) return;
 
     const onKey = (event: KeyboardEvent) => {
+      if (preparedRoot !== undefined && !preparedRoot.isConnected) return;
       if (event.key !== "k" || !(event.metaKey || event.ctrlKey)) return;
       event.preventDefault();
       event.stopPropagation();
@@ -301,18 +361,7 @@ export const TheBar = ({
 
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [searchable]);
-
-  /*
-   * Said out loud, because the bar being replaced is waiting to hear it.
-   *
-   * That bar belongs to another script — each screen is its own bundle — and it holds
-   * itself up until the page has one again, or the page is left barless for the eighty
-   * milliseconds this tree needs to render. See `whenAnotherBarStands`.
-   */
-  useEffect(() => {
-    if (drawing) theBarStands(document);
-  }, [drawing]);
+  }, [active, preparedRoot, searchable]);
 
   /*
    * Nothing at all while another screen of ours has the page.
@@ -348,7 +397,17 @@ export const TheBar = ({
         }
         onSearch={searchable ? () => setFinding(true) : undefined}
         onBack={trail.back ? () => goBack(window) : undefined}
+        onPrepareBack={
+          trail.behind[0] === undefined
+            ? undefined
+            : () => prepareRoute(trail.behind[0]!.at)
+        }
         onForward={trail.forward ? () => goForward(window) : undefined}
+        onPrepareForward={
+          trail.ahead === undefined
+            ? undefined
+            : () => prepareRoute(trail.ahead!)
+        }
         behind={eachOnce(
           trail.behind.map((step) => ({
             ...theNameOf(step.at),
@@ -363,14 +422,14 @@ export const TheBar = ({
         )}
         corner={<SettingsDialog settings={settings} onChange={change} />}
         /*
-         * The two things the host knows and this does not: what Home means where it is
-         * not an address, and what the host itself keeps in the corner. Both are absent
-         * on a page, which is why they are read here rather than taken as props — every
-         * screen in the extension would have had to carry two it never fills. See
-         * `host.tsx`.
+         * The two things the surroundings know and this does not: what Home means where
+         * it is not an address, and what they keep past everything about the page. Both
+         * are absent on a page, which is why they are read here rather than taken as
+         * props — every screen in the extension would have had to carry two it never
+         * fills. See `around.ts`.
          */
-        onHome={host.home}
-        far={host.tray}
+        onHome={around.home}
+        tray={around.tray}
       />
       {finding ? (
         <Palette

@@ -130,15 +130,96 @@ const TRACK = {
   face: "1rem",
   state: "0.875rem",
   number: "2.75rem",
-  title: "minmax(0,1fr)",
-  repo: "8.5rem",
-  standing: "7.5rem",
-  checks: "5.5rem",
-  comments: "2.75rem",
-  labels: "4rem",
-  size: "6rem",
-  age: "3.5rem"
+  title: "minmax(160px,1fr)",
+  age: "minmax(0,3.5rem)"
 } as const
+
+type TrackFit = {
+  readonly fixedRem: number
+  readonly characters: number
+}
+
+type TrackFits = {
+  readonly repo: TrackFit
+  readonly standing: TrackFit
+  readonly checks: TrackFit
+  readonly comments: TrackFit
+  readonly size: TrackFit
+}
+
+const EMPTY_FIT: TrackFit = { fixedRem: 0, characters: 0 }
+
+const EMPTY_FITS: TrackFits = {
+  repo: EMPTY_FIT,
+  standing: EMPTY_FIT,
+  checks: EMPTY_FIT,
+  comments: EMPTY_FIT,
+  size: EMPTY_FIT
+}
+
+// This estimate only chooses the widest candidate. CSS performs the actual sizing.
+const wider = (current: TrackFit, candidate: TrackFit): TrackFit =>
+  current.fixedRem + current.characters * 0.5 >=
+  candidate.fixedRem + candidate.characters * 0.5
+    ? current
+    : candidate
+
+const fittedTrack = (fit: TrackFit): string => {
+  if (fit.fixedRem === 0 && fit.characters === 0) return "0rem"
+  return `minmax(0,calc(${fit.fixedRem}rem + ${fit.characters}ch))`
+}
+
+const checkFit = (rollup: Option.Option<CheckRollup>): TrackFit =>
+  Option.match(rollup, {
+    onNone: () => EMPTY_FIT,
+    onSome: (found) => ({
+      fixedRem: 1,
+      characters: found.passed < found.total ? `${found.passed} of ${found.total}`.length : 0
+    })
+  })
+
+const sizeFit = (size: Option.Option<Size>): TrackFit =>
+  Option.match(size, {
+    onNone: () => EMPTY_FIT,
+    onSome: (found) => ({
+      fixedRem: 0.25,
+      characters: `+${found.added}`.length + `−${found.deleted}`.length
+    })
+  })
+
+const standingFit = (one: InvolvedPullRequest): TrackFit =>
+  Option.match(one.why, {
+    onSome: (reason) => ({ fixedRem: 1, characters: reasonRead(reason).words.length }),
+    onNone: () =>
+      Option.match(one.reviewed, {
+        onNone: () => EMPTY_FIT,
+        onSome: (opinion) => ({ fixedRem: 0, characters: OPINION_WORDS[opinion].length })
+      })
+  })
+
+const fitsWithPullRequest = (fits: TrackFits, one: InvolvedPullRequest): TrackFits => ({
+  repo: wider(fits.repo, { fixedRem: 1.25, characters: one.reference.repo.length }),
+  standing: wider(fits.standing, standingFit(one)),
+  checks: wider(fits.checks, checkFit(one.checks)),
+  comments: wider(
+    fits.comments,
+    one.comments === 0
+      ? EMPTY_FIT
+      : { fixedRem: 1, characters: String(one.comments).length }
+  ),
+  size: wider(fits.size, sizeFit(one.size))
+})
+
+const fitsWithIssue = (fits: TrackFits, one: ListedIssue): TrackFits => ({
+  ...fits,
+  repo: wider(fits.repo, { fixedRem: 1.25, characters: one.reference.repo.length }),
+  comments: wider(
+    fits.comments,
+    one.comments === 0
+      ? EMPTY_FIT
+      : { fixedRem: 1, characters: String(one.comments).length }
+  )
+})
 
 /**
  * Where a row is in the run of rows arriving, or nothing if it was already here.
@@ -201,37 +282,26 @@ const isWithin = (
 export type Columns = {
   readonly repo: boolean
   readonly standing: boolean
-  /**
-   * Labels, which only an Involved Issue says here.
-   *
-   * A pull request carries a count of them too and this list has never drawn
-   * it: what a reader of one of those rows is deciding on is where it stands and
-   * how big it is, and the labels would be four rems taken from the titles to
-   * repeat what the reason beside them already says. An issue has neither of
-   * those facts and its labels are how GitHub's own issue list is read, so the
-   * column arrives with the issues and leaves with them.
-   */
-  readonly labels: boolean
+  readonly fits: TrackFits
 }
 
 const columnsIn = (sittings: ReadonlyArray<Sitting>, within: Within | undefined): Columns => {
   let standing = false
   let repo = false
-  let labels = false
+  let fits = EMPTY_FITS
 
   for (const one of walkThrough(sittings)) {
     if (Option.isSome(one.why) || Option.isSome(one.reviewed)) standing = true
     if (!isWithin(one.reference, within)) repo = true
-    if (standing && repo) break
+    fits = fitsWithPullRequest(fits, one)
   }
 
   for (const one of sittings.flatMap((sitting) => sitting.issues)) {
     if (!isWithin(one.reference, within)) repo = true
-    if (one.labels.length > 0) labels = true
-    if (repo && labels) break
+    fits = fitsWithIssue(fits, one)
   }
 
-  return { repo, standing, labels }
+  return { repo, standing, fits }
 }
 
 /**
@@ -247,15 +317,14 @@ export const columnsForIssues = (
   within: Within | undefined
 ): Columns => {
   let repo = false
-  let labels = false
+  let fits = EMPTY_FITS
 
   for (const one of rows) {
     if (!isWithin(one.reference, within)) repo = true
-    if (one.labels.length > 0) labels = true
-    if (repo && labels) break
+    fits = fitsWithIssue(fits, one)
   }
 
-  return { repo, standing: false, labels }
+  return { repo, standing: false, fits }
 }
 
 /**
@@ -266,7 +335,7 @@ export const columnsForIssues = (
  * the other is a seam down the middle of every Court that nothing would fail about.
  */
 const spanOf = (columns: Columns): number =>
-  (columns.standing ? 1 : 0) + (columns.labels ? 1 : 0) + 3
+  (columns.standing ? 1 : 0) + 3
 
 /** How many labels are named before the rest become a number. */
 const NAMED = 2
@@ -277,12 +346,11 @@ const tracksOf = (columns: Columns): string =>
     TRACK.state,
     TRACK.number,
     TRACK.title,
-    ...(columns.repo ? [TRACK.repo] : []),
-    ...(columns.standing ? [TRACK.standing] : []),
-    TRACK.checks,
-    TRACK.comments,
-    ...(columns.labels ? [TRACK.labels] : []),
-    TRACK.size,
+    ...(columns.repo ? [fittedTrack(columns.fits.repo)] : []),
+    ...(columns.standing ? [fittedTrack(columns.fits.standing)] : []),
+    fittedTrack(columns.fits.checks),
+    fittedTrack(columns.fits.comments),
+    fittedTrack(columns.fits.size),
     TRACK.age
   ].join(" ")
 
@@ -319,7 +387,8 @@ const Row = ({
   arriving,
   within,
   columns,
-  asking
+  asking,
+  stackPosition
 }: {
   readonly one: InvolvedPullRequest
   readonly court: Court
@@ -328,6 +397,7 @@ const Row = ({
   readonly within?: Within
   readonly columns: Columns
   readonly asking?: Asking
+  readonly stackPosition?: { readonly at: number; readonly of: number }
 }) => {
   const art = useArt()
   const Art = art[pullRequestName(one.state)]
@@ -367,7 +437,11 @@ const Row = ({
          */
         aria-label={`${one.readByViewer ? "" : "Unread. "}${one.title}. ${
           here ? `#${one.reference.number}` : address
-        }. ${COURT_NAME[court]}`}
+        }. ${COURT_NAME[court]}${
+          stackPosition === undefined
+            ? ""
+            : `. Stack position #${stackPosition.at} of ${stackPosition.of}`
+        }`}
         aria-current={chosen ? "true" : undefined}
         /*
          * A plain link, and deliberately nothing more. The prefetch script already
@@ -381,8 +455,19 @@ const Row = ({
          * obstacle.
          */
         className="grid min-w-0 items-center gap-2 px-3 py-1.5 no-underline"
-        style={{ gridTemplateColumns: tracksOf(columns) }}
+        style={{
+          gridTemplateColumns: `${stackPosition === undefined ? "" : "1.25rem "}${tracksOf(columns)}`
+        }}
       >
+        {stackPosition === undefined ? null : (
+          <span
+            data-stack-position=""
+            aria-hidden="true"
+            className="justify-self-center whitespace-nowrap text-center font-mono text-[10px] text-ink-muted tabular-nums"
+          >
+            #{stackPosition.at}
+          </span>
+        )}
         {/*
          * Who, first. A column of faces down the left edge is the one thing in a row
          * that is recognised rather than read, and a reader scanning a repository's
@@ -497,8 +582,6 @@ const Row = ({
             </>
           ) : null}
         </span>
-
-        {columns.labels ? <span aria-hidden="true" /> : null}
 
         <Sized size={one.size} />
 
@@ -849,69 +932,10 @@ const Issues = ({
   )
 }
 
-/**
- * A pile as a tree, so the order things land in is visible.
- *
- * Indentation with a rail down the left and an arrow into each row, rather than
- * three sibling rows: the top of a stack cannot land until the foundation does,
- * and a flat list says nothing about that at all. The rail is `stack.css`; the
- * arrow is a glyph, so each shell draws it in its own set.
- *
- * The arrow is on the rows that sit on something and not on the foundation,
- * which is the whole of what it says. A foundation with an arrow beside it
- * would be pointing at nothing above it.
- */
-const Tier = ({
+const flattenPile = (pile: Piled): ReadonlyArray<Piled> => [
   pile,
-  chosen,
-  arriving,
-  within,
-  columns,
-  asking,
-  stacked = false
-}: {
-  readonly pile: Piled
-  readonly chosen: string | undefined
-  readonly arriving: Arriving
-  readonly within?: Within
-  readonly columns: Columns
-  readonly asking?: Asking
-  /** Whether this row is standing on the one before it, rather than on nothing. */
-  readonly stacked?: boolean
-}) => {
-  const StackedOn = useArt()["stacked-on"]
-
-  return (
-    <div role="treeitem" aria-expanded={pile.above.length > 0 ? true : undefined}>
-      {stacked ? <StackedOn size={12} className="t-stack-mark shrink-0 text-ink-accent" /> : null}
-      <Row
-        one={pile.one}
-        court={pile.court}
-        chosen={chosen === addressOf(pile.one.reference)}
-        arriving={arriving}
-        within={within}
-        columns={columns}
-        asking={asking}
-      />
-      {pile.above.length > 0 ? (
-        <div role="group" className="t-stack ml-4">
-          {pile.above.map((higher) => (
-            <Tier
-              key={addressOf(higher.one.reference)}
-              pile={higher}
-              chosen={chosen}
-              arriving={arriving}
-              within={within}
-              columns={columns}
-              asking={asking}
-              stacked
-            />
-          ))}
-        </div>
-      ) : null}
-    </div>
-  )
-}
+  ...pile.above.flatMap(flattenPile)
+]
 
 const Pile = ({
   pile,
@@ -927,29 +951,55 @@ const Pile = ({
   readonly within?: Within
   readonly columns: Columns
   readonly asking?: Asking
-}) =>
-  pile.above.length === 0 ? (
-    <Row
-      one={pile.one}
-      court={pile.court}
-      chosen={chosen === addressOf(pile.one.reference)}
-      arriving={arriving}
-      within={within}
-      columns={columns}
-      asking={asking}
-    />
-  ) : (
-    <div role="tree" aria-label={`Stacked on ${pile.one.title}`}>
-      <Tier
-        pile={pile}
-        chosen={chosen}
+}) => {
+  const StackIcon = useArt().fork
+
+  if (pile.above.length === 0) {
+    return (
+      <Row
+        one={pile.one}
+        court={pile.court}
+        chosen={chosen === addressOf(pile.one.reference)}
         arriving={arriving}
         within={within}
         columns={columns}
         asking={asking}
       />
-    </div>
+    )
+  }
+
+  const rows = flattenPile(pile)
+
+  return (
+    <section
+      data-stack=""
+      className="m-1 overflow-hidden rounded-md border border-line-muted bg-canvas"
+    >
+      <div className="flex items-center justify-between border-b border-line-muted bg-hover px-3 py-1 text-xs text-ink-muted">
+        <span data-stack-label="" className="flex items-center gap-1.5">
+          <StackIcon size={12} aria-hidden="true" className="text-ink-accent" />
+          <span>Stack</span>
+        </span>
+        <span className="tabular-nums">{`${rows.length} pull requests`}</span>
+      </div>
+      <div className="divide-y divide-line-muted">
+        {rows.map((row, at) => (
+          <Row
+            key={addressOf(row.one.reference)}
+            one={row.one}
+            court={row.court}
+            chosen={chosen === addressOf(row.one.reference)}
+            arriving={arriving}
+            within={within}
+            columns={columns}
+            asking={asking}
+            stackPosition={{ at: at + 1, of: rows.length }}
+          />
+        ))}
+      </div>
+    </section>
   )
+}
 
 export const WorkingSet = ({
   sittings,

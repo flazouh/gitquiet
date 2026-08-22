@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Option } from "effect";
-import { THE_HOME } from "../domain/pages";
+import { listsPullRequests, THE_HOME } from "../domain/pages";
 import { switchable, type Repository } from "../domain/repositories";
 import { useArt } from "./art";
 import { Cap } from "./Cap";
@@ -140,6 +140,8 @@ export type BarProps = {
    * makes. See `theTrail` in `going.ts`.
    */
   readonly onBack?: () => void;
+  /** Starts preparing the Back route while the reader aims at its button. */
+  readonly onPrepareBack?: () => void;
   /**
    * Going forward one page, where the reader has been back and can return.
    *
@@ -149,6 +151,8 @@ export type BarProps = {
    * forward button that appeared in between would take the second press.
    */
   readonly onForward?: () => void;
+  /** Starts preparing the Forward route while the reader aims at its button. */
+  readonly onPrepareForward?: () => void;
   /**
    * The places behind this page, nearest first, for the menu on the back button.
    *
@@ -160,12 +164,14 @@ export type BarProps = {
   readonly behind?: ReadonlyArray<Row>;
   readonly onStepAside?: () => void;
   /**
-   * Whatever the shell keeps in the tray beside the inbox — in the extension, the way into the
-   * reader's settings.
+   * The way into the reader's own choices, which stands beside the inbox.
    *
    * A slot rather than the control itself, because the strip is drawn from what it is handed and
    * a settings sheet needs a store, a schema and somewhere to write. `TheBar` has all three and
    * this has none of them, which is the only reason the two are separate components.
+   *
+   * Filled on both hosts, unlike {@link tray}, which is what the surroundings add and a page
+   * leaves empty.
    */
   readonly corner?: ReactNode;
   /**
@@ -175,18 +181,18 @@ export type BarProps = {
    * reader is in a tab, and the Working Set has an address. In the window it is not one.
    * There is a single webview and no way back into it, so following `/` there replaced
    * the app with GitHub's own dashboard and left the reader inside a window with no
-   * address bar. See `host.tsx`.
+   * address bar. See `around.ts`.
    */
   readonly onHome?: () => void;
   /**
-   * Whatever the host keeps at the far end of the tray, past everything about the page.
+   * Whatever is around this bar keeps past everything about the page.
    *
    * The window's update and account, and nothing in a tab: a tab has no version of its
-   * own and its account is the browser's. Last in the row because the far corner is
-   * where every window on the machine keeps who is signed in, and because it is the one
-   * spot nothing in this strip can push along.
+   * own and its account is the browser's. Last in the row because that corner is where
+   * every window on the machine keeps who is signed in, and because it is the one spot
+   * nothing in this strip can push along. See `around.ts`.
    */
-  readonly far?: ReactNode;
+  readonly tray?: ReactNode;
 };
 
 /**
@@ -299,18 +305,22 @@ export const Bar = ({
   participant,
   onSearch,
   onBack,
+  onPrepareBack,
   onForward,
+  onPrepareForward,
   behind = NOTHING,
   onStepAside,
   corner,
   onHome,
-  far,
+  tray,
 }: BarProps) => {
   const art = useArt();
   const Chevron = art["chevron-down"];
   const Search = art.search;
   const Back = art.back;
   const Forward = art.forward;
+  const backButton = useRef<HTMLButtonElement>(null);
+  const forwardButton = useRef<HTMLButtonElement>(null);
   // The tray says which state it is in, so the two are named rather than one
   // glyph with something drawn over it.
   const Inbox = unread ? art["notifications-unread"] : art.notifications;
@@ -319,6 +329,20 @@ export const Bar = ({
   const [opened, setOpened] = useState<
     "account" | "repositories" | "tabs" | "behind" | undefined
   >(undefined);
+
+  useEffect(() => {
+    const button = backButton.current;
+    if (button === null || onPrepareBack === undefined) return;
+    button.addEventListener("pointerenter", onPrepareBack);
+    return () => button.removeEventListener("pointerenter", onPrepareBack);
+  }, [onPrepareBack]);
+
+  useEffect(() => {
+    const button = forwardButton.current;
+    if (button === null || onPrepareForward === undefined) return;
+    button.addEventListener("pointerenter", onPrepareForward);
+    return () => button.removeEventListener("pointerenter", onPrepareForward);
+  }, [onPrepareForward]);
 
   const stood: ReadonlyArray<Stood> = tabs.map((one) => ({
     ...one,
@@ -373,7 +397,7 @@ export const Bar = ({
        * applied to the inside of the pane as well as the outside of it. The controls are twenty-
        * eight pixels in a forty pixel strip, so the room they need is vertical and already there.
        */
-      className="flex h-10 items-center gap-2 bg-surface px-2 text-sm text-ink shadow-pop"
+      className="flex h-10 items-center gap-2 bg-surface px-2 text-sm text-ink"
     >
       {/*
        * The way back and the way forward, first in the strip, before the mark for
@@ -412,8 +436,10 @@ export const Bar = ({
             className={`flex items-center overflow-hidden rounded-md ${TINT}`}
           >
             <button
+              ref={backButton}
               type="button"
               onClick={onBack}
+              onFocus={onPrepareBack}
               aria-label="Back"
               title="Back"
               className="grid size-7 shrink-0 place-items-center text-ink-muted hover:bg-active hover:text-ink"
@@ -468,8 +494,10 @@ export const Bar = ({
        */}
       {onBack === undefined ? null : (
         <button
+          ref={forwardButton}
           type="button"
           onClick={onForward}
+          onFocus={onPrepareForward}
           aria-label="Forward"
           title="Forward"
           aria-disabled={onForward === undefined}
@@ -631,11 +659,23 @@ export const Bar = ({
         >
           {strip.map((one) => {
             const Mark = art[tabMark(one.name)];
+            /*
+             * The list of pull requests, where that is a screen rather than an address.
+             *
+             * In the window this tab stands over a card and read as the way back up to
+             * the list. It was an anchor, so it opened the reader's browser at GitHub's
+             * own list while the app's list was the screen directly behind it. Same
+             * destination as the mark in the corner, for the same reason: see
+             * `around.ts`, and `outside.ts` in the window's view.
+             */
+            const up =
+              onHome !== undefined && listsPullRequests(one.href) ? onHome : undefined;
 
             return (
-              <a
+              <Chip
                 key={one.href}
                 href={one.href}
+                press={up}
                 {...said(one.standing)}
                 /*
                  * Where the reader is, a step deeper than the grey the tab beside it takes
@@ -672,7 +712,7 @@ export const Bar = ({
                     {one.count}
                   </span>
                 )}
-              </a>
+              </Chip>
             );
           })}
 
@@ -847,10 +887,48 @@ export const Bar = ({
           </button>
         )}
 
-        {/* And past all of it, whatever the host itself keeps here: see {@link far}. */}
-        {far}
+        {/* And past all of it, whatever is around this bar: see {@link tray}. */}
+        {tray}
       </div>
     </header>
+  );
+};
+
+/**
+ * A thing in the strip that is an address on a page and a press in a window.
+ *
+ * The same statement `Ours` makes about Home, made once for the row of tabs beside it.
+ * A tab is a link and belongs in an anchor: on GitHub a reader opens it in a new tab,
+ * copies it, middle-clicks it, and the address is what says where it goes. In the
+ * window some of those destinations are screens rather than pages — there is one
+ * webview and nothing behind it — and an anchor to one of them sends the reader out to
+ * a browser for something they are already looking at.
+ *
+ * Given no press it is the anchor it has always been, which is every page.
+ */
+const Chip = ({
+  href,
+  press,
+  className,
+  children,
+  ...said
+}: {
+  readonly href: string;
+  readonly press?: (() => void) | undefined;
+  readonly className: string;
+  readonly children: ReactNode;
+} & { readonly "aria-current"?: "page" | "location" }) => {
+  if (press !== undefined)
+    return (
+      <button type="button" onClick={press} className={className} {...said}>
+        {children}
+      </button>
+    );
+
+  return (
+    <a href={href} className={className} {...said}>
+      {children}
+    </a>
   );
 };
 
@@ -881,7 +959,7 @@ const Ours = ({
    * One drawing, two kinds of control, because the two hosts mean different things by
    * Home. On a page it is an address and belongs in an anchor: a reader opens it in a
    * new tab, copies it, middle-clicks it. In the window it is a screen this one becomes,
-   * there is no address to copy, and an anchor to `/` unloaded the app. See `host.tsx`.
+   * there is no address to copy, and an anchor to `/` unloaded the app. See `around.ts`.
    */
   const shape =
     "flex size-7 shrink-0 items-center justify-center rounded-md text-ink-muted no-underline hover:bg-hover hover:text-ink";

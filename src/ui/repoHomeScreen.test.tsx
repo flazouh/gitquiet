@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen, within } from "@testing-library/react"
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
+import type { Shelf } from "../app/shelf"
 import type { Entry, Footing, Front } from "../domain/repoHome"
 import { RepoHomeScreen } from "./RepoHomeScreen"
 import type { Load } from "./useLive"
@@ -133,6 +134,65 @@ describe("a repository's front page", () => {
     expect(files.getByText("140 commits").getAttribute("href")).toBe(
       "/flowline-labs/flowline/commits/main"
     )
+  })
+
+  test("reads a linked file from GitHub's resolved branch", async () => {
+    const asked: Array<readonly [string, string]> = []
+    const shelf: Shelf = {
+      ask: (branch, path) => {
+        asked.push([branch, path])
+        return Effect.succeed({ path, lines: ["const dispatch = true"], rendered: Option.none() })
+      },
+      held: () => undefined,
+      warm: () => {}
+    }
+
+    showing(() => Effect.succeed(front("keeper")), {
+      reading: "framework/engine/threads/src/service.ts",
+      readingBranch: "alexdepape/ori-harness-default",
+      shelf
+    })
+
+    await waitFor(() => {
+      expect(asked).toEqual([
+        ["alexdepape/ori-harness-default", "framework/engine/threads/src/service.ts"]
+      ])
+    })
+  })
+
+  test("does not show the same path from a branch read earlier", async () => {
+    const load = () => Effect.succeed(front("keeper"))
+    const shelf: Shelf = {
+      ask: (branch, path) =>
+        branch === "branch-a"
+          ? Effect.succeed({
+              path,
+              lines: ["from branch A"],
+              rendered: Option.some("<p>from branch A</p>")
+            })
+          : Effect.never,
+      held: () => undefined,
+      warm: () => {}
+    }
+    const reading = "notes.md"
+    const view = showing(load, { reading, readingBranch: "branch-a", shelf })
+
+    expect(await screen.findByText("from branch A")).toBeTruthy()
+
+    view.rerender(
+      <RepoHomeScreen
+        repo={{ owner: "flowline-labs", repo: "flowline" }}
+        load={load}
+        onStepAside={() => {}}
+        signedIn={() => true}
+        reading={reading}
+        readingBranch="branch-b"
+        shelf={shelf}
+      />
+    )
+
+    expect(await screen.findByText("Reading this file…")).toBeTruthy()
+    expect(screen.queryByText("from branch A")).toBeNull()
   })
 
   test("offers the other branches from that control rather than only naming this one", async () => {

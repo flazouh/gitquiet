@@ -86,7 +86,10 @@ export const linkNear = (at: Point, pick: Pick = onThePage): Reached | null => {
     const found = pick(at.x + offset.x, at.y + offset.y)
     const link = found === null ? null : found.closest("a")
 
-    if (link instanceof HTMLAnchorElement && link.href !== "") {
+    if (
+      link instanceof HTMLAnchorElement &&
+      (link.href !== "" || link.hasAttribute("data-gitquiet-owned-route"))
+    ) {
       return { link, from: offset }
     }
   }

@@ -22,7 +22,7 @@ import { CHECK_TONE, checkArt } from "./Icon"
 import { reasonFor } from "./refusal"
 import { Section } from "./Section"
 import { TheBar } from "./TheBar"
-import { useFreshening } from "./useFreshening"
+import { useUpdated } from "./useUpdated"
 import { useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -93,7 +93,7 @@ const READING = "Reading this run…"
  * picture, and every word on it — in progress, failed, 3m 54s — is about a moment that has
  * since moved on. The reader is here to decide whether a job really failed.
  */
-const CHECKING = "Checking this run…"
+const UPDATED = "Run updated"
 
 /** The outcome in a word, which is the word their own page prints for it. */
 const WORD_OF: Record<CheckState, string> = {
@@ -633,7 +633,7 @@ export const RunScreen = ({
   const live = useLive(load, preload)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useFreshening(live.catchingUp, CHECKING)
+  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
   const [pressed, setPressed] = useState<Pressed>({ step: "idle" })
 
   /*

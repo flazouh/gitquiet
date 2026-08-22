@@ -9,12 +9,14 @@ import {
 import { loadWorkingSet, rememberedWorkingSet } from "../../../src/app/workingSet"
 import type { RowDoing } from "../../../src/domain/doable"
 import type { PullRequestRef } from "../../../src/domain/PullRequestRef"
+import { THE_DASHBOARD } from "../../../src/domain/pages"
 import type { Sitting } from "../../../src/domain/sittings"
 import { WorkingSetScreen } from "../../../src/ui/WorkingSetScreen"
-import { pressed } from "./following"
+import { THEIRS } from "./where"
 import { askForRows, gatewayFrom } from "./gateway"
 import { keepRows, keptRows } from "./kept"
 import { openOutside } from "./outside"
+import { openCard } from "./showing"
 import { Supplied } from "./supplied"
 
 /**
@@ -91,73 +93,46 @@ const WRITES = {
 const askFor = (doing: RowDoing, reference: PullRequestRef) =>
   Effect.provide(WRITES[doing](reference), gatewayFrom([]))
 
-export const WorkingSet = ({
-  onOpen
-}: {
-  /** Pressing a row, which the window answers by becoming the card. */
-  readonly onOpen: (reference: PullRequestRef) => void
-}) => (
+export const WorkingSet = () => (
   <Supplied>
     {/*
-     * Where a press on a row is turned into the card.
+     * No handler of its own for a press on a row.
      *
-     * The screen binds Enter to opening whatever is selected and draws its rows as
-     * anchors to github.com, which is right on either platform: a row is a link to
-     * a pull request. What differs is what following one does — on GitHub's page it
-     * is a navigation their own router handles and ours takes over on arrival, and
-     * in a window there is no page to arrive at. So the press is caught on the way
-     * up and the anchor is stopped. Caught here rather than added to the shared row
-     * because it is the window's decision, not the row's.
+     * There was one, and it was half of a rule that lives in `where.ts` now: a row is
+     * an anchor to github.com, following one in a window means becoming that card, and
+     * deciding that twice in two places is what left the card's own way out pressing
+     * into nothing. The rule stops every anchor in the window and opens the card itself.
+     *
+     * `onOpen` is still handed over, for the one way into a card that is not a press on
+     * a link: Enter on the selected row, which the screen binds itself. Enter on an
+     * issue row is not that — the screen presses the row's own anchor for those, which
+     * is the rule's business again and goes to the browser, an issue being a page this
+     * window does not draw.
      */}
-    <div
-      onClick={(event) => {
-        // Already dealt with by the rule that keeps links out of this window: an
-        // outward link was opened outside before this ran, and opening it again
-        // here would give the reader two tabs for one press.
-        if (event.defaultPrevented) return
-
-        const what = pressed(event.target, event.nativeEvent)
-        if (what.at === "nothing") return
-
-        event.preventDefault()
-        if (what.at === "card") onOpen(what.reference)
-        else openOutside(what.href)
-      }}
-      onAuxClick={(event) => {
-        if (event.defaultPrevented) return
-
-        const what = pressed(event.target, event.nativeEvent)
-        if (what.at !== "browser") return
-
-        event.preventDefault()
-        openOutside(what.href)
-      }}
-    >
-      <WorkingSetScreen
-        load={read}
-        preload={remembered}
-        onOpen={onOpen}
-        /*
-         * Always signed in, because this screen is only drawn once the keychain has
-         * answered and GitHub has named the reader. The default asks the page
-         * whether GitHub has a session, which is a question about a document that
-         * does not exist here — it answered no, so every failure for any reason was
-         * drawn as "you are signed out of GitHub", sending the reader to fix the one
-         * thing that was not broken.
-         */
-        signedIn={() => true}
-        /*
-         * Stepping aside is GitHub's list in the reader's browser, because there is
-         * no page behind this one to give back.
-         *
-         * It was `() => {}` on that reasoning, which left two controls pressing into
-         * nothing: the failure screen's own way out, and the mark for it in the bar
-         * above — a button in the corner of every window that did nothing at all.
-         * The offer a window can keep is the browser, so that is the offer.
-         */
-        onStepAside={() => openOutside("https://github.com/pulls")}
-        ask={askFor}
-      />
-    </div>
+    <WorkingSetScreen
+      load={read}
+      preload={remembered}
+      onOpen={openCard}
+      /*
+       * Always signed in, because this screen is only drawn once the keychain has
+       * answered and GitHub has named the reader. The default asks the page
+       * whether GitHub has a session, which is a question about a document that
+       * does not exist here — it answered no, so every failure for any reason was
+       * drawn as "you are signed out of GitHub", sending the reader to fix the one
+       * thing that was not broken.
+       */
+      signedIn={() => true}
+      /*
+       * Stepping aside is GitHub's list in the reader's browser, because there is
+       * no page behind this one to give back.
+       *
+       * It was `() => {}` on that reasoning, which left two controls pressing into
+       * nothing: the failure screen's own way out, and the mark for it in the bar
+       * above — a button in the corner of every window that did nothing at all.
+       * The offer a window can keep is the browser, so that is the offer.
+       */
+      onStepAside={() => openOutside(`${THEIRS}${THE_DASHBOARD}`)}
+      ask={askFor}
+    />
   </Supplied>
 )

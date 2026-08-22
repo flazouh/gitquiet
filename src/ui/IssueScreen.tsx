@@ -1,5 +1,5 @@
 import { Effect, Option } from "effect"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { closingOf, type Closing, type IssueSnapshot, type Remark, type Settled } from "../domain/Issue"
 import { type IssueRef, type ListedIssue, nameOf } from "../domain/issues"
 import type { Repository } from "../domain/repositories"
@@ -12,7 +12,7 @@ import { reasonFor } from "./refusal"
 import { SETTLED } from "./Settle"
 import { done, refused } from "./Toasts"
 import { TheBar } from "./TheBar"
-import { useFreshening } from "./useFreshening"
+import { useUpdated } from "./useUpdated"
 import { useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -30,6 +30,8 @@ export type IssueScreenProps = {
    * worth the half second, never rested on.
    */
   readonly preload?: () => Effect.Effect<Option.Option<LoadedIssue>>
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
   /**
    * The row the list drew for this issue, where the reader pressed one.
    *
@@ -79,6 +81,12 @@ export type IssueScreenProps = {
   /** The repository list as the last visit to Home left it, for the palette behind ⌘K. */
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
   readonly signedIn?: () => boolean
+  /** True while this issue is rendered outside the page before navigation. */
+  readonly preparing?: boolean
+  /** The detached route root, so its bar waits until the route is active. */
+  readonly preparedRoot?: Element
+  /** Called once the detached issue has its complete live data. */
+  readonly onPrepared?: () => void
 }
 
 /**
@@ -112,8 +120,7 @@ const sentenceFor = (settling: Settled): string =>
 
 const READING = "Reading this issue…"
 
-/** The same read, said over an issue that is already on the screen. */
-const CHECKING = "Checking this issue…"
+const UPDATED = "Issue updated"
 
 /**
  * One issue, in one column.
@@ -126,6 +133,7 @@ export const IssueScreen = ({
   reference,
   load,
   preload,
+  where,
   row,
   onStepAside,
   onUseGitHub,
@@ -135,12 +143,20 @@ export const IssueScreen = ({
   settle,
   reopen,
   recallRepositories,
-  signedIn = viewerOnPage
+  signedIn = viewerOnPage,
+  preparing = false,
+  preparedRoot,
+  onPrepared
 }: IssueScreenProps) => {
-  const live = useLive(load, preload)
+  const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useFreshening(live.catchingUp, CHECKING)
+  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
+
+  useEffect(() => {
+    if (!preparing || read.status !== "ready") return
+    onPrepared?.()
+  }, [onPrepared, preparing, read.status])
 
   /*
    * What the reader just said, held here until the next read carries it.
@@ -294,6 +310,7 @@ export const IssueScreen = ({
         where={{ kind: "repository", owner: reference.owner, repo: reference.repo }}
         recall={recallRepositories}
         onStepAside={onUseGitHub}
+        preparedRoot={preparedRoot}
       />
       {/* The row's header, while nothing has been read and nothing was
           remembered. It goes the moment either lands, and it is the same panel

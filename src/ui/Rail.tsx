@@ -74,6 +74,8 @@ type Standing = {
 /** Shared so a default prop is not a new array on every render. */
 const NONE_PINNED: ReadonlyArray<string> = []
 
+const NARROW_CONTROL = "mx-auto size-8 flex-none justify-center p-0"
+
 /**
  * The three Destinations, in the order they are offered, each with its glyph.
  *
@@ -198,8 +200,8 @@ const List = ({
               // Centred at narrow, so a face lands on the same axis as the Destination
               // glyphs above it. Left-padded, it sat two pixels off that column and the
               // strip read as two lists that had failed to line up.
-              className={`flex min-w-0 flex-1 items-center gap-2 rounded py-1 text-sm text-ink-muted no-underline hover:bg-hover hover:text-ink ${
-                narrow ? "justify-center px-0" : "px-2"
+              className={`flex min-w-0 items-center gap-2 rounded py-1 text-sm text-ink-muted no-underline hover:bg-hover hover:text-ink ${
+                narrow ? NARROW_CONTROL : "flex-1 px-2"
               }`}
             >
               <Face faceUrl={one.faceUrl} name={one.repo} pinned={narrow && held} />
@@ -478,8 +480,8 @@ export const Rail = ({
                 aria-label={
                   many === undefined ? one.name : `${one.name}, ${many}`
                 }
-                className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm ${
-                  narrow ? "justify-center" : "justify-between"
+                className={`flex items-center gap-2 rounded-md text-left text-sm ${
+                  narrow ? NARROW_CONTROL : "w-full justify-between px-2 py-1.5"
                 } ${
                   /*
                    * Where the reader is, one step deeper than the hover the rows underneath
@@ -512,7 +514,7 @@ export const Rail = ({
                   {narrow && many !== undefined && one.which !== "repositories" ? (
                     <span
                       aria-hidden="true"
-                      className="absolute -right-2 -top-1 rounded-full bg-accent-emphasis px-1 font-mono text-[9px] leading-[1.4] text-ink-on-emphasis tabular-nums"
+                      className="absolute -right-2 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-accent-emphasis px-1 font-mono text-[9px] leading-none text-ink-on-emphasis tabular-nums"
                     >
                       {many}
                     </span>
@@ -622,7 +624,7 @@ export const Rail = ({
              * picks up the press this codebase gives every control that is not a row.
              */
             className={`${PRESSABLE} flex items-center gap-2 text-sm font-medium text-ink hover:bg-active ${
-              narrow ? "size-9 justify-center self-center p-0" : "w-full justify-start px-2 py-1.5"
+              narrow ? NARROW_CONTROL : "w-full justify-start px-2 py-1.5"
             }`}
           >
             <art.create size={16} aria-hidden="true" className="shrink-0" />
@@ -647,8 +649,8 @@ export const Rail = ({
               aria-expanded={opened === "account"}
               aria-haspopup="menu"
               aria-label={`${participant.login} and your account`}
-              className={`flex w-full items-center gap-2 rounded-md py-1.5 text-sm text-ink-muted hover:bg-hover hover:text-ink ${
-                narrow ? "justify-center px-0" : "px-2"
+              className={`flex items-center gap-2 rounded-md text-sm text-ink-muted hover:bg-hover hover:text-ink ${
+                narrow ? NARROW_CONTROL : "w-full px-2 py-1.5"
               }`}
             >
               <Face faceUrl={participant.faceUrl} name={participant.login} big />
@@ -692,7 +694,7 @@ export const Rail = ({
           // `toggle` reads its first argument as "a key did this".
           onClick={() => toggle()}
           aria-label={narrow ? "Widen the Rail" : "Narrow the Rail"}
-          className="grid size-7 place-items-center rounded-md text-ink-muted hover:bg-hover hover:text-ink"
+          className={`${narrow ? NARROW_CONTROL : "size-9"} grid place-items-center rounded-md text-ink-muted hover:bg-hover hover:text-ink`}
         >
           {narrow ? (
             <art.widen size={14} aria-hidden="true" />

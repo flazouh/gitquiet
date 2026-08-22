@@ -19,8 +19,11 @@
 
 import { type Cause, Effect } from "effect"
 
-/** What every screen module exports: put yourself on this page and stay there. */
-export type Screen = { readonly start: () => void }
+/** What every screen module exports: take the page, and optionally build one route ahead. */
+export type Screen = {
+  readonly start: () => void
+  readonly prepare?: (path: string) => void
+}
 
 /** The pages this extension has a screen for. */
 export type Wanted =
@@ -57,6 +60,19 @@ export type Wanted =
    * than by reading the address — see `SIGN_ON` in `src/ui/place.ts`.
    */
   | "sign-on"
+
+/** Starts one long-lived screen kind once for the current document. */
+export const startScreenOnce = (
+  started: Set<Wanted>,
+  what: Wanted,
+  screen: Screen
+): boolean => {
+  if (started.has(what)) return false
+
+  started.add(what)
+  screen.start()
+  return true
+}
 
 export const WANTED: ReadonlyArray<Wanted> = [
   "pull-request",

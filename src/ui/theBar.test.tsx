@@ -5,11 +5,19 @@ import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import { BAR_ID, theBarStands } from "./barSlot"
 import { keepRepositories, keptRepositories } from "./keptRepositories"
-import { interfaceContainer, ROOT_ID, takeOverSlot, theScreenMoved } from "./mount"
+import {
+  interfaceContainer,
+  ROOT_ID,
+  takeOverSlot,
+  theScreenActivityChanged,
+  theScreenMoved
+} from "./mount"
 import { REPO_PULLS, RUN } from "./place"
 import { TheBar } from "./TheBar"
 import { visited, visiting } from "./visited"
 import type { Repository } from "../domain/repositories"
+import { ScreenActivityProvider } from "./screenActivity"
+import { whenPreparing } from "../app/intent"
 
 afterEach(cleanup)
 
@@ -48,7 +56,7 @@ const WHERE = { kind: "repository" as const, owner: "flazouh", repo: "gitquiet" 
  * here and taken off again by the hook below, rather than the naming being tested
  * through a seam of its own.
  */
-const havingBeen = (addresses: ReadonlyArray<string>): void => {
+const havingBeen = (addresses: ReadonlyArray<string>, current = addresses.length - 1): void => {
   ;(window as { navigation?: unknown }).navigation = {
     entries: () =>
       addresses.map((at, index) => ({
@@ -56,9 +64,9 @@ const havingBeen = (addresses: ReadonlyArray<string>): void => {
         key: `k${index}`,
         index
       })),
-    currentEntry: { index: addresses.length - 1 },
-    canGoBack: addresses.length > 1,
-    canGoForward: false,
+    currentEntry: { index: current },
+    canGoBack: current > 0,
+    canGoForward: current < addresses.length - 1,
     traverseTo: () => undefined,
     addEventListener: () => {},
     removeEventListener: () => {}
@@ -133,6 +141,87 @@ describe("the places the trail names", () => {
 })
 
 describe("the bar and where the reader has been", () => {
+  test("prepares Back from a screen that did not wire its own route handler", async () => {
+    havingBeen(["/pulls/inbox", "/flazouh/gitquiet/pull/14"])
+    const prepared: Array<string> = []
+    const stop = whenPreparing(window, (path) => prepared.push(path))
+
+    render(<TheBar where={WHERE} participant={SOMEONE} repositories={KEPT} />)
+    await userEvent.hover(screen.getByRole("button", { name: "Back" }))
+
+    expect(prepared).toEqual(["/pulls/inbox"])
+    stop()
+  })
+
+  test("reads history when a prepared bar becomes active after the address moves", async () => {
+    let current = 0
+    ;(window as { navigation?: unknown }).navigation = {
+      entries: () =>
+        ["/pulls/inbox", "/flazouh/gitquiet/pull/14"].map((at, index) => ({
+          url: `https://github.com${at}`,
+          key: `k${index}`,
+          index
+        })),
+      get currentEntry() {
+        return { index: current }
+      },
+      get canGoBack() {
+        return current > 0
+      },
+      canGoForward: false,
+      addEventListener: () => {},
+      removeEventListener: () => {}
+    }
+    const preparedRoot = interfaceContainer(document, RUN)
+
+    render(
+      <ScreenActivityProvider active root={preparedRoot}>
+        <TheBar
+          where={WHERE}
+          participant={SOMEONE}
+          repositories={KEPT}
+          preparedRoot={preparedRoot}
+        />
+      </ScreenActivityProvider>
+    )
+    current = 1
+    document.body.append(preparedRoot)
+    act(() => theScreenActivityChanged(preparedRoot))
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Back" })).toBeDefined())
+    preparedRoot.remove()
+    act(() => theScreenMoved(document))
+  })
+
+  test("prepares the exact route behind and ahead before a return press", async () => {
+    havingBeen(
+      [
+        "/flazouh/gitquiet/pull/12",
+        "/flazouh/gitquiet/pull/14",
+        "/flazouh/gitquiet/pull/16"
+      ],
+      1
+    )
+    const prepared: Array<string> = []
+
+    render(
+      <TheBar
+        where={WHERE}
+        participant={SOMEONE}
+        repositories={KEPT}
+        onPrepareRoute={(path) => prepared.push(path)}
+      />
+    )
+
+    await userEvent.hover(screen.getByRole("button", { name: "Back" }))
+    await userEvent.hover(screen.getByRole("button", { name: "Forward" }))
+
+    expect(prepared).toEqual([
+      "/flazouh/gitquiet/pull/12",
+      "/flazouh/gitquiet/pull/16"
+    ])
+  })
+
   test("records the repository being read, so the next switcher opens on it", async () => {
     render(<TheBar where={WHERE} participant={SOMEONE} repositories={KEPT} />)
 

@@ -760,6 +760,24 @@ describe("the way back and the way forward", () => {
     expect(asked).toEqual(["back", "forward"])
   })
 
+  test("warms each return route while the pointer rests on its button", async () => {
+    const warmed: Array<string> = []
+    render(
+      <Bar
+        where={REPOSITORY}
+        onBack={() => undefined}
+        onForward={() => undefined}
+        onPrepareBack={() => warmed.push("back")}
+        onPrepareForward={() => warmed.push("forward")}
+      />
+    )
+
+    await userEvent.hover(screen.getByRole("button", { name: "Back" }))
+    await userEvent.hover(screen.getByRole("button", { name: "Forward" }))
+
+    expect(warmed).toEqual(["back", "forward"])
+  })
+
   test("offers the places behind, nearest first, behind a chevron on the back half", async () => {
     render(<Bar where={REPOSITORY} onBack={() => undefined} behind={BEHIND} />)
 
@@ -829,8 +847,8 @@ describe("the chip that says whose page this is", () => {
 })
 
 /*
- * The two things the bar cannot work out for itself, which the thing around it
- * answers: see `host.tsx`. A page answers neither, and everything above is that
+ * The two things the bar cannot work out for itself, which whatever is around it
+ * answers: see `around.ts`. A page answers neither, and everything above is that
  * page.
  */
 describe("the bar, in a window rather than in a tab", () => {
@@ -857,6 +875,48 @@ describe("the bar, in a window rather than in a tab", () => {
     expect(screen.getByLabelText("Home").getAttribute("href")).toBe("/")
   })
 
+  test("presses the tab that lists pull requests, since that list is a screen in here", async () => {
+    /*
+     * It stood over a card as the way back up to the list, and it was an anchor: pressed
+     * in the window it opened the reader's browser at GitHub's own list of pull requests
+     * while the app's list was the screen directly behind it.
+     */
+    let went = 0
+    render(
+      <Bar
+        where={{ kind: "repository", owner: "flazouh", repo: "gitquiet" }}
+        tabs={[
+          { name: "Pull requests", href: "/flazouh/gitquiet/pulls", here: false },
+          { name: "Issues", href: "/flazouh/gitquiet/issues", here: false }
+        ]}
+        onHome={() => (went += 1)}
+      />
+    )
+
+    const list = screen.getByRole("button", { name: /Pull requests/ })
+    await userEvent.click(list)
+    expect(went).toBe(1)
+
+    /* And Issues stays a link, because a repository's issues are a page and nothing in
+       this window draws one. */
+    expect(screen.getByRole("link", { name: /Issues/ }).getAttribute("href")).toBe(
+      "/flazouh/gitquiet/issues"
+    )
+  })
+
+  test("keeps that tab a link on a page, where the list is an address", () => {
+    render(
+      <Bar
+        where={{ kind: "repository", owner: "flazouh", repo: "gitquiet" }}
+        tabs={[{ name: "Pull requests", href: "/flazouh/gitquiet/pulls", here: false }]}
+      />
+    )
+
+    expect(screen.getByRole("link", { name: /Pull requests/ }).getAttribute("href")).toBe(
+      "/flazouh/gitquiet/pulls"
+    )
+  })
+
   test("holds the window's own controls past everything about the page", () => {
     // The update and the account, which stood in a strip of their own above this one
     // until that strip became this row. Last in the tray, where a window keeps them.
@@ -864,7 +924,7 @@ describe("the bar, in a window rather than in a tab", () => {
       <Bar
         where={{ kind: "home" }}
         onStepAside={() => undefined}
-        far={<button type="button">Signed in as flazouh</button>}
+        tray={<button type="button">Signed in as flazouh</button>}
       />
     )
 
