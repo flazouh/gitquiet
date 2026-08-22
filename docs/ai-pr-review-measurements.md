@@ -9,6 +9,15 @@ direction.** Bot threads go stale at 37.6%, human threads at 62.3%. The dead
 weight the filter would target — a bot thread that went stale and was never
 resolved — is 5.0% of bot threads. That is too small to build a product on.
 
+> **Correction, added 2026-08-22 after first publication.** The `resolved %`
+> column in section 1 counts any thread with `isResolved: true`, including
+> threads the bot closed itself. A second harvest capturing `ReviewThread.
+> resolvedBy` shows that self-closure dominates for several tools — CodeRabbit
+> self-closes 49.8% of its threads, Cursor Bugbot 57.4%, Macroscope 61.3%.
+> **Resolution rate as published in section 1 is not a quality signal.** See
+> [section 4](#4-who-actually-closes-the-thread-correction) for the decomposed
+> numbers. The stale-rate results are unaffected.
+
 ---
 
 ## Corpus
@@ -232,6 +241,54 @@ Three things worth carrying:
 
 ---
 
+## 4. Who actually closes the thread (correction)
+
+Second harvest, 2026-08-22, same 59 repos, now reading `ReviewThread.resolvedBy`.
+n=8,986 bot threads — slightly below the first pass because the 100-most-recent
+PR window had moved. Script: [analyze_assent.py](data/analyze_assent.py), data:
+[threads2.jsonl.gz](data/threads2.jsonl.gz).
+
+"Human assent" = the thread is resolved **and** a `User` account closed it,
+and that account is not the bot itself.
+
+| Bot | n | resolved % | human assent % | 95% CI | bot self-closed % |
+|---|---:|---:|---:|---|---:|
+| GitHub Copilot | 676 | 60.5% | **60.5%** | 56.8–64.1 | 0.0% |
+| FullSend | 466 | 56.0% | **56.0%** | 51.5–60.4 | 0.0% |
+| OpenAI Codex | 591 | 53.6% | **53.6%** | 49.6–57.6 | 0.0% |
+| Gemini Code Assist | 629 | 48.3% | **48.3%** | 44.4–52.2 | 0.0% |
+| cubic | 851 | 63.9% | 31.8% | 28.8–35.1 | 31.8% |
+| CodeRabbit | 2,700 | 81.1% | 31.3% | 29.6–33.1 | **49.8%** |
+| Qodo | 623 | 68.5% | 25.8% | 22.6–29.4 | 42.7% |
+| Greptile | 140 | 70.0% | 22.1% | 16.1–29.7 | 47.9% |
+| Cursor Bugbot | 1,909 | 78.4% | 20.6% | 18.8–22.5 | **57.4%** |
+| Macroscope | 261 | 69.7% | 8.4% | 5.6–12.4 | **61.3%** |
+| Humans (control) | 2,322 | 66.8% | 38.5% | 36.5–40.5 | n/a |
+
+The ranking by `resolved %` and the ranking by human assent are close to
+inverted. CodeRabbit and Cursor Bugbot look like the top two tools on the raw
+column and fall to 6th and 9th on assent. Six of the ten tools ship auto-resolve;
+four never close their own threads.
+
+**What this does and does not prove.** It proves the raw resolution rate is
+dominated by a product decision — whether the vendor ships auto-resolve — rather
+than by comment quality. It does **not** prove that Cursor Bugbot's comments are
+three times worse than Copilot's. Auto-resolve fires when the tool detects the
+issue was fixed, which often means the developer *did* act and simply never
+clicked resolve. So human assent undercounts the auto-resolving tools by an
+unknown amount. The clean comparison is within the four tools that never
+self-close: Copilot 60.5%, FullSend 56.0%, Codex 53.6%, Gemini 48.3%. Those four
+are directly comparable to each other and to the 38.5% human control.
+
+This confound reaches into the published literature. The Atlassian paper
+(arXiv:2510.05450) defines resolution as "a subsequent commit modified the exact
+line", which sidesteps it. The "Go Home Copilot" paper (arXiv:2607.21997) states
+"we exclude resolutions performed solely by AI agents" — they handled it
+correctly. My first pass did not. Any comparison built on raw `isResolved`
+across tools, including the section 1 column above, is measuring auto-resolve.
+
+---
+
 ## Sampling bias I could not remove
 
 1. **Self-selection, and it is severe.** Every repo here chose to install a bot
@@ -241,11 +298,11 @@ Three things worth carrying:
 2. **Recency.** The 100 most recent PRs per repo. Open PRs have not finished
    accruing staleness, which biases the stale rate down; control (d) quantifies
    it at roughly 5 points between OPEN and MERGED.
-3. **Survivor bias in resolution.** `isResolved` can be set by a human, by the
+3. ~~**Survivor bias in resolution.** `isResolved` can be set by a human, by the
    bot itself on re-review, or by an auto-resolve integration. I cannot separate
-   those from the API, so resolution rate is not a proxy for developer agreement.
-   CodeRabbit's 81% in particular may reflect its auto-resolve behaviour rather
-   than 81% developer assent.
+   those from the API.~~ **Resolved: `resolvedBy` does expose this, and the
+   effect was large.** See [section 4](#4-who-actually-closes-the-thread-correction).
+   The residual bias is that human assent undercounts auto-resolving tools.
 4. **Repo-size skew.** Discovery ranked by PR count, so large mature projects are
    over-represented. Top 3 repos are 18.3% of bot threads.
 5. **Language skew.** TypeScript, JavaScript, Ruby and Go dominate. No systematic
@@ -267,9 +324,17 @@ The filter as scoped targets 5.0% of bot threads (stale and unresolved) plus
 sets and a perfect classifier, the ceiling is around one comment in ten, and the
 two highest-volume bots contribute almost none of the first bucket.
 
-The measurement does surface a real and larger signal, which is that resolution
-rate varies from 48.4% to 81.0% across tools while volume varies from 1.55 to
-7.46 threads per PR, with no relationship between the two. Gemini Code Assist
-leaves 2.28 threads per PR and 16.8% of them end up stale and ignored; Cursor
-Bugbot leaves 3.30 and 0.7% do. That is a per-tool quality gap of more than an
-order of magnitude, visible from the outside, and nobody currently publishes it.
+The measurement does surface a real and larger signal, and section 4 sharpened
+it. Across the four tools that never auto-resolve, human assent runs 48.3% to
+60.5%, against a 38.5% human-reviewer control — bots in that group get their
+comments acted on *more* often than human reviewers do. Meanwhile the number
+every vendor could quote, raw resolution rate, spans 48.3% to 81.1% and is
+mostly a readout of whether they ship auto-resolve.
+
+That is the asset here. There is no independent, per-tool, precision-and-recall
+benchmark of these products (established separately in
+[ai-pr-review-pain-points.md](ai-pr-review-pain-points.md) §4). What this rig
+can produce instead — per-tool human assent, comment volume, and stale-and-
+abandoned rate, computed from the public API over any repo set, with the
+auto-resolve confound removed — is closer to that gap than anything currently
+published, vendor or academic.
