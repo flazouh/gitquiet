@@ -146,13 +146,17 @@ type Row = {
 type TreeProps = {
   readonly rows: ReadonlyArray<Row>
   readonly gap?: number
+  /** What one level of folder steps in, in pixels of this little tree. */
+  readonly step?: number
   readonly icons?: "material" | "plain"
   readonly width?: number
   readonly pinned?: string
   readonly search?: boolean
 }
 
-const Tree = ({ rows, gap = 2, icons = "material", width, pinned, search }: TreeProps) => (
+// The step is the rail's own default, so every other picture in here shows a
+// tree indented the way the reader's actually is.
+const Tree = ({ rows, gap = 2, step = 6, icons = "material", width, pinned, search }: TreeProps) => (
   <div
     className="overflow-hidden rounded bg-canvas text-[9px] leading-[13px]"
     style={width === undefined ? undefined : { width: `${width}px` }}
@@ -169,7 +173,7 @@ const Tree = ({ rows, gap = 2, icons = "material", width, pinned, search }: Tree
       <div
         key={row.name + (row.depth ?? 0)}
         className="flex items-center gap-1 px-1"
-        style={{ paddingTop: gap, paddingBottom: gap, paddingLeft: 4 + (row.depth ?? 0) * 8 }}
+        style={{ paddingTop: gap, paddingBottom: gap, paddingLeft: 4 + (row.depth ?? 0) * step }}
       >
         <span
           aria-hidden
@@ -203,6 +207,14 @@ const FILES: ReadonlyArray<Row> = [
   { name: "src", folder: true, colour: "var(--fgColor-attention)" },
   { name: "server.ts", depth: 1 },
   { name: "index.css", depth: 1, colour: "var(--fgColor-done)" }
+]
+
+/** A path deep enough that what each level costs can be seen. */
+const NESTED: ReadonlyArray<Row> = [
+  { name: "src", folder: true, colour: "var(--fgColor-attention)" },
+  { name: "app", depth: 1, folder: true, colour: "var(--fgColor-attention)" },
+  { name: "ui", depth: 2, folder: true, colour: "var(--fgColor-attention)" },
+  { name: "server.ts", depth: 3 }
 ]
 
 /**
@@ -321,6 +333,11 @@ const SAMPLES: Record<string, (choice: string) => ReactNode> = {
     ),
   density: (choice) => (
     <Tree rows={FILES} gap={choice === "compact" ? 1 : choice === "default" ? 3 : 5} />
+  ),
+  // Four levels, because one step is not a picture of stepping. The numbers are
+  // the ones the rail uses, so the picture is the size of the thing it shows.
+  indent: (choice) => (
+    <Tree rows={NESTED} step={choice === "tight" ? 4 : choice === "default" ? 6 : 10} />
   ),
   icons: (choice) => <Tree rows={FILES} icons={choice as "material" | "plain"} />,
   width: (choice) => (

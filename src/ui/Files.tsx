@@ -83,14 +83,30 @@ const PRIMER_TREE = {
   // edge and 1.6px from the right. Zero is the true width here.
   "--trees-scrollbar-gutter-measured": "0px",
 
-  // No level gap named here on purpose. The tree's own is
-  // `calc(8px * var(--trees-density))`, which the density choice scales; the
-  // flat ten pixels that used to sit here were both wider than that and deaf to
-  // it, so a compact tree indented as far as a relaxed one. The rail is a fifth
-  // of the pane and a repository is five folders deep before a name starts, so
-  // every pixel of indent is a pixel of name; the guide lines carry the nesting.
+  // No level gap named here on purpose: the indent is the reader's, and
+  // `FileTreePane` names it from their choice. A flat ten pixels used to sit
+  // here, which was wider than the tree's own step and deaf to the row height
+  // beside it, so a compact list indented as far as a relaxed one.
   "--trees-font-size-override": "12px"
 } as React.CSSProperties
+
+/**
+ * The theme's variables, plus the one the reader owns.
+ *
+ * The indent comes in as a variable rather than as one of the tree's options
+ * because the tree reads its options once, when it is built: a knob answered
+ * that way would rebuild the list, losing the scroll and what was expanded,
+ * where a variable moves the rows on the next frame.
+ *
+ * Height is named here because the host is virtualised and sizes itself to its
+ * box, and a box with no height draws no rows.
+ */
+const treeStyle = (indent: string): React.CSSProperties =>
+  ({
+    ...PRIMER_TREE,
+    "--trees-level-gap-override": indent,
+    height: "100%"
+  }) as React.CSSProperties
 
 /**
  * Material's file icons, which is what an editor's sidebar looks like.
@@ -274,11 +290,10 @@ export const FileTreePane = ({
   }
 
   // Fills the card so the tree's surface runs the height of the file diff
-  // beside it. Height is named: the host is virtualised and sizes to its box,
-  // and a box with no height draws no rows.
+  // beside it. See `treeStyle` for why the height is named as well.
   return (
     <div className="min-h-0 flex-1">
-      <FileTree model={model} style={{ ...PRIMER_TREE, height: "100%" }} />
+      <FileTree model={model} style={treeStyle(choices.indent)} />
     </div>
   )
 }

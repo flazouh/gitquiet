@@ -327,6 +327,18 @@ export const TREE_KNOBS = [
     "compact",
   ),
   knob(
+    "indent",
+    "Folder indent",
+    "How far each folder steps in",
+    "How far a folder steps its contents in. Every level spends the same room again, and a repository is four or five folders deep before a name starts, so indent is taken straight out of the names in a narrow rail. Tight keeps the guide lines and gives the rest back; Wide is what this used to do.",
+    [
+      { value: "tight", label: "Tight" },
+      { value: "default", label: "Default" },
+      { value: "wide", label: "Wide" },
+    ],
+    "default",
+  ),
+  knob(
     "icons",
     "Icons",
     "Colourful by file type, or the plain set",
