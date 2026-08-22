@@ -29,18 +29,19 @@ echo "wrote video/public/music.mp3 ($(stat -f%z video/public/music.mp3) bytes)"
 
 # The API ignores music_length_ms and returns ~48s; cut to the video's 29.5s
 # with a fade so the track ends with the picture instead of mid-phrase.
-ffmpeg -y -v error -i video/public/music.mp3 -t 29.53 \
-  -af "afade=t=out:st=27.3:d=2.2" video/public/music-cut.mp3
+ffmpeg -y -v error -i video/public/music.mp3 -t 30.13 \
+  -af "afade=t=out:st=27.9:d=2.2" video/public/music-cut.mp3
 mv video/public/music-cut.mp3 video/public/music.mp3
 echo "trimmed music to 29.53s with a fade"
 
-VOICE_ID=$(curl -sf "https://api.elevenlabs.io/v1/voices" -H "xi-api-key: $ELEVENLABS_API_KEY" \
-  | python3 -c "import json,sys; print(json.load(sys.stdin)['voices'][0]['voice_id'])")
-echo "voice-over: voice $VOICE_ID"
+# Sarika: calm, grounded Indian English, added to the account 2026-08-23.
+# Alex's pick over the account's default voice.
+VOICE_ID=NP8gGMLAGXx7ddlMa06t
+echo "voice-over: voice $VOICE_ID (Sarika)"
 curl -sf -X POST "https://api.elevenlabs.io/v1/text-to-speech/$VOICE_ID?output_format=mp3_44100_128" \
   -H "xi-api-key: $ELEVENLABS_API_KEY" -H "Content-Type: application/json" \
   -d '{
-    "text": "Less to hold in your head. GitQuiet, the fastest and quietest way to work on GitHub. Everything you are in, one list. Rest on a row, and it reads ahead. Press, and it is readable in two hundred eighty seven milliseconds. One list, four groups. Only the first asks anything of you. Every unresolved thread, above the diff. When CI fails, it opens on the line that broke. The rest settles on its own. GitQuiet. Free on Chrome.",
+    "text": "Less to hold in your head. GitQuiet, the fastest and quietest way to work on GitHub. Everything you are in, one list. Rest on a row, and it reads ahead. Press: readable in two hundred eighty seven milliseconds. Only the first group asks anything of you. Every unresolved thread, above the diff. When CI fails, it opens on the line that broke. The rest settles on its own. GitQuiet. Free on Chrome.",
     "model_id": "eleven_multilingual_v2"
   }' --output video/public/vo.mp3
 echo "wrote video/public/vo.mp3 ($(stat -f%z video/public/vo.mp3) bytes)"

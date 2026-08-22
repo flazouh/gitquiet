@@ -481,7 +481,7 @@ const BEATS: { scene: React.FC; frames: number; out: Out }[] = [
   { scene: ThreadsScene, frames: 100, out: "fade" },
   { scene: CiScene, frames: 92, out: "fade" },
   { scene: SettledScene, frames: 100, out: "wash" },
-  { scene: CtaScene, frames: 124, out: "cut" },
+  { scene: CtaScene, frames: 144, out: "cut" },
 ];
 
 export const DAY_DURATION_IN_FRAMES = BEATS.reduce(
