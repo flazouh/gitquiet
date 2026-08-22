@@ -1,13 +1,13 @@
 import { Effect, Option } from "effect";
 import { defineContentScript } from "wxt/utils/define-content-script";
-import { screenFor, type Wanted } from "@/app/screens";
-import { intendTo, intendedPath, prepareTo } from "@/app/intent";
+import { screenFor, type Screen, startScreenOnce, type Wanted } from "@/app/screens";
+import { claimShell } from "@/app/shellClaim";
+import { intendTo, intendedPath, prepareTo, whenPreparing } from "@/app/intent";
 import {
   markOwnedRoute,
   OWNED_ROUTE,
-  OWNED_ROUTE_CLICK,
-  OWNED_ROUTE_PRESS,
   restoreOwnedRoute,
+  whenOwnedRouteIsOffered,
 } from "@/app/navigationGuard";
 import { oursToOpen } from "@/app/pressing";
 import { readingAhead } from "@/app/readAhead";
@@ -27,8 +27,13 @@ import {
   goTo,
 } from "@/ui/going";
 import {
+  activatePreparedTraversal,
+  hasPreparedScreen,
+  holdTheSurface,
   markPage,
+  prepareCachedTraversal,
   theScreenArrived,
+  theScreenHasRoute,
   theScreenIsNotElsewhere,
   unmarkPage,
 } from "@/ui/mount";
@@ -41,9 +46,18 @@ import {
   type Seen,
   smoothed,
 } from "@/ui/lingering";
+import {
+  OWNED_TRAVERSAL,
+  whenPreparedTraversalIsOffered,
+} from "@/ui/preparedNavigation";
 import { hintRead, showLingering } from "@/ui/lingeringHint";
 import type { Point } from "@/ui/near";
-import { type Stop, whenAddressChanges, whenTheyStayPut } from "@/ui/navigation";
+import {
+  type Stop,
+  whenAddressChanges,
+  whenTheyStayPut,
+  whenTraversalStarts,
+} from "@/ui/navigation";
 import {
   ACTIONS,
   COMMIT,
@@ -232,6 +246,8 @@ export default defineContentScript({
    */
   runAt: "document_start",
   main() {
+    if (!claimShell(document)) return;
+
     initialiseErrorReporting("prefetch");
 
     // Everything below is in aid of an interface that a reader can turn off,
@@ -250,6 +266,59 @@ export default defineContentScript({
     settings.watch((stored) => {
       view = stored.page.view;
     });
+
+    /** The loaded screen for the one exact route armed for an instant traversal. */
+    const preparedScreens = new Map<string, Screen>();
+    /** The screen kinds already following this document's address. */
+    const up = new Set<Wanted>();
+
+    /** Builds the target screen itself once a route has earned its data warm. */
+    const prepareScreen = (path: string): void => {
+      if (view === "github") return;
+
+      const address = new URL(path, window.location.origin);
+      const page = pageAt(address.pathname, address.search);
+      if (page === null) return;
+
+      Effect.runFork(
+        screenFor(page).pipe(
+          Effect.tap((screen) =>
+            Effect.sync(() => {
+              preparedScreens.clear();
+              preparedScreens.set(path, screen);
+              if (prepareCachedTraversal(document, path, placeFor(page, address.pathname))) return;
+              screen.prepare?.(address.pathname);
+            }),
+          ),
+          Effect.ignore,
+        ),
+      );
+    };
+    whenPreparing(window, prepareScreen);
+
+    const openPreparedTraversal = (path: string): void => {
+      const screen = preparedScreens.get(path);
+      if (screen === undefined) return;
+
+      const address = new URL(path, window.location.origin);
+      const page = pageAt(address.pathname, address.search);
+      if (page === null) return;
+
+      const place = placeFor(page, address.pathname);
+      const prepared = hasPreparedScreen(document, path, place);
+      document.dispatchEvent(new CustomEvent(OWNED_TRAVERSAL, { detail: path }));
+      const screenClaimedTheRoute = prepared && !hasPreparedScreen(document, path, place);
+      const routeAlreadyStands = theScreenHasRoute(document, path);
+      if (
+        !screenClaimedTheRoute &&
+        !routeAlreadyStands &&
+        !activatePreparedTraversal(document, path, place)
+      )
+        holdTheSurface(document);
+      startScreenOnce(up, page, screen);
+    };
+    whenTraversalStarts(window, openPreparedTraversal);
+    whenPreparedTraversalIsOffered(document, openPreparedTraversal);
 
     /**
      * Pages read on a guess, and the rules about when not to.
@@ -489,7 +558,6 @@ export default defineContentScript({
      * itself — between pull requests, between pages of a list — so a second press
      * of the same kind of page is not this script's business at all.
      */
-    const up = new Set<Wanted>();
     let givingUp: ReturnType<typeof setTimeout> | undefined;
     /** The way to call off the last press, where GitHub has since acted on it. */
     let stayingPut: Stop = () => {};
@@ -531,10 +599,8 @@ export default defineContentScript({
             // Started here rather than at the fetch, because between the two the
             // reader may have gone somewhere else entirely — and a screen started for
             // a page nobody is on gates a page it is not about.
-            if (up.has(what)) return;
             if (wantedNow() !== what && intendedPath(window) === null) return;
-            up.add(what);
-            screen.start();
+            startScreenOnce(up, what, screen);
           }),
           Effect.catch((cause) => Effect.sync(() => failed(cause))),
         ),
@@ -782,23 +848,16 @@ export default defineContentScript({
       if (event.type !== "click") markOwnedRoute(link);
     };
 
-    window.addEventListener(OWNED_ROUTE_CLICK, (event) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      const link = target.closest("a");
-      const href = link?.getAttribute("data-gitquiet-owned-route");
-      if (href === null || href === undefined) return;
-      const route = opening(event.target, new URL(href, window.location.origin));
+    whenOwnedRouteIsOffered(document, (kind, href, link) => {
+      const route = opening(link, new URL(href, window.location.origin));
       if (route === null) return;
       const { pathname, search, hash } = route.destination;
-      open(route.what, pathname, { push: `${pathname}${search}${hash}` });
-    });
-
-    window.addEventListener(OWNED_ROUTE_PRESS, (event) => {
-      const route = opening(event.target);
-      if (route === null) return;
-      open(route.what, route.destination.pathname, {});
-      markOwnedRoute(route.link);
+      if (kind === "click") {
+        open(route.what, pathname, { push: `${pathname}${search}${hash}` });
+        return;
+      }
+      open(route.what, pathname, {});
+      markOwnedRoute(link);
     });
 
     const protectOwnedLinks = (): void => {

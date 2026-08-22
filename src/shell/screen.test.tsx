@@ -2,7 +2,8 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 import { held, prepareAScreen, standAScreen } from "./screen"
 import { BAR_ID } from "../ui/barSlot"
-import { holdTheSurface, interfaceContainer } from "../ui/mount"
+import { hasPreparedScreen, holdTheSurface, interfaceContainer } from "../ui/mount"
+import { OWNED_TRAVERSAL } from "../ui/preparedNavigation"
 import type { Place } from "../ui/place"
 import { TheBar } from "../ui/TheBar"
 
@@ -19,11 +20,24 @@ const MINE: Place = {
   bands: []
 }
 
+const OTHER: Place = {
+  ...MINE,
+  name: "other-screen",
+  owns: (path) => path === "/other"
+}
+
 const theirPage = (): void => {
   document.body.innerHTML = `<main><div id="region">their page</div></main>`
 }
 
 const tidy = (): void => {
+  const screens = (
+    window as Window & {
+      gitquietScreens?: Map<string, { prepared?: { dispose: () => void } }>
+    }
+  ).gitquietScreens
+  for (const screen of screens?.values() ?? []) screen.prepared?.dispose()
+  screens?.clear()
   document.body.innerHTML = ""
   for (const name of [
     "data-gitquiet-taken",
@@ -138,6 +152,130 @@ describe("standing a screen on the page", () => {
     const returned = interfaceContainer(document, MINE)
 
     expect(returned.textContent).toContain("remembered screen")
+  })
+
+  test("returns to the live screen tree that left the page", async () => {
+    history.replaceState(null, "", "/mine")
+    theirPage()
+
+    const first = standAScreen({
+      place: MINE,
+      route: "/mine",
+      draw: () => (
+        <>
+          <TheBar where={{ kind: "home" }} />
+          <p>live first screen</p>
+        </>
+      )
+    })
+    await drawn("#region", "live first screen")
+
+    history.pushState(null, "", "/other")
+    const second = standAScreen({
+      place: OTHER,
+      route: "/other",
+      draw: () => (
+        <>
+          <TheBar where={{ kind: "home" }} />
+          <p>second screen</p>
+        </>
+      )
+    })
+    await drawn("#region", "second screen")
+
+    history.replaceState(null, "", "/mine")
+    const returned = standAScreen({
+      place: MINE,
+      route: "/mine",
+      draw: () => <p>fresh replacement</p>
+    })
+    await drawn("#region", "live first screen")
+
+    expect(returned.container).toBe(first.container)
+    expect(returned.container.textContent).toContain("live first screen")
+    expect(returned.container.textContent).not.toContain("fresh replacement")
+    expect(document.querySelectorAll(`#${BAR_ID} > header`)).toHaveLength(1)
+    await until(() => hasPreparedScreen(document, "/other", OTHER))
+
+    history.replaceState(null, "", "/other")
+    const forwarded = standAScreen({
+      place: OTHER,
+      route: "/other",
+      draw: () => <p>fresh second replacement</p>
+    })
+    await drawn("#region", "second screen")
+
+    expect(forwarded.container).toBe(second.container)
+    expect(forwarded.container.textContent).toContain("second screen")
+    expect(forwarded.container.textContent).not.toContain("fresh second replacement")
+
+    forwarded.close()
+    returned.close()
+  })
+
+  test("resumes its live tree when a prepared traversal starts", async () => {
+    history.replaceState(null, "", "/mine")
+    theirPage()
+
+    const first = standAScreen({
+      place: MINE,
+      route: "/mine",
+      draw: () => (
+        <>
+          <TheBar where={{ kind: "home" }} />
+          <p>live first screen</p>
+        </>
+      )
+    })
+    await drawn("#region", "live first screen")
+
+    history.pushState(null, "", "/other")
+    const second = standAScreen({
+      place: OTHER,
+      route: "/other",
+      draw: () => <p>second screen</p>
+    })
+    await drawn("#region", "second screen")
+    await until(() => hasPreparedScreen(document, "/mine", MINE))
+
+    document.dispatchEvent(new CustomEvent(OWNED_TRAVERSAL, { detail: "/mine" }))
+    history.replaceState(null, "", "/mine")
+    await drawn("#region", "live first screen")
+
+    expect(document.getElementById("gitquiet-root")?.textContent).toContain("live first screen")
+    expect(document.querySelectorAll(`#${BAR_ID} > header`)).toHaveLength(1)
+    second.close()
+    first.close()
+  })
+
+  test("does not redraw a live screen after it leaves the page", async () => {
+    history.replaceState(null, "", "/mine")
+    theirPage()
+    let draws = 0
+
+    const first = standAScreen({
+      place: MINE,
+      route: "/mine",
+      draw: () => {
+        draws += 1
+        return <p>first screen</p>
+      }
+    })
+    await drawn("#region", "first screen")
+
+    history.pushState(null, "", "/other")
+    const second = standAScreen({
+      place: OTHER,
+      route: "/other",
+      draw: () => <p>second screen</p>
+    })
+    await drawn("#region", "second screen")
+    await settled()
+
+    expect(draws).toBe(1)
+
+    second.close()
+    first.close()
   })
 
   test("reuses a held surface when Back redraws the same screen kind", async () => {

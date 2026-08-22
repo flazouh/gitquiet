@@ -13,6 +13,7 @@ import { OCTICONS } from "../ui/octicons";
 import { PortraitsProvider } from "../ui/portraits";
 import { RendererProvider } from "../ui/renderer";
 import { SettingsProvider } from "../ui/settings";
+import { ScreenActivityProvider } from "../ui/screenActivity";
 import { Theme } from "../ui/Theme";
 import { Toasts } from "../ui/Toasts";
 import { loadDiffEngine } from "./diffEngine";
@@ -114,6 +115,7 @@ export const liveUpdates = (
 export const Supplied = ({
   root,
   quiet = false,
+  active = true,
   children,
 }: {
   /**
@@ -125,8 +127,11 @@ export const Supplied = ({
   readonly root?: HTMLElement | undefined;
   /** Omits document-wide surfaces while a route is rendered off the page. */
   readonly quiet?: boolean;
+  /** False while a live history entry is detached from the page. */
+  readonly active?: boolean;
   readonly children: ReactNode;
 }) => (
+  <ScreenActivityProvider active={active} root={root}>
   <RegistryProvider registry={registry()}>
     <SettingsProvider store={settings()}>
       {/* Their colours too, for the same reason as their glyphs: this is drawn
@@ -154,4 +159,5 @@ export const Supplied = ({
       </Theme>
     </SettingsProvider>
   </RegistryProvider>
+  </ScreenActivityProvider>
 );

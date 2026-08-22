@@ -19,9 +19,11 @@ import { Theme } from "./Theme";
 import { useOursToDraw } from "./useOursToDraw";
 import { whenTheScreenMoves } from "./mount";
 import { useSettings } from "./useSettings";
+import { useScreenActivity } from "./screenActivity";
 import { tabMark } from "./tabMarks";
 import { participantOnPage } from "./viewer";
 import { visited, visiting } from "./visited";
+import { prepareTo } from "../app/intent";
 import {
   readingTheCode,
   repositoryTabs,
@@ -31,6 +33,8 @@ import {
 } from "./theirNav";
 
 const NOTHING: ReadonlyArray<never> = [];
+
+const prepareOnThisPage = (path: string): void => prepareTo(window, path);
 
 /**
  * The bar, put where a bar goes, with the palette behind its search.
@@ -84,6 +88,8 @@ export const TheBar = ({
   /** Builds an exact history route before the reader presses Back or Forward. */
   readonly onPrepareRoute?: (path: string) => void;
 }) => {
+  const active = useScreenActivity();
+  const prepareRoute = onPrepareRoute ?? prepareOnThisPage;
   /*
    * Whatever is around this screen, which in the extension is a page and answers none
    * of it: no element to stand in, Home an address, and nothing of its own in the
@@ -98,7 +104,7 @@ export const TheBar = ({
     return made;
   });
   const slot = preparedSlot ?? pageSlot;
-  const drawing = useOursToDraw();
+  const drawing = useOursToDraw() && active;
   /*
    * The reader's own choices, read here so the way into them can stand in the strip.
    *
@@ -294,9 +300,10 @@ export const TheBar = ({
 
   useEffect(() => {
     const update = () => {
-      if (preparedRoot !== undefined && !preparedRoot.isConnected) return;
+      if (!active || (preparedRoot !== undefined && !preparedRoot.isConnected)) return;
       setTrail(theTrail(window));
     };
+    update();
     const stopTrail = watchTheTrail(window, update);
     const stopScreen =
       preparedRoot === undefined ? () => {} : whenTheScreenMoves(document, update);
@@ -304,7 +311,7 @@ export const TheBar = ({
       stopTrail();
       stopScreen();
     };
-  }, [preparedRoot]);
+  }, [active, preparedRoot]);
 
   useEffect(() => {
     if (preparedSlot === null || preparedRoot === undefined) {
@@ -327,12 +334,13 @@ export const TheBar = ({
 
   useEffect(() => {
     if (
+      !active ||
       props.where.kind !== "repository" ||
       (preparedRoot !== undefined && !preparedRoot.isConnected)
     )
       return;
     visiting(`${props.where.owner}/${props.where.repo}`);
-  }, [preparedRoot, props.where]);
+  }, [active, preparedRoot, props.where]);
 
   /*
    * ⌘K, and on the document rather than on the bar: the reader is looking at a list, a diff or
@@ -341,7 +349,7 @@ export const TheBar = ({
    * over the page — and left alone entirely while something of ours is already typing.
    */
   useEffect(() => {
-    if (!searchable) return;
+    if (!active || !searchable) return;
 
     const onKey = (event: KeyboardEvent) => {
       if (preparedRoot !== undefined && !preparedRoot.isConnected) return;
@@ -353,7 +361,7 @@ export const TheBar = ({
 
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [preparedRoot, searchable]);
+  }, [active, preparedRoot, searchable]);
 
   /*
    * Nothing at all while another screen of ours has the page.
@@ -390,15 +398,15 @@ export const TheBar = ({
         onSearch={searchable ? () => setFinding(true) : undefined}
         onBack={trail.back ? () => goBack(window) : undefined}
         onPrepareBack={
-          onPrepareRoute === undefined || trail.behind[0] === undefined
+          trail.behind[0] === undefined
             ? undefined
-            : () => onPrepareRoute(trail.behind[0]!.at)
+            : () => prepareRoute(trail.behind[0]!.at)
         }
         onForward={trail.forward ? () => goForward(window) : undefined}
         onPrepareForward={
-          onPrepareRoute === undefined || trail.ahead === undefined
+          trail.ahead === undefined
             ? undefined
-            : () => onPrepareRoute(trail.ahead!)
+            : () => prepareRoute(trail.ahead!)
         }
         behind={eachOnce(
           trail.behind.map((step) => ({

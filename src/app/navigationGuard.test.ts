@@ -4,15 +4,36 @@ import {
   guardDuplicateNavigation,
   markOwnedRoute,
   OWNED_ROUTE,
-  OWNED_ROUTE_CLICK,
-  OWNED_ROUTE_PRESS,
-  OWNED_TRAVERSAL,
-  PREPARED_TRAVERSAL_ROUTE,
   guardPreparedTraversal,
-  suppressNextEvent
+  suppressNextEvent,
+  whenOwnedRouteIsOffered
 } from "./navigationGuard"
+import {
+  PREPARED_TRAVERSAL_ROUTE,
+  whenPreparedTraversalIsOffered
+} from "../ui/preparedNavigation"
 
 describe("the page-world guard for an owned route", () => {
+  test("offers an extension link through the shared document", async () => {
+    const root = document.createElement("div")
+    root.id = "gitquiet-root"
+    root.innerHTML = '<a href="/owner/repo/issues">Issues</a>'
+    document.body.append(root)
+    const link = root.querySelector("a") as HTMLAnchorElement
+    const offered: Array<string> = []
+    link.addEventListener("pointerdown", guardOwnedRoute)
+    const stop = whenOwnedRouteIsOffered(document, (kind, route) =>
+      offered.push(`${kind}:${route}`)
+    )
+
+    link.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0 }))
+    await Promise.resolve()
+
+    expect(offered).toEqual(["press:/owner/repo/issues"])
+    stop()
+    root.remove()
+  })
+
   test("stops one duplicate popstate and leaves the next one alone", () => {
     const target = new EventTarget()
     const arm = suppressNextEvent(target, "popstate")
@@ -26,20 +47,16 @@ describe("the page-world guard for an owned route", () => {
     expect(handled).toBe(1)
   })
 
-  test("keeps GitHub out of a prepared history traversal", () => {
+  test("keeps GitHub out of a prepared history traversal", async () => {
     document.documentElement.setAttribute(
       PREPARED_TRAVERSAL_ROUTE,
       "/owner/repo/pull/12?tab=files"
     )
     let stopped = false
     let offered: string | null = null
-    document.addEventListener(
-      OWNED_TRAVERSAL,
-      (event) => {
-        offered = (event as CustomEvent<string>).detail
-      },
-      { once: true }
-    )
+    const stop = whenPreparedTraversalIsOffered(document, (route) => {
+      offered = route
+    })
     const event = {
       navigationType: "traverse",
       destination: {
@@ -52,9 +69,11 @@ describe("the page-world guard for an owned route", () => {
     } as unknown as Event
 
     expect(guardPreparedTraversal(event, document)).toBe(true)
+    await Promise.resolve()
     expect(offered as unknown).toBe("/owner/repo/pull/12?tab=files")
     expect(stopped).toBe(true)
     expect(document.documentElement.hasAttribute(PREPARED_TRAVERSAL_ROUTE)).toBe(false)
+    stop()
   })
 
   test("cancels a duplicate document navigation but keeps the history push", () => {
@@ -89,15 +108,17 @@ describe("the page-world guard for an owned route", () => {
     expect(documentLoadStopped).toBe(true)
   })
 
-  test("offers an interface link to the extension before GitHub sees the press", () => {
+  test("offers an interface link to the extension before GitHub sees the press", async () => {
     const root = document.createElement("div")
     root.id = "gitquiet-root"
     root.innerHTML = '<a href="/owner/repo/pull/12"><span>Pull request 12</span></a>'
     document.body.append(root)
     const link = root.querySelector("a") as HTMLAnchorElement
-    let offered = 0
+    const offered: Array<string> = []
     let githubRan = false
-    link.addEventListener(OWNED_ROUTE_PRESS, () => offered++)
+    const stop = whenOwnedRouteIsOffered(document, (kind, route) =>
+      offered.push(`${kind}:${route}`)
+    )
     link.addEventListener("pointerdown", guardOwnedRoute)
     link.addEventListener("pointerdown", () => {
       githubRan = true
@@ -106,9 +127,11 @@ describe("the page-world guard for an owned route", () => {
     link.querySelector("span")?.dispatchEvent(
       new MouseEvent("pointerdown", { bubbles: true, cancelable: true, button: 0 })
     )
+    await Promise.resolve()
 
-    expect(offered).toBe(1)
+    expect(offered).toEqual(["press:/owner/repo/pull/12"])
     expect(githubRan).toBe(false)
+    stop()
     root.remove()
   })
 
@@ -119,9 +142,11 @@ describe("the page-world guard for an owned route", () => {
     document.body.append(link)
     markOwnedRoute(link)
     expect(link.getAttribute("href")).toBe("/owner/repo/pull/12")
-    let routed = 0
+    const routed: Array<string> = []
     let githubRan = false
-    link.addEventListener(OWNED_ROUTE_CLICK, () => routed++)
+    const stop = whenOwnedRouteIsOffered(document, (kind, route) =>
+      routed.push(`${kind}:${route}`)
+    )
     let githubReleased = false
     link.addEventListener("pointerup", guardOwnedRoute)
     link.addEventListener("pointerup", () => {
@@ -140,13 +165,15 @@ describe("the page-world guard for an owned route", () => {
 
     const click = new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 })
     link.querySelector("span")?.dispatchEvent(click)
+    await Promise.resolve()
 
     expect(click.defaultPrevented).toBe(true)
     expect(githubRan).toBe(false)
-    expect(routed).toBe(1)
+    expect(routed).toEqual(["click:/owner/repo/pull/12"])
     expect(link.hasAttribute(OWNED_ROUTE)).toBe(false)
     await new Promise((done) => setTimeout(done, 0))
     expect(link.getAttribute("href")).toBe("/owner/repo/pull/12")
+    stop()
     link.remove()
   })
 
@@ -155,9 +182,6 @@ describe("the page-world guard for an owned route", () => {
     document.body.append(link)
     link.href = "/owner/repo/pull/12"
     markOwnedRoute(link)
-    let routed = 0
-    link.addEventListener(OWNED_ROUTE_CLICK, () => routed++)
-
     const click = new MouseEvent("click", {
       bubbles: true,
       cancelable: true,
@@ -168,7 +192,6 @@ describe("the page-world guard for an owned route", () => {
     guardOwnedRoute(click)
 
     expect(click.defaultPrevented).toBe(false)
-    expect(routed).toBe(0)
     expect(link.hasAttribute(OWNED_ROUTE)).toBe(false)
     expect(link.getAttribute("href")).toBe("/owner/repo/pull/12")
     link.remove()

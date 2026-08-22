@@ -3,8 +3,10 @@ import { runWhenIdle } from "./idle"
 import { type Stop, whenAddressChanges } from "./navigation"
 import { CONVERSATION, type Place } from "./place"
 import { PREPARED_TRAVERSAL_ROUTE } from "./preparedNavigation"
+import { finishNavigation } from "./navigationTiming"
 
 export const ROOT_ID = "gitquiet-root"
+export const SCREEN_ACTIVITY = "data-gitquiet-screen-activity"
 
 const firstOf = (
   target: Document,
@@ -116,6 +118,10 @@ const rememberScreen = (element: Element): void => {
   const screens = screenSnapshots(element.ownerDocument)
   if (route === null || place === null || screens === null || element.innerHTML === "") return
 
+  // The screen left as a live React tree. Keep that stronger entry rather than
+  // replacing it with an inert HTML copy on the idle task queued before it left.
+  if (screens.get(route)?.prepared?.element === element) return
+
   keepScreenSnapshot(screens, route, { place, html: element.innerHTML })
 }
 
@@ -143,6 +149,19 @@ export const rememberPreparedScreen = (
   })
 }
 
+/** Keeps a screen that just left as a live history entry, where it named its route. */
+export const rememberLiveScreen = (
+  element: Element,
+  place: Place,
+  dispose: () => void
+): boolean => {
+  const route = element.getAttribute(ROUTE)
+  if (route === null || element.innerHTML === "") return false
+
+  rememberPreparedScreen(element.ownerDocument, route, place, element, dispose)
+  return true
+}
+
 /** Whether this exact route has a live React root ready to claim. */
 export const hasPreparedScreen = (
   target: Document,
@@ -151,6 +170,18 @@ export const hasPreparedScreen = (
 ): boolean => {
   const snapshot = screenSnapshots(target)?.get(route)
   return snapshot?.place === place.name && snapshot.prepared !== undefined
+}
+
+/** Arms an exact live cache entry for Back, Forward, or another history traversal. */
+export const prepareCachedTraversal = (
+  target: Document,
+  route: string,
+  place: Place
+): boolean => {
+  if (!hasPreparedScreen(target, route, place)) return false
+
+  target.documentElement.setAttribute(PREPARED_TRAVERSAL_ROUTE, route)
+  return true
 }
 
 /** Takes a live route pre-render out of the cache without disposing its React root. */
@@ -223,10 +254,11 @@ const LEAVING = "data-gitquiet-leaving"
  */
 export const GOING = "gitquiet:going"
 
-const takeOffThePage = (element: Element): void => {
+const takeOffThePage = (element: Element, rememberLive = false): void => {
   const page = element.ownerDocument
   runWhenIdle(() => rememberScreen(element))
-  element.dispatchEvent(new CustomEvent(GOING))
+  theScreenActivityChanged(element)
+  element.dispatchEvent(new CustomEvent(GOING, { detail: rememberLive }))
   element.remove()
   if (element === ours) ours = null
   theScreenMoved(page)
@@ -269,6 +301,11 @@ export const theScreenMoved = (page: Document): void => {
     moving.delete(page)
     page.documentElement.dispatchEvent(new CustomEvent(SCREEN_MOVED))
   }, 0)
+}
+
+/** Wakes a detached screen when its connection to the page changes. */
+export const theScreenActivityChanged = (element: Element): void => {
+  element.toggleAttribute(SCREEN_ACTIVITY)
 }
 
 /**
@@ -669,6 +706,8 @@ export const interfaceContainer = (
     made.setAttribute(BELONGS_TO, place.name)
     seedRememberedScreen(target, made, place, exactRoute)
   }
+  const madeRoute = routeNow(target, exactRoute)
+  if (madeRoute !== null) made.setAttribute(ROUTE, madeRoute)
   ours = made
   theScreenMoved(target)
   return made
@@ -695,6 +734,46 @@ export const ourSurface = (target: Document): Element | null =>
  */
 export const theScreenOnThePage = (target: Document): Element | null =>
   target.getElementById(ROOT_ID)
+
+/** Whether the screen already on the page draws this exact route. */
+export const theScreenHasRoute = (target: Document, route: string): boolean =>
+  theScreenOnThePage(target)?.getAttribute(ROUTE) === route
+
+/** Updates the exact route after the browser redirects within the same screen. */
+export const markScreenRoute = (target: Document, route: string): void => {
+  const screen = theScreenOnThePage(target) ?? (ours?.ownerDocument === target ? ours : null)
+  screen?.setAttribute(ROUTE, route)
+  finishNavigation(target, route)
+}
+
+/** Puts an exact live history target on the current surface before traversal commits. */
+export const activatePreparedTraversal = (
+  target: Document,
+  route: string,
+  place: Place
+): boolean => {
+  const leaving = theScreenOnThePage(target)
+  const slot = leaving?.parentElement
+  if (leaving === null || slot == null) return false
+
+  const arriving = claimPreparedScreen(target, place, route)
+  if (arriving === null) return false
+
+  leaving.setAttribute(LEAVING, "")
+  takeOffThePage(leaving, true)
+  slot.append(arriving)
+  theScreenActivityChanged(arriving)
+  arriving.setAttribute(ROUTE, route)
+  target.documentElement.setAttribute(TAKEN, "")
+  target.documentElement.setAttribute(SHOWN, place.name)
+  hideTheirs(slot, arriving)
+  hideTheirBands(target, place)
+  reveal(target)
+  ungate(target)
+  finishNavigation(target, route)
+  theScreenMoved(target)
+  return true
+}
 
 /**
  * Keeps a screen on the page until the one replacing it is in the document.
@@ -884,8 +963,9 @@ export const takeOverSlot = (
     // afterwards would name a container that has just been told once already.
     // See `marked`.
     const missed = marked !== null && marked !== container && !marked.isConnected ? marked : null
-    for (const leaving of target.querySelectorAll(`[${LEAVING}]`)) takeOffThePage(leaving)
-    if (missed !== null) takeOffThePage(missed)
+    for (const leaving of target.querySelectorAll(`[${LEAVING}]`))
+      takeOffThePage(leaving, true)
+    if (missed !== null) takeOffThePage(missed, true)
     marked = null
     /*
      * And any other of ours standing there unmarked, which is the same invariant asked at the
@@ -929,8 +1009,12 @@ export const takeOverSlot = (
       }
     }
     into.append(container)
+    theScreenActivityChanged(container)
     const route = routeNow(target, exactRoute)
-    if (route !== null) container.setAttribute(ROUTE, route)
+    if (route !== null) {
+      container.setAttribute(ROUTE, route)
+      finishNavigation(target, route)
+    }
     hideTheirs(into, container)
     hideTheirBands(target, place)
     // Set before revealing, so that the rule keeping their conversation out of

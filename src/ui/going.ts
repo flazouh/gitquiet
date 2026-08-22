@@ -1,6 +1,7 @@
 import { Effect } from "effect"
 import { BAR_ID } from "./barSlot"
 import { holdTheSurface, ROOT_ID, theScreenOnThePage } from "./mount"
+import { beginNavigation } from "./navigationTiming"
 import type { Stop } from "./navigation"
 
 /**
@@ -219,10 +220,12 @@ export const theTrail = (target: Window): Trail => {
  * is going back; it does not reach into `history` to do it.
  */
 export const goBack = (target: Window): void => {
+  beginNavigation(target)
   target.history.back()
 }
 
 export const goForward = (target: Window): void => {
+  beginNavigation(target)
   target.history.forward()
 }
 
@@ -256,6 +259,7 @@ const letGo = (answer: PromiseLike<unknown> | undefined): void => {
  * they were, and the two promises are read only so that neither is left unhandled.
  */
 export const goBackTo = (target: Window, step: Step): void => {
+  beginNavigation(target)
   const nav = theirNavigation(target)
 
   if (step.key !== undefined && nav?.traverseTo !== undefined) {
@@ -352,6 +356,8 @@ export const goTo = (
    * for one press is a back button that appears to do nothing.
    */
   if (addressOf(target) === path) return
+
+  beginNavigation(target)
 
   const leaving = theScreenOnThePage(target.document)
   const cameUp = arrived ?? (() => theScreenOnThePage(target.document) !== leaving)

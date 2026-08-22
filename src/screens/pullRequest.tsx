@@ -30,8 +30,8 @@ import { rememberedRepositories } from "@/app/destinations"
 import { layerSizes } from "@/app/sizes"
 import { uploadFile } from "@/app/attaching"
 import { loadSuggesting } from "@/app/suggesting"
-import { forgetIntent, intendedPath, prepareTo, whenPreparing } from "@/app/intent"
-import { OWNED_TRAVERSAL, PREPARED_TRAVERSAL_ROUTE } from "@/ui/preparedNavigation"
+import { forgetIntent, intendedPath, prepareTo } from "@/app/intent"
+import { PREPARED_TRAVERSAL_ROUTE } from "@/ui/preparedNavigation"
 import { answerPressesIn, holdForRedraw, ourOwnRowsDrawn } from "@/ui/going"
 import { pullRequestNamed } from "@/ui/lastDrawn"
 import { isDashboard } from "@/domain/pages"
@@ -54,7 +54,7 @@ import {
   ungate
 } from "@/ui/mount"
 import { CONVERSATION } from "@/ui/place"
-import { whenLocationChanges, whenTraversalStarts } from "@/ui/navigation"
+import { whenLocationChanges } from "@/ui/navigation"
 import { offerOurPage } from "@/ui/theirTabs"
 import "@/ui/styles.css"
 
@@ -382,6 +382,32 @@ const open = (
   return (onPrepared === undefined ? standAScreen(screen) : prepareAScreen(screen.draw)).close
 }
 
+let preparing: { readonly path: string; readonly close: () => void } | null = null
+let handToGitHub: (() => void) | undefined
+
+/** Builds one pull request while the pointer rests on its link. */
+export const prepare = (path: string): void => {
+  if (path === window.location.pathname || hasPreparedScreen(document, path, CONVERSATION)) return
+
+  const reference = fromPathname(path)
+  if (Option.isNone(reference) || preparing?.path === path) return
+
+  preparing?.close()
+  preparing = null
+
+  let stop = (): void => {}
+  const finish = (container: Element): void => {
+    if (preparing?.path !== path) return
+
+    rememberPreparedScreen(document, path, CONVERSATION, container, stop)
+    document.documentElement.setAttribute(PREPARED_TRAVERSAL_ROUTE, path)
+    preparing = null
+  }
+
+  stop = open(reference.value, false, () => handToGitHub?.(), true, finish)
+  preparing = { path, close: stop }
+}
+
 /**
  * Puts the card in charge of the document, once.
  *
@@ -400,8 +426,6 @@ export const start = (): void => {
   const store = settings()
 
   let close = (): void => {}
-  /** One route being rendered outside the page, before the reader presses it. */
-  let preparing: { readonly path: string; readonly close: () => void } | null = null
   /** Takes the way back off GitHub's tab row, when one is on it. */
   let unoffer = (): void => {}
   /** The pull request drawn ahead of the address, if this is one. */
@@ -452,6 +476,7 @@ export const start = (): void => {
     void rememberView(store, "github")
     handOver()
   }
+  handToGitHub = useGitHub
 
   function show(path: string, ahead = false, inPlace = false): void {
     preparing?.close()
@@ -501,49 +526,6 @@ export const start = (): void => {
     }, ABANDON)
   }
 
-  /** Builds one pull request while the pointer rests on its link. */
-  function prepare(path: string): void {
-    if (
-      view === "github" ||
-      path === window.location.pathname ||
-      hasPreparedScreen(document, path, CONVERSATION)
-    )
-      return
-
-    const reference = fromPathname(path)
-    if (Option.isNone(reference) || preparing?.path === path) return
-
-    preparing?.close()
-    preparing = null
-
-    let stop = (): void => {}
-    const finish = (container: Element): void => {
-      if (preparing?.path !== path) return
-
-      rememberPreparedScreen(document, path, CONVERSATION, container, stop)
-      document.documentElement.setAttribute(PREPARED_TRAVERSAL_ROUTE, path)
-      preparing = null
-    }
-
-    stop = open(reference.value, false, useGitHub, true, finish)
-    preparing = { path, close: stop }
-  }
-
-  document.addEventListener(OWNED_TRAVERSAL, (event) => {
-    const path = (event as CustomEvent<string>).detail
-    if (!hasPreparedScreen(document, path, CONVERSATION)) return
-
-    show(path, false, true)
-    promised = path
-  })
-
-  whenTraversalStarts(window, (path) => {
-    if (!hasPreparedScreen(document, path, CONVERSATION)) return
-
-    show(path, false, true)
-    promised = path
-  })
-
   whenLocationChanges(window, (path) => {
     // Arriving where the interface already is. Drawing it again would throw
     // away a pull request that is on the screen and correct.
@@ -567,8 +549,6 @@ export const start = (): void => {
     chosenView(store).pipe(
       Effect.map((chosen) => {
         view = chosen
-        whenPreparing(window, prepare)
-
         // What the address says, or — while GitHub is still fetching and the
         // address still names the page being left — what the reader pressed.
         const here = window.location.pathname

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { whenTheScreenMoves } from "./mount"
+import { SCREEN_ACTIVITY, whenTheScreenMoves } from "./mount"
 
 /** Whether a detached route root now owns the page. */
 export const usePreparedActive = (root: Element | undefined): boolean => {
@@ -9,10 +9,16 @@ export const usePreparedActive = (root: Element | undefined): boolean => {
     if (root === undefined) return
 
     const check = (): void => {
-      if (root.isConnected) setActive(true)
+      setActive(root.isConnected)
     }
+    const activity = new MutationObserver(check)
+    activity.observe(root, { attributes: true, attributeFilter: [SCREEN_ACTIVITY] })
     check()
-    return whenTheScreenMoves(document, check)
+    const stop = whenTheScreenMoves(document, check)
+    return () => {
+      activity.disconnect()
+      stop()
+    }
   }, [root])
 
   return active

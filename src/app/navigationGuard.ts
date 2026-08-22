@@ -1,8 +1,10 @@
 export const OWNED_ROUTE = "data-gitquiet-owned-route"
-export const OWNED_ROUTE_CLICK = "gitquiet:owned-route-click"
-export const OWNED_ROUTE_PRESS = "gitquiet:owned-route-press"
-export { OWNED_TRAVERSAL, PREPARED_TRAVERSAL_ROUTE } from "../ui/preparedNavigation"
-import { OWNED_TRAVERSAL, PREPARED_TRAVERSAL_ROUTE } from "../ui/preparedNavigation"
+const OWNED_ROUTE_OFFER = "data-gitquiet-owned-route-offer"
+const OWNED_ROUTE_OFFER_PATH = "data-gitquiet-owned-route-offer-path"
+import {
+  offerPreparedTraversal,
+  PREPARED_TRAVERSAL_ROUTE
+} from "../ui/preparedNavigation"
 
 /** Marks one link whose next plain click is handled by this extension. */
 export const markOwnedRoute = (link: HTMLAnchorElement): void => {
@@ -28,6 +30,44 @@ type NavigationAttempt = {
 type TraversalAttempt = Event & {
   readonly navigationType?: string
   readonly destination?: { readonly url?: string; readonly sameDocument?: boolean }
+}
+
+type OwnedRouteOffer = "press" | "click"
+
+/** Offers one owned link action through the DOM shared by both browser worlds. */
+const offerOwnedRoute = (
+  link: HTMLAnchorElement,
+  kind: OwnedRouteOffer,
+  route: string
+): void => {
+  link.setAttribute(OWNED_ROUTE_OFFER_PATH, route)
+  link.setAttribute(OWNED_ROUTE_OFFER, kind)
+}
+
+/** Receives owned link actions in the extension world. */
+export const whenOwnedRouteIsOffered = (
+  target: Document,
+  onOffer: (kind: OwnedRouteOffer, route: string, link: HTMLAnchorElement) => void
+): (() => void) => {
+  const observer = new MutationObserver((changes) => {
+    for (const change of changes) {
+      const link = change.target
+      if (!(link instanceof HTMLAnchorElement)) continue
+      const kind = link.getAttribute(OWNED_ROUTE_OFFER)
+      const route = link.getAttribute(OWNED_ROUTE_OFFER_PATH)
+      if ((kind !== "press" && kind !== "click") || route === null) continue
+
+      link.removeAttribute(OWNED_ROUTE_OFFER)
+      link.removeAttribute(OWNED_ROUTE_OFFER_PATH)
+      onOffer(kind, route, link)
+    }
+  })
+  observer.observe(target.documentElement, {
+    attributes: true,
+    attributeFilter: [OWNED_ROUTE_OFFER],
+    subtree: true
+  })
+  return () => observer.disconnect()
 }
 
 /** Stops the next duplicate browser event while leaving later navigation alone. */
@@ -66,7 +106,7 @@ export const guardPreparedTraversal = (
   if (`${destination.pathname}${destination.search}` !== prepared) return false
 
   target.documentElement.removeAttribute(PREPARED_TRAVERSAL_ROUTE)
-  target.dispatchEvent(new CustomEvent(OWNED_TRAVERSAL, { detail: prepared }))
+  offerPreparedTraversal(target, prepared)
   event.stopImmediatePropagation()
   return true
 }
@@ -108,7 +148,7 @@ export const guardOwnedRoute = (event: MouseEvent): void => {
     !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
   ) {
     event.stopImmediatePropagation()
-    link.dispatchEvent(new CustomEvent(OWNED_ROUTE_PRESS, { bubbles: true }))
+    offerOwnedRoute(link, "press", link.getAttribute("href") ?? link.href)
     return
   }
 
@@ -131,7 +171,7 @@ export const guardOwnedRoute = (event: MouseEvent): void => {
   event.stopImmediatePropagation()
   if (event.type !== "click") return
 
-  link.dispatchEvent(new CustomEvent(OWNED_ROUTE_CLICK, { bubbles: true }))
+  if (href !== null) offerOwnedRoute(link, "click", href)
   link.removeAttribute(OWNED_ROUTE)
   window.setTimeout(() => {
     if (!link.hasAttribute("href") && href !== null) link.setAttribute("href", href)

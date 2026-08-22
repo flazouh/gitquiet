@@ -8,9 +8,11 @@ import {
   GOING,
   gate,
   handBack,
+  hasPreparedScreen,
   interfaceContainer,
   markPage,
   ourSurface,
+  rememberLiveScreen,
   reveal,
   takeOverSlotWhenReady,
   ungate,
@@ -18,6 +20,7 @@ import {
   whenThereIsAPage
 } from "../ui/mount"
 import type { Place } from "../ui/place"
+import { OWNED_TRAVERSAL } from "../ui/preparedNavigation"
 import { Supplied } from "./supplied"
 
 /**
@@ -142,14 +145,8 @@ export type Screen = {
  * loading a page, so a screen left standing would still be over the next one, and the
  * attribute holding GitHub's own content out of sight would still be set.
  */
-export const standAScreen = ({
-  place,
-  route,
-  draw,
-  holding,
-  borrowing = true,
-  settling
-}: Screen): Standing => {
+export const standAScreen = (screen: Screen): Standing => {
+  const { place, route, draw, holding, borrowing = true, settling } = screen
   /*
    * Named before anything else. The rules that hide GitHub's version of this page are
    * written per page and hang on this attribute, and on a move between two of our own
@@ -181,6 +178,11 @@ export const standAScreen = ({
   const root = rootOn(container, mine)
   const letGo = holding?.(container) ?? (() => {})
 
+  /** The new standing that claimed this live tree from the history cache. */
+  let adopted: Standing | undefined
+  /** Stops the one return listener installed while this live tree is cached. */
+  let stopResuming = (): void => {}
+
   let down = false
   // Assigned by the wait at the foot of this function, and called from `standDown` above
   // it. Until then there is nothing to stop: no screen comes down before it is drawn.
@@ -202,13 +204,15 @@ export const standAScreen = ({
    * {@link whenAnotherBarStands}, and `glass.css` for the one frame they overlap.
    */
   const unmount = (): void => {
+    stopResuming()
     if (!stillOwned(container, mine)) return
     roots.delete(container)
     root.unmount()
   }
-  const standDown = (): void => {
+  const standDown = (event?: Event): void => {
     if (down) return
     down = true
+    const keepLive = event instanceof CustomEvent && event.detail === true
     stopWaitingForABody()
     letGo()
     whenAnotherBarStands(document, () => {
@@ -216,6 +220,35 @@ export const standAScreen = ({
       // page: this one's tree stopped existing the moment that render replaced it.
       // Cleanup can be expensive on a large pull request. Leave the navigation task
       // free to paint the prepared route before React runs every outgoing cleanup.
+      const remembered =
+        keepLive &&
+        rememberLiveScreen(container, place, () => {
+          stopResuming()
+          runWhenIdle(unmount, 2_000)
+        })
+      if (remembered) {
+        preparedRoots.add(container)
+        preparedBridges.set(container, {
+          adopt: (screen) => {
+            adopted = screen
+          }
+        })
+        const exactRoute = container.getAttribute("data-gitquiet-route")
+        if (exactRoute !== null) {
+          const resume = (event: Event): void => {
+            if ((event as CustomEvent<string>).detail !== exactRoute) return
+            if (!hasPreparedScreen(document, exactRoute, place)) return
+            stopResuming()
+            standAScreen(screen)
+          }
+          document.addEventListener(OWNED_TRAVERSAL, resume)
+          stopResuming = () => {
+            document.removeEventListener(OWNED_TRAVERSAL, resume)
+            stopResuming = () => {}
+          }
+        }
+        return
+      }
       runWhenIdle(unmount, 2_000)
     })
   }
@@ -295,12 +328,22 @@ export const standAScreen = ({
 
   const standing: Standing = {
     container,
-    stepAside: () => stepAside(),
+    stepAside: () => adopted?.stepAside() ?? stepAside(),
     // Nothing is said here about which address is up. This runs at the press, before
     // the screen has read anything, so the only address available is the one asked
     // for. `useDrawnAt` publishes the one that is drawn.
-    redraw: () => root.render(<Supplied root={container}>{draw(standing)}</Supplied>),
+    redraw: () => {
+      if (adopted !== undefined) {
+        adopted.redraw()
+        return
+      }
+      root.render(<Supplied root={container}>{draw(standing)}</Supplied>)
+    },
     close: () => {
+      if (adopted !== undefined) {
+        adopted.close()
+        return
+      }
       watching = false
       clearTimeout(failsafe)
       // Nothing is waiting for this page any more. Left alone the wait holds an address
@@ -328,7 +371,8 @@ export const standAScreen = ({
     }
   }
   if (prepared) {
-    preparedBridges.get(container)?.adopt(standing)
+    const bridge = preparedBridges.get(container)
+    bridge?.adopt(standing)
     preparedBridges.delete(container)
   }
   /*
