@@ -173,6 +173,10 @@ export const whenAddressChanges = (
   // The address is already current. Move the screen in the next task so a route
   // render cannot turn the reader's click into a dropped frame.
   const afterInput = (): void => {
+    if (target.scheduler !== undefined) {
+      void target.scheduler.postTask(look, { priority: "user-blocking" })
+      return
+    }
     target.setTimeout(look, 0)
   }
   said?.addEventListener("currententrychange", afterInput)
