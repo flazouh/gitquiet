@@ -420,15 +420,6 @@ export const FileDiffPane = ({
   const patch = useMemo(() => toPatch(whole), [whole])
 
   /**
-   * The patch as it will be drawn, which is the patch itself unless the reader
-   * asked for spacing to be held back.
-   *
-   * Here rather than inside the renderer, and the reason is the line below it:
-   * a file whose every change was spacing comes back empty, and the pane has to
-   * say so. The renderer would have nothing to draw and no way to tell the
-   * difference between that and a file GitHub sent no content for.
-   */
-  /**
    * The knobs and theme this pane draws with, which follow the reader's
    * choices at the pane's own pace.
    *
@@ -459,6 +450,15 @@ export const FileDiffPane = ({
     return () => clearTimeout(timer)
   }, [wanted, drawnWith, visible])
 
+  /**
+   * The patch as it will be drawn, which is the patch itself unless the reader
+   * asked for spacing to be held back.
+   *
+   * Here rather than inside the renderer, and the reason is the line below it:
+   * a file whose every change was spacing comes back empty, and the pane has to
+   * say so. The renderer would have nothing to draw and no way to tell the
+   * difference between that and a file GitHub sent no content for.
+   */
   const shown = useMemo(
     () => (drawnWith.choices.hideWhitespace ? Option.map(patch, withoutWhitespace) : patch),
     [patch, drawnWith.choices.hideWhitespace]
