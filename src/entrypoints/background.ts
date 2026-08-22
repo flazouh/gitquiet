@@ -1,9 +1,9 @@
 import { Effect, Option } from "effect"
 import { defineBackground } from "wxt/utils/define-background"
-import { goingTo, payloadsOnTheWay } from "@/app/onTheWay"
 import { chosenView } from "@/app/settings"
 import { welcomeFor } from "@/app/welcoming"
-import { answering, isAsked } from "@/github/throughTheWorker"
+import { goingTo, payloadsOnTheWay } from "@/github/onTheWay"
+import { answering, askedAbout } from "@/github/throughTheWorker"
 import { initialiseErrorReporting } from "@/observability/sentry"
 import { browserSettings } from "@/settings/browserStore"
 
@@ -38,11 +38,17 @@ export default defineBackground(() => {
    * and the top frame only: an iframe on some other page that happens to hold a pull
    * request is not a page anybody is about to read.
    *
+   * It fires for navigations that never arrive as well — one cancelled, one refused,
+   * one the browser was guessing at — and each of those costs seven requests to
+   * GitHub for a page nobody opened. Left as it is, deliberately: the reader was
+   * headed there, the requests are the ones their own page would have made, and the
+   * alternative is to wait for an event that arrives after the point of this.
+   *
    * Nothing is done with the failure. A reader whose network is down or whose
    * organisation wants a single sign-on finds that out on the page, from a card that
    * can say so; here it would be a message to nobody.
    */
-  browser.webNavigation?.onBeforeNavigate.addListener((details) => {
+  browser.webNavigation.onBeforeNavigate.addListener((details) => {
     if (details.frameId !== 0) return
 
     const wanted = goingTo(details.url)
@@ -53,7 +59,8 @@ export default defineBackground(() => {
         Effect.flatMap((view) =>
           view === "github" ? Effect.void : payloadsOnTheWay(wanted.value)
         ),
-        Effect.catch(() => Effect.void)
+        Effect.catch(() => Effect.void),
+        Effect.catchCause(() => Effect.void)
       )
     )
   })
@@ -66,9 +73,10 @@ export default defineBackground(() => {
    * is somebody else's, so it is left alone with an undefined return.
    */
   browser.runtime.onMessage.addListener((message, _sender, respond) => {
-    if (!isAsked(message)) return undefined
+    const wanted = askedAbout(message)
+    if (Option.isNone(wanted)) return undefined
 
-    answering(message.reference, payloadsOnTheWay, respond)
+    answering(wanted.value, payloadsOnTheWay, respond)
     return true
   })
 

@@ -1,6 +1,6 @@
 import { Effect } from "effect"
-import { GatewayError } from "../ports/GitHubGateway"
 import type { PullRequestRef } from "../domain/PullRequestRef"
+import { GatewayError } from "../ports/GitHubGateway"
 import { askingOnce } from "./flight"
 import type { RawPayloads } from "./snapshot"
 
@@ -27,11 +27,11 @@ export const REQUIRED_HEADERS = {
 /**
  * What one of GitHub's JSON routes said, as a value rather than as a failure.
  *
- * Every read of theirs goes wrong in exactly these three ways, and the reason has to
+ * Every read of theirs goes wrong in one of these ways, and the reason has to
  * survive being carried between bundles by the promise several readers are sharing —
- * which is why it is here in the answer rather than beside it as a failure. The two
- * callers below turn it back into their own kind of failure, which is where the
- * difference between them belongs.
+ * which is why it is here in the answer rather than beside it as a failure. Each
+ * caller turns it back into its own kind of failure, which is where the difference
+ * between them belongs.
  */
 export type Said =
   | { readonly ok: true; readonly payload: unknown }
@@ -140,7 +140,7 @@ const asking = (url: string): Effect.Effect<Said> =>
   }).pipe(Effect.catch(Effect.succeed))
 
 export const CHANGES = "/changes"
-export const STATUS_CHECKS = "/page_data/status_checks"
+const STATUS_CHECKS = "/page_data/status_checks"
 /**
  * The merge box, asked without naming a way of merging.
  *
@@ -167,8 +167,8 @@ export const MERGE_BOX = "/page_data/merge_box?bypass_requirements=false"
 // request that can be stacked and one with nothing to stack. A few hundred bytes,
 // and `null` where there is nothing to offer. See `PreviewStackRoute`.
 export const PREVIEW_STACK = "/page_data/preview_stack"
-export const DESCRIPTION = "/page_data/description"
-export const HEADER = "/page_data/header"
+const DESCRIPTION = "/page_data/description"
+const HEADER = "/page_data/header"
 // The only route that carries the bodies of what was said on the timeline. Its
 // neighbour `page_data/timeline` lists the same items by id and type with no
 // text, which is why reading the conversation needs this one and not that.
@@ -213,7 +213,7 @@ export const fetchRoute = Effect.fn("fetchRoute")(function* (
  * because the snapshot holds it as None and nothing downstream can read an answer out
  * of that.
  */
-export const whateverIsAt = Effect.fn("whateverIsAt")(function* (
+const whateverIsAt = Effect.fn("whateverIsAt")(function* (
   reference: PullRequestRef,
   route: string
 ) {
@@ -225,12 +225,11 @@ export const whateverIsAt = Effect.fn("whateverIsAt")(function* (
 /**
  * One pull request as GitHub's own page asks for it: seven routes at once.
  *
- * The only read in the extension that runs in two places. On the page it is the
- * first half of `GitHubGateway.snapshot`; in the service worker it runs the moment
- * the tab starts navigating, which is a second or more before their HTML answers
- * and before any content script of ours exists to run it. Both write what comes
- * back to the same store under the same key, and `askingOnce` folds the two into
- * one set of requests where they overlap in one context.
+ * The only read in the extension that runs in two places. In the service worker it
+ * runs the moment the tab starts navigating, which is a second or more before their
+ * HTML answers and before any content script of ours exists to run it; on the page
+ * it is what `GitHubGateway.snapshot` falls back on when there is no worker to ask.
+ * `askingOnce` folds them into one set of requests where two overlap in one context.
  *
  * Payloads rather than a snapshot, because a snapshot is full of `Option`s that no
  * structured clone would survive and the store keeps payloads for the same reason.

@@ -1,8 +1,8 @@
 import { Effect, Option } from "effect"
 import { fromPathname, keyOf, type PullRequestRef } from "../domain/PullRequestRef"
-import { payloadsFor } from "../github/asking"
-import type { RawPayloads } from "../github/snapshot"
 import type { GatewayError } from "../ports/GitHubGateway"
+import { payloadsFor } from "./asking"
+import type { RawPayloads } from "./snapshot"
 
 /**
  * Reading a pull request while the tab is still on its way to it.
@@ -61,10 +61,18 @@ const keep = (reference: PullRequestRef, payloads: RawPayloads): void => {
   if (held.size > HOW_MANY && !oldest.done) held.delete(oldest.value)
 }
 
-const stillHeld = (reference: PullRequestRef, now: number): Option.Option<RawPayloads> => {
-  const had = held.get(keyOf(reference))
+const stillHeld = (reference: PullRequestRef): Option.Option<RawPayloads> => {
+  const key = keyOf(reference)
+  const had = held.get(key)
   if (had === undefined) return Option.none()
-  if (now - had.at >= STILL_GOOD) return Option.none()
+
+  // Dropped rather than passed over, so that what is in here is what is good and
+  // an answer nobody may ever ask for again is not pinned until four newer reads
+  // push it out.
+  if (Date.now() - had.at >= STILL_GOOD) {
+    held.delete(key)
+    return Option.none()
+  }
 
   return Option.some(had.payloads)
 }
@@ -76,12 +84,17 @@ const stillHeld = (reference: PullRequestRef, now: number): Option.Option<RawPay
  * the page asking for what that read found. Whichever is second is answered without
  * a second request — from what is held here where the first has finished, and by
  * joining its requests through `askingOnce` where it has not.
+ *
+ * A read that failed is not held, and the page asking after one is a read of GitHub
+ * rather than the failure repeated. That costs a second set of requests during an
+ * outage and is the point: the two failures worth holding on to are the ones that do
+ * not hold still, and a reader arriving a second after a 503 deserves the ask.
  */
 export const payloadsOnTheWay = (
   reference: PullRequestRef
 ): Effect.Effect<RawPayloads, GatewayError> =>
   Effect.suspend(() => {
-    const already = stillHeld(reference, Date.now())
+    const already = stillHeld(reference)
     if (Option.isSome(already)) return Effect.succeed(already.value)
 
     return payloadsFor(reference).pipe(

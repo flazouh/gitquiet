@@ -1,7 +1,7 @@
-import { Effect } from "effect"
-import type { PullRequestRef } from "../domain/PullRequestRef"
+import { Cause, Effect, Option, Schema } from "effect"
+import { fromPathname, PullRequestRef, sameReference } from "../domain/PullRequestRef"
 import { GatewayError, type GatewayFailure } from "../ports/GitHubGateway"
-import { payloadsFor } from "./asking"
+import { CHANGES, payloadsFor } from "./asking"
 import type { RawPayloads } from "./snapshot"
 
 /**
@@ -37,11 +37,24 @@ export type Answered =
 
 export const askingFor = (reference: PullRequestRef): Asked => ({ what: ASKING, reference })
 
-/** Whether a message off the wire is the one question this file is about. */
-export const isAsked = (message: unknown): message is Asked =>
-  typeof message === "object" &&
-  message !== null &&
-  (message as { what?: unknown }).what === ASKING
+const asReference = Schema.decodeUnknownOption(PullRequestRef)
+
+/**
+ * The pull request a message off the wire is asking about, and nothing for a
+ * message that is not asking this question at all.
+ *
+ * The reference is decoded rather than trusted. A worker hears every message any
+ * part of the extension sends, one without a reference passed a check of the name
+ * alone, and what followed was worse than a wrong answer: the read died on a
+ * reference that was not there, the reply never came, and the page went on waiting
+ * on a channel the worker had already promised to answer.
+ */
+export const askedAbout = (message: unknown): Option.Option<PullRequestRef> => {
+  if (typeof message !== "object" || message === null) return Option.none()
+  if ((message as { what?: unknown }).what !== ASKING) return Option.none()
+
+  return asReference((message as { reference?: unknown }).reference)
+}
 
 /**
  * The worker's answer, put back into the failure the page would have raised itself.
@@ -52,11 +65,8 @@ export const isAsked = (message: unknown): message is Asked =>
  */
 const asAnswered = (value: unknown): Answered | undefined => {
   if (typeof value !== "object" || value === null) return undefined
-  const answer = value as { ok?: unknown }
-  if (answer.ok === true) return value as Answered
-  if (answer.ok === false) return value as Answered
 
-  return undefined
+  return typeof (value as { ok?: unknown }).ok === "boolean" ? (value as Answered) : undefined
 }
 
 const sending = (reference: PullRequestRef): Effect.Effect<Answered | undefined> =>
@@ -66,24 +76,35 @@ const sending = (reference: PullRequestRef): Effect.Effect<Answered | undefined>
   )
 
 /**
- * Whether this document is still arriving, which is the only time the worker is
- * worth asking.
+ * Whether this document is still arriving at this very pull request, which is the
+ * only read the worker has been told about.
  *
- * A worker that has been idle for thirty seconds is stopped, and waking it took 587
- * milliseconds when this extension last depended on that — see `background.ts`.
- * Asking it for every read would put that in front of the two the reader notices
- * most, a press and a Back, both of which happen on a document that finished
- * loading long ago and neither of which the worker has been told about.
+ * Both halves matter and each rules out a different way of being slower than before.
  *
- * A navigation is the opposite case on every count. It wakes the worker itself,
- * seconds before this runs, and the read it starts there is the one being joined.
+ * Still arriving, because a worker idle for thirty seconds is stopped and waking one
+ * took 587 milliseconds when this extension last depended on that — see
+ * `background.ts`. A press and a Back happen on a document that settled long ago, so
+ * asking there could put that wake in front of the two moments a reader notices most.
+ * While a document is loading the worker is awake by construction: the navigation
+ * that started it is what woke it.
  *
- * `complete` rather than a flag of our own because it is the browser's own answer to
- * the same question, and it is false in a service worker, which is what keeps the
- * worker from asking itself.
+ * At this pull request, because a read of one is not always about the page it is on.
+ * Resting on a row of a list starts a read ahead of that pull request, and the worker
+ * was told nothing about a row nobody has pressed. Sent there anyway, it would be a
+ * message round trip and a set of requests the press that follows could not reuse,
+ * which is the shape `readAhead.ts` exists to keep out of the fast path.
+ *
+ * `document` rather than a flag passed in because it answers for the document this
+ * screen is standing in, which is what the question is about, and because it is
+ * absent in a service worker — which is what keeps the worker from asking itself.
  */
-const stillArriving = (): boolean =>
-  typeof document !== "undefined" && document.readyState !== "complete"
+const arrivingOn = (reference: PullRequestRef): boolean => {
+  if (typeof document === "undefined") return false
+  if (document.readyState === "complete") return false
+
+  const here = fromPathname(document.location.pathname)
+  return Option.isSome(here) && sameReference(here.value, reference)
+}
 
 /**
  * The seven payloads, read by the worker where there is one and here where there
@@ -98,7 +119,7 @@ export const payloadsThroughWorker = (
   reference: PullRequestRef
 ): Effect.Effect<RawPayloads, GatewayError> =>
   Effect.suspend(() => {
-    if (!stillArriving()) return payloadsFor(reference)
+    if (!arrivingOn(reference)) return payloadsFor(reference)
     if (typeof browser === "undefined" || browser.runtime?.sendMessage === undefined) {
       return payloadsFor(reference)
     }
@@ -130,6 +151,11 @@ export const payloadsThroughWorker = (
  * Handed the way to reply rather than returning one, because `onMessage` takes a
  * callback and holds the channel open for it, and because a read that is already in
  * the air here is a fiber rather than a promise.
+ *
+ * Answered on every way out, including the one nobody planned. `onMessage` has been
+ * told an answer is coming, and a page waiting on a channel that is never written to
+ * waits until Chrome notices, which is not on any schedule a reader would sit
+ * through. A defect is the page's failure too, in the only words that can be sent.
  */
 export const answering = (
   reference: PullRequestRef,
@@ -145,6 +171,18 @@ export const answering = (
           route: failure.route,
           reason: failure.reason,
           detail: failure.detail
+        })
+      ),
+      // Whatever is left is a defect or an interruption rather than a read that
+      // went wrong, and the page is owed a reply either way. `unreachable` because
+      // that is what it amounts to from there: the question was asked and GitHub's
+      // answer is not coming.
+      Effect.catchCause((cause) =>
+        Effect.succeed<Answered>({
+          ok: false,
+          route: CHANGES,
+          reason: "unreachable",
+          detail: Cause.pretty(cause)
         })
       ),
       Effect.tap((answer) => Effect.sync(() => respond(answer)))

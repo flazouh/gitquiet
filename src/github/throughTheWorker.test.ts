@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { Effect } from "effect"
+import { Effect, Option } from "effect"
 import { draftWithBotFindings } from "../../tests/fixtures"
 import type { PullRequestRef } from "../domain/PullRequestRef"
 import { forgetFlights } from "./flight"
-import { askingFor, isAsked, payloadsThroughWorker } from "./throughTheWorker"
+import { askedAbout, askingFor, payloadsThroughWorker } from "./throughTheWorker"
 
 const draft: PullRequestRef = { owner: "microsoft", repo: "vscode", number: 327442 }
 
 describe("the question the page asks the worker", () => {
-  test("is recognised at the other end", () => {
-    expect(isAsked(askingFor(draft))).toBe(true)
+  test("names the pull request at the other end", () => {
+    expect(askedAbout(askingFor(draft))).toEqual(Option.some(draft))
   })
 
   /*
@@ -17,9 +17,21 @@ describe("the question the page asks the worker", () => {
    * that was not this question would take an answer away from whoever it was for.
    */
   test("is not confused with anybody else's message", () => {
-    expect(isAsked({ what: "something else" })).toBe(false)
-    expect(isAsked("hello")).toBe(false)
-    expect(isAsked(null)).toBe(false)
+    expect(askedAbout({ what: "something else" })).toEqual(Option.none())
+    expect(askedAbout("hello")).toEqual(Option.none())
+    expect(askedAbout(null)).toEqual(Option.none())
+  })
+
+  /*
+   * The reply is promised before the read starts. A message wearing the right name
+   * with nothing behind it used to be answered by silence: the read died on a
+   * reference that was not there and the page waited on a channel nobody wrote to.
+   */
+  test("is not this question at all without a pull request in it", () => {
+    expect(askedAbout({ what: askingFor(draft).what })).toEqual(Option.none())
+    expect(askedAbout({ ...askingFor(draft), reference: { owner: "microsoft" } })).toEqual(
+      Option.none()
+    )
   })
 })
 
@@ -69,9 +81,10 @@ describe("reading the seven routes from a page", () => {
     return heard
   }
 
-  /** What `document.readyState` says while a document is still arriving. */
-  const arriving = (): void => {
+  /** A document still arriving at the pull request being read, which is the case. */
+  const arriving = (at: PullRequestRef = draft): void => {
     Object.defineProperty(document, "readyState", { value: "loading", configurable: true })
+    window.history.replaceState({}, "", `/${at.owner}/${at.repo}/pull/${at.number}`)
   }
 
   const finished = (): void => {
@@ -85,6 +98,25 @@ describe("reading the seven routes from a page", () => {
    */
   test("goes straight to GitHub on a document that has finished loading", async () => {
     finished()
+    const asked = intercept()
+    const heard = worker({ ok: true, payloads: draftWithBotFindings })
+
+    await Effect.runPromise(payloadsThroughWorker(draft))
+
+    expect(heard).toHaveLength(0)
+    expect(asked).toHaveLength(7)
+  })
+
+  /*
+   * The other half of the rule, and the one that keeps a read ahead fast. Resting on
+   * a row of a list starts a read of a pull request nobody has pressed, on a list
+   * page that may still be loading — and the worker was told nothing about a row.
+   * Sent there it would be a message round trip and a set of requests the press that
+   * follows could not reuse, which is the shape `readAhead.ts` exists to keep out.
+   */
+  test("goes straight to GitHub for a pull request this document is not opening", async () => {
+    Object.defineProperty(document, "readyState", { value: "loading", configurable: true })
+    window.history.replaceState({}, "", "/pulls")
     const asked = intercept()
     const heard = worker({ ok: true, payloads: draftWithBotFindings })
 

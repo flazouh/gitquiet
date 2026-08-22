@@ -52,7 +52,7 @@ export type RawPayloads = {
   /**
    * What `page_data/merge_box` said, or `null` where GitHub would not serve it.
    *
-   * `null` is the gateway's word for a route that did not answer at all — see
+   * `null` is our word for a route that did not answer at all — see
    * `whateverIsAt` — and it is the only value here that skips a decode. Anything
    * else is put through the shape in `wire.ts` and fails the read if it has
    * changed, which is what keeps an outage and a drift telling apart.
@@ -969,7 +969,7 @@ export const toSnapshot = Effect.fn("toSnapshot")(function* (
   /*
    * Asked only where GitHub sent something, and still allowed to fail on the shape.
    *
-   * The gateway already tells the two apart: `whateverIsAt` hands back nothing for a
+   * The reading already tells the two apart: `whateverIsAt` hands back nothing for a
    * refusal, an unreachable network or a body that is not JSON, and the payload itself
    * for everything else. Catching a decode failure here as well would fold the two into
    * one, and they are opposite facts about GitHub. A route that did not answer is an

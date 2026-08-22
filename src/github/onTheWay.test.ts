@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, test } from "bun:test"
+import { afterEach, describe, expect, setSystemTime, test } from "bun:test"
 import { Effect, Option } from "effect"
 import { draftWithBotFindings } from "../../tests/fixtures"
 import type { PullRequestRef } from "../domain/PullRequestRef"
-import { forgetFlights } from "../github/flight"
+import { forgetFlights } from "./flight"
 import { forgetTheWay, goingTo, payloadsOnTheWay } from "./onTheWay"
 
 const draft: PullRequestRef = { owner: "microsoft", repo: "vscode", number: 327442 }
@@ -104,6 +104,40 @@ describe("reading a pull request on the way to it", () => {
    * the page asking next should be asking GitHub rather than being told what
    * failed before it arrived.
    */
+  /*
+   * The gap this is holding them across is one navigation: their HTML, then our
+   * content script, then the screen bundle. A reader who comes back to the same pull
+   * request a minute later is a reader asking GitHub what is true now.
+   */
+  test("stops holding them once the arrival they were read for is long over", async () => {
+    const asked = intercept()
+
+    await Effect.runPromise(payloadsOnTheWay(draft))
+    setSystemTime(new Date(Date.now() + 31_000))
+    forgetFlights()
+    await Effect.runPromise(payloadsOnTheWay(draft))
+
+    expect(asked).toHaveLength(14)
+    setSystemTime()
+  })
+
+  /*
+   * A reader opening a handful in tabs at once, against a worker holding three
+   * quarters of a megabyte for each of the largest. The oldest goes.
+   */
+  test("holds a few at a time and no more", async () => {
+    const asked = intercept()
+    const numbers = [1, 2, 3, 4, 5]
+
+    for (const number of numbers) {
+      await Effect.runPromise(payloadsOnTheWay({ ...draft, number }))
+      forgetFlights()
+    }
+    await Effect.runPromise(payloadsOnTheWay({ ...draft, number: 1 }))
+
+    expect(asked).toHaveLength(7 * (numbers.length + 1))
+  })
+
   test("holds nothing from a read that failed", async () => {
     const asked: Array<string> = []
     const handler = (input: RequestInfo | URL): Promise<Response> => {
