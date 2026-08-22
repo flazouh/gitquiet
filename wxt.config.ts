@@ -105,7 +105,12 @@ export default defineConfig({
     // GitHub navigates without loading pages and a content script's matches are
     // never tested again. The shell imports the screen itself now — see
     // src/app/screens.ts — so there is nobody to ask and no permission to hold.
-    permissions: ["storage", "unlimitedStorage"],
+    // `webNavigation` is what tells the worker a tab has started going to a pull
+    // request, which is the only moment anything of ours can act on before
+    // GitHub's own HTML answers — a wait of 1.2 to 3.6 seconds on a large one,
+    // during which no script of ours exists on the page at all. It carries no
+    // page content: an address, a tab and a frame. See src/app/onTheWay.ts.
+    permissions: ["storage", "unlimitedStorage", "webNavigation"],
     /*
      * Everything the shell fetches once it knows what page this is: the four screens
      * (scripts/build-screens.ts), the chunk they share, their stylesheets, the
