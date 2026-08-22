@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 import { held, standAScreen } from "./screen"
 import { BAR_ID } from "../ui/barSlot"
-import { interfaceContainer } from "../ui/mount"
+import { holdTheSurface, interfaceContainer } from "../ui/mount"
 import type { Place } from "../ui/place"
 import { TheBar } from "../ui/TheBar"
 
@@ -121,6 +121,25 @@ describe("standing a screen on the page", () => {
     const returned = interfaceContainer(document, MINE)
 
     expect(returned.textContent).toContain("remembered screen")
+  })
+
+  test("reuses a held surface when Back redraws the same screen kind", async () => {
+    history.replaceState(null, "", "/mine")
+    document.body.innerHTML =
+      '<main><div id="gitquiet-root" data-gitquiet-for="test-screen">old screen</div></main>'
+    holdTheSurface(document)
+
+    const nowhere: Place = {
+      ...MINE,
+      regions: ["#missing-region"],
+      fallback: "#missing-region",
+      stages: ["#missing-region"]
+    }
+    const returned = standAScreen({ place: nowhere, draw: () => <p>returned screen</p> })
+    await drawn("main", "returned screen")
+
+    expect(document.documentElement.hasAttribute("data-gitquiet-taken")).toBe(true)
+    returned.close()
   })
 
   test("lets go of whatever the screen was holding", async () => {

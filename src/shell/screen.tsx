@@ -231,7 +231,9 @@ export const standAScreen = ({
      * rather than gone, and nothing is going to make them render it again: no document
      * is coming, because answering the press without one is the whole point.
      */
-    const surface = borrowing ? (ourSurface(document) ?? undefined) : undefined
+    const surface = borrowing
+      ? (container.parentElement ?? ourSurface(document) ?? undefined)
+      : undefined
 
     waiting = whenTakenOver(
       () => takeOverSlotWhenReady(document, container, undefined, settling, place, surface),
@@ -365,4 +367,3 @@ export const held = <A, E>(
     return Fiber.join(first)
   }
 }
-
