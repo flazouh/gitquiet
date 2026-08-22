@@ -83,7 +83,6 @@ const Screen = ({
   return (
     <div>
       <p data-testid="state">{live.read.status}</p>
-      <p data-testid="catching">{live.catchingUp ? "yes" : "no"}</p>
       <p data-testid="rows">
         {live.read.status === "ready" ? live.read.value.join(",") : ""}
       </p>
@@ -116,7 +115,6 @@ const Screen = ({
 
 const stateOf = () => screen.getByTestId("state").textContent
 const rowsOf = () => screen.getByTestId("rows").textContent
-const catchingUp = () => screen.getByTestId("catching").textContent
 
 describe("a read that stays live", () => {
   test("waits, then shows what GitHub said", async () => {
@@ -182,60 +180,46 @@ describe("a read that stays live", () => {
 })
 
 /**
- * The difference between a list and a list that is being checked.
+ * A memory on the screen with a read still running behind it.
  *
- * Showing a memory is the right thing to do and it is also a small lie: the
- * reader is looking at what was true last time, and nothing on the screen says
- * so. The screens turn this into a sentence; here it is only the fact.
+ * Showing the last answer immediately is the right thing to do and it is also a small
+ * lie: the reader is looking at what was true last time. The read that corrects it runs
+ * without a word — the screens used to raise a toast when it landed, and `Toasts.tsx`
+ * records why they no longer do.
  */
 describe("a memory with a read still running behind it", () => {
-  test("says it is catching up, and stops saying it once GitHub answers", async () => {
+  test("shows the memory first, and GitHub's own answer over it", async () => {
     const live = held(["fresh"])
     const preload = () => Effect.succeed(Option.some(["remembered"]))
 
     render(<Screen load={live.load} preload={preload} />)
 
     await waitFor(() => expect(rowsOf()).toBe("remembered"))
-    expect(catchingUp()).toBe("yes")
 
     await live.answer(1)
 
     await waitFor(() => expect(rowsOf()).toBe("fresh"))
-    expect(catchingUp()).toBe("no")
   })
 
-  test("says nothing where there is nothing to look at yet", async () => {
-    const live = held(["fresh"])
-
-    render(<Screen load={live.load} />)
-
-    // The wait is already saying this, in the middle of the screen, at the size
-    // of the thing that is missing. A toast beside it says it twice.
-    await waitFor(() => expect(stateOf()).toBe("loading"))
-    expect(catchingUp()).toBe("no")
-  })
-
-  test("says it again for the re-read that coming back to the tab starts", async () => {
+  test("keeps the first read's rows until the re-read answers", async () => {
     const live = held(["read 1"], ["read 2"])
 
     render(<Screen load={live.load} />)
     await live.answer(1)
 
-    await waitFor(() => expect(catchingUp()).toBe("no"))
+    await waitFor(() => expect(rowsOf()).toBe("read 1"))
 
     await act(async () => {
       document.dispatchEvent(new Event("visibilitychange"))
       window.dispatchEvent(new Event("visibilitychange"))
     })
 
-    // Still the first read's rows, and the second read already running under them.
-    await waitFor(() => expect(catchingUp()).toBe("yes"))
+    // The second read is running under them, and nothing on the screen has moved.
     expect(rowsOf()).toBe("read 1")
 
     await live.answer(2)
 
     await waitFor(() => expect(rowsOf()).toBe("read 2"))
-    expect(catchingUp()).toBe("no")
   })
 })
 
@@ -377,17 +361,6 @@ describe("a read that says what it has on the way", () => {
     await waitFor(() => expect(rowsOf()).toBe("round 1 rows,round 1 checks"))
   })
 
-  test("says it is catching up while it holds the memory back, so the wait is not silent", async () => {
-    const preload = () => Effect.succeed(Option.some(["remembered rows", "remembered checks"]))
-
-    const read = staging()
-    render(<Screen load={read.load} preload={preload} />)
-    await waitFor(() => expect(catchingUp()).toBe("yes"))
-
-    read.rows()
-    read.checks()
-    await waitFor(() => expect(catchingUp()).toBe("no"))
-  })
 })
 
 describe("coming back to the tab", () => {
@@ -502,20 +475,6 @@ describe("a page that has been on the screen before", () => {
 
     expect(stateOf()).toBe("ready")
     expect(rowsOf()).toBe("open,open")
-  })
-
-  test("says it is catching up, because what is shown is a moment old", async () => {
-    const first = held(["open"])
-    const { unmount } = render(<Screen load={first.load} keep="/one" />)
-    await first.answer(1)
-    await waitFor(() => expect(rowsOf()).toBe("open"))
-    unmount()
-
-    const again = held(["never"])
-    render(<Screen load={again.load} keep="/one" />)
-    await settle(1)
-
-    expect(catchingUp()).toBe("yes")
   })
 
   test("is replaced the moment GitHub answers, which is the whole policy", async () => {

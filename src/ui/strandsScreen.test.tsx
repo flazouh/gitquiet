@@ -5,7 +5,6 @@ import { Effect, Option } from "effect"
 import { strandsIn } from "../domain/strand"
 import type { Listed } from "../domain/strand"
 import { StrandsScreen } from "./StrandsScreen"
-import { Toasts } from "./Toasts"
 
 afterEach(cleanup)
 
@@ -226,21 +225,19 @@ describe("a repository's runs", () => {
     expect(screen.queryByText("Put away")).toBeNull()
   })
 
-  test("keeps a background check silent over known runs", async () => {
+  test("draws the known runs at once, rather than waiting for GitHub to agree", async () => {
     const kept = strandsIn(threeOfOneBranch)
 
+    // A read that never lands, so anything on the screen came out of the store.
     render(
-      <Toasts>
-        <StrandsScreen
-          repo={repo}
-          load={() => Effect.never}
-          preload={() => Effect.succeed(Option.some(kept))}
-          onStepAside={() => {}}
-        />
-      </Toasts>
+      <StrandsScreen
+        repo={repo}
+        load={() => Effect.never}
+        preload={() => Effect.succeed(Option.some(kept))}
+        onStepAside={() => {}}
+      />
     )
 
     expect(await screen.findByRole("region", { name: "Runs" })).toBeTruthy()
-    expect(screen.queryByText("Repository Strands updated")).toBeNull()
   })
 })

@@ -46,18 +46,6 @@ export type Load<T> = (partly: (value: T) => void) => Effect.Effect<T, unknown>
 
 export type Live<T> = {
   readonly read: Read<T>
-  /**
-   * Whether what `read` shows is a memory with a live read still running behind it.
-   *
-   * Showing the last answer immediately is the right thing to do and it is also a
-   * small lie: the reader is looking at what was true last time, and until this
-   * existed nothing on the screen said so. Every list here is read to decide what
-   * to do next, and "this is a moment old and being checked" is part of the answer.
-   *
-   * False while there is nothing to look at. The wait is already saying it then, in
-   * the middle of the screen, at the size of the thing that is missing.
-   */
-  readonly catchingUp: boolean
   /** Reads again, keeping what is on the screen if the new read fails. */
   readonly again: () => void
   /**
@@ -250,15 +238,6 @@ export const useLive = <T>(
   }, [load, preload, where])
 
   const live = useAtomValue(atoms.shown)
-  /*
-   * The same read, asked before the optimistic wrapper.
-   *
-   * `Atom.optimistic` drops a success that is still waiting — `if (!value.waiting
-   * && …)` — which is right for the value and loses the one bit that says a read
-   * is running. Coming back to the tab starts exactly that read, and through the
-   * wrapper it is indistinguishable from nothing happening.
-   */
-  const watching = useAtomValue(atoms.read)
   const early = useAtomValue(atoms.early)
   const again = useAtomRefresh(atoms.read)
   const ask = useAtomAsk(atoms.meanwhile)
@@ -273,12 +252,5 @@ export const useLive = <T>(
 
   const read = shownFrom(live, early)
 
-  return {
-    read,
-    // Both halves are needed. `isWaiting` is true for the very first read as well,
-    // when there is nothing underneath it to be catching up with.
-    catchingUp: read.status === "ready" && AsyncResult.isWaiting(watching),
-    again,
-    meanwhile
-  }
+  return { read, again, meanwhile }
 }

@@ -22,7 +22,6 @@ import { CHECK_TONE, checkArt } from "./Icon"
 import { reasonFor } from "./refusal"
 import { Section } from "./Section"
 import { TheBar } from "./TheBar"
-import { useUpdated } from "./useUpdated"
 import { useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -85,15 +84,6 @@ const said = (seconds: number): string =>
   seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`
 
 const READING = "Reading this run…"
-
-/**
- * The same read, said over a run that is already on the screen.
- *
- * Worth the most on this screen of the eleven. A kept run and a current one are the same
- * picture, and every word on it — in progress, failed, 3m 54s — is about a moment that has
- * since moved on. The reader is here to decide whether a job really failed.
- */
-const UPDATED = "Run updated"
 
 /** The outcome in a word, which is the word their own page prints for it. */
 const WORD_OF: Record<CheckState, string> = {
@@ -633,7 +623,6 @@ export const RunScreen = ({
   const live = useLive(load, preload)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
   const [pressed, setPressed] = useState<Pressed>({ step: "idle" })
 
   /*

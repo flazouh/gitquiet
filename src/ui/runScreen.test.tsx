@@ -5,7 +5,6 @@ import { Effect, Option } from "effect"
 import type { CheckNote } from "../domain/PullRequest"
 import { type Job, type Run, type RunOpening, gathered, tolerating } from "../domain/run"
 import { RunScreen } from "./RunScreen"
-import { Toasts } from "./Toasts"
 
 afterEach(cleanup)
 
@@ -290,18 +289,16 @@ describe("a run that passed", () => {
 })
 
 describe("a run drawn from what was kept", () => {
-  test("keeps a background check silent over the known run", async () => {
+  test("draws the run at once, rather than waiting for GitHub to agree", async () => {
+    // A read that never lands, so anything on the screen came out of the store.
     render(
-      <Toasts>
-        {screenOf({
-          load: () => Effect.never,
-          preload: () => Effect.succeed(Option.some(opening))
-        })}
-      </Toasts>
+      screenOf({
+        load: () => Effect.never,
+        preload: () => Effect.succeed(Option.some(opening))
+      })
     )
 
     await waitFor(() => expect(screen.getByText(run.title)).toBeDefined())
-    expect(screen.queryByText("Run updated")).toBeNull()
   })
 })
 

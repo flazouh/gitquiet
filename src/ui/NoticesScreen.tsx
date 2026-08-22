@@ -5,7 +5,6 @@ import type { Repository } from "../domain/repositories"
 import { Notices } from "./Notices"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import { TheBar } from "./TheBar"
-import { useUpdated } from "./useUpdated"
 import { type Load, useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -29,8 +28,6 @@ export type NoticesScreenProps = {
 }
 
 const READING = "Reading your notifications…"
-
-const UPDATED = "Notices updated"
 
 /**
  * What a press did to a Notice, held here until the next read confirms it.
@@ -82,7 +79,6 @@ export const NoticesScreen = ({
   const live = useLive(load, preload)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
 
   /*
    * Keyed by GitHub's own thread id rather than by the row's place in the list, because the

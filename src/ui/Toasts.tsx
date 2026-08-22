@@ -24,6 +24,13 @@ import { OVER_ID, outsideHost } from "./outside"
  * The corner is out of the way of both and still in view. Right rather than left because the
  * Rail is on the left in both shells, and bottom because a list grows downwards: the newest row
  * is never the one a toast covers.
+ *
+ * Only a press gets a sentence. Every screen used to raise one when a background read landed
+ * over content the reader was already reading — "Pull request updated", "Run updated", eleven
+ * of them — which is one interruption per page for something nobody asked for and nothing to
+ * decide about. The new content is on the screen; that is the whole report. Toasts are kept
+ * for the two cases the page cannot show on its own: a refusal after the row already moved,
+ * and a way back out of a verb that has already happened.
  */
 
 /**
@@ -274,14 +281,4 @@ export const done = (said: string, back?: WayBack): void => {
       action: back === undefined ? undefined : { label: back.said, onClick: back.go }
     })
   )
-}
-
-/**
- * Known content changed when GitHub answered a background read.
- *
- * Neutral rather than successful: nothing was asked for and nothing completed. The useful
- * fact is only that the content the reader was already looking at is different now.
- */
-export const updated = (said: string): void => {
-  whenStanding(() => toast(said))
 }

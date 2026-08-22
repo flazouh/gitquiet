@@ -7,7 +7,6 @@ import type { DiffChoices, TreeChoices } from "../domain/choices"
 import { useArt } from "./art"
 import { FileBrowser, type FileBrowserProps } from "./FileBrowser"
 import { GitHubHtml } from "./GitHubHtml"
-import { useUpdated } from "./useUpdated"
 import { ageOf, momentOf } from "./when"
 import { Who } from "./Who"
 
@@ -60,8 +59,6 @@ export type CommitViewProps = {
   readonly display?: FileBrowserProps["display"]
 }
 
-const UPDATED = "Commit updated"
-
 type Reading =
   | { readonly step: "loading" }
   | { readonly step: "ready"; readonly commit: CommitDetail }
@@ -101,19 +98,10 @@ export const CommitView = ({
     already === undefined ? { step: "loading" } : { step: "ready", commit: already }
   )
 
-  /*
-   * Whether what is on the screen is a memory with a live read still running behind it.
-   *
-   * The same bit `useLive` hands the lists, arrived at the long way round because this
-   * component has been following a sha of its own since before that hook existed.
-   */
-  const [checking, setChecking] = useState(false)
-
   useEffect(() => {
     const inHand = held?.(sha)
     if (inHand !== undefined) {
       setReading({ step: "ready", commit: inHand })
-      setChecking(false)
       return
     }
 
@@ -137,7 +125,6 @@ export const CommitView = ({
                 onSuccess: (was) => {
                   if (landed || Option.isNone(was)) return
                   setReading({ step: "ready", commit: was.value })
-                  setChecking(true)
                 },
                 onFailure: () => {}
               })
@@ -150,11 +137,9 @@ export const CommitView = ({
           onSuccess: (commit) => {
             landed = true
             setReading({ step: "ready", commit })
-            setChecking(false)
           },
           onFailure: (cause) => {
             landed = true
-            setChecking(false)
             setReading({ step: "failed", said: saidBy(cause) })
           }
         })
@@ -168,8 +153,6 @@ export const CommitView = ({
       asking.interruptUnsafe()
     }
   }, [held, load, preload, sha])
-
-  useUpdated(checking, reading.step === "ready" ? reading.commit : undefined, UPDATED)
 
   const meta = (
     <div className="flex items-center gap-2 bg-surface px-3 py-2">

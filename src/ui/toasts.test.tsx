@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import * as Toasting from "./Toasts"
 import { done, Toasts, refused } from "./Toasts"
 
 afterEach(cleanup)
@@ -155,5 +156,22 @@ describe("what the interface says when it did the thing", () => {
     await waitFor(() => expect(screen.getByText("flazouh/octo-repo#12 merged")).toBeDefined())
 
     expect(screen.queryByRole("button", { name: "Undo" })).toBeNull()
+  })
+})
+
+describe("what the interface says nothing about", () => {
+  /*
+   * A read landing over content the reader is already reading.
+   *
+   * There were eleven of these, one per screen — "Pull request updated", "Run updated" —
+   * raised by a `useUpdated` hook whose whole job was to compare the read against the store
+   * and announce the difference. The difference is on the screen; the corner said so again,
+   * on every page, for a change nobody asked for and nothing to decide about.
+   *
+   * Named here rather than left to the absence of a file, because this module is where
+   * anybody adding it back would come.
+   */
+  test("has no way to announce a read that landed", () => {
+    expect(Object.keys(Toasting).toSorted()).toEqual(["Toasts", "done", "refused"])
   })
 })

@@ -7,7 +7,6 @@ import { History } from "./History"
 import { Authors, type LoadAuthors, Dates } from "./Sifting"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import { TheBar } from "./TheBar"
-import { useUpdated } from "./useUpdated"
 import { type Load, useLive } from "./useLive"
 import { type AskSizes, useSizes } from "./useSizes"
 import { useWaiting } from "./useWaiting"
@@ -64,8 +63,6 @@ export type HistoryScreenProps = {
 
 const WORKING = "Reading this branch's commits…"
 
-const UPDATED = "Branch commits updated"
-
 /**
  * A branch's commits, as a page of this interface.
  *
@@ -90,7 +87,6 @@ export const HistoryScreen = ({
   const live = useLive(load, preload)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
   const { owner, repo } = list.repo
 
   const answered = read.status === "ready" ? read.value : undefined

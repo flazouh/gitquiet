@@ -23,7 +23,6 @@ import { RepoTree } from "./RepoTree"
 import { Languages, Standing, useStanding } from "./Standing"
 import { Star } from "./Star"
 import { TheBar } from "./TheBar"
-import { useUpdated } from "./useUpdated"
 import { type Load, useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -101,8 +100,6 @@ export type RepoHomeScreenProps = {
 }
 
 const WORKING = "Reading this repository…"
-
-const UPDATED = "Repository updated"
 
 /**
  * How many topics fit on a line that has a description and a star on it too.
@@ -575,7 +572,6 @@ export const RepoHomeScreen = ({
   const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
 
   // One read for two cards. The languages are their own card over the tree and
   // the people are on the row above, and both arrive in the same answer.
