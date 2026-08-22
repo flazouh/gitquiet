@@ -82,7 +82,13 @@ const PRIMER_TREE = {
   // is 6px of subtraction against 0px of scrollbar: rows sat 4px from the left
   // edge and 1.6px from the right. Zero is the true width here.
   "--trees-scrollbar-gutter-measured": "0px",
-  "--trees-level-gap-override": "10px",
+
+  // No level gap named here on purpose. The tree's own is
+  // `calc(8px * var(--trees-density))`, which the density choice scales; the
+  // flat ten pixels that used to sit here were both wider than that and deaf to
+  // it, so a compact tree indented as far as a relaxed one. The rail is a fifth
+  // of the pane and a repository is five folders deep before a name starts, so
+  // every pixel of indent is a pixel of name; the guide lines carry the nesting.
   "--trees-font-size-override": "12px"
 } as React.CSSProperties
 
