@@ -1,6 +1,7 @@
 import { Cause, Effect, Option, Schema } from "effect"
-import { fromPathname, PullRequestRef, sameReference } from "../domain/PullRequestRef"
+import { PullRequestRef } from "../domain/PullRequestRef"
 import { GatewayError, type GatewayFailure } from "../ports/GitHubGateway"
+import { claimArrival } from "./arrival"
 import { CHANGES, payloadsFor } from "./asking"
 import type { RawPayloads } from "./snapshot"
 
@@ -76,35 +77,30 @@ const sending = (reference: PullRequestRef): Effect.Effect<Answered | undefined>
   )
 
 /**
- * Whether this document is still arriving at this very pull request, which is the
- * only read the worker has been told about.
+ * Whether this read is the arrival the worker was told about, which is the only read
+ * it has an answer to.
  *
- * Both halves matter and each rules out a different way of being slower than before.
+ * The question is about the document rather than the moment, and it used to be asked of
+ * `readyState`: a document still loading was an arrival, a complete one was a press or a
+ * Back. That test names the right pages and asks them too late. The screen that does the
+ * asking is a bundle of its own, and on a heavy pull request it finished loading 1.5
+ * seconds behind the shell — past GitHub's own `load` event. So every arrival looked
+ * settled, skipped the worker, and read GitHub a second time while the worker sat on the
+ * answer. Measured at 1.2 seconds of the reader's time, spent on a read already done.
  *
- * Still arriving, because a worker idle for thirty seconds is stopped and waking one
- * took 587 milliseconds when this extension last depended on that — see
- * `background.ts`. A press and a Back happen on a document that settled long ago, so
- * asking there could put that wake in front of the two moments a reader notices most.
- * While a document is loading the worker is awake by construction: the navigation
- * that started it is what woke it.
+ * The note is taken instead at `document_start`, where the answer is plain. See
+ * `arrival.ts` for what it is worth and what taking it costs.
  *
- * At this pull request, because a read of one is not always about the page it is on.
- * Resting on a row of a list starts a read ahead of that pull request, and the worker
- * was told nothing about a row nobody has pressed. Sent there anyway, it would be a
- * message round trip and a set of requests the press that follows could not reuse,
- * which is the shape `readAhead.ts` exists to keep out of the fast path.
+ * Still asked of the pull request and not only of the document, because a read of one is
+ * not always about the page it is on: resting on a row of a list reads that pull request
+ * ahead, and the worker was told nothing about a row nobody pressed.
  *
- * `document` rather than a flag passed in because it answers for the document this
- * screen is standing in, which is what the question is about, and because it is
- * absent in a service worker — which is what keeps the worker from asking itself.
+ * `window` rather than a flag passed in because it answers for the page this screen is
+ * standing in, which is what the question is about, and because it is absent in a service
+ * worker — which is what keeps the worker from asking itself.
  */
-const arrivingOn = (reference: PullRequestRef): boolean => {
-  if (typeof document === "undefined") return false
-  if (document.readyState === "complete") return false
-
-  const here = fromPathname(document.location.pathname)
-  return Option.isSome(here) && sameReference(here.value, reference)
-}
+const arrivingOn = (reference: PullRequestRef): boolean =>
+  typeof window !== "undefined" && claimArrival(window, reference)
 
 /**
  * The seven payloads, read by the worker where there is one and here where there

@@ -38,7 +38,7 @@ export const goingTo = (url: string): Option.Option<PullRequestRef> => {
  * presses reload a minute later is asking GitHub rather than being told what it
  * said last time. The page's own store is where anything older than this lives.
  */
-const STILL_GOOD = 30_000
+export const STILL_GOOD = 30_000
 
 /**
  * How many pull requests are held at once.

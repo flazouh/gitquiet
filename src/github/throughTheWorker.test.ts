@@ -1,8 +1,10 @@
-import { afterEach, describe, expect, test } from "bun:test"
+import { afterEach, describe, expect, setSystemTime, test } from "bun:test"
 import { Effect, Option } from "effect"
 import { draftWithBotFindings } from "../../tests/fixtures"
 import type { PullRequestRef } from "../domain/PullRequestRef"
+import { forgetArrival, noteArrival } from "./arrival"
 import { forgetFlights } from "./flight"
+import { STILL_GOOD } from "./onTheWay"
 import { askedAbout, askingFor, payloadsThroughWorker } from "./throughTheWorker"
 
 const draft: PullRequestRef = { owner: "microsoft", repo: "vscode", number: 327442 }
@@ -42,6 +44,8 @@ describe("reading the seven routes from a page", () => {
   afterEach(() => {
     globalThis.fetch = realFetch
     Object.assign(globalThis, { browser: realBrowser })
+    setSystemTime()
+    forgetArrival(window)
     forgetFlights()
   })
 
@@ -81,12 +85,14 @@ describe("reading the seven routes from a page", () => {
     return heard
   }
 
-  /** A document still arriving at the pull request being read, which is the case. */
+  /** The shell's note, as it is taken at `document_start` on a real arrival. */
   const arriving = (at: PullRequestRef = draft): void => {
     Object.defineProperty(document, "readyState", { value: "loading", configurable: true })
     window.history.replaceState({}, "", `/${at.owner}/${at.repo}/pull/${at.number}`)
+    noteArrival(window, document)
   }
 
+  /** And the document finishing, which says nothing about where it came from. */
   const finished = (): void => {
     Object.defineProperty(document, "readyState", { value: "complete", configurable: true })
   }
@@ -96,8 +102,9 @@ describe("reading the seven routes from a page", () => {
    * finished loading long ago, the worker has been told nothing about either, and
    * waking one took 587 milliseconds when this extension last depended on it.
    */
-  test("goes straight to GitHub on a document that has finished loading", async () => {
+  test("goes straight to GitHub on a document nobody arrived at", async () => {
     finished()
+    noteArrival(window, document)
     const asked = intercept()
     const heard = worker({ ok: true, payloads: draftWithBotFindings })
 
@@ -117,6 +124,7 @@ describe("reading the seven routes from a page", () => {
   test("goes straight to GitHub for a pull request this document is not opening", async () => {
     Object.defineProperty(document, "readyState", { value: "loading", configurable: true })
     window.history.replaceState({}, "", "/pulls")
+    noteArrival(window, document)
     const asked = intercept()
     const heard = worker({ ok: true, payloads: draftWithBotFindings })
 
@@ -126,7 +134,7 @@ describe("reading the seven routes from a page", () => {
     expect(asked).toHaveLength(7)
   })
 
-  test("asks the worker while the document is still arriving, and asks GitHub nothing", async () => {
+  test("asks the worker for the pull request this document arrived at, and asks GitHub nothing", async () => {
     arriving()
     const asked = intercept()
     const heard = worker({ ok: true, payloads: draftWithBotFindings })
@@ -136,6 +144,81 @@ describe("reading the seven routes from a page", () => {
     expect(heard).toEqual([askingFor(draft)])
     expect(asked).toHaveLength(0)
     expect(payloads.changes).toBe(draftWithBotFindings.changes)
+  })
+
+  /*
+   * What this cost when the arrival was read off `readyState` instead of a note.
+   *
+   * The screen that asks is a bundle of its own, and on a heavy pull request it
+   * finished loading 1.5 seconds behind the shell — after GitHub's `load` event. So
+   * the one read this whole path exists for saw a complete document, called itself a
+   * press, and read GitHub again while the worker held the answer. 1.2 seconds.
+   */
+  test("still asks the worker for an arrival whose document finished first", async () => {
+    arriving()
+    finished()
+    const asked = intercept()
+    const heard = worker({ ok: true, payloads: draftWithBotFindings })
+
+    await Effect.runPromise(payloadsThroughWorker(draft))
+
+    expect(heard).toEqual([askingFor(draft)])
+    expect(asked).toHaveLength(0)
+  })
+
+  /*
+   * A pull request page reads other pull requests, and any of them can be first.
+   *
+   * The reader rests on a link in the description or the stack and `warming.ts` reads
+   * that one ahead, which on a cold arrival happens in the second and a half before the
+   * screen has loaded. A note spent on a read the worker knows nothing about is the
+   * arrival read going to GitHub for what the worker is holding.
+   */
+  test("keeps the arrival for the screen when a read ahead of another pull request asks first", async () => {
+    arriving()
+    const asked = intercept()
+    const heard = worker({ ok: true, payloads: draftWithBotFindings })
+    const other: PullRequestRef = { owner: "microsoft", repo: "vscode", number: 999 }
+
+    await Effect.runPromise(payloadsThroughWorker(other))
+    await Effect.runPromise(payloadsThroughWorker(draft))
+
+    expect(heard).toEqual([askingFor(draft)])
+    expect(asked).toHaveLength(7)
+  })
+
+  /*
+   * The claim is worth making once. A second read of the same pull request minutes
+   * later — a refresh, a retry after a failure — would find a worker Chrome stopped
+   * long ago and pay to wake it before hearing it has nothing.
+   */
+  test("asks the worker once, and GitHub for every read after it", async () => {
+    arriving()
+    const asked = intercept()
+    const heard = worker({ ok: true, payloads: draftWithBotFindings })
+
+    await Effect.runPromise(payloadsThroughWorker(draft))
+    await Effect.runPromise(payloadsThroughWorker(draft))
+
+    expect(heard).toHaveLength(1)
+    expect(asked).toHaveLength(7)
+  })
+
+  /*
+   * And not at all once the worker's own hold is over: what it kept for this arrival
+   * is gone by then, so asking buys a wake and a re-read on top of the read.
+   */
+  test("goes straight to GitHub once the worker's hold on the arrival is over", async () => {
+    setSystemTime(new Date("2026-01-01T00:00:00Z"))
+    arriving()
+    const asked = intercept()
+    const heard = worker({ ok: true, payloads: draftWithBotFindings })
+    setSystemTime(new Date(Date.now() + STILL_GOOD))
+
+    await Effect.runPromise(payloadsThroughWorker(draft))
+
+    expect(heard).toHaveLength(0)
+    expect(asked).toHaveLength(7)
   })
 
   /*

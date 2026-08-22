@@ -7,6 +7,7 @@ import { readingAhead } from "@/app/readAhead";
 import { type Ahead, type Connection, dataToSpare, warmingFor } from "@/app/warming";
 import { isHome } from "@/domain/pages";
 import { elsewhereThan, type PullRequestRef } from "@/domain/PullRequestRef";
+import { noteArrival } from "@/github/arrival";
 import { layer as gatewayLayer } from "@/github/GitHubGateway";
 import { initialiseErrorReporting, reportError } from "@/observability/sentry";
 import type { View } from "@/domain/Settings";
@@ -827,6 +828,12 @@ export default defineContentScript({
     const loadedOn = wantedNow();
     if (loadedOn !== null) {
       markPage(document, placeFor(loadedOn, window.location.pathname));
+      // Before the screen is asked for, because this is the only moment the answer is
+      // plain: a document being fetched right now is a navigation the worker was told
+      // about, and the screen that will want to know is a bundle that does not finish
+      // arriving until GitHub's page is done. A pull request and no other page, because
+      // that is the only read the worker is told to start. See `arrival.ts`.
+      if (loadedOn === "pull-request") noteArrival(window, document);
       fetchIt(loadedOn);
     }
   },
