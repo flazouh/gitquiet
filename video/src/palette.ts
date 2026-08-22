@@ -18,3 +18,6 @@ export const MUTED = "#8b8b8b";
 /** Type on the pastel bed, which is far too light for the page's own ink. */
 export const ON_GRADIENT = "#1b1725";
 export const ON_GRADIENT_MUTED = "#5b5470";
+
+/** The mark's purple, site/src/brand.ts MARK verbatim. The video's one accent. */
+export const MARK = "#8b5cf6";

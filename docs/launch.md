@@ -43,6 +43,30 @@ cd video && bunx remotion render Launch out/launch.mp4
 
 ---
 
+## The release video
+
+`Release` is the flagship: 26s, six beats, remocn components on the site's own
+palette, one accent (the mark's purple) spent on the landed 287, the punched
+heading and the CTA. Composed at remocn's 1280x720 standard.
+
+```bash
+cd video && bunx remotion render Release out/release.mp4 --scale=1.5
+```
+
+It renders silent until the audio exists. `ELEVENLABS_API_KEY=...
+scripts/make-audio.sh` writes `video/public/music.mp3` (26s instrumental) and
+`video/public/vo.mp3` (the voice-over below), then re-render. The key never
+touches the repo.
+
+Voice-over script, timed to the beats:
+
+> GitHub keeps showing you the page you just left. Same pull request, same
+> click. GitQuiet is readable in under three hundred milliseconds. GitQuiet.
+> The fastest and quietest way to work on GitHub. Everything you are in, one
+> list. The first group is what needs you. Every unresolved thread, above the
+> diff. And when CI fails, it opens on the line that broke. Free on Chrome.
+> gitquiet dot com.
+
 ## Show HN
 
 Tuesday to Thursday, 08:00 to 10:00 ET. Not the weekend.

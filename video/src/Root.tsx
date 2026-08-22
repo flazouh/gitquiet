@@ -5,6 +5,7 @@ import { Race, RACE_DURATION_IN_FRAMES } from "./Race";
 import { RaceTall, RACE_TALL_DURATION_IN_FRAMES } from "./RaceTall";
 import { Courts, COURTS_DURATION_IN_FRAMES } from "./Courts";
 import { Launch, LAUNCH_DURATION_IN_FRAMES } from "./Launch";
+import { Release, RELEASE_DURATION_IN_FRAMES } from "./Release";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -16,6 +17,16 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
+      />
+      {/* The release video: the full six-beat demo. Compose at remocn's 1280x720
+          standard; render with --scale=1.5 for 1920x1080. */}
+      <Composition
+        id="Release"
+        component={Release}
+        durationInFrames={RELEASE_DURATION_IN_FRAMES}
+        fps={30}
+        width={1280}
+        height={720}
       />
       {/* The main post: the race and the Working Set as one piece, inside the length
           band the launch videos worth copying actually occupy. */}
