@@ -77,4 +77,15 @@ describe("drawing a mermaid fence", () => {
     expect(render).toHaveBeenCalledTimes(1)
     render.mockRestore()
   })
+
+  test("remembers a failed layout instead of retrying it on every return", async () => {
+    const render = spyOn(mermaid, "render")
+    const source = "still not a mermaid diagram"
+
+    await Effect.runPromise(draw(source))
+    await Effect.runPromise(draw(source))
+
+    expect(render).toHaveBeenCalledTimes(1)
+    render.mockRestore()
+  })
 })

@@ -195,10 +195,10 @@ const start = (code: string): Deferred.Deferred<Drawing | null, never> => {
 const remembered = (code: string): Effect.Effect<Drawing | null> =>
   Effect.suspend(() => {
     const had = drawings.get(code)
-    if (had !== undefined) {
+    if (drawings.has(code)) {
       drawings.delete(code)
-      drawings.set(code, had)
-      return Effect.succeed(had)
+      drawings.set(code, had ?? null)
+      return Effect.succeed(had ?? null)
     }
 
     return Deferred.await(drawing.get(code) ?? start(code))
