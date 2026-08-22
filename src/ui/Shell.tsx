@@ -1,5 +1,5 @@
 import { Effect, Option } from "effect"
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useCallback, useDeferredValue, useMemo, useRef, useState } from "react"
 import type {
   ChangedFile,
   Check,
@@ -57,7 +57,7 @@ export type ShellProps = {
    * a file arrived in it. See `attaching.ts`.
    */
   readonly onUpload?: (file: File) => Effect.Effect<Uploaded, unknown>
-  /** Marks one thread resolved, which is how a finding leaves the owed panel. */
+  /** Marks one thread resolved, which is how a finding leaves the conversation. */
   readonly onSettle?: (threadId: string) => Effect.Effect<unknown, unknown>
   /** Opens a resolved thread again, from the foot of the thread itself. */
   readonly onUnsettle?: Answering["onUnsettle"]
@@ -374,8 +374,13 @@ export const Shell = ({
   // diff rather than at the top of the page. Writing goes through this one
   // reader either way, so nothing on the screen holds a second copy.
   const { settings, change } = useSettings()
-  const diff = useMemo(() => diffChoices(settings.diff), [settings.diff])
-  const tree = useMemo(() => treeChoices(settings.tree), [settings.tree])
+  // The menu answers on the click; the diff follows. Redrawing every open file
+  // is hundreds of milliseconds of main thread, and doing it in the click's own
+  // task froze the menu mid-close. Deferred, the tick and the close paint first
+  // and the redraw runs behind them, interruptible by the next input.
+  const settled = useDeferredValue(settings)
+  const diff = useMemo(() => diffChoices(settled.diff), [settled.diff])
+  const tree = useMemo(() => treeChoices(settled.tree), [settled.tree])
 
   // Every dialog and menu of ours is drawn inside this, and the keyboard asks
   // it — rather than the page — what the reader has open.
@@ -440,7 +445,7 @@ export const Shell = ({
                 fetchDiffs={forThisHead}
                 diff={diff}
                 tree={tree}
-                proseAsDocument={settings.diff.prose === "on"}
+                proseAsDocument={settled.diff.prose === "on"}
                 keys={keys}
                 wanted={wanted}
                 threads={threads}
@@ -466,7 +471,7 @@ export const Shell = ({
                 fetchDiffs={forThisCommit}
                 diff={diff}
                 tree={tree}
-                proseAsDocument={settings.diff.prose === "on"}
+                proseAsDocument={settled.diff.prose === "on"}
                 keys={keys}
                 display={{ settings, onChange: change }}
               />

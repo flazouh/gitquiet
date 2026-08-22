@@ -10,7 +10,6 @@ import { Conversation } from "./Conversation"
 import type { Answering } from "./ThreadView"
 import { Verdict } from "./Verdict"
 import type { Review as Said } from "../ports/GitHubGateway"
-import { ControlCenter } from "./ControlCenter"
 import { Description } from "./Description"
 import type { MergeActions } from "./Ask"
 import { Merge } from "./Merge"
@@ -22,11 +21,16 @@ import { Merge } from "./Merge"
  * the snapshot. Every question any of them answers is answered in its own file
  * or in the domain, which is what keeps this one readable at a glance.
  *
- * What is owed comes first and the five panels keep their order under it. The
- * five are filed by what a thing is, which is the right order for reading a pull
- * request and the wrong one for finding out what is left of it — so the list of
- * what is left is drawn once, at the top, rather than assembled by a reader
- * scrolling five panels and holding the total in their head.
+ * Merge comes first, because it is the one panel a reader acts from. It carries
+ * whether the thing can land, what is standing in the way of it landing, and the
+ * verbs that land it — so it is read on arrival and returned to after every other
+ * panel, and a panel read twice belongs at the top rather than under five others.
+ *
+ * The five under it are filed by what a thing is, which is the right order for
+ * reading a pull request. There is no panel here that adds them up. One was tried
+ * — a list of what was owed, filed by whose move it is — and it read as a second
+ * copy of the merge card on a pull request with nothing outstanding, which is most
+ * of them. What is left is on the card that says what is holding the thing up.
  */
 export const About = ({
   snapshot,
@@ -63,7 +67,7 @@ export const About = ({
   readonly viewer?: { readonly login: string; readonly faceUrl?: string }
   /** Says something about the pull request. Absent where nothing is wired up to. */
   readonly onSay?: (body: string) => Effect.Effect<unknown, unknown>
-  /** Marks one thread resolved, for the finding rows of the panel at the top. */
+  /** Marks one thread resolved, from the head of the thread in the conversation. */
   readonly onSettle?: (threadId: string) => Effect.Effect<unknown, unknown>
   /** Opens a resolved thread again, from the foot of the thread itself. */
   readonly onUnsettle?: Answering["onUnsettle"]
@@ -87,13 +91,17 @@ export const About = ({
   readonly remarks?: ReadonlyArray<Remark>
 }) => (
   <div className="t-panels flex w-[26rem] shrink-0 flex-col gap-1.5">
-    {/* The same way in the failing logs use, which is the same act: a row names
-        a line of code and pressing it puts that line in the pane to the right. */}
-    <ControlCenter
-      snapshot={snapshot}
-      onOpen={reach?.onOpenFile}
-      onOpenCommit={onOpenCommit}
-      onSettle={onSettle}
+    {/* Both absences go in as they are. Which face the card wears, and in what order
+        the three are decided, is `faceOf`'s answer and not this file's. */}
+    <Merge
+      merge={snapshot.merge}
+      files={snapshot.files}
+      reviews={snapshot.reviews}
+      running={stillRunning(snapshot.checks)}
+      url={toUrl(snapshot.reference)}
+      state={snapshot.state}
+      headRef={snapshot.headRef}
+      actions={actions}
     />
     <Description
       markdown={snapshot.description.markdown}
@@ -143,18 +151,6 @@ export const About = ({
       onOpen={onOpenCommit}
       onWarm={onWarmCommit}
       opened={openedCommit}
-    />
-    {/* Both absences go in as they are. Which face the card wears, and in what order
-        the three are decided, is `faceOf`'s answer and not this file's. */}
-    <Merge
-      merge={snapshot.merge}
-      files={snapshot.files}
-      reviews={snapshot.reviews}
-      running={stillRunning(snapshot.checks)}
-      url={toUrl(snapshot.reference)}
-      state={snapshot.state}
-      headRef={snapshot.headRef}
-      actions={actions}
     />
   </div>
 )
