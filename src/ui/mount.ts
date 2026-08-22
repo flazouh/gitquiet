@@ -261,8 +261,8 @@ const takeOffThePage = (element: Element, rememberLive = false): void => {
   const page = element.ownerDocument
   runWhenIdle(() => rememberScreen(element))
   theScreenActivityChanged(element)
-  element.dispatchEvent(new CustomEvent(GOING, { detail: rememberLive }))
   element.remove()
+  element.dispatchEvent(new CustomEvent(GOING, { detail: rememberLive }))
   if (element === ours) ours = null
   theScreenMoved(page)
 }

@@ -815,13 +815,16 @@ describe("handing the page from one interface to the next", () => {
     const page = githubPage()
     const list = listUp(page)
     let down = 0
+    let connectedWhenTold = true
     list.container.addEventListener(GOING, () => {
       down += 1
+      connectedWhenTold = list.container.isConnected
     })
 
     takeOverSlot(page, interfaceContainer(page, CONVERSATION), CONVERSATION)
 
     expect(down).toBe(1)
+    expect(connectedWhenTold).toBe(false)
   })
 
   test("tells it so even when their router took its container off the page first", () => {
