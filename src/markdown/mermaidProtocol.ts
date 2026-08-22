@@ -45,4 +45,3 @@ export const isMermaidAnswer = (value: unknown): value is MermaidAnswer =>
   value.kind === MERMAID_ANSWER &&
   "svg" in value &&
   (typeof value.svg === "string" || value.svg === null)
-
