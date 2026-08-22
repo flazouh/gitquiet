@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, within } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import type { Entry, Footing, Front } from "../domain/repoHome"
 import { RepoHomeScreen } from "./RepoHomeScreen"
@@ -269,5 +270,22 @@ describe("a repository's front page", () => {
     showing(() => Effect.fail(new Error("no")) as unknown as Effect.Effect<Front>)
 
     expect(await screen.findByText(/Show GitHub's page/)).toBeTruthy()
+  })
+
+  test("keeps the way out to GitHub's own page in the bar, even when this one has loaded", async () => {
+    // In the bar rather than only on the failure card. The pane replaces their
+    // file toolbar, and a reader who still wants something on their page had
+    // no way to reach it once ours had drawn.
+    let handed = 0
+    showing(() => Effect.succeed(front("caller")), {
+      onStepAside: () => {
+        handed += 1
+      }
+    })
+
+    const away = await screen.findByRole("button", { name: "Show GitHub's own page" })
+    await userEvent.click(away)
+
+    expect(handed).toBe(1)
   })
 })
