@@ -523,7 +523,9 @@ describe("where the reader can go from here", () => {
     const nothing = aTabThatHasBeen({ entries: ["/pulls", "/owner/repo/pull/12"], here: 1 })
 
     expect(theTrail(ahead.window).forward).toBe(true)
+    expect(theTrail(ahead.window).ahead).toBe("/owner/repo/pull/12")
     expect(theTrail(nothing.window).forward).toBe(false)
+    expect(theTrail(nothing.window).ahead).toBeUndefined()
   })
 
   /*

@@ -80,6 +80,24 @@ describe("the wait before a pull request has been read", () => {
 })
 
 describe("the moment the pull request arrives", () => {
+  test("reports when a detached pull request is ready to cache", async () => {
+    let prepared = 0
+    render(
+      <PullRequestScreen
+        reference={reference}
+        load={() => Effect.succeed({ snapshot: aSnapshot({ reference }) })}
+        fetchDiffs={() => Effect.succeed([])}
+        onStepAside={() => {}}
+        preparing
+        onPrepared={() => {
+          prepared += 1
+        }}
+      />
+    )
+
+    await waitFor(() => expect(prepared).toBe(1))
+  })
+
   test("puts the card on the page and lets the wait leave over it", async () => {
     // The card is not waited for: it is in the page the moment GitHub answers, at
     // full strength, and the wait dissolves on top of it. Fading the card in

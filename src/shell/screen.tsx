@@ -3,6 +3,7 @@ import type { ReactNode } from "react"
 import { createRoot, type Root } from "react-dom/client"
 import { reportError } from "../observability/sentry"
 import { whenAnotherBarStands } from "../ui/barSlot"
+import { runWhenIdle } from "../ui/idle"
 import {
   GOING,
   gate,
@@ -67,6 +68,8 @@ const FAILSAFE = 20_000
  * looking at with it.
  */
 const roots = new WeakMap<Element, { readonly root: Root; owner: symbol }>()
+const preparedRoots = new WeakSet<Element>()
+const preparedBridges = new WeakMap<Element, { adopt: (standing: Standing) => void }>()
 
 const rootOn = (container: Element, owner: symbol): Root => {
   const had = roots.get(container)
@@ -109,6 +112,8 @@ export type Standing = {
 export type Screen = {
   /** Which of GitHub's pages this stands on, and which addresses are its own. */
   readonly place: Place
+  /** The exact route this screen draws, including before a traversal commits. */
+  readonly route?: string
   /** What to draw. Called again on every {@link Standing.redraw}. */
   readonly draw: (standing: Standing) => ReactNode
   /**
@@ -139,6 +144,7 @@ export type Screen = {
  */
 export const standAScreen = ({
   place,
+  route,
   draw,
   holding,
   borrowing = true,
@@ -168,7 +174,8 @@ export const standAScreen = ({
   // waits on an address and on GitHub's React, and can finish long afterwards.
   let watching = true
 
-  const container = interfaceContainer(document, place)
+  const container = interfaceContainer(document, place, route)
+  const prepared = preparedRoots.delete(container)
   /** This stand-up, told apart from another on the same container. */
   const mine = Symbol(place.name)
   const root = rootOn(container, mine)
@@ -194,6 +201,11 @@ export const standAScreen = ({
    * under it jumped up by the height of one and back down. So the slot says when: see
    * {@link whenAnotherBarStands}, and `glass.css` for the one frame they overlap.
    */
+  const unmount = (): void => {
+    if (!stillOwned(container, mine)) return
+    roots.delete(container)
+    root.unmount()
+  }
   const standDown = (): void => {
     if (down) return
     down = true
@@ -202,9 +214,9 @@ export const standAScreen = ({
     whenAnotherBarStands(document, () => {
       // Another stand-up on this container has the tree now, which is the screen on the
       // page: this one's tree stopped existing the moment that render replaced it.
-      if (!stillOwned(container, mine)) return
-      roots.delete(container)
-      root.unmount()
+      // Cleanup can be expensive on a large pull request. Leave the navigation task
+      // free to paint the prepared route before React runs every outgoing cleanup.
+      runWhenIdle(unmount, 2_000)
     })
   }
 
@@ -236,7 +248,16 @@ export const standAScreen = ({
       : undefined
 
     waiting = whenTakenOver(
-      () => takeOverSlotWhenReady(document, container, undefined, settling, place, surface),
+      () =>
+        takeOverSlotWhenReady(
+          document,
+          container,
+          undefined,
+          settling,
+          place,
+          surface,
+          route
+        ),
       {
         taken: (takeover) => {
           /*
@@ -269,7 +290,7 @@ export const standAScreen = ({
       }
     )
 
-    standing.redraw()
+    if (!prepared) standing.redraw()
   }
 
   const standing: Standing = {
@@ -278,9 +299,7 @@ export const standAScreen = ({
     // Nothing is said here about which address is up. This runs at the press, before
     // the screen has read anything, so the only address available is the one asked
     // for. `useDrawnAt` publishes the one that is drawn.
-    redraw: () => {
-      root.render(<Supplied root={container}>{draw(standing)}</Supplied>)
-    },
+    redraw: () => root.render(<Supplied root={container}>{draw(standing)}</Supplied>),
     close: () => {
       watching = false
       clearTimeout(failsafe)
@@ -308,6 +327,10 @@ export const standAScreen = ({
       handBack(document)
     }
   }
+  if (prepared) {
+    preparedBridges.get(container)?.adopt(standing)
+    preparedBridges.delete(container)
+  }
   /*
    * Everything above this line is a statement about the document; everything in
    * {@link standUp} needs a page to put a screen on, and at `document_start` there is
@@ -319,6 +342,55 @@ export const standAScreen = ({
     standUp()
   })
 
+  return standing
+}
+
+/**
+ * Builds one screen in a detached container, without naming or taking the page.
+ *
+ * A route pre-render uses this during pointer rest. The finished HTML can enter the
+ * route cache, while the current screen keeps every event handler until the click.
+ */
+export const prepareAScreen = (draw: (standing: Standing) => ReactNode): Standing => {
+  const container = document.createElement("div")
+  const owner = Symbol("prepared screen")
+  const root = rootOn(container, owner)
+  let closed = false
+  let adopted: Standing | undefined
+
+  const standing: Standing = {
+    container,
+    stepAside: () => adopted?.stepAside() ?? false,
+    redraw: () => {
+      if (adopted !== undefined) {
+        adopted.redraw()
+        return
+      }
+      if (closed) return
+      root.render(<Supplied root={container} quiet>{draw(standing)}</Supplied>)
+    },
+    close: () => {
+      if (adopted !== undefined) {
+        adopted.close()
+        return
+      }
+      if (closed) return
+      closed = true
+      runWhenIdle(() => {
+        if (!stillOwned(container, owner)) return
+        roots.delete(container)
+        root.unmount()
+      }, 2_000)
+    }
+  }
+
+  preparedRoots.add(container)
+  preparedBridges.set(container, {
+    adopt: (screen) => {
+      adopted = screen
+    }
+  })
+  standing.redraw()
   return standing
 }
 

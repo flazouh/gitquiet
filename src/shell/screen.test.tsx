@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { held, standAScreen } from "./screen"
+import { held, prepareAScreen, standAScreen } from "./screen"
 import { BAR_ID } from "../ui/barSlot"
 import { holdTheSurface, interfaceContainer } from "../ui/mount"
 import type { Place } from "../ui/place"
@@ -84,6 +84,22 @@ const mounted = (container: Element): boolean => container.childNodes.length > 0
 afterEach(tidy)
 
 describe("standing a screen on the page", () => {
+  test("draws a prepared screen without replacing the screen on the page", async () => {
+    history.replaceState(null, "", "/mine")
+    theirPage()
+    const standing = standAScreen({ place: MINE, draw: () => <p>current</p> })
+    await drawn("#gitquiet-root", "current")
+
+    const prepared = prepareAScreen(() => <p>next</p>)
+    await until(() => prepared.container.textContent === "next")
+
+    expect(document.getElementById("gitquiet-root")?.textContent).toBe("current")
+    expect(prepared.container.isConnected).toBe(false)
+
+    prepared.close()
+    standing.close()
+  })
+
   test("draws into the page and takes the region", async () => {
     history.replaceState(null, "", "/mine")
     theirPage()
@@ -117,6 +133,7 @@ describe("standing a screen on the page", () => {
     await drawn("#region", "remembered screen")
     first.close()
     await until(() => document.getElementById("gitquiet-root") === null)
+    await new Promise((resolve) => setTimeout(resolve, 0))
 
     const returned = interfaceContainer(document, MINE)
 

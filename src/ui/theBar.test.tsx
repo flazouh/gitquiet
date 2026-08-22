@@ -48,7 +48,7 @@ const WHERE = { kind: "repository" as const, owner: "flazouh", repo: "gitquiet" 
  * here and taken off again by the hook below, rather than the naming being tested
  * through a seam of its own.
  */
-const havingBeen = (addresses: ReadonlyArray<string>): void => {
+const havingBeen = (addresses: ReadonlyArray<string>, current = addresses.length - 1): void => {
   ;(window as { navigation?: unknown }).navigation = {
     entries: () =>
       addresses.map((at, index) => ({
@@ -56,9 +56,9 @@ const havingBeen = (addresses: ReadonlyArray<string>): void => {
         key: `k${index}`,
         index
       })),
-    currentEntry: { index: addresses.length - 1 },
-    canGoBack: addresses.length > 1,
-    canGoForward: false,
+    currentEntry: { index: current },
+    canGoBack: current > 0,
+    canGoForward: current < addresses.length - 1,
     traverseTo: () => undefined,
     addEventListener: () => {},
     removeEventListener: () => {}
@@ -133,6 +133,35 @@ describe("the places the trail names", () => {
 })
 
 describe("the bar and where the reader has been", () => {
+  test("prepares the exact route behind and ahead before a return press", async () => {
+    havingBeen(
+      [
+        "/flazouh/gitquiet/pull/12",
+        "/flazouh/gitquiet/pull/14",
+        "/flazouh/gitquiet/pull/16"
+      ],
+      1
+    )
+    const prepared: Array<string> = []
+
+    render(
+      <TheBar
+        where={WHERE}
+        participant={SOMEONE}
+        repositories={KEPT}
+        onPrepareRoute={(path) => prepared.push(path)}
+      />
+    )
+
+    await userEvent.hover(screen.getByRole("button", { name: "Back" }))
+    await userEvent.hover(screen.getByRole("button", { name: "Forward" }))
+
+    expect(prepared).toEqual([
+      "/flazouh/gitquiet/pull/12",
+      "/flazouh/gitquiet/pull/16"
+    ])
+  })
+
   test("records the repository being read, so the next switcher opens on it", async () => {
     render(<TheBar where={WHERE} participant={SOMEONE} repositories={KEPT} />)
 

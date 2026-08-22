@@ -127,6 +127,8 @@ export type Trail = {
   readonly back: boolean
   /** Whether there is anywhere ahead, which there is only once the reader has gone back. */
   readonly forward: boolean
+  /** The exact next address, where the browser can name it for route preparation. */
+  readonly ahead?: string
   /**
    * The places behind, nearest first, at most {@link HOW_FAR} of them.
    *
@@ -194,6 +196,8 @@ export const theTrail = (target: Window): Trail => {
     behind.push({ at: address, key: entries[at]?.key, back: here - at })
   }
 
+  const ahead = addressOfEntry(entries[here + 1]?.url)
+
   return {
     /*
      * The API's answer, and the count where it declines to give one. `entries()`
@@ -203,6 +207,7 @@ export const theTrail = (target: Window): Trail => {
      */
     back: (nav.canGoBack ?? false) || target.history.length > 1,
     forward: nav.canGoForward ?? false,
+    ...(ahead === undefined ? {} : { ahead }),
     behind
   }
 }

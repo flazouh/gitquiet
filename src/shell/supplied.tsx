@@ -113,6 +113,7 @@ export const liveUpdates = (
  */
 export const Supplied = ({
   root,
+  quiet = false,
   children,
 }: {
   /**
@@ -122,6 +123,8 @@ export const Supplied = ({
    * is frequently not on the page yet — see `Theme`.
    */
   readonly root?: HTMLElement | undefined;
+  /** Omits document-wide surfaces while a route is rendered off the page. */
+  readonly quiet?: boolean;
   readonly children: ReactNode;
 }) => (
   <RegistryProvider registry={registry()}>
@@ -143,7 +146,7 @@ export const Supplied = ({
                 the control that caused it — the menu closed on the press — and on
                 some of them it outlives the screen too, a merged pull request being
                 a page the reader is about to leave. */}
-            <Toasts>{children}</Toasts>
+            {quiet ? children : <Toasts>{children}</Toasts>}
             </PaintedMarkdown>
           </RendererProvider>
         </PortraitsProvider>

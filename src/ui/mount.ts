@@ -1,6 +1,8 @@
 import { Effect, type Fiber } from "effect"
+import { runWhenIdle } from "./idle"
 import { type Stop, whenAddressChanges } from "./navigation"
 import { CONVERSATION, type Place } from "./place"
+import { PREPARED_TRAVERSAL_ROUTE } from "./preparedNavigation"
 
 export const ROOT_ID = "gitquiet-root"
 
@@ -68,6 +70,10 @@ const ROUTE = "data-gitquiet-route"
 type Snapshot = {
   readonly place: string
   readonly html: string
+  readonly prepared?: {
+    readonly element: HTMLElement
+    readonly dispose: () => void
+  }
 }
 
 type World = Window & { gitquietScreens?: Map<string, Snapshot> }
@@ -87,14 +93,19 @@ const keepScreenSnapshot = (
   route: string,
   snapshot: Snapshot
 ): void => {
+  screens.get(route)?.prepared?.dispose()
   screens.delete(route)
   screens.set(route, snapshot)
 
   const oldest = screens.keys().next()
-  if (screens.size > HOW_MANY_SCREENS && !oldest.done) screens.delete(oldest.value)
+  if (screens.size > HOW_MANY_SCREENS && !oldest.done) {
+    screens.get(oldest.value)?.prepared?.dispose()
+    screens.delete(oldest.value)
+  }
 }
 
-const routeNow = (target: Document): string | null => {
+const routeNow = (target: Document, exact?: string): string | null => {
+  if (exact !== undefined) return exact
   const view = target.defaultView
   return view === null ? null : `${view.location.pathname}${view.location.search}`
 }
@@ -118,16 +129,60 @@ export const rememberPreparedScreen = (
   target: Document,
   route: string,
   place: Place,
-  prepared: Element
+  prepared: Element,
+  dispose?: () => void
 ): void => {
   const screens = screenSnapshots(target)
   if (screens === null || prepared.innerHTML === "") return
 
-  keepScreenSnapshot(screens, route, { place: place.name, html: prepared.innerHTML })
+  keepScreenSnapshot(screens, route, {
+    place: place.name,
+    html: prepared.innerHTML,
+    prepared:
+      dispose === undefined ? undefined : { element: prepared as HTMLElement, dispose }
+  })
 }
 
-const seedRememberedScreen = (target: Document, container: Element, place: Place): void => {
-  const route = routeNow(target)
+/** Whether this exact route has a live React root ready to claim. */
+export const hasPreparedScreen = (
+  target: Document,
+  route: string,
+  place: Place
+): boolean => {
+  const snapshot = screenSnapshots(target)?.get(route)
+  return snapshot?.place === place.name && snapshot.prepared !== undefined
+}
+
+/** Takes a live route pre-render out of the cache without disposing its React root. */
+const claimPreparedScreen = (
+  target: Document,
+  place: Place,
+  exactRoute?: string
+): HTMLElement | null => {
+  const route = routeNow(target, exactRoute)
+  const screens = screenSnapshots(target)
+  if (route === null || screens === null) return null
+
+  const snapshot = screens.get(route)
+  if (snapshot?.place !== place.name || snapshot.prepared === undefined) return null
+
+  screens.delete(route)
+  if (target.documentElement.getAttribute(PREPARED_TRAVERSAL_ROUTE) === route)
+    target.documentElement.removeAttribute(PREPARED_TRAVERSAL_ROUTE)
+  const claimed = snapshot.prepared.element
+  claimed.id = ROOT_ID
+  claimed.setAttribute(BELONGS_TO, place.name)
+  claimed.removeAttribute(LEAVING)
+  return claimed
+}
+
+const seedRememberedScreen = (
+  target: Document,
+  container: Element,
+  place: Place,
+  exactRoute?: string
+): void => {
+  const route = routeNow(target, exactRoute)
   const screens = screenSnapshots(target)
   if (route === null || screens === null) return
 
@@ -170,7 +225,7 @@ export const GOING = "gitquiet:going"
 
 const takeOffThePage = (element: Element): void => {
   const page = element.ownerDocument
-  rememberScreen(element)
+  runWhenIdle(() => rememberScreen(element))
   element.dispatchEvent(new CustomEvent(GOING))
   element.remove()
   if (element === ours) ours = null
@@ -203,9 +258,17 @@ const isOurContainer = (container: Element): boolean => container === ours
  */
 export const SCREEN_MOVED = "gitquiet:screen-moved"
 
+/** One pending announcement per document, so one takeover causes one React update. */
+const moving = new WeakSet<Document>()
+
 /** Says so, to every screen's script rather than only to this one's. */
 export const theScreenMoved = (page: Document): void => {
-  page.documentElement.dispatchEvent(new CustomEvent(SCREEN_MOVED))
+  if (moving.has(page)) return
+  moving.add(page)
+  setTimeout(() => {
+    moving.delete(page)
+    page.documentElement.dispatchEvent(new CustomEvent(SCREEN_MOVED))
+  }, 0)
 }
 
 /**
@@ -562,7 +625,8 @@ export const whenThereIsAPage = (page: Document, ready: () => void): (() => void
  */
 export const interfaceContainer = (
   target: Document,
-  place: Place = CONVERSATION
+  place: Place = CONVERSATION,
+  exactRoute?: string
 ): HTMLElement => {
   const already = target.getElementById(ROOT_ID)
   if (already !== null) {
@@ -570,7 +634,7 @@ export const interfaceContainer = (
     // again — a reader who pressed a pull request and came back before the card
     // arrived is looking at this list, and it never left the page.
     if (already.getAttribute(BELONGS_TO) === place.name) {
-      const route = routeNow(target)
+      const route = routeNow(target, exactRoute)
       const drawnRoute = already.getAttribute(ROUTE)
       if (route === null || drawnRoute === null || route === drawnRoute) {
         already.removeAttribute(LEAVING)
@@ -598,10 +662,13 @@ export const interfaceContainer = (
     }
   }
 
-  const made = target.createElement("div")
-  made.id = ROOT_ID
-  made.setAttribute(BELONGS_TO, place.name)
-  seedRememberedScreen(target, made, place)
+  const prepared = claimPreparedScreen(target, place, exactRoute)
+  const made = prepared ?? target.createElement("div")
+  if (prepared === null) {
+    made.id = ROOT_ID
+    made.setAttribute(BELONGS_TO, place.name)
+    seedRememberedScreen(target, made, place, exactRoute)
+  }
   ours = made
   theScreenMoved(target)
   return made
@@ -798,7 +865,8 @@ export const takeOverSlot = (
    * standing on, which is already held, already gated, and already the page as
    * far as the reader is concerned.
    */
-  ours?: Element
+  ours?: Element,
+  exactRoute?: string
 ): Takeover | null => {
   const slot = ours ?? findSlot(target, place)
   if (slot === null) return null
@@ -845,13 +913,23 @@ export const takeOverSlot = (
      * The mark is how a watcher is told to stand down, and the sweep above never has to set it
      * because a marked container is what that sweep is looking for.
      */
-    for (const stray of target.querySelectorAll(`#${ROOT_ID}`)) {
-      if (stray === container) continue
+    let stray = target.getElementById(ROOT_ID)
+    while (stray !== null && stray !== container) {
       stray.setAttribute(LEAVING, "")
       takeOffThePage(stray)
+      stray = target.getElementById(ROOT_ID)
+    }
+    // Only a reused container can be the first result while another duplicate
+    // follows it. The normal route stays on the constant-time id lookup above.
+    if (stray === container) {
+      for (const duplicate of target.querySelectorAll(`#${ROOT_ID}`)) {
+        if (duplicate === container) continue
+        duplicate.setAttribute(LEAVING, "")
+        takeOffThePage(duplicate)
+      }
     }
     into.append(container)
-    const route = routeNow(target)
+    const route = routeNow(target, exactRoute)
     if (route !== null) container.setAttribute(ROUTE, route)
     hideTheirs(into, container)
     hideTheirBands(target, place)
@@ -1072,7 +1150,8 @@ export const takeOverSlotWhenReady = Effect.fn("mount.takeOverSlotWhenReady")(fu
   settling: number = SETTLING,
   place: Place = CONVERSATION,
   /** Where to stand outright, for an arrival with no document coming. */
-  ours?: Element
+  ours?: Element,
+  exactRoute?: string
 ) {
   // The address first, always. See {@link whenTheAddressIsOurs}: a screen that stands
   // before the address moves takes the link being pressed off the page with it.
@@ -1090,7 +1169,7 @@ export const takeOverSlotWhenReady = Effect.fn("mount.takeOverSlotWhenReady")(fu
     return null
   }
 
-  const takeover = takeOverSlot(target, container, place, ours)
+  const takeover = takeOverSlot(target, container, place, ours, exactRoute)
   if (takeover === null) {
     reveal(target)
     ungate(target)

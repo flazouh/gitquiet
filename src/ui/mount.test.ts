@@ -22,6 +22,7 @@ import {
   whenTheScreenMoves
 } from "./mount"
 import { ACTIONS, COMMIT, CONVERSATION, DASHBOARD, HOME, REPO_PULLS } from "./place"
+import { PREPARED_TRAVERSAL_ROUTE } from "./preparedNavigation"
 
 /** GitHub's pull request page, down to the parts this depends on. */
 const githubPage = (): Document => {
@@ -85,7 +86,43 @@ describe("slotting into GitHub's pull request page", () => {
     view.close()
   })
 
-  test("seeds a returned address when two routes use the same screen kind", () => {
+  test("claims a live prepared root without disposing it", () => {
+    const view = new HappyWindow({ url: "https://github.com/owner/repo/pull/1" })
+    const page = view.document as unknown as Document
+    page.body.innerHTML = githubPage().body.innerHTML
+    const prepared = page.createElement("div")
+    prepared.innerHTML = "<h1>live pull request</h1>"
+    let disposed = 0
+
+    rememberPreparedScreen(page, "/owner/repo/pull/2", CONVERSATION, prepared, () => {
+      disposed += 1
+    })
+    view.history.replaceState(null, "", "/owner/repo/pull/2")
+    const arriving = interfaceContainer(page, CONVERSATION)
+
+    expect(arriving).toBe(prepared)
+    expect(disposed).toBe(0)
+    view.close()
+  })
+
+  test("claims an exact prepared route before a history traversal commits", () => {
+    const view = new HappyWindow({ url: "https://github.com/owner/repo/pull/1" })
+    const page = view.document as unknown as Document
+    page.body.innerHTML = githubPage().body.innerHTML
+    const prepared = page.createElement("div")
+    prepared.innerHTML = "<h1>returned pull request</h1>"
+
+    rememberPreparedScreen(page, "/owner/repo/pull/2", CONVERSATION, prepared, () => {})
+    page.documentElement.setAttribute(PREPARED_TRAVERSAL_ROUTE, "/owner/repo/pull/2")
+    const arriving = interfaceContainer(page, CONVERSATION, "/owner/repo/pull/2")
+
+    expect(arriving).toBe(prepared)
+    expect(page.documentElement.hasAttribute(PREPARED_TRAVERSAL_ROUTE)).toBe(false)
+    expect(view.location.pathname).toBe("/owner/repo/pull/1")
+    view.close()
+  })
+
+  test("seeds a returned address when two routes use the same screen kind", async () => {
     const view = new HappyWindow({ url: "https://github.com/owner/repo/pull/1" })
     const page = view.document as unknown as Document
     page.body.innerHTML = githubPage().body.innerHTML
@@ -98,6 +135,7 @@ describe("slotting into GitHub's pull request page", () => {
     const second = interfaceContainer(page, CONVERSATION)
     second.innerHTML = "<h1>second pull request</h1>"
     takeOverSlot(page, second, CONVERSATION)
+    await new Promise((resolve) => setTimeout(resolve, 0))
 
     view.history.replaceState(null, "", "/owner/repo/pull/1")
     const returned = interfaceContainer(page, CONVERSATION)
@@ -1131,21 +1169,23 @@ describe("taking the page only once the address is ours", () => {
  * beside the bar of the screen that replaced it — the two bars the reader kept reporting.
  */
 describe("telling every screen's script that the page moved", () => {
-  test("hears a move announced by another screen", () => {
+  test("hears a move announced by another screen", async () => {
     let told = 0
     const stop = whenTheScreenMoves(document, () => {
       told += 1
     })
 
     theScreenMoved(document)
+    await new Promise((ready) => setTimeout(ready, 0))
     expect(told).toBe(1)
 
     stop()
     theScreenMoved(document)
+    await new Promise((ready) => setTimeout(ready, 0))
     expect(told).toBe(1)
   })
 
-  test("says so when a screen takes the page from another", () => {
+  test("says so when a screen takes the page from another", async () => {
     const page = githubPage()
     const leaving = interfaceContainer(page, CONVERSATION)
     slotOf(page).append(leaving)
@@ -1155,6 +1195,7 @@ describe("telling every screen's script that the page moved", () => {
       told += 1
     })
     takeOverSlot(page, page.createElement("div"), CONVERSATION)
+    await new Promise((ready) => setTimeout(ready, 0))
     stop()
 
     expect(told).toBeGreaterThan(0)
