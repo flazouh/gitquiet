@@ -162,9 +162,37 @@ const watchAddressChanges = (
     onChange(target.location.pathname, target.location.search)
   }
 
-  // Their events land before the address is rewritten as often as after it, so
-  // each one is a reason to look now and again on the next turn of the loop.
+  const Channel = deferInput
+    ? (target as Window & { readonly MessageChannel?: typeof MessageChannel }).MessageChannel
+    : undefined
+  const channel = Channel === undefined ? undefined : new Channel()
+  let queued = false
+  const runQueued = (): void => {
+    queued = false
+    look()
+  }
+  if (channel !== undefined) {
+    channel.port1.onmessage = runQueued
+  }
+  // The address is already current. Move the screen in the next task so a route
+  // render cannot turn the reader's click into a dropped frame.
+  const afterInput = (): void => {
+    if (queued) return
+    queued = true
+    if (channel !== undefined) {
+      channel.port2.postMessage(null)
+      return
+    }
+    target.setTimeout(runQueued, 0)
+  }
+
+  // Their events land before the address is rewritten as often as after it. A
+  // visual screen checks now and again next task. Shell cleanup only checks next.
   const soon = (): void => {
+    if (deferInput) {
+      afterInput()
+      return
+    }
     look()
     target.setTimeout(look, 0)
   }
@@ -172,28 +200,6 @@ const watchAddressChanges = (
   for (const name of THEIR_EVENTS) target.document.addEventListener(name, soon, true)
   target.addEventListener("popstate", soon)
   const said = theirWord(target)
-  const Channel = deferInput
-    ? (target as Window & { readonly MessageChannel?: typeof MessageChannel }).MessageChannel
-    : undefined
-  const channel = Channel === undefined ? undefined : new Channel()
-  let queued = false
-  if (channel !== undefined) {
-    channel.port1.onmessage = () => {
-      queued = false
-      look()
-    }
-  }
-  // The address is already current. Move the screen in the next task so a route
-  // render cannot turn the reader's click into a dropped frame.
-  const afterInput = (): void => {
-    if (channel !== undefined) {
-      if (queued) return
-      queued = true
-      channel.port2.postMessage(null)
-      return
-    }
-    target.setTimeout(look, 0)
-  }
   const onEntry = deferInput ? afterInput : look
   said?.addEventListener("currententrychange", onEntry)
   const ticking = target.setInterval(look, lookAgain)
