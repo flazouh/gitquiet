@@ -10,6 +10,7 @@ import { createPortal } from "react-dom"
 import type { DiffEngine, DiffHandle, DiffSide, Note as NoteAt, Picked } from "../ports/Renderer"
 import type { Uploaded } from "../domain/attaching"
 import type { Suggesting } from "../domain/suggesting"
+import { afterPaint } from "../app/idle"
 import { toPatch } from "../domain/toPatch"
 import { withoutWhitespace } from "../domain/withoutWhitespace"
 import type { ChangedFile, ChangeType, FileDiff, ReviewThread } from "../domain/PullRequest"
@@ -561,26 +562,41 @@ export const FileDiffPane = ({
     if (engine === null || container === null || source === null || source === "" || prose !== undefined)
       return
 
-    const live = engine.renderDiff(container, {
-      patch: source,
-      path: file.path,
-      theme: drawnWith.scheme,
-      pack: drawnWith.pack,
-      choices: drawnWith.choices,
-      // Off where a remark has nowhere to go, which takes the gutter's plus and
-      // the drag across the line numbers with it. A commit read on its own page
-      // is the case: GitHub's route for a review comment belongs to a pull
-      // request, and this commit is not being read on one. Left on, both ways in
-      // open a box whose Comment button cannot come up, over a draft that can be
-      // saved and never sent.
-      onPick: canPost ? setPicked : undefined,
-      notes: atRender.current,
-      fillNote: (key) => rows.current.get(key)
-    })
-    handle.current = live
+    /*
+     * After a painted frame, never in the commit that asked.
+     *
+     * The draw is synchronous engine work — a few hundred milliseconds on a
+     * fat patch — and run inside the click's own commit it held the click's
+     * answer hostage: the row's highlight, the heading, the pointer. Deferred
+     * with `afterPaint`, the answer is on screen first and the draw follows.
+     */
+    let live: DiffHandle | null = null
+
+    const draw = () => {
+      live = engine.renderDiff(container, {
+        patch: source,
+        path: file.path,
+        theme: drawnWith.scheme,
+        pack: drawnWith.pack,
+        choices: drawnWith.choices,
+        // Off where a remark has nowhere to go, which takes the gutter's plus and
+        // the drag across the line numbers with it. A commit read on its own page
+        // is the case: GitHub's route for a review comment belongs to a pull
+        // request, and this commit is not being read on one. Left on, both ways in
+        // open a box whose Comment button cannot come up, over a draft that can be
+        // saved and never sent.
+        onPick: canPost ? setPicked : undefined,
+        notes: atRender.current,
+        fillNote: (key) => rows.current.get(key)
+      })
+      handle.current = live
+    }
+
+    const wait = afterPaint(draw)
     return () => {
+      wait()
       handle.current = null
-      live.destroy()
+      live?.destroy()
     }
     // Every one of these is baked into the DOM the renderer writes, so a change
     // to any of them is a file drawn again from the patch.

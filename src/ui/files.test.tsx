@@ -90,6 +90,22 @@ const drawn = async (): Promise<DiffRequest> => {
   return asked[0]!
 }
 
+describe("the click is answered before the file is drawn", () => {
+  /*
+   * The draw is a few hundred milliseconds of synchronous engine work on a fat
+   * patch. Run inside the commit that mounted the pane, it held the click's own
+   * answer hostage: the selection, the heading and the pointer all waited for
+   * it. One painted frame goes first; the draw follows.
+   */
+  test("mounting a pane does not draw in the same breath", async () => {
+    render(pane())
+
+    expect(asked).toHaveLength(0)
+
+    await drawn()
+  })
+})
+
 describe("which colours a file is drawn in", () => {
   test("follows the reader's appearance, not GitHub's page", async () => {
     document.documentElement.setAttribute("data-color-mode", "light")

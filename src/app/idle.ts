@@ -56,6 +56,48 @@ export const eachIdle = (acts: ReadonlyArray<() => void>, by?: number): (() => v
 }
 
 /**
+ * Runs the work after the next painted frame, and hands back the way to call
+ * it off.
+ *
+ * For heavy work an interaction asked for directly: run inside the
+ * interaction's own commit it holds the visible answer hostage, and an idle
+ * wait is too patient for something the reader is looking at. A frame callback
+ * runs before its paint, so the zero timer scheduled inside one runs just
+ * after it — the answer is on screen, then the work runs. The `by` timer is
+ * for pages that paint no frames at all, a tab opened in the background being
+ * the one that matters: there the work simply happens soon instead, so the tab
+ * is ready by the time it is brought forward.
+ */
+export const afterPaint = (act: () => void, by = 250): (() => void) => {
+  let frame: number | null = null
+  let beat: ReturnType<typeof setTimeout> | null = null
+  let done = false
+
+  const stop = (): void => {
+    if (frame !== null) cancelAnimationFrame(frame)
+    if (beat !== null) clearTimeout(beat)
+    clearTimeout(anyway)
+  }
+  const run = (): void => {
+    if (done) return
+    done = true
+    stop()
+    act()
+  }
+  const anyway = setTimeout(run, by)
+  if (typeof requestAnimationFrame === "function") {
+    frame = requestAnimationFrame(() => {
+      frame = null
+      beat = setTimeout(run, 0)
+    })
+  }
+  return () => {
+    done = true
+    stop()
+  }
+}
+
+/**
  * The same wait, in front of an Effect, for work a fiber already owns.
  *
  * Interrupting the fiber calls the wait off and the work never starts. Which is

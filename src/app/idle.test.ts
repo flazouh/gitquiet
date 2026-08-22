@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { eachIdle } from "./idle"
+import { afterPaint, eachIdle } from "./idle"
 
 /** Polls until the condition holds, or the wait runs out. */
 const until = async (holds: () => boolean): Promise<void> => {
@@ -37,5 +37,33 @@ describe("one act per quiet moment", () => {
     await new Promise((settle) => setTimeout(settle, 500))
 
     expect(ran).toEqual([])
+  })
+})
+
+describe("work that waits for a painted frame", () => {
+  test("runs after the caller's own moment, exactly once", async () => {
+    let ran = 0
+    afterPaint(() => {
+      ran += 1
+    })
+
+    expect(ran).toBe(0)
+    await until(() => ran > 0)
+    // Both the frame path and the timer were armed; only one may fire.
+    await new Promise((settle) => setTimeout(settle, 400))
+
+    expect(ran).toBe(1)
+  })
+
+  test("calling it off stops the work", async () => {
+    let ran = 0
+    const stop = afterPaint(() => {
+      ran += 1
+    })
+    stop()
+
+    await new Promise((settle) => setTimeout(settle, 400))
+
+    expect(ran).toBe(0)
   })
 })
