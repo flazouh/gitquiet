@@ -104,7 +104,9 @@ export const TheBar = ({
     return made;
   });
   const slot = preparedSlot ?? pageSlot;
-  const drawing = useOursToDraw() && active;
+  const oursToDraw = useOursToDraw();
+  const preparing = preparedRoot !== undefined && !preparedRoot.isConnected;
+  const drawing = preparing || (oursToDraw && active);
   /*
    * The reader's own choices, read here so the way into them can stand in the strip.
    *
@@ -151,8 +153,9 @@ export const TheBar = ({
     // The pane's glass is a filter, and a filter has to be in the document to be referenced from
     // one. See `refraction.ts`; the stylesheet asks for it by name in `glass.css`.
     keepRefraction(document);
+    if (preparing) return;
     return keepTheBarSlot(document, slot, around.within);
-  }, [slot, around.within]);
+  }, [preparing, slot, around.within]);
 
   /*
    * A list handed straight in is the freshest one this bar ever sees: Home and the
