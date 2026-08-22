@@ -271,9 +271,28 @@ describe("the reader's own settings", () => {
  * takeover that failed, their router quicker than ours — the second bar stayed for good.
  */
 describe("two screens of ours, and the one bar between them", () => {
+  /*
+   * The takeover a test here performs, held so that `clear` can stand it down. The
+   * document is the one every file in this process shares, and a takeover left
+   * standing keeps more than attributes on it: its watcher survives the test,
+   * sees the next file rearrange the body, and takes that file's page over for a
+   * screen that no longer exists.
+   */
+  let taken: ReturnType<typeof takeOverSlot> = null
+
   const clear = () => {
+    taken?.stepAside()
+    taken = null
     for (const root of document.querySelectorAll(`#${ROOT_ID}`)) root.remove()
     document.querySelector("run-summary")?.remove()
+    for (const name of [
+      "data-gitquiet-taken",
+      "data-gitquiet-shown",
+      "data-gitquiet-revealed",
+      "data-gitquiet-gating",
+      "data-gitquiet-page"
+    ])
+      document.documentElement.removeAttribute(name)
   }
 
   afterEach(clear)
@@ -307,7 +326,8 @@ describe("two screens of ours, and the one bar between them", () => {
     theirs.innerHTML = '<turbo-frame id="repo-content-turbo-frame"></turbo-frame>'
     document.body.append(theirs)
     act(() => {
-      expect(takeOverSlot(document, mine, RUN)).not.toBeNull()
+      taken = takeOverSlot(document, mine, RUN)
+      expect(taken).not.toBeNull()
     })
 
     await waitFor(() => expect(document.querySelectorAll(`#${BAR_ID} > header`).length).toBe(1))
