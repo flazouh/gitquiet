@@ -31,6 +31,16 @@ export type Knob<K extends string, T extends string> = {
   readonly note: string
   /** Curated knobs are in the menu; advanced ones are behind one more click. */
   readonly advanced: boolean
+  /**
+   * Whether the choices are a run along one dimension, to be drawn as a slider.
+   *
+   * They are still choices, and everything else here treats them as choices:
+   * what is stored, what is checked against the schema, and what the little
+   * mockups are drawn from. The flag only says that the row of buttons should
+   * be one handle instead, which is what a reader expects of nine sizes and
+   * would be lost among nine words.
+   */
+  readonly slide: boolean
   readonly choices: ReadonlyArray<Choice<T>>
   readonly fallback: T
 }
@@ -43,7 +53,35 @@ const knob = <K extends string, T extends string>(
   choices: ReadonlyArray<Choice<T>>,
   fallback: T,
   advanced = false,
-): Knob<K, T> => ({ key, label, gist, note, advanced, choices, fallback })
+): Knob<K, T> => ({ key, label, gist, note, advanced, slide: false, choices, fallback })
+
+/**
+ * A knob whose choices are a run of pixel sizes, drawn as a slider.
+ *
+ * The steps are written out rather than given as a start, an end and a stride,
+ * because they are the answers a reader can pick and every other part of this
+ * file already knows what to do with a list of answers. A slider over stored
+ * numbers would need its own validation, its own default, and its own kind of
+ * mockup; a slider over choices needs none of the three.
+ */
+const slider = <K extends string>(
+  key: K,
+  label: string,
+  gist: string,
+  note: string,
+  steps: ReadonlyArray<number>,
+  fallback: number,
+  advanced = false,
+): Knob<K, string> => ({
+  key,
+  label,
+  gist,
+  note,
+  advanced,
+  slide: true,
+  choices: steps.map((px) => ({ value: String(px), label: `${px}px` })),
+  fallback: String(fallback),
+})
 
 const onOff = [
   { value: "on", label: "On" },
@@ -326,17 +364,13 @@ export const TREE_KNOBS = [
     ],
     "compact",
   ),
-  knob(
+  slider(
     "indent",
     "Folder indent",
     "How far each folder steps in",
-    "How far a folder steps its contents in. Every level spends the same room again, and a repository is four or five folders deep before a name starts, so indent is taken straight out of the names in a narrow rail. Tight keeps the guide lines and gives the rest back; Wide is what this used to do.",
-    [
-      { value: "tight", label: "Tight" },
-      { value: "default", label: "Default" },
-      { value: "wide", label: "Wide" },
-    ],
-    "default",
+    "How far a folder steps its contents in, in pixels. Every level spends it again, and a repository is four or five folders deep before a name starts, so indent comes straight out of the names in a narrow rail. 6px is the default and 0px still nests, because the guide lines and the icons say which level a row is on; 16px is roomy enough to read across a wide rail.",
+    [0, 2, 4, 6, 8, 10, 12, 14, 16],
+    6,
   ),
   knob(
     "icons",

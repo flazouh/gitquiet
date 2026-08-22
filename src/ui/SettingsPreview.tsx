@@ -334,11 +334,10 @@ const SAMPLES: Record<string, (choice: string) => ReactNode> = {
   density: (choice) => (
     <Tree rows={FILES} gap={choice === "compact" ? 1 : choice === "default" ? 3 : 5} />
   ),
-  // Four levels, because one step is not a picture of stepping. The numbers are
-  // the ones the rail uses, so the picture is the size of the thing it shows.
-  indent: (choice) => (
-    <Tree rows={NESTED} step={choice === "tight" ? 4 : choice === "default" ? 6 : 10} />
-  ),
+  // Four levels, because one step is not a picture of stepping, and the reader's
+  // own pixels rather than a scaled-down stand-in: what the slider says is what
+  // the rail draws, so the picture can say it too.
+  indent: (choice) => <Tree rows={NESTED} step={Number(choice)} />,
   icons: (choice) => <Tree rows={FILES} icons={choice as "material" | "plain"} />,
   width: (choice) => (
     <div className="flex gap-1">

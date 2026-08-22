@@ -84,9 +84,9 @@ const PRIMER_TREE = {
   "--trees-scrollbar-gutter-measured": "0px",
 
   // No level gap named here on purpose: the indent is the reader's, and
-  // `FileTreePane` names it from their choice. A flat ten pixels used to sit
-  // here, which was wider than the tree's own step and deaf to the row height
-  // beside it, so a compact list indented as far as a relaxed one.
+  // `FileTreePane` names it from where they left the slider. A flat ten pixels
+  // used to sit here, which is wider than anybody asked for and was nobody's
+  // choice.
   "--trees-font-size-override": "12px"
 } as React.CSSProperties
 

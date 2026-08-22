@@ -67,18 +67,14 @@ describe("turning choices into what the rail takes", () => {
     expect(tree({ counts: "off", ticks: "off" })).toMatchObject({ counts: false, ticks: false })
   })
 
-  it("gives every indent a length, and each one is shorter than the next", () => {
-    expect(tree({ indent: "tight" }).indent).toContain("4px")
-    expect(tree({ indent: "default" }).indent).toContain("6px")
-    expect(tree({ indent: "wide" }).indent).toContain("10px")
+  it("draws the indent the slider says, to the pixel", () => {
+    expect(tree({ indent: "0" }).indent).toBe("0px")
+    expect(tree({ indent: "6" }).indent).toBe("6px")
+    expect(tree({ indent: "16" }).indent).toBe("16px")
   })
 
-  it("scales each indent with the row height, so a compact list steps in less", () => {
-    // The flat length this replaced was the bug: a compact tree indented as far
-    // as a relaxed one, because pixels do not know what row they are on.
-    for (const indent of ["tight", "default", "wide"] as const) {
-      expect(tree({ indent }).indent).toContain("var(--trees-density)")
-    }
+  it("falls back to the middle where the stored indent is not a number", () => {
+    expect(tree({ indent: "wide" }).indent).toBe("6px")
   })
 
   it("passes the tree's own words through", () => {

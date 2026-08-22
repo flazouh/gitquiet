@@ -98,23 +98,29 @@ const WIDTH: Readonly<Record<string, string>> = {
 }
 
 /**
- * How far one level of folder steps in, per choice.
+ * The step to fall back on where the stored indent is not a number.
  *
- * Multiplied by the row height the reader chose, the way the tree's own default
- * is: a compact list that indented like a relaxed one was the bug that started
- * this. Six is the middle rather than the tree's eight because the guide lines
- * already say which level a row is on, so the step only has to be wide enough
- * to read as a step. Ten is what the rail did before this knob existed.
+ * The schema holds a stored value to the run of steps the slider offers, so
+ * this is only reached by a caller that built its settings by hand.
  */
-const INDENT: Readonly<Record<string, string>> = {
-  tight: "calc(4px * var(--trees-density))",
-  default: "calc(6px * var(--trees-density))",
-  wide: "calc(10px * var(--trees-density))"
+const INDENT = 6
+
+/**
+ * The indent, as the length the tree draws.
+ *
+ * The number the reader chose and no arithmetic on it. The tree's own step is
+ * multiplied by the row height, and doing that here would draw four and a half
+ * pixels for a slider that says six — which is the sort of thing that makes a
+ * reader drag the handle twice and then stop trusting it.
+ */
+const indentOf = (chosen: string): string => {
+  const px = Number.parseInt(chosen, 10)
+  return `${Number.isNaN(px) ? INDENT : px}px`
 }
 
 export const treeChoices = (settings: TreeSettings): TreeChoices => ({
   density: settings.density,
-  indent: INDENT[settings.indent] ?? INDENT["default"]!,
+  indent: indentOf(settings.indent),
   icons: settings.icons,
   width: WIDTH[settings.width] ?? WIDTH["medium"]!,
   counts: settings.counts === "on",

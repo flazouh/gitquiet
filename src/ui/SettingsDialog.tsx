@@ -12,6 +12,7 @@ import { type ArtName, useArt } from "./art"
 import { HERE, TINT } from "./dress"
 import { OVER_ID, outsideHost } from "./outside"
 import { sampleOf } from "./SettingsPreview"
+import { Slide } from "./Slide"
 
 export type SettingsDialogProps = {
   readonly settings: Settings
@@ -116,6 +117,14 @@ const Row = ({
         <span className="text-xs text-ink-muted">{knob.gist}</span>
         <p className="sr-only">{knob.note}</p>
       </div>
+      {knob.slide ? (
+        <div
+          onPointerLeave={() => look(null)}
+          className={`${TINT} flex w-[13.5rem] shrink-0 items-center gap-2 rounded-md px-2 py-1.5`}
+        >
+          <Slide knob={knob} held={held} onPick={onPick} onPeek={look} />
+        </div>
+      ) : (
       <div
         role="radiogroup"
         aria-label={knob.label}
@@ -155,6 +164,7 @@ const Row = ({
           </label>
         ))}
       </div>
+      )}
     </li>
   )
 }
