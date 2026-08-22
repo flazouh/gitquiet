@@ -34,6 +34,18 @@ describe("the menu is drawn where the colours are", () => {
     await userEvent.click(screen.getByLabelText("Display settings"))
   }
 
+  test("builds the menu before the first press, but keeps it hidden", async () => {
+    const root = ourRoot()
+    render(<SettingsMenu settings={DEFAULTS} onChange={() => {}} />, { container: root })
+
+    const prepared = screen.getByRole("menu", { hidden: true })
+    expect(prepared.hidden || getComputedStyle(prepared).display === "none").toBe(true)
+
+    await userEvent.click(screen.getByLabelText("Display settings"))
+
+    expect(screen.getByRole("menu")).toBe(prepared)
+  })
+
   test("the menu itself", async () => {
     const root = ourRoot()
 

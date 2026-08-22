@@ -292,7 +292,8 @@ describe("changing how the diff is drawn, from the band above it", () => {
       />
     )
 
-  const band = (): HTMLElement => screen.getByLabelText("Files").firstElementChild as HTMLElement
+  const band = (): HTMLElement =>
+    screen.getByLabelText("Files", { selector: "section" }).firstElementChild as HTMLElement
 
   test("opens on a button at the end of the band", async () => {
     browser({ display: { settings: DEFAULTS, onChange: () => {} } })

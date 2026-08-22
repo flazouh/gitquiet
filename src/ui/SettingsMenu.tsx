@@ -226,6 +226,7 @@ export const SettingsMenu = ({
 }: SettingsMenuProps) => {
   const art = useArt()
   const More = art.more
+  const [open, setOpen] = useState(false)
   const pickTheme = (key: string, value: string) =>
     onChange({ ...settings, theme: { ...settings.theme, [key]: value } })
   const pickDiff = (key: string, value: string) =>
@@ -238,15 +239,17 @@ export const SettingsMenu = ({
   // into a wait.
   return (
     <Bubble.Provider delayDuration={0} skipDelayDuration={0} disableHoverableContent>
-      <Menu.Root>
+      <Menu.Root open={open} onOpenChange={setOpen} modal={false}>
         <Menu.Trigger
           aria-label={label}
           className="flex shrink-0 items-center rounded-md px-1.5 py-1 text-ink-muted hover:bg-hover hover:text-ink"
         >
           <More size={16} />
         </Menu.Trigger>
-        <Menu.Portal container={inOurs()}>
+        <Menu.Portal container={inOurs()} forceMount>
           <Menu.Content
+            forceMount
+            hidden={!open}
             align="end"
             sideOffset={4}
             className="t-dropdown z-50 min-w-56 rounded-md border border-line bg-raised p-1 text-xs shadow-pop"
