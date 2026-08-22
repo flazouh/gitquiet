@@ -24,9 +24,8 @@ const LOOK_AGAIN = 200
  * The browser saying the address has changed, which beats guessing at it.
  *
  * `currententrychange` fires once the entry is the current one, whatever moved it:
- * a Turbo push, a replace, the back button. It schedules the screen change for the
- * next task. This keeps route rendering out of the input task while still beating
- * the two-hundred-millisecond interval.
+ * a Turbo push, a replace, the back button. Where the interval was up to two
+ * hundred milliseconds late, this can answer in the same task.
  *
  * The interval stays underneath it. This is a young API and the page belongs to
  * somebody else — a browser without it, or a way of moving it does not report,
@@ -145,10 +144,11 @@ export const whenTheyStayPut = (
  * `placeOwning` takes a path and a search, and rejoining them at every caller is a
  * string to get wrong.
  */
-export const whenAddressChanges = (
+const watchAddressChanges = (
   target: Window,
   onChange: (path: string, search: string) => void,
-  lookAgain: number = LOOK_AGAIN
+  lookAgain: number,
+  deferInput: boolean
 ): Stop => {
   const whole = (): string => `${target.location.pathname}${target.location.search}`
   let known = whole()
@@ -170,8 +170,9 @@ export const whenAddressChanges = (
   for (const name of THEIR_EVENTS) target.document.addEventListener(name, soon, true)
   target.addEventListener("popstate", soon)
   const said = theirWord(target)
-  const Channel = (target as Window & { readonly MessageChannel?: typeof MessageChannel })
-    .MessageChannel
+  const Channel = deferInput
+    ? (target as Window & { readonly MessageChannel?: typeof MessageChannel }).MessageChannel
+    : undefined
   const channel = Channel === undefined ? undefined : new Channel()
   let queued = false
   if (channel !== undefined) {
@@ -191,18 +192,32 @@ export const whenAddressChanges = (
     }
     target.setTimeout(look, 0)
   }
-  said?.addEventListener("currententrychange", afterInput)
+  const onEntry = deferInput ? afterInput : look
+  said?.addEventListener("currententrychange", onEntry)
   const ticking = target.setInterval(look, lookAgain)
 
   return () => {
     for (const name of THEIR_EVENTS) target.document.removeEventListener(name, soon, true)
     target.removeEventListener("popstate", soon)
-    said?.removeEventListener("currententrychange", afterInput)
+    said?.removeEventListener("currententrychange", onEntry)
     channel?.port1.close()
     channel?.port2.close()
     target.clearInterval(ticking)
   }
 }
+
+export const whenAddressChanges = (
+  target: Window,
+  onChange: (path: string, search: string) => void,
+  lookAgain: number = LOOK_AGAIN
+): Stop => watchAddressChanges(target, onChange, lookAgain, false)
+
+/** Moves non-visual route cleanup out of the reader's input task. */
+export const whenAddressChangesAfterInput = (
+  target: Window,
+  onChange: (path: string, search: string) => void,
+  lookAgain: number = LOOK_AGAIN
+): Stop => watchAddressChanges(target, onChange, lookAgain, true)
 
 /**
  * Calls back with the new path whenever the path changes, and never for a search

@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test"
-import { whenLocationChanges, whenTheyStayPut, whenTraversalStarts } from "./navigation"
+import {
+  whenAddressChangesAfterInput,
+  whenLocationChanges,
+  whenTheyStayPut,
+  whenTraversalStarts
+} from "./navigation"
 
 /**
  * Enough of a window to navigate in: the address is writable, GitHub's events
@@ -160,7 +165,7 @@ describe("noticing GitHub navigate without loading a page", () => {
     expect(seen).toEqual(["/o/r/pull/9"])
   })
 
-  test("moves the screen on the next task after the browser's word", () => {
+  test("takes the browser's own word in the same task", () => {
     /*
      * The interval was up to two hundred milliseconds of the interface standing
      * over the wrong page, on every soft navigation — and none of GitHub's own
@@ -170,6 +175,17 @@ describe("noticing GitHub navigate without loading a page", () => {
     const seen: Array<string> = []
     const it = browser("/o/r/pull/1")
     whenLocationChanges(it.target, (path) => seen.push(path))
+
+    it.goTo("/o/r/pull/7")
+    it.entered()
+
+    expect(seen).toEqual(["/o/r/pull/7"])
+  })
+
+  test("can move shell cleanup out of the input task", () => {
+    const seen: Array<string> = []
+    const it = browser("/o/r/pull/1")
+    whenAddressChangesAfterInput(it.target, (path) => seen.push(path))
 
     it.goTo("/o/r/pull/7")
     it.entered()
