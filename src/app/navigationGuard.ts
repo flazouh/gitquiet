@@ -11,6 +11,7 @@ import {
 export const markOwnedRoute = (link: HTMLAnchorElement): void => {
   const href = link.getAttribute("href")
   if (href === null) return
+  if (link.getAttribute(OWNED_ROUTE) === href) return
   link.setAttribute(OWNED_ROUTE, href)
 }
 

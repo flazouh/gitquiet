@@ -16,6 +16,24 @@ import {
 } from "../ui/preparedNavigation"
 
 describe("the page-world guard for an owned route", () => {
+  test("does not rewrite an unchanged owned route", () => {
+    const link = document.createElement("a")
+    link.href = "/owner/repo/pull/2"
+    const setAttribute = link.setAttribute.bind(link)
+    let writes = 0
+    Object.defineProperty(link, "setAttribute", {
+      value: (name: string, value: string) => {
+        writes += 1
+        setAttribute(name, value)
+      }
+    })
+
+    markOwnedRoute(link)
+    markOwnedRoute(link)
+
+    expect(writes).toBe(1)
+  })
+
   test("offers an extension link through the shared document", async () => {
     const root = document.createElement("div")
     root.id = "gitquiet-root"
