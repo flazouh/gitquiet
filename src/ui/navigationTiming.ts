@@ -7,6 +7,10 @@ export const NAVIGATION_DURATION = "data-gitquiet-navigation-duration"
 /** The exact route shown by the last completed measurement. */
 export const NAVIGATION_ROUTE = "data-gitquiet-navigation-measured-route"
 
+/** Exact trace boundaries for extension-owned input-to-screen work. */
+export const NAVIGATION_START_MARK = "gitquiet:navigation-start"
+export const NAVIGATION_END_MARK = "gitquiet:navigation-end"
+
 /** The browser announces a traversal just after the button that started it. */
 const SAME_TRAVERSAL_MS = 100
 
@@ -21,6 +25,9 @@ export const beginNavigation = (target: Window): void => {
   const performance = target.performance
   if (document?.documentElement === undefined || performance?.now === undefined) return
 
+  performance.clearMarks?.(NAVIGATION_START_MARK)
+  performance.clearMarks?.(NAVIGATION_END_MARK)
+  performance.mark?.(NAVIGATION_START_MARK)
   document.documentElement.setAttribute(NAVIGATION_STARTED, performance.now().toString())
 }
 
@@ -64,6 +71,7 @@ export const finishNavigation = (target: Document, route: string, screen: Elemen
     )
     target.documentElement.setAttribute(NAVIGATION_ROUTE, route)
     target.documentElement.removeAttribute(NAVIGATION_STARTED)
+    view.performance.mark?.(NAVIGATION_END_MARK)
     stop()
   }
 
