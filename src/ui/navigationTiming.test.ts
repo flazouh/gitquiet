@@ -66,6 +66,25 @@ describe("extension navigation timing", () => {
     view.close()
   })
 
+  test("does not retain a detached prepared screen", () => {
+    const view = new HappyWindow({ url: "https://github.com/pulls/inbox" })
+    const page = view.document as unknown as Document
+    const screen = page.createElement("div")
+    screen.textContent = "Ready"
+    let deadlines = 0
+    const setTimeout = view.setTimeout.bind(view)
+    view.setTimeout = ((...args: Parameters<typeof view.setTimeout>) => {
+      deadlines += 1
+      return setTimeout(...args)
+    }) as typeof view.setTimeout
+
+    beginNavigation(view as unknown as Window)
+    finishNavigation(page, "/owner/repo/pull/2", screen)
+
+    expect(deadlines).toBe(0)
+    view.close()
+  })
+
   test("keeps the earlier Back-button press when the browser announces the traversal", () => {
     const page = document.implementation.createHTMLDocument("github")
     let now = 42

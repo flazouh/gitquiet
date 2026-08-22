@@ -46,6 +46,9 @@ export const finishNavigation = (target: Document, route: string, screen: Elemen
   const started = target.documentElement.getAttribute(NAVIGATION_STARTED)
   const view = target.defaultView
   if (started === null || view === null) return
+  // Attachment is a mutation of the parent, not this screen. The takeover path
+  // calls again after attachment, so an observer here can only retain dead work.
+  if (!screen.isConnected) return
 
   const readable = (): boolean =>
     screen.isConnected && screen.querySelector(READING) === null && screen.textContent.trim() !== ""
