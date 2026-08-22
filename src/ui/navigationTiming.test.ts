@@ -11,12 +11,39 @@ describe("extension navigation timing", () => {
   test("publishes the time from an owned action to the target screen", () => {
     const view = new HappyWindow({ url: "https://github.com/pulls/inbox" })
     const page = view.document as unknown as Document
+    const screen = page.createElement("div")
+    screen.textContent = "Ready"
+    page.body.append(screen)
 
     beginNavigation(view as unknown as Window)
-    finishNavigation(page, "/owner/repo/pull/2")
+    finishNavigation(page, "/owner/repo/pull/2", screen)
 
     const duration = Number(page.documentElement.getAttribute(NAVIGATION_DURATION))
     expect(duration).toBeGreaterThanOrEqual(0)
+    view.close()
+  })
+
+  test("waits until the target screen is readable", async () => {
+    const view = new HappyWindow({ url: "https://github.com/pulls/inbox" })
+    const page = view.document as unknown as Document
+    const screen = page.createElement("div")
+    const waiting = page.createElement("div")
+    waiting.setAttribute("data-gitquiet-loading", "")
+    screen.append(waiting)
+    page.body.append(screen)
+
+    beginNavigation(view as unknown as Window)
+    finishNavigation(page, "/owner/repo/pull/2", screen)
+
+    expect(page.documentElement.getAttribute(NAVIGATION_DURATION)).toBeNull()
+
+    waiting.remove()
+    screen.textContent = "Ready"
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(Number(page.documentElement.getAttribute(NAVIGATION_DURATION))).toBeGreaterThanOrEqual(
+      0
+    )
     view.close()
   })
 

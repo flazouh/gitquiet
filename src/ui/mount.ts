@@ -743,7 +743,7 @@ export const theScreenHasRoute = (target: Document, route: string): boolean =>
 export const markScreenRoute = (target: Document, route: string): void => {
   const screen = theScreenOnThePage(target) ?? (ours?.ownerDocument === target ? ours : null)
   screen?.setAttribute(ROUTE, route)
-  finishNavigation(target, route)
+  if (screen !== null) finishNavigation(target, route, screen)
 }
 
 /** Puts an exact live history target on the current surface before traversal commits. */
@@ -770,7 +770,7 @@ export const activatePreparedTraversal = (
   hideTheirBands(target, place)
   reveal(target)
   ungate(target)
-  finishNavigation(target, route)
+  finishNavigation(target, route, arriving)
   theScreenMoved(target)
   return true
 }
@@ -1013,7 +1013,7 @@ export const takeOverSlot = (
     const route = routeNow(target, exactRoute)
     if (route !== null) {
       container.setAttribute(ROUTE, route)
-      finishNavigation(target, route)
+      finishNavigation(target, route, container)
     }
     hideTheirs(into, container)
     hideTheirBands(target, place)
