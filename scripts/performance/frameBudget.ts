@@ -27,6 +27,8 @@ export type FrameDrop = {
 /** One frame at 60 Hz, expressed in the trace clock's microseconds. */
 export const FRAME_BUDGET_US = 1_000_000 / 60
 
+const MAIN_TASKS = new Set(["RunTask", "ThreadControllerImpl::RunTask"])
+
 /** Finds the browser thread that runs page JavaScript, style, and layout. */
 export const rendererMainThread = (events: ReadonlyArray<TraceEvent>): Thread | undefined => {
   const named = events.find(
@@ -46,7 +48,7 @@ export const frameDropsIn = (
     .filter((event) => {
       if (
         event.ph !== "X" ||
-        event.name !== "RunTask" ||
+        !MAIN_TASKS.has(event.name) ||
         event.pid !== thread.pid ||
         event.tid !== thread.tid ||
         event.dur === undefined ||

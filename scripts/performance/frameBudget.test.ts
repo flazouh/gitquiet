@@ -12,7 +12,14 @@ const trace: ReadonlyArray<TraceEvent> = [
   },
   { name: "RunTask", ph: "X", pid: 7, tid: 11, ts: 1_000, dur: 8_000 },
   { name: "RunTask", ph: "X", pid: 7, tid: 11, ts: 10_000, dur: 17_000 },
-  { name: "RunTask", ph: "X", pid: 7, tid: 11, ts: 30_000, dur: 42_000 },
+  {
+    name: "ThreadControllerImpl::RunTask",
+    ph: "X",
+    pid: 7,
+    tid: 11,
+    ts: 30_000,
+    dur: 42_000
+  },
   { name: "RunTask", ph: "X", pid: 7, tid: 12, ts: 30_000, dur: 90_000 }
 ]
 
