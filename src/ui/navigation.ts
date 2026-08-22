@@ -16,6 +16,8 @@
  *
  * The browser's own account of it comes first, though — see {@link theirWord}.
  */
+import { beginTraversalNavigation } from "./navigationTiming"
+
 const LOOK_AGAIN = 200
 
 /**
@@ -69,6 +71,7 @@ export const whenTraversalStarts = (
 
     const destination = new URL(move.destination.url, target.location.href)
     if (destination.origin !== target.location.origin) return
+    beginTraversalNavigation(target)
     onStart(`${destination.pathname}${destination.search}`)
   }
 

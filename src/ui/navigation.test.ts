@@ -82,6 +82,32 @@ describe("noticing GitHub navigate without loading a page", () => {
     expect(seen).toEqual(["/o/r/pull/2?tab=files"])
   })
 
+  test("starts timing a browser Back or Forward traversal", () => {
+    const page = document.implementation.createHTMLDocument("github")
+    const listeners = new Set<(event: Event) => void>()
+    const target = {
+      location: { origin: "https://github.com" },
+      document: page,
+      performance: { now: () => 42 },
+      navigation: {
+        addEventListener: (_name: string, listener: (event: Event) => void) =>
+          listeners.add(listener),
+        removeEventListener: (_name: string, listener: (event: Event) => void) =>
+          listeners.delete(listener)
+      }
+    } as unknown as Window
+    whenTraversalStarts(target, () => {})
+
+    for (const listener of listeners) {
+      listener({
+        navigationType: "traverse",
+        destination: { url: "https://github.com/pulls/inbox" }
+      } as unknown as Event)
+    }
+
+    expect(page.documentElement.getAttribute("data-gitquiet-navigation-started")).toBe("42")
+  })
+
   test("reports the new path when the address changes", () => {
     const seen: Array<string> = []
     const it = browser("/o/r/pull/1")
