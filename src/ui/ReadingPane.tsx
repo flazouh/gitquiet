@@ -5,6 +5,7 @@ import type { Opened } from "../domain/repoHome"
 import { wholeFile } from "../domain/wholeFile"
 import { type DiffEngine, PAPER } from "../ports/Renderer"
 import { PRESSABLE } from "./dress"
+import { FileAlso } from "./FileAlso"
 import { FileMark } from "./FileHeading"
 import { Markdown } from "./Markdown"
 import { useRenderer } from "./renderer"
@@ -22,6 +23,11 @@ export type ReadingProps = {
   readonly repo?: { readonly owner: string; readonly repo: string }
   /** Which branch it was read from, for the same reason. */
   readonly branch?: string
+  /**
+   * The head this page was read from, so the permalink in the menu is a sha
+   * rather than a branch that will move.
+   */
+  readonly head?: string
   /** Back to the README, which is what this pane replaced. */
   readonly onClose: () => void
 }
@@ -131,6 +137,7 @@ export const Reading = ({
   failed = false,
   repo,
   branch,
+  head,
   onClose
 }: ReadingProps) => {
   const [way, setWay] = useState<"rendered" | "source">("rendered")
@@ -166,11 +173,21 @@ export const Reading = ({
             drawn with here: the icon in the row and the icon in the heading are
             one file said twice. */}
         <FileMark path={path} icons="material" />
-        {canRender ? (
-          <span className="ml-auto shrink-0">
+        <span className="ml-auto flex shrink-0 items-center gap-1">
+          {canRender ? (
             <Ways ways={WAYS} on={way} onPick={setWay} label="How to read this file" />
-          </span>
-        ) : null}
+          ) : null}
+          {repo === undefined || branch === undefined ? null : (
+            <FileAlso
+              owner={repo.owner}
+              repo={repo.repo}
+              branch={branch}
+              path={path}
+              head={head}
+              lines={opened?.lines}
+            />
+          )}
+        </span>
       </div>
       <div className={SHEET}>
         {failed ? (

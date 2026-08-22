@@ -471,6 +471,7 @@ const Paper = ({
       failed={opened.failed}
       repo={front.repo}
       branch={front.branch}
+      head={front.head}
       onClose={() => onRead?.(null)}
     />
   )
@@ -606,9 +607,17 @@ export const RepoHomeScreen = ({
 
   return (
     <div className="relative">
+      {/*
+       * The way out, in the same corner as every other screen. This page
+       * replaces their file toolbar, and a reader who still wants something on
+       * their page — the raw user content address, a page this pane does not
+       * draw — reaches it from here rather than from a card that only appears
+       * when the read has failed.
+       */}
       <TheBar
         where={{ kind: "repository", owner: repo.owner, repo: repo.repo }}
         recall={recallRepositories}
+        onStepAside={onStepAside}
       />
       {front === undefined ? null : (
         /*
