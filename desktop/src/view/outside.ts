@@ -17,6 +17,9 @@ import { where } from "./where"
  * is caught by the same rule. Nothing about a link is the screens' business.
  */
 
+/** That this document already has the rule, and does not need a second one. */
+const LINKED = "data-gitquiet-linked"
+
 export const openOutside = (url: string): void => {
   void ask("openOutside", { url }).then((answered) => {
     if (!answered.ok) console.error("[working-set] could not open outside:", answered.why)
@@ -38,6 +41,20 @@ export const openOutside = (url: string): void => {
  * where a link was going, which is worth saying out loud in a log somebody reads.
  */
 export const keepLinksOutside = (): void => {
+  /*
+   * Once for the document, however many times this is called.
+   *
+   * Not a flag in this module, which is the version of the guard that does nothing:
+   * asked for twice, the rule is being asked for by two copies of this module, and each
+   * copy has a flag of its own set to false. That is what dev is — Vite answers a change
+   * it cannot patch by importing the entry a second time, so the second copy installed a
+   * second rule, and one middle press opened two tabs. It goes up by one on every reload.
+   *
+   * The document is the one thing both copies share, so the mark goes there.
+   */
+  if (document.documentElement.hasAttribute(LINKED)) return
+  document.documentElement.setAttribute(LINKED, "")
+
   const answer = (event: MouseEvent, mine: number) => {
     const meant = where(event.target, event)
     if (meant.at === "nothing") return
