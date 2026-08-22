@@ -1,22 +1,21 @@
 # Three measurements of AI review bots on public GitHub PRs
 
 Measured 2026-08-22 against the GitHub GraphQL API. Raw per-thread records are
-committed at [docs/data/threads.jsonl.gz](data/threads.jsonl.gz); every number
-below is reproducible from it with [docs/data/analyze.py](data/analyze.py).
+committed under [docs/data/](data/); every number below is reproducible from them
+with [analyze_full.py](data/analyze_full.py).
 
-**Headline: the staleness hypothesis is wrong, and it is wrong in the opposite
-direction.** Bot threads go stale at 37.6%, human threads at 62.3%. The dead
-weight the filter would target — a bot thread that went stale and was never
-resolved — is 5.0% of bot threads. That is too small to build a product on.
+**Two headlines.**
 
-> **Correction, added 2026-08-22 after first publication.** The `resolved %`
-> column in section 1 counts any thread with `isResolved: true`, including
-> threads the bot closed itself. A second harvest capturing `ReviewThread.
-> resolvedBy` shows that self-closure dominates for several tools — CodeRabbit
-> self-closes 49.8% of its threads, Cursor Bugbot 57.4%, Macroscope 61.3%.
-> **Resolution rate as published in section 1 is not a quality signal.** See
-> [section 4](#4-who-actually-closes-the-thread-correction) for the decomposed
-> numbers. The stale-rate results are unaffected.
+1. **The staleness hypothesis is wrong, and wrong in the opposite direction.**
+   Bot threads go stale at 38.8%, human threads at 55.7%. The dead weight a
+   filter would target — a bot thread that went stale and was never resolved —
+   is 5.7% of bot threads. Cross-bot duplicates add 3.4%. That ceiling is too
+   low to build a product on.
+2. **Published resolution rate measures whether the vendor ships auto-resolve,
+   not whether the comment was any good.** Six of thirteen tools close their own
+   threads (31–61% of them); seven never do. Decomposing by `resolvedBy` moves
+   CodeRabbit from 81% "resolved" to 18.1% human assent, and reverses most of
+   the ranking.
 
 ---
 
@@ -24,268 +23,217 @@ resolved — is 5.0% of bot threads. That is too small to build a product on.
 
 | | |
 |---|---|
-| Review threads harvested | 13,180 raw, 13,071 after dedupe |
-| AI-review-bot threads | **9,896** |
-| Human threads (control) | 2,442 |
-| Non-AI bot threads (CI, scanners) | 733 |
-| Repositories | 58 harvested, 56 contributed bot threads |
-| Pull requests | 2,592, of which 2,309 carry a bot thread |
-| PR creation dates | 2026-01-12 to 2026-08-22 |
-| Distinct AI review bots | 11 with n ≥ 100 |
+| Review threads | 42,714 raw, 42,184 after dedupe |
+| **AI-review-bot threads** | **34,331** |
+| Human threads (control) | 5,938 |
+| Other bot threads (CI, scanners) | 1,915 |
+| Repositories | 300 |
+| Pull requests | 8,734, of which 8,087 carry a bot thread |
+| PR creation dates | 2024-11-07 to 2026-08-22 |
+| AI review bots with n ≥ 80 | 13 |
 
-Method: for each repo, the 100 most recently created PRs (`MERGED`, `CLOSED`,
+Method: for each repo, the most recently created PRs (`MERGED`, `CLOSED`,
 `OPEN`), up to 60 `reviewThreads` per PR, reading `isOutdated`, `isResolved`,
-`path`, `line`, `originalLine` and the first comment's author directly off
-`ReviewThread`. Repos were found by code-searching for bot config files
-(`.coderabbit.yaml`, `greptile.json`, `BUGBOT.md`, `.pr_agent.toml`), ranked by
-PR count, then probed for live bot threads. Thread-page truncation (PRs with
-more than 60 threads) affects 2.74% of rows.
+`resolvedBy`, `path`, `line`, `originalLine` and the first comment's author
+directly off `ReviewThread`.
 
-Bot classification is by login. AI reviewers counted: CodeRabbit, Cursor Bugbot,
-cubic, GitHub Copilot, OpenAI Codex, Gemini Code Assist, Qodo (7 install
-identities merged), FullSend, Claude, Macroscope, Greptile. Excluded from the AI
-set and reported separately: `github-advanced-security`, `github-actions`,
-Sentry's bots, `clickhouse-gh`, DeepSource, CodeScene, Aikido, gitStream,
-`github-code-quality`.
+Repos were found in two waves. Wave 1 code-searched bot config files
+(`.coderabbit.yaml`, `greptile.json`, `BUGBOT.md`, `.pr_agent.toml`) and ranked
+by PR count — which over-sampled whichever bot is most popular. Wave 2 fixed
+that by seeding from each bot's *own* config file and weighting selection toward
+the rare tools. That took Greptile from n=140 across 6 repos to n=1,704 across
+53, and materially changed its numbers. Ranking candidate repos by size finds
+the popular tool; searching for the tool's own config file finds the tool.
+
+Bot classification is by login. Excluded from the AI set and reported separately:
+`github-advanced-security`, `github-actions`, Sentry's bots, `clickhouse-gh`,
+DeepSource, CodeScene, Aikido, gitStream, `github-code-quality`.
+
+---
+
+## Master table
+
+`assent%` = the thread is resolved **and** a `User` account that is not the bot
+itself closed it. `self%` = the bot closed its own thread. Wilson 95% intervals.
+
+| Bot | n | repos | stale % | 95% CI | assent % | 95% CI | self % | stale & unres. | thr/PR |
+|---|---:|---:|---:|---|---:|---|---:|---:|---:|
+| CodeRabbit | 13,577 | 142 | 36.7% | 35.9–37.5 | 18.1% | 17.5–18.8 | 52.8% | 3.6% | 4.34 |
+| OpenAI Codex | 3,838 | 56 | 46.0% | 44.5–47.6 | 55.3% | 53.7–56.9 | 0.0% | 12.0% | 3.95 |
+| Gemini Code Assist | 3,534 | 50 | 41.7% | 40.1–43.4 | 61.8% | 60.2–63.4 | 0.0% | 8.9% | 2.90 |
+| Cursor Bugbot | 3,429 | 52 | 30.0% | 28.5–31.6 | 26.2% | 24.7–27.7 | 56.4% | 0.8% | 3.16 |
+| cubic | 2,449 | 17 | 43.6% | 41.6–45.5 | 33.4% | 31.6–35.3 | 38.7% | 2.7% | 5.27 |
+| GitHub Copilot | 2,078 | 87 | 44.0% | 41.9–46.2 | 50.6% | 48.5–52.8 | 0.0% | 14.1% | 2.99 |
+| Qodo | 2,057 | 40 | 36.8% | 34.8–39.0 | 19.2% | 17.5–20.9 | 51.7% | 3.3% | 2.94 |
+| Greptile | 1,704 | 53 | 44.4% | 42.1–46.8 | 25.2% | 23.2–27.4 | 46.4% | 3.6% | 2.00 |
+| FullSend | 720 | 8 | 25.8% | 22.8–29.2 | 61.5% | 57.9–65.0 | 0.0% | 9.9% | 5.50 |
+| Macroscope | 318 | 3 | 45.9% | 40.5–51.4 | 6.9% | 4.6–10.3 | 60.7% | 8.5% | 4.42 |
+| Claude | 292 | 7 | 47.9% | 42.3–53.7 | 34.6% | 29.4–40.2 | 0.0% | 21.6% | 2.73 |
+| Gitar | 147 | 5 | 21.1% | 15.3–28.4 | 8.2% | 4.7–13.7 | 30.6% | 6.1% | 1.81 |
+| Sourcery | 90 | 8 | 32.2% | 23.5–42.4 | 25.6% | 17.7–35.4 | 48.9% | 1.1% | 1.67 |
+| **Humans (control)** | 5,938 | 182 | 55.7% | 54.4–56.9 | 42.5% | 41.3–43.8 | — | 13.1% | 3.83 |
 
 ---
 
 ## 1. Stale rate
 
-`isOutdated` is true when the diff hunk the thread anchors to no longer exists in
-the current head. Wilson 95% intervals throughout.
+`isOutdated` is true when the diff hunk the thread anchors to no longer exists at
+head.
 
-### Per bot
+| Actor | n | stale % | 95% CI | stale AND unresolved | 95% CI |
+|---|---:|---:|---|---:|---|
+| All AI bots | 34,331 | **38.8%** | 38.3–39.3 | 5.7% | 5.4–5.9 |
+| Humans | 5,938 | **55.7%** | 54.4–56.9 | 13.1% | 12.3–14.0 |
 
-| Bot | n | stale % | 95% CI | resolved % | stale AND unresolved | 95% CI |
-|---|---:|---:|---|---:|---:|---|
-| CodeRabbit | 3,016 | 38.9% | 37.1–40.6 | 81.0% | **2.1%** | 1.6–2.6 |
-| Cursor Bugbot | 1,932 | 29.8% | 27.8–31.9 | 78.4% | **0.7%** | 0.4–1.1 |
-| cubic | 821 | 41.5% | 38.2–44.9 | 63.1% | 2.9% | 2.0–4.3 |
-| GitHub Copilot | 789 | 40.8% | 37.4–44.3 | 63.4% | 8.5% | 6.7–10.6 |
-| OpenAI Codex | 725 | 47.7% | 44.1–51.4 | 55.0% | 12.8% | 10.6–15.5 |
-| Gemini Code Assist | 632 | 42.9% | 39.1–46.8 | 48.4% | **16.8%** | 14.1–19.9 |
-| Qodo | 617 | 33.9% | 30.2–37.7 | 67.9% | 1.6% | 0.9–3.0 |
-| FullSend | 466 | 24.2% | 20.6–28.3 | 56.0% | 12.2% | 9.6–15.5 |
-| Claude | 388 | 36.1% | 31.5–41.0 | 70.6% | 7.0% | 4.8–9.9 |
-| Macroscope | 268 | 48.5% | 42.6–54.5 | 69.8% | 9.3% | 6.4–13.4 |
-| Greptile | 188 | 38.8% | 32.2–46.0 | 67.6% | 4.8% | 2.5–8.8 |
-
-### Control
-
-| Actor | n | stale % | 95% CI | resolved % | stale AND unresolved |
-|---|---:|---:|---|---:|---:|
-| All AI bots | 9,896 | **37.6%** | 36.6–38.5 | 70.6% | 5.0% |
-| Humans | 2,442 | **62.3%** | 60.3–64.2 | 66.7% | 13.7% |
-| Non-AI bots | 733 | 29.7% | 26.5–33.1 | 44.3% | 18.0% |
-
-Humans go stale at **1.66x the bot rate**, and the intervals are nowhere near
-each other. This is the opposite of the hypothesis that motivated the
-measurement.
-
-### The inversion survives every control I could apply
-
-**(a) Within-PR paired.** Restricting to the 408 PRs that carry both a bot
-thread and a human thread removes repo, project-culture and churn effects:
+Humans go stale at 1.44x the bot rate. The inversion holds in the within-PR
+paired test, which removes repo, project-culture and churn effects by restricting
+to the 1,107 PRs carrying both a bot thread and a human thread:
 
 | | n | stale % | 95% CI |
 |---|---:|---:|---|
-| AI bots | 2,131 | 44.0% | 41.9–46.1 |
-| Humans | 1,815 | 64.4% | 62.2–66.6 |
+| AI bots | 5,516 | 45.2% | 43.9–46.5 |
+| Humans | 4,602 | 57.7% | 56.2–59.1 |
 
-**(b) By position in the PR lifecycle.** A thread opened early has more time to
-be invalidated. Bots comment near t=0, humans later, so this confound should
-work *against* the bots — and it does not close the gap:
+**Reading it.** `isOutdated` marks a comment whose code was subsequently
+rewritten. For a human reviewer that is usually the review *working*: they asked
+for a change and got one. A bot commenting seconds after a push, on code nobody
+revisits, keeps its anchor. Staleness measures how much the code moved after the
+comment landed, and human comments move code more often. Treating high staleness
+as waste has the sign backwards.
 
-| Thread opened at | AI n | AI stale | Human n | Human stale |
-|---|---:|---:|---:|---:|
-| 0–10% of PR life | 5,117 | 42.3% | 376 | 65.2% |
-| 10–33% | 1,705 | 37.2% | 451 | 64.1% |
-| 33–66% | 1,183 | 34.9% | 655 | 70.2% |
-| 66–100% | 1,891 | 26.8% | 960 | 54.9% |
-
-**(c) By PR size.** Tests "staleness is about churn, not about bots". Churn
-moves the bot number by 6 points at most, and never brings it near the human
-line:
-
-| Changed files | AI n | AI stale | Human n | Human stale |
-|---|---:|---:|---:|---:|
-| 1–2 | 1,579 | 33.1% | 256 | 64.8% |
-| 3–9 | 3,339 | 39.2% | 864 | 61.9% |
-| 10–29 | 3,061 | 39.8% | 827 | 61.5% |
-| 30+ | 1,917 | 34.8% | 495 | 62.8% |
-
-**(d) By PR state.** Open PRs have not finished accruing staleness:
-
-| State | AI n | AI stale | Human n | Human stale |
-|---|---:|---:|---:|---:|
-| OPEN | 2,689 | 35.5% | 734 | 54.8% |
-| MERGED | 6,103 | 40.7% | 1,648 | 66.0% |
-| CLOSED | 1,104 | 25.4% | 60 | 53.3% |
-
-**(e) Clustering.** Across the 33 repos with ≥100 bot threads the per-repo bot
-stale rate runs 17.6% (redhat-appstudio/infra-deployments) to 58.6%
-(dimagi/open-chat-studio), median 40.1%. The pooled figure is not one repo
-dragging the rest.
-
-### Reading it
-
-`isOutdated` marks a comment whose code was subsequently rewritten. For a human
-reviewer that is usually the review *working*: they asked for a change and got
-one. For a bot commenting seconds after a push on code nobody revisits, the
-anchor survives. Staleness measures how much the code moved after the comment
-landed, and human comments move code more often than bot comments do. Reading
-high staleness as waste has the sign backwards.
-
-### The number that actually matters, and it is small
-
-Stale **and** never resolved — the thread that went obsolete and that nobody
-even dismissed — is **5.0% of bot threads (n=9,896, CI 4.6–5.4)**. Per bot it
-ranges from 0.7% (Cursor Bugbot) to 16.8% (Gemini Code Assist). For the two
-highest-volume bots, CodeRabbit and Cursor Bugbot, it is 2.1% and 0.7%.
-
-At 5% of threads, a filter that removed every one of them perfectly would remove
-about one comment in twenty. **State plainly: this is too small to be the
-product.** It is a feature at best, and only for the three bots above 10%
-(Gemini Code Assist, Codex, FullSend) — which together are 18% of the corpus.
+**The number a filter could target is 5.7% of bot threads**, ranging from 0.8%
+(Cursor Bugbot) to 21.6% (Claude). For the highest-volume tool, CodeRabbit, it is
+3.6%. Stated plainly: too small to be the product. It is a feature, and only for
+the four tools above 10% — Claude, GitHub Copilot, OpenAI Codex and FullSend.
 
 ---
 
 ## 2. Duplicate rate between different bots
 
-586 of the 2,309 AI-reviewed PRs (25.4%) carry threads from two or more distinct
-AI bots. Those PRs hold 4,768 bot threads.
+1,369 of 8,087 AI-reviewed PRs (16.9%) carry threads from two or more distinct AI
+bots, holding 11,308 bot threads.
 
-**Mechanical overlap** — two different bots, same PR, same file, anchors within
-3 lines:
+**Mechanical overlap** — two different bots, same PR, same file, anchors within 3
+lines: 1,253 colliding pairs; 2,104 of 11,308 threads sit in at least one
+collision.
 
-- 636 colliding pairs
-- 1,004 of 4,768 threads sit in at least one collision = **21.1%** (CI 19.9–22.2) of threads on multi-bot PRs
-- as a share of all 9,896 bot threads: **10.15%** (CI 9.57–10.76)
+- **18.6%** (CI 17.9–19.3) of threads on multi-bot PRs
+- **6.13%** (CI 5.88–6.39) of all bot threads
 
-Most frequent colliding pairs: FullSend × Qodo (101), CodeRabbit × Copilot (58),
-Cursor × cubic (56), Claude × Codex (54), Cursor × Codex (52).
-
-**Hand-judged** — I sampled 20 collisions, one from each of the 20 most common
-bot-pairs, read both comment bodies in full, and judged whether they describe the
-same defect. Judgments with reasons are in
-[docs/data/judgments.json](data/judgments.json); every collision links to its
-`discussion_r…` permalink in [docs/data/collision_sample.json](data/collision_sample.json).
+**Hand-judged** — 50 collisions sampled across 50 distinct bot-pairs, both bodies
+read in full, judged on whether they describe the same defect. Verdicts with
+reasons: [judgments_all.json](data/judgments_all.json).
 
 | Verdict | Count |
 |---|---:|
-| Same defect | 11 |
-| Same code, different consequence and different fix | 1 |
-| Different defects that merely sit on the same lines | 8 |
+| Same defect | 26 |
+| Same code, different consequence and fix | 1 |
+| Different defects that merely share lines | 20 |
+| Could not tell (one body was analysis scaffold only) | 3 |
 
-Strict true-duplicate share of collisions: **55%** (CI 34.2–74.2, n=20).
+Strict duplicate share of resolvable collisions: **55.3%** (CI 41.2–68.6, n=47).
+Counting the three unclear cases as non-duplicates gives 52.0% (CI 38.5–65.2).
+The first 20 judgments alone gave 55%, so the estimate converged.
 
 **Corrected duplicate rate** = mechanical × hand-judged:
 
-- of threads on multi-bot PRs: **11.6%** (CI 7.2–15.6)
-- of all bot threads: **5.6%** (CI 3.5–7.5)
+- of threads on multi-bot PRs: **10.3%** (CI 7.7–12.8)
+- of all bot threads: **3.4%** (CI 2.5–4.2)
 
-The two numbers really are different, as expected. Nearly half of mechanical
-collisions are not duplicates at all — colocation on a line is weak evidence.
-Two examples of the failure mode:
+The two numbers really are different. Almost half of mechanical collisions are
+not duplicates — colocation on a line is weak evidence. Two failure modes:
 
-- `prime-agent#1495` line 1523: Cursor Bugbot reports an unbounded `control.send`
-  that can hang shutdown; Macroscope reports `SIGTERM` orphaning ipykernel
-  children. Same function, two real and distinct bugs.
-- `ray#65578` line 57: Gemini Code Assist suggests extracting a local and using
-  an f-string; Cursor Bugbot reports that the new build-arg is never declared in
-  the Dockerfile. One is style, one is a real bug.
+- `MentraOS#3665` line ~245: Cursor Bugbot reports a hung decode starving every
+  later thumbnail; cubic reports an idle executor thread never shut down. Same
+  static executor, two distinct defects.
+- `siemens/ix#2659`: Gemini Code Assist reports that negative `tabindex`
+  elements break sequential tab order; CodeRabbit says the comparator duplicates
+  an existing helper. One correctness, one style.
 
-And a clean true duplicate, for contrast — `carmenta#758` line 133, where Codex
-and Cursor Bugbot independently report that `getDataParts` filtering on
-`type === "data"` breaks `data-*` parts, both citing the same call sites.
-
-Caveat that limits this number: n=20 gives a 40-point interval on the 55%. The
-mechanical rate is precise; the correction factor is not.
+And a clean duplicate for contrast — `gocryptotrader#2305`, where Copilot and
+Codex independently report that `BENCHCHECK_FLAGS=-warn` stops the allocation
+gate from ever failing.
 
 ---
 
-## 3. Threads per PR, per bot
+## 3. Threads per PR
 
-Denominator is PRs that bot actually commented on, so this is conditional volume,
-not an average over all PRs.
+Denominator is PRs that bot actually commented on, so this is conditional volume.
 
-| Bot | PRs | threads | mean | median | p90 | max |
-|---|---:|---:|---:|---:|---:|---:|
-| cubic | 110 | 821 | **7.46** | 4 | 16 | 60 |
-| FullSend | 85 | 466 | 5.48 | 3 | 10 | 54 |
-| Macroscope | 57 | 268 | 4.70 | 3 | 9 | 26 |
-| Claude | 110 | 388 | 3.53 | 2 | 9 | 29 |
-| CodeRabbit | 897 | 3,016 | 3.36 | 2 | 7 | 40 |
-| Cursor Bugbot | 585 | 1,932 | 3.30 | 2 | 7 | 57 |
-| GitHub Copilot | 270 | 789 | 2.92 | 2 | 6 | 23 |
-| Qodo | 216 | 617 | 2.86 | 2 | 6 | 28 |
-| OpenAI Codex | 263 | 725 | 2.76 | 2 | 6 | 23 |
-| Gemini Code Assist | 277 | 632 | 2.28 | 2 | 5 | 10 |
-| **Greptile** | 121 | 188 | **1.55** | 1 | 3 | 10 |
-| Humans (control) | 586 | 2,442 | 4.17 | 2 | 9 | 45 |
+| Bot | PRs | mean | median | p90 | max |
+|---|---:|---:|---:|---:|---:|
+| FullSend | 131 | 5.50 | 3 | 11 | 54 |
+| cubic | 465 | 5.27 | 3 | 12 | 60 |
+| Macroscope | 72 | 4.42 | 3 | 8 | 26 |
+| CodeRabbit | 3,127 | 4.34 | 2 | 10 | 60 |
+| OpenAI Codex | 972 | 3.95 | 2 | 8 | 57 |
+| Cursor Bugbot | 1,084 | 3.16 | 2 | 7 | 57 |
+| GitHub Copilot | 695 | 2.99 | 2 | 6 | 23 |
+| Qodo | 699 | 2.94 | 2 | 6 | 29 |
+| Gemini Code Assist | 1,220 | 2.90 | 2 | 5 | 60 |
+| Claude | 107 | 2.73 | 2 | 5 | 16 |
+| **Greptile** | 854 | **2.00** | 1 | 4 | 26 |
+| Gitar | 81 | 1.81 | 1 | 3 | 7 |
+| Sourcery | 54 | 1.67 | 1 | 3 | 6 |
+| **Humans (control)** | 1,551 | 3.83 | 2 | 8 | 56 |
 
-This closes the gap noted in the earlier research file: no primary source counted
-this at scale for commercial tools.
+No primary source counted this at scale for commercial tools before.
 
-Three things worth carrying:
-
-1. **Every bot has a median of 2 or fewer threads per PR.** The "comment
-   explosion" framing does not survive contact with the data. The mean is pulled
-   up by a thin tail — cubic's 60-thread PR, Cursor's 57.
-2. **Greptile is the quietest tool measured**, at 1.55 threads per PR and a
-   median of 1. That matches its marketing claim of being "an agent of few
-   words", on an independent sample. It is also the smallest sample here (n=188).
-3. **Humans out-comment every bot except cubic**, at 4.17 threads per PR. The
-   volume complaint is not supported by volume.
+1. **Every tool has a median of 3 or fewer, and nine of thirteen have a median
+   of 2.** The "comment explosion" framing does not survive contact with the
+   data. Means are pulled up by a thin tail — four tools have a 60-thread PR.
+2. **Greptile is the quietest of the major tools** at 2.00 per PR, median 1. That
+   matches its own "agent of few words" claim, on an independent sample of 854
+   PRs across 53 repos. Note the wave-1 figure was 1.55 on 6 repos; broader
+   sampling moved it up 29%.
+3. **Humans out-comment nine of the thirteen bots**, at 3.83 per PR. The volume
+   complaint is not supported by volume.
 
 ---
 
-## 4. Who actually closes the thread (correction)
+## 4. Who actually closes the thread
 
-Second harvest, 2026-08-22, same 59 repos, now reading `ReviewThread.resolvedBy`.
-n=8,986 bot threads — slightly below the first pass because the 100-most-recent
-PR window had moved. Script: [analyze_assent.py](data/analyze_assent.py), data:
-[threads2.jsonl.gz](data/threads2.jsonl.gz).
+The self-close split is near-binary. Six tools close 31–61% of their own threads;
+seven never do it at all. Nothing sits between 0% and 30%. That is a product
+decision, not a spectrum.
 
-"Human assent" = the thread is resolved **and** a `User` account closed it,
-and that account is not the bot itself.
+Ranked by human assent, with the raw resolution figure alongside:
 
-| Bot | n | resolved % | human assent % | 95% CI | bot self-closed % |
-|---|---:|---:|---:|---|---:|
-| GitHub Copilot | 676 | 60.5% | **60.5%** | 56.8–64.1 | 0.0% |
-| FullSend | 466 | 56.0% | **56.0%** | 51.5–60.4 | 0.0% |
-| OpenAI Codex | 591 | 53.6% | **53.6%** | 49.6–57.6 | 0.0% |
-| Gemini Code Assist | 629 | 48.3% | **48.3%** | 44.4–52.2 | 0.0% |
-| cubic | 851 | 63.9% | 31.8% | 28.8–35.1 | 31.8% |
-| CodeRabbit | 2,700 | 81.1% | 31.3% | 29.6–33.1 | **49.8%** |
-| Qodo | 623 | 68.5% | 25.8% | 22.6–29.4 | 42.7% |
-| Greptile | 140 | 70.0% | 22.1% | 16.1–29.7 | 47.9% |
-| Cursor Bugbot | 1,909 | 78.4% | 20.6% | 18.8–22.5 | **57.4%** |
-| Macroscope | 261 | 69.7% | 8.4% | 5.6–12.4 | **61.3%** |
-| Humans (control) | 2,322 | 66.8% | 38.5% | 36.5–40.5 | n/a |
+| Rank | Bot | human assent | 95% CI | self-closes |
+|---:|---|---:|---|---:|
+| 1 | Gemini Code Assist | 61.8% | 60.2–63.4 | never |
+| 2 | FullSend | 61.5% | 57.9–65.0 | never |
+| 3 | OpenAI Codex | 55.3% | 53.7–56.9 | never |
+| 4 | GitHub Copilot | 50.6% | 48.5–52.8 | never |
+| — | **Humans (control)** | **42.5%** | 41.3–43.8 | — |
+| 5 | Claude | 34.6% | 29.4–40.2 | never |
+| 6 | cubic | 33.4% | 31.6–35.3 | 38.7% |
+| 7 | Cursor Bugbot | 26.2% | 24.7–27.7 | 56.4% |
+| 8 | Sourcery | 25.6% | 17.7–35.4 | 48.9% |
+| 9 | Greptile | 25.2% | 23.2–27.4 | 46.4% |
+| 10 | Qodo | 19.2% | 17.5–20.9 | 51.7% |
+| 11 | CodeRabbit | 18.1% | 17.5–18.8 | 52.8% |
+| 12 | Gitar | 8.2% | 4.7–13.7 | 30.6% |
+| 13 | Macroscope | 6.9% | 4.6–10.3 | 60.7% |
 
-The ranking by `resolved %` and the ranking by human assent are close to
-inverted. CodeRabbit and Cursor Bugbot look like the top two tools on the raw
-column and fall to 6th and 9th on assent. Six of the ten tools ship auto-resolve;
-four never close their own threads.
+**What this proves and does not prove.** It proves raw resolution rate is
+dominated by whether the vendor ships auto-resolve rather than by comment
+quality — CodeRabbit reads 81% on the raw column and 18.1% here. It does **not**
+prove CodeRabbit's comments are a third as good as Copilot's. Auto-resolve fires
+when the tool detects the issue was fixed, which often means the developer *did*
+act and simply never clicked resolve. Human assent therefore undercounts
+auto-resolving tools by an unknown amount.
 
-**What this does and does not prove.** It proves the raw resolution rate is
-dominated by a product decision — whether the vendor ships auto-resolve — rather
-than by comment quality. It does **not** prove that Cursor Bugbot's comments are
-three times worse than Copilot's. Auto-resolve fires when the tool detects the
-issue was fixed, which often means the developer *did* act and simply never
-clicked resolve. So human assent undercounts the auto-resolving tools by an
-unknown amount. The clean comparison is within the four tools that never
-self-close: Copilot 60.5%, FullSend 56.0%, Codex 53.6%, Gemini 48.3%. Those four
-are directly comparable to each other and to the 38.5% human control.
+The clean comparison is among the seven tools that never self-close: Gemini
+61.8%, FullSend 61.5%, Codex 55.3%, Copilot 50.6%, Claude 34.6%. Four of those
+five sit **above** the 42.5% human-reviewer control — their comments get acted on
+more often than a human colleague's do.
 
-This confound reaches into the published literature. The Atlassian paper
-(arXiv:2510.05450) defines resolution as "a subsequent commit modified the exact
-line", which sidesteps it. The "Go Home Copilot" paper (arXiv:2607.21997) states
-"we exclude resolutions performed solely by AI agents" — they handled it
-correctly. My first pass did not. Any comparison built on raw `isResolved`
-across tools, including the section 1 column above, is measuring auto-resolve.
+This confound reaches the literature. The Atlassian paper (arXiv:2510.05450)
+defines resolution as "a subsequent commit modified the exact line", sidestepping
+it. "Go Home Copilot" (arXiv:2607.21997) states "we exclude resolutions performed
+solely by AI agents" — handled correctly. Any comparison built on raw
+`isResolved` across tools is measuring auto-resolve.
 
 ---
 
@@ -293,48 +241,38 @@ across tools, including the section 1 column above, is measuring auto-resolve.
 
 1. **Self-selection, and it is severe.** Every repo here chose to install a bot
    and chose to keep it. Teams that installed one and ripped it out are invisible
-   by construction. All three measurements are therefore best-case: measured on
-   the tolerant end of the population.
-2. **Recency.** The 100 most recent PRs per repo. Open PRs have not finished
-   accruing staleness, which biases the stale rate down; control (d) quantifies
-   it at roughly 5 points between OPEN and MERGED.
-3. ~~**Survivor bias in resolution.** `isResolved` can be set by a human, by the
-   bot itself on re-review, or by an auto-resolve integration. I cannot separate
-   those from the API.~~ **Resolved: `resolvedBy` does expose this, and the
-   effect was large.** See [section 4](#4-who-actually-closes-the-thread-correction).
-   The residual bias is that human assent undercounts auto-resolving tools.
-4. **Repo-size skew.** Discovery ranked by PR count, so large mature projects are
-   over-represented. Top 3 repos are 18.3% of bot threads.
-5. **Language skew.** TypeScript, JavaScript, Ruby and Go dominate. No systematic
-   coverage of Java, C++ or Python-heavy repos beyond a handful.
-6. **Login-based classification.** A bot posting under a plain user account is
-   miscounted as human. I checked the unclassified logins and none were AI
-   reviewers, but the method cannot prove a negative.
-7. **cubic and Greptile are thin.** 821 and 188 threads, from 3 and 6 repos.
-   Their per-bot rows are directional, not solid.
-8. **The duplicate correction rests on n=20.** Widening it is the cheapest way to
-   tighten the weakest number in this document.
+   by construction. All measurements are best-case.
+2. **Recency.** Most recent PRs per repo. Open PRs have not finished accruing
+   staleness, biasing the stale rate down by roughly 5 points.
+3. **Assent undercounts auto-resolving tools.** See section 4. This is the
+   largest remaining methodological weakness.
+4. **Repo-count skew per tool.** FullSend (8 repos), Macroscope (3), Gitar (5),
+   cubic (17) and Claude (7) are concentrated. Their rows are directional. Tools
+   spread over 40+ repos — CodeRabbit, Copilot, Codex, Cursor, Greptile, Qodo,
+   Gemini — are solid.
+5. **Login-based classification.** A bot posting under a plain user account is
+   miscounted as human. No AI reviewer appeared among the unclassified logins,
+   but the method cannot prove a negative.
 
 ---
 
 ## What this says about what to build
 
-The filter as scoped targets 5.0% of bot threads (stale and unresolved) plus
-5.6% genuine cross-bot duplicates. Even assuming no overlap between those two
-sets and a perfect classifier, the ceiling is around one comment in ten, and the
-two highest-volume bots contribute almost none of the first bucket.
+The filter as scoped targets 5.7% of bot threads (stale and unresolved) plus 3.4%
+genuine cross-bot duplicates. Assuming no overlap and a perfect classifier, the
+ceiling is roughly one comment in eleven, and the highest-volume tools contribute
+least to the first bucket.
 
-The measurement does surface a real and larger signal, and section 4 sharpened
-it. Across the four tools that never auto-resolve, human assent runs 48.3% to
-60.5%, against a 38.5% human-reviewer control — bots in that group get their
-comments acted on *more* often than human reviewers do. Meanwhile the number
-every vendor could quote, raw resolution rate, spans 48.3% to 81.1% and is
-mostly a readout of whether they ship auto-resolve.
+The larger signal is the quality spread the measurement exposes. Human assent
+runs 6.9% to 61.8% across tools; volume runs 1.67 to 5.50 threads per PR; the two
+are uncorrelated. Gemini Code Assist leaves 2.90 threads per PR and 61.8% get
+acted on by a person. Macroscope leaves 4.42 and 6.9% do. That is a per-tool
+quality gap of nearly an order of magnitude, computable from the public API, and
+nobody publishes it.
 
-That is the asset here. There is no independent, per-tool, precision-and-recall
-benchmark of these products (established separately in
-[ai-pr-review-pain-points.md](ai-pr-review-pain-points.md) §4). What this rig
-can produce instead — per-tool human assent, comment volume, and stale-and-
-abandoned rate, computed from the public API over any repo set, with the
-auto-resolve confound removed — is closer to that gap than anything currently
-published, vendor or academic.
+There is no independent, per-tool benchmark of these products — established
+separately in [ai-pr-review-pain-points.md](ai-pr-review-pain-points.md) §4. What
+this rig produces — per-tool human assent, comment volume, and stale-and-abandoned
+rate over any repo set, with the auto-resolve confound removed — is closer to
+filling that gap than anything currently published by a vendor or an academic
+group.

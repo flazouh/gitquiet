@@ -1,0 +1,302 @@
+[
+ {
+  "i": 1,
+  "pair": "Qodo x FullSend",
+  "verdict": "duplicate",
+  "note": "both flag unpinned @main reusable-workflow ref as supply-chain risk under elevated permissions"
+ },
+ {
+  "i": 2,
+  "pair": "Copilot x CodeRabbit",
+  "verdict": "duplicate",
+  "note": "both say the doc registers a public HTTPS ADDRESS the local UDFServer cannot serve; CodeRabbit adds the allowlist step"
+ },
+ {
+  "i": 3,
+  "pair": "cubic x Cursor",
+  "verdict": "different",
+  "note": "cubic: PostHog timestamp stamped at delivery not event time. Cursor: lease expiry lets capture outlive account deletion"
+ },
+ {
+  "i": 4,
+  "pair": "Codex x Claude",
+  "verdict": "different",
+  "note": "Codex flags frozen-globals request-state retention; Claude's comment approves the same lines and raises only a typing nit"
+ },
+ {
+  "i": 5,
+  "pair": "Codex x Cursor",
+  "verdict": "duplicate",
+  "note": "identical: getDataParts filters type==='data' so data-* parts stop rendering; both cite the same call sites"
+ },
+ {
+  "i": 6,
+  "pair": "CodeRabbit x Codex",
+  "verdict": "duplicate",
+  "note": "both: JSON-RPC regex too generic, will false-positive; both propose requiring the missing-session text"
+ },
+ {
+  "i": 7,
+  "pair": "CodeRabbit x Claude",
+  "verdict": "duplicate",
+  "note": "both: disableInstrumentationsAfterFailedInit runs in only one cleanup branch"
+ },
+ {
+  "i": 8,
+  "pair": "Gemini x CodeRabbit",
+  "verdict": "different",
+  "note": "Gemini: missing --dist-pages-dir value resolves to cwd. CodeRabbit: mixed zh-TW/English user-facing strings"
+ },
+ {
+  "i": 9,
+  "pair": "Codex x cubic",
+  "verdict": "different",
+  "note": "Codex: phoneModel absent from expo-constants. cubic: Platform.Version is API level on Android. Adjacent lines, different fields"
+ },
+ {
+  "i": 10,
+  "pair": "Cursor x Macroscope",
+  "verdict": "different",
+  "note": "Cursor: unbounded control.send can hang shutdown. Macroscope: SIGTERM orphans ipykernel children. Same function, different defects"
+ },
+ {
+  "i": 11,
+  "pair": "Greptile x CodeRabbit",
+  "verdict": "duplicate",
+  "note": "both: MatchData#begin gives char offsets fed to byteslice, multibyte breaks the split"
+ },
+ {
+  "i": 12,
+  "pair": "Greptile x Codex",
+  "verdict": "duplicate",
+  "note": "both: digest-suffixed render routes now 404 for existing callers; both enumerate callers to update"
+ },
+ {
+  "i": 13,
+  "pair": "Macroscope x Codex",
+  "verdict": "different",
+  "note": "Macroscope: int() truncation violates the min-size invariant. Codex: validation ordering blocks the upscale branch"
+ },
+ {
+  "i": 14,
+  "pair": "Greptile x Claude",
+  "verdict": "duplicate",
+  "note": "both: raising rails floor to >=7.1 breaks existing consumers and the stated justification does not support it"
+ },
+ {
+  "i": 15,
+  "pair": "Gemini x Cursor",
+  "verdict": "different",
+  "note": "Gemini: extract a local and use an f-string (style). Cursor: the new build-arg is never declared in the Dockerfile (real bug)"
+ },
+ {
+  "i": 16,
+  "pair": "CodeRabbit x Qodo",
+  "verdict": "duplicate",
+  "note": "both: cap-1 channel with non-blocking send silently drops a second config batch"
+ },
+ {
+  "i": 17,
+  "pair": "Claude x Copilot",
+  "verdict": "duplicate",
+  "note": "both: byte-exact match on GET_LOADER_PATH_JS inserts a duplicate getLoaderPath declaration"
+ },
+ {
+  "i": 18,
+  "pair": "Qodo x Copilot",
+  "verdict": "partial",
+  "note": "same line, same forwarded error.message; Qodo frames it as PII/URL leakage, Copilot as unbounded length. Different remedy"
+ },
+ {
+  "i": 19,
+  "pair": "Codex x Copilot",
+  "verdict": "duplicate",
+  "note": "both: the doc implies 'shaka-perf servers' starts the app servers when it stops at an interactive menu"
+ },
+ {
+  "i": 20,
+  "pair": "Cursor x Claude",
+  "verdict": "different",
+  "note": "Cursor: unanchored prefix match in the allow-list check. Claude: awk mis-tracks the enclosing function name"
+ },
+ {
+  "i": 21,
+  "pair": "CodeRabbit x Codex",
+  "verdict": "unclear",
+  "note": "CodeRabbit body is analysis scaffold only; claim not visible"
+ },
+ {
+  "i": 22,
+  "pair": "Qodo x CodeRabbit",
+  "verdict": "different",
+  "note": "Qodo: KeyError in DI error path. CodeRabbit: Ruff RUF010 f-string conversion flag"
+ },
+ {
+  "i": 23,
+  "pair": "CodeRabbit x Copilot",
+  "verdict": "unclear",
+  "note": "CodeRabbit body truncated to scaffold; Copilot flags a duplicated getFirstProperty call"
+ },
+ {
+  "i": 24,
+  "pair": "Greptile x CodeRabbit",
+  "verdict": "different",
+  "note": "Greptile: PR description omits star count (repo policy). CodeRabbit: the toml entry itself"
+ },
+ {
+  "i": 25,
+  "pair": "Qodo x FullSend",
+  "verdict": "different",
+  "note": "Qodo: DNS-dependent unit test. FullSend: SpecContext vs context.Context convention"
+ },
+ {
+  "i": 26,
+  "pair": "Qodo x Codex",
+  "verdict": "duplicate",
+  "note": "both: same-subject legs multiplied independently, correlation discarded"
+ },
+ {
+  "i": 27,
+  "pair": "Cursor x cubic",
+  "verdict": "different",
+  "note": "same static executor: Cursor reports a hang starving all thumbnails, cubic an idle-thread leak"
+ },
+ {
+  "i": 28,
+  "pair": "Cursor x Codex",
+  "verdict": "duplicate",
+  "note": "both: second flatten loop reads from `true` so it never iterates"
+ },
+ {
+  "i": 29,
+  "pair": "Codex x cubic",
+  "verdict": "duplicate",
+  "note": "both: history report left status: active, missing archived metadata"
+ },
+ {
+  "i": 30,
+  "pair": "Cursor x CodeRabbit",
+  "verdict": "unclear",
+  "note": "CodeRabbit body truncated; greps suggest shell quoting, not the -f directory check"
+ },
+ {
+  "i": 31,
+  "pair": "Gemini x CodeRabbit",
+  "verdict": "different",
+  "note": "Gemini: exclude negative tabindex (correctness). CodeRabbit: reuse existing comparator (style)"
+ },
+ {
+  "i": 32,
+  "pair": "Greptile x Cursor",
+  "verdict": "duplicate",
+  "note": "both: output_summary=hide drops structured diagnostics"
+ },
+ {
+  "i": 33,
+  "pair": "Macroscope x Cursor",
+  "verdict": "duplicate",
+  "note": "both: dotted relationship fields parse but never match because lookup is top-level only"
+ },
+ {
+  "i": 34,
+  "pair": "Qodo x Copilot",
+  "verdict": "duplicate",
+  "note": "both: Suggestion.md unlinked from CONTRIBUTING/README, will be orphaned"
+ },
+ {
+  "i": 35,
+  "pair": "Gitar x Qodo",
+  "verdict": "different",
+  "note": "Gitar: retries permanent 4xx. Qodo: retrying a non-idempotent POST duplicates adapters"
+ },
+ {
+  "i": 36,
+  "pair": "Macroscope x Codex",
+  "verdict": "duplicate",
+  "note": "both: --allow-stopped still fails because launchctl print runs unconditionally"
+ },
+ {
+  "i": 37,
+  "pair": "CodeRabbit x Claude",
+  "verdict": "different",
+  "note": "CodeRabbit: markdownlint MD018. Claude: the prose states the reverse of D7's effect"
+ },
+ {
+  "i": 38,
+  "pair": "CodeRabbit x cubic",
+  "verdict": "duplicate",
+  "note": "both: migration error still names the removed metadata package"
+ },
+ {
+  "i": 39,
+  "pair": "Greptile x cubic",
+  "verdict": "duplicate",
+  "note": "both: name-only model check retains the wrong configuration ID"
+ },
+ {
+  "i": 40,
+  "pair": "Kilo x Codex",
+  "verdict": "different",
+  "note": "Kilo: --dry-run never forwarded. Codex: missing --token argument accepted silently"
+ },
+ {
+  "i": 41,
+  "pair": "Gemini x Cursor",
+  "verdict": "duplicate",
+  "note": "both: pinned host copy immediately before a blocking .to(device) without non_blocking"
+ },
+ {
+  "i": 42,
+  "pair": "Copilot x Cursor",
+  "verdict": "different",
+  "note": "Copilot: wrong eventId in the drop log. Cursor: sampled-out errors consume the debounce window"
+ },
+ {
+  "i": 43,
+  "pair": "Codex x Greptile",
+  "verdict": "duplicate",
+  "note": "both: the shared Renovate preset is not on the default branch yet and cannot resolve"
+ },
+ {
+  "i": 44,
+  "pair": "Gemini x Copilot",
+  "verdict": "different",
+  "note": "Gemini: runFlutter/runPub selection regression. Copilot: empty packageNames is a silent no-op"
+ },
+ {
+  "i": 45,
+  "pair": "Copilot x Codex",
+  "verdict": "duplicate",
+  "note": "both: BENCHCHECK_FLAGS=-warn stops the allocation gate ever failing"
+ },
+ {
+  "i": 46,
+  "pair": "Greptile x Qodo",
+  "verdict": "duplicate",
+  "note": "both: truncated/malformed <Tabs> opening tag breaks the MDX block"
+ },
+ {
+  "i": 47,
+  "pair": "Sourcery x CodeRabbit",
+  "verdict": "duplicate",
+  "note": "both: put() returns the original mutable ctx instead of the isolated snapshot"
+ },
+ {
+  "i": 48,
+  "pair": "Greptile x Copilot",
+  "verdict": "different",
+  "note": "Greptile: alias expansion shadows explicit selectors. Copilot: ignore-only patterns return index 0"
+ },
+ {
+  "i": 49,
+  "pair": "CodeRabbit x Kilo",
+  "verdict": "different",
+  "note": "CodeRabbit: unbounded unresolved-key comparisons. Kilo: multi-char JSON escapes mis-parsed"
+ },
+ {
+  "i": 50,
+  "pair": "Macroscope x CodeRabbit",
+  "verdict": "duplicate",
+  "note": "both: AGENTS.md line 81 still claims the retired LaunchAgent is the daemon owner"
+ }
+]
