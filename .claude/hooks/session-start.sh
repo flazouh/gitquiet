@@ -15,3 +15,10 @@ fi
 cd "$CLAUDE_PROJECT_DIR"
 
 bun install
+
+# The QA capture (`bun run qa`) drives whatever findChrome finds, and in this
+# container that is the Chromium Playwright pre-installs. Said via CHROME_PATH so
+# the repository's own scripts stay ignorant of where this machine keeps it.
+if [ -z "${CHROME_PATH:-}" ] && [ -x /opt/pw-browsers/chromium ]; then
+  echo 'export CHROME_PATH=/opt/pw-browsers/chromium' >> "$CLAUDE_ENV_FILE"
+fi

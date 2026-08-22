@@ -14,13 +14,30 @@
  * Chrome for Testing, which lands in the Puppeteer cache, does the job equally
  * well and is what continuous integration would have anyway.
  */
+/**
+ * The Puppeteer cache's contribution to the candidates, on a machine that has one.
+ *
+ * `scanSync` throws ENOENT on the directory rather than answering nothing, and it
+ * threw while the candidate list was still being built — so a machine without the
+ * cache never got as far as the CHROME_PATH it had set.
+ */
+const inPuppeteerCache = (): ReadonlyArray<string> => {
+  try {
+    return [
+      ...new Bun.Glob("chrome/*/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/*")
+        .scanSync({ cwd: `${process.env["HOME"]}/.cache/puppeteer`, absolute: true, onlyFiles: true })
+    ]
+  } catch {
+    return []
+  }
+}
+
 export const findChrome = (): string => {
   const candidates = [
     process.env["CHROME_PATH"],
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "/Applications/Chromium.app/Contents/MacOS/Chromium",
-    ...new Bun.Glob("chrome/*/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/*")
-      .scanSync({ cwd: `${process.env["HOME"]}/.cache/puppeteer`, absolute: true, onlyFiles: true })
+    ...inPuppeteerCache()
   ].filter((path): path is string => path !== undefined)
 
   for (const candidate of candidates) {
