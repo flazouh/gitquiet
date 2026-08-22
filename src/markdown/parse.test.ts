@@ -177,6 +177,38 @@ describe("parsing markdown into a document", () => {
     ])
   })
 
+  test("drops a bot's bookkeeping comment and keeps the words after it", () => {
+    const doc = parseMarkdown(
+      '<!-- devin-review-comment {"id": "BUG_0001", "file_path": "src/a.ts", "start_line": 504} -->\n\nPi setup guarantees are now checked'
+    )
+
+    expect(doc.blocks).toMatchObject([
+      { type: "paragraph", children: [{ type: "text", text: "Pi setup guarantees are now checked" }] }
+    ])
+  })
+
+  test("drops an html comment written inside a line", () => {
+    const doc = parseMarkdown("before <!-- a note between machines --> after")
+
+    expect(doc.blocks).toMatchObject([
+      {
+        type: "paragraph",
+        children: [
+          { type: "text", text: "before " },
+          { type: "text", text: " after" }
+        ]
+      }
+    ])
+  })
+
+  test("drops an html comment even where a tag is written inside it", () => {
+    const doc = parseMarkdown("<!-- <script>alert(1)</script> <b>bold</b> -->\n\nhello")
+
+    expect(doc.blocks).toMatchObject([
+      { type: "paragraph", children: [{ type: "text", text: "hello" }] }
+    ])
+  })
+
   test("unwraps a div and keeps the words inside it", () => {
     const doc = parseMarkdown("<div>kept text</div>")
 
