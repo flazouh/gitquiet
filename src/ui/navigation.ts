@@ -170,11 +170,23 @@ export const whenAddressChanges = (
   for (const name of THEIR_EVENTS) target.document.addEventListener(name, soon, true)
   target.addEventListener("popstate", soon)
   const said = theirWord(target)
+  const Channel = (target as Window & { readonly MessageChannel?: typeof MessageChannel })
+    .MessageChannel
+  const channel = Channel === undefined ? undefined : new Channel()
+  let queued = false
+  if (channel !== undefined) {
+    channel.port1.onmessage = () => {
+      queued = false
+      look()
+    }
+  }
   // The address is already current. Move the screen in the next task so a route
   // render cannot turn the reader's click into a dropped frame.
   const afterInput = (): void => {
-    if (target.scheduler !== undefined) {
-      void target.scheduler.postTask(look, { priority: "user-blocking" })
+    if (channel !== undefined) {
+      if (queued) return
+      queued = true
+      channel.port2.postMessage(null)
       return
     }
     target.setTimeout(look, 0)
@@ -186,6 +198,8 @@ export const whenAddressChanges = (
     for (const name of THEIR_EVENTS) target.document.removeEventListener(name, soon, true)
     target.removeEventListener("popstate", soon)
     said?.removeEventListener("currententrychange", afterInput)
+    channel?.port1.close()
+    channel?.port2.close()
     target.clearInterval(ticking)
   }
 }
