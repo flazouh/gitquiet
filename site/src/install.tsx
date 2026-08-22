@@ -25,8 +25,8 @@ import "./index.css"
  * and is it ready.
  *
  * Two of the rows are read live — see `ways.ts`. The Firefox row is the one this page
- * cannot ask about, so it says what is true and says who it is waiting for rather than
- * showing a link that answers 404.
+ * cannot ask about, and no longer needs to: Mozilla approved the first listing the day
+ * 0.3.0 went out, and a public listing's address does not change between releases.
  */
 
 /*
@@ -39,6 +39,9 @@ import "./index.css"
 const SAFARI_DMG = "GitQuiet-safari.dmg"
 const MAC_DMG = "GitQuiet-macos-arm64.dmg"
 const download = (file: string) => `${SOURCE_AT}/releases/latest/download/${file}`
+
+/* Without a locale, so Mozilla answers each reader in their own. */
+const FIREFOX_AT = "https://addons.mozilla.org/firefox/addon/gitquiet/"
 
 /** One way in: what it is, what it runs on, and how to get it. */
 const Way = ({
@@ -176,9 +179,9 @@ const Install = () => {
           <Way
             name="Firefox"
             runs="The same extension, built for Firefox."
-            after="This page grows a button on the day the listing is public."
+            after="Reviewed by Mozilla, and it updates itself."
           >
-            <Absent says="Not on addons.mozilla.org. Mozilla is reviewing the first listing." />
+            <Press at={FIREFOX_AT}>Get it for Firefox</Press>
           </Way>
 
           <Way

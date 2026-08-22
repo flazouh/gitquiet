@@ -34,7 +34,7 @@ import {
  */
 const Elsewhere = () => (
   <p className="m-0 text-[15px] leading-relaxed text-ink/60">
-    Also for <Quietly at={INSTALL_AT}>Safari and the Mac</Quietly>.
+    Also for <Quietly at={INSTALL_AT}>Safari, Firefox and the Mac</Quietly>.
   </p>
 )
 
