@@ -15,6 +15,7 @@ import {
   prepareCachedTraversal,
   rememberPreparedScreen,
   reveal,
+  SCREEN_ACTIVITY,
   takeOverSlot,
   takeOverSlotWhenReady,
   theScreenArrived,
@@ -175,6 +176,8 @@ describe("slotting into GitHub's pull request page", () => {
     const prepared = page.createElement("div")
     prepared.innerHTML = "<h1>returned pull request</h1>"
     rememberPreparedScreen(page, "/owner/repo/pull/2", CONVERSATION, prepared, () => {})
+    const currentActivity = current.getAttribute(SCREEN_ACTIVITY)
+    const preparedActivity = prepared.getAttribute(SCREEN_ACTIVITY)
 
     expect(
       activatePreparedTraversal(page, "/owner/repo/pull/2", CONVERSATION)
@@ -182,6 +185,8 @@ describe("slotting into GitHub's pull request page", () => {
     expect(page.getElementById(ROOT_ID)).toBe(prepared)
     expect(prepared.isConnected).toBe(true)
     expect(page.querySelectorAll(`#${ROOT_ID}`)).toHaveLength(1)
+    expect(current.getAttribute(SCREEN_ACTIVITY)).toBe(currentActivity)
+    expect(prepared.getAttribute(SCREEN_ACTIVITY)).toBe(preparedActivity)
     expect(view.location.pathname).toBe("/owner/repo/pull/1")
     view.close()
   })

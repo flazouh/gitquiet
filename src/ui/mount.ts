@@ -260,7 +260,6 @@ export const GOING = "gitquiet:going"
 const takeOffThePage = (element: Element, rememberLive = false): void => {
   const page = element.ownerDocument
   runWhenIdle(() => rememberScreen(element))
-  theScreenActivityChanged(element)
   element.remove()
   element.dispatchEvent(new CustomEvent(GOING, { detail: rememberLive }))
   if (element === ours) ours = null
@@ -765,7 +764,6 @@ export const activatePreparedTraversal = (
   leaving.setAttribute(LEAVING, "")
   takeOffThePage(leaving, true)
   slot.append(arriving)
-  theScreenActivityChanged(arriving)
   arriving.setAttribute(ROUTE, route)
   target.documentElement.setAttribute(TAKEN, "")
   target.documentElement.setAttribute(SHOWN, place.name)
