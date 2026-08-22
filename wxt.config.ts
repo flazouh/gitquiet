@@ -105,7 +105,11 @@ export default defineConfig({
     // GitHub navigates without loading pages and a content script's matches are
     // never tested again. The shell imports the screen itself now — see
     // src/app/screens.ts — so there is nobody to ask and no permission to hold.
-    permissions: ["storage", "unlimitedStorage"],
+    permissions: [
+      "storage",
+      "unlimitedStorage",
+      ...((browser === "chrome" || browser === "edge") ? ["offscreen"] : [])
+    ],
     /*
      * Everything the shell fetches once it knows what page this is: the four screens
      * (scripts/build-screens.ts), the chunk they share, their stylesheets, the
@@ -123,6 +127,7 @@ export default defineConfig({
           "diff-engine.js",
           "markdown-highlighter.js",
           "markdown-mermaid.js",
+          "markdown-mermaid-local.js",
           "screens/*"
         ],
         matches: ["*://github.com/*"]
