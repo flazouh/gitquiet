@@ -131,7 +131,16 @@ const CodeFence = ({
   readonly suggestion: boolean
 }) => {
   const { highlight, mermaid, syntaxTheme } = useMarkdownDraw()
-  const [html, setHtml] = useState<string | null>(null)
+  /*
+   * What was drawn, and what it was drawn from. A fence keeps its place in the
+   * tree when the source under it changes — a pull request replaced by the next
+   * one, a comment edited — and holding the picture alone showed the old fence's
+   * diagram over the new fence's source until the new one was ready. That was one
+   * render's worth of wrong before diagrams began waiting for a quiet moment, and
+   * is up to two seconds of it now.
+   */
+  const [drawn, setDrawn] = useState<{ readonly of: string; readonly html: string } | null>(null)
+  const html = drawn?.of === code ? drawn.html : null
 
   useEffect(() => {
     if (suggestion) return
@@ -142,7 +151,7 @@ const CodeFence = ({
       work.pipe(
         Effect.tap((coloured) =>
           Effect.sync(() => {
-            if (!cancelled && coloured !== null) setHtml(coloured)
+            if (!cancelled && coloured !== null) setDrawn({ of: code, html: coloured })
           })
         )
       )
