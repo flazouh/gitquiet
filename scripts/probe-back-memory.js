@@ -23,6 +23,13 @@
  * answering while a screen is standing up, and a walk driven from out here stops
  * with it.
  *
+ * Do not believe a reading taken in the first seconds after `Extensions.loadUnpacked`
+ * with an uncached reload. Two alarming numbers came out of that window and neither
+ * survived: a pull request of a few thousand files appeared to wedge the renderer for
+ * minutes, and a cold arrival at one appeared to take nine seconds. Measured again on
+ * a browser that had been sitting still, the same pull request answers throughout and
+ * the same arrival takes 2.2 to 3.0 seconds. The wait below is there for that reason.
+ *
  * The build is named in a file rather than in the environment, because the heredoc
  * runs in ego's own Node and cannot see a variable set on this shell's command.
  * Whichever build is named, the other is uninstalled first: two copies of one
