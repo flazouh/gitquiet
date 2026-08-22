@@ -14,6 +14,7 @@ import { railOrder } from "../domain/railOrder";
 import { readingOrder } from "../domain/readingOrder";
 import { acted, footingOf, markOf } from "../domain/reviewPass";
 import { stepping } from "../domain/stepping";
+import { apart, looksLikeTest } from "../domain/testing";
 import type { DiffChoices, TreeChoices } from "../domain/choices";
 import type { Settings } from "../domain/Settings";
 import type {
@@ -130,6 +131,56 @@ const total = (
 const isProse = (path: string): boolean => /\.(md|mdx|markdown)$/i.test(path);
 
 /**
+ * How big the change is with its proof set aside, and the way to read only that.
+ *
+ * A pull request of nine hundred lines where seven hundred are a table of cases
+ * is a small change and a long proof, and the reader deciding whether to open it
+ * now is asking about the first number. Which files are which is read off the
+ * path; `domain/testing.ts` says what that can and cannot see.
+ *
+ * The number is the switch. Saying how big the change is and reading it without
+ * its proof are the same subject, and two controls for one subject spend twice
+ * the width of a band that has none to spare. It sits with the counts rather
+ * than in the group at the right end, because that group is what the hand
+ * reaches for while walking a diff and this is pressed once at the start of a
+ * reading, if at all. It is also the first thing out as the band narrows, being
+ * the finer reading of a fact the line beside it already gives.
+ *
+ * Hidden, it drops the number: the counts beside it are then the counts of the
+ * change alone, and the same two numbers side by side teach a reader to stop
+ * reading both. What it says out loud is the act either way, since a button
+ * heard as "+40 −10 outside tests" has no verb in it.
+ */
+const Proof = ({
+  code,
+  tests,
+  hidden,
+  onToggle,
+}: {
+  readonly code: ReadonlyArray<ChangedFile>;
+  readonly tests: ReadonlyArray<ChangedFile>;
+  readonly hidden: boolean;
+  readonly onToggle: () => void;
+}) => (
+  <button
+    type="button"
+    aria-pressed={hidden}
+    aria-label={hidden ? "Show the test files" : "Hide the test files"}
+    onClick={onToggle}
+    title={
+      hidden
+        ? `Put the test files back in the rail: ${tests.length}, +${total(tests, "linesAdded")} −${total(tests, "linesDeleted")}`
+        : "Take the test files out of the rail, and read the change they prove"
+    }
+    className="hidden shrink-0 rounded-md px-1.5 py-0.5 text-xs text-ink-muted tabular-nums hover:bg-hover hover:text-ink aria-pressed:bg-active aria-pressed:text-ink @[40rem]/band:block"
+  >
+    {hidden
+      ? "tests hidden"
+      : `+${total(code, "linesAdded")} −${total(code, "linesDeleted")} outside tests`}
+  </button>
+);
+
+/**
  * A key cap, where the band is wide enough to teach one.
  *
  * The letter beside a button says the button has a key, which is worth twenty
@@ -194,6 +245,37 @@ export const FileBrowser = ({
   review,
   display,
 }: FileBrowserProps) => {
+  /*
+   * Whether the proof is out of the way for the moment.
+   *
+   * Off on arrival, and off again whenever another pull request arrives in this
+   * panel: a rail that hides files the reader did not ask it to hide is a rail
+   * that lies about what the pull request holds, and the first they would learn
+   * of it is a file they cannot find.
+   */
+  const [hidingTests, setHidingTests] = useState(false);
+
+  /** The change and the proof of it, held apart. See `domain/testing.ts`. */
+  const split = useMemo(() => apart(files), [files]);
+
+  /*
+   * Hiding is offered only where it leaves something to read: a rail with no
+   * rows, and the switch that emptied it gone with them, is a dead end.
+   */
+  const canHide = split.tests.length > 0 && split.code.length > 0;
+
+  /*
+   * What the reader is being shown, which is the whole pull request unless they
+   * have stood its proof aside.
+   *
+   * `files` goes on meaning the pull request, and this means the rail. The
+   * difference decides which of the two a thing is about: the counts, the
+   * progress, Next and Previous and the tree are about what is on the screen,
+   * while Put all back and a file asked for by name are about the pull request
+   * whether it is drawn or not.
+   */
+  const onRail = hidingTests && canHide ? split.code : files;
+
   // The same files, in the order the rail draws them.
   //
   // GitHub sends its own order and the tree does not keep it: folders go above
@@ -204,11 +286,11 @@ export const FileBrowser = ({
   // rail instead of walking down it — five presses over five files in an order
   // nothing on the screen accounted for.
   const walk = useMemo(() => {
-    const held = new Map(files.map((one) => [one.path, one]));
+    const held = new Map(onRail.map((one) => [one.path, one]));
     return railOrder([...held.keys()])
       .map((path) => held.get(path))
       .filter((one): one is ChangedFile => one !== undefined);
-  }, [files]);
+  }, [onRail]);
 
   // The top of the rail, which is where a reader starts reading and where a
   // held `j` walks down from.
@@ -251,6 +333,10 @@ export const FileBrowser = ({
   useEffect(() => {
     setPass(review === undefined ? Option.none() : passOf(review.subject));
     setFetchedMarks(new Map());
+    // Another pull request is another set of files, and none of them were stood
+    // aside by anyone. Left on, the next pull request opened in this panel would
+    // arrive with files already missing from its rail.
+    setHidingTests(false);
   }, [review?.subject]);
 
   // Which files are drawn, whether or not they are the one on screen. The one
@@ -275,14 +361,21 @@ export const FileBrowser = ({
     [proseAsDocument],
   );
 
+  // A file named somewhere else — a failing log, a link — is about the pull
+  // request and not about the rail, so it is looked for in the whole of it and
+  // the proof comes back out of hiding to show it. Being sent to a file and
+  // shown another one is worse than a rail that reads longer than it did.
   useEffect(() => {
     if (wanted === undefined) return;
-    if (files.some((file) => file.path === wanted.path)) onSelect(wanted.path);
+    if (!files.some((file) => file.path === wanted.path)) return;
+
+    if (looksLikeTest(wanted.path)) setHidingTests(false);
+    onSelect(wanted.path);
   }, [files, onSelect, wanted]);
 
   const seen = useMemo(
-    () => seenFiles(files, opened, putBack),
-    [files, opened, putBack],
+    () => seenFiles(onRail, opened, putBack),
+    [onRail, opened, putBack],
   );
   const currentMarks = useMemo(() => {
     const marks = new Map(fetchedMarks);
@@ -296,7 +389,7 @@ export const FileBrowser = ({
     if (Option.isNone(pass)) return new Set<string>();
 
     return new Set(
-      files
+      onRail
         .filter(
           (file) =>
             footingOf(
@@ -307,7 +400,7 @@ export const FileBrowser = ({
         )
         .map((file) => file.path),
     );
-  }, [currentMarks, files, pass]);
+  }, [currentMarks, onRail, pass]);
   const progress = review?.active === true ? read : seen;
 
   const library = useMemo(() => diffLibrary(fetchDiffs), [fetchDiffs]);
@@ -421,6 +514,17 @@ export const FileBrowser = ({
     setOpened((held) => (held.has(here) ? held : new Set([...held, here])));
   }, [here]);
 
+  // And the choice follows the screen when the file that was chosen leaves the
+  // rail — stood aside with the rest of the proof, or dropped by a background
+  // read. The pane falls back to the first file on its own, but the choice stayed
+  // on the file that had gone, so the tree highlighted no row at all.
+  useEffect(() => {
+    if (chosen === undefined || here === undefined) return;
+    if (walk.some((one) => one.path === chosen)) return;
+
+    setChosen(here);
+  }, [chosen, here, walk]);
+
   /*
    * Drawing a file the reader has not asked for yet, once they have stopped
    * asking for things.
@@ -470,9 +574,9 @@ export const FileBrowser = ({
   const showing = useMemo(
     () =>
       withinReach([here, ...drawn])
-        .map((path) => files.find((one) => one.path === path))
+        .map((path) => onRail.find((one) => one.path === path))
         .filter((one): one is ChangedFile => one !== undefined),
-    [drawn, files, here],
+    [drawn, onRail, here],
   );
   const on = chordFor(keys, "nextFile");
   const back = chordFor(keys, "previousFile");
@@ -559,7 +663,7 @@ export const FileBrowser = ({
     dismiss: review?.active === true ? () => review.onChange(false) : undefined,
   });
 
-  if (files.length === 0) {
+  if (onRail.length === 0) {
     return (
       <section
         aria-label="Files"
@@ -601,10 +705,18 @@ export const FileBrowser = ({
             half is worse than the same number left out, since a reader cannot
             tell 2 files from 24. */}
         <span className="hidden shrink-0 text-xs text-ink-muted tabular-nums @[36rem]/band:inline">
-          {`${files.length} changed`}{" "}
-          <span className="text-pass">+{total(files, "linesAdded")}</span>{" "}
-          <span className="text-fail">−{total(files, "linesDeleted")}</span>
+          {`${onRail.length} changed`}{" "}
+          <span className="text-pass">+{total(onRail, "linesAdded")}</span>{" "}
+          <span className="text-fail">−{total(onRail, "linesDeleted")}</span>
         </span>
+        {canHide ? (
+          <Proof
+            code={split.code}
+            tests={split.tests}
+            hidden={hidingTests}
+            onToggle={() => setHidingTests((was) => !was)}
+          />
+        ) : null}
         {/* How much of the review is behind you. A pull request of forty files
             is read over an afternoon and in three sittings, and the question on
             coming back to it is always the same one. */}
@@ -614,7 +726,7 @@ export const FileBrowser = ({
             without a tick on it. A plain reading of the number once there is
             nothing left to go to, rather than a button that does nothing. */}
         {(() => {
-          const count = `${progress.size} of ${files.length} ${review?.active === true ? "read" : "seen"}`;
+          const count = `${progress.size} of ${onRail.length} ${review?.active === true ? "read" : "seen"}`;
           const bar = (
             <>
               <span
@@ -624,7 +736,7 @@ export const FileBrowser = ({
                 <span
                   className="block h-full bg-pass-emphasis"
                   style={{
-                    width: `${Math.round((progress.size / files.length) * 100)}%`,
+                    width: `${Math.round((progress.size / onRail.length) * 100)}%`,
                   }}
                 />
               </span>
@@ -633,8 +745,8 @@ export const FileBrowser = ({
           );
           const held =
             review?.active === true
-              ? `${progress.size} of ${files.length} file patches read in this Review Pass`
-              : `${progress.size} of ${files.length} files opened or ticked as viewed on GitHub`;
+              ? `${progress.size} of ${onRail.length} file patches read in this Review Pass`
+              : `${progress.size} of ${onRail.length} files opened or ticked as viewed on GitHub`;
 
           return waiting === undefined ? (
             <span
@@ -744,7 +856,7 @@ export const FileBrowser = ({
             )}
             <button
               type="button"
-              disabled={files.length < 2}
+              disabled={onRail.length < 2}
               aria-keyshortcuts={back ?? undefined}
               onClick={() => onward(previous)}
               className="flex items-center gap-1.5 rounded-md bg-canvas px-2.5 py-1 text-xs font-semibold text-ink-muted enabled:hover:bg-hover enabled:hover:text-ink disabled:opacity-40"
@@ -754,7 +866,7 @@ export const FileBrowser = ({
             </button>
             <button
               type="button"
-              disabled={files.length < 2}
+              disabled={onRail.length < 2}
               aria-label="Next file"
               aria-keyshortcuts={on ?? undefined}
               onClick={() => onward(next)}
@@ -817,7 +929,7 @@ export const FileBrowser = ({
               that box at no height, so the rows existed and drew nothing. */}
           <FileTreePane
             key={`${tree.density}|${tree.flatten}|${tree.folders}|${tree.search}|${tree.sticky}`}
-            files={files}
+            files={onRail}
             selected={
               chosen === undefined ? Option.none() : Option.some(chosen)
             }

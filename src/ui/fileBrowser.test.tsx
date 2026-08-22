@@ -87,6 +87,171 @@ describe("one card, one header, two subcards", () => {
   })
 })
 
+/*
+ * A pull request of nine hundred lines where seven hundred are a table of cases is a
+ * small change and a long proof, and the reader deciding whether to open it now is
+ * asking for the first number. The total on its own answers a question nobody has.
+ */
+describe("how big the change is, once its proof is set aside", () => {
+  const sized = (path: string, added: number, deleted: number): ChangedFile => ({
+    ...file(path),
+    linesAdded: added,
+    linesDeleted: deleted
+  })
+
+  const band = (files: ReadonlyArray<ChangedFile>) => {
+    render(
+      <FileBrowser
+        files={files}
+        fetchDiffs={() => Effect.succeed([])}
+        diff={diffChoices(DEFAULTS.diff)}
+        tree={treeChoices(DEFAULTS.tree)}
+      />
+    )
+    return within(screen.getByLabelText("Files").firstElementChild as HTMLElement)
+  }
+
+  test("says the size of the code beside the size of everything", () => {
+    const row = band([
+      sized("src/domain/checks.ts", 40, 10),
+      sized("src/domain/checks.test.ts", 300, 5)
+    ])
+
+    expect(row.getByText(/2 changed/)).toBeDefined()
+    expect(row.getByText("+340")).toBeDefined()
+    expect(row.getByText("−15")).toBeDefined()
+    expect(row.getByText(/\+40 −10 outside tests/)).toBeDefined()
+  })
+
+  test("says nothing about tests where none were touched", () => {
+    const row = band([sized("src/domain/checks.ts", 40, 10)])
+
+    expect(row.queryByText(/outside tests/)).toBeNull()
+  })
+
+  test("takes the test files out of the rail on a press, and puts them back", async () => {
+    const row = band([
+      sized("src/domain/checks.ts", 40, 10),
+      sized("src/domain/checks.test.ts", 300, 5)
+    ])
+
+    // The rail itself is a web component and draws nothing here, so what it holds
+    // is read off the two things that follow it: how many files the band counts,
+    // and which file the pane opens on.
+    const open = () => screen.getByLabelText("Open file").textContent ?? ""
+    const press = () => row.getByRole("button", { name: /the test files/ })
+    expect(open()).toContain("checks.test.ts")
+
+    await userEvent.click(press())
+
+    expect(row.getByText(/1 changed/)).toBeDefined()
+    expect(open()).toContain("checks.ts")
+    expect(open()).not.toContain("checks.test.ts")
+    expect(press().getAttribute("aria-pressed")).toBe("true")
+
+    await userEvent.click(press())
+
+    expect(row.getByText(/2 changed/)).toBeDefined()
+    expect(press().getAttribute("aria-pressed")).toBe("false")
+  })
+
+  /*
+   * Pressed, the counts beside it are the counts of the change alone, so repeating
+   * the number there would be the same number twice over, side by side.
+   */
+  test("hands the counts over to the line beside it once they are hidden", async () => {
+    const row = band([
+      sized("src/domain/checks.ts", 40, 10),
+      sized("src/domain/checks.test.ts", 300, 5)
+    ])
+
+    await userEvent.click(row.getByRole("button", { name: "Hide the test files" }))
+
+    expect(row.getByText(/1 changed/)).toBeDefined()
+    expect(row.getByText("+40")).toBeDefined()
+    expect(row.getByText("−10")).toBeDefined()
+    expect(row.queryByText(/outside tests/)).toBeNull()
+    expect(row.getByRole("button", { name: "Show the test files" })).toBeDefined()
+  })
+
+  /*
+   * A rail with no rows, and the switch that emptied it gone with them, is a dead end:
+   * the reader is left guessing what took their files away. So the switch is offered
+   * only where pressing it leaves something to read.
+   */
+  /* The count and the total have to be counting the same set, or the bar reads 2 of 2. */
+  test("counts the progress against what is left on the rail", async () => {
+    const row = band([
+      sized("src/domain/checks.test.ts", 300, 5),
+      sized("src/domain/checks.ts", 40, 10),
+      sized("README.md", 3, 1)
+    ])
+
+    expect(row.getByText(/1 of 3 seen/)).toBeDefined()
+
+    await userEvent.click(row.getByRole("button", { name: "Hide the test files" }))
+
+    expect(row.getByText(/of 2 seen/)).toBeDefined()
+    expect(row.queryByText(/2 of 2 seen/)).toBeNull()
+  })
+
+  /* Put all back is about the pull request, and says so on its own face. */
+  test("puts back the files it is hiding as well", async () => {
+    const row = band([
+      sized("src/domain/checks.ts", 40, 10),
+      sized("src/domain/checks.test.ts", 300, 5)
+    ])
+
+    await userEvent.click(row.getByRole("button", { name: "Hide the test files" }))
+    await userEvent.click(row.getByRole("button", { name: "Put all back" }))
+    await userEvent.click(row.getByRole("button", { name: "Show the test files" }))
+
+    expect(row.getByText(/0 of 2 seen/)).toBeDefined()
+  })
+
+  /*
+   * A file named somewhere else is about the pull request, not about the rail, so a
+   * reader sent to a test file while the tests are hidden is shown that file.
+   */
+  test("brings the tests back for a file asked for by name", async () => {
+    const files = [
+      sized("src/domain/checks.ts", 40, 10),
+      sized("src/domain/checks.test.ts", 300, 5)
+    ]
+    const drawn = render(
+      <FileBrowser
+        files={files}
+        fetchDiffs={() => Effect.succeed([])}
+        diff={diffChoices(DEFAULTS.diff)}
+        tree={treeChoices(DEFAULTS.tree)}
+      />
+    )
+    const row = () => within(screen.getByLabelText("Files").firstElementChild as HTMLElement)
+
+    await userEvent.click(row().getByRole("button", { name: "Hide the test files" }))
+
+    drawn.rerender(
+      <FileBrowser
+        files={files}
+        fetchDiffs={() => Effect.succeed([])}
+        diff={diffChoices(DEFAULTS.diff)}
+        tree={treeChoices(DEFAULTS.tree)}
+        wanted={{ path: "src/domain/checks.test.ts" }}
+      />
+    )
+
+    expect(row().getByRole("button", { name: "Hide the test files" })).toBeDefined()
+    expect(screen.getByLabelText("Open file").textContent).toContain("checks.test.ts")
+  })
+
+  test("does not offer to hide them where they are the whole pull request", () => {
+    const row = band([sized("src/domain/checks.test.ts", 300, 5)])
+
+    expect(row.queryByText(/outside tests/)).toBeNull()
+    expect(row.queryByRole("button", { name: /the test files/ })).toBeNull()
+  })
+})
+
 describe("next and previous walk the rail", () => {
   // GitHub's own order for these five, which is not the order the rail draws
   // them in: the rail puts the folders above the loose files.

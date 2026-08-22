@@ -22,6 +22,7 @@ import { ProseDiff } from "./ProseDiff"
 import { useRenderer } from "./renderer"
 import { usePaintedTheme } from "./Theme"
 import { rowMarks, shortCount, type RowMark } from "./rowMarks"
+import { changesBetween } from "./treeRows"
 import { type Answering, ThreadInDiff } from "./ThreadView"
 import { threadKey, threadNotes, threadsIn } from "./threads"
 import {
@@ -241,6 +242,22 @@ export const FileTreePane = ({
   // reach it before. Bound only when the reader has the filter turned on: a key
   // that silently does nothing is worse than one that was never mentioned.
   useKeys(choices.search ? keys : "off", { search: () => model.openSearch() })
+
+  // The tree reads its paths once, when it is built, so a file leaving the list
+  // left its row on the rail with nothing behind it: the counts beside the
+  // folders came down, because those are drawn from a ref on every pass, and the
+  // rows they were counting stayed where they were. Both ways round — the reader
+  // standing the tests aside, and a background read finding a file added or
+  // dropped since the page opened. `changesBetween` says why it is done row by
+  // row rather than by building the tree again.
+  const drawn = useRef(paths)
+  useEffect(() => {
+    const work = changesBetween(drawn.current, paths)
+    if (work.length === 0) return
+
+    drawn.current = paths
+    model.batch(work)
+  }, [model, paths])
 
   // Rows are drawn once and left alone, so a file being marked off has to ask
   // for them again. Handing back the same icons is the only call in the tree's

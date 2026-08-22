@@ -34,17 +34,24 @@ export const shortCount = (lines: number): string =>
  * very tedious marking all files as not-viewed", filed on Refined GitHub's
  * tracker and quoted on our own landing page. A mark a reader cannot take off
  * is a review they cannot start again.
+ *
+ * Of these files and no others. `opened` is everything opened since the page
+ * loaded, and a file can leave the list under it — dropped by a background read,
+ * or stood aside with the rest of the tests — after being opened. Counted anyway,
+ * it made the panel say two of two files seen to a reader who had opened one.
  */
 export const seenFiles = (
   files: ReadonlyArray<ChangedFile>,
   opened: ReadonlySet<string>,
   putBack: ReadonlySet<string> = new Set()
-): ReadonlySet<string> =>
-  new Set(
+): ReadonlySet<string> => {
+  const here = new Set(files.map((file) => file.path))
+  return new Set(
     [...files.filter((file) => file.readByViewer).map((file) => file.path), ...opened].filter(
-      (path) => !putBack.has(path)
+      (path) => here.has(path) && !putBack.has(path)
     )
   )
+}
 
 /** Every directory a path lies in, longest last: `a/b/c.ts` → `a`, `a/b`. */
 const ancestors = (path: string): ReadonlyArray<string> => {

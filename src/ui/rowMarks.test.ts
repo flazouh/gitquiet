@@ -93,6 +93,17 @@ describe("which files count as read", () => {
 
     expect([...some]).toEqual(["src/app/one.ts"])
   })
+
+  /*
+   * The panel used to say two of two files seen to a reader who had opened one: the
+   * file they opened had left the list — dropped by a background read, or stood
+   * aside with the rest of the tests — and stayed in the count all the same.
+   */
+  it("counts only the files it was handed", () => {
+    const opened = new Set(["README.md", "src/app/one.ts"])
+
+    expect([...seenFiles([file("README.md", 1, 0)], opened)]).toEqual(["README.md"])
+  })
 })
 
 describe("a line count in a narrow rail", () => {
