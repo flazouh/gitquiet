@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { cloneElement, useEffect, useState } from "react";
 import { linearTiming, TransitionSeries } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import {
@@ -48,32 +48,13 @@ import { bedWash } from "@/Wash";
 const FONT =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif";
 
-const HOOK = 78;
-const LOCKUP = 92;
-const LIST = 112;
-const REST = 116;
-const OPEN = 100;
-const GROUPS = 100;
-const THREADS = 100;
-const CI = 92;
-const SETTLED = 100;
-const CTA = 124;
-
 const WASH = 20;
 const FADE = 10;
 
-export const DAY_DURATION_IN_FRAMES =
-  HOOK +
-  LOCKUP +
-  LIST +
-  REST +
-  OPEN +
-  GROUPS +
-  THREADS +
-  CI +
-  SETTLED +
-  CTA -
-  (5 * WASH + 3 * FADE);
+/** Frames the transition overlaps its neighbours; a cut overlaps nothing. */
+const OVERLAP = { wash: WASH, fade: FADE, cut: 0 } as const;
+
+type Out = keyof typeof OVERLAP;
 
 /** Mounted only when the file exists, so the silent cut renders without audio. */
 const OptionalAudio: React.FC<{ src: string; volume?: number }> = ({
@@ -187,14 +168,25 @@ const ListScene: React.FC = () => (
   </Dark>
 );
 
+/** The cursor's path: a leg is 24 frames, then the rest, then the press. */
+const LEG = 24;
+const REST_HOLD = 56;
+const ARRIVE = LEG;
+const CLICK = LEG + REST_HOLD + LEG;
+
 const RestScene: React.FC = () => {
   const frame = useCurrentFrame();
-  const hover = fadeIn(frame, 28, 6);
-  const prefetch = interpolate(frame, [34, 46], [0, 1], {
+  const hover = fadeIn(frame, ARRIVE + 4, 6);
+  const prefetch = interpolate(frame, [ARRIVE + 10, ARRIVE + 22], [0, 1], {
     ...CLAMP,
     easing: EXPO,
   });
-  const press = interpolate(frame, [104, 108, 112], [1, 0.985, 1], CLAMP);
+  const press = interpolate(
+    frame,
+    [CLICK, CLICK + 4, CLICK + 8],
+    [1, 0.985, 1],
+    CLAMP,
+  );
   return (
     <Dark>
       <div
@@ -216,7 +208,7 @@ const RestScene: React.FC = () => {
       <SimulatedCursor
         points={[
           { x: 1150, y: 664, hold: 0 },
-          { x: 702, y: 392, hold: 56 },
+          { x: 702, y: 392, hold: REST_HOLD },
           { x: 705, y: 394, hold: 18, click: true },
         ]}
         size={30}
@@ -473,64 +465,61 @@ const CtaScene: React.FC = () => {
   );
 };
 
-const wash = () => (
-  <TransitionSeries.Transition
-    presentation={bedWash()}
-    timing={linearTiming({ durationInFrames: WASH })}
-  />
+/**
+ * The whole film, in order. `out` is how a beat leaves: a wash between worlds,
+ * a fade within one, and a single hard cut on the press — the arrival is the
+ * claim, and a transition would hide the one moment the video exists to show.
+ * The duration falls out of this table, so a re-timed beat cannot desync it.
+ */
+const BEATS: { scene: React.FC; frames: number; out: Out }[] = [
+  { scene: HookScene, frames: 78, out: "wash" },
+  { scene: LockupScene, frames: 92, out: "wash" },
+  { scene: ListScene, frames: 112, out: "fade" },
+  { scene: RestScene, frames: 116, out: "cut" },
+  { scene: OpenScene, frames: 100, out: "wash" },
+  { scene: GroupsScene, frames: 100, out: "wash" },
+  { scene: ThreadsScene, frames: 100, out: "fade" },
+  { scene: CiScene, frames: 92, out: "fade" },
+  { scene: SettledScene, frames: 100, out: "wash" },
+  { scene: CtaScene, frames: 124, out: "cut" },
+];
+
+export const DAY_DURATION_IN_FRAMES = BEATS.reduce(
+  (total, beat, i) =>
+    total + beat.frames - (i < BEATS.length - 1 ? OVERLAP[beat.out] : 0),
+  0,
 );
 
-const quickFade = () => (
-  <TransitionSeries.Transition
-    presentation={fade()}
-    timing={linearTiming({ durationInFrames: FADE })}
-  />
-);
+const transitions: Record<Exclude<Out, "cut">, () => React.ReactElement> = {
+  wash: () => (
+    <TransitionSeries.Transition
+      presentation={bedWash()}
+      timing={linearTiming({ durationInFrames: WASH })}
+    />
+  ),
+  fade: () => (
+    <TransitionSeries.Transition
+      presentation={fade()}
+      timing={linearTiming({ durationInFrames: FADE })}
+    />
+  ),
+};
 
 export const Day: React.FC = () => {
   return (
     <AbsoluteFill style={{ background: PAGE }}>
       <TransitionSeries>
-        <TransitionSeries.Sequence durationInFrames={HOOK}>
-          <HookScene />
-        </TransitionSeries.Sequence>
-        {wash()}
-        <TransitionSeries.Sequence durationInFrames={LOCKUP}>
-          <LockupScene />
-        </TransitionSeries.Sequence>
-        {wash()}
-        <TransitionSeries.Sequence durationInFrames={LIST}>
-          <ListScene />
-        </TransitionSeries.Sequence>
-        {quickFade()}
-        <TransitionSeries.Sequence durationInFrames={REST}>
-          <RestScene />
-        </TransitionSeries.Sequence>
-        {/* A hard cut on the press: the arrival is the claim, and a transition
-            would hide the one moment the video exists to show. */}
-        <TransitionSeries.Sequence durationInFrames={OPEN}>
-          <OpenScene />
-        </TransitionSeries.Sequence>
-        {wash()}
-        <TransitionSeries.Sequence durationInFrames={GROUPS}>
-          <GroupsScene />
-        </TransitionSeries.Sequence>
-        {wash()}
-        <TransitionSeries.Sequence durationInFrames={THREADS}>
-          <ThreadsScene />
-        </TransitionSeries.Sequence>
-        {quickFade()}
-        <TransitionSeries.Sequence durationInFrames={CI}>
-          <CiScene />
-        </TransitionSeries.Sequence>
-        {quickFade()}
-        <TransitionSeries.Sequence durationInFrames={SETTLED}>
-          <SettledScene />
-        </TransitionSeries.Sequence>
-        {wash()}
-        <TransitionSeries.Sequence durationInFrames={CTA}>
-          <CtaScene />
-        </TransitionSeries.Sequence>
+        {BEATS.flatMap(({ scene: Scene, frames, out }, i) => [
+          <TransitionSeries.Sequence
+            key={`beat-${i}`}
+            durationInFrames={frames}
+          >
+            <Scene />
+          </TransitionSeries.Sequence>,
+          ...(out !== "cut" && i < BEATS.length - 1
+            ? [cloneElement(transitions[out](), { key: `out-${i}` })]
+            : []),
+        ])}
       </TransitionSeries>
       <OptionalAudio src="music.mp3" volume={0.4} />
       <OptionalAudio src="vo.mp3" />

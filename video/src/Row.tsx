@@ -15,7 +15,7 @@ import { INK, MARK, MUTED } from "@/palette";
 /** Primer dark tokens, which the product itself uses. */
 const GREEN = "#3fb950";
 const RED = "#f85149";
-const ORANGE = "#d29922";
+export const ORANGE = "#d29922";
 const PURPLE = "#a371f7";
 
 const PullRequestIcon: React.FC<{ size: number; color: string }> = ({
@@ -61,8 +61,6 @@ export const GroupHeader: React.FC<{
     ) : null}
   </div>
 );
-
-export { GREEN, ORANGE, PURPLE, RED };
 
 /**
  * `hover` lifts the row the way the product does when the pointer rests on it;
@@ -186,14 +184,12 @@ export const SettleMove: React.FC<{ moveAt: number }> = ({ moveAt }) => {
       }}
     >
       <div style={{ width: 1120, display: "flex", flexDirection: "column" }}>
-        <div style={{ position: "relative", zIndex: 1, background: "#121212" }}>
-          <GroupHeader
-            label="Needs You"
-            count={t > 0.5 ? undefined : "1"}
-            color={ORANGE}
-            opacity={1 - t * 0.45}
-          />
-        </div>
+        <GroupHeader
+          label="Needs You"
+          count={t > 0.5 ? undefined : "1"}
+          color={ORANGE}
+          opacity={1 - t * 0.45}
+        />
         <div style={{ height: 18 }} />
         <div style={{ height: 108, position: "relative" }}>
           <div
@@ -208,10 +204,11 @@ export const SettleMove: React.FC<{ moveAt: number }> = ({ moveAt }) => {
           </div>
         </div>
         <div style={{ height: 26 }} />
+        {/* Positioned and later in the DOM than the row, so it paints above
+            it and the row slides in underneath. */}
         <div
           style={{
             position: "relative",
-            zIndex: 1,
             background: "#121212",
             paddingBottom: 14,
           }}
