@@ -22,7 +22,6 @@ const showing = (over: Partial<Parameters<typeof Reading>[0]> = {}) =>
       repo={{ owner: "flowline-labs", repo: "flowline" }}
       branch="main"
       head="abc123"
-      onClose={() => {}}
       {...over}
     />
   )
@@ -118,5 +117,14 @@ describe("the file, and what their page still owns of it", () => {
 
     expect(within(pane()).queryByRole("link", { name: "Raw" })).toBeNull()
     expect(within(pane()).queryByRole("button", { name: "More" })).toBeNull()
+  })
+
+  test("does not offer a way back to the README on the strip", () => {
+    // The tree and the address already do that. A second control on the file
+    // named the document this pane replaced, which is not a hold their page had.
+    showing()
+
+    expect(within(pane()).queryByRole("button", { name: "Back to the README" })).toBeNull()
+    expect(within(pane()).queryByText("← README")).toBeNull()
   })
 })

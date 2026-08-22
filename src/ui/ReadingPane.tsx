@@ -4,7 +4,6 @@ import { diffChoices } from "../domain/choices"
 import type { Opened } from "../domain/repoHome"
 import { wholeFile } from "../domain/wholeFile"
 import { type DiffEngine, PAPER } from "../ports/Renderer"
-import { PRESSABLE } from "./dress"
 import { FileAlso } from "./FileAlso"
 import { FileMark } from "./FileHeading"
 import { Markdown } from "./Markdown"
@@ -28,8 +27,6 @@ export type ReadingProps = {
    * rather than a branch that will move.
    */
   readonly head?: string
-  /** Back to the README, which is what this pane replaced. */
-  readonly onClose: () => void
 }
 
 /**
@@ -137,8 +134,7 @@ export const Reading = ({
   failed = false,
   repo,
   branch,
-  head,
-  onClose
+  head
 }: ReadingProps) => {
   const [way, setWay] = useState<"rendered" | "source">("rendered")
 
@@ -159,14 +155,6 @@ export const Reading = ({
       className="min-w-0 overflow-hidden rounded-lg border border-line lg:col-start-1 lg:row-start-2"
     >
       <div className="flex items-center gap-2 px-3 py-1.5">
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Back to the README"
-          className={`px-2 py-0.5 text-xs text-ink-muted hover:bg-active ${PRESSABLE}`}
-        >
-          ← README
-        </button>
         {/* The same chip the diff prints over a file, because the tree beside
             this pane is the same tree the diff has beside it and the two are
             showing the same file. Material always, which is what that tree is

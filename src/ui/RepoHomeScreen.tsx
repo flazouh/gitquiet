@@ -453,14 +453,12 @@ const Paper = ({
   front,
   reading,
   opened,
-  loadReadme,
-  onRead
+  loadReadme
 }: {
   readonly front: Front
   readonly reading: string | null
   readonly opened: Read
   readonly loadReadme: RepoHomeScreenProps["loadReadme"]
-  readonly onRead?: (path: string | null) => void
 }) =>
   reading === null ? (
     <Welcome front={front} loadReadme={loadReadme} />
@@ -472,7 +470,6 @@ const Paper = ({
       repo={front.repo}
       branch={front.branch}
       head={front.head}
-      onClose={() => onRead?.(null)}
     />
   )
 
@@ -643,7 +640,6 @@ export const RepoHomeScreen = ({
                 reading={reading}
                 opened={opened}
                 loadReadme={loadReadme}
-                onRead={onRead}
               />
               <Beside
                 front={front}
@@ -675,7 +671,6 @@ export const RepoHomeScreen = ({
                 reading={reading}
                 opened={opened}
                 loadReadme={loadReadme}
-                onRead={onRead}
               />
             </>
           )}
