@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen, waitFor } from "@testing-library/react"
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react"
 import { Effect } from "effect"
 import { highlight } from "./highlight"
 import { resetHighlightLoader, setHighlightLoader } from "./loadHighlight"
@@ -7,11 +7,45 @@ import { resetMermaidLoader, setMermaidLoader } from "./loadMermaid"
 import { Markdown } from "./Markdown"
 import { MarkdownDrawProvider } from "./runtime"
 
+/** The browser's own idle queue, put back after a test drives it by hand. */
+const idled = globalThis.requestIdleCallback
+const unidled = globalThis.cancelIdleCallback
+
 afterEach(() => {
   cleanup()
   resetHighlightLoader()
   resetMermaidLoader()
+  globalThis.requestIdleCallback = idled
+  globalThis.cancelIdleCallback = unidled
 })
+
+/**
+ * The idle queue, in the test's hands: nothing waiting for a quiet moment runs
+ * until `runIdle` says so, and anything called off before then never runs.
+ */
+const holdIdleTime = () => {
+  const waiting = new Map<number, () => void>()
+  let asked = 0
+
+  globalThis.requestIdleCallback = ((run: IdleRequestCallback) => {
+    asked += 1
+    waiting.set(asked, () => run({ didTimeout: false, timeRemaining: () => 0 }))
+    return asked
+  }) as typeof globalThis.requestIdleCallback
+
+  globalThis.cancelIdleCallback = ((handle: number) => {
+    waiting.delete(handle)
+  }) as typeof globalThis.cancelIdleCallback
+
+  return {
+    runIdle: () =>
+      act(() => {
+        const due = [...waiting.values()]
+        waiting.clear()
+        for (const run of due) run()
+      })
+  }
+}
 
 describe("rendering our markdown document", () => {
   test("draws a GFM table as tiled cells", () => {
@@ -94,6 +128,79 @@ describe("rendering our markdown document", () => {
     render(<Markdown markdown={"```mermaid\ngraph TD\nA-->B\n```"} />)
 
     await waitFor(() => expect(document.querySelector("svg")).not.toBeNull())
+  })
+
+  /*
+   * Measured on a press between two pull requests: one diagram of 296 characters
+   * held the main thread for 794ms, and the reader waited the whole of it for a
+   * page that was otherwise drawn and ready at 220ms. Every coloured fence on the
+   * same page cost between 8ms and 71ms. So the diagram waits and the colours do
+   * not.
+   */
+  test("holds a diagram until the browser is idle, and colours a fence at once", async () => {
+    const { runIdle } = holdIdleTime()
+
+    const drawn = render(
+      <MarkdownDrawProvider
+        highlight={() => Effect.succeed("<span>coloured</span>")}
+        mermaid={() => Effect.succeed("<svg><title>diagram</title></svg>")}
+      >
+        <Markdown markdown={"```ts\nconst x = 1\n```\n\n```mermaid\ngraph TD\nA-->B\n```"} />
+      </MarkdownDrawProvider>
+    )
+
+    await waitFor(() => expect(drawn.container.querySelector("code span")).not.toBeNull())
+    expect(drawn.container.querySelector("svg")).toBeNull()
+
+    runIdle()
+
+    await waitFor(() =>
+      expect(drawn.container.querySelector("svg title")?.textContent).toBe("diagram")
+    )
+  })
+
+  test("never draws a diagram for a page the reader has already left", () => {
+    const { runIdle } = holdIdleTime()
+    let asked = 0
+
+    const drawn = render(
+      <MarkdownDrawProvider
+        highlight={() => Effect.succeed(null)}
+        mermaid={() => {
+          asked += 1
+          return Effect.succeed("<svg><title>diagram</title></svg>")
+        }}
+      >
+        <Markdown markdown={"```mermaid\ngraph TD\nA-->B\n```"} />
+      </MarkdownDrawProvider>
+    )
+
+    drawn.unmount()
+    runIdle()
+
+    expect(asked).toBe(0)
+  })
+
+  test("does not show the diagram of the fence that was there before", async () => {
+    const { runIdle } = holdIdleTime()
+    const tree = (source: string) => (
+      <MarkdownDrawProvider
+        highlight={() => Effect.succeed(null)}
+        mermaid={(code) => Effect.succeed(`<svg><title>${code.includes("A") ? "first" : "second"}</title></svg>`)}
+      >
+        <Markdown markdown={`\`\`\`mermaid\n${source}\n\`\`\``} />
+      </MarkdownDrawProvider>
+    )
+
+    const drawn = render(tree("graph TD\nA-->B"))
+    runIdle()
+    await waitFor(() =>
+      expect(drawn.container.querySelector("svg title")?.textContent).toBe("first")
+    )
+
+    drawn.rerender(tree("graph TD\nX-->Y"))
+
+    expect(drawn.container.querySelector("svg")).toBeNull()
   })
 
   test("does not leave a mermaid fence as a code block GitHub can steal", () => {
