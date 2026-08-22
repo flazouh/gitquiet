@@ -65,6 +65,8 @@ export const diffChoices = (settings: DiffSettings): DiffChoices => {
 /** The rail's options, plus the two marks that are ours rather than the tree's. */
 export type TreeChoices = {
   readonly density: "compact" | "default" | "relaxed"
+  /** How far a folder steps its contents in, as a CSS length for the tree. */
+  readonly indent: string
   readonly icons: "material" | "plain"
   /** Tailwind's width for the rail, in its own scale. */
   readonly width: string
@@ -95,8 +97,24 @@ const WIDTH: Readonly<Record<string, string>> = {
   wide: "w-[clamp(20rem,28cqi,34rem)]"
 }
 
+/**
+ * How far one level of folder steps in, per choice.
+ *
+ * Multiplied by the row height the reader chose, the way the tree's own default
+ * is: a compact list that indented like a relaxed one was the bug that started
+ * this. Six is the middle rather than the tree's eight because the guide lines
+ * already say which level a row is on, so the step only has to be wide enough
+ * to read as a step. Ten is what the rail did before this knob existed.
+ */
+const INDENT: Readonly<Record<string, string>> = {
+  tight: "calc(4px * var(--trees-density))",
+  default: "calc(6px * var(--trees-density))",
+  wide: "calc(10px * var(--trees-density))"
+}
+
 export const treeChoices = (settings: TreeSettings): TreeChoices => ({
   density: settings.density,
+  indent: INDENT[settings.indent] ?? INDENT["default"]!,
   icons: settings.icons,
   width: WIDTH[settings.width] ?? WIDTH["medium"]!,
   counts: settings.counts === "on",
