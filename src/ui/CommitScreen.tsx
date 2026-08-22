@@ -1,5 +1,5 @@
 import { Effect, type Option } from "effect"
-import { useEffect, useMemo, useState } from "react"
+import { useDeferredValue, useEffect, useMemo, useState } from "react"
 import type { DiffFetcher } from "../domain/library"
 import type { CommitDetail } from "../domain/PullRequest"
 import type { CommitRef } from "../domain/CommitRef"
@@ -66,8 +66,11 @@ export const CommitScreen = ({
   // Read only: the way into changing them is in the bar above, not in this
   // panel's corner. See `TheBar`.
   const { settings, change } = useSettings()
-  const diff = useMemo(() => diffChoices(settings.diff), [settings.diff])
-  const tree = useMemo(() => treeChoices(settings.tree), [settings.tree])
+  // Deferred for the same reason as `Shell`: the diff's redraw is hundreds of
+  // milliseconds, and it must not run inside the click that picked the knob.
+  const settled = useDeferredValue(settings)
+  const diff = useMemo(() => diffChoices(settled.diff), [settled.diff])
+  const tree = useMemo(() => treeChoices(settled.tree), [settled.tree])
 
   // What the keyboard is scoped to, so a keypress inside this interface is not
   // also heard by GitHub's own page underneath it.
@@ -177,7 +180,7 @@ export const CommitScreen = ({
             apart
             diff={diff}
             tree={tree}
-            proseAsDocument={settings.diff.prose === "on"}
+            proseAsDocument={settled.diff.prose === "on"}
             keys={keys}
             display={{ settings, onChange: change }}
           />

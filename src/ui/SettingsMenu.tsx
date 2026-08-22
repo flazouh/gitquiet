@@ -137,9 +137,14 @@ const Row = ({
         <Explains knob={knob} chosen={chosen} open={explaining} onOpenChange={setExplaining} />
       </Menu.SubTrigger>
       <Menu.Portal container={inOurs()}>
+        {/* No `t-dropdown`: the choices follow the pointer down a menu that is
+            already open, and an entrance replayed on every row reads as each
+            submenu being slow. Unanimated they simply are there — and are gone
+            the moment the pointer leaves, since Radix only holds an exiting
+            surface mounted while it has an animation to wait for. */}
         <Menu.SubContent
           sideOffset={4}
-          className="t-dropdown z-50 min-w-40 rounded-md border border-line bg-raised p-1 shadow-pop"
+          className="z-50 min-w-40 rounded-md border border-line bg-raised p-1 shadow-pop"
         >
           <Menu.RadioGroup value={chosen} onValueChange={(value) => onPick(knob.key, value)}>
             {knob.choices.map((choice) => (
@@ -278,9 +283,11 @@ export const SettingsMenu = ({
                 <span className="text-ink-muted">›</span>
               </Menu.SubTrigger>
               <Menu.Portal container={inOurs()}>
+                {/* Unanimated like the rows' own submenus, and for the same
+                    reason. */}
                 <Menu.SubContent
                   sideOffset={4}
-                  className="t-dropdown z-50 min-w-56 rounded-md border border-line bg-raised p-1 text-xs shadow-pop"
+                  className="z-50 min-w-56 rounded-md border border-line bg-raised p-1 text-xs shadow-pop"
                 >
                   <Section name="Diff">
                     <Group

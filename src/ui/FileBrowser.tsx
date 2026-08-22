@@ -836,6 +836,7 @@ export const FileBrowser = ({
                       open ? reading : proseAsDocument && isProse(one.path)
                     }
                     choices={diff}
+                    visible={open}
                     drafts={open ? mine : draftsIn(drafts, one.path)}
                     onSaveDraft={onSaveDraft}
                     onDropDraft={onDropDraft}

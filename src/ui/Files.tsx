@@ -82,7 +82,13 @@ const PRIMER_TREE = {
   // is 6px of subtraction against 0px of scrollbar: rows sat 4px from the left
   // edge and 1.6px from the right. Zero is the true width here.
   "--trees-scrollbar-gutter-measured": "0px",
-  "--trees-level-gap-override": "10px",
+
+  // No level gap named here on purpose. The tree's own is
+  // `calc(8px * var(--trees-density))`, which the density choice scales; the
+  // flat ten pixels that used to sit here were both wider than that and deaf to
+  // it, so a compact tree indented as far as a relaxed one. The rail is a fifth
+  // of the pane and a repository is five folders deep before a name starts, so
+  // every pixel of indent is a pixel of name; the guide lines carry the nesting.
   "--trees-font-size-override": "12px"
 } as React.CSSProperties
 
@@ -293,6 +299,17 @@ export type FileDiffPaneProps = {
   readonly reading?: boolean
   /** How the reader has asked for diffs to be drawn. */
   readonly choices: DiffChoices
+  /**
+   * Whether this pane is the one being looked at.
+   *
+   * The browser keeps a pane mounted per warmed file, all laid out and one
+   * visible. A knob or theme change redraws a diff from the patch, and doing
+   * that to every pane in one commit froze the interface for half a second —
+   * the settings menu's own close was what it froze. Only the visible pane
+   * follows the change at once; the hidden ones catch up in idle time. See
+   * `drawnWith` below.
+   */
+  readonly visible?: boolean
   /** What has been written about this file's lines, and not sent. */
   readonly drafts?: ReadonlyArray<Draft>
   readonly onSaveDraft?: (draft: Draft) => void
@@ -336,6 +353,7 @@ export const FileDiffPane = ({
   ask,
   reading = false,
   choices,
+  visible = true,
   drafts = [],
   onSaveDraft,
   onDropDraft,
@@ -410,9 +428,40 @@ export const FileDiffPane = ({
    * say so. The renderer would have nothing to draw and no way to tell the
    * difference between that and a file GitHub sent no content for.
    */
+  /**
+   * The knobs and theme this pane draws with, which follow the reader's
+   * choices at the pane's own pace.
+   *
+   * The visible pane takes a change on the commit after it is made. A hidden
+   * one holds what it already drew and takes the change in idle time — or on
+   * becoming visible, whichever comes first — because a redraw is the whole
+   * file built again from the patch, and every warmed file redrawing in the
+   * click's own commit was the band freezing for half a second.
+   */
+  const wanted = useMemo(
+    () => ({ choices, scheme: painted.scheme, pack: painted.pack }),
+    [choices, painted.scheme, painted.pack]
+  )
+  const [drawnWith, setDrawnWith] = useState(wanted)
+  useEffect(() => {
+    if (wanted === drawnWith) return
+    if (visible) {
+      setDrawnWith(wanted)
+      return
+    }
+    // Idle time where the browser offers it, and simply later where it does
+    // not — either way, clear of the click that turned the knob.
+    if (typeof requestIdleCallback === "function") {
+      const idle = requestIdleCallback(() => setDrawnWith(wanted))
+      return () => cancelIdleCallback(idle)
+    }
+    const timer = setTimeout(() => setDrawnWith(wanted), 200)
+    return () => clearTimeout(timer)
+  }, [wanted, drawnWith, visible])
+
   const shown = useMemo(
-    () => (choices.hideWhitespace ? Option.map(patch, withoutWhitespace) : patch),
-    [patch, choices.hideWhitespace]
+    () => (drawnWith.choices.hideWhitespace ? Option.map(patch, withoutWhitespace) : patch),
+    [patch, drawnWith.choices.hideWhitespace]
   )
   const onlySpacing = Option.isSome(shown) && shown.value === ""
 
@@ -493,9 +542,9 @@ export const FileDiffPane = ({
     const live = engine.renderDiff(container, {
       patch: source,
       path: file.path,
-      theme: painted.scheme,
-      pack: painted.pack,
-      choices,
+      theme: drawnWith.scheme,
+      pack: drawnWith.pack,
+      choices: drawnWith.choices,
       // Off where a remark has nowhere to go, which takes the gutter's plus and
       // the drag across the line numbers with it. A commit read on its own page
       // is the case: GitHub's route for a review comment belongs to a pull
@@ -513,7 +562,7 @@ export const FileDiffPane = ({
     }
     // Every one of these is baked into the DOM the renderer writes, so a change
     // to any of them is a file drawn again from the patch.
-  }, [engine, shown, file.path, prose, choices, onPost, painted.scheme, painted.pack])
+  }, [engine, shown, file.path, prose, drawnWith, onPost])
 
   useEffect(() => {
     handle.current?.showNotes(notes)
