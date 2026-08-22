@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { whenIdle } from "../app/idle";
+import { eachIdle } from "../app/idle";
 import { diffLibrary, type DiffFetcher } from "../domain/library";
 import { railOrder } from "../domain/railOrder";
 import { readingOrder } from "../domain/readingOrder";
@@ -434,8 +434,34 @@ export const FileBrowser = ({
    */
   useEffect(() => {
     if (here === undefined) return;
-    return whenIdle(
-      () => setDrawn(withinReach([previous?.path, here, next?.path])),
+
+    /*
+     * One file per quiet moment, not both neighbours in one commit.
+     *
+     * Together they were a single task of two parses, two highlights and a few
+     * thousand elements each, and the idle deadline made sure it ran within the
+     * second — which is exactly when the reader who clicked a file is scrolling
+     * the one they got. Next goes first, since `j` is the press being dodged;
+     * the last stage cuts the set back to what a key can reach, which mounts
+     * nothing and costs nothing.
+     */
+    const reach = withinReach([previous?.path, here, next?.path]);
+    return eachIdle(
+      [
+        ...withinReach([next?.path, previous?.path])
+          .filter((path) => path !== here)
+          .map(
+            (path) => () =>
+              setDrawn((held) => (held.includes(path) ? held : [...held, path])),
+          ),
+        () =>
+          setDrawn((held) =>
+            held.length === reach.length &&
+            reach.every((path) => held.includes(path))
+              ? held
+              : reach,
+          ),
+      ],
       REACHING,
     );
   }, [here, previous?.path, next?.path]);

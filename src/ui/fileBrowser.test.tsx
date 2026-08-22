@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen, within } from "@testing-library/react"
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import type { ChangedFile } from "../domain/PullRequest"
@@ -149,6 +149,26 @@ describe("next and previous walk the rail", () => {
     await userEvent.keyboard("k")
 
     expect(open()).toBe(first)
+  })
+
+  // The neighbours arrive one quiet moment at a time — see FileBrowser's
+  // staged draw — so this waits for the set to settle rather than counting
+  // renders on the way there.
+  test("the two files a key reaches are drawn behind the open one, and no more", async () => {
+    browser()
+
+    await waitFor(
+      () => {
+        const panes = [...document.querySelectorAll("[data-file]")]
+        expect(panes.map((pane) => pane.getAttribute("data-file")).sort()).toEqual(
+          [drawn[0]!, drawn[1]!, drawn[4]!].sort()
+        )
+      },
+      { timeout: 3000 }
+    )
+
+    const visible = [...document.querySelectorAll('[data-file][aria-hidden="false"]')]
+    expect(visible.map((pane) => pane.getAttribute("data-file"))).toEqual([drawn[0]!])
   })
 })
 

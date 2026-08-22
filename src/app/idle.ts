@@ -33,6 +33,29 @@ export const whenIdle = (act: () => void, by: number = BY): (() => void) => {
 }
 
 /**
+ * Runs each act in its own quiet moment, in order, and hands back the way to
+ * call off whatever has not run yet.
+ *
+ * For work that is heavy per piece: several pieces in one callback are one
+ * long task, felt as a hitch by a reader who is scrolling by the time the
+ * deadline forces it. Acts that already ran stay run — the canceller only
+ * stops the ones still waiting.
+ */
+export const eachIdle = (acts: ReadonlyArray<() => void>, by?: number): (() => void) => {
+  let cancel: () => void = () => {}
+  const run = (at: number): void => {
+    const act = acts[at]
+    if (act === undefined) return
+    cancel = whenIdle(() => {
+      act()
+      run(at + 1)
+    }, by)
+  }
+  run(0)
+  return () => cancel()
+}
+
+/**
  * The same wait, in front of an Effect, for work a fiber already owns.
  *
  * Interrupting the fiber calls the wait off and the work never starts. Which is
