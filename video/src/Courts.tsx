@@ -40,8 +40,16 @@ export const Courts: React.FC = () => {
   });
 
   const scale = interpolate(closeness, [0, 1], [1, PUNCH.scale]);
-  const originX = interpolate(closeness, [0, 1], [50, PUNCH.x]);
-  const originY = interpolate(closeness, [0, 1], [42, PUNCH.y]);
+  /*
+   * The origin does not move with the scale.
+   *
+   * Animating both cut the Court names off the left edge for about a second in
+   * the middle of the zoom: "Needs You" arrived as "s You". At scale 1 the
+   * origin has no visible effect, so holding it costs nothing and the left edge
+   * stays put the whole way in.
+   */
+  const originX = PUNCH.x;
+  const originY = PUNCH.y;
 
   return (
     <AbsoluteFill

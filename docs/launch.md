@@ -24,13 +24,21 @@ prefetch, and the cold case is half a second rather than thirty times.
 
 | File | Size | Where |
 | --- | --- | --- |
-| `RaceTall` | 1080x1350, 3.5s | X, first post |
+| `Launch` | 1080x1350, 18s | X, first post |
 | `Courts` | 1080x1350, 15s | X, second post |
 | `Race` | 1920x1080, 3.5s | HN, Reddit |
 | `site/public/store/working-set.png` | 1280x800 | Reddit image posts |
 
+`Launch` is the race and the Working Set in one piece. They shipped separately
+first, and the race alone ran 3.6s, which is a third of the shortest launch
+video measured: the six worth copying ran 17 to 48 seconds, and the one that
+reached eight million views ran 23. A clip that short loops before it is read.
+
+`RaceTall` still builds and is the race on its own, for anywhere that wants it
+without the second half.
+
 ```bash
-cd video && bunx remotion render RaceTall out/race-tall.mp4
+cd video && bunx remotion render Launch out/launch.mp4
 ```
 
 ---
