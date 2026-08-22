@@ -890,7 +890,10 @@ export const takeOverSlot = (
        * new one. Keep the finished interface in the stable page surface during
        * that gap. The observer will move it into the proper region if one lands.
        */
-      const temporary = isOurContainer(container)
+      const view = target.defaultView
+      const stillHere =
+        view === null || place.owns(view.location.pathname, view.location.search)
+      const temporary = isOurContainer(container) && stillHere
         ? (target.querySelector("main") ?? target.body)
         : null
       const fresh = standing ?? findSlot(target, place) ?? temporary
