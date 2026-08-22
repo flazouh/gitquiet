@@ -196,6 +196,19 @@ describe("noticing GitHub navigate without loading a page", () => {
     expect(seen).toEqual(["/o/r/pull/7"])
   })
 
+  test("drops deferred cleanup when its watcher has stopped", () => {
+    const seen: Array<string> = []
+    const it = browser("/o/r/pull/1")
+    const stop = whenAddressChangesAfterInput(it.target, (path) => seen.push(path))
+
+    it.goTo("/o/r/pull/7")
+    it.entered()
+    stop()
+    it.nextTask()
+
+    expect(seen).toEqual([])
+  })
+
   test("keeps looking on its own where the browser will not say", () => {
     const seen: Array<string> = []
     const it = browser("/o/r/pull/1", false)

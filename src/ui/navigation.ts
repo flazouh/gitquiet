@@ -152,8 +152,10 @@ const watchAddressChanges = (
 ): Stop => {
   const whole = (): string => `${target.location.pathname}${target.location.search}`
   let known = whole()
+  let stopped = false
 
   const look = (): void => {
+    if (stopped) return
     const now = whole()
     if (now === known) return
     known = now
@@ -197,6 +199,7 @@ const watchAddressChanges = (
   const ticking = target.setInterval(look, lookAgain)
 
   return () => {
+    stopped = true
     for (const name of THEIR_EVENTS) target.document.removeEventListener(name, soon, true)
     target.removeEventListener("popstate", soon)
     said?.removeEventListener("currententrychange", onEntry)
