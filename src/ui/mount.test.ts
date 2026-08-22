@@ -398,6 +398,19 @@ describe("arriving after the document has finished, which is what a soft navigat
     expect(takeover!.container.isConnected).toBe(true)
     expect(page.documentElement.hasAttribute("data-gitquiet-taken")).toBe(true)
   })
+
+  test("keeps the interface in main while a history traversal has no new region", async () => {
+    const page = aFinishedPage()
+    const takeover = await Effect.runPromise(
+      takeOverSlotWhenReady(page, interfaceContainer(page), 400, 20)
+    )
+
+    page.body.innerHTML = "<main><p>GitHub is between history entries</p></main>"
+    await new Promise((wake) => setTimeout(wake, 20))
+
+    expect(takeover!.container.isConnected).toBe(true)
+    expect(takeover!.container.parentElement).toBe(page.querySelector("main"))
+  })
 })
 
 describe("the two gates, which are not the same gate", () => {

@@ -162,6 +162,9 @@ const takeOffThePage = (element: Element): void => {
  */
 let ours: Element | null = null
 
+/** Whether this bundle still owns this container. */
+const isOurContainer = (container: Element): boolean => container === ours
+
 /**
  * Said on the document when the screen that has the page changes.
  *
@@ -874,7 +877,15 @@ export const takeOverSlot = (
     const standing = ours !== undefined && ours.isConnected ? ours : undefined
 
     if (!container.isConnected) {
-      const fresh = standing ?? findSlot(target, place)
+      /*
+       * A history traversal can remove the old region before GitHub creates a
+       * new one. Keep the finished interface in the stable page surface during
+       * that gap. The observer will move it into the proper region if one lands.
+       */
+      const temporary = isOurContainer(container)
+        ? (target.querySelector("main") ?? target.body)
+        : null
+      const fresh = standing ?? findSlot(target, place) ?? temporary
       if (fresh !== null) settle(fresh)
       return
     }
