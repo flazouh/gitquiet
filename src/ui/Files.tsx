@@ -533,6 +533,11 @@ export const FileDiffPane = ({
   atRender.current = notes
   const handle = useRef<DiffHandle | null>(null)
 
+  // Whether a remark can be sent is all the drawing bakes in; the way to send
+  // it is a fresh closure on every render of the screen above, and a redraw per
+  // closure was every mounted file drawn again several times per click.
+  const canPost = onPost !== undefined
+
   useEffect(() => {
     const container = host.current
     const source = Option.getOrNull(shown)
@@ -551,7 +556,7 @@ export const FileDiffPane = ({
       // request, and this commit is not being read on one. Left on, both ways in
       // open a box whose Comment button cannot come up, over a draft that can be
       // saved and never sent.
-      onPick: onPost === undefined ? undefined : setPicked,
+      onPick: canPost ? setPicked : undefined,
       notes: atRender.current,
       fillNote: (key) => rows.current.get(key)
     })
@@ -562,7 +567,7 @@ export const FileDiffPane = ({
     }
     // Every one of these is baked into the DOM the renderer writes, so a change
     // to any of them is a file drawn again from the patch.
-  }, [engine, shown, file.path, prose, drawnWith, onPost])
+  }, [engine, shown, file.path, prose, drawnWith, canPost])
 
   useEffect(() => {
     handle.current?.showNotes(notes)
