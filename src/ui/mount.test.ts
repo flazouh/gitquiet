@@ -10,6 +10,7 @@ import {
   handBack,
   interfaceContainer,
   markPage,
+  rememberPreparedScreen,
   reveal,
   takeOverSlot,
   takeOverSlotWhenReady,
@@ -69,6 +70,21 @@ const theirTabsIn = (page: Document) =>
   page.querySelector('[aria-label="Pull request navigation tabs"]')!
 
 describe("slotting into GitHub's pull request page", () => {
+  test("seeds a route that was rendered before the click", () => {
+    const view = new HappyWindow({ url: "https://github.com/owner/repo/pull/1" })
+    const page = view.document as unknown as Document
+    page.body.innerHTML = githubPage().body.innerHTML
+    const prepared = page.createElement("div")
+    prepared.innerHTML = "<h1>prepared pull request</h1>"
+
+    rememberPreparedScreen(page, "/owner/repo/pull/2", CONVERSATION, prepared)
+    view.history.replaceState(null, "", "/owner/repo/pull/2")
+    const arriving = interfaceContainer(page, CONVERSATION)
+
+    expect(arriving.textContent).toContain("prepared pull request")
+    view.close()
+  })
+
   test("seeds a returned address when two routes use the same screen kind", () => {
     const view = new HappyWindow({ url: "https://github.com/owner/repo/pull/1" })
     const page = view.document as unknown as Document

@@ -82,6 +82,18 @@ const screenSnapshots = (target: Document): Map<string, Snapshot> | null => {
   return view.gitquietScreens
 }
 
+const keepScreenSnapshot = (
+  screens: Map<string, Snapshot>,
+  route: string,
+  snapshot: Snapshot
+): void => {
+  screens.delete(route)
+  screens.set(route, snapshot)
+
+  const oldest = screens.keys().next()
+  if (screens.size > HOW_MANY_SCREENS && !oldest.done) screens.delete(oldest.value)
+}
+
 const routeNow = (target: Document): string | null => {
   const view = target.defaultView
   return view === null ? null : `${view.location.pathname}${view.location.search}`
@@ -93,11 +105,25 @@ const rememberScreen = (element: Element): void => {
   const screens = screenSnapshots(element.ownerDocument)
   if (route === null || place === null || screens === null || element.innerHTML === "") return
 
-  screens.delete(route)
-  screens.set(route, { place, html: element.innerHTML })
+  keepScreenSnapshot(screens, route, { place, html: element.innerHTML })
+}
 
-  const oldest = screens.keys().next()
-  if (screens.size > HOW_MANY_SCREENS && !oldest.done) screens.delete(oldest.value)
+/**
+ * Keeps a finished detached screen under the route it was built for.
+ *
+ * The next navigation seeds this HTML before React starts. It is the same short-lived
+ * cache used for Back, with no second storage tier and the same eight-route bound.
+ */
+export const rememberPreparedScreen = (
+  target: Document,
+  route: string,
+  place: Place,
+  prepared: Element
+): void => {
+  const screens = screenSnapshots(target)
+  if (screens === null || prepared.innerHTML === "") return
+
+  keepScreenSnapshot(screens, route, { place: place.name, html: prepared.innerHTML })
 }
 
 const seedRememberedScreen = (target: Document, container: Element, place: Place): void => {
