@@ -62,6 +62,57 @@ const HIDDEN = "data-gitquiet-hidden"
  */
 const BELONGS_TO = "data-gitquiet-for"
 
+/** The exact address whose finished DOM this container holds. */
+const ROUTE = "data-gitquiet-route"
+
+type Snapshot = {
+  readonly place: string
+  readonly html: string
+}
+
+type World = Window & { gitquietScreens?: Map<string, Snapshot> }
+
+/** Enough for a short Back trail without retaining a whole browsing session. */
+const HOW_MANY_SCREENS = 8
+
+const screenSnapshots = (target: Document): Map<string, Snapshot> | null => {
+  const view = target.defaultView as World | null
+  if (view === null) return null
+  view.gitquietScreens ??= new Map<string, Snapshot>()
+  return view.gitquietScreens
+}
+
+const routeNow = (target: Document): string | null => {
+  const view = target.defaultView
+  return view === null ? null : `${view.location.pathname}${view.location.search}`
+}
+
+const rememberScreen = (element: Element): void => {
+  const route = element.getAttribute(ROUTE)
+  const place = element.getAttribute(BELONGS_TO)
+  const screens = screenSnapshots(element.ownerDocument)
+  if (route === null || place === null || screens === null || element.innerHTML === "") return
+
+  screens.delete(route)
+  screens.set(route, { place, html: element.innerHTML })
+
+  const oldest = screens.keys().next()
+  if (screens.size > HOW_MANY_SCREENS && !oldest.done) screens.delete(oldest.value)
+}
+
+const seedRememberedScreen = (target: Document, container: Element, place: Place): void => {
+  const route = routeNow(target)
+  const screens = screenSnapshots(target)
+  if (route === null || screens === null) return
+
+  const snapshot = screens.get(route)
+  if (snapshot === undefined || snapshot.place !== place.name) return
+
+  screens.delete(route)
+  screens.set(route, snapshot)
+  container.innerHTML = snapshot.html
+}
+
 /**
  * Marks the container of an interface on its way out: still on the screen, no
  * longer being looked after.
@@ -93,6 +144,7 @@ export const GOING = "gitquiet:going"
 
 const takeOffThePage = (element: Element): void => {
   const page = element.ownerDocument
+  rememberScreen(element)
   element.dispatchEvent(new CustomEvent(GOING))
   element.remove()
   if (element === ours) ours = null
@@ -512,6 +564,7 @@ export const interfaceContainer = (
   const made = target.createElement("div")
   made.id = ROOT_ID
   made.setAttribute(BELONGS_TO, place.name)
+  seedRememberedScreen(target, made, place)
   ours = made
   theScreenMoved(target)
   return made
@@ -761,6 +814,8 @@ export const takeOverSlot = (
       takeOffThePage(stray)
     }
     into.append(container)
+    const route = routeNow(target)
+    if (route !== null) container.setAttribute(ROUTE, route)
     hideTheirs(into, container)
     hideTheirBands(target, place)
     // Set before revealing, so that the rule keeping their conversation out of

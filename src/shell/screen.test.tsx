@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 import { held, standAScreen } from "./screen"
 import { BAR_ID } from "../ui/barSlot"
+import { interfaceContainer } from "../ui/mount"
 import type { Place } from "../ui/place"
 import { TheBar } from "../ui/TheBar"
 
@@ -106,6 +107,20 @@ describe("standing a screen on the page", () => {
 
     expect(document.getElementById("gitquiet-root")).toBeNull()
     expect(document.documentElement.hasAttribute("data-gitquiet-taken")).toBe(false)
+  })
+
+  test("keeps the exact last DOM ready while React refreshes a returned screen", async () => {
+    history.replaceState(null, "", "/mine")
+    theirPage()
+
+    const first = standAScreen({ place: MINE, draw: () => <p>remembered screen</p> })
+    await drawn("#region", "remembered screen")
+    first.close()
+    await until(() => document.getElementById("gitquiet-root") === null)
+
+    const returned = interfaceContainer(document, MINE)
+
+    expect(returned.textContent).toContain("remembered screen")
   })
 
   test("lets go of whatever the screen was holding", async () => {
