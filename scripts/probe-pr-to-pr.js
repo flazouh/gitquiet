@@ -353,8 +353,41 @@ if (serving.length !== 1 || serving[0] !== mine) {
   throw new Error("the wrong copy is answering")
 }
 
+/**
+ * Waits until the page has left the main thread alone for `quiet` seconds, or
+ * gives up after `cap` and says so.
+ */
+const quietFor = async (quiet, cap) => {
+  await js(String.raw`(() => {
+    if (window.__quiet !== undefined) return "watching"
+    window.__quiet = { last: performance.now() }
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        if (entry.duration >= 50) window.__quiet.last = entry.startTime + entry.duration
+      }
+    }).observe({ entryTypes: ["longtask"] })
+    return "watching"
+  })()`)
+
+  for (let waited = 0; waited < cap; waited += 0.25) {
+    await wait(0.25)
+    const since = Number(await js(String.raw`String(performance.now() - window.__quiet.last)`))
+    if (since >= quiet * 1000) return
+  }
+  cliLog(`the page never went quiet for ${quiet}s, pressing anyway`)
+}
+
 await hover([spot.x, spot.y])
-await wait(2)
+
+/*
+ * Until the page this is pressing *from* has finished with the main thread.
+ *
+ * Its own diagram waits for a quiet moment and is drawn at the deadline if the
+ * moment never comes, so a press two seconds after the page loaded lands on top
+ * of it and times that instead of the navigation. Twice in a row: a press at
+ * 1,100ms with three long tasks of about a second across it.
+ */
+await quietFor(1.5, 12)
 await js(RECORDER)
 
 await click([spot.x, spot.y])
