@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { whenIdle } from "../app/idle";
 import { diffLibrary, type DiffFetcher } from "../domain/library";
 import { railOrder } from "../domain/railOrder";
 import { readingOrder } from "../domain/readingOrder";
@@ -108,30 +109,11 @@ export type FileBrowserProps = {
 const WARM_LIMIT = 120;
 
 /**
- * Drawing a file the reader has not asked for yet, once they have stopped
- * asking for things.
- *
- * Opening a file costs a parse, a highlight and a few thousand elements — a
- * third of a second on a pull request of any size, and every millisecond of it
- * inside the keypress that asked for the file, where it is felt as the page
- * going away for a moment. The work does not get smaller by being moved, it
- * gets invisible: done while the reader is reading, `j` has nothing left to do
- * but show what is already there.
- *
- * Idle time rather than a timer, so it never competes with the reader; the
- * deadline is there because a page that is never idle would otherwise never
- * read ahead at all.
+ * How long the files beside this one may wait for a quiet moment, in
+ * milliseconds. Shorter than the usual deadline because `j` is one keypress
+ * away, and a reader who presses it before this ran waits for the whole draw.
  */
-const whenIdle = (act: () => void): (() => void) => {
-  const later = globalThis.requestIdleCallback;
-  if (later === undefined) {
-    const soon = setTimeout(act, 200);
-    return () => clearTimeout(soon);
-  }
-
-  const asked = later(() => act(), { timeout: 1_000 });
-  return () => globalThis.cancelIdleCallback?.(asked);
-};
+const REACHING = 1_000;
 
 /** The files worth holding drawn: the one being read, and the two a key reaches. */
 const withinReach = (
@@ -439,10 +421,22 @@ export const FileBrowser = ({
     setOpened((held) => (held.has(here) ? held : new Set([...held, here])));
   }, [here]);
 
+  /*
+   * Drawing a file the reader has not asked for yet, once they have stopped
+   * asking for things.
+   *
+   * Opening a file costs a parse, a highlight and a few thousand elements — a
+   * third of a second on a pull request of any size, and every millisecond of it
+   * inside the keypress that asked for the file, where it is felt as the page
+   * going away for a moment. The work does not get smaller by being moved, it
+   * gets invisible: done while the reader is reading, `j` has nothing left to do
+   * but show what is already there.
+   */
   useEffect(() => {
     if (here === undefined) return;
-    return whenIdle(() =>
-      setDrawn(withinReach([previous?.path, here, next?.path])),
+    return whenIdle(
+      () => setDrawn(withinReach([previous?.path, here, next?.path])),
+      REACHING,
     );
   }, [here, previous?.path, next?.path]);
 
