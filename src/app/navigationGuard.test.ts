@@ -9,7 +9,9 @@ import {
   whenOwnedRouteIsOffered
 } from "./navigationGuard"
 import {
+  markPreparedTraversal,
   PREPARED_TRAVERSAL_ROUTE,
+  preparedTraversal,
   whenPreparedTraversalIsOffered
 } from "../ui/preparedNavigation"
 
@@ -48,10 +50,7 @@ describe("the page-world guard for an owned route", () => {
   })
 
   test("keeps GitHub out of a prepared history traversal", async () => {
-    document.documentElement.setAttribute(
-      PREPARED_TRAVERSAL_ROUTE,
-      "/owner/repo/pull/12?tab=files"
-    )
+    markPreparedTraversal(document, "/owner/repo/pull/12?tab=files")
     let stopped = false
     let offered: string | null = null
     const stop = whenPreparedTraversalIsOffered(document, (route) => {
@@ -73,6 +72,7 @@ describe("the page-world guard for an owned route", () => {
     expect(offered as unknown).toBe("/owner/repo/pull/12?tab=files")
     expect(stopped).toBe(true)
     expect(document.documentElement.hasAttribute(PREPARED_TRAVERSAL_ROUTE)).toBe(false)
+    expect(preparedTraversal(document)).toBeNull()
     stop()
   })
 

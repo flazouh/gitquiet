@@ -2,7 +2,11 @@ import { Effect, type Fiber } from "effect"
 import { runWhenIdle } from "./idle"
 import { type Stop, whenAddressChanges } from "./navigation"
 import { CONVERSATION, type Place } from "./place"
-import { PREPARED_TRAVERSAL_ROUTE } from "./preparedNavigation"
+import {
+  clearPreparedTraversal,
+  markPreparedTraversal,
+  preparedTraversal
+} from "./preparedNavigation"
 import { finishNavigation } from "./navigationTiming"
 
 export const ROOT_ID = "gitquiet-root"
@@ -180,7 +184,7 @@ export const prepareCachedTraversal = (
 ): boolean => {
   if (!hasPreparedScreen(target, route, place)) return false
 
-  target.documentElement.setAttribute(PREPARED_TRAVERSAL_ROUTE, route)
+  markPreparedTraversal(target, route)
   return true
 }
 
@@ -198,8 +202,7 @@ const claimPreparedScreen = (
   if (snapshot?.place !== place.name || snapshot.prepared === undefined) return null
 
   screens.delete(route)
-  if (target.documentElement.getAttribute(PREPARED_TRAVERSAL_ROUTE) === route)
-    target.documentElement.removeAttribute(PREPARED_TRAVERSAL_ROUTE)
+  if (preparedTraversal(target) === route) clearPreparedTraversal(target)
   const claimed = snapshot.prepared.element
   claimed.id = ROOT_ID
   claimed.setAttribute(BELONGS_TO, place.name)

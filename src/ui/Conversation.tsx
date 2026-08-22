@@ -1,5 +1,6 @@
 import type { Effect } from "effect"
 import { Option } from "effect"
+import { useState } from "react"
 import type { Participant, Remark, ReviewThread } from "../domain/PullRequest"
 import type { Uploaded } from "../domain/attaching"
 import type { Suggesting } from "../domain/suggesting"
@@ -48,6 +49,7 @@ const Thread = ({
   const Tick = art.tick
   const ChevronRight = art["chevron-right"]
   const [first] = thread.comments
+  const [opened, setOpened] = useState(false)
   /*
    * The same state the foot of the thread presses against, so the mark on this line moves with
    * the button under it. Held one level up from `ThreadComments` because this line is where the
@@ -56,7 +58,12 @@ const Thread = ({
   const { resolved, answering: watched } = useSettling(thread, answering)
 
   return (
-    <details className="group border-b border-line-muted last:border-b-0">
+    <details
+      className="group border-b border-line-muted last:border-b-0"
+      onToggle={(event) => {
+        if (event.currentTarget.open) setOpened(true)
+      }}
+    >
       <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 hover:bg-hover [&::-webkit-details-marker]:hidden">
         {/* The mark carries the state, not the dimming beside it: a settled
             thread that is only paler is a thread that says nothing at all to
@@ -86,9 +93,11 @@ const Thread = ({
           </span>
         </span>
       </summary>
-      <div className="border-t border-line-muted">
-        <ThreadComments thread={{ ...thread, isResolved: resolved }} answering={watched} />
-      </div>
+      {opened ? (
+        <div className="border-t border-line-muted">
+          <ThreadComments thread={{ ...thread, isResolved: resolved }} answering={watched} />
+        </div>
+      ) : null}
     </details>
   )
 }
@@ -103,12 +112,18 @@ const Thread = ({
 const RemarkRow = ({ remark }: { readonly remark: Remark }) => {
   const art = useArt()
   const ChevronRight = art["chevron-right"]
+  const [opened, setOpened] = useState(false)
   const comments = [
     { author: remark.author, body: remark.body, html: remark.html, createdAt: remark.createdAt }
   ]
 
   return (
-    <details className="group border-b border-line-muted last:border-b-0">
+    <details
+      className="group border-b border-line-muted last:border-b-0"
+      onToggle={(event) => {
+        if (event.currentTarget.open) setOpened(true)
+      }}
+    >
       <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 hover:bg-hover [&::-webkit-details-marker]:hidden">
         <ChevronRight
           size={12}
@@ -121,9 +136,11 @@ const RemarkRow = ({ remark }: { readonly remark: Remark }) => {
           </span>
         </span>
       </summary>
-      <div className="border-t border-line-muted">
-        <Comments id={remark.id} comments={comments} />
-      </div>
+      {opened ? (
+        <div className="border-t border-line-muted">
+          <Comments id={remark.id} comments={comments} />
+        </div>
+      ) : null}
     </details>
   )
 }

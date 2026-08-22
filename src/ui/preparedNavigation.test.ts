@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test"
 import {
+  clearPreparedTraversal,
+  markPreparedTraversal,
   offerPreparedTraversal,
   preparedArrival,
+  preparedTraversal,
+  PREPARED_TRAVERSAL_ROUTE,
   whenPreparedTraversalIsOffered
 } from "./preparedNavigation"
 
@@ -26,6 +30,18 @@ describe("a prepared history arrival", () => {
 })
 
 describe("a prepared traversal crossing browser worlds", () => {
+  test("keeps the armed route off the page root", () => {
+    const page = document.implementation.createHTMLDocument("GitHub")
+
+    markPreparedTraversal(page, "/owner/repo/issues/12")
+
+    expect(page.documentElement.hasAttribute(PREPARED_TRAVERSAL_ROUTE)).toBe(false)
+    expect(preparedTraversal(page)).toBe("/owner/repo/issues/12")
+
+    clearPreparedTraversal(page)
+    expect(preparedTraversal(page)).toBeNull()
+  })
+
   test("offers the exact route through the shared document", async () => {
     const page = document.implementation.createHTMLDocument("GitHub")
     const seen: Array<string> = []

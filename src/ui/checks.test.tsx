@@ -286,12 +286,12 @@ describe("a check that has not finished", () => {
   test("turns, the way every other spinner on this page turns", () => {
     render(<Checks checks={[check("ci / build", "running")]} />)
 
-    const turning = screen.queryByLabelText("Running")
+    const turning = screen.queryByLabelText("Checks still running")
     // By our own class, which is where the promise to hold still for a reader who
     // asked the operating system for less motion is kept.
     expect(turning?.classList.contains("t-rotate")).toBe(true)
     // GitHub's attention colour, which is the one their own running check wears.
-    expect(turning?.classList.contains("text-busy")).toBe(true)
+    expect(turning?.parentElement?.classList.contains("text-busy")).toBe(true)
     // Named as well as drawn: the turning is the only thing on the row saying this
     // check has not finished, and a reader not looking at it gets nothing from a
     // decoration. The shape itself is the icon set's business and is not counted

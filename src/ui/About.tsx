@@ -30,6 +30,7 @@ import { Merge } from "./Merge"
  */
 export const About = ({
   snapshot,
+  prepareThrough = 12,
   actions,
   onOpenCommit,
   onWarmCommit,
@@ -50,6 +51,8 @@ export const About = ({
   remarks
 }: {
   readonly snapshot: PullRequestSnapshot
+  /** How many panels a detached route has built so far. */
+  readonly prepareThrough?: number
   readonly actions?: MergeActions
   readonly onOpenCommit?: (sha: string) => void
   readonly onWarmCommit?: (sha: string) => void
@@ -89,43 +92,51 @@ export const About = ({
   <div className="t-panels flex w-[26rem] shrink-0 flex-col gap-1.5">
     {/* The same way in the failing logs use, which is the same act: a row names
         a line of code and pressing it puts that line in the pane to the right. */}
-    <ControlCenter
-      snapshot={snapshot}
-      onOpen={reach?.onOpenFile}
-      onOpenCommit={onOpenCommit}
-      onSettle={onSettle}
-    />
-    <Description
-      markdown={snapshot.description.markdown}
-      owner={snapshot.reference.owner}
-      repo={snapshot.reference.repo}
-    />
-    <Checks
-      checks={snapshot.checks}
-      library={notes}
-      logs={logs}
-      tails={tails}
-      steps={steps}
-      reach={reach}
-    />
-    <Conversation
-      threads={snapshot.threads}
-      remarks={remarks ?? snapshot.remarks}
-      viewer={viewer}
-      keep={`pull:${snapshot.reference.owner}/${snapshot.reference.repo}#${snapshot.reference.number}`}
-      suggest={suggest}
-      onUpload={onUpload}
-      onReply={onReply}
-      onSettle={onSettle}
-      onUnsettle={onUnsettle}
-      onSay={onSay}
-    />
+    {prepareThrough >= 1 ? (
+      <ControlCenter
+        snapshot={snapshot}
+        onOpen={reach?.onOpenFile}
+        onOpenCommit={onOpenCommit}
+        onSettle={onSettle}
+      />
+    ) : null}
+    {prepareThrough >= 2 ? (
+      <Description
+        markdown={snapshot.description.markdown}
+        owner={snapshot.reference.owner}
+        repo={snapshot.reference.repo}
+      />
+    ) : null}
+    {prepareThrough >= 3 ? (
+      <Checks
+        checks={snapshot.checks}
+        library={notes}
+        logs={logs}
+        tails={tails}
+        steps={steps}
+        reach={reach}
+      />
+    ) : null}
+    {prepareThrough >= 4 ? (
+      <Conversation
+        threads={snapshot.threads}
+        remarks={remarks ?? snapshot.remarks}
+        viewer={viewer}
+        keep={`pull:${snapshot.reference.owner}/${snapshot.reference.repo}#${snapshot.reference.number}`}
+        suggest={suggest}
+        onUpload={onUpload}
+        onReply={onReply}
+        onSettle={onSettle}
+        onUnsettle={onUnsettle}
+        onSay={onSay}
+      />
+    ) : null}
     {/*
      * Under the conversation, because that is where the reading ends: a reader who has been
      * through the threads and the remarks has formed the thought this panel is for. Their own
      * page keeps it at the top of another tab, behind a dialog.
      */}
-    {onReview === undefined || viewer === undefined ? null : (
+    {prepareThrough < 5 || onReview === undefined || viewer === undefined ? null : (
       <Verdict
         reviews={snapshot.reviews}
         viewer={viewer}
@@ -135,26 +146,32 @@ export const About = ({
         suggest={suggest}
         onUpload={onUpload}
         onReview={onReview}
+        prepareThrough={prepareThrough - 5}
       />
     )}
-    <Commits
-      commits={snapshot.commits}
-      repository={snapshot.reference}
-      onOpen={onOpenCommit}
-      onWarm={onWarmCommit}
-      opened={openedCommit}
-    />
+    {prepareThrough >= 7 ? (
+      <Commits
+        commits={snapshot.commits}
+        repository={snapshot.reference}
+        onOpen={onOpenCommit}
+        onWarm={onWarmCommit}
+        opened={openedCommit}
+      />
+    ) : null}
     {/* Both absences go in as they are. Which face the card wears, and in what order
         the three are decided, is `faceOf`'s answer and not this file's. */}
-    <Merge
-      merge={snapshot.merge}
-      files={snapshot.files}
-      reviews={snapshot.reviews}
-      running={stillRunning(snapshot.checks)}
-      url={toUrl(snapshot.reference)}
-      state={snapshot.state}
-      headRef={snapshot.headRef}
-      actions={actions}
-    />
+    {prepareThrough >= 8 ? (
+      <Merge
+        merge={snapshot.merge}
+        files={snapshot.files}
+        reviews={snapshot.reviews}
+        running={stillRunning(snapshot.checks)}
+        url={toUrl(snapshot.reference)}
+        state={snapshot.state}
+        headRef={snapshot.headRef}
+        actions={actions}
+        prepareThrough={Math.min(prepareThrough - 8, 4)}
+      />
+    ) : null}
   </div>
 )

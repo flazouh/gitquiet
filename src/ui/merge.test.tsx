@@ -126,6 +126,21 @@ describe("the word on the button that lands the change", () => {
 })
 
 describe("the merge card", () => {
+  test("builds its hidden route over separate preparation stages", () => {
+    const view = render(
+      <Merge state="open" merge={Option.some(ready)} prepareThrough={0} />
+    )
+
+    expect(screen.getByRole("region", { name: "Merge" })).toBeDefined()
+    expect(screen.queryByRole("button", { name: /Squash and merge/ })).toBeNull()
+
+    view.rerender(
+      <Merge state="open" merge={Option.some(ready)} prepareThrough={4} />
+    )
+
+    expect(button(/Squash and merge/)).toBeDefined()
+  })
+
   test("asks a second time before it merges anything", async () => {
     let merges = 0
     render(<Merge state="open" merge={Option.some(ready)} actions={{ merge: () => Effect.sync(() => void (merges += 1)) }} />)

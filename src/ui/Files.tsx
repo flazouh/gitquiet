@@ -5,8 +5,9 @@ import "./customElements"
 import { FileTree, useFileTree } from "@pierre/trees/react"
 import type { GitStatus } from "@pierre/trees"
 import { Effect, Option } from "effect"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
+import { whenIdle } from "../app/idle"
 import type { DiffEngine, DiffHandle, DiffSide, Note as NoteAt, Picked } from "../ports/Renderer"
 import type { Uploaded } from "../domain/attaching"
 import type { Suggesting } from "../domain/suggesting"
@@ -183,8 +184,9 @@ export const FileTreePane = ({
 
   // Through a ref for the same reason the selection callback is: the tree reads
   // its options once, when it is built, and never again.
-  const marks = useRef(rowMarks(files, seen))
-  marks.current = rowMarks(files, seen)
+  const currentMarks = useMemo(() => rowMarks(files, seen), [files, seen])
+  const marks = useRef(currentMarks)
+  marks.current = currentMarks
   const marking = useRef({ counts: choices.counts, ticks: choices.ticks })
   marking.current = { counts: choices.counts, ticks: choices.ticks }
 
@@ -261,12 +263,16 @@ export const FileTreePane = ({
     const row = model.getItem(wanted)
     if (row === null || row.isSelected()) return
 
-    for (const held of model.getSelectedPaths()) {
-      if (held !== wanted) model.getItem(held)?.deselect()
-    }
-    row.select()
-    // Selecting a row far down a long tree is only useful if it can be seen.
-    model.scrollToPath(wanted)
+    return whenIdle(() => {
+      const latest = model.getItem(wanted)
+      if (latest === null || latest.isSelected()) return
+      for (const held of model.getSelectedPaths()) {
+        if (held !== wanted) model.getItem(held)?.deselect()
+      }
+      latest.select()
+      // Selecting a row far down a long tree is only useful if it can be seen.
+      model.scrollToPath(wanted)
+    }, 250)
   }, [model, wanted])
 
   if (files.length === 0) {
@@ -337,7 +343,7 @@ const PATIENCE = 150
 /** The row for lines being written about now, which is not a draft yet. */
 const WRITING = "writing"
 
-export const FileDiffPane = ({
+const FileDiffPaneView = ({
   file,
   ask,
   reading = false,
@@ -636,3 +642,6 @@ export const FileDiffPane = ({
     </div>
   )
 }
+
+/** Keeps a prepared drawing intact when only the visible file changes. */
+export const FileDiffPane = memo(FileDiffPaneView)

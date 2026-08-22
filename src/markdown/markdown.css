@@ -26,6 +26,31 @@
   overflow-wrap: break-word;
 }
 
+/* Keep a long document ready in the DOM without laying out blocks below the scroll port. */
+.markdown > :is(
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  blockquote,
+  aside,
+  ul,
+  ol,
+  dl,
+  pre,
+  details,
+  hr,
+  .markdown-table,
+  .markdown-footnotes,
+  .markdown-mermaid
+) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 32px;
+}
+
 .markdown > :first-child {
   margin-top: 0;
 }

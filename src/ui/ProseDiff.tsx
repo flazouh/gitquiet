@@ -33,6 +33,7 @@ export const ProseDiff = ({ diff }: { readonly diff: FileDiff }) => {
           // with the same words — so position is the honest key.
           key={`${run.kind}-${at}`}
           data-change={run.kind}
+          style={{ contentVisibility: "auto", containIntrinsicSize: "auto 48px" }}
           className={`px-2 ${TONE[run.kind]}`}
         >
           <Markdown markdown={run.text} />

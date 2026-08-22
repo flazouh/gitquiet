@@ -295,6 +295,11 @@ describe("what the pull request is, in four sections", () => {
     const folded = section("Checks").querySelector("details")
 
     expect(folded?.open).toBe(false)
+    expect(folded?.textContent).not.toContain("lint")
+
+    await userEvent.click(within(section("Checks")).getByText("1 passed"))
+
+    expect(folded?.open).toBe(true)
     expect(folded?.textContent).toContain("lint")
   })
 

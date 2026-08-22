@@ -1,6 +1,6 @@
 import * as Menu from "@radix-ui/react-dropdown-menu"
 import * as Bubble from "@radix-ui/react-tooltip"
-import { useId, useState, type ReactNode } from "react"
+import { memo, useId, useState, type ReactNode } from "react"
 import { useArt } from "./art"
 import { DIFF_KNOBS, THEME_KNOBS, TREE_KNOBS, type Knob, type Settings } from "../domain/Settings"
 import { ROOT_ID } from "./mount"
@@ -27,6 +27,8 @@ const inOurs = (): HTMLElement | null =>
 export type SettingsMenuProps = {
   readonly settings: Settings
   readonly onChange: (settings: Settings) => void
+  /** How many menu sections a detached route has built. */
+  readonly prepareThrough?: number
   /**
    * What this button is called, where it stands beside another way into the same
    * knobs.
@@ -220,10 +222,11 @@ const Section = ({
  * The same three sections the sheet in the bar opens on, in the same order, so
  * whichever one a reader learned first tells them where to look in the other.
  */
-export const SettingsMenu = ({
+const SettingsMenuView = ({
   settings,
   onChange,
-  label = "Display settings"
+  label = "Display settings",
+  prepareThrough = 4
 }: SettingsMenuProps) => {
   const art = useArt()
   const More = art.more
@@ -260,54 +263,67 @@ export const SettingsMenu = ({
             {/* First, and whole: three knobs, none of them advanced, and the
                 one section here that is about the product rather than about
                 this screen. */}
-            <Section name="Appearance">
-              <Group knobs={THEME_KNOBS} chosen={settings.theme} onPick={pickTheme} />
-            </Section>
-            <Section name="Diff">
-              <Group
-                knobs={DIFF_KNOBS.filter((knob) => !knob.advanced)}
-                chosen={settings.diff}
-                onPick={pickDiff}
-              />
-            </Section>
-            <Section name="Files">
-              <Group
-                knobs={TREE_KNOBS.filter((knob) => !knob.advanced)}
-                chosen={settings.tree}
-                onPick={pickTree}
-              />
-            </Section>
-            <Menu.Separator className="my-1 h-px bg-line" />
-            <Menu.Sub>
-              <Menu.SubTrigger className={ITEM}>
-                <span className="flex-1">Advanced</span>
-                <span className="text-ink-muted">›</span>
-              </Menu.SubTrigger>
-              <Menu.Portal container={inOurs()}>
-                <Menu.SubContent
-                  sideOffset={4}
-                  className="t-dropdown z-50 min-w-56 rounded-md border border-line bg-raised p-1 text-xs shadow-pop"
-                >
-                  <Section name="Diff">
-                    <Group
-                      knobs={DIFF_KNOBS.filter((knob) => knob.advanced)}
-                      chosen={settings.diff}
-                      onPick={pickDiff}
-                    />
-                  </Section>
-                  <Section name="Files">
-                    <Group
-                      knobs={TREE_KNOBS.filter((knob) => knob.advanced)}
-                      chosen={settings.tree}
-                      onPick={pickTree}
-                    />
-                  </Section>
-                </Menu.SubContent>
-              </Menu.Portal>
-            </Menu.Sub>
+            {prepareThrough >= 1 ? (
+              <Section name="Appearance">
+                <Group knobs={THEME_KNOBS} chosen={settings.theme} onPick={pickTheme} />
+              </Section>
+            ) : null}
+            {prepareThrough >= 2 ? (
+              <Section name="Diff">
+                <Group
+                  knobs={DIFF_KNOBS.filter((knob) => !knob.advanced)}
+                  chosen={settings.diff}
+                  onPick={pickDiff}
+                />
+              </Section>
+            ) : null}
+            {prepareThrough >= 3 ? (
+              <Section name="Files">
+                <Group
+                  knobs={TREE_KNOBS.filter((knob) => !knob.advanced)}
+                  chosen={settings.tree}
+                  onPick={pickTree}
+                />
+              </Section>
+            ) : null}
+            {prepareThrough >= 4 ? (
+              <>
+                <Menu.Separator className="my-1 h-px bg-line" />
+                <Menu.Sub>
+                  <Menu.SubTrigger className={ITEM}>
+                    <span className="flex-1">Advanced</span>
+                    <span className="text-ink-muted">›</span>
+                  </Menu.SubTrigger>
+                  <Menu.Portal container={inOurs()}>
+                    <Menu.SubContent
+                      sideOffset={4}
+                      className="t-dropdown z-50 min-w-56 rounded-md border border-line bg-raised p-1 text-xs shadow-pop"
+                    >
+                      <Section name="Diff">
+                        <Group
+                          knobs={DIFF_KNOBS.filter((knob) => knob.advanced)}
+                          chosen={settings.diff}
+                          onPick={pickDiff}
+                        />
+                      </Section>
+                      <Section name="Files">
+                        <Group
+                          knobs={TREE_KNOBS.filter((knob) => knob.advanced)}
+                          chosen={settings.tree}
+                          onPick={pickTree}
+                        />
+                      </Section>
+                    </Menu.SubContent>
+                  </Menu.Portal>
+                </Menu.Sub>
+              </>
+            ) : null}
           </Menu.Content>
         </Menu.Portal>
       </Menu.Root>
     </Bubble.Provider>
   )
 }
+
+/** Keeps the mounted menu out of unrelated file and route updates. */
+export const SettingsMenu = memo(SettingsMenuView)

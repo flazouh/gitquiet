@@ -23,7 +23,7 @@ import {
   ungate
 } from "@/ui/mount"
 import { ISSUE } from "@/ui/place"
-import { preparedArrival, PREPARED_TRAVERSAL_ROUTE } from "@/ui/preparedNavigation"
+import { markPreparedTraversal, preparedArrival } from "@/ui/preparedNavigation"
 import { whenLocationChanges } from "@/ui/navigation"
 import { offerOurPage } from "@/ui/theirTabs"
 import "@/ui/styles.css"
@@ -178,7 +178,7 @@ export const prepare = (path: string): void => {
     if (preparing?.path !== path) return
 
     rememberPreparedScreen(document, path, ISSUE, container, stop)
-    document.documentElement.setAttribute(PREPARED_TRAVERSAL_ROUTE, path)
+    markPreparedTraversal(document, path)
     preparing = null
   }
 

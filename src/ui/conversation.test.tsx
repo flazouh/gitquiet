@@ -17,6 +17,16 @@ const twoSpeakers = aThread("t1", [
 ])
 
 describe("the conversation section", () => {
+  test("does not build folded comments until the thread opens", async () => {
+    render(<Conversation threads={[twoSpeakers]} remarks={NO_REMARKS} />)
+
+    expect(screen.queryByText("renamed")).toBeNull()
+
+    await userEvent.click(screen.getByText("this name reads oddly"))
+
+    expect(screen.getByText("renamed")).toBeDefined()
+  })
+
   test("says who spoke with a face, not with a login", async () => {
     render(<Conversation threads={[twoSpeakers]} remarks={NO_REMARKS} />)
 
@@ -39,8 +49,12 @@ describe("the conversation section", () => {
     expect(folded.querySelectorAll('[role="img"]')).toHaveLength(2)
   })
 
-  test("still marks a bot as one, since its face is a logo like any other", () => {
+  test("still marks a bot as one, since its face is a logo like any other", async () => {
     render(<Conversation threads={[aThread("t2", [aComment(bot("copilot"), "nit")])]} remarks={NO_REMARKS} />)
+
+    expect(screen.getAllByLabelText("copilot")).toHaveLength(1)
+
+    await userEvent.click(screen.getByText("nit"))
 
     expect(screen.getAllByLabelText("copilot")).toHaveLength(2)
     expect(screen.getByText("bot")).toBeDefined()
@@ -128,12 +142,15 @@ describe("the conversation section", () => {
  * had been said. A remark belongs in the same list — it is the same discussion.
  */
 describe("remarks about the pull request rather than about a line", () => {
-  test("shows one even when no line has been commented on at all", () => {
+  test("shows one even when no line has been commented on at all", async () => {
     render(<Conversation threads={[]} remarks={[aRemark("r1", bot("railway-app[bot]"), "Deployed to staging")]} />)
 
-    // Twice: once as the gist on the folded line, once as the remark itself.
-    expect(screen.getAllByText("Deployed to staging")).toHaveLength(2)
+    expect(screen.getAllByText("Deployed to staging")).toHaveLength(1)
     expect(screen.queryByText("nothing said yet")).toBeNull()
+
+    await userEvent.click(screen.getByText("Deployed to staging"))
+
+    expect(screen.getAllByText("Deployed to staging")).toHaveLength(2)
   })
 
   test("counts it in the summary, since it cannot be resolved or left open", () => {
@@ -181,8 +198,10 @@ describe("remarks about the pull request rather than about a line", () => {
     expect(screen.getByText("nothing said yet")).toBeDefined()
   })
 
-  test("marks an app as one, as it does in a thread", () => {
+  test("marks an app as one, as it does in a thread", async () => {
     render(<Conversation threads={[]} remarks={[aRemark("r1", bot("copilot"), "nit")]} />)
+
+    await userEvent.click(screen.getByText("nit"))
 
     expect(screen.getByText("bot")).toBeDefined()
   })

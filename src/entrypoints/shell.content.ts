@@ -1,6 +1,13 @@
 import { Effect, Option } from "effect";
 import { defineContentScript } from "wxt/utils/define-content-script";
-import { screenFor, type Screen, startScreenOnce, type Wanted } from "@/app/screens";
+import {
+  preloadScreen,
+  screenFor,
+  type Screen,
+  startScreenOnce,
+  type Wanted,
+} from "@/app/screens";
+import { whenIdle } from "@/app/idle";
 import { claimShell } from "@/app/shellClaim";
 import { intendTo, intendedPath, prepareTo, whenPreparing } from "@/app/intent";
 import {
@@ -99,6 +106,17 @@ import "@/ui/gates.bar.css";
  * quarter of an hour later.
  */
 const AT_MOST = 12;
+
+const LIKELY_NEXT: Partial<Record<Wanted, ReadonlyArray<Wanted>>> = {
+  "working-set": ["pull-request", "issue"],
+  "repo-pulls": ["pull-request"],
+  issues: ["issue"],
+  "repo-issues": ["issue"],
+  notifications: ["pull-request", "issue"],
+  actions: ["run"],
+  commits: ["commit"],
+  profile: ["person-repos"],
+};
 
 /**
  * How long the conversation is held back before giving up on the interface.
@@ -940,6 +958,9 @@ export default defineContentScript({
     if (loadedOn !== null) {
       markPage(document, placeFor(loadedOn, window.location.pathname));
       fetchIt(loadedOn);
+      for (const next of LIKELY_NEXT[loadedOn] ?? []) {
+        whenIdle(() => preloadScreen(next));
+      }
     }
   },
 });

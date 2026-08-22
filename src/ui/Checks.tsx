@@ -108,6 +108,7 @@ export const Checks = ({
   const art = useArt()
   const ChevronRight = art["chevron-right"]
   const [opened, setOpened] = useState<Check | undefined>(undefined)
+  const [restOpen, setRestOpen] = useState(false)
 
   // Read on the way past. A red check is nearly always clicked once the eye
   // reaches it, and the reading takes about as long as that decision does.
@@ -160,7 +161,10 @@ export const Checks = ({
         <CheckRow key={check.name} check={check} onOpen={() => setOpened(check)} />
       ))}
       {rest.length === 0 ? null : (
-        <details className="group border-t border-line-muted first:border-t-0">
+        <details
+          className="group border-t border-line-muted first:border-t-0"
+          onToggle={(event) => setRestOpen(event.currentTarget.open)}
+        >
           <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-1.5 text-xs text-ink-muted hover:bg-hover [&::-webkit-details-marker]:hidden">
             <ChevronRight
               size={12}
@@ -170,7 +174,7 @@ export const Checks = ({
               ? `${passed} passed`
               : `${passed} passed, ${rest.length - passed} other`}
           </summary>
-          {rest.map((check) => (
+          {(restOpen ? rest : []).map((check) => (
             <CheckRow key={check.name} check={check} onOpen={() => setOpened(check)} />
           ))}
         </details>

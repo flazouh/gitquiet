@@ -121,6 +121,14 @@ const result = await build({
         entryFileNames: "[name].js",
         chunkFileNames: watch ? "[name].js" : "[name]-[hash].js",
         assetFileNames: "[name][extname]",
+        manualChunks: (id) => {
+          if (!id.includes("node_modules")) return undefined
+          if (/node_modules\/(effect|@effect)\//.test(id)) return "vendor-effect"
+          if (id.includes("node_modules/marked/")) return "vendor-marked"
+          if (id.includes("node_modules/gemoji/")) return "vendor-gemoji"
+          if (id.includes("node_modules/@sentry/")) return "vendor-sentry"
+          return undefined
+        },
         /*
          * What WXT's own build does for a content script, done here by hand: the
          * extension APIs are reached through a bare `browser`, which is a global in

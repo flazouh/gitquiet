@@ -143,6 +143,7 @@ describe("a check as the steps it ran as", () => {
       step(3, "Setup repo", "succeeded", 4),
       step(4, "Run tests", "running", undefined)
     ])
+    await userEvent.click(screen.getByText("0 passed, 1 other"))
     await userEvent.click(screen.getByText("ci / test"))
 
     await waitFor(() => {

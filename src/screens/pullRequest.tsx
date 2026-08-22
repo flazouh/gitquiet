@@ -31,7 +31,7 @@ import { layerSizes } from "@/app/sizes"
 import { uploadFile } from "@/app/attaching"
 import { loadSuggesting } from "@/app/suggesting"
 import { forgetIntent, intendedPath, prepareTo } from "@/app/intent"
-import { PREPARED_TRAVERSAL_ROUTE } from "@/ui/preparedNavigation"
+import { markPreparedTraversal } from "@/ui/preparedNavigation"
 import { answerPressesIn, holdForRedraw, ourOwnRowsDrawn } from "@/ui/going"
 import { pullRequestNamed } from "@/ui/lastDrawn"
 import { isDashboard } from "@/domain/pages"
@@ -400,7 +400,7 @@ export const prepare = (path: string): void => {
     if (preparing?.path !== path) return
 
     rememberPreparedScreen(document, path, CONVERSATION, container, stop)
-    document.documentElement.setAttribute(PREPARED_TRAVERSAL_ROUTE, path)
+    markPreparedTraversal(document, path)
     preparing = null
   }
 

@@ -121,6 +121,18 @@ export const fileOf = (what: Wanted): { readonly script: string; readonly styles
   styles: STYLES
 })
 
+/** Lets Chromium fetch and compile a screen before navigation needs its exports. */
+export const preloadScreen = (what: Wanted): boolean => {
+  const href = urlOf(fileOf(what).script)
+  if (document.querySelector(`link[rel="modulepreload"][href="${href}"]`) !== null) return false
+
+  const link = document.createElement("link")
+  link.rel = "modulepreload"
+  link.href = href
+  ;(document.head ?? document.documentElement).append(link)
+  return true
+}
+
 /**
  * The stylesheet, put on the page beside the script rather than inside it.
  *

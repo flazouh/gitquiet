@@ -26,7 +26,11 @@ import {
   whenTheScreenMoves
 } from "./mount"
 import { ACTIONS, COMMIT, CONVERSATION, DASHBOARD, HOME, REPO_PULLS } from "./place"
-import { PREPARED_TRAVERSAL_ROUTE } from "./preparedNavigation"
+import {
+  markPreparedTraversal,
+  preparedTraversal,
+  PREPARED_TRAVERSAL_ROUTE
+} from "./preparedNavigation"
 
 /** GitHub's pull request page, down to the parts this depends on. */
 const githubPage = (): Document => {
@@ -127,9 +131,8 @@ describe("slotting into GitHub's pull request page", () => {
     rememberPreparedScreen(page, "/pulls/inbox", DASHBOARD, prepared, () => {})
 
     expect(prepareCachedTraversal(page, "/pulls/inbox", DASHBOARD)).toBe(true)
-    expect(page.documentElement.getAttribute(PREPARED_TRAVERSAL_ROUTE)).toBe(
-      "/pulls/inbox"
-    )
+    expect(page.documentElement.hasAttribute(PREPARED_TRAVERSAL_ROUTE)).toBe(false)
+    expect(preparedTraversal(page)).toBe("/pulls/inbox")
     view.close()
   })
 
@@ -152,11 +155,12 @@ describe("slotting into GitHub's pull request page", () => {
     prepared.innerHTML = "<h1>returned pull request</h1>"
 
     rememberPreparedScreen(page, "/owner/repo/pull/2", CONVERSATION, prepared, () => {})
-    page.documentElement.setAttribute(PREPARED_TRAVERSAL_ROUTE, "/owner/repo/pull/2")
+    markPreparedTraversal(page, "/owner/repo/pull/2")
     const arriving = interfaceContainer(page, CONVERSATION, "/owner/repo/pull/2")
 
     expect(arriving).toBe(prepared)
     expect(page.documentElement.hasAttribute(PREPARED_TRAVERSAL_ROUTE)).toBe(false)
+    expect(preparedTraversal(page)).toBeNull()
     expect(view.location.pathname).toBe("/owner/repo/pull/1")
     view.close()
   })

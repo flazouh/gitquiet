@@ -112,7 +112,8 @@ export const Verdict = ({
   keep,
   suggest,
   onUpload,
-  onReview
+  onReview,
+  prepareThrough = 1
 }: {
   /**
    * Every verdict on the record, or None where GitHub would not say.
@@ -140,6 +141,8 @@ export const Verdict = ({
    * this panel is the only thing that knows which one was on the screen.
    */
   readonly onReview: (review: Review) => Effect.Effect<unknown, unknown>
+  /** Builds the body after a detached route has built this panel's frame. */
+  readonly prepareThrough?: number
 }) => {
   /*
    * A note that outlived the page it was written on opens the box on arrival.
@@ -268,10 +271,12 @@ export const Verdict = ({
        */}
       {/* Inline rather than a flex row: the comma after the sha belongs to the sentence, and a
           gap between them read as a comma that had slipped off the end of the word. */}
-      <p className="border-b border-line-muted px-3 py-2 text-xs leading-snug text-ink-muted">
-        About <code className="font-mono text-ink">{shortly(headSha)}</code>, the last commit on
-        this branch.
-      </p>
+      {prepareThrough < 1 ? null : (
+        <>
+          <p className="border-b border-line-muted px-3 py-2 text-xs leading-snug text-ink-muted">
+            About <code className="font-mono text-ink">{shortly(headSha)}</code>, the last commit on
+            this branch.
+          </p>
       {writing ? (
         <div className="flex flex-col gap-1.5 px-3 py-2.5">
           <Writing
@@ -334,6 +339,8 @@ export const Verdict = ({
                 : "Say what you found"}
           </button>
         </div>
+      )}
+        </>
       )}
     </Section>
   )
