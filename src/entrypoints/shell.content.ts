@@ -764,7 +764,7 @@ export default defineContentScript({
     // odd browser skip whichever they like. Asking twice costs an attribute
     // that is already set and a message that is never sent again.
     for (const name of ["pointerdown", "mousedown"]) {
-      document.addEventListener(name, pressed, {
+      window.addEventListener(name, pressed, {
         passive: true,
         capture: true,
       });
@@ -774,7 +774,7 @@ export default defineContentScript({
     // answered here rather than by the browser, and answering it means cancelling
     // it. The two above cannot — a passive listener may not, and neither of them
     // is the event that loads a document anyway.
-    document.addEventListener("click", pressed, { capture: true });
+    window.addEventListener("click", pressed, { capture: true });
 
     // The presses this misses: the back button, a middle-click promoted to this
     // tab, anything GitHub navigates on its own account. Later than a press —
