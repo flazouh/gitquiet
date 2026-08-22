@@ -218,6 +218,26 @@ const RECORDER = String.raw`(() => {
   try {
     new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
+        /*
+         * The frame itself, which is the one thing that separates our own work
+         * from the browser's. Scripts from an extension are not attributed here
+         * at all, so a frame with no scripts and a long stretch before the render
+         * starts is ours, and one that spends its length in style and layout is
+         * the page being laid out.
+         */
+        if (entry.duration >= 50) {
+          say("frame", {
+            ms: Math.round(entry.duration),
+            fn: "frame",
+            url:
+              "blocking " +
+              Math.round(entry.blockingDuration) +
+              "  before render " +
+              Math.round(entry.renderStart - entry.startTime) +
+              "  style and layout " +
+              Math.round(entry.startTime + entry.duration - entry.styleAndLayoutStart)
+          })
+        }
         for (const script of entry.scripts ?? []) {
           if (script.duration < 8) continue
           say("script", {
@@ -375,9 +395,18 @@ const trail = JSON.parse(
 )
 if (trail.said !== null && trail.from !== null) {
   cliLog("\nwhat the extension says it did\n")
-  for (const step of String(trail.said).split("|").filter(Boolean)) {
-    const [what, when] = step.split("@")
-    cliLog(`${String(Number(when) - trail.from).padStart(6)}ms  ${what}`)
+  const steps = String(trail.said)
+    .split("|")
+    .filter(Boolean)
+    .map((step) => {
+      const [what, when] = step.split("@")
+      return { what, at: Number(when) - trail.from }
+    })
+  let last = 0
+  for (const step of steps) {
+    const gap = step.at - last
+    last = step.at
+    cliLog(`${String(step.at).padStart(6)}ms  ${gap > 60 ? `(+${gap}ms) ` : ""}${step.what}`)
   }
 }
 
