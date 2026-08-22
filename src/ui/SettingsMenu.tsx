@@ -4,6 +4,7 @@ import { useId, useState, type ReactNode } from "react"
 import { useArt } from "./art"
 import { DIFF_KNOBS, THEME_KNOBS, TREE_KNOBS, type Knob, type Settings } from "../domain/Settings"
 import { ROOT_ID } from "./mount"
+import { useScreenRoot } from "./screenActivity"
 import { sampleOf } from "./SettingsPreview"
 
 /**
@@ -226,6 +227,8 @@ export const SettingsMenu = ({
 }: SettingsMenuProps) => {
   const art = useArt()
   const More = art.more
+  const screenRoot = useScreenRoot()
+  const portalRoot = screenRoot instanceof HTMLElement ? screenRoot : inOurs()
   const [open, setOpen] = useState(false)
   const pickTheme = (key: string, value: string) =>
     onChange({ ...settings, theme: { ...settings.theme, [key]: value } })
@@ -246,7 +249,7 @@ export const SettingsMenu = ({
         >
           <More size={16} />
         </Menu.Trigger>
-        <Menu.Portal container={inOurs()} forceMount>
+        <Menu.Portal container={portalRoot} forceMount>
           <Menu.Content
             forceMount
             hidden={!open}

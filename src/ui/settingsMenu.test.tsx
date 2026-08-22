@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { DEFAULTS } from "../domain/Settings"
 import { ROOT_ID } from "./mount"
 import { SettingsMenu } from "./SettingsMenu"
+import { ScreenActivityProvider } from "./screenActivity"
 
 afterEach(cleanup)
 
@@ -44,6 +45,23 @@ describe("the menu is drawn where the colours are", () => {
     await userEvent.click(screen.getByLabelText("Display settings"))
 
     expect(screen.getByRole("menu")).toBe(prepared)
+  })
+
+  test("keeps a prepared menu inside its detached screen", () => {
+    const standing = ourRoot()
+    const prepared = document.createElement("div")
+    prepared.id = ROOT_ID
+
+    render(
+      <ScreenActivityProvider active root={prepared}>
+        <SettingsMenu settings={DEFAULTS} onChange={() => {}} />
+      </ScreenActivityProvider>,
+      { container: prepared }
+    )
+
+    const menu = within(prepared).getByRole("menu", { hidden: true })
+    expect(prepared.contains(menu)).toBe(true)
+    expect(standing.contains(menu)).toBe(false)
   })
 
   test("the menu itself", async () => {
