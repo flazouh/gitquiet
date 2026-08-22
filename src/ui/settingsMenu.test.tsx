@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { DEFAULTS } from "../domain/Settings"
 import { ROOT_ID } from "./mount"
@@ -51,6 +51,31 @@ describe("the menu is drawn where the colours are", () => {
     // By part of the label: the chosen one wears a tick, which is in its name.
     const choices = await screen.findByRole("menuitemradio", { name: /Side by side/ })
     expect(root.contains(choices)).toBe(true)
+  })
+
+  test("a size knob's handle, which is dragged rather than picked from a list", async () => {
+    const root = ourRoot()
+    let written: typeof DEFAULTS | undefined
+    render(
+      <SettingsMenu
+        settings={DEFAULTS}
+        onChange={(settings) => {
+          written = settings
+        }}
+      />,
+      { container: root }
+    )
+    await userEvent.click(screen.getByLabelText("Display settings"))
+
+    await userEvent.hover(screen.getByRole("menuitem", { name: /Folder indent/ }))
+    const handle = (await screen.findByRole("slider", {
+      name: "Folder indent"
+    })) as HTMLInputElement
+
+    expect(root.contains(handle)).toBe(true)
+    fireEvent.change(handle, { target: { value: "8" } })
+
+    expect(written?.tree.indent).toBe("16")
   })
 
   test("and the explanation beside a knob", async () => {
