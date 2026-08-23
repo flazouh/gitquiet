@@ -79,4 +79,34 @@ describe("prepared route activation", () => {
 
     expect(queued).toHaveLength(0)
   })
+
+  test("reveals cached list sections one task at a time", () => {
+    const root = document.createElement("div")
+    root.innerHTML = `
+      <div data-gitquiet-activation="list">
+        <div data-gitquiet-activation="list-section"></div>
+        <div data-gitquiet-activation="list-section"></div>
+      </div>
+    `
+    const queued: Array<() => void> = []
+    const sections = [
+      ...root.querySelectorAll<HTMLElement>('[data-gitquiet-activation="list-section"]')
+    ]
+    const activation = prepareRouteActivation(root, (work) => queued.push(work))
+    const list = root.querySelector<HTMLElement>('[data-gitquiet-activation="list"]')!
+
+    expect(list.hidden).toBe(true)
+    expect(sections.map((section) => section.hidden)).toEqual([true, true])
+
+    activation.start()
+    queued.shift()?.()
+    expect(list.hidden).toBe(false)
+    expect(sections.map((section) => section.hidden)).toEqual([true, true])
+
+    queued.shift()?.()
+    expect(sections.map((section) => section.hidden)).toEqual([false, true])
+
+    queued.shift()?.()
+    expect(sections.map((section) => section.hidden)).toEqual([false, false])
+  })
 })

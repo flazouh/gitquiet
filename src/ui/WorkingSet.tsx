@@ -1371,6 +1371,7 @@ export const WorkingSet = ({
     <Keying value={keys}>
       <div
         ref={list}
+        data-gitquiet-activation="list"
         /* Four pixels between the filter row and the Courts, and between the Courts themselves.
            Each Court is its own filled card, so the fill is what separates them; the twelve
            pixels of canvas this started at was a gutter doing a border's job twice over. */
@@ -1396,54 +1397,59 @@ export const WorkingSet = ({
         ) : (
           <>
             {arranged.courts.map((sitting) => (
-              <Section
+              <div
                 key={sitting.court}
-                name={COURT_NAME[sitting.court]}
-                tone={COURT_TONE[sitting.court]}
-                art={COURT_ART[sitting.court]}
-                summary={<span className="tabular-nums">{sitting.count}</span>}
+                data-gitquiet-activation="list-section"
+                className="contents"
               >
-                <div className="divide-y divide-line-muted">
-                  {/* Both bands or neither: a Court holding one kind needs no line telling it
-                      which kind it is, and the heading above already said. */}
-                  {sitting.piles.length > 0 && sitting.issues.length > 0 ? (
-                    <Seam art="pull-request" name="Pull requests" many={sitting.piles.length} />
-                  ) : null}
+                <Section
+                  name={COURT_NAME[sitting.court]}
+                  tone={COURT_TONE[sitting.court]}
+                  art={COURT_ART[sitting.court]}
+                  summary={<span className="tabular-nums">{sitting.count}</span>}
+                >
+                  <div className="divide-y divide-line-muted">
+                    {/* Both bands or neither: a Court holding one kind needs no line telling it
+                        which kind it is, and the heading above already said. */}
+                    {sitting.piles.length > 0 && sitting.issues.length > 0 ? (
+                      <Seam art="pull-request" name="Pull requests" many={sitting.piles.length} />
+                    ) : null}
 
-                  {sitting.piles.map((pile) => (
-                    <Pile
-                      key={addressOf(pile.one.reference)}
-                      pile={pile}
-                      chosen={chosen}
-                      arriving={arriving}
-                      within={within}
-                      columns={columns}
-                      asking={asking}
-                    />
-                  ))}
+                    {sitting.piles.map((pile) => (
+                      <Pile
+                        key={addressOf(pile.one.reference)}
+                        pile={pile}
+                        chosen={chosen}
+                        arriving={arriving}
+                        within={within}
+                        columns={columns}
+                        asking={asking}
+                      />
+                    ))}
 
-                  {/*
-                   * The issues after the pull requests, in the same box and under the
-                   * same count, with a quiet rule between the two kinds. See the seam
-                   * inside `Issues` for why it is there and why it is that quiet.
-                   *
-                   * Nothing at all where the Court holds no issues. Drawn anyway, this
-                   * put a band reading `Issues 0` under every Court of pull requests: a
-                   * heading for a kind of row that is not on the page.
-                   */}
-                  {sitting.issues.length === 0 ? null : (
-                    <Issues
-                      issues={sitting.issues}
-                      court={sitting.court}
-                      onlyIssues={sitting.piles.length === 0}
-                      chosen={chosen}
-                      arriving={arriving}
-                      within={within}
-                      columns={columns}
-                    />
-                  )}
-                </div>
-              </Section>
+                    {/*
+                     * The issues after the pull requests, in the same box and under the
+                     * same count, with a quiet rule between the two kinds. See the seam
+                     * inside `Issues` for why it is there and why it is that quiet.
+                     *
+                     * Nothing at all where the Court holds no issues. Drawn anyway, this
+                     * put a band reading `Issues 0` under every Court of pull requests: a
+                     * heading for a kind of row that is not on the page.
+                     */}
+                    {sitting.issues.length === 0 ? null : (
+                      <Issues
+                        issues={sitting.issues}
+                        court={sitting.court}
+                        onlyIssues={sitting.piles.length === 0}
+                        chosen={chosen}
+                        arriving={arriving}
+                        within={within}
+                        columns={columns}
+                      />
+                    )}
+                  </div>
+                </Section>
+              </div>
             ))}
 
             {/*
@@ -1457,25 +1463,27 @@ export const WorkingSet = ({
              * is the one thing this arrangement takes off the screen.
              */}
             {arranged.loose.length === 0 ? null : (
-              <Section
-                name="Involved Issues"
-                art="issue"
-                summary={<span className="tabular-nums">{arranged.loose.length}</span>}
-              >
-                <div className="divide-y divide-line-muted">
-                  {arranged.loose.map((one) => (
-                    <IssueRow
-                      key={addressOfIssue(one.reference)}
-                      one={one}
-                      court={courtOfIssue(one)}
-                      chosen={chosen === addressOfIssue(one.reference)}
-                      arriving={arriving}
-                      within={within}
-                      columns={columns}
-                    />
-                  ))}
-                </div>
-              </Section>
+              <div data-gitquiet-activation="list-section" className="contents">
+                <Section
+                  name="Involved Issues"
+                  art="issue"
+                  summary={<span className="tabular-nums">{arranged.loose.length}</span>}
+                >
+                  <div className="divide-y divide-line-muted">
+                    {arranged.loose.map((one) => (
+                      <IssueRow
+                        key={addressOfIssue(one.reference)}
+                        one={one}
+                        court={courtOfIssue(one)}
+                        chosen={chosen === addressOfIssue(one.reference)}
+                        arriving={arriving}
+                        within={within}
+                        columns={columns}
+                      />
+                    ))}
+                  </div>
+                </Section>
+              </div>
             )}
           </>
         )}
