@@ -383,6 +383,32 @@ export const PullRequestScreen = ({
   )
 
   /*
+   * Resolving a conversation, and the same read behind it.
+   *
+   * A repository rule can hold the merge until every conversation is resolved,
+   * and the card at the top prints that rule off the last read. The press
+   * reached GitHub and the thread folded itself, but the card went on saying
+   * blocked — the reader had done the one thing it asked and could see nothing
+   * move. Opening a thread again is the same fact in the other direction, so
+   * both are followed by the read; a refused write recorded nothing and reads
+   * nothing, exactly as a refused verdict does not.
+   */
+  const settling = useMemo(
+    () =>
+      onSettle === undefined
+        ? undefined
+        : (threadId: string) => onSettle(threadId).pipe(Effect.tap(() => Effect.sync(again))),
+    [onSettle, again]
+  )
+  const unsettling = useMemo(
+    () =>
+      onUnsettle === undefined
+        ? undefined
+        : (threadId: string) => onUnsettle(threadId).pipe(Effect.tap(() => Effect.sync(again))),
+    [onUnsettle, again]
+  )
+
+  /*
    * The tokens GitHub's own socket is joined with, which the merge box carries.
    *
    * Undefined where the merge box did not answer, exactly as it is before the first
@@ -466,8 +492,8 @@ export const PullRequestScreen = ({
           postRemark={postRemark}
           suggest={suggest}
           onUpload={onUpload}
-          onSettle={onSettle}
-          onUnsettle={onUnsettle}
+          onSettle={settling}
+          onUnsettle={unsettling}
           onReply={onReply}
           onReview={judging}
           makeStack={stacking}

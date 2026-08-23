@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Deferred, Effect, Option } from "effect"
-import { aMergeState, aSnapshot } from "../../tests/snapshots"
+import { aComment, aMergeState, aSnapshot, aThread, person } from "../../tests/snapshots"
 import type { PullRequestSnapshot, PullRequestState } from "../domain/PullRequest"
 import type { PullRequestRef } from "../domain/PullRequestRef"
 import { PullRequestScreen } from "./PullRequestScreen"
@@ -445,6 +445,77 @@ describe("a verdict sent from the panel under the conversation", () => {
     await userEvent.click(screen.getByRole("button", { name: "Approve" }))
 
     await waitFor(() => expect(screen.getByText(/GitHub said no/)).toBeDefined())
+    expect(reads).toBe(1)
+  })
+})
+
+/*
+ * Resolving a conversation is the other write that moves the merge card: a rule
+ * asking for every conversation to be resolved stops blocking the moment the
+ * last one is. The press reached GitHub and the thread folded itself, but the
+ * card at the top went on saying the merge was blocked — nothing on the screen
+ * read the pull request again to hear otherwise.
+ */
+describe("a conversation resolved from the column", () => {
+  test("reads the pull request again, so the merge card hears about it", async () => {
+    let reads = 0
+
+    render(
+      <PullRequestScreen
+        reference={reference}
+        load={() => {
+          reads += 1
+          return Effect.succeed({
+            snapshot: aSnapshot({
+              reference,
+              merge: aMergeState(),
+              threads: [aThread("t1", [aComment(person("ana"), "this reads oddly", "1001")])]
+            })
+          })
+        }}
+        fetchDiffs={() => Effect.succeed([])}
+        onStepAside={() => {}}
+        onSettle={() => Effect.void}
+      />
+    )
+
+    await waitFor(() => expect(screen.getAllByText("this reads oddly").length).toBeGreaterThan(0))
+    await userEvent.click(screen.getAllByText("this reads oddly")[0]!)
+    expect(reads).toBe(1)
+
+    await userEvent.click(screen.getByRole("button", { name: "Resolve" }))
+
+    await waitFor(() => expect(reads).toBe(2))
+  })
+
+  test("does not read again where GitHub refused the resolve", async () => {
+    let reads = 0
+
+    render(
+      <PullRequestScreen
+        reference={reference}
+        load={() => {
+          reads += 1
+          return Effect.succeed({
+            snapshot: aSnapshot({
+              reference,
+              merge: aMergeState(),
+              threads: [aThread("t1", [aComment(person("ana"), "this reads oddly", "1001")])]
+            })
+          })
+        }}
+        fetchDiffs={() => Effect.succeed([])}
+        onStepAside={() => {}}
+        onSettle={() => Effect.fail(new Error("GitHub said no"))}
+      />
+    )
+
+    await waitFor(() => expect(screen.getAllByText("this reads oddly").length).toBeGreaterThan(0))
+    await userEvent.click(screen.getAllByText("this reads oddly")[0]!)
+
+    await userEvent.click(screen.getByRole("button", { name: "Resolve" }))
+
+    await new Promise((rest) => setTimeout(rest, 100))
     expect(reads).toBe(1)
   })
 })
