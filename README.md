@@ -134,8 +134,14 @@ bun run compile      # typecheck
 bun test             # unit and behaviour tests
 bun run dev          # load the extension in a dev browser
 bun run build        # production build into .output/chrome-mv3
+bun run qa           # photograph every screen into .output/qa, no GitHub needed
 bun run drift        # re-check GitHub's live payloads against our schemas
 ```
+
+`bun run qa` renders the screens on the shots stage with recorded payloads and
+photographs them with whatever Chrome `CHROME_PATH` names, headless — so a
+change can be looked at from a container with no display and no route to
+github.com. `--view working-set` narrows it to one screen.
 
 To load it by hand: `bun run build`, then open `chrome://extensions`, enable
 Developer mode, choose Load unpacked, and select `.output/chrome-mv3`. Open any

@@ -105,6 +105,9 @@ export const useKeys = (
     if (profile === "off") return
 
     const onKey = (event: KeyboardEvent) => {
+      // A prepared route has a complete tree, but it cannot answer for the page
+      // until its root is connected. Its listeners stay inert in the meantime.
+      if (ours !== null && !ours.isConnected) return
       // A press left unread is still a press the reader made, so a sequence half
       // typed before one is given up on rather than left open: several
       // components bind the keyboard at once, and a `j` that the file browser

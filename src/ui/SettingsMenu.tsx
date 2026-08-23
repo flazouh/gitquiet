@@ -5,6 +5,7 @@ import { useArt } from "./art"
 import { DIFF_KNOBS, THEME_KNOBS, TREE_KNOBS, type Knob, type Settings } from "../domain/Settings"
 import { ROOT_ID } from "./mount"
 import { sampleOf } from "./SettingsPreview"
+import { Slide } from "./Slide"
 
 /**
  * Where everything this menu opens is drawn.
@@ -86,7 +87,13 @@ const Explains = ({
         className="z-50 flex max-w-80 flex-col gap-2 rounded-md border border-line bg-raised px-2.5 py-2 text-xs leading-relaxed text-ink-muted shadow-pop"
       >
         <p>{knob.note}</p>
-        {knob.choices.map((choice) => {
+        {/* Every choice for a row of words, and only the one in use for a
+            slider: nine sizes of the same little tree, stacked, says less than
+            one of them does and takes the note off the screen to say it. */}
+        {(knob.slide
+          ? knob.choices.filter((choice) => choice.value === chosen)
+          : knob.choices
+        ).map((choice) => {
           const sample = sampleOf(knob.key, choice.value)
           return sample === null ? null : (
             <div key={choice.value} className="flex flex-col gap-1">
@@ -146,6 +153,19 @@ const Row = ({
           sideOffset={4}
           className="z-50 min-w-40 rounded-md border border-line bg-raised p-1 shadow-pop"
         >
+          {knob.slide ? (
+            /* Not a menu item: a handle is dragged, and Radix treats a press on
+               an item as the choice being made and shuts the menu under it. The
+               stopped press is what keeps the drag from closing the menu on its
+               way down. */
+            <div
+              className="flex items-center gap-2 px-2 py-1.5"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <Slide knob={knob} held={chosen ?? knob.fallback} onPick={onPick} />
+            </div>
+          ) : (
           <Menu.RadioGroup value={chosen} onValueChange={(value) => onPick(knob.key, value)}>
             {knob.choices.map((choice) => (
               <Menu.RadioItem key={choice.value} value={choice.value} className={ITEM}>
@@ -158,6 +178,7 @@ const Row = ({
               </Menu.RadioItem>
             ))}
           </Menu.RadioGroup>
+          )}
         </Menu.SubContent>
       </Menu.Portal>
     </Menu.Sub>

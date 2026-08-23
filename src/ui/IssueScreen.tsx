@@ -1,5 +1,5 @@
 import { Effect, Option } from "effect"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { closingOf, type Closing, type IssueSnapshot, type Remark, type Settled } from "../domain/Issue"
 import { type IssueRef, type ListedIssue, nameOf } from "../domain/issues"
 import type { Repository } from "../domain/repositories"
@@ -80,6 +80,12 @@ export type IssueScreenProps = {
   /** The repository list as the last visit to Home left it, for the palette behind ⌘K. */
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
   readonly signedIn?: () => boolean
+  /** True while this issue is rendered outside the page before navigation. */
+  readonly preparing?: boolean
+  /** The detached route root, so its bar waits until the route is active. */
+  readonly preparedRoot?: Element
+  /** Called once the detached issue has its complete live data. */
+  readonly onPrepared?: () => void
 }
 
 /**
@@ -134,11 +140,19 @@ export const IssueScreen = ({
   settle,
   reopen,
   recallRepositories,
-  signedIn = viewerOnPage
+  signedIn = viewerOnPage,
+  preparing = false,
+  preparedRoot,
+  onPrepared
 }: IssueScreenProps) => {
   const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
+
+  useEffect(() => {
+    if (!preparing || read.status !== "ready") return
+    onPrepared?.()
+  }, [onPrepared, preparing, read.status])
 
   /*
    * What the reader just said, held here until the next read carries it.
@@ -292,6 +306,7 @@ export const IssueScreen = ({
         where={{ kind: "repository", owner: reference.owner, repo: reference.repo }}
         recall={recallRepositories}
         onStepAside={onUseGitHub}
+        preparedRoot={preparedRoot}
       />
       {/* The row's header, while nothing has been read and nothing was
           remembered. It goes the moment either lands, and it is the same panel

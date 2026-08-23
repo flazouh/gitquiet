@@ -150,6 +150,13 @@ Built and verified live on #1755 and #503:
   Settled.
 - The branch, while it is behind, and Waiting rather than Your Move where GitHub refuses the
   button because the write belongs to somebody else.
+- A stack layer whose foundation is closed, which is Your Move. GitHub keeps a stacked pull
+  request's base on the stack and refuses to change it while the stack holds it, so a layer
+  left on a closed foundation goes on comparing against a branch nobody is landing. Nothing
+  else on the page says so: the diff is not marked suspect and the file count is not marked
+  inflated. `OpenRouterIncubator/ori#2103` read as sixteen files and four hundred lines for
+  hours, and its change was two files and sixteen. Merged foundations are not this, being how
+  a stack drains, and GitHub retargets what is left of one.
 
 ### The done state has to say so
 

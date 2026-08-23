@@ -4,7 +4,7 @@ import { diffChoices } from "../domain/choices"
 import type { Opened } from "../domain/repoHome"
 import { wholeFile } from "../domain/wholeFile"
 import { type DiffEngine, PAPER } from "../ports/Renderer"
-import { PRESSABLE } from "./dress"
+import { FileAlso } from "./FileAlso"
 import { FileMark } from "./FileHeading"
 import { Markdown } from "./Markdown"
 import { useRenderer } from "./renderer"
@@ -22,8 +22,11 @@ export type ReadingProps = {
   readonly repo?: { readonly owner: string; readonly repo: string }
   /** Which branch it was read from, for the same reason. */
   readonly branch?: string
-  /** Back to the README, which is what this pane replaced. */
-  readonly onClose: () => void
+  /**
+   * The head this page was read from, so the permalink in the menu is a sha
+   * rather than a branch that will move.
+   */
+  readonly head?: string
 }
 
 /**
@@ -134,7 +137,7 @@ export const Reading = ({
   failed = false,
   repo,
   branch,
-  onClose
+  head
 }: ReadingProps) => {
   const [way, setWay] = useState<"rendered" | "source">("rendered")
 
@@ -155,25 +158,27 @@ export const Reading = ({
       className="min-w-0 overflow-hidden rounded-lg border border-line lg:col-start-1 lg:row-start-2"
     >
       <div className="flex items-center gap-2 px-3 py-1.5">
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Back to the README"
-          className={`px-2 py-0.5 text-xs text-ink-muted hover:bg-active ${PRESSABLE}`}
-        >
-          ← README
-        </button>
         {/* The same chip the diff prints over a file, because the tree beside
             this pane is the same tree the diff has beside it and the two are
             showing the same file. Material always, which is what that tree is
             drawn with here: the icon in the row and the icon in the heading are
             one file said twice. */}
         <FileMark path={path} icons="material" />
-        {canRender ? (
-          <span className="ml-auto shrink-0">
+        <span className="ml-auto flex shrink-0 items-center gap-1">
+          {canRender ? (
             <Ways ways={WAYS} on={way} onPick={setWay} label="How to read this file" />
-          </span>
-        ) : null}
+          ) : null}
+          {repo === undefined || branch === undefined ? null : (
+            <FileAlso
+              owner={repo.owner}
+              repo={repo.repo}
+              branch={branch}
+              path={path}
+              head={head}
+              lines={opened?.lines}
+            />
+          )}
+        </span>
       </div>
       <div className={SHEET}>
         {failed ? (

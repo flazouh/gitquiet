@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
+import { Window as HappyWindow } from "happy-dom"
 import {
+  activatePreparedTraversal,
   GOING,
   ROOT_ID,
   findConversationSlot,
@@ -9,10 +11,14 @@ import {
   handBack,
   interfaceContainer,
   markPage,
+  markScreenRoute,
+  prepareCachedTraversal,
+  rememberPreparedScreen,
   reveal,
   takeOverSlot,
   takeOverSlotWhenReady,
   theScreenArrived,
+  theScreenHasRoute,
   theScreenIsAt,
   theScreenIsNotElsewhere,
   theScreenLeft,
@@ -20,6 +26,7 @@ import {
   whenTheScreenMoves
 } from "./mount"
 import { ACTIONS, COMMIT, CONVERSATION, DASHBOARD, HOME, REPO_PULLS } from "./place"
+import { PREPARED_TRAVERSAL_ROUTE } from "./preparedNavigation"
 
 /** GitHub's pull request page, down to the parts this depends on. */
 const githubPage = (): Document => {
@@ -68,6 +75,138 @@ const theirTabsIn = (page: Document) =>
   page.querySelector('[aria-label="Pull request navigation tabs"]')!
 
 describe("slotting into GitHub's pull request page", () => {
+  test("recognises the exact route already on the page", () => {
+    const page = githubPage()
+    const root = interfaceContainer(page, CONVERSATION, "/owner/repo/pull/2")
+    slotOf(page).append(root)
+
+    expect(theScreenHasRoute(page, "/owner/repo/pull/2")).toBe(true)
+    expect(theScreenHasRoute(page, "/owner/repo/pull/3")).toBe(false)
+  })
+
+  test("seeds a route that was rendered before the click", () => {
+    const view = new HappyWindow({ url: "https://github.com/owner/repo/pull/1" })
+    const page = view.document as unknown as Document
+    page.body.innerHTML = githubPage().body.innerHTML
+    const prepared = page.createElement("div")
+    prepared.innerHTML = "<h1>prepared pull request</h1>"
+
+    rememberPreparedScreen(page, "/owner/repo/pull/2", CONVERSATION, prepared)
+    view.history.replaceState(null, "", "/owner/repo/pull/2")
+    const arriving = interfaceContainer(page, CONVERSATION)
+
+    expect(arriving.textContent).toContain("prepared pull request")
+    view.close()
+  })
+
+  test("claims a live prepared root without disposing it", () => {
+    const view = new HappyWindow({ url: "https://github.com/owner/repo/pull/1" })
+    const page = view.document as unknown as Document
+    page.body.innerHTML = githubPage().body.innerHTML
+    const prepared = page.createElement("div")
+    prepared.innerHTML = "<h1>live pull request</h1>"
+    let disposed = 0
+
+    rememberPreparedScreen(page, "/owner/repo/pull/2", CONVERSATION, prepared, () => {
+      disposed += 1
+    })
+    view.history.replaceState(null, "", "/owner/repo/pull/2")
+    const arriving = interfaceContainer(page, CONVERSATION)
+
+    expect(arriving).toBe(prepared)
+    expect(disposed).toBe(0)
+    view.close()
+  })
+
+  test("arms a live cached route for a history traversal", () => {
+    const view = new HappyWindow({ url: "https://github.com/pulls/inbox" })
+    const page = view.document as unknown as Document
+    const prepared = page.createElement("div")
+    prepared.innerHTML = "<h1>live Working Set</h1>"
+
+    rememberPreparedScreen(page, "/pulls/inbox", DASHBOARD, prepared, () => {})
+
+    expect(prepareCachedTraversal(page, "/pulls/inbox", DASHBOARD)).toBe(true)
+    expect(page.documentElement.getAttribute(PREPARED_TRAVERSAL_ROUTE)).toBe(
+      "/pulls/inbox"
+    )
+    view.close()
+  })
+
+  test("updates the route held by a screen after a same-place redirect", () => {
+    const view = new HappyWindow({ url: "https://github.com/pulls" })
+    const page = view.document as unknown as Document
+    const screen = interfaceContainer(page, DASHBOARD, "/pulls")
+
+    markScreenRoute(page, "/pulls/inbox")
+
+    expect(screen.getAttribute("data-gitquiet-route")).toBe("/pulls/inbox")
+    view.close()
+  })
+
+  test("claims an exact prepared route before a history traversal commits", () => {
+    const view = new HappyWindow({ url: "https://github.com/owner/repo/pull/1" })
+    const page = view.document as unknown as Document
+    page.body.innerHTML = githubPage().body.innerHTML
+    const prepared = page.createElement("div")
+    prepared.innerHTML = "<h1>returned pull request</h1>"
+
+    rememberPreparedScreen(page, "/owner/repo/pull/2", CONVERSATION, prepared, () => {})
+    page.documentElement.setAttribute(PREPARED_TRAVERSAL_ROUTE, "/owner/repo/pull/2")
+    const arriving = interfaceContainer(page, CONVERSATION, "/owner/repo/pull/2")
+
+    expect(arriving).toBe(prepared)
+    expect(page.documentElement.hasAttribute(PREPARED_TRAVERSAL_ROUTE)).toBe(false)
+    expect(view.location.pathname).toBe("/owner/repo/pull/1")
+    view.close()
+  })
+
+  test("puts a live traversal target on the current surface before history commits", () => {
+    const view = new HappyWindow({ url: "https://github.com/owner/repo/pull/1" })
+    const page = view.document as unknown as Document
+    page.body.innerHTML = githubPage().body.innerHTML
+    const current = interfaceContainer(page, CONVERSATION, "/owner/repo/pull/1")
+    current.innerHTML = "<h1>current pull request</h1>"
+    takeOverSlot(page, current, CONVERSATION, undefined, "/owner/repo/pull/1")
+    const prepared = page.createElement("div")
+    prepared.innerHTML = "<h1>returned pull request</h1>"
+    rememberPreparedScreen(page, "/owner/repo/pull/2", CONVERSATION, prepared, () => {})
+
+    expect(
+      activatePreparedTraversal(page, "/owner/repo/pull/2", CONVERSATION)
+    ).toBe(true)
+    expect(page.getElementById(ROOT_ID)).toBe(prepared)
+    expect(prepared.isConnected).toBe(true)
+    expect(page.querySelectorAll(`#${ROOT_ID}`)).toHaveLength(1)
+    expect(view.location.pathname).toBe("/owner/repo/pull/1")
+    view.close()
+  })
+
+  test("seeds a returned address when two routes use the same screen kind", async () => {
+    const view = new HappyWindow({ url: "https://github.com/owner/repo/pull/1" })
+    const page = view.document as unknown as Document
+    page.body.innerHTML = githubPage().body.innerHTML
+
+    const first = interfaceContainer(page, CONVERSATION)
+    first.innerHTML = "<h1>first pull request</h1>"
+    takeOverSlot(page, first, CONVERSATION)
+
+    view.history.replaceState(null, "", "/owner/repo/pull/2")
+    const second = interfaceContainer(page, CONVERSATION)
+    second.innerHTML = "<h1>second pull request</h1>"
+    takeOverSlot(page, second, CONVERSATION)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    view.history.replaceState(null, "", "/owner/repo/pull/1")
+    const returned = interfaceContainer(page, CONVERSATION)
+
+    expect(returned).not.toBe(second)
+    expect(returned.textContent).toContain("first pull request")
+
+    takeOverSlot(page, returned, CONVERSATION)?.stepAside()
+    view.close()
+  })
+
   test("finds the region GitHub fills with the conversation", () => {
     const page = githubPage()
 
@@ -398,6 +537,19 @@ describe("arriving after the document has finished, which is what a soft navigat
     expect(takeover!.container.isConnected).toBe(true)
     expect(page.documentElement.hasAttribute("data-gitquiet-taken")).toBe(true)
   })
+
+  test("keeps the interface in main while a history traversal has no new region", async () => {
+    const page = aFinishedPage()
+    const takeover = await Effect.runPromise(
+      takeOverSlotWhenReady(page, interfaceContainer(page), 400, 20)
+    )
+
+    page.body.innerHTML = "<main><p>GitHub is between history entries</p></main>"
+    await new Promise((wake) => setTimeout(wake, 20))
+
+    expect(takeover!.container.isConnected).toBe(true)
+    expect(takeover!.container.parentElement).toBe(page.querySelector("main"))
+  })
 })
 
 describe("the two gates, which are not the same gate", () => {
@@ -705,20 +857,7 @@ describe("handing the page from one interface to the next", () => {
     expect(down).toBe(1)
   })
 
-  /*
-   * Two interfaces of the same screen, each built while the other was off the page.
-   *
-   * Which is the whole window between a container being handed out and it being put in the
-   * document: a container renders detached on purpose, so `getElementById` cannot see it, and
-   * the one guard on "there is one of these per document" is that search. Measured at between
-   * 169 and 1219 milliseconds on their inbox, across six loads.
-   *
-   * The reader saw the cost of it on `/notifications`: two roots, both drawn, both direct
-   * children of a region that is `display: flex`, so their whole inbox twice in two columns of
-   * 612 pixels each. Nothing hid the second, either — the sweep looks for a container marked as
-   * leaving, and neither of these was ever marked, because marking happens in the same search
-   * that could not see it.
-   */
+  /* Concurrent detached starts are reduced to one interface at takeover. */
   test("stands one interface where two were built before either had a page", () => {
     const page = githubPage()
     const first = interfaceContainer(page, REPO_PULLS)
@@ -1077,21 +1216,23 @@ describe("taking the page only once the address is ours", () => {
  * beside the bar of the screen that replaced it — the two bars the reader kept reporting.
  */
 describe("telling every screen's script that the page moved", () => {
-  test("hears a move announced by another screen", () => {
+  test("hears a move announced by another screen", async () => {
     let told = 0
     const stop = whenTheScreenMoves(document, () => {
       told += 1
     })
 
     theScreenMoved(document)
+    await new Promise((ready) => setTimeout(ready, 0))
     expect(told).toBe(1)
 
     stop()
     theScreenMoved(document)
+    await new Promise((ready) => setTimeout(ready, 0))
     expect(told).toBe(1)
   })
 
-  test("says so when a screen takes the page from another", () => {
+  test("says so when a screen takes the page from another", async () => {
     const page = githubPage()
     const leaving = interfaceContainer(page, CONVERSATION)
     slotOf(page).append(leaving)
@@ -1101,6 +1242,7 @@ describe("telling every screen's script that the page moved", () => {
       told += 1
     })
     takeOverSlot(page, page.createElement("div"), CONVERSATION)
+    await new Promise((ready) => setTimeout(ready, 0))
     stop()
 
     expect(told).toBeGreaterThan(0)

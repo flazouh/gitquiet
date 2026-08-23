@@ -455,15 +455,13 @@ const Paper = ({
   reading,
   readingBranch,
   opened,
-  loadReadme,
-  onRead
+  loadReadme
 }: {
   readonly front: Front
   readonly reading: string | null
   readonly readingBranch?: string
   readonly opened: Read
   readonly loadReadme: RepoHomeScreenProps["loadReadme"]
-  readonly onRead?: (path: string | null) => void
 }) =>
   reading === null ? (
     <Welcome front={front} loadReadme={loadReadme} />
@@ -474,7 +472,7 @@ const Paper = ({
       failed={opened.failed}
       repo={front.repo}
       branch={readingBranch ?? front.branch}
-      onClose={() => onRead?.(null)}
+      head={front.head}
     />
   )
 
@@ -612,9 +610,17 @@ export const RepoHomeScreen = ({
 
   return (
     <div className="relative">
+      {/*
+       * The way out, in the same corner as every other screen. This page
+       * replaces their file toolbar, and a reader who still wants something on
+       * their page — the raw user content address, a page this pane does not
+       * draw — reaches it from here rather than from a card that only appears
+       * when the read has failed.
+       */}
       <TheBar
         where={{ kind: "repository", owner: repo.owner, repo: repo.repo }}
         recall={recallRepositories}
+        onStepAside={onStepAside}
       />
       {front === undefined ? null : (
         /*
@@ -641,7 +647,6 @@ export const RepoHomeScreen = ({
                 readingBranch={readingBranch}
                 opened={opened}
                 loadReadme={loadReadme}
-                onRead={onRead}
               />
               <Beside
                 front={front}
@@ -674,7 +679,6 @@ export const RepoHomeScreen = ({
                 readingBranch={readingBranch}
                 opened={opened}
                 loadReadme={loadReadme}
-                onRead={onRead}
               />
             </>
           )}

@@ -1,4 +1,4 @@
-import { Effect } from "effect"
+import { Deferred, Effect, Exit } from "effect"
 import mermaid from "mermaid"
 
 /**
@@ -129,7 +129,28 @@ export const paperforgeLayout = () => ({
 
 let nextId = 0
 
-export const draw = (code: string): Effect.Effect<string | null> =>
+/**
+ * Diagrams already laid out in this document.
+ *
+ * Mermaid measures every label and edge through the live DOM. Even a four-node
+ * flowchart can hold the main thread for half a second. A screen reopened by Back
+ * used to pay that cost again for source that had not changed.
+ *
+ * The deferred is kept as well as the answer. Two copies of one fence mounted
+ * in the same React commit then join one layout instead of starting two layouts.
+ */
+type Drawing = { readonly id: string; readonly svg: string }
+
+const HOW_MANY = 24
+const drawings = new Map<string, Drawing | null>()
+const drawing = new Map<string, Deferred.Deferred<Drawing | null, never>>()
+
+const idForNextDrawing = (): string => {
+  nextId += 1
+  return `mermaid-${nextId}`
+}
+
+const layOut = (code: string, id: string): Effect.Effect<Drawing | null> =>
   Effect.tryPromise({
     try: () => {
       mermaid.initialize({
@@ -139,11 +160,56 @@ export const draw = (code: string): Effect.Effect<string | null> =>
         themeVariables: paperforgeTheme(),
         ...paperforgeLayout()
       })
-      nextId += 1
-      return mermaid.render(`mermaid-${nextId}`, code)
+      return mermaid.render(id, code)
     },
     catch: () => "mermaid-failed" as const
   }).pipe(
-    Effect.map((drawn) => (drawn.svg === "" ? null : drawn.svg)),
+    Effect.map((drawn) => (drawn.svg === "" ? null : { id, svg: drawn.svg })),
     Effect.orElseSucceed(() => null)
   )
+
+const finish = (code: string, answer: Drawing | null): void => {
+  drawings.set(code, answer)
+
+  const oldest = drawings.keys().next()
+  if (drawings.size > HOW_MANY && !oldest.done) drawings.delete(oldest.value)
+}
+
+const start = (code: string): Deferred.Deferred<Drawing | null, never> => {
+  const asking = Deferred.makeUnsafe<Drawing | null, never>()
+  drawing.set(code, asking)
+
+  Effect.runFork(
+    Effect.exit(layOut(code, idForNextDrawing())).pipe(
+      Effect.map((answer) => {
+        drawing.delete(code)
+        if (Exit.isSuccess(answer)) finish(code, answer.value)
+        Deferred.doneUnsafe(asking, answer)
+      })
+    )
+  )
+
+  return asking
+}
+
+const remembered = (code: string): Effect.Effect<Drawing | null> =>
+  Effect.suspend(() => {
+    const had = drawings.get(code)
+    if (drawings.has(code)) {
+      drawings.delete(code)
+      drawings.set(code, had ?? null)
+      return Effect.succeed(had ?? null)
+    }
+
+    return Deferred.await(drawing.get(code) ?? start(code))
+  })
+
+export const draw = (code: string): Effect.Effect<string | null> =>
+  Effect.suspend(() => {
+    const id = idForNextDrawing()
+    return remembered(code).pipe(
+      Effect.map((drawing) =>
+        drawing === null ? null : drawing.svg.replaceAll(drawing.id, id)
+      )
+    )
+  })

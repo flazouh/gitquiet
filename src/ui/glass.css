@@ -54,6 +54,11 @@
   display: none;
 }
 
+/* A prepared bar uses a display-contents host until its route owns the page. */
+:is(#gitquiet-bar, [data-gitquiet-bar]) > :not(:last-child) {
+  display: none !important;
+}
+
 /*
  * The pane, with the glass on a layer of its own.
  *

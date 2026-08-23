@@ -24,7 +24,7 @@ import { chosenView } from "@/app/settings";
 import { isHome, showsWorkingSet } from "@/domain/pages";
 import { answerPressesIn, drawingOurOwnRows, goTo } from "@/ui/going";
 import { THE_WORKING_SET } from "@/ui/lastDrawn";
-import { handBack, markPage, reveal, ungate } from "@/ui/mount";
+import { handBack, markPage, markScreenRoute, reveal, ungate } from "@/ui/mount";
 import { whenLocationChanges } from "@/ui/navigation";
 import { DASHBOARD, HOME, type Place } from "@/ui/place";
 import { standAScreen } from "@/shell/screen";
@@ -94,7 +94,7 @@ const placeAt = (path: string): Place => (isHome(path) ? HOME : DASHBOARD);
  * the attribute holding GitHub's own list out of sight would still be set over a
  * page that is not a list at all.
  */
-const open = (place: Place): (() => void) => {
+const open = (place: Place, route: string): (() => void) => {
   /**
    * The issues in the Courts, said for the screen that a press on one of them
    * opens.
@@ -205,6 +205,7 @@ const open = (place: Place): (() => void) => {
 
   return standAScreen({
     place,
+    route,
     /*
      * Said before a press can happen rather than while one is being answered: the shell
      * asks for the card on `pointerdown`, so the screen that has to read this has
@@ -333,7 +334,10 @@ export const start = (): void => {
      * and home is a page GitHub really does render again, and the list has to be
      * stood up in the region that arrives with it.
      */
-    if (place !== null && place === standing) return;
+    if (place !== null && place === standing) {
+      markScreenRoute(document, path);
+      return;
+    }
 
     close();
     close = () => {};
@@ -368,7 +372,8 @@ export const start = (): void => {
     // is still the page being left.
     markPage(document, place);
     standing = place;
-    close = open(place);
+    close = open(place, path);
+    markScreenRoute(document, path);
   };
 
   whenLocationChanges(window, show);

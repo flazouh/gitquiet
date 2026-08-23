@@ -30,21 +30,29 @@ import { rememberedRepositories } from "@/app/destinations"
 import { layerSizes } from "@/app/sizes"
 import { uploadFile } from "@/app/attaching"
 import { loadSuggesting } from "@/app/suggesting"
-import { forgetIntent, intendedPath } from "@/app/intent"
-import { answerPressesIn, ourOwnRowsDrawn } from "@/ui/going"
+import { forgetIntent, intendedPath, prepareTo } from "@/app/intent"
+import { PREPARED_TRAVERSAL_ROUTE } from "@/ui/preparedNavigation"
+import { answerPressesIn, holdForRedraw, ourOwnRowsDrawn } from "@/ui/going"
 import { pullRequestNamed } from "@/ui/lastDrawn"
 import { isDashboard } from "@/domain/pages"
 import type { Check, MergeMethod, NewComment } from "@/domain/PullRequest"
-import { fromPathname, type PullRequestRef } from "@/domain/PullRequestRef"
+import { fromPathname, pathOf, type PullRequestRef } from "@/domain/PullRequestRef"
 import type { Size } from "@/domain/workingSet"
 import type { GitHubGateway, Review } from "@/ports/GitHubGateway"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import type { View } from "@/domain/Settings"
 import { chosenView, rememberView } from "@/app/settings"
-import { standAScreen } from "@/shell/screen"
+import { prepareAScreen, standAScreen, type Standing } from "@/shell/screen"
 import { liveUpdates, settings, throughGitHub } from "@/shell/supplied"
 import { type Loaded, PullRequestScreen } from "@/ui/PullRequestScreen"
-import { handBack, markPage, reveal, ungate } from "@/ui/mount"
+import {
+  handBack,
+  hasPreparedScreen,
+  markPage,
+  rememberPreparedScreen,
+  reveal,
+  ungate
+} from "@/ui/mount"
 import { CONVERSATION } from "@/ui/place"
 import { whenLocationChanges } from "@/ui/navigation"
 import { offerOurPage } from "@/ui/theirTabs"
@@ -99,8 +107,25 @@ const open = (
    * Whether this extension moved the address itself, so no document is on its
    * way and the surface to stand on is the one our last screen is standing on.
    */
-  inPlace = false
+  inPlace = false,
+  /** Saves the detached tree when this open is a route pre-render. */
+  onPrepared?: (container: Element) => void
 ): (() => void) => {
+  if (
+    onPrepared === undefined &&
+    hasPreparedScreen(document, pathOf(reference), CONVERSATION)
+  ) {
+    return standAScreen({
+      place: CONVERSATION,
+      route: pathOf(reference),
+      holding: (container) => answerPressesIn(container, window, isDashboard),
+      borrowing: inPlace,
+      settling: ahead ? GLANCE : undefined,
+      // The live prepared root is claimed by `standAScreen`, so this draw is not used.
+      draw: () => null
+    }).close
+  }
+
   /**
    * A read or a write, reported here and still failed for the caller to see.
    *
@@ -283,18 +308,25 @@ const open = (
     tell: (number: number, size: Size) => void
   ) => layerSizes(references, tell).pipe(throughGitHub, Effect.catch(() => Effect.void))
 
-  return standAScreen({
+  const screen = {
     place: CONVERSATION,
+    route: pathOf(reference),
     // Their own dashboard is hidden rather than gone, so it is still there to stand in
     // when the reader asks for it — where another pull request would have to stand in a
     // region GitHub has never rendered, and asking them for the document is the honest
     // way to one of those.
-    holding: (container) => answerPressesIn(container, window, isDashboard),
+    holding: (container: Element) => answerPressesIn(container, window, isDashboard),
     borrowing: inPlace,
     settling: ahead ? GLANCE : undefined,
-    draw: (standing) => (
+    draw: (standing: Standing) => (
       <PullRequestScreen
         reference={reference}
+        preparing={onPrepared !== undefined}
+        preparedRoot={onPrepared === undefined ? undefined : standing.container}
+        onPrepared={
+          onPrepared === undefined ? undefined : () => onPrepared(standing.container)
+        }
+        onPrepareRoute={(path) => prepareTo(window, path)}
         load={read}
         recallRepositories={recallRepositories}
         preload={() => Fiber.join(remembered)}
@@ -345,7 +377,35 @@ const open = (
         }}
       />
     )
-  }).close
+  }
+
+  return (onPrepared === undefined ? standAScreen(screen) : prepareAScreen(screen.draw)).close
+}
+
+let preparing: { readonly path: string; readonly close: () => void } | null = null
+let handToGitHub: (() => void) | undefined
+
+/** Builds one pull request while the pointer rests on its link. */
+export const prepare = (path: string): void => {
+  if (path === window.location.pathname || hasPreparedScreen(document, path, CONVERSATION)) return
+
+  const reference = fromPathname(path)
+  if (Option.isNone(reference) || preparing?.path === path) return
+
+  preparing?.close()
+  preparing = null
+
+  let stop = (): void => {}
+  const finish = (container: Element): void => {
+    if (preparing?.path !== path) return
+
+    rememberPreparedScreen(document, path, CONVERSATION, container, stop)
+    document.documentElement.setAttribute(PREPARED_TRAVERSAL_ROUTE, path)
+    preparing = null
+  }
+
+  stop = open(reference.value, false, () => handToGitHub?.(), true, finish)
+  preparing = { path, close: stop }
 }
 
 /**
@@ -391,6 +451,8 @@ export const start = (): void => {
    * row never waits for the network to agree with them.
    */
   function handOver(): void {
+    preparing?.close()
+    preparing = null
     close()
     close = () => {}
     clearTimeout(abandoning)
@@ -414,8 +476,11 @@ export const start = (): void => {
     void rememberView(store, "github")
     handOver()
   }
+  handToGitHub = useGitHub
 
   function show(path: string, ahead = false, inPlace = false): void {
+    preparing?.close()
+    preparing = null
     close()
     close = () => {}
     unoffer()
@@ -474,7 +539,7 @@ export const start = (): void => {
     // fact about the screen on the page now. A reader back on the Working Set
     // and pressing a second row is this, and it is not the same answer as the
     // one that was true when this script started on a pull request.
-    show(path, false, ourOwnRowsDrawn(window))
+    show(path, false, holdForRedraw(window, Option.isSome(fromPathname(path))))
   })
 
   // Nothing is drawn until the choice is known, so that a reader who wants
@@ -484,7 +549,6 @@ export const start = (): void => {
     chosenView(store).pipe(
       Effect.map((chosen) => {
         view = chosen
-
         // What the address says, or — while GitHub is still fetching and the
         // address still names the page being left — what the reader pressed.
         const here = window.location.pathname

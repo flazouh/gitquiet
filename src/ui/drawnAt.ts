@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react"
-import { theScreenIsAt, theScreenLeft } from "./mount"
+import { markScreenRoute, theScreenIsAt, theScreenLeft } from "./mount"
 
 /**
  * Says which address the screen has the page for, from the page rather than from
@@ -42,6 +42,7 @@ export const useDrawnAt = (path: string | null, target: Document = document): vo
     const owner = mine.current
     if (path === null || owner === undefined) return
 
+    markScreenRoute(target, path)
     theScreenIsAt(target, path, owner)
     return () => theScreenLeft(target, owner)
   }, [path, target])
