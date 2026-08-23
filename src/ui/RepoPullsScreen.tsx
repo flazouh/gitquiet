@@ -37,6 +37,13 @@ export type RepoPullsScreenProps = {
    * the rest of GitHub's vocabulary would be read as words to find in a title.
    */
   readonly seed?: string
+  /**
+   * Told the filter as the list first shows it and on every change, so the
+   * screen can move the address when the box asks for a state the rows on this
+   * page were never fetched with. `src/domain/repoList.ts` decides which asks
+   * are that — see `addressFor`.
+   */
+  readonly onQuery?: (query: string) => void
   readonly keys?: Profile
   /**
    * The repository list as the last visit to Home left it, for the palette behind ⌘K.
@@ -83,6 +90,7 @@ export const RepoPullsScreen = ({
   onOpen,
   onStepAside,
   seed,
+  onQuery,
   keys = DEFAULT_PROFILE,
   where,
   signedIn = viewerOnPage
@@ -138,6 +146,7 @@ export const RepoPullsScreen = ({
             what={`${repo.owner}/${repo.repo}`}
             scope={`${repo.owner}/${repo.repo}`}
             seed={seed}
+            onQuery={onQuery}
             within={repo}
             keys={keys}
           />
