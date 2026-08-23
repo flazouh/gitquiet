@@ -8,6 +8,7 @@ import {
   type Knob,
   type Settings
 } from "../domain/Settings"
+import { artFor } from "./knobArt"
 import { ROOT_ID } from "./mount"
 import { Slide } from "./Slide"
 
@@ -128,12 +129,21 @@ const CONTROLS: Readonly<Record<Knob<string, string>["shape"], (control: Control
   slide: Handle
 }
 
-/** One knob: its name, and the one control that changes it. */
+/** One knob: its glyph, its name, and the one control that changes it. */
 const Row = ({ knob, chosen, onPick }: Control) => {
+  const art = useArt()
   const Drawn = CONTROLS[knob.shape]
+  const named = artFor(knob.key)
+  const Mark = named === undefined ? undefined : art[named]
 
   return (
-    <div className="flex items-center gap-3 rounded-md px-2 py-1 text-xs text-ink hover:bg-hover">
+    <div className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-ink hover:bg-hover">
+      {/* The label says it; the glyph is the same thing drawn, for an eye going
+          down the edge of thirty rows rather than reading them. Nothing said
+          twice to a reader who is listening. */}
+      <span aria-hidden className="flex w-4 shrink-0 justify-center text-ink-muted">
+        {Mark === undefined ? null : <Mark size={14} />}
+      </span>
       <span className="min-w-0 flex-1 truncate">{knob.label}</span>
       <Drawn knob={knob} chosen={chosen} onPick={onPick} />
     </div>

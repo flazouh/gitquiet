@@ -180,6 +180,34 @@ export type ArtName =
   | "appearance"
   | "files"
   | "diff"
+  /**
+   * One glyph for each knob of the settings panel, named for what the knob is
+   * about rather than for the drawing.
+   *
+   * A panel of thirty rows is read down its left edge, and a row that is only
+   * words is found by reading every word above it. Named by meaning as
+   * everything here is, so a pack may draw `fold` as a folded page or as two
+   * arrows meeting and the panel does not care which.
+   *
+   * Several of them are worn by two rows: the colours of the interface and the
+   * colours of the code are one idea asked twice, and so are the plus and minus
+   * beside a file name and the plus and minus in a diff's gutter.
+   */
+  | "light-dark"
+  | "palette"
+  | "glyphs"
+  | "columns"
+  | "wrap"
+  | "text-size"
+  | "numbers"
+  | "fill"
+  | "highlight"
+  | "whitespace"
+  | "fold"
+  | "unfold"
+  | "rows"
+  | "indent"
+  | "counts"
   /** An error, as distinct from `check-failed`: a step that broke, a reason a merge cannot go. */
   | "error"
   /** Away from this interface, to a page it does not draw. */

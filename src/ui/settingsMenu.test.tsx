@@ -66,6 +66,25 @@ describe("the panel of knobs", () => {
     expect(indent.value).toBe("3")
   })
 
+  /**
+   * A glyph on every row, and none of them said out loud.
+   *
+   * The eye going down the left edge for the knob it changed last week is what
+   * they are for; a reader listening to the row already has the label, so the
+   * glyph is hidden from them rather than read to them twice.
+   */
+  test("marks every row with a glyph, and says none of them", async () => {
+    const root = ourRoot()
+    const panel = await opened(root)
+
+    const rows = panel.querySelectorAll('[role="group"] > div')
+    const marked = [...rows].filter((row) => row.querySelector("svg") !== null)
+
+    expect(rows.length).toBeGreaterThan(0)
+    expect(marked.length).toBe(rows.length)
+    expect(panel.querySelectorAll('[aria-hidden="true"] svg').length).toBe(rows.length)
+  })
+
   /** The advanced knobs, which used to be behind one more click. */
   test("holds the advanced knobs at the end of the same panel", async () => {
     const root = ourRoot()
