@@ -13,6 +13,7 @@ import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { ACTIONS } from "@/ui/place"
 import { StrandsScreen } from "@/ui/StrandsScreen"
+import { openedNamed } from "@/ui/lastDrawn"
 import "@/ui/styles.css"
 
 /**
@@ -67,6 +68,7 @@ const open = (repo: RepoRef): (() => void) => {
     draw: (standing) => (
       <StrandsScreen
         repo={repo}
+        where={openedNamed("actions", repo)}
         load={read}
         preload={remembered}
         recallRepositories={recallRepositories}

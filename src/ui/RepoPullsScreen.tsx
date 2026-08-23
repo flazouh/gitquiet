@@ -47,6 +47,8 @@ export type RepoPullsScreenProps = {
    */
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
   readonly signedIn?: () => boolean
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
 }
 
 const WORKING = "Reading this repository's pull requests…"
@@ -82,9 +84,10 @@ export const RepoPullsScreen = ({
   onStepAside,
   seed,
   keys = DEFAULT_PROFILE,
+  where,
   signedIn = viewerOnPage
 }: RepoPullsScreenProps) => {
-  const live = useLive(load, preload)
+  const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
 

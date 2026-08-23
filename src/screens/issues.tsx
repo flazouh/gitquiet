@@ -21,6 +21,7 @@ import { ISSUES } from "@/ui/place"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { IssuesScreen } from "@/ui/IssuesScreen"
+import { openedNamed } from "@/ui/lastDrawn"
 import "@/ui/styles.css"
 
 /**
@@ -159,6 +160,7 @@ const open = (
         preload={remembered}
         onGo={goToTab}
         onPage={goToPage}
+        where={openedNamed("issues", dash)}
         seed={seeding(dash)}
         onStepAside={standing.stepAside}
       />

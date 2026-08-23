@@ -251,6 +251,24 @@ export const frontInDocument = Effect.fn("repoHome.frontInDocument")(function* (
   const raw = Option.liftThrowable(JSON.parse)(script.textContent ?? "")
   if (Option.isNone(raw)) return Option.none<Front>()
 
+  /*
+   * Whose payload this is, checked before anything is built from it, and
+   * required rather than taken on trust when absent. The document holds
+   * whatever page it last was — after an in-place switch that is the previous
+   * repository — and `frontFrom` stamps the asked-for name onto whatever tree
+   * it is handed. Unchecked, that stamped slackcli's address onto gitquiet's
+   * files, and the memory and the store then kept the wrong page under the
+   * right name.
+   */
+  const whose = findTheRepository([raw.value])
+  if (
+    Option.isNone(whose) ||
+    whose.value.repo.ownerLogin.toLowerCase() !== repo.owner.toLowerCase() ||
+    whose.value.repo.name.toLowerCase() !== repo.repo.toLowerCase()
+  ) {
+    return Option.none<Front>()
+  }
+
   return yield* frontFrom(repo, [raw.value]).pipe(
     Effect.map((front) =>
       branch === null || front.branch === branch ? Option.some(front) : Option.none()

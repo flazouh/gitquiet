@@ -2,6 +2,7 @@ import { Effect, Fiber, Option } from "effect"
 import { loadBranches } from "@/app/commitList"
 import { rememberedRepositories } from "@/app/destinations"
 import { forgetIntent, intendedPath } from "@/app/intent"
+import { keptReads } from "@/app/kept"
 import {
   loadRepoHome,
   loadFile,
@@ -13,7 +14,8 @@ import {
   starRepo
 } from "@/app/repoHome"
 import { chosenView } from "@/app/settings"
-import { shelfOf } from "@/app/shelf"
+import { type Shelf, shelfOf } from "@/app/shelf"
+import type { RepoRef } from "@/domain/PullRequestRef"
 import type { Front, RepoHome, Touch } from "@/domain/repoHome"
 import { repoHomeIn } from "@/domain/repoHome"
 import type { View } from "@/domain/Settings"
@@ -21,7 +23,7 @@ import { frontInDocument, repoHomeInDocument } from "@/github/repoHome"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
-import { repoNamed } from "@/ui/lastDrawn"
+import { lastDrawn, repoNamed } from "@/ui/lastDrawn"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { REPO_HOME } from "@/ui/place"
@@ -63,17 +65,32 @@ const sameTree = (
 }
 
 /**
- * The page as the reader last saw it, kept for as long as this document lives.
- *
- * Held in memory and not in the store, which is the difference that matters here:
- * a rendered README is a third of a megabyte, and writing one per repository into
- * `browser.storage.local` would fill the reader's quota with markup GitHub renders
- * again on every visit. See `KeptFront` in `src/domain/repoHome.ts`, which is the
- * lighter thing the store does hold.
+ * What a revisit can reuse without a single request, keyed the way each answer
+ * is immutable or as good as: tree lists by the sha that names them, files and
+ * READMEs by branch and path, branches and standing by the repository for the
+ * life of this document. The fronts above refresh quietly behind what is shown;
+ * these answer as they are, because a contributors card or a branch list that
+ * moved mid-session was never what a reader was watching for.
  */
-let asLastSeen:
-  | { readonly address: string; readonly branch: string | null; readonly front: Front }
-  | undefined
+const readmes = keptReads(
+  ({ repo, branch, path }: { repo: RepoRef; branch: string; path: string }) =>
+    loadReadme(repo, branch, path).pipe(throughGitHub),
+  ({ repo, branch, path }) => `${repo.owner}/${repo.repo}@${branch}:${path}`
+)
+const standings = keptReads(
+  (repo: RepoRef) => loadStanding(repo).pipe(throughGitHub),
+  (repo) => `${repo.owner}/${repo.repo}`
+)
+const treePaths = keptReads(
+  ({ repo, sha }: { repo: RepoRef; sha: string }) =>
+    loadTreePaths(repo, sha).pipe(throughGitHub),
+  ({ repo, sha }) => `${repo.owner}/${repo.repo}:${sha}`
+)
+/** The two staged reads keep their stages on a first ask, and the final answer here. */
+const folderTouches = new Map<string, ReadonlyMap<string, Touch>>()
+const branchLists = new Map<string, ReadonlyArray<string>>()
+/** One shelf per repository, so files survive the page being rebuilt. */
+const shelves = new Map<string, Shelf>()
 
 /**
  * A screen that is up, and the two things the shell can still do to it.
@@ -133,7 +150,6 @@ const open = (
       throughGitHub,
       Effect.tap((front) =>
         Effect.sync(() => {
-          asLastSeen = { address: addressOf(home), branch: home.branch, front }
           branchNow = front.branch
           onResolved?.(front.branch)
         })
@@ -141,19 +157,24 @@ const open = (
       Effect.tapError((error) => Effect.sync(() => reportError(error)))
     )
 
-  /** This very page, as this document last had it up. */
-  const held =
-    asLastSeen?.address === addressOf(home) && asLastSeen.branch === home.branch
-      ? asLastSeen.front
-      : undefined
+  /**
+   * This very page, as this document last had it up.
+   *
+   * A peek at the memory `useLive` itself keeps and will draw from — see
+   * `lastDrawn` — asked here only to answer one question: whether the read's
+   * first stage is worth showing. It used to be a copy of that memory, one
+   * slot wide, kept by this module for itself; the copy is gone and the one
+   * memory answers for both.
+   */
+  const held = Option.getOrUndefined(
+    lastDrawn<Front>(repoNamed(home.repo, home.branch))
+  )
 
   const remembered = () =>
-    held !== undefined
-      ? Effect.succeed(Option.some(held))
-      : rememberedRepoHome(home.repo, home.branch).pipe(
-          throughGitHub,
-          Effect.catch(() => Effect.succeed(Option.none<Front>()))
-        )
+    rememberedRepoHome(home.repo, home.branch).pipe(
+      throughGitHub,
+      Effect.catch(() => Effect.succeed(Option.none<Front>()))
+    )
 
   let sofar: Front | undefined
   let tell: ((front: Front) => void) | undefined
@@ -195,27 +216,49 @@ const open = (
    * The card asks for this from an effect keyed on the function it was given,
    * so a new function on every render is a new request on every render.
    */
-  const standingOf = () => loadStanding(home.repo).pipe(throughGitHub)
-  const paths = (sha: string) => loadTreePaths(home.repo, sha).pipe(throughGitHub)
+  const standingOf = () => standings.ask(home.repo)
+  const paths = (sha: string) => treePaths.ask({ repo: home.repo, sha })
+  /*
+   * A folder's commit column is named by the tree's sha, so an answer once in
+   * hand is the answer for good — kept whole, and the staged read only runs on
+   * a folder this document has never opened.
+   */
   const touches = (
     sha: string,
     folder: string,
     partly: (found: ReadonlyMap<string, Touch>) => void
-  ) => loadFolderTouches(home.repo, sha, folder, partly).pipe(throughGitHub)
+  ) => {
+    const key = `${addressOf(home)}:${sha}:${folder}`
+    const known = folderTouches.get(key)
+    if (known !== undefined) return Effect.succeed(known)
+    return loadFolderTouches(home.repo, sha, folder, partly).pipe(
+      throughGitHub,
+      Effect.tap((all) => Effect.sync(() => folderTouches.set(key, all)))
+    )
+  }
 
   /** The branches, once the picker over the tree is opened and not before. */
-  const branches = (partly: (names: ReadonlyArray<string>) => void) =>
-    loadBranches(home.repo, partly).pipe(throughGitHub)
+  const branches = (partly: (names: ReadonlyArray<string>) => void) => {
+    const known = branchLists.get(addressOf(home))
+    if (known !== undefined) return Effect.succeed(known)
+    return loadBranches(home.repo, partly).pipe(
+      throughGitHub,
+      Effect.tap((all) => Effect.sync(() => branchLists.set(addressOf(home), all)))
+    )
+  }
 
   /** The README's own text, which the screen parses in place of GitHub's HTML. */
   const readme = (branch: string, path: string) =>
-    loadReadme(home.repo, branch, path).pipe(throughGitHub)
+    readmes.ask({ repo: home.repo, branch, path })
 
   /*
-   * One shelf for this page, so a file read once is never read again and the
-   * pointer resting on a row pays for the press that follows it.
+   * One shelf per repository rather than per page, so a file read once is never
+   * read again — not on this visit, and not on the next one either.
    */
-  const shelf = shelfOf((on, path) => loadFile(home.repo, on, path).pipe(throughGitHub))
+  const shelf =
+    shelves.get(addressOf(home)) ??
+    shelfOf((on, path) => loadFile(home.repo, on, path).pipe(throughGitHub))
+  shelves.set(addressOf(home), shelf)
 
   /*
    * Pushed, so the file has a link and the back button returns to the README.

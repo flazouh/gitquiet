@@ -59,6 +59,8 @@ export type HistoryScreenProps = {
   readonly authors?: LoadAuthors
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
   readonly signedIn?: () => boolean
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
 }
 
 const WORKING = "Reading this branch's commits…"
@@ -82,9 +84,10 @@ export const HistoryScreen = ({
   onGo,
   onStepAside,
   recallRepositories,
+  where,
   signedIn = viewerOnPage
 }: HistoryScreenProps) => {
-  const live = useLive(load, preload)
+  const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
   const { owner, repo } = list.repo

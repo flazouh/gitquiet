@@ -13,6 +13,7 @@ import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { NoticesScreen } from "@/ui/NoticesScreen"
 import { NOTIFICATIONS } from "@/ui/place"
+import { openedNamed } from "@/ui/lastDrawn"
 import "@/ui/styles.css"
 
 /**
@@ -88,6 +89,7 @@ const open = (query: string): (() => void) => {
         load={read}
         preload={remembered}
         onPress={press}
+        where={openedNamed("notices", query)}
         recallRepositories={recallRepositories}
         onStepAside={standing.stepAside}
       />

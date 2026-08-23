@@ -14,6 +14,7 @@ import { REPO_PULLS } from "@/ui/place"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { RepoPullsScreen } from "@/ui/RepoPullsScreen"
+import { openedNamed } from "@/ui/lastDrawn"
 import "@/ui/styles.css"
 
 /**
@@ -172,6 +173,7 @@ const open = (list: RepoList): (() => void) => {
         recallRepositories={recallRepositories}
         preload={remembered}
         onOpen={goTo}
+        where={openedNamed("repo-pulls", list)}
         seed={seeding(list)}
         onStepAside={standing.stepAside}
       />

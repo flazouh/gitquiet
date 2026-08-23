@@ -34,6 +34,8 @@ export type ReleasesScreenProps = {
   readonly onStepAside: () => void
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
   readonly signedIn?: () => boolean
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
 }
 
 const READING = "Reading this repository's releases…"
@@ -52,9 +54,10 @@ export const ReleasesScreen = ({
   preload,
   onStepAside,
   recallRepositories,
+  where,
   signedIn = viewerOnPage
 }: ReleasesScreenProps) => {
-  const live = useLive(load, preload)
+  const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
 

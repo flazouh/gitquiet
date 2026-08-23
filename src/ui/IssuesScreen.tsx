@@ -36,6 +36,8 @@ export type IssuesScreenProps = {
   readonly seed?: string
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
   readonly signedIn?: () => boolean
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
 }
 
 /**
@@ -136,9 +138,10 @@ export const IssuesScreen = ({
   onPage,
   onGo,
   seed,
+  where,
   signedIn = viewerOnPage
 }: IssuesScreenProps) => {
-  const live = useLive(load, preload)
+  const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
 

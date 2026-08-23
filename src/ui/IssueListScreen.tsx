@@ -37,6 +37,8 @@ export type IssueListScreenProps = {
    */
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
   readonly signedIn?: () => boolean
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
 }
 
 const WORKING = "Reading this repository's issues…"
@@ -63,9 +65,10 @@ export const IssueListScreen = ({
   onStepAside,
   onPage,
   seed,
+  where,
   signedIn = viewerOnPage
 }: IssueListScreenProps) => {
-  const live = useLive(load, preload)
+  const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
 

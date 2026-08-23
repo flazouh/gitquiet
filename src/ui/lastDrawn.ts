@@ -32,12 +32,17 @@ import { keyOf, type PullRequestRef, type RepoRef } from "../domain/PullRequestR
 /**
  * How many pages back the memory reaches.
  *
- * A reader walks a list, three pull requests and back out, and eight covers that
- * with room over. What each entry costs is one page's payloads — about a hundred
- * kilobytes for a pull request, by the sizes in `src/github/cache.ts` — so this
- * is a megabyte at its very worst and a few hundred kilobytes in practice.
+ * A reader walks a list, three pull requests and back out, and eight covered
+ * that with room over — while the lists and the cards were the only pages named.
+ * Every screen writes here now, so one sitting walks repositories, their
+ * commits, an issue list and a run between two views of one page, and eight
+ * slots meant the page came back to a skeleton anyway. Sixteen holds a
+ * sitting's walking. What each entry costs is one page's payloads — about a
+ * hundred kilobytes for a pull request, by the sizes in `src/github/cache.ts`,
+ * a third of a megabyte for a repository front carrying its rendered README —
+ * so a few megabytes at its very worst and well under one in practice.
  */
-const HOW_MANY = 8
+const HOW_MANY = 16
 
 /**
  * Insertion-ordered, which is what makes the eviction the right one.
@@ -94,3 +99,15 @@ export const repoNamed = (repo: RepoRef, branch: string | null): string =>
   `repo ${repo.owner}/${repo.repo}${branch === null ? "" : `@${branch}`}`
 
 export const THE_WORKING_SET = "the working set"
+
+/**
+ * A page named by the identity its screen was opened for, which is the parsed
+ * address: a list and its filters, a run and its id, a person and their tab.
+ * Stringified verbatim rather than spelt out field by field, because both
+ * visits parse the same address into the same shape — and a field left out of a
+ * hand-written spelling is two different pages sharing one memory. The kind in
+ * front keeps two screens that can share one shape apart, exactly as the
+ * prefixes above do.
+ */
+export const openedNamed = (kind: string, identity: unknown): string =>
+  `${kind} ${JSON.stringify(identity)}`

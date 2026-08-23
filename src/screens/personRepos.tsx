@@ -12,6 +12,7 @@ import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenAddressChanges } from "@/ui/navigation"
 import { PERSON_REPOS } from "@/ui/place"
 import { PersonReposScreen, type Shown } from "@/ui/PersonReposScreen"
+import { openedNamed } from "@/ui/lastDrawn"
 import "@/ui/styles.css"
 
 /**
@@ -56,6 +57,7 @@ const open = (page: PersonPage): (() => void) => {
     draw: (standing) => (
       <PersonReposScreen
         login={page.login}
+        where={openedNamed("person-repos", page)}
         load={read}
         elsewhere={column}
         onStepAside={standing.stepAside}

@@ -20,6 +20,7 @@ import { goWithin } from "@/ui/going"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { COMMITS } from "@/ui/place"
+import { openedNamed } from "@/ui/lastDrawn"
 import "@/ui/styles.css"
 
 /**
@@ -143,6 +144,7 @@ const open = (
         branches={askBranches}
         authors={askAuthors}
         onGo={goTo}
+        where={openedNamed("commits", list)}
         onStepAside={standing.stepAside}
         recallRepositories={recallRepositories}
       />

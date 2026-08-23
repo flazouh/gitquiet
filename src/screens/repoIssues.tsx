@@ -14,6 +14,7 @@ import { REPO_ISSUES } from "@/ui/place"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { IssueListScreen } from "@/ui/IssueListScreen"
+import { openedNamed } from "@/ui/lastDrawn"
 import "@/ui/styles.css"
 
 /**
@@ -146,6 +147,7 @@ const open = (
         recallRepositories={recallRepositories}
         preload={remembered}
         onPage={goToPage}
+        where={openedNamed("issue-list", list)}
         seed={seeding(list)}
         onStepAside={standing.stepAside}
       />

@@ -57,6 +57,8 @@ export type RunScreenProps = {
    * button that does nothing when pressed.
    */
   readonly press?: (what: Pressing) => Effect.Effect<unknown, unknown>
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
 }
 
 /**
@@ -618,9 +620,10 @@ export const RunScreen = ({
   preload,
   onStepAside,
   onUseGitHub,
-  press
+  press,
+  where
 }: RunScreenProps) => {
-  const live = useLive(load, preload)
+  const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
   const [pressed, setPressed] = useState<Pressed>({ step: "idle" })
