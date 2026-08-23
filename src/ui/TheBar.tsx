@@ -12,6 +12,7 @@ import { Bar, type BarProps } from "./Bar";
 import { useAround } from "./around";
 import { goBack, goBackTo, goForward, theTrail, watchTheTrail } from "./going";
 import { keepTheBarSlot, theBarSlot, theBarStands } from "./barSlot";
+import { ROOT_ID } from "./mount";
 import { keepRepositories, keptRepositories } from "./keptRepositories";
 import { Palette } from "./Palette";
 import { keepRefraction } from "./refraction";
@@ -155,6 +156,29 @@ export const TheBar = ({
     keepRefraction(document);
     return keepTheBarSlot(document, slot, around.within);
   }, [slot, around.within]);
+
+  /*
+   * How much sky the bar takes, said where the screens can read it.
+   *
+   * The code column pins itself to the top of the viewport, and the bar floats
+   * over that same top on its own sticky. Only the bar knows how tall it is —
+   * it wraps at narrow widths — so it writes the number onto the screen's root
+   * and the column's offset reads it: see the sticky wrapper in `Shell.tsx`.
+   * Without this the column clamped at eight pixels while the bar covered the
+   * first fifty-odd, and at full scroll the files band sat hidden under it.
+   */
+  useEffect(() => {
+    const root = document.getElementById(ROOT_ID);
+    if (root === null) return;
+
+    const say = () =>
+      root.style.setProperty("--gitquiet-bar-h", `${Math.round(slot.getBoundingClientRect().height)}px`);
+    say();
+    if (typeof ResizeObserver === "undefined") return;
+    const watching = new ResizeObserver(say);
+    watching.observe(slot);
+    return () => watching.disconnect();
+  }, [slot]);
 
   /*
    * A list handed straight in is the freshest one this bar ever sees: Home and the

@@ -438,7 +438,11 @@ export const Shell = ({
               part of the page that keeps a height and scrolls inside it. Pinned
               rather than fixed: where a browser or GitHub's own layout will not
               have it, it simply sits still and the page scrolls as one. */}
-          <div className="sticky top-2 flex h-[calc(100vh-1rem)] min-h-[40rem] min-w-0 flex-1">
+          {/* Below the bar, not under it: the bar floats over the top of the
+              viewport on its own sticky, and it says how tall it is through
+              `--gitquiet-bar-h` — see `TheBar.tsx`. Zero where there is no bar,
+              which is the desktop window and a test. */}
+          <div className="sticky top-[calc(var(--gitquiet-bar-h,0px)+0.5rem)] flex h-[calc(100vh-var(--gitquiet-bar-h,0px)-1rem)] min-h-[40rem] min-w-0 flex-1">
             {reading === undefined || loadCommit === undefined ? (
               <FileBrowser
                 files={snapshot.files}
