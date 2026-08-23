@@ -12,7 +12,6 @@ import { Bar, type BarProps } from "./Bar";
 import { useAround } from "./around";
 import { goBack, goBackTo, goForward, theTrail, watchTheTrail } from "./going";
 import { keepTheBarSlot, theBarSlot, theBarStands } from "./barSlot";
-import { ROOT_ID } from "./mount";
 import { keepRepositories, keptRepositories } from "./keptRepositories";
 import { Palette } from "./Palette";
 import { keepRefraction } from "./refraction";
@@ -162,17 +161,19 @@ export const TheBar = ({
    *
    * The code column pins itself to the top of the viewport, and the bar floats
    * over that same top on its own sticky. Only the bar knows how tall it is —
-   * it wraps at narrow widths — so it writes the number onto the screen's root
-   * and the column's offset reads it: see the sticky wrapper in `Shell.tsx`.
-   * Without this the column clamped at eight pixels while the bar covered the
-   * first fifty-odd, and at full scroll the files band sat hidden under it.
+   * it wraps at narrow widths — so it writes the number where the column's
+   * offset reads it: see the sticky wrapper in `Shell.tsx`. Onto `<html>` like
+   * the floor, and for the floor's second reason too: the screen's root is a
+   * detached element while this first runs, and `getElementById` cannot see
+   * it. Without this the column clamped at eight pixels while the bar covered
+   * the first fifty-odd, and at full scroll the files band sat hidden under it.
    */
   useEffect(() => {
-    const root = document.getElementById(ROOT_ID);
-    if (root === null) return;
-
     const say = () =>
-      root.style.setProperty("--gitquiet-bar-h", `${Math.round(slot.getBoundingClientRect().height)}px`);
+      document.documentElement.style.setProperty(
+        "--gitquiet-bar-h",
+        `${Math.round(slot.getBoundingClientRect().height)}px`,
+      );
     say();
     if (typeof ResizeObserver === "undefined") return;
     const watching = new ResizeObserver(say);
