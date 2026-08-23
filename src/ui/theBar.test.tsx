@@ -721,15 +721,14 @@ describe("whose account the bar says it is", () => {
  */
 describe("the bar says how much sky it takes", () => {
   test("writes its height where the screens can read it", async () => {
-    const root = document.createElement("div")
-    root.id = ROOT_ID
-    document.body.append(root)
-
     render(<TheBar where={WHERE} participant={SOMEONE} repositories={KEPT} />)
+
     await waitFor(() => {
-      expect(root.style.getPropertyValue("--gitquiet-bar-h")).toMatch(/px$/)
+      expect(
+        document.documentElement.style.getPropertyValue("--gitquiet-bar-h")
+      ).toMatch(/px$/)
     })
 
-    root.remove()
+    document.documentElement.style.removeProperty("--gitquiet-bar-h")
   })
 })
