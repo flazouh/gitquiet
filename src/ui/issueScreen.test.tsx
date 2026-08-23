@@ -58,6 +58,20 @@ const screenOf = (props: Partial<React.ComponentProps<typeof IssueScreen>> = {})
 )
 
 describe("one issue, on the page GitHub keeps for it", () => {
+  test("reports when a detached issue is ready for navigation", async () => {
+    let prepared = 0
+    render(
+      screenOf({
+        preparing: true,
+        onPrepared: () => {
+          prepared += 1
+        }
+      })
+    )
+
+    await waitFor(() => expect(prepared).toBe(1))
+  })
+
   test("says which issue this is and what was written", async () => {
     render(screenOf())
 

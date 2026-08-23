@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Option } from "effect";
 import { listsPullRequests, THE_HOME } from "../domain/pages";
 import { switchable, type Repository } from "../domain/repositories";
@@ -148,6 +148,8 @@ export type BarProps = {
    * makes. See `theTrail` in `going.ts`.
    */
   readonly onBack?: () => void;
+  /** Starts preparing the Back route while the reader aims at its button. */
+  readonly onPrepareBack?: () => void;
   /**
    * Going forward one page, where the reader has been back and can return.
    *
@@ -157,6 +159,8 @@ export type BarProps = {
    * forward button that appeared in between would take the second press.
    */
   readonly onForward?: () => void;
+  /** Starts preparing the Forward route while the reader aims at its button. */
+  readonly onPrepareForward?: () => void;
   /**
    * The places behind this page, nearest first, for the menu on the back button.
    *
@@ -310,7 +314,9 @@ export const Bar = ({
   participant,
   onSearch,
   onBack,
+  onPrepareBack,
   onForward,
+  onPrepareForward,
   behind = NOTHING,
   onStepAside,
   corner,
@@ -322,6 +328,8 @@ export const Bar = ({
   const Search = art.search;
   const Back = art.back;
   const Forward = art.forward;
+  const backButton = useRef<HTMLButtonElement>(null);
+  const forwardButton = useRef<HTMLButtonElement>(null);
   // The tray says which state it is in, so the two are named rather than one
   // glyph with something drawn over it.
   const Inbox = unread ? art["notifications-unread"] : art.notifications;
@@ -330,6 +338,20 @@ export const Bar = ({
   const [opened, setOpened] = useState<
     "account" | "repositories" | "tabs" | "behind" | undefined
   >(undefined);
+
+  useEffect(() => {
+    const button = backButton.current;
+    if (button === null || onPrepareBack === undefined) return;
+    button.addEventListener("pointerenter", onPrepareBack);
+    return () => button.removeEventListener("pointerenter", onPrepareBack);
+  }, [onPrepareBack]);
+
+  useEffect(() => {
+    const button = forwardButton.current;
+    if (button === null || onPrepareForward === undefined) return;
+    button.addEventListener("pointerenter", onPrepareForward);
+    return () => button.removeEventListener("pointerenter", onPrepareForward);
+  }, [onPrepareForward]);
 
   const stood: ReadonlyArray<Stood> = tabs.map((one) => ({
     ...one,
@@ -423,8 +445,10 @@ export const Bar = ({
             className={`flex items-center overflow-hidden rounded-md ${TINT}`}
           >
             <button
+              ref={backButton}
               type="button"
               onClick={onBack}
+              onFocus={onPrepareBack}
               aria-label="Back"
               title="Back"
               className="grid size-7 shrink-0 place-items-center text-ink-muted hover:bg-active hover:text-ink"
@@ -479,8 +503,10 @@ export const Bar = ({
        */}
       {onBack === undefined ? null : (
         <button
+          ref={forwardButton}
           type="button"
           onClick={onForward}
+          onFocus={onPrepareForward}
           aria-label="Forward"
           title="Forward"
           aria-disabled={onForward === undefined}

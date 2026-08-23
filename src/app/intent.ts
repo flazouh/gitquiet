@@ -14,7 +14,12 @@
  * looking at the same object — and GitHub's own page cannot see it, which a
  * `data-` attribute could not promise.
  */
-type World = Window & { gitquietOpening?: string }
+type Preparing = (path: string) => void
+
+type World = Window & {
+  gitquietOpening?: string
+  gitquietPreparing?: Set<Preparing>
+}
 
 export const intendTo = (target: Window, path: string): void => {
   ;(target as World).gitquietOpening = path
@@ -22,6 +27,25 @@ export const intendTo = (target: Window, path: string): void => {
 
 export const intendedPath = (target: Window): string | null =>
   (target as World).gitquietOpening ?? null
+
+/**
+ * Offers one route to a screen that is already standing.
+ *
+ * This is separate from an intention. A rested pointer is enough reason to build a
+ * detached screen, but only a press is permission to change the address.
+ */
+export const prepareTo = (target: Window, path: string): void => {
+  for (const prepare of (target as World).gitquietPreparing ?? []) prepare(path)
+}
+
+/** Listens for routes that are worth building before the press. */
+export const whenPreparing = (target: Window, prepare: Preparing): (() => void) => {
+  const world = target as World
+  world.gitquietPreparing ??= new Set()
+  world.gitquietPreparing.add(prepare)
+
+  return () => world.gitquietPreparing?.delete(prepare)
+}
 
 /**
  * Forgotten as soon as it is acted on. An intention is about one press, and a

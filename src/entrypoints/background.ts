@@ -4,8 +4,70 @@ import { chosenView } from "@/app/settings"
 import { welcomeFor } from "@/app/welcoming"
 import { goingTo, payloadsOnTheWay } from "@/github/onTheWay"
 import { answering, askedAbout } from "@/github/throughTheWorker"
+import {
+  isMermaidAnswer,
+  isMermaidRequest,
+  MERMAID_UNAVAILABLE,
+  MERMAID_WORK,
+  type MermaidUnavailable,
+  type MermaidWork
+} from "@/markdown/mermaidProtocol"
 import { initialiseErrorReporting } from "@/observability/sentry"
 import { browserSettings } from "@/settings/browserStore"
+
+const OFFSCREEN_PATH = "mermaid-offscreen.html"
+
+let creatingOffscreen: PromiseLike<void> | null = null
+
+const ensureMermaidDocument: Effect.Effect<boolean, unknown> = Effect.gen(function* () {
+  if (!("offscreen" in browser) || browser.offscreen?.createDocument === undefined) return false
+
+  const url = (browser.runtime.getURL as (path: string) => string)(OFFSCREEN_PATH)
+  const contexts = yield* Effect.tryPromise({
+    try: () =>
+      browser.runtime.getContexts({
+        contextTypes: ["OFFSCREEN_DOCUMENT"],
+        documentUrls: [url]
+      }),
+    catch: (cause) => cause
+  })
+  if (contexts.length > 0) return true
+
+  creatingOffscreen ??= browser.offscreen.createDocument({
+    url: OFFSCREEN_PATH,
+    reasons: ["DOM_PARSER"],
+    justification: "Lay out Mermaid diagrams without blocking GitHub navigation."
+  })
+  const opening = creatingOffscreen
+
+  yield* Effect.tryPromise({
+    try: () => opening,
+    catch: (cause) => cause
+  }).pipe(
+    Effect.ensuring(
+      Effect.sync(() => {
+        creatingOffscreen = null
+      })
+    )
+  )
+
+  return true
+})
+
+const unavailable = (): MermaidUnavailable => ({ kind: MERMAID_UNAVAILABLE })
+
+const drawMermaidAwayFromThePage = (code: string): Effect.Effect<unknown> =>
+  Effect.gen(function* () {
+    if (!(yield* ensureMermaidDocument)) return unavailable()
+
+    const answer: unknown = yield* Effect.promise(() =>
+      browser.runtime.sendMessage({
+        kind: MERMAID_WORK,
+        code
+      } satisfies MermaidWork)
+    )
+    return isMermaidAnswer(answer) ? answer : unavailable()
+  }).pipe(Effect.orElseSucceed(unavailable))
 
 /**
  * The worker, which reads a pull request before there is a page to read it on.
@@ -30,6 +92,11 @@ import { browserSettings } from "@/settings/browserStore"
  */
 export default defineBackground(() => {
   initialiseErrorReporting("service-worker")
+
+  browser.runtime.onMessage.addListener((message: unknown) => {
+    if (!isMermaidRequest(message)) return undefined
+    return Effect.runPromise(drawMermaidAwayFromThePage(message.code))
+  })
 
   /*
    * The read, started the moment a tab begins going to a pull request.

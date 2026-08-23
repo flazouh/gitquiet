@@ -18,12 +18,44 @@ import type {
 } from "./model"
 import { hrefOf } from "./sanitize"
 
+/**
+ * Parsed documents already used in this tab.
+ *
+ * A Back navigation remounts the screen, but its markdown and address context
+ * are unchanged. Keeping the immutable model avoids running Marked and GitHub's
+ * address decoration again before React can draw the remembered page.
+ */
+const HOW_MANY = 48
+const documents = new Map<string, MarkdownDocument>()
+
+const documentKey = (source: string, options: ParseOptions): string =>
+  JSON.stringify([
+    source,
+    options.owner ?? null,
+    options.repo ?? null,
+    options.branch ?? null,
+    options.at ?? null
+  ])
+
 export const parseMarkdown = (
   source: string,
   options: ParseOptions = {}
 ): MarkdownDocument => {
+  const key = documentKey(source, options)
+  const had = documents.get(key)
+  if (had !== undefined) {
+    documents.delete(key)
+    documents.set(key, had)
+    return had
+  }
+
   const tokens = marked.lexer(source, { gfm: true, breaks: false })
-  return decorateGitHub({ blocks: blocksOf(tokens), footnotes: [] }, options)
+  const document = decorateGitHub({ blocks: blocksOf(tokens), footnotes: [] }, options)
+  documents.set(key, document)
+
+  const oldest = documents.keys().next()
+  if (documents.size > HOW_MANY && !oldest.done) documents.delete(oldest.value)
+  return document
 }
 
 type Child = MarkdownBlock | MarkdownInline

@@ -760,6 +760,24 @@ describe("the way back and the way forward", () => {
     expect(asked).toEqual(["back", "forward"])
   })
 
+  test("warms each return route while the pointer rests on its button", async () => {
+    const warmed: Array<string> = []
+    render(
+      <Bar
+        where={REPOSITORY}
+        onBack={() => undefined}
+        onForward={() => undefined}
+        onPrepareBack={() => warmed.push("back")}
+        onPrepareForward={() => warmed.push("forward")}
+      />
+    )
+
+    await userEvent.hover(screen.getByRole("button", { name: "Back" }))
+    await userEvent.hover(screen.getByRole("button", { name: "Forward" }))
+
+    expect(warmed).toEqual(["back", "forward"])
+  })
+
   test("offers the places behind, nearest first, behind a chevron on the back half", async () => {
     render(<Bar where={REPOSITORY} onBack={() => undefined} behind={BEHIND} />)
 

@@ -12,7 +12,18 @@ import { forgetEverything } from "./storage"
  * was, so anything a test says about the address is a test of nothing. Everything
  * here reads `github.com` anyway — the address parsers reject other hosts outright.
  */
-GlobalRegistrator.register({ url: "https://github.com/" })
+/*
+ * And without their stylesheets. The fixtures are real saved pages, so every one
+ * carries `<link>`s into `github.githubassets.com`, and happy-dom fetches each
+ * one the moment a document holds it. Nothing here reads a fetched sheet — the
+ * one test that asks about styling reads its own — so the fetches bought nothing
+ * and coupled the suite to that host: on a machine that cannot reach it, a saved
+ * page failed a test about the address bar.
+ */
+GlobalRegistrator.register({
+  url: "https://github.com/",
+  settings: { disableCSSFileLoading: true }
+})
 
 /*
  * Reached for after the registration above, rather than imported beside it, because an

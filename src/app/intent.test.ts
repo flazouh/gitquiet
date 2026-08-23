@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test"
-import { forgetIntent, intendTo, intendedPath } from "./intent"
+import {
+  forgetIntent,
+  intendTo,
+  intendedPath,
+  prepareTo,
+  whenPreparing
+} from "./intent"
 
 const aWindow = () => ({}) as Window
 
@@ -32,5 +38,28 @@ describe("recording which pull request somebody pressed", () => {
     forgetIntent(world)
 
     expect(intendedPath(world)).toBeNull()
+  })
+})
+
+describe("preparing a route before it is pressed", () => {
+  test("tells a standing screen which route the pointer earned", () => {
+    const world = aWindow()
+    const heard: Array<string> = []
+
+    whenPreparing(world, (path) => heard.push(path))
+    prepareTo(world, "/microsoft/vscode/pull/327751")
+
+    expect(heard).toEqual(["/microsoft/vscode/pull/327751"])
+  })
+
+  test("stops telling a screen after that screen leaves", () => {
+    const world = aWindow()
+    const heard: Array<string> = []
+    const stop = whenPreparing(world, (path) => heard.push(path))
+
+    stop()
+    prepareTo(world, "/microsoft/vscode/pull/327751")
+
+    expect(heard).toEqual([])
   })
 })

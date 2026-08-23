@@ -31,8 +31,8 @@ const LOOK_AGAIN = 200
  * costs a fifth of a second rather than everything.
  */
 type Entries = {
-  readonly addEventListener: (name: string, run: () => void) => void
-  readonly removeEventListener: (name: string, run: () => void) => void
+  readonly addEventListener: (name: string, run: (event: Event) => void) => void
+  readonly removeEventListener: (name: string, run: (event: Event) => void) => void
 }
 
 const theirWord = (target: Window): Entries | undefined => {
@@ -51,6 +51,30 @@ const THEIR_EVENTS = [
 ]
 
 export type Stop = () => void
+
+/** Reports the exact same-origin destination before a history traversal commits. */
+export const whenTraversalStarts = (
+  target: Window,
+  onStart: (address: string) => void
+): Stop => {
+  const navigation = theirWord(target)
+  if (navigation === undefined) return () => {}
+
+  const starting = (event: Event): void => {
+    const move = event as Event & {
+      readonly navigationType?: string
+      readonly destination?: { readonly url?: string }
+    }
+    if (move.navigationType !== "traverse" || move.destination?.url === undefined) return
+
+    const destination = new URL(move.destination.url, target.location.href)
+    if (destination.origin !== target.location.origin) return
+    onStart(`${destination.pathname}${destination.search}`)
+  }
+
+  navigation.addEventListener("navigate", starting)
+  return () => navigation.removeEventListener("navigate", starting)
+}
 
 /**
  * How long GitHub is given to move before the press is carried out by hand.

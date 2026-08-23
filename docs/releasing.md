@@ -57,8 +57,9 @@ top of
 [the versions page](https://addons.mozilla.org/developers/addon/gitquiet/versions)
 as the one being looked at.
 
-Until the first review finishes, `addons.mozilla.org` answers 404 for the public
-listing, which is why gitquiet.com does not link it yet.
+The first review finished with v0.3.0, so
+[the public listing](https://addons.mozilla.org/firefox/addon/gitquiet/) answers
+now, and gitquiet.com links it.
 
 ## What gets built
 

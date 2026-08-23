@@ -2,6 +2,16 @@ import { describe, expect, test } from "bun:test"
 import { parseMarkdown } from "./parse"
 
 describe("parsing markdown into a document", () => {
+  test("reuses a document when its source and address context have not changed", () => {
+    const source = "# Cached\n\n[File](docs/file.ts)"
+    const options = { owner: "openrouter", repo: "ori", branch: "main", at: "README.md" }
+
+    const first = parseMarkdown(source, options)
+    const second = parseMarkdown(source, { ...options })
+
+    expect(second).toBe(first)
+  })
+
   test("reads a heading and the paragraph under it", () => {
     const doc = parseMarkdown("# Ori\n\nA CLI for projects you already have.")
 

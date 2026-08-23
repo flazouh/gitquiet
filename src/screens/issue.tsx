@@ -10,12 +10,20 @@ import type { GitHubGateway } from "@/ports/GitHubGateway"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import type { View } from "@/domain/Settings"
 import { chosenView, rememberView } from "@/app/settings"
-import { standAScreen } from "@/shell/screen"
+import { prepareAScreen, standAScreen, type Standing } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { IssueScreen } from "@/ui/IssueScreen"
 import { issueNamed } from "@/ui/lastDrawn"
-import { handBack, markPage, reveal, ungate } from "@/ui/mount"
+import {
+  handBack,
+  hasPreparedScreen,
+  markPage,
+  rememberPreparedScreen,
+  reveal,
+  ungate
+} from "@/ui/mount"
 import { ISSUE } from "@/ui/place"
+import { preparedArrival, PREPARED_TRAVERSAL_ROUTE } from "@/ui/preparedNavigation"
 import { whenLocationChanges } from "@/ui/navigation"
 import { offerOurPage } from "@/ui/theirTabs"
 import "@/ui/styles.css"
@@ -36,7 +44,18 @@ const recallRepositories = () => rememberedRepositories().pipe(throughGitHub)
  * the interface for the issue being left is still standing when the next one
  * arrives.
  */
-const open = (reference: IssueRef, onUseGitHub?: () => void): (() => void) => {
+const pathOf = (reference: IssueRef): string =>
+  `/${reference.owner}/${reference.repo}/issues/${reference.number}`
+
+const open = (
+  reference: IssueRef,
+  onUseGitHub?: () => void,
+  onPrepared?: (container: Element) => void
+): (() => void) => {
+  const route = pathOf(reference)
+  if (onPrepared === undefined && hasPreparedScreen(document, route, ISSUE)) {
+    return standAScreen({ place: ISSUE, route, draw: () => null }).close
+  }
   /**
    * A read, reported here and still failed for the caller to see.
    *
@@ -86,9 +105,10 @@ const open = (reference: IssueRef, onUseGitHub?: () => void): (() => void) => {
       return Fiber.join(Effect.runFork(reading(loadIssue(reference))))
     })
 
-  return standAScreen({
+  const screen = {
     place: ISSUE,
-    draw: (standing) => (
+    route,
+    draw: (standing: Standing) => (
       <IssueScreen
         reference={reference}
         load={read}
@@ -128,9 +148,42 @@ const open = (reference: IssueRef, onUseGitHub?: () => void): (() => void) => {
         reopen={(id) => reading(reopenIssue(reference, id))}
         onStepAside={standing.stepAside}
         onUseGitHub={onUseGitHub}
+        preparing={onPrepared !== undefined}
+        preparedRoot={onPrepared === undefined ? undefined : standing.container}
+        onPrepared={
+          onPrepared === undefined ? undefined : () => onPrepared(standing.container)
+        }
       />
     )
-  }).close
+  }
+
+  return (onPrepared === undefined ? standAScreen(screen) : prepareAScreen(screen.draw)).close
+}
+
+let preparing: { readonly path: string; readonly close: () => void } | null = null
+let handToGitHub: (() => void) | undefined
+
+/** Builds one issue as a detached live route before the reader presses it. */
+export const prepare = (path: string): void => {
+  if (path === window.location.pathname || hasPreparedScreen(document, path, ISSUE)) return
+
+  const reference = fromPathname(path)
+  if (Option.isNone(reference) || preparing?.path === path) return
+
+  preparing?.close()
+  preparing = null
+
+  let stop = (): void => {}
+  const finish = (container: Element): void => {
+    if (preparing?.path !== path) return
+
+    rememberPreparedScreen(document, path, ISSUE, container, stop)
+    document.documentElement.setAttribute(PREPARED_TRAVERSAL_ROUTE, path)
+    preparing = null
+  }
+
+  stop = open(reference.value, () => handToGitHub?.(), finish)
+  preparing = { path, close: stop }
 }
 
 /**
@@ -148,8 +201,10 @@ export const start = (): void => {
   initialiseErrorReporting("content-script")
 
   const store = settings()
+  const arriving = preparedArrival()
 
   let close = (): void => {}
+  let shown: string | null = null
   /** Takes the way back off GitHub's tab row, when one is on it. */
   let unoffer = (): void => {}
   let view: View = "ours"
@@ -163,6 +218,7 @@ export const start = (): void => {
   function handOver(): void {
     close()
     close = () => {}
+    shown = null
     reveal(document)
     ungate(document)
     unoffer()
@@ -182,10 +238,14 @@ export const start = (): void => {
     void rememberView(store, "github")
     handOver()
   }
+  handToGitHub = useGitHub
 
   function show(path: string): void {
+    if (shown === path) return
+
     close()
     close = () => {}
+    shown = null
     unoffer()
     unoffer = () => {}
 
@@ -203,9 +263,13 @@ export const start = (): void => {
     }
 
     close = open(reference.value, useGitHub)
+    shown = path
   }
 
-  whenLocationChanges(window, (path) => show(path))
+  whenLocationChanges(window, (path) => {
+    if (arriving.committed(path)) return
+    show(path)
+  })
 
   // Nothing is drawn until the choice is known, so that a reader who wants
   // GitHub's page is not charged a request for an interface they turned off.
@@ -218,9 +282,15 @@ export const start = (): void => {
         const promise = intendedPath(window)
         forgetIntent(window)
 
-        if (Option.isSome(fromPathname(here))) show(here)
-        else if (promise !== null && Option.isSome(fromPathname(promise))) show(promise)
-        else reveal(document)
+        if (Option.isSome(fromPathname(here))) {
+          const prepared = hasPreparedScreen(document, here, ISSUE)
+          show(here)
+          if (prepared) arriving.start(here)
+        }
+        else if (promise !== null && Option.isSome(fromPathname(promise))) {
+          show(promise)
+          arriving.start(promise)
+        } else reveal(document)
       })
     )
   )

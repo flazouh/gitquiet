@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { fileOf, isWanted, WANTED } from "./screens"
+import { fileOf, isWanted, startScreenOnce, WANTED } from "./screens"
 
 describe("naming the screen a page wants", () => {
   test("knows the seventeen pages this extension has a screen for", () => {
@@ -48,5 +48,15 @@ describe("naming the screen a page wants", () => {
     const sheets = new Set([...WANTED].map((what) => fileOf(what).styles))
 
     expect([...sheets]).toEqual(["/screens/styles.css"])
+  })
+
+  test("starts one screen kind once when prepare and navigation both ask", () => {
+    const started = new Set<typeof WANTED[number]>()
+    let starts = 0
+    const screen = { start: () => (starts += 1) }
+
+    expect(startScreenOnce(started, "pull-request", screen)).toBe(true)
+    expect(startScreenOnce(started, "pull-request", screen)).toBe(false)
+    expect(starts).toBe(1)
   })
 })

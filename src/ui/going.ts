@@ -1,6 +1,7 @@
 import { Effect } from "effect"
 import { BAR_ID } from "./barSlot"
 import { holdTheSurface, ROOT_ID, theScreenOnThePage } from "./mount"
+import { beginNavigation } from "./navigationTiming"
 import type { Stop } from "./navigation"
 
 /**
@@ -55,6 +56,19 @@ export const drawingOurOwnRows = (target: Window, ours: boolean): void => {
 
 export const ourOwnRowsDrawn = (target: Window): boolean =>
   (target as World).gitquietOwnRows === true
+
+/**
+ * Keeps the current surface while one screen redraws for a browser traversal.
+ *
+ * A press calls {@link goTo}, which already holds the surface before it changes
+ * history. Back and Forward do not pass through that function. Without this
+ * matching hold, the screen closes its root before its returned page can draw.
+ */
+export const holdForRedraw = (target: Window, redraws: boolean): boolean => {
+  const inPlace = ourOwnRowsDrawn(target)
+  if (inPlace && redraws) holdTheSurface(target.document)
+  return inPlace
+}
 
 /**
  * The browser's own account of where this tab has been.
@@ -114,6 +128,8 @@ export type Trail = {
   readonly back: boolean
   /** Whether there is anywhere ahead, which there is only once the reader has gone back. */
   readonly forward: boolean
+  /** The exact next address, where the browser can name it for route preparation. */
+  readonly ahead?: string
   /**
    * The places behind, nearest first, at most {@link HOW_FAR} of them.
    *
@@ -181,6 +197,8 @@ export const theTrail = (target: Window): Trail => {
     behind.push({ at: address, key: entries[at]?.key, back: here - at })
   }
 
+  const ahead = addressOfEntry(entries[here + 1]?.url)
+
   return {
     /*
      * The API's answer, and the count where it declines to give one. `entries()`
@@ -190,6 +208,7 @@ export const theTrail = (target: Window): Trail => {
      */
     back: (nav.canGoBack ?? false) || target.history.length > 1,
     forward: nav.canGoForward ?? false,
+    ...(ahead === undefined ? {} : { ahead }),
     behind
   }
 }
@@ -201,10 +220,12 @@ export const theTrail = (target: Window): Trail => {
  * is going back; it does not reach into `history` to do it.
  */
 export const goBack = (target: Window): void => {
+  beginNavigation(target)
   target.history.back()
 }
 
 export const goForward = (target: Window): void => {
+  beginNavigation(target)
   target.history.forward()
 }
 
@@ -238,6 +259,7 @@ const letGo = (answer: PromiseLike<unknown> | undefined): void => {
  * they were, and the two promises are read only so that neither is left unhandled.
  */
 export const goBackTo = (target: Window, step: Step): void => {
+  beginNavigation(target)
   const nav = theirNavigation(target)
 
   if (step.key !== undefined && nav?.traverseTo !== undefined) {
@@ -334,6 +356,8 @@ export const goTo = (
    * for one press is a back button that appears to do nothing.
    */
   if (addressOf(target) === path) return
+
+  beginNavigation(target)
 
   const leaving = theScreenOnThePage(target.document)
   const cameUp = arrived ?? (() => theScreenOnThePage(target.document) !== leaving)

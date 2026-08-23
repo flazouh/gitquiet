@@ -19,10 +19,13 @@ import { SettingsDialog } from "./SettingsDialog";
 import { paintTokens } from "./applyTheme";
 import { usePaintedTheme } from "./Theme";
 import { useOursToDraw } from "./useOursToDraw";
+import { whenTheScreenMoves } from "./mount";
 import { useSettings } from "./useSettings";
+import { useScreenActivity } from "./screenActivity";
 import { tabMark } from "./tabMarks";
 import { participantOnPage } from "./viewer";
 import { visited, visiting } from "./visited";
+import { prepareTo } from "../app/intent";
 import {
   readingTheCode,
   repositoryTabs,
@@ -32,6 +35,8 @@ import {
 } from "./theirNav";
 
 const NOTHING: ReadonlyArray<never> = [];
+
+const prepareOnThisPage = (path: string): void => prepareTo(window, path);
 
 /**
  * The bar, put where a bar goes, with the palette behind its search.
@@ -48,10 +53,19 @@ export const TheBar = ({
   owed = NOTHING,
   recall,
   participant,
+  preparedRoot,
+  onPrepareRoute,
   ...props
 }: Omit<
   BarProps,
-  "tabs" | "onSearch" | "corner" | "onBack" | "onForward" | "behind"
+  | "tabs"
+  | "onSearch"
+  | "corner"
+  | "onBack"
+  | "onPrepareBack"
+  | "onForward"
+  | "onPrepareForward"
+  | "behind"
 > & {
   /**
    * Every repository the reader has, for the palette. Left out and no search is offered at
@@ -71,15 +85,28 @@ export const TheBar = ({
   readonly recall?: () => Effect.Effect<
     Option.Option<ReadonlyArray<Repository>>
   >;
+  /** A detached route root whose bar is being built before navigation. */
+  readonly preparedRoot?: Element;
+  /** Builds an exact history route before the reader presses Back or Forward. */
+  readonly onPrepareRoute?: (path: string) => void;
 }) => {
+  const active = useScreenActivity();
+  const prepareRoute = onPrepareRoute ?? prepareOnThisPage;
   /*
    * Whatever is around this screen, which in the extension is a page and answers none
    * of it: no element to stand in, Home an address, and nothing of its own in the
    * tray. See `around.ts` for who answers otherwise and why.
    */
   const around = useAround();
-  const slot = useMemo(() => theBarSlot(document, around.within), [around.within]);
-  const drawing = useOursToDraw();
+  const pageSlot = useMemo(() => theBarSlot(document, around.within), [around.within]);
+  const [preparedSlot] = useState(() => {
+    if (preparedRoot === undefined) return null;
+    const made = document.createElement("div");
+    made.style.display = "contents";
+    return made;
+  });
+  const slot = preparedSlot ?? pageSlot;
+  const drawing = useOursToDraw() && active;
   /*
    * The reader's own choices, read here so the way into them can stand in the strip.
    *
@@ -298,12 +325,49 @@ export const TheBar = ({
    */
   const [trail, setTrail] = useState(() => theTrail(window));
 
-  useEffect(() => watchTheTrail(window, () => setTrail(theTrail(window))), []);
+  useEffect(() => {
+    const update = () => {
+      if (!active || (preparedRoot !== undefined && !preparedRoot.isConnected)) return;
+      setTrail(theTrail(window));
+    };
+    update();
+    const stopTrail = watchTheTrail(window, update);
+    const stopScreen =
+      preparedRoot === undefined ? () => {} : whenTheScreenMoves(document, update);
+    return () => {
+      stopTrail();
+      stopScreen();
+    };
+  }, [active, preparedRoot]);
 
   useEffect(() => {
-    if (props.where.kind !== "repository") return;
+    if (preparedSlot === null || preparedRoot === undefined) {
+      if (drawing) theBarStands(document);
+      return;
+    }
+
+    const activate = () => {
+      if (!preparedRoot.isConnected) return;
+      pageSlot.append(preparedSlot);
+      if (drawing) theBarStands(document);
+    };
+    activate();
+    const stop = whenTheScreenMoves(document, activate);
+    return () => {
+      stop();
+      preparedSlot.remove();
+    };
+  }, [drawing, pageSlot, preparedRoot, preparedSlot]);
+
+  useEffect(() => {
+    if (
+      !active ||
+      props.where.kind !== "repository" ||
+      (preparedRoot !== undefined && !preparedRoot.isConnected)
+    )
+      return;
     visiting(`${props.where.owner}/${props.where.repo}`);
-  }, [props.where]);
+  }, [active, preparedRoot, props.where]);
 
   /*
    * ⌘K, and on the document rather than on the bar: the reader is looking at a list, a diff or
@@ -312,9 +376,10 @@ export const TheBar = ({
    * over the page — and left alone entirely while something of ours is already typing.
    */
   useEffect(() => {
-    if (!searchable) return;
+    if (!active || !searchable) return;
 
     const onKey = (event: KeyboardEvent) => {
+      if (preparedRoot !== undefined && !preparedRoot.isConnected) return;
       if (event.key !== "k" || !(event.metaKey || event.ctrlKey)) return;
       event.preventDefault();
       event.stopPropagation();
@@ -323,18 +388,7 @@ export const TheBar = ({
 
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [searchable]);
-
-  /*
-   * Said out loud, because the bar being replaced is waiting to hear it.
-   *
-   * That bar belongs to another script — each screen is its own bundle — and it holds
-   * itself up until the page has one again, or the page is left barless for the eighty
-   * milliseconds this tree needs to render. See `whenAnotherBarStands`.
-   */
-  useEffect(() => {
-    if (drawing) theBarStands(document);
-  }, [drawing]);
+  }, [active, preparedRoot, searchable]);
 
   /*
    * Nothing at all while another screen of ours has the page.
@@ -368,7 +422,17 @@ export const TheBar = ({
         }
         onSearch={searchable ? () => setFinding(true) : undefined}
         onBack={trail.back ? () => goBack(window) : undefined}
+        onPrepareBack={
+          trail.behind[0] === undefined
+            ? undefined
+            : () => prepareRoute(trail.behind[0]!.at)
+        }
         onForward={trail.forward ? () => goForward(window) : undefined}
+        onPrepareForward={
+          trail.ahead === undefined
+            ? undefined
+            : () => prepareRoute(trail.ahead!)
+        }
         behind={eachOnce(
           trail.behind.map((step) => ({
             ...theNameOf(step.at),

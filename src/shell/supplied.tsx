@@ -13,6 +13,7 @@ import { OCTICONS } from "../ui/octicons";
 import { PortraitsProvider } from "../ui/portraits";
 import { RendererProvider } from "../ui/renderer";
 import { SettingsProvider } from "../ui/settings";
+import { ScreenActivityProvider } from "../ui/screenActivity";
 import { Theme } from "../ui/Theme";
 import { Toasts } from "../ui/Toasts";
 import { loadDiffEngine } from "./diffEngine";
@@ -113,6 +114,8 @@ export const liveUpdates = (
  */
 export const Supplied = ({
   root,
+  quiet = false,
+  active = true,
   children,
 }: {
   /**
@@ -122,8 +125,13 @@ export const Supplied = ({
    * is frequently not on the page yet — see `Theme`.
    */
   readonly root?: HTMLElement | undefined;
+  /** Omits document-wide surfaces while a route is rendered off the page. */
+  readonly quiet?: boolean;
+  /** False while a live history entry is detached from the page. */
+  readonly active?: boolean;
   readonly children: ReactNode;
 }) => (
+  <ScreenActivityProvider active={active} root={root}>
   <RegistryProvider registry={registry()}>
     <SettingsProvider store={settings()}>
       {/* Their colours too, for the same reason as their glyphs: this is drawn
@@ -143,7 +151,7 @@ export const Supplied = ({
                 the control that caused it — the menu closed on the press — and on
                 some of them it outlives the screen too, a merged pull request being
                 a page the reader is about to leave. */}
-            <Toasts>{children}</Toasts>
+            {quiet ? children : <Toasts>{children}</Toasts>}
             </PaintedMarkdown>
           </RendererProvider>
         </PortraitsProvider>
@@ -151,4 +159,5 @@ export const Supplied = ({
       </Theme>
     </SettingsProvider>
   </RegistryProvider>
+  </ScreenActivityProvider>
 );

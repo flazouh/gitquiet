@@ -25,6 +25,7 @@ public/markdown-highlighter.js
 
 # Built by scripts/build-markdown-mermaid.ts, not by hand.
 public/markdown-mermaid.js
+public/markdown-mermaid-local.js
 
 # Built by scripts/build-screens.ts, not by hand.
 public/screens/
@@ -37,3 +38,4 @@ public/screens/
 .agents/
 skills-lock.json
 .claude/
+node_modules

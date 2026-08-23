@@ -115,8 +115,8 @@ const NO_READER = new Error("Nothing is wired to read commits.")
  *
  * Past the last panel's stagger and its travel — five staggers of forty and a
  * quarter second of entrance is under half a second — so nothing is cut off
- * mid-arrival, and early enough that the first late read to land finds the page
- * already still.
+ * mid-arrival, and early enough that the first late read to land finds the
+ * page already still.
  */
 const LANDING = 700
 
