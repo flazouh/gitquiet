@@ -563,6 +563,49 @@ describe("what the gateway sends to GitHub", () => {
     expect(asked.searchParams.get("range")).toBe("abc123")
   })
 
+  test("asks again, alone, for the file a batched answer starved", async () => {
+    /*
+     * GitHub budgets each answer by bytes: a big file requested beside others
+     * comes back marked too big with no lines, and the same file asked for by
+     * itself answers whole. Recorded on a real pull request, where believing
+     * the batched answer printed "binary, or too large" over an 805-line Go
+     * file that GitHub was perfectly willing to serve.
+     */
+    const starved = { path: "big.go", isBinary: false, isTooBig: true, truncatedReason: null, diffLines: [] }
+    const small = {
+      path: "little.md",
+      isBinary: false,
+      isTooBig: false,
+      truncatedReason: null,
+      diffLines: [{ type: "HUNK", text: "@@ -1 +1 @@", left: null, right: null }]
+    }
+    const whole = {
+      ...starved,
+      isTooBig: false,
+      diffLines: [
+        { type: "HUNK", text: "@@ -0,0 +1,2 @@", left: null, right: 0 },
+        { type: "ADDITION", text: "+package big", left: null, right: 1 }
+      ]
+    }
+    const calls = intercept((url) => {
+      const paths = new URL(url).searchParams.get("paths") ?? ""
+      return Response.json(paths.includes(",") ? [starved, small] : [whole])
+    })
+
+    const got = await Effect.runPromise(
+      Effect.gen(function* () {
+        const gateway = yield* GitHubGateway
+        return yield* gateway.diffs(draft, "abc123", ["big.go", "little.md"])
+      }).pipe(Effect.provide(layer))
+    )
+
+    expect(got.find((one) => one.path === "big.go")?.diff.lines).toHaveLength(2)
+    expect(got.find((one) => one.path === "big.go")?.diff.isTruncated).toBe(false)
+    expect(got.find((one) => one.path === "little.md")?.diff.lines).toHaveLength(1)
+    expect(calls).toHaveLength(2)
+    expect(new URL(calls[1]?.url ?? "https://example.invalid").searchParams.get("paths")).toBe("big.go")
+  })
+
   /**
    * A commit page embeds content for as many files as fits a byte budget and
    * sends the rest as names. There is no asking for one by name — the route
