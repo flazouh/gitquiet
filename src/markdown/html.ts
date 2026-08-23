@@ -25,12 +25,18 @@ export type HtmlPiece =
 
 export const piecesOf = (html: string): ReadonlyArray<HtmlPiece> => {
   const pieces: Array<HtmlPiece> = []
-  const tag = /<\/?([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)\/?>/g
+  // A comment is a note between machines — review bots file their bookkeeping there —
+  // and, matched first, it is dropped whole before its insides can look like text or tags.
+  const tag = /<!--[\s\S]*?(?:-->|$)|<\/?([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)\/?>/g
   let last = 0
   for (const match of html.matchAll(tag)) {
     const at = match.index
     if (at > last) pieces.push({ kind: "text", text: html.slice(last, at) })
     const raw = match[0]
+    if (raw.startsWith("<!--")) {
+      last = at + raw.length
+      continue
+    }
     const name = match[1]?.toLowerCase() ?? ""
     if (raw.startsWith("</")) pieces.push({ kind: "close", tag: name })
     else {

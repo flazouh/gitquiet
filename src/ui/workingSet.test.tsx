@@ -834,6 +834,58 @@ describe("narrowing the Working Set down", () => {
     localStorage.clear()
   })
 
+  test("the address wins over what was remembered, where the two disagree", () => {
+    // The seed is what the reader just did, and the rows on the screen were
+    // fetched by it. A box showing last week's filter over this minute's list
+    // describes neither.
+    localStorage.setItem("gitquiet:filter:o/r", "author:bob")
+
+    render(
+      <WorkingSet sittings={flat(many)} onOpen={() => {}} scope="o/r" seed="is:merged" />
+    )
+
+    const box = screen.getByRole("searchbox", { name: /Filter/ })
+    expect(box instanceof HTMLInputElement ? box.value : "").toBe("is:merged")
+
+    localStorage.clear()
+  })
+
+  test("what was remembered wins where it asks everything the address asks", () => {
+    // The remembered line does not disagree with the address there — it extends
+    // it. That is the box as it stood a moment ago, when a state term moved the
+    // address out from under it: the address carries what it can, and the box
+    // takes back the words and refinements only this side knows.
+    localStorage.setItem("gitquiet:filter:o/r", "flaky author:me is:merged")
+
+    render(
+      <WorkingSet sittings={flat(many)} onOpen={() => {}} scope="o/r" seed="author:me is:merged" />
+    )
+
+    const box = screen.getByRole("searchbox", { name: /Filter/ })
+    expect(box instanceof HTMLInputElement ? box.value : "").toBe("flaky author:me is:merged")
+
+    localStorage.clear()
+  })
+
+  test("tells whoever is listening the filter, as it mounts and as it changes", async () => {
+    // The mount call carries the filter this list remembered on its own, which
+    // arrives with no keystroke to announce it; a screen fetched by an address
+    // hears both and moves the address where the ask needs rows it never fetched.
+    localStorage.setItem("gitquiet:filter:o/r", "is:unread")
+    const heard: Array<string> = []
+
+    render(
+      <WorkingSet sittings={flat(many)} onOpen={() => {}} scope="o/r" onQuery={(q) => heard.push(q)} />
+    )
+    expect(heard).toEqual(["is:unread"])
+
+    await userEvent.type(screen.getByRole("searchbox", { name: /Filter/ }), " flaky")
+
+    expect(heard.at(-1)).toBe("is:unread flaky")
+
+    localStorage.clear()
+  })
+
   test("writes down what it was filtered to, under this list's own name", async () => {
     render(<WorkingSet sittings={flat(many)} onOpen={() => {}} scope="flazouh/octo-repo" />)
 

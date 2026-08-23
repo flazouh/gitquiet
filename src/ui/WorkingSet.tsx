@@ -9,7 +9,7 @@ import {
   pageOf
 } from "../domain/issues"
 import type { PullRequestRef } from "../domain/PullRequestRef"
-import { sieveOf, undecided } from "../domain/sieve"
+import { asked, sieveOf, termsIn, undecided } from "../domain/sieve"
 import { stepping } from "../domain/stepping"
 import { type Piled, setAside, type Sitting, sifted, walkThrough } from "../domain/sittings"
 import type { CheckRollup, Court, InvolvedPullRequest, Size } from "../domain/workingSet"
@@ -1010,6 +1010,7 @@ export const WorkingSet = ({
   within,
   keys = DEFAULT_PROFILE,
   asking,
+  onQuery,
   bare = false
 }: {
   readonly sittings: ReadonlyArray<Sitting>
@@ -1057,6 +1058,16 @@ export const WorkingSet = ({
    * row — only about whether anything at all can be asked from here.
    */
   readonly asking?: Asking
+  /**
+   * Told the filter as it stands: once as the list mounts, and on every change.
+   *
+   * For a screen whose rows were fetched by an address, which is the one caller
+   * that can be asked something this list cannot answer — a state the fetch did
+   * not carry — and answers by moving the address. The mount call is for the
+   * filter this list remembered on its own, which arrives with no keystroke to
+   * announce it and can be exactly such a question.
+   */
+  readonly onQuery?: (query: string) => void
 }) => {
   /*
    * Seeded from the address, or from what was remembered, in the first render
@@ -1067,19 +1078,36 @@ export const WorkingSet = ({
    * The address wins where it says anything. It is what the reader just did,
    * and the rows on the screen were fetched by it: a box showing last week's
    * filter over this minute's list describes neither.
+   *
+   * Where what was remembered asks everything the address asks and more, the
+   * remembered line wins instead — it does not disagree with the address, it
+   * extends it. That is what the box held a moment ago when a state term moved
+   * the address out from under it: the address carries the terms it can, and
+   * the box takes back the words and refinements only this side knows.
    */
   const [query, setQuery] = useState(() => {
-    if (seed !== undefined && seed.length > 0) return seed
-    return scope === undefined ? "" : rememberedFilter(scope)
+    const remembered = scope === undefined ? "" : rememberedFilter(scope)
+    if (seed === undefined || seed.length === 0) return remembered
+    const extended =
+      remembered.length > 0 && termsIn(seed).every((term) => asked(remembered, term))
+    return extended ? remembered : seed
   })
 
   const ask = useCallback(
     (next: string) => {
       setQuery(next)
       if (scope !== undefined) rememberFilter(scope, next)
+      onQuery?.(next)
     },
-    [scope]
+    [scope, onQuery]
   )
+
+  // Once, for the filter this list remembered on its own — see the prop's note.
+  // What the reader goes on to type reaches the same caller through `ask`.
+  useEffect(() => {
+    onQuery?.(query)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the mount's own query, once
+  }, [])
   const [chosen, setChosen] = useState<string | undefined>(undefined)
   /** This list's own rows, so the keyboard reaches one of them and not another list's. */
   const list = useRef<HTMLDivElement>(null)

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Option } from "effect"
-import { onTheirShelves, queryFor, type RepoList, repoListIn, seeding } from "./repoList"
+import { addressFor, onTheirShelves, queryFor, type RepoList, repoListIn, seeding } from "./repoList"
 import type { InvolvedPullRequest, Shelf } from "./workingSet"
 
 const read = (url: string) => repoListIn(url)
@@ -112,6 +112,101 @@ describe("the search a repository's list is read with", () => {
 
   test("drops a second is:pr rather than repeating it", () => {
     expect(queryFor(list("is:pr is:open")).match(/is:pr/g)).toHaveLength(1)
+  })
+
+  test("says author:@me to their search, whatever the box calls the reader", () => {
+    // `author:me` is this interface's spelling. Their search reads it as somebody
+    // whose login is the word "me", and answers with nobody's pull requests.
+    const asked = queryFor(list("author:me is:merged"))
+
+    expect(asked).toContain("author:@me")
+    expect(asked).not.toContain("author:me ")
+    expect(asked.endsWith("author:me")).toBe(false)
+  })
+
+  test("holds back the terms only the sieve answers", () => {
+    // `is:failing` and `review:approved` are this interface's vocabulary. Their
+    // search has never heard of the first, and each only narrows rows already
+    // fetched — the sieve applies them on this side.
+    const asked = queryFor(list("is:failing review:approved is:merged"))
+
+    expect(asked).not.toContain("is:failing")
+    expect(asked).not.toContain("review:approved")
+    expect(asked).toContain("is:merged")
+  })
+
+  test("asks for no state at all where the reader asked for two", () => {
+    // Two states are an either to the reader and a both to their search, which a
+    // pull request cannot be. Fetching every state lets the sieve narrow to the
+    // two that were asked.
+    const asked = queryFor(list("is:open is:merged label:bug"))
+
+    expect(asked).not.toContain("is:open")
+    expect(asked).not.toContain("is:merged")
+    expect(asked).toContain("label:bug")
+  })
+})
+
+describe("the address the filter box moves this page to", () => {
+  const at = (query: string): RepoList => ({
+    repo: { owner: "octo-org", repo: "octo-repo" },
+    query,
+    page: 1
+  })
+
+  const moved = (query: string, box: string) => addressFor(at(query), box)
+
+  test("moves for a state the fetched rows cannot be in", () => {
+    // The rows were fetched open. `is:merged` typed into the box excludes every
+    // one of them, and no amount of sieving finds rows that were never fetched.
+    expect(moved("", "author:me is:merged")).toEqual(
+      Option.some("/octo-org/octo-repo/pulls?q=author%3Ame+is%3Amerged")
+    )
+  })
+
+  test("stays put for a state the fetched rows answer", () => {
+    // Open and draft are both in their default answer, and merged is inside
+    // their reading of closed. The sieve narrows what is already here.
+    expect(moved("", "is:open")).toEqual(Option.none())
+    expect(moved("", "is:draft")).toEqual(Option.none())
+    expect(moved("is:closed", "is:merged")).toEqual(Option.none())
+  })
+
+  test("stays put while the box narrows by anything but a state", () => {
+    expect(moved("", "author:me is:failing flaky")).toEqual(Option.none())
+  })
+
+  test("goes back to the default list when the box no longer names a state", () => {
+    // A box saying nothing over rows that are all merged reads as everything
+    // there is, which the rows are not.
+    expect(moved("is:merged", "")).toEqual(Option.some("/octo-org/octo-repo/pulls"))
+  })
+
+  test("keeps the terms the box never showed", () => {
+    // A `label:` or a `sort:` from a link narrowed the search and the box cannot
+    // undo it. Dropping them here would silently widen the list.
+    expect(moved("label:bug sort:updated-desc", "is:merged")).toEqual(
+      Option.some("/octo-org/octo-repo/pulls?q=label%3Abug+sort%3Aupdated-desc+is%3Amerged")
+    )
+  })
+
+  test("leaves the reader's words out of the address", () => {
+    // The sieve reads a word as letters to find and their search reads it as a
+    // word, and a half-typed one would fetch nothing. Words keep narrowing on
+    // this side, where the box that holds them is.
+    expect(moved("", "fla is:merged")).toEqual(
+      Option.some("/octo-org/octo-repo/pulls?q=is%3Amerged")
+    )
+  })
+
+  test("moves once: the address it writes answers its own box", () => {
+    // The screen on the far side announces the same box again as it mounts. An
+    // address that did not answer it would move the page forever.
+    const box = "author:me is:merged flaky"
+    const address = Option.getOrThrow(moved("", box))
+    const query = new URL(`https://github.com${address}`).searchParams.get("q") ?? ""
+
+    expect(addressFor(at(query), box)).toEqual(Option.none())
   })
 })
 
