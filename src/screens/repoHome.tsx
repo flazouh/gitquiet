@@ -33,6 +33,13 @@ const recallRepositories = () => rememberedRepositories().pipe(throughGitHub)
 const addressOf = (home: RepoHome): string => `${home.repo.owner}/${home.repo.repo}`
 
 /**
+ * A branch name or file path as an address writes it: each segment escaped on
+ * its own, so a `#` or a space survives and a slash keeps meaning a slash.
+ */
+const escaped = (name: string): string =>
+  name.split("/").map(encodeURIComponent).join("/")
+
+/**
  * Whether two addresses are the same tree, and differ only in what is open in it.
  *
  * A bare address means the default branch, so it can only be called the same
@@ -223,16 +230,10 @@ const open = (
      */
     const root = home.branch === null
       ? `/${home.repo.owner}/${home.repo.repo}`
-      : `/${home.repo.owner}/${home.repo.repo}/tree/${home.branch
-          .split("/")
-          .map(encodeURIComponent)
-          .join("/")}`
+      : `/${home.repo.owner}/${home.repo.repo}/tree/${escaped(home.branch)}`
     const at = reading === null
       ? root
-      : `/${home.repo.owner}/${home.repo.repo}/blob/${branchNow}/${reading
-          .split("/")
-          .map(encodeURIComponent)
-          .join("/")}`
+      : `/${home.repo.owner}/${home.repo.repo}/blob/${branchNow}/${escaped(reading)}`
     if (window.location.pathname === at) return
     onMove(at, {
       repo: home.repo,
@@ -435,10 +436,7 @@ export const start = (): void => {
     repo: { readonly owner: string; readonly repo: string },
     name: string
   ): void => {
-    const at = `/${repo.owner}/${repo.repo}/tree/${name
-      .split("/")
-      .map(encodeURIComponent)
-      .join("/")}`
+    const at = `/${repo.owner}/${repo.repo}/tree/${escaped(name)}`
 
     if (on !== undefined && on.branch === name && window.location.pathname === at) return
 
