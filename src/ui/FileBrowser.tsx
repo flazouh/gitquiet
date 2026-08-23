@@ -224,6 +224,7 @@ const Drawing = memo(
       <div
         data-file={file.path}
         aria-hidden={open ? "false" : "true"}
+        hidden={!open}
         className="absolute inset-0 overflow-auto"
         style={
           open
@@ -866,6 +867,7 @@ export const FileBrowser = ({
             edge while being inset from both sides, so a card with one file in
             it read as a row that had slipped out of its frame. */}
         <div
+          data-gitquiet-activation="files-tree"
           className={`${tree.width} flex min-h-0 shrink-0 flex-col overflow-hidden rounded-md bg-canvas pt-1`}
         >
           {/* Built again when one of these changes: the tree reads them once,
@@ -893,7 +895,10 @@ export const FileBrowser = ({
         {/* One heading above the stack rather than one per drawing: which file
             is open is a fact about this subcard, and it was already pinned to
             the top of the scroll while the code moved under it. */}
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-md bg-canvas">
+        <div
+          data-gitquiet-activation="files-content"
+          className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-md bg-canvas"
+        >
           {prepareThrough < 2 || file === undefined ? null : (
             <FileHeading file={file} icons={tree.icons} />
           )}

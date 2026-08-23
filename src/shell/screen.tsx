@@ -21,6 +21,7 @@ import {
 } from "../ui/mount"
 import type { Place } from "../ui/place"
 import { OWNED_TRAVERSAL } from "../ui/preparedNavigation"
+import { prepareRouteActivation } from "../ui/routeActivation"
 import { Supplied } from "./supplied"
 
 /**
@@ -173,6 +174,7 @@ export const standAScreen = (screen: Screen): Standing => {
 
   const container = interfaceContainer(document, place, route)
   const prepared = preparedRoots.delete(container)
+  const activation = prepared ? prepareRouteActivation(container) : null
   /** This stand-up, told apart from another on the same container. */
   const mine = Symbol(place.name)
   const root = rootOn(container, mine)
@@ -212,6 +214,7 @@ export const standAScreen = (screen: Screen): Standing => {
   const standDown = (event?: Event): void => {
     if (down) return
     down = true
+    activation?.cancel()
     const keepLive = event instanceof CustomEvent && event.detail === true
     stopWaitingForABody()
     letGo()
@@ -300,18 +303,22 @@ export const standAScreen = (screen: Screen): Standing => {
            * own, which is how two bars used to end up on one page.
            */
           if (!watching) {
+            activation?.cancel()
             takeover?.stepAside()
             standDown()
             return
           }
           if (takeover === null) {
+            activation?.cancel()
             // The page is GitHub's now. Nothing is going to look at this tree.
             standDown()
             return
           }
+          activation?.start()
           stepAside = takeover.stepAside
         },
         failed: (cause) => {
+          activation?.cancel()
           // The wait ended in a throw, so this tree has no page and none is coming: the
           // same case as `takeover === null` above, and it comes down the same way.
           standDown()

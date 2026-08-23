@@ -26,7 +26,7 @@ export const ProseDiff = ({ diff }: { readonly diff: FileDiff }) => {
   const runs = useMemo(() => proseRuns(diff), [diff])
 
   return (
-    <div className="flex flex-col">
+    <div data-gitquiet-prose-runs className="flex flex-col">
       {runs.map((run, at) => (
         <div
           // Runs have no identity of their own — two paragraphs can be added

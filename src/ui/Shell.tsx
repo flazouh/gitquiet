@@ -461,7 +461,10 @@ export const Shell = ({
               rather than fixed: where a browser or GitHub's own layout will not
               have it, it simply sits still and the page scrolls as one. */}
           {preparedStage >= 15 ? (
-            <div className="sticky top-2 flex h-[calc(100vh-1rem)] min-h-[40rem] min-w-0 flex-1">
+            <div
+              data-gitquiet-activation="files-panel"
+              className="sticky top-2 flex h-[calc(100vh-1rem)] min-h-[40rem] min-w-0 flex-1"
+            >
               {reading === undefined || loadCommit === undefined ? (
                 <FileBrowser
                   files={snapshot.files}
