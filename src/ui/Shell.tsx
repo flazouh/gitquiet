@@ -1,5 +1,5 @@
 import { Effect, Option } from "effect"
-import { useCallback, useDeferredValue, useMemo, useRef, useState } from "react"
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import type {
   Check,
   CheckNote,
@@ -109,6 +109,16 @@ export type ShellProps = {
 }
 
 const NO_READER = new Error("Nothing is wired to read commits.")
+
+/**
+ * How long an arrival may keep entering, in milliseconds.
+ *
+ * Past the last panel's stagger and its travel — five staggers of forty and a
+ * quarter second of entrance is under half a second — so nothing is cut off
+ * mid-arrival, and early enough that the first late read to land finds the page
+ * already still.
+ */
+const LANDING = 700
 
 /**
  * The one command that belongs to the page rather than to a panel in it.
@@ -374,9 +384,27 @@ export const Shell = ({
   // it — rather than the page — what the reader has open.
   const [ours, setOurs] = useState<HTMLElement | null>(null)
 
+  /*
+   * Whether the page has finished arriving, for the stylesheet.
+   *
+   * The entrance animations belong to the arrival, and only to it. A snapshot
+   * that completes later inserts panels above settled ones; React moves the
+   * neighbours by re-inserting them, and a re-inserted element replays its CSS
+   * animation — the whole column entered twice on a prefetched pull request.
+   * Once this flag is on, `motion.css` takes the entrance off everything under
+   * it: a late panel simply is there, which is what the sheet already promises
+   * about answers. The delay is the entrance's own length — the longest stagger
+   * plus the travel — with a beat to spare.
+   */
+  const [landed, setLanded] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => setLanded(true), LANDING)
+    return () => clearTimeout(timer)
+  }, [])
+
   return (
     <KeyboardScope value={ours}>
-      <div ref={setOurs} className="flex flex-col pt-2">
+      <div ref={setOurs} data-gitquiet-landed={landed ? "" : undefined} className="flex flex-col pt-2">
         <PageKeys keys={keys} onDismiss={() => setReading(undefined)} />
         {/* Above the header, where GitHub's banner about the same thing stands.
             It is drawn at all only where they offer a stack and nobody has made
