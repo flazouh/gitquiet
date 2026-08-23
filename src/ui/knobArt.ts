@@ -1,22 +1,5 @@
-import {
-  DIFF_KNOBS,
-  HOME_KNOBS,
-  PAGE_KNOBS,
-  SIGN_ON_KNOBS,
-  THEME_KNOBS,
-  TREE_KNOBS
-} from "../domain/Settings"
+import type { KnobKey } from "../domain/Settings"
 import type { ArtName } from "./art"
-
-/** Every knob there is, by the key it answers to. */
-type KnobKey = (
-  | (typeof PAGE_KNOBS)[number]
-  | (typeof THEME_KNOBS)[number]
-  | (typeof DIFF_KNOBS)[number]
-  | (typeof TREE_KNOBS)[number]
-  | (typeof HOME_KNOBS)[number]
-  | (typeof SIGN_ON_KNOBS)[number]
-)["key"]
 
 /**
  * The glyph each knob wears in the settings panel.
@@ -75,12 +58,3 @@ export const KNOB_ART: Readonly<Record<KnobKey, ArtName>> = {
   issues: "issue",
   byItself: "sign-out"
 }
-
-/**
- * The glyph for a knob the panel is holding.
- *
- * The panel draws knobs as `Knob<string, string>`, since a run of them is a run
- * of different keys; the widening is done here, once, rather than at the row.
- */
-export const artFor = (key: string): ArtName | undefined =>
-  (KNOB_ART as Readonly<Record<string, ArtName>>)[key]

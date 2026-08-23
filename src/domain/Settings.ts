@@ -547,6 +547,25 @@ export const SIGN_ON_KNOBS = [
   )
 ] as const
 
+/**
+ * Any one knob there is, whichever group it belongs to.
+ *
+ * A panel or a sheet holds knobs from several groups at once, and the plain
+ * `Knob<string, string>` it would otherwise draw them as forgets which keys
+ * exist. This remembers, so anything keyed by knob — a glyph, a sample — is
+ * answered for every knob by the compiler rather than by a test.
+ */
+export type AnyKnob =
+  | (typeof PAGE_KNOBS)[number]
+  | (typeof THEME_KNOBS)[number]
+  | (typeof DIFF_KNOBS)[number]
+  | (typeof TREE_KNOBS)[number]
+  | (typeof HOME_KNOBS)[number]
+  | (typeof SIGN_ON_KNOBS)[number]
+
+/** The key of any one knob there is. */
+export type KnobKey = AnyKnob["key"]
+
 type Values<Knobs extends ReadonlyArray<Knob<string, string>>> = {
   readonly [K in Knobs[number] as K["key"]]: K["choices"][number]["value"]
 }

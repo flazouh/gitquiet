@@ -5,10 +5,10 @@ import {
   DIFF_KNOBS,
   THEME_KNOBS,
   TREE_KNOBS,
-  type Knob,
+  type AnyKnob,
   type Settings
 } from "../domain/Settings"
-import { artFor } from "./knobArt"
+import { KNOB_ART } from "./knobArt"
 import { ROOT_ID } from "./mount"
 import { Slide } from "./Slide"
 
@@ -45,7 +45,7 @@ export type SettingsMenuProps = {
 }
 
 type Control = {
-  readonly knob: Knob<string, string>
+  readonly knob: AnyKnob
   readonly chosen: string | undefined
   readonly onPick: (key: string, value: string) => void
 }
@@ -123,7 +123,7 @@ const Handle = ({ knob, chosen, onPick }: Control) => (
  * as is decided once, where it is declared, and a kind added there is a line
  * added here rather than another branch in the middle of a component.
  */
-const CONTROLS: Readonly<Record<Knob<string, string>["shape"], (control: Control) => ReactNode>> = {
+const CONTROLS: Readonly<Record<AnyKnob["shape"], (control: Control) => ReactNode>> = {
   list: Pick,
   switch: Switch,
   slide: Handle
@@ -133,8 +133,7 @@ const CONTROLS: Readonly<Record<Knob<string, string>["shape"], (control: Control
 const Row = ({ knob, chosen, onPick }: Control) => {
   const art = useArt()
   const Drawn = CONTROLS[knob.shape]
-  const named = artFor(knob.key)
-  const Mark = named === undefined ? undefined : art[named]
+  const Mark = art[KNOB_ART[knob.key]]
 
   return (
     <div className="flex items-center gap-2 rounded-md px-2 py-1 text-xs text-ink hover:bg-hover">
@@ -142,7 +141,7 @@ const Row = ({ knob, chosen, onPick }: Control) => {
           down the edge of thirty rows rather than reading them. Nothing said
           twice to a reader who is listening. */}
       <span aria-hidden className="flex w-4 shrink-0 justify-center text-ink-muted">
-        {Mark === undefined ? null : <Mark size={14} />}
+        <Mark size={14} />
       </span>
       <span className="min-w-0 flex-1 truncate">{knob.label}</span>
       <Drawn knob={knob} chosen={chosen} onPick={onPick} />
@@ -155,7 +154,7 @@ const Group = ({
   chosen,
   onPick
 }: {
-  readonly knobs: ReadonlyArray<Knob<string, string>>
+  readonly knobs: ReadonlyArray<AnyKnob>
   readonly chosen: Record<string, string>
   readonly onPick: (key: string, value: string) => void
 }) => (
