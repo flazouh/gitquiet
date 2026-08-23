@@ -1,18 +1,38 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { RailHead, type Kept } from "./RailHead"
+import { Option } from "effect"
+import type { ChangedFile } from "../domain/PullRequest"
+import { apart, type Held } from "../domain/testing"
+import { RailHead } from "./RailHead"
 
 afterEach(cleanup)
 
-const draw = (kept: Kept = "all", onPick: (kept: Kept) => void = () => {}) => {
-  render(<RailHead code={5} tests={2} kept={kept} onPick={onPick} />)
+const file = (path: string): ChangedFile => ({
+  path,
+  digest: `${path}-digest`,
+  changeType: "modified",
+  linesAdded: 4,
+  linesDeleted: 1,
+  readByViewer: false,
+  diff: Option.some({ isBinary: false, isTruncated: false, lines: [] })
+})
+
+const FIVE = ["a.ts", "b.ts", "c.ts", "d.ts", "e.ts"].map((one) => file(`src/${one}`))
+const TWO = ["a.test.ts", "b.test.ts"].map((one) => file(`src/${one}`))
+
+const draw = (
+  files: ReadonlyArray<ChangedFile>,
+  kept: Held = "all",
+  onPick: (kept: Held) => void = () => {}
+) => {
+  render(<RailHead split={apart(files)} kept={kept} onPick={onPick} />)
   return within(screen.getByRole("group", { name: "Which files are in the rail" }))
 }
 
 describe("the head of the rail", () => {
   test("wears the size of the list each way would leave", () => {
-    const head = draw()
+    const head = draw([...FIVE, ...TWO])
 
     expect(head.getByRole("button", { name: "All, 7 files" })).toBeDefined()
     expect(head.getByRole("button", { name: "Code, 5 files" })).toBeDefined()
@@ -20,8 +40,8 @@ describe("the head of the rail", () => {
   })
 
   test("hands back the way that was pressed", async () => {
-    const picked: Array<Kept> = []
-    const head = draw("all", (kept) => picked.push(kept))
+    const picked: Array<Held> = []
+    const head = draw([...FIVE, ...TWO], "all", (kept) => picked.push(kept))
 
     await userEvent.click(head.getByRole("button", { name: "Tests, 2 files" }))
     await userEvent.click(head.getByRole("button", { name: "Code, 5 files" }))
@@ -29,29 +49,28 @@ describe("the head of the rail", () => {
     expect(picked).toEqual(["tests", "code"])
   })
 
-  /* Where the reader is, in the fill the rest of this interface uses for it. */
-  test("fills the way that is on", () => {
-    const head = draw("tests")
-    const on = head.getByRole("button", { name: "Tests, 2 files" })
+  test("says which way is on", () => {
+    const head = draw([...FIVE, ...TWO], "tests")
 
-    expect(on.getAttribute("aria-pressed")).toBe("true")
-    expect(on.className).toContain("bg-active")
-    expect(head.getByRole("button", { name: "All, 7 files" }).className).not.toContain(
-      "bg-active"
+    expect(
+      head.getByRole("button", { name: "Tests, 2 files" }).getAttribute("aria-pressed")
+    ).toBe("true")
+    expect(head.getByRole("button", { name: "All, 7 files" }).getAttribute("aria-pressed")).toBe(
+      "false"
     )
   })
 
   /*
    * A pull request with nothing to split has one way to read it, and a row of
-   * three ways that all show the same list costs a row and teaches nothing.
+   * three ways that all draw the same list costs a row and teaches nothing.
    */
   test("draws nothing where one of the two halves is empty", () => {
-    render(<RailHead code={5} tests={0} kept="all" onPick={() => {}} />)
+    render(<RailHead split={apart(FIVE)} kept="all" onPick={() => {}} />)
     expect(screen.queryByRole("group")).toBeNull()
 
     cleanup()
 
-    render(<RailHead code={0} tests={2} kept="all" onPick={() => {}} />)
+    render(<RailHead split={apart(TWO)} kept="all" onPick={() => {}} />)
     expect(screen.queryByRole("group")).toBeNull()
   })
 })

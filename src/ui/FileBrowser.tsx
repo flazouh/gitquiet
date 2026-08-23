@@ -14,7 +14,7 @@ import { railOrder } from "../domain/railOrder";
 import { readingOrder } from "../domain/readingOrder";
 import { acted, footingOf, markOf } from "../domain/reviewPass";
 import { stepping } from "../domain/stepping";
-import { apart, looksLikeTest } from "../domain/testing";
+import { apart, splits, type Held } from "../domain/testing";
 import type { DiffChoices, TreeChoices } from "../domain/choices";
 import type { Settings } from "../domain/Settings";
 import type {
@@ -29,7 +29,7 @@ import { draftsIn, dropDraft, saveDraft, type Draft } from "./drafts";
 import { FileDiffPane, FileTreePane } from "./Files";
 import { FileHeading } from "./FileHeading";
 import { Counts } from "./Counts";
-import { RailHead, type Kept } from "./RailHead";
+import { RailHead } from "./RailHead";
 import { keepPass, passOf } from "./passes";
 import { seenFiles } from "./rowMarks";
 import { SettingsMenu } from "./SettingsMenu";
@@ -211,21 +211,18 @@ export const FileBrowser = ({
    * here a reader who checked the cases on one would arrive at the proof of
    * every one after it.
    */
-  const [asked, setAsked] = useState<Kept>(tree.testsAside ? "code" : "all");
+  const [asked, setAsked] = useState<Held>(tree.testsAside ? "code" : "all");
   useEffect(() => {
     setAsked(tree.testsAside ? "code" : "all");
   }, [tree.testsAside, review?.subject]);
 
-  /** The change and the proof of it, held apart. See `domain/testing.ts`. */
+  /**
+   * The pull request, the change it makes, and the cases that prove it. See
+   * `domain/testing.ts`, which also says when there is a choice between them.
+   */
   const split = useMemo(() => apart(files), [files]);
 
-  /*
-   * Splitting is offered only where both halves have something in them: a rail
-   * with no rows, and the switch that emptied it gone with them, is a dead end.
-   */
-  const canSplit = split.tests.length > 0 && split.code.length > 0;
-
-  const kept: Kept = canSplit ? asked : "all";
+  const kept: Held = splits(split) ? asked : "all";
 
   /*
    * What the reader is being shown, which is the whole pull request unless they
@@ -237,8 +234,7 @@ export const FileBrowser = ({
    * while Put all back and a file asked for by name are about the pull request
    * whether it is drawn or not.
    */
-  const onRail =
-    kept === "code" ? split.code : kept === "tests" ? split.tests : files;
+  const onRail = split[kept];
 
   /*
    * Picking a way, which for two of the three is turning the setting: the head
@@ -256,16 +252,19 @@ export const FileBrowser = ({
    * never a control that does nothing.
    */
   const pickKept = useCallback(
-    (next: Kept) => {
+    (next: Held) => {
       setAsked(next);
       if (display === undefined || next === "tests") return;
 
+      const want = next === "code" ? "aside" : "show";
+      // Coming back from the pass that is not written down turns nothing: the
+      // setting never left where it was, and a write is a write to the browser's
+      // storage and a new settings object for every screen holding one.
+      if (display.settings.tree.tests === want) return;
+
       display.onChange({
         ...display.settings,
-        tree: {
-          ...display.settings.tree,
-          tests: next === "code" ? "aside" : "show",
-        },
+        tree: { ...display.settings.tree, tests: want },
       });
     },
     [display],
@@ -368,12 +367,10 @@ export const FileBrowser = ({
     if (!files.some((file) => file.path === wanted.path)) return;
 
     setAsked((held) =>
-      held === "all" || looksLikeTest(wanted.path) === (held === "tests")
-        ? held
-        : "all",
+      split[held].some((one) => one.path === wanted.path) ? held : "all",
     );
     onSelect(wanted.path);
-  }, [files, onSelect, wanted]);
+  }, [files, onSelect, split, wanted]);
 
   const seen = useMemo(
     () => seenFiles(onRail, opened, putBack),
@@ -703,7 +700,7 @@ export const FileBrowser = ({
             breath as saying how many. The section keeps its name for anyone
             arriving by landmark. Which of the files are drawn is asked at the
             head of the rail, beside the list it changes. */}
-        <Counts onRail={onRail} code={split.code} tests={split.tests} />
+        <Counts split={split} kept={kept} />
         {/* How much of the review is behind you. A pull request of forty files
             is read over an afternoon and in three sittings, and the question on
             coming back to it is always the same one. */}
@@ -908,12 +905,7 @@ export const FileBrowser = ({
         >
           {/* Above the rows, inside the rail's own subcard: what this asks is
               which of them are there. */}
-          <RailHead
-            code={split.code.length}
-            tests={split.tests.length}
-            kept={kept}
-            onPick={pickKept}
-          />
+          <RailHead split={split} kept={kept} onPick={pickKept} />
           {/* Built again when one of these changes: the tree reads them once,
               when it is constructed, and hands back no way to change its mind.
               Everything else — icons, the marks on a row — it will redraw in

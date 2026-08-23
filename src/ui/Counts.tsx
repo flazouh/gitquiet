@@ -1,8 +1,6 @@
-import type { ChangedFile } from "../domain/PullRequest"
+import type { Apart, Held } from "../domain/testing"
+import { sizeOf } from "../domain/workingSet"
 import { TINT } from "./dress"
-
-const total = (files: ReadonlyArray<ChangedFile>, of: "linesAdded" | "linesDeleted"): number =>
-  files.reduce((sum, file) => sum + file[of], 0)
 
 /**
  * How much of what was added is proof, drawn rather than counted.
@@ -23,10 +21,13 @@ const Ratio = ({ change, proof }: { readonly change: number; readonly proof: num
   if (added === 0) return null
 
   return (
+    // No width of its own to earn: forty pixels beside the numbers, shown
+    // whenever they are. It had a second breakpoint at forty rem, and the band
+    // in a normal window measures thirty-nine and a half — so the drawing that
+    // was the reason for the numbers being here at all never appeared.
     <span
       aria-hidden
-      title={`${proof} of the ${added} added lines are tests`}
-      className={`hidden h-1 w-10 shrink-0 overflow-hidden rounded-full ${TINT} @[40rem]/band:block`}
+      className={`h-1 w-10 shrink-0 overflow-hidden rounded-full ${TINT}`}
     >
       <span
         className="block h-full bg-ink-muted"
@@ -44,32 +45,40 @@ const Ratio = ({ change, proof }: { readonly change: number; readonly proof: num
  * says nothing and does nothing else: the switch that used to be folded into
  * these numbers is at the head of the rail, beside the list it changes.
  *
- * The numbers are the numbers of what the rail is showing, so they never
+ * The numbers are the numbers of the list the rail is drawing, so they never
  * disagree with the rows beneath them. Beside them, where there is proof to
  * speak of, is the share of the added lines that is proof — a fact about the
  * pull request rather than about the rail, which is why it stays put while the
  * numbers change.
+ *
+ * The bar is drawn and the words are read: what it says lives in the title of
+ * the whole line, so a reader who hovers anywhere over the counts is told, and a
+ * reader who cannot see it is told the same thing rather than nothing.
  */
-export const Counts = ({
-  onRail,
-  code,
-  tests
-}: {
-  /** What the rail is drawing now, which is what the numbers are about. */
-  readonly onRail: ReadonlyArray<ChangedFile>
-  readonly code: ReadonlyArray<ChangedFile>
-  readonly tests: ReadonlyArray<ChangedFile>
-}) => (
-  <span className="hidden shrink-0 items-center gap-2 @[36rem]/band:flex">
-    {/* Whole or not at all. Truncated, this reads "2.." — a number cut in half
-        is worse than the same number left out, since a reader cannot tell 2
-        files from 24. */}
-    <span className="shrink-0 text-xs text-ink-muted tabular-nums">
-      {`${onRail.length} changed`} <span className="text-pass">+{total(onRail, "linesAdded")}</span>{" "}
-      <span className="text-fail">−{total(onRail, "linesDeleted")}</span>
+export const Counts = ({ split, kept }: { readonly split: Apart; readonly kept: Held }) => {
+  const size = sizeOf(split[kept])
+  const change = sizeOf(split.code).added
+  const proof = sizeOf(split.tests).added
+
+  return (
+    <span
+      title={
+        proof > 0 && change + proof > 0
+          ? `${proof} of the ${change + proof} added lines are tests`
+          : undefined
+      }
+      className="hidden shrink-0 items-center gap-2 @[36rem]/band:flex"
+    >
+      {/* Whole or not at all. Truncated, this reads "2.." — a number cut in half
+          is worse than the same number left out, since a reader cannot tell 2
+          files from 24. */}
+      <span className="shrink-0 text-xs text-ink-muted tabular-nums">
+        {`${split[kept].length} changed`} <span className="text-pass">+{size.added}</span>{" "}
+        <span className="text-fail">−{size.deleted}</span>
+      </span>
+      {split.code.length > 0 && split.tests.length > 0 ? (
+        <Ratio change={change} proof={proof} />
+      ) : null}
     </span>
-    {code.length > 0 && tests.length > 0 ? (
-      <Ratio change={total(code, "linesAdded")} proof={total(tests, "linesAdded")} />
-    ) : null}
-  </span>
-)
+  )
+}

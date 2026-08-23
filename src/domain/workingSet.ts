@@ -1,5 +1,5 @@
 import { Option } from "effect"
-import type { Participant, PullRequestState } from "./PullRequest"
+import type { ChangedFile, Participant, PullRequestState } from "./PullRequest"
 import type { PullRequestRef } from "./PullRequestRef"
 
 /**
@@ -76,6 +76,21 @@ export type Size = {
   readonly added: number
   readonly deleted: number
 }
+
+/**
+ * The same fact, added up from the files themselves.
+ *
+ * A screen holding the files does not have to wait for the read above: it can
+ * add them. Four places were doing that with their own pair of reduces — the
+ * header's well, the strip over a stack, and the counts on the files card — and
+ * a fifth would have been written the next time. The sum is the same sum, so it
+ * is one function, and it hands back the shape the read hands back so that a
+ * caller cannot tell which of the two it was given.
+ */
+export const sizeOf = (files: ReadonlyArray<ChangedFile>): Size => ({
+  added: files.reduce((sum, file) => sum + file.linesAdded, 0),
+  deleted: files.reduce((sum, file) => sum + file.linesDeleted, 0)
+})
 
 /** What that read said, by the id it answered about. */
 export type Sizes = ReadonlyMap<number, Size>

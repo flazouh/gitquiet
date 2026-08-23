@@ -1,7 +1,7 @@
 import { Option } from "effect"
 import { describe, expect, test } from "bun:test"
 import type { ChangedFile } from "./PullRequest"
-import { apart, looksLikeTest } from "./testing"
+import { apart, looksLikeTest, splits } from "./testing"
 
 const changed = (path: string, added = 1, deleted = 0): ChangedFile => ({
   path,
@@ -94,5 +94,21 @@ describe("a change and its proof, held apart", () => {
 
   test("hands back an empty list where no proof was touched", () => {
     expect(apart([changed("README.md", 3, 1)]).tests).toEqual([])
+  })
+
+  /* The whole set is one of the answers, so picking one is a lookup. */
+  test("keeps the pull request itself under all", () => {
+    const files = [changed("src/domain/checks.ts", 40, 10), changed("src/checks.test.ts", 300, 5)]
+
+    expect(apart(files).all).toEqual(files)
+  })
+
+  test("offers the choice only where both halves hold something", () => {
+    expect(splits(apart([changed("src/checks.ts", 40, 10), changed("src/checks.test.ts", 3, 0)]))).toBe(
+      true
+    )
+    expect(splits(apart([changed("src/checks.ts", 40, 10)]))).toBe(false)
+    expect(splits(apart([changed("src/checks.test.ts", 3, 0)]))).toBe(false)
+    expect(splits(apart([]))).toBe(false)
   })
 })

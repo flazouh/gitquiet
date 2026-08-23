@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
+import { useState } from "react"
 import type { ChangedFile } from "../domain/PullRequest"
 import { diffChoices, treeChoices } from "../domain/choices"
 import { DEFAULTS, type Settings } from "../domain/Settings"
@@ -225,10 +226,28 @@ describe("the head of the rail: which half of the pull request to read", () => {
    */
   test("writes the two standing choices, and not the pass", async () => {
     const wrote: Array<Settings> = []
-    draw(both(), treeChoices(DEFAULTS.tree), {
-      settings: DEFAULTS,
-      onChange: (settings) => wrote.push(settings)
-    })
+    /* The settings go back in as they come out, the way the screen holding this
+       one hands them back, so a write that changes nothing is visible as one. */
+    const Held = () => {
+      const [settings, setSettings] = useState<Settings>(DEFAULTS)
+
+      return (
+        <FileBrowser
+          files={both()}
+          fetchDiffs={() => Effect.succeed([])}
+          diff={diffChoices(DEFAULTS.diff)}
+          tree={treeChoices(settings.tree)}
+          display={{
+            settings,
+            onChange: (next) => {
+              wrote.push(next)
+              setSettings(next)
+            }
+          }}
+        />
+      )
+    }
+    render(<Held />)
 
     await userEvent.click(head().getByRole("button", { name: "Code, 1 file" }))
     expect(wrote.map((one) => one.tree.tests)).toEqual(["aside"])

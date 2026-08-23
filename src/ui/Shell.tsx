@@ -1,7 +1,6 @@
 import { Effect, Option } from "effect"
 import { useCallback, useDeferredValue, useMemo, useRef, useState } from "react"
 import type {
-  ChangedFile,
   Check,
   CheckNote,
   CommitDetail,
@@ -17,7 +16,7 @@ import type {
 import type { Uploaded } from "../domain/attaching"
 import type { Suggesting } from "../domain/suggesting"
 import type { DiffSide } from "../ports/Renderer"
-import type { Size } from "../domain/workingSet"
+import { sizeOf } from "../domain/workingSet"
 import { diffChoices, treeChoices } from "../domain/choices"
 import { keyOf } from "../domain/PullRequestRef"
 import { keptReads } from "../app/kept"
@@ -110,17 +109,6 @@ export type ShellProps = {
 }
 
 const NO_READER = new Error("Nothing is wired to read commits.")
-
-/**
- * How many lines this pull request changes, out of the files it was read with.
- *
- * The same sum the header's own well shows, and the reason the strip above it
- * spends no request on the layer the reader is standing on.
- */
-const linesIn = (files: ReadonlyArray<ChangedFile>): Size => ({
-  added: files.reduce((sum, file) => sum + file.linesAdded, 0),
-  deleted: files.reduce((sum, file) => sum + file.linesDeleted, 0)
-})
 
 /**
  * The one command that belongs to the page rather than to a panel in it.
@@ -399,7 +387,7 @@ export const Shell = ({
             chain={snapshot.proposal.value}
             make={makeStack}
             sizes={layerSizes}
-            own={linesIn(snapshot.files)}
+            own={sizeOf(snapshot.files)}
           />
         ) : null}
         <Header snapshot={snapshot} onUseGitHub={onUseGitHub} />

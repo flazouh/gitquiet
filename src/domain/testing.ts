@@ -71,20 +71,49 @@ const named = (file: string): string => {
   return dot <= 0 ? file : file.slice(0, dot)
 }
 
-/** A change and the proof of it, held apart. */
-export type Apart = {
-  readonly code: ReadonlyArray<ChangedFile>
-  readonly tests: ReadonlyArray<ChangedFile>
-}
+/**
+ * Which of the three lists a reader is holding: the pull request, the change it
+ * makes, or the cases that prove it.
+ *
+ * Three rather than two because reading a change and reading its proof are two
+ * passes, and only one of them had a home. A reader checking that a fix is
+ * covered used to scroll past nine files to reach four.
+ */
+export type Held = "all" | "code" | "tests"
+
+/** A change and the proof of it, held apart, and the two of them together. */
+export type Apart = Readonly<Record<Held, ReadonlyArray<ChangedFile>>>
 
 /**
- * The same files in two lists, so a caller can count either or draw either.
+ * The same files in three lists, so a caller can count any of them or draw any
+ * of them.
  *
- * Two lists rather than two sums, because everything asking this question wants
- * one or the other of those: the band adds them up with the adder it already has
- * for the whole set, and the rail draws the code half as its rows.
+ * Lists rather than sums, because everything asking this question wants one of
+ * those: the band adds a list up with the adder it already has for a set of
+ * files, and the rail draws a list as its rows.
+ *
+ * Keyed by the thing a reader picks, so that picking is a lookup. A caller that
+ * held `code` and `tests` had to write the three-way choice out as a chain of
+ * ifs, and every screen that offered the choice wrote its own; the whole set is
+ * one of the answers, so it belongs beside the other two.
  */
 export const apart = (files: ReadonlyArray<ChangedFile>): Apart => ({
+  all: files,
   code: files.filter((file) => !looksLikeTest(file.path)),
   tests: files.filter((file) => looksLikeTest(file.path))
 })
+
+/**
+ * Whether there is a choice to offer at all.
+ *
+ * Both halves have to hold something. A pull request that is all tests, or one
+ * with none, reads one way, and a switch that empties the rail — or that leaves
+ * it exactly as it was — is a control that teaches a reader it does nothing.
+ *
+ * Here rather than in the screen that draws the switch, because the screen that
+ * decides which list to draw asks the same question, and the two answers have to
+ * be the same answer. Apart, one of them can be loosened alone, and then a
+ * stored choice empties the rail while the control that would undo it is gone.
+ */
+export const splits = (held: Apart): boolean =>
+  held.code.length > 0 && held.tests.length > 0

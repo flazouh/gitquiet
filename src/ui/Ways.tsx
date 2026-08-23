@@ -1,5 +1,5 @@
 import { type ArtName, useArt } from "./art"
-import { HERE, TINT } from "./dress"
+import { TROUGH, wayIn } from "./dress"
 
 /** One of the ways, as the switch needs it said. */
 export type Way<Name extends string> = {
@@ -54,7 +54,7 @@ export const Ways = <Name extends string>({ ways, on, onPick, label }: WaysProps
     <div
       role="group"
       aria-label={label}
-      className={`flex shrink-0 items-center overflow-hidden rounded-md ${TINT}`}
+      className={TROUGH}
     >
       {ways.map((way) => {
         const Mark = art[way.art]
@@ -68,9 +68,7 @@ export const Ways = <Name extends string>({ ways, on, onPick, label }: WaysProps
             aria-label={way.said}
             title={way.said}
             onClick={() => onPick(way.name)}
-            className={`flex h-6 w-7 items-center justify-center ${
-              chosen ? HERE : "text-ink-muted hover:text-ink"
-            }`}
+            className={`flex h-6 w-7 items-center justify-center ${wayIn(chosen)}`}
           >
             <Mark size={14} aria-hidden="true" />
           </button>
