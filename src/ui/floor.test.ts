@@ -1,7 +1,18 @@
 import { readFileSync } from "node:fs"
-import { describe, expect, test } from "bun:test"
+import { beforeEach, describe, expect, test } from "bun:test"
 import { FLOOR, paintFloor } from "./applyTheme"
 import { tokensOf } from "../domain/theme"
+
+/*
+ * The document is shared with every other file in the run, and a desktop test
+ * that painted `scope="document"` leaves the whole token set on it. "And
+ * nothing else" below is a claim about what `paintFloor` writes, not about what
+ * the run so far has left behind — so the ground is cleared first. This was the
+ * one test in the suite that failed only under a full parallel run.
+ */
+beforeEach(() => {
+  document.documentElement.removeAttribute("style")
+})
 
 const quiet = () => readFileSync("src/ui/quiet.css", "utf8")
 
