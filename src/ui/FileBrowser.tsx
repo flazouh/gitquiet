@@ -143,8 +143,14 @@ const isProse = (path: string): boolean => /\.(md|mdx|markdown)$/i.test(path);
  * the width of a band that has none to spare. It sits with the counts rather
  * than in the group at the right end, because that group is what the hand
  * reaches for while walking a diff and this is pressed once at the start of a
- * reading, if at all. It is also the first thing out as the band narrows, being
- * the finer reading of a fact the line beside it already gives.
+ * reading, if at all. It goes out before the counts as the band narrows, being
+ * the finer reading of a fact that line already gives, and stays past the
+ * progress and Put all back, which are about a reading rather than about
+ * whether to start one.
+ *
+ * Two rem below the width it needs, because a container query measures the
+ * content box and this band spends 24px of its own on padding: at 40rem the
+ * switch was in the page and drawn by nobody, in a window 1142px wide.
  *
  * Hidden, it drops the number: the counts beside it are then the counts of the
  * change alone, and the same two numbers side by side teach a reader to stop
@@ -172,7 +178,7 @@ const Proof = ({
         ? `Put the test files back in the rail: ${tests.length}, +${total(tests, "linesAdded")} −${total(tests, "linesDeleted")}`
         : "Take the test files out of the rail, and read the change they prove"
     }
-    className="hidden shrink-0 rounded-md px-1.5 py-0.5 text-xs text-ink-muted tabular-nums hover:bg-hover hover:text-ink aria-pressed:bg-active aria-pressed:text-ink @[40rem]/band:block"
+    className="hidden shrink-0 rounded-md px-1.5 py-0.5 text-xs text-ink-muted tabular-nums hover:bg-hover hover:text-ink aria-pressed:bg-active aria-pressed:text-ink @[38rem]/band:block"
   >
     {hidden
       ? "tests hidden"
