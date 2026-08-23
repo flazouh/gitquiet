@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from "react"
 import { Option } from "effect"
 import type { Destination } from "../domain/Settings"
 import type { RepositoryAtWork } from "../domain/rail"
-import { matching, type Repository } from "../domain/repositories"
+import { matching, type Repository, withPinToggled } from "../domain/repositories"
 import { DEFAULT_PROFILE, type Profile } from "../keys/commands"
 import { type ArtName, useArt } from "./art"
 import { FIELD, HERE, PRESSABLE } from "./dress"
@@ -402,8 +402,7 @@ export const Rail = ({
     return [{ owner, repo, faceUrl: faceOf(owner, repo), count: countOf(owner, repo) }]
   })
 
-  const pinning = (address: string) =>
-    onPinned?.(held.has(address) ? pinned.filter((one) => one !== address) : [...pinned, address])
+  const pinning = (address: string) => onPinned?.(withPinToggled(pinned, address))
 
   // A zero beside a Destination is a claim that it holds nothing, which is a different
   // thing from not having read it yet. Both of the reads behind these arrive after the Rail

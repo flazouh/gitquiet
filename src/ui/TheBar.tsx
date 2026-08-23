@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import type { Owed } from "../domain/finding";
 import { showsWorkingSet } from "../domain/pages";
 import { fromPathname } from "../domain/PullRequestRef";
-import type { Repository } from "../domain/repositories";
+import { type Repository, withPinToggled } from "../domain/repositories";
 import { tokensOf } from "../domain/theme";
 import { keepTabs, keptTabs } from "../github/repoTabs";
 import { type ArtName } from "./art";
@@ -356,13 +356,10 @@ export const TheBar = ({
         repositories={findable}
         pinned={settings.pinned}
         lately={lately}
-        /* The Rail's toggle, word for word: out of the list if held, onto its end if not. */
         onPin={(address) =>
           change((current) => ({
             ...current,
-            pinned: current.pinned.includes(address)
-              ? current.pinned.filter((one) => one !== address)
-              : [...current.pinned, address],
+            pinned: withPinToggled(current.pinned, address),
           }))
         }
         atTheCode={
