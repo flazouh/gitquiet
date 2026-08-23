@@ -339,6 +339,28 @@ const SAMPLES: Record<string, (choice: string) => ReactNode> = {
   ticks: (choice) => (
     <Tree rows={FILES.map((row, at) => ({ ...row, tick: choice === "on" && at === 1 }))} />
   ),
+  /*
+   * The same rail with the proof in it and without, and the counts on the folder
+   * either way: what the switch changes is which files are there, and the sum
+   * above them, so a picture of it has to show both changing together.
+   */
+  tests: (choice) =>
+    choice === "aside" ? (
+      <Tree
+        rows={[
+          { name: "src", folder: true, colour: "var(--fgColor-attention)", tail: counts(9, 2) },
+          { name: "server.ts", depth: 1, tail: counts(9, 2) }
+        ]}
+      />
+    ) : (
+      <Tree
+        rows={[
+          { name: "src", folder: true, colour: "var(--fgColor-attention)", tail: counts(61, 2) },
+          { name: "server.ts", depth: 1, tail: counts(9, 2) },
+          { name: "server.test.ts", depth: 1, tail: counts(52, 0) }
+        ]}
+      />
+    ),
   flatten: (choice) =>
     choice === "on" ? (
       <Tree rows={[{ name: "src/main/java", folder: true }, { name: "App.java", depth: 1 }]} />

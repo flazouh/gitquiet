@@ -67,6 +67,13 @@ describe("turning choices into what the rail takes", () => {
     expect(tree({ counts: "off", ticks: "off" })).toMatchObject({ counts: false, ticks: false })
   })
 
+  /* The word the reader chose says where the tests go; the rail wants to know
+     whether they are held back, which is the same fact read the other way. */
+  it("reads where the test files go as whether they are held back", () => {
+    expect(tree({ tests: "show" }).testsAside).toBe(false)
+    expect(tree({ tests: "aside" }).testsAside).toBe(true)
+  })
+
   it("passes the tree's own words through", () => {
     expect(tree({ density: "relaxed", folders: "closed" })).toMatchObject({
       density: "relaxed",

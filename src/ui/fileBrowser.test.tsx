@@ -99,19 +99,19 @@ describe("how big the change is, once its proof is set aside", () => {
     linesDeleted: deleted
   })
 
-  const band = (files: ReadonlyArray<ChangedFile>) => {
+  const band = (files: ReadonlyArray<ChangedFile>, tree = treeChoices(DEFAULTS.tree)) => {
     render(
       <FileBrowser
         files={files}
         fetchDiffs={() => Effect.succeed([])}
         diff={diffChoices(DEFAULTS.diff)}
-        tree={treeChoices(DEFAULTS.tree)}
+        tree={tree}
       />
     )
     return within(screen.getByLabelText("Files").firstElementChild as HTMLElement)
   }
 
-  test("says the size of the code beside the size of everything", () => {
+  test("counts the whole pull request, and offers to set its proof aside", () => {
     const row = band([
       sized("src/domain/checks.ts", 40, 10),
       sized("src/domain/checks.test.ts", 300, 5)
@@ -120,13 +120,25 @@ describe("how big the change is, once its proof is set aside", () => {
     expect(row.getByText(/2 changed/)).toBeDefined()
     expect(row.getByText("+340")).toBeDefined()
     expect(row.getByText("−15")).toBeDefined()
-    expect(row.getByText(/\+40 −10 outside tests/)).toBeDefined()
+    // What is being offered, on the face of the switch and in what it says on
+    // a hover: the word says the state, the title says the size of the proof.
+    expect(row.getByText("tests shown")).toBeDefined()
+    expect(row.getByRole("button", { name: "Hide the test files" }).title).toContain(
+      "1 file, +300 −5"
+    )
   })
 
+  /*
+   * The word is what tells a reader the counts are the whole of it, and it costs
+   * the same width pressed as unpressed, so nothing in the band moves on a press.
+   * A pull request with no tests has nothing to say about them and no switch: the
+   * counts are then a line of text.
+   */
   test("says nothing about tests where none were touched", () => {
     const row = band([sized("src/domain/checks.ts", 40, 10)])
 
-    expect(row.queryByText(/outside tests/)).toBeNull()
+    expect(row.queryByText(/tests/)).toBeNull()
+    expect(row.queryByRole("button", { name: /the test files/ })).toBeNull()
   })
 
   test("takes the test files out of the rail on a press, and puts them back", async () => {
@@ -148,18 +160,18 @@ describe("how big the change is, once its proof is set aside", () => {
     expect(open()).toContain("checks.ts")
     expect(open()).not.toContain("checks.test.ts")
     expect(press().getAttribute("aria-pressed")).toBe("true")
+    expect(row.getByText("tests aside")).toBeDefined()
 
     await userEvent.click(press())
 
     expect(row.getByText(/2 changed/)).toBeDefined()
     expect(press().getAttribute("aria-pressed")).toBe("false")
+    expect(row.getByText("tests shown")).toBeDefined()
   })
 
-  /*
-   * Pressed, the counts beside it are the counts of the change alone, so repeating
-   * the number there would be the same number twice over, side by side.
-   */
-  test("hands the counts over to the line beside it once they are hidden", async () => {
+  /* Pressed, the counts are the counts of the change alone: one set of numbers,
+     saying what the rail is showing, whichever way the switch is turned. */
+  test("counts what is left once the tests are aside", async () => {
     const row = band([
       sized("src/domain/checks.ts", 40, 10),
       sized("src/domain/checks.test.ts", 300, 5)
@@ -170,7 +182,40 @@ describe("how big the change is, once its proof is set aside", () => {
     expect(row.getByText(/1 changed/)).toBeDefined()
     expect(row.getByText("+40")).toBeDefined()
     expect(row.getByText("−10")).toBeDefined()
-    expect(row.queryByText(/outside tests/)).toBeNull()
+    expect(row.queryByText("+340")).toBeNull()
+    expect(row.getByRole("button", { name: "Show the test files" })).toBeDefined()
+  })
+
+  /*
+   * Remembered rather than pressed again on every pull request: the switch in the
+   * band and the row in the menu are two hands on one knob, so the press writes the
+   * setting rather than a state of its own.
+   */
+  test("writes the choice where the settings menu writes it", async () => {
+    const wrote: Array<Settings> = []
+    render(
+      <FileBrowser
+        files={[sized("src/domain/checks.ts", 40, 10), sized("src/domain/checks.test.ts", 300, 5)]}
+        fetchDiffs={() => Effect.succeed([])}
+        diff={diffChoices(DEFAULTS.diff)}
+        tree={treeChoices(DEFAULTS.tree)}
+        display={{ settings: DEFAULTS, onChange: (settings) => wrote.push(settings) }}
+      />
+    )
+    const row = within(screen.getByLabelText("Files").firstElementChild as HTMLElement)
+
+    await userEvent.click(row.getByRole("button", { name: "Hide the test files" }))
+
+    expect(wrote.map((one) => one.tree.tests)).toEqual(["aside"])
+  })
+
+  test("opens with the tests aside where that is what was stored", () => {
+    const row = band(
+      [sized("src/domain/checks.ts", 40, 10), sized("src/domain/checks.test.ts", 300, 5)],
+      treeChoices({ ...DEFAULTS.tree, tests: "aside" })
+    )
+
+    expect(row.getByText(/1 changed/)).toBeDefined()
     expect(row.getByRole("button", { name: "Show the test files" })).toBeDefined()
   })
 
@@ -247,8 +292,19 @@ describe("how big the change is, once its proof is set aside", () => {
   test("does not offer to hide them where they are the whole pull request", () => {
     const row = band([sized("src/domain/checks.test.ts", 300, 5)])
 
-    expect(row.queryByText(/outside tests/)).toBeNull()
+    expect(row.queryByText(/tests/)).toBeNull()
     expect(row.queryByRole("button", { name: /the test files/ })).toBeNull()
+  })
+
+  /* Stored, and nothing but tests to draw: the rail keeps them rather than
+     emptying itself, and the counts say so as a line of text. */
+  test("keeps a pull request that is all tests, whatever was stored", () => {
+    const row = band(
+      [sized("src/domain/checks.test.ts", 300, 5)],
+      treeChoices({ ...DEFAULTS.tree, tests: "aside" })
+    )
+
+    expect(row.getByText(/1 changed/)).toBeDefined()
   })
 })
 

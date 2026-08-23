@@ -131,60 +131,85 @@ const total = (
 const isProse = (path: string): boolean => /\.(md|mdx|markdown)$/i.test(path);
 
 /**
- * How big the change is with its proof set aside, and the way to read only that.
+ * How big the change is, and — where there are tests — the switch for reading
+ * it without them.
  *
  * A pull request of nine hundred lines where seven hundred are a table of cases
  * is a small change and a long proof, and the reader deciding whether to open it
  * now is asking about the first number. Which files are which is read off the
  * path; `domain/testing.ts` says what that can and cannot see.
  *
- * The number is the switch. Saying how big the change is and reading it without
- * its proof are the same subject, and two controls for one subject spend twice
- * the width of a band that has none to spare. It sits with the counts rather
- * than in the group at the right end, because that group is what the hand
- * reaches for while walking a diff and this is pressed once at the start of a
- * reading, if at all. It goes out before the counts as the band narrows, being
- * the finer reading of a fact that line already gives, and stays past the
- * progress and Put all back, which are about a reading rather than about
- * whether to start one.
+ * The counts are the switch, rather than a second control beside them. Saying
+ * how big the change is and reading it without its proof are the same subject,
+ * and the chip that used to say it separately took a hundred and twenty pixels
+ * out of a band with none to spare: everything to its right moved when it
+ * appeared, and moved again on every press, the two labels not being the same
+ * width. This spends the width of one word, spends it in both states, and so
+ * the row is where it was after a press.
  *
- * Two rem below the width it needs, because a container query measures the
- * content box and this band spends 24px of its own on padding: at 40rem the
- * switch was in the page and drawn by nobody, in a window 1142px wide.
+ * That word is not decoration. The setting behind the switch is remembered, so
+ * on the pull request after next the smaller numbers would otherwise be the only
+ * sign that anything is being held back, which is a rail that lies about what
+ * the pull request holds. The numbers are the numbers of what the rail is
+ * showing either way, so nothing here disagrees with the rows beneath it.
  *
- * Hidden, it drops the number: the counts beside it are then the counts of the
- * change alone, and the same two numbers side by side teach a reader to stop
- * reading both. What it says out loud is the act either way, since a button
- * heard as "+40 −10 outside tests" has no verb in it.
+ * A pull request with no tests, or with nothing but tests, has nothing to set
+ * aside, and the counts are a plain line of text: a switch that empties the rail
+ * and goes with it is a dead end.
  */
-const Proof = ({
-  code,
+const Counts = ({
+  files,
   tests,
-  hidden,
+  aside,
+  offered,
   onToggle,
 }: {
-  readonly code: ReadonlyArray<ChangedFile>;
+  readonly files: ReadonlyArray<ChangedFile>;
   readonly tests: ReadonlyArray<ChangedFile>;
-  readonly hidden: boolean;
+  readonly aside: boolean;
+  readonly offered: boolean;
   readonly onToggle: () => void;
-}) => (
-  <button
-    type="button"
-    aria-pressed={hidden}
-    aria-label={hidden ? "Show the test files" : "Hide the test files"}
-    onClick={onToggle}
-    title={
-      hidden
-        ? `Put the test files back in the rail: ${tests.length}, +${total(tests, "linesAdded")} −${total(tests, "linesDeleted")}`
-        : "Take the test files out of the rail, and read the change they prove"
-    }
-    className="hidden shrink-0 rounded-md px-1.5 py-0.5 text-xs text-ink-muted tabular-nums hover:bg-hover hover:text-ink aria-pressed:bg-active aria-pressed:text-ink @[38rem]/band:block"
-  >
-    {hidden
-      ? "tests hidden"
-      : `+${total(code, "linesAdded")} −${total(code, "linesDeleted")} outside tests`}
-  </button>
-);
+}) => {
+  /* Whole or not at all. Truncated, this reads "2.." — a number cut in half is
+     worse than the same number left out, since a reader cannot tell 2 files
+     from 24. */
+  const said = (
+    <>
+      {`${files.length} changed`}{" "}
+      <span className="text-pass">+{total(files, "linesAdded")}</span>{" "}
+      <span className="text-fail">−{total(files, "linesDeleted")}</span>
+    </>
+  );
+
+  if (!offered)
+    return (
+      <span className="hidden shrink-0 text-xs text-ink-muted tabular-nums @[36rem]/band:inline">
+        {said}
+      </span>
+    );
+
+  const proof = `${tests.length} ${tests.length === 1 ? "file" : "files"}, +${total(tests, "linesAdded")} −${total(tests, "linesDeleted")}`;
+
+  return (
+    <button
+      type="button"
+      aria-pressed={aside}
+      aria-label={aside ? "Show the test files" : "Hide the test files"}
+      onClick={onToggle}
+      title={
+        aside
+          ? `Put the test files back in the rail: ${proof}`
+          : `Set the test files aside and read the change they prove: ${proof}`
+      }
+      className="hidden shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs text-ink-muted tabular-nums hover:bg-hover hover:text-ink aria-pressed:bg-active aria-pressed:text-ink @[36rem]/band:flex"
+    >
+      {said}
+      <span className="text-ink-muted">
+        {aside ? "tests aside" : "tests shown"}
+      </span>
+    </button>
+  );
+};
 
 /**
  * A key cap, where the band is wide enough to teach one.
@@ -252,14 +277,21 @@ export const FileBrowser = ({
   display,
 }: FileBrowserProps) => {
   /*
-   * Whether the proof is out of the way for the moment.
+   * Whether the proof is standing aside, which is a stored choice with a local
+   * echo over it.
    *
-   * Off on arrival, and off again whenever another pull request arrives in this
-   * panel: a rail that hides files the reader did not ask it to hide is a rail
-   * that lies about what the pull request holds, and the first they would learn
-   * of it is a file they cannot find.
+   * Stored, because a reader who wants the change without its proof wants that
+   * on the next pull request as well, and the switch in the band writes the same
+   * setting the menu does. Echoed here rather than read straight off the prop so
+   * that the band answers the press at once rather than after a round trip
+   * through the browser's storage, and so that the one thing which stands the
+   * tests back up without the reader asking — a file named from somewhere else —
+   * can do it for this reading alone and leave the setting where it was.
    */
-  const [hidingTests, setHidingTests] = useState(false);
+  const [aside, setAside] = useState(tree.testsAside);
+  useEffect(() => {
+    setAside(tree.testsAside);
+  }, [tree.testsAside]);
 
   /** The change and the proof of it, held apart. See `domain/testing.ts`. */
   const split = useMemo(() => apart(files), [files]);
@@ -280,7 +312,25 @@ export const FileBrowser = ({
    * while Put all back and a file asked for by name are about the pull request
    * whether it is drawn or not.
    */
-  const onRail = hidingTests && canHide ? split.code : files;
+  const onRail = aside && canHide ? split.code : files;
+
+  /*
+   * Turning the switch, which is turning the setting: the band and the row in
+   * the menu are two hands on one knob, not two knobs. Where there is nothing
+   * to write to — a screen mounted without a way to change settings — the echo
+   * alone still answers the press, so the control is never a control that does
+   * nothing.
+   */
+  const turnTests = useCallback(() => {
+    const next = !aside;
+    setAside(next);
+    if (display === undefined) return;
+
+    display.onChange({
+      ...display.settings,
+      tree: { ...display.settings.tree, tests: next ? "aside" : "show" },
+    });
+  }, [aside, display]);
 
   // The same files, in the order the rail draws them.
   //
@@ -339,10 +389,6 @@ export const FileBrowser = ({
   useEffect(() => {
     setPass(review === undefined ? Option.none() : passOf(review.subject));
     setFetchedMarks(new Map());
-    // Another pull request is another set of files, and none of them were stood
-    // aside by anyone. Left on, the next pull request opened in this panel would
-    // arrive with files already missing from its rail.
-    setHidingTests(false);
   }, [review?.subject]);
 
   // Which files are drawn, whether or not they are the one on screen. The one
@@ -371,11 +417,14 @@ export const FileBrowser = ({
   // request and not about the rail, so it is looked for in the whole of it and
   // the proof comes back out of hiding to show it. Being sent to a file and
   // shown another one is worse than a rail that reads longer than it did.
+  //
+  // The echo and not the setting: the reader asked for one file, not for a
+  // different answer on every pull request from here on.
   useEffect(() => {
     if (wanted === undefined) return;
     if (!files.some((file) => file.path === wanted.path)) return;
 
-    if (looksLikeTest(wanted.path)) setHidingTests(false);
+    if (looksLikeTest(wanted.path)) setAside(false);
     onSelect(wanted.path);
   }, [files, onSelect, wanted]);
 
@@ -705,24 +754,14 @@ export const FileBrowser = ({
       <div className="@container/band flex shrink-0 items-center gap-3 px-3 py-2">
         {/* No heading: the card is the files, and the counts say so in the same
             breath as saying how many. The section keeps its name for anyone
-            arriving by landmark.
-
-            Whole or not at all. Truncated, this reads "2.." — a number cut in
-            half is worse than the same number left out, since a reader cannot
-            tell 2 files from 24. */}
-        <span className="hidden shrink-0 text-xs text-ink-muted tabular-nums @[36rem]/band:inline">
-          {`${onRail.length} changed`}{" "}
-          <span className="text-pass">+{total(onRail, "linesAdded")}</span>{" "}
-          <span className="text-fail">−{total(onRail, "linesDeleted")}</span>
-        </span>
-        {canHide ? (
-          <Proof
-            code={split.code}
-            tests={split.tests}
-            hidden={hidingTests}
-            onToggle={() => setHidingTests((was) => !was)}
-          />
-        ) : null}
+            arriving by landmark. */}
+        <Counts
+          files={onRail}
+          tests={split.tests}
+          aside={aside && canHide}
+          offered={canHide}
+          onToggle={turnTests}
+        />
         {/* How much of the review is behind you. A pull request of forty files
             is read over an afternoon and in three sittings, and the question on
             coming back to it is always the same one. */}

@@ -70,6 +70,8 @@ export type TreeChoices = {
   readonly width: string
   readonly counts: boolean
   readonly ticks: boolean
+  /** Whether the files that prove the change are held out of the rail. */
+  readonly testsAside: boolean
   readonly flatten: boolean
   readonly folders: "open" | "closed"
   readonly search: boolean
@@ -101,6 +103,7 @@ export const treeChoices = (settings: TreeSettings): TreeChoices => ({
   width: WIDTH[settings.width] ?? WIDTH["medium"]!,
   counts: settings.counts === "on",
   ticks: settings.ticks === "on",
+  testsAside: settings.tests === "aside",
   flatten: settings.flatten === "on",
   folders: settings.folders,
   search: settings.search === "on",
