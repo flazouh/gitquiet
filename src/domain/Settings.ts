@@ -369,14 +369,16 @@ export const TREE_KNOBS = [
    * Remembered rather than pressed each time, for the reason the whitespace knob
    * above is: a reader who wants the change without its proof wants that on the
    * next pull request as well, and a switch that forgets itself between them is
-   * a switch that has to be found again every morning. The one beside the counts
-   * writes this, so the two are the same answer rather than two answers.
+   * a switch that has to be found again every morning. The ways at the head of
+   * the rail write this, so the two are the same answer rather than two answers.
+   * Two of the three, at least: reading nothing but the tests is a pass made on
+   * one pull request, and it stays there.
    */
   knob(
     "tests",
     "Test files",
     "In the rail with the rest, or set aside",
-    "Where the files that prove a change go. In the rail is every file GitHub sent. Set aside holds the test files out of the list and out of the counts above it, so a pull request of nine hundred lines where seven hundred are cases reads as the change it makes. Which files are tests is read off their names, so a language that keeps its tests inside the file they prove has none to set aside.",
+    "Where the files that prove a change go. In the rail is every file GitHub sent. Set aside holds the test files out of the list and out of the counts above it, so a pull request of nine hundred lines where seven hundred are cases reads as the change it makes. The head of that rail turns the same knob, and offers the tests on their own as a pass this does not remember. Which files are tests is read off their names, so a language that keeps its tests inside the file they prove has none to set aside.",
     [
       { value: "show", label: "In the rail" },
       { value: "aside", label: "Set aside" },
