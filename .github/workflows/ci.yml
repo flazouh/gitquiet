@@ -86,8 +86,15 @@ jobs:
       # Two of the four are typechecks, one per program: the extension's and the
       # app's. The app's ran nowhere for a while, and a gateway missing fifty-six
       # of the port's methods is what grew in the gap.
+      #
+      # The tests run serially here, unlike `bun run gates`. Bun 1.3.13's
+      # parallel workers die on this runner the moment testing-library prints
+      # its first error — `EEXIST, epoll_ctl` out of picocolors opening a
+      # stream, then six files reported as failures with no test named in any
+      # of them. Reproduced twice on one commit; local 1.4.0 is fine either
+      # way. Serial costs the minute back and reports a real failure as itself.
       - name: Gates
-        run: bun run gates
+        run: bun run lint && bun run compile && bun run compile:desktop && bun run test -- --dots
 
       # The zips the release attaches and submits, built here so a packaging
       # failure is not first seen after a tag is already published.

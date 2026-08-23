@@ -132,6 +132,74 @@ describe("saying what you think of a pull request", () => {
     expect(screen.getByText("You approved this")).toBeDefined()
   })
 
+  /*
+   * The press has to change the panel it was pressed in.
+   *
+   * GitHub answers a review on a route of its own and says nothing about it anywhere else,
+   * so the record this panel reads is a page old until the next read of the whole pull
+   * request lands. Between the two, the button went back to saying "Approve" over a panel
+   * that looked exactly as it did before — which is a press that appears to have done
+   * nothing, on the one act a reviewer comes here to perform.
+   */
+  test("turns its own edge the moment the verdict is sent, before the record has it", async () => {
+    shown()
+
+    expect(screen.getByRole("region", { name: "Verdict" }).className).toContain("border-line")
+
+    await userEvent.click(screen.getByRole("button", { name: "Approve" }))
+
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: "Verdict" }).className).toContain("border-done")
+    )
+    expect(screen.getByText("You approved this")).toBeDefined()
+  })
+
+  test("holds the plain edge for a verdict given against an older commit", async () => {
+    const keep = "verdict:acme/widgets#7"
+    shown({ keep })
+    await userEvent.click(screen.getByRole("button", { name: "Approve" }))
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: "Verdict" }).className).toContain("border-done")
+    )
+    cleanup()
+
+    // The same panel a push later. The approval stands on GitHub and it is about
+    // the commit before this one, which is the whole reason the sha is on the panel.
+    shown({ keep, headSha: "0b1c2d3e4f5a6b7c" })
+
+    expect(screen.getByRole("region", { name: "Verdict" }).className).toContain("border-line")
+  })
+
+  /*
+   * The approval beside the fold is the one verb here that needs no box, so a reader can
+   * press it without ever opening one — and the sentence saying GitHub refused it was
+   * inside the box. Pressing Approve on a pull request GitHub will not take an approval
+   * for said nothing at all: the button went back to "Approve" and that was the whole
+   * report.
+   */
+  test("says what GitHub refused, where the box was never opened", async () => {
+    shown({ onReview: () => Effect.fail(new Error("Can not approve your own pull request")) })
+
+    await userEvent.click(screen.getByRole("button", { name: "Approve" }))
+
+    await waitFor(() =>
+      expect(screen.getByText(/Can not approve your own pull request/)).toBeDefined()
+    )
+    expect(screen.getByRole("region", { name: "Verdict" }).className).toContain("border-line")
+  })
+
+  test("turns the edge red where the reader asked for changes", async () => {
+    shown()
+    await opened()
+
+    await userEvent.type(screen.getByRole("textbox"), "the retry loop is off by one")
+    await userEvent.click(screen.getByRole("button", { name: "Request changes" }))
+
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: "Verdict" }).className).toContain("border-fail")
+    )
+  })
+
   test("says nothing about a verdict somebody else gave", () => {
     shown({ reviews: Option.some([{ reviewer: person("ben"), decision: "changes-requested" }]) })
 

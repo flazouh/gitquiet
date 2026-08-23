@@ -8,11 +8,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { eachIdle } from "../app/idle";
 import { diffLibrary, type DiffFetcher } from "../domain/library";
 import { railOrder } from "../domain/railOrder";
 import { readingOrder } from "../domain/readingOrder";
 import { acted, footingOf, markOf } from "../domain/reviewPass";
 import { stepping } from "../domain/stepping";
+import { apart, splits, type Held } from "../domain/testing";
 import type { DiffChoices, TreeChoices } from "../domain/choices";
 import type { Settings } from "../domain/Settings";
 import type {
@@ -26,6 +28,8 @@ import { Cap } from "./Cap";
 import { draftsIn, dropDraft, saveDraft, type Draft } from "./drafts";
 import { FileDiffPane, FileTreePane } from "./Files";
 import { FileHeading } from "./FileHeading";
+import { Counts } from "./Counts";
+import { RailHead } from "./RailHead";
 import { keepPass, passOf } from "./passes";
 import { seenFiles } from "./rowMarks";
 import { SettingsMenu } from "./SettingsMenu";
@@ -108,30 +112,11 @@ export type FileBrowserProps = {
 const WARM_LIMIT = 120;
 
 /**
- * Drawing a file the reader has not asked for yet, once they have stopped
- * asking for things.
- *
- * Opening a file costs a parse, a highlight and a few thousand elements — a
- * third of a second on a pull request of any size, and every millisecond of it
- * inside the keypress that asked for the file, where it is felt as the page
- * going away for a moment. The work does not get smaller by being moved, it
- * gets invisible: done while the reader is reading, `j` has nothing left to do
- * but show what is already there.
- *
- * Idle time rather than a timer, so it never competes with the reader; the
- * deadline is there because a page that is never idle would otherwise never
- * read ahead at all.
+ * How long the files beside this one may wait for a quiet moment, in
+ * milliseconds. Shorter than the usual deadline because `j` is one keypress
+ * away, and a reader who presses it before this ran waits for the whole draw.
  */
-const whenIdle = (act: () => void): (() => void) => {
-  const later = globalThis.requestIdleCallback;
-  if (later === undefined) {
-    const soon = setTimeout(act, 200);
-    return () => clearTimeout(soon);
-  }
-
-  const asked = later(() => act(), { timeout: 1_000 });
-  return () => globalThis.cancelIdleCallback?.(asked);
-};
+const REACHING = 1_000;
 
 /** The files worth holding drawn: the one being read, and the two a key reaches. */
 const withinReach = (
@@ -139,11 +124,6 @@ const withinReach = (
 ): ReadonlyArray<string> => [
   ...new Set(paths.filter((path): path is string => path !== undefined)),
 ];
-
-const total = (
-  files: ReadonlyArray<ChangedFile>,
-  of: "linesAdded" | "linesDeleted",
-): number => files.reduce((sum, file) => sum + file[of], 0);
 
 const isProse = (path: string): boolean => /\.(md|mdx|markdown)$/i.test(path);
 
@@ -212,6 +192,84 @@ export const FileBrowser = ({
   review,
   display,
 }: FileBrowserProps) => {
+  /*
+   * Which files the rail is holding, which is a stored choice with a local echo
+   * over it.
+   *
+   * Stored, because a reader who wants the change without its proof wants that
+   * on the next pull request as well, and the head of the rail writes the same
+   * setting the menu does. Echoed here rather than read straight off the prop so
+   * that the head answers the press at once rather than after a round trip
+   * through the browser's storage, and so that the two things which change it
+   * without the reader asking — a file named from somewhere else, and a pull
+   * request with nothing to split — can do it for this reading alone and leave
+   * the setting where it was.
+   *
+   * The next pull request starts from the stored answer again, which is what
+   * makes reading nothing but the tests a pass rather than a mode: this screen
+   * stays mounted from one pull request to the next, so without the subject in
+   * here a reader who checked the cases on one would arrive at the proof of
+   * every one after it.
+   */
+  const [asked, setAsked] = useState<Held>(tree.testsAside ? "code" : "all");
+  useEffect(() => {
+    setAsked(tree.testsAside ? "code" : "all");
+  }, [tree.testsAside, review?.subject]);
+
+  /**
+   * The pull request, the change it makes, and the cases that prove it. See
+   * `domain/testing.ts`, which also says when there is a choice between them.
+   */
+  const split = useMemo(() => apart(files), [files]);
+
+  const kept: Held = splits(split) ? asked : "all";
+
+  /*
+   * What the reader is being shown, which is the whole pull request unless they
+   * have asked for one half of it.
+   *
+   * `files` goes on meaning the pull request, and this means the rail. The
+   * difference decides which of the two a thing is about: the counts, the
+   * progress, Next and Previous and the tree are about what is on the screen,
+   * while Put all back and a file asked for by name are about the pull request
+   * whether it is drawn or not.
+   */
+  const onRail = split[kept];
+
+  /*
+   * Picking a way, which for two of the three is turning the setting: the head
+   * of the rail and the row in the menu are two hands on one knob, not two.
+   *
+   * The third is not written down. Nothing but the tests is a pass a reader
+   * makes on one pull request — checking that a fix is covered — rather than a
+   * standing answer to how their files should arrive, and a menu offering it as
+   * a default would be offering to open every pull request at its proof. It
+   * lasts as long as this card is on the screen, and the stored choice is what
+   * the next one opens with.
+   *
+   * Where there is nothing to write to — a screen mounted without a way to
+   * change settings — the echo alone still answers the press, so the control is
+   * never a control that does nothing.
+   */
+  const pickKept = useCallback(
+    (next: Held) => {
+      setAsked(next);
+      if (display === undefined || next === "tests") return;
+
+      const want = next === "code" ? "aside" : "show";
+      // Coming back from the pass that is not written down turns nothing: the
+      // setting never left where it was, and a write is a write to the browser's
+      // storage and a new settings object for every screen holding one.
+      if (display.settings.tree.tests === want) return;
+
+      display.onChange({
+        ...display.settings,
+        tree: { ...display.settings.tree, tests: want },
+      });
+    },
+    [display],
+  );
+
   // The same files, in the order the rail draws them.
   //
   // GitHub sends its own order and the tree does not keep it: folders go above
@@ -222,11 +280,11 @@ export const FileBrowser = ({
   // rail instead of walking down it — five presses over five files in an order
   // nothing on the screen accounted for.
   const walk = useMemo(() => {
-    const held = new Map(files.map((one) => [one.path, one]));
+    const held = new Map(onRail.map((one) => [one.path, one]));
     return railOrder([...held.keys()])
       .map((path) => held.get(path))
       .filter((one): one is ChangedFile => one !== undefined);
-  }, [files]);
+  }, [onRail]);
 
   // The top of the rail, which is where a reader starts reading and where a
   // held `j` walks down from.
@@ -293,14 +351,30 @@ export const FileBrowser = ({
     [proseAsDocument],
   );
 
+  // A file named somewhere else — a failing log, a link — is about the pull
+  // request and not about the rail, so it is looked for in the whole of it and
+  // the half that is standing aside comes back to show it. Being sent to a file
+  // and shown another one is worse than a rail that reads longer than it did.
+  //
+  // Whole rather than the other half: a test file asked for while the rail holds
+  // only code could be answered by keeping the tests alone, but that empties the
+  // rail of everything the reader was reading a moment ago.
+  //
+  // The echo and not the setting: the reader asked for one file, not for a
+  // different answer on every pull request from here on.
   useEffect(() => {
     if (wanted === undefined) return;
-    if (files.some((file) => file.path === wanted.path)) onSelect(wanted.path);
-  }, [files, onSelect, wanted]);
+    if (!files.some((file) => file.path === wanted.path)) return;
+
+    setAsked((held) =>
+      split[held].some((one) => one.path === wanted.path) ? held : "all",
+    );
+    onSelect(wanted.path);
+  }, [files, onSelect, split, wanted]);
 
   const seen = useMemo(
-    () => seenFiles(files, opened, putBack),
-    [files, opened, putBack],
+    () => seenFiles(onRail, opened, putBack),
+    [onRail, opened, putBack],
   );
   const currentMarks = useMemo(() => {
     const marks = new Map(fetchedMarks);
@@ -314,7 +388,7 @@ export const FileBrowser = ({
     if (Option.isNone(pass)) return new Set<string>();
 
     return new Set(
-      files
+      onRail
         .filter(
           (file) =>
             footingOf(
@@ -325,7 +399,7 @@ export const FileBrowser = ({
         )
         .map((file) => file.path),
     );
-  }, [currentMarks, files, pass]);
+  }, [currentMarks, onRail, pass]);
   const progress = review?.active === true ? read : seen;
 
   const library = useMemo(() => diffLibrary(fetchDiffs), [fetchDiffs]);
@@ -439,10 +513,59 @@ export const FileBrowser = ({
     setOpened((held) => (held.has(here) ? held : new Set([...held, here])));
   }, [here]);
 
+  // And the choice follows the screen when the file that was chosen leaves the
+  // rail — stood aside with the rest of the proof, or dropped by a background
+  // read. The pane falls back to the first file on its own, but the choice stayed
+  // on the file that had gone, so the tree highlighted no row at all.
+  useEffect(() => {
+    if (chosen === undefined || here === undefined) return;
+    if (walk.some((one) => one.path === chosen)) return;
+
+    setChosen(here);
+  }, [chosen, here, walk]);
+
+  /*
+   * Drawing a file the reader has not asked for yet, once they have stopped
+   * asking for things.
+   *
+   * Opening a file costs a parse, a highlight and a few thousand elements — a
+   * third of a second on a pull request of any size, and every millisecond of it
+   * inside the keypress that asked for the file, where it is felt as the page
+   * going away for a moment. The work does not get smaller by being moved, it
+   * gets invisible: done while the reader is reading, `j` has nothing left to do
+   * but show what is already there.
+   */
   useEffect(() => {
     if (here === undefined) return;
-    return whenIdle(() =>
-      setDrawn(withinReach([previous?.path, here, next?.path])),
+
+    /*
+     * One file per quiet moment, not both neighbours in one commit.
+     *
+     * Together they were a single task of two parses, two highlights and a few
+     * thousand elements each, and the idle deadline made sure it ran within the
+     * second — which is exactly when the reader who clicked a file is scrolling
+     * the one they got. Next goes first, since `j` is the press being dodged;
+     * the last stage cuts the set back to what a key can reach, which mounts
+     * nothing and costs nothing.
+     */
+    const reach = withinReach([previous?.path, here, next?.path]);
+    return eachIdle(
+      [
+        ...withinReach([next?.path, previous?.path])
+          .filter((path) => path !== here)
+          .map(
+            (path) => () =>
+              setDrawn((held) => (held.includes(path) ? held : [...held, path])),
+          ),
+        () =>
+          setDrawn((held) =>
+            held.length === reach.length &&
+            reach.every((path) => held.includes(path))
+              ? held
+              : reach,
+          ),
+      ],
+      REACHING,
     );
   }, [here, previous?.path, next?.path]);
 
@@ -450,9 +573,9 @@ export const FileBrowser = ({
   const showing = useMemo(
     () =>
       withinReach([here, ...drawn])
-        .map((path) => files.find((one) => one.path === path))
+        .map((path) => onRail.find((one) => one.path === path))
         .filter((one): one is ChangedFile => one !== undefined),
-    [drawn, files, here],
+    [drawn, onRail, here],
   );
   const on = chordFor(keys, "nextFile");
   const back = chordFor(keys, "previousFile");
@@ -539,7 +662,7 @@ export const FileBrowser = ({
     dismiss: review?.active === true ? () => review.onChange(false) : undefined,
   });
 
-  if (files.length === 0) {
+  if (onRail.length === 0) {
     return (
       <section
         aria-label="Files"
@@ -575,16 +698,9 @@ export const FileBrowser = ({
       <div className="@container/band flex shrink-0 items-center gap-3 px-3 py-2">
         {/* No heading: the card is the files, and the counts say so in the same
             breath as saying how many. The section keeps its name for anyone
-            arriving by landmark.
-
-            Whole or not at all. Truncated, this reads "2.." — a number cut in
-            half is worse than the same number left out, since a reader cannot
-            tell 2 files from 24. */}
-        <span className="hidden shrink-0 text-xs text-ink-muted tabular-nums @[36rem]/band:inline">
-          {`${files.length} changed`}{" "}
-          <span className="text-pass">+{total(files, "linesAdded")}</span>{" "}
-          <span className="text-fail">−{total(files, "linesDeleted")}</span>
-        </span>
+            arriving by landmark. Which of the files are drawn is asked at the
+            head of the rail, beside the list it changes. */}
+        <Counts split={split} kept={kept} />
         {/* How much of the review is behind you. A pull request of forty files
             is read over an afternoon and in three sittings, and the question on
             coming back to it is always the same one. */}
@@ -594,7 +710,7 @@ export const FileBrowser = ({
             without a tick on it. A plain reading of the number once there is
             nothing left to go to, rather than a button that does nothing. */}
         {(() => {
-          const count = `${progress.size} of ${files.length} ${review?.active === true ? "read" : "seen"}`;
+          const count = `${progress.size} of ${onRail.length} ${review?.active === true ? "read" : "seen"}`;
           const bar = (
             <>
               <span
@@ -604,7 +720,7 @@ export const FileBrowser = ({
                 <span
                   className="block h-full bg-pass-emphasis"
                   style={{
-                    width: `${Math.round((progress.size / files.length) * 100)}%`,
+                    width: `${Math.round((progress.size / onRail.length) * 100)}%`,
                   }}
                 />
               </span>
@@ -613,8 +729,8 @@ export const FileBrowser = ({
           );
           const held =
             review?.active === true
-              ? `${progress.size} of ${files.length} file patches read in this Review Pass`
-              : `${progress.size} of ${files.length} files opened or ticked as viewed on GitHub`;
+              ? `${progress.size} of ${onRail.length} file patches read in this Review Pass`
+              : `${progress.size} of ${onRail.length} files opened or ticked as viewed on GitHub`;
 
           return waiting === undefined ? (
             <span
@@ -724,7 +840,7 @@ export const FileBrowser = ({
             )}
             <button
               type="button"
-              disabled={files.length < 2}
+              disabled={onRail.length < 2}
               aria-keyshortcuts={back ?? undefined}
               onClick={() => onward(previous)}
               className="flex items-center gap-1.5 rounded-md bg-canvas px-2.5 py-1 text-xs font-semibold text-ink-muted enabled:hover:bg-hover enabled:hover:text-ink disabled:opacity-40"
@@ -734,7 +850,7 @@ export const FileBrowser = ({
             </button>
             <button
               type="button"
-              disabled={files.length < 2}
+              disabled={onRail.length < 2}
               aria-label="Next file"
               aria-keyshortcuts={on ?? undefined}
               onClick={() => onward(next)}
@@ -787,6 +903,9 @@ export const FileBrowser = ({
         <div
           className={`${tree.width} flex min-h-0 shrink-0 flex-col overflow-hidden rounded-md bg-canvas pt-1`}
         >
+          {/* Above the rows, inside the rail's own subcard: what this asks is
+              which of them are there. */}
+          <RailHead split={split} kept={kept} onPick={pickKept} />
           {/* Built again when one of these changes: the tree reads them once,
               when it is constructed, and hands back no way to change its mind.
               Everything else — icons, the marks on a row — it will redraw in
@@ -797,7 +916,7 @@ export const FileBrowser = ({
               that box at no height, so the rows existed and drew nothing. */}
           <FileTreePane
             key={`${tree.density}|${tree.flatten}|${tree.folders}|${tree.search}|${tree.sticky}`}
-            files={files}
+            files={onRail}
             selected={
               chosen === undefined ? Option.none() : Option.some(chosen)
             }
@@ -842,6 +961,7 @@ export const FileBrowser = ({
                       open ? reading : proseAsDocument && isProse(one.path)
                     }
                     choices={diff}
+                    visible={open}
                     drafts={open ? mine : draftsIn(drafts, one.path)}
                     onSaveDraft={onSaveDraft}
                     onDropDraft={onDropDraft}

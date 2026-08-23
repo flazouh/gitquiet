@@ -10,6 +10,7 @@ import { createPortal } from "react-dom"
 import type { DiffEngine, DiffHandle, DiffSide, Note as NoteAt, Picked } from "../ports/Renderer"
 import type { Uploaded } from "../domain/attaching"
 import type { Suggesting } from "../domain/suggesting"
+import { afterPaint } from "../app/idle"
 import { toPatch } from "../domain/toPatch"
 import { withoutWhitespace } from "../domain/withoutWhitespace"
 import type { ChangedFile, ChangeType, FileDiff, ReviewThread } from "../domain/PullRequest"
@@ -22,6 +23,7 @@ import { ProseDiff } from "./ProseDiff"
 import { useRenderer } from "./renderer"
 import { usePaintedTheme } from "./Theme"
 import { rowMarks, shortCount, type RowMark } from "./rowMarks"
+import { changesBetween } from "./treeRows"
 import { type Answering, ThreadInDiff } from "./ThreadView"
 import { threadKey, threadNotes, threadsIn } from "./threads"
 import {
@@ -82,9 +84,31 @@ const PRIMER_TREE = {
   // is 6px of subtraction against 0px of scrollbar: rows sat 4px from the left
   // edge and 1.6px from the right. Zero is the true width here.
   "--trees-scrollbar-gutter-measured": "0px",
-  "--trees-level-gap-override": "10px",
+
+  // No level gap named here on purpose: the indent is the reader's, and
+  // `FileTreePane` names it from their choice. A flat ten pixels used to sit
+  // here, which was wider than the tree's own step and deaf to the row height
+  // beside it, so a compact list indented as far as a relaxed one.
   "--trees-font-size-override": "12px"
 } as React.CSSProperties
+
+/**
+ * The theme's variables, plus the one the reader owns.
+ *
+ * The indent comes in as a variable rather than as one of the tree's options
+ * because the tree reads its options once, when it is built: a knob answered
+ * that way would rebuild the list, losing the scroll and what was expanded,
+ * where a variable moves the rows on the next frame.
+ *
+ * Height is named here because the host is virtualised and sizes itself to its
+ * box, and a box with no height draws no rows.
+ */
+const treeStyle = (indent: string): React.CSSProperties =>
+  ({
+    ...PRIMER_TREE,
+    "--trees-level-gap-override": indent,
+    height: "100%"
+  }) as React.CSSProperties
 
 /**
  * Material's file icons, which is what an editor's sidebar looks like.
@@ -236,6 +260,22 @@ export const FileTreePane = ({
   // that silently does nothing is worse than one that was never mentioned.
   useKeys(choices.search ? keys : "off", { search: () => model.openSearch() })
 
+  // The tree reads its paths once, when it is built, so a file leaving the list
+  // left its row on the rail with nothing behind it: the counts beside the
+  // folders came down, because those are drawn from a ref on every pass, and the
+  // rows they were counting stayed where they were. Both ways round — the reader
+  // standing the tests aside, and a background read finding a file added or
+  // dropped since the page opened. `changesBetween` says why it is done row by
+  // row rather than by building the tree again.
+  const drawn = useRef(paths)
+  useEffect(() => {
+    const work = changesBetween(drawn.current, paths)
+    if (work.length === 0) return
+
+    drawn.current = paths
+    model.batch(work)
+  }, [model, paths])
+
   // Rows are drawn once and left alone, so a file being marked off has to ask
   // for them again. Handing back the same icons is the only call in the tree's
   // API that redraws every row while leaving the selection, the scroll and what
@@ -268,11 +308,10 @@ export const FileTreePane = ({
   }
 
   // Fills the card so the tree's surface runs the height of the file diff
-  // beside it. Height is named: the host is virtualised and sizes to its box,
-  // and a box with no height draws no rows.
+  // beside it. See `treeStyle` for why the height is named as well.
   return (
     <div className="min-h-0 flex-1">
-      <FileTree model={model} style={{ ...PRIMER_TREE, height: "100%" }} />
+      <FileTree model={model} style={treeStyle(choices.indent)} />
     </div>
   )
 }
@@ -293,6 +332,17 @@ export type FileDiffPaneProps = {
   readonly reading?: boolean
   /** How the reader has asked for diffs to be drawn. */
   readonly choices: DiffChoices
+  /**
+   * Whether this pane is the one being looked at.
+   *
+   * The browser keeps a pane mounted per warmed file, all laid out and one
+   * visible. A knob or theme change redraws a diff from the patch, and doing
+   * that to every pane in one commit froze the interface for half a second —
+   * the settings menu's own close was what it froze. Only the visible pane
+   * follows the change at once; the hidden ones catch up in idle time. See
+   * `drawnWith` below.
+   */
+  readonly visible?: boolean
   /** What has been written about this file's lines, and not sent. */
   readonly drafts?: ReadonlyArray<Draft>
   readonly onSaveDraft?: (draft: Draft) => void
@@ -336,6 +386,7 @@ export const FileDiffPane = ({
   ask,
   reading = false,
   choices,
+  visible = true,
   drafts = [],
   onSaveDraft,
   onDropDraft,
@@ -402,6 +453,37 @@ export const FileDiffPane = ({
   const patch = useMemo(() => toPatch(whole), [whole])
 
   /**
+   * The knobs and theme this pane draws with, which follow the reader's
+   * choices at the pane's own pace.
+   *
+   * The visible pane takes a change on the commit after it is made. A hidden
+   * one holds what it already drew and takes the change in idle time — or on
+   * becoming visible, whichever comes first — because a redraw is the whole
+   * file built again from the patch, and every warmed file redrawing in the
+   * click's own commit was the band freezing for half a second.
+   */
+  const wanted = useMemo(
+    () => ({ choices, scheme: painted.scheme, pack: painted.pack }),
+    [choices, painted.scheme, painted.pack]
+  )
+  const [drawnWith, setDrawnWith] = useState(wanted)
+  useEffect(() => {
+    if (wanted === drawnWith) return
+    if (visible) {
+      setDrawnWith(wanted)
+      return
+    }
+    // Idle time where the browser offers it, and simply later where it does
+    // not — either way, clear of the click that turned the knob.
+    if (typeof requestIdleCallback === "function") {
+      const idle = requestIdleCallback(() => setDrawnWith(wanted))
+      return () => cancelIdleCallback(idle)
+    }
+    const timer = setTimeout(() => setDrawnWith(wanted), 200)
+    return () => clearTimeout(timer)
+  }, [wanted, drawnWith, visible])
+
+  /**
    * The patch as it will be drawn, which is the patch itself unless the reader
    * asked for spacing to be held back.
    *
@@ -411,8 +493,8 @@ export const FileDiffPane = ({
    * difference between that and a file GitHub sent no content for.
    */
   const shown = useMemo(
-    () => (choices.hideWhitespace ? Option.map(patch, withoutWhitespace) : patch),
-    [patch, choices.hideWhitespace]
+    () => (drawnWith.choices.hideWhitespace ? Option.map(patch, withoutWhitespace) : patch),
+    [patch, drawnWith.choices.hideWhitespace]
   )
   const onlySpacing = Option.isSome(shown) && shown.value === ""
 
@@ -484,36 +566,56 @@ export const FileDiffPane = ({
   atRender.current = notes
   const handle = useRef<DiffHandle | null>(null)
 
+  // Whether a remark can be sent is all the drawing bakes in; the way to send
+  // it is a fresh closure on every render of the screen above, and a redraw per
+  // closure was every mounted file drawn again several times per click.
+  const canPost = onPost !== undefined
+
   useEffect(() => {
     const container = host.current
     const source = Option.getOrNull(shown)
     if (engine === null || container === null || source === null || source === "" || prose !== undefined)
       return
 
-    const live = engine.renderDiff(container, {
-      patch: source,
-      path: file.path,
-      theme: painted.scheme,
-      pack: painted.pack,
-      choices,
-      // Off where a remark has nowhere to go, which takes the gutter's plus and
-      // the drag across the line numbers with it. A commit read on its own page
-      // is the case: GitHub's route for a review comment belongs to a pull
-      // request, and this commit is not being read on one. Left on, both ways in
-      // open a box whose Comment button cannot come up, over a draft that can be
-      // saved and never sent.
-      onPick: onPost === undefined ? undefined : setPicked,
-      notes: atRender.current,
-      fillNote: (key) => rows.current.get(key)
-    })
-    handle.current = live
+    /*
+     * After a painted frame, never in the commit that asked.
+     *
+     * The draw is synchronous engine work — a few hundred milliseconds on a
+     * fat patch — and run inside the click's own commit it held the click's
+     * answer hostage: the row's highlight, the heading, the pointer. Deferred
+     * with `afterPaint`, the answer is on screen first and the draw follows.
+     */
+    let live: DiffHandle | null = null
+
+    const draw = () => {
+      live = engine.renderDiff(container, {
+        patch: source,
+        path: file.path,
+        theme: drawnWith.scheme,
+        pack: drawnWith.pack,
+        choices: drawnWith.choices,
+        // Off where a remark has nowhere to go, which takes the gutter's plus and
+        // the drag across the line numbers with it. A commit read on its own page
+        // is the case: GitHub's route for a review comment belongs to a pull
+        // request, and this commit is not being read on one. Left on, both ways in
+        // open a box whose Comment button cannot come up, over a draft that can be
+        // saved and never sent.
+        onPick: canPost ? setPicked : undefined,
+        notes: atRender.current,
+        fillNote: (key) => rows.current.get(key)
+      })
+      handle.current = live
+    }
+
+    const wait = afterPaint(draw)
     return () => {
+      wait()
       handle.current = null
-      live.destroy()
+      live?.destroy()
     }
     // Every one of these is baked into the DOM the renderer writes, so a change
     // to any of them is a file drawn again from the patch.
-  }, [engine, shown, file.path, prose, choices, onPost, painted.scheme, painted.pack])
+  }, [engine, shown, file.path, prose, drawnWith, canPost])
 
   useEffect(() => {
     handle.current?.showNotes(notes)

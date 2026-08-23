@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { DEFAULTS } from "../domain/Settings"
 import { ROOT_ID } from "./mount"
@@ -53,16 +53,45 @@ describe("the menu is drawn where the colours are", () => {
     expect(root.contains(choices)).toBe(true)
   })
 
-  test("and the explanation beside a knob", async () => {
+  test("a size knob's handle, which is dragged rather than picked from a list", async () => {
+    const root = ourRoot()
+    let written: typeof DEFAULTS | undefined
+    render(
+      <SettingsMenu
+        settings={DEFAULTS}
+        onChange={(settings) => {
+          written = settings
+        }}
+      />,
+      { container: root }
+    )
+    await userEvent.click(screen.getByLabelText("Display settings"))
+
+    await userEvent.hover(screen.getByRole("menuitem", { name: /Folder indent/ }))
+    const handle = (await screen.findByRole("slider", {
+      name: "Folder indent"
+    })) as HTMLInputElement
+
+    expect(root.contains(handle)).toBe(true)
+    fireEvent.change(handle, { target: { value: "8" } })
+
+    expect(written?.tree.indent).toBe("16")
+  })
+
+  /**
+   * Said on the row, not behind an icon a reader has to find and hover.
+   *
+   * Every knob here is a trade, and a two-word label can only name it. The gist
+   * is the one line that says which way each choice goes; the whole note and
+   * the mockups are in the settings sheet, where there is room for them.
+   */
+  test("a knob says on its own row what it is for", async () => {
     const root = ourRoot()
     await open(root)
 
-    // The information icon, which is the last thing on the row and a span rather
-    // than a button: a pointer landing on it must not count as choosing the row.
     const row = screen.getByRole("menuitem", { name: /Layout/ })
-    await userEvent.hover(row.lastElementChild as HTMLElement)
 
-    const said = await screen.findByRole("tooltip")
-    expect(root.contains(said)).toBe(true)
+    expect(row.textContent).toContain("One column, or two side by side")
+    expect(screen.queryByRole("tooltip")).toBeNull()
   })
 })

@@ -62,6 +62,22 @@ export const PILL = `rounded-full ${TINT} px-2 py-0.5`
 export const HERE = "bg-active text-ink"
 
 /**
+ * The well a set of ways sits in, with the one in use filled.
+ *
+ * Two steps of the ladder above, in the arrangement this interface uses wherever
+ * it offers one question with two or three answers: `TINT` for the well, `HERE`
+ * for the answer. The shape was written out at each switch, and the switches
+ * drifted — see `Ways.tsx`, which is the same argument about the glyphs inside
+ * them. What each way says is the call site's, since a glyph, a word and a word
+ * with a number beside it are all ways; the trough they sit in is not.
+ */
+export const TROUGH = `flex shrink-0 items-center overflow-hidden rounded-md ${TINT}`
+
+/** What a way in that trough wears, filled or not. */
+export const wayIn = (chosen: boolean): string =>
+  chosen ? HERE : "text-ink-muted hover:text-ink"
+
+/**
  * The section the reader is in, one step short of the page they are on.
  *
  * No fill, and that is the whole of the argument: both fills are spoken for. `TINT` is what

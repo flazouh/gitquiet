@@ -7,7 +7,6 @@ import { History } from "./History"
 import { Authors, type LoadAuthors, Dates } from "./Sifting"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import { TheBar } from "./TheBar"
-import { useUpdated } from "./useUpdated"
 import { type Load, useLive } from "./useLive"
 import { type AskSizes, useSizes } from "./useSizes"
 import { useWaiting } from "./useWaiting"
@@ -60,11 +59,11 @@ export type HistoryScreenProps = {
   readonly authors?: LoadAuthors
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
   readonly signedIn?: () => boolean
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
 }
 
 const WORKING = "Reading this branch's commits…"
-
-const UPDATED = "Branch commits updated"
 
 /**
  * A branch's commits, as a page of this interface.
@@ -85,12 +84,12 @@ export const HistoryScreen = ({
   onGo,
   onStepAside,
   recallRepositories,
+  where,
   signedIn = viewerOnPage
 }: HistoryScreenProps) => {
-  const live = useLive(load, preload)
+  const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
   const { owner, repo } = list.repo
 
   const answered = read.status === "ready" ? read.value : undefined

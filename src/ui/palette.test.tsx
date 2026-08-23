@@ -34,20 +34,37 @@ const OWED = [
   }
 ]
 
-const showing = (
-  over: {
-    readonly onGo?: (where: string) => void
-    readonly onShut?: () => void
-  } = {}
-) =>
+const showing = (over: { readonly onShut?: () => void } = {}) =>
   render(
     <Palette
       repositories={REPOSITORIES}
       owed={OWED}
-      onGo={over.onGo ?? (() => undefined)}
       onShut={over.onShut ?? (() => undefined)}
     />
   )
+
+/**
+ * The links pressed, read the way the page reads them.
+ *
+ * A press on an answer is a real click on a real anchor, bubbling out of the
+ * palette for the document to answer — that is the whole change from `onGo`.
+ * So the test stands where the shell stands, above the dialog, and records
+ * what came through.
+ */
+const answering = (): Array<string> => {
+  const went: Array<string> = []
+  screen.getByRole("dialog").addEventListener(
+    "click",
+    (event) => {
+      event.preventDefault()
+      const target = event.target
+      const link = target instanceof Element ? target.closest("a") : null
+      if (link !== null) went.push(link.getAttribute("href") ?? "")
+    },
+    { capture: true }
+  )
+  return went
+}
 
 const options = () => screen.getAllByRole("option").map((one) => one.textContent)
 
@@ -73,9 +90,18 @@ describe("the palette", () => {
     expect(options()).toEqual(["fflazouh/ego-browser"])
   })
 
+  test("every answer is a link, so a press is a press on an address", () => {
+    showing()
+
+    for (const one of screen.getAllByRole("option")) {
+      expect(one.tagName).toBe("A")
+      expect(one.getAttribute("href")).not.toBeNull()
+    }
+  })
+
   test("stands on the first answer, so Enter needs no arrow first", async () => {
-    const went: Array<string> = []
-    showing({ onGo: (where) => went.push(where) })
+    showing()
+    const went = answering()
 
     await userEvent.type(screen.getByRole("combobox"), "gitquiet{Enter}")
 
@@ -83,8 +109,8 @@ describe("the palette", () => {
   })
 
   test("walks the answers with the arrows", async () => {
-    const went: Array<string> = []
-    showing({ onGo: (where) => went.push(where) })
+    showing()
+    const went = answering()
 
     await userEvent.type(screen.getByRole("combobox"), "flazouh")
     await userEvent.keyboard("{ArrowDown}{Enter}")
@@ -93,8 +119,8 @@ describe("the palette", () => {
   })
 
   test("does not walk off either end of the list", async () => {
-    const went: Array<string> = []
-    showing({ onGo: (where) => went.push(where) })
+    showing()
+    const went = answering()
 
     await userEvent.type(screen.getByRole("combobox"), "flazouh")
     await userEvent.keyboard("{ArrowUp}{ArrowUp}{Enter}")
@@ -111,13 +137,15 @@ describe("the palette", () => {
     )
   })
 
-  test("takes a press on an answer as well as a key", async () => {
-    const went: Array<string> = []
-    showing({ onGo: (where) => went.push(where) })
+  test("takes a press on an answer as well as a key, and shuts behind it", async () => {
+    let shut = 0
+    showing({ onShut: () => (shut += 1) })
+    const went = answering()
 
     await userEvent.click(screen.getByRole("option", { name: /ego-browser/ }))
 
     expect(went).toEqual(["/flazouh/ego-browser/pulls"])
+    expect(shut).toBe(1)
   })
 
   test("shuts on Escape", async () => {

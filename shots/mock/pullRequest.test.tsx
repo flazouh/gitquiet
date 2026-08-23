@@ -37,42 +37,18 @@ describe("the pull request view", () => {
     expect(screen.getByText("serve-abort-mid-chunk")).toBeDefined()
   })
 
-  test("files what is owed by Court, which is the argument the picture makes", async () => {
-    drawn()
+  /*
+   * The argument the picture makes: whether the thing can land is the first panel, not the
+   * seventh. A photograph whose column opened with a description would be selling a nicer
+   * way to read a pull request rather than a way to finish one.
+   */
+  test("leads the column with the card that says whether it can land", async () => {
+    const { container } = drawn()
 
-    await screen.findByText("What is owed")
+    await screen.findByRole("region", { name: "Merge" })
 
-    /*
-     * Read as the headings rather than as their lists, because Settled is folded when
-     * the panel opens and so has a heading and no list. All four are worth naming: a
-     * mock that filled one Court would photograph as a list, not as a grouping.
-     */
-    for (const court of ["Needs You", "Waiting", "Running", "Settled"]) {
-      expect(screen.getByRole("heading", { level: 3, name: new RegExp(court) })).toBeDefined()
-    }
-  })
-
-  test("puts the failing check in the reader's own Court", async () => {
-    drawn()
-
-    const yours = await screen.findByRole("list", { name: "Needs You" })
-    expect(within(yours).getByText("linux-x64 / test")).toBeDefined()
-    expect(within(yours).getByText("3 failing tests in test/js/bun/http")).toBeDefined()
-  })
-
-  test("names a Bot Finding as a finding rather than as a comment", async () => {
-    drawn()
-
-    const yours = await screen.findByRole("list", { name: "Needs You" })
-    expect(within(yours).getAllByText("finding").length).toBeGreaterThan(0)
-  })
-
-  test("counts what landed since the reader last reviewed", async () => {
-    drawn()
-
-    const yours = await screen.findByRole("list", { name: "Needs You" })
-    expect(within(yours).getByText("since you last reviewed")).toBeDefined()
-    expect(within(yours).getByText("3 commits")).toBeDefined()
+    const panels = container.querySelector(".t-panels")?.children ?? []
+    expect(panels[0]?.getAttribute("aria-label")).toBe("Merge")
   })
 
   test("opens the box on the remark that was written and not sent", async () => {

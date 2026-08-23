@@ -1,4 +1,5 @@
 import { Effect, Fiber, Option } from "effect"
+import { issueEntitled } from "@/app/entitling"
 import { loadIssue, rememberedIssue, reopenIssue, sayOnIssue, settleIssue } from "@/app/issue"
 import { uploadFile } from "@/app/attaching"
 import { loadSuggesting } from "@/app/suggesting"
@@ -69,10 +70,27 @@ const open = (
       Effect.tapError((error) => Effect.sync(() => reportError(error)))
     )
 
+  /**
+   * The tab's fuller words, once the issue's own are known. Only while the
+   * address is still this issue's, since the read can land after the reader
+   * has moved on — the shell said the number the moment the address moved,
+   * and will say the next page's words the same way. See `titleAt`.
+   */
+  const readTheIssue = () =>
+    reading(loadIssue(reference)).pipe(
+      Effect.tap(({ snapshot }) =>
+        Effect.sync(() => {
+          if (window.location.pathname.startsWith(route)) {
+            document.title = issueEntitled(reference, snapshot.title)
+          }
+        })
+      )
+    )
+
   // Started before anything is waited on, exactly as a pull request's is: the
   // read and the takeover have nothing to say to each other, and running them
   // one after the other spends the whole of GitHub's page load doing nothing.
-  const live = Effect.runFork(reading(loadIssue(reference)))
+  const live = Effect.runFork(readTheIssue())
 
   // Started in the same breath and normally finished long before: one storage
   // read against one request to GitHub.
@@ -102,7 +120,7 @@ const open = (
         return Fiber.join(live)
       }
 
-      return Fiber.join(Effect.runFork(reading(loadIssue(reference))))
+      return Fiber.join(Effect.runFork(readTheIssue()))
     })
 
   const screen = {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { act, cleanup } from "@testing-library/react"
-import { Effect } from "effect"
+import { Effect, Option } from "effect"
 import { createRoot } from "react-dom/client"
 import { DEFAULTS, type Settings } from "../domain/Settings"
 
@@ -199,5 +199,78 @@ describe("the frame before the store has answered", () => {
     await paint(container, dracula)
 
     expect(localStorage.getItem(PACK_KEY)).toBe("dracula")
+  })
+})
+
+/*
+ * One resolver per page, however many surfaces.
+ *
+ * The bar stands outside the screen's root and used to carry a Theme of its own,
+ * with nothing telling it whose page it stood on: the screen remembered the pack
+ * as `github`, the bar remembered it as `gitquiet`, and whichever wrote last is
+ * what the next page's first frame wore — the theme changing between the pages.
+ * The bar is an outside host now, painted by the one Theme above it.
+ */
+describe("the bar wears the theme of the page it stands on", () => {
+  /*
+   * The two resolvers raced in production because each read the store on its
+   * own clock: whichever answered last wrote the pack the next page's first
+   * frame wore. Deterministic here, so the test pins the invariant instead:
+   * a surface remembers nothing — remembering is the resolver's job.
+   */
+  test("the bar alone remembers nothing", async () => {
+    const { TheBar } = await import("./TheBar")
+    const container = aContainer()
+    document.body.append(container)
+    const root = createRoot(container)
+
+    await act(async () => {
+      root.render(
+        <SettingsProvider store={holding(DEFAULTS)}>
+          <TheBar
+            where={{ kind: "repository", owner: "flazouh", repo: "gitquiet" }}
+            participant={{ login: "flazouh", faceUrl: Option.none() }}
+          />
+        </SettingsProvider>
+      )
+    })
+    await settle()
+
+    expect(localStorage.getItem(PACK_KEY)).toBeNull()
+    expect(localStorage.getItem(SCHEME_KEY)).toBeNull()
+
+    // The bar put a slot on the page; leaving it standing hands the next test
+    // file a bar it never mounted.
+    await act(async () => root.unmount())
+  })
+
+  test("the bar's slot is painted in the same resolution", async () => {
+    const { TheBar } = await import("./TheBar")
+    const { BAR_ID } = await import("./barSlot")
+    const container = aContainer()
+    document.body.append(container)
+    const root = createRoot(container)
+
+    await act(async () => {
+      root.render(
+        <SettingsProvider store={holding(dracula)}>
+          <Theme element={container} here="github">
+            <TheBar
+              where={{ kind: "repository", owner: "flazouh", repo: "gitquiet" }}
+              participant={{ login: "flazouh", faceUrl: Option.none() }}
+            />
+          </Theme>
+        </SettingsProvider>
+      )
+    })
+    await settle()
+
+    const slot = document.getElementById(BAR_ID)
+    expect(slot).not.toBeNull()
+    expect(slot!.style.getPropertyValue("--color-canvas").trim()).toBe(
+      tokensOf("dracula", "dark")["--color-canvas"]
+    )
+
+    await act(async () => root.unmount())
   })
 })

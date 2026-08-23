@@ -31,6 +31,16 @@ export type Knob<K extends string, T extends string> = {
   readonly note: string
   /** Curated knobs are in the menu; advanced ones are behind one more click. */
   readonly advanced: boolean
+  /**
+   * Whether the choices are a run along one dimension, to be drawn as a slider.
+   *
+   * They are still choices, and everything else here treats them as choices:
+   * what is stored, what is checked against the schema, and what the little
+   * mockups are drawn from. The flag only says that the row of buttons should
+   * be one handle instead, which is what a reader expects of nine sizes and
+   * would be lost among nine words.
+   */
+  readonly slide: boolean
   readonly choices: ReadonlyArray<Choice<T>>
   readonly fallback: T
 }
@@ -43,7 +53,35 @@ const knob = <K extends string, T extends string>(
   choices: ReadonlyArray<Choice<T>>,
   fallback: T,
   advanced = false,
-): Knob<K, T> => ({ key, label, gist, note, advanced, choices, fallback })
+): Knob<K, T> => ({ key, label, gist, note, advanced, slide: false, choices, fallback })
+
+/**
+ * A knob whose choices are a run of pixel sizes, drawn as a slider.
+ *
+ * The steps are written out rather than given as a start, an end and a stride,
+ * because they are the answers a reader can pick and every other part of this
+ * file already knows what to do with a list of answers. A slider over stored
+ * numbers would need its own validation, its own default, and its own kind of
+ * mockup; a slider over choices needs none of the three.
+ */
+const slider = <K extends string>(
+  key: K,
+  label: string,
+  gist: string,
+  note: string,
+  steps: ReadonlyArray<number>,
+  fallback: number,
+  advanced = false,
+): Knob<K, string> => ({
+  key,
+  label,
+  gist,
+  note,
+  advanced,
+  slide: true,
+  choices: steps.map((px) => ({ value: String(px), label: `${px}px` })),
+  fallback: String(fallback),
+})
 
 const onOff = [
   { value: "on", label: "On" },
@@ -326,6 +364,14 @@ export const TREE_KNOBS = [
     ],
     "compact",
   ),
+  slider(
+    "indent",
+    "Folder indent",
+    "How far each folder steps in",
+    "How far a folder steps its contents in, in pixels. Every level spends it again, and a repository is four or five folders deep before a name starts, so indent comes straight out of the names in a narrow rail. 6px is the default and 0px still nests, because the guide lines and the icons say which level a row is on; 16px is roomy enough to read across a wide rail.",
+    [0, 2, 4, 6, 8, 10, 12, 14, 16],
+    6,
+  ),
   knob(
     "icons",
     "Icons",
@@ -364,6 +410,26 @@ export const TREE_KNOBS = [
     "A tick beside each file you have opened here or ticked as viewed on GitHub, and the progress bar in the header that counts them. A folder is only ticked once everything inside it is.",
     onOff,
     "on",
+  ),
+  /*
+   * Remembered rather than pressed each time, for the reason the whitespace knob
+   * above is: a reader who wants the change without its proof wants that on the
+   * next pull request as well, and a switch that forgets itself between them is
+   * a switch that has to be found again every morning. The ways at the head of
+   * the rail write this, so the two are the same answer rather than two answers.
+   * Two of the three, at least: reading nothing but the tests is a pass made on
+   * one pull request, and it stays there.
+   */
+  knob(
+    "tests",
+    "Test files",
+    "In the rail with the rest, or set aside",
+    "Where the files that prove a change go. In the rail is every file GitHub sent. Set aside holds the test files out of the list and out of the counts above it, so a pull request of nine hundred lines where seven hundred are cases reads as the change it makes. The head of that rail turns the same knob, and offers the tests on their own as a pass this does not remember. Which files are tests is read off their names, so a language that keeps its tests inside the file they prove has none to set aside.",
+    [
+      { value: "show", label: "In the rail" },
+      { value: "aside", label: "Set aside" },
+    ],
+    "show",
   ),
   knob(
     "flatten",

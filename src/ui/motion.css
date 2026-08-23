@@ -628,6 +628,22 @@
 }
 
 /**
+ * The entrance runs once, on arrival, and never on a move.
+ *
+ * A CSS animation restarts whenever its element is re-inserted, and React moves
+ * an element's neighbours by re-inserting them. On a prefetched pull request
+ * the live read added the merge card above six settled panels and the whole
+ * column replayed its entrance — the page visibly arriving twice. The screen
+ * sets `data-gitquiet-landed` once its arrival is over (see `Shell.tsx`), and
+ * from then on a panel that appears, or is moved by one appearing above it,
+ * simply is there.
+ */
+:is(#gitquiet-root, [data-gitquiet-outside]) [data-gitquiet-landed] .t-panels > *,
+:is(#gitquiet-root, [data-gitquiet-outside]) [data-gitquiet-landed] .t-panel-fade {
+  animation: none;
+}
+
+/**
  * A filter chip's menu, growing out of the chip that opened it.
  *
  * The origin is the corner the menu is pinned to, so the growth reads as coming
@@ -771,17 +787,21 @@
 /**
  * A portalled dropdown (Radix), same scale as `.t-menu` but outside the root.
  *
- * Open invitation, close gets out of the way: 250ms in, 150ms out. Close leaves
- * from nearer rest than the open arrived from.
+ * Open invitation, close gets out of the way: 150ms in, 80ms out. It sat at
+ * 250/150 for a while, which read as the menu being slow rather than as an
+ * entrance — a dropdown is asked for by a press and the hand is already
+ * waiting on it. Close matters doubly: Radix keeps the surface mounted until
+ * the leaving animation ends, so every one of these milliseconds is also how
+ * long the old menu stands in the way of the next thing pressed.
  */
 .t-dropdown {
-  --duration-fast: 250ms;
   --duration-quick: 150ms;
+  --duration-micro: 80ms;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --scale-medium: 0.97;
   --scale-tiny: 0.99;
-  --menu-open-dur: var(--duration-fast);
-  --menu-close-dur: var(--duration-quick);
+  --menu-open-dur: var(--duration-quick);
+  --menu-close-dur: var(--duration-micro);
   --menu-ease: var(--ease-out);
   --menu-pre-scale: var(--scale-medium);
   --menu-closing-scale: var(--scale-tiny);

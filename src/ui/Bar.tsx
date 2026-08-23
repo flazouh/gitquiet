@@ -91,6 +91,14 @@ export type BarProps = {
   readonly pinned?: ReadonlyArray<string>;
   readonly lately?: ReadonlyArray<string>;
   /**
+   * Toggles one repository's pin, as `owner/repo`.
+   *
+   * The Rail's own affordance on the switcher's rows, so the order a reader set
+   * from Home can be set from any page with the menu open. Absent, the rows
+   * carry no pin — a surface without the settings to write has nothing to offer.
+   */
+  readonly onPin?: (address: string) => void;
+  /**
    * Whether the reader is in the code, the name being the way to it.
    *
    * Handed in rather than taken from their row. Their row says Code is the current tab on
@@ -300,6 +308,7 @@ export const Bar = ({
   repositories = NOTHING,
   pinned = NOTHING,
   lately = NOTHING,
+  onPin,
   atTheCode = false,
   at = window.location.pathname,
   participant,
@@ -647,6 +656,14 @@ export const Bar = ({
                  the same argument the chip above makes and the Rail's own list makes below. */
               face: one.owner,
               chosen: one.owner === where.owner && one.repo === where.repo,
+              ...(onPin === undefined
+                ? {}
+                : {
+                    pin: {
+                      held: pinned.includes(one.nameWithOwner),
+                      toggle: () => onPin(one.nameWithOwner),
+                    },
+                  }),
             }))}
           />
         </div>

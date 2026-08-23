@@ -5,7 +5,6 @@ import { DEFAULT_PROFILE, type Profile } from "../keys/commands"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
-import { useUpdated } from "./useUpdated"
 import { type Load, useLive } from "./useLive"
 import type { Repository } from "../domain/repositories"
 import { TheBar } from "./TheBar"
@@ -55,11 +54,11 @@ export type RepoPullsScreenProps = {
    */
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
   readonly signedIn?: () => boolean
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
 }
 
 const WORKING = "Reading this repository's pull requests…"
-
-const UPDATED = "Repository pull requests updated"
 
 /**
  * How many there are, and whether the safe read limit cut the list.
@@ -93,12 +92,12 @@ export const RepoPullsScreen = ({
   seed,
   onQuery,
   keys = DEFAULT_PROFILE,
+  where,
   signedIn = viewerOnPage
 }: RepoPullsScreenProps) => {
-  const live = useLive(load, preload)
+  const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
 
   if (read.status === "failed") {
     return (

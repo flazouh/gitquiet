@@ -1,5 +1,5 @@
 import { Effect, Option } from "effect"
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react"
+import { type CSSProperties, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import { diffChoices } from "../domain/choices"
 import type { Opened } from "../domain/repoHome"
 import { wholeFile } from "../domain/wholeFile"
@@ -56,7 +56,10 @@ const Source = ({ opened }: { readonly opened: Opened }) => {
   const [unavailable, setUnavailable] = useState(false)
 
   const patch = useMemo(() => wholeFile(opened.path, opened.lines), [opened])
-  const choices = useMemo(() => diffChoices(settings.diff), [settings.diff])
+  // Deferred for the same reason as `Shell`: redrawing the file is heavy, and
+  // the click that changed a knob paints its menu before this catches up.
+  const settled = useDeferredValue(settings)
+  const choices = useMemo(() => diffChoices(settled.diff), [settled.diff])
 
   useEffect(() => {
     const loading = Effect.runFork(

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen, within } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { DEFAULTS, DIFF_KNOBS, type Settings, TREE_KNOBS } from "../domain/Settings"
 import { SettingsDialog, SettingsSheet } from "./SettingsDialog"
@@ -160,6 +160,25 @@ describe("choosing something", () => {
     await userEvent.click(within(rowFor(frame, "Row height")).getByRole("radio", { name: "Relaxed" }))
 
     expect(written).toEqual({ ...DEFAULTS, tree: { ...DEFAULTS.tree, density: "relaxed" } })
+  })
+
+  test("drags a size knob to the step the handle lands on", async () => {
+    let written: Settings | undefined
+    const frame = await opened((settings) => {
+      written = settings
+    })
+
+    await tab(frame, "Files")
+    const handle = within(rowFor(frame, "Folder indent")).getByRole("slider", {
+      name: "Folder indent"
+    }) as HTMLInputElement
+
+    // The handle walks the choices by position, so what it is worth here is an
+    // index and what is written down is the pixels at that index.
+    expect(handle.value).toBe("3")
+    fireEvent.change(handle, { target: { value: "1" } })
+
+    expect(written).toEqual({ ...DEFAULTS, tree: { ...DEFAULTS.tree, indent: "2" } })
   })
 })
 

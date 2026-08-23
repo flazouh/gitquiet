@@ -95,3 +95,21 @@ describe("reading once", () => {
     expect(kept.held("a")).toBeUndefined()
   })
 })
+
+describe("naming the key", () => {
+  test("folds two spellings of one key together, where a namer is given", async () => {
+    let reads = 0
+    const kept = keptReads(
+      (key: { readonly owner: string; readonly repo: string }) => {
+        reads += 1
+        return Effect.succeed(`read ${key.owner}/${key.repo}`)
+      },
+      (key) => `${key.owner}/${key.repo}`
+    )
+
+    expect(await Effect.runPromise(kept.ask({ owner: "a", repo: "b" }))).toBe("read a/b")
+    expect(await Effect.runPromise(kept.ask({ owner: "a", repo: "b" }))).toBe("read a/b")
+
+    expect(reads).toBe(1)
+  })
+})

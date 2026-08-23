@@ -24,7 +24,6 @@ import type { Answering } from "./ThreadView"
 import type { Review as Said } from "../ports/GitHubGateway"
 import type { Repository } from "../domain/repositories"
 import { TheBar } from "./TheBar"
-import { useUpdated } from "./useUpdated"
 import type { AskLayerSizes } from "./useLayerSizes"
 import { useDrawnAt } from "./drawnAt"
 import { type Load, useLive } from "./useLive"
@@ -94,7 +93,7 @@ export type PullRequestScreenProps = {
    * a file arrived in it. See `attaching.ts`.
    */
   readonly onUpload?: (file: File) => Effect.Effect<Uploaded, unknown>
-  /** Marks one thread resolved, which is how a finding leaves the owed panel. */
+  /** Marks one thread resolved, which is how a finding leaves the conversation. */
   readonly onSettle?: (threadId: string) => Effect.Effect<unknown, unknown>
   /** Opens a resolved thread again, which is the other half of resolving one. */
   readonly onUnsettle?: Answering["onUnsettle"]
@@ -148,7 +147,6 @@ export type PullRequestScreenProps = {
   readonly signedIn?: () => boolean
 }
 
-
 /**
  * Who GitHub thinks is here, read off the page rather than asked for.
  *
@@ -160,8 +158,6 @@ const viewerOnPage = (): boolean =>
   (document.querySelector('meta[name="user-login"]')?.getAttribute("content") ?? "") !== ""
 
 const READING = "Reading this pull request…"
-
-const UPDATED = "Pull request updated"
 
 const DrawnAt = ({ path, root }: { readonly path: string | null; readonly root?: Element }) => {
   const active = usePreparedActive(root)
@@ -300,7 +296,6 @@ export const PullRequestScreen = ({
     onPrepared?.()
   }, [onPrepared, preparing, read.status])
   const waiting = useWaiting(read.status)
-  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
 
   /**
    * Every verb the shell wired, asked for against a card that has already moved.
@@ -364,6 +359,53 @@ export const PullRequestScreen = ({
         ? undefined
         : () => alsoOnRefusal(makeStack(), again).pipe(Effect.tap(() => Effect.sync(again))),
     [makeStack, again]
+  )
+
+  /**
+   * A verdict, and the read that has to follow it.
+   *
+   * GitHub answers their review route with an empty body and reports the verdict
+   * nowhere else, so everything on this screen that reads the record — the merge
+   * card's list of reviewers, the requirement asking for an approving review — is
+   * a page old until the next read lands. The panel itself paints what it sent, and
+   * the rest of the column would go on contradicting it for as long as the reader
+   * stayed put.
+   *
+   * On success only. A refused verdict was not recorded, so there is nothing new to
+   * read, and the panel keeps both the words and GitHub's own sentence about them.
+   */
+  const judging = useMemo(
+    () =>
+      onReview === undefined
+        ? undefined
+        : (review: Said) => onReview(review).pipe(Effect.tap(() => Effect.sync(again))),
+    [onReview, again]
+  )
+
+  /*
+   * Resolving a conversation, and the same read behind it.
+   *
+   * A repository rule can hold the merge until every conversation is resolved,
+   * and the card at the top prints that rule off the last read. The press
+   * reached GitHub and the thread folded itself, but the card went on saying
+   * blocked — the reader had done the one thing it asked and could see nothing
+   * move. Opening a thread again is the same fact in the other direction, so
+   * both are followed by the read; a refused write recorded nothing and reads
+   * nothing, exactly as a refused verdict does not.
+   */
+  const settling = useMemo(
+    () =>
+      onSettle === undefined
+        ? undefined
+        : (threadId: string) => onSettle(threadId).pipe(Effect.tap(() => Effect.sync(again))),
+    [onSettle, again]
+  )
+  const unsettling = useMemo(
+    () =>
+      onUnsettle === undefined
+        ? undefined
+        : (threadId: string) => onUnsettle(threadId).pipe(Effect.tap(() => Effect.sync(again))),
+    [onUnsettle, again]
   )
 
   /*
@@ -450,10 +492,10 @@ export const PullRequestScreen = ({
           postRemark={postRemark}
           suggest={suggest}
           onUpload={onUpload}
-          onSettle={onSettle}
-          onUnsettle={onUnsettle}
+          onSettle={settling}
+          onUnsettle={unsettling}
           onReply={onReply}
-          onReview={onReview}
+          onReview={judging}
           makeStack={stacking}
           layerSizes={layerSizes}
           loadCommit={loadCommit}

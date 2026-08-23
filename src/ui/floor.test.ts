@@ -1,7 +1,18 @@
 import { readFileSync } from "node:fs"
-import { describe, expect, test } from "bun:test"
+import { beforeEach, describe, expect, test } from "bun:test"
 import { FLOOR, paintFloor } from "./applyTheme"
 import { tokensOf } from "../domain/theme"
+
+/*
+ * The document is shared with every other file in the run, and a desktop test
+ * that painted `scope="document"` leaves the whole token set on it. "And
+ * nothing else" below is a claim about what `paintFloor` writes, not about what
+ * the run so far has left behind — so the ground is cleared first. This was the
+ * one test in the suite that failed only under a full parallel run.
+ */
+beforeEach(() => {
+  document.documentElement.removeAttribute("style")
+})
 
 const quiet = () => readFileSync("src/ui/quiet.css", "utf8")
 
@@ -74,6 +85,24 @@ describe("our floor under their page", () => {
     // variable makes the declaration invalid and the floor transparent, which is a
     // white flash on a dark page.
     expect(quiet()).toContain(`var(${FLOOR}, var(--bgColor-default))`)
+  })
+
+  test("takes their footer off a page that is ours, so the page cannot scroll past the card", () => {
+    /*
+     * The code column is pinned with `sticky`, and a sticky element can only
+     * travel as far as its row is tall. GitHub's footer under our takeover gave
+     * the page 114 more pixels of scroll than the row could absorb, so
+     * scrolling the outer page dragged the card's header off the top — the
+     * height above the row cancels out of that ledger; anything below it does
+     * not. Gated on both flags for the same reason the floor is.
+     */
+    const footer = quiet()
+      .split("}")
+      .find((rule) => rule.includes("footer"))
+
+    expect(footer).toContain("html[data-gitquiet-taken] footer")
+    expect(footer).toContain("html[data-gitquiet-gating] footer")
+    expect(footer).toContain("display: none")
   })
 
   test("covers the two wrappers Home paints inside the body", () => {

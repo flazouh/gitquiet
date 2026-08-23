@@ -81,9 +81,14 @@ describe("the file after the one being read", () => {
     browsing("a.ts", "b.ts", "c.ts", "d.ts", "e.ts")
 
     await userEvent.keyboard("jj")
-    await waitFor(() => expect(drawingOf("d.ts")).not.toBeNull())
+    // The neighbours arrive one quiet moment at a time, and the cut back to
+    // what a key reaches is the last of those moments — so the settled set is
+    // what to wait for, not the first arrival.
+    await waitFor(() => {
+      expect(drawingOf("d.ts")).not.toBeNull()
+      expect(document.querySelectorAll("[data-file]")).toHaveLength(3)
+    })
 
-    expect(document.querySelectorAll("[data-file]")).toHaveLength(3)
     expect(drawingOf("a.ts")).toBeNull()
     expect(shown("c.ts")).toBe(true)
   })

@@ -122,3 +122,23 @@ describe("durations and curves", () => {
     expect(stillness).toMatch(/\.t-drawn > path \{[^}]*stroke-dashoffset: 0/)
   })
 })
+
+/*
+ * A CSS animation restarts whenever its element is re-inserted, and React moves
+ * an element's neighbours by re-inserting them. On a prefetched pull request the
+ * live read added the merge card above six settled panels, and the whole column
+ * replayed its entrance — the page visibly arriving twice. The entrance belongs
+ * to the arrival: once the screen says it has landed, the panels stop entering.
+ */
+describe("the entrance runs once, on arrival", () => {
+  test("a landed page takes the entrance off its panels", () => {
+    const landed = sheet
+      .split("}")
+      .filter((rule) => rule.includes("[data-gitquiet-landed]"))
+    expect(landed.length).toBeGreaterThan(0)
+    const covered = landed.join("}")
+    expect(covered).toContain(".t-panels > *")
+    expect(covered).toContain(".t-panel-fade")
+    expect(covered).toContain("animation: none")
+  })
+})

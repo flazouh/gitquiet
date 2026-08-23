@@ -3,6 +3,7 @@ import { useState } from "react"
 import type { PullRequestSnapshot, PullRequestState, Stack } from "../domain/PullRequest"
 import { toUrl } from "../domain/PullRequestRef"
 import { whichLayer } from "../domain/pressing"
+import { sizeOf } from "../domain/workingSet"
 import { useArt } from "./art"
 import { CHIP, GHOST } from "./dress"
 import { pullRequestArt } from "./Icon"
@@ -183,8 +184,7 @@ export const Header = ({
   const word = STATE_WORD[snapshot.state]
   const moment = momentIn(snapshot)
   const age = Option.getOrUndefined(Option.map(moment, (at) => ageOf(at)))
-  const added = snapshot.files.reduce((sum, file) => sum + file.linesAdded, 0)
-  const deleted = snapshot.files.reduce((sum, file) => sum + file.linesDeleted, 0)
+  const size = sizeOf(snapshot.files)
   const url = toUrl(snapshot.reference)
   // A merge box GitHub would not serve reads the same as one that named no stack:
   // both leave the chip and the tree off, which is what this row would draw anyway.
@@ -298,7 +298,8 @@ export const Header = ({
         {Option.isSome(stack) ? <Layer stack={stack.value} /> : null}
         <span className="ml-auto shrink-0 tabular-nums">
           {`${snapshot.files.length} ${snapshot.files.length === 1 ? "file" : "files"}`}{" "}
-          <span className="text-pass">+{added}</span> <span className="text-fail">−{deleted}</span>
+          <span className="text-pass">+{size.added}</span>{" "}
+          <span className="text-fail">−{size.deleted}</span>
         </span>
       </div>
 

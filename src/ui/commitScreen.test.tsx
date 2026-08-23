@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import type { ChangedFile, CommitDetail } from "../domain/PullRequest"
 import { CommitScreen } from "./CommitScreen"
-import { Toasts } from "./Toasts"
 
 afterEach(cleanup)
 
@@ -184,33 +183,17 @@ describe("a commit drawn from what was kept", () => {
     expect(screen.getByLabelText("Open file").textContent).toContain("one.ts")
   })
 
-  test("keeps a background check silent over the known commit", async () => {
+  test("takes the read's own answer over the one that was kept", async () => {
+    const stale: CommitDetail = { ...kept, headline: "The line the store had" }
     render(
-      <Toasts>
-        {screenOf({
-          load: () => Effect.never,
-          preload: () => Effect.succeed(Option.some(kept))
-        })}
-      </Toasts>
+      screenOf({
+        load: () => Effect.sleep("20 millis").pipe(Effect.as(commit)),
+        preload: () => Effect.succeed(Option.some(stale))
+      })
     )
 
-    expect(await screen.findByText(commit.headline)).toBeTruthy()
-    expect(screen.queryByText("Commit updated")).toBeNull()
-  })
-
-  test("has nothing to say where there was nothing kept", async () => {
-    render(
-      <Toasts>
-        {screenOf({
-          load: () => Effect.sleep("200 millis").pipe(Effect.as(commit)),
-          preload: () => Effect.succeed(Option.none<CommitDetail>())
-        })}
-      </Toasts>
-    )
-
-    // The wait is saying it already, in the middle of the screen. Two things saying it is
-    // one thing too many, and the toast is the smaller of the two.
+    expect(await screen.findByText(stale.headline)).toBeTruthy()
+    // Silently: what the corner used to say about this is in `Toasts.tsx`.
     await waitFor(() => expect(screen.getByText(commit.headline)).toBeDefined())
-    expect(screen.queryByText("Commit updated")).toBeNull()
   })
 })

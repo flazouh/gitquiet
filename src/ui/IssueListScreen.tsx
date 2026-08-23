@@ -4,7 +4,6 @@ import type { Repository } from "../domain/repositories"
 import { IssueList } from "./IssueList"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import { TheBar } from "./TheBar"
-import { useUpdated } from "./useUpdated"
 import { type Load, useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -38,11 +37,11 @@ export type IssueListScreenProps = {
    */
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
   readonly signedIn?: () => boolean
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
 }
 
 const WORKING = "Reading this repository's issues…"
-
-const UPDATED = "Repository issues updated"
 
 /**
  * A repository's issues — `/owner/repo/issues`.
@@ -66,12 +65,12 @@ export const IssueListScreen = ({
   onStepAside,
   onPage,
   seed,
+  where,
   signedIn = viewerOnPage
 }: IssueListScreenProps) => {
-  const live = useLive(load, preload)
+  const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
 
   const named = `${repo.owner}/${repo.repo}`
 

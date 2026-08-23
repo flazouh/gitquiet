@@ -7,7 +7,7 @@ import type { Review, Verdict as Said } from "../ports/GitHubGateway"
 import { GHOST, PRESSABLE } from "./dress"
 import { forget, held, hold } from "./held"
 import { Says } from "./says"
-import { Section } from "./Section"
+import { Section, type Tone } from "./Section"
 import { remember, remembered } from "./verdicts"
 import { Writing } from "./Writing"
 
@@ -76,11 +76,25 @@ const SAID: Record<ReviewDecision, string> = {
   dismissed: "Your review was dismissed"
 }
 
-/** The same sentence for a verdict this interface sent and GitHub does not hand back. */
-const OURS: Record<Said, string> = {
-  approve: "You approved this",
-  "request-changes": "You asked for changes",
-  comment: "You commented on this"
+/** What a verdict of ours would be called on the record, so the panel can say it as one. */
+const DECIDED: Record<Said, ReviewDecision> = {
+  approve: "approved",
+  "request-changes": "changes-requested",
+  comment: "commented"
+}
+
+/**
+ * The edge each verdict paints.
+ *
+ * Only the two that end the reading say anything. A comment decided nothing and a dismissed
+ * review is a verdict somebody took away, so both leave the panel the colour of a panel with
+ * a job still in it.
+ */
+const TONE: Record<ReviewDecision, Tone> = {
+  approved: "done",
+  "changes-requested": "bad",
+  commented: "plain",
+  dismissed: "plain"
 }
 
 /** The seven characters everybody says a commit by. */
@@ -190,10 +204,12 @@ export const Verdict = ({
             setSending(undefined)
             setText("")
             setWriting(false)
+            // Held whether or not there is anywhere to keep it: what the panel says about
+            // itself is about this press, and the keep is only how it survives the page.
+            setOurs({ verdict: said, headSha })
             if (keep !== undefined) {
               forget(keep)
               remember(keep, { verdict: said, headSha })
-              setOurs({ verdict: said, headSha })
             }
           },
           // Kept in the box, which is the whole of the complaint about their dialog: a review
@@ -208,36 +224,54 @@ export const Verdict = ({
   }
 
   /*
-   * What GitHub says comes first, then what this interface sent, then nothing.
+   * What this reader has said about it, said once for the two things that report it.
    *
-   * That order and not the other: a verdict of theirs is the record, and one of ours is a note
-   * about a route they answer nothing on.
-   *
-   * "Not read yet by you" is the last of the four and the only one that needs the record
-   * to have arrived. Where the merge box did not answer, what this interface sent is
-   * still worth saying — it is a note about this session, not about GitHub's record —
-   * and where there is not even that, the fold says the record is what is missing.
+   * GitHub's record comes first, then what this session sent, then nothing. That order and
+   * not the other: a verdict of theirs is the record, and one of ours is a note about a
+   * route they answer nothing on. Their record is about whatever commit it was given for
+   * and the panel does not second-guess it; ours carries the commit it was sent against,
+   * because the branch may well have moved under it since.
    */
-  const summary = Option.isSome(already)
-    ? SAID[already.value]
-    : ours !== undefined
-      ? `${OURS[ours.verdict]}${ours.headSha === headSha ? "" : ", at an older commit"}`
-      : Option.isNone(reviews)
-        ? UNREAD
-        : "not read yet by you"
+  const stated: Option.Option<{
+    readonly decision: ReviewDecision
+    /** Whether it was given for the commit on the screen now. */
+    readonly current: boolean
+  }> = Option.isSome(already)
+    ? Option.some({ decision: already.value, current: true })
+    : ours === undefined
+      ? Option.none()
+      : Option.some({ decision: DECIDED[ours.verdict], current: ours.headSha === headSha })
 
   /*
-   * A verdict on the record turns the panel's edge, the way a merged pull request turns the
-   * merge card's. Nothing else in this column says "you are done here", and this is the panel
-   * whose whole subject is whether the reader is.
+   * "Not read yet by you" needs the record to have arrived, which is why it is the last of
+   * the four. Where the merge box did not answer, what this interface sent is still worth
+   * saying — it is a note about this session, not about GitHub's record — and where there
+   * is not even that, the fold says the record is what is missing.
    */
-  const tone = Option.isSome(already)
-    ? already.value === "changes-requested"
-      ? "bad"
-      : already.value === "approved"
-        ? "done"
-        : "plain"
-    : "plain"
+  const summary = Option.match(stated, {
+    onNone: () => (Option.isNone(reviews) ? UNREAD : "not read yet by you"),
+    onSome: ({ decision, current }) => `${SAID[decision]}${current ? "" : ", at an older commit"}`
+  })
+
+  /*
+   * A verdict turns the panel's edge, the way a merged pull request turns the merge card's.
+   * Nothing else in this column says "you are done here", and this is the panel whose whole
+   * subject is whether the reader is.
+   *
+   * What this session sent counts, and not only what GitHub hands back. Their review route
+   * answers with an empty body and says nothing about the verdict anywhere else, so the
+   * record here is a page old until the next read of the whole pull request lands: an
+   * approval pressed a second ago left the button back at "Approve" over an unchanged
+   * panel, which reads as a press that did nothing.
+   *
+   * Only for the commit on the screen. Green over a branch that has moved since the verdict
+   * was given would be the panel saying the reader is finished with something they have not
+   * read, which is the fact the sha on the panel is there to report.
+   */
+  const tone: Tone = Option.match(stated, {
+    onNone: () => "plain",
+    onSome: ({ decision, current }) => (current ? TONE[decision] : "plain")
+  })
 
   const Verb = ({ one }: { readonly one: (typeof VERDICTS)[number] }) => {
     const busy = sending === one.said
@@ -283,11 +317,6 @@ export const Verdict = ({
             suggest={suggest}
             onUpload={onUpload}
           />
-          {refused === undefined ? null : (
-            <p className="text-xs leading-snug text-fail">
-              GitHub would not take that: {refused}
-            </p>
-          )}
           <div className="flex flex-wrap items-center gap-2">
             {offered.map((one) => (
               <Verb key={one.said} one={one} />
@@ -334,6 +363,19 @@ export const Verdict = ({
                 : "Say what you found"}
           </button>
         </div>
+      )}
+      {/*
+       * Under whichever body is on the screen, rather than inside the box.
+       *
+       * The approval beside the fold needs no words, so it is pressed by readers who never
+       * open one — and a refusal drawn inside the box is a refusal they are never told
+       * about. Kept in the box either way: a review GitHub would not take comes back empty
+       * on their own page, and the words are gone with it.
+       */}
+      {refused === undefined ? null : (
+        <p className="border-t border-line-muted px-3 py-2 text-xs leading-snug text-fail">
+          GitHub would not take that: {refused}
+        </p>
       )}
     </Section>
   )

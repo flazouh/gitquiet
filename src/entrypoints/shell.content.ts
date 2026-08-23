@@ -2,6 +2,7 @@ import { Effect, Option } from "effect";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { screenFor, type Screen, startScreenOnce, type Wanted } from "@/app/screens";
 import { claimShell } from "@/app/shellClaim";
+import { titleAt } from "@/app/entitling";
 import { intendTo, intendedPath, prepareTo, whenPreparing } from "@/app/intent";
 import {
   markOwnedRoute,
@@ -14,6 +15,7 @@ import { readingAhead } from "@/app/readAhead";
 import { type Ahead, type Connection, dataToSpare, warmingFor } from "@/app/warming";
 import { isHome } from "@/domain/pages";
 import { elsewhereThan } from "@/domain/PullRequestRef";
+import { noteArrival } from "@/github/arrival";
 import { layer as gatewayLayer } from "@/github/GitHubGateway";
 import { initialiseErrorReporting, reportError } from "@/observability/sentry";
 import type { View } from "@/domain/Settings";
@@ -914,6 +916,19 @@ export default defineContentScript({
         drawingOurOwnRows(window, false);
         return;
       }
+      /*
+       * The tab's words, the moment the address is the page. Their router writes
+       * the title on the pages it serves, and this extension navigates around
+       * it — so the tab went on wearing the previous page's words, an in-place
+       * switch standing on one repository under another repository's title.
+       * What the address alone can say is said now; a screen with more to say —
+       * a description, a pull request's own words — says it when its read
+       * lands. Here rather than on the press, because a press begins at
+       * `pointerdown` and a title changed for a press never finished is the
+       * same lie the other way.
+       */
+      const words = titleAt(page, path);
+      if (words !== null) document.title = words;
       open(page);
     });
 
@@ -939,6 +954,12 @@ export default defineContentScript({
     const loadedOn = wantedNow();
     if (loadedOn !== null) {
       markPage(document, placeFor(loadedOn, window.location.pathname));
+      // Before the screen is asked for, because this is the only moment the answer is
+      // plain: a document being fetched right now is a navigation the worker was told
+      // about, and the screen that will want to know is a bundle that does not finish
+      // arriving until GitHub's page is done. A pull request and no other page, because
+      // that is the only read the worker is told to start. See `arrival.ts`.
+      if (loadedOn === "pull-request") noteArrival(window, document);
       fetchIt(loadedOn);
     }
   },

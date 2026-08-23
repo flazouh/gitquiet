@@ -243,11 +243,11 @@ describe("standing a screen on the page", () => {
     await drawn("#region", "live first screen")
 
     expect(document.getElementById("gitquiet-root")?.textContent).toContain("live first screen")
-    // The bar portals itself into the slot a turn or two after the region has its
-    // words, so it is waited for the way everything else here is. One header and
-    // not two is still the point: a resumed tree must not stack a second bar on
-    // the one the page already has.
-    await until(() => document.querySelectorAll(`#${BAR_ID} > header`).length > 0)
+    // Waited for rather than asserted at once: the resumed tree draws its region
+    // first and its bar a beat later — `whenAnotherBarStands` holds the portal
+    // until the one being replaced has gone — and on a loaded machine the beat
+    // is long enough to catch the slot empty.
+    await until(() => document.querySelectorAll(`#${BAR_ID} > header`).length === 1)
     expect(document.querySelectorAll(`#${BAR_ID} > header`)).toHaveLength(1)
     second.close()
     first.close()

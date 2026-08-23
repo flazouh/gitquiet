@@ -27,9 +27,21 @@ import {
   type Verdict
 } from "../ports/GitHubGateway"
 import { checkRunIn, notesIn } from "./annotations"
-import { askingOnce } from "./flight"
+import {
+  CHANGES,
+  fetchRoute,
+  ISSUE_COMMENTS,
+  MERGE_BOX,
+  PREVIEW_STACK,
+  refusedBy,
+  REQUIRED_HEADERS,
+  saidAt,
+  type Said
+} from "./asking"
 import { contributionsIn, contributionsRoute } from "./contributions"
+import { askingOnce } from "./flight"
 import { hovercardRoute, portraitIn } from "./hovercard"
+import { payloadsThroughWorker } from "./throughTheWorker"
 import {
   decodeDeferred,
   decodeDiffstat,
@@ -150,43 +162,9 @@ import { whereverItIs } from "./wherever"
 const eventFor = (verdict: Verdict): string =>
   verdict === "request-changes" ? "request changes" : verdict
 
-const CHANGES = "/changes"
-const STATUS_CHECKS = "/page_data/status_checks"
-/**
- * The merge box, asked without naming a way of merging.
- *
- * The method is not ours to choose here, and naming one was read as a question
- * about that method: GitHub weighs every rule against whatever is in this
- * parameter, so `merge_method=MERGE` on a squash-only repository came back with
- * two separate conditions refusing a merge commit — the repository setting and
- * the base branch ruleset — over a button that squashes. Ahmed reported the pair
- * of them on `OpenRouterInternal/ori`.
- *
- * Left out, GitHub weighs the repository's own default, which is what their page
- * opens on. Measured on `flazouh/ghpro-scratch#12` with merge commits turned
- * off: `MERGE` answers `UNMERGEABLE` with one failed condition, `SQUASH` and no
- * method at all both answer `MERGEABLE` with none. A method GitHub cannot read
- * is not ignored the way the auto-merge route ignores one — `merge_method=NOT_A_METHOD`
- * answers 500 — so this parameter is either right or absent.
- *
- * Which method a press then sends is read out of the answer, off the direct
- * merge's own list of allowed methods. See `landingMethod` in `snapshot.ts`.
- */
-const MERGE_BOX = "/page_data/merge_box?bypass_requirements=false"
-// The stack GitHub would make out of this pull request, which is the only place
-// that state is knowable from — their merge box says the same thing about a pull
-// request that can be stacked and one with nothing to stack. A few hundred bytes,
-// and `null` where there is nothing to offer. See `PreviewStackRoute`.
-const PREVIEW_STACK = "/page_data/preview_stack"
 // Seventy bytes: the two counts and their sum, and nothing whatever else. The
 // only route GitHub has that says how big a pull request is without sending it.
 const DIFFSTAT = "/page_data/diffstat"
-const DESCRIPTION = "/page_data/description"
-const HEADER = "/page_data/header"
-// The only route that carries the bodies of what was said on the timeline. Its
-// neighbour `page_data/timeline` lists the same items by id and type with no
-// text, which is why reading the conversation needs this one and not that.
-const ISSUE_COMMENTS = "/page_data/issue_comments"
 const MERGE = "/page_data/merge"
 /**
  * The route a stack lands through, which is not the one above.
@@ -332,12 +310,6 @@ const eventsRoute = (login: string): string =>
  */
 const PER_BATCH = 9
 
-// GitHub answers 406 to these routes without the XMLHttpRequest header.
-const REQUIRED_HEADERS = {
-  Accept: "application/json",
-  "X-Requested-With": "XMLHttpRequest"
-}
-
 /**
  * What their own merge button sends, less what it turns out not to need.
  *
@@ -378,169 +350,6 @@ const decodeInto = (reference: PullRequestRef, raw: RawPayloads) =>
 const textOf = (response: Response): Effect.Effect<string> =>
   Effect.tryPromise(() => response.text()).pipe(Effect.catch(() => Effect.succeed("")))
 
-/**
- * What one of GitHub's JSON routes said, as a value rather than as a failure.
- *
- * Every read of theirs goes wrong in exactly these three ways, and the reason has to
- * survive being carried between bundles by the promise several readers are sharing —
- * which is why it is here in the answer rather than beside it as a failure. The two
- * callers below turn it back into their own kind of failure, which is where the
- * difference between them belongs.
- */
-type Said =
-  | { readonly ok: true; readonly payload: unknown }
-  | {
-      readonly ok: false
-      readonly why: "unreachable" | "rejected" | "down" | "undecodable" | "sign-on"
-      readonly detail: string
-    }
-
-/**
- * Which of the three ways an answer that is not 200 can be not 200.
- *
- * GitHub answers 401 to their own JSON routes for a repository in an organisation
- * the reader has not signed on to, whether or not anybody is signed in — measured
- * on `/octo-org/octo-repo/pulls`, which answered 401 with an empty body to a
- * signed-in reader while the same route on a repository beside it answered 200.
- * The reader can walk through that one, so it is not filed with the rest.
- *
- * A 5xx is filed apart for a different reason: it is the only one of the three that
- * may be untrue a second later. Their crash page arrives as HTML under a 503 or a
- * 504 — `Unicorn! · GitHub` — and during the incident of 2026-08-17 it arrived on
- * about a fifth of every request made. That is the status {@link worthAnotherAsk}
- * asks again on, and the only one it does.
- */
-const refusedBy = (response: Response): "rejected" | "sign-on" | "down" => {
-  if (response.status === 401) return "sign-on"
-  return response.status >= 500 ? "down" : "rejected"
-}
-
-/**
- * Whether asking the same question again could get a different answer.
- *
- * The whole of the retry policy, and it is deliberately two cases. A 403, a 404 and a
- * payload in a shape nothing here can read are all facts that hold still: asking three
- * times costs the reader three round trips and tells them what the first one did. A
- * 5xx and a connection that never opened are the two that do not hold still.
- */
-const worthAnotherAsk = (said: Said): boolean =>
-  !said.ok && (said.why === "down" || said.why === "unreachable")
-
-/**
- * How long to wait before asking again, in milliseconds, one entry per retry.
- *
- * Short, because a reader is watching. Two waits and three asks in total puts a
- * route's own odds of never answering during a one-in-five incident at about one in a
- * hundred and twenty-five, and the five required routes together at about 96%, for a
- * worst case of 900ms added to a read that was going to fail anyway.
- *
- * Rising rather than flat because the second ask is worth more the further it is from
- * the first: an incident that is going to clear in the next second clears during the
- * longer wait, and one that is not is not worth a third ask a fifth of a second later.
- *
- * No spreading, deliberately. A retry policy usually scatters its waits so a service
- * is not hit by every client at once; this is one reader's browser making a few dozen
- * requests, and it is not the crowd anybody would be protecting GitHub from.
- */
-const WAITS = [200, 700] as const
-
-/**
- * One GET of one of their JSON routes, asked again where that could help, folded
- * together with any identical GET already in the air.
- *
- * A read ahead and the press that follows it want the same six routes, and this is
- * where they become one set of requests rather than two. The retries are inside that
- * folding on purpose: everybody waiting on the address waits through them and gets
- * the answer, rather than each caller starting a run of asks of its own.
- */
-const saidAt = (url: string): Effect.Effect<Said> =>
-  askingOnce(
-    url,
-    Effect.gen(function* () {
-      let said = yield* asking(url)
-
-      for (const wait of WAITS) {
-        if (!worthAnotherAsk(said)) return said
-        yield* Effect.sleep(wait)
-        said = yield* asking(url)
-      }
-
-      return said
-    })
-  )
-
-/** The ask itself, once, with every way it can go wrong in the answer. */
-const asking = (url: string): Effect.Effect<Said> =>
-  Effect.gen(function* () {
-    const response = yield* Effect.tryPromise({
-      try: () => fetch(url, { headers: REQUIRED_HEADERS, credentials: "include" }),
-      catch: (cause): Said => ({ ok: false, why: "unreachable", detail: String(cause) })
-    })
-
-    if (!response.ok) {
-      return yield* Effect.fail<Said>({
-        ok: false,
-        why: refusedBy(response),
-        detail: `HTTP ${response.status}`
-      })
-    }
-
-    const payload = yield* Effect.tryPromise({
-      try: () => response.json(),
-      catch: (cause): Said => ({ ok: false, why: "undecodable", detail: String(cause) })
-    })
-
-    return { ok: true, payload } satisfies Said
-  }).pipe(Effect.catch(Effect.succeed))
-
-const fetchRoute = Effect.fn("fetchRoute")(function* (
-  reference: PullRequestRef,
-  route: string
-) {
-  const url = `https://github.com/${reference.owner}/${reference.repo}/pull/${reference.number}${route}`
-
-  const said = yield* saidAt(url)
-  if (!said.ok) {
-    return yield* new GatewayError({ reference, route, reason: said.why, detail: said.detail })
-  }
-
-  return said.payload
-})
-
-/**
- * The same GET, for a route whose answer the pull request can do without.
- *
- * A refusal, an unreachable network and a body nothing can read all arrive here as
- * nothing, and the mapper draws the pull request with that region absent.
- *
- * Three routes are asked this way. `preview_stack` carries a strip above the header
- * saying that these two pull requests could be one stack, and refusing the whole page
- * over it would trade the pull request for a decoration. `header` carries three
- * moments — opened, closed, landed — which are already an Option apiece on the
- * snapshot, because the age beside a badge is worth less than the pull request under
- * it. `merge_box` carries the card, and its absence is the one the reader is told
- * about in words rather than by a line going missing.
- *
- * `changes` is the counter-example and stays required: it is the title, the state, the
- * files, the commits and the threads, so there is no page to draw without it.
- *
- * What decides which list a route belongs to is whether a reader could act on a wrong
- * answer, not how much the route carries. A missing check or a missing thread is a
- * pull request that looks finished, which is a lie in the right shape and stays a
- * refusal. A missing merge box carries more than either and is still safe here,
- * because the snapshot holds it as None and nothing downstream can read an answer out
- * of that.
- */
-const whateverIsAt = Effect.fn("whateverIsAt")(function* (
-  reference: PullRequestRef,
-  route: string
-) {
-  const said = yield* saidAt(
-    `https://github.com/${reference.owner}/${reference.repo}/pull/${reference.number}${route}`
-  )
-
-  return said.ok ? said.payload : null
-})
 
 /**
  * A read about the Participant rather than about one pull request.
@@ -2013,18 +1822,7 @@ const undecodableFrom =
 
 export const layer = Layer.succeed(GitHubGateway, {
     snapshot: Effect.fn("GitHubGateway.snapshot")(function* (reference: PullRequestRef) {
-      const raw = yield* Effect.all(
-        {
-          changes: fetchRoute(reference, CHANGES),
-          statusChecks: fetchRoute(reference, STATUS_CHECKS),
-          mergeBox: whateverIsAt(reference, MERGE_BOX),
-          description: fetchRoute(reference, DESCRIPTION),
-          header: whateverIsAt(reference, HEADER),
-          issueComments: fetchRoute(reference, ISSUE_COMMENTS),
-          preview: whateverIsAt(reference, PREVIEW_STACK)
-        },
-        { concurrency: "unbounded" }
-      )
+      const raw = yield* payloadsThroughWorker(reference)
 
       const snapshot = yield* decodeInto(reference, raw)
 
@@ -4135,16 +3933,45 @@ export const layer = Layer.succeed(GitHubGateway, {
       head: string,
       paths: ReadonlyArray<string>
     ) {
-      const route = diffEntriesRoute(head, paths)
-      const raw = yield* fetchRoute(reference, route)
+      const askFor = (wanted: ReadonlyArray<string>) =>
+        Effect.gen(function* () {
+          const route = diffEntriesRoute(head, wanted)
+          const raw = yield* fetchRoute(reference, route)
 
-      return yield* toDiffs(raw).pipe(
-        Effect.catch((cause) =>
-          Effect.fail(
-            new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
+          return yield* toDiffs(raw).pipe(
+            Effect.catch((cause) =>
+              Effect.fail(
+                new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
+              )
+            )
           )
+        })
+
+      const answered = yield* askFor(paths)
+      if (paths.length < 2) return answered
+
+      /*
+       * A batched answer is budgeted by bytes, and a file too big for what is
+       * left of the budget comes back marked too big with no lines — while the
+       * same file, asked for by itself, answers whole. Their own Files tab
+       * re-asks exactly this way. Believing the starved answer wrote "binary,
+       * or too large" over an 805-line Go file on a real pull request, and the
+       * library remembers answers for good, so it stayed written. One more
+       * question per starved file settles which of the two it is; a file that
+       * is too big even alone comes back the same and keeps its message.
+       */
+      const starved = answered.filter((one) => one.diff.isTruncated && one.diff.lines.length === 0)
+      if (starved.length === 0) return answered
+
+      const whole = new Map<string, FetchedDiff>()
+      for (const one of starved) {
+        const alone = yield* askFor([one.path]).pipe(
+          Effect.catch(() => Effect.succeed<ReadonlyArray<FetchedDiff>>([]))
         )
-      )
+        for (const again of alone) whole.set(again.path, again)
+      }
+
+      return answered.map((one) => whole.get(one.path) ?? one)
     })
 })
 

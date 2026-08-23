@@ -33,7 +33,6 @@ import {
   HomeIcon,
   InboxFillIcon,
   InboxIcon,
-  InfoIcon,
   IssueClosedIcon,
   IssueOpenedIcon,
   ItalicIcon,
@@ -162,7 +161,6 @@ export const OCTICONS: Set = {
   appearance: PaintbrushIcon,
   files: FileDirectoryIcon,
   diff: SlidersIcon,
-  info: InfoIcon,
   // A crossed circle where a failing check is a triangle: colour is not the only thing
   // telling the two apart.
   error: XCircleFillIcon,

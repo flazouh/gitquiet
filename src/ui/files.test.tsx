@@ -68,12 +68,16 @@ const file: ChangedFile = {
   })
 }
 
+/* One set for every render, the way the screens hand it down: they memoise it,
+   and a fresh copy per render would be testing the harness, not the pane. */
+const CHOICES = diffChoices(DEFAULTS.diff)
+
 const pane = (props: Partial<React.ComponentProps<typeof FileDiffPane>> = {}) => (
   <RendererProvider load={stub}>
     <FileDiffPane
       file={file}
       ask={() => Effect.succeed(Option.none())}
-      choices={diffChoices(DEFAULTS.diff)}
+      choices={CHOICES}
       {...props}
     />
   </RendererProvider>
@@ -85,6 +89,22 @@ const drawn = async (): Promise<DiffRequest> => {
   })
   return asked[0]!
 }
+
+describe("the click is answered before the file is drawn", () => {
+  /*
+   * The draw is a few hundred milliseconds of synchronous engine work on a fat
+   * patch. Run inside the commit that mounted the pane, it held the click's own
+   * answer hostage: the selection, the heading and the pointer all waited for
+   * it. One painted frame goes first; the draw follows.
+   */
+  test("mounting a pane does not draw in the same breath", async () => {
+    render(pane())
+
+    expect(asked).toHaveLength(0)
+
+    await drawn()
+  })
+})
 
 describe("which colours a file is drawn in", () => {
   test("follows the reader's appearance, not GitHub's page", async () => {
@@ -127,6 +147,24 @@ describe("marking lines out to say something about them", () => {
     render(pane())
 
     expect((await drawn()).onPick).toBeUndefined()
+  })
+
+  /*
+   * The way to send is a fresh closure on every render of the screen above, and
+   * the drawing must not care: redrawing a diff is hundreds of milliseconds,
+   * and paying it for every render of the browser around it was every mounted
+   * file redrawn several times per click. Only whether a remark can be sent is
+   * baked into the drawing.
+   */
+  test("the same file is not drawn again because the way to send was recreated", async () => {
+    const { rerender } = render(pane({ onPost: () => Effect.void }))
+    await drawn()
+
+    rerender(pane({ onPost: () => Effect.void }))
+    // Long enough for a redraw effect to have run if one was scheduled.
+    await new Promise((settle) => setTimeout(settle, 50))
+
+    expect(asked).toHaveLength(1)
   })
 })
 

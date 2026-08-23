@@ -31,20 +31,27 @@ export type Kept<Key, Value> = {
  * worth having once rather than three times.
  */
 export const keptReads = <Key, Value>(
-  read: (key: Key) => Effect.Effect<Value, unknown>
+  read: (key: Key) => Effect.Effect<Value, unknown>,
+  /**
+   * What names the key in memory, where the key itself cannot: an object built
+   * at the call site is a fresh identity every time, so two asks for one thing
+   * would never meet. Left out, the key names itself, which is right for the
+   * strings and numbers every earlier caller passes.
+   */
+  by: (key: Key) => unknown = (key) => key
 ): Kept<Key, Value> => {
-  const held = new Map<Key, Value>()
-  const waiting = new Map<Key, Deferred.Deferred<Value, unknown>>()
+  const held = new Map<unknown, Value>()
+  const waiting = new Map<unknown, Deferred.Deferred<Value, unknown>>()
 
   const start = (key: Key): Deferred.Deferred<Value, unknown> => {
     const asking = Deferred.makeUnsafe<Value, unknown>()
-    waiting.set(key, asking)
+    waiting.set(by(key), asking)
 
     Effect.runFork(
       Effect.exit(read(key)).pipe(
         Effect.map((answer) => {
-          waiting.delete(key)
-          if (Exit.isSuccess(answer)) held.set(key, answer.value)
+          waiting.delete(by(key))
+          if (Exit.isSuccess(answer)) held.set(by(key), answer.value)
           Deferred.doneUnsafe(asking, answer)
         })
       )
@@ -55,10 +62,10 @@ export const keptReads = <Key, Value>(
 
   const ask = (key: Key): Effect.Effect<Value, unknown> =>
     Effect.suspend(() => {
-      const already = held.get(key)
+      const already = held.get(by(key))
       if (already !== undefined) return Effect.succeed(already)
 
-      return Deferred.await(waiting.get(key) ?? start(key))
+      return Deferred.await(waiting.get(by(key)) ?? start(key))
     })
 
   return {
@@ -67,9 +74,9 @@ export const keptReads = <Key, Value>(
     // and letting one fail would report it as though something a reader did had
     // gone wrong.
     warm: (key) => {
-      if (held.has(key) || waiting.has(key)) return
+      if (held.has(by(key)) || waiting.has(by(key))) return
       start(key)
     },
-    held: (key) => held.get(key)
+    held: (key) => held.get(by(key))
   }
 }

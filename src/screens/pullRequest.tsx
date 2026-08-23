@@ -27,6 +27,7 @@ import {
   updatePullRequestBranch
 } from "@/app/pullRequest"
 import { rememberedRepositories } from "@/app/destinations"
+import { pullRequestEntitled } from "@/app/entitling"
 import { layerSizes } from "@/app/sizes"
 import { uploadFile } from "@/app/attaching"
 import { loadSuggesting } from "@/app/suggesting"
@@ -140,8 +141,28 @@ const open = (
       Effect.tapError((error) => Effect.sync(() => reportError(error)))
     )
 
+  /**
+   * The tab's fuller words, once the pull request's own are known.
+   *
+   * Only while the address is still this pull request's — a prefix, because the
+   * card's own tabs live under it — since the read can land after the reader
+   * has moved on, and the shell has already put the next page's words on the
+   * tab. See `titleAt`, which said the number the moment the address moved.
+   */
+  const said = `/${reference.owner}/${reference.repo}/pull/${reference.number}`
+  const entitle = (loaded: Loaded): void => {
+    if (window.location.pathname.startsWith(said)) {
+      document.title = pullRequestEntitled(reference, loaded.snapshot.title)
+    }
+  }
+
   const asking = (partly: (loaded: Loaded) => void) =>
-    writing(loadPullRequest(reference, partly))
+    writing(
+      loadPullRequest(reference, (loaded) => {
+        entitle(loaded)
+        partly(loaded)
+      })
+    ).pipe(Effect.tap((loaded) => Effect.sync(() => entitle(loaded))))
 
   /*
    * The pull request as its own routes have it, which lands a whole read before

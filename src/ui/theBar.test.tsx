@@ -821,3 +821,23 @@ describe("whose account the bar says it is", () => {
     said.remove()
   })
 })
+
+/*
+ * The code column pins itself below the bar, and the bar is the only thing that
+ * knows how tall the bar is. Without this the column clamped at eight pixels
+ * while the bar floated over the first fifty-odd, and at full scroll the files
+ * band sat hidden underneath it.
+ */
+describe("the bar says how much sky it takes", () => {
+  test("writes its height where the screens can read it", async () => {
+    render(<TheBar where={WHERE} participant={SOMEONE} repositories={KEPT} />)
+
+    await waitFor(() => {
+      expect(
+        document.documentElement.style.getPropertyValue("--gitquiet-bar-h")
+      ).toMatch(/px$/)
+    })
+
+    document.documentElement.style.removeProperty("--gitquiet-bar-h")
+  })
+})

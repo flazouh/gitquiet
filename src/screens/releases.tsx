@@ -15,6 +15,7 @@ import { whenLocationChanges } from "@/ui/navigation"
 import { RELEASES } from "@/ui/place"
 import { ReleasesScreen, type Shown } from "@/ui/ReleasesScreen"
 import { thisMachine } from "@/ui/thisMachine"
+import { openedNamed } from "@/ui/lastDrawn"
 import "@/ui/styles.css"
 
 /**
@@ -108,6 +109,7 @@ const open = (repo: RepoRef): (() => void) => {
     draw: (standing) => (
       <ReleasesScreen
         repo={repo}
+        where={openedNamed("releases", repo)}
         load={read}
         preload={remembered}
         recallRepositories={recallRepositories}

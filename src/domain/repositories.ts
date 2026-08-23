@@ -94,6 +94,17 @@ export const ranked = (
  * here ranks by when a repository last changed: that is the rule that puts a 2016
  * repository at the top of GitHub's own list, and their route says nothing about pushes.
  */
+/**
+ * The pinned list with one address toggled: out of it if held, onto its end if
+ * not. The one spelling of the toggle, because the Rail and the switcher each
+ * had their own and two spellings of one rule is how they drift apart.
+ */
+export const withPinToggled = (
+  pinned: ReadonlyArray<string>,
+  address: string
+): ReadonlyArray<string> =>
+  pinned.includes(address) ? pinned.filter((one) => one !== address) : [...pinned, address]
+
 export const switchable = (
   repositories: ReadonlyArray<Repository>,
   order: {

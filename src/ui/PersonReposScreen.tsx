@@ -70,6 +70,8 @@ export type PersonReposScreenProps = {
   readonly signedIn?: () => boolean
   /** The day it is, for the groups and the strip. Only a test ever passes one. */
   readonly now?: Date
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
 }
 
 const READING = "Reading their repositories…"
@@ -275,12 +277,13 @@ export const PersonReposScreen = ({
   elsewhere,
   onStepAside,
   signedIn = viewerOnPage,
+  where,
   now = new Date()
 }: PersonReposScreenProps) => {
   /* What was given, or what the page says once it has been parsed. See `usePerson`. */
   const served = usePerson(readWho, login, elsewhere)
   const them = who ?? served
-  const live = useLive(load)
+  const live = useLive(load, undefined, where)
   const { read } = live
   const waiting = useWaiting(read.status)
   const { settings, change } = useSettings()

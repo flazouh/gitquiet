@@ -5,7 +5,6 @@ import type { Repository } from "../domain/repositories"
 import { Notices } from "./Notices"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import { TheBar } from "./TheBar"
-import { useUpdated } from "./useUpdated"
 import { type Load, useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -26,11 +25,11 @@ export type NoticesScreenProps = {
   readonly onStepAside: () => void
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
   readonly signedIn?: () => boolean
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
 }
 
 const READING = "Reading your notifications…"
-
-const UPDATED = "Notices updated"
 
 /**
  * What a press did to a Notice, held here until the next read confirms it.
@@ -77,12 +76,12 @@ export const NoticesScreen = ({
   onPress,
   onStepAside,
   recallRepositories,
+  where,
   signedIn = viewerOnPage
 }: NoticesScreenProps) => {
-  const live = useLive(load, preload)
+  const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
 
   /*
    * Keyed by GitHub's own thread id rather than by the row's place in the list, because the

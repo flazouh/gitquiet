@@ -23,7 +23,6 @@ import { RepoTree } from "./RepoTree"
 import { Languages, Standing, useStanding } from "./Standing"
 import { Star } from "./Star"
 import { TheBar } from "./TheBar"
-import { useUpdated } from "./useUpdated"
 import { type Load, useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -98,11 +97,17 @@ export type RepoHomeScreenProps = {
   readonly readingBranch?: string
   /** A file was chosen in the tree. The address follows. */
   readonly onRead?: (path: string | null) => void
+  /**
+   * A branch was chosen in the picker. The screen rebuilds for it in place,
+   * and the address follows — the same shape as a file opening, for the same
+   * reason: a whole document load for a page this screen already draws is the
+   * cost this extension exists to remove. Absent, the picker falls back to the
+   * load.
+   */
+  readonly onBranch?: (branch: string) => void
 }
 
 const WORKING = "Reading this repository…"
-
-const UPDATED = "Repository updated"
 
 /**
  * How many topics fit on a line that has a description and a star on it too.
@@ -131,7 +136,8 @@ const Files = ({
   loadBranches,
   reading,
   onOpen,
-  onNear
+  onNear,
+  onBranch
 }: {
   readonly front: Front
   readonly repo: RepoHomeScreenProps["repo"]
@@ -141,6 +147,7 @@ const Files = ({
   readonly reading: string | null
   readonly onOpen: (path: string) => void
   readonly onNear?: (path: string) => void
+  readonly onBranch?: RepoHomeScreenProps["onBranch"]
 }) => (
   /*
    * A definite height, so the tree scrolls inside the card while the README
@@ -163,7 +170,15 @@ const Files = ({
         at={(name) => `/${repo.owner}/${repo.repo}/tree/${name}`}
         on={front.branch}
         load={loadBranches}
-        onGo={(path) => window.location.assign(path)}
+        /*
+         * The name and not the path, because the screen rebuilds for the branch
+         * and a slashed name cannot be read back out of `/tree/feat/one`. The
+         * load stays as the fallback for a surface that mounted this without a
+         * screen behind it — the shots do.
+         */
+        onGo={(path, name) =>
+          onBranch === undefined ? window.location.assign(path) : onBranch(name)
+        }
         dress={`flex items-center gap-1.5 px-2 py-1 text-xs text-ink hover:bg-active ${PRESSABLE}`}
       />
       {Option.match(front.commits, {
@@ -209,7 +224,8 @@ const Beside = ({
   stands,
   reading,
   onOpen,
-  onNear
+  onNear,
+  onBranch
 }: {
   readonly front: Front
   readonly repo: RepoHomeScreenProps["repo"]
@@ -220,6 +236,7 @@ const Beside = ({
   readonly reading: string | null
   readonly onOpen: (path: string) => void
   readonly onNear?: (path: string) => void
+  readonly onBranch?: RepoHomeScreenProps["onBranch"]
 }) => (
   <div className="flex min-w-0 flex-col gap-1 lg:sticky lg:top-3 lg:col-start-2 lg:row-start-2 lg:h-[calc(100vh-5.5rem)]">
     <Languages stands={stands} />
@@ -232,6 +249,7 @@ const Beside = ({
       reading={reading}
       onOpen={onOpen}
       onNear={onNear}
+      onBranch={onBranch}
     />
   </div>
 )
@@ -568,12 +586,12 @@ export const RepoHomeScreen = ({
   shelf,
   reading = null,
   readingBranch,
-  onRead
+  onRead,
+  onBranch
 }: RepoHomeScreenProps) => {
   const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
 
   // One read for two cards. The languages are their own card over the tree and
   // the people are on the row above, and both arrive in the same answer.
@@ -662,6 +680,7 @@ export const RepoHomeScreen = ({
                 reading={reading}
                 onOpen={(path) => onRead?.(path)}
                 onNear={warm}
+                onBranch={onBranch}
               />
             </>
           ) : (
@@ -676,6 +695,7 @@ export const RepoHomeScreen = ({
                 reading={reading}
                 onOpen={(path) => onRead?.(path)}
                 onNear={warm}
+                onBranch={onBranch}
               />
               <Paper
                 front={front}

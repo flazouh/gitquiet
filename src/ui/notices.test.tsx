@@ -259,21 +259,19 @@ describe("the reader's inbox, grouped by who acts next", () => {
     expect(await screen.findByText("Nothing is in your inbox.")).toBeTruthy()
   })
 
-  test("keeps a background check silent over the known inbox", async () => {
+  test("draws the known inbox at once, rather than waiting for GitHub to agree", async () => {
     const kept = [notice({ id: "one" })]
 
+    // A read that never lands, so anything on the screen came out of the store.
     render(
-      <Toasts>
-        <NoticesScreen
-          load={() => Effect.never}
-          preload={() => Effect.succeed(Option.some(kept))}
-          onPress={() => {}}
-          onStepAside={() => {}}
-        />
-      </Toasts>
+      <NoticesScreen
+        load={() => Effect.never}
+        preload={() => Effect.succeed(Option.some(kept))}
+        onPress={() => {}}
+        onStepAside={() => {}}
+      />
     )
 
     expect(await screen.findByRole("region", { name: "Needs You" })).toBeTruthy()
-    expect(screen.queryByText("Notices updated")).toBeNull()
   })
 })

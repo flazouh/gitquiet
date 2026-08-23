@@ -180,7 +180,6 @@ export type ArtName =
   | "appearance"
   | "files"
   | "diff"
-  | "info"
   /** An error, as distinct from `check-failed`: a step that broke, a reason a merge cannot go. */
   | "error"
   /** Away from this interface, to a page it does not draw. */

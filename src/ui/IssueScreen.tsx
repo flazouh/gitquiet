@@ -12,7 +12,6 @@ import { reasonFor } from "./refusal"
 import { SETTLED } from "./Settle"
 import { done, refused } from "./Toasts"
 import { TheBar } from "./TheBar"
-import { useUpdated } from "./useUpdated"
 import { useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -120,8 +119,6 @@ const sentenceFor = (settling: Settled): string =>
 
 const READING = "Reading this issue…"
 
-const UPDATED = "Issue updated"
-
 /**
  * One issue, in one column.
  *
@@ -151,7 +148,6 @@ export const IssueScreen = ({
   const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
 
   useEffect(() => {
     if (!preparing || read.status !== "ready") return

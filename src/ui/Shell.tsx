@@ -1,7 +1,6 @@
 import { Effect, Option } from "effect"
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import type {
-  ChangedFile,
   Check,
   CheckNote,
   CommitDetail,
@@ -17,7 +16,7 @@ import type {
 import type { Uploaded } from "../domain/attaching"
 import type { Suggesting } from "../domain/suggesting"
 import type { DiffSide } from "../ports/Renderer"
-import type { Size } from "../domain/workingSet"
+import { sizeOf } from "../domain/workingSet"
 import { diffChoices, treeChoices } from "../domain/choices"
 import { keyOf } from "../domain/PullRequestRef"
 import { keptReads } from "../app/kept"
@@ -57,7 +56,7 @@ export type ShellProps = {
    * a file arrived in it. See `attaching.ts`.
    */
   readonly onUpload?: (file: File) => Effect.Effect<Uploaded, unknown>
-  /** Marks one thread resolved, which is how a finding leaves the owed panel. */
+  /** Marks one thread resolved, which is how a finding leaves the conversation. */
   readonly onSettle?: (threadId: string) => Effect.Effect<unknown, unknown>
   /** Opens a resolved thread again, from the foot of the thread itself. */
   readonly onUnsettle?: Answering["onUnsettle"]
@@ -112,15 +111,14 @@ export type ShellProps = {
 const NO_READER = new Error("Nothing is wired to read commits.")
 
 /**
- * How many lines this pull request changes, out of the files it was read with.
+ * How long an arrival may keep entering, in milliseconds.
  *
- * The same sum the header's own well shows, and the reason the strip above it
- * spends no request on the layer the reader is standing on.
+ * Past the last panel's stagger and its travel — five staggers of forty and a
+ * quarter second of entrance is under half a second — so nothing is cut off
+ * mid-arrival, and early enough that the first late read to land finds the
+ * page already still.
  */
-const linesIn = (files: ReadonlyArray<ChangedFile>): Size => ({
-  added: files.reduce((sum, file) => sum + file.linesAdded, 0),
-  deleted: files.reduce((sum, file) => sum + file.linesDeleted, 0)
-})
+const LANDING = 700
 
 /**
  * The one command that belongs to the page rather than to a panel in it.
@@ -374,16 +372,39 @@ export const Shell = ({
   // diff rather than at the top of the page. Writing goes through this one
   // reader either way, so nothing on the screen holds a second copy.
   const { settings, change } = useSettings()
-  const diff = useMemo(() => diffChoices(settings.diff), [settings.diff])
-  const tree = useMemo(() => treeChoices(settings.tree), [settings.tree])
+  // The menu answers on the click; the diff follows. Redrawing every open file
+  // is hundreds of milliseconds of main thread, and doing it in the click's own
+  // task froze the menu mid-close. Deferred, the tick and the close paint first
+  // and the redraw runs behind them, interruptible by the next input.
+  const settled = useDeferredValue(settings)
+  const diff = useMemo(() => diffChoices(settled.diff), [settled.diff])
+  const tree = useMemo(() => treeChoices(settled.tree), [settled.tree])
 
   // Every dialog and menu of ours is drawn inside this, and the keyboard asks
   // it — rather than the page — what the reader has open.
   const [ours, setOurs] = useState<HTMLElement | null>(null)
 
+  /*
+   * Whether the page has finished arriving, for the stylesheet.
+   *
+   * The entrance animations belong to the arrival, and only to it. A snapshot
+   * that completes later inserts panels above settled ones; React moves the
+   * neighbours by re-inserting them, and a re-inserted element replays its CSS
+   * animation — the whole column entered twice on a prefetched pull request.
+   * Once this flag is on, `motion.css` takes the entrance off everything under
+   * it: a late panel simply is there, which is what the sheet already promises
+   * about answers. The delay is the entrance's own length — the longest stagger
+   * plus the travel — with a beat to spare.
+   */
+  const [landed, setLanded] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => setLanded(true), LANDING)
+    return () => clearTimeout(timer)
+  }, [])
+
   return (
     <KeyboardScope value={ours}>
-      <div ref={setOurs} className="flex flex-col pt-2">
+      <div ref={setOurs} data-gitquiet-landed={landed ? "" : undefined} className="flex flex-col pt-2">
         <PageKeys keys={keys} onDismiss={() => setReading(undefined)} />
         {/* Above the header, where GitHub's banner about the same thing stands.
             It is drawn at all only where they offer a stack and nobody has made
@@ -394,7 +415,7 @@ export const Shell = ({
             chain={snapshot.proposal.value}
             make={makeStack}
             sizes={layerSizes}
-            own={linesIn(snapshot.files)}
+            own={sizeOf(snapshot.files)}
           />
         ) : null}
         <Header snapshot={snapshot} onUseGitHub={onUseGitHub} />
@@ -433,14 +454,18 @@ export const Shell = ({
               part of the page that keeps a height and scrolls inside it. Pinned
               rather than fixed: where a browser or GitHub's own layout will not
               have it, it simply sits still and the page scrolls as one. */}
-          <div className="sticky top-2 flex h-[calc(100vh-1rem)] min-h-[40rem] min-w-0 flex-1">
+          {/* Below the bar, not under it: the bar floats over the top of the
+              viewport on its own sticky, and it says how tall it is through
+              `--gitquiet-bar-h` — see `TheBar.tsx`. Zero where there is no bar,
+              which is the desktop window and a test. */}
+          <div className="sticky top-[calc(var(--gitquiet-bar-h,0px)+0.5rem)] flex h-[calc(100vh-var(--gitquiet-bar-h,0px)-1rem)] min-h-[40rem] min-w-0 flex-1">
             {reading === undefined || loadCommit === undefined ? (
               <FileBrowser
                 files={snapshot.files}
                 fetchDiffs={forThisHead}
                 diff={diff}
                 tree={tree}
-                proseAsDocument={settings.diff.prose === "on"}
+                proseAsDocument={settled.diff.prose === "on"}
                 keys={keys}
                 wanted={wanted}
                 threads={threads}
@@ -466,7 +491,7 @@ export const Shell = ({
                 fetchDiffs={forThisCommit}
                 diff={diff}
                 tree={tree}
-                proseAsDocument={settings.diff.prose === "on"}
+                proseAsDocument={settled.diff.prose === "on"}
                 keys={keys}
                 display={{ settings, onChange: change }}
               />

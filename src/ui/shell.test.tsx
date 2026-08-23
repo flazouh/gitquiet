@@ -785,3 +785,24 @@ describe("a pull request read in two stages", () => {
     expect(screen.queryByText("All 2 checks passed")).toBeNull()
   })
 })
+
+/*
+ * The entrance animation belongs to the page's arrival. A snapshot completing
+ * later inserts panels above settled ones, React moves the neighbours by
+ * re-inserting them, and a moved element replays its CSS animation — so the
+ * whole column entered twice on a prefetched pull request. The page says when
+ * it has landed, and the stylesheet takes the entrance off everything under it.
+ */
+describe("the page lands once", () => {
+  test("says so shortly after arriving, where the stylesheet can read it", async () => {
+    showing(aSnapshot({}))
+
+    expect(document.querySelector("[data-gitquiet-landed]")).toBeNull()
+    await waitFor(
+      () => {
+        expect(document.querySelector("[data-gitquiet-landed]")).not.toBeNull()
+      },
+      { timeout: 3000 }
+    )
+  })
+})

@@ -13,6 +13,7 @@ import { whenLocationChanges } from "@/ui/navigation"
 import { RUN } from "@/ui/place"
 import { RunScreen } from "@/ui/RunScreen"
 import { offerOurPage } from "@/ui/theirTabs"
+import { openedNamed } from "@/ui/lastDrawn"
 import "@/ui/styles.css"
 
 /**
@@ -83,6 +84,7 @@ const open = (reference: RunRef, onUseGitHub?: () => void): (() => void) => {
         onStepAside={standing.stepAside}
         onUseGitHub={onUseGitHub}
         press={press}
+        where={openedNamed("run", reference)}
       />
     )
   }).close

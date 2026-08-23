@@ -1,10 +1,11 @@
 import { Effect, Option } from "effect";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Owed } from "../domain/finding";
 import { showsWorkingSet } from "../domain/pages";
 import { fromPathname } from "../domain/PullRequestRef";
-import type { Repository } from "../domain/repositories";
+import { type Repository, withPinToggled } from "../domain/repositories";
+import { tokensOf } from "../domain/theme";
 import { keepTabs, keptTabs } from "../github/repoTabs";
 import { type ArtName } from "./art";
 import { Bar, type BarProps } from "./Bar";
@@ -15,7 +16,8 @@ import { keepRepositories, keptRepositories } from "./keptRepositories";
 import { Palette } from "./Palette";
 import { keepRefraction } from "./refraction";
 import { SettingsDialog } from "./SettingsDialog";
-import { Theme } from "./Theme";
+import { paintTokens } from "./applyTheme";
+import { usePaintedTheme } from "./Theme";
 import { useOursToDraw } from "./useOursToDraw";
 import { whenTheScreenMoves } from "./mount";
 import { useSettings } from "./useSettings";
@@ -153,6 +155,31 @@ export const TheBar = ({
     keepRefraction(document);
     return keepTheBarSlot(document, slot, around.within);
   }, [slot, around.within]);
+
+  /*
+   * How much sky the bar takes, said where the screens can read it.
+   *
+   * The code column pins itself to the top of the viewport, and the bar floats
+   * over that same top on its own sticky. Only the bar knows how tall it is —
+   * it wraps at narrow widths — so it writes the number where the column's
+   * offset reads it: see the sticky wrapper in `Shell.tsx`. Onto `<html>` like
+   * the floor, and for the floor's second reason too: the screen's root is a
+   * detached element while this first runs, and `getElementById` cannot see
+   * it. Without this the column clamped at eight pixels while the bar covered
+   * the first fifty-odd, and at full scroll the files band sat hidden under it.
+   */
+  useEffect(() => {
+    const say = () =>
+      document.documentElement.style.setProperty(
+        "--gitquiet-bar-h",
+        `${Math.round(slot.getBoundingClientRect().height)}px`,
+      );
+    say();
+    if (typeof ResizeObserver === "undefined") return;
+    const watching = new ResizeObserver(say);
+    watching.observe(slot);
+    return () => watching.disconnect();
+  }, [slot]);
 
   /*
    * A list handed straight in is the freshest one this bar ever sees: Home and the
@@ -372,17 +399,9 @@ export const TheBar = ({
    */
   if (!drawing) return null;
 
-  /*
-   * Painted here as well as on the screen's own root.
-   *
-   * The tokens are inline custom properties on `#gitquiet-root`, and this slot is deliberately
-   * not inside it — a bar has to stand above a page, not within the region of it we replaced.
-   * Nothing inherits across that gap, so without this the strip resolves the light defaults out
-   * of the stylesheet and paints white with near-black text over a dark page. The palette goes
-   * inside the slot for the same reason: one painted element, everything of ours under it.
-   */
   return createPortal(
-    <Theme element={slot}>
+    <>
+      <PaintedSlot slot={slot} />
       <Bar
         {...props}
         participant={reader}
@@ -391,6 +410,12 @@ export const TheBar = ({
         repositories={findable}
         pinned={settings.pinned}
         lately={lately}
+        onPin={(address) =>
+          change((current) => ({
+            ...current,
+            pinned: withPinToggled(current.pinned, address),
+          }))
+        }
         atTheCode={
           props.where.kind === "repository" &&
           readingTheCode(props.where, window.location.pathname)
@@ -437,19 +462,36 @@ export const TheBar = ({
           inside={props.where.kind === "repository" ? props.where : undefined}
           owed={owed}
           onShut={() => setFinding(false)}
-          /*
-           * A whole load rather than a soft navigation. Their own router is what this
-           * extension navigates around rather than through, and a palette that pushed an
-           * address into it would be trusting the thing that breaks the back button.
-           */
-          onGo={(where) => {
-            window.location.assign(where);
-          }}
         />
       ) : null}
-    </Theme>,
+    </>,
     slot,
   );
+};
+
+/**
+ * The slot, wearing what the page's one Theme resolved.
+ *
+ * The tokens are inline custom properties on `#gitquiet-root`, and the slot is
+ * deliberately not inside it — a bar has to stand above a page, not within the
+ * region of it we replaced. Nothing inherits across that gap, so unpainted it
+ * resolves the stylesheet's light defaults and reads white over a dark page.
+ *
+ * It used to carry a Theme of its own here, which was a second resolver: with
+ * the pack on "match" it answered `gitquiet` where the screen's answered
+ * `github`, and both wrote their answer into the early-paint keys — so the pack
+ * the next page's first frame wore depended on whose store read landed last,
+ * and the theme changed between the pages. A surface takes the resolution from
+ * above and remembers nothing.
+ */
+const PaintedSlot = ({ slot }: { readonly slot: HTMLElement }) => {
+  const painted = usePaintedTheme();
+
+  useLayoutEffect(() => {
+    paintTokens(slot, tokensOf(painted.pack, painted.scheme), painted.scheme);
+  }, [slot, painted]);
+
+  return null;
 };
 
 /**

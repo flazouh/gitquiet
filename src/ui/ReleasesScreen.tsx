@@ -5,7 +5,6 @@ import type { Repository } from "../domain/repositories"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import { Releases, Yours } from "./Releases"
 import { TheBar } from "./TheBar"
-import { useUpdated } from "./useUpdated"
 import { useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -35,11 +34,11 @@ export type ReleasesScreenProps = {
   readonly onStepAside: () => void
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
   readonly signedIn?: () => boolean
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
 }
 
 const READING = "Reading this repository's releases…"
-
-const UPDATED = "Repository Versions updated"
 
 /**
  * A repository's releases: every Change, and the one file this reader should take.
@@ -55,12 +54,12 @@ export const ReleasesScreen = ({
   preload,
   onStepAside,
   recallRepositories,
+  where,
   signedIn = viewerOnPage
 }: ReleasesScreenProps) => {
-  const live = useLive(load, preload)
+  const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
 
   if (read.status === "failed") {
     return (

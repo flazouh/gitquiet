@@ -9,7 +9,6 @@ import { CHIP } from "./dress"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import { Strands } from "./Strands"
 import { TheBar } from "./TheBar"
-import { useUpdated } from "./useUpdated"
 import { useLive } from "./useLive"
 import { useSettings } from "./useSettings"
 import { useWaiting } from "./useWaiting"
@@ -35,11 +34,11 @@ export type StrandsScreenProps = {
    */
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
   readonly signedIn?: () => boolean
+  /** What this page is called in this document's memory. See {@link useLive}. */
+  readonly where?: string
 }
 
 const READING = "Reading this repository's runs…"
-
-const UPDATED = "Repository Strands updated"
 
 /**
  * What the fold came to, in one line above the rows.
@@ -116,12 +115,12 @@ export const StrandsScreen = ({
   preload,
   onStepAside,
   recallRepositories,
+  where,
   signedIn = viewerOnPage
 }: StrandsScreenProps) => {
-  const live = useLive(load, preload)
+  const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
-  useUpdated(live.catchingUp, read.status === "ready" ? read.value : undefined, UPDATED)
   const { settings, change } = useSettings()
 
   /*

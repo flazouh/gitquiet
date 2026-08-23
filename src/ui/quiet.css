@@ -63,6 +63,23 @@ html[data-gitquiet-taken] div.feed-background:has(#gitquiet-root) {
 }
 
 /*
+ * Their footer, off a page that is ours.
+ *
+ * Not for the seam this time but for the scroll. The code column is pinned with
+ * `sticky`, and a sticky element can travel only as far as its row is tall: the
+ * height above the row cancels out of that ledger, and anything below it does
+ * not. The footer under our takeover was 114 pixels below the row, which is 114
+ * pixels of page scroll the pin cannot absorb — scrolling the outer page
+ * dragged the card's header off the top by exactly that much. Same two flags as
+ * the floor, so a page we do not draw keeps its footer without anything being
+ * undone.
+ */
+html[data-gitquiet-taken] footer.footer,
+html[data-gitquiet-gating] footer.footer {
+  display: none;
+}
+
+/*
  * Review Mode owns every viewport pixel. The bar is in a separate stacking
  * context above the screen root, so a larger z-index inside the root cannot
  * cover it.
