@@ -45,6 +45,7 @@ export default defineContentScript({
         guardDuplicateNavigation(
           protectedRoute.href,
           event as Event & {
+            readonly navigationType?: string
             readonly destination: { readonly url: string; readonly sameDocument: boolean }
           }
         )

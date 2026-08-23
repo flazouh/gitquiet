@@ -108,6 +108,52 @@ describe("the page-world guard for an owned route", () => {
     expect(documentLoadStopped).toBe(true)
   })
 
+  test("cancels a push that repeats the address already shown", () => {
+    window.history.replaceState(null, "", "/owner/repo/pull/12")
+    let cancelled = false
+    let stopped = false
+    const echo = {
+      cancelable: true,
+      navigationType: "push",
+      destination: {
+        url: `${window.location.origin}/owner/repo/pull/12`,
+        sameDocument: true
+      },
+      preventDefault: () => {
+        cancelled = true
+      },
+      stopImmediatePropagation: () => {
+        stopped = true
+      }
+    }
+
+    expect(guardDuplicateNavigation("/owner/repo/pull/12", echo)).toBe(true)
+    expect(cancelled).toBe(true)
+    expect(stopped).toBe(true)
+    window.history.replaceState(null, "", "/")
+  })
+
+  test("leaves a traversal to the address already shown alone", () => {
+    window.history.replaceState(null, "", "/owner/repo/pull/12")
+    let cancelled = false
+    const back = {
+      cancelable: true,
+      navigationType: "traverse",
+      destination: {
+        url: `${window.location.origin}/owner/repo/pull/12`,
+        sameDocument: true
+      },
+      preventDefault: () => {
+        cancelled = true
+      },
+      stopImmediatePropagation: () => {}
+    }
+
+    expect(guardDuplicateNavigation("/owner/repo/pull/12", back)).toBe(false)
+    expect(cancelled).toBe(false)
+    window.history.replaceState(null, "", "/")
+  })
+
   test("offers an interface link to the extension before GitHub sees the press", async () => {
     const root = document.createElement("div")
     root.id = "gitquiet-root"

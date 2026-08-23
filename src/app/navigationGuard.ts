@@ -22,6 +22,7 @@ export const restoreOwnedRoute = (link: HTMLAnchorElement): void => {
 
 type NavigationAttempt = {
   readonly cancelable: boolean
+  readonly navigationType?: string
   readonly destination: { readonly url: string; readonly sameDocument: boolean }
   readonly preventDefault: () => void
   readonly stopImmediatePropagation: () => void
@@ -111,17 +112,29 @@ export const guardPreparedTraversal = (
   return true
 }
 
-/** Cancels GitHub's document load after this extension completed the same route. */
+/**
+ * Cancels GitHub's answer to a press this extension already completed.
+ *
+ * Two shapes of answer, and both are one gesture answered twice. A document load
+ * for the owned route throws away the screen already drawn, so it is cancelled
+ * outright. A push for the address the tab is already showing adds a history
+ * entry that says nothing — the reader presses Back and the address does not
+ * move — so it is cancelled too. The push this extension made itself is neither:
+ * it fires while the address still names the page being left, and a traversal is
+ * never touched, because cancelling one is exactly the dead Back button this
+ * exists to prevent.
+ */
 export const guardDuplicateNavigation = (
   owned: string,
   event: NavigationAttempt
 ): boolean => {
-  if (
-    !event.cancelable ||
-    event.destination.sameDocument ||
-    new URL(event.destination.url).href !== new URL(owned, window.location.href).href
-  )
+  const destination = new URL(event.destination.url).href
+  if (!event.cancelable || destination !== new URL(owned, window.location.href).href)
     return false
+
+  const repeatsTheAddressShown =
+    event.navigationType === "push" && destination === window.location.href
+  if (event.destination.sameDocument && !repeatsTheAddressShown) return false
 
   event.preventDefault()
   event.stopImmediatePropagation()
