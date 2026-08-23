@@ -13,7 +13,8 @@ import {
   paintTheme,
   paintTokens,
   prefersDarkScheme,
-  rememberedTheme
+  rememberedTheme,
+  rememberResolution
 } from "./applyTheme"
 import { DEFAULTS } from "../domain/Settings"
 import type { Appearance, Pack, Scheme } from "../domain/theme"
@@ -123,7 +124,16 @@ export const Theme = ({
       // is rendered long after this effect ran.
       if (scope !== "document") outsideHost(document, OVER_ID)
 
-      const scheme = paintTheme(root, appearance, pack, dark, remember)
+      const scheme = paintTheme(root, appearance, pack, dark)
+      /*
+       * `remember` is the difference between the reader's answer and our guess
+       * at it. The early paint runs before the store has answered, so what it
+       * paints is last time's colours or the defaults — a guess, and a guess
+       * written back would sit where `desktop/src/view/index.html` looks for a
+       * choice. Only this resolver remembers; a surface that merely paints
+       * cannot. See `rememberResolution`.
+       */
+      if (remember) rememberResolution(appearance, pack)
       setPainted((was) =>
         was !== null && was.scheme === scheme && was.pack === pack ? was : { scheme, pack }
       )

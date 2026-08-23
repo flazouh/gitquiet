@@ -73,11 +73,16 @@ const keep = UndefinedOr.liftThrowable((key: string, value: string) => {
   localStorage.setItem(key, value)
 })
 
-export const rememberAppearance = (appearance: Appearance): void => {
+/**
+ * The one act of remembering, and the resolver's alone to perform.
+ *
+ * Painting used to do this on the side, which handed the write to every
+ * surface that painted: the bar's resolution and the screen's raced for the
+ * keys, and the next page's first frame wore whichever landed last. A painter
+ * paints; whoever resolved the choice says so here, explicitly, in one place.
+ */
+export const rememberResolution = (appearance: Appearance, pack: Pack): void => {
   keep(SCHEME_KEY, appearance)
-}
-
-export const rememberPack = (pack: Pack): void => {
   keep(PACK_KEY, pack)
 }
 
@@ -162,26 +167,16 @@ export const paintFloor = (page: Document, tokens: ThemeTokens): void => {
   page.documentElement.style.setProperty(FLOOR, tokens["--color-canvas"])
 }
 
-/**
- * `remember` is the difference between the reader's answer and our guess at it.
- *
- * The early paint in `Theme` runs before the store has answered, so what it
- * paints is last time's colours or the defaults. Writing that back would put a
- * guess where `desktop/src/view/index.html` looks for a choice.
- */
+/** Paints, and only paints: what to keep for the next first frame is said by
+ * whoever resolved the choice, through `rememberResolution`. */
 export const paintTheme = (
   root: HTMLElement,
   appearance: Appearance,
   pack: Pack,
-  prefersDark: boolean,
-  remember = true
+  prefersDark: boolean
 ): Scheme => {
   const scheme = resolveAppearance(appearance, prefersDark)
   paintTokens(root, tokensOf(pack, scheme), scheme)
-  if (remember) {
-    rememberAppearance(appearance)
-    rememberPack(pack)
-  }
   return scheme
 }
 
