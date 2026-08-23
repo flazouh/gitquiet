@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { Fragment, useEffect, useRef, useState } from "react"
 import { type ArtName, useArt } from "./art"
 import { Field } from "./Field"
 import { Owner } from "./Owner"
@@ -54,6 +54,15 @@ export type Row = {
    * row that does anything, and this one is the row that does the least.
    */
   readonly chosen?: boolean
+  /**
+   * The pin beside the row, where the list has an order a reader can hold.
+   *
+   * The Rail's own affordance, drawn the Rail's way: on every row rather than on
+   * hover, quiet until held. Pressing it re-sorts the list under the open menu
+   * and neither navigates nor closes — pinning is housekeeping, not a choice of
+   * destination.
+   */
+  readonly pin?: { readonly held: boolean; readonly toggle: () => void }
 }
 
 /**
@@ -222,37 +231,67 @@ export const Menu = ({
         const dress =
           "flex items-center gap-2 rounded px-2 py-1 text-left text-sm text-ink hover:bg-active"
 
-        return one.where === undefined ? (
-          <button
-            key={one.id ?? one.name}
-            type="button"
-            {...(up ? { role: "menuitem" } : {})}
-            tabIndex={up ? undefined : -1}
-            onClick={() => {
-              one.press?.()
-              onShut()
-            }}
-            className={dress}
-          >
-            {said}
-          </button>
-        ) : (
-          <a
-            key={one.id ?? one.name}
-            {...(up ? { role: "menuitem" } : {})}
-            tabIndex={up ? undefined : -1}
-            href={one.where}
-            className={`${dress} no-underline`}
-            onClick={(event) => {
-              if (one.press === undefined) return
-              if (event.metaKey || event.ctrlKey || event.shiftKey) return
-              event.preventDefault()
-              one.press()
-              onShut()
-            }}
-          >
-            {said}
-          </a>
+        const row =
+          one.where === undefined ? (
+            <button
+              type="button"
+              {...(up ? { role: "menuitem" } : {})}
+              tabIndex={up ? undefined : -1}
+              onClick={() => {
+                one.press?.()
+                onShut()
+              }}
+              className={`${dress} flex-1`}
+            >
+              {said}
+            </button>
+          ) : (
+            <a
+              {...(up ? { role: "menuitem" } : {})}
+              tabIndex={up ? undefined : -1}
+              href={one.where}
+              className={`${dress} flex-1 no-underline`}
+              onClick={(event) => {
+                // Held keys belong to the browser — a new tab, a new window — and
+                // the page under this menu is staying, so the menu stays with it.
+                if (event.metaKey || event.ctrlKey || event.shiftKey) return
+                if (one.press !== undefined) {
+                  event.preventDefault()
+                  one.press()
+                }
+                // A plain press chose a destination, whoever carries it out —
+                // `press` above, or the shell answering the link from the top of
+                // the document. Either way the choosing is over.
+                onShut()
+              }}
+            >
+              {said}
+            </a>
+          )
+
+        const Pin = art.pinned
+        return (
+          <Fragment key={one.id ?? one.name}>
+            {one.pin === undefined ? (
+              row
+            ) : (
+              <div className="flex items-center gap-1">
+                {row}
+                <button
+                  type="button"
+                  onClick={one.pin.toggle}
+                  aria-label={`${one.pin.held ? "Unpin" : "Pin"} ${one.name}`}
+                  // The Rail's own square, for the Rail's reasons: always drawn, a
+                  // whole target, quiet until pointed at or already holding.
+                  className={`grid size-6 shrink-0 place-items-center rounded hover:bg-hover ${
+                    one.pin.held ? "text-ink" : "text-ink-muted opacity-60 hover:opacity-100"
+                  }`}
+                >
+                  <Pin size={14} />
+                </button>
+              </div>
+            )}
+          </Fragment>
         )
       })}
     </div>

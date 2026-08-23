@@ -356,6 +356,15 @@ export const TheBar = ({
         repositories={findable}
         pinned={settings.pinned}
         lately={lately}
+        /* The Rail's toggle, word for word: out of the list if held, onto its end if not. */
+        onPin={(address) =>
+          change((current) => ({
+            ...current,
+            pinned: current.pinned.includes(address)
+              ? current.pinned.filter((one) => one !== address)
+              : [...current.pinned, address],
+          }))
+        }
         atTheCode={
           props.where.kind === "repository" &&
           readingTheCode(props.where, window.location.pathname)

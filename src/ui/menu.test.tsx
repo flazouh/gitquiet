@@ -40,6 +40,68 @@ describe("what a row says", () => {
   })
 })
 
+describe("a press on a row", () => {
+  test("shuts the menu, even where the row is a plain link the browser follows", async () => {
+    // The switcher's rows are links the shell answers without a document, so nothing
+    // else takes the menu down: left open, it stood over the next page.
+    render(<Opened />)
+    screen.getByRole("menu").addEventListener("click", (event) => event.preventDefault())
+
+    await userEvent.click(screen.getByRole("menuitem", { name: "Your profile" }))
+
+    expect(screen.queryByRole("menu")).toBeNull()
+  })
+
+  test("keeps the menu for a held modifier, which opens elsewhere and stays here", async () => {
+    render(<Opened />)
+    screen.getByRole("menu").addEventListener("click", (event) => event.preventDefault())
+
+    const who = userEvent.setup()
+    await who.keyboard("{Meta>}")
+    await who.click(screen.getByRole("menuitem", { name: "Your profile" }))
+    await who.keyboard("{/Meta}")
+
+    expect(screen.getByRole("menu")).toBeDefined()
+  })
+})
+
+describe("pinning from a row", () => {
+  const pinnable = (held: boolean, toggle: () => void) => [
+    { name: "flazouh/gitquiet", where: "/flazouh/gitquiet", pin: { held, toggle } }
+  ]
+
+  test("offers the pin beside the row, and pressing it does not close or navigate", async () => {
+    let toggled = 0
+    let shut = 0
+    render(
+      <Menu
+        name="Your repositories"
+        open
+        onShut={() => (shut += 1)}
+        rows={pinnable(false, () => (toggled += 1))}
+      />
+    )
+
+    await userEvent.click(screen.getByRole("button", { name: "Pin flazouh/gitquiet" }))
+
+    expect(toggled).toBe(1)
+    expect(shut).toBe(0)
+  })
+
+  test("says Unpin on a row already held", () => {
+    render(
+      <Menu
+        name="Your repositories"
+        open
+        onShut={() => undefined}
+        rows={pinnable(true, () => undefined)}
+      />
+    )
+
+    expect(screen.getByRole("button", { name: "Unpin flazouh/gitquiet" })).toBeDefined()
+  })
+})
+
 describe("shutting a menu", () => {
   test("goes on Escape, and goes at once rather than fading for a sixth of a second", async () => {
     // A dismissal by key is the reader saying they are done: the 150ms the pointer path spends
