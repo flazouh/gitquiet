@@ -36,3 +36,4 @@ public/screens/
 # records where each came from. Somebody else's writing, and nothing here reads it.
 .agents/
 skills-lock.json
+.claude/

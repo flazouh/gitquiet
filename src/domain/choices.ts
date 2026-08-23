@@ -65,6 +65,8 @@ export const diffChoices = (settings: DiffSettings): DiffChoices => {
 /** The rail's options, plus the two marks that are ours rather than the tree's. */
 export type TreeChoices = {
   readonly density: "compact" | "default" | "relaxed"
+  /** How far a folder steps its contents in, as a CSS length for the tree. */
+  readonly indent: string
   readonly icons: "material" | "plain"
   /** Tailwind's width for the rail, in its own scale. */
   readonly width: string
@@ -97,8 +99,30 @@ const WIDTH: Readonly<Record<string, string>> = {
   wide: "w-[clamp(20rem,28cqi,34rem)]"
 }
 
+/**
+ * The step to fall back on where the stored indent is not a number.
+ *
+ * The schema holds a stored value to the run of steps the slider offers, so
+ * this is only reached by a caller that built its settings by hand.
+ */
+const INDENT = 6
+
+/**
+ * The indent, as the length the tree draws.
+ *
+ * The number the reader chose and no arithmetic on it. The tree's own step is
+ * multiplied by the row height, and doing that here would draw four and a half
+ * pixels for a slider that says six — which is the sort of thing that makes a
+ * reader drag the handle twice and then stop trusting it.
+ */
+const indentOf = (chosen: string): string => {
+  const px = Number.parseInt(chosen, 10)
+  return `${Number.isNaN(px) ? INDENT : px}px`
+}
+
 export const treeChoices = (settings: TreeSettings): TreeChoices => ({
   density: settings.density,
+  indent: indentOf(settings.indent),
   icons: settings.icons,
   width: WIDTH[settings.width] ?? WIDTH["medium"]!,
   counts: settings.counts === "on",

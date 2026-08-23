@@ -1,10 +1,9 @@
 import * as Menu from "@radix-ui/react-dropdown-menu"
-import * as Bubble from "@radix-ui/react-tooltip"
 import { useId, useState, type ReactNode } from "react"
 import { useArt } from "./art"
 import { DIFF_KNOBS, THEME_KNOBS, TREE_KNOBS, type Knob, type Settings } from "../domain/Settings"
 import { ROOT_ID } from "./mount"
-import { sampleOf } from "./SettingsPreview"
+import { Slide } from "./Slide"
 
 /**
  * Where everything this menu opens is drawn.
@@ -39,77 +38,29 @@ export type SettingsMenuProps = {
 }
 
 const ITEM =
-  "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-xs text-ink outline-none data-[highlighted]:bg-hover"
+  "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs text-ink outline-none data-[highlighted]:bg-hover"
 
 /**
- * What a setting does and what each choice looks like.
+ * Every surface this menu opens: the menu itself and each run of choices.
  *
- * Every one of these knobs is a trade — width against context, calm against
- * scannability — and a two-word label can only name the trade, never say which
- * side you are choosing. So: the whole explanation, then a small mockup of each
- * choice, because "bars" and "plus and minus" are pictures long before they are
- * words. The bubble opens to the left, since the choices open to the right.
+ * One name for the three of them, the way `ITEM` is one name for every row. The
+ * height is the room Radix measured between the trigger and the edge of the
+ * window, which a menu needs now that each row is two lines tall: eighteen of
+ * them are taller than a laptop's viewport, and a menu that runs off the bottom
+ * hides the knobs at the end of it.
  */
-const Explains = ({
-  knob,
-  chosen,
-  open,
-  onOpenChange
-}: {
-  readonly knob: Knob<string, string>
-  readonly chosen: string | undefined
-  readonly open: boolean
-  readonly onOpenChange: (open: boolean) => void
-}) => {
-  const art = useArt()
-  const Info = art.info
-
-  return (
-  <Bubble.Root open={open} onOpenChange={onOpenChange} delayDuration={0}>
-    <Bubble.Trigger asChild>
-      <span
-        // The menu row is a button in all but name: a pointer landing here must
-        // not count as landing on the row and choosing something.
-        onPointerDown={(event) => event.stopPropagation()}
-        onClick={(event) => event.stopPropagation()}
-        className="flex shrink-0 items-center text-ink-muted opacity-60 hover:opacity-100"
-      >
-        <Info size={12} />
-      </span>
-    </Bubble.Trigger>
-    <Bubble.Portal container={inOurs()}>
-      <Bubble.Content
-        side="left"
-        align="start"
-        sideOffset={10}
-        collisionPadding={8}
-        className="z-50 flex max-w-80 flex-col gap-2 rounded-md border border-line bg-raised px-2.5 py-2 text-xs leading-relaxed text-ink-muted shadow-pop"
-      >
-        <p>{knob.note}</p>
-        {knob.choices.map((choice) => {
-          const sample = sampleOf(knob.key, choice.value)
-          return sample === null ? null : (
-            <div key={choice.value} className="flex flex-col gap-1">
-              <span
-                className={choice.value === chosen ? "text-ink" : undefined}
-              >{`${choice.label}${choice.value === chosen ? " · in use" : ""}`}</span>
-              {sample}
-            </div>
-          )
-        })}
-      </Bubble.Content>
-    </Bubble.Portal>
-  </Bubble.Root>
-  )
-}
+const PANEL =
+  "z-50 max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto rounded-md border border-line bg-raised p-1 text-xs shadow-pop"
 
 /**
- * One knob: its name, what it is set to, and both ways of finding out more.
+ * One knob: its name, what it is for, and what it is set to.
  *
- * The submenu is held open by this component rather than by Radix so that the
- * bubble can shut it. Hovering the row opens the choices and hovering the
- * information icon opens the explanation, and since the icon sits inside the
- * row, both would otherwise be open at once with the explanation underneath.
+ * The gist is on the row rather than behind an information icon. Every one of
+ * these knobs is a trade, and a two-word label can only name it; a bubble said
+ * the whole of it, but only to a reader who knew to go looking for a bubble,
+ * and it cost a tooltip on every one of twenty-two rows. The whole explanation
+ * and the little mockups are in the settings sheet, where there is room to
+ * read them.
  */
 const Row = ({
   knob,
@@ -121,20 +72,25 @@ const Row = ({
   readonly onPick: (key: string, value: string) => void
 }) => {
   const [wanted, setWanted] = useState(false)
-  const [explaining, setExplaining] = useState(false)
 
   return (
-    <Menu.Sub open={wanted && !explaining} onOpenChange={setWanted}>
-      {/* Opened on the first pointer that touches the row, rather than on
-          Radix's hundred-millisecond hesitation: this is a settled menu of
-          knobs, not a navigation bar where a passing cursor should be ignored,
-          and the hesitation reads as the menu being slow. */}
-      <Menu.SubTrigger className={ITEM} onPointerMove={() => setWanted(true)}>
-        <span className="flex-1">{knob.label}</span>
-        <span className="text-ink-muted">
+    <Menu.Sub open={wanted} onOpenChange={setWanted}>
+      {/* Opened on the pointer arriving rather than on Radix's
+          hundred-millisecond hesitation: this is a settled menu of knobs, not a
+          navigation bar where a passing cursor should be ignored, and the
+          hesitation reads as the menu being slow.
+
+          On arriving, once, and not on every move across the row: a pointer
+          crossing a row sends a move event a frame, and each one asked React
+          for a render it then threw away. */}
+      <Menu.SubTrigger className={ITEM} onPointerEnter={() => setWanted(true)}>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span>{knob.label}</span>
+          <span className="text-[11px] leading-tight text-ink-muted">{knob.gist}</span>
+        </span>
+        <span className="shrink-0 text-ink-muted">
           {knob.choices.find((choice) => choice.value === chosen)?.label}
         </span>
-        <Explains knob={knob} chosen={chosen} open={explaining} onOpenChange={setExplaining} />
       </Menu.SubTrigger>
       <Menu.Portal container={inOurs()}>
         {/* No `t-dropdown`: the choices follow the pointer down a menu that is
@@ -144,8 +100,21 @@ const Row = ({
             surface mounted while it has an animation to wait for. */}
         <Menu.SubContent
           sideOffset={4}
-          className="z-50 min-w-40 rounded-md border border-line bg-raised p-1 shadow-pop"
+          className={`${PANEL} min-w-40`}
         >
+          {knob.slide ? (
+            /* Not a menu item: a handle is dragged, and Radix treats a press on
+               an item as the choice being made and shuts the menu under it. The
+               stopped press is what keeps the drag from closing the menu on its
+               way down. */
+            <div
+              className="flex items-center gap-2 px-2 py-1.5"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <Slide knob={knob} held={chosen ?? knob.fallback} onPick={onPick} />
+            </div>
+          ) : (
           <Menu.RadioGroup value={chosen} onValueChange={(value) => onPick(knob.key, value)}>
             {knob.choices.map((choice) => (
               <Menu.RadioItem key={choice.value} value={choice.value} className={ITEM}>
@@ -158,6 +127,7 @@ const Row = ({
               </Menu.RadioItem>
             ))}
           </Menu.RadioGroup>
+          )}
         </Menu.SubContent>
       </Menu.Portal>
     </Menu.Sub>
@@ -238,77 +208,72 @@ export const SettingsMenu = ({
   const pickTree = (key: string, value: string) =>
     onChange({ ...settings, tree: { ...settings.tree, [key]: value } })
 
-  // No wait before an explanation appears and none before it goes: both are the
-  // same pointer movement, and a delay on either turns reading two of these
-  // into a wait.
   return (
-    <Bubble.Provider delayDuration={0} skipDelayDuration={0} disableHoverableContent>
-      <Menu.Root>
-        <Menu.Trigger
-          aria-label={label}
-          className="flex shrink-0 items-center rounded-md px-1.5 py-1 text-ink-muted hover:bg-hover hover:text-ink"
+    <Menu.Root>
+      <Menu.Trigger
+        aria-label={label}
+        className="flex shrink-0 items-center rounded-md px-1.5 py-1 text-ink-muted hover:bg-hover hover:text-ink"
+      >
+        <More size={16} />
+      </Menu.Trigger>
+      <Menu.Portal container={inOurs()}>
+        <Menu.Content
+          align="end"
+          sideOffset={4}
+          className={`t-dropdown ${PANEL} min-w-72`}
         >
-          <More size={16} />
-        </Menu.Trigger>
-        <Menu.Portal container={inOurs()}>
-          <Menu.Content
-            align="end"
-            sideOffset={4}
-            className="t-dropdown z-50 min-w-56 rounded-md border border-line bg-raised p-1 text-xs shadow-pop"
-          >
-            {/* First, and whole: three knobs, none of them advanced, and the
-                one section here that is about the product rather than about
-                this screen. */}
-            <Section name="Appearance">
-              <Group knobs={THEME_KNOBS} chosen={settings.theme} onPick={pickTheme} />
-            </Section>
-            <Section name="Diff">
-              <Group
-                knobs={DIFF_KNOBS.filter((knob) => !knob.advanced)}
-                chosen={settings.diff}
-                onPick={pickDiff}
-              />
-            </Section>
-            <Section name="Files">
-              <Group
-                knobs={TREE_KNOBS.filter((knob) => !knob.advanced)}
-                chosen={settings.tree}
-                onPick={pickTree}
-              />
-            </Section>
-            <Menu.Separator className="my-1 h-px bg-line" />
-            <Menu.Sub>
-              <Menu.SubTrigger className={ITEM}>
-                <span className="flex-1">Advanced</span>
-                <span className="text-ink-muted">›</span>
-              </Menu.SubTrigger>
-              <Menu.Portal container={inOurs()}>
-                {/* Unanimated like the rows' own submenus, and for the same
-                    reason. */}
-                <Menu.SubContent
-                  sideOffset={4}
-                  className="z-50 min-w-56 rounded-md border border-line bg-raised p-1 text-xs shadow-pop"
-                >
-                  <Section name="Diff">
-                    <Group
-                      knobs={DIFF_KNOBS.filter((knob) => knob.advanced)}
-                      chosen={settings.diff}
-                      onPick={pickDiff}
-                    />
-                  </Section>
-                  <Section name="Files">
-                    <Group
-                      knobs={TREE_KNOBS.filter((knob) => knob.advanced)}
-                      chosen={settings.tree}
-                      onPick={pickTree}
-                    />
-                  </Section>
-                </Menu.SubContent>
-              </Menu.Portal>
-            </Menu.Sub>
-          </Menu.Content>
-        </Menu.Portal>
-      </Menu.Root>
-    </Bubble.Provider>
+          {/* First, and whole: three knobs, none of them advanced, and the
+              one section here that is about the product rather than about
+              this screen. */}
+          <Section name="Appearance">
+            <Group knobs={THEME_KNOBS} chosen={settings.theme} onPick={pickTheme} />
+          </Section>
+          <Section name="Diff">
+            <Group
+              knobs={DIFF_KNOBS.filter((knob) => !knob.advanced)}
+              chosen={settings.diff}
+              onPick={pickDiff}
+            />
+          </Section>
+          <Section name="Files">
+            <Group
+              knobs={TREE_KNOBS.filter((knob) => !knob.advanced)}
+              chosen={settings.tree}
+              onPick={pickTree}
+            />
+          </Section>
+          <Menu.Separator className="my-1 h-px bg-line" />
+          <Menu.Sub>
+            <Menu.SubTrigger className={ITEM}>
+              <span className="flex-1">Advanced</span>
+              <span className="text-ink-muted">›</span>
+            </Menu.SubTrigger>
+            <Menu.Portal container={inOurs()}>
+              {/* Unanimated like the rows' own submenus, and for the same
+                  reason. */}
+              <Menu.SubContent
+                sideOffset={4}
+                className={`${PANEL} min-w-72`}
+              >
+                <Section name="Diff">
+                  <Group
+                    knobs={DIFF_KNOBS.filter((knob) => knob.advanced)}
+                    chosen={settings.diff}
+                    onPick={pickDiff}
+                  />
+                </Section>
+                <Section name="Files">
+                  <Group
+                    knobs={TREE_KNOBS.filter((knob) => knob.advanced)}
+                    chosen={settings.tree}
+                    onPick={pickTree}
+                  />
+                </Section>
+              </Menu.SubContent>
+            </Menu.Portal>
+          </Menu.Sub>
+        </Menu.Content>
+      </Menu.Portal>
+    </Menu.Root>
   )
 }
