@@ -243,6 +243,11 @@ describe("standing a screen on the page", () => {
     await drawn("#region", "live first screen")
 
     expect(document.getElementById("gitquiet-root")?.textContent).toContain("live first screen")
+    // Waited for rather than asserted at once: the resumed tree draws its region
+    // first and its bar a beat later — `whenAnotherBarStands` holds the portal
+    // until the one being replaced has gone — and on a loaded machine the beat
+    // is long enough to catch the slot empty.
+    await until(() => document.querySelectorAll(`#${BAR_ID} > header`).length === 1)
     expect(document.querySelectorAll(`#${BAR_ID} > header`)).toHaveLength(1)
     second.close()
     first.close()
