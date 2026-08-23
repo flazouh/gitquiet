@@ -392,14 +392,6 @@ export const TheBar = ({
           inside={props.where.kind === "repository" ? props.where : undefined}
           owed={owed}
           onShut={() => setFinding(false)}
-          /*
-           * A whole load rather than a soft navigation. Their own router is what this
-           * extension navigates around rather than through, and a palette that pushed an
-           * address into it would be trusting the thing that breaks the back button.
-           */
-          onGo={(where) => {
-            window.location.assign(where);
-          }}
         />
       ) : null}
     </>,

@@ -32,13 +32,28 @@ const recallRepositories = () => rememberedRepositories().pipe(throughGitHub)
 
 const addressOf = (home: RepoHome): string => `${home.repo.owner}/${home.repo.repo}`
 
-/** Whether two addresses are the same tree, and differ only in what is open in it. */
-const sameTree = (one: RepoHome, two: RepoHome): boolean =>
-  one.repo.owner === two.repo.owner &&
-  one.repo.repo === two.repo.repo &&
-  // The front page names no branch and `/tree/main` names the one it was
-  // already on, so arriving at one from the other is not a new tree.
-  (one.branch ?? two.branch) === (two.branch ?? one.branch)
+/**
+ * Whether two addresses are the same tree, and differ only in what is open in it.
+ *
+ * A bare address means the default branch, so it can only be called the same
+ * tree as a named one when the default is known and is that name. It used to be
+ * read as "whatever branch is standing", which was true while the only way to
+ * stand on a branch was to load its document — and stopped being true when the
+ * picker learnt to switch in place: back from `/tree/next` to the front page
+ * matched, and the reader was shown `next` under an address that means `main`.
+ */
+const sameTree = (
+  one: RepoHome,
+  two: RepoHome,
+  defaultBranch: string | undefined
+): boolean => {
+  if (one.repo.owner !== two.repo.owner || one.repo.repo !== two.repo.repo) return false
+  if (one.branch === two.branch) return true
+
+  const first = one.branch ?? defaultBranch
+  const second = two.branch ?? defaultBranch
+  return first !== undefined && first === second
+}
 
 /**
  * The page as the reader last saw it, kept for as long as this document lives.
@@ -67,7 +82,20 @@ type Open = {
   readonly retarget: (reading: string | null, branch: string | null) => void
 }
 
-const open = (home: RepoHome, onMove: (path: string) => void): Open => {
+const open = (
+  home: RepoHome,
+  /**
+   * A push this screen made, told with what the pushed address means, so the
+   * caller can answer it if the address is ever walked back into: the address
+   * alone cannot be read back — a slashed branch makes `/blob/a/b/c` ambiguous
+   * — and GitHub's document, the other way of settling it, is exactly what
+   * these pushes avoid loading.
+   */
+  onMove: (path: string, meaning: RepoHome) => void,
+  onBranch?: (branch: string) => void,
+  /** The branch GitHub resolved for this tree, once the read says. */
+  onResolved?: (branch: string) => void
+): Open => {
   /*
    * The payload GitHub already put in this document, where it put one.
    *
@@ -100,6 +128,7 @@ const open = (home: RepoHome, onMove: (path: string) => void): Open => {
         Effect.sync(() => {
           asLastSeen = { address: addressOf(home), branch: home.branch, front }
           branchNow = front.branch
+          onResolved?.(front.branch)
         })
       ),
       Effect.tapError((error) => Effect.sync(() => reportError(error)))
@@ -187,14 +216,29 @@ const open = (home: RepoHome, onMove: (path: string) => void): Open => {
    * navigation for it is the round trip this page exists to avoid.
    */
   const goTo = (reading: string | null): void => {
-    const at = reading === null
+    /*
+     * Closing a file returns to the tree it was open in, which is the bare
+     * address only while the tree is the default branch's. On a chosen branch
+     * the bare address means a different tree, so the way back is `/tree/…`.
+     */
+    const root = home.branch === null
       ? `/${home.repo.owner}/${home.repo.repo}`
+      : `/${home.repo.owner}/${home.repo.repo}/tree/${home.branch
+          .split("/")
+          .map(encodeURIComponent)
+          .join("/")}`
+    const at = reading === null
+      ? root
       : `/${home.repo.owner}/${home.repo.repo}/blob/${branchNow}/${reading
           .split("/")
           .map(encodeURIComponent)
           .join("/")}`
     if (window.location.pathname === at) return
-    onMove(at)
+    onMove(at, {
+      repo: home.repo,
+      branch: reading === null ? home.branch : branchNow,
+      reading
+    })
     window.history.pushState(null, "", at)
     show(reading, branchNow)
   }
@@ -223,6 +267,7 @@ const open = (home: RepoHome, onMove: (path: string) => void): Open => {
         reading={showing}
         readingBranch={showingBranch}
         onRead={goTo}
+        onBranch={onBranch}
       />
     )
   })
@@ -261,6 +306,21 @@ export const start = (): void => {
   let handledPath: string | undefined
   let waiting: MutationObserver | undefined
   let waitingFor: string | undefined
+  /**
+   * The branch the bare address resolves to, learnt from the first read of a
+   * front page. `sameTree` needs it to say whether `/tree/main` and the front
+   * page are one tree, now that the tree on the screen is not always the
+   * document's.
+   */
+  let defaultBranch: string | undefined
+  /**
+   * What each address this screen pushed means, kept so the back and forward
+   * buttons can walk into one. A pushed `/tree/…` or `/blob/…` never has
+   * GitHub's document behind it, and the address alone cannot be read back —
+   * a slashed branch makes it ambiguous — so re-entering one used to strand
+   * the reader on whatever page was underneath.
+   */
+  const pushed = new Map<string, RepoHome>()
 
   const stopWaiting = (): void => {
     waiting?.disconnect()
@@ -287,11 +347,27 @@ export const start = (): void => {
     waiting.observe(document.documentElement, { childList: true, subtree: true, characterData: true })
   }
 
+  /** One record for every push this screen makes, and the mark that skips answering it. */
+  const moved = (path: string, meaning: RepoHome): void => {
+    handledPath = path
+    pushed.set(path, meaning)
+  }
+
   const show = (url: string): void => {
     const address = repoHomeIn(url)
-    const home = repoHomeInDocument(url, document)
+    const inDocument = repoHomeInDocument(url, document)
 
-    if (Option.isNone(home)) {
+    /*
+     * The document's own word first, then this screen's memory of its own
+     * pushes. An address walked back into by the history buttons was pushed by
+     * this screen, so no document ever loaded for it — the memory is the only
+     * thing on the page that can say what it means.
+     */
+    const home = Option.isSome(inDocument)
+      ? inDocument.value
+      : pushed.get(URL.parse(url)?.pathname ?? "")
+
+    if (home === undefined) {
       up?.close()
       up = undefined
       on = undefined
@@ -309,9 +385,9 @@ export const start = (): void => {
      * see `Open`. Anything else — another repository, another branch — is a
      * different page and is built again.
      */
-    if (up !== undefined && on !== undefined && sameTree(on, home.value)) {
-      on = home.value
-      up.retarget(home.value.reading, home.value.branch)
+    if (up !== undefined && on !== undefined && sameTree(on, home, defaultBranch)) {
+      on = home
+      up.retarget(home.reading, home.branch)
       return
     }
 
@@ -325,10 +401,60 @@ export const start = (): void => {
       return
     }
 
-    up = open(home.value, (path) => {
-      handledPath = path
-    })
-    on = home.value
+    const repo = home.repo
+    up = open(
+      home,
+      moved,
+      (name) => toBranch(repo, name),
+      (branch) => {
+        if (home.branch === null) defaultBranch = branch
+      }
+    )
+    on = home
+  }
+
+  /**
+   * Another branch of the same tree, chosen in the picker, which is a rebuild in
+   * place rather than a page: pushed and redrawn exactly as a file opening is,
+   * because a whole document load for a page this screen draws itself is the
+   * cost the picker used to pay.
+   *
+   * Told the name rather than left to read it back off the address, because the
+   * address cannot say it: a branch may carry a slash, and `show` above rightly
+   * refuses to guess at `/tree/feat/one` without GitHub's document to settle it.
+   * Here there is nothing to guess — the reader pressed the name.
+   *
+   * Told the repository as well, rather than reading `on`, and tolerant of the
+   * address already being right — both for the same reason: the shell hears the
+   * press too, from the top of the document, and may have pushed this address
+   * and had `show` above stand the screen down before this runs. Whatever
+   * happened first, what the press means is the same: this address, this
+   * branch, one rebuild.
+   */
+  const toBranch = (
+    repo: { readonly owner: string; readonly repo: string },
+    name: string
+  ): void => {
+    const at = `/${repo.owner}/${repo.repo}/tree/${name
+      .split("/")
+      .map(encodeURIComponent)
+      .join("/")}`
+
+    if (on !== undefined && on.branch === name && window.location.pathname === at) return
+
+    const home = { repo, branch: name, reading: null }
+    // Marked handled and remembered before the push, so the change this makes
+    // is not answered a second time by the watcher below, and walking back into
+    // the address later finds what it meant.
+    moved(at, home)
+    if (window.location.pathname !== at) window.history.pushState(null, "", at)
+    // A `show` that ran first left an observer waiting for a document that is
+    // now never coming; the rebuild below is its answer.
+    stopWaiting()
+
+    up?.close()
+    up = open(home, moved, (chosen) => toBranch(repo, chosen))
+    on = home
   }
 
   whenLocationChanges(window, (path) => {

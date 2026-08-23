@@ -93,6 +93,32 @@ describe("the branch a page of commits is of", () => {
     expect(went).toEqual(["/flazouh/githubpro/commits/next"])
   })
 
+  test("hands the name over beside the path, for the screen that needs it exact", async () => {
+    // A branch with a slash in its name cannot be read back out of the address —
+    // `/tree/feat/one` is either branch `feat` at `one` or branch `feat/one` — so
+    // the screen that rebuilds for a branch is told the name rather than left to parse.
+    const names: Array<string> = []
+    render(
+      <Branches
+        at={(name) => atBranch(list, name)}
+        on="main"
+        onGo={(_, name) => names.push(name)}
+        load={(partly) =>
+          Effect.sync(() => {
+            partly(["main", "feat/one"])
+            return ["main", "feat/one"]
+          })
+        }
+      />
+    )
+    const who = userEvent.setup()
+    await who.click(screen.getByRole("button", { name: /branch/i }))
+
+    await who.click(screen.getByRole("menuitem", { name: "feat/one" }))
+
+    expect(names).toEqual(["feat/one"])
+  })
+
   test("marks the branch the page is already on", async () => {
     showing()
     await opened()

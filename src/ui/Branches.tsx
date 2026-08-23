@@ -48,8 +48,14 @@ export const Branches = ({
    * browser's: GitHub navigates within a repository without loading a page, so
    * a plain link changes the address and leaves this list showing the branch it
    * was already on.
+   *
+   * The name rides beside the path because the path cannot always give it back:
+   * a branch may carry a slash, and `/tree/feat/one` read off the address is
+   * either branch `feat` at `one` or branch `feat/one`. A screen that rebuilds
+   * for the branch takes the second argument; one that only follows the path
+   * ignores it.
    */
-  readonly onGo: (path: string) => void
+  readonly onGo: (path: string, branch: string) => void
   /** How the control is dressed, where the row it stands in has its own idea. */
   readonly dress?: string
 }) => {
@@ -84,7 +90,7 @@ export const Branches = ({
 
   const rows: ReadonlyArray<Row> = names.map((name) => {
     const where = at(name)
-    return { name, where, press: () => onGo(where), chosen: name === on }
+    return { name, where, press: () => onGo(where, name), chosen: name === on }
   })
 
   return (

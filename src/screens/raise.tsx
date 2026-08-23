@@ -9,6 +9,7 @@ import type { View } from "@/domain/Settings"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
+import { goTo } from "@/ui/going"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { RAISE } from "@/ui/place"
@@ -35,12 +36,14 @@ const open = (reference: RepoRef, seed: Raising): (() => void) => {
   /**
    * Where the issue GitHub just made is, which is where the reader goes next.
    *
-   * A whole page load, deliberately. The issue that now exists has a page of its
-   * own with its own screen, and drawing a made-up version of it here to save the
-   * load would be this screen guessing at the parts it never asked GitHub for.
+   * Pushed rather than loaded. The issue that now exists has a page of its own
+   * with its own screen, and that screen reads GitHub's API rather than this
+   * document — so nothing about it needs a load. The shell hears the address
+   * move and opens it, and `goTo` keeps the honest fallback: a screen that
+   * never arrives becomes the load this used to always be.
    */
   const goToIssue = (raised: Raised): void => {
-    window.location.assign(`/${raised.owner}/${raised.repo}/issues/${raised.number}`)
+    goTo(window, `/${raised.owner}/${raised.repo}/issues/${raised.number}`)
   }
 
   return standAScreen({

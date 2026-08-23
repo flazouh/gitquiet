@@ -16,24 +16,24 @@ import { Face } from "./Face";
  * owed, out of the cache: no request, no spinner, no debounce, so the answers move with the
  * keystrokes.
  *
- * A combobox rather than a list of links, because the whole point is that a reader never
- * touches the pointer: it opens on ⌘K with the caret in it, stands on the first answer so
- * Enter is enough, and the arrows walk without wrapping — wrapping in a list this short is how
- * somebody ends up opening the wrong repository.
+ * A combobox over a list of links. The keyboard is still the whole point — it opens on ⌘K
+ * with the caret in it, stands on the first answer so Enter is enough, and the arrows walk
+ * without wrapping — but each answer is a real anchor, and Enter presses the standing one.
+ * The press then leaves this control entirely: the shell answers every link of ours from the
+ * top of the document, so a page with a screen swaps in place, and only a page without one
+ * costs a load. It was a callback that assigned the address, which made every answer in this
+ * list the one control in the interface that always paid for a whole document.
  */
 export const Palette = ({
   repositories,
   owed,
   inside,
-  onGo,
   onShut,
 }: {
   readonly repositories: ReadonlyArray<Repository>;
   readonly owed: ReadonlyArray<Owed>;
   /** The repository being read, where there is one, so a bare number is a pull request in it. */
   readonly inside?: { readonly owner: string; readonly repo: string };
-  /** Where a press goes. The screen decides whether that is an address or a soft navigation. */
-  readonly onGo: (where: string) => void;
   readonly onShut: () => void;
 }) => {
   const art = useArt();
@@ -41,6 +41,7 @@ export const Palette = ({
   const [typed, setTyped] = useState("");
   const [at, setAt] = useState(0);
   const box = useRef<HTMLInputElement>(null);
+  const list = useRef<HTMLUListElement>(null);
 
   const found = useMemo(
     () => finding(typed, { repositories, owed, inside }),
@@ -72,8 +73,15 @@ export const Palette = ({
     }
     if (event.key === "Enter") {
       event.preventDefault();
-      const standing = found[at];
-      if (standing !== undefined) onGo(standing.where);
+      /*
+       * A press of the standing answer's own link, rather than a callback beside it.
+       * The click leaves the anchor and bubbles to the document, which is where every
+       * link of ours is answered — so the keyboard and the pointer go through the one
+       * door, and neither can go somewhere the other cannot.
+       */
+      list.current
+        ?.querySelector<HTMLAnchorElement>('a[aria-selected="true"]')
+        ?.click();
     }
   };
 
@@ -129,6 +137,7 @@ export const Palette = ({
           </p>
         ) : (
           <ul
+            ref={list}
             id="gitquiet-found"
             role="listbox"
             /*
@@ -144,7 +153,7 @@ export const Palette = ({
                 one={one}
                 standing={which === at}
                 onPoint={() => setAt(which)}
-                onGo={() => onGo(one.where)}
+                onShut={onShut}
               />
             ))}
           </ul>
@@ -158,12 +167,12 @@ const Answer = ({
   one,
   standing,
   onPoint,
-  onGo,
+  onShut,
 }: {
   readonly one: Found;
   readonly standing: boolean;
   readonly onPoint: () => void;
-  readonly onGo: () => void;
+  readonly onShut: () => void;
 }) => {
   const art = useArt();
   const Mark = art[one.kind === "repository" ? "repositories" : one.kind];
@@ -180,27 +189,34 @@ const Answer = ({
   }, [standing]);
 
   return (
-    <li
-      ref={row}
-      role="option"
-      aria-selected={standing}
-      onPointerMove={onPoint}
-      onClick={onGo}
-      className={`flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm ${
-        standing ? "bg-active text-ink" : "text-ink-muted"
-      }`}
-    >
-      {one.faceUrl === undefined ? (
-        <Mark size={14} className="shrink-0 text-ink-muted" />
-      ) : (
-        <Face faceUrl={one.faceUrl} name={one.name} />
-      )}
-      <span className="min-w-0 flex-1 truncate">{one.name}</span>
-      {one.detail === undefined ? null : (
-        <span className="shrink-0 font-mono text-xs text-ink-muted">
-          {one.detail}
-        </span>
-      )}
+    <li ref={row} role="none" onPointerMove={onPoint}>
+      {/*
+       * A link, and nothing here follows it: the click bubbles to the document, where the
+       * shell answers every address it has a screen for and leaves the rest to the browser.
+       * Which also makes the row a row — a middle press opens it beside this page, and a
+       * copied address is the address it says. The veil shuts behind the press either way.
+       */}
+      <a
+        role="option"
+        aria-selected={standing}
+        href={one.where}
+        onClick={onShut}
+        className={`flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm no-underline ${
+          standing ? "bg-active text-ink" : "text-ink-muted"
+        }`}
+      >
+        {one.faceUrl === undefined ? (
+          <Mark size={14} className="shrink-0 text-ink-muted" />
+        ) : (
+          <Face faceUrl={one.faceUrl} name={one.name} />
+        )}
+        <span className="min-w-0 flex-1 truncate">{one.name}</span>
+        {one.detail === undefined ? null : (
+          <span className="shrink-0 font-mono text-xs text-ink-muted">
+            {one.detail}
+          </span>
+        )}
+      </a>
     </li>
   );
 };
