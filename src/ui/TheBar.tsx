@@ -1,10 +1,11 @@
 import { Effect, Option } from "effect";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Owed } from "../domain/finding";
 import { showsWorkingSet } from "../domain/pages";
 import { fromPathname } from "../domain/PullRequestRef";
 import type { Repository } from "../domain/repositories";
+import { tokensOf } from "../domain/theme";
 import { keepTabs, keptTabs } from "../github/repoTabs";
 import { type ArtName } from "./art";
 import { Bar, type BarProps } from "./Bar";
@@ -15,7 +16,8 @@ import { keepRepositories, keptRepositories } from "./keptRepositories";
 import { Palette } from "./Palette";
 import { keepRefraction } from "./refraction";
 import { SettingsDialog } from "./SettingsDialog";
-import { Theme } from "./Theme";
+import { paintTokens } from "./applyTheme";
+import { usePaintedTheme } from "./Theme";
 import { useOursToDraw } from "./useOursToDraw";
 import { whenTheScreenMoves } from "./mount";
 import { useSettings } from "./useSettings";
@@ -372,17 +374,9 @@ export const TheBar = ({
    */
   if (!drawing) return null;
 
-  /*
-   * Painted here as well as on the screen's own root.
-   *
-   * The tokens are inline custom properties on `#gitquiet-root`, and this slot is deliberately
-   * not inside it — a bar has to stand above a page, not within the region of it we replaced.
-   * Nothing inherits across that gap, so without this the strip resolves the light defaults out
-   * of the stylesheet and paints white with near-black text over a dark page. The palette goes
-   * inside the slot for the same reason: one painted element, everything of ours under it.
-   */
   return createPortal(
-    <Theme element={slot}>
+    <>
+      <PaintedSlot slot={slot} />
       <Bar
         {...props}
         participant={reader}
@@ -447,9 +441,34 @@ export const TheBar = ({
           }}
         />
       ) : null}
-    </Theme>,
+    </>,
     slot,
   );
+};
+
+/**
+ * The slot, wearing what the page's one Theme resolved.
+ *
+ * The tokens are inline custom properties on `#gitquiet-root`, and the slot is
+ * deliberately not inside it — a bar has to stand above a page, not within the
+ * region of it we replaced. Nothing inherits across that gap, so unpainted it
+ * resolves the stylesheet's light defaults and reads white over a dark page.
+ *
+ * It used to carry a Theme of its own here, which was a second resolver: with
+ * the pack on "match" it answered `gitquiet` where the screen's answered
+ * `github`, and both wrote their answer into the early-paint keys — so the pack
+ * the next page's first frame wore depended on whose store read landed last,
+ * and the theme changed between the pages. A surface takes the resolution from
+ * above and remembers nothing.
+ */
+const PaintedSlot = ({ slot }: { readonly slot: HTMLElement }) => {
+  const painted = usePaintedTheme();
+
+  useLayoutEffect(() => {
+    paintTokens(slot, tokensOf(painted.pack, painted.scheme), painted.scheme);
+  }, [slot, painted]);
+
+  return null;
 };
 
 /**
