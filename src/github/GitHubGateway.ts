@@ -3933,16 +3933,45 @@ export const layer = Layer.succeed(GitHubGateway, {
       head: string,
       paths: ReadonlyArray<string>
     ) {
-      const route = diffEntriesRoute(head, paths)
-      const raw = yield* fetchRoute(reference, route)
+      const askFor = (wanted: ReadonlyArray<string>) =>
+        Effect.gen(function* () {
+          const route = diffEntriesRoute(head, wanted)
+          const raw = yield* fetchRoute(reference, route)
 
-      return yield* toDiffs(raw).pipe(
-        Effect.catch((cause) =>
-          Effect.fail(
-            new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
+          return yield* toDiffs(raw).pipe(
+            Effect.catch((cause) =>
+              Effect.fail(
+                new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) })
+              )
+            )
           )
+        })
+
+      const answered = yield* askFor(paths)
+      if (paths.length < 2) return answered
+
+      /*
+       * A batched answer is budgeted by bytes, and a file too big for what is
+       * left of the budget comes back marked too big with no lines — while the
+       * same file, asked for by itself, answers whole. Their own Files tab
+       * re-asks exactly this way. Believing the starved answer wrote "binary,
+       * or too large" over an 805-line Go file on a real pull request, and the
+       * library remembers answers for good, so it stayed written. One more
+       * question per starved file settles which of the two it is; a file that
+       * is too big even alone comes back the same and keeps its message.
+       */
+      const starved = answered.filter((one) => one.diff.isTruncated && one.diff.lines.length === 0)
+      if (starved.length === 0) return answered
+
+      const whole = new Map<string, FetchedDiff>()
+      for (const one of starved) {
+        const alone = yield* askFor([one.path]).pipe(
+          Effect.catch(() => Effect.succeed<ReadonlyArray<FetchedDiff>>([]))
         )
-      )
+        for (const again of alone) whole.set(again.path, again)
+      }
+
+      return answered.map((one) => whole.get(one.path) ?? one)
     })
 })
 
