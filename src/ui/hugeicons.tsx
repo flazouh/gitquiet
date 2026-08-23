@@ -22,7 +22,6 @@ import {
   ExternalLinkIcon,
   File01Icon,
   Folder01Icon,
-  InformationCircleIcon,
   LeftToRightListBulletIcon,
   LockIcon,
   PaintBrush01Icon,
@@ -242,7 +241,6 @@ export const HUGEICONS: Set = {
   appearance: from(PaintBrush01Icon),
   files: from(Folder01Icon),
   diff: from(SlidersHorizontalIcon),
-  info: from(InformationCircleIcon),
   // A crossed circle where a failing check is a triangle, for the same reason the
   // check pair are different shapes: colour is not the only thing telling them apart.
   error: from(CancelCircleIcon),
