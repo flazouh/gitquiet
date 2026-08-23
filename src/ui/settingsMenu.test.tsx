@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { DEFAULTS } from "../domain/Settings"
+import { DEFAULTS, type Settings } from "../domain/Settings"
 import { ROOT_ID } from "./mount"
 import { SettingsMenu } from "./SettingsMenu"
 
 afterEach(cleanup)
 
 /**
- * Everything this menu opens has to open inside our own root.
+ * Everything this button opens has to open inside our own root.
  *
  * The colours are inline custom properties on `#gitquiet-root` and not on
  * `<html>`, because the rest of the document is GitHub's page and our names on
@@ -17,7 +17,7 @@ afterEach(cleanup)
  * pack — white panel, near-black text, on a dark page. `outside.ts` was written
  * for that failure, having been paid for once by the bar.
  */
-describe("the menu is drawn where the colours are", () => {
+describe("the panel of knobs", () => {
   const ourRoot = (): HTMLElement => {
     const root = document.createElement("div")
     root.id = ROOT_ID
@@ -29,69 +29,90 @@ describe("the menu is drawn where the colours are", () => {
     for (const stray of document.querySelectorAll(`#${ROOT_ID}`)) stray.remove()
   })
 
-  const open = async (root: HTMLElement) => {
-    render(<SettingsMenu settings={DEFAULTS} onChange={() => {}} />, { container: root })
+  const opened = async (
+    root: HTMLElement,
+    onChange: (settings: Settings) => void = () => {}
+  ) => {
+    render(<SettingsMenu settings={DEFAULTS} onChange={onChange} />, { container: root })
     await userEvent.click(screen.getByLabelText("Display settings"))
+    return await screen.findByRole("dialog", { name: "Display settings" })
   }
 
-  test("the menu itself", async () => {
+  test("is drawn where the colours are", async () => {
     const root = ourRoot()
 
-    await open(root)
+    const panel = await opened(root)
 
-    expect(root.contains(screen.getByRole("menu"))).toBe(true)
-  })
-
-  test("a knob's choices, which are a portal of their own", async () => {
-    const root = ourRoot()
-    await open(root)
-
-    await userEvent.hover(screen.getByRole("menuitem", { name: /Layout/ }))
-
-    // By part of the label: the chosen one wears a tick, which is in its name.
-    const choices = await screen.findByRole("menuitemradio", { name: /Side by side/ })
-    expect(root.contains(choices)).toBe(true)
-  })
-
-  test("a size knob's handle, which is dragged rather than picked from a list", async () => {
-    const root = ourRoot()
-    let written: typeof DEFAULTS | undefined
-    render(
-      <SettingsMenu
-        settings={DEFAULTS}
-        onChange={(settings) => {
-          written = settings
-        }}
-      />,
-      { container: root }
-    )
-    await userEvent.click(screen.getByLabelText("Display settings"))
-
-    await userEvent.hover(screen.getByRole("menuitem", { name: /Folder indent/ }))
-    const handle = (await screen.findByRole("slider", {
-      name: "Folder indent"
-    })) as HTMLInputElement
-
-    expect(root.contains(handle)).toBe(true)
-    fireEvent.change(handle, { target: { value: "8" } })
-
-    expect(written?.tree.indent).toBe("16")
+    expect(root.contains(panel)).toBe(true)
   })
 
   /**
-   * Said on the row, not behind an icon a reader has to find and hover.
+   * Every knob on the one surface, and its value on the row with it.
    *
-   * Every knob here is a trade, and a two-word label can only name it. The gist
-   * is the one line that says which way each choice goes; the whole note and
-   * the mockups are in the settings sheet, where there is room for them.
+   * Each of these used to be a submenu, so reading what the diff was set to
+   * meant hovering eight rows one after another and reading eight panels.
    */
-  test("a knob says on its own row what it is for", async () => {
+  test("holds every knob, with its control on the row", async () => {
     const root = ourRoot()
-    await open(root)
+    await opened(root)
 
-    const row = screen.getByRole("menuitem", { name: /Layout/ })
+    const layout = screen.getByRole("combobox", { name: "Layout" }) as HTMLSelectElement
+    const numbers = screen.getByRole("switch", { name: "Line numbers" })
+    const indent = screen.getByRole("slider", { name: "Folder indent" }) as HTMLInputElement
 
-    expect(row.textContent).toContain("One column, or two side by side")
-    expect(screen.queryByRole("tooltip")).toBeNull()
+    expect(layout.value).toBe("unified")
+    expect(numbers.getAttribute("aria-checked")).toBe("true")
+    // The fourth step of nine, which is the six pixels the tree indents by.
+    expect(indent.value).toBe("3")
+  })
+
+  /** The advanced knobs, which used to be behind one more click. */
+  test("holds the advanced knobs at the end of the same panel", async () => {
+    const root = ourRoot()
+    await opened(root)
+
+    expect(screen.getByRole("combobox", { name: "Change marks" })).toBeDefined()
+    expect(screen.getByRole("switch", { name: "Search box" })).toBeDefined()
+  })
+
+  test("writes the answer picked from a list", async () => {
+    const root = ourRoot()
+    let written: Settings | undefined
+    await opened(root, (settings) => {
+      written = settings
+    })
+
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Layout" }), "split")
+
+    expect(written).toEqual({ ...DEFAULTS, diff: { ...DEFAULTS.diff, layout: "split" } })
+  })
+
+  test("writes the other side of a switch", async () => {
+    const root = ourRoot()
+    let written: Settings | undefined
+    await opened(root, (settings) => {
+      written = settings
+    })
+
+    await userEvent.click(screen.getByRole("switch", { name: "Line numbers" }))
+
+    expect(written).toEqual({
+      ...DEFAULTS,
+      diff: { ...DEFAULTS.diff, lineNumbers: "off" }
+    })
+  })
+
+  test("writes the step a handle lands on", async () => {
+    const root = ourRoot()
+    let written: Settings | undefined
+    await opened(root, (settings) => {
+      written = settings
+    })
+
+    fireEvent.change(screen.getByRole("slider", { name: "Folder indent" }), {
+      target: { value: "8" }
+    })
+
+    expect(written?.tree.indent).toBe("16")
   })
 })

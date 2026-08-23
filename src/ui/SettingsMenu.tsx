@@ -1,18 +1,24 @@
-import * as Menu from "@radix-ui/react-dropdown-menu"
-import { useId, useState, type ReactNode } from "react"
+import * as Panel from "@radix-ui/react-popover"
+import { useId, type ReactNode } from "react"
 import { useArt } from "./art"
-import { DIFF_KNOBS, THEME_KNOBS, TREE_KNOBS, type Knob, type Settings } from "../domain/Settings"
+import {
+  DIFF_KNOBS,
+  THEME_KNOBS,
+  TREE_KNOBS,
+  type Knob,
+  type Settings
+} from "../domain/Settings"
 import { ROOT_ID } from "./mount"
 import { Slide } from "./Slide"
 
 /**
- * Where everything this menu opens is drawn.
+ * Where everything this button opens is drawn.
  *
  * Inside our own root, because the theme is a set of inline custom properties on
  * that element and not on `<html>`: the rest of the document is GitHub's page,
  * and our names on their root would repaint their chrome. A panel portaled to
  * `document.body` instead reads the stylesheet's defaults, which are the light
- * pack — a white menu with near-black text over a dark page. See `outside.ts`,
+ * pack — a white panel with near-black text over a dark page. See `outside.ts`,
  * written after the bar was paid for that once.
  *
  * Asked for on every render rather than held: the root is made by the mount and
@@ -30,107 +36,107 @@ export type SettingsMenuProps = {
    * knobs.
    *
    * A screen with a files band carries two: the sheet in the bar, which is where
-   * the knobs are read about, and this menu above the diff. Two buttons on one
+   * the knobs are read about, and this panel above the diff. Two buttons on one
    * screen answering to the same name is two identical buttons to anybody
    * listening to the page rather than looking at it.
    */
   readonly label?: string
 }
 
-const ITEM =
-  "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs text-ink outline-none data-[highlighted]:bg-hover"
-
-/**
- * Every surface this menu opens: the menu itself and each run of choices.
- *
- * One name for the three of them, the way `ITEM` is one name for every row. The
- * height is the room Radix measured between the trigger and the edge of the
- * window, which a menu needs now that each row is two lines tall: eighteen of
- * them are taller than a laptop's viewport, and a menu that runs off the bottom
- * hides the knobs at the end of it.
- */
-const PANEL =
-  "z-50 max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto rounded-md border border-line bg-raised p-1 text-xs shadow-pop"
-
-/**
- * One knob: its name, what it is for, and what it is set to.
- *
- * The gist is on the row rather than behind an information icon. Every one of
- * these knobs is a trade, and a two-word label can only name it; a bubble said
- * the whole of it, but only to a reader who knew to go looking for a bubble,
- * and it cost a tooltip on every one of twenty-two rows. The whole explanation
- * and the little mockups are in the settings sheet, where there is room to
- * read them.
- */
-const Row = ({
-  knob,
-  chosen,
-  onPick
-}: {
+type Control = {
   readonly knob: Knob<string, string>
   readonly chosen: string | undefined
   readonly onPick: (key: string, value: string) => void
-}) => {
-  const [wanted, setWanted] = useState(false)
+}
+
+/**
+ * A knob's answers as a list to pick from.
+ *
+ * The browser's own control, which means the list of answers is drawn by the
+ * operating system above everything else on the screen. Twenty-seven colour
+ * packs in a panel of our own would be a second scrolling surface hanging off
+ * the first, and near the foot of a window it would open below the edge of it,
+ * where the answers at the end cannot be reached.
+ */
+const Pick = ({ knob, chosen, onPick }: Control) => (
+  <select
+    aria-label={knob.label}
+    value={chosen ?? knob.fallback}
+    onChange={(event) => onPick(knob.key, event.target.value)}
+    className="max-w-40 shrink-0 truncate rounded-md border border-line bg-raised px-1.5 py-0.5 text-xs text-ink"
+  >
+    {knob.choices.map((choice) => (
+      <option key={choice.value} value={choice.value}>
+        {choice.label}
+      </option>
+    ))}
+  </select>
+)
+
+/**
+ * A knob with two answers, as one switch.
+ *
+ * On and off are the only pair drawn this way, and the schema settles which
+ * knobs those are, so nothing here has to read a label to know which side of
+ * the track means what.
+ */
+const Switch = ({ knob, chosen, onPick }: Control) => {
+  const on = (chosen ?? knob.fallback) === "on"
 
   return (
-    <Menu.Sub open={wanted} onOpenChange={setWanted}>
-      {/* Opened on the pointer arriving rather than on Radix's
-          hundred-millisecond hesitation: this is a settled menu of knobs, not a
-          navigation bar where a passing cursor should be ignored, and the
-          hesitation reads as the menu being slow.
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={knob.label}
+      onClick={() => onPick(knob.key, on ? "off" : "on")}
+      className={`flex h-4 w-7 shrink-0 items-center rounded-full p-0.5 transition-colors ${
+        on ? "bg-accent-emphasis" : "bg-line"
+      }`}
+    >
+      <span
+        className={`size-3 rounded-full bg-raised transition-transform ${
+          on ? "translate-x-3" : ""
+        }`}
+      />
+    </button>
+  )
+}
 
-          On arriving, once, and not on every move across the row: a pointer
-          crossing a row sends a move event a frame, and each one asked React
-          for a render it then threw away. */}
-      <Menu.SubTrigger className={ITEM} onPointerEnter={() => setWanted(true)}>
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span>{knob.label}</span>
-          <span className="text-[11px] leading-tight text-ink-muted">{knob.gist}</span>
-        </span>
-        <span className="shrink-0 text-ink-muted">
-          {knob.choices.find((choice) => choice.value === chosen)?.label}
-        </span>
-      </Menu.SubTrigger>
-      <Menu.Portal container={inOurs()}>
-        {/* No `t-dropdown`: the choices follow the pointer down a menu that is
-            already open, and an entrance replayed on every row reads as each
-            submenu being slow. Unanimated they simply are there — and are gone
-            the moment the pointer leaves, since Radix only holds an exiting
-            surface mounted while it has an animation to wait for. */}
-        <Menu.SubContent
-          sideOffset={4}
-          className={`${PANEL} min-w-40`}
-        >
-          {knob.slide ? (
-            /* Not a menu item: a handle is dragged, and Radix treats a press on
-               an item as the choice being made and shuts the menu under it. The
-               stopped press is what keeps the drag from closing the menu on its
-               way down. */
-            <div
-              className="flex items-center gap-2 px-2 py-1.5"
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={(event) => event.stopPropagation()}
-            >
-              <Slide knob={knob} held={chosen ?? knob.fallback} onPick={onPick} />
-            </div>
-          ) : (
-          <Menu.RadioGroup value={chosen} onValueChange={(value) => onPick(knob.key, value)}>
-            {knob.choices.map((choice) => (
-              <Menu.RadioItem key={choice.value} value={choice.value} className={ITEM}>
-                {/* The tick has a column of its own: labels that shift right
-                    when chosen are labels the eye has to find again. */}
-                <span className="w-3 text-ink-muted">
-                  <Menu.ItemIndicator>✓</Menu.ItemIndicator>
-                </span>
-                {choice.label}
-              </Menu.RadioItem>
-            ))}
-          </Menu.RadioGroup>
-          )}
-        </Menu.SubContent>
-      </Menu.Portal>
-    </Menu.Sub>
+/**
+ * A run of sizes as one handle, in the room this panel gives it.
+ *
+ * The handle itself is shared with the settings sheet, which frames it its own
+ * way; a row here is narrow and already spent half of itself on the label.
+ */
+const Handle = ({ knob, chosen, onPick }: Control) => (
+  <span className="flex w-32 shrink-0 items-center gap-2">
+    <Slide knob={knob} held={chosen ?? knob.fallback} onPick={onPick} />
+  </span>
+)
+
+/**
+ * The control each kind of knob is given, by the name the schema calls it.
+ *
+ * A table rather than a run of questions in the row below: what a knob is drawn
+ * as is decided once, where it is declared, and a kind added there is a line
+ * added here rather than another branch in the middle of a component.
+ */
+const CONTROLS: Readonly<Record<Knob<string, string>["shape"], (control: Control) => ReactNode>> = {
+  list: Pick,
+  switch: Switch,
+  slide: Handle
+}
+
+/** One knob: its name, and the one control that changes it. */
+const Row = ({ knob, chosen, onPick }: Control) => {
+  const Drawn = CONTROLS[knob.shape]
+
+  return (
+    <div className="flex items-center gap-3 rounded-md px-2 py-1 text-xs text-ink hover:bg-hover">
+      <span className="min-w-0 flex-1 truncate">{knob.label}</span>
+      <Drawn knob={knob} chosen={chosen} onPick={onPick} />
+    </div>
   )
 }
 
@@ -156,8 +162,8 @@ const Group = ({
  * A group rather than a heading followed by loose rows, and named by that
  * heading, because two of these sections hold a knob whose label is the section
  * name — Appearance holds Appearance — and a bare heading leaves nothing to tell
- * the two apart. Anybody reading the menu by its structure, a screen reader or a
- * test, is told which run a row is in.
+ * the two apart. Anybody reading the panel by its structure, a screen reader or
+ * a test, is told which run a row is in.
  */
 const Section = ({
   name,
@@ -169,15 +175,12 @@ const Section = ({
   const named = useId()
 
   return (
-    <Menu.Group aria-labelledby={named}>
-      <Menu.Label
-        id={named}
-        className="px-2 pt-1.5 pb-1 text-[11px] font-semibold text-ink-muted"
-      >
+    <div role="group" aria-labelledby={named}>
+      <p id={named} className="px-2 pt-1.5 pb-1 text-[11px] font-semibold text-ink-muted">
         {name}
-      </Menu.Label>
+      </p>
       {children}
-    </Menu.Group>
+    </div>
   )
 }
 
@@ -185,14 +188,19 @@ const Section = ({
  * Everything the screens can be told to do, behind one button.
  *
  * Built from the schema rather than written out: a knob added there appears
- * here, in the right section, with its choices and its current value, and there
- * is no second list to forget to update. Each knob is a submenu because the
- * alternative — every choice of every knob in one column — is forty rows deep
- * and unreadable, and because a submenu shows what is currently chosen on the
- * row itself, which is the thing being looked for most of the time.
+ * here, in the right section, with its own control and its current value, and
+ * there is no second list to forget to update.
  *
- * The same three sections the sheet in the bar opens on, in the same order, so
+ * One panel, and every knob in it. Each knob used to be a submenu of its own,
+ * which put a reader two hovers and a portal away from a value they can now see
+ * and change where they found it — and the submenus opened to the side of a
+ * panel that already reached the foot of the window. What is left is a form:
+ * a list to pick from, a switch, or a handle to drag.
+ *
+ * The same sections the sheet in the bar opens on, in the same order, so
  * whichever one a reader learned first tells them where to look in the other.
+ * Advanced knobs are at the end of the same panel rather than behind one more
+ * click, since scrolling to them is cheaper than finding them.
  */
 export const SettingsMenu = ({
   settings,
@@ -209,22 +217,26 @@ export const SettingsMenu = ({
     onChange({ ...settings, tree: { ...settings.tree, [key]: value } })
 
   return (
-    <Menu.Root>
-      <Menu.Trigger
+    <Panel.Root>
+      <Panel.Trigger
         aria-label={label}
         className="flex shrink-0 items-center rounded-md px-1.5 py-1 text-ink-muted hover:bg-hover hover:text-ink"
       >
         <More size={16} />
-      </Menu.Trigger>
-      <Menu.Portal container={inOurs()}>
-        <Menu.Content
+      </Panel.Trigger>
+      <Panel.Portal container={inOurs()}>
+        {/* Never taller than the room between the button and the edge of the
+            window, and scrolled inside that: eighteen rows and their sections
+            are taller than a laptop's viewport, and a panel that runs off the
+            bottom holds the last of the knobs somewhere nothing can reach. The
+            height Radix measured arrives in that custom property. */}
+        <Panel.Content
           align="end"
           sideOffset={4}
-          className={`t-dropdown ${PANEL} min-w-72`}
+          collisionPadding={8}
+          aria-label={label}
+          className="t-dropdown z-50 max-h-[var(--radix-popover-content-available-height)] w-80 overflow-y-auto rounded-md border border-line bg-raised p-1 text-xs shadow-pop"
         >
-          {/* First, and whole: three knobs, none of them advanced, and the
-              one section here that is about the product rather than about
-              this screen. */}
           <Section name="Appearance">
             <Group knobs={THEME_KNOBS} chosen={settings.theme} onPick={pickTheme} />
           </Section>
@@ -242,38 +254,22 @@ export const SettingsMenu = ({
               onPick={pickTree}
             />
           </Section>
-          <Menu.Separator className="my-1 h-px bg-line" />
-          <Menu.Sub>
-            <Menu.SubTrigger className={ITEM}>
-              <span className="flex-1">Advanced</span>
-              <span className="text-ink-muted">›</span>
-            </Menu.SubTrigger>
-            <Menu.Portal container={inOurs()}>
-              {/* Unanimated like the rows' own submenus, and for the same
-                  reason. */}
-              <Menu.SubContent
-                sideOffset={4}
-                className={`${PANEL} min-w-72`}
-              >
-                <Section name="Diff">
-                  <Group
-                    knobs={DIFF_KNOBS.filter((knob) => knob.advanced)}
-                    chosen={settings.diff}
-                    onPick={pickDiff}
-                  />
-                </Section>
-                <Section name="Files">
-                  <Group
-                    knobs={TREE_KNOBS.filter((knob) => knob.advanced)}
-                    chosen={settings.tree}
-                    onPick={pickTree}
-                  />
-                </Section>
-              </Menu.SubContent>
-            </Menu.Portal>
-          </Menu.Sub>
-        </Menu.Content>
-      </Menu.Portal>
-    </Menu.Root>
+          <Section name="Advanced diff">
+            <Group
+              knobs={DIFF_KNOBS.filter((knob) => knob.advanced)}
+              chosen={settings.diff}
+              onPick={pickDiff}
+            />
+          </Section>
+          <Section name="Advanced files">
+            <Group
+              knobs={TREE_KNOBS.filter((knob) => knob.advanced)}
+              chosen={settings.tree}
+              onPick={pickTree}
+            />
+          </Section>
+        </Panel.Content>
+      </Panel.Portal>
+    </Panel.Root>
   )
 }

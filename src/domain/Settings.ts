@@ -32,15 +32,16 @@ export type Knob<K extends string, T extends string> = {
   /** Curated knobs are in the menu; advanced ones are behind one more click. */
   readonly advanced: boolean
   /**
-   * Whether the choices are a run along one dimension, to be drawn as a slider.
+   * Which control a reader is given for the choices.
    *
-   * They are still choices, and everything else here treats them as choices:
-   * what is stored, what is checked against the schema, and what the little
-   * mockups are drawn from. The flag only says that the row of buttons should
-   * be one handle instead, which is what a reader expects of nine sizes and
-   * would be lost among nine words.
+   * They are choices whichever it is, and everything else here treats them as
+   * choices: what is stored, what is checked against the schema, and what the
+   * little mockups are drawn from. This only says what the row holds. A list
+   * of words is a list to pick from; a run of nine pixel sizes is a handle to
+   * drag, which would be lost among nine words; and two answers named On and
+   * Off are a switch, because that is what a reader reaches for.
    */
-  readonly slide: boolean
+  readonly shape: "list" | "switch" | "slide"
   readonly choices: ReadonlyArray<Choice<T>>
   readonly fallback: T
 }
@@ -53,7 +54,7 @@ const knob = <K extends string, T extends string>(
   choices: ReadonlyArray<Choice<T>>,
   fallback: T,
   advanced = false,
-): Knob<K, T> => ({ key, label, gist, note, advanced, slide: false, choices, fallback })
+): Knob<K, T> => ({ key, label, gist, note, advanced, shape: "list", choices, fallback })
 
 /**
  * A knob whose choices are a run of pixel sizes, drawn as a slider.
@@ -78,7 +79,7 @@ const slider = <K extends string>(
   gist,
   note,
   advanced,
-  slide: true,
+  shape: "slide",
   choices: steps.map((px) => ({ value: String(px), label: `${px}px` })),
   fallback: String(fallback),
 })
@@ -87,6 +88,33 @@ const onOff = [
   { value: "on", label: "On" },
   { value: "off", label: "Off" },
 ] as const satisfies ReadonlyArray<Choice<"on" | "off">>
+
+/**
+ * A knob with two answers, drawn as a switch.
+ *
+ * The two answers are always these two, in this order, so that a switch has one
+ * meaning everywhere: to the right is on. A knob whose two answers are Show and
+ * Hide, or Expanded and Collapsed, is a list of two words instead — the reader
+ * has to be told which of the pair a lit switch would mean, and a word says it
+ * where a switch cannot.
+ */
+const toggle = <K extends string>(
+  key: K,
+  label: string,
+  gist: string,
+  note: string,
+  fallback: "on" | "off",
+  advanced = false,
+): Knob<K, "on" | "off"> => ({
+  key,
+  label,
+  gist,
+  note,
+  advanced,
+  shape: "switch",
+  choices: onOff,
+  fallback,
+})
 
 /**
  * Whose pull request page this is — the one choice that decides whether any of
@@ -236,20 +264,18 @@ export const DIFF_KNOBS = [
     ],
     "small",
   ),
-  knob(
+  toggle(
     "lineNumbers",
     "Line numbers",
     "The numbers down each side",
     "The column of numbers down the side of each half. Turning them off buys a little width in a narrow panel, and takes away the thing you name when you want to talk about a particular line.",
-    onOff,
     "on",
   ),
-  knob(
+  toggle(
     "fill",
     "Fill changed lines",
     "Green and red across the line, or only a mark",
     "Whether a changed line is filled with green or red across its whole width, which is GitHub's way, or left the colour of the page with only a mark in the margin. Fills make the shape of a change readable while scrolling quickly; without them a diff is calmer and slower to scan.",
-    onOff,
     "on",
   ),
   knob(
@@ -339,12 +365,11 @@ export const DIFF_KNOBS = [
     "20",
     true,
   ),
-  knob(
+  toggle(
     "prose",
     "Open markdown as a document",
     "Markdown rendered, not as a patch",
     "Markdown files open rendered as the document they become, with additions and deletions tinted, rather than as a patch. Any one file can still be switched with the Diff and Preview buttons — this only decides which of the two you land on.",
-    onOff,
     "on",
     true,
   ),
@@ -395,28 +420,25 @@ export const TREE_KNOBS = [
     ],
     "medium",
   ),
-  knob(
+  toggle(
     "counts",
     "Line counts",
     "How much each file changed, beside its name",
     "The +N −N beside every file and folder, so the two-line rename and the eight-hundred-line rewrite can be told apart without opening either. Folders add up everything inside them.",
-    onOff,
     "on",
   ),
-  knob(
+  toggle(
     "ticks",
     "Mark files seen",
     "A tick on the files you have read",
     "A tick beside each file you have opened here or ticked as viewed on GitHub, and the progress bar in the header that counts them. A folder is only ticked once everything inside it is.",
-    onOff,
     "on",
   ),
-  knob(
+  toggle(
     "flatten",
     "Fold empty folders together",
     "src/main/java as one row, not three",
     "A folder that holds nothing but one other folder is shown as a single row — src/main/java rather than three nested rows, and three levels of indentation saved. Off shows the repository's real shape, one level at a time.",
-    onOff,
     "on",
   ),
   knob(
@@ -431,21 +453,19 @@ export const TREE_KNOBS = [
     "open",
     true,
   ),
-  knob(
+  toggle(
     "search",
     "Search box",
     "A box that filters the list as you type",
     "Adds a box above the files that filters the list as you type. It earns its row past thirty or so files; below that the list is quicker to read than to search.",
-    onOff,
     "off",
     true,
   ),
-  knob(
+  toggle(
     "sticky",
     "Folders stick while scrolling",
     "The folder you are in stays pinned",
     "While the file list is scrolled, the folder you are inside stays pinned at the top of it, so a long run of files never leaves you wondering which folder they belong to.",
-    onOff,
     "off",
     true,
   ),

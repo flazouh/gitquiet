@@ -143,11 +143,11 @@ describe("the keyboard, over the whole page", () => {
     }
     render(<Page />)
     await userEvent.click(screen.getByLabelText("Display settings"))
-    expect(screen.queryByRole("menu") === null).toBe(false)
+    expect(screen.queryByRole("dialog") === null).toBe(false)
 
     await userEvent.keyboard("{Escape}")
 
-    expect(screen.queryByRole("menu") === null).toBe(true)
+    expect(screen.queryByRole("dialog") === null).toBe(true)
   })
 
   test("answers a key pressed before the interface has said where it is", async () => {

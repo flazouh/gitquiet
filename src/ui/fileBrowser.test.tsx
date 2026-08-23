@@ -494,9 +494,9 @@ describe("changing how the diff is drawn, from the band above it", () => {
 
     // Named runs of knobs rather than three loose lists: the Appearance section
     // holds a knob called Appearance, and only the grouping tells them apart.
-    const menu = screen.getByRole("menu")
+    const panel = screen.getByRole("dialog", { name: "How the files are drawn" })
     for (const section of ["Appearance", "Diff", "Files"]) {
-      expect(within(menu).getByRole("group", { name: section })).toBeDefined()
+      expect(within(panel).getByRole("group", { name: section })).toBeDefined()
     }
   })
 
@@ -512,9 +512,8 @@ describe("changing how the diff is drawn, from the band above it", () => {
     })
 
     await userEvent.click(within(band()).getByLabelText("How the files are drawn"))
-    // Each knob is its own submenu, opened by the pointer landing on the row.
-    await userEvent.hover(screen.getByRole("menuitem", { name: /Layout/ }))
-    await userEvent.click(await screen.findByRole("menuitemradio", { name: "Side by side" }))
+    // Every knob is on the panel itself, each with the control its answers want.
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Layout" }), "split")
 
     expect(written?.diff.layout).toBe("split")
     // The rest of the settings ride along untouched, since this writes them whole.
@@ -533,8 +532,7 @@ describe("changing how the diff is drawn, from the band above it", () => {
     })
 
     await userEvent.click(within(band()).getByLabelText("How the files are drawn"))
-    await userEvent.hover(screen.getByRole("menuitem", { name: /^Appearance/ }))
-    await userEvent.click(await screen.findByRole("menuitemradio", { name: "Dark" }))
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Appearance" }), "dark")
 
     expect(written?.theme.appearance).toBe("dark")
   })
