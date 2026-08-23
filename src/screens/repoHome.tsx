@@ -1,6 +1,7 @@
 import { Effect, Fiber, Option } from "effect"
 import { loadBranches } from "@/app/commitList"
 import { rememberedRepositories } from "@/app/destinations"
+import { repoEntitled } from "@/app/entitling"
 import { forgetIntent, intendedPath } from "@/app/intent"
 import { keptReads } from "@/app/kept"
 import {
@@ -152,6 +153,26 @@ const open = (
         Effect.sync(() => {
           branchNow = front.branch
           onResolved?.(front.branch)
+
+          /*
+           * The tab's fuller words, now that the description is known. Only
+           * while the address is still this tree's front page: the read can
+           * land after the reader has moved on, or opened a file whose name
+           * the shell has already put on the tab — see `titleAt`, which said
+           * the bare name the moment the address moved.
+           */
+          const at = Option.getOrNull(repoHomeIn(window.location.href))
+          if (
+            at !== null &&
+            at.repo.owner === home.repo.owner &&
+            at.repo.repo === home.repo.repo &&
+            at.reading === null
+          ) {
+            document.title = repoEntitled(
+              home.repo,
+              Option.getOrNull(front.about.description)
+            )
+          }
         })
       ),
       Effect.tapError((error) => Effect.sync(() => reportError(error)))
