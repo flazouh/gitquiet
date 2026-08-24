@@ -220,17 +220,20 @@ const Drawing = memo(
       <div
         data-file={file.path}
         aria-hidden={open ? "false" : "true"}
-        hidden={!open}
         className="absolute inset-0 overflow-auto"
-        style={
-          open
-            ? undefined
-            : {
-                visibility: "hidden",
-                pointerEvents: "none",
-                contentVisibility: "hidden",
-              }
-        }
+        style={{
+          contain: "layout style paint",
+          scrollbarGutter: "stable",
+          /*
+           * Opacity changes paint only. The drawings keep their layout, so a
+           * next or previous press does not wake a deferred document layout —
+           * `contentVisibility: "hidden"` did, and the frame the layout woke in
+           * was the frame the press was supposed to answer. Measured on the
+           * zero-frame-drops branch, which is where this style comes from.
+           */
+          opacity: open ? undefined : 0,
+          pointerEvents: open ? undefined : "none",
+        }}
       >
         <FileDiffPane
           file={file}

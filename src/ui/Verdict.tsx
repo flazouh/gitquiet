@@ -311,72 +311,72 @@ export const Verdict = ({
             About <code className="font-mono text-ink">{shortly(headSha)}</code>, the last commit on
             this branch.
           </p>
-      {writing ? (
-        <div className="flex flex-col gap-1.5 px-3 py-2.5">
-          <Writing
-            text={text}
-            onText={write}
-            placeholder={mine ? "Answer the review" : "Say what you found"}
-            onEscape={() => setWriting(false)}
-            onSend={() => send(mine ? "comment" : "approve")}
-            suggest={suggest}
-            onUpload={onUpload}
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            {offered.map((one) => (
-              <Verb key={one.said} one={one} />
-            ))}
-            {/* Wearing nothing until it is pointed at, which is what `GHOST` is for: the three
-                verbs beside it carry the plain fill, and a fourth control with a step of the
-                ladder on it was the only thing in the row that looked like a button. */}
-            <button
-              type="button"
-              disabled={sending !== undefined}
-              onClick={() => setWriting(false)}
-              className={`${GHOST} ml-auto px-2.5 py-1 text-xs font-semibold text-ink-muted enabled:hover:bg-hover enabled:hover:text-ink`}
-            >
-              Cancel
-            </button>
-          </div>
+          {writing ? (
+            <div className="flex flex-col gap-1.5 px-3 py-2.5">
+              <Writing
+                text={text}
+                onText={write}
+                placeholder={mine ? "Answer the review" : "Say what you found"}
+                onEscape={() => setWriting(false)}
+                onSend={() => send(mine ? "comment" : "approve")}
+                suggest={suggest}
+                onUpload={onUpload}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                {offered.map((one) => (
+                  <Verb key={one.said} one={one} />
+                ))}
+                {/* Wearing nothing until it is pointed at, which is what `GHOST` is for: the three
+                    verbs beside it carry the plain fill, and a fourth control with a step of the
+                    ladder on it was the only thing in the row that looked like a button. */}
+                <button
+                  type="button"
+                  disabled={sending !== undefined}
+                  onClick={() => setWriting(false)}
+                  className={`${GHOST} ml-auto px-2.5 py-1 text-xs font-semibold text-ink-muted enabled:hover:bg-hover enabled:hover:text-ink`}
+                >
+                  Cancel
+                </button>
+              </div>
+              {/*
+               * Said once, under the buttons, rather than as a tooltip on a button that looks
+               * broken: GitHub refuses both of those without a body.
+               */}
+              {text.trim() === "" ? (
+                <p className="text-xs text-ink-muted">
+                  {mine
+                    ? "GitHub wants words with a comment."
+                    : "An approval needs no words. The other two do."}
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-3 py-2.5">
+              {/* At rest beside the fold, because it is the common answer and the one that needs
+                  nothing typed. Everything else is a press away, which is still three fewer than
+                  GitHub's own dialog asks for. */}
+              {mine ? null : <Verb one={VERDICTS[0]!} />}
+              <button
+                type="button"
+                onClick={() => setWriting(true)}
+                className={`${PRESSABLE} min-w-0 flex-1 px-2.5 py-1 text-left text-xs text-ink-muted hover:bg-active hover:text-ink`}
+              >
+                {text.trim() !== ""
+                  ? "Carry on with what you were writing"
+                  : mine
+                    ? "Answer the review"
+                    : "Say what you found"}
+              </button>
+            </div>
+          )}
           {/*
-           * Said once, under the buttons, rather than as a tooltip on a button that looks
-           * broken: GitHub refuses both of those without a body.
+           * Under whichever body is on the screen, rather than inside the box.
+           *
+           * The approval beside the fold needs no words, so it is pressed by readers who never
+           * open one — and a refusal drawn inside the box is a refusal they are never told
+           * about. Kept in the box either way: a review GitHub would not take comes back empty
+           * on their own page, and the words are gone with it.
            */}
-          {text.trim() === "" ? (
-            <p className="text-xs text-ink-muted">
-              {mine
-                ? "GitHub wants words with a comment."
-                : "An approval needs no words. The other two do."}
-            </p>
-          ) : null}
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 px-3 py-2.5">
-          {/* At rest beside the fold, because it is the common answer and the one that needs
-              nothing typed. Everything else is a press away, which is still three fewer than
-              GitHub's own dialog asks for. */}
-          {mine ? null : <Verb one={VERDICTS[0]!} />}
-          <button
-            type="button"
-            onClick={() => setWriting(true)}
-            className={`${PRESSABLE} min-w-0 flex-1 px-2.5 py-1 text-left text-xs text-ink-muted hover:bg-active hover:text-ink`}
-          >
-            {text.trim() !== ""
-              ? "Carry on with what you were writing"
-              : mine
-                ? "Answer the review"
-                : "Say what you found"}
-          </button>
-        </div>
-      )}
-      {/*
-       * Under whichever body is on the screen, rather than inside the box.
-       *
-       * The approval beside the fold needs no words, so it is pressed by readers who never
-       * open one — and a refusal drawn inside the box is a refusal they are never told
-       * about. Kept in the box either way: a review GitHub would not take comes back empty
-       * on their own page, and the words are gone with it.
-       */}
           {refused === undefined ? null : (
             <p className="border-t border-line-muted px-3 py-2 text-xs leading-snug text-fail">
               GitHub would not take that: {refused}
