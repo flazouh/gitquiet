@@ -1,6 +1,6 @@
 # Findings that are already in pushed history, and the reason each is not a
-# secret. The working tree has none: `bun scripts/scrub-fixtures.ts` takes them
-# out of a recording before it is committed, and CI runs it with `--check`.
+# secret. Recordings carry none: `bun scripts/scrub-fixtures.ts` takes them out
+# of one before it is committed, and CI runs it with `--check`.
 #
 # These commits are public and cloned, so rewriting them would cost a force push
 # over a published history to remove values that were expired before anybody
@@ -15,6 +15,15 @@
 #                    token, all scoped to a browser session that ended.
 #
 # Regenerate:  gitleaks git --log-opts=--all -f json -r out.json
+#
+# The three below are the measured corpus rather than history: review comments
+# read off public pull requests on other people's repositories, where a bot
+# quoted a base64 blob that decodes to somebody's `encryptionKey`. Nothing here
+# reaches anything of ours, and the corpus is what the numbers in `docs/` are
+# checked against, so it is kept as it was read. Path fingerprints, because the
+# scan CI runs is `gitleaks dir`.
+#
+# Regenerate:  gitleaks dir . -f json -r out.json
 
 4fbef78e7f845ee9727feabf9f5722644a650b45:fixtures/github/description.json:aws-access-token:1
 4fbef78e7f845ee9727feabf9f5722644a650b45:fixtures/github/description.json:jwt:1
@@ -26,3 +35,7 @@ dc6fd4534c6ba8f152684f41e10870afe23f0385:tests/fixtures/releasesList.html:generi
 f173b2befc6888fd5d08fdcefbee9bab1207f743:tests/fixtures/personRepos.html:generic-api-key:269
 f173b2befc6888fd5d08fdcefbee9bab1207f743:tests/fixtures/personReposArchived.html:generic-api-key:257
 f173b2befc6888fd5d08fdcefbee9bab1207f743:tests/fixtures/personReposCounted.html:generic-api-key:257
+
+docs/data/collision_sample.json:generic-api-key:157
+docs/data/collision_sample.json:generic-api-key:239
+docs/data/collision_sample.json:generic-api-key:317
