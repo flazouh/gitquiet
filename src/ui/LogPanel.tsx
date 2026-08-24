@@ -45,6 +45,16 @@ const TONE: Record<LogLine["tone"], string> = {
 }
 
 /**
+ * What a button holding only a glyph wears in the strip: a sized cell, not padding.
+ *
+ * Padded, its height was the line box the glyph stood in — twenty pixels of inherited
+ * line height around a twelve-pixel drawing — and every one of these was a rectangle
+ * taller than wide the moment a hover filled it. The cell is the one the ways in
+ * `Ways.tsx` already stand in, so a glyph button is the same shape everywhere.
+ */
+const GLYPH = "flex h-6 w-7 items-center justify-center rounded text-ink-muted hover:bg-hover hover:text-ink"
+
+/**
  * A job's log, as something to read rather than something to scroll.
  *
  * Four things make the difference between this and a wall of text: the runner's
@@ -141,7 +151,7 @@ export const LogPanel = ({
               type="button"
               aria-label="Previous error"
               onClick={() => step(-1)}
-              className="rounded p-0.5 text-ink-muted hover:bg-hover hover:text-ink"
+              className={GLYPH}
             >
               <ChevronUp size={12} />
             </button>
@@ -149,7 +159,7 @@ export const LogPanel = ({
               type="button"
               aria-label="Next error"
               onClick={() => step(1)}
-              className="rounded p-0.5 text-ink-muted hover:bg-hover hover:text-ink"
+              className={GLYPH}
             >
               <ChevronDown size={12} />
             </button>
@@ -175,7 +185,7 @@ export const LogPanel = ({
           type="button"
           aria-label="Copy the log"
           onClick={copy}
-          className="shrink-0 rounded p-1 text-ink-muted hover:bg-hover hover:text-ink"
+          className={`shrink-0 ${GLYPH}`}
         >
           <Copy size={12} />
         </button>
