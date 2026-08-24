@@ -118,13 +118,13 @@ const NO_READER = new Error("Nothing is wired to read commits.")
 /**
  * The last stage that builds anything, and where an arrival stops counting.
  *
- * The panels take stages 1 to 13 and the file browser 15 to 18. A stage past
+ * The panels take stages 1 to 13 and the file browser 14 to 17. A stage past
  * the last gate is an idle callback that renders the whole prepared screen to
  * add no element to it, and the screen only reports itself ready to be cached
  * once the count is spent — so a ceiling left above the gates is a page that
  * says it is ready several callbacks after it was.
  */
-const PREPARED = 18
+const PREPARED = 17
 
 /**
  * How long an arrival may keep entering, in milliseconds.
@@ -504,7 +504,7 @@ export const Shell = ({
               viewport on its own sticky, and it says how tall it is through
               `--gitquiet-bar-h` — see `TheBar.tsx`. Zero where there is no bar,
               which is the desktop window and a test. */}
-          {preparedStage >= 15 ? (
+          {preparedStage >= 14 ? (
             <div
               data-gitquiet-activation="files-panel"
               className="sticky top-[calc(var(--gitquiet-bar-h,0px)+0.5rem)] flex h-[calc(100vh-var(--gitquiet-bar-h,0px)-1rem)] min-h-[40rem] min-w-0 flex-1"
@@ -512,7 +512,7 @@ export const Shell = ({
               {reading === undefined || loadCommit === undefined ? (
                 <FileBrowser
                   files={snapshot.files}
-                  prepareThrough={Math.min(preparedStage - 15, 3)}
+                  prepareThrough={Math.min(preparedStage - 14, 3)}
                   fetchDiffs={forThisHead}
                   diff={diff}
                   tree={tree}
