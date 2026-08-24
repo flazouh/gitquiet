@@ -194,9 +194,10 @@ The workflow checks the tag, builds the extension, attaches the ZIP to the
 release, and submits it for Chrome Web Store review. Chrome updates installed
 copies once Google publishes it.
 
-Submitting needs `CHROME_EXTENSION_ID`, `CHROME_CLIENT_ID`, `CHROME_CLIENT_SECRET`
-and `CHROME_REFRESH_TOKEN` as repository secrets. `bunx wxt submit init` walks
-through the Google Cloud setup. Do not commit the `.env.submit` it writes.
+Submitting needs `CHROME_EXTENSION_ID`, `CHROME_PUBLISHER_ID`,
+`CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL` and `CHROME_SERVICE_ACCOUNT_PRIVATE_KEY`
+as repository secrets. `bunx wxt submit init` walks through the Google Cloud
+setup. Do not commit the `.env.submit` it writes.
 
 ## Contributing
 

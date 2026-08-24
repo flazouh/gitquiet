@@ -28,6 +28,11 @@ ITEM_NOT_UPDATABLE: The item cannot be updated now because it is in
 pending review, ready to publish, or deleted status.
 ```
 
+That wording is v1.1's. v2 refuses the same upload for the same reason, and
+`CHROME_CANCEL_PENDING` is the override it adds: it withdraws the version in
+review and puts the new one in its place. A decision to take on purpose, so it
+is not set.
+
 Review is usually hours and can be days. There is nothing to fix when this
 happens and nothing to re-run: the tag and the GitHub release are already
 written, and the other three targets have already taken it. Once the review
@@ -87,9 +92,31 @@ and that target stays skipped.
 
 ### Chrome Web Store
 
-Already set. `CHROME_EXTENSION_ID`, `CHROME_CLIENT_ID`, `CHROME_CLIENT_SECRET`,
-`CHROME_REFRESH_TOKEN`, from a Google Cloud OAuth client with the Chrome Web
-Store API enabled.
+Already set. Four secrets, and a Google Cloud service account behind them.
+
+| Secret                                | Where it comes from                                                       |
+| ------------------------------------- | ------------------------------------------------------------------------- |
+| `CHROME_EXTENSION_ID`                 | The item's id, in the dashboard URL and on the public listing             |
+| `CHROME_PUBLISHER_ID`                 | The publisher's id, the other half of the dashboard URL. Also on Settings |
+| `CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL` | `client_email` from the service account's JSON key                        |
+| `CHROME_SERVICE_ACCOUNT_PRIVATE_KEY`  | `private_key` from the same file, newlines and all                        |
+
+The account is `cws-publisher@gitquiet-web-store.iam.gserviceaccount.com`, in
+the `gitquiet-web-store` Google Cloud project, with the Chrome Web Store API
+enabled on it. A key alone grants nothing: the dashboard has to hand the account
+the publisher, under **Settings**, **Service account**, and it can be taken back
+there just as fast. `bunx wxt submit init` asks for the same four and writes
+them to `.env.submit`, which is not committed.
+
+This is v2 of the store's API. v1.1, which an OAuth client and a refresh token
+spoke, stops answering on 15 October 2026. A service account is what a machine
+is supposed to hold anyway: no refresh token to expire, and no consent screen
+behind a person's Google account.
+
+`CHROME_CLIENT_ID`, `CHROME_CLIENT_SECRET` and `CHROME_REFRESH_TOKEN` are still
+set and nothing reads them. They are the way back to v1.1 until a release has
+gone out on v2, because minting a refresh token again means walking a person
+through a consent screen. Delete all three after that release.
 
 ### Firefox Add-ons
 

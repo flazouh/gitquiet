@@ -92,7 +92,7 @@ jobs:
           # An extension id is public, so gating on one would call a store
           # configured while it is still missing the key that talks to it, and
           # turn a skipped job into a failed release.
-          CHROME: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          CHROME: ${{ secrets.CHROME_SERVICE_ACCOUNT_PRIVATE_KEY }}
           FIREFOX: ${{ secrets.FIREFOX_JWT_SECRET }}
           # Apple takes two, because both mac jobs sign and then notarize, and
           # an unnotarised build is one Gatekeeper refuses. With the certificate
@@ -266,12 +266,18 @@ jobs:
           name: packages
           path: .output
 
+      # v2 of the store's API, which a service account speaks and the OAuth
+      # client of v1.1 does not. v1.1 stops answering on 15 October 2026, and a
+      # release that finds out on the day is a release that cannot go out.
       - name: Submit to the Chrome Web Store
         env:
+          CHROME_API_VERSION: v2
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
-          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
-          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
-          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          # v2 addresses an item as publishers/<publisher>/items/<item>, so the
+          # id of the account that owns it is part of every call.
+          CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
+          CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL: ${{ secrets.CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL }}
+          CHROME_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.CHROME_SERVICE_ACCOUNT_PRIVATE_KEY }}
         run: bunx wxt submit --chrome-zip .output/*-chrome.zip
 
   firefox:
