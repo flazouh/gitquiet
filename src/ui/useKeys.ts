@@ -45,15 +45,19 @@ const beingTypedIn = (event: KeyboardEvent): boolean => {
  * Whatever is open on top is the innermost thing, so it owns the keyboard for
  * as long as it is up — Escape above all, which has to close the dialog the
  * reader is looking at rather than reach past it and close what they opened it
- * from. The page's own keys go quiet instead of firing behind it. Both are only
- * in the document while they are showing, so their being found is the question
- * being answered.
+ * from. The page's own keys go quiet instead of firing behind it. All three are
+ * only in the document while they are showing, so their being found is the
+ * question being answered.
+ *
+ * Three, because a panel of settings is a form rather than a menu of commands:
+ * it answers to `dialog` as any panel a reader tabs around inside does, and the
+ * keyboard belongs to it exactly as it belongs to the sheet in the bar.
  *
  * Asked of our own interface rather than of the page: GitHub's markup is not an
  * answer to what the reader has open here.
  */
 const somethingIsUp = (within: ParentNode): boolean =>
-  within.querySelector('dialog[open], [role="menu"]') !== null
+  within.querySelector('dialog[open], [role="menu"], [role="dialog"]') !== null
 
 /**
  * Which part of the page to ask, before the interface has said where it is.
