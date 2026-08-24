@@ -51,10 +51,13 @@ const spoken = (numbers: ReadonlyArray<number>): string => {
  */
 const Layer = ({
   layer,
+  at,
   lands,
   holding
 }: {
   readonly layer: StackLayer
+  /** Which layer of the chain this is, counted from the foundation. */
+  readonly at: number
   /** Whether one press of merge takes this layer with it. */
   readonly lands: boolean
   /** Whether this is one of the layers that cannot land, which stops the press. */
@@ -67,6 +70,17 @@ const Layer = ({
 
   const inside = (
     <>
+      {/* Where this layer stands in the chain, counted from the foundation, so
+          the seat the header's chip counts is findable on the rows themselves.
+          Hidden from a reader being read to: a list already numbers its items
+          as it announces them, and a bare numeral before the reference would be
+          two numbers in a row with only one subject between them. */}
+      <span
+        aria-hidden="true"
+        className="min-w-[2ch] shrink-0 text-right font-mono text-xs tabular-nums text-ink-muted"
+      >
+        {at}
+      </span>
       <What
         size={12}
         aria-hidden="true"
@@ -199,10 +213,11 @@ export const TheStack = ({ stack }: { readonly stack: Stack }) => {
         </p>
       ) : null}
       <ul className="divide-y divide-line-muted border-t border-line-muted">
-        {stack.layers.map((layer) => (
+        {stack.layers.map((layer, index) => (
           <Layer
             key={layer.reference.number}
             layer={layer}
+            at={index + 1}
             lands={lands.has(layer.reference.number)}
             holding={holding.has(layer.reference.number)}
           />

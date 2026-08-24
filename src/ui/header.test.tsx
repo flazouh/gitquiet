@@ -191,42 +191,17 @@ describe("a pull request that is one layer of a stack", () => {
     render(<Header snapshot={inAStack(["here"])} />)
 
     expect(screen.queryByText(/1 of 1/)).toBeNull()
-    expect(screen.queryByRole("list", { name: /Stack/ })).toBeNull()
   })
 
-  test("draws the chain under the branches, trunk first and newest last", () => {
-    // The count says which layer of how many. It cannot say what the other
-    // layers are, nor which way the chain is going, and both are why a reader
-    // opens the stack at all.
+  test("draws no chain of its own, the merge card holding the one list of the layers", () => {
+    // The chip says which layer of how many, and the layers themselves are the
+    // merge card's rows, further down the same column. A second copy in the
+    // header was the same list said twice on the way in, and it stood between
+    // the title and the work.
     render(<Header snapshot={inAStack(["below", "below", "here"])} />)
 
-    const drawn = screen.getByRole("list", { name: "Stack, layer 3 of 3" })
-
-    expect([...drawn.querySelectorAll("li")].map((row) => row.textContent)).toEqual([
-      "#8module 8",
-      "#9module 9",
-      "#10module 10"
-    ])
-  })
-
-  test("draws no chain on a pull request standing on its own", () => {
-    render(<Header snapshot={aSnapshot({ state: "open" })} />)
-
-    expect(screen.queryByRole("list", { name: /Stack/ })).toBeNull()
-  })
-
-  test("counts no lines on the rows of a chain that exists", () => {
-    // The proposal strip counts its rows and this tree does not. A reader here
-    // is standing in a chain GitHub already holds, one layer at a time: the
-    // well directly above this list carries the counts for the layer they are
-    // on, and every other layer is a page this extension draws, whose own
-    // header counts its lines when they get there. Each count is also a request
-    // of its own, and this tree is drawn on every layer of every stack.
-    render(<Header snapshot={inAStack(["below", "below", "here"])} />)
-
-    const drawn = screen.getByRole("list", { name: "Stack, layer 3 of 3" })
-
-    expect(drawn.textContent).not.toMatch(/[+\u2212]\d/)
+    expect(screen.queryByRole("list")).toBeNull()
+    expect(screen.queryByText("module 8")).toBeNull()
   })
 })
 

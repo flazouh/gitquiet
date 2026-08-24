@@ -2,19 +2,19 @@ import { Option } from "effect"
 import type { CSSProperties } from "react"
 import type { Chain, PullRequestState, StackLayer } from "../domain/PullRequest"
 import type { PullRequestRef } from "../domain/PullRequestRef"
-import { aroundHere, holdingItUp, whichLayer, wouldLand } from "../domain/pressing"
+import { aroundHere, whichLayer } from "../domain/pressing"
 import type { Size } from "../domain/workingSet"
 import { pullRequestName, useArt } from "./art"
 import { CHIP } from "./dress"
 import type { LayerSizes } from "./useLayerSizes"
 
 /**
- * How many rows a header has room for before the pull request goes off screen.
+ * How many rows the strip has room for before the pull request goes off screen.
  *
  * Five holds the reader's own layer with two of its neighbours either side,
  * which is enough to see what a stack is shaped like. The longest chain in
  * GitHub's own preview feedback is twenty two, and twenty two rows above a title
- * is a second page rather than a header.
+ * is a second page rather than a strip.
  *
  * Exported for the one caller that has to know what this tree will draw before
  * it is drawn: the strip counts the lines of the rows in the window and of no
@@ -89,6 +89,12 @@ const Lines = ({ size }: { readonly size: Size }) => (
 /**
  * One layer of the chain: what it is, what it is called, what state it is in.
  *
+ * Nothing here is green or dimmed, because both of those are about a press —
+ * green says one press of merge takes a layer with it, grey says it does not —
+ * and this chain is one nobody has made, so there is no press to be had. The
+ * accent on the mark is the same accent every stacked row in the Working Set
+ * wears.
+ *
  * A row the reader is not standing on is a link, because every layer is a page
  * this extension draws — so `going.ts` answers the press without a document
  * while the address, the back button, a copied link and a middle click all keep
@@ -98,9 +104,6 @@ const Layer = ({
   layer,
   tier,
   sitsOn,
-  lands,
-  holding,
-  pressless,
   size
 }: {
   readonly layer: StackLayer
@@ -108,12 +111,6 @@ const Layer = ({
   readonly tier: number
   /** Whether the thing this one sits on is drawn above it, and so whether to point at it. */
   readonly sitsOn: boolean
-  /** Whether one press of merge on the layer being read takes this one with it. */
-  readonly lands: boolean
-  /** Whether this is a layer that cannot land, and so is stopping the press. */
-  readonly holding: boolean
-  /** Whether there is a press to answer about at all. There is not, on a proposal. */
-  readonly pressless: boolean
   /** How many lines this layer changes, once somebody has counted them. */
   readonly size?: Size
 }) => {
@@ -128,12 +125,7 @@ const Layer = ({
       <What
         size={12}
         aria-hidden="true"
-        className={`shrink-0 ${
-          holding
-            ? "text-fail"
-            : (TONE[layer.state] ??
-              (pressless ? "text-ink-accent" : lands ? "text-pass" : "text-ink-muted"))
-        }`}
+        className={`shrink-0 ${TONE[layer.state] ?? "text-ink-accent"}`}
       />
       <span className="shrink-0 font-mono tabular-nums text-ink-muted">
         {`#${layer.reference.number}`}
@@ -141,15 +133,9 @@ const Layer = ({
       <span className={`min-w-0 truncate ${here ? "font-semibold text-ink" : ""}`}>
         {layer.title}
       </span>
-      {/* The hold-up on the row that owns it, as far as one word goes. Grey says
-          what a layer is; red says it is the one stopping the press, which is
-          what the reader has to act on. */}
+      {/* What a layer is, as far as one word goes, on the row that owns it. */}
       {badge === undefined ? null : (
-        <span
-          className={`shrink-0 ${holding ? "font-semibold text-fail" : (TONE[layer.state] ?? "")}`}
-        >
-          {badge}
-        </span>
+        <span className={`shrink-0 ${TONE[layer.state] ?? ""}`}>{badge}</span>
       )}
       {/* Last on the row, after the one word about its state. The counts are the
           only thing here that arrives after the row does. */}
@@ -164,7 +150,6 @@ const Layer = ({
       // weight of the title and the step of the tier.
       aria-current={here ? true : undefined}
       style={steppedIn(tier)}
-      className={lands || pressless ? "" : "opacity-60"}
     >
       {/* On every row whose own foundation is drawn above it, and on no other.
           The arm points at what a layer sits on, so a row with nothing above it
@@ -210,15 +195,15 @@ const Rest = ({
 )
 
 /**
- * The stack this pull request is one layer of, drawn where a reader arrives.
+ * The chain GitHub offers to make, drawn as the tree it would be.
  *
  * Trunk at the top left, newest at the bottom right, each layer stepped in from
  * the one it sits on. The same way up as a pile in the Working Set, which is the
- * tree a reader of this interface already reads every day, and the same way up as
- * every other nesting they meet: a thing above and to the left, the things that
- * stand on it under it and stepped in. Two drawings of a stack running opposite
- * ways inside one interface is a reader having to hold which screen they are on
- * before they can read either.
+ * tree a reader of this interface already reads every day, and the same way up
+ * as the list on the merge card of a stack that exists: a thing above and to the
+ * left, the things that stand on it under it and stepped in. Two drawings of a
+ * stack running opposite ways inside one interface is a reader having to hold
+ * which screen they are on before they can read either.
  *
  * It also puts the chain in the order it lands, top to bottom, which is what lets
  * the count at a cut edge say "earlier" and "later" instead of a seat word that
@@ -230,13 +215,12 @@ const Rest = ({
  * `main` settles it, and Gerrit has an eight-year-old request open for exactly
  * this because their panel leaves it out.
  *
- * What a press would land and what is holding it up are the merge card's
- * answers, further down the same column. This one answers where the reader is.
+ * These rows are the claim rather than a report — nobody has made this stack,
+ * and what says so is the linking they arrive with. See `stack.css`.
  */
 export const StackTree = ({
   chain,
   most = ROOM,
-  proposed = false,
   sizes
 }: {
   readonly chain: Chain
@@ -245,45 +229,15 @@ export const StackTree = ({
   /**
    * How many lines each layer changes, by its number, as far as anybody knows.
    *
-   * The proposal strip hands these over and the header does not, and that is the
-   * one thing the two drawings of a chain differ on in what they say rather than
-   * in how they say it.
-   *
    * A reader on the strip is deciding about pull requests they have not opened.
    * One press stacks all of them, and from then on a merge on any one of them
    * lands the layers underneath, so how much work each layer is is part of what
-   * is being agreed to — and there is nowhere else on the screen to get it. A
-   * reader in the header is standing in a chain that exists, one layer at a
-   * time: the well directly above this tree already counts the lines of the
-   * layer they are on, and every other layer is a page this extension draws,
-   * whose own header counts its lines when they get there.
-   *
-   * The cost settles it. Each count is a read of `page_data/diffstat` for one
-   * pull request — seventy bytes, and the only route GitHub has that says how big
-   * a pull request is without sending it — so one request per row. The strip is
-   * drawn where GitHub offers a stack and nobody has made one, which is a state
-   * that ends the moment somebody presses the button; this tree is drawn on every
-   * layer of every stack, where GitHub's own preview feedback records chains of
-   * twenty two. The same counts there would be ten more requests on a page that
-   * costs five, on every visit, for numbers nobody asked for.
+   * is being agreed to — and there is nowhere else on the screen to get it.
    *
    * Absent rather than empty where nobody is counting, though a row draws the
    * same either way: what a count does not arrive for is a row exactly as it was.
    */
   readonly sizes?: LayerSizes
-  /**
-   * Whether this chain is one GitHub offers to make rather than one it holds.
-   *
-   * Two things go: the green, and the dimming. Both of them are about a press —
-   * green says one press of merge takes this layer with it, grey says it does
-   * not — and there is no press to be had on a chain nobody has made. Painted
-   * anyway they would answer a question the reader has not got to yet, and get
-   * it wrong: nothing here lands.
-   *
-   * What arrives instead is the linking, because the rows are the claim rather
-   * than a report. See `stack.css`.
-   */
-  readonly proposed?: boolean
 }) => {
   const seat = whichLayer(chain)
 
@@ -292,10 +246,6 @@ export const StackTree = ({
   if (chain.layers.length < 2 || Option.isNone(seat)) return null
 
   const shown = aroundHere(chain, most)
-  const lands = new Set(
-    proposed ? [] : wouldLand(chain).map((layer) => layer.reference.number)
-  )
-  const holding = new Set(proposed ? [] : holdingItUp(chain).map((layer) => layer.reference.number))
 
   // The trunk is the root row of the tree and not a footnote under it, so it is
   // drawn first and the tiers are counted from it. Where the payload names one —
@@ -312,17 +262,11 @@ export const StackTree = ({
       // for a reader who is being read to rather than looking. The whole stack,
       // not the part that fitted: being on layer 7 of 12 is the situation, and
       // the window is this interface's problem.
-      // The word "stack" only where the surroundings do not already say it. A
-      // chain nobody has made is drawn in one place, inside a region named
+      // Not the word "stack": this is drawn in one place, inside a region named
       // "Proposed stack", and a list repeating those two words is the same name
-      // announced twice on the way in. A stack that exists is inside the header
-      // card, which is named for the pull request rather than for the chain.
-      aria-label={
-        proposed
-          ? `Layer ${seat.value.at} of ${seat.value.of}`
-          : `Stack, layer ${seat.value.at} of ${seat.value.of}`
-      }
-      className={`t-stack-up mt-1 flex flex-col gap-0.5 ${proposed ? "t-stack-linking" : ""}`}
+      // announced twice on the way in.
+      aria-label={`Layer ${seat.value.at} of ${seat.value.of}`}
+      className="t-stack-up t-stack-linking mt-1 flex flex-col gap-0.5"
     >
       {/* The count of what the window cut off nearer the foundation stands above
           the rows, which is the end of the chain that is up here. */}
@@ -344,9 +288,6 @@ export const StackTree = ({
             // Nothing above the first row drawn, whether that is the trunk, the
             // foundation, or wherever the window cut the chain.
             sitsOn={tier > 0}
-            lands={lands.has(row.reference.number)}
-            holding={holding.has(row.reference.number)}
-            pressless={proposed}
             size={sizes?.get(row.reference.number)}
           />
         )

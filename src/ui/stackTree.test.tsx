@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen } from "@testing-library/react"
 import { Option } from "effect"
-import type { Chain, PullRequestState, Seat, Stack } from "../domain/PullRequest"
+import type { Chain, PullRequestState, Seat } from "../domain/PullRequest"
 import { StackTree } from "./StackTree"
 
 afterEach(cleanup)
@@ -14,29 +14,28 @@ const layer = (number: number, seat: Seat, state: PullRequestState = "open") => 
   seat
 })
 
-const stack = (...layers: ReadonlyArray<ReturnType<typeof layer>>): Stack => ({
-  number: 11,
+const chain = (...layers: ReadonlyArray<ReturnType<typeof layer>>): Chain => ({
   layers,
   floor: Option.some("main")
 })
 
-/** The same stack, read from a server that did not name the branch it lands on. */
-const unfloored = (built: Stack): Stack => ({ ...built, floor: Option.none() })
+/** The same chain, read from a server that did not name the branch it lands on. */
+const unfloored = (built: Chain): Chain => ({ ...built, floor: Option.none() })
 
 /** Twelve layers, read from `at` counted from the foundation. */
-const deep = (at: number): Stack =>
-  stack(
+const deep = (at: number): Chain =>
+  chain(
     ...Array.from({ length: 12 }, (_, index) =>
       layer(index + 1, index === at ? "here" : index < at ? "below" : "above")
     )
   )
 
-const fromTheTop = stack(layer(8, "below"), layer(9, "below"), layer(10, "here"))
-const fromTheBottom = stack(layer(8, "here"), layer(9, "above"), layer(10, "above"))
+const fromTheTop = chain(layer(8, "below"), layer(9, "below"), layer(10, "here"))
+const fromTheBottom = chain(layer(8, "here"), layer(9, "above"), layer(10, "above"))
 
 const rows = () => screen.getAllByRole("listitem").map((row) => row.textContent ?? "")
 
-describe("the stack, drawn as a tree over the branch it lands on", () => {
+describe("the chain, drawn as a tree over the branch it would land on", () => {
   test("puts the trunk at the head and the newest layer under all of it", () => {
     // The same way up as a pile in the Working Set, and as every other nesting a
     // reader meets: the thing above and to the left, the things that stand on it
@@ -52,7 +51,7 @@ describe("the stack, drawn as a tree over the branch it lands on", () => {
   })
 
   test("steps each layer in from the one it sits on, deepest at the foot", () => {
-    // The tier is a number on the row rather than a nesting, because the header
+    // The tier is a number on the row rather than a nesting, because the strip
     // knows a stack is linear and has no branching to carry. See `stack.css`.
     render(<StackTree chain={fromTheBottom} />)
 
@@ -84,7 +83,7 @@ describe("the stack, drawn as a tree over the branch it lands on", () => {
     expect(marked).toEqual([false, true, true])
   })
 
-  test("runs down to the trunk from the top of the stack as well as from the foundation", () => {
+  test("runs down to the trunk from the top of the chain as well as from the foundation", () => {
     // The seat the chain is usually read from. A reader here is three branches
     // away from the thing that lands, and a chain that stops at `#8` says the
     // stack ends there.
@@ -114,10 +113,13 @@ describe("the stack, drawn as a tree over the branch it lands on", () => {
     expect(screen.getByRole("listitem", { current: true }).textContent).toContain("#10")
   })
 
-  test("names itself with the count, so the shape is not the only way to get it", () => {
+  test("names itself with the count, and leaves the word stack to the strip around it", () => {
+    // The one place this is drawn is a region named "Proposed stack", so a list
+    // saying the same two words is that name read out twice — and the count is
+    // the one fact the shape carries that a reader being read to would miss.
     render(<StackTree chain={fromTheTop} />)
 
-    expect(screen.getByRole("list", { name: "Stack, layer 3 of 3" })).toBeTruthy()
+    expect(screen.getByRole("list", { name: "Layer 3 of 3" })).toBeTruthy()
   })
 
   test("makes every other layer a link, and leaves the one being read alone", () => {
@@ -129,8 +131,8 @@ describe("the stack, drawn as a tree over the branch it lands on", () => {
     expect(screen.queryByRole("link", { name: /module 10/ })).toBeNull()
   })
 
-  test("is not drawn for a stack of one, there being no chain in it", () => {
-    render(<StackTree chain={stack(layer(8, "here"))} />)
+  test("is not drawn for a chain of one, there being no links in it", () => {
+    render(<StackTree chain={chain(layer(8, "here"))} />)
 
     expect(screen.queryByRole("list")).toBeNull()
   })
@@ -146,67 +148,29 @@ describe("the stack, drawn as a tree over the branch it lands on", () => {
   })
 })
 
-describe("a chain GitHub would make and has not", () => {
-  /** The same three, as a proposal: no number, because nobody has made one. */
-  const proposed: Chain = { layers: fromTheTop.layers, floor: Option.some("main") }
-
-  test("draws the same rows over the same trunk", () => {
-    // One drawing of a chain, not a third. The rows, the gutter, the tier step
-    // and the trunk row are the ones the header already draws.
-    render(<StackTree chain={proposed} proposed />)
-
-    expect(rows().map((text) => text.match(/#\d+/)?.[0] ?? text.trim())).toEqual([
-      "main",
-      "#8",
-      "#9",
-      "#10"
-    ])
-  })
-
+describe("a chain nobody has made, which is the claim rather than a report", () => {
   test("colours no row as landing, there being no press to land it", () => {
-    // A chain nobody has made lands nothing. The green on a row of a real stack
-    // says a press takes that layer with it, and here there is no such press.
-    const { container } = render(<StackTree chain={proposed} proposed />)
+    // A chain nobody has made lands nothing. Green on a row would say a press
+    // of merge takes that layer with it, and here there is no such press.
+    const { container } = render(<StackTree chain={fromTheTop} />)
 
     expect(container.querySelectorAll(".text-pass")).toHaveLength(0)
   })
 
   test("dims no row for being left out of a press", () => {
-    const dimmable: Chain = {
-      layers: [layer(8, "here"), layer(9, "above"), layer(10, "above")],
-      floor: Option.some("main")
-    }
-    const { container } = render(<StackTree chain={dimmable} proposed />)
+    const { container } = render(<StackTree chain={fromTheBottom} />)
 
     expect(container.querySelectorAll(".opacity-60")).toHaveLength(0)
   })
 
-  test("leaves the word stack to the strip it is drawn inside", () => {
-    // The one place a chain nobody has made is drawn is a region named
-    // "Proposed stack", so a list saying the same two words is that name read
-    // out twice. A stack that exists is inside a card named for the pull
-    // request, and there the list is the only thing that says what it is.
-    render(<StackTree chain={proposed} proposed />)
-
-    expect(screen.getByRole("list", { name: "Layer 3 of 3" })).toBeTruthy()
-  })
-
   test("links its layers up as it arrives", () => {
-    render(<StackTree chain={proposed} proposed />)
-
-    expect(screen.getByRole("list").classList.contains("t-stack-linking")).toBe(true)
-  })
-
-  test("leaves a stack that exists standing still", () => {
     render(<StackTree chain={fromTheTop} />)
 
-    expect(screen.getByRole("list").classList.contains("t-stack-linking")).toBe(false)
+    expect(screen.getByRole("list").classList.contains("t-stack-linking")).toBe(true)
   })
 })
 
 describe("how big each layer of a chain is", () => {
-  const proposed: Chain = { layers: fromTheTop.layers, floor: Option.some("main") }
-
   const counted = new Map([
     [8, { added: 120, deleted: 8 }],
     [9, { added: 4, deleted: 0 }]
@@ -215,7 +179,7 @@ describe("how big each layer of a chain is", () => {
   const rowFor = (number: number) => screen.getByRole("link", { name: new RegExp(`module ${number}`) })
 
   test("puts the two counts on the row of the layer they are about", () => {
-    render(<StackTree chain={proposed} proposed sizes={counted} />)
+    render(<StackTree chain={fromTheTop} sizes={counted} />)
 
     expect(rowFor(8).textContent).toContain("+120")
     expect(rowFor(8).textContent).toContain("−8")
@@ -223,7 +187,7 @@ describe("how big each layer of a chain is", () => {
   })
 
   test("wears the green and the red every diff in this interface wears", () => {
-    render(<StackTree chain={proposed} proposed sizes={counted} />)
+    render(<StackTree chain={fromTheTop} sizes={counted} />)
 
     expect(rowFor(8).querySelector(".text-pass")?.textContent).toBe("+120")
     expect(rowFor(8).querySelector(".text-fail")?.textContent).toBe("−8")
@@ -232,14 +196,14 @@ describe("how big each layer of a chain is", () => {
   test("writes the removed count with a minus sign and not a hyphen", () => {
     // The header's own pair does, and a hyphen beside a plus reads as a dash
     // between two numbers rather than as a count taken away.
-    render(<StackTree chain={proposed} proposed sizes={counted} />)
+    render(<StackTree chain={fromTheTop} sizes={counted} />)
 
-    expect(rowFor(8).textContent).toContain("\u22128")
+    expect(rowFor(8).textContent).toContain("−8")
     expect(rowFor(8).textContent).not.toContain("-8")
   })
 
   test("says the pair in words for a reader who is being read to", () => {
-    render(<StackTree chain={proposed} proposed sizes={counted} />)
+    render(<StackTree chain={fromTheTop} sizes={counted} />)
 
     expect(screen.getByLabelText("120 added, 8 removed")).toBeTruthy()
   })
@@ -248,7 +212,7 @@ describe("how big each layer of a chain is", () => {
     // Every row looks like this for the first second, and one whose read failed
     // looks like it for good. A row labelled `+0 −0` would be a four thousand
     // line change called nothing.
-    render(<StackTree chain={proposed} proposed sizes={new Map([[8, { added: 120, deleted: 8 }]])} />)
+    render(<StackTree chain={fromTheTop} sizes={new Map([[8, { added: 120, deleted: 8 }]])} />)
 
     expect(rowFor(9).textContent).not.toContain("+")
     expect(rowFor(9).querySelector(".text-pass")).toBeNull()
@@ -260,22 +224,22 @@ describe("how big each layer of a chain is", () => {
     // as wide as it needs to be, so a count arrives into space nothing was
     // using — where a space held for one would be eighty pixels of empty row on
     // every layer for as long as GitHub takes to answer.
-    const { container, rerender } = render(<StackTree chain={proposed} proposed sizes={new Map()} />)
+    const { container, rerender } = render(<StackTree chain={fromTheTop} sizes={new Map()} />)
     const waiting = container.innerHTML
 
-    rerender(<StackTree chain={proposed} proposed />)
+    rerender(<StackTree chain={fromTheTop} />)
 
     expect(container.innerHTML).toBe(waiting)
   })
 
   test("counts nothing at all where nobody handed it a count", () => {
-    render(<StackTree chain={proposed} proposed />)
+    render(<StackTree chain={fromTheTop} />)
 
     expect(screen.queryByText(/^\+/)).toBeNull()
   })
 })
 
-describe("a stack too deep to draw whole", () => {
+describe("a chain too deep to draw whole", () => {
   test("keeps the layer being read in the window, whatever end it is near", () => {
     render(<StackTree chain={deep(6)} most={5} />)
 
@@ -305,10 +269,10 @@ describe("a stack too deep to draw whole", () => {
     expect(screen.getByText("7 earlier layers")).toBeTruthy()
   })
 
-  test("counts the whole stack in its name, not the part it drew", () => {
+  test("counts the whole chain in its name, not the part it drew", () => {
     render(<StackTree chain={deep(6)} most={5} />)
 
-    expect(screen.getByRole("list", { name: "Stack, layer 7 of 12" })).toBeTruthy()
+    expect(screen.getByRole("list", { name: "Layer 7 of 12" })).toBeTruthy()
   })
 
   test("holds the trunk back while the window is short of the foundation", () => {

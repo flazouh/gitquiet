@@ -8,7 +8,6 @@ import { useArt } from "./art"
 import { CHIP, GHOST } from "./dress"
 import { pullRequestArt } from "./Icon"
 import { BROWSER } from "./marks"
-import { StackTree } from "./StackTree"
 import { ageOf, momentOf } from "./when"
 import { Who } from "./Who"
 
@@ -302,13 +301,6 @@ export const Header = ({
           <span className="text-fail">−{size.deleted}</span>
         </span>
       </div>
-
-      {/* The chain itself, under the row that raises the question.
-          The chip above says which layer of how many; this says what the layers
-          are and which way the thing is going, which a count cannot. It draws
-          nothing at all unless there is a stack with more than one layer in it,
-          so an ordinary pull request keeps the two-row card it had. */}
-      {Option.isSome(stack) ? <StackTree chain={stack.value} /> : null}
     </section>
   )
 }

@@ -96,6 +96,15 @@ describe("the stack a pull request is one layer of", () => {
     expect(rows().map((text) => text.match(/#\d+/)?.[0])).toEqual(["#8", "#9", "#10"])
   })
 
+  test("numbers each row with its place in the chain, counted from the foundation", () => {
+    // The count the header's chip carries, findable on the rows themselves: a
+    // reader six layers up sees at a glance which layer of the list they are
+    // reading without counting rows.
+    render(<TheStack stack={fromTheTop} />)
+
+    expect(rows()).toEqual(["1#8module 8", "2#9module 9", "3#10module 10"])
+  })
+
   test("says which layer the reader is standing on", () => {
     render(<TheStack stack={fromTheMiddle} />)
 

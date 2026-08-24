@@ -96,10 +96,9 @@ const whichOne = (chain: Chain): string =>
  *
  * This is that dialog's content, in the banner's place, without the press. What
  * GitHub's preview is, we already draw: the chain that would exist, layer by
- * layer, over the branch it would land on. So the answer to "what does a preview
- * of a stack that does not exist mean" is the same rows the header draws for a
- * stack that does, and the difference is entirely in what they claim — see the
- * `proposed` flag on {@link StackTree}, which takes the press out of them.
+ * layer, over the branch it would land on — {@link StackTree}, whose rows are a
+ * claim about what would link up rather than a report on a press, because there
+ * is no press to be had on a chain nobody has made.
  *
  * Above the header and not inside it, which is where GitHub's own banner stands
  * and the one place it belongs. The header answers what this pull request is; the
@@ -332,7 +331,6 @@ const Offer = ({
       </div>
       <StackTree
         chain={chain}
-        proposed
         sizes={sizes === undefined && own === undefined ? undefined : asFarAsKnown(chain, counted, own)}
       />
     </section>
