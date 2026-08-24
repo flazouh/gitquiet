@@ -73,7 +73,7 @@
  * drawings of a stack running opposite ways inside one interface is a reader
  * having to hold which screen they are on before they can read either.
  *
- * What differs is only the markup. The pull request header knows a stack is
+ * What differs is only the markup. The proposal strip knows a stack is
  * linear, so it carries the depth as a number on each row rather than as a
  * nesting, and `--stack-tier` is set where the row is drawn.
  *
@@ -130,7 +130,7 @@
  * number, so the file never has to guess how tall a row of this list is.
  *
  * `transform`, not the `margin-left` the tier is drawn with, so none of it
- * relayouts the header, and both lanes are composited.
+ * relayouts the strip, and both lanes are composited.
  *
  * The stagger is `--stack-tier`, which every row already carries for the step, so
  * the run goes trunk upwards without any row being told its turn. It stops
