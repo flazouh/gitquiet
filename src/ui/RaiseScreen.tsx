@@ -128,7 +128,16 @@ export const RaiseScreen = ({
             <p className="text-xs text-fail">GitHub would not take that: {refused}</p>
           )}
 
-          <div className="flex items-center gap-1.5">
+          {/* The send at the end of the row, the way out before it, as every box here ends. */}
+          <div className="flex items-center justify-end gap-1.5">
+            <button
+              type="button"
+              disabled={raising}
+              onClick={onStepAside}
+              className={`${PRESSABLE} px-2.5 py-1 text-xs font-semibold text-ink enabled:hover:bg-active`}
+            >
+              Show GitHub's form
+            </button>
             <button
               type="button"
               disabled={!ready || raising}
@@ -137,14 +146,6 @@ export const RaiseScreen = ({
               className="rounded-md bg-pass-emphasis px-2.5 py-1 text-xs font-semibold text-ink-on-emphasis enabled:hover:opacity-90 disabled:opacity-40"
             >
               <Says among={WORDS} said={raising ? WORDS[1] : WORDS[0]} waiting={WORDS[1]} />
-            </button>
-            <button
-              type="button"
-              disabled={raising}
-              onClick={onStepAside}
-              className={`${PRESSABLE} px-2.5 py-1 text-xs font-semibold text-ink enabled:hover:bg-active`}
-            >
-              Show GitHub's form
             </button>
           </div>
         </div>

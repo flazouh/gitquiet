@@ -229,6 +229,22 @@ const Answer = ({
   const Mark = thread.isResolved ? art.issue : art.tick
   const word = thread.isResolved ? OPENS : ENDS
 
+  /** Which end of the row the settle control stands at, or nowhere. */
+  const ending = end === undefined ? "nowhere" : writing || answer === undefined ? "before" : "after"
+
+  const ender = (
+    <button
+      type="button"
+      disabled={settling}
+      aria-busy={settling ? true : undefined}
+      onClick={settle}
+      className={`${PRESSABLE} mr-auto flex shrink-0 items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-ink-muted enabled:hover:bg-active enabled:hover:text-ink disabled:opacity-50`}
+    >
+      <Mark size={12} aria-hidden="true" className="shrink-0" />
+      {word}
+    </button>
+  )
+
   return (
     // Divided from the remarks above it the way those are divided from each other: this is the
     // foot of the thread rather than another paragraph in it.
@@ -252,9 +268,24 @@ const Answer = ({
           )}
         </>
       ) : null}
+      {/*
+        The send at the end of the row, under the corner the reader finishes writing in,
+        with the way out before it — every box on this interface ends the same way round.
+        Resolving moves to the left while the box is open: it is what the thread comes to,
+        not part of sending this answer, and the space between the two says so.
+      */}
       <div className="flex items-center gap-1.5">
+        {ending !== "before" ? null : ender}
         {answer === undefined ? null : writing ? (
           <>
+            <button
+              type="button"
+              disabled={saying}
+              onClick={() => setWriting(false)}
+              className={`${PRESSABLE} ml-auto px-2.5 py-1 text-xs font-semibold text-ink enabled:hover:bg-active`}
+            >
+              Cancel
+            </button>
             <button
               type="button"
               disabled={text.trim() === "" || saying}
@@ -263,14 +294,6 @@ const Answer = ({
               className="rounded-md bg-pass-emphasis px-2.5 py-1 text-xs font-semibold text-ink-on-emphasis enabled:hover:opacity-90 disabled:opacity-40"
             >
               <Says among={WORDS} said={saying ? WORDS[1] : WORDS[0]} waiting={WORDS[1]} />
-            </button>
-            <button
-              type="button"
-              disabled={saying}
-              onClick={() => setWriting(false)}
-              className={`${PRESSABLE} px-2.5 py-1 text-xs font-semibold text-ink enabled:hover:bg-active`}
-            >
-              Cancel
             </button>
           </>
         ) : (
@@ -282,18 +305,7 @@ const Answer = ({
             {text.trim() === "" ? "Answer this" : "Carry on with your answer"}
           </button>
         )}
-        {end === undefined ? null : (
-          <button
-            type="button"
-            disabled={settling}
-            aria-busy={settling ? true : undefined}
-            onClick={settle}
-            className={`${PRESSABLE} flex shrink-0 items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-ink-muted enabled:hover:bg-active enabled:hover:text-ink disabled:opacity-50`}
-          >
-            <Mark size={12} aria-hidden="true" className="shrink-0" />
-            {word}
-          </button>
-        )}
+        {ending !== "after" ? null : ender}
       </div>
     </div>
   )

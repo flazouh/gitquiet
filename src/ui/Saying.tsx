@@ -156,7 +156,17 @@ export const Saying = ({
       {refused === undefined ? null : (
         <p className="mt-1.5 text-xs text-fail">GitHub would not take that: {refused}</p>
       )}
-      <div className="mt-1.5 flex items-center gap-1.5">
+      {/* The send at the end of the row, under the corner the reader finishes writing in,
+          with the way out before it: every box on this interface ends the same way round. */}
+      <div className="mt-1.5 flex items-center justify-end gap-1.5">
+        <button
+          type="button"
+          disabled={saying}
+          onClick={close}
+          className={`${PRESSABLE} px-2.5 py-1 text-xs font-semibold text-ink enabled:hover:bg-active`}
+        >
+          Cancel
+        </button>
         <button
           type="button"
           disabled={text.trim() === "" || saying}
@@ -165,14 +175,6 @@ export const Saying = ({
           className="rounded-md bg-pass-emphasis px-2.5 py-1 text-xs font-semibold text-ink-on-emphasis enabled:hover:opacity-90 disabled:opacity-40"
         >
           <Says among={WORDS} said={saying ? WORDS[1] : WORDS[0]} waiting={WORDS[1]} />
-        </button>
-        <button
-          type="button"
-          disabled={saying}
-          onClick={close}
-          className={`${PRESSABLE} px-2.5 py-1 text-xs font-semibold text-ink enabled:hover:bg-active`}
-        >
-          Cancel
         </button>
       </div>
     </div>

@@ -123,9 +123,6 @@ export const marked = (
   }
 }
 
-/** Nobody to mention and nothing to refer to, which is where every box starts. */
-const NOBODY: Suggesting = { people: [], numbered: [] }
-
 /**
  * How big a picture is, before it goes anywhere.
  *
@@ -167,8 +164,16 @@ const because = (cause: unknown): string | undefined => {
  */
 const ROOM = "max-h-[520px]"
 
-/** What every button in the toolbar wears: a ghost until pointed at, dim while previewing. */
-const TOOL = "rounded p-1 text-ink-muted hover:bg-hover hover:text-ink disabled:opacity-40"
+/**
+ * What every button in the toolbar wears: a ghost until pointed at, dim while previewing.
+ *
+ * The cell is sized, not padded. A button holding only a glyph is as tall as the line box
+ * the glyph stands in, and an inherited line height made every one of these a pixel-odd
+ * rectangle — taller than wide, visibly so the moment a hover filled it. The same cell the
+ * ways wear, so the whole row is one family of shapes.
+ */
+const TOOL =
+  "flex h-6 w-7 items-center justify-center rounded text-ink-muted hover:bg-hover hover:text-ink disabled:opacity-40"
 
 /**
  * The cell both halves of the growing box stand in, with the padding they share.
@@ -223,7 +228,8 @@ export const Writing = ({
   const [previewing, setPreviewing] = useState(false)
   const box = useRef<HTMLTextAreaElement>(null)
   const picker = useRef<HTMLInputElement>(null)
-  const [offering, setOffering] = useState<Suggesting>(NOBODY)
+  /** What the suggester answered, or nothing yet — which is also what a failed read leaves. */
+  const [offering, setOffering] = useState<Suggesting>()
   const [caret, setCaret] = useState(0)
   const [chose, setChose] = useState(0)
   /** Escape closes the offer without closing the box, so it stays shut until the next word. */
@@ -247,25 +253,56 @@ export const Writing = ({
   const standing = useRef(text)
   standing.current = text
 
-  useEffect(() => {
-    if (suggest === undefined) return
+  /*
+   * Whether a read is in the air, so a second ask waits for the first instead of racing it.
+   *
+   * A flag rather than the fiber, and raised before the fork: a read that fails
+   * immediately completes inside `runFork`, so a "cleared when the fiber lands" written
+   * after the fork would be overwritten by the fork's own return — a dead fiber standing
+   * where "nothing in the air" should be, blocking every ask after it.
+   */
+  const reading = useRef(false)
+  /** The fiber itself, only so closing the box can interrupt a read still going. */
+  const flying = useRef<ReturnType<typeof Effect.runFork> | null>(null)
 
-    // Nothing here waits on it: a box with no list yet is a box that offers nobody, and the
-    // read lands long before anybody has typed an at sign.
-    const reading = Effect.runFork(
+  /*
+   * Asks once, and keeps the failure out of the answer. The old read caught a refusal by
+   * writing "nobody" in, and a box that had asked during a bad moment — a rate limit, a
+   * dropped connection — offered nobody for as long as it stood, with nothing to say so.
+   * A failed read leaves the answer missing instead, and a missing answer is asked for
+   * again the moment somebody types the sign that needs it. See `onChange` below.
+   */
+  const readOffering = () => {
+    if (suggest === undefined || reading.current) return
+    reading.current = true
+    flying.current = Effect.runFork(
       suggest().pipe(
-        Effect.catch(() => Effect.succeed(NOBODY)),
-        Effect.map(setOffering)
+        Effect.map(setOffering),
+        Effect.catch(() => Effect.sync(() => {})),
+        Effect.ensuring(
+          Effect.sync(() => {
+            reading.current = false
+          })
+        )
       )
     )
+  }
+
+  useEffect(() => {
+    // Nothing here waits on it: a box with no list yet is a box that offers nobody, and the
+    // read lands long before anybody has typed an at sign.
+    readOffering()
     return () => {
-      Effect.runFork(Fiber.interrupt(reading))
+      // Interrupting a fiber that already landed is a no-op, so this needs no bookkeeping.
+      if (flying.current !== null) Effect.runFork(Fiber.interrupt(flying.current))
     }
+    // The read is per box, not per render: `suggest` is the one thing it closes over.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: readOffering is stable in what matters
   }, [suggest])
 
   const asked = previewing || shut ? undefined : asking(text, caret)
   const offered: ReadonlyArray<One> =
-    asked === undefined
+    asked === undefined || offering === undefined
       ? []
       : asked.kind === "person"
         ? matching(offering.people, asked.said)
@@ -543,6 +580,13 @@ export const Writing = ({
               onText(event.target.value)
               setCaret(event.target.selectionStart)
               setShut(false)
+              // A missing answer is asked for again the moment it is wanted: the sign was
+              // typed, the list never landed, and the reader is looking at where it goes.
+              if (
+                offering === undefined &&
+                asking(event.target.value, event.target.selectionStart) !== undefined
+              )
+                readOffering()
             }}
             onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
             // An offer under the caret is said as well as drawn: the field names the list

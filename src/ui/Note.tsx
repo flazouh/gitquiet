@@ -139,15 +139,10 @@ export const Note = ({
       {refused === undefined ? null : (
         <p className="mt-1.5 text-xs text-fail">GitHub would not take that: {refused}</p>
       )}
-      <div className="mt-1.5 flex items-center gap-1.5">
-        <button
-          type="button"
-          disabled={text.trim() === "" || posting || onPost === undefined}
-          aria-busy={posting ? true : undefined}
-          onClick={() => void post()}
-          className="rounded-md bg-pass-emphasis px-2.5 py-1 text-xs font-semibold text-ink-on-emphasis disabled:opacity-40"
-        >
-          <Says among={WORDS} said={posting ? WORDS[1] : WORDS[0]} waiting={WORDS[1]} />
+      {/* The send at the end of the row, the ways out before it, as every box here ends. */}
+      <div className="mt-1.5 flex items-center justify-end gap-1.5">
+        <button type="button" className={BUTTON} disabled={posting} onClick={onDiscard}>
+          Cancel
         </button>
         <button
           type="button"
@@ -157,8 +152,14 @@ export const Note = ({
         >
           Save draft
         </button>
-        <button type="button" className={BUTTON} disabled={posting} onClick={onDiscard}>
-          Cancel
+        <button
+          type="button"
+          disabled={text.trim() === "" || posting || onPost === undefined}
+          aria-busy={posting ? true : undefined}
+          onClick={() => void post()}
+          className="rounded-md bg-pass-emphasis px-2.5 py-1 text-xs font-semibold text-ink-on-emphasis disabled:opacity-40"
+        >
+          <Says among={WORDS} said={posting ? WORDS[1] : WORDS[0]} waiting={WORDS[1]} />
         </button>
       </div>
     </>

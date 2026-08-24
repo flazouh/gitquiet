@@ -3,6 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Effect } from "effect"
 import { useState } from "react"
+import type { Suggesting } from "../domain/suggesting"
 import { Writing } from "./Writing"
 
 afterEach(cleanup)
@@ -17,7 +18,11 @@ const suggest = () =>
   })
 
 /** The box as any screen holds it: its words in state, everything else quiet. */
-const Box = () => {
+const Box = ({
+  offering = suggest
+}: {
+  readonly offering?: () => Effect.Effect<Suggesting, unknown>
+}) => {
   const [text, setText] = useState("")
   return (
     <Writing
@@ -26,7 +31,7 @@ const Box = () => {
       placeholder="Answer this"
       onEscape={() => {}}
       onSend={() => {}}
-      suggest={suggest}
+      suggest={offering}
     />
   )
 }
@@ -68,6 +73,26 @@ describe("saying the offer out loud", () => {
 
     await userEvent.keyboard("{ArrowDown}")
     expect(field.getAttribute("aria-activedescendant")).toBe(offered[1]!.id)
+  })
+
+  /*
+   * The read the box makes when it opens can land during a bad moment — a rate limit, a
+   * dropped connection. Caching that failure meant a box that offered nobody for as long
+   * as it stood, silently; asking again when the sign is typed is what GitHub's own box
+   * does, and it is the difference Alex saw between two boxes on one page.
+   */
+  test("asks again when the first read failed and an at sign wants it", async () => {
+    let asks = 0
+    const flaky = () => {
+      asks += 1
+      return asks === 1 ? Effect.fail("a bad moment") : suggest()
+    }
+    render(<Box offering={flaky} />)
+
+    await userEvent.type(screen.getByRole("textbox"), "@")
+
+    expect(await screen.findAllByRole("option")).toHaveLength(2)
+    expect(asks).toBe(2)
   })
 
   test("a field nobody is in offers nothing", async () => {
