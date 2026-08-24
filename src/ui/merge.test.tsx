@@ -3,7 +3,13 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import { aReview } from "../../tests/snapshots"
-import type { ChangedFile, MergeBlocker, MergeQueue, MergeState } from "../domain/PullRequest"
+import type {
+  ChangedFile,
+  MergeBlocker,
+  MergeQueue,
+  MergeState,
+  StackLayer
+} from "../domain/PullRequest"
 import { Merge } from "./Merge"
 
 afterEach(cleanup)
@@ -857,7 +863,7 @@ describe("a pull request that is one layer of a stack", () => {
     seat
   })
 
-  const onTopOf = (...layers: ReadonlyArray<ReturnType<typeof layer>>): MergeState => ({
+  const onTopOf = (...layers: ReadonlyArray<StackLayer>): MergeState => ({
     ...ready,
     stack: Option.some({ number: 11, layers, floor: Option.none() })
   })
@@ -896,6 +902,40 @@ describe("a pull request that is one layer of a stack", () => {
     render(<Merge state="open" merge={Option.some(underADraft)} />)
 
     expect(screen.getByText("ready to merge")).toBeDefined()
+  })
+
+  test("names the stack on the button, because that is what this press lands", () => {
+    // The panel above already counts the layers, but the button is the thing
+    // being pressed, and "Squash and merge" is the label for landing one pull
+    // request. GitHub's own button on a stack says "Merge stack".
+    render(<Merge state="open" merge={Option.some(inTheMiddle)} />)
+
+    expect(button(/^Squash and merge stack/)).toBeDefined()
+  })
+
+  test("asks for the stack by name on the second press too", async () => {
+    render(
+      <Merge state="open" merge={Option.some(inTheMiddle)} actions={{ merge: () => Effect.void }} />
+    )
+
+    await userEvent.click(button(/Squash and merge stack/))
+
+    expect(button(/Confirm squash and merge stack/)).toBeDefined()
+  })
+
+  test("keeps the plain word while the press lands one layer, the rest being merged", () => {
+    // A half-landed stack keeps its merged layers in the list, and the press
+    // takes what is left below here — which on this seat is this one alone. A
+    // button saying stack would claim three pull requests to land one.
+    const lastOneStanding = onTopOf(
+      { ...layer(8, "below"), state: "merged" as const },
+      { ...layer(9, "below"), state: "merged" as const },
+      layer(10, "here")
+    )
+
+    render(<Merge state="open" merge={Option.some(lastOneStanding)} />)
+
+    expect(button(/^Squash and merge$/)).toBeDefined()
   })
 })
 

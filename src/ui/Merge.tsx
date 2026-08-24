@@ -12,7 +12,7 @@ import type {
   ReviewDecision
 } from "../domain/PullRequest"
 import { faceOf, type MergeFace } from "../domain/doable"
-import { holdingItUp } from "../domain/pressing"
+import { holdingItUp, wouldLand } from "../domain/pressing"
 import { Ask, type Asking, type MergeActions, type Merging } from "./Ask"
 import { useArt } from "./art"
 import { changeWord, FileMark } from "./FileHeading"
@@ -557,7 +557,21 @@ const MergeCard = ({
   if (face.kind === "unread") return <MergeUnread />
 
   const merge = face.merge
-  const wiring = { merging, can: face.can, actions, press, onCancel, method: merge.method }
+  const wiring = {
+    merging,
+    can: face.can,
+    actions,
+    press,
+    onCancel,
+    method: merge.method,
+    // What the press lands rather than whether a stack exists: read from the
+    // last open layer of a half-landed stack, the press is down to one pull
+    // request, and a button saying stack would claim work that went in already.
+    landsStack: Option.match(merge.stack, {
+      onNone: () => false,
+      onSome: (stack) => wouldLand(stack).length > 1
+    })
+  }
   // A stack makes GitHub's own word for this pull request the wrong answer for
   // the card. Asked about the top of a stack with a draft under it they say
   // MERGEABLE, which is true of the pull request being read and not true of the

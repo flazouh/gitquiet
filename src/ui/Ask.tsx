@@ -188,15 +188,30 @@ const MERGE_WORD: Record<MergeMethod, string> = {
 }
 
 /**
+ * The same three, where the press lands a stack rather than one pull request.
+ *
+ * The stack in the word, because this is the one control on the interface that
+ * lands several pull requests, and "Squash and merge" is the label for landing
+ * one. GitHub's own button here says "Merge stack" and drops the method; the
+ * method names the commits the repository is about to write, several of them
+ * now, so it has more claim to the button than it had on one.
+ */
+const STACK_MERGE_WORD: Record<MergeMethod, string> = {
+  MERGE: "Merge stack",
+  SQUASH: "Squash and merge stack",
+  REBASE: "Rebase and merge stack"
+}
+
+/**
  * What a button says, once the repository has had its say about merging.
  *
  * Every verb but the merge reads straight off {@link WORDS}. The merge is the
  * one whose resting word is not ours: it names the commit the repository writes,
  * and a card that has not been told which keeps the plain word.
  */
-const wordsOf = (doing: Asking, method: Option.Option<MergeMethod>): Wording =>
+const wordsOf = (doing: Asking, method: Option.Option<MergeMethod>, landsStack: boolean): Wording =>
   doing === "merge" && Option.isSome(method)
-    ? { ...WORDS.merge, rest: MERGE_WORD[method.value] }
+    ? { ...WORDS.merge, rest: (landsStack ? STACK_MERGE_WORD : MERGE_WORD)[method.value] }
     : WORDS[doing]
 
 /** What the second press is called, on a control that asks before it acts. */
@@ -253,6 +268,7 @@ export const Ask = ({
   press,
   onCancel,
   method = Option.none(),
+  landsStack = false,
   className = ""
 }: {
   /** What this button asks for, which decides its words, its colours and its name. */
@@ -277,6 +293,13 @@ export const Ask = ({
    * a branch, and nothing about how a landed pull request landed is in reach.
    */
   readonly method?: Option.Option<MergeMethod>
+  /**
+   * Whether the press this button asks for lands a stack of pull requests
+   * rather than the one being read — see `wouldLand`, which is the fact and
+   * not the seat: a half-landed stack read from its last open layer is down to
+   * an ordinary merge, whatever the panel above still draws.
+   */
+  readonly landsStack?: boolean
   readonly className?: string
 }) => {
   const art = useArt()
@@ -284,7 +307,7 @@ export const Ask = ({
   // Resolved once and handed to all four readers. Resolved four times over, the
   // one that skipped it — the waiting word — was right only for as long as
   // {@link wordsOf} replaced nothing but the resting word.
-  const words = wordsOf(doing, method)
+  const words = wordsOf(doing, method, landsStack)
   const verb = words.rest
   const tone = TONE[doing]
   const named = `${verb.charAt(0).toLowerCase()}${verb.slice(1)}`
