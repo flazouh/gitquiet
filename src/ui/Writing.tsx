@@ -455,7 +455,13 @@ export const Writing = ({
         <div className={`grid text-sm ${ROOM}`}>
           <div
             aria-hidden="true"
-            className={`invisible col-start-1 row-start-1 overflow-hidden whitespace-pre-wrap break-words px-2.5 py-2 ${ROOM}`}
+            /*
+             * `[visibility:hidden]` where `invisible` reads better, because the page is
+             * GitHub's and their sheet has an `.invisible` of its own — theirs adds
+             * `position: absolute`, which lifts the mirror out of the row it exists to
+             * size. An arbitrary property makes a class name nobody else has.
+             */
+            className={`col-start-1 row-start-1 overflow-hidden whitespace-pre-wrap break-words px-2.5 py-2 [visibility:hidden] ${ROOM}`}
           >
             {/* The space is load-bearing: a trailing newline draws no line box of its own,
                 and without it Enter opened a line the box was one line too short for. */}
