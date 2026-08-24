@@ -88,6 +88,23 @@ describe("rendering our markdown document", () => {
     expect(screen.getByText("x")).toBeTruthy()
   })
 
+  test("draws the reference definitions a document ends with, address and all", () => {
+    // GitHub draws nothing for these, so a References section that is only
+    // definitions ends at an empty heading — which reads as the file being cut.
+    render(<Markdown markdown={"## References\n\n[0]: https://example.com/versioning"} />)
+
+    expect(screen.getByText("[0]:")).toBeTruthy()
+    const link = screen.getByRole("link", { name: "https://example.com/versioning" })
+    expect(link.getAttribute("href")).toBe("https://example.com/versioning")
+  })
+
+  test("keeps a poisoned definition readable without making it a link", () => {
+    render(<Markdown markdown={"[bad]: javascript:alert(1)"} />)
+
+    expect(screen.queryByRole("link")).toBeNull()
+    expect(screen.getByText("javascript:alert(1)")).toBeTruthy()
+  })
+
   test("renders a details section the reader can open", () => {
     render(<Markdown markdown={"<details>\n<summary>More</summary>\n\n- item\n\n</details>"} />)
 

@@ -525,6 +525,51 @@ See #1945 and @alice.
     ])
   })
 
+  test("keeps link reference definitions as a sources block instead of dropping them", () => {
+    // The lexer consumes these to power the reference links above, and a
+    // renderer that stops there cuts real content: a document whose References
+    // section is nothing but definitions ends at an empty heading.
+    const doc = parseMarkdown(
+      "## References\n\n[0]: https://example.com/versioning\n[1]: https://example.com/union \"SDK union\""
+    )
+
+    expect(doc.blocks).toMatchObject([
+      { type: "heading", depth: 2 },
+      {
+        type: "sources",
+        entries: [
+          { label: "0", said: "https://example.com/versioning", href: "https://example.com/versioning", title: null },
+          { label: "1", said: "https://example.com/union", href: "https://example.com/union", title: "SDK union" }
+        ]
+      }
+    ])
+  })
+
+  test("groups a run of definitions into one block, blank lines and all", () => {
+    const doc = parseMarkdown(
+      "[the docs][0]\n\n[0]: https://example.com/a\n\n[1]: https://example.com/b"
+    )
+
+    expect(doc.blocks).toMatchObject([
+      {
+        type: "paragraph",
+        children: [{ type: "link", href: "https://example.com/a" }]
+      },
+      {
+        type: "sources",
+        entries: [{ label: "0" }, { label: "1" }]
+      }
+    ])
+  })
+
+  test("keeps the words of a definition whose address may not be followed", () => {
+    const doc = parseMarkdown("[bad]: javascript:alert(1)")
+
+    expect(doc.blocks).toMatchObject([
+      { type: "sources", entries: [{ label: "bad", said: "javascript:alert(1)", href: null }] }
+    ])
+  })
+
   test("reads a footnote reference and its definition", () => {
     const doc = parseMarkdown("See this.[^1]\n\n[^1]: the note")
 

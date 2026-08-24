@@ -358,3 +358,24 @@
   rx: 4px;
   ry: 4px;
 }
+
+/*
+ * The link table a document keeps under its References heading.
+ *
+ * Drawn where GitHub draws nothing, because these lines are the section's
+ * content: every renderer that swallows them ends the document at an empty
+ * heading, which reads as the file being cut. Muted and tight rather than
+ * dressed as prose, because they are the writer's link table rather than
+ * their sentences, and a README that farms thirty definitions at its top
+ * should read as a table of addresses, not as thirty paragraphs.
+ */
+.markdown ul.markdown-sources {
+  list-style: none;
+  padding-left: 0;
+  font-size: 0.875em;
+  color: var(--color-ink-muted);
+}
+
+.markdown-sources-label {
+  font-family: var(--font-mono, ui-monospace, monospace);
+}

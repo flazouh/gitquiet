@@ -116,6 +116,21 @@ const Block = ({ block }: { readonly block: MarkdownBlock }) => {
     }
     case "table":
       return <Table block={block} />
+    case "sources":
+      // The address is the words as well as the press, so a vetoed one keeps
+      // its text and loses only the link — the same rule every other address
+      // in this tree follows.
+      return (
+        <ul className="markdown-sources">
+          {block.entries.map((entry, index) => (
+            <li key={index}>
+              <span className="markdown-sources-label">{`[${entry.label}]:`}</span>{" "}
+              {entry.href === null ? entry.said : <a href={entry.href}>{entry.said}</a>}
+              {entry.title === null ? null : ` ${entry.title}`}
+            </li>
+          ))}
+        </ul>
+      )
     case "html":
       return <Html node={block} />
   }
@@ -338,6 +353,7 @@ const isInline = (node: MarkdownBlock | MarkdownInline): node is MarkdownInline 
     case "blockquote":
     case "alert":
     case "hr":
+    case "sources":
       return false
     case "code":
       return !("language" in node)

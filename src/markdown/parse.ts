@@ -11,6 +11,7 @@ import type {
   MarkdownInline,
   ParagraphBlock,
   ParseOptions,
+  SourceEntry,
   TableAlign,
   TableBlock,
   TableCell,
@@ -144,8 +145,23 @@ const blocksOf = (tokens: ReadonlyArray<Token>): ReadonlyArray<MarkdownBlock> =>
     out.push({ type: "paragraph", children: [child] })
   })
 
+  // Definitions run together into one block however many blank lines the
+  // writer spread them over, because blank lines never make it this far and
+  // the run only closes when something else is drawn.
+  let sources: Array<SourceEntry> = []
+  const flushSources = () => {
+    if (sources.length === 0) return
+    html.emit({ type: "sources", entries: sources })
+    sources = []
+  }
+
   for (const token of tokens) {
     if (token.type === "space") continue
+    if (isDef(token)) {
+      if (!html.skipping()) sources.push(entryOf(token))
+      continue
+    }
+    flushSources()
     if (token.type === "html" && "raw" in token) {
       html.html(token.raw)
       continue
@@ -155,9 +171,20 @@ const blocksOf = (tokens: ReadonlyArray<Token>): ReadonlyArray<MarkdownBlock> =>
     if (block !== undefined) html.emit(block)
   }
 
+  flushSources()
   html.flush()
   return out
 }
+
+const isDef = (token: Token): token is Tokens.Def =>
+  token.type === "def" && "tag" in token && "href" in token
+
+const entryOf = (token: Tokens.Def): SourceEntry => ({
+  label: token.tag,
+  said: token.href,
+  href: hrefOf(token.href),
+  title: token.title === "" || token.title === undefined ? null : token.title
+})
 
 const isBlockChild = (child: Child): child is MarkdownBlock => {
   switch (child.type) {
@@ -169,6 +196,7 @@ const isBlockChild = (child: Child): child is MarkdownBlock => {
     case "alert":
     case "hr":
     case "html":
+    case "sources":
       return true
     case "code":
       return "language" in child

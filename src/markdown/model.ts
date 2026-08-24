@@ -14,6 +14,7 @@ export type MarkdownBlock =
   | BlockquoteBlock
   | HrBlock
   | AlertBlock
+  | SourcesBlock
 
 export type HeadingBlock = {
   readonly type: "heading"
@@ -174,6 +175,30 @@ export type ListBlock = {
   readonly ordered: boolean
   readonly start: number | null
   readonly items: ReadonlyArray<ListItem>
+}
+
+/**
+ * A run of link reference definitions, kept where the writer put them.
+ *
+ * The lexer consumes these lines to power the reference links above, and every
+ * renderer that stops there draws nothing for them — which is right for a
+ * definition tucked between paragraphs and wrong for the common case: a
+ * References section that is nothing but definitions, ending the document at
+ * an empty heading. The addresses are the section's content, so they stay.
+ */
+export type SourcesBlock = {
+  readonly type: "sources"
+  readonly entries: ReadonlyArray<SourceEntry>
+}
+
+export type SourceEntry = {
+  /** The label the body cites, as written between its brackets. */
+  readonly label: string
+  /** The address as the writer spelt it, which is what the row shows. */
+  readonly said: string
+  /** The same address once vetted, or nothing where it may not be followed. */
+  readonly href: string | null
+  readonly title: string | null
 }
 
 export type CodeBlock = {

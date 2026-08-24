@@ -214,6 +214,7 @@ const isInline = (node: MarkdownBlock | MarkdownInline): node is MarkdownInline 
     case "blockquote":
     case "alert":
     case "hr":
+    case "sources":
       return false
     case "code":
       return !("language" in node)
