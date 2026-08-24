@@ -161,10 +161,19 @@ const because = (cause: unknown): string | undefined => {
  * As tall as the box is allowed to grow before it keeps its own scrollbar.
  *
  * A Tailwind class rather than a number, because it is worn twice below — once by the
- * mirror, once by the field — and the two capping at different heights is the last line
- * of a long comment slipping out of view.
+ * wrapper, once by the mirror — and the two capping at different heights is the last
+ * line of a long comment slipping out of view.
  */
 const ROOM = "max-h-[520px]"
+
+/**
+ * The cell both halves of the growing box stand in, with the padding they share.
+ *
+ * One string for the same reason `ROOM` is one: the mirror and the field wrap at the
+ * width these classes leave them, and padding that drifted apart on one side is a
+ * mirror wrapping a word earlier than the field it sizes.
+ */
+const CELL = "col-start-1 row-start-1 px-2.5 py-2"
 
 /** The box, or what the words in it come to. */
 const WAYS = [
@@ -461,7 +470,7 @@ export const Writing = ({
              * `position: absolute`, which lifts the mirror out of the row it exists to
              * size. An arbitrary property makes a class name nobody else has.
              */
-            className={`col-start-1 row-start-1 overflow-hidden whitespace-pre-wrap break-words px-2.5 py-2 [visibility:hidden] ${ROOM}`}
+            className={`${CELL} overflow-hidden whitespace-pre-wrap break-words [visibility:hidden] ${ROOM}`}
           >
             {/* The space is load-bearing: a trailing newline draws no line box of its own,
                 and without it Enter opened a line the box was one line too short for. */}
@@ -477,7 +486,7 @@ export const Writing = ({
               setShut(false)
             }}
             onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
-            className="col-start-1 row-start-1 block min-h-20 w-full resize-none overflow-y-auto bg-canvas px-2.5 py-2 text-ink [font:inherit]"
+            className={`${CELL} block min-h-20 w-full resize-none overflow-y-auto bg-canvas text-ink [font:inherit]`}
             /*
              * An address pasted over chosen words is a link around them, which is what the
              * reader meant and what every other box they write in already does.
