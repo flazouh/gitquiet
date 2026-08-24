@@ -167,6 +167,9 @@ const because = (cause: unknown): string | undefined => {
  */
 const ROOM = "max-h-[520px]"
 
+/** What every button in the toolbar wears: a ghost until pointed at, dim while previewing. */
+const TOOL = "rounded p-1 text-ink-muted hover:bg-hover hover:text-ink disabled:opacity-40"
+
 /**
  * The cell both halves of the growing box stand in, with the padding they share.
  *
@@ -439,7 +442,7 @@ export const Writing = ({
               tabIndex={index === stop ? 0 : -1}
               onFocus={() => setStop(index)}
               onClick={() => apply(mark)}
-              className="rounded p-1 text-ink-muted hover:bg-hover hover:text-ink disabled:opacity-40"
+              className={TOOL}
             >
               <MarkArt mark={mark} />
             </button>
@@ -458,7 +461,7 @@ export const Writing = ({
               tabIndex={MARKS.length === stop ? 0 : -1}
               onFocus={() => setStop(MARKS.length)}
               onClick={() => picker.current?.click()}
-              className="ml-1 rounded p-1 text-ink-muted hover:bg-hover hover:text-ink disabled:opacity-40"
+              className={`ml-1 ${TOOL}`}
             >
               <MarkArt mark={{ name: "Attach a file", art: "attach" }} />
             </button>
@@ -514,6 +517,8 @@ export const Writing = ({
          * browser's ring: the ring was the one border left on the box, drawn by nobody.
          */
         <div
+          // The mark carries the keyboard's ring in the field's place. See `primer.css`.
+          data-writing-field=""
           className={`grid rounded-md ${TINT} text-sm [transition:background-color_var(--hover-dur)_var(--hover-ease)] focus-within:bg-active ${ROOM}`}
         >
           <div
@@ -547,8 +552,9 @@ export const Writing = ({
             aria-expanded={showing}
             aria-controls={showing ? offer : undefined}
             aria-activedescendant={showing ? `${offer}-${at}` : undefined}
-            // The wrapper's fill and focus carry what the browser's ring said.
-            className={`${CELL} block min-h-20 w-full resize-none overflow-y-auto bg-transparent text-ink outline-none placeholder:text-ink-muted [font:inherit]`}
+            // The wrapper's fill and ring carry what the field's own ring said — see the
+            // `data-writing-field` rules in `primer.css` for where the outline went.
+            className={`${CELL} block min-h-20 w-full resize-none overflow-y-auto bg-transparent text-ink placeholder:text-ink-muted [font:inherit]`}
             // A wandering pointer should not leave an offer standing over the page: the
             // list follows the caret, and a caret nobody can see has no list. Choosing
             // from the list is not a blur — its options hold focus by design.

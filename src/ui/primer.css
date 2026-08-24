@@ -301,3 +301,23 @@ html
   outline: 2px solid var(--color-ink);
   outline-offset: 2px;
 }
+
+/**
+ * The same ring, moved from the writing box's field to the surface the field is.
+ *
+ * A textarea is `:focus-visible` on every focus, pointer included, so the rule
+ * above drew a rectangle inside the composer every time anybody clicked into it —
+ * around the inner field, square against the surface's rounded corner. The ring's
+ * own argument places it outside the control on the surface it stands on, and for
+ * the composer that surface is the tinted field itself: one rounded ring around
+ * the box being written in, in the same ink at the same offset, for the same
+ * keyboard the rule above serves.
+ */
+#gitquiet-root [data-writing-field] > textarea:focus-visible {
+  outline: none;
+}
+
+#gitquiet-root [data-writing-field]:has(> textarea:focus-visible) {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
