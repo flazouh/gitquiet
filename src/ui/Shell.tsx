@@ -114,7 +114,17 @@ export type ShellProps = {
 }
 
 const NO_READER = new Error("Nothing is wired to read commits.")
-const PREPARED = 22
+
+/**
+ * The last stage that builds anything, and where an arrival stops counting.
+ *
+ * The panels take stages 1 to 13 and the file browser 15 to 18. A stage past
+ * the last gate is an idle callback that renders the whole prepared screen to
+ * add no element to it, and the screen only reports itself ready to be cached
+ * once the count is spent — so a ceiling left above the gates is a page that
+ * says it is ready several callbacks after it was.
+ */
+const PREPARED = 18
 
 /**
  * How long an arrival may keep entering, in milliseconds.
@@ -384,6 +394,15 @@ export const Shell = ({
     [fetchCommitDiffs, reading]
   )
 
+  // Held rather than written at the call site, because the drawing under it is
+  // memoised: a fresh object here is a new prop on every render of this screen,
+  // and the whole point of that `memo` is that a press somewhere else does not
+  // draw the diff again.
+  const answering = useMemo(
+    () => ({ viewer, suggest, onUpload, onReply, onSettle, onUnsettle }),
+    [viewer, suggest, onUpload, onReply, onSettle, onUnsettle]
+  )
+
   // Read once here and handed down as two settled objects: the diff and the
   // rail should never be looking at different answers to the same question.
   //
@@ -454,7 +473,7 @@ export const Shell = ({
           {preparedStage >= 3 ? (
             <About
               snapshot={snapshot}
-              prepareThrough={Math.min(preparedStage - 2, 12)}
+              prepareThrough={Math.min(preparedStage - 2, 11)}
               actions={actions}
               onOpenCommit={loadCommit === undefined ? undefined : setReading}
               onWarmCommit={loadCommit === undefined ? undefined : commits.warm}
@@ -490,44 +509,44 @@ export const Shell = ({
               data-gitquiet-activation="files-panel"
               className="sticky top-[calc(var(--gitquiet-bar-h,0px)+0.5rem)] flex h-[calc(100vh-var(--gitquiet-bar-h,0px)-1rem)] min-h-[40rem] min-w-0 flex-1"
             >
-            {reading === undefined || loadCommit === undefined ? (
-              <FileBrowser
-                files={snapshot.files}
-                prepareThrough={Math.min(preparedStage - 15, 3)}
-                fetchDiffs={forThisHead}
-                diff={diff}
-                tree={tree}
-                proseAsDocument={settled.diff.prose === "on"}
-                keys={keys}
-                wanted={wanted}
-                threads={threads}
-                viewer={viewer}
-                onPost={onPost}
-                suggest={suggest}
-                onUpload={onUpload}
-                answering={{ viewer, suggest, onUpload, onReply, onSettle, onUnsettle }}
-                review={{
-                  active: reviewing,
-                  subject: keyOf(snapshot.reference),
-                  head: snapshot.headSha,
-                  onChange: setReviewing
-                }}
-                display={{ settings, onChange: change }}
-              />
-            ) : (
-              <CommitView
-                sha={reading}
-                load={commits.ask}
-                held={commits.held}
-                onClose={() => setReading(undefined)}
-                fetchDiffs={forThisCommit}
-                diff={diff}
-                tree={tree}
-                proseAsDocument={settled.diff.prose === "on"}
-                keys={keys}
-                display={{ settings, onChange: change }}
-              />
-            )}
+              {reading === undefined || loadCommit === undefined ? (
+                <FileBrowser
+                  files={snapshot.files}
+                  prepareThrough={Math.min(preparedStage - 15, 3)}
+                  fetchDiffs={forThisHead}
+                  diff={diff}
+                  tree={tree}
+                  proseAsDocument={settled.diff.prose === "on"}
+                  keys={keys}
+                  wanted={wanted}
+                  threads={threads}
+                  viewer={viewer}
+                  onPost={onPost}
+                  suggest={suggest}
+                  onUpload={onUpload}
+                  answering={answering}
+                  review={{
+                    active: reviewing,
+                    subject: keyOf(snapshot.reference),
+                    head: snapshot.headSha,
+                    onChange: setReviewing
+                  }}
+                  display={{ settings, onChange: change }}
+                />
+              ) : (
+                <CommitView
+                  sha={reading}
+                  load={commits.ask}
+                  held={commits.held}
+                  onClose={() => setReading(undefined)}
+                  fetchDiffs={forThisCommit}
+                  diff={diff}
+                  tree={tree}
+                  proseAsDocument={settled.diff.prose === "on"}
+                  keys={keys}
+                  display={{ settings, onChange: change }}
+                />
+              )}
             </div>
           ) : null}
         </div>

@@ -34,7 +34,7 @@ import { Merge } from "./Merge"
  */
 export const About = ({
   snapshot,
-  prepareThrough = 12,
+  prepareThrough = 11,
   actions,
   onOpenCommit,
   onWarmCommit,
@@ -55,7 +55,11 @@ export const About = ({
   remarks
 }: {
   readonly snapshot: PullRequestSnapshot
-  /** How many panels a detached route has built so far. */
+  /**
+   * How many stages a detached route has spent here, which is not a count of
+   * panels: Merge takes five of them and Verdict two, so the six panels below
+   * are spread over eleven.
+   */
   readonly prepareThrough?: number
   readonly actions?: MergeActions
   readonly onOpenCommit?: (sha: string) => void
@@ -97,9 +101,10 @@ export const About = ({
     {/* Both absences go in as they are. Which face the card wears, and in what order
         the three are decided, is `faceOf`'s answer and not this file's.
 
-        First on the screen and first to be built, with the four stages of its own
-        that it asks for: the card a reader looks at before anything else is the
-        card no frame budget should make them wait for. */}
+        First on the screen and first to be built, and it takes the four stages
+        of its own that it asks for: the blockers, the queue and the buttons
+        land over stages four to seven. First rather than exempt, which is the
+        order a reader reads the column in. */}
     {prepareThrough >= 1 ? (
       <Merge
         merge={snapshot.merge}

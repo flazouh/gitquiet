@@ -6,6 +6,7 @@ beforeEach(() => {
 })
 
 describe("prepared route activation", () => {
+
   test("reveals a prepared file panel in bounded stages", () => {
     const root = document.createElement("div")
     root.innerHTML = `
@@ -34,9 +35,9 @@ describe("prepared route activation", () => {
     expect(drawing.hidden).toBe(true)
     expect(runs.map((run) => run.hidden)).toEqual([
       false,
-      false,
-      false,
-      false,
+      true,
+      true,
+      true,
       true,
       true,
       true,
@@ -62,12 +63,12 @@ describe("prepared route activation", () => {
 
     queued.shift()?.()
     expect(drawing.hidden).toBe(false)
-    expect(runs.filter((run) => run.hidden)).toHaveLength(6)
+    expect(runs.filter((run) => run.hidden)).toHaveLength(9)
 
     queued.shift()?.()
-    expect(runs.filter((run) => run.hidden)).toHaveLength(2)
+    expect(runs.filter((run) => run.hidden)).toHaveLength(8)
 
-    queued.shift()?.()
+    for (let at = 0; at < 8; at += 1) queued.shift()?.()
     expect(runs.some((run) => run.hidden)).toBe(false)
   })
 

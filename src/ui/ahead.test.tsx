@@ -48,8 +48,12 @@ describe("the file after the one being read", () => {
 
     await waitFor(() => expect(drawingOf("src/two.ts")).not.toBeNull())
     expect(shown("src/two.ts")).toBe(false)
-    expect(drawingOf("src/two.ts")?.style.contentVisibility).toBe("hidden")
-    expect(drawingOf("src/two.ts")?.hidden).toBe(true)
+    // Held at opacity zero with its layout kept, not `contentVisibility:
+    // hidden`: waking a deferred layout on the switch was itself a dropped
+    // frame, measured on the zero-frame-drops branch this style landed from.
+    expect(drawingOf("src/two.ts")?.style.opacity).toBe("0")
+    expect(drawingOf("src/two.ts")?.style.contentVisibility).toBe("")
+    expect(drawingOf("src/two.ts")?.hidden).toBe(false)
     expect(shown("src/one.ts")).toBe(true)
   })
 
