@@ -194,6 +194,11 @@ describe("standing a screen on the page", () => {
     expect(returned.container).toBe(first.container)
     expect(returned.container.textContent).toContain("live first screen")
     expect(returned.container.textContent).not.toContain("fresh replacement")
+    // Waited for rather than asserted at once, as in the test below: the screen
+    // being replaced keeps its bar until another stands, and comes down in idle
+    // time after that. On a loaded machine the two overlap long enough to be
+    // caught here — the fact under test is that the slot settles on one.
+    await until(() => document.querySelectorAll(`#${BAR_ID} > header`).length === 1)
     expect(document.querySelectorAll(`#${BAR_ID} > header`)).toHaveLength(1)
     await until(() => hasPreparedScreen(document, "/other", OTHER))
 
