@@ -6,6 +6,7 @@ import {
   useEffect,
   memo,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -224,22 +225,21 @@ const Drawing = memo(
       <div
         data-file={file.path}
         aria-hidden={open ? "false" : "true"}
-        hidden={!open}
         className="absolute inset-0 overflow-auto"
-        style={
-          open
-            ? undefined
-            : {
-                visibility: "hidden",
-                pointerEvents: "none",
-                contentVisibility: "hidden",
-              }
-        }
+        style={{
+          contain: "layout style paint",
+          scrollbarGutter: "stable",
+          // Opacity changes paint only. The drawings keep their layout, so a
+          // next or previous press does not wake a deferred document layout.
+          opacity: open ? undefined : 0,
+          pointerEvents: open ? undefined : "none",
+        }}
       >
-        <FileDiffPane
-          file={file}
-          ask={ask}
-          reading={open ? reading : proseAsDocument && isProse(file.path)}
+          <FileDiffPane
+            file={file}
+            ask={ask}
+            active={open}
+            reading={open ? reading : proseAsDocument && isProse(file.path)}
           choices={choices}
           drafts={heldDrafts}
           onSaveDraft={onSaveDraft}
@@ -309,6 +309,8 @@ export const FileBrowser = ({
   const [reading, setReading] = useState(
     proseAsDocument && isProse(first?.path ?? ""),
   );
+  const selectionTimer = useRef<number | undefined>(undefined);
+  const pendingSelection = useRef<string | undefined>(undefined);
 
   // Opening a file is what counts as having looked at it. Nothing subtler —
   // dwell time, how far it was scrolled — because the reader can already see
@@ -351,10 +353,27 @@ export const FileBrowser = ({
 
   const onSelect = useCallback(
     (path: string) => {
-      setChosen(path);
-      setReading(proseAsDocument && isProse(path));
+      if (path === (pendingSelection.current ?? chosen)) return;
+      if (selectionTimer.current !== undefined)
+        window.clearTimeout(selectionTimer.current);
+      pendingSelection.current = path;
+      selectionTimer.current = window.setTimeout(() => {
+        selectionTimer.current = undefined;
+        pendingSelection.current = undefined;
+        setChosen(path);
+        setReading(proseAsDocument && isProse(path));
+      }, 0);
     },
-    [proseAsDocument],
+    [chosen, proseAsDocument],
+  );
+
+  useEffect(
+    () => () => {
+      if (selectionTimer.current !== undefined)
+        window.clearTimeout(selectionTimer.current);
+      pendingSelection.current = undefined;
+    },
+    [],
   );
 
   useEffect(() => {
@@ -521,20 +540,25 @@ export const FileBrowser = ({
   useEffect(() => {
     if (here === undefined) return;
     return whenIdle(
-      () => setDrawn(withinReach([previous?.path, here, next?.path])),
+      () =>
+        setDrawn((held) => {
+          const wanted = withinReach([previous?.path, here, next?.path]);
+          return wanted.length === held.length && wanted.every((path) => held.includes(path))
+            ? held
+            : wanted;
+        }),
       REACHING,
     );
   }, [here, previous?.path, next?.path]);
 
   // A file that has since been dropped from the pull request cannot be drawn.
   const showing = useMemo(
-    () =>
-      withinReach([here, ...drawn])
-        .map((path) => files.find((one) => one.path === path))
-        .filter((one): one is ChangedFile => one !== undefined),
-    [drawn, files, here],
+    () => {
+      const wanted = new Set(withinReach([here, ...drawn]));
+      return walk.filter((one) => wanted.has(one.path));
+    },
+    [drawn, here, walk],
   );
-
   const on = chordFor(keys, "nextFile");
   const back = chordFor(keys, "previousFile");
   const mark = chordFor(keys, "markFile");
@@ -603,6 +627,11 @@ export const FileBrowser = ({
     if (review?.active === true && file !== undefined) rememberRead(file);
     if (to !== undefined) onSelect(to.path);
   };
+  const step = (direction: -1 | 1): void => {
+    const from = pendingSelection.current ?? file?.path;
+    const at = walk.findIndex((candidate) => candidate.path === from);
+    onward(walk[stepping(walk.length, at === -1 ? 0 : at, direction)]);
+  };
 
   // The review loop, off the keyboard, and it is a loop in both senses: a reader
   // holding `j` down spins through the list and comes back round to the top.
@@ -610,8 +639,8 @@ export const FileBrowser = ({
   // wrapping leaves a reader unsure where they are — but the name of the file is
   // on the screen the whole way past, so it does not.
   useKeys(keys, {
-    nextFile: () => onward(next),
-    previousFile: () => onward(previous),
+    nextFile: () => step(1),
+    previousFile: () => step(-1),
     markFile: turnOver,
     // In and out of the same letter. Escape still leaves, and is still the only
     // one of the two that a reader who has never read this tries first.
@@ -747,7 +776,9 @@ export const FileBrowser = ({
             <Ways
               ways={WAYS}
               on={reading ? "preview" : "diff"}
-              onPick={(way) => setReading(way === "preview")}
+              onPick={(way) => {
+                window.setTimeout(() => setReading(way === "preview"), 0)
+              }}
               label="How to read this file"
             />
           ) : null}
@@ -902,12 +933,8 @@ export const FileBrowser = ({
           {prepareThrough < 2 || file === undefined ? null : (
             <FileHeading file={file} icons={tree.icons} />
           )}
-          {/* The drawings sit on top of one another, all of them laid out and
-              only one of them visible. Laid out matters: a diff built inside a
-              hidden box has no width to measure and draws nothing, so the ones
-              waiting their turn are merely invisible — and, incidentally, keep
-              their own scroll, so going back to a file returns to the part of
-              it that was being read. */}
+          {/* The drawings sit on top of one another. Nearby files stay mounted
+              and laid out, so a next or previous press changes paint only. */}
           <div className="relative min-h-0 flex-1">
             {prepareThrough < 2
               ? null

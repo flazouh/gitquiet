@@ -15,15 +15,29 @@
 
 import type { DiffChoices } from "../domain/choices"
 import { syntaxOf } from "../domain/syntax"
-import { PAPER, type DiffHandle, type DiffRequest, type DiffSide, type Note, type Picked } from "../ports/Renderer"
+import {
+  PAPER,
+  type DiffHandle,
+  type DiffPreparation,
+  type DiffRequest,
+  type DiffSide,
+  type Note,
+  type Picked
+} from "../ports/Renderer"
 import { LOADERS } from "../syntax/loaders"
+import { Effect } from "effect"
 import {
   CORE_CSS_ATTRIBUTE,
   FileDiff,
+  getFiletypeFromFileName,
+  getTotalLineCountFromHunks,
   parsePatchFiles,
   registerCustomTheme,
+  type RenderRange,
   wrapCoreCSS
 } from "@pierre/diffs"
+import { WorkerPoolManager } from "@pierre/diffs/worker"
+import { remoteDiffWorker } from "./remoteWorker"
 
 /**
  * The syntax colours Pierre can name, registered once.
@@ -33,6 +47,31 @@ import {
  */
 for (const [name, load] of Object.entries(LOADERS)) {
   registerCustomTheme(name, load as Parameters<typeof registerCustomTheme>[1])
+}
+
+let workerPool: WorkerPoolManager | undefined
+let workerPoolKey: string | undefined
+
+const poolFor = (request: DiffPreparation): WorkerPoolManager | undefined => {
+  if (typeof Worker === "undefined") return undefined
+  const syntax = syntaxOf(request.choices.syntax, request.pack ?? "github")
+  const key = `${syntax.light}|${syntax.dark}|${request.choices.withinLine}`
+  if (workerPool !== undefined && workerPoolKey === key) return workerPool
+
+  workerPool?.terminate()
+  workerPoolKey = key
+  workerPool = new WorkerPoolManager(
+    {
+      workerFactory: remoteDiffWorker,
+      poolSize: 1
+    },
+    {
+      theme: syntax,
+      lineDiffType: request.choices.withinLine,
+      langs: [getFiletypeFromFileName(request.path)]
+    }
+  )
+  return workerPool
 }
 
 /**
@@ -96,7 +135,7 @@ export const SURFACES: Readonly<Record<string, string>> = {
  * `!important` and without knowing which copy of the core stylesheet the shell
  * happened to adopt.
  */
-const OURS = `
+const DIFF_CSS = `
   [data-code] {
     padding-top: 0;
   }
@@ -107,6 +146,28 @@ const asAnnotation = (note: Note) => ({
   lineNumber: note.line,
   metadata: note.key
 })
+
+const ROW_BATCH = 4
+
+/** Plans partial renders without changing the diff's reserved scroll height. */
+export const renderRanges = (
+  totalLines: number,
+  lineHeight: number,
+  batch: number = ROW_BATCH
+): ReadonlyArray<RenderRange> => {
+  const ranges: Array<RenderRange> = []
+  for (let visible = batch; visible < totalLines; visible += batch) {
+    ranges.push({
+      startingLine: 0,
+      totalLines: visible,
+      bufferBefore: 0,
+      bufferAfter: (totalLines - visible) * lineHeight
+    })
+  }
+  if (totalLines > 0)
+    ranges.push({ startingLine: 0, totalLines, bufferBefore: 0, bufferAfter: 0 })
+  return ranges
+}
 
 /**
  * Their range, as a range.
@@ -138,13 +199,10 @@ export const shadowFor = (host: HTMLElement): ShadowRoot =>
   host.shadowRoot ?? host.attachShadow({ mode: "open" })
 
 /**
- * The element the renderer draws into, dressed as its custom element would have
- * dressed it.
+ * The element the renderer draws into, dressed as its custom element.
  *
  * Normally `<diffs-container>` upgrades itself: shadow root, then Pierre's
- * stylesheet adopted into it. Where nothing upgrades, the two lines the element
- * would have run are run here instead. The renderer only ever asks for
- * `shadowRoot ?? attachShadow(...)`, and finds one already waiting either way.
+ * stylesheet adopted into it. This code performs the same setup before render.
  */
 const dressedContainer = (theme: "light" | "dark", choices: DiffChoices): HTMLElement => {
   const host = document.createElement("diffs-container")
@@ -171,12 +229,33 @@ const dressedContainer = (theme: "light" | "dark", choices: DiffChoices): HTMLEl
   // stylesheet — which is exactly what the diff looked like.
   const style = document.createElement("style")
   style.setAttribute(CORE_CSS_ATTRIBUTE, "")
-  style.textContent = wrapCoreCSS(OURS)
+  style.textContent = wrapCoreCSS(DIFF_CSS)
   shadow.append(style)
   return host
 }
 
-export const renderDiff = (container: HTMLElement, request: DiffRequest): DiffHandle => {
+type PreparedHandle = DiffHandle & {
+  readonly activate: (container: HTMLElement, request: DiffRequest) => void
+}
+
+const preparedViews = new Map<string, PreparedHandle>()
+
+const preparationKey = (request: DiffPreparation): string =>
+  `${request.path}\u0000${request.patch}\u0000${request.theme}\u0000${request.pack ?? "github"}\u0000${JSON.stringify(request.choices)}`
+
+const keyFingerprint = (key: string): string => {
+  let hash = 2_166_136_261
+  for (let index = 0; index < key.length; index += 1) {
+    hash = Math.imul(hash ^ key.charCodeAt(index), 16_777_619)
+  }
+  return `${key.length}:${hash >>> 0}`
+}
+
+const buildDiff = (
+  container: HTMLElement,
+  request: DiffRequest | DiffPreparation,
+  initiallyPaused: boolean
+): PreparedHandle => {
   // A patch parses to a list of patches, each holding a list of files. One file
   // is rendered at a time here, so the first of each is the one meant.
   const [patch] = parsePatchFiles(request.patch, request.path, true)
@@ -184,6 +263,10 @@ export const renderDiff = (container: HTMLElement, request: DiffRequest): DiffHa
   if (parsed === undefined) throw new Error(`Nothing to render in the patch for ${request.path}`)
 
   const choices = request.choices
+  let current: DiffPreparation &
+    Partial<Pick<DiffRequest, "onPick" | "notes" | "fillNote">> = request
+  let queueNext = (): void => {}
+  const pool = poolFor(request)
   const diff = new FileDiff<string>({
     diffStyle: choices.layout,
     overflow: choices.overflow,
@@ -207,29 +290,55 @@ export const renderDiff = (container: HTMLElement, request: DiffRequest): DiffHa
     enableLineSelection: request.onPick !== undefined,
     enableGutterUtility: request.onPick !== undefined,
     lineHoverHighlight: "both",
-    onGutterUtilityClick: (range) => request.onPick?.(picked(range)),
-    onLineSelected: (range) => request.onPick?.(range === null ? null : picked(range)),
+    onGutterUtilityClick: (range) => current.onPick?.(picked(range)),
+    onLineSelected: (range) => current.onPick?.(range === null ? null : picked(range)),
     // A row's contents are the caller's, and they are hung in the host's own
     // children rather than in the shadow root — the renderer slots them in.
     // Which is what makes them ordinary elements on the page, reached by the
     // page's stylesheets, rather than something needing a stylesheet in here.
-    renderAnnotation: (annotation) => request.fillNote?.(annotation.metadata),
+    renderAnnotation: (annotation) => current.fillNote?.(annotation.metadata),
     // Pierre marks a changed line with a bar in the margin and leaves the line
     // itself the colour of the page. GitHub fills the line, and filled lines
     // are how anyone who reads pull requests knows at a glance how much of a
     // file moved — so both default to GitHub's way of it, and both can be
     // turned back.
     diffIndicators: choices.marks,
-    disableBackground: !choices.fill
-  } as ConstructorParameters<typeof FileDiff<string>>[0])
-
+    disableBackground: !choices.fill,
+    onPostRender: () => queueNext()
+  } as ConstructorParameters<typeof FileDiff<string>>[0], pool)
   const host = dressedContainer(request.theme, choices)
   container.replaceChildren(host)
-  diff.render({
-    fileDiff: parsed,
-    fileContainer: host,
-    lineAnnotations: (request.notes ?? []).map(asAnnotation)
-  })
+  const totalLines = Math.max(
+    getTotalLineCountFromHunks(parsed.hunks),
+    parsed.additionLines.length,
+    parsed.deletionLines.length
+  )
+  const ranges = renderRanges(totalLines, choices.lineHeight)
+  let rangeAt = 0
+  let queued = false
+  let destroyed = false
+  let paused = initiallyPaused
+  let timer: number | undefined
+  let heldNotes = current.notes ?? []
+  const draw = (): boolean =>
+    diff.render({
+      fileDiff: parsed,
+      fileContainer: host,
+      lineAnnotations: heldNotes.map(asAnnotation),
+      renderRange: ranges[rangeAt]
+    })
+
+  queueNext = () => {
+    if (destroyed || paused || queued || rangeAt >= ranges.length - 1) return
+    queued = true
+    timer = window.setTimeout(() => {
+      queued = false
+      if (destroyed) return
+      rangeAt += 1
+      if (draw()) queueNext()
+    }, 0)
+  }
+  if (draw()) queueNext()
 
   return {
     onThemeChange: (theme) => {
@@ -237,13 +346,121 @@ export const renderDiff = (container: HTMLElement, request: DiffRequest): DiffHa
       diff.onThemeChange()
     },
     showNotes: (notes) => {
-      diff.render({ fileDiff: parsed, fileContainer: host, lineAnnotations: notes.map(asAnnotation) })
+      heldNotes = notes
+      if (draw()) queueNext()
     },
     unpick: () => {
       diff.setSelectedLines(null)
     },
     destroy: () => {
+      destroyed = true
+      if (timer !== undefined) window.clearTimeout(timer)
       diff.cleanUp()
+      host.remove()
+    },
+    activate: (destination, liveRequest) => {
+      current = liveRequest
+      heldNotes = liveRequest.notes ?? []
+      if (host.parentElement !== destination) destination.replaceChildren(host)
+      paused = false
+      queueNext()
     }
   }
+}
+
+export const renderDiff = (container: HTMLElement, request: DiffRequest): DiffHandle => {
+  const started = performance.now()
+  const key = preparationKey(request)
+  const prepared = preparedViews.get(key)
+  performance.mark("gitquiet:prepared-view", {
+    detail: {
+      hit: prepared !== undefined,
+      size: preparedViews.size,
+      path: request.path,
+      key: keyFingerprint(key)
+    }
+  })
+  const measured = (handle: DiffHandle): DiffHandle => {
+    performance.measure("gitquiet:diff-render", {
+      start: started,
+      detail: { path: request.path, prepared: prepared !== undefined }
+    })
+    return handle
+  }
+  if (prepared === undefined) return measured(buildDiff(container, request, false))
+
+  preparedViews.delete(key)
+  const timer = window.setTimeout(() => prepared.activate(container, request), 0)
+  return measured({
+    onThemeChange: prepared.onThemeChange,
+    showNotes: prepared.showNotes,
+    unpick: prepared.unpick,
+    destroy: () => {
+      window.clearTimeout(timer)
+      prepared.destroy()
+    }
+  })
+}
+
+const preparing = new Set<string>()
+
+/**
+ * Starts Pierre's syntax worker while the rendered document is readable.
+ */
+export const prepareDiff = (
+  container: HTMLElement,
+  request: DiffPreparation
+): Effect.Effect<void, unknown> => {
+  const key = preparationKey(request)
+  if (preparedViews.has(key) || preparing.has(key)) return Effect.void
+  preparing.add(key)
+  const started = performance.now()
+
+  const pool = poolFor(request)
+  if (pool === undefined) {
+    preparing.delete(key)
+    return Effect.void
+  }
+  const [patch] = parsePatchFiles(request.patch, request.path, true)
+  const parsed = patch?.files[0]
+  if (parsed === undefined) {
+    preparing.delete(key)
+    return Effect.fail(new Error(`Nothing to prepare in the patch for ${request.path}`))
+  }
+  return Effect.tryPromise({
+    try: () => pool.initialize([getFiletypeFromFileName(request.path)]),
+    catch: (cause) => cause
+  }).pipe(
+    Effect.flatMap(() =>
+      Effect.tryPromise({
+        try: () => pool.primeDiffHighlightCache(parsed),
+        catch: (cause) => cause
+      })
+    ),
+    Effect.tap(() =>
+      Effect.sync(() => {
+        const view = buildDiff(container, request, true)
+        const held = preparedViews.get(key)
+        held?.destroy()
+        preparedViews.set(key, view)
+        while (preparedViews.size > 4) {
+          const oldest = preparedViews.entries().next().value as
+            | [string, PreparedHandle]
+            | undefined
+          if (oldest === undefined) break
+          oldest[1].destroy()
+          preparedViews.delete(oldest[0])
+        }
+      })
+    ),
+    Effect.tap(() =>
+      Effect.sync(() => {
+        performance.measure("gitquiet:diff-prepare", {
+          start: started,
+          detail: { path: request.path, key: keyFingerprint(key) }
+        })
+      })
+    ),
+    Effect.ensuring(Effect.sync(() => preparing.delete(key)))
+  )
 }

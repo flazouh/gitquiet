@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen, within } from "@testing-library/react"
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import type { ChangedFile } from "../domain/PullRequest"
@@ -8,6 +8,14 @@ import { DEFAULTS, type Settings } from "../domain/Settings"
 import { FileBrowser, type FileBrowserProps } from "./FileBrowser"
 
 afterEach(cleanup)
+
+const idled = globalThis.requestIdleCallback
+const unidled = globalThis.cancelIdleCallback
+
+afterEach(() => {
+  globalThis.requestIdleCallback = idled
+  globalThis.cancelIdleCallback = unidled
+})
 
 const file = (path: string): ChangedFile => ({
   path,
@@ -150,6 +158,45 @@ describe("next and previous walk the rail", () => {
 
     expect(open()).toBe(first)
   })
+
+  test("keeps a reachable drawing ready for an opacity switch", async () => {
+    browser()
+    const original = document.querySelector<HTMLElement>('[data-file][aria-hidden="false"]')!
+
+    await userEvent.keyboard("j")
+    await waitFor(() => expect(open()).toBe(drawn[1]!))
+
+    expect(original.hidden).toBe(false)
+    expect(original.style.contentVisibility).toBe("")
+    expect(original.style.opacity).toBe("0")
+    expect(original.style.scrollbarGutter).toBe("stable")
+  })
+
+  test("releases a drawing that is no longer one key away", async () => {
+    const waiting = new Map<number, () => void>()
+    let asked = 0
+    globalThis.requestIdleCallback = ((run: IdleRequestCallback) => {
+      asked += 1
+      waiting.set(asked, () => run({ didTimeout: false, timeRemaining: () => 0 }))
+      return asked
+    }) as typeof globalThis.requestIdleCallback
+    globalThis.cancelIdleCallback = ((handle: number) => {
+      waiting.delete(handle)
+    }) as typeof globalThis.cancelIdleCallback
+
+    browser()
+    const original = document.querySelector<HTMLElement>('[data-file][aria-hidden="false"]')!
+
+    await userEvent.keyboard("j")
+    await userEvent.keyboard("j")
+    act(() => {
+      const due = [...waiting.values()]
+      waiting.clear()
+      for (const run of due) run()
+    })
+
+    await waitFor(() => expect(document.body.contains(original)).toBe(false))
+  })
 })
 
 describe("the progress count as the way to the next unread file", () => {
@@ -269,7 +316,7 @@ describe("taking a mark off a file", () => {
     expect(counted()).toContain("0 of 3")
 
     await userEvent.keyboard("j")
-    expect(counted()).toContain("1 of 3")
+    await waitFor(() => expect(counted()).toContain("1 of 3"))
   })
 })
 

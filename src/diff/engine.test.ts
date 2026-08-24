@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test"
-import { SURFACES, shadowFor } from "./engine"
+import { renderRanges, SURFACES, shadowFor } from "./engine"
 
 /**
  * The one line in the engine that behaves differently on the two platforms.
@@ -43,5 +43,25 @@ describe("the surfaces a diff sits on", () => {
   it("uses the pack's mono, then GitHub's, then a system stack", () => {
     expect(SURFACES["--diffs-font-family"]).toContain("--font-mono")
     expect(SURFACES["--diffs-font-family"]).toContain("--fontStack-monospace")
+  })
+})
+
+describe("a long diff entering the page", () => {
+  it("keeps each default reveal below one frame of DOM work", () => {
+    expect(renderRanges(17, 20)).toEqual([
+      { startingLine: 0, totalLines: 4, bufferBefore: 0, bufferAfter: 260 },
+      { startingLine: 0, totalLines: 8, bufferBefore: 0, bufferAfter: 180 },
+      { startingLine: 0, totalLines: 12, bufferBefore: 0, bufferAfter: 100 },
+      { startingLine: 0, totalLines: 16, bufferBefore: 0, bufferAfter: 20 },
+      { startingLine: 0, totalLines: 17, bufferBefore: 0, bufferAfter: 0 }
+    ])
+  })
+
+  it("grows in bounded ranges while its full scroll height stays reserved", () => {
+    expect(renderRanges(45, 20, 16)).toEqual([
+      { startingLine: 0, totalLines: 16, bufferBefore: 0, bufferAfter: 580 },
+      { startingLine: 0, totalLines: 32, bufferBefore: 0, bufferAfter: 260 },
+      { startingLine: 0, totalLines: 45, bufferBefore: 0, bufferAfter: 0 }
+    ])
   })
 })

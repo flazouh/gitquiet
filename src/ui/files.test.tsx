@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import { Effect, Option } from "effect"
-import type { DiffHandle, DiffRequest } from "../ports/Renderer"
+import type { DiffHandle, DiffPreparation, DiffRequest } from "../ports/Renderer"
 import type { ChangedFile } from "../domain/PullRequest"
 import { diffChoices } from "../domain/choices"
 import { DEFAULTS, type Settings } from "../domain/Settings"
@@ -21,15 +21,19 @@ import { Theme } from "./Theme"
  * enough for the question being asked: whether the pane offers to write.
  */
 const asked: Array<DiffRequest> = []
+const prepared: Array<DiffPreparation> = []
+let destroyed = 0
 
 const handle: DiffHandle = {
   onThemeChange: () => {},
   showNotes: () => {},
   unpick: () => {},
-  destroy: () => {}
+  destroy: () => void (destroyed += 1)
 }
 
 const stub: LoadEngine = Effect.succeed({
+  prepareDiff: (_container: HTMLElement, request: DiffPreparation) =>
+    Effect.sync(() => prepared.push(request)),
   renderDiff: (_container: HTMLElement, request: DiffRequest) => {
     asked.push(request)
     return handle
@@ -39,6 +43,8 @@ const stub: LoadEngine = Effect.succeed({
 afterEach(() => {
   cleanup()
   asked.length = 0
+  prepared.length = 0
+  destroyed = 0
   document.documentElement.removeAttribute("data-color-mode")
   for (const found of document.querySelectorAll(`#${ROOT_ID}`)) found.remove()
 })
@@ -188,6 +194,34 @@ describe("holding back the changes that are only spacing", () => {
     expect(request.patch).toContain("+three")
     expect(request.patch).not.toContain("-two")
     expect(request.patch).toContain("   two")
+  })
+})
+
+describe("preparing the other way to read prose", () => {
+  test("warms the code renderer while the document is already visible", async () => {
+    render(pane({ file: { ...file, path: "README.md" }, reading: true }))
+
+    await waitFor(() => expect(prepared).toHaveLength(1))
+    expect(prepared[0]?.path).toBe("README.md")
+    expect(prepared[0]?.patch).toContain("+ two")
+    expect(asked).toHaveLength(0)
+  })
+
+  test("keeps both drawings after the reader switches each way", async () => {
+    const prose = { ...file, path: "README.md" }
+    const choices = diffChoices(DEFAULTS.diff)
+    const view = render(pane({ file: prose, reading: true, choices }))
+    await waitFor(() => expect(prepared).toHaveLength(1))
+
+    view.rerender(pane({ file: prose, reading: false, choices }))
+    await waitFor(() => expect(asked).toHaveLength(1))
+
+    view.rerender(pane({ file: prose, reading: true, choices }))
+    await waitFor(() => {
+      expect(document.querySelector("[data-gitquiet-prose-runs]")).not.toBeNull()
+    })
+    expect(asked).toHaveLength(1)
+    expect(destroyed).toBe(0)
   })
 })
 

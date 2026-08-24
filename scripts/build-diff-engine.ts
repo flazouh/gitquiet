@@ -12,7 +12,7 @@
  */
 
 import { fileURLToPath } from "node:url"
-import { build } from "vite"
+import { build, type InlineConfig } from "vite"
 
 const here = (path: string) => fileURLToPath(new URL(path, import.meta.url))
 
@@ -24,7 +24,7 @@ type Watcher = {
   on: (name: "event", handle: (event: { code: string; error?: Error }) => void) => void
 }
 
-const result = await build({
+const shared = {
   configFile: false,
   // Vite would otherwise treat the folder it is writing into as a folder to
   // copy from, and warn about it for the rest of time.
@@ -37,6 +37,28 @@ const result = await build({
       { find: /^shiki\/wasm$/, replacement: here("../src/diff/shiki-wasm.ts") }
     ]
   },
+  logLevel: "warn" as const
+} satisfies InlineConfig
+
+// Pierre's worker must be a separate, self-contained extension file. Build it
+// before the watched renderer so the first renderer build can always create it.
+await build({
+  ...shared,
+  build: {
+    outDir: here("../public"),
+    emptyOutDir: false,
+    target: "chrome120",
+    lib: {
+      entry: here("../node_modules/@pierre/diffs/dist/worker/worker.js"),
+      formats: ["es"],
+      fileName: () => "diff-worker.js"
+    },
+    rollupOptions: { output: { codeSplitting: false } }
+  }
+})
+
+const result = await build({
+  ...shared,
   build: {
     outDir: here("../public"),
     emptyOutDir: false,
@@ -50,8 +72,7 @@ const result = await build({
     // One file, so the content script has one thing to fetch and the manifest
     // one thing to expose.
     rollupOptions: { output: { codeSplitting: false } }
-  },
-  logLevel: "warn"
+  }
 })
 
 if (watch) {
@@ -61,5 +82,5 @@ if (watch) {
       console.error(event.error?.message ?? "diff engine build failed")
   })
 } else {
-  console.log("built public/diff-engine.js")
+  console.log("built public/diff-engine.js and public/diff-worker.js")
 }

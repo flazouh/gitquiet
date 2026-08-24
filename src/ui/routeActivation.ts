@@ -6,8 +6,8 @@ const LIST_SECTION = '[data-gitquiet-activation="list-section"]'
 const ACTIVE_DRAWING = '[data-file][aria-hidden="false"]'
 const PROSE_RUNS = "[data-gitquiet-prose-runs]"
 
-const FIRST_VISIBLE_RUNS = 4
-const RUN_BATCH = 4
+const FIRST_VISIBLE_RUNS = 1
+const RUN_BATCH = 1
 
 type Schedule = (work: () => void) => void
 

@@ -5,7 +5,7 @@ import "./customElements"
 import { FileTree, useFileTree } from "@pierre/trees/react"
 import type { GitStatus } from "@pierre/trees"
 import { Effect, Option } from "effect"
-import { memo, useEffect, useMemo, useRef, useState } from "react"
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { whenIdle } from "../app/idle"
 import type { DiffEngine, DiffHandle, DiffSide, Note as NoteAt, Picked } from "../ports/Renderer"
@@ -21,6 +21,11 @@ import { draftKey, type Draft } from "./drafts"
 import { Note } from "./Note"
 import { ProseDiff } from "./ProseDiff"
 import { useRenderer } from "./renderer"
+import {
+  paintFileTreeMarks,
+  paintFileTreeSelection,
+  paintOrScrollFileTreeSelection
+} from "./fileTreeSelection"
 import { usePaintedTheme } from "./Theme"
 import { rowMarks, shortCount, type RowMark } from "./rowMarks"
 import { type Answering, ThreadInDiff } from "./ThreadView"
@@ -244,35 +249,51 @@ export const FileTreePane = ({
   // that silently does nothing is worse than one that was never mentioned.
   useKeys(choices.search ? keys : "off", { search: () => model.openSearch() })
 
-  // Rows are drawn once and left alone, so a file being marked off has to ask
-  // for them again. Handing back the same icons is the only call in the tree's
-  // API that redraws every row while leaving the selection, the scroll and what
-  // is expanded exactly as they were.
+  // Icons change only when the reader asks for a different icon set. Seen marks
+  // are painted below, because asking Pierre to redraw every row for one tick
+  // can make the next document layout wait behind a large tree update.
   useEffect(() => {
     model.setIcons(choices.icons === "material" ? MATERIAL_ICONS : PLAIN_ICONS)
-  }, [model, seen, choices])
+  }, [model, choices.icons])
 
-  // A file chosen anywhere else — Next, Previous, a link — pushed into the tree,
-  // through the handle for the row rather than a method on the tree: the tree
-  // itself has none, and the call we used to make silently did nothing, which
-  // is why the highlight stayed behind when Next moved on.
+  useLayoutEffect(() => {
+    const root = model.getFileTreeContainer()?.shadowRoot
+    if (root !== undefined && root !== null)
+      paintFileTreeMarks(root, currentMarks, {
+        counts: choices.counts,
+        ticks: choices.ticks
+      })
+  }, [model, currentMarks, choices.counts, choices.ticks])
+
+  // A file chosen anywhere else — Next, Previous, a link — painted into the
+  // mounted tree rows. Changing the model selection rebuilds the whole tree,
+  // even though the route already owns the selected path. The row attributes
+  // are the visible and accessible state, and cost no tree render.
   const wanted = Option.getOrUndefined(selected)
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (wanted === undefined) return
 
-    const row = model.getItem(wanted)
-    if (row === null || row.isSelected()) return
+    const root = model.getFileTreeContainer()?.shadowRoot
+    if (root !== undefined && root !== null && paintFileTreeSelection(root, wanted) !== null) return
 
-    return whenIdle(() => {
-      const latest = model.getItem(wanted)
-      if (latest === null || latest.isSelected()) return
-      for (const held of model.getSelectedPaths()) {
-        if (held !== wanted) model.getItem(held)?.deselect()
-      }
-      latest.select()
-      // Selecting a row far down a long tree is only useful if it can be seen.
-      model.scrollToPath(wanted)
+    let paint: number | undefined
+    const stop = whenIdle(() => {
+      const latest = model.getFileTreeContainer()?.shadowRoot ?? null
+      if (
+        !paintOrScrollFileTreeSelection(latest, wanted, (path, options) =>
+          model.scrollToPath(path, options)
+        )
+      )
+        return
+      paint = window.setTimeout(() => {
+        const settled = model.getFileTreeContainer()?.shadowRoot
+        if (settled !== undefined && settled !== null) paintFileTreeSelection(settled, wanted)
+      }, 0)
     }, 250)
+    return () => {
+      stop()
+      if (paint !== undefined) window.clearTimeout(paint)
+    }
   }, [model, wanted])
 
   if (files.length === 0) {
@@ -303,6 +324,8 @@ export type FileDiffPaneProps = {
   readonly ask: (path: string) => Effect.Effect<Option.Option<FileDiff>>
   /** Prose files can be read as the document they become rather than as a diff. */
   readonly reading?: boolean
+  /** Gives the visible file first claim on syntax and DOM preparation. */
+  readonly active?: boolean
   /** How the reader has asked for diffs to be drawn. */
   readonly choices: DiffChoices
   /** What has been written about this file's lines, and not sent. */
@@ -347,6 +370,7 @@ const FileDiffPaneView = ({
   file,
   ask,
   reading = false,
+  active = true,
   choices,
   drafts = [],
   onSaveDraft,
@@ -359,6 +383,7 @@ const FileDiffPaneView = ({
   onUpload
 }: FileDiffPaneProps) => {
   const host = useRef<HTMLDivElement | null>(null)
+  const startedActive = useRef(active)
   const painted = usePaintedTheme()
   const load = useRenderer()
   const [engine, setEngine] = useState<DiffEngine | null>(null)
@@ -428,10 +453,29 @@ const FileDiffPaneView = ({
   )
   const onlySpacing = Option.isSome(shown) && shown.value === ""
 
-  // The file itself when it is being read as a document, or nothing. Unwrapped
-  // rather than kept in an Option: this is a render dependency, and a fresh
-  // wrapper on every render is a re-render of the diff on every render.
-  const prose = reading ? Option.getOrUndefined(whole.diff) : undefined
+  // Keep each way after it first appears. Changing ways then changes only
+  // visibility. Chrome does not have to remove one large tree while it lays
+  // out the other one inside the same input task.
+  const readable = /\.(md|mdx|markdown)$/i.test(file.path)
+    ? Option.getOrUndefined(whole.diff)
+    : undefined
+  const showingProse = reading && readable !== undefined
+  const [codePath, setCodePath] = useState<string | null>(reading ? null : file.path)
+  const [prosePath, setProsePath] = useState<string | null>(reading ? file.path : null)
+  const drawCode = !reading || (active && codePath === file.path)
+  const keepProse = showingProse || (active && prosePath === file.path)
+
+  useEffect(() => {
+    if (reading) setProsePath(file.path)
+    else setCodePath(file.path)
+  }, [reading, file.path])
+
+  useLayoutEffect(() => {
+    if (active || !reading) return
+    // A farther drawing collapses with content visibility. Detach the large
+    // non-default code tree first, then release it outside the switch task.
+    host.current?.querySelector("diffs-container")?.remove()
+  }, [active, reading])
 
   useEffect(() => {
     const loading = Effect.runFork(
@@ -444,6 +488,34 @@ const FileDiffPaneView = ({
     )
     return () => loading.interruptUnsafe()
   }, [load])
+
+  // Start the worker as soon as the document exists. This has no page-thread
+  // syntax work, and it finishes before the first possible click in practice.
+  useEffect(() => {
+    const source = Option.getOrNull(shown)
+    const container = host.current
+    if (container === null || engine?.prepareDiff === undefined || !showingProse || source === null || source === "")
+      return
+
+    let warming: ReturnType<typeof Effect.runFork> | undefined
+    const start = () => {
+      warming = Effect.runFork(
+        engine.prepareDiff?.(container, {
+          patch: source,
+          path: file.path,
+          theme: painted.scheme,
+          pack: painted.pack,
+          choices,
+          onPick: onPost === undefined ? undefined : setPicked
+        }) ?? Effect.void
+      )
+    }
+    const stop = startedActive.current ? (start(), () => {}) : whenIdle(start, 500)
+    return () => {
+      stop()
+      warming?.interruptUnsafe()
+    }
+  }, [active, engine, showingProse, shown, file.path, choices, painted.scheme, painted.pack])
 
   // The threads GitHub already holds against lines of this file. Read here
   // rather than passed in already filtered, so a caller cannot hand this file
@@ -499,7 +571,7 @@ const FileDiffPaneView = ({
   useEffect(() => {
     const container = host.current
     const source = Option.getOrNull(shown)
-    if (engine === null || container === null || source === null || source === "" || prose !== undefined)
+    if (engine === null || container === null || source === null || source === "" || !drawCode)
       return
 
     const live = engine.renderDiff(container, {
@@ -519,13 +591,16 @@ const FileDiffPaneView = ({
       fillNote: (key) => rows.current.get(key)
     })
     handle.current = live
+
     return () => {
       handle.current = null
-      live.destroy()
+      // A file switch hides this drawing in the same commit. Release its large
+      // shadow tree in the next task, after the new file is already readable.
+      window.setTimeout(() => live.destroy(), 0)
     }
     // Every one of these is baked into the DOM the renderer writes, so a change
     // to any of them is a file drawn again from the patch.
-  }, [engine, shown, file.path, prose, choices, onPost, painted.scheme, painted.pack])
+  }, [engine, shown, file.path, drawCode, choices, onPost, painted.scheme, painted.pack])
 
   useEffect(() => {
     handle.current?.showNotes(notes)
@@ -546,7 +621,7 @@ const FileDiffPaneView = ({
   // No header of its own: which file this is, and by how much it changed, is
   // said by the heading the browser sticks directly above this.
   return (
-    <div className="min-w-0 flex-1">
+    <div className="grid min-w-0 flex-1">
       {/* The rows live in the renderer's shadow DOM, under the lines they are
           about. React fills them from out here, so a comment box is a component
           like any other and keeps what is typed into it. */}
@@ -617,8 +692,26 @@ const FileDiffPaneView = ({
           note.key
         )
       })}
-      {prose !== undefined ? (
-        <ProseDiff diff={prose} />
+      {Option.isSome(patch) && !onlySpacing && !unavailable ? (
+        <div
+          ref={host}
+          aria-hidden={showingProse}
+          className="col-start-1 row-start-1 min-w-0"
+          style={
+            showingProse ? { visibility: "hidden", pointerEvents: "none" } : undefined
+          }
+        />
+      ) : null}
+      {readable !== undefined && keepProse ? (
+        <div
+          aria-hidden={!showingProse}
+          className="col-start-1 row-start-1 min-w-0"
+          style={
+            showingProse ? undefined : { visibility: "hidden", pointerEvents: "none" }
+          }
+        >
+          <ProseDiff diff={readable} />
+        </div>
       ) : asking ? (
         <p className="px-4 py-2.5 text-sm text-ink-muted">Fetching this file…</p>
       ) : Option.isNone(patch) ? (
@@ -636,9 +729,7 @@ const FileDiffPaneView = ({
         <p className="px-4 py-2.5 text-sm text-ink-muted">
           The diff renderer could not be loaded, so nothing is shown rather than half of it.
         </p>
-      ) : (
-        <div ref={host} />
-      )}
+      ) : null}
     </div>
   )
 }

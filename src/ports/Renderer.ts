@@ -13,7 +13,7 @@
  * pane cannot tell the difference.
  */
 
-import { Data } from "effect"
+import { Data, type Effect } from "effect"
 import type { DiffChoices } from "../domain/choices"
 import type { Pack } from "../domain/theme"
 
@@ -71,6 +71,12 @@ export type DiffRequest = {
   readonly fillNote?: (key: string) => HTMLElement | undefined
 }
 
+/** The file and choices needed to finish syntax work before code becomes visible. */
+export type DiffPreparation = Pick<
+  DiffRequest,
+  "patch" | "path" | "theme" | "pack" | "choices" | "onPick"
+>
+
 /**
  * The renderer itself: one call, one handle back.
  *
@@ -92,6 +98,11 @@ export type DiffRequest = {
 export const PAPER = "--diffs-paper"
 
 export type DiffEngine = {
+  /** Prepares a diff before a view switch. */
+  readonly prepareDiff?: (
+    container: HTMLElement,
+    request: DiffPreparation
+  ) => Effect.Effect<void, unknown>
   readonly renderDiff: (container: HTMLElement, request: DiffRequest) => DiffHandle
 }
 

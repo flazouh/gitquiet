@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { memo, useMemo } from "react"
 import { proseRuns, type ProseKind } from "../domain/proseRuns"
 import type { FileDiff } from "../domain/PullRequest"
 import { Markdown } from "./Markdown"
@@ -22,18 +22,24 @@ const TONE: Record<ProseKind, string> = {
  * added, removed or untouched lines is rendered as markdown and tinted, so the
  * page reads as a document and the edits are still where they happened.
  */
-export const ProseDiff = ({ diff }: { readonly diff: FileDiff }) => {
+export const ProseDiff = memo(({
+  diff
+}: {
+  readonly diff: FileDiff
+}) => {
   const runs = useMemo(() => proseRuns(diff), [diff])
 
   return (
-    <div data-gitquiet-prose-runs className="flex flex-col">
+    <div
+      data-gitquiet-prose-runs
+      className="flex flex-col"
+    >
       {runs.map((run, at) => (
         <div
           // Runs have no identity of their own — two paragraphs can be added
           // with the same words — so position is the honest key.
           key={`${run.kind}-${at}`}
           data-change={run.kind}
-          style={{ contentVisibility: "auto", containIntrinsicSize: "auto 48px" }}
           className={`px-2 ${TONE[run.kind]}`}
         >
           <Markdown markdown={run.text} />
@@ -41,4 +47,4 @@ export const ProseDiff = ({ diff }: { readonly diff: FileDiff }) => {
       ))}
     </div>
   )
-}
+})

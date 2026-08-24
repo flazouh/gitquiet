@@ -18,15 +18,12 @@ const diff: FileDiff = {
 }
 
 describe("ProseDiff", () => {
-  test("defers markdown runs outside the file viewport", () => {
+  test("keeps markdown runs ready inside a cached file", () => {
     const view = render(<ProseDiff diff={diff} />)
     const runs = view.container.querySelectorAll<HTMLElement>("[data-change]")
 
     expect(runs).toHaveLength(2)
-    expect([...runs].map((run) => run.style.contentVisibility)).toEqual(["auto", "auto"])
-    expect([...runs].map((run) => run.style.containIntrinsicSize)).toEqual([
-      "auto 48px",
-      "auto 48px"
-    ])
+    expect([...runs].map((run) => run.style.contentVisibility)).toEqual(["", ""])
+    expect([...runs].map((run) => run.style.containIntrinsicSize)).toEqual(["", ""])
   })
 })
