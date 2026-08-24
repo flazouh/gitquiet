@@ -1,5 +1,5 @@
 import { Effect, Fiber } from "effect"
-import { useEffect, useRef, useState } from "react"
+import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react"
 import {
   pictured,
   placed,
@@ -17,6 +17,7 @@ import {
   type Suggesting
 } from "../domain/suggesting"
 import { type ArtName, useArt } from "./art"
+import { TINT } from "./dress"
 import { Markdown } from "./Markdown"
 import { continued, indented, linked } from "./typing"
 import { type Way, Ways } from "./Ways"
@@ -229,6 +230,10 @@ export const Writing = ({
   /** Something is over the box and could be let go, which the box says by lighting up. */
   const [over, setOver] = useState(false)
   const [going, setGoing] = useState(0)
+  /** Which mark holds the toolbar's one tab stop. See the toolbar below. */
+  const [stop, setStop] = useState(0)
+  /** Names the offer's options, so the field can say which one is up. */
+  const offer = useId()
 
   /*
    * The text as it is now, for the swap when an upload lands.
@@ -350,9 +355,29 @@ export const Writing = ({
     })
   }
 
+  /** Arrows walk the toolbar, Home and End jump it, and everything else passes through. */
+  const rove = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return
+
+    const stops = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("button")].filter(
+      (one) => !one.disabled
+    )
+    const here = stops.indexOf(document.activeElement as HTMLButtonElement)
+    if (stops.length === 0 || here === -1) return
+
+    event.preventDefault()
+    const next =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? stops.length - 1
+          : (here + (event.key === "ArrowRight" ? 1 : -1) + stops.length) % stops.length
+    stops[next]?.focus()
+  }
+
   return (
     <div
-      className={`relative rounded-md bg-canvas ${over ? "outline outline-2 outline-accent" : ""}`}
+      className="relative"
       /*
        * Dropping a file anywhere on the box, not only on the field. A reader dragging a
        * screenshot aims at the box they can see, and the toolbar is part of it.
@@ -373,68 +398,91 @@ export const Writing = ({
         attach([...event.dataTransfer.files])
       }}
     >
-      {/* The tabs and the marks, on the surface above the box being typed in: the
-          inset fill under the field is what separates the two now. */}
-      <div className="flex items-center gap-0.5 bg-surface px-1.5 py-1">
+      {/*
+        The tabs and the marks, standing on the card above the field rather than on a strip
+        of their own. The strip was a second fill stacked on the field's, which read as a
+        box with a header on an interface that spends `quiet.css` avoiding boxes. Space
+        divides the groups now, where two hairlines did: a line between two clusters of
+        buttons was the only rule left in the row.
+      */}
+      <div className="flex items-center gap-2 pb-1">
         <Ways
           ways={WAYS}
           on={previewing ? "preview" : "write"}
           onPick={(way) => setPreviewing(way === "preview")}
           label="How to look at this comment"
         />
-        <span className="mx-1 h-4 w-px bg-line" />
-        {MARKS.map((mark) => (
-          <button
-            key={mark.name}
-            type="button"
-            aria-label={mark.name}
+        {/*
+          One tab stop for the whole set, which is what a toolbar owes the keyboard: a
+          reader tabbing from the ways to the field should not have to step through seven
+          buttons they already have shortcuts for. Arrows walk the marks; where the reader
+          left is where Tab comes back in.
+        */}
+        <div
+          role="toolbar"
+          aria-label="Formatting"
+          className="flex items-center gap-0.5"
+          onKeyDown={rove}
+        >
+          {MARKS.map((mark, index) => (
+            <button
+              key={mark.name}
+              type="button"
+              aria-label={mark.name}
+              /*
+               * The shortcut is told rather than folded into the name: a screen reader saying
+               * "Bold Command B button" is worse than the attribute that exists to carry it.
+               */
+              aria-keyshortcuts={mark.key === undefined ? undefined : `Meta+${mark.key}`}
+              title={said(mark)}
+              disabled={previewing}
+              tabIndex={index === stop ? 0 : -1}
+              onFocus={() => setStop(index)}
+              onClick={() => apply(mark)}
+              className="rounded p-1 text-ink-muted hover:bg-hover hover:text-ink disabled:opacity-40"
+            >
+              <MarkArt mark={mark} />
+            </button>
+          ))}
+          {onUpload === undefined ? null : (
             /*
-             * The shortcut is told rather than folded into the name: a screen reader saying
-             * "Bold Command B button" is worse than the attribute that exists to carry it.
-             */
-            aria-keyshortcuts={mark.key === undefined ? undefined : `Meta+${mark.key}`}
-            title={said(mark)}
-            disabled={previewing}
-            onClick={() => apply(mark)}
-            className="rounded p-1 text-ink-muted hover:bg-hover hover:text-ink disabled:opacity-40"
-          >
-            <MarkArt mark={mark} />
-
-          </button>
-        ))}
-        {onUpload === undefined ? null : (
-          <>
-            <span className="mx-1 h-4 w-px bg-line" />
-            {/*
               A control for the thing paste and drop already do, because neither of them is
-              visible and one of them needs a mouse that can drag.
-            */}
+              visible and one of them needs a mouse that can drag. A step apart from the
+              marks: it puts something into the text rather than a shape around it.
+            */
             <button
               type="button"
               aria-label="Attach a file"
               title="Attach a file"
               disabled={previewing}
+              tabIndex={MARKS.length === stop ? 0 : -1}
+              onFocus={() => setStop(MARKS.length)}
               onClick={() => picker.current?.click()}
-              className="rounded p-1 text-ink-muted hover:bg-hover hover:text-ink disabled:opacity-40"
+              className="ml-1 rounded p-1 text-ink-muted hover:bg-hover hover:text-ink disabled:opacity-40"
             >
               <MarkArt mark={{ name: "Attach a file", art: "attach" }} />
             </button>
-            <input
-              ref={picker}
-              type="file"
-              multiple
-              className="hidden"
-              onChange={(event) => {
-                attach([...(event.target.files ?? [])])
-                // Emptied, or the same file chosen twice in a row is chosen once.
-                event.target.value = ""
-              }}
-            />
-          </>
+          )}
+        </div>
+        {onUpload === undefined ? null : (
+          <input
+            ref={picker}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(event) => {
+              attach([...(event.target.files ?? [])])
+              // Emptied, or the same file chosen twice in a row is chosen once.
+              event.target.value = ""
+            }}
+          />
         )}
       </div>
       {previewing ? (
-        <div className="min-h-16 px-2.5 py-2">
+        // The same surface the field wears, so the swap changes the words and nothing
+        // else, and the same cap, so a long comment previews through the same window it
+        // was written through.
+        <div className={`min-h-20 overflow-y-auto rounded-md ${TINT} px-2.5 py-2 ${ROOM}`}>
           {text.trim() === "" ? (
             <p className="text-sm text-ink-muted">Nothing to preview yet.</p>
           ) : (
@@ -460,8 +508,14 @@ export const Writing = ({
          * `[font:inherit]`, because a textarea is the one element that refuses the family on
          * its own — so the two cannot drift apart, and a wrapped line counts as the two
          * lines it is.
+         *
+         * The tint is the field's outline — see `quiet.css`, where a field's box becomes a
+         * fill — and focus deepens it one step of the same ladder, in place of the
+         * browser's ring: the ring was the one border left on the box, drawn by nobody.
          */
-        <div className={`grid text-sm ${ROOM}`}>
+        <div
+          className={`grid rounded-md ${TINT} text-sm [transition:background-color_var(--hover-dur)_var(--hover-ease)] focus-within:bg-active ${ROOM}`}
+        >
           <div
             aria-hidden="true"
             /*
@@ -486,7 +540,19 @@ export const Writing = ({
               setShut(false)
             }}
             onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
-            className={`${CELL} block min-h-20 w-full resize-none overflow-y-auto bg-canvas text-ink [font:inherit]`}
+            // An offer under the caret is said as well as drawn: the field names the list
+            // it controls and the option that is up, which is what a screen reader gets
+            // instead of a silence with arrows in it.
+            aria-autocomplete="list"
+            aria-expanded={showing}
+            aria-controls={showing ? offer : undefined}
+            aria-activedescendant={showing ? `${offer}-${at}` : undefined}
+            // The wrapper's fill and focus carry what the browser's ring said.
+            className={`${CELL} block min-h-20 w-full resize-none overflow-y-auto bg-transparent text-ink outline-none placeholder:text-ink-muted [font:inherit]`}
+            // A wandering pointer should not leave an offer standing over the page: the
+            // list follows the caret, and a caret nobody can see has no list. Choosing
+            // from the list is not a blur — its options hold focus by design.
+            onBlur={() => setShut(true)}
             /*
              * An address pasted over chosen words is a link around them, which is what the
              * reader meant and what every other box they write in already does.
@@ -615,10 +681,18 @@ export const Writing = ({
         </div>
       )}
       {showing ? (
+        /*
+         * Dressed and moved as every other surface over the page: raised, a shadow saying
+         * how far off it is, and the menu's own opening — the border it wore was drawn on
+         * no other menu here. It leaves without ceremony, as menus here do: a list on its
+         * way out is a ghost standing where the next keystroke is looking.
+         */
         <ul
+          id={offer}
           role="listbox"
           aria-label={asked?.kind === "person" ? "People to mention" : "Issues to refer to"}
-          className="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-md border border-line bg-surface shadow-lg"
+          data-state="open"
+          className="t-dropdown absolute inset-x-0 top-full z-30 mt-1 origin-top overflow-hidden rounded-md bg-raised p-1 shadow-pop"
         >
           {offered.map((one, index) => (
             <li key={chosen(one)}>
@@ -628,6 +702,7 @@ export const Writing = ({
               */}
               <button
                 type="button"
+                id={`${offer}-${index}`}
                 role="option"
                 aria-selected={index === at}
                 onMouseDown={(event) => {
@@ -635,7 +710,7 @@ export const Writing = ({
                   take(one)
                 }}
                 onMouseEnter={() => setChose(index)}
-                className={`flex w-full items-baseline gap-2 px-2.5 py-1.5 text-left text-xs ${
+                className={`flex w-full items-baseline gap-2 rounded px-2 py-1.5 text-left text-xs ${
                   index === at ? "bg-active text-ink" : "text-ink-muted"
                 }`}
               >
@@ -653,12 +728,27 @@ export const Writing = ({
       {going > 0 || wrong !== undefined ? (
         <p
           aria-live="polite"
-          className={`px-2.5 pb-1.5 text-xs ${wrong === undefined ? "text-ink-muted" : "text-danger"}`}
+          className={`px-2.5 pt-1 text-xs ${wrong === undefined ? "text-ink-muted" : "text-danger"}`}
         >
           {going > 0
             ? `Attaching ${going === 1 ? "a file" : `${going} files`}…`
             : wrong}
         </p>
+      ) : null}
+      {/*
+        What letting go will do, said over the whole box while a file is held over it. A
+        veil with the words on it rather than a ring around the edge: the reader's eyes
+        are on the file they are dragging, not on the border of the thing under it. The
+        veil is the palette's — `bg-black/40` is what this interface dims a surface with —
+        and the accent stays out of it, `dress.ts` keeping that colour for a link, a
+        notice, a number worth reading.
+      */}
+      {over ? (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-md bg-black/40">
+          <p className="rounded-md bg-raised px-2.5 py-1 text-xs font-semibold text-ink shadow-pop">
+            Drop to attach
+          </p>
+        </div>
       ) : null}
     </div>
   )
