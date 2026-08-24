@@ -157,8 +157,14 @@ const because = (cause: unknown): string | undefined => {
   return typeof detail === "string" && detail.length > 0 ? detail : undefined
 }
 
-/** As tall as the box is allowed to grow before it keeps its own scrollbar, in pixels. */
-const ROOM = 520
+/**
+ * As tall as the box is allowed to grow before it keeps its own scrollbar.
+ *
+ * A Tailwind class rather than a number, because it is worn twice below — once by the
+ * mirror, once by the field — and the two capping at different heights is the last line
+ * of a long comment slipping out of view.
+ */
+const ROOM = "max-h-[520px]"
 
 /** The box, or what the words in it come to. */
 const WAYS = [
@@ -268,21 +274,6 @@ export const Writing = ({
   useEffect(() => {
     if (focused && !previewing) box.current?.focus()
   }, [focused, previewing])
-
-  /*
-   * The box is as tall as what is in it, up to the height of a screenful.
-   *
-   * A fixed box with a scrollbar in it is the thing people complain about in GitHub's own,
-   * because a comment of any length is written through a five line window. Measured from the
-   * content rather than counted in lines, so a wrapped line counts as the two lines it is.
-   */
-  useEffect(() => {
-    const field = box.current
-    if (field === null || previewing) return
-
-    field.style.height = "auto"
-    field.style.height = `${Math.min(field.scrollHeight, ROOM)}px`
-  }, [previewing, text])
 
   /**
    * Files into the box: a mark where they will be, then the image or the link in its place.
@@ -442,142 +433,171 @@ export const Writing = ({
           )}
         </div>
       ) : (
-        <textarea
-          ref={box}
-          value={text}
-          placeholder={placeholder}
-          onChange={(event) => {
-            onText(event.target.value)
-            setCaret(event.target.selectionStart)
-            setShut(false)
-          }}
-          onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
-          className="block min-h-20 w-full resize-none overflow-hidden bg-canvas px-2.5 py-2 text-sm text-ink"
-          /*
-           * An address pasted over chosen words is a link around them, which is what the
-           * reader meant and what every other box they write in already does.
-           */
-          onPaste={(event) => {
-            const field = box.current
-
-            // A screenshot on the clipboard, which is the commonest thing anybody attaches.
-            const files = [...event.clipboardData.files]
-            if (files.length > 0 && onUpload !== undefined) {
-              event.preventDefault()
-              attach(files)
-              return
-            }
-
-            const pasted = event.clipboardData.getData("text/plain")
-            if (field === null || pasted === "") return
-
-            const next = linked(text, field.selectionStart, field.selectionEnd, pasted)
-            if (next === undefined) return
-
-            event.preventDefault()
-            const caret = field.selectionStart + (field.selectionEnd - field.selectionStart) + 2
-            onText(next)
-            requestAnimationFrame(() => field.setSelectionRange(caret, caret))
-          }}
-          // The keys anyone already presses in a box like this. Pressing them
-          // somewhere the page also listens would otherwise scroll the diff or
-          // close something further out.
-          onKeyDown={(event) => {
-            event.stopPropagation()
-
+        /*
+         * The box is as tall as what is in it, up to the height of a screenful.
+         *
+         * A fixed box with a scrollbar in it is the thing people complain about in GitHub's
+         * own, because a comment of any length is written through a five line window.
+         *
+         * Grown by a mirror rather than measured. The old way set the height to `auto` and
+         * read `scrollHeight` back on every keystroke, and each read is a forced synchronous
+         * layout of everything on the page — which, on a pull request with a conversation of
+         * any size, was this box being laggy to type in. The mirror stands behind the field
+         * with the same words in the same metrics, the grid makes the taller of the two the
+         * height of both, and the browser lays it out once, in the frame it was already
+         * going to paint.
+         *
+         * The metrics live on the wrapper and both children inherit them — the field through
+         * `[font:inherit]`, because a textarea is the one element that refuses the family on
+         * its own — so the two cannot drift apart, and a wrapped line counts as the two
+         * lines it is.
+         */
+        <div className={`grid text-sm ${ROOM}`}>
+          <div
+            aria-hidden="true"
+            className={`invisible col-start-1 row-start-1 overflow-hidden whitespace-pre-wrap break-words px-2.5 py-2 ${ROOM}`}
+          >
+            {/* The space is load-bearing: a trailing newline draws no line box of its own,
+                and without it Enter opened a line the box was one line too short for. */}
+            {`${text} `}
+          </div>
+          <textarea
+            ref={box}
+            value={text}
+            placeholder={placeholder}
+            onChange={(event) => {
+              onText(event.target.value)
+              setCaret(event.target.selectionStart)
+              setShut(false)
+            }}
+            onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
+            className="col-start-1 row-start-1 block min-h-20 w-full resize-none overflow-y-auto bg-canvas px-2.5 py-2 text-ink [font:inherit]"
             /*
-             * While an offer is up it takes the arrows, Enter, Tab and Escape, because that
-             * is what those keys mean to a list under the caret. Everything below only sees
-             * a key once the list is not there, which is why this is first.
+             * An address pasted over chosen words is a link around them, which is what the
+             * reader meant and what every other box they write in already does.
              */
-            if (showing) {
-              if (event.key === "ArrowDown") {
+            onPaste={(event) => {
+              const field = box.current
+
+              // A screenshot on the clipboard, which is the commonest thing anybody attaches.
+              const files = [...event.clipboardData.files]
+              if (files.length > 0 && onUpload !== undefined) {
                 event.preventDefault()
-                setChose((one) => (one + 1) % offered.length)
+                attach(files)
                 return
               }
-              if (event.key === "ArrowUp") {
-                event.preventDefault()
-                setChose((one) => (one - 1 + offered.length) % offered.length)
-                return
-              }
-              if (event.key === "Enter" || event.key === "Tab") {
-                const one = offered[at]
-                if (one !== undefined) {
+
+              const pasted = event.clipboardData.getData("text/plain")
+              if (field === null || pasted === "") return
+
+              const next = linked(text, field.selectionStart, field.selectionEnd, pasted)
+              if (next === undefined) return
+
+              event.preventDefault()
+              const caret = field.selectionStart + (field.selectionEnd - field.selectionStart) + 2
+              onText(next)
+              requestAnimationFrame(() => field.setSelectionRange(caret, caret))
+            }}
+            // The keys anyone already presses in a box like this. Pressing them
+            // somewhere the page also listens would otherwise scroll the diff or
+            // close something further out.
+            onKeyDown={(event) => {
+              event.stopPropagation()
+
+              /*
+               * While an offer is up it takes the arrows, Enter, Tab and Escape, because that
+               * is what those keys mean to a list under the caret. Everything below only sees
+               * a key once the list is not there, which is why this is first.
+               */
+              if (showing) {
+                if (event.key === "ArrowDown") {
                   event.preventDefault()
-                  take(one)
+                  setChose((one) => (one + 1) % offered.length)
+                  return
+                }
+                if (event.key === "ArrowUp") {
+                  event.preventDefault()
+                  setChose((one) => (one - 1 + offered.length) % offered.length)
+                  return
+                }
+                if (event.key === "Enter" || event.key === "Tab") {
+                  const one = offered[at]
+                  if (one !== undefined) {
+                    event.preventDefault()
+                    take(one)
+                    return
+                  }
+                }
+                // Escape puts the offer away and leaves the box open, which is the difference
+                // between not wanting the list and not wanting to write.
+                if (event.key === "Escape") {
+                  event.preventDefault()
+                  setShut(true)
                   return
                 }
               }
-              // Escape puts the offer away and leaves the box open, which is the difference
-              // between not wanting the list and not wanting to write.
-              if (event.key === "Escape") {
+
+              if (event.key === "Escape") onEscape()
+              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
                 event.preventDefault()
-                setShut(true)
+                onSend()
                 return
               }
-            }
 
-            if (event.key === "Escape") onEscape()
-            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-              event.preventDefault()
-              onSend()
-              return
-            }
+              const held = event.metaKey || event.ctrlKey
+              if (held && !event.altKey) {
+                const mark = MARKS.find((one) => one.key === event.key.toLowerCase())
+                if (mark !== undefined) {
+                  event.preventDefault()
+                  apply(mark)
+                  return
+                }
+              }
 
-            const held = event.metaKey || event.ctrlKey
-            if (held && !event.altKey) {
-              const mark = MARKS.find((one) => one.key === event.key.toLowerCase())
-              if (mark !== undefined) {
+              /*
+               * Tab indents, which a plain textarea does not do and which markdown needs:
+               * a nested list and a fenced block are both spacing, and the only way to
+               * write either was to hold the space bar. See `indented` for when the press
+               * is taken and when it is handed back to the browser, which matters — Tab is
+               * how a reader working from the keyboard leaves this box.
+               */
+              if (event.key === "Tab" && !held && !event.altKey) {
+                const field = box.current
+                if (field === null) return
+
+                const moved = indented(
+                  text,
+                  field.selectionStart,
+                  field.selectionEnd,
+                  event.shiftKey
+                )
+                if (moved === undefined) return
+
                 event.preventDefault()
-                apply(mark)
+                onText(moved.text)
+                requestAnimationFrame(() => field.setSelectionRange(moved.from, moved.to))
                 return
               }
-            }
 
-            /*
-             * Tab indents, which a plain textarea does not do and which markdown needs:
-             * a nested list and a fenced block are both spacing, and the only way to
-             * write either was to hold the space bar. See `indented` for when the press
-             * is taken and when it is handed back to the browser, which matters — Tab is
-             * how a reader working from the keyboard leaves this box.
-             */
-            if (event.key === "Tab" && !held && !event.altKey) {
-              const field = box.current
-              if (field === null) return
+              // Enter under a list carries the list on, and Enter under an empty marker
+              // leaves the list. See `continued`, where the rule is and where it is tested.
+              if (event.key === "Enter" && !held && !event.shiftKey) {
+                const field = box.current
+                if (field === null || field.selectionStart !== field.selectionEnd) return
 
-              const moved = indented(
-                text,
-                field.selectionStart,
-                field.selectionEnd,
-                event.shiftKey
-              )
-              if (moved === undefined) return
+                const carried = continued(text, field.selectionStart)
+                if (carried === undefined) return
 
-              event.preventDefault()
-              onText(moved.text)
-              requestAnimationFrame(() => field.setSelectionRange(moved.from, moved.to))
-              return
-            }
-
-            // Enter under a list carries the list on, and Enter under an empty marker
-            // leaves the list. See `continued`, where the rule is and where it is tested.
-            if (event.key === "Enter" && !held && !event.shiftKey) {
-              const field = box.current
-              if (field === null || field.selectionStart !== field.selectionEnd) return
-
-              const carried = continued(text, field.selectionStart)
-              if (carried === undefined) return
-
-              event.preventDefault()
-              const at = field.selectionStart
-              const next = `${text.slice(0, at - carried.drop)}${carried.put}${text.slice(at)}`
-              const caret = at - carried.drop + carried.put.length
-              onText(next)
-              requestAnimationFrame(() => field.setSelectionRange(caret, caret))
-            }
-          }}
-        />
+                event.preventDefault()
+                const at = field.selectionStart
+                const next = `${text.slice(0, at - carried.drop)}${carried.put}${text.slice(at)}`
+                const caret = at - carried.drop + carried.put.length
+                onText(next)
+                requestAnimationFrame(() => field.setSelectionRange(caret, caret))
+              }
+            }}
+          />
+        </div>
       )}
       {showing ? (
         <ul
