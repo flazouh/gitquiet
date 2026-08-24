@@ -9,11 +9,31 @@ import {
   whenOwnedRouteIsOffered
 } from "./navigationGuard"
 import {
+  markPreparedTraversal,
   PREPARED_TRAVERSAL_ROUTE,
+  preparedTraversal,
   whenPreparedTraversalIsOffered
 } from "../ui/preparedNavigation"
 
 describe("the page-world guard for an owned route", () => {
+  test("does not rewrite an unchanged owned route", () => {
+    const link = document.createElement("a")
+    link.href = "/owner/repo/pull/2"
+    const setAttribute = link.setAttribute.bind(link)
+    let writes = 0
+    Object.defineProperty(link, "setAttribute", {
+      value: (name: string, value: string) => {
+        writes += 1
+        setAttribute(name, value)
+      }
+    })
+
+    markOwnedRoute(link)
+    markOwnedRoute(link)
+
+    expect(writes).toBe(1)
+  })
+
   test("offers an extension link through the shared document", async () => {
     const root = document.createElement("div")
     root.id = "gitquiet-root"
@@ -48,10 +68,7 @@ describe("the page-world guard for an owned route", () => {
   })
 
   test("keeps GitHub out of a prepared history traversal", async () => {
-    document.documentElement.setAttribute(
-      PREPARED_TRAVERSAL_ROUTE,
-      "/owner/repo/pull/12?tab=files"
-    )
+    markPreparedTraversal(document, "/owner/repo/pull/12?tab=files")
     let stopped = false
     let offered: string | null = null
     const stop = whenPreparedTraversalIsOffered(document, (route) => {
@@ -73,6 +90,7 @@ describe("the page-world guard for an owned route", () => {
     expect(offered as unknown).toBe("/owner/repo/pull/12?tab=files")
     expect(stopped).toBe(true)
     expect(document.documentElement.hasAttribute(PREPARED_TRAVERSAL_ROUTE)).toBe(false)
+    expect(preparedTraversal(document)).toBeNull()
     stop()
   })
 

@@ -41,7 +41,8 @@ export const Merge = ({
   reviews = NONE_GIVEN,
   state,
   headRef = { mayDelete: false, mayRestore: false },
-  actions
+  actions,
+  prepareThrough = 4
 }: {
   /**
    * What GitHub said about landing this, where GitHub would say.
@@ -91,6 +92,8 @@ export const Merge = ({
    */
   readonly headRef?: HeadRef
   readonly actions?: MergeActions
+  /** How many parts a detached route has built so far. */
+  readonly prepareThrough?: number
 }) => {
   const [merging, setMerging] = useState<Merging>({ step: "idle" })
   const face = faceOf({ state, merge })
@@ -166,6 +169,7 @@ export const Merge = ({
       headRef={headRef}
       may={may}
       actions={actions}
+      prepareThrough={prepareThrough}
       press={press}
       onCancel={() => setMerging({ step: "idle" })}
     />
@@ -375,6 +379,7 @@ const Settled = ({
   merging,
   may,
   actions,
+  prepareThrough,
   press,
   onCancel
 }: {
@@ -384,6 +389,7 @@ const Settled = ({
   readonly merging: Merging
   readonly may: ReadonlySet<Asking>
   readonly actions?: MergeActions
+  readonly prepareThrough: number
   readonly press: (doing: Asking) => void
   readonly onCancel: () => void
 }) => {
@@ -404,13 +410,15 @@ const Settled = ({
     >
       {/* Kept, unlike everything else: who reviewed it is a fact about the
           reading, and reading is what is left to do with this one. */}
-      <Verdicts reviews={reviews} />
-      <p className="px-3 py-2 text-xs leading-snug text-ink-muted">{settled.said}</p>
+      {prepareThrough >= 1 ? <Verdicts reviews={reviews} /> : null}
+      {prepareThrough >= 2 ? (
+        <p className="px-3 py-2 text-xs leading-snug text-ink-muted">{settled.said}</p>
+      ) : null}
       {/* The one loose end a finished pull request leaves, and the only control
           on this face. GitHub offers the same press on their own page and puts
           the branch back from there, which is why the sentence beside it says
           so: nothing here restores one. */}
-      {headRef.mayDelete ? (
+      {prepareThrough < 4 ? null : headRef.mayDelete ? (
         <div className="flex flex-col gap-1.5 border-t border-line-muted px-3 py-2">
           <p className="text-xs leading-snug text-ink-muted">
             The branch this was made from is still there. GitHub can put it back
@@ -502,6 +510,7 @@ const MergeCard = ({
   headRef,
   may,
   actions,
+  prepareThrough,
   press,
   onCancel
 }: {
@@ -516,6 +525,7 @@ const MergeCard = ({
   /** Everything this card may ask for, the branch included. */
   readonly may: ReadonlySet<Asking>
   readonly actions?: MergeActions
+  readonly prepareThrough: number
   readonly press: (doing: Asking) => void
   readonly onCancel: () => void
 }) => {
@@ -534,6 +544,7 @@ const MergeCard = ({
         merging={merging}
         may={may}
         actions={actions}
+        prepareThrough={prepareThrough}
         press={press}
         onCancel={onCancel}
       />
@@ -578,11 +589,13 @@ const MergeCard = ({
           Each of the blockers, the reviews and the button is a fact about one
           pull request, and on a layer of a stack the press lands several — so
           the reader is told how many before they read a word of the rest. */}
-      {Option.isSome(merge.stack) ? <TheStack stack={merge.stack.value} /> : null}
+      {prepareThrough >= 1 && Option.isSome(merge.stack) ? (
+        <TheStack stack={merge.stack.value} />
+      ) : null}
       {/* Above the blockers: a human saying no is a different kind of fact to a
           rule saying no, and it is the one a reader acts on first. */}
-      <Verdicts reviews={reviews} />
-      {merge.blockers.length === 0 ? null : (
+      {prepareThrough >= 1 ? <Verdicts reviews={reviews} /> : null}
+      {prepareThrough < 2 || merge.blockers.length === 0 ? null : (
         // One blocker to a row, its reason under its name rather than beside it:
         // these are two full sentences each, and side by side they wrapped into a
         // paragraph nobody could tell apart from the next one.
@@ -644,7 +657,7 @@ const MergeCard = ({
           ))}
         </ul>
       )}
-      {Option.isSome(merge.queue) ? (
+      {prepareThrough >= 3 && Option.isSome(merge.queue) ? (
         // Said once, plainly, because a queue changes what the button beneath it
         // means: pressing it hands the pull request to GitHub rather than landing
         // it, and a reader who does not know that reads a delay as a failure.
@@ -659,7 +672,7 @@ const MergeCard = ({
           </span>
         </p>
       ) : null}
-      {Option.isSome(merge.update) ? (
+      {prepareThrough >= 3 && Option.isSome(merge.update) ? (
         <p className="flex items-start gap-2 px-3 py-2 text-xs leading-snug text-ink-muted">
           <Alert size={12} className="mt-0.5 shrink-0 text-warn" />
           <span className="flex min-w-0 flex-col gap-0.5">
@@ -673,7 +686,7 @@ const MergeCard = ({
           </span>
         </p>
       ) : null}
-      {merging.step === "refused" ? (
+      {prepareThrough >= 3 && merging.step === "refused" ? (
         <p className="flex items-start gap-2 px-3 py-2 text-xs leading-snug text-fail">
           <Err size={12} className="mt-0.5 shrink-0" />
           {merging.said}
@@ -684,28 +697,30 @@ const MergeCard = ({
           split over two lines beside "Close pull request" split over two lines
           was four lines of button and no way to tell which word belonged to
           which. */}
-      <div className="@container flex flex-wrap items-center gap-2 px-3 py-2.5">
-        {/* One way in, never two. Where a queue exists the direct merge is
-            something GitHub refuses, so the domain names the queue verb instead
-            and there is one button either way: the paragraph above has already
-            said why, and this column has room for two controls, not three. */}
-        <Ask doing={Option.getOrElse(face.queueing, () => "merge" as const)} {...wiring} />
-        {/* Shown only while there is catching up to do. Whether it may be pressed
-            is the domain's answer; whether the fact exists at all is this one. */}
-        {Option.isSome(merge.update) ? <Ask doing="update" {...wiring} /> : null}
-        <Ask doing={face.drafting} {...wiring} />
-        <Ask
-          doing="close"
-          {...wiring}
-          // Pushed to the far edge, but only while there is an edge to push to.
-          // An automatic margin does not stop this row wrapping, it only decides
-          // where the wrapped button lands, and what it decided was the far right
-          // of a line of its own — a button stranded in the corner under two that
-          // start at the left. Below the width that holds them all, it wraps into
-          // line with the rest instead.
-          className="@[27rem]:ml-auto"
-        />
-      </div>
+      {prepareThrough >= 4 ? (
+        <div className="@container flex flex-wrap items-center gap-2 px-3 py-2.5">
+          {/* One way in, never two. Where a queue exists the direct merge is
+              something GitHub refuses, so the domain names the queue verb instead
+              and there is one button either way: the paragraph above has already
+              said why, and this column has room for two controls, not three. */}
+          <Ask doing={Option.getOrElse(face.queueing, () => "merge" as const)} {...wiring} />
+          {/* Shown only while there is catching up to do. Whether it may be pressed
+              is the domain's answer; whether the fact exists at all is this one. */}
+          {Option.isSome(merge.update) ? <Ask doing="update" {...wiring} /> : null}
+          <Ask doing={face.drafting} {...wiring} />
+          <Ask
+            doing="close"
+            {...wiring}
+            // Pushed to the far edge, but only while there is an edge to push to.
+            // An automatic margin does not stop this row wrapping, it only decides
+            // where the wrapped button lands, and what it decided was the far right
+            // of a line of its own — a button stranded in the corner under two that
+            // start at the left. Below the width that holds them all, it wraps into
+            // line with the rest instead.
+            className="@[27rem]:ml-auto"
+          />
+        </div>
+      ) : null}
     </Section>
   )
 }

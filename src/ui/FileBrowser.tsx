@@ -4,6 +4,7 @@ import { Effect, Option } from "effect";
 import {
   useCallback,
   useEffect,
+  memo,
   useMemo,
   useState,
   type ReactNode,
@@ -26,7 +27,7 @@ import type { DiffSide } from "../ports/Renderer";
 import { chordFor, DEFAULT_PROFILE, type Profile } from "../keys/commands";
 import { Cap } from "./Cap";
 import { draftsIn, dropDraft, saveDraft, type Draft } from "./drafts";
-import { FileDiffPane, FileTreePane } from "./Files";
+import { FileDiffPane, FileTreePane, type FileDiffPaneProps } from "./Files";
 import { FileHeading } from "./FileHeading";
 import { Counts } from "./Counts";
 import { RailHead } from "./RailHead";
@@ -39,6 +40,8 @@ import { type Way, Ways } from "./Ways";
 
 export type FileBrowserProps = {
   readonly files: ReadonlyArray<ChangedFile>;
+  /** How much of a detached file browser has been built. */
+  readonly prepareThrough?: number;
   readonly fetchDiffs: DiffFetcher;
   readonly diff: DiffChoices;
   readonly tree: TreeChoices;
@@ -167,6 +170,89 @@ const WAYS = [
   { name: "preview", said: "Preview", art: "eye" },
 ] as const satisfies ReadonlyArray<Way<"diff" | "preview">>;
 
+type DrawingProps = {
+  readonly file: ChangedFile;
+  readonly open: boolean;
+  readonly ask: (path: string) => Effect.Effect<Option.Option<FileDiff>>;
+  readonly reading: boolean;
+  readonly proseAsDocument: boolean;
+  readonly choices: DiffChoices;
+  readonly drafts: ReadonlyArray<Draft>;
+  readonly onSaveDraft: (draft: Draft) => void;
+  readonly onDropDraft: (key: string) => void;
+  readonly threads: ReadonlyArray<ReviewThread>;
+  readonly answering?: Answering;
+  readonly viewer?: FileBrowserProps["viewer"];
+  readonly onPost?: FileBrowserProps["onPost"];
+  readonly suggest?: FileBrowserProps["suggest"];
+  readonly onUpload?: FileBrowserProps["onUpload"];
+};
+
+/** Changes the visible drawing without rendering the prepared diff inside it again. */
+const Drawing = memo(
+  ({
+    file,
+    open,
+    ask,
+    reading,
+    proseAsDocument,
+    choices,
+    drafts,
+    onSaveDraft,
+    onDropDraft,
+    threads,
+    answering,
+    viewer,
+    onPost,
+    suggest,
+    onUpload,
+  }: DrawingProps) => {
+    const heldDrafts = useMemo(() => draftsIn(drafts, file.path), [drafts, file.path]);
+    const post = useMemo<FileDiffPaneProps["onPost"]>(
+      () =>
+        onPost === undefined
+          ? undefined
+          : (note) => onPost({ path: file.path, ...note }),
+      [file.path, onPost],
+    );
+
+    return (
+      <div
+        data-file={file.path}
+        aria-hidden={open ? "false" : "true"}
+        hidden={!open}
+        className="absolute inset-0 overflow-auto"
+        style={
+          open
+            ? undefined
+            : {
+                visibility: "hidden",
+                pointerEvents: "none",
+                contentVisibility: "hidden",
+              }
+        }
+      >
+        <FileDiffPane
+          file={file}
+          ask={ask}
+          reading={open ? reading : proseAsDocument && isProse(file.path)}
+          choices={choices}
+          visible={open}
+          drafts={heldDrafts}
+          onSaveDraft={onSaveDraft}
+          onDropDraft={onDropDraft}
+          threads={threads}
+          answering={answering}
+          viewer={viewer}
+          onPost={post}
+          suggest={suggest}
+          onUpload={onUpload}
+        />
+      </div>
+    );
+  },
+);
+
 /**
  * The changed files, as two cards of the same shape.
  *
@@ -177,6 +263,7 @@ const WAYS = [
  */
 export const FileBrowser = ({
   files,
+  prepareThrough = 3,
   fetchDiffs,
   diff,
   tree,
@@ -340,13 +427,6 @@ export const FileBrowser = ({
     (path: string) => {
       setChosen(path);
       setReading(proseAsDocument && isProse(path));
-      setOpened((held) => (held.has(path) ? held : new Set([...held, path])));
-      setPutBack((held) => {
-        if (!held.has(path)) return held;
-        const left = new Set(held);
-        left.delete(path);
-        return left;
-      });
     },
     [proseAsDocument],
   );
@@ -414,8 +494,6 @@ export const FileBrowser = ({
   const onDropDraft = useCallback((key: string) => {
     setDrafts((held) => dropDraft(held, key));
   }, []);
-  const mine = useMemo(() => draftsIn(drafts, chosen ?? ""), [drafts, chosen]);
-
   // Where the reader is, which is the first file until they say otherwise.
   //
   // Not "whatever was chosen", because on a page whose files arrived after the
@@ -511,6 +589,12 @@ export const FileBrowser = ({
     // at as much as any other — on a page whose files arrived late, the count
     // said none of them had while one was on the screen.
     setOpened((held) => (held.has(here) ? held : new Set([...held, here])));
+    setPutBack((held) => {
+      if (!held.has(here)) return held;
+      const left = new Set(held);
+      left.delete(here);
+      return left;
+    });
   }, [here]);
 
   // And the choice follows the screen when the file that was chosen leaves the
@@ -577,6 +661,7 @@ export const FileBrowser = ({
         .filter((one): one is ChangedFile => one !== undefined),
     [drawn, onRail, here],
   );
+
   const on = chordFor(keys, "nextFile");
   const back = chordFor(keys, "previousFile");
   const mark = chordFor(keys, "markFile");
@@ -871,7 +956,7 @@ export const FileBrowser = ({
               diff, not in the bar at the top of the page and two screens away
               from what it changes. The sheet up there is still the place to read
               what each knob does; this is the place to turn one. */}
-          {display === undefined ? null : (
+          {display === undefined || prepareThrough < 3 ? null : (
             <SettingsMenu
               settings={display.settings}
               onChange={display.onChange}
@@ -901,6 +986,7 @@ export const FileBrowser = ({
             edge while being inset from both sides, so a card with one file in
             it read as a row that had slipped out of its frame. */}
         <div
+          data-gitquiet-activation="files-tree"
           className={`${tree.width} flex min-h-0 shrink-0 flex-col overflow-hidden rounded-md bg-canvas pt-1`}
         >
           {/* Above the rows, inside the rail's own subcard: what this asks is
@@ -914,23 +1000,28 @@ export const FileBrowser = ({
               A direct flex child of the subcard: the tree is virtualised and
               sizes itself to its box, and a wrapper that ate the `flex-1` left
               that box at no height, so the rows existed and drew nothing. */}
-          <FileTreePane
-            key={`${tree.density}|${tree.flatten}|${tree.folders}|${tree.search}|${tree.sticky}`}
-            files={onRail}
-            selected={
-              chosen === undefined ? Option.none() : Option.some(chosen)
-            }
-            onSelect={onSelect}
-            seen={progress}
-            choices={tree}
-            keys={keys}
-          />
+          {prepareThrough >= 1 ? (
+            <FileTreePane
+              key={`${tree.density}|${tree.flatten}|${tree.folders}|${tree.search}|${tree.sticky}`}
+              files={onRail}
+              selected={
+                chosen === undefined ? Option.none() : Option.some(chosen)
+              }
+              onSelect={onSelect}
+              seen={progress}
+              choices={tree}
+              keys={keys}
+            />
+          ) : null}
         </div>
         {/* One heading above the stack rather than one per drawing: which file
             is open is a fact about this subcard, and it was already pinned to
             the top of the scroll while the code moved under it. */}
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-md bg-canvas">
-          {file === undefined ? null : (
+        <div
+          data-gitquiet-activation="files-content"
+          className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-md bg-canvas"
+        >
+          {prepareThrough < 2 || file === undefined ? null : (
             <FileHeading file={file} icons={tree.icons} />
           )}
           {/* The drawings sit on top of one another, all of them laid out and
@@ -940,45 +1031,28 @@ export const FileBrowser = ({
               their own scroll, so going back to a file returns to the part of
               it that was being read. */}
           <div className="relative min-h-0 flex-1">
-            {showing.map((one) => {
-              const open = one.path === file?.path;
-              return (
-                <div
-                  key={one.path}
-                  data-file={one.path}
-                  aria-hidden={open ? "false" : "true"}
-                  className="absolute inset-0 overflow-auto"
-                  style={
-                    open
-                      ? undefined
-                      : { visibility: "hidden", pointerEvents: "none" }
-                  }
-                >
-                  <FileDiffPane
+            {prepareThrough < 2
+              ? null
+              : showing.map((one) => (
+                  <Drawing
+                    key={one.path}
                     file={one}
+                    open={one.path === file?.path}
                     ask={library.ask}
-                    reading={
-                      open ? reading : proseAsDocument && isProse(one.path)
-                    }
+                    reading={reading}
+                    proseAsDocument={proseAsDocument}
                     choices={diff}
-                    visible={open}
-                    drafts={open ? mine : draftsIn(drafts, one.path)}
+                    drafts={drafts}
                     onSaveDraft={onSaveDraft}
                     onDropDraft={onDropDraft}
                     threads={threads}
                     answering={answering}
                     viewer={viewer}
-                    onPost={
-                      onPost === undefined
-                        ? undefined
-                        : (note) => onPost({ path: one.path, ...note })
-                    }
+                    onPost={onPost}
                     suggest={suggest}
                     onUpload={onUpload}
                   />
-                </div>
-              );
-            })}
+                ))}
           </div>
         </div>
       </div>

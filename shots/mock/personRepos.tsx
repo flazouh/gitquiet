@@ -32,7 +32,7 @@ import { faceOf } from "./faces"
 
 const page: Document = new DOMParser().parseFromString(pageHtml, "text/html")
 
-const ROWS: ReadonlyArray<ListedRepository> = repositoriesIn(page)
+export const PERSON_REPOSITORIES: ReadonlyArray<ListedRepository> = repositoriesIn(page)
 
 /**
  * Them, as their own page has them, with the face swapped for a local drawing.
@@ -40,14 +40,14 @@ const ROWS: ReadonlyArray<ListedRepository> = repositoriesIn(page)
  * Everything else is theirs unedited: the name, the bio's own newlines, the follower
  * counts in GitHub's own shortened form, and the four ways they listed to be reached.
  */
-const WHO: Person = Option.match(personIn(page), {
+export const PROFILE_PERSON: Person = Option.match(personIn(page), {
   onNone: () => {
     throw new Error("tests/fixtures/personRepos.html no longer carries an .h-card")
   },
   onSome: (found) => ({ ...found, faceUrl: faceOf(found.login) })
 })
 
-const SHOWN: Shown = { rows: ROWS, reading: false, capped: true }
+const SHOWN: Shown = { rows: PERSON_REPOSITORIES, reading: false, capped: true }
 
 export const PERSON_REPOS_VIEW: View = {
   name: "person-repos",
@@ -56,9 +56,9 @@ export const PERSON_REPOS_VIEW: View = {
   ...STORE,
   draw: () => (
     <PersonReposScreen
-      login={WHO.login}
+      login={PROFILE_PERSON.login}
       load={settled(SHOWN)}
-      who={WHO}
+      who={PROFILE_PERSON}
       signedIn={() => true}
       onStepAside={() => {}}
       /* The day the page was saved, so the four groups fall the way they fell that day. */

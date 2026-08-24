@@ -1,11 +1,42 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen, waitFor } from "@testing-library/react"
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react"
 import { Effect } from "effect"
-import { aSnapshot } from "../../tests/snapshots"
+import { aFile, aSnapshot } from "../../tests/snapshots"
 import type { PullRequestRef } from "../domain/PullRequestRef"
 import { PullRequestScreen } from "./PullRequestScreen"
 
-afterEach(cleanup)
+const idled = globalThis.requestIdleCallback
+const unidled = globalThis.cancelIdleCallback
+
+afterEach(() => {
+  cleanup()
+  globalThis.requestIdleCallback = idled
+  globalThis.cancelIdleCallback = unidled
+})
+
+const holdIdleTime = () => {
+  const waiting = new Map<number, () => void>()
+  let asked = 0
+
+  globalThis.requestIdleCallback = ((run: IdleRequestCallback) => {
+    asked += 1
+    waiting.set(asked, () => run({ didTimeout: false, timeRemaining: () => 0 }))
+    return asked
+  }) as typeof globalThis.requestIdleCallback
+  globalThis.cancelIdleCallback = ((handle: number) => {
+    waiting.delete(handle)
+  }) as typeof globalThis.cancelIdleCallback
+
+  return {
+    pending: () => waiting.size,
+    runIdle: () =>
+      act(() => {
+        const due = [...waiting.values()]
+        waiting.clear()
+        for (const run of due) run()
+      })
+  }
+}
 
 const reference: PullRequestRef = { owner: "acme", repo: "widgets", number: 7 }
 
@@ -85,7 +116,9 @@ describe("the moment the pull request arrives", () => {
     render(
       <PullRequestScreen
         reference={reference}
-        load={() => Effect.succeed({ snapshot: aSnapshot({ reference }) })}
+        load={() =>
+          Effect.succeed({ snapshot: aSnapshot({ reference, files: [aFile("src/spin.ts")] }) })
+        }
         fetchDiffs={() => Effect.succeed([])}
         onStepAside={() => {}}
         preparing
@@ -95,7 +128,49 @@ describe("the moment the pull request arrives", () => {
       />
     )
 
-    await waitFor(() => expect(prepared).toBe(1))
+    await waitFor(() => expect(prepared).toBe(1), { timeout: 6_000 })
+  })
+
+  test("builds a detached pull request over separate idle tasks", async () => {
+    const idle = holdIdleTime()
+    let prepared = 0
+    render(
+      <PullRequestScreen
+        reference={reference}
+        load={() =>
+          Effect.succeed({ snapshot: aSnapshot({ reference, files: [aFile("src/spin.ts")] }) })
+        }
+        fetchDiffs={() => Effect.succeed([])}
+        onStepAside={() => {}}
+        preparing
+        onPrepared={() => {
+          prepared += 1
+        }}
+      />
+    )
+
+    await waitFor(() => expect(idle.pending()).toBe(1))
+    expect(prepared).toBe(0)
+    expect(screen.queryByRole("region", { name: "Merge" })).toBeNull()
+
+    let turns = 0
+    while (screen.queryByRole("region", { name: "Merge" }) === null && turns < 10) {
+      idle.runIdle()
+      turns += 1
+      await waitFor(() => expect(idle.pending()).toBeGreaterThan(0))
+    }
+    expect(screen.getByRole("region", { name: "Merge" })).toBeDefined()
+    expect(prepared).toBe(0)
+    expect(screen.queryByLabelText("How the files are drawn")).toBeNull()
+
+    while (prepared === 0 && turns < 30) {
+      idle.runIdle()
+      turns += 1
+      if (prepared === 0) await waitFor(() => expect(idle.pending()).toBeGreaterThan(0))
+    }
+    expect(turns).toBeGreaterThan(2)
+    expect(screen.getByLabelText("How the files are drawn")).toBeDefined()
+    expect(prepared).toBe(1)
   })
 
   test("puts the card on the page and lets the wait leave over it", async () => {

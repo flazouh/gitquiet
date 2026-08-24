@@ -4,6 +4,12 @@ import { chosenView } from "@/app/settings"
 import { welcomeFor } from "@/app/welcoming"
 import { goingTo, payloadsOnTheWay } from "@/github/onTheWay"
 import { answering, askedAbout } from "@/github/throughTheWorker"
+import { highlight } from "@/markdown/highlighter"
+import {
+  HIGHLIGHT_ANSWER,
+  isHighlightRequest,
+  type HighlightAnswer
+} from "@/markdown/highlighterProtocol"
 import {
   isMermaidAnswer,
   isMermaidRequest,
@@ -94,8 +100,19 @@ export default defineBackground(() => {
   initialiseErrorReporting("service-worker")
 
   browser.runtime.onMessage.addListener((message: unknown) => {
-    if (!isMermaidRequest(message)) return undefined
-    return Effect.runPromise(drawMermaidAwayFromThePage(message.code))
+    if (isHighlightRequest(message)) {
+      return Effect.runPromise(
+        highlight(message.code, message.language, message.theme).pipe(
+          Effect.map(
+            (html) => ({ kind: HIGHLIGHT_ANSWER, html }) satisfies HighlightAnswer
+          )
+        )
+      )
+    }
+    if (isMermaidRequest(message)) {
+      return Effect.runPromise(drawMermaidAwayFromThePage(message.code))
+    }
+    return undefined
   })
 
   /*

@@ -2,6 +2,26 @@ export const OWNED_TRAVERSAL = "gitquiet:owned-traversal"
 export const PREPARED_TRAVERSAL_ROUTE = "data-gitquiet-prepared-traversal-route"
 const PREPARED_TRAVERSAL_OFFER = "data-gitquiet-prepared-traversal-offer"
 
+const preparedMarker = (target: Document): HTMLMetaElement | null =>
+  target.querySelector(`meta[name="${PREPARED_TRAVERSAL_ROUTE}"]`)
+
+/** Arms one route without invalidating styles across the page root. */
+export const markPreparedTraversal = (target: Document, route: string): void => {
+  const marker = preparedMarker(target) ?? target.createElement("meta")
+  marker.name = PREPARED_TRAVERSAL_ROUTE
+  marker.content = route
+  if (!marker.isConnected) (target.head ?? target.documentElement).append(marker)
+}
+
+/** Reads the exact route that can use its live cached screen. */
+export const preparedTraversal = (target: Document): string | null =>
+  preparedMarker(target)?.content ?? null
+
+/** Clears the route marker after the cached screen takes control. */
+export const clearPreparedTraversal = (target: Document): void => {
+  preparedMarker(target)?.remove()
+}
+
 /** Offers a traversal from the page world through the DOM shared with content scripts. */
 export const offerPreparedTraversal = (target: Document, route: string): void => {
   target.documentElement.setAttribute(PREPARED_TRAVERSAL_OFFER, route)

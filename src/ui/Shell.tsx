@@ -34,9 +34,14 @@ import type { MergeActions } from "./Ask"
 import type { AskLayerSizes } from "./useLayerSizes"
 import { KeyboardScope, useKeys } from "./useKeys"
 import { useSettings } from "./useSettings"
+import { whenIdle } from "../app/idle"
 
 export type ShellProps = {
   readonly snapshot: PullRequestSnapshot
+  /** Builds a detached route in smaller commits before it enters the route cache. */
+  readonly preparing?: boolean
+  /** Says when every prepared panel has committed to the detached root. */
+  readonly onPrepared?: () => void
   readonly fetchDiffs: (
     paths: ReadonlyArray<string>,
     head: string
@@ -109,6 +114,7 @@ export type ShellProps = {
 }
 
 const NO_READER = new Error("Nothing is wired to read commits.")
+const PREPARED = 22
 
 /**
  * How long an arrival may keep entering, in milliseconds.
@@ -151,6 +157,8 @@ const PageKeys = ({
  */
 export const Shell = ({
   snapshot,
+  preparing = false,
+  onPrepared,
   fetchDiffs,
   actions,
   postComment,
@@ -172,6 +180,20 @@ export const Shell = ({
   keys = DEFAULT_PROFILE,
   onUseGitHub
 }: ShellProps) => {
+  const [preparedStage, setPreparedStage] = useState(preparing ? 0 : PREPARED)
+  const preparationReported = useRef(false)
+
+  useEffect(() => {
+    if (!preparing || preparedStage >= PREPARED) return
+    return whenIdle(() => setPreparedStage((stage) => Math.min(stage + 1, PREPARED)))
+  }, [preparing, preparedStage])
+
+  useEffect(() => {
+    if (!preparing || preparedStage < PREPARED || preparationReported.current) return
+    preparationReported.current = true
+    onPrepared?.()
+  }, [onPrepared, preparing, preparedStage])
+
   // Which commit is being read, if any. The rail does not change when one is —
   // the pull request is still the thing being reviewed, and a commit is a way
   // of looking at part of it.
@@ -410,7 +432,7 @@ export const Shell = ({
             It is drawn at all only where they offer a stack and nobody has made
             one, so every ordinary pull request and every layer of a real stack
             opens on the header it opened on before. See `Proposed`. */}
-        {Option.isSome(snapshot.proposal) ? (
+        {preparedStage >= 1 && Option.isSome(snapshot.proposal) ? (
           <Proposed
             chain={snapshot.proposal.value}
             make={makeStack}
@@ -418,7 +440,9 @@ export const Shell = ({
             own={sizeOf(snapshot.files)}
           />
         ) : null}
-        <Header snapshot={snapshot} onUseGitHub={onUseGitHub} />
+        {preparedStage >= 2 ? (
+          <Header snapshot={snapshot} onUseGitHub={onUseGitHub} />
+        ) : null}
         {/* Six pixels between panels, not twelve. Every gap here is width that
             could have been code, and the borders already do the separating —
             spacing on top of a border says the same thing twice.
@@ -427,27 +451,30 @@ export const Shell = ({
             as tall as what the author wrote and the reviewers said, which is
             nobody's business but its own. */}
         <div className="flex items-start gap-1.5 pb-2">
-          <About
-            snapshot={snapshot}
-            actions={actions}
-            onOpenCommit={loadCommit === undefined ? undefined : setReading}
-            onWarmCommit={loadCommit === undefined ? undefined : commits.warm}
-            openedCommit={reading}
-            notes={notes}
-            logs={logs}
-            tails={tails}
-            steps={steps}
-            reach={reach}
-            viewer={viewer}
-            onSay={onSay}
-            onSettle={onSettle}
-            onUnsettle={onUnsettle}
-            onReply={onReply}
-            onReview={onReview}
-            suggest={suggest}
-            onUpload={onUpload}
-            remarks={remarks}
-          />
+          {preparedStage >= 3 ? (
+            <About
+              snapshot={snapshot}
+              prepareThrough={Math.min(preparedStage - 2, 12)}
+              actions={actions}
+              onOpenCommit={loadCommit === undefined ? undefined : setReading}
+              onWarmCommit={loadCommit === undefined ? undefined : commits.warm}
+              openedCommit={reading}
+              notes={notes}
+              logs={logs}
+              tails={tails}
+              steps={steps}
+              reach={reach}
+              viewer={viewer}
+              onSay={onSay}
+              onSettle={onSettle}
+              onUnsettle={onUnsettle}
+              onReply={onReply}
+              onReview={onReview}
+              suggest={suggest}
+              onUpload={onUpload}
+              remarks={remarks}
+            />
+          ) : null}
           {/* The code stays where it is while the page scrolls past it. A diff
               is read in place — the tree, the file being read and the way to the
               next one all have to stay under the pointer — so this is the one
@@ -458,10 +485,15 @@ export const Shell = ({
               viewport on its own sticky, and it says how tall it is through
               `--gitquiet-bar-h` — see `TheBar.tsx`. Zero where there is no bar,
               which is the desktop window and a test. */}
-          <div className="sticky top-[calc(var(--gitquiet-bar-h,0px)+0.5rem)] flex h-[calc(100vh-var(--gitquiet-bar-h,0px)-1rem)] min-h-[40rem] min-w-0 flex-1">
+          {preparedStage >= 15 ? (
+            <div
+              data-gitquiet-activation="files-panel"
+              className="sticky top-[calc(var(--gitquiet-bar-h,0px)+0.5rem)] flex h-[calc(100vh-var(--gitquiet-bar-h,0px)-1rem)] min-h-[40rem] min-w-0 flex-1"
+            >
             {reading === undefined || loadCommit === undefined ? (
               <FileBrowser
                 files={snapshot.files}
+                prepareThrough={Math.min(preparedStage - 15, 3)}
                 fetchDiffs={forThisHead}
                 diff={diff}
                 tree={tree}
@@ -496,7 +528,8 @@ export const Shell = ({
                 display={{ settings, onChange: change }}
               />
             )}
-          </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </KeyboardScope>

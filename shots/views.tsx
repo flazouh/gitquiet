@@ -5,6 +5,7 @@ import { ISSUE_VIEW } from "./mock/issue"
 import { ISSUES_VIEW } from "./mock/issues"
 import { NOTIFICATIONS_VIEW } from "./mock/notifications"
 import { PERSON_REPOS_VIEW } from "./mock/personRepos"
+import { PROFILE_VIEW } from "./mock/profile"
 import { PULL_REQUEST_VIEW } from "./mock/pullRequest"
 import { RAISE_VIEW } from "./mock/raise"
 import { RELEASES_VIEW } from "./mock/releases"
@@ -12,6 +13,7 @@ import { REPO_HOME_VIEW } from "./mock/repoHome"
 import { REPO_ISSUES_VIEW } from "./mock/repoIssues"
 import { REPO_PULLS_VIEW } from "./mock/repoPulls"
 import { RUN_VIEW } from "./mock/run"
+import { SIGN_ON_VIEW } from "./mock/signOn"
 import { WORKING_SET_VIEW } from "./mock/workingSet"
 import type { View } from "./view"
 
@@ -43,8 +45,10 @@ export const VIEWS: ReadonlyArray<View> = [
   ACTIONS_VIEW,
   RELEASES_VIEW,
   NOTIFICATIONS_VIEW,
+  PROFILE_VIEW,
   PERSON_REPOS_VIEW,
-  RAISE_VIEW
+  RAISE_VIEW,
+  SIGN_ON_VIEW
 ]
 
 export const viewNamed = (name: string): View | undefined =>

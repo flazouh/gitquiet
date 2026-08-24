@@ -48,6 +48,8 @@ describe("the file after the one being read", () => {
 
     await waitFor(() => expect(drawingOf("src/two.ts")).not.toBeNull())
     expect(shown("src/two.ts")).toBe(false)
+    expect(drawingOf("src/two.ts")?.style.contentVisibility).toBe("hidden")
+    expect(drawingOf("src/two.ts")?.hidden).toBe(true)
     expect(shown("src/one.ts")).toBe(true)
   })
 
@@ -60,6 +62,8 @@ describe("the file after the one being read", () => {
 
     expect(drawingOf("src/two.ts")).toBe(already)
     expect(shown("src/two.ts")).toBe(true)
+    expect(drawingOf("src/two.ts")?.style.contentVisibility).toBe("")
+    expect(drawingOf("src/two.ts")?.hidden).toBe(false)
     expect(open()).toContain("two.ts")
   })
 

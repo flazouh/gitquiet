@@ -26,13 +26,14 @@ export const ProseDiff = ({ diff }: { readonly diff: FileDiff }) => {
   const runs = useMemo(() => proseRuns(diff), [diff])
 
   return (
-    <div className="flex flex-col">
+    <div data-gitquiet-prose-runs className="flex flex-col">
       {runs.map((run, at) => (
         <div
           // Runs have no identity of their own — two paragraphs can be added
           // with the same words — so position is the honest key.
           key={`${run.kind}-${at}`}
           data-change={run.kind}
+          style={{ contentVisibility: "auto", containIntrinsicSize: "auto 48px" }}
           className={`px-2 ${TONE[run.kind]}`}
         >
           <Markdown markdown={run.text} />

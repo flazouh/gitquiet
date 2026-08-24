@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test"
-import { whenLocationChanges, whenTheyStayPut, whenTraversalStarts } from "./navigation"
+import {
+  whenAddressChangesAfterInput,
+  whenLocationChanges,
+  whenTheyStayPut,
+  whenTraversalStarts
+} from "./navigation"
 
 /**
  * Enough of a window to navigate in: the address is writable, GitHub's events
@@ -10,6 +15,7 @@ const browser = (path: string, withNavigation = true) => {
   const listeners = new Set<() => void>()
   const timers = new Set<() => void>()
   const entries = new Set<() => void>()
+  const nextTasks = new Set<() => void>()
   let now = path
 
   const target = {
@@ -29,8 +35,8 @@ const browser = (path: string, withNavigation = true) => {
     },
     clearInterval: () => timers.clear(),
     setTimeout: (run: () => void) => {
-      run()
-      return 0
+      nextTasks.add(run)
+      return nextTasks.size
     }
   } as unknown as Window
 
@@ -52,6 +58,10 @@ const browser = (path: string, withNavigation = true) => {
     /** What the browser itself says, the moment the entry becomes the current one. */
     entered: () => {
       for (const run of [...entries]) run()
+    },
+    nextTask: () => {
+      for (const run of [...nextTasks]) run()
+      nextTasks.clear()
     },
     watching: () => ({ entries: entries.size, timers: timers.size })
   }
@@ -80,6 +90,32 @@ describe("noticing GitHub navigate without loading a page", () => {
     }
 
     expect(seen).toEqual(["/o/r/pull/2?tab=files"])
+  })
+
+  test("starts timing a browser Back or Forward traversal", () => {
+    const page = document.implementation.createHTMLDocument("github")
+    const listeners = new Set<(event: Event) => void>()
+    const target = {
+      location: { origin: "https://github.com" },
+      document: page,
+      performance: { now: () => 42 },
+      navigation: {
+        addEventListener: (_name: string, listener: (event: Event) => void) =>
+          listeners.add(listener),
+        removeEventListener: (_name: string, listener: (event: Event) => void) =>
+          listeners.delete(listener)
+      }
+    } as unknown as Window
+    whenTraversalStarts(target, () => {})
+
+    for (const listener of listeners) {
+      listener({
+        navigationType: "traverse",
+        destination: { url: "https://github.com/pulls/inbox" }
+      } as unknown as Event)
+    }
+
+    expect(page.documentElement.getAttribute("data-gitquiet-navigation-started")).toBe("42")
   })
 
   test("reports the new path when the address changes", () => {
@@ -129,7 +165,7 @@ describe("noticing GitHub navigate without loading a page", () => {
     expect(seen).toEqual(["/o/r/pull/9"])
   })
 
-  test("takes the browser's own word for it, without waiting for a tick", () => {
+  test("takes the browser's own word in the same task", () => {
     /*
      * The interval was up to two hundred milliseconds of the interface standing
      * over the wrong page, on every soft navigation — and none of GitHub's own
@@ -144,6 +180,47 @@ describe("noticing GitHub navigate without loading a page", () => {
     it.entered()
 
     expect(seen).toEqual(["/o/r/pull/7"])
+  })
+
+  test("can move shell cleanup out of the input task", () => {
+    const seen: Array<string> = []
+    const it = browser("/o/r/pull/1")
+    whenAddressChangesAfterInput(it.target, (path) => seen.push(path))
+
+    it.goTo("/o/r/pull/7")
+    it.entered()
+
+    expect(seen).toEqual([])
+    it.nextTask()
+
+    expect(seen).toEqual(["/o/r/pull/7"])
+  })
+
+  test("defers GitHub's own route events too", () => {
+    const seen: Array<string> = []
+    const it = browser("/o/r/pull/1")
+    whenAddressChangesAfterInput(it.target, (path) => seen.push(path))
+
+    it.goTo("/o/r/pull/7")
+    it.announce("soft-nav:end")
+
+    expect(seen).toEqual([])
+    it.nextTask()
+
+    expect(seen).toEqual(["/o/r/pull/7"])
+  })
+
+  test("drops deferred cleanup when its watcher has stopped", () => {
+    const seen: Array<string> = []
+    const it = browser("/o/r/pull/1")
+    const stop = whenAddressChangesAfterInput(it.target, (path) => seen.push(path))
+
+    it.goTo("/o/r/pull/7")
+    it.entered()
+    stop()
+    it.nextTask()
+
+    expect(seen).toEqual([])
   })
 
   test("keeps looking on its own where the browser will not say", () => {

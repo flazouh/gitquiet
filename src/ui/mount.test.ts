@@ -15,6 +15,7 @@ import {
   prepareCachedTraversal,
   rememberPreparedScreen,
   reveal,
+  SCREEN_ACTIVITY,
   takeOverSlot,
   takeOverSlotWhenReady,
   theScreenArrived,
@@ -26,7 +27,11 @@ import {
   whenTheScreenMoves
 } from "./mount"
 import { ACTIONS, COMMIT, CONVERSATION, DASHBOARD, HOME, REPO_PULLS } from "./place"
-import { PREPARED_TRAVERSAL_ROUTE } from "./preparedNavigation"
+import {
+  markPreparedTraversal,
+  preparedTraversal,
+  PREPARED_TRAVERSAL_ROUTE
+} from "./preparedNavigation"
 
 /** GitHub's pull request page, down to the parts this depends on. */
 const githubPage = (): Document => {
@@ -127,9 +132,8 @@ describe("slotting into GitHub's pull request page", () => {
     rememberPreparedScreen(page, "/pulls/inbox", DASHBOARD, prepared, () => {})
 
     expect(prepareCachedTraversal(page, "/pulls/inbox", DASHBOARD)).toBe(true)
-    expect(page.documentElement.getAttribute(PREPARED_TRAVERSAL_ROUTE)).toBe(
-      "/pulls/inbox"
-    )
+    expect(page.documentElement.hasAttribute(PREPARED_TRAVERSAL_ROUTE)).toBe(false)
+    expect(preparedTraversal(page)).toBe("/pulls/inbox")
     view.close()
   })
 
@@ -152,11 +156,12 @@ describe("slotting into GitHub's pull request page", () => {
     prepared.innerHTML = "<h1>returned pull request</h1>"
 
     rememberPreparedScreen(page, "/owner/repo/pull/2", CONVERSATION, prepared, () => {})
-    page.documentElement.setAttribute(PREPARED_TRAVERSAL_ROUTE, "/owner/repo/pull/2")
+    markPreparedTraversal(page, "/owner/repo/pull/2")
     const arriving = interfaceContainer(page, CONVERSATION, "/owner/repo/pull/2")
 
     expect(arriving).toBe(prepared)
     expect(page.documentElement.hasAttribute(PREPARED_TRAVERSAL_ROUTE)).toBe(false)
+    expect(preparedTraversal(page)).toBeNull()
     expect(view.location.pathname).toBe("/owner/repo/pull/1")
     view.close()
   })
@@ -171,6 +176,8 @@ describe("slotting into GitHub's pull request page", () => {
     const prepared = page.createElement("div")
     prepared.innerHTML = "<h1>returned pull request</h1>"
     rememberPreparedScreen(page, "/owner/repo/pull/2", CONVERSATION, prepared, () => {})
+    const currentActivity = current.getAttribute(SCREEN_ACTIVITY)
+    const preparedActivity = prepared.getAttribute(SCREEN_ACTIVITY)
 
     expect(
       activatePreparedTraversal(page, "/owner/repo/pull/2", CONVERSATION)
@@ -178,6 +185,8 @@ describe("slotting into GitHub's pull request page", () => {
     expect(page.getElementById(ROOT_ID)).toBe(prepared)
     expect(prepared.isConnected).toBe(true)
     expect(page.querySelectorAll(`#${ROOT_ID}`)).toHaveLength(1)
+    expect(current.getAttribute(SCREEN_ACTIVITY)).toBe(currentActivity)
+    expect(prepared.getAttribute(SCREEN_ACTIVITY)).toBe(preparedActivity)
     expect(view.location.pathname).toBe("/owner/repo/pull/1")
     view.close()
   })
@@ -811,13 +820,16 @@ describe("handing the page from one interface to the next", () => {
     const page = githubPage()
     const list = listUp(page)
     let down = 0
+    let connectedWhenTold = true
     list.container.addEventListener(GOING, () => {
       down += 1
+      connectedWhenTold = list.container.isConnected
     })
 
     takeOverSlot(page, interfaceContainer(page, CONVERSATION), CONVERSATION)
 
     expect(down).toBe(1)
+    expect(connectedWhenTold).toBe(false)
   })
 
   test("tells it so even when their router took its container off the page first", () => {

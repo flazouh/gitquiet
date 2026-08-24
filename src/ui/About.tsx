@@ -34,6 +34,7 @@ import { Merge } from "./Merge"
  */
 export const About = ({
   snapshot,
+  prepareThrough = 12,
   actions,
   onOpenCommit,
   onWarmCommit,
@@ -54,6 +55,8 @@ export const About = ({
   remarks
 }: {
   readonly snapshot: PullRequestSnapshot
+  /** How many panels a detached route has built so far. */
+  readonly prepareThrough?: number
   readonly actions?: MergeActions
   readonly onOpenCommit?: (sha: string) => void
   readonly onWarmCommit?: (sha: string) => void
@@ -92,48 +95,61 @@ export const About = ({
 }) => (
   <div className="t-panels flex w-[26rem] shrink-0 flex-col gap-1.5">
     {/* Both absences go in as they are. Which face the card wears, and in what order
-        the three are decided, is `faceOf`'s answer and not this file's. */}
-    <Merge
-      merge={snapshot.merge}
-      files={snapshot.files}
-      reviews={snapshot.reviews}
-      running={stillRunning(snapshot.checks)}
-      url={toUrl(snapshot.reference)}
-      state={snapshot.state}
-      headRef={snapshot.headRef}
-      actions={actions}
-    />
-    <Description
-      markdown={snapshot.description.markdown}
-      owner={snapshot.reference.owner}
-      repo={snapshot.reference.repo}
-    />
-    <Checks
-      checks={snapshot.checks}
-      library={notes}
-      logs={logs}
-      tails={tails}
-      steps={steps}
-      reach={reach}
-    />
-    <Conversation
-      threads={snapshot.threads}
-      remarks={remarks ?? snapshot.remarks}
-      viewer={viewer}
-      keep={`pull:${snapshot.reference.owner}/${snapshot.reference.repo}#${snapshot.reference.number}`}
-      suggest={suggest}
-      onUpload={onUpload}
-      onReply={onReply}
-      onSettle={onSettle}
-      onUnsettle={onUnsettle}
-      onSay={onSay}
-    />
+        the three are decided, is `faceOf`'s answer and not this file's.
+
+        First on the screen and first to be built, with the four stages of its own
+        that it asks for: the card a reader looks at before anything else is the
+        card no frame budget should make them wait for. */}
+    {prepareThrough >= 1 ? (
+      <Merge
+        merge={snapshot.merge}
+        files={snapshot.files}
+        reviews={snapshot.reviews}
+        running={stillRunning(snapshot.checks)}
+        url={toUrl(snapshot.reference)}
+        state={snapshot.state}
+        headRef={snapshot.headRef}
+        actions={actions}
+        prepareThrough={Math.min(prepareThrough - 1, 4)}
+      />
+    ) : null}
+    {prepareThrough >= 6 ? (
+      <Description
+        markdown={snapshot.description.markdown}
+        owner={snapshot.reference.owner}
+        repo={snapshot.reference.repo}
+      />
+    ) : null}
+    {prepareThrough >= 7 ? (
+      <Checks
+        checks={snapshot.checks}
+        library={notes}
+        logs={logs}
+        tails={tails}
+        steps={steps}
+        reach={reach}
+      />
+    ) : null}
+    {prepareThrough >= 8 ? (
+      <Conversation
+        threads={snapshot.threads}
+        remarks={remarks ?? snapshot.remarks}
+        viewer={viewer}
+        keep={`pull:${snapshot.reference.owner}/${snapshot.reference.repo}#${snapshot.reference.number}`}
+        suggest={suggest}
+        onUpload={onUpload}
+        onReply={onReply}
+        onSettle={onSettle}
+        onUnsettle={onUnsettle}
+        onSay={onSay}
+      />
+    ) : null}
     {/*
      * Under the conversation, because that is where the reading ends: a reader who has been
      * through the threads and the remarks has formed the thought this panel is for. Their own
      * page keeps it at the top of another tab, behind a dialog.
      */}
-    {onReview === undefined || viewer === undefined ? null : (
+    {prepareThrough < 9 || onReview === undefined || viewer === undefined ? null : (
       <Verdict
         reviews={snapshot.reviews}
         viewer={viewer}
@@ -143,14 +159,17 @@ export const About = ({
         suggest={suggest}
         onUpload={onUpload}
         onReview={onReview}
+        prepareThrough={prepareThrough - 9}
       />
     )}
-    <Commits
-      commits={snapshot.commits}
-      repository={snapshot.reference}
-      onOpen={onOpenCommit}
-      onWarm={onWarmCommit}
-      opened={openedCommit}
-    />
+    {prepareThrough >= 11 ? (
+      <Commits
+        commits={snapshot.commits}
+        repository={snapshot.reference}
+        onOpen={onOpenCommit}
+        onWarm={onWarmCommit}
+        opened={openedCommit}
+      />
+    ) : null}
   </div>
 )

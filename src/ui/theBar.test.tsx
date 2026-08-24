@@ -21,6 +21,12 @@ import { whenPreparing } from "../app/intent"
 
 afterEach(cleanup)
 
+let restoreCreateElement: (() => void) | undefined
+afterEach(() => {
+  restoreCreateElement?.()
+  restoreCreateElement = undefined
+})
+
 /*
  * An empty store around every test, because this bar keeps each list it is handed.
  * One test's props were the next one's kept list, so the test asking what a reader
@@ -191,6 +197,42 @@ describe("the bar and where the reader has been", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Back" })).toBeDefined())
     preparedRoot.remove()
     act(() => theScreenMoved(document))
+  })
+
+  test("builds a prepared bar before its detached route becomes active", async () => {
+    const preparedRoot = interfaceContainer(document, RUN)
+    const createElement = document.createElement.bind(document)
+    const headersBuilt: Array<HTMLElement> = []
+
+    document.createElement = ((name: string, options?: ElementCreationOptions) => {
+      const made = createElement(name, options)
+      if (made instanceof HTMLElement && name === "header") headersBuilt.push(made)
+      return made
+    }) as typeof document.createElement
+    restoreCreateElement = () => {
+      document.createElement = createElement
+    }
+
+    render(
+      <ScreenActivityProvider active root={preparedRoot}>
+        <TheBar
+          where={WHERE}
+          participant={SOMEONE}
+          repositories={KEPT}
+          preparedRoot={preparedRoot}
+        />
+      </ScreenActivityProvider>
+    )
+
+    expect(headersBuilt.length).toBeGreaterThan(0)
+    expect(document.querySelector(`#${BAR_ID} > header`)).toBeNull()
+
+    const theirUpdate = document.createElement("div")
+    document.body.append(theirUpdate)
+    await act(async () => await new Promise((ready) => setTimeout(ready, 0)))
+
+    expect(headersBuilt.every((header) => !header.isConnected)).toBe(true)
+    theirUpdate.remove()
   })
 
   test("prepares the exact route behind and ahead before a return press", async () => {

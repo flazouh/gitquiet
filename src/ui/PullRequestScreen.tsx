@@ -291,10 +291,6 @@ export const PullRequestScreen = ({
    * looking at this pull request's page and the press is over. Only `loading` leaves
    * the pull request they came from standing, and that is the one to keep quiet for.
    */
-  useEffect(() => {
-    if (!preparing || read.status !== "ready") return
-    onPrepared?.()
-  }, [onPrepared, preparing, read.status])
   const waiting = useWaiting(read.status)
 
   /**
@@ -486,6 +482,8 @@ export const PullRequestScreen = ({
       {read.status === "ready" ? (
         <Shell
           snapshot={read.value.snapshot}
+          preparing={preparing}
+          onPrepared={onPrepared}
           fetchDiffs={fetchDiffs}
           actions={acting}
           postComment={postComment}

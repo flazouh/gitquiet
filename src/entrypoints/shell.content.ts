@@ -1,6 +1,13 @@
 import { Effect, Option } from "effect";
 import { defineContentScript } from "wxt/utils/define-content-script";
-import { screenFor, type Screen, startScreenOnce, type Wanted } from "@/app/screens";
+import {
+  preloadScreen,
+  screenFor,
+  type Screen,
+  startScreenOnce,
+  type Wanted,
+} from "@/app/screens";
+import { whenIdle } from "@/app/idle";
 import { claimShell } from "@/app/shellClaim";
 import { titleAt } from "@/app/entitling";
 import { intendTo, intendedPath, prepareTo, whenPreparing } from "@/app/intent";
@@ -56,7 +63,7 @@ import { hintRead, showLingering } from "@/ui/lingeringHint";
 import type { Point } from "@/ui/near";
 import {
   type Stop,
-  whenAddressChanges,
+  whenAddressChangesAfterInput,
   whenTheyStayPut,
   whenTraversalStarts,
 } from "@/ui/navigation";
@@ -101,6 +108,17 @@ import "@/ui/gates.bar.css";
  * quarter of an hour later.
  */
 const AT_MOST = 12;
+
+const LIKELY_NEXT: Partial<Record<Wanted, ReadonlyArray<Wanted>>> = {
+  "working-set": ["pull-request", "issue"],
+  "repo-pulls": ["pull-request"],
+  issues: ["issue"],
+  "repo-issues": ["issue"],
+  notifications: ["pull-request", "issue"],
+  actions: ["run"],
+  commits: ["commit"],
+  profile: ["person-repos"],
+};
 
 /**
  * How long the conversation is held back before giving up on the interface.
@@ -900,7 +918,7 @@ export default defineContentScript({
      * the `tab` parameter and nothing else, so a watcher on the path alone never heard
      * about it — and the screen for one tab went on standing on another's page.
      */
-    whenAddressChanges(window, (path, search) => {
+    whenAddressChangesAfterInput(window, (path, search) => {
       // Their router moved, so the last press was acted on and the deadline that
       // would have carried it out by hand has nothing left to do.
       stayingPut();
@@ -961,6 +979,9 @@ export default defineContentScript({
       // that is the only read the worker is told to start. See `arrival.ts`.
       if (loadedOn === "pull-request") noteArrival(window, document);
       fetchIt(loadedOn);
+      for (const next of LIKELY_NEXT[loadedOn] ?? []) {
+        whenIdle(() => preloadScreen(next));
+      }
     }
   },
 });

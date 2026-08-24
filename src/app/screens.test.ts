@@ -1,5 +1,12 @@
-import { describe, expect, test } from "bun:test"
-import { fileOf, isWanted, startScreenOnce, WANTED } from "./screens"
+import { afterEach, describe, expect, test } from "bun:test"
+import { fileOf, isWanted, preloadScreen, startScreenOnce, WANTED } from "./screens"
+
+const beforeBrowser = Object.getOwnPropertyDescriptor(globalThis, "browser")
+
+afterEach(() => {
+  if (beforeBrowser === undefined) Reflect.deleteProperty(globalThis, "browser")
+  else Object.defineProperty(globalThis, "browser", beforeBrowser)
+})
 
 describe("naming the screen a page wants", () => {
   test("knows the seventeen pages this extension has a screen for", () => {
@@ -48,6 +55,22 @@ describe("naming the screen a page wants", () => {
     const sheets = new Set([...WANTED].map((what) => fileOf(what).styles))
 
     expect([...sheets]).toEqual(["/screens/styles.css"])
+  })
+
+  test("preloads one screen module once without starting it", () => {
+    Object.defineProperty(globalThis, "browser", {
+      configurable: true,
+      value: { runtime: { getURL: (path: string) => `chrome-extension://test${path}` } }
+    })
+
+    expect(preloadScreen("pull-request")).toBe(true)
+    expect(preloadScreen("pull-request")).toBe(false)
+
+    const link = document.querySelector<HTMLLinkElement>(
+      'link[rel="modulepreload"][href$="/screens/pull-request.js"]'
+    )
+    expect(link).not.toBeNull()
+    link?.remove()
   })
 
   test("starts one screen kind once when prepare and navigation both ask", () => {

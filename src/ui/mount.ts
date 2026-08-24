@@ -2,7 +2,11 @@ import { Effect, type Fiber } from "effect"
 import { runWhenIdle } from "./idle"
 import { type Stop, whenAddressChanges } from "./navigation"
 import { CONVERSATION, type Place } from "./place"
-import { PREPARED_TRAVERSAL_ROUTE } from "./preparedNavigation"
+import {
+  clearPreparedTraversal,
+  markPreparedTraversal,
+  preparedTraversal
+} from "./preparedNavigation"
 import { finishNavigation } from "./navigationTiming"
 
 export const ROOT_ID = "gitquiet-root"
@@ -180,7 +184,7 @@ export const prepareCachedTraversal = (
 ): boolean => {
   if (!hasPreparedScreen(target, route, place)) return false
 
-  target.documentElement.setAttribute(PREPARED_TRAVERSAL_ROUTE, route)
+  markPreparedTraversal(target, route)
   return true
 }
 
@@ -198,8 +202,7 @@ const claimPreparedScreen = (
   if (snapshot?.place !== place.name || snapshot.prepared === undefined) return null
 
   screens.delete(route)
-  if (target.documentElement.getAttribute(PREPARED_TRAVERSAL_ROUTE) === route)
-    target.documentElement.removeAttribute(PREPARED_TRAVERSAL_ROUTE)
+  if (preparedTraversal(target) === route) clearPreparedTraversal(target)
   const claimed = snapshot.prepared.element
   claimed.id = ROOT_ID
   claimed.setAttribute(BELONGS_TO, place.name)
@@ -257,9 +260,8 @@ export const GOING = "gitquiet:going"
 const takeOffThePage = (element: Element, rememberLive = false): void => {
   const page = element.ownerDocument
   runWhenIdle(() => rememberScreen(element))
-  theScreenActivityChanged(element)
-  element.dispatchEvent(new CustomEvent(GOING, { detail: rememberLive }))
   element.remove()
+  element.dispatchEvent(new CustomEvent(GOING, { detail: rememberLive }))
   if (element === ours) ours = null
   theScreenMoved(page)
 }
@@ -743,7 +745,7 @@ export const theScreenHasRoute = (target: Document, route: string): boolean =>
 export const markScreenRoute = (target: Document, route: string): void => {
   const screen = theScreenOnThePage(target) ?? (ours?.ownerDocument === target ? ours : null)
   screen?.setAttribute(ROUTE, route)
-  finishNavigation(target, route)
+  if (screen !== null) finishNavigation(target, route, screen)
 }
 
 /** Puts an exact live history target on the current surface before traversal commits. */
@@ -762,7 +764,6 @@ export const activatePreparedTraversal = (
   leaving.setAttribute(LEAVING, "")
   takeOffThePage(leaving, true)
   slot.append(arriving)
-  theScreenActivityChanged(arriving)
   arriving.setAttribute(ROUTE, route)
   target.documentElement.setAttribute(TAKEN, "")
   target.documentElement.setAttribute(SHOWN, place.name)
@@ -770,7 +771,7 @@ export const activatePreparedTraversal = (
   hideTheirBands(target, place)
   reveal(target)
   ungate(target)
-  finishNavigation(target, route)
+  finishNavigation(target, route, arriving)
   theScreenMoved(target)
   return true
 }
@@ -1013,7 +1014,7 @@ export const takeOverSlot = (
     const route = routeNow(target, exactRoute)
     if (route !== null) {
       container.setAttribute(ROUTE, route)
-      finishNavigation(target, route)
+      finishNavigation(target, route, container)
     }
     hideTheirs(into, container)
     hideTheirBands(target, place)
