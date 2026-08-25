@@ -115,23 +115,17 @@ only copy:
 
 **Heading**
 
-> Your team sees the same GitHub.
+> It opens on your own work.
 
 **Body**
 
-> A colleague who has never heard of GitQuiet reads your work where they have
-> always read it.
+> Install it, then open the pull request you were about to read. It is already
+> there.
 
-**The three under it**
-
-| | |
-| --- | --- |
-| **Your sign-in** | The GitHub session you already have. There is no GitQuiet account to make. |
-| **Your history** | Reviews, comments and merges go through GitHub and stay there. |
-| **Your code** | Read on your own machine and kept there. There is no GitQuiet server. |
-
-Each line is the privacy policy shortened, so the page cannot drift from it. A
-fourth line would have to say something the policy does not.
+Nothing else on the card. The reader has just scrolled twelve screens of
+somebody else's repository, so the last thing worth saying is that the next one
+is theirs. What a teammate sees is not the subject: they see GitHub, which the
+reader already assumes.
 
 **Button:** Add to Chrome
 **Under it:** Also for Safari, or as a macOS app.

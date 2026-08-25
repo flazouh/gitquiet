@@ -32,28 +32,6 @@ const Elsewhere = () => (
   </p>
 )
 
-/*
- * What the closing card promises, in the three the reader is actually weighing.
- *
- * Each line is the privacy policy's own claim, shortened: no account and no server,
- * the GitHub session already in the browser, the review content read where it is and
- * kept there. A fourth column would say something the policy does not.
- */
-const SAME: readonly { readonly holds: string; readonly says: string }[] = [
-  {
-    holds: "Your sign-in",
-    says: "The GitHub session you already have. There is no GitQuiet account to make."
-  },
-  {
-    holds: "Your history",
-    says: "Reviews, comments and merges go through GitHub and stay there."
-  },
-  {
-    holds: "Your code",
-    says: "Read on your own machine and kept there. There is no GitQuiet server."
-  }
-]
-
 const first = VIEWS[0]
 
 export const Page = () => (
@@ -114,24 +92,20 @@ export const Page = () => (
             style={{ position: "absolute", inset: 0 }}
           />
           <div className="px-8 py-24 text-center sm:px-16">
+            {/*
+              The last card, and the reader has just scrolled twelve screens of somebody
+              else's repository. What is left to say is that the next one is theirs, which
+              is a promise about the press after this one rather than about the product.
+            */}
             <h2 className="m-0 text-balance text-[clamp(1.75rem,4.5vw,3rem)] font-semibold leading-[1.05] tracking-[-0.035em]">
-              Your team sees the same GitHub.
+              It opens on your own work.
             </h2>
-            <p className="mx-auto mt-5 max-w-xl text-pretty text-[17px] leading-relaxed text-ink/70">
-              A colleague who has never heard of GitQuiet reads your work where they have
-              always read it.
+            <p className="mx-auto mt-5 max-w-md text-pretty text-[17px] leading-relaxed text-ink/70">
+              Install it, then open the pull request you were about to read. It is already
+              there.
             </p>
 
-            <dl className="mx-auto mt-16 grid max-w-3xl gap-8 text-left sm:grid-cols-3">
-              {SAME.map((one) => (
-                <div key={one.holds} className="border-t border-ink/25 pt-5">
-                  <dt className="text-[17px] font-semibold tracking-[-0.02em]">{one.holds}</dt>
-                  <dd className="m-0 mt-3 text-[15px] leading-relaxed text-ink/70">{one.says}</dd>
-                </div>
-              ))}
-            </dl>
-
-            <div className="mt-16 flex justify-center">
+            <div className="mt-11 flex justify-center">
               <AddToChrome big />
             </div>
 
