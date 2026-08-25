@@ -62,14 +62,8 @@ length is not the constraint. CodeRabbit runs to 3166 words.
 
 **Primary button:** Add to Chrome
 
-**Under the button:** Chrome and Edge. No account needed.
-Also for Safari, or as a macOS app.
-
-**Trust line**
-
-> Your reviews, comments and merges all go through GitHub, so your teammates see
-> your work exactly as before. Your code stays in your browser.
-> [Read the privacy policy.](#)
+Nothing under it. The button stands alone, and the closing card is where the
+other browsers are named.
 
 ---
 

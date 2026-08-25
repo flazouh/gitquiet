@@ -115,22 +115,9 @@ export const Page = () => (
           GitHub is where your work lives. GitQuiet is where you do it.
         </p>
 
-        <div className="mt-10 flex flex-wrap items-center gap-5">
+        <div className="mt-10">
           <AddToChrome big />
-          <span className="text-[15px] text-ink/60">Chrome and Edge. No account needed.</span>
         </div>
-
-        <div className="mt-4">
-          <Elsewhere />
-        </div>
-
-        {/* The short half of the promise. The whole of it is the closing card, which is
-            where a reader who has seen the screens is deciding whether to install. */}
-        <p className="mt-6 max-w-lg text-[15px] leading-relaxed text-ink/60">
-          Your code stays in your browser.{" "}
-          <Quietly at="/privacy.html">Read the privacy policy</Quietly>
-          .
-        </p>
       </div>
     </Above>
 
