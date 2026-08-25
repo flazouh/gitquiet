@@ -82,39 +82,7 @@ own group names:
 
 ---
 
-## 3. What it is like
-
-**Eyebrow:** The idea
-
-**Heading**
-
-> You open it and you already know.
-
-**Body**
-
-> A review thread waiting on your reply. A failing check. A file that changed
-> since you read it. GitHub keeps those in five different places and none of
-> them says whether it is yours. GitQuiet opens on one list, in four groups, and
-> the first group is the only one you have to read.
-
-**The four groups**
-
-| Group | Means |
-| --- | --- |
-| **Needs You** | You can act on it now. |
-| **Waiting** | Someone else has to act. |
-| **Running** | A machine is working. Nothing to do but wait. |
-| **Settled** | Finished. |
-
-`Your Move` is `Needs You` now. The module is called Courts, after the ball being
-in someone's court, and `Your Move` was a chess word inside a tennis metaphor. It
-was also the only two-word name in a set built on one-word names. `Needs You`
-says what the group is for rather than naming the mechanism, and it still means
-something in the desktop window, where there is no github.com in sight.
-
----
-
-## 4. Speed *(new section)*
+## 3. Speed *(new section)*
 
 **Eyebrow:** Measured on microsoft/vscode, August 2026
 
@@ -143,7 +111,7 @@ The race video goes here and needs no further words.
 
 ---
 
-## 5. Four complaints
+## 4. Four complaints
 
 **Eyebrow:** Public threads, read August 2026
 
@@ -156,7 +124,7 @@ the most persuasive thing on the page.
 
 ---
 
-## 6. Against Refined GitHub
+## 5. Against Refined GitHub
 
 **Eyebrow:** The comparison
 
@@ -189,7 +157,7 @@ plumbing.
 
 ---
 
-## 7. Every screen
+## 6. Every screen
 
 **Eyebrow:** Every screen
 
@@ -227,7 +195,7 @@ plumbing.
 
 ---
 
-## 8. Close
+## 7. Close
 
 **Heading**
 
@@ -244,13 +212,19 @@ plumbing.
 
 ---
 
-## 9. Footer
+## 8. Footer
 
 gitquiet · Source, under AGPL-3.0 · Not affiliated with GitHub.
 
 ---
 
 ## Where the old language still lives
+
+`Your Move` is `Needs You` now. The module is called Courts, after the ball being
+in someone's court, and `Your Move` was a chess word inside a tennis metaphor. It
+was also the only two-word name in a set built on one-word names. `Needs You`
+says what the group is for rather than naming the mechanism, and it still means
+something in the desktop window, where there is no github.com in sight.
 
 Each of these says "grouped by who acts next" or counts pages, and each needs the
 same pass:
@@ -259,5 +233,5 @@ same pass:
 | --- | --- |
 | `README.md` | 6, 19 |
 | `site/src/assets.tsx` | 150, 292 |
-| `site/src/Page.tsx` | hero, `COURTS`, `AGAINST` |
+| `site/src/Page.tsx` | hero, `AGAINST` |
 | `site/src/features.ts` | caption 1 |

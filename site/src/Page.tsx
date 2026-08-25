@@ -1,6 +1,5 @@
 import type { CSSProperties, ReactNode } from "react"
-import { COURTS as ALL_COURTS } from "@/domain/attention"
-import { COURT_MEANS, COURT_NAME } from "@/ui/courts"
+import { COURT_NAME } from "@/ui/courts"
 import { VIEWS } from "../../shots/views"
 import { PRESS } from "../../video/src/measurements"
 import { Bed } from "./Bed"
@@ -46,18 +45,6 @@ const Says = ({ over, title }: { readonly over: string; readonly title: string }
     </h2>
   </header>
 )
-
-/*
- * The four the interface sorts everything into, read off the interface itself.
- *
- * The order, the names and the meanings are all the interface's own, from
- * `attention.ts` and `courts.ts`. Typed out again here, the page and the app came to
- * word the same four things differently.
- */
-const COURTS = ALL_COURTS.map((court) => ({
-  court: COURT_NAME[court],
-  means: COURT_MEANS[court]
-}))
 
 /*
  * The one section that is allowed to talk about mechanism, because the question it
@@ -171,24 +158,6 @@ export const Page = () => (
           <Live view={first} eager />
         </div>
       )}
-
-      <section className="border-t border-rule py-24">
-        <Says over="The idea" title="You open it and you already know." />
-        <p className="-mt-4 mb-12 max-w-2xl text-pretty text-[17px] leading-relaxed text-muted">
-          A thread waiting on your reply, a failing check, a file that changed since you
-          read it. GitHub keeps those in five different places. Here they are one list, and
-          the first group is yours.
-        </p>
-
-        <dl className="m-0 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          {COURTS.map((one) => (
-            <div key={one.court} className="border-t border-ink/25 pt-5">
-              <dt className="text-[19px] font-semibold tracking-[-0.02em]">{one.court}</dt>
-              <dd className="m-0 mt-3 text-[15px] leading-relaxed text-muted">{one.means}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
 
       <section className="border-t border-rule py-24">
         <Says over="Measured on microsoft/vscode, August 2026" title="Already open when you press it." />
