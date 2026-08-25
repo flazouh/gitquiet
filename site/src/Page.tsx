@@ -1,10 +1,7 @@
-import type { CSSProperties, ReactNode } from "react"
-import { COURT_NAME } from "@/ui/courts"
 import { VIEWS } from "../../shots/views"
 import { Bed } from "./Bed"
 import { Feature } from "./Feature"
 import { Live } from "./Live"
-import { PAINS } from "./pains"
 import {
   Above,
   AddToChrome,
@@ -35,59 +32,29 @@ const Elsewhere = () => (
   </p>
 )
 
-const Says = ({ over, title }: { readonly over: string; readonly title: string }) => (
-  <header className="mb-12 max-w-2xl">
-    <p className="eyebrow mb-4">{over}</p>
-    <h2 className="m-0 text-balance text-[clamp(1.75rem,4vw,2.5rem)] font-semibold leading-[1.1] tracking-[-0.03em]">
-      {title}
-    </h2>
-  </header>
-)
-
 /*
- * The one section that is allowed to talk about mechanism, because the question it
- * answers is a question about mechanism. Everywhere else on this page the words for
- * what GitQuiet does to GitHub's pages are out: they put it in the category of things
- * that patch somebody else's product, which is the category it is arguing its way out
- * of. Here a reader has asked how the two differ, and deserves the mechanical answer.
+ * What the closing card promises, in the three the reader is actually weighing.
+ *
+ * Each line is the privacy policy's own claim, shortened: no account and no server,
+ * the GitHub session already in the browser, the review content read where it is and
+ * kept there. A fourth column would say something the policy does not.
  */
-const AGAINST: readonly {
-  readonly aspect: string
-  readonly theirs: ReactNode
-  readonly ours: string
-}[] = [
+const SAME: readonly { readonly holds: string; readonly says: string }[] = [
   {
-    aspect: "What it is",
-    theirs: "A set of fixes on GitHub’s pages.",
-    ours: "Its own interface, on GitHub’s data."
+    holds: "Your sign-in",
+    says: "The GitHub session you already have. There is no GitQuiet account to make."
   },
   {
-    aspect: "A pull request",
-    theirs: "Conversation and Files changed stay separate tabs.",
-    ours: "One screen. No tabs."
+    holds: "Your history",
+    says: "Reviews, comments and merges go through GitHub and stay there."
   },
   {
-    aspect: "A comment on code that moved",
-    theirs: (
-      <>
-        <Quietly at="https://github.com/refined-github/refined-github/issues/7255">
-          Closed as not planned
-        </Quietly>
-        , under the label &ldquo;impossible&rdquo;.
-      </>
-    ),
-    ours: "Stays visible, on the version of the code you wrote it about."
-  },
-  {
-    aspect: "Your work across repositories",
-    theirs: "GitHub’s own lists, improved.",
-    ours: `One list, and the first group is ${COURT_NAME["needs-you"].toLowerCase()}.`
+    holds: "Your code",
+    says: "Read on your own machine and kept there. There is no GitQuiet server."
   }
 ]
 
 const first = VIEWS[0]
-
-const stagger = (at: number): CSSProperties => ({ "--stagger": `${at * 60}ms` }) as CSSProperties
 
 export const Page = () => (
   <>
@@ -128,95 +95,7 @@ export const Page = () => (
         </div>
       )}
 
-      <section className="border-t border-rule py-24">
-        <Says over="Public threads, read August 2026" title="Four complaints, and the answer to each." />
-        <ul className="m-0 grid list-none gap-6 p-0 sm:grid-cols-2">
-          {PAINS.map((pain, at) => (
-            <li key={pain.at} className="quote-card" style={stagger(at)}>
-              <blockquote className="m-0 text-pretty text-[17px] leading-snug">
-                <a
-                  href={pain.at}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-ink no-underline decoration-ink/30 underline-offset-4 hover:underline"
-                >
-                  “{pain.said}”
-                </a>
-              </blockquote>
-              <p className="tabular eyebrow mt-3 text-[11px]">{pain.weight}</p>
-              <p className="mt-auto pt-6 text-[15px] leading-relaxed text-muted">{pain.answer}</p>
-            </li>
-          ))}
-        </ul>
-
-      </section>
-
-      <section className="border-t border-rule py-24">
-        <Says over="The comparison" title="What about Refined GitHub?" />
-        <p className="-mt-4 mb-12 max-w-2xl text-pretty text-[17px] leading-relaxed text-muted">
-          <Quietly at="https://github.com/refined-github/refined-github">Refined GitHub</Quietly>{" "}
-          fixes hundreds of small annoyances on GitHub&rsquo;s own pages, and it is good at
-          that: the Chrome store counted 100,000 users in August 2026. It is a better
-          GitHub. GitQuiet is somewhere else to work.
-        </p>
-
-        <table className="hidden w-full border-collapse text-left md:table">
-          <thead>
-            <tr className="border-t border-ink/25">
-              <th className="w-[30%] py-5 pr-6 align-top" />
-              <th className="w-[35%] py-5 pr-6 align-top text-[17px] font-semibold tracking-[-0.02em]">
-                Refined GitHub
-              </th>
-              <th className="w-[35%] py-5 align-top text-[17px] font-semibold tracking-[-0.02em]">
-                GitQuiet
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {AGAINST.map((row) => (
-              <tr key={row.aspect} className="border-t border-rule">
-                <th scope="row" className="py-5 pr-6 align-top text-[15px] font-medium">
-                  {row.aspect}
-                </th>
-                <td className="py-5 pr-6 align-top text-[15px] leading-relaxed text-muted">
-                  {row.theirs}
-                </td>
-                <td className="py-5 align-top text-[15px] leading-relaxed text-muted">
-                  {row.ours}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {/* Three columns do not fit a phone, and a table nobody can read sideways is
-            worse than the same four rows read downwards. */}
-        <dl className="m-0 grid gap-9 md:hidden">
-          {AGAINST.map((row) => (
-            <div key={row.aspect} className="border-t border-rule pt-5">
-              <dt className="text-[16px] font-semibold tracking-[-0.02em]">{row.aspect}</dt>
-              <dd className="m-0 mt-4 text-[15px] leading-relaxed text-muted">
-                <span className="eyebrow mb-1.5 block">Refined GitHub</span>
-                {row.theirs}
-              </dd>
-              <dd className="m-0 mt-4 text-[15px] leading-relaxed text-muted">
-                <span className="eyebrow mb-1.5 block">GitQuiet</span>
-                {row.ours}
-              </dd>
-            </div>
-          ))}
-        </dl>
-
-        <p className="mt-10 max-w-2xl text-pretty text-[17px] leading-relaxed text-muted">
-          The third row is the tracker&rsquo;s own verdict, and it is fair: keeping a comment
-          on code that moved means fetching every comment in the pull request&rsquo;s
-          history, which a set of fixes on somebody else&rsquo;s page cannot reasonably do.
-          GitQuiet draws that screen itself, so the comment stays.
-        </p>
-      </section>
-
       <section id="screens" className="border-t border-rule py-24">
-        <Says over="Every screen" title="These are the real screens, not pictures of them." />
         <div className="grid gap-20">
           {VIEWS.slice(1).map((view, at) => (
             <Feature key={view.name} view={view} at={at} />
@@ -234,16 +113,25 @@ export const Page = () => (
             className="-z-10"
             style={{ position: "absolute", inset: 0 }}
           />
-          <div className="px-8 py-20 text-center sm:px-16">
+          <div className="px-8 py-24 text-center sm:px-16">
             <h2 className="m-0 text-balance text-[clamp(1.75rem,4.5vw,3rem)] font-semibold leading-[1.05] tracking-[-0.035em]">
-              Nothing changes for anybody else.
+              Your team sees the same GitHub.
             </h2>
-            <p className="mx-auto mt-5 max-w-xl text-[17px] leading-relaxed text-ink/70">
-              Every review, comment and merge goes through GitHub, so a colleague who has never
-              installed GitQuiet sees your work exactly as usual. GitQuiet uses the GitHub
-              session you already have.
+            <p className="mx-auto mt-5 max-w-xl text-pretty text-[17px] leading-relaxed text-ink/70">
+              A colleague who has never heard of GitQuiet reads your work where they have
+              always read it.
             </p>
-            <div className="mt-9 flex justify-center">
+
+            <dl className="mx-auto mt-16 grid max-w-3xl gap-8 text-left sm:grid-cols-3">
+              {SAME.map((one) => (
+                <div key={one.holds} className="border-t border-ink/25 pt-5">
+                  <dt className="text-[17px] font-semibold tracking-[-0.02em]">{one.holds}</dt>
+                  <dd className="m-0 mt-3 text-[15px] leading-relaxed text-ink/70">{one.says}</dd>
+                </div>
+              ))}
+            </dl>
+
+            <div className="mt-16 flex justify-center">
               <AddToChrome big />
             </div>
 

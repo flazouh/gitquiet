@@ -21,8 +21,8 @@ product rather than a place of its own:
 - on github.com itself
 - improves, fixes, replaces
 
-They survive in exactly one place, the Refined GitHub comparison, because that
-section is a question about mechanism and deserves a mechanical answer.
+The comparison section that used to carry them is gone, so there is nowhere left
+on the page where they belong.
 
 **The analogue to hold in your head.** Gmail is where the mail lives; Superhuman
 is where you read it. Superhuman's page never says it redraws Gmail's pages. It
@@ -76,59 +76,10 @@ own group names:
 
 ---
 
-## 3. Four complaints
+## 3. Every screen
 
-**Eyebrow:** Public threads, read August 2026
-
-**Heading**
-
-> Four complaints, and the answer to each.
-
-All four kept verbatim. They are quotations with counts attached, and they are
-the most persuasive thing on the page.
-
----
-
-## 4. Against Refined GitHub
-
-**Eyebrow:** The comparison
-
-**Heading**
-
-> What about Refined GitHub?
-
-**Body**
-
-> Refined GitHub fixes hundreds of small annoyances on GitHub's own pages, and
-> 100,000 people use it. It is a better GitHub. GitQuiet is somewhere else to
-> work.
-
-| | Refined GitHub | GitQuiet |
-| --- | --- | --- |
-| What it is | A set of fixes on GitHub's pages. | Its own interface, on GitHub's data. |
-| A pull request | Conversation and Files changed stay separate tabs. | One screen. No tabs. |
-| A comment on code that moved | Closed as not planned, under the label "impossible". | Stays visible, on the version of the code you wrote it about. |
-| Your work across repositories | GitHub's own lists, improved. | One list, and the first group is what needs you. |
-
-**Note under the table**
-
-> The third row is the tracker's own verdict, and it is fair: keeping a comment
-> on code that moved means fetching every comment in the pull request's history,
-> which a set of fixes on somebody else's page cannot reasonably do. GitQuiet
-> draws that screen itself, so the comment stays.
-
-This is the one section where the plumbing belongs, because the question is about
-plumbing.
-
----
-
-## 5. Every screen
-
-**Eyebrow:** Every screen
-
-**Heading**
-
-> These are the real screens, not pictures of them.
+No header. The screens carry themselves, and the caption beside each one is the
+only copy:
 
 1. **Sorted by what needs you**
    Every pull request you are in, from every repository, in one list.
@@ -160,24 +111,34 @@ plumbing.
 
 ---
 
-## 6. Close
+## 4. Close
 
 **Heading**
 
-> Nothing changes for anybody else.
+> Your team sees the same GitHub.
 
 **Body**
 
-> Every review, comment and merge goes through GitHub, so a colleague who has
-> never installed GitQuiet sees your work exactly as usual. GitQuiet uses the
-> GitHub session you already have.
+> A colleague who has never heard of GitQuiet reads your work where they have
+> always read it.
+
+**The three under it**
+
+| | |
+| --- | --- |
+| **Your sign-in** | The GitHub session you already have. There is no GitQuiet account to make. |
+| **Your history** | Reviews, comments and merges go through GitHub and stay there. |
+| **Your code** | Read on your own machine and kept there. There is no GitQuiet server. |
+
+Each line is the privacy policy shortened, so the page cannot drift from it. A
+fourth line would have to say something the policy does not.
 
 **Button:** Add to Chrome
 **Under it:** Also for Safari, or as a macOS app.
 
 ---
 
-## 7. Footer
+## 5. Footer
 
 gitquiet · Source, under AGPL-3.0 · Not affiliated with GitHub.
 
@@ -198,5 +159,5 @@ same pass:
 | --- | --- |
 | `README.md` | 6, 19 |
 | `site/src/assets.tsx` | 150, 292 |
-| `site/src/Page.tsx` | hero, `AGAINST` |
+| `site/src/Page.tsx` | hero |
 | `site/src/features.ts` | caption 1 |

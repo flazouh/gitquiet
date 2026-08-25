@@ -191,13 +191,13 @@ body {
     0 14px 36px -18px rgba(27, 23, 37, 0.14);
 
   /*
-   * Four cards arriving in order rather than as a block.
+   * Cards arriving as they cross the fold rather than as a block.
    *
    * `animation-timeline: view()` rather than an IntersectionObserver, because there is
    * nothing here for JavaScript to decide: the card fades up as it crosses the fold and
-   * the browser runs it off the compositor. `Page.tsx` sets `--stagger` per card, so its
-   * four arrive in order; the install page sets none and its four arrive together, which
-   * is what the `0ms` fallback is for.
+   * the browser runs it off the compositor. A page that wants its cards in order sets
+   * `--stagger` per card; the install page sets none and its four arrive together,
+   * which is what the `0ms` fallback is for.
    *
    * `both` on the fill, so a card below the fold is at the start of the animation rather
    * than at rest. Without it the whole set is fully drawn before the timeline is
