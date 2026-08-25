@@ -1,7 +1,6 @@
 import type { CSSProperties, ReactNode } from "react"
 import { COURT_NAME } from "@/ui/courts"
 import { VIEWS } from "../../shots/views"
-import { PRESS } from "../../video/src/measurements"
 import { Bed } from "./Bed"
 import { Feature } from "./Feature"
 import { Live } from "./Live"
@@ -16,7 +15,6 @@ import {
   Nav,
   Quietly,
   SkipTo,
-  SOURCE_AT,
   Source
 } from "./Shell"
 
@@ -87,22 +85,6 @@ const AGAINST: readonly {
   }
 ]
 
-/*
- * The two presses the speed section quotes, read off the file the video reads.
- *
- * Imported rather than typed out, and from `video/` rather than a copy of its own:
- * these numbers are re-measured whenever the benchmark scripts are, and a page that
- * kept its own copy would go on claiming a figure nobody can reproduce. The doc block
- * beside them says how they were taken and what may not be said about them.
- *
- * Both rows always, in this order. Quoting the rested press alone is the claim the
- * repository's own script refutes.
- */
-const RACES = [
-  { when: "After a pause on the row", ...PRESS.warm },
-  { when: "Pressed straight away", ...PRESS.cold }
-] as const
-
 const first = VIEWS[0]
 
 const stagger = (at: number): CSSProperties => ({ "--stagger": `${at * 60}ms` }) as CSSProperties
@@ -158,45 +140,6 @@ export const Page = () => (
           <Live view={first} eager />
         </div>
       )}
-
-      <section className="border-t border-rule py-24">
-        <Says over="Measured on microsoft/vscode, August 2026" title="Already open when you press it." />
-        <p className="-mt-4 mb-12 max-w-2xl text-pretty text-[17px] leading-relaxed text-muted">
-          Rest on a row for a moment and GitQuiet has read the pull request ahead. Press it
-          and you are reading in {PRESS.warm.ours}ms. GitHub takes two seconds.
-        </p>
-
-        <dl className="m-0 grid gap-9 sm:grid-cols-2">
-          {RACES.map((race) => (
-            <div key={race.when} className="border-t border-ink/25 pt-5">
-              <dt className="text-[15px] font-medium">{race.when}</dt>
-              <dd className="m-0 mt-4 flex items-baseline justify-between gap-6">
-                <span className="eyebrow">GitHub</span>
-                <span className="tabular text-[19px] text-muted">{race.github}ms</span>
-              </dd>
-              <dd className="m-0 mt-2 flex items-baseline justify-between gap-6 border-t border-rule pt-2">
-                <span className="eyebrow">GitQuiet</span>
-                <span className="tabular text-[19px] font-semibold">{race.ours}ms</span>
-              </dd>
-            </div>
-          ))}
-        </dl>
-
-        {/*
-          Both rows, and the second one is why this section can be quoted at all. The
-          big number is the reading-ahead: without the pause it is half a second rather
-          than thirty times, and a page that shows only the first row is a page whose
-          own benchmark script takes it apart in the first comment thread.
-        */}
-        <p className="mt-10 max-w-2xl text-pretty text-[15px] leading-relaxed text-muted">
-          The gap is the reading ahead. Press without pausing and you save about half a
-          second, not two. Medians of four pull requests, signed in, reproducible with{" "}
-          <Quietly at={`${SOURCE_AT}/blob/main/scripts/benchmark-click-flow.js`}>
-            the script that measured them
-          </Quietly>
-          .
-        </p>
-      </section>
 
       <section className="border-t border-rule py-24">
         <Says over="Public threads, read August 2026" title="Four complaints, and the answer to each." />

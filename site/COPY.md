@@ -82,36 +82,7 @@ own group names:
 
 ---
 
-## 3. Speed *(new section)*
-
-**Eyebrow:** Measured on microsoft/vscode, August 2026
-
-**Heading**
-
-> Two seconds, or a fifth of one.
-
-**Body**
-
-> Rest on a row for a moment and GitQuiet has already read the pull request
-> ahead. Press it and you are reading in 287ms. GitHub is still showing you the
-> list you clicked away from, and it stays there for two seconds.
-
-| | GitHub | GitQuiet |
-| --- | --- | --- |
-| The page you pressed, readable | 2050ms | 287ms |
-| Pressed with no pause first | 2138ms | 1635ms |
-
-**Caption**
-
-> The gap is the reading-ahead. Press without pausing and GitQuiet saves you
-> about half a second, not two. Medians of four, signed in, reproducible with
-> `scripts/benchmark-click-flow.js`.
-
-The race video goes here and needs no further words.
-
----
-
-## 4. Four complaints
+## 3. Four complaints
 
 **Eyebrow:** Public threads, read August 2026
 
@@ -124,7 +95,7 @@ the most persuasive thing on the page.
 
 ---
 
-## 5. Against Refined GitHub
+## 4. Against Refined GitHub
 
 **Eyebrow:** The comparison
 
@@ -157,7 +128,7 @@ plumbing.
 
 ---
 
-## 6. Every screen
+## 5. Every screen
 
 **Eyebrow:** Every screen
 
@@ -195,7 +166,7 @@ plumbing.
 
 ---
 
-## 7. Close
+## 6. Close
 
 **Heading**
 
@@ -212,7 +183,7 @@ plumbing.
 
 ---
 
-## 8. Footer
+## 7. Footer
 
 gitquiet · Source, under AGPL-3.0 · Not affiliated with GitHub.
 
