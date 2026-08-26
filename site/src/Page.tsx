@@ -93,21 +93,17 @@ export const Page = () => (
           />
           <div className="px-8 py-24 text-center sm:px-16">
             {/*
-              The last card says the two words the first one does, in the form a reader
-              can check on the press after this one. Fast is the page being read before it
-              is asked for; quiet is the list putting what needs an answer at the top and
-              keeping the rest below. No number here: the benchmark section is gone and a
-              figure in a closing card is a figure nobody can check from a closing card.
+              The headline again, word for word, and nothing after it.
+              A closing slogan is a second claim made by a product whose whole argument is
+              that it is quiet, and the reader has just been shown twelve screens rather
+              than told anything. Repeating the one line the page opens with closes it
+              without asking for another sentence of trust.
             */}
             <h2 className="m-0 text-balance text-[clamp(1.75rem,4.5vw,3rem)] font-semibold leading-[1.05] tracking-[-0.035em]">
-              It opens fast, then leaves you alone.
+              A faster, quieter GitHub.
             </h2>
-            <p className="mx-auto mt-5 max-w-lg text-pretty text-[17px] leading-relaxed text-ink/70">
-              The page is read before you press it. What needs you sits at the top, and
-              everything else stays out of the way.
-            </p>
 
-            <div className="mt-11 flex justify-center">
+            <div className="mt-10 flex justify-center">
               <AddToChrome big />
             </div>
 

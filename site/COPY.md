@@ -115,19 +115,13 @@ only copy:
 
 **Heading**
 
-> It opens fast, then leaves you alone.
+> A faster, quieter GitHub.
 
-**Body**
-
-> The page is read before you press it. What needs you sits at the top, and
-> everything else stays out of the way.
-
-Nothing else on the card. The close carries the same two words as the headline,
-fast and quiet, in the form a reader can check on the next press: the page is
-read ahead, and the list puts what needs an answer first. No number, because the
-speed section is gone and a figure in a closing card is a figure nobody can
-check from a closing card. What a teammate sees is not the subject: they see
-GitHub, which the reader already assumes.
+The headline again, word for word, and nothing after it. Every closing slogan
+written for this card read as a second claim, and a product whose argument is
+that it is quiet cannot end by raising its voice. The reader has been shown
+twelve screens by this point, so the card repeats the line the page opened with
+and gets out of the way.
 
 **Button:** Add to Chrome
 **Under it:** Also for Safari, or as a macOS app.
