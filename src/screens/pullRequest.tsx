@@ -389,12 +389,12 @@ const open = (
           close: closeIt,
           markReady,
           toDraft,
-          deleteBranch,
-          // Everything on the page describes a pull request that is now merged —
-          // the checks, the merge card, GitHub's own header behind ours — and
-          // reading it again is both simpler and more honest than patching a
-          // snapshot to say so.
-          onMerged: () => window.location.reload()
+          deleteBranch
+          // No `onMerged`: the press already goes through `acting.merge`, which
+          // wears the merged face at once (`asDone`) and reads the page again on
+          // success (`meanwhile`). A reload here threw that away and repainted
+          // the remembered snapshot, which still said Open — see the merge card's
+          // own `Merging… → Merged`, which is the real status of the action.
         }}
       />
     )
