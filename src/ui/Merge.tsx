@@ -142,15 +142,10 @@ export const Merge = ({
     setMerging({ step: "working", doing })
     Effect.runFork(
       act().pipe(
-        Effect.map(() => {
-          setMerging({ step: "done", doing })
-          // A merge ends the reading; the queue verbs only change what this card
-          // has to say, and the page around it stays worth looking at. Closing is
-          // in between: the pull request is still there to read, and everything
-          // that says whether it is open has just become wrong.
-          if (doing === "merge") actions?.onMerged?.()
-          else actions?.onChanged?.()
-        }),
+        // The page reads itself again on its own: every verb here is wired
+        // through `meanwhile`, which shows the change and then confirms it with
+        // GitHub. This card only has to say the press landed.
+        Effect.map(() => setMerging({ step: "done", doing })),
         Effect.catch((cause) =>
           Effect.sync(() => setMerging({ step: "refused", said: reasonFor(cause) }))
         )

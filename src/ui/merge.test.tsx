@@ -244,18 +244,6 @@ describe("the merge card", () => {
     expect(yes.querySelector(".t-rotate")).toBeNull()
   })
 
-  test("lets the page be read again once it lands", async () => {
-    let read = 0
-    render(
-      <Merge state="open" merge={Option.some(ready)} actions={{ merge: () => Effect.void, onMerged: () => void (read += 1) }} />
-    )
-
-    await userEvent.click(button(/Squash and merge/))
-    await userEvent.click(button(/Confirm squash and merge/))
-
-    await waitFor(() => expect(read).toBe(1))
-  })
-
   test("backs out without merging", async () => {
     let merges = 0
     render(<Merge state="open" merge={Option.some(ready)} actions={{ merge: () => Effect.sync(() => void (merges += 1)) }} />)
@@ -333,13 +321,11 @@ describe("the merge card", () => {
 
   test("offers to catch the branch up when the base has moved on", async () => {
     let updated = 0
-    let reread = 0
     render(
       <Merge state="open"
         merge={Option.some({ ...ready, update: catchUp({}) })}
         actions={{
-          update: () => Effect.sync(() => void (updated += 1)),
-          onChanged: () => void (reread += 1)
+          update: () => Effect.sync(() => void (updated += 1))
         }}
       />
     )
@@ -349,9 +335,6 @@ describe("the merge card", () => {
     await userEvent.click(button(/Confirm update branch/))
 
     await waitFor(() => expect(updated).toBe(1))
-    // The head commit is a new one, so every check on this page is about to be
-    // re-run against something that no longer exists.
-    await waitFor(() => expect(reread).toBe(1))
   })
 
   test("says nothing about updating a branch that is level with its base", () => {
@@ -581,14 +564,12 @@ describe("the merge card", () => {
 
   test("offers to mark a draft ready, that being what is holding it up", async () => {
     let marked = 0
-    let reread = 0
     render(
       <Merge
         merge={Option.some(ready)}
         state="draft"
         actions={{
-          markReady: () => Effect.sync(() => void (marked += 1)),
-          onChanged: () => void (reread += 1)
+          markReady: () => Effect.sync(() => void (marked += 1))
         }}
       />
     )
@@ -599,7 +580,6 @@ describe("the merge card", () => {
     await userEvent.click(button(/Confirm mark ready for review/))
 
     await waitFor(() => expect(marked).toBe(1))
-    await waitFor(() => expect(reread).toBe(1))
   })
 
   test("offers to put an open one back into draft, which is the same door", async () => {
@@ -633,15 +613,13 @@ describe("the merge card", () => {
     expect(button(/Confirm close pull request/)).toBeDefined()
   })
 
-  test("closes it on the second press, and asks for the page again", async () => {
+  test("closes it on the second press", async () => {
     let closes = 0
-    let reread = 0
     render(
       <Merge state="open"
         merge={Option.some(ready)}
         actions={{
-          close: () => Effect.sync(() => void (closes += 1)),
-          onChanged: () => void (reread += 1)
+          close: () => Effect.sync(() => void (closes += 1))
         }}
       />
     )
@@ -650,10 +628,6 @@ describe("the merge card", () => {
     await userEvent.click(button(/Confirm close pull request/))
 
     await waitFor(() => expect(closes).toBe(1))
-    // What is on the page — the merge card, the state in the header — describes
-    // a pull request that is now closed, and only GitHub can say what it says
-    // about a closed one.
-    await waitFor(() => expect(reread).toBe(1))
   })
 
   test("says what GitHub said when it refuses to close it", async () => {
@@ -661,8 +635,7 @@ describe("the merge card", () => {
       <Merge state="open"
         merge={Option.some(ready)}
         actions={{
-          close: () => Effect.fail(new Error("nope")),
-          onChanged: () => {}
+          close: () => Effect.fail(new Error("nope"))
         }}
       />
     )
@@ -958,56 +931,38 @@ describe("a repository that merges through a queue", () => {
     await waitFor(() => expect(joined).toBe(1))
   })
 
-  test("asks for the pull request to be read again once it is queued", async () => {
+  test("queues it on the second press", async () => {
     // Its place in the line is a fact only GitHub has, and the card cannot
-    // invent one: without a re-read it goes on saying "merges through a merge
-    // queue" about a pull request that is now third in it.
-    let reread = 0
+    // invent one: the read that follows the press is wired above this card, in
+    // the screen's `meanwhile`, so a queued pull request no longer goes on
+    // saying "merges through a merge queue" once GitHub answers.
+    let queued = 0
     render(
       <Merge state="open"
         merge={Option.some(inA({}))}
-        actions={{ enqueue: () => Effect.void, onChanged: () => void (reread += 1) }}
+        actions={{ enqueue: () => Effect.sync(() => void (queued += 1)) }}
       />
     )
 
     await userEvent.click(button(/Merge when ready/))
     await userEvent.click(button(/Confirm merge when ready/))
 
-    await waitFor(() => expect(reread).toBe(1))
+    await waitFor(() => expect(queued).toBe(1))
   })
 
-  test("asks for it again when it is taken back out", async () => {
-    let reread = 0
+  test("takes it back out of the queue on the second press", async () => {
+    let removed = 0
     render(
       <Merge state="open"
         merge={Option.some(inA({ waiting: true }))}
-        actions={{ dequeue: () => Effect.void, onChanged: () => void (reread += 1) }}
+        actions={{ dequeue: () => Effect.sync(() => void (removed += 1)) }}
       />
     )
 
     await userEvent.click(button(/Remove from the queue/))
     await userEvent.click(button(/Confirm remove from the queue/))
 
-    await waitFor(() => expect(reread).toBe(1))
-  })
-
-  test("does not ask for a re-read when GitHub refused", async () => {
-    let reread = 0
-    render(
-      <Merge state="open"
-        merge={Option.some(inA({}))}
-        actions={{
-          enqueue: () => Effect.fail({ detail: "no" }),
-          onChanged: () => void (reread += 1)
-        }}
-      />
-    )
-
-    await userEvent.click(button(/Merge when ready/))
-    await userEvent.click(button(/Confirm merge when ready/))
-
-    await waitFor(() => expect(screen.getByText("no")).toBeDefined())
-    expect(reread).toBe(0)
+    await waitFor(() => expect(removed).toBe(1))
   })
 
   test("says what GitHub said when it refuses to queue it", async () => {

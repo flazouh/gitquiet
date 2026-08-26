@@ -24,16 +24,6 @@ export type MergeActions = {
   readonly cancel?: () => Effect.Effect<void, unknown>
   /** Catches the branch up with the one it would land on. */
   readonly update?: () => Effect.Effect<void, unknown>
-  /** Called once the merge lands, for whoever wants the page read again. */
-  readonly onMerged?: () => void
-  /**
-   * Called after a write that changed the pull request without ending it.
-   *
-   * Joining a queue and leaving one both move facts this card cannot work out
-   * for itself — a place in the line is GitHub's to know — so the card asks to
-   * be told again rather than guessing at the state it just caused.
-   */
-  readonly onChanged?: () => void
   /**
    * Closes it without merging.
    *
