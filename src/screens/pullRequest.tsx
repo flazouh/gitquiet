@@ -156,13 +156,30 @@ const open = (
     }
   }
 
+  /*
+   * Once a merge has landed here, a later read that still says Open is GitHub's
+   * own page not yet caught up with itself. A merge is the one change with no
+   * way back — there is no un-merge, only a fresh revert pull request — so the
+   * later word is the stale one, and this holds the merged state against it.
+   * Set by `merge` on the press that succeeds; every other state is left as read.
+   */
+  let merged = false
+  const asMerged = (loaded: Loaded): Loaded =>
+    merged && loaded.snapshot.state !== "merged"
+      ? { ...loaded, snapshot: { ...loaded.snapshot, state: "merged" } }
+      : loaded
+
   const asking = (partly: (loaded: Loaded) => void) =>
     writing(
       loadPullRequest(reference, (loaded) => {
-        entitle(loaded)
-        partly(loaded)
+        const shown = asMerged(loaded)
+        entitle(shown)
+        partly(shown)
       })
-    ).pipe(Effect.tap((loaded) => Effect.sync(() => entitle(loaded))))
+    ).pipe(
+      Effect.map(asMerged),
+      Effect.tap((loaded) => Effect.sync(() => entitle(loaded)))
+    )
 
   /*
    * The pull request as its own routes have it, which lands a whole read before
@@ -247,7 +264,7 @@ const open = (
         const stacked = Option.flatMap(snapshot.merge, (said) => said.stack)
         return yield* mergePullRequest(reference, method, Option.isSome(stacked))
       })
-    )
+    ).pipe(Effect.tap(() => Effect.sync(() => void (merged = true))))
   const enqueue = () => writing(enqueuePullRequest(reference))
   const dequeue = () => writing(dequeuePullRequest(reference))
   const cancel = () => writing(cancelAutoMerge(reference))
