@@ -93,16 +93,18 @@ export const Page = () => (
           />
           <div className="px-8 py-24 text-center sm:px-16">
             {/*
-              The last card, and the reader has just scrolled twelve screens of somebody
-              else's repository. What is left to say is that the next one is theirs, which
-              is a promise about the press after this one rather than about the product.
+              The last card says the two words the first one does, in the form a reader
+              can check on the press after this one. Fast is the page being read before it
+              is asked for; quiet is the list putting what needs an answer at the top and
+              keeping the rest below. No number here: the benchmark section is gone and a
+              figure in a closing card is a figure nobody can check from a closing card.
             */}
             <h2 className="m-0 text-balance text-[clamp(1.75rem,4.5vw,3rem)] font-semibold leading-[1.05] tracking-[-0.035em]">
-              It opens on your own work.
+              It opens fast, then leaves you alone.
             </h2>
-            <p className="mx-auto mt-5 max-w-md text-pretty text-[17px] leading-relaxed text-ink/70">
-              Install it, then open the pull request you were about to read. It is already
-              there.
+            <p className="mx-auto mt-5 max-w-lg text-pretty text-[17px] leading-relaxed text-ink/70">
+              The page is read before you press it. What needs you sits at the top, and
+              everything else stays out of the way.
             </p>
 
             <div className="mt-11 flex justify-center">

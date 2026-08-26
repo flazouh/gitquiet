@@ -115,17 +115,19 @@ only copy:
 
 **Heading**
 
-> It opens on your own work.
+> It opens fast, then leaves you alone.
 
 **Body**
 
-> Install it, then open the pull request you were about to read. It is already
-> there.
+> The page is read before you press it. What needs you sits at the top, and
+> everything else stays out of the way.
 
-Nothing else on the card. The reader has just scrolled twelve screens of
-somebody else's repository, so the last thing worth saying is that the next one
-is theirs. What a teammate sees is not the subject: they see GitHub, which the
-reader already assumes.
+Nothing else on the card. The close carries the same two words as the headline,
+fast and quiet, in the form a reader can check on the next press: the page is
+read ahead, and the list puts what needs an answer first. No number, because the
+speed section is gone and a figure in a closing card is a figure nobody can
+check from a closing card. What a teammate sees is not the subject: they see
+GitHub, which the reader already assumes.
 
 **Button:** Add to Chrome
 **Under it:** Also for Safari, or as a macOS app.
