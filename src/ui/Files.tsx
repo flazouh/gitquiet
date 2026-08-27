@@ -7,11 +7,10 @@ import type { GitStatus } from "@pierre/trees"
 import { Effect, Option } from "effect"
 import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { whenIdle } from "../app/idle"
+import { afterPaint, whenIdle } from "../app/idle"
 import type { DiffEngine, DiffHandle, DiffSide, Note as NoteAt, Picked } from "../ports/Renderer"
 import type { Uploaded } from "../domain/attaching"
 import type { Suggesting } from "../domain/suggesting"
-import { afterPaint } from "../app/idle"
 import { toPatch } from "../domain/toPatch"
 import { withoutWhitespace } from "../domain/withoutWhitespace"
 import type { ChangedFile, ChangeType, FileDiff, ReviewThread } from "../domain/PullRequest"
@@ -282,8 +281,17 @@ export const FileTreePane = ({
   // for them again. Handing back the same icons is the only call in the tree's
   // API that redraws every row while leaving the selection, the scroll and what
   // is expanded exactly as they were.
+  //
+  // In a quiet moment, because it redraws every row and nobody is waiting on
+  // it. Every press of Next marks a file off, so this used to run inside the
+  // commit that answered the press — the whole rail rebuilt before the frame
+  // the reader was waiting for, while the highlight below waited on an idle
+  // callback. A tick arriving a beat late costs the reader nothing; the rail
+  // stalling under their finger cost them the press.
   useEffect(() => {
-    model.setIcons(choices.icons === "material" ? MATERIAL_ICONS : PLAIN_ICONS)
+    return whenIdle(() => {
+      model.setIcons(choices.icons === "material" ? MATERIAL_ICONS : PLAIN_ICONS)
+    })
   }, [model, seen, choices])
 
   // A file chosen anywhere else — Next, Previous, a link — pushed into the tree,
@@ -297,7 +305,14 @@ export const FileTreePane = ({
     const row = model.getItem(wanted)
     if (row === null || row.isSelected()) return
 
-    return whenIdle(() => {
+    // On the frame after this one, not in a quiet moment. The tree is the
+    // reader's answer to "where am I", and it was arriving up to a quarter of a
+    // second after the diff beside it — on GitHub's page, whose own scripts keep
+    // the main thread busy, an idle callback that far out is one that waits for
+    // the timeout every time. A frame is late enough to stay out of the commit
+    // this press is being answered in, which is all the wait was ever for, and
+    // early enough that the highlight and the diff move together.
+    return afterPaint(() => {
       const latest = model.getItem(wanted)
       if (latest === null || latest.isSelected()) return
       for (const held of model.getSelectedPaths()) {
@@ -306,7 +321,7 @@ export const FileTreePane = ({
       latest.select()
       // Selecting a row far down a long tree is only useful if it can be seen.
       model.scrollToPath(wanted)
-    }, 250)
+    })
   }, [model, wanted])
 
   if (files.length === 0) {
