@@ -8,8 +8,8 @@ import { INK, MARK, MUTED } from "@/palette";
  * UI beats; this is our film — the product's own material, blown up, instead
  * of stock footage it does not have.
  *
- * The pull request is the one the whole video follows: oven-sh/bun #18742,
- * the same numbers the screenshots and the race recordings carry.
+ * The pull request is the one the recordings carry: microsoft/vscode #331079,
+ * the same one the GitHub-side footage waits on and GitQuiet opens.
  */
 
 /** Primer dark tokens, which the product itself uses. */
@@ -94,8 +94,8 @@ export const PullRequestRow: React.FC<{
           width: 34,
           height: 34,
           borderRadius: "50%",
-          background: "#2d4a6b",
-          color: "#cbe0f5",
+          background: "#4a3d6b",
+          color: "#d9cbf5",
           fontSize: 17,
           fontWeight: 600,
           display: "flex",
@@ -104,10 +104,10 @@ export const PullRequestRow: React.FC<{
           flexShrink: 0,
         }}
       >
-        J
+        B
       </div>
       <PullRequestIcon size={26} color={GREEN} />
-      <span style={{ fontSize: 24, color: MUTED, flexShrink: 0 }}>#18742</span>
+      <span style={{ fontSize: 24, color: MUTED, flexShrink: 0 }}>#331079</span>
       <span
         style={{
           fontSize: titleSize,
@@ -119,7 +119,7 @@ export const PullRequestRow: React.FC<{
           flex: 1,
         }}
       >
-        Decode streamed chunks with one decoder
+        Improve agent feedback workflows and persistence
       </span>
       <span
         style={{
@@ -129,7 +129,7 @@ export const PullRequestRow: React.FC<{
           flexShrink: 0,
         }}
       >
-        bun
+        vscode
       </span>
       {approved ? (
         <span style={{ fontSize: 22, color: GREEN, flexShrink: 0 }}>
@@ -137,10 +137,10 @@ export const PullRequestRow: React.FC<{
         </span>
       ) : null}
       <span style={{ fontSize: 22, flexShrink: 0 }}>
-        <span style={{ color: GREEN }}>+62</span>{" "}
-        <span style={{ color: RED }}>−12</span>
+        <span style={{ color: GREEN }}>+1719</span>{" "}
+        <span style={{ color: RED }}>−367</span>
       </span>
-      <span style={{ fontSize: 21, color: MUTED, flexShrink: 0 }}>2h ago</span>
+      <span style={{ fontSize: 21, color: MUTED, flexShrink: 0 }}>8m ago</span>
       {prefetch > 0 ? (
         <div
           style={{

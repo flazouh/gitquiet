@@ -78,6 +78,10 @@ export const Shot: React.FC<{
           left: 0,
           top: 0,
           width: sourceWidth * scale,
+          /* Tailwind's preflight clamps img to max-width 100%, which silently
+             disables every zoomed view; the card would show the full page at
+             card scale instead of the region the camera asked for. */
+          maxWidth: "none",
           transform: `translate(${-x * scale}px, ${-y * scale}px)`,
         }}
       />

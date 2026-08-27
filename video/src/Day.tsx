@@ -6,13 +6,16 @@ import {
   Audio,
   continueRender,
   delayRender,
+  Freeze,
   interpolate,
+  OffthreadVideo,
+  Sequence,
+  Series,
   staticFile,
   useCurrentFrame,
 } from "remotion";
 import { SimulatedCursor } from "@/components/remocn/simulated-cursor";
 import { SoftBlurIn } from "@/components/remocn/soft-blur-in";
-import { TrackingIn } from "@/components/remocn/tracking-in";
 import { CLAMP, EXPO, fadeIn } from "@/lib/remocn/scene-motion";
 import {
   GRADIENT,
@@ -23,26 +26,22 @@ import {
   ON_GRADIENT_MUTED,
   PAGE,
 } from "@/palette";
-import { GroupHeader, ORANGE, PullRequestRow, SettleMove } from "@/Row";
+import { Callout } from "@/Callout";
+import { GroupHeader, ORANGE, PullRequestRow } from "@/Row";
 import { Shot } from "@/Shot";
 import { bedWash } from "@/Wash";
 
 /**
- * The release video: one pull request's day.
+ * The release video, cut four: a walkthrough.
  *
- * Built to the reference's grammar (gitquiet-notes, research/video-reference.md):
- * one example threaded through everything, light and dark worlds alternating,
- * colour-wash transitions in the brand's own bed, UI floating without chrome,
- * and the purple spent three times — the read-ahead, the 287, the lockups.
+ * Direction is Alex's (gitquiet-notes, research/video-story.md): GitQuiet
+ * exists because GitHub's interface is frustrating and slow, so open on that
+ * problem in GitHub's own footage and numbers, then walk the product page by
+ * page and show the value. No time budget; the voice leads and the picture is
+ * cut to her sentence timestamps, which is why every beat length below is odd.
  *
- * The example is oven-sh/bun #18742, the pull request the screenshots and the
- * race recordings already carry. It sits in Needs You, you rest on its row, it
- * opens in 287ms, its threads sit above its diff, its CI failure opens on the
- * line that broke, and it settles without you.
- *
- * Where the reference cuts to photographic inserts, this cuts to the product's
- * own material at macro scale — a single row, big — because GitQuiet has no
- * trail to film and borrowed footage would read as borrowed.
+ * Every callout is a journaled pain shown solved; the map with receipts is in
+ * that same research note.
  */
 
 const FONT =
@@ -85,7 +84,7 @@ const Bed: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </AbsoluteFill>
 );
 
-/** One sentence in the band under the card. Every dark beat uses the same seat. */
+/** One sentence in the band under the card. */
 const Caption: React.FC<{ text: string; at?: number }> = ({ text, at = 8 }) => {
   const frame = useCurrentFrame();
   return (
@@ -107,23 +106,85 @@ const Caption: React.FC<{ text: string; at?: number }> = ({ text, at = 8 }) => {
   );
 };
 
-const HookScene: React.FC = () => (
-  <Dark>
-    <TrackingIn
-      text="Less to hold in your head."
-      fontSize={62}
-      fontWeight={650}
-      color={INK}
-      startTracking={0.32}
+/**
+ * GitHub, as recorded: the same pull request the rest of the video opens,
+ * pressed on github.com and waited for. The receipts under it are GitHub's
+ * own published measurements, quoted rather than pointed.
+ */
+const ProblemScene: React.FC = () => {
+  const video = (
+    <OffthreadVideo
+      src={staticFile("theirs.mp4")}
+      muted
+      style={{ width: 1064, height: 558 }}
     />
-  </Dark>
-);
+  );
+  return (
+    <Dark>
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: 50,
+          transform: "translateX(-50%)",
+          width: 1064,
+          height: 558,
+          overflow: "hidden",
+          borderRadius: 18,
+          border: "1px solid rgba(255,255,255,0.09)",
+          boxShadow: "0 30px 80px -30px rgba(0,0,0,0.8)",
+          background: "#0d0d0d",
+        }}
+      >
+        <Sequence durationInFrames={180}>{video}</Sequence>
+        <Sequence from={180}>
+          <Freeze frame={179}>{video}</Freeze>
+        </Sequence>
+      </div>
+      <Callout
+        text="One pull request, four tabs"
+        x={700}
+        y={104}
+        dx={-274}
+        dy={52}
+        at={138}
+      />
+      <Callout
+        text="Tab switches: 10+ seconds. Their changelog."
+        x={385}
+        y={660}
+        at={280}
+      />
+      <Callout
+        text="A 1 GB JavaScript heap. Their engineering blog."
+        x={890}
+        y={660}
+        at={310}
+      />
+    </Dark>
+  );
+};
 
-const LockupScene: React.FC = () => {
+const TurnScene: React.FC = () => {
   const frame = useCurrentFrame();
   return (
     <Bed>
-      <AbsoluteFill style={{ transform: "translateY(-42px)" }}>
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: 236,
+          textAlign: "center",
+          fontSize: 28,
+          fontWeight: 550,
+          color: ON_GRADIENT_MUTED,
+          opacity: fadeIn(frame, 4, 10),
+        }}
+      >
+        So I built
+      </div>
+      <AbsoluteFill style={{ transform: "translateY(-6px)" }}>
         <SoftBlurIn
           text="GitQuiet"
           fontSize={104}
@@ -136,19 +197,27 @@ const LockupScene: React.FC = () => {
           position: "absolute",
           left: 0,
           right: 0,
-          top: 428,
+          top: 442,
           textAlign: "center",
           fontSize: 30,
           fontWeight: 500,
           color: ON_GRADIENT_MUTED,
-          opacity: fadeIn(frame, 26, 12),
+          opacity: fadeIn(frame, 32, 12),
         }}
       >
-        The fastest and quietest way to work on GitHub.
+        A faster, quieter GitHub.
       </div>
     </Bed>
   );
 };
+
+/** The group meanings are the README's own words. */
+const GROUP_LABELS: { text: string; y: number; at: number }[] = [
+  { text: "You can act on it now", y: 96, at: 213 },
+  { text: "Someone else has to act", y: 392, at: 227 },
+  { text: "A machine is still working", y: 501, at: 241 },
+  { text: "Finished", y: 609, at: 255 },
+];
 
 const ListScene: React.FC = () => (
   <Dark>
@@ -156,28 +225,35 @@ const ListScene: React.FC = () => (
       src="workingset.png"
       sourceWidth={2560}
       width={1064}
-      height={580}
+      height={600}
       top={40}
-      enter={14}
-      views={[
-        { at: 14, x: 0, y: 0, w: 2560 },
-        { at: 104, x: 0, y: 204, w: 2560 },
-      ]}
+      enter={12}
+      views={[{ at: 12, x: 0, y: 90, w: 2560 }]}
     />
-    <Caption text="Everything you're in. One list." at={12} />
+    {GROUP_LABELS.map((label) => (
+      <Callout
+        key={label.text}
+        text={label.text}
+        x={520}
+        y={label.y + 4}
+        dx={-300}
+        dy={-4}
+        at={label.at}
+      />
+    ))}
   </Dark>
 );
 
 /** The cursor's path: a leg is 24 frames, then the rest, then the press. */
 const LEG = 24;
-const REST_HOLD = 56;
+const REST_HOLD = 30;
 const ARRIVE = LEG;
 const CLICK = LEG + REST_HOLD + LEG;
 
 const RestScene: React.FC = () => {
   const frame = useCurrentFrame();
-  const hover = fadeIn(frame, ARRIVE + 4, 6);
-  const prefetch = interpolate(frame, [ARRIVE + 10, ARRIVE + 22], [0, 1], {
+  const hover = fadeIn(frame, ARRIVE + 2, 6);
+  const prefetch = interpolate(frame, [ARRIVE + 6, ARRIVE + 20], [0, 1], {
     ...CLAMP,
     easing: EXPO,
   });
@@ -202,40 +278,41 @@ const RestScene: React.FC = () => {
       >
         <GroupHeader label="Needs You" count="1" color={ORANGE} />
         <div style={{ transform: `scale(${press})` }}>
-          <PullRequestRow hover={hover} prefetch={prefetch} />
+          <PullRequestRow hover={hover} prefetch={prefetch} width={1120} />
         </div>
       </div>
       <SimulatedCursor
         points={[
-          { x: 1150, y: 664, hold: 0 },
-          { x: 702, y: 392, hold: REST_HOLD },
-          { x: 705, y: 394, hold: 18, click: true },
+          { x: 1150, y: 660, hold: 0 },
+          { x: 700, y: 385, hold: REST_HOLD },
+          { x: 703, y: 387, hold: 20, click: true },
         ]}
         size={30}
       />
-      <Caption text="Rest on a row. It reads ahead." at={30} />
     </Dark>
   );
 };
 
-const OpenScene: React.FC = () => {
+/**
+ * The pull request the press opened, as GitQuiet drew it: the still is the
+ * last frame of the same recording the race clips come from.
+ */
+const PrOpenScene: React.FC = () => {
   const frame = useCurrentFrame();
-  /** The page arrives in nine frames — 287ms of real time, shown as itself. */
-  const count = Math.round(
-    interpolate(frame, [0, 9], [0, 287], CLAMP),
-  );
+  const count = Math.round(interpolate(frame, [0, 9], [0, 287], CLAMP));
+  const payoff = interpolate(frame, [116, 126], [1, 0], CLAMP);
   return (
     <Dark>
       <Shot
-        src="pull-request.png"
-        sourceWidth={2560}
+        src="pr-open.png"
+        sourceWidth={1440}
         width={1064}
-        height={540}
-        top={36}
+        height={558}
+        top={44}
         enter={9}
         views={[
-          { at: 0, x: 0, y: 0, w: 2560 },
-          { at: 96, x: 60, y: 30, w: 2400 },
+          { at: 150, x: 0, y: 0, w: 1440 },
+          { at: 190, x: 0, y: 40, w: 1200 },
         ]}
       />
       <div
@@ -243,133 +320,70 @@ const OpenScene: React.FC = () => {
           position: "absolute",
           left: 0,
           right: 0,
-          top: 606,
+          top: 630,
           display: "flex",
           alignItems: "baseline",
           justifyContent: "center",
-          gap: 20,
+          gap: 18,
+          opacity: payoff,
         }}
       >
         <span
           style={{
-            fontSize: 52,
+            fontSize: 46,
             fontWeight: 700,
             color: MARK,
             fontVariantNumeric: "tabular-nums",
           }}
         >
           {count}
-          <span style={{ fontSize: 30, fontWeight: 600 }}> ms</span>
+          <span style={{ fontSize: 27, fontWeight: 600 }}> ms</span>
         </span>
         <span
           style={{
-            fontSize: 25,
+            fontSize: 24,
             color: INK,
             fontWeight: 500,
             opacity: fadeIn(frame, 10, 8),
           }}
         >
-          to readable, after that rest on the row.
+          to readable, after that rest.
         </span>
         <span
-          style={{
-            fontSize: 25,
-            color: MUTED,
-            opacity: fadeIn(frame, 30, 10),
-          }}
+          style={{ fontSize: 24, color: MUTED, opacity: fadeIn(frame, 26, 10) }}
         >
           GitHub: 2132 ms.
         </span>
       </div>
+      <Callout
+        text="The description is a card"
+        x={400}
+        y={430}
+        dx={-190}
+        dy={0}
+        at={174}
+      />
+      <Callout
+        text="Everything owed, one rail"
+        x={400}
+        y={96}
+        dx={-200}
+        dy={-10}
+        at={188}
+      />
+      <Callout
+        text="Files beside their diffs"
+        x={715}
+        y={520}
+        dx={-190}
+        dy={-245}
+        at={311}
+      />
     </Dark>
   );
 };
 
-const GROUP_PILLS = [
-  { label: "Needs You", lead: true },
-  { label: "Waiting", lead: false },
-  { label: "Running", lead: false },
-  { label: "Settled", lead: false },
-];
-
-const GroupsScene: React.FC = () => {
-  const frame = useCurrentFrame();
-  return (
-    <Bed>
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          top: 236,
-          textAlign: "center",
-          fontSize: 30,
-          fontWeight: 550,
-          color: ON_GRADIENT_MUTED,
-          opacity: fadeIn(frame, 4, 10),
-        }}
-      >
-        One list. Four groups.
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          top: 316,
-          display: "flex",
-          justifyContent: "center",
-          gap: 22,
-        }}
-      >
-        {GROUP_PILLS.map((pill, i) => {
-          const at = 12 + i * 7;
-          const opacity = fadeIn(frame, at, 9);
-          const y = interpolate(frame, [at, at + 12], [16, 0], {
-            ...CLAMP,
-            easing: EXPO,
-          });
-          return (
-            <div
-              key={pill.label}
-              style={{
-                padding: "16px 30px",
-                borderRadius: 999,
-                fontSize: 29,
-                fontWeight: pill.lead ? 650 : 550,
-                background: pill.lead
-                  ? "rgba(255,255,255,0.82)"
-                  : "rgba(255,255,255,0.34)",
-                color: pill.lead ? ON_GRADIENT : ON_GRADIENT_MUTED,
-                opacity,
-                transform: `translateY(${y}px)`,
-              }}
-            >
-              {pill.label}
-            </div>
-          );
-        })}
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          top: 448,
-          textAlign: "center",
-          fontSize: 30,
-          fontWeight: 550,
-          color: ON_GRADIENT,
-          opacity: fadeIn(frame, 48, 12),
-        }}
-      >
-        Only the first asks anything of you.
-      </div>
-    </Bed>
-  );
-};
-
-const ThreadsScene: React.FC = () => (
+const PrConvoScene: React.FC = () => (
   <Dark>
     <Shot
       src="pull-request.png"
@@ -378,15 +392,43 @@ const ThreadsScene: React.FC = () => (
       height={580}
       top={40}
       views={[
-        { at: 8, x: 0, y: 0, w: 2560 },
-        { at: 88, x: 0, y: 80, w: 1350 },
+        { at: 8, x: 0, y: 60, w: 1350 },
+        { at: 232, x: 0, y: 60, w: 1350 },
+        { at: 258, x: 0, y: 660, w: 1350 },
+        { at: 345, x: 0, y: 660, w: 1350 },
+        { at: 368, x: 0, y: 80, w: 1500 },
       ]}
     />
-    <Caption text="Every unresolved thread, above the diff." at={30} />
+    <Callout
+      text="Unresolved threads, above the diff"
+      x={740}
+      y={140}
+      dx={-300}
+      dy={60}
+      at={20}
+      until={238}
+    />
+    <Callout
+      text="Verdict and merge, in one place"
+      x={620}
+      y={560}
+      dx={-320}
+      dy={-40}
+      at={265}
+      until={352}
+    />
+    <Callout
+      text="It remembers what you have seen"
+      x={830}
+      y={220}
+      dx={165}
+      dy={-105}
+      at={378}
+    />
   </Dark>
 );
 
-const CiScene: React.FC = () => (
+const RunScene: React.FC = () => (
   <Dark>
     <Shot
       src="run.png"
@@ -395,20 +437,79 @@ const CiScene: React.FC = () => (
       height={580}
       top={40}
       views={[
-        { at: 6, x: 0, y: 0, w: 2560 },
-        { at: 76, x: 0, y: 90, w: 1400 },
+        { at: 8, x: 0, y: 0, w: 2560 },
+        { at: 36, x: 0, y: 120, w: 1500 },
       ]}
     />
-    <Caption text="CI failed. Opened on the line that broke." at={26} />
+    <Callout
+      text="Opened on the line that broke"
+      x={620}
+      y={330}
+      dx={-220}
+      dy={-140}
+      at={48}
+    />
   </Dark>
 );
 
-const SettledScene: React.FC = () => (
+const MONTAGE: { src: string; frames: number }[] = [
+  { src: "issues.png", frames: 24 },
+  { src: "commits.png", frames: 24 },
+  { src: "actions.png", frames: 24 },
+  { src: "notifications.png", frames: 133 },
+];
+
+const MontageScene: React.FC = () => (
   <Dark>
-    <SettleMove moveAt={26} />
-    <Caption text="The rest settles on its own." at={54} />
+    <Series>
+      {MONTAGE.map((page) => (
+        <Series.Sequence key={page.src} durationInFrames={page.frames}>
+          <Shot
+            src={page.src}
+            sourceWidth={2560}
+            width={1064}
+            height={580}
+            top={40}
+            enter={5}
+            views={[{ at: 5, x: 0, y: 0, w: 2560 }]}
+          />
+        </Series.Sequence>
+      ))}
+    </Series>
+    <Caption text="Every page. The same four groups." at={120} />
   </Dark>
 );
+
+const PrivacyScene: React.FC = () => {
+  const frame = useCurrentFrame();
+  return (
+    <Bed>
+      <AbsoluteFill style={{ transform: "translateY(-30px)" }}>
+        <SoftBlurIn
+          text="No account. No server."
+          fontSize={64}
+          fontWeight={700}
+          color={ON_GRADIENT}
+        />
+      </AbsoluteFill>
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: 430,
+          textAlign: "center",
+          fontSize: 28,
+          fontWeight: 500,
+          color: ON_GRADIENT_MUTED,
+          opacity: fadeIn(frame, 90, 12),
+        }}
+      >
+        Your own GitHub session. Your code stays in your browser.
+      </div>
+    </Bed>
+  );
+};
 
 const CtaScene: React.FC = () => {
   const frame = useCurrentFrame();
@@ -430,7 +531,7 @@ const CtaScene: React.FC = () => {
           top: 418,
           display: "flex",
           justifyContent: "center",
-          opacity: fadeIn(frame, 34, 12),
+          opacity: fadeIn(frame, 40, 12),
         }}
       >
         <div
@@ -456,7 +557,7 @@ const CtaScene: React.FC = () => {
           fontSize: 25,
           fontWeight: 500,
           color: ON_GRADIENT_MUTED,
-          opacity: fadeIn(frame, 48, 12),
+          opacity: fadeIn(frame, 70, 12),
         }}
       >
         gitquiet.com
@@ -466,22 +567,21 @@ const CtaScene: React.FC = () => {
 };
 
 /**
- * The whole film, in order. `out` is how a beat leaves: a wash between worlds,
- * a fade within one, and a single hard cut on the press — the arrival is the
- * claim, and a transition would hide the one moment the video exists to show.
- * The duration falls out of this table, so a re-timed beat cannot desync it.
+ * The whole film, in order, cut to the voice's sentence timestamps. `out` is
+ * how a beat leaves: a wash between worlds, a fade within one, and hard cuts
+ * on the press (the arrival is the claim) and at the end.
  */
 const BEATS: { scene: React.FC; frames: number; out: Out }[] = [
-  { scene: HookScene, frames: 78, out: "wash" },
-  { scene: LockupScene, frames: 92, out: "wash" },
-  { scene: ListScene, frames: 112, out: "fade" },
-  { scene: RestScene, frames: 116, out: "cut" },
-  { scene: OpenScene, frames: 100, out: "wash" },
-  { scene: GroupsScene, frames: 100, out: "wash" },
-  { scene: ThreadsScene, frames: 100, out: "fade" },
-  { scene: CiScene, frames: 92, out: "fade" },
-  { scene: SettledScene, frames: 100, out: "wash" },
-  { scene: CtaScene, frames: 144, out: "cut" },
+  { scene: ProblemScene, frames: 465, out: "wash" },
+  { scene: TurnScene, frames: 148, out: "wash" },
+  { scene: ListScene, frames: 502, out: "fade" },
+  { scene: RestScene, frames: 110, out: "cut" },
+  { scene: PrOpenScene, frames: 380, out: "fade" },
+  { scene: PrConvoScene, frames: 425, out: "fade" },
+  { scene: RunScene, frames: 128, out: "fade" },
+  { scene: MontageScene, frames: 205, out: "wash" },
+  { scene: PrivacyScene, frames: 250, out: "wash" },
+  { scene: CtaScene, frames: 180, out: "cut" },
 ];
 
 export const DAY_DURATION_IN_FRAMES = BEATS.reduce(
@@ -521,7 +621,7 @@ export const Day: React.FC = () => {
             : []),
         ])}
       </TransitionSeries>
-      <OptionalAudio src="music.mp3" volume={0.4} />
+      <OptionalAudio src="music.mp3" volume={0.32} />
       <OptionalAudio src="vo.mp3" />
     </AbsoluteFill>
   );
