@@ -147,19 +147,19 @@ const ProblemScene: React.FC = () => {
         y={104}
         dx={-274}
         dy={52}
-        at={172}
+        at={178}
       />
       <Callout
         text="Tab switches: 10+ seconds. Their changelog."
         x={385}
         y={660}
-        at={278}
+        at={286}
       />
       <Callout
         text="A 1 GB JavaScript heap. Their engineering blog."
         x={890}
         y={660}
-        at={350}
+        at={357}
       />
     </Dark>
   );
@@ -202,7 +202,7 @@ const TurnScene: React.FC = () => {
           fontSize: 30,
           fontWeight: 500,
           color: ON_GRADIENT_MUTED,
-          opacity: fadeIn(frame, 55, 12),
+          opacity: fadeIn(frame, 59, 12),
         }}
       >
         A faster, quieter GitHub.
@@ -213,10 +213,10 @@ const TurnScene: React.FC = () => {
 
 /** The group meanings are the README's own words. */
 const GROUP_LABELS: { text: string; y: number; at: number }[] = [
-  { text: "You can act on it now", y: 96, at: 169 },
-  { text: "Someone else has to act", y: 392, at: 181 },
-  { text: "A machine is still working", y: 501, at: 193 },
-  { text: "Finished", y: 609, at: 205 },
+  { text: "You can act on it now", y: 91, at: 182 },
+  { text: "Someone else has to act", y: 387, at: 194 },
+  { text: "A machine is still working", y: 525, at: 206 },
+  { text: "Finished", y: 635, at: 218 },
 ];
 
 const ListScene: React.FC = () => (
@@ -229,8 +229,8 @@ const ListScene: React.FC = () => (
       top={40}
       enter={12}
       views={[
-        { at: 12, x: 0, y: 90, w: 2560 },
-        { at: 451, x: 0, y: 110, w: 2510 },
+        { at: 12, x: 0, y: 100, w: 2560 },
+        { at: 472, x: 0, y: 120, w: 2510 },
       ]}
     />
     {GROUP_LABELS.map((label) => (
@@ -249,7 +249,7 @@ const ListScene: React.FC = () => (
 
 /** The cursor's path: a leg is 24 frames, then the rest, then the press. */
 const LEG = 24;
-const REST_HOLD = 81;
+const REST_HOLD = 83;
 const ARRIVE = LEG;
 const CLICK = LEG + REST_HOLD + LEG;
 
@@ -307,17 +307,15 @@ const PrOpenScene: React.FC = () => {
   return (
     <Dark>
       <Shot
-        src="pr-open.png"
-        sourceWidth={1440}
+        src="pull-request.png"
+        sourceWidth={2560}
         width={1064}
-        height={558}
-        top={44}
+        height={580}
+        top={40}
         enter={9}
         views={[
-          { at: 0, x: 0, y: 0, w: 1440 },
-          { at: 170, x: 6, y: 5, w: 1424 },
-          { at: 230, x: 0, y: 40, w: 1200 },
-          { at: 432, x: 6, y: 48, w: 1176 },
+          { at: 0, x: 0, y: 0, w: 2560 },
+          { at: 430, x: 0, y: 30, w: 2440 },
         ]}
       />
       <div
@@ -361,30 +359,28 @@ const PrOpenScene: React.FC = () => {
         </span>
       </div>
       <Callout
-        text="The description is a card"
-        x={400}
+        text="The checks, at the top"
+        x={450}
+        y={120}
+        dx={-235}
+        dy={4}
+        at={242}
+      />
+      <Callout
+        text="The conversation, under them"
+        x={470}
+        y={235}
+        dx={-230}
+        dy={-25}
+        at={278}
+      />
+      <Callout
+        text="Files next to their diffs"
+        x={700}
         y={430}
-        dx={-190}
-        dy={0}
-        at={206}
-        until={350}
-      />
-      <Callout
-        text="Everything owed, one rail"
-        x={400}
-        y={96}
-        dx={-200}
-        dy={-10}
-        at={222}
-        until={350}
-      />
-      <Callout
-        text="Files beside their diffs"
-        x={715}
-        y={520}
-        dx={-190}
-        dy={-245}
-        at={361}
+        dx={-30}
+        dy={-160}
+        at={338}
       />
     </Dark>
   );
@@ -399,12 +395,12 @@ const PrConvoScene: React.FC = () => (
       height={580}
       top={40}
       views={[
-        { at: 0, x: 0, y: 60, w: 1350 },
-        { at: 215, x: 0, y: 80, w: 1326 },
-        { at: 265, x: 0, y: 660, w: 1350 },
-        { at: 350, x: 0, y: 672, w: 1330 },
-        { at: 400, x: 0, y: 80, w: 1500 },
-        { at: 456, x: 8, y: 92, w: 1476 },
+        { at: 0, x: 0, y: 380, w: 1350 },
+        { at: 225, x: 0, y: 400, w: 1330 },
+        { at: 270, x: 0, y: 856, w: 1350 },
+        { at: 360, x: 0, y: 862, w: 1336 },
+        { at: 410, x: 0, y: 180, w: 1500 },
+        { at: 466, x: 0, y: 190, w: 1478 },
       ]}
     />
     <Callout
@@ -414,7 +410,7 @@ const PrConvoScene: React.FC = () => (
       dx={-300}
       dy={60}
       at={14}
-      until={248}
+      until={255}
     />
     <Callout
       text="Verdict and merge, in one place"
@@ -422,16 +418,16 @@ const PrConvoScene: React.FC = () => (
       y={560}
       dx={-320}
       dy={-40}
-      at={280}
-      until={385}
+      at={285}
+      until={395}
     />
     <Callout
       text="It remembers what you have seen"
-      x={830}
-      y={220}
-      dx={165}
-      dy={-105}
-      at={412}
+      x={860}
+      y={200}
+      dx={196}
+      dy={-112}
+      at={425}
     />
   </Dark>
 );
@@ -465,7 +461,7 @@ const MONTAGE: { src: string; frames: number }[] = [
   { src: "issues.png", frames: 35 },
   { src: "commits.png", frames: 35 },
   { src: "actions.png", frames: 35 },
-  { src: "notifications.png", frames: 87 },
+  { src: "notifications.png", frames: 83 },
 ];
 
 const MontageScene: React.FC = () => (
@@ -514,7 +510,7 @@ const PrivacyScene: React.FC = () => {
           fontSize: 28,
           fontWeight: 500,
           color: ON_GRADIENT_MUTED,
-          opacity: fadeIn(frame, 60, 12),
+          opacity: fadeIn(frame, 65, 12),
         }}
       >
         Your own GitHub session. Your code stays in your browser.
@@ -543,7 +539,7 @@ const CtaScene: React.FC = () => {
           top: 418,
           display: "flex",
           justifyContent: "center",
-          opacity: fadeIn(frame, 28, 12),
+          opacity: fadeIn(frame, 30, 12),
         }}
       >
         <div
@@ -584,16 +580,16 @@ const CtaScene: React.FC = () => {
  * on the press (the arrival is the claim) and at the end.
  */
 const BEATS: { scene: React.FC; frames: number; out: Out }[] = [
-  { scene: ProblemScene, frames: 496, out: "wash" },
-  { scene: TurnScene, frames: 164, out: "wash" },
-  { scene: ListScene, frames: 461, out: "fade" },
-  { scene: RestScene, frames: 132, out: "cut" },
-  { scene: PrOpenScene, frames: 442, out: "fade" },
-  { scene: PrConvoScene, frames: 458, out: "fade" },
-  { scene: RunScene, frames: 128, out: "fade" },
-  { scene: MontageScene, frames: 192, out: "wash" },
-  { scene: PrivacyScene, frames: 238, out: "wash" },
-  { scene: CtaScene, frames: 170, out: "cut" },
+  { scene: ProblemScene, frames: 499, out: "wash" },
+  { scene: TurnScene, frames: 172, out: "wash" },
+  { scene: ListScene, frames: 482, out: "fade" },
+  { scene: RestScene, frames: 134, out: "cut" },
+  { scene: PrOpenScene, frames: 430, out: "fade" },
+  { scene: PrConvoScene, frames: 443, out: "fade" },
+  { scene: RunScene, frames: 131, out: "fade" },
+  { scene: MontageScene, frames: 188, out: "wash" },
+  { scene: PrivacyScene, frames: 244, out: "wash" },
+  { scene: CtaScene, frames: 172, out: "cut" },
 ];
 
 export const DAY_DURATION_IN_FRAMES = BEATS.reduce(
