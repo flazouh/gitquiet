@@ -16,12 +16,12 @@ set -euo pipefail
 [ -n "${ELEVENLABS_API_KEY:-}" ] || { echo "ELEVENLABS_API_KEY is not set" >&2; exit 1; }
 cd "$(dirname "$0")/.."
 
-echo "music: 30s, quiet minimal electronic, instrumental"
+echo "music: ~94s, quiet minimal electronic, instrumental"
 curl -sf -X POST "https://api.elevenlabs.io/v1/music?output_format=mp3_44100_128" \
   -H "xi-api-key: $ELEVENLABS_API_KEY" -H "Content-Type: application/json" \
   -d '{
     "prompt": "Calm minimal electronic for a developer tool launch video. Unhurried beat around 104 BPM, warm analog keys, soft bass, quiet confidence. Starts sparse, gentle lift at 8 seconds, settles, clean resolved ending on the last two seconds. Modern, precise, restrained. No vocals.",
-    "music_length_ms": 30000,
+    "music_length_ms": 94000,
     "model_id": "music_v1",
     "force_instrumental": true
   }' --output video/public/music.mp3
@@ -29,19 +29,20 @@ echo "wrote video/public/music.mp3 ($(stat -f%z video/public/music.mp3) bytes)"
 
 # The API ignores music_length_ms and returns ~48s; cut to the video's 29.5s
 # with a fade so the track ends with the picture instead of mid-phrase.
-ffmpeg -y -v error -i video/public/music.mp3 -t 30.13 \
-  -af "afade=t=out:st=27.9:d=2.2" video/public/music-cut.mp3
+ffmpeg -y -v error -i video/public/music.mp3 -t 92.04 \
+  -af "afade=t=out:st=89.3:d=2.7" video/public/music-cut.mp3
 mv video/public/music-cut.mp3 video/public/music.mp3
 echo "trimmed music to 29.53s with a fade"
 
-# Sarika: calm, grounded Indian English, added to the account 2026-08-23.
-# Alex's pick over the account's default voice.
-VOICE_ID=NP8gGMLAGXx7ddlMa06t
-echo "voice-over: voice $VOICE_ID (Sarika)"
+# Alice: ElevenLabs' British English educator voice. Alex's pick 2026-08-27.
+# The shipped cut was generated through /with-timestamps so the picture could
+# be cut to her sentences; re-running this script shifts timings slightly.
+VOICE_ID=Xb7hH8MSUJpSbSDYk0k2
+echo "voice-over: voice $VOICE_ID (Alice)"
 curl -sf -X POST "https://api.elevenlabs.io/v1/text-to-speech/$VOICE_ID?output_format=mp3_44100_128" \
   -H "xi-api-key: $ELEVENLABS_API_KEY" -H "Content-Type: application/json" \
   -d '{
-    "text": "Less to hold in your head. GitQuiet, the fastest and quietest way to work on GitHub. Everything you are in, one list. Rest on a row, and it reads ahead. Press: readable in two hundred eighty seven milliseconds. Only the first group asks anything of you. Every unresolved thread, above the diff. When CI fails, it opens on the line that broke. The rest settles on its own. GitQuiet. Free on Chrome.",
+    "text": "This is GitHub. It'\''s where your work lives, and it can be a frustrating place to work. One pull request is spread across four separate tabs. And the heavy pages are slow. GitHub'\''s own engineering blog measures them in whole seconds. Introducing GitQuiet. A faster, quieter GitHub. In GitQuiet, everything you'\''re part of arrives in one list, separated into four groups: Needs You, Waiting, Running, and Settled. Only the first group asks anything of you. The others are there so you can stop checking them. When you rest on a row, GitQuiet reads the pull request ahead. Press it, and it'\''s readable in two hundred and eighty-seven milliseconds. Here'\''s a pull request. The description sits in a card, and everything owed to you sits in one rail. Files are shown next to their diffs. The conversation is compact, and unresolved threads stay above the diff, so nothing gets lost when new commits arrive. Your verdict and the merge controls live in one place, and GitQuiet remembers what you'\''ve seen. When a check fails, the run opens on the line that broke. Issues, commits, actions, and the inbox all use the same four groups. There'\''s no account and no server. GitQuiet uses your own GitHub session, and your code stays in your browser. GitQuiet. Free on Chrome. gitquiet dot com.",
     "model_id": "eleven_multilingual_v2"
   }' --output video/public/vo.mp3
 echo "wrote video/public/vo.mp3 ($(stat -f%z video/public/vo.mp3) bytes)"

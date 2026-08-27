@@ -1,5 +1,11 @@
-import { Img, interpolate, staticFile, useCurrentFrame } from "remotion";
+import { Easing, Img, interpolate, staticFile, useCurrentFrame } from "remotion";
 import { CLAMP, EXPO } from "@/lib/remocn/scene-motion";
+
+/**
+ * Camera moves ease in as well as out. EXPO's instant start reads as a snap;
+ * a walkthrough wants the zoom to breathe.
+ */
+const SMOOTH = Easing.bezier(0.45, 0.05, 0.25, 1);
 
 /**
  * A camera over a screenshot. The card stays put; the picture moves behind it,
@@ -40,7 +46,7 @@ export const Shot: React.FC<{
     const b = views[next];
     return interpolate(frame, [a.at, b.at], [get(a), get(b)], {
       ...CLAMP,
-      easing: EXPO,
+      easing: SMOOTH,
     });
   };
 
