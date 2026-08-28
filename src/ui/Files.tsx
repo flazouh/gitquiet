@@ -24,6 +24,7 @@ import { ProseDiff } from "./ProseDiff"
 import { useRenderer } from "./renderer"
 import { usePaintedTheme } from "./Theme"
 import { rowMarks, shortCount, type RowMark } from "./rowMarks"
+import { DRAWING, showLine } from "./showLine"
 import { changesBetween } from "./treeRows"
 import { type Answering, ThreadInDiff } from "./ThreadView"
 import { threadKey, threadNotes, threadsIn } from "./threads"
@@ -413,31 +414,6 @@ export type FileDiffPaneProps = {
    */
   readonly onUpload?: (file: File) => Effect.Effect<Uploaded, unknown>
 }
-
-/**
- * Puts one line of a drawn diff on the screen, and says whether it found it.
- *
- * The diff is drawn into a shadow root by a renderer that is not ours, so the
- * row is found by the attribute that renderer writes on every line it draws —
- * `data-line`, which is the line's own number and not its index. Read once here
- * rather than at the two call sites, so the one assumption this file makes about
- * somebody else's markup is in one place with its name on it.
- *
- * A miss is an answer rather than a throw. A line named in an address may be
- * past the end of a file that has since changed, or inside a hunk this diff does
- * not show, and neither is a reason to do anything but leave the reader at the
- * top of the file they asked for.
- */
-export const showLine = (within: ParentNode | null, line: number): boolean => {
-  const row = within?.querySelector(`[data-line="${line}"]`) ?? null
-  if (!(row instanceof HTMLElement)) return false
-
-  row.scrollIntoView({ block: "center" })
-  return true
-}
-
-/** Long enough for the draw the line is inside of, in milliseconds. */
-const DRAWING = 2_000
 
 /** Long enough that a cached answer or a quick one never flashes a message. */
 const PATIENCE = 150

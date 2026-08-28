@@ -471,10 +471,6 @@ export const FileBrowser = ({
   //
   // The echo and not the setting: the reader asked for one file, not for a
   // different answer on every pull request from here on.
-  const [atLine, setAtLine] = useState<{
-    readonly path: string;
-    readonly line: number;
-  } | null>(null);
   useEffect(() => {
     if (wanted === undefined) return;
     if (!files.some((file) => file.path === wanted.path)) return;
@@ -483,9 +479,6 @@ export const FileBrowser = ({
       split[held].some((one) => one.path === wanted.path) ? held : "all",
     );
     onSelect(wanted.path);
-    setAtLine(
-      wanted.line === undefined ? null : { path: wanted.path, line: wanted.line },
-    );
   }, [files, onSelect, split, wanted]);
 
   const seen = useMemo(
@@ -699,18 +692,32 @@ export const FileBrowser = ({
   );
 
   /*
-   * The lines marked out in the file that is open, which is the only thing on
-   * this page that amounts to "the line I am on".
+   * The lines marked out, and the file they were marked in.
    *
-   * Only the open pane reports: every warmed file has a pane of its own, all of
+   * The only thing on this page that amounts to "the line I am on". The file
+   * travels with them rather than being cleared when the reader moves on: marks
+   * made in one file mean nothing in the next, and a pair that says which file
+   * it belongs to simply stops matching — where clearing them was an effect that
+   * ran one render after the one it was correcting, so the address named the new
+   * file with the old file's lines for a frame.
+   *
+   * Only the open pane reports. Every warmed file has a pane of its own, all of
    * them laid out and one of them visible, and a pane that let go of its marks
-   * on the way past would report a `null` over the answer the visible one just
-   * gave.
+   * on the way past would report nothing over the answer the visible one gave.
    */
-  const [picked, setPicked] = useState<Picked | null>(null);
-  useEffect(() => {
-    setPicked(null);
-  }, [here]);
+  const [marked, setMarked] = useState<{
+    readonly path: string;
+    readonly picked: Picked;
+  } | null>(null);
+  // Through a ref so the callback is the same function from one render to the
+  // next: the drawing under it is memoised, and a fresh one per render is the
+  // prop change that memo exists to avoid.
+  const openPath = useRef(here);
+  openPath.current = here;
+  const onPicked = useCallback((picked: Picked | null) => {
+    const path = openPath.current;
+    setMarked(picked === null || path === undefined ? null : { path, picked });
+  }, []);
 
   // Said upwards after the frame that changed it, so the caller writing an
   // address is writing the address of what the reader can see.
@@ -718,18 +725,19 @@ export const FileBrowser = ({
   told.current = onReading;
   useEffect(() => {
     if (here === undefined) return;
+    const lines = marked?.path === here ? marked.picked : null;
     told.current?.({
       path: here,
       lines:
-        picked === null
+        lines === null
           ? undefined
           : {
-              half: picked.side === "additions" ? "R" : "L",
-              from: picked.from,
-              to: picked.to,
+              half: lines.side === "additions" ? "R" : "L",
+              from: lines.from,
+              to: lines.to,
             },
     });
-  }, [here, picked]);
+  }, [here, marked]);
 
   const on = chordFor(keys, "nextFile");
   const back = chordFor(keys, "previousFile");
@@ -1118,12 +1126,8 @@ export const FileBrowser = ({
                     answering={answering}
                     viewer={viewer}
                     onPost={onPost}
-                    atLine={
-                      atLine !== null && atLine.path === one.path
-                        ? atLine.line
-                        : undefined
-                    }
-                    onPicked={one.path === file?.path ? setPicked : undefined}
+                    atLine={wanted?.path === one.path ? wanted.line : undefined}
+                    onPicked={one.path === file?.path ? onPicked : undefined}
                     suggest={suggest}
                     onUpload={onUpload}
                   />

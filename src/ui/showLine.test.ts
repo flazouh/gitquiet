@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { showLine } from "./Files"
+import { showLine } from "./showLine"
 
 /**
  * A diff as the renderer leaves it: rows in a shadow root, each carrying the

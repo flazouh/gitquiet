@@ -217,6 +217,9 @@ export const KEYBOARD: ReadonlyArray<{
   { command: "home", word: "Home", gist: "The front of the interface" }
 ]
 
+/** The keys that are a hand being held rather than a key being typed. */
+const HOLDING: ReadonlySet<string> = new Set(["Shift", "Control", "Alt", "Meta"])
+
 /**
  * Whether a chord is one a reader could have meant.
  *
@@ -229,8 +232,6 @@ export const isChord = (chord: Chord): boolean =>
   chord.length > 0 &&
   chord.length <= 16 &&
   chord.split(" ").every((press) => press.length > 0 && !HOLDING.has(press))
-
-const HOLDING: ReadonlySet<string> = new Set(["Shift", "Control", "Alt", "Meta"])
 
 /**
  * The profile's chords with the reader's own written over them.

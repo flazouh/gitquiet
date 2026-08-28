@@ -762,13 +762,16 @@ const readGroup = <Knobs extends ReadonlyArray<Knob<string, string>>>(
 }
 
 /**
- * A chord as it could have been typed, which is all this file can say about one.
+ * A chord long enough to be one and short enough to have been typed.
  *
  * A length rather than a shape, because `Escape`, `/` and `g d` are all chords
- * and the browser has a name for every key on the board. Whether the command it
- * is written against still exists is asked where the commands are.
+ * and the browser has a name for every key on the board. Deliberately not called
+ * `isChord`: `src/keys/commands.ts` has a function of that name which asks the
+ * real question — whether the matcher could ever read this press — and two
+ * functions with one name a file apart is how a vocabulary starts drifting.
+ * Whether the command it is written against still exists is asked there as well.
  */
-const isChord = (value: unknown): value is string =>
+const isWritten = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0 && value.length <= 16
 
 const readBound = (stored: unknown): Readonly<Record<string, string>> => {
@@ -776,7 +779,7 @@ const readBound = (stored: unknown): Readonly<Record<string, string>> => {
 
   return Object.fromEntries(
     Object.entries(stored as Record<string, unknown>).filter(
-      (entry): entry is [string, string] => entry[0].length <= 32 && isChord(entry[1])
+      (entry): entry is [string, string] => entry[0].length <= 32 && isWritten(entry[1])
     )
   )
 }
