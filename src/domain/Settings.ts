@@ -568,6 +568,30 @@ export const SIGN_ON_KNOBS = [
 ] as const
 
 /**
+ * Whose keys reach this interface.
+ *
+ * One knob, and the only one whose choices are named after hands rather than
+ * after what they do: the commands are the same in all three, and what changes
+ * is which keys carry them. Every one of them can be changed a row further
+ * down — see `bound` — and this is where a reader who has changed nothing
+ * starts from.
+ */
+export const KEY_KNOBS = [
+  knob(
+    "profile",
+    "Keys",
+    "Which set of keys reaches this interface",
+    "Which keys reach the commands. Left hand keeps every default under the hand that is not on the pointer, which is the hand doing the scrolling and the clicking for the whole of a review: w and s move between files, f searches, x marks one read. Vim gives the same commands to j and k and leaves the letters vim has other plans for alone. Off hands the keyboard back to GitHub entirely, so their own shortcuts work on this page exactly as they do on every other.",
+    [
+      { value: "standard", label: "Left hand" },
+      { value: "vim", label: "Vim" },
+      { value: "off", label: "Off" }
+    ],
+    "standard"
+  )
+] as const
+
+/**
  * Any one knob there is, whichever group it belongs to.
  *
  * A panel or a sheet holds knobs from several groups at once, and the plain
@@ -582,6 +606,7 @@ export type AnyKnob =
   | (typeof TREE_KNOBS)[number]
   | (typeof HOME_KNOBS)[number]
   | (typeof SIGN_ON_KNOBS)[number]
+  | (typeof KEY_KNOBS)[number]
 
 /** The key of any one knob there is. */
 export type KnobKey = AnyKnob["key"]
@@ -596,6 +621,7 @@ export type ThemeSettings = Values<typeof THEME_KNOBS>
 export type DiffSettings = Values<typeof DIFF_KNOBS>
 export type TreeSettings = Values<typeof TREE_KNOBS>
 export type HomeSettings = Values<typeof HOME_KNOBS>
+export type KeySettings = Values<typeof KEY_KNOBS>
 
 /** Which of Home's three Destinations is being shown. */
 export type Destination = HomeSettings["destination"]
@@ -610,6 +636,18 @@ export type Settings = {
   readonly diff: DiffSettings
   readonly tree: TreeSettings
   readonly home: HomeSettings
+  readonly keys: KeySettings
+  /**
+   * The chords a reader put on a command themselves, as command to chord.
+   *
+   * Not a knob, and it cannot be one: a knob is a choice between answers this
+   * file knows the whole of, and any key on the board is an answer here. What
+   * a command is called and which chord it carries by default belong to
+   * `src/keys/commands.ts`, which is also where an entry naming a command that
+   * no longer exists is dropped — this only promises that both halves are
+   * words a reader could have typed.
+   */
+  readonly bound: Readonly<Record<string, string>>
   /**
    * The repositories a reader pinned, as `owner/repo`, in the order they pinned them.
    *
@@ -699,6 +737,8 @@ export const DEFAULTS: Settings = {
   diff: fallbacks(DIFF_KNOBS),
   tree: fallbacks(TREE_KNOBS),
   home: fallbacks(HOME_KNOBS),
+  keys: fallbacks(KEY_KNOBS),
+  bound: {},
   pinned: [],
   putAway: [],
   turned: [],
@@ -722,6 +762,26 @@ const readGroup = <Knobs extends ReadonlyArray<Knob<string, string>>>(
 }
 
 /**
+ * A chord as it could have been typed, which is all this file can say about one.
+ *
+ * A length rather than a shape, because `Escape`, `/` and `g d` are all chords
+ * and the browser has a name for every key on the board. Whether the command it
+ * is written against still exists is asked where the commands are.
+ */
+const isChord = (value: unknown): value is string =>
+  typeof value === "string" && value.length > 0 && value.length <= 16
+
+const readBound = (stored: unknown): Readonly<Record<string, string>> => {
+  if (typeof stored !== "object" || stored === null) return {}
+
+  return Object.fromEntries(
+    Object.entries(stored as Record<string, unknown>).filter(
+      (entry): entry is [string, string] => entry[0].length <= 32 && isChord(entry[1])
+    )
+  )
+}
+
+/**
  * Stored settings, read defensively.
  *
  * What comes back from storage was written by an older version of this file, by
@@ -741,6 +801,11 @@ export const readSettings = (stored: unknown): Settings => {
     diff: readGroup(DIFF_KNOBS, held["diff"]),
     tree: readGroup(TREE_KNOBS, held["tree"]),
     home: readGroup(HOME_KNOBS, held["home"]),
+    keys: readGroup(KEY_KNOBS, held["keys"]),
+    // Entry by entry, for the reason the lists below are read that way: a
+    // number or an object where a chord should be would reach the matcher, be
+    // compared against a keypress, and never match anything again.
+    bound: readBound(held["bound"]),
     // Item by item, because a list read whole is a list that reaches the Rail with a
     // number or an object in it, and the row drawn from that is a link to nowhere.
     pinned: Array.isArray(held["pinned"])

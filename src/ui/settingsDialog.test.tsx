@@ -37,6 +37,27 @@ const panel = (frame: HTMLElement): HTMLElement => {
   return found
 }
 
+describe("the keyboard's own page", () => {
+  test("holds the profile and a row for every command", async () => {
+    const frame = await opened()
+    await tab(frame, "Keyboard")
+
+    expect(hasRow(frame, "Keys")).toBe(true)
+    expect(within(frame).getByLabelText("Change the key for Next file")).toBeTruthy()
+  })
+
+  test("writes a key the reader presses into the settings", async () => {
+    const written: Array<Settings> = []
+    const frame = await opened((settings) => written.push(settings))
+    await tab(frame, "Keyboard")
+
+    await userEvent.click(within(frame).getByLabelText("Change the key for Next file"))
+    await userEvent.keyboard("c")
+
+    expect(written.at(-1)?.bound).toEqual({ nextFile: "c" })
+  })
+})
+
 describe("opening the settings", () => {
   test("puts them in front of the page rather than in a menu beside it", async () => {
     const frame = await opened()

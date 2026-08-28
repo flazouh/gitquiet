@@ -1,7 +1,7 @@
 import { type Effect, Option } from "effect"
 import type { Listed } from "../app/repoList"
 import type { PullRequestRef } from "../domain/PullRequestRef"
-import { DEFAULT_KEYS, type Keys } from "../keys/commands"
+import type { Keys } from "../keys/commands"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
@@ -91,7 +91,7 @@ export const RepoPullsScreen = ({
   onStepAside,
   seed,
   onQuery,
-  keys = DEFAULT_KEYS,
+  keys,
   where,
   signedIn = viewerOnPage
 }: RepoPullsScreenProps) => {

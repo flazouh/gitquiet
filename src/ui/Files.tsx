@@ -14,8 +14,9 @@ import type { Suggesting } from "../domain/suggesting"
 import { toPatch } from "../domain/toPatch"
 import { withoutWhitespace } from "../domain/withoutWhitespace"
 import type { ChangedFile, ChangeType, FileDiff, ReviewThread } from "../domain/PullRequest"
-import { DEFAULT_KEYS, SILENT, type Keys } from "../keys/commands"
+import { SILENT, type Keys } from "../keys/commands"
 import type { DiffChoices, TreeChoices } from "../domain/choices"
+import { useKeyboard } from "./useKeyboard"
 import { useKeys } from "./useKeys"
 import { draftKey, type Draft } from "./drafts"
 import { Note } from "./Note"
@@ -191,8 +192,9 @@ export const FileTreePane = ({
   onSelect,
   seen = EMPTY,
   choices,
-  keys = DEFAULT_KEYS
+  keys: given
 }: FileTreePaneProps) => {
+  const keys = useKeyboard(given)
   const paths = useMemo(() => files.map((file) => file.path), [files])
   const gitStatus = useMemo(
     () => files.map((file) => ({ path: file.path, status: gitStatusOf(file.changeType) })),

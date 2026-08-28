@@ -502,6 +502,49 @@ const SAMPLES: Record<string, (choice: string) => ReactNode> = {
         ))}
       </div>
     )
+  },
+  /*
+   * The keys themselves, on the hand that presses them.
+   *
+   * Two rows of a keyboard rather than a list of letters, because the whole of
+   * this choice is where on the board the keys are: `w` and `s` sit under the
+   * left hand and `j` and `k` sit under the right, and a reader deciding
+   * between them is deciding which hand keeps the pointer. The keys that are
+   * bound are filled; the rest of the row is there to be the row.
+   */
+  profile: (choice) => {
+    const ROWS: ReadonlyArray<ReadonlyArray<string>> = [
+      ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
+      ["a", "s", "d", "f", "g", "h", "j", "k", "l"],
+      ["z", "x", "c", "v", "b", "n", "m"]
+    ]
+    const LIT: Readonly<Record<string, ReadonlySet<string>>> = {
+      standard: new Set(["w", "s", "f", "x", "r", "g"]),
+      vim: new Set(["j", "k", "o", "x", "r", "g"]),
+      off: new Set()
+    }
+    const lit = LIT[choice] ?? LIT["standard"]!
+
+    return (
+      <div className="flex flex-col items-center gap-1">
+        {ROWS.map((row, at) => (
+          <div key={at} className="flex gap-1" style={{ paddingLeft: at * 6 }}>
+            {row.map((key) => (
+              <span
+                key={key}
+                className={`flex h-4 w-4 items-center justify-center rounded-[3px] font-mono text-[8px] leading-none ${
+                  lit.has(key)
+                    ? "bg-accent-emphasis text-ink-on-emphasis"
+                    : "bg-hover text-ink-muted"
+                }`}
+              >
+                {key}
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
+    )
   }
 }
 

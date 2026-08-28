@@ -2,9 +2,10 @@ import { Option } from "effect"
 import { useMemo, useRef, useState } from "react"
 import type { RepositoryAtWork } from "../domain/rail"
 import { matching, pullRequestsIn, type Repository } from "../domain/repositories"
-import { DEFAULT_KEYS, type Keys } from "../keys/commands"
+import type { Keys } from "../keys/commands"
 import { FIELD, PILL } from "./dress"
 import { Section } from "./Section"
+import { useKeyboard } from "./useKeyboard"
 import { useKeys } from "./useKeys"
 import { StillReading } from "./Waiting"
 
@@ -141,8 +142,9 @@ export const Repositories = ({
   repositories,
   atWork = [],
   waiting = false,
-  keys = DEFAULT_KEYS
+  keys: given
 }: RepositoriesProps) => {
+  const keys = useKeyboard(given)
   const [typed, setTyped] = useState("")
   const box = useRef<HTMLInputElement | null>(null)
 

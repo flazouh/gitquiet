@@ -3,12 +3,13 @@ import { Option } from "effect"
 import type { Destination } from "../domain/Settings"
 import type { RepositoryAtWork } from "../domain/rail"
 import { matching, type Repository, withPinToggled } from "../domain/repositories"
-import { DEFAULT_KEYS, SILENT, type Keys } from "../keys/commands"
+import { SILENT, type Keys } from "../keys/commands"
 import { type ArtName, useArt } from "./art"
 import { FIELD, HERE, PRESSABLE } from "./dress"
 import { Face } from "./Face"
 import { Menu, type Row } from "./Menu"
 import { participantRows } from "./participant"
+import { useKeyboard } from "./useKeyboard"
 import { useKeys } from "./useKeys"
 
 /**
@@ -254,8 +255,9 @@ export const Rail = ({
   collapsed = false,
   onCollapsed,
   participant,
-  keys = DEFAULT_KEYS
+  keys: given
 }: RailProps) => {
+  const keys = useKeyboard(given)
   const art = useArt()
   // Named, because JSX takes a dotted name and not a subscript.
   const Chevron = art["chevron-down"]

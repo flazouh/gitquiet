@@ -2,12 +2,15 @@ import { useEffect, useId, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import {
   DIFF_KNOBS,
+  KEY_KNOBS,
   SIGN_ON_KNOBS,
   THEME_KNOBS,
   type Knob,
   type Settings,
   TREE_KNOBS
 } from "../domain/Settings"
+import { keysOf } from "../app/keyboard"
+import { Keybinds } from "./Keybinds"
 import { type ArtName, useArt } from "./art"
 import { HERE, TINT } from "./dress"
 import { OVER_ID, outsideHost } from "./outside"
@@ -72,6 +75,12 @@ const PAGES: ReadonlyArray<Page> = [
     label: "Files",
     note: "The rail down the side, and what it says about each file.",
     art: "files"
+  },
+  {
+    id: "keyboard",
+    label: "Keyboard",
+    note: "Which keys reach this interface, and what each one does.",
+    art: "command"
   },
   {
     id: "advanced",
@@ -276,6 +285,8 @@ export const SettingsSheet = ({
     onChange({ ...settings, tree: { ...settings.tree, [key]: value } })
   const pickSignOn: Pick = (key, value) =>
     onChange({ ...settings, signOn: { ...settings.signOn, [key]: value } })
+  const pickKeys: Pick = (key, value) =>
+    onChange({ ...settings, keys: { ...settings.keys, [key]: value } })
 
   const plain = (knob: Knob<string, string>) => !knob.advanced
   const deep = (knob: Knob<string, string>) => knob.advanced
@@ -284,6 +295,7 @@ export const SettingsSheet = ({
     appearance: [{ knobs: THEME_KNOBS, chosen: settings.theme, onPick: pickTheme }],
     diff: [{ knobs: DIFF_KNOBS.filter(plain), chosen: settings.diff, onPick: pickDiff }],
     files: [{ knobs: TREE_KNOBS.filter(plain), chosen: settings.tree, onPick: pickTree }],
+    keyboard: [{ knobs: KEY_KNOBS, chosen: settings.keys, onPick: pickKeys }],
     advanced: [
       { heading: "Diff", knobs: DIFF_KNOBS.filter(deep), chosen: settings.diff, onPick: pickDiff },
       { heading: "Files", knobs: TREE_KNOBS.filter(deep), chosen: settings.tree, onPick: pickTree },
@@ -370,7 +382,14 @@ export const SettingsSheet = ({
                   on ? `${HERE} font-semibold` : "text-ink-muted hover:bg-hover"
                 }`}
               >
-                <Art size={14} className="shrink-0" />
+                {/* The glyph is the label drawn, not a second thing to say. Hidden
+                    rather than left to each drawing's own manners: the Command key
+                    carries a label of its own, because in a key cap it is the only
+                    thing saying which key — and inside this button that label became
+                    the first half of the tab's name. */}
+                <span aria-hidden className="flex shrink-0 items-center">
+                  <Art size={14} />
+                </span>
                 {one.label}
               </button>
             )
@@ -385,6 +404,13 @@ export const SettingsSheet = ({
             {here.map((part, at) => (
               <Rows key={part.heading ?? at} part={part} onLook={setLook} />
             ))}
+            {/* Under the profile rather than beside it, because the rows are what
+                the profile is a starting point for: the knob says which set of
+                keys a reader begins from, and every row below it is that reader
+                disagreeing with one of them. */}
+            {shown.id === "keyboard" ? (
+              <Keybinds settings={settings} onChange={onChange} keys={keysOf(settings)} />
+            ) : null}
           </div>
         </div>
         {looking === null ? null : <Panel look={looking} />}

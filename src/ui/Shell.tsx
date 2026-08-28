@@ -20,7 +20,7 @@ import { sizeOf } from "../domain/workingSet"
 import { diffChoices, treeChoices } from "../domain/choices"
 import { keyOf } from "../domain/PullRequestRef"
 import { keptReads } from "../app/kept"
-import { DEFAULT_KEYS, type Keys } from "../keys/commands"
+import type { Keys } from "../keys/commands"
 import { CommitView } from "./CommitView"
 import { FileBrowser } from "./FileBrowser"
 import { Header } from "./Header"
@@ -33,6 +33,7 @@ import { logKey } from "./checkReads"
 import type { MergeActions } from "./Ask"
 import type { AskLayerSizes } from "./useLayerSizes"
 import { KeyboardScope, useKeys } from "./useKeys"
+import { keysOf } from "../app/keyboard"
 import { useSettings } from "./useSettings"
 import { whenIdle } from "../app/idle"
 
@@ -107,7 +108,14 @@ export type ShellProps = {
   ) => Effect.Effect<ReadonlyArray<LogLine>, unknown>
   /** Reads the steps a check ran as, which is what its dialog opens as. */
   readonly loadSteps?: (check: Check) => Effect.Effect<ReadonlyArray<JobStep>, unknown>
-  /** Whose keys these are. One day a setting; for now, the standard set. */
+  /**
+   * Whose keys these are, where a caller has an opinion.
+   *
+   * Almost nothing does: the reader's own answer is in the settings this
+   * component already reads, and handing one in overrides it. It stays a prop
+   * for the onboarding and for a test, both of which draw this screen against
+   * fixtures rather than against whatever is in storage.
+   */
   readonly keys?: Keys
   /** Gives the page back to GitHub, and remembers to keep giving it back. */
   readonly onUseGitHub?: () => void
@@ -187,7 +195,7 @@ export const Shell = ({
   loadLog,
   loadTail,
   loadSteps,
-  keys = DEFAULT_KEYS,
+  keys,
   onUseGitHub
 }: ShellProps) => {
   const [preparedStage, setPreparedStage] = useState(preparing ? 0 : PREPARED)
@@ -420,6 +428,18 @@ export const Shell = ({
   const settled = useDeferredValue(settings)
   const diff = useMemo(() => diffChoices(settled.diff), [settled.diff])
   const tree = useMemo(() => treeChoices(settled.tree), [settled.tree])
+  /*
+   * The keyboard the reader chose, held rather than made on each render: it is a
+   * value now rather than a word, and `useKeys` takes its listener off the
+   * document and puts it back whenever the profile changes.
+   *
+   * Off the settled copy for the same reason the diff and the rail are: a change
+   * made in the panel paints the tick and closes before the screen behind it
+   * redraws. Read here rather than handed in, because a reader who chose vim in
+   * one tab meant it in the one they were already looking at.
+   */
+  const chosenKeys = useMemo(() => keysOf(settled), [settled])
+  const keying = keys ?? chosenKeys
 
   // Every dialog and menu of ours is drawn inside this, and the keyboard asks
   // it — rather than the page — what the reader has open.
@@ -446,7 +466,7 @@ export const Shell = ({
   return (
     <KeyboardScope value={ours}>
       <div ref={setOurs} data-gitquiet-landed={landed ? "" : undefined} className="flex flex-col pt-2">
-        <PageKeys keys={keys} onDismiss={() => setReading(undefined)} />
+        <PageKeys keys={keying} onDismiss={() => setReading(undefined)} />
         {/* Above the header, where GitHub's banner about the same thing stands.
             It is drawn at all only where they offer a stack and nobody has made
             one, so every ordinary pull request and every layer of a real stack
@@ -517,7 +537,7 @@ export const Shell = ({
                   diff={diff}
                   tree={tree}
                   proseAsDocument={settled.diff.prose === "on"}
-                  keys={keys}
+                  keys={keying}
                   wanted={wanted}
                   threads={threads}
                   viewer={viewer}
@@ -543,7 +563,7 @@ export const Shell = ({
                   diff={diff}
                   tree={tree}
                   proseAsDocument={settled.diff.prose === "on"}
-                  keys={keys}
+                  keys={keying}
                   display={{ settings, onChange: change }}
                 />
               )}

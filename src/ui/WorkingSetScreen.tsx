@@ -7,7 +7,7 @@ import type { Repository } from "../domain/repositories";
 import { owedIn } from "../domain/finding";
 import { afterDoing, type Sitting } from "../domain/sittings";
 import { repositoriesAtWork, type RepositoryAtWork } from "../domain/rail";
-import { DEFAULT_KEYS, type Keys } from "../keys/commands";
+import type { Keys } from "../keys/commands";
 import { Rail } from "./Rail";
 import { TheBar } from "./TheBar";
 import { useWaiting } from "./useWaiting";
@@ -125,7 +125,7 @@ export const WorkingSetScreen = ({
   onStepAside,
   pinned,
   onPinned,
-  keys = DEFAULT_KEYS,
+  keys,
   signedIn = viewerOnPage,
   ask,
   home = false,

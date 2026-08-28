@@ -24,7 +24,7 @@ import type {
   ReviewThread,
 } from "../domain/PullRequest";
 import type { DiffSide } from "../ports/Renderer";
-import { chordFor, DEFAULT_KEYS, type Keys } from "../keys/commands";
+import { chordFor, type Keys } from "../keys/commands";
 import { Cap } from "./Cap";
 import { draftsIn, dropDraft, saveDraft, type Draft } from "./drafts";
 import { FileDiffPane, FileTreePane, type FileDiffPaneProps } from "./Files";
@@ -35,6 +35,7 @@ import { keepPass, passOf } from "./passes";
 import { seenFiles } from "./rowMarks";
 import { SettingsMenu } from "./SettingsMenu";
 import type { Answering } from "./ThreadView";
+import { useKeyboard } from "./useKeyboard"
 import { useKeys } from "./useKeys";
 import { type Way, Ways } from "./Ways";
 
@@ -271,7 +272,7 @@ export const FileBrowser = ({
   diff,
   tree,
   proseAsDocument = true,
-  keys = DEFAULT_KEYS,
+  keys: given,
   wanted,
   threads = [],
   answering,
@@ -282,6 +283,7 @@ export const FileBrowser = ({
   review,
   display,
 }: FileBrowserProps) => {
+  const keys = useKeyboard(given);
   /*
    * Which files the rail is holding, which is a stored choice with a local echo
    * over it.

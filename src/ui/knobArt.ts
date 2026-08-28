@@ -18,6 +18,9 @@ import type { ArtName } from "./art"
  * will not either.
  */
 export const KNOB_ART: Readonly<Record<KnobKey, ArtName>> = {
+  // The keyboard.
+  profile: "command",
+
   // Appearance.
   appearance: "light-dark",
   pack: "palette",

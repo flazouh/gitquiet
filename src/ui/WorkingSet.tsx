@@ -13,7 +13,7 @@ import { asked, sieveOf, termsIn, undecided } from "../domain/sieve"
 import { stepping } from "../domain/stepping"
 import { type Piled, setAside, type Sitting, sifted, walkThrough } from "../domain/sittings"
 import type { CheckRollup, Court, InvolvedPullRequest, Size } from "../domain/workingSet"
-import { DEFAULT_KEYS, type Keys } from "../keys/commands"
+import type { Keys } from "../keys/commands"
 import { type ArtName, checkName, issueName, pullRequestName, useArt } from "./art"
 import { COURT_ART, COURT_NAME, COURT_TONE } from "./courts"
 import { toneOf } from "./labelTone"
@@ -24,6 +24,7 @@ import { CHECK_TONE, OPINION_TONE, OPINION_WORDS, rollupArtState } from "./Icon"
 import { StillReading } from "./Waiting"
 import { rememberFilter, rememberedFilter } from "./remembered"
 import { Section } from "./Section"
+import { useKeyboard } from "./useKeyboard"
 import { useKeys } from "./useKeys"
 import { useSettings } from "./useSettings"
 import { loginOnPage } from "./viewer"
@@ -1008,7 +1009,7 @@ export const WorkingSet = ({
   scope,
   seed,
   within,
-  keys = DEFAULT_KEYS,
+  keys: given,
   asking,
   onQuery,
   bare = false
@@ -1085,6 +1086,7 @@ export const WorkingSet = ({
    * the address out from under it: the address carries the terms it can, and
    * the box takes back the words and refinements only this side knows.
    */
+  const keys = useKeyboard(given)
   const [query, setQuery] = useState(() => {
     const remembered = scope === undefined ? "" : rememberedFilter(scope)
     if (seed === undefined || seed.length === 0) return remembered
