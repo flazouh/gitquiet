@@ -97,6 +97,15 @@ pointer for the whole of a review. The vim profile keeps `j` and `k`.
 | `Escape` | dismiss |
 | `g d` `g r` `g f` `g g` | working set, repositories, activity, home |
 
+## Addresses
+
+The file being read is in the address, and the lines marked out in it when
+there are any: `#src/ui/Files.tsx` and `#src/ui/Files.tsx:R42-48`, with `R` and
+`L` for the two halves of a diff. Copy it, send it, open it in another tab, and
+the same file opens at the same lines. The entry is replaced rather than pushed,
+so Back is still the way out of the page rather than a way of undoing a review
+one file at a time.
+
 ## Privacy
 
 There is no account and no server of ours. GitQuiet uses the GitHub session you

@@ -33,6 +33,7 @@ import { logKey } from "./checkReads"
 import type { MergeActions } from "./Ask"
 import type { AskLayerSizes } from "./useLayerSizes"
 import { KeyboardScope, useKeys } from "./useKeys"
+import { addressOf, type LookingAt, lookingAt } from "../domain/lookingAt"
 import { keysOf } from "../app/keyboard"
 import { useSettings } from "./useSettings"
 import { whenIdle } from "../app/idle"
@@ -368,10 +369,63 @@ export const Shell = ({
     [snapshot.viewer.login]
   )
 
-  // A file named in a failing log. Held as an object so that clicking the same
-  // line twice still counts as asking for it twice — a reader who has since
-  // wandered off to another file means it both times.
-  const [wanted, setWanted] = useState<{ readonly path: string } | undefined>(undefined)
+  /*
+   * A file named in a failing log, or in the address this page was opened at.
+   *
+   * Held as an object so that clicking the same line twice still counts as
+   * asking for it twice — a reader who has since wandered off to another file
+   * means it both times.
+   *
+   * The address is read as this is first rendered rather than in an effect,
+   * because by the time an effect of this component runs the address is already
+   * ours: the file browser is a child, a child's effects run before its
+   * parent's, and the first thing it does is say which file is open. Read a
+   * moment later, this component was reading its own handwriting and a reader
+   * arriving on a link to the ninth file was shown the first.
+   *
+   * The file is not checked against the snapshot here. A page can be drawn from
+   * a partly-read snapshot, so a file this names may simply not have arrived
+   * yet, and the browser is already the thing that waits for it — a path it
+   * cannot find is a path it ignores until the files change under it.
+   *
+   * The fragment on a pull request is usually GitHub's — a comment, a heading in
+   * the description, one of their own file anchors — and `lookingAt` answers
+   * nothing to all of those, so nothing is opened that the reader did not name.
+   */
+  const [wanted, setWanted] = useState<
+    { readonly path: string; readonly line?: number } | undefined
+  >(() => {
+    const at = lookingAt(window.location.hash)
+    if (at === null) return undefined
+    // The first of a run. A reader who sent a link to lines 42 to 48 was
+    // pointing at what starts on 42, and putting the middle of the run in the
+    // centre of the screen would be answering a question nobody asked.
+    return { path: at.path, line: at.lines?.from }
+  })
+
+  /*
+   * Where the reader is, written into the address as they go.
+   *
+   * Replaced rather than pushed: walking forty files is forty presses, and a
+   * history entry for each would make Back a way of undoing a review one file at
+   * a time instead of a way out of the page. The address is still a real address
+   * — copy it, send it, open it in another tab, and the same file opens with the
+   * same lines named.
+   *
+   * Only the pull request's own files write it. A commit's files are drawn by
+   * the same component inside this page, and a fragment naming one of those
+   * would be read back on arrival as a file of the pull request.
+   */
+  const onReading = useCallback((at: LookingAt) => {
+    const fragment = addressOf(at)
+    if (fragment === "" || fragment === window.location.hash) return
+
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${window.location.pathname}${window.location.search}${fragment}`
+    )
+  }, [])
   const reach = useMemo(
     () => ({
       paths: snapshot.files.map((file) => file.path),
@@ -551,6 +605,7 @@ export const Shell = ({
                     head: snapshot.headSha,
                     onChange: setReviewing
                   }}
+                  onReading={onReading}
                   display={{ settings, onChange: change }}
                 />
               ) : (

@@ -22,6 +22,12 @@ import { PullRequestScreen } from "./PullRequestScreen"
 import { RendererProvider, type LoadEngine } from "./renderer"
 
 afterEach(cleanup)
+// The page writes which file is being read into the address, so a test that
+// mounted it leaves one behind — and the next one would read it on the way in
+// and open a file it never asked for.
+afterEach(() => {
+  window.history.replaceState(null, "", window.location.pathname)
+})
 
 const showing = (
   snapshot: PullRequestSnapshot,
@@ -153,6 +159,73 @@ describe("a blocker with somewhere to send the reader", () => {
     expect(went).toHaveLength(1)
     expect(went[0]?.getAttribute("aria-label")).toBe("Checks")
     expect(view.container.contains(went[0] ?? null)).toBe(true)
+  })
+})
+
+describe("the address, which says which file is being read", () => {
+  const fragment = () => window.location.hash
+
+  test("names the file that is open", async () => {
+    showing(aPullRequest())
+    await awaitPage()
+
+    // The rail's own order, which puts what is in a folder above what is loose.
+    await waitFor(() => expect(fragment()).toBe("#src/spin.ts"))
+  })
+
+  test("follows the reader down the rail", async () => {
+    showing(aPullRequest())
+    await awaitPage()
+
+    await userEvent.keyboard("s")
+
+    await waitFor(() => expect(fragment()).toBe("#README.md"))
+  })
+
+  test("replaces the entry rather than pushing one per file", async () => {
+    // Forty files is forty presses, and a history entry for each would make Back
+    // a way of undoing a review one file at a time.
+    showing(aPullRequest())
+    await awaitPage()
+    const before = window.history.length
+
+    await userEvent.keyboard("s")
+    await waitFor(() => expect(fragment()).toBe("#README.md"))
+
+    expect(window.history.length).toBe(before)
+  })
+
+  test("opens the file the address named on the way in", async () => {
+    window.history.replaceState(null, "", `${window.location.pathname}#README.md`)
+
+    showing(aPullRequest())
+    await awaitPage()
+    await waitFor(() => expect(fragment()).toBe("#README.md"))
+  })
+
+  test("keeps the lines the reader marked out where the address can carry them", async () => {
+    // The marking itself is the renderer's, which no test here has. What is
+    // checked is that the address has a grammar for it and that arriving on one
+    // opens the file it names — see `domain/lookingAt.test.ts` for the grammar
+    // and `showLine.test.ts` for the row being found.
+    window.history.replaceState(null, "", `${window.location.pathname}#README.md:R42-48`)
+
+    showing(aPullRequest())
+    await awaitPage()
+
+    await waitFor(() => expect(fragment()).toBe("#README.md"))
+  })
+
+  test("leaves a fragment that is GitHub's own alone", async () => {
+    // Their file anchors, a comment, a heading in the description. Opening a
+    // file because somebody followed a link to a comment would be worse than
+    // opening the first one.
+    window.history.replaceState(null, "", `${window.location.pathname}#issuecomment-9`)
+
+    showing(aPullRequest())
+    await awaitPage()
+
+    await waitFor(() => expect(fragment()).toBe("#src/spin.ts"))
   })
 })
 

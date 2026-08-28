@@ -6,6 +6,7 @@ import {
   useEffect,
   memo,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -23,7 +24,8 @@ import type {
   FileDiff,
   ReviewThread,
 } from "../domain/PullRequest";
-import type { DiffSide } from "../ports/Renderer";
+import type { DiffSide, Picked } from "../ports/Renderer";
+import { type LookingAt } from "../domain/lookingAt";
 import { chordFor, type Keys } from "../keys/commands";
 import { Cap } from "./Cap";
 import { draftsIn, dropDraft, saveDraft, type Draft } from "./drafts";
@@ -57,7 +59,11 @@ export type FileBrowserProps = {
    * same file still counts as asking: a reader who clicks the same line in a
    * log again means it, and a path compared against itself would ignore them.
    */
-  readonly wanted?: { readonly path: string };
+  readonly wanted?: {
+    readonly path: string;
+    /** A line of it to put on the screen, where whoever asked knew one. */
+    readonly line?: number;
+  };
   /** Everything said on the pull request, so a remark can sit on its own line. */
   readonly threads?: ReadonlyArray<ReviewThread>;
   /** What can be done to a thread hung off a line here. See `ThreadView`. */
@@ -94,6 +100,15 @@ export type FileBrowserProps = {
     readonly head: string;
     readonly onChange: (active: boolean) => void;
   };
+  /**
+   * Where the reader is, said upwards whenever it changes.
+   *
+   * The file that is open, and the lines marked out in it when there are any.
+   * Reported rather than written down here, because an address belongs to the
+   * page: this same component draws a commit's files inside a pull request, and
+   * a fragment naming one of those would be read back as a file of the other.
+   */
+  readonly onReading?: (at: LookingAt) => void;
   /**
    * The knobs the diff and the rail are drawn by, and the way to change them.
    *
@@ -185,6 +200,10 @@ type DrawingProps = {
   readonly answering?: Answering;
   readonly viewer?: FileBrowserProps["viewer"];
   readonly onPost?: FileBrowserProps["onPost"];
+  /** Only the drawing of the file the address named is given one. */
+  readonly atLine?: number;
+  /** Only the visible drawing is given one: see where it is passed in. */
+  readonly onPicked?: (picked: Picked | null) => void;
   readonly suggest?: FileBrowserProps["suggest"];
   readonly onUpload?: FileBrowserProps["onUpload"];
 };
@@ -205,6 +224,8 @@ const Drawing = memo(
     answering,
     viewer,
     onPost,
+    atLine,
+    onPicked,
     suggest,
     onUpload,
   }: DrawingProps) => {
@@ -249,6 +270,8 @@ const Drawing = memo(
           answering={answering}
           viewer={viewer}
           onPost={post}
+          atLine={atLine}
+          onPicked={onPicked}
           suggest={suggest}
           onUpload={onUpload}
         />
@@ -281,6 +304,7 @@ export const FileBrowser = ({
   suggest,
   onUpload,
   review,
+  onReading,
   display,
 }: FileBrowserProps) => {
   const keys = useKeyboard(given);
@@ -447,6 +471,10 @@ export const FileBrowser = ({
   //
   // The echo and not the setting: the reader asked for one file, not for a
   // different answer on every pull request from here on.
+  const [atLine, setAtLine] = useState<{
+    readonly path: string;
+    readonly line: number;
+  } | null>(null);
   useEffect(() => {
     if (wanted === undefined) return;
     if (!files.some((file) => file.path === wanted.path)) return;
@@ -455,6 +483,9 @@ export const FileBrowser = ({
       split[held].some((one) => one.path === wanted.path) ? held : "all",
     );
     onSelect(wanted.path);
+    setAtLine(
+      wanted.line === undefined ? null : { path: wanted.path, line: wanted.line },
+    );
   }, [files, onSelect, split, wanted]);
 
   const seen = useMemo(
@@ -666,6 +697,39 @@ export const FileBrowser = ({
         .filter((one): one is ChangedFile => one !== undefined),
     [drawn, onRail, here],
   );
+
+  /*
+   * The lines marked out in the file that is open, which is the only thing on
+   * this page that amounts to "the line I am on".
+   *
+   * Only the open pane reports: every warmed file has a pane of its own, all of
+   * them laid out and one of them visible, and a pane that let go of its marks
+   * on the way past would report a `null` over the answer the visible one just
+   * gave.
+   */
+  const [picked, setPicked] = useState<Picked | null>(null);
+  useEffect(() => {
+    setPicked(null);
+  }, [here]);
+
+  // Said upwards after the frame that changed it, so the caller writing an
+  // address is writing the address of what the reader can see.
+  const told = useRef(onReading);
+  told.current = onReading;
+  useEffect(() => {
+    if (here === undefined) return;
+    told.current?.({
+      path: here,
+      lines:
+        picked === null
+          ? undefined
+          : {
+              half: picked.side === "additions" ? "R" : "L",
+              from: picked.from,
+              to: picked.to,
+            },
+    });
+  }, [here, picked]);
 
   const on = chordFor(keys, "nextFile");
   const back = chordFor(keys, "previousFile");
@@ -1054,6 +1118,12 @@ export const FileBrowser = ({
                     answering={answering}
                     viewer={viewer}
                     onPost={onPost}
+                    atLine={
+                      atLine !== null && atLine.path === one.path
+                        ? atLine.line
+                        : undefined
+                    }
+                    onPicked={one.path === file?.path ? setPicked : undefined}
                     suggest={suggest}
                     onUpload={onUpload}
                   />

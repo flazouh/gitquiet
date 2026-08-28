@@ -387,6 +387,22 @@ export type FileDiffPaneProps = {
   }) => Effect.Effect<void, unknown>
   /** Whoever is writing, so the box is signed the way the remark will be. */
   readonly viewer?: { readonly login: string; readonly faceUrl?: string }
+  /**
+   * A line of this file to put on the screen once it is drawn.
+   *
+   * From the address the page was opened at, and asked for once: a reader who
+   * has since scrolled somewhere else is not dragged back by a redraw.
+   */
+  readonly atLine?: number
+  /**
+   * The lines the reader has marked out here, said upwards as they change.
+   *
+   * The only thing on the page that amounts to "the line I am on", which is what
+   * an address wants after the file. Reported rather than lifted, because the
+   * box that opens over them is this pane's and moving the state up would move
+   * the box with it.
+   */
+  readonly onPicked?: (picked: Picked | null) => void
   /** Who can be mentioned and what can be referred to, for a box on a line. See `Writing`. */
   readonly suggest?: () => Effect.Effect<Suggesting, unknown>
   /**
@@ -397,6 +413,31 @@ export type FileDiffPaneProps = {
    */
   readonly onUpload?: (file: File) => Effect.Effect<Uploaded, unknown>
 }
+
+/**
+ * Puts one line of a drawn diff on the screen, and says whether it found it.
+ *
+ * The diff is drawn into a shadow root by a renderer that is not ours, so the
+ * row is found by the attribute that renderer writes on every line it draws —
+ * `data-line`, which is the line's own number and not its index. Read once here
+ * rather than at the two call sites, so the one assumption this file makes about
+ * somebody else's markup is in one place with its name on it.
+ *
+ * A miss is an answer rather than a throw. A line named in an address may be
+ * past the end of a file that has since changed, or inside a hunk this diff does
+ * not show, and neither is a reason to do anything but leave the reader at the
+ * top of the file they asked for.
+ */
+export const showLine = (within: ParentNode | null, line: number): boolean => {
+  const row = within?.querySelector(`[data-line="${line}"]`) ?? null
+  if (!(row instanceof HTMLElement)) return false
+
+  row.scrollIntoView({ block: "center" })
+  return true
+}
+
+/** Long enough for the draw the line is inside of, in milliseconds. */
+const DRAWING = 2_000
 
 /** Long enough that a cached answer or a quick one never flashes a message. */
 const PATIENCE = 150
@@ -417,6 +458,8 @@ const FileDiffPaneView = ({
   answering,
   onPost,
   viewer,
+  atLine,
+  onPicked,
   suggest,
   onUpload
 }: FileDiffPaneProps) => {
@@ -644,12 +687,50 @@ const FileDiffPaneView = ({
     handle.current?.showNotes(notes)
   }, [notes])
 
+  /*
+   * The line the address named, once the file it is in has been drawn.
+   *
+   * The draw itself waits for a painted frame and then for the engine, so there
+   * is no moment at which this can simply be done: the row does not exist yet
+   * when the file opens. Asked for on a beat until it is found, and given up on
+   * at `DRAWING` — a file whose row never appears is a file whose line is not in
+   * the hunks this diff shows, and the reader is left at the top of it.
+   */
+  useEffect(() => {
+    if (atLine === undefined) return
+
+    let stop = false
+    const since = Date.now()
+    const look = () => {
+      if (stop) return
+      if (showLine(host.current?.shadowRoot ?? null, atLine)) return
+      if (Date.now() - since > DRAWING) return
+      beat = setTimeout(look, 100)
+    }
+    let beat = setTimeout(look, 0)
+
+    return () => {
+      stop = true
+      clearTimeout(beat)
+    }
+  }, [atLine, file.path])
+
   // Moving to another file leaves the marked lines behind with it. The drafts
   // stay — they are held a level up, against their own file — but a range
   // marked in one file means nothing in the next.
   useEffect(() => {
     setPicked(null)
   }, [file.path])
+
+  // Said upwards after the render that took it, rather than from inside the
+  // renderer's own callback: what is reported is then the state the screen is
+  // actually in, and a caller that answers by writing an address is writing the
+  // address of what the reader can see.
+  const told = useRef(onPicked)
+  told.current = onPicked
+  useEffect(() => {
+    told.current?.(picked)
+  }, [picked])
 
   const letGo = () => {
     setPicked(null)
