@@ -127,6 +127,19 @@ describe("a repository's front page", () => {
     expect(sideOf("Readme")).toContain("lg:col-start-2")
   })
 
+  test("hands a pressed file up as the one to read", async () => {
+    // The press has to leave this screen for anything to happen: the screen
+    // holds no reading of its own, and the module above it pushes the address
+    // and hands the file back down. `src/screens/repoHome.tsx` does that half.
+    const read: Array<string | null> = []
+    showing(() => Effect.succeed(front("keeper")), { onRead: (path) => read.push(path) })
+
+    await screen.findByText("Flowline")
+    await userEvent.click(screen.getByRole("button", { name: "README.md" }))
+
+    expect(read).toEqual(["README.md"])
+  })
+
   test("keeps the files on the page for a caller as well", async () => {
     // The one rule the six extensions that tried this broke. A file list behind a
     // toggle reads as a page that failed to load, so the order changes and the
