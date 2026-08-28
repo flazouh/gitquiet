@@ -33,19 +33,37 @@
  *
  * Both greys are mixed from the row's own colour rather than named, so a
  * selected or a hovered row draws its folders back from whatever it is wearing.
+ *
+ * Two rules count to the same place and have to keep counting to it: the one
+ * that hides a folder, and the one that puts the `…/` there to say a folder was
+ * hidden. Show three folders instead of two and both `nth-last-of-type` counts
+ * move by one.
  */
-export const RAIL_CSS =
-  '[data-item-section="decoration"] { flex: 0 0 auto; }' +
-  '[data-item-section="git"] { display: none; }' +
-  '[data-item-flattened-subitems] { min-width: 0; gap: 0; font-size: 0; }' +
-  '[data-item-flattened-subitems]:has([data-item-flattened-subitem]:nth-last-of-type(3))' +
-  '::before { content: "\\2026/"; font-size: var(--trees-font-size); ' +
-  'padding-inline-end: 2px; opacity: 0.6; }' +
-  '[data-item-flattened-subitem] { display: inline-flex; align-items: center; ' +
-  'min-width: 0; font-size: var(--trees-font-size); ' +
-  'color: color-mix(in srgb, currentColor 60%, transparent); }' +
-  '[data-item-flattened-subitem]:nth-last-of-type(n+3) { display: none; }' +
-  '[data-item-flattened-subitem]:not(:last-of-type)::after ' +
-  '{ content: "/"; padding-inline: 2px; flex: 0 0 auto; }' +
-  '[data-item-flattened-subitem]:nth-last-of-type(2) { flex-shrink: 30; }' +
-  '[data-item-flattened-subitem]:last-of-type { color: inherit; }'
+export const RAIL_CSS = `
+  [data-item-section="decoration"] { flex: 0 0 auto; }
+  [data-item-section="git"] { display: none; }
+
+  [data-item-flattened-subitems] { min-width: 0; gap: 0; font-size: 0; }
+  [data-item-flattened-subitems]:has([data-item-flattened-subitem]:nth-last-of-type(3))::before {
+    content: "…/";
+    font-size: var(--trees-font-size);
+    padding-inline-end: 2px;
+    opacity: 0.6;
+  }
+
+  [data-item-flattened-subitem] {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    font-size: var(--trees-font-size);
+    color: color-mix(in srgb, currentColor 60%, transparent);
+  }
+  [data-item-flattened-subitem]:nth-last-of-type(n+3) { display: none; }
+  [data-item-flattened-subitem]:not(:last-of-type)::after {
+    content: "/";
+    padding-inline: 2px;
+    flex: 0 0 auto;
+  }
+  [data-item-flattened-subitem]:nth-last-of-type(2) { flex-shrink: 30; }
+  [data-item-flattened-subitem]:last-of-type { color: inherit; }
+`
