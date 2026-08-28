@@ -252,6 +252,7 @@
  * it is listening. The veil deepens to `--color-active` with it.
  */
 :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-yes::after,
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-more::after,
 :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-no::after {
   content: "";
   position: absolute;
@@ -270,6 +271,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-yes:not(:disabled):hover::after,
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-more:not(:disabled):hover::after,
   :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-no:hover::after {
     opacity: 0.12;
   }
@@ -280,6 +282,7 @@
 }
 
 :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-yes:not(:disabled):active::after,
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-more:not(:disabled):active::after,
 :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-no:active::after {
   opacity: 0.2;
 }
@@ -289,6 +292,40 @@
    half of something missing. */
 :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask:not([data-asking]) .t-ask-yes {
   border-radius: 6px;
+}
+
+/**
+ * The verb and the ways it could land, as one control.
+ *
+ * A split button, which is what GitHub's own merge box is and what a hand
+ * reaching for "the other ways" is looking for. Drawn as two halves of one shape
+ * rather than two buttons side by side: the caret was a rounded square sitting
+ * against a rounded rectangle, and two rounded edges meeting read as two
+ * controls that had drifted into each other.
+ *
+ * The seam is one pixel of the card showing between them, which is the same
+ * trick the cancelling cross uses — neither half carries a border, so the pair
+ * works on a green fill and on a grey one.
+ */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-group {
+  display: flex;
+  align-items: stretch;
+  gap: 1px;
+}
+
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-more {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  border-radius: 0 6px 6px 0;
+  padding: 0.375rem 0.375rem;
+}
+
+/* With a caret beside it the verb keeps its flat right edge, cross or no cross.
+   Without one it is round again, which is what the rule below this says. */
+:is(#gitquiet-root, [data-gitquiet-outside]) .t-ask[data-more]:not([data-asking]) .t-ask-yes {
+  border-radius: 6px 0 0 6px;
 }
 
 :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-out {
@@ -1084,6 +1121,7 @@
   }
 
   :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-yes::after,
+  :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-more::after,
   :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-no::after {
     transition: none !important;
   }

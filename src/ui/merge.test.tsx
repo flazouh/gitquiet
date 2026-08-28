@@ -198,6 +198,38 @@ describe("the other ways a press could land", () => {
     await waitFor(() => expect(sent).toEqual(["REBASE"]))
   })
 
+  test("can still be opened while the pull request cannot be merged", async () => {
+    // A pull request spends most of its life unable to land — checks running, a
+    // review outstanding, the base moved on — and that is exactly when a
+    // reviewer is deciding how it should land. Greyed with the button beside it,
+    // the picker was unreadable in the state it exists for. Found in QA.
+    render(
+      <Merge state="open"
+        merge={Option.some({
+          ...allowing(["SQUASH", "REBASE"]),
+          isMergeable: false,
+          blockers: [blocking({ name: "Required checks must pass" })]
+        })}
+        actions={{ merge: () => Effect.void }}
+      />
+    )
+
+    expect(button(/Squash and merge/)).toHaveProperty("disabled", true)
+    expect(screen.getByRole("button", { name: /Other ways to/ })).toHaveProperty(
+      "disabled",
+      false
+    )
+  })
+
+  test("cannot be opened where nothing is wired to merge at all", () => {
+    // Greyed rather than gone, which is what every other control on this card
+    // does when the screen it is on wired no action to it: a picker that changed
+    // a method nothing could send would be a choice with nowhere to go.
+    render(<Merge state="open" merge={Option.some(allowing(["SQUASH", "REBASE"]))} />)
+
+    expect(otherWays()).toHaveProperty("disabled", true)
+  })
+
   test("goes away while the button is asking", async () => {
     // The reader is two presses into one act, and a menu that changed what the
     // second press would do is a menu that rewrites the question after it was
@@ -324,8 +356,10 @@ describe("the merge card", () => {
     const yes = button(/Confirm close pull request/)
     const no = button(/Do not close pull request/)
     // The pair is one control in the place the single button stood: the way out
-    // is inside it, and the buttons beside it are not.
-    const control = yes.parentElement
+    // is inside it, and the buttons beside it are not. Asked of the control
+    // rather than of the verb's own parent, which the split button put a wrapper
+    // between — the shape of the markup is not what this is about.
+    const control = yes.closest(".t-ask")
     expect(control?.contains(no)).toBe(true)
     expect(control?.contains(button(/Squash and merge/))).toBe(false)
     // And the buttons it stands beside are left alone, still saying what they do.
