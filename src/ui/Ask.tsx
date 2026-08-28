@@ -1,10 +1,10 @@
-import * as Menu from "@radix-ui/react-dropdown-menu";
-import { Effect, Option } from "effect";
-import type { MergeMethod, UpdateWay } from "../domain/PullRequest";
-import type { Doing } from "../domain/doable";
-import { useArt } from "./art";
-import { ROOT_ID } from "./mount";
-import { Says } from "./says";
+import * as Menu from "@radix-ui/react-dropdown-menu"
+import { Effect, Option } from "effect"
+import type { MergeMethod, UpdateWay } from "../domain/PullRequest"
+import type { Doing } from "../domain/doable"
+import { useArt } from "./art"
+import { ROOT_ID } from "./mount"
+import { Says } from "./says"
 
 export type MergeActions = {
   /**
@@ -17,13 +17,13 @@ export type MergeActions = {
    * field. They used to be two, in two workspaces, and one of them read it
    * wrong. See `MergeState.method`.
    */
-  readonly merge?: (method: MergeMethod) => Effect.Effect<void, unknown>;
+  readonly merge?: (method: MergeMethod) => Effect.Effect<void, unknown>
   /** Puts it in the queue, on the repositories that land through one. */
-  readonly enqueue?: () => Effect.Effect<void, unknown>;
+  readonly enqueue?: () => Effect.Effect<void, unknown>
   /** Takes it back out of the queue it is standing in. */
-  readonly dequeue?: () => Effect.Effect<void, unknown>;
+  readonly dequeue?: () => Effect.Effect<void, unknown>
   /** Calls off a merge GitHub is holding until this becomes mergeable. */
-  readonly cancel?: () => Effect.Effect<void, unknown>;
+  readonly cancel?: () => Effect.Effect<void, unknown>
   /**
    * Catches the branch up with the one it would land on, the way it is asked.
    *
@@ -31,7 +31,7 @@ export type MergeActions = {
    * can allow both, the two write different history, and the choice belongs to
    * whoever pressed. See `BranchUpdate.ways`.
    */
-  readonly update?: (how: UpdateWay) => Effect.Effect<void, unknown>;
+  readonly update?: (how: UpdateWay) => Effect.Effect<void, unknown>
   /**
    * Closes it without merging.
    *
@@ -40,7 +40,7 @@ export type MergeActions = {
    * keeps the branch, the comments and the diff, and will reopen it — so what
    * the second press agrees to says so.
    */
-  readonly close?: () => Effect.Effect<void, unknown>;
+  readonly close?: () => Effect.Effect<void, unknown>
   /**
    * Takes it out of draft.
    *
@@ -49,9 +49,9 @@ export type MergeActions = {
    * request must not be in draft mode — read like a condition being reported
    * rather than a switch being offered.
    */
-  readonly markReady?: () => Effect.Effect<void, unknown>;
+  readonly markReady?: () => Effect.Effect<void, unknown>
   /** Puts it back into draft, so the offer above is a door both ways. */
-  readonly toDraft?: () => Effect.Effect<void, unknown>;
+  readonly toDraft?: () => Effect.Effect<void, unknown>
   /**
    * Opens a closed one again.
    *
@@ -59,7 +59,7 @@ export type MergeActions = {
    * face and that face has no controls — but the verb is the domain's, and the
    * list offers it on rows this card is never shown for.
    */
-  readonly reopen?: () => Effect.Effect<void, unknown>;
+  readonly reopen?: () => Effect.Effect<void, unknown>
   /**
    * Deletes the branch the pull request was made from.
    *
@@ -69,8 +69,8 @@ export type MergeActions = {
    * Asked twice, because GitHub restores a deleted branch from their own page
    * and this does not.
    */
-  readonly deleteBranch?: () => Effect.Effect<void, unknown>;
-};
+  readonly deleteBranch?: () => Effect.Effect<void, unknown>
+}
 
 /**
  * Everything a press on this card can ask for.
@@ -81,7 +81,7 @@ export type MergeActions = {
  * rather than through the merge requirements every `Doing` is weighed against.
  * So the card carries the wider vocabulary and the domain keeps the narrower.
  */
-export type Asking = Doing | "deleteBranch";
+export type Asking = Doing | "deleteBranch"
 
 /**
  * Which of the things asked for is in flight.
@@ -103,7 +103,7 @@ export type Merging =
    * which is the only thing entitled to grey a verb once nothing is in flight.
    */
   | { readonly step: "done"; readonly doing: Asking }
-  | { readonly step: "refused"; readonly said: string };
+  | { readonly step: "refused"; readonly said: string }
 
 /**
  * What each verb calls itself, at rest, while running, and once it is done.
@@ -114,18 +114,10 @@ export type Merging =
  * whether a control existed, whether it could be pressed and what it said were
  * decided in three different places for each one.
  */
-type Wording = {
-  readonly rest: string;
-  readonly working: string;
-  readonly done: string;
-};
+type Wording = { readonly rest: string; readonly working: string; readonly done: string }
 
 const WORDS: Record<Asking, Wording> = {
-  deleteBranch: {
-    rest: "Delete branch",
-    working: "Deleting…",
-    done: "Branch deleted",
-  },
+  deleteBranch: { rest: "Delete branch", working: "Deleting…", done: "Branch deleted" },
   // The way in is the repository's to decide, so the resting word is replaced by
   // {@link wordsOf} wherever the merge state names one. What stands here is the
   // word for a press whose method nothing has said — greyed out, since
@@ -136,26 +128,18 @@ const WORDS: Record<Asking, Wording> = {
   // them — see {@link Says} — so a long wait is paid for by a resting button that
   // is wider than the words on it, and the queue is named in the paragraph above.
   enqueue: { rest: "Merge when ready", working: "Joining…", done: "Queued" },
-  dequeue: {
-    rest: "Remove from the queue",
-    working: "Removing…",
-    done: "Removed",
-  },
-  cancel: {
-    rest: "Cancel merge when ready",
-    working: "Cancelling…",
-    done: "Cancelled",
-  },
+  dequeue: { rest: "Remove from the queue", working: "Removing…", done: "Removed" },
+  cancel: { rest: "Cancel merge when ready", working: "Cancelling…", done: "Cancelled" },
   update: { rest: "Update branch", working: "Updating…", done: "Updated" },
   close: { rest: "Close pull request", working: "Closing…", done: "Closed" },
   markReady: {
     rest: "Mark ready for review",
     working: "Marking ready…",
-    done: "Ready for review",
+    done: "Ready for review"
   },
   toDraft: { rest: "Convert to draft", working: "Converting…", done: "Draft" },
-  reopen: { rest: "Reopen pull request", working: "Reopening…", done: "Open" },
-};
+  reopen: { rest: "Reopen pull request", working: "Reopening…", done: "Open" }
+}
 
 /**
  * How each verb is dressed, at rest and once it is armed.
@@ -165,51 +149,29 @@ const WORDS: Record<Asking, Wording> = {
  * twice over: a control that looks identical before and after a press has not
  * told anybody that the next one acts.
  */
-const TONE: Record<Asking, { readonly rest: string; readonly armed: string }> =
-  {
-    // Red on both, like closing: the branch is the one thing here a press takes
-    // away rather than moves.
-    deleteBranch: {
-      rest: "bg-surface text-fail",
-      armed: "bg-fail-emphasis text-ink-on-emphasis",
-    },
-    merge: {
-      rest: "bg-pass-emphasis text-ink-on-emphasis",
-      armed: "bg-pass-emphasis text-ink-on-emphasis",
-    },
-    enqueue: {
-      rest: "bg-pass-emphasis text-ink-on-emphasis",
-      armed: "bg-pass-emphasis text-ink-on-emphasis",
-    },
-    dequeue: {
-      rest: "bg-surface text-fail",
-      armed: "bg-fail-emphasis text-ink-on-emphasis",
-    },
-    cancel: {
-      rest: "bg-surface text-fail",
-      armed: "bg-fail-emphasis text-ink-on-emphasis",
-    },
-    update: {
-      rest: "bg-surface text-ink",
-      armed: "bg-accent-emphasis text-ink-on-emphasis",
-    },
-    close: {
-      rest: "bg-surface text-fail",
-      armed: "bg-fail-emphasis text-ink-on-emphasis",
-    },
-    markReady: {
-      rest: "bg-accent-emphasis text-ink-on-emphasis",
-      armed: "bg-accent-emphasis text-ink-on-emphasis",
-    },
-    toDraft: {
-      rest: "bg-surface text-ink-muted",
-      armed: "bg-accent-emphasis text-ink-on-emphasis",
-    },
-    reopen: {
-      rest: "bg-surface text-ink",
-      armed: "bg-pass-emphasis text-ink-on-emphasis",
-    },
-  };
+const TONE: Record<Asking, { readonly rest: string; readonly armed: string }> = {
+  // Red on both, like closing: the branch is the one thing here a press takes
+  // away rather than moves.
+  deleteBranch: { rest: "bg-surface text-fail", armed: "bg-fail-emphasis text-ink-on-emphasis" },
+  merge: {
+    rest: "bg-pass-emphasis text-ink-on-emphasis",
+    armed: "bg-pass-emphasis text-ink-on-emphasis"
+  },
+  enqueue: {
+    rest: "bg-pass-emphasis text-ink-on-emphasis",
+    armed: "bg-pass-emphasis text-ink-on-emphasis"
+  },
+  dequeue: { rest: "bg-surface text-fail", armed: "bg-fail-emphasis text-ink-on-emphasis" },
+  cancel: { rest: "bg-surface text-fail", armed: "bg-fail-emphasis text-ink-on-emphasis" },
+  update: { rest: "bg-surface text-ink", armed: "bg-accent-emphasis text-ink-on-emphasis" },
+  close: { rest: "bg-surface text-fail", armed: "bg-fail-emphasis text-ink-on-emphasis" },
+  markReady: {
+    rest: "bg-accent-emphasis text-ink-on-emphasis",
+    armed: "bg-accent-emphasis text-ink-on-emphasis"
+  },
+  toDraft: { rest: "bg-surface text-ink-muted", armed: "bg-accent-emphasis text-ink-on-emphasis" },
+  reopen: { rest: "bg-surface text-ink", armed: "bg-pass-emphasis text-ink-on-emphasis" }
+}
 
 /**
  * What the press that lands the change is called, per way of merging.
@@ -220,8 +182,8 @@ const TONE: Record<Asking, { readonly rest: string; readonly armed: string }> =
 const MERGE_WORD: Record<MergeMethod, string> = {
   MERGE: "Merge pull request",
   SQUASH: "Squash and merge",
-  REBASE: "Rebase and merge",
-};
+  REBASE: "Rebase and merge"
+}
 
 /**
  * The same three, where the press lands a stack rather than one pull request.
@@ -235,8 +197,8 @@ const MERGE_WORD: Record<MergeMethod, string> = {
 const STACK_MERGE_WORD: Record<MergeMethod, string> = {
   MERGE: "Merge stack",
   SQUASH: "Squash and merge stack",
-  REBASE: "Rebase and merge stack",
-};
+  REBASE: "Rebase and merge stack"
+}
 
 /**
  * What a button says, once the repository has had its say about merging.
@@ -253,7 +215,7 @@ const STACK_MERGE_WORD: Record<MergeMethod, string> = {
  * whose tick lands on a word the button does not say.
  */
 export const mergeWord = (method: MergeMethod, landsStack: boolean): string =>
-  (landsStack ? STACK_MERGE_WORD : MERGE_WORD)[method];
+  (landsStack ? STACK_MERGE_WORD : MERGE_WORD)[method]
 
 /**
  * What each way of catching a branch up is called.
@@ -264,20 +226,16 @@ export const mergeWord = (method: MergeMethod, landsStack: boolean): string =>
  */
 export const UPDATE_WORD: Record<UpdateWay, string> = {
   MERGE: "Update with merge commit",
-  REBASE: "Update with rebase",
-};
+  REBASE: "Update with rebase"
+}
 
-const wordsOf = (
-  doing: Asking,
-  method: Option.Option<MergeMethod>,
-  landsStack: boolean,
-): Wording =>
+const wordsOf = (doing: Asking, method: Option.Option<MergeMethod>, landsStack: boolean): Wording =>
   doing === "merge" && Option.isSome(method)
     ? { ...WORDS.merge, rest: mergeWord(method.value, landsStack) }
-    : WORDS[doing];
+    : WORDS[doing]
 
 /** What the second press is called, on a control that asks before it acts. */
-const CONFIRM = "Confirm";
+const CONFIRM = "Confirm"
 
 /**
  * What a button says: its verb, unless the thing being done is its own.
@@ -286,18 +244,12 @@ const CONFIRM = "Confirm";
  * machine's step without checking whose it was — so asking to close said
  * "Merging…" on the button beside it.
  */
-const labelFor = (
-  merging: Merging,
-  doing: Asking,
-  asking: boolean,
-  words: Wording,
-): string => {
-  if (asking) return CONFIRM;
-  if (merging.step === "working" && merging.doing === doing)
-    return words.working;
-  if (merging.step === "done" && merging.doing === doing) return words.done;
-  return words.rest;
-};
+const labelFor = (merging: Merging, doing: Asking, asking: boolean, words: Wording): string => {
+  if (asking) return CONFIRM
+  if (merging.step === "working" && merging.doing === doing) return words.working
+  if (merging.step === "done" && merging.doing === doing) return words.done
+  return words.rest
+}
 
 /**
  * The four things one of these buttons can say, in the order a press says them.
@@ -311,8 +263,8 @@ const wordsFor = (words: Wording): ReadonlyArray<string> => [
   words.rest,
   CONFIRM,
   words.working,
-  words.done,
-];
+  words.done
+]
 
 /**
  * The other ways one press could land, for the button that has more than one.
@@ -329,11 +281,11 @@ const wordsFor = (words: Wording): ReadonlyArray<string> => [
  * nothing to offer.
  */
 export type Otherwise = ReadonlyArray<{
-  readonly word: string;
+  readonly word: string
   /** Whether this is the one the button says, which is where the tick goes. */
-  readonly on: boolean;
-  readonly pick: () => void;
-}>;
+  readonly on: boolean
+  readonly pick: () => void
+}>
 
 /**
  * The caret beside a button, and the ways behind it.
@@ -352,25 +304,38 @@ const Caret = ({
   otherwise,
   label,
   disabled,
-  tone,
+  dim,
+  tone
 }: {
-  readonly otherwise: Otherwise;
-  readonly label: string;
-  readonly disabled: boolean;
-  readonly tone: string;
+  readonly otherwise: Otherwise
+  readonly label: string
+  readonly disabled: boolean
+  /**
+   * Whether the verb beside it is greyed, which this half follows without being
+   * greyed itself.
+   *
+   * Two halves of one shape in two different greens read as a fault in the
+   * drawing rather than as one half being pressable — and one half is pressable,
+   * on every pull request that cannot land yet. So the pair dims together and
+   * the hover veil is what says this half is still live: a control that answers
+   * the pointer is a control that works, and nothing has to be said about it.
+   */
+  readonly dim: boolean
+  readonly tone: string
 }) => {
-  const art = useArt();
-  const Down = art["chevron-down"];
-  const Tick = art.tick;
-  const inOurs =
-    typeof document === "undefined" ? null : document.getElementById(ROOT_ID);
+  const art = useArt()
+  const Down = art["chevron-down"]
+  const Tick = art.tick
+  const inOurs = typeof document === "undefined" ? null : document.getElementById(ROOT_ID)
 
   return (
     <Menu.Root>
       <Menu.Trigger
         disabled={disabled}
         aria-label={`Other ways to ${label}`}
-        className={`t-ask-more text-xs font-semibold disabled:opacity-50 ${tone}`}
+        className={`t-ask-more text-xs font-semibold disabled:opacity-50 ${
+          dim ? "opacity-50" : ""
+        } ${tone}`}
       >
         <Down size={12} />
       </Menu.Trigger>
@@ -397,8 +362,8 @@ const Caret = ({
         </Menu.Content>
       </Menu.Portal>
     </Menu.Root>
-  );
-};
+  )
+}
 
 /**
  * A button that asks before it acts, without becoming somewhere else.
@@ -424,11 +389,11 @@ export const Ask = ({
   method = Option.none(),
   otherwise,
   landsStack = false,
-  className = "",
+  className = ""
 }: {
   /** What this button asks for, which decides its words, its colours and its name. */
-  readonly doing: Asking;
-  readonly merging: Merging;
+  readonly doing: Asking
+  readonly merging: Merging
   /**
    * What may be asked of this pull request, from the domain.
    *
@@ -437,43 +402,43 @@ export const Ask = ({
    * out of whichever facts it had to hand, which is how a merged pull request
    * came to be offered a place in the merge queue.
    */
-  readonly can: ReadonlySet<Asking>;
-  readonly actions?: MergeActions;
-  readonly press: (doing: Asking) => void;
-  readonly onCancel: () => void;
+  readonly can: ReadonlySet<Asking>
+  readonly actions?: MergeActions
+  readonly press: (doing: Asking) => void
+  readonly onCancel: () => void
   /**
    * The way this repository merges, which only the merge button reads.
    *
    * Defaulted to none, which is the settled face: the one control there deletes
    * a branch, and nothing about how a landed pull request landed is in reach.
    */
-  readonly method?: Option.Option<MergeMethod>;
+  readonly method?: Option.Option<MergeMethod>
   /**
    * The other ways this press could land, where there is more than one.
    *
    * Absent on the seven buttons that do one thing, and on a repository that
    * allows one way in — which is most of them.
    */
-  readonly otherwise?: Otherwise;
+  readonly otherwise?: Otherwise
   /**
    * Whether the press this button asks for lands a stack of pull requests
    * rather than the one being read — see `wouldLand`, which is the fact and
    * not the seat: a half-landed stack read from its last open layer is down to
    * an ordinary merge, whatever the panel above still draws.
    */
-  readonly landsStack?: boolean;
-  readonly className?: string;
+  readonly landsStack?: boolean
+  readonly className?: string
 }) => {
-  const art = useArt();
-  const Close = art.close;
+  const art = useArt()
+  const Close = art.close
   // Resolved once and handed to all four readers. Resolved four times over, the
   // one that skipped it — the waiting word — was right only for as long as
   // {@link wordsOf} replaced nothing but the resting word.
-  const words = wordsOf(doing, method, landsStack);
-  const verb = words.rest;
-  const tone = TONE[doing];
-  const named = `${verb.charAt(0).toLowerCase()}${verb.slice(1)}`;
-  const asking = merging.step === "asking" && merging.doing === doing;
+  const words = wordsOf(doing, method, landsStack)
+  const verb = words.rest
+  const tone = TONE[doing]
+  const named = `${verb.charAt(0).toLowerCase()}${verb.slice(1)}`
+  const asking = merging.step === "asking" && merging.doing === doing
   /*
    * Nothing may be pressed while GitHub is being asked, and nothing at all
    * where the screen it lives on wired no action to it.
@@ -492,15 +457,15 @@ export const Ask = ({
    * word on the button, which is a thing to read rather than a state to be
    * held in.
    */
-  const busy = merging.step === "working";
-  const disabled = !can.has(doing) || actions?.[doing] === undefined || busy;
+  const busy = merging.step === "working"
+  const disabled = !can.has(doing) || actions?.[doing] === undefined || busy
 
   return (
     <span
       className={`t-ask ${className}`}
       data-asking={asking ? "" : undefined}
       // Says there is a second half, so the verb keeps its flat right edge. The
-      // caret is drawn only when it is offered and only while the button is not
+      // caret is drawn only where it is offered and only while the button is not
       // asking, and both halves have to agree about the shape either way.
       data-more={otherwise !== undefined && !asking ? "" : undefined}
     >
@@ -526,9 +491,9 @@ export const Ask = ({
           />
         </button>
         {/* Gone while the button is asking. The reader is two presses into one
-          act, and a menu that changed what the second press would do is a menu
-          that rewrites the question after it was asked. It comes back with the
-          resting word. */}
+            act, and a menu that changed what the second press would do is a menu
+            that rewrites the question after it was asked. It comes back with the
+            resting word. */}
         {otherwise !== undefined && !asking ? (
           <Caret
             otherwise={otherwise}
@@ -536,16 +501,17 @@ export const Ask = ({
             /*
              * Not greyed with the button beside it. The button asks whether the
              * press would land now; this asks how it would land, and a pull
-             * request spends most of its life unable to land — checks running,
-             * a review outstanding, the base moved on. Greyed with the button, the
-             * one control that answers "which way does this repository merge" was
-             * unreadable in exactly the state a reviewer is in while they decide.
+             * request spends most of its life unable to land — checks running, a
+             * review outstanding, the base moved on. Greyed with the button, the
+             * one control that answers "which way does this repository merge"
+             * was unreadable in exactly the state a reviewer reads it in.
              *
              * A write already in flight is the one case that stands it down:
              * changing the method while GitHub is being asked would be changing
              * the question after it was sent. So is having nobody to send it to.
              */
             disabled={busy || actions?.[doing] === undefined}
+            dim={disabled}
             tone={tone.rest}
           />
         ) : null}
@@ -566,5 +532,6 @@ export const Ask = ({
         </span>
       ) : null}
     </span>
-  );
-};
+  )
+}
+
