@@ -155,7 +155,7 @@ export const Reading = ({
   return (
     <section
       aria-label="File"
-      className="min-w-0 overflow-hidden rounded-lg border border-line lg:col-start-1 lg:row-start-2"
+      className="min-w-0 overflow-hidden rounded-lg border border-line lg:col-start-2 lg:row-start-2"
     >
       <div className="flex items-center gap-2 px-3 py-1.5">
         {/* The same chip the diff prints over a file, because the tree beside

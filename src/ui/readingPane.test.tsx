@@ -40,6 +40,14 @@ describe("the file, and what their page still owns of it", () => {
     )
   })
 
+  test("takes the column the README takes, which is the one beside the tree", () => {
+    showing()
+
+    // The tree keeps the left of the front page, so a file opens on the right,
+    // in the pane the README was in. `repoHomeScreen.test.tsx` holds the pair.
+    expect(pane().className).toContain("lg:col-start-2")
+  })
+
   test("keeps Download on the raw route, named after the file", () => {
     showing()
 

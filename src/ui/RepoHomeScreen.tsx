@@ -208,7 +208,7 @@ const Files = ({
 )
 
 /**
- * The right-hand column: what it is written in, over what it is written in.
+ * The left-hand column: what it is written in, over what it is written in.
  *
  * One block rather than two, so the languages sit over the tree they describe.
  * The column takes the window's height, the languages take what they need off
@@ -238,7 +238,7 @@ const Beside = ({
   readonly onNear?: (path: string) => void
   readonly onBranch?: RepoHomeScreenProps["onBranch"]
 }) => (
-  <div className="flex min-w-0 flex-col gap-1 lg:sticky lg:top-3 lg:col-start-2 lg:row-start-2 lg:h-[calc(100vh-5.5rem)]">
+  <div className="flex min-w-0 flex-col gap-1 lg:sticky lg:top-3 lg:col-start-1 lg:row-start-2 lg:h-[calc(100vh-5.5rem)]">
     <Languages stands={stands} />
     <Files
       front={front}
@@ -334,7 +334,7 @@ const Readme = ({
   return (
     <section
       aria-label="Readme"
-      className="max-w-4xl rounded-lg border border-line px-6 py-5 lg:col-start-1 lg:row-start-2"
+      className="max-w-4xl rounded-lg border border-line px-6 py-5 lg:col-start-2 lg:row-start-2"
     >
       <h2 className="mb-4 text-sm font-semibold text-ink-muted">{welcome.name}</h2>
       {welcome.timedOut ? (
@@ -564,7 +564,7 @@ const useOpened = (
  * and the part six other attempts got wrong; see `src/domain/repoHome.ts`.
  *
          * Wide enough for two columns, the question of which comes first does not arise:
- * the README is on the left and the files are on the right, and neither is below
+ * the files are on the left and the README is on the right, and neither is below
  * the fold. Narrow, one has to be first, and whether the reader can push decides
  * it. A Caller came to find out what this is, so they get the README. A Keeper
  * wrote it, so they get the files.
@@ -659,7 +659,7 @@ export const RepoHomeScreen = ({
          * and a half down the page. Four hundred pixels of file column truncates
          * the commit message, and a truncated message beats a hidden list.
          */
-        <div className="grid gap-1 py-3 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start">
+        <div className="grid gap-1 py-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
           <Facts about={front.about} onStar={onStar} stands={stands} />
           {welcomeFirst ? (
             <>
