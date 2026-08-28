@@ -37,11 +37,16 @@ import { bedWash } from "@/Wash";
  * Direction is Alex's (gitquiet-notes, research/video-story.md): GitQuiet
  * exists because GitHub's interface is frustrating and slow, so open on that
  * problem in GitHub's own footage and numbers, then walk the product page by
- * page and show the value. No time budget; the voice leads and the picture is
- * cut to her sentence timestamps, which is why every beat length below is odd.
+ * page and show the value. No time budget.
+ *
+ * The voice leads and the picture is cut to its sentence timestamps, which is
+ * why every beat length below is odd. The read is written from recorded demo
+ * speech rather than from copy (research/voice-over-spoken.md), so it points
+ * at things, volunteers the cold number rather than defending the warm one,
+ * and stops rather than closing.
  *
  * Every callout is a journaled pain shown solved; the map with receipts is in
- * that same research note.
+ * research/video-story.md.
  */
 
 const FONT =
@@ -147,19 +152,19 @@ const ProblemScene: React.FC = () => {
         y={104}
         dx={-274}
         dy={52}
-        at={178}
+        at={181}
       />
       <Callout
         text="Tab switches: 10+ seconds. Their changelog."
         x={385}
         y={660}
-        at={286}
+        at={400}
       />
       <Callout
         text="A 1 GB JavaScript heap. Their engineering blog."
         x={890}
         y={660}
-        at={357}
+        at={470}
       />
     </Dark>
   );
@@ -202,7 +207,7 @@ const TurnScene: React.FC = () => {
           fontSize: 30,
           fontWeight: 500,
           color: ON_GRADIENT_MUTED,
-          opacity: fadeIn(frame, 59, 12),
+          opacity: fadeIn(frame, 34, 12),
         }}
       >
         A faster, quieter GitHub.
@@ -213,10 +218,10 @@ const TurnScene: React.FC = () => {
 
 /** The group meanings are the README's own words. */
 const GROUP_LABELS: { text: string; y: number; at: number }[] = [
-  { text: "You can act on it now", y: 91, at: 182 },
-  { text: "Someone else has to act", y: 387, at: 194 },
-  { text: "A machine is still working", y: 525, at: 206 },
-  { text: "Finished", y: 635, at: 218 },
+  { text: "You can act on it now", y: 91, at: 171 },
+  { text: "Someone else has to act", y: 387, at: 192 },
+  { text: "A machine is still working", y: 525, at: 213 },
+  { text: "Finished", y: 635, at: 234 },
 ];
 
 const ListScene: React.FC = () => (
@@ -230,7 +235,7 @@ const ListScene: React.FC = () => (
       enter={12}
       views={[
         { at: 12, x: 0, y: 100, w: 2560 },
-        { at: 472, x: 0, y: 120, w: 2510 },
+        { at: 592, x: 0, y: 120, w: 2510 },
       ]}
     />
     {GROUP_LABELS.map((label) => (
@@ -249,7 +254,7 @@ const ListScene: React.FC = () => (
 
 /** The cursor's path: a leg is 24 frames, then the rest, then the press. */
 const LEG = 24;
-const REST_HOLD = 83;
+const REST_HOLD = 106;
 const ARRIVE = LEG;
 const CLICK = LEG + REST_HOLD + LEG;
 
@@ -303,7 +308,7 @@ const RestScene: React.FC = () => {
 const PrOpenScene: React.FC = () => {
   const frame = useCurrentFrame();
   const count = Math.round(interpolate(frame, [0, 9], [0, 287], CLAMP));
-  const payoff = interpolate(frame, [136, 148], [1, 0], CLAMP);
+  const payoff = interpolate(frame, [470, 486], [1, 0], CLAMP);
   return (
     <Dark>
       <Shot
@@ -315,7 +320,8 @@ const PrOpenScene: React.FC = () => {
         enter={9}
         views={[
           { at: 0, x: 0, y: 0, w: 2560 },
-          { at: 430, x: 0, y: 30, w: 2440 },
+          { at: 540, x: 0, y: 30, w: 2470 },
+          { at: 700, x: 0, y: 46, w: 2420 },
         ]}
       />
       <div
@@ -364,7 +370,7 @@ const PrOpenScene: React.FC = () => {
         y={120}
         dx={-235}
         dy={4}
-        at={242}
+        at={578}
       />
       <Callout
         text="The conversation, under them"
@@ -372,7 +378,7 @@ const PrOpenScene: React.FC = () => {
         y={235}
         dx={-230}
         dy={-25}
-        at={278}
+        at={598}
       />
       <Callout
         text="Files next to their diffs"
@@ -380,7 +386,7 @@ const PrOpenScene: React.FC = () => {
         y={430}
         dx={-30}
         dy={-160}
-        at={338}
+        at={628}
       />
     </Dark>
   );
@@ -396,11 +402,11 @@ const PrConvoScene: React.FC = () => (
       top={40}
       views={[
         { at: 0, x: 0, y: 380, w: 1350 },
-        { at: 225, x: 0, y: 400, w: 1330 },
-        { at: 270, x: 0, y: 856, w: 1350 },
-        { at: 360, x: 0, y: 862, w: 1336 },
-        { at: 410, x: 0, y: 180, w: 1500 },
-        { at: 466, x: 0, y: 190, w: 1478 },
+        { at: 262, x: 0, y: 398, w: 1332 },
+        { at: 300, x: 0, y: 856, w: 1350 },
+        { at: 352, x: 0, y: 862, w: 1336 },
+        { at: 386, x: 0, y: 180, w: 1500 },
+        { at: 432, x: 0, y: 190, w: 1478 },
       ]}
     />
     <Callout
@@ -409,8 +415,8 @@ const PrConvoScene: React.FC = () => (
       y={140}
       dx={-300}
       dy={60}
-      at={14}
-      until={255}
+      at={16}
+      until={272}
     />
     <Callout
       text="Verdict and merge, in one place"
@@ -418,8 +424,8 @@ const PrConvoScene: React.FC = () => (
       y={560}
       dx={-320}
       dy={-40}
-      at={285}
-      until={395}
+      at={296}
+      until={366}
     />
     <Callout
       text="It remembers what you have seen"
@@ -427,7 +433,7 @@ const PrConvoScene: React.FC = () => (
       y={200}
       dx={196}
       dy={-112}
-      at={425}
+      at={392}
     />
   </Dark>
 );
@@ -442,8 +448,8 @@ const RunScene: React.FC = () => (
       top={40}
       views={[
         { at: 0, x: 0, y: 0, w: 2560 },
-        { at: 62, x: 0, y: 120, w: 1500 },
-        { at: 122, x: 0, y: 132, w: 1476 },
+        { at: 72, x: 0, y: 120, w: 1500 },
+        { at: 170, x: 0, y: 132, w: 1476 },
       ]}
     />
     <Callout
@@ -452,16 +458,16 @@ const RunScene: React.FC = () => (
       y={330}
       dx={-220}
       dy={-140}
-      at={48}
+      at={84}
     />
   </Dark>
 );
 
 const MONTAGE: { src: string; frames: number }[] = [
-  { src: "issues.png", frames: 35 },
-  { src: "commits.png", frames: 35 },
-  { src: "actions.png", frames: 35 },
-  { src: "notifications.png", frames: 83 },
+  { src: "issues.png", frames: 24 },
+  { src: "commits.png", frames: 24 },
+  { src: "actions.png", frames: 24 },
+  { src: "notifications.png", frames: 67 },
 ];
 
 const MontageScene: React.FC = () => (
@@ -484,40 +490,9 @@ const MontageScene: React.FC = () => (
         </Series.Sequence>
       ))}
     </Series>
-    <Caption text="Every page. The same four groups." at={120} />
+    <Caption text="Every page. The same four groups." at={96} />
   </Dark>
 );
-
-const PrivacyScene: React.FC = () => {
-  const frame = useCurrentFrame();
-  return (
-    <Bed>
-      <AbsoluteFill style={{ transform: "translateY(-30px)" }}>
-        <SoftBlurIn
-          text="No account. No server."
-          fontSize={64}
-          fontWeight={700}
-          color={ON_GRADIENT}
-        />
-      </AbsoluteFill>
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          top: 430,
-          textAlign: "center",
-          fontSize: 28,
-          fontWeight: 500,
-          color: ON_GRADIENT_MUTED,
-          opacity: fadeIn(frame, 65, 12),
-        }}
-      >
-        Your own GitHub session. Your code stays in your browser.
-      </div>
-    </Bed>
-  );
-};
 
 const CtaScene: React.FC = () => {
   const frame = useCurrentFrame();
@@ -539,7 +514,7 @@ const CtaScene: React.FC = () => {
           top: 418,
           display: "flex",
           justifyContent: "center",
-          opacity: fadeIn(frame, 30, 12),
+          opacity: fadeIn(frame, 42, 12),
         }}
       >
         <div
@@ -552,7 +527,7 @@ const CtaScene: React.FC = () => {
             fontWeight: 600,
           }}
         >
-          Free on Chrome
+          Free on Chrome and Firefox
         </div>
       </div>
       <div
@@ -565,7 +540,7 @@ const CtaScene: React.FC = () => {
           fontSize: 25,
           fontWeight: 500,
           color: ON_GRADIENT_MUTED,
-          opacity: fadeIn(frame, 62, 12),
+          opacity: fadeIn(frame, 97, 12),
         }}
       >
         gitquiet.com
@@ -580,16 +555,15 @@ const CtaScene: React.FC = () => {
  * on the press (the arrival is the claim) and at the end.
  */
 const BEATS: { scene: React.FC; frames: number; out: Out }[] = [
-  { scene: ProblemScene, frames: 499, out: "wash" },
-  { scene: TurnScene, frames: 172, out: "wash" },
-  { scene: ListScene, frames: 482, out: "fade" },
-  { scene: RestScene, frames: 134, out: "cut" },
-  { scene: PrOpenScene, frames: 430, out: "fade" },
-  { scene: PrConvoScene, frames: 443, out: "fade" },
-  { scene: RunScene, frames: 131, out: "fade" },
-  { scene: MontageScene, frames: 188, out: "wash" },
-  { scene: PrivacyScene, frames: 244, out: "wash" },
-  { scene: CtaScene, frames: 172, out: "cut" },
+  { scene: ProblemScene, frames: 594, out: "wash" },
+  { scene: TurnScene, frames: 109, out: "wash" },
+  { scene: ListScene, frames: 612, out: "fade" },
+  { scene: RestScene, frames: 164, out: "cut" },
+  { scene: PrOpenScene, frames: 712, out: "fade" },
+  { scene: PrConvoScene, frames: 435, out: "fade" },
+  { scene: RunScene, frames: 177, out: "fade" },
+  { scene: MontageScene, frames: 139, out: "wash" },
+  { scene: CtaScene, frames: 168, out: "cut" },
 ];
 
 export const DAY_DURATION_IN_FRAMES = BEATS.reduce(
