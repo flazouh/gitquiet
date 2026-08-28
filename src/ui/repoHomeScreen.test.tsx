@@ -104,6 +104,29 @@ describe("a repository's front page", () => {
     expect(orderOf()).toEqual(["Files", "Readme"])
   })
 
+  /**
+   * Which side each block takes, which is not the same question as which one is
+   * read first. The order flips with the footing; the sides do not, so both
+   * footings are asked.
+   */
+  const sideOf = (label: string): string =>
+    screen.getByLabelText(label).closest('[class*="col-start"]')?.className ?? ""
+
+  test("keeps the files on the left and the README on the right, whoever is reading", async () => {
+    showing(() => Effect.succeed(front("caller")))
+    await screen.findByText("Flowline")
+
+    expect(sideOf("Files")).toContain("lg:col-start-1")
+    expect(sideOf("Readme")).toContain("lg:col-start-2")
+
+    cleanup()
+    showing(() => Effect.succeed(front("keeper")))
+    await screen.findByText("Flowline")
+
+    expect(sideOf("Files")).toContain("lg:col-start-1")
+    expect(sideOf("Readme")).toContain("lg:col-start-2")
+  })
+
   test("keeps the files on the page for a caller as well", async () => {
     // The one rule the six extensions that tried this broke. A file list behind a
     // toggle reads as a page that failed to load, so the order changes and the

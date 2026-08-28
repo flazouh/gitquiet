@@ -23,6 +23,7 @@ import { Note } from "./Note"
 import { ProseDiff } from "./ProseDiff"
 import { useRenderer } from "./renderer"
 import { usePaintedTheme } from "./Theme"
+import { RAIL_CSS } from "./railCss"
 import { rowMarks, shortCount, type RowMark } from "./rowMarks"
 import { DRAWING, showLine } from "./showLine"
 import { changesBetween } from "./treeRows"
@@ -232,18 +233,7 @@ export const FileTreePane = ({
       icons: choices.icons === "material" ? MATERIAL_ICONS : PLAIN_ICONS,
       search: choices.search,
       stickyFolders: choices.sticky,
-      // Their lane for these takes whatever room is left over and clips what
-      // does not fit, which in a rail this narrow was most of the numbers. The
-      // numbers are short and fixed; the names are long and already truncate
-      // themselves in the middle, so the names are what should give way.
-      //
-      // The git lane goes entirely: it spells out A, M, D beside a name that
-      // the same status has already coloured, and every folder in a rail of
-      // changed files contains a change, so its dot marks nothing out. Its
-      // width goes back to the names.
-      unsafeCSS:
-        '[data-item-section="decoration"] { flex: 0 0 auto; }' +
-        '[data-item-section="git"] { display: none; }',
+      unsafeCSS: RAIL_CSS,
       renderRowDecoration: ({ row }: { row: { path: string } }) => {
         // A directory's path ends in a slash here and nowhere else.
         const mark = marks.current.get(row.path.replace(/\/$/, ""))
