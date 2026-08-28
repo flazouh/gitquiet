@@ -402,7 +402,7 @@ describe("next and previous walk the rail", () => {
 
     const visited = [open()]
     for (let press = 0; press < sent.length; press += 1) {
-      await userEvent.keyboard("j")
+      await userEvent.keyboard("s")
       visited.push(open())
     }
 
@@ -414,8 +414,8 @@ describe("next and previous walk the rail", () => {
     browser()
 
     const first = open()
-    await userEvent.keyboard("j")
-    await userEvent.keyboard("k")
+    await userEvent.keyboard("s")
+    await userEvent.keyboard("w")
 
     expect(open()).toBe(first)
   })
@@ -528,7 +528,7 @@ describe("taking a mark off a file", () => {
     expect(counted()).toContain("2 of 3")
 
     // Onto the ticked file, then put it back.
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
     expect(counted()).toContain("2 of 3")
 
     await userEvent.keyboard("x")
@@ -557,7 +557,7 @@ describe("taking a mark off a file", () => {
     await userEvent.click(screen.getByRole("button", { name: "Put all back" }))
     expect(counted()).toContain("0 of 3")
 
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
     expect(counted()).toContain("1 of 3")
   })
 })

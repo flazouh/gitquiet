@@ -40,7 +40,7 @@ export type Profile = "standard" | "vim" | "off"
 export const DEFAULT_PROFILE: Profile = "standard"
 
 /**
- * The unmodified key as the browser reports it: `j`, `/`, `?`, `Escape`.
+ * The unmodified key as the browser reports it: `s`, `/`, `?`, `Escape`.
  *
  * Two keys pressed one after the other are one chord with a space between them,
  * `g d`, which is how a reader says it out loud. Keeping a sequence in the same
@@ -52,26 +52,58 @@ export type Chord = string
 type Table = Readonly<Record<Command, ReadonlyArray<Chord>>>
 
 /**
- * Editor letters, plus the pair a reader who has never touched vim will try.
+ * The chords a reader put on a command themselves, in place of the profile's.
  *
- * `j` and `k` because every list on this page is read the way a file is, and
- * `n` and `p` because "next" and "previous" is what someone guesses when `j`
- * means nothing to them. Both cost one letter each and there is no shortage.
+ * Partial, because most readers change nothing and an entry per command would
+ * be a stored copy of a table this file already holds — one that would go on
+ * answering with last year's letters after these tables moved on.
+ */
+export type Bound = Readonly<Partial<Record<Command, Chord>>>
+
+/**
+ * Whose keys these are, and whatever the reader has since changed.
  *
- * The Destinations go behind `g` because `g d` is what Participants press for
- * their dashboard today and said so in as many words, and hands that already
- * know that prefix should find the rest of these where they reach for them.
- * `g f` for Activity rather than `g a`, since the feed is what GitHub's own
- * address for it says and `a` is worth keeping free.
+ * Carried as one value rather than as a profile beside a map, because every
+ * component that answers a command needs both and neither means anything on its
+ * own: a profile without the changes is the keys the reader replaced, and the
+ * changes without a profile are three letters out of eleven.
+ */
+export type Keys = {
+  readonly profile: Profile
+  readonly bound: Bound
+}
+
+export const DEFAULT_KEYS: Keys = { profile: DEFAULT_PROFILE, bound: {} }
+
+/** No keys at all, for a surface that is turning its own keyboard off. */
+export const SILENT: Keys = { profile: "off", bound: {} }
+
+/**
+ * The left hand's letters, and nothing that needs the right one.
+ *
+ * The right hand is on the pointer for the whole of a review — scrolling the
+ * diff, following a link, opening a thread — so a keyboard that only answers to
+ * `j` and `k` is a keyboard that costs a reach for every press. Every default
+ * here is reachable from the home row of the left hand alone.
+ *
+ * `w` and `s` for the two directions, which is where a hand already goes to move
+ * up and down something, and the pair is worth more than the letters it spends:
+ * they are the two presses of the whole review.
+ *
+ * The Destinations stay behind `g` because `g d` is what Participants press for
+ * their dashboard today and said so in as many words, and `g` is under the same
+ * hand. `g f` for Activity, since the feed is what GitHub's own address for it
+ * says. `g g` for Home rather than `g h`: `h` is the right hand's index finger,
+ * and a doubled leader is the one sequence a vim reader already types.
  */
 const STANDARD: Table = {
-  nextFile: ["j", "n"],
-  previousFile: ["k", "p"],
+  nextFile: ["s"],
+  previousFile: ["w"],
   /*
    * `x`, which is the letter GitHub's own keyboard help gives this and the one
    * Refined GitHub added it to the file list under. Two interfaces that a
    * reviewer may have used before this one agree on it, so there is nothing to
-   * be gained by choosing differently.
+   * be gained by choosing differently — and it is under the same hand already.
    */
   markFile: ["x"],
   /*
@@ -86,26 +118,36 @@ const STANDARD: Table = {
    */
   reviewMode: ["r"],
   /*
-   * The capital, which is to say O with shift held. Written as the key the
+   * The capital, which is to say A with shift held. Written as the key the
    * browser reports rather than as a modifier and a letter, the same way `?` is
    * one key here: see `commandFor`.
    *
-   * O for open, and shifted because Enter already opens the row the walk is on —
-   * this is the same act with somewhere else to put it. Both the letter and the
-   * shift are Refined GitHub's, whose readers walk lists with the same `j` and
-   * `k` this one does.
+   * A for aside, and shifted because Enter already opens the row the walk is on
+   * — this is the same act with somewhere else to put it. It was `O`, which is
+   * Refined GitHub's letter for the same act; the shift is theirs and stays, and
+   * the letter moves under the hand that is doing the walking.
    */
-  openAside: ["O"],
-  search: ["/"],
+  openAside: ["A"],
+  /*
+   * `f` for find, which is the letter every editor and every browser gives this,
+   * and `/` beside it for the reader whose hands learnt it on GitHub's own page.
+   * The cap says `f`, because that is the one a left hand can reach.
+   */
+  search: ["f", "/"],
   dismiss: ["Escape"],
   workingSet: ["g d"],
   repositories: ["g r"],
   activity: ["g f"],
-  home: ["g h"]
+  home: ["g g"]
 }
 
 /**
  * The same commands, with the letters vim has other plans for left alone.
+ *
+ * `j` and `k` live here rather than in the standard set: they are the right
+ * hand's home row, which is the whole reason the standard set moved off them,
+ * and they are also the two letters a vim reader will try before any other.
+ * Nobody has to choose between the two hands — the profile is the choice.
  *
  * `n` and `N` are search repetition in vim and will be exactly that here once
  * there is a search to repeat, so they are not spent on moving between files.
@@ -142,17 +184,98 @@ const NOTHING: Table = {
   home: []
 }
 
-export const bindings = (profile: Profile): Table =>
+const tableFor = (profile: Profile): Table =>
   profile === "vim" ? VIM : profile === "off" ? NOTHING : STANDARD
+
+/**
+ * Every command in the order a reader meets them, and what each is called.
+ *
+ * Here rather than in the panel that draws the rows, for the reason the chords
+ * are here: the panel is not the only thing that has to name a command, and a
+ * second table of words somewhere else is the one that goes stale. The order is
+ * the order of the review — move, mark, read — and then the places to go.
+ */
+export const KEYBOARD: ReadonlyArray<{
+  readonly command: Command
+  readonly word: string
+  readonly gist: string
+}> = [
+  { command: "nextFile", word: "Next file", gist: "Down the rail to the file after this one" },
+  {
+    command: "previousFile",
+    word: "Previous file",
+    gist: "Back up the rail to the file before it"
+  },
+  { command: "markFile", word: "Mark file", gist: "Turn this file's mark over, read or unread" },
+  { command: "reviewMode", word: "Review mode", gist: "The files on the whole screen, and back" },
+  { command: "openAside", word: "Open aside", gist: "The row the walk is on, in the side panel" },
+  { command: "search", word: "Search", gist: "The filter over whichever list is on screen" },
+  { command: "dismiss", word: "Close", gist: "The way out of whatever is open" },
+  { command: "workingSet", word: "Working set", gist: "Everything waiting on you" },
+  { command: "repositories", word: "Repositories", gist: "The repositories you keep" },
+  { command: "activity", word: "Activity", gist: "The feed" },
+  { command: "home", word: "Home", gist: "The front of the interface" }
+]
+
+/**
+ * Whether a chord is one a reader could have meant.
+ *
+ * A press this layer never reads is a binding that would look set and do
+ * nothing, which is worse than a command with no key at all. Modifiers are the
+ * browser's and the operating system's — see `theirs` in `match.ts` — and a
+ * modifier held on its own is not a key being typed.
+ */
+export const isChord = (chord: Chord): boolean =>
+  chord.length > 0 &&
+  chord.length <= 16 &&
+  chord.split(" ").every((press) => press.length > 0 && !HOLDING.has(press))
+
+const HOLDING: ReadonlySet<string> = new Set(["Shift", "Control", "Alt", "Meta"])
+
+/**
+ * The profile's chords with the reader's own written over them.
+ *
+ * A command a reader has bound answers to that chord and to nothing else: the
+ * point of changing a key is to know which key it is, and a default left
+ * underneath would be a second answer nobody was told about.
+ *
+ * The chord is taken off every other command as it lands, because one chord
+ * that asks for two things asks for whichever the matcher walks into first,
+ * which is a table order rather than an answer. The command the reader just
+ * bound is the one that keeps it — they are looking at it.
+ *
+ * `off` is answered before any of this: a reader who turned the keyboard off
+ * turned off the keys they chose as well as the ones they were given.
+ */
+export const bindings = (keys: Keys): Table => {
+  const table = tableFor(keys.profile)
+  if (keys.profile === "off") return table
+
+  const wanted = Object.entries(keys.bound).filter(
+    (entry): entry is [Command, Chord] => typeof entry[1] === "string" && isChord(entry[1])
+  )
+  if (wanted.length === 0) return table
+
+  const taken = new Set(wanted.map(([, chord]) => chord))
+  const written = Object.fromEntries(
+    Object.entries(table).map(([name, chords]) => [
+      name,
+      chords.filter((chord) => !taken.has(chord))
+    ])
+  ) as unknown as Record<Command, ReadonlyArray<Chord>>
+
+  for (const [command, chord] of wanted) written[command] = [chord]
+  return written
+}
 
 /**
  * Whether holding the key down may ask for this again, and again.
  *
  * Moving does and nothing else does. A key held down is one press to the reader
- * and thirty a second to the page, which is what they want from `j` — the list
+ * and thirty a second to the page, which is what they want from `s` — the list
  * spins past under one finger — and is never what they want from anything that
- * opens, closes or sends: a leaned-on `/` would fight the search box it just
- * put up, and a leaned-on `g h` would ask for Home while Home was arriving.
+ * opens, closes or sends: a leaned-on `f` would fight the search box it just
+ * put up, and a leaned-on `g g` would ask for Home while Home was arriving.
  *
  * Named after what the hand is doing rather than after a property of the
  * command, because the question is only ever asked about a key being held.
@@ -169,5 +292,5 @@ export const heldDown = (command: Command): boolean =>
  * off is promised nothing, because they would press it and nothing would
  * happen.
  */
-export const chordFor = (profile: Profile, command: Command): Chord | null =>
-  bindings(profile)[command][0] ?? null
+export const chordFor = (keys: Keys, command: Command): Chord | null =>
+  bindings(keys)[command][0] ?? null

@@ -82,16 +82,20 @@ router and the takeover read.
 
 Three profiles, in [`src/keys/commands.ts`](./src/keys/commands.ts): `standard`,
 `vim`, and `off` for anyone who wants GitHub's own shortcuts back untouched. A
-profile changes which keys reach a command, never what the command does.
+profile changes which keys reach a command, never what the command does. Every
+key can be changed under Settings, Keyboard.
+
+The standard profile stays under the left hand, because the right one is on the
+pointer for the whole of a review. The vim profile keeps `j` and `k`.
 
 | Key | Does |
 | --- | --- |
-| `j` `k` | next and previous file, or `n` and `p` |
+| `s` `w` | next and previous file |
 | `x` | mark the file read |
-| `O` | open the row in a tab of its own |
-| `/` | search |
+| `A` | open the row in a tab of its own |
+| `f` | search, and `/` beside it |
 | `Escape` | dismiss |
-| `g d` `g r` `g f` `g h` | working set, repositories, activity, home |
+| `g d` `g r` `g f` `g g` | working set, repositories, activity, home |
 
 ## Privacy
 

@@ -6,6 +6,7 @@ import type { ChangedFile } from "../domain/PullRequest"
 import { diffChoices, treeChoices } from "../domain/choices"
 import { DEFAULTS } from "../domain/Settings"
 import { FileBrowser } from "./FileBrowser"
+import { DEFAULT_KEYS } from "../keys/commands"
 
 afterEach(cleanup)
 
@@ -26,7 +27,7 @@ const browsing = (...paths: ReadonlyArray<string>) =>
       fetchDiffs={() => Effect.succeed([])}
       diff={diffChoices(DEFAULTS.diff)}
       tree={treeChoices(DEFAULTS.tree)}
-      keys="standard"
+      keys={DEFAULT_KEYS}
     />
   )
 
@@ -62,7 +63,7 @@ describe("the file after the one being read", () => {
     await waitFor(() => expect(drawingOf("src/two.ts")).not.toBeNull())
     const already = drawingOf("src/two.ts")
 
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
 
     expect(drawingOf("src/two.ts")).toBe(already)
     expect(shown("src/two.ts")).toBe(true)
@@ -76,7 +77,7 @@ describe("the file after the one being read", () => {
     await waitFor(() => expect(drawingOf("src/two.ts")).not.toBeNull())
     const first = drawingOf("src/one.ts")
 
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
 
     expect(drawingOf("src/one.ts")).toBe(first)
     expect(shown("src/one.ts")).toBe(false)
@@ -88,7 +89,7 @@ describe("the file after the one being read", () => {
     // worth holding.
     browsing("a.ts", "b.ts", "c.ts", "d.ts", "e.ts")
 
-    await userEvent.keyboard("jj")
+    await userEvent.keyboard("ss")
     // The neighbours arrive one quiet moment at a time, and the cut back to
     // what a key reaches is the last of those moments — so the settled set is
     // what to wait for, not the first arrival.

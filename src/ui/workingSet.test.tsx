@@ -501,7 +501,7 @@ describe("Involved Issues in the Working Set", () => {
   test("walks onto an issue as well as onto a pull request", async () => {
     render(<WorkingSet sittings={alongside([on("needs-action", 1)], [flaky])} onOpen={() => {}} />)
 
-    await userEvent.keyboard("jj")
+    await userEvent.keyboard("ss")
 
     expect(screen.getByRole("link", { name: /the flaky test/ }).getAttribute("aria-current")).toBe(
       "true"
@@ -553,7 +553,7 @@ describe("Involved Issues in the Working Set", () => {
   })
 
   /*
-   * Otherwise the walk would step onto a row that is not on the screen: `j` past the fold
+   * Otherwise the walk would step onto a row that is not on the screen: `s` past the fold
    * would move the selection into nothing and the reader would press it again to escape.
    */
   test("unfolds the tail when the walk steps into it", async () => {
@@ -568,7 +568,7 @@ describe("Involved Issues in the Working Set", () => {
     )
 
     // Past the pull request and past all five issues that the fold leaves showing.
-    await userEvent.keyboard("jjjjjjj")
+    await userEvent.keyboard("sssssss")
 
     const court = screen.getByRole("region", { name: "Needs You" })
 
@@ -588,7 +588,7 @@ describe("Involved Issues in the Working Set", () => {
       followed += 1
     })
 
-    await userEvent.keyboard("jj{Enter}")
+    await userEvent.keyboard("ss{Enter}")
 
     expect(followed).toBe(1)
   })
@@ -997,16 +997,16 @@ describe("moving through the Working Set without the mouse", () => {
     involved(3, { title: "third", changedAt: "2026-07-01T00:00:00Z" })
   ]
 
-  test("j goes down and k comes back", async () => {
+  test("s goes down and w comes back", async () => {
     showing(three)
 
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
     expect(screen.getByRole("link", { name: /first/ }).getAttribute("aria-current")).toBe("true")
 
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
     expect(screen.getByRole("link", { name: /second/ }).getAttribute("aria-current")).toBe("true")
 
-    await userEvent.keyboard("k")
+    await userEvent.keyboard("w")
     expect(screen.getByRole("link", { name: /first/ }).getAttribute("aria-current")).toBe("true")
   })
 
@@ -1015,10 +1015,10 @@ describe("moving through the Working Set without the mouse", () => {
 
     // The first press is the top whichever direction it was, there being nowhere
     // to go round from yet. The second is the wrap.
-    await userEvent.keyboard("kk")
+    await userEvent.keyboard("ww")
     expect(screen.getByRole("link", { name: /third/ }).getAttribute("aria-current")).toBe("true")
 
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
     expect(screen.getByRole("link", { name: /first/ }).getAttribute("aria-current")).toBe("true")
   })
 
@@ -1029,7 +1029,7 @@ describe("moving through the Working Set without the mouse", () => {
       opened = `${reference.owner}/${reference.repo}#${reference.number}`
     })
 
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
     await userEvent.keyboard("{Enter}")
 
     expect(opened).toBe("flazouh/octo-repo#1")
@@ -1056,8 +1056,8 @@ describe("moving through the Working Set without the mouse", () => {
       opened = `${reference.owner}/${reference.repo}#${reference.number}`
     })
 
-    await userEvent.keyboard("j")
-    await userEvent.keyboard("{Shift>}O{/Shift}")
+    await userEvent.keyboard("s")
+    await userEvent.keyboard("{Shift>}A{/Shift}")
 
     expect(asked).toEqual([["/flazouh/octo-repo/pull/1", "_blank", "noopener"]])
     // And this tab stayed where it was, which is the whole point of the key.
@@ -1069,7 +1069,7 @@ describe("moving through the Working Set without the mouse", () => {
     // reader moving down the list is moving through pull requests.
     render(<WorkingSet sittings={stackedChain()} onOpen={() => {}} />)
 
-    await userEvent.keyboard("jj")
+    await userEvent.keyboard("ss")
 
     expect(screen.getByRole("link", { name: /^the middle\./ }).getAttribute("aria-current")).toBe(
       "true"

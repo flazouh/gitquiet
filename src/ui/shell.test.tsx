@@ -217,7 +217,7 @@ describe("the keyboard", () => {
     showing(aPullRequest())
     await awaitPage()
 
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
 
     expect(screen.getByLabelText("Open file").textContent).toContain("README.md")
   })
@@ -240,7 +240,7 @@ describe("the keyboard", () => {
     showing(aPullRequest())
     await awaitPage()
 
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
 
     expect(screen.getByLabelText("Open file").textContent).toContain("README.md")
   })

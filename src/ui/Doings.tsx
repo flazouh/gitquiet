@@ -131,7 +131,7 @@ export const Doings = ({
   const verbItem = useRef<Partial<Record<RowDoing, HTMLDivElement | null>>>({})
   // Whether a key cap is worth drawing, which is whether pressing it would do
   // anything. A promise on the face of an item is only worth making if it holds.
-  const capped = useKeying() !== "off"
+  const capped = useKeying().profile !== "off"
 
   // A menu that closed forgets what it was in the middle of. Reopening it on a
   // primed Close, or on a refusal from a minute ago, is the one way this could

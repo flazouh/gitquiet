@@ -2,7 +2,7 @@ import { Effect, Option } from "effect"
 import { useEffect, useState } from "react"
 import type { DiffFetcher } from "../domain/library"
 import type { CommitDetail } from "../domain/PullRequest"
-import type { Profile } from "../keys/commands"
+import type { Keys } from "../keys/commands"
 import type { DiffChoices, TreeChoices } from "../domain/choices"
 import { useArt } from "./art"
 import { FileBrowser, type FileBrowserProps } from "./FileBrowser"
@@ -54,7 +54,7 @@ export type CommitViewProps = {
   readonly apart?: boolean
   readonly proseAsDocument?: boolean
   /** Whose keys move between the files of this commit. */
-  readonly keys?: Profile
+  readonly keys?: Keys
   /** Handed straight to the band, so a commit is drawn by the same knobs. See `FileBrowser`. */
   readonly display?: FileBrowserProps["display"]
 }

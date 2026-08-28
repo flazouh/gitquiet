@@ -20,7 +20,7 @@ import { sizeOf } from "../domain/workingSet"
 import { diffChoices, treeChoices } from "../domain/choices"
 import { keyOf } from "../domain/PullRequestRef"
 import { keptReads } from "../app/kept"
-import { DEFAULT_PROFILE, type Profile } from "../keys/commands"
+import { DEFAULT_KEYS, type Keys } from "../keys/commands"
 import { CommitView } from "./CommitView"
 import { FileBrowser } from "./FileBrowser"
 import { Header } from "./Header"
@@ -108,7 +108,7 @@ export type ShellProps = {
   /** Reads the steps a check ran as, which is what its dialog opens as. */
   readonly loadSteps?: (check: Check) => Effect.Effect<ReadonlyArray<JobStep>, unknown>
   /** Whose keys these are. One day a setting; for now, the standard set. */
-  readonly keys?: Profile
+  readonly keys?: Keys
   /** Gives the page back to GitHub, and remembers to keep giving it back. */
   readonly onUseGitHub?: () => void
 }
@@ -148,7 +148,7 @@ const PageKeys = ({
   keys,
   onDismiss
 }: {
-  readonly keys: Profile
+  readonly keys: Keys
   readonly onDismiss: () => void
 }) => {
   useKeys(keys, { dismiss: onDismiss })
@@ -187,7 +187,7 @@ export const Shell = ({
   loadLog,
   loadTail,
   loadSteps,
-  keys = DEFAULT_PROFILE,
+  keys = DEFAULT_KEYS,
   onUseGitHub
 }: ShellProps) => {
   const [preparedStage, setPreparedStage] = useState(preparing ? 0 : PREPARED)

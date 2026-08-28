@@ -7,7 +7,7 @@ import type { RowDoing } from "../domain/doable"
 import { sittingsIn } from "../domain/sittings"
 import type { PullRequestState } from "../domain/PullRequest"
 import type { InvolvedPullRequest, Shelf } from "../domain/workingSet"
-import { DEFAULT_PROFILE, type Profile } from "../keys/commands"
+import { DEFAULT_KEYS, type Keys } from "../keys/commands"
 import type { Asking } from "./Doings"
 import { Toasts } from "./Toasts"
 import { WorkingSet } from "./WorkingSet"
@@ -41,7 +41,7 @@ type Asked = { readonly doing: RowDoing; readonly reference: PullRequestRef }
 const listing = (
   state: PullRequestState,
   answer: (doing: RowDoing) => Effect.Effect<void, unknown> = () => Effect.void,
-  keys: Profile = DEFAULT_PROFILE
+  keys: Keys = DEFAULT_KEYS
 ) => {
   const asked: Array<Asked> = []
   const asking: Asking = {
@@ -388,7 +388,7 @@ describe("the letters an open menu answers to", () => {
   })
 
   test("nothing at all for a reader who turned the keyboard off", async () => {
-    const { asked } = listing("open", () => Effect.void, "off")
+    const { asked } = listing("open", () => Effect.void, { profile: "off", bound: {} })
     await openTheMenu()
     await userEvent.keyboard("c")
 

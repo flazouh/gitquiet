@@ -7,7 +7,7 @@ import type { Repository } from "../domain/repositories";
 import { owedIn } from "../domain/finding";
 import { afterDoing, type Sitting } from "../domain/sittings";
 import { repositoriesAtWork, type RepositoryAtWork } from "../domain/rail";
-import { DEFAULT_PROFILE, type Profile } from "../keys/commands";
+import { DEFAULT_KEYS, type Keys } from "../keys/commands";
 import { Rail } from "./Rail";
 import { TheBar } from "./TheBar";
 import { useWaiting } from "./useWaiting";
@@ -34,7 +34,7 @@ export type WorkingSetScreenProps = {
   /** The repositories the reader pinned, and how the screen remembers a change. */
   readonly pinned?: ReadonlyArray<string>;
   readonly onPinned?: (pinned: ReadonlyArray<string>) => void;
-  readonly keys?: Profile;
+  readonly keys?: Keys;
   /**
    * Whether GitHub has anyone signed in, asked only when a read has failed.
    * Overridden in tests; in the browser it is the page's own answer.
@@ -125,7 +125,7 @@ export const WorkingSetScreen = ({
   onStepAside,
   pinned,
   onPinned,
-  keys = DEFAULT_PROFILE,
+  keys = DEFAULT_KEYS,
   signedIn = viewerOnPage,
   ask,
   home = false,

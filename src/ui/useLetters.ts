@@ -1,5 +1,5 @@
 import { createContext, type KeyboardEvent, useContext } from "react"
-import { DEFAULT_PROFILE, type Profile } from "../keys/commands"
+import { DEFAULT_KEYS, type Keys } from "../keys/commands"
 import { type Letter, letterFor } from "../keys/letters"
 
 /**
@@ -13,12 +13,12 @@ import { type Letter, letterFor } from "../keys/letters"
  * The default is the standard profile, so a menu rendered by a test or by a
  * screen that has not got around to providing this still answers to its letters.
  */
-const Whose = createContext<Profile>(DEFAULT_PROFILE)
+const Whose = createContext<Keys>(DEFAULT_KEYS)
 
 /** Names the profile every menu and dialogue inside this reads its letters against. */
 export const Keying = Whose.Provider
 
-export const useKeying = (): Profile => useContext(Whose)
+export const useKeying = (): Keys => useContext(Whose)
 
 /**
  * The letters whatever is on top answers to, as a handler it can wear.
@@ -26,7 +26,7 @@ export const useKeying = (): Profile => useContext(Whose)
  * Handed to the element the reader is inside — a menu's content, a dialogue's
  * panel — rather than added to the document, and that is the whole design. The
  * page's own keyboard deliberately stands down while a menu of ours is up (see
- * `useKeys`), because Escape and `j` belong to the innermost thing on the screen;
+ * `useKeys`), because Escape and `s` belong to the innermost thing on the screen;
  * a second document listener for these would be that rule broken by the layer
  * that wrote it. A handler on the thing that is up is only live while it is.
  *
@@ -45,14 +45,14 @@ export const useKeying = (): Profile => useContext(Whose)
 export const useLetters = (
   answers: Readonly<Partial<Record<Letter, () => void>>>
 ): ((event: KeyboardEvent) => void) => {
-  const profile = useKeying()
+  const keys = useKeying()
 
   // Not memoised. The table is written inline where the items are, so it is a
   // new object on every render and a `useCallback` around it would be a
   // dependency check that never holds — and nothing subscribes to this handler
   // the way an effect subscribes to a listener, so a new function costs nothing.
   return (event: KeyboardEvent) => {
-    if (profile === "off" || event.repeat) return
+    if (keys.profile === "off" || event.repeat) return
 
     const letter = letterFor(
       {

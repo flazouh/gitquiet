@@ -14,7 +14,7 @@ import type { Suggesting } from "../domain/suggesting"
 import { toPatch } from "../domain/toPatch"
 import { withoutWhitespace } from "../domain/withoutWhitespace"
 import type { ChangedFile, ChangeType, FileDiff, ReviewThread } from "../domain/PullRequest"
-import { DEFAULT_PROFILE, type Profile } from "../keys/commands"
+import { DEFAULT_KEYS, SILENT, type Keys } from "../keys/commands"
 import type { DiffChoices, TreeChoices } from "../domain/choices"
 import { useKeys } from "./useKeys"
 import { draftKey, type Draft } from "./drafts"
@@ -147,7 +147,7 @@ export type FileTreePaneProps = {
   /** How the reader has asked for the rail to be drawn. */
   readonly choices: TreeChoices
   /** Whose keys open the filter. */
-  readonly keys?: Profile
+  readonly keys?: Keys
 }
 
 /**
@@ -191,7 +191,7 @@ export const FileTreePane = ({
   onSelect,
   seen = EMPTY,
   choices,
-  keys = DEFAULT_PROFILE
+  keys = DEFAULT_KEYS
 }: FileTreePaneProps) => {
   const paths = useMemo(() => files.map((file) => file.path), [files])
   const gitStatus = useMemo(
@@ -259,7 +259,7 @@ export const FileTreePane = ({
   // The filter is the tree's own, in its shadow root, and nothing outside could
   // reach it before. Bound only when the reader has the filter turned on: a key
   // that silently does nothing is worse than one that was never mentioned.
-  useKeys(choices.search ? keys : "off", { search: () => model.openSearch() })
+  useKeys(choices.search ? keys : SILENT, { search: () => model.openSearch() })
 
   // The tree reads its paths once, when it is built, so a file leaving the list
   // left its row on the rail with nothing behind it: the counts beside the

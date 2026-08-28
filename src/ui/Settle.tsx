@@ -95,7 +95,7 @@ export const Settle = ({ state, where, allowed, onSettle, onReopen }: SettleProp
   const [asking, setAsking] = useState(false)
   /** The field for a duplicate, open on the one item that needs an answer before it can go. */
   const [naming, setNaming] = useState(false)
-  const capped = useKeying() !== "off"
+  const capped = useKeying().profile !== "off"
 
   const go = (asked: Effect.Effect<void, unknown> | undefined): void => {
     if (asked === undefined) return

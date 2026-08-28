@@ -3,7 +3,7 @@ import { Option } from "effect"
 import type { Destination } from "../domain/Settings"
 import type { RepositoryAtWork } from "../domain/rail"
 import { matching, type Repository, withPinToggled } from "../domain/repositories"
-import { DEFAULT_PROFILE, type Profile } from "../keys/commands"
+import { DEFAULT_KEYS, SILENT, type Keys } from "../keys/commands"
 import { type ArtName, useArt } from "./art"
 import { FIELD, HERE, PRESSABLE } from "./dress"
 import { Face } from "./Face"
@@ -60,7 +60,7 @@ export type RailProps = {
   readonly onCollapsed?: (collapsed: boolean) => void
   /** Who the reader is, for the menu at the foot of the Rail. */
   readonly participant?: { readonly login: string; readonly faceUrl: Option.Option<string> }
-  readonly keys?: Profile
+  readonly keys?: Keys
 }
 
 /** A repository as the Rail draws it, whichever of its two lists it is in. */
@@ -254,7 +254,7 @@ export const Rail = ({
   collapsed = false,
   onCollapsed,
   participant,
-  keys = DEFAULT_PROFILE
+  keys = DEFAULT_KEYS
 }: RailProps) => {
   const art = useArt()
   // Named, because JSX takes a dotted name and not a subscript.
@@ -334,7 +334,7 @@ export const Rail = ({
   // Their own `/` reaches for their search, and this page is not theirs while it is drawn.
   // Not claimed while the Repositories Destination is showing: that page has a filter of
   // its own over all 154, and two boxes fighting over one keypress is worse than either.
-  useKeys(destination === "repositories" ? "off" : keys, {
+  useKeys(destination === "repositories" ? SILENT : keys, {
     search: () => {
       if (narrow) {
         toggle(true)

@@ -1,4 +1,4 @@
-import { bindings, type Chord, type Command, type Profile } from "./commands"
+import { bindings, type Chord, type Command, type Keys } from "./commands"
 
 /** A keypress, reduced to the part a binding is allowed to care about. */
 export type Press = {
@@ -63,11 +63,11 @@ const holding = (key: string): boolean =>
  * screen has claimed is not a reason to take a key out of GitHub's hands.
  */
 const answering = (
-  profile: Profile,
+  keys: Keys,
   wanted: (chord: Chord) => boolean,
   answered: (command: Command) => boolean
 ): Command | null => {
-  for (const [name, chords] of Object.entries(bindings(profile))) {
+  for (const [name, chords] of Object.entries(bindings(keys))) {
     const command = name as Command
     if (answered(command) && chords.some(wanted)) return command
   }
@@ -83,8 +83,8 @@ const answering = (
  * jumping to a tab. Shift is not treated that way — `?` is a shifted key and
  * arrives as `?`, so the key itself already says whether shift was down.
  */
-export const commandFor = (press: Press, profile: Profile): Command | null =>
-  theirs(press) ? null : answering(profile, (chord) => chord === press.key, () => true)
+export const commandFor = (press: Press, keys: Keys): Command | null =>
+  theirs(press) ? null : answering(keys, (chord) => chord === press.key, () => true)
 
 /**
  * What a keypress asks for, read against whatever key was pressed before it.
@@ -97,7 +97,7 @@ export const commandFor = (press: Press, profile: Profile): Command | null =>
  */
 export const read = (
   press: Press,
-  profile: Profile,
+  keys: Keys,
   waiting: Waiting,
   answered: (command: Command) => boolean,
   now: number = Date.now()
@@ -108,12 +108,12 @@ export const read = (
 
   if (waiting !== null && now - waiting.at <= PATIENCE) {
     const wanted = `${waiting.leader} ${press.key}`
-    return { command: answering(profile, (chord) => chord === wanted, answered), waiting: null }
+    return { command: answering(keys, (chord) => chord === wanted, answered), waiting: null }
   }
 
-  const alone = commandFor(press, profile)
+  const alone = commandFor(press, keys)
   if (alone !== null) return { command: alone, waiting: null }
 
-  const opens = answering(profile, (chord) => chord.startsWith(`${press.key} `), answered)
+  const opens = answering(keys, (chord) => chord.startsWith(`${press.key} `), answered)
   return { command: null, waiting: opens === null ? null : { leader: press.key, at: now } }
 }

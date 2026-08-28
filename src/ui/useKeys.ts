@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef } from "react"
-import { heldDown, type Command, type Profile } from "../keys/commands"
+import { heldDown, type Command, type Keys } from "../keys/commands"
 import { commandFor, read, type Waiting } from "../keys/match"
 import { ROOT_ID } from "./mount"
 
@@ -90,7 +90,7 @@ const scopeIn = (target: Document): ParentNode => target.getElementById(ROOT_ID)
  * command nobody has claimed does nothing at all rather than being swallowed.
  */
 export const useKeys = (
-  profile: Profile,
+  keys: Keys,
   handlers: Partial<Record<Command, () => void>>,
   target: Document = document
 ): void => {
@@ -98,6 +98,15 @@ export const useKeys = (
   // rebind the listener on every render of the page.
   const answer = useRef(handlers)
   answer.current = handlers
+  // The keys through a ref for the same reason, now that they are a value
+  // rather than a word: a reader's own chords travel beside the profile, and a
+  // fresh object from a parent's render would take the listener off the
+  // document and put it back on every render of the page. Only the profile is
+  // in the dependencies, because it is the one part of this that decides
+  // whether there is a listener at all — a chord changed while the page is open
+  // is read on the next press, off the ref.
+  const current = useRef(keys)
+  current.current = keys
   const ours = useContext(Ours)
 
   // The key a sequence was opened with, kept across presses rather than in
@@ -106,7 +115,7 @@ export const useKeys = (
   const waiting = useRef<Waiting>(null)
 
   useEffect(() => {
-    if (profile === "off") return
+    if (keys.profile === "off") return
 
     const onKey = (event: KeyboardEvent) => {
       // A prepared route has a complete tree, but it cannot answer for the page
@@ -114,7 +123,7 @@ export const useKeys = (
       if (ours !== null && !ours.isConnected) return
       // A press left unread is still a press the reader made, so a sequence half
       // typed before one is given up on rather than left open: several
-      // components bind the keyboard at once, and a `j` that the file browser
+      // components bind the keyboard at once, and an `s` that the file browser
       // answered would otherwise leave a `g` pending here for the next press to
       // finish into a Destination nobody asked for.
       if (
@@ -136,7 +145,7 @@ export const useKeys = (
 
       // A key being held down, which the operating system sends thirty times a
       // second for as long as the finger is there. Every one of them used to be
-      // dropped, so holding `j` moved one file and then nothing happened at all.
+      // dropped, so holding `s` moved one file and then nothing happened at all.
       //
       // Read on its own rather than through the sequence: a chord is two
       // deliberate presses and cannot be held, and the leader arriving over and
@@ -146,7 +155,7 @@ export const useKeys = (
       if (event.repeat) {
         waiting.current = null
 
-        const again = commandFor(press, profile)
+        const again = commandFor(press, current.current)
         if (again === null || !heldDown(again)) return
 
         const keep = answer.current[again]
@@ -160,7 +169,7 @@ export const useKeys = (
 
       const reading = read(
         press,
-        profile,
+        current.current,
         waiting.current,
         (command) => answer.current[command] !== undefined
       )
@@ -196,5 +205,5 @@ export const useKeys = (
 
     target.addEventListener("keydown", onKey, true)
     return () => target.removeEventListener("keydown", onKey, true)
-  }, [profile, target, ours])
+  }, [keys.profile, target, ours])
 }

@@ -2,7 +2,7 @@
  * Where one press of Next or Previous lands, counting round the ends.
  *
  * A review is a loop rather than a line: the last file is next to the first,
- * and someone holding `j` down to spin through forty files should come back
+ * and someone holding `s` down to spin through forty files should come back
  * round to the top rather than stop dead at the bottom with no sign of why.
  * Stopping was the earlier answer here, on the grounds that a reader who
  * wrapped would not know where they were — but the file name is on the screen

@@ -24,7 +24,7 @@ import type {
   ReviewThread,
 } from "../domain/PullRequest";
 import type { DiffSide } from "../ports/Renderer";
-import { chordFor, DEFAULT_PROFILE, type Profile } from "../keys/commands";
+import { chordFor, DEFAULT_KEYS, type Keys } from "../keys/commands";
 import { Cap } from "./Cap";
 import { draftsIn, dropDraft, saveDraft, type Draft } from "./drafts";
 import { FileDiffPane, FileTreePane, type FileDiffPaneProps } from "./Files";
@@ -48,7 +48,7 @@ export type FileBrowserProps = {
   /** Markdown files open as documents unless the reader turned that off. */
   readonly proseAsDocument?: boolean;
   /** Whose keys move between files, and reach the tree's filter. */
-  readonly keys?: Profile;
+  readonly keys?: Keys;
   /**
    * A file somewhere else asked for, such as one named in a failing log.
    *
@@ -116,7 +116,7 @@ const WARM_LIMIT = 120;
 
 /**
  * How long the files beside this one may wait for a quiet moment, in
- * milliseconds. Shorter than the usual deadline because `j` is one keypress
+ * milliseconds. Shorter than the usual deadline because `s` is one keypress
  * away, and a reader who presses it before this ran waits for the whole draw.
  */
 const REACHING = 1_000;
@@ -271,7 +271,7 @@ export const FileBrowser = ({
   diff,
   tree,
   proseAsDocument = true,
-  keys = DEFAULT_PROFILE,
+  keys = DEFAULT_KEYS,
   wanted,
   threads = [],
   answering,
@@ -377,7 +377,7 @@ export const FileBrowser = ({
   }, [onRail]);
 
   // The top of the rail, which is where a reader starts reading and where a
-  // held `j` walks down from.
+  // held `s` walks down from.
   const first = walk[0];
 
   const [chosen, setChosen] = useState<string | undefined>(first?.path);
@@ -619,7 +619,7 @@ export const FileBrowser = ({
    * third of a second on a pull request of any size, and every millisecond of it
    * inside the keypress that asked for the file, where it is felt as the page
    * going away for a moment. The work does not get smaller by being moved, it
-   * gets invisible: done while the reader is reading, `j` has nothing left to do
+   * gets invisible: done while the reader is reading, `s` has nothing left to do
    * but show what is already there.
    */
   useEffect(() => {
@@ -631,7 +631,7 @@ export const FileBrowser = ({
      * Together they were a single task of two parses, two highlights and a few
      * thousand elements each, and the idle deadline made sure it ran within the
      * second — which is exactly when the reader who clicked a file is scrolling
-     * the one they got. Next goes first, since `j` is the press being dodged;
+     * the one they got. Next goes first, since `s` is the press being dodged;
      * the last stage cuts the set back to what a key can reach, which mounts
      * nothing and costs nothing.
      */
@@ -735,7 +735,7 @@ export const FileBrowser = ({
   };
 
   // The review loop, off the keyboard, and it is a loop in both senses: a reader
-  // holding `j` down spins through the list and comes back round to the top.
+  // holding `s` down spins through the list and comes back round to the top.
   // Stopping dead at the last file was the earlier answer, on the grounds that
   // wrapping leaves a reader unsure where they are — but the name of the file is
   // on the screen the whole way past, so it does not.

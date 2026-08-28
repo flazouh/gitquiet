@@ -6,7 +6,7 @@ import type { RowDoing } from "../domain/doable"
 import type { RepositoryActivity } from "../domain/activity"
 import { ranked, type Repository } from "../domain/repositories"
 import type { Sitting } from "../domain/sittings"
-import type { Profile } from "../keys/commands"
+import type { Keys } from "../keys/commands"
 import { Activity } from "./Activity"
 import { Repositories } from "./Repositories"
 import { WorkingSetScreen } from "./WorkingSetScreen"
@@ -38,7 +38,7 @@ export type HomeProps = {
     doing: RowDoing,
     reference: PullRequestRef
   ) => Effect.Effect<void, unknown>
-  readonly keys?: Profile
+  readonly keys?: Keys
   /** Every repository the reader has: the Repositories Destination, and the Rail's filter. */
   readonly repositories: Load<ReadonlyArray<Repository>>
   readonly rememberedRepositories?: () => Effect.Effect<

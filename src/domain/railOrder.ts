@@ -5,7 +5,7 @@
  * gathered above the loose files and everything is sorted by name. Next and
  * Previous used to step through the order GitHub sent, so on any commit with a
  * folder in it the highlight jumped up and down the rail instead of walking
- * down it, and pressing `j` five times on five files visited them in an order
+ * down it, and pressing `s` five times on five files visited them in an order
  * nothing on the screen explained.
  *
  * One order for both, and this is it: what the reader can see. The rules are

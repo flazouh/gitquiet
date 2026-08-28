@@ -5,7 +5,10 @@ import { Effect, Option } from "effect"
 import { useEffect, useRef, useState } from "react"
 import { afterwards } from "../../tests/afterwards"
 import type { ChangedFile } from "../domain/PullRequest"
-import type { Profile } from "../keys/commands"
+import { DEFAULT_KEYS, type Keys, type Profile } from "../keys/commands"
+
+/** Whose keys a harness is rendered with, written as one word at the call sites. */
+const on = (profile: Profile): Keys => ({ profile, bound: {} })
 import { PATIENCE } from "../keys/match"
 import { diffChoices, treeChoices } from "../domain/choices"
 import { DEFAULTS } from "../domain/Settings"
@@ -33,7 +36,7 @@ const Modal = () => {
 const Harness = ({ profile = "standard" }: { readonly profile?: Profile }) => {
   const [count, setCount] = useState(0)
   const [out, setOut] = useState(0)
-  useKeys(profile, {
+  useKeys(on(profile), {
     nextFile: () => setCount((held) => held + 1),
     dismiss: () => setOut((held) => held + 1)
   })
@@ -70,7 +73,7 @@ describe("the keyboard, over the whole page", () => {
   test("acts on a key it was given something to do with", async () => {
     render(<Harness />)
 
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
 
     expect(said()).toBe("moved 1, dismissed 0")
   })
@@ -79,10 +82,10 @@ describe("the keyboard, over the whole page", () => {
     render(<Harness />)
 
     await userEvent.click(screen.getByLabelText("a note"))
-    await userEvent.keyboard("jjj")
+    await userEvent.keyboard("sss")
 
     expect(said()).toBe("moved 0, dismissed 0")
-    expect(screen.getByLabelText("a note")).toHaveProperty("value", "jjj")
+    expect(screen.getByLabelText("a note")).toHaveProperty("value", "sss")
   })
 
   test("leaves even the way out to whoever owns the box being typed in", async () => {
@@ -114,7 +117,7 @@ describe("the keyboard, over the whole page", () => {
     )
 
     await userEvent.keyboard("{Escape}")
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
 
     // The dialog is the innermost thing open, so it owns the way out. The page
     // taking Escape first closed whatever was behind the dialog and left the
@@ -138,7 +141,7 @@ describe("the keyboard, over the whole page", () => {
 
   test("leaves the way out in the air for the menu that is open to take", async () => {
     const Page = () => {
-      useKeys("standard", { dismiss: () => {} })
+      useKeys(DEFAULT_KEYS, { dismiss: () => {} })
       return <SettingsMenu settings={DEFAULTS} onChange={() => {}} />
     }
     render(<Page />)
@@ -168,7 +171,7 @@ describe("the keyboard, over the whole page", () => {
     undo(() => ours.remove())
 
     render(<Harness />, { container: ours })
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
 
     expect(said()).toBe("moved 1, dismissed 0")
   })
@@ -176,8 +179,8 @@ describe("the keyboard, over the whole page", () => {
   test("keeps moving for as long as the key is held down", async () => {
     render(<Harness />)
 
-    await userEvent.keyboard("j")
-    await held("j", 3)
+    await userEvent.keyboard("s")
+    await held("s", 3)
 
     expect(said()).toBe("moved 4, dismissed 0")
   })
@@ -196,7 +199,7 @@ describe("the keyboard, over the whole page", () => {
   test("does nothing for a command nothing was wired to", async () => {
     render(<Harness />)
 
-    await userEvent.keyboard("k")
+    await userEvent.keyboard("w")
 
     expect(said()).toBe("moved 0, dismissed 0")
   })
@@ -204,7 +207,7 @@ describe("the keyboard, over the whole page", () => {
   test("does nothing at all with the keyboard turned off", async () => {
     render(<Harness profile="off" />)
 
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
 
     expect(said()).toBe("moved 0, dismissed 0")
   })
@@ -215,7 +218,7 @@ const Going = () => {
   const [went, setWent] = useState<ReadonlyArray<string>>([])
   const [moved, setMoved] = useState(0)
   const reach = (where: string) => () => setWent((held) => [...held, where])
-  useKeys("standard", {
+  useKeys(DEFAULT_KEYS, {
     workingSet: reach("the Working Set"),
     repositories: reach("Repositories"),
     activity: reach("Activity"),
@@ -247,7 +250,7 @@ describe("reaching a Destination with two keys", () => {
   test("has one sequence for each of the three, and one for Home", async () => {
     render(<Going />)
 
-    await userEvent.keyboard("grgfgh")
+    await userEvent.keyboard("grgfgg")
 
     expect(going()).toBe("went to Repositories, Activity, Home; moved 0")
   })
@@ -279,7 +282,7 @@ describe("reaching a Destination with two keys", () => {
   test("moves through the files again after a sequence came to nothing", async () => {
     render(<Going />)
 
-    await userEvent.keyboard("gxj")
+    await userEvent.keyboard("gxs")
 
     expect(going()).toBe("went to ; moved 1")
   })
@@ -303,11 +306,11 @@ describe("reaching a Destination with two keys", () => {
     // for.
     const Files = () => {
       const [moved, setMoved] = useState(0)
-      useKeys("standard", { nextFile: () => setMoved((held) => held + 1) })
+      useKeys(DEFAULT_KEYS, { nextFile: () => setMoved((held) => held + 1) })
       return <p>{`files moved ${moved}`}</p>
     }
     // The files panel binds the keyboard first, so it is the one that answers
-    // the `j` and takes it out of the air before this hook has read it.
+    // the `s` and takes it out of the air before this hook has read it.
     render(
       <>
         <Files />
@@ -315,7 +318,7 @@ describe("reaching a Destination with two keys", () => {
       </>
     )
 
-    await userEvent.keyboard("gjd")
+    await userEvent.keyboard("gsd")
 
     expect(going()).toBe("went to ; moved 0")
     expect(screen.getByText(/files moved/).textContent).toBe("files moved 1")
@@ -355,7 +358,7 @@ describe("moving through files that arrived after the panel did", () => {
         fetchDiffs={() => Effect.succeed([])}
         diff={diffChoices(DEFAULTS.diff)}
         tree={treeChoices(DEFAULTS.tree)}
-        keys="standard"
+        keys={DEFAULT_KEYS}
       />
     )
 
@@ -365,12 +368,12 @@ describe("moving through files that arrived after the panel did", () => {
         fetchDiffs={() => Effect.succeed([])}
         diff={diffChoices(DEFAULTS.diff)}
         tree={treeChoices(DEFAULTS.tree)}
-        keys="standard"
+        keys={DEFAULT_KEYS}
       />
     )
     await waitFor(() => expect(screen.getByLabelText("Open file").textContent).toContain("one.ts"))
 
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
 
     expect(screen.getByLabelText("Open file").textContent).toContain("two.ts")
   })
@@ -382,7 +385,7 @@ describe("moving through files that arrived after the panel did", () => {
         fetchDiffs={() => Effect.succeed([])}
         diff={diffChoices(DEFAULTS.diff)}
         tree={treeChoices(DEFAULTS.tree)}
-        keys="standard"
+        keys={DEFAULT_KEYS}
       />
     )
 
@@ -392,7 +395,7 @@ describe("moving through files that arrived after the panel did", () => {
         fetchDiffs={() => Effect.succeed([])}
         diff={diffChoices(DEFAULTS.diff)}
         tree={treeChoices(DEFAULTS.tree)}
-        keys="standard"
+        keys={DEFAULT_KEYS}
       />
     )
 
@@ -400,14 +403,14 @@ describe("moving through files that arrived after the panel did", () => {
   })
 })
 
-const browsing = (keys: Profile = "standard") =>
+const browsing = (profile: Profile = "standard") =>
   render(
     <FileBrowser
       files={[file("src/one.ts"), file("src/two.ts")]}
       fetchDiffs={() => Effect.succeed([])}
       diff={diffChoices(DEFAULTS.diff)}
       tree={treeChoices(DEFAULTS.tree)}
-      keys={keys}
+      keys={on(profile)}
     />
   )
 
@@ -417,17 +420,17 @@ describe("moving through the files without the mouse", () => {
   test("goes on to the next file and back again", async () => {
     browsing()
 
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
     expect(open()).toContain("two.ts")
 
-    await userEvent.keyboard("k")
+    await userEvent.keyboard("w")
     expect(open()).toContain("one.ts")
   })
 
   test("comes round to the first file after the last", async () => {
     browsing()
 
-    await userEvent.keyboard("jj")
+    await userEvent.keyboard("ss")
 
     expect(open()).toContain("one.ts")
   })
@@ -435,7 +438,7 @@ describe("moving through the files without the mouse", () => {
   test("goes round to the last file from the first", async () => {
     browsing()
 
-    await userEvent.keyboard("k")
+    await userEvent.keyboard("w")
 
     expect(open()).toContain("two.ts")
   })
@@ -443,7 +446,7 @@ describe("moving through the files without the mouse", () => {
   test("leaves the keys alone for a reader who turned them off", async () => {
     browsing("off")
 
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
 
     expect(open()).toContain("one.ts")
   })
@@ -466,7 +469,7 @@ const deepBrowsing = () =>
       fetchDiffs={() => Effect.succeed([])}
       diff={diffChoices(DEFAULTS.diff)}
       tree={treeChoices(DEFAULTS.tree)}
-      keys="standard"
+      keys={DEFAULT_KEYS}
     />
   )
 
@@ -475,7 +478,7 @@ describe("moving through a pull request the size of a real one", () => {
     deepBrowsing()
     expect(open()).toContain("request-lifecycle.md")
 
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
 
     expect(open()).toContain("elicitation.test.ts")
   })
@@ -483,7 +486,7 @@ describe("moving through a pull request the size of a real one", () => {
   test("keeps going, rather than sticking on the file it started from", async () => {
     deepBrowsing()
 
-    await userEvent.keyboard("jj")
+    await userEvent.keyboard("ss")
 
     expect(open()).toContain("elicitation.ts")
   })
@@ -491,8 +494,8 @@ describe("moving through a pull request the size of a real one", () => {
   test("spins through the list under one held key", async () => {
     deepBrowsing()
 
-    await userEvent.keyboard("j")
-    await held("j", 3)
+    await userEvent.keyboard("s")
+    await held("s", 3)
 
     expect(open()).toContain("part-01.ts")
   })
@@ -504,9 +507,9 @@ describe("saying which key does the same thing as the button", () => {
   test("writes the key on the button that does the same work", () => {
     browsing()
 
-    expect(button(/Next file/).textContent).toContain("j")
-    expect(button(/Next file/).getAttribute("aria-keyshortcuts")).toBe("j")
-    expect(button(/Previous/).textContent).toContain("k")
+    expect(button(/Next file/).textContent).toContain("s")
+    expect(button(/Next file/).getAttribute("aria-keyshortcuts")).toBe("s")
+    expect(button(/Previous/).textContent).toContain("w")
   })
 
   test("says what the vim reader's keys are, since they are the same two buttons", () => {
@@ -516,10 +519,24 @@ describe("saying which key does the same thing as the button", () => {
     expect(button(/Previous/).textContent).toContain("k")
   })
 
+  test("wears whichever key the reader put on it themselves", () => {
+    render(
+      <FileBrowser
+        files={[file("src/one.ts"), file("src/two.ts")]}
+        fetchDiffs={() => Effect.succeed([])}
+        diff={diffChoices(DEFAULTS.diff)}
+        tree={treeChoices(DEFAULTS.tree)}
+        keys={{ profile: "standard", bound: { nextFile: "c" } }}
+      />
+    )
+
+    expect(button(/Next file/).getAttribute("aria-keyshortcuts")).toBe("c")
+  })
+
   test("promises nothing to a reader with the keyboard turned off", () => {
     browsing("off")
 
-    expect(button(/Next file/).textContent).not.toContain("j")
+    expect(button(/Next file/).textContent).not.toContain("s")
     expect(button(/Next file/).getAttribute("aria-keyshortcuts")).toBeNull()
   })
 })

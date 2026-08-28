@@ -68,7 +68,7 @@ describe("a commit on the page GitHub keeps for it", () => {
     render(screenOf())
     await waitFor(() => expect(screen.getByLabelText("Open file")).toBeDefined())
 
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
 
     expect(screen.getByLabelText("Open file").textContent).toContain("two.ts")
   })
@@ -109,7 +109,7 @@ describe("a commit on the page GitHub keeps for it", () => {
     )
 
     await waitFor(() => expect(screen.getByLabelText("Open file")).toBeDefined())
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
 
     await waitFor(() => expect(asked.flat()).toContain("src/held.ts"))
   })

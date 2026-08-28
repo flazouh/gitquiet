@@ -56,7 +56,7 @@ const keysIn = (press: string): ReadonlyArray<string> => {
  * A key, drawn as one — and drawn without an edge.
  *
  * On a button as well as in the sheet: a shortcut nobody is told about is a
- * shortcut nobody uses, and the moment to learn that `j` moves on is while
+ * shortcut nobody uses, and the moment to learn that `s` moves on is while
  * reaching for the button that does it. The cap is quiet enough to skip and close
  * enough to read, so the button still says what it does first.
  *
@@ -129,7 +129,7 @@ export const Cap = ({
       {presses.map((press, at) => {
         const keys = keysIn(press)
         // A press of one key is that key. The group only exists where there is
-        // something to group, so a lone `j` is not a wrapper around a wrapper.
+        // something to group, so a lone `s` is not a wrapper around a wrapper.
         const cap = (key: string, which: number) => (
           <kbd
             // The position, because a chord may press the same key twice.

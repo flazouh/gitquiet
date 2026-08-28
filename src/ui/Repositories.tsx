@@ -2,7 +2,7 @@ import { Option } from "effect"
 import { useMemo, useRef, useState } from "react"
 import type { RepositoryAtWork } from "../domain/rail"
 import { matching, pullRequestsIn, type Repository } from "../domain/repositories"
-import { DEFAULT_PROFILE, type Profile } from "../keys/commands"
+import { DEFAULT_KEYS, type Keys } from "../keys/commands"
 import { FIELD, PILL } from "./dress"
 import { Section } from "./Section"
 import { useKeys } from "./useKeys"
@@ -48,7 +48,7 @@ export type RepositoriesProps = {
    * states are worth saying, and they are not the same sentence.
    */
   readonly waiting?: boolean
-  readonly keys?: Profile
+  readonly keys?: Keys
 }
 
 /**
@@ -141,7 +141,7 @@ export const Repositories = ({
   repositories,
   atWork = [],
   waiting = false,
-  keys = DEFAULT_PROFILE
+  keys = DEFAULT_KEYS
 }: RepositoriesProps) => {
   const [typed, setTyped] = useState("")
   const box = useRef<HTMLInputElement | null>(null)

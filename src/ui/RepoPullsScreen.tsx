@@ -1,7 +1,7 @@
 import { type Effect, Option } from "effect"
 import type { Listed } from "../app/repoList"
 import type { PullRequestRef } from "../domain/PullRequestRef"
-import { DEFAULT_PROFILE, type Profile } from "../keys/commands"
+import { DEFAULT_KEYS, type Keys } from "../keys/commands"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
@@ -44,7 +44,7 @@ export type RepoPullsScreenProps = {
    * are that — see `addressFor`.
    */
   readonly onQuery?: (query: string) => void
-  readonly keys?: Profile
+  readonly keys?: Keys
   /**
    * The repository list as the last visit to Home left it, for the palette behind ⌘K.
    *
@@ -91,7 +91,7 @@ export const RepoPullsScreen = ({
   onStepAside,
   seed,
   onQuery,
-  keys = DEFAULT_PROFILE,
+  keys = DEFAULT_KEYS,
   where,
   signedIn = viewerOnPage
 }: RepoPullsScreenProps) => {

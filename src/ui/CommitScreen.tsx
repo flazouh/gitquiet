@@ -3,7 +3,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react"
 import type { DiffFetcher } from "../domain/library"
 import type { CommitDetail } from "../domain/PullRequest"
 import type { CommitRef } from "../domain/CommitRef"
-import { DEFAULT_PROFILE, type Profile } from "../keys/commands"
+import { DEFAULT_KEYS, type Keys } from "../keys/commands"
 import { diffChoices, treeChoices } from "../domain/choices"
 import { CommitView } from "./CommitView"
 import type { Repository } from "../domain/repositories"
@@ -41,7 +41,7 @@ export type CommitScreenProps = {
    * at all rather than made to wait for one.
    */
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
-  readonly keys?: Profile
+  readonly keys?: Keys
 }
 
 /**
@@ -61,7 +61,7 @@ export const CommitScreen = ({
   preload,
   fetchDiffs,
   onUseGitHub,
-  keys = DEFAULT_PROFILE
+  keys = DEFAULT_KEYS
 }: CommitScreenProps) => {
   // Read only: the way into changing them is in the bar above, not in this
   // panel's corner. See `TheBar`.

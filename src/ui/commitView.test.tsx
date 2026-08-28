@@ -6,6 +6,7 @@ import type { ChangedFile, CommitDetail } from "../domain/PullRequest"
 import { diffChoices, treeChoices } from "../domain/choices"
 import { DEFAULTS } from "../domain/Settings"
 import { CommitView } from "./CommitView"
+import { DEFAULT_KEYS } from "../keys/commands"
 
 afterEach(cleanup)
 
@@ -125,7 +126,7 @@ describe("reading one commit", () => {
     const asked: Array<ReadonlyArray<string>> = []
     render(
       view({
-        keys: "standard",
+        keys: DEFAULT_KEYS,
         load: () =>
           Effect.succeed({
             ...commit,
@@ -156,7 +157,7 @@ describe("reading one commit", () => {
     )
 
     // Onto the second file, which is the one GitHub did not send.
-    await userEvent.keyboard("j")
+    await userEvent.keyboard("s")
 
     await waitFor(() => expect(asked.flat()).toContain("src/held.ts"))
     // Drawn as a file with content rather than one there is nothing to say

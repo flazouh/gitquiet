@@ -13,7 +13,7 @@ import { asked, sieveOf, termsIn, undecided } from "../domain/sieve"
 import { stepping } from "../domain/stepping"
 import { type Piled, setAside, type Sitting, sifted, walkThrough } from "../domain/sittings"
 import type { CheckRollup, Court, InvolvedPullRequest, Size } from "../domain/workingSet"
-import { DEFAULT_PROFILE, type Profile } from "../keys/commands"
+import { DEFAULT_KEYS, type Keys } from "../keys/commands"
 import { type ArtName, checkName, issueName, pullRequestName, useArt } from "./art"
 import { COURT_ART, COURT_NAME, COURT_TONE } from "./courts"
 import { toneOf } from "./labelTone"
@@ -845,7 +845,7 @@ const Seam = ({
  * The issues of one Court, with any long tail folded.
  *
  * A component of its own rather than a `slice` where they are drawn, because the fold has to
- * remember whether it has been opened, and the walk has to be able to open it: `j` onto a row
+ * remember whether it has been opened, and the walk has to be able to open it: `s` onto a row
  * that is not on the screen moves the selection into nothing.
  *
  * Nothing is folded in the section the reader gets by asking for their issues apart. There the
@@ -1008,7 +1008,7 @@ export const WorkingSet = ({
   scope,
   seed,
   within,
-  keys = DEFAULT_PROFILE,
+  keys = DEFAULT_KEYS,
   asking,
   onQuery,
   bare = false
@@ -1049,7 +1049,7 @@ export const WorkingSet = ({
    * everything there is.
    */
   readonly seed?: string
-  readonly keys?: Profile
+  readonly keys?: Keys
   /**
    * How a row asks GitHub to change a pull request, where the surface can write.
    *
@@ -1218,7 +1218,7 @@ export const WorkingSet = ({
    * Every row the eye passes, in the order it passes them.
    *
    * Court by Court rather than every pull request and then every issue, because
-   * the walk is a line drawn down what is on the screen: a reader pressing `j`
+   * the walk is a line drawn down what is on the screen: a reader pressing `s`
    * through Needs You and finding themselves in Waiting is following
    * the page, and one who finds themselves back at the top of it is not.
    */
@@ -1393,7 +1393,7 @@ export const WorkingSet = ({
     // sixteen pixels of its own, which stacked with the shell's to sixty-four on a wide window.
     //
     // Named as whose keys these are, so the letters inside a row's menu are read
-    // against the same profile as the `j` that walked the reader onto the row.
+    // against the same keys as the `s` that walked the reader onto the row.
     // Through a context rather than a prop: the menu is four components down and
     // none of them between here and there has an opinion about keyboards.
     <Keying value={keys}>
