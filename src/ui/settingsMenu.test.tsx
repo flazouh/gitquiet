@@ -62,8 +62,8 @@ describe("the panel of knobs", () => {
 
     expect(layout.value).toBe("unified")
     expect(numbers.getAttribute("aria-checked")).toBe("true")
-    // The fourth step of nine, which is the six pixels the tree indents by.
-    expect(indent.value).toBe("3")
+    // The fifth step of ten, which is the six pixels the tree indents by.
+    expect(indent.value).toBe("4")
   })
 
   /**
@@ -129,7 +129,7 @@ describe("the panel of knobs", () => {
     })
 
     fireEvent.change(screen.getByRole("slider", { name: "Folder indent" }), {
-      target: { value: "8" }
+      target: { value: "9" }
     })
 
     expect(written?.tree.indent).toBe("16")

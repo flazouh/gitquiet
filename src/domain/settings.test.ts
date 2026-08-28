@@ -272,3 +272,27 @@ describe("the groups a reader turned the other way", () => {
     ])
   })
 })
+
+describe("the run of steps the folder indent offers", () => {
+  const indent = TREE_KNOBS.find((knob) => knob.key === "indent")
+
+  it("goes down a pixel at a time at the bottom and two at a time above it", () => {
+    // Asked for on the pull request that shipped the slider: a reader who had
+    // dropped to 2px found it still perfectly readable and wanted finer answers
+    // below that. A pixel either way at the bottom is worth more than a pixel
+    // either way at the top, and the handle walks the list by position, so an
+    // uneven run costs the control nothing.
+    expect(indent?.choices.map((choice) => choice.value)).toEqual([
+      "0",
+      "1",
+      "2",
+      "4",
+      "6",
+      "8",
+      "10",
+      "12",
+      "14",
+      "16"
+    ])
+  })
+})

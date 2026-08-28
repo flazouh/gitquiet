@@ -76,6 +76,11 @@ describe("turning choices into what the rail takes", () => {
 
   it("draws the indent the slider says, to the pixel", () => {
     expect(tree({ indent: "0" }).indent).toBe("0px")
+    // The fine bottom of the run, which is where the interesting difference is:
+    // a rail nests readably on almost nothing, because the guide lines and the
+    // icons already say which level a row is on.
+    expect(tree({ indent: "1" }).indent).toBe("1px")
+    expect(tree({ indent: "2" }).indent).toBe("2px")
     expect(tree({ indent: "6" }).indent).toBe("6px")
     expect(tree({ indent: "16" }).indent).toBe("16px")
   })

@@ -393,8 +393,8 @@ export const TREE_KNOBS = [
     "indent",
     "Folder indent",
     "How far each folder steps in",
-    "How far a folder steps its contents in, in pixels. Every level spends it again, and a repository is four or five folders deep before a name starts, so indent comes straight out of the names in a narrow rail. 6px is the default and 0px still nests, because the guide lines and the icons say which level a row is on; 16px is roomy enough to read across a wide rail.",
-    [0, 2, 4, 6, 8, 10, 12, 14, 16],
+    "How far a folder steps its contents in, in pixels. Every level spends it again, and a repository is four or five folders deep before a name starts, so indent comes straight out of the names in a narrow rail. 6px is the default and 16px is roomy enough to read across a wide rail. The bottom of the run is finer than the rest — 0px, 1px, 2px — because that is where the interesting difference is: a rail nests readably on almost nothing, since the guide lines and the icons already say which level a row is on, and a pixel either way there is worth more than a pixel either way at the top.",
+    [0, 1, 2, 4, 6, 8, 10, 12, 14, 16],
     6,
   ),
   knob(

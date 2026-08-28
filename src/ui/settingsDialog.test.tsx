@@ -196,10 +196,10 @@ describe("choosing something", () => {
 
     // The handle walks the choices by position, so what it is worth here is an
     // index and what is written down is the pixels at that index.
-    expect(handle.value).toBe("3")
+    expect(handle.value).toBe("4")
     fireEvent.change(handle, { target: { value: "1" } })
 
-    expect(written).toEqual({ ...DEFAULTS, tree: { ...DEFAULTS.tree, indent: "2" } })
+    expect(written).toEqual({ ...DEFAULTS, tree: { ...DEFAULTS.tree, indent: "1" } })
   })
 })
 
