@@ -6,9 +6,11 @@ import { aReview } from "../../tests/snapshots"
 import type {
   ChangedFile,
   MergeBlocker,
+  MergeMethod,
   MergeQueue,
   MergeState,
-  StackLayer
+  StackLayer,
+  UpdateWay
 } from "../domain/PullRequest"
 import { Merge } from "./Merge"
 
@@ -23,7 +25,8 @@ const ready: MergeState = {
   update: Option.none(),
   channels: [],
   stack: Option.none(),
-  method: Option.some("SQUASH")
+  method: Option.some("SQUASH"),
+  methods: ["SQUASH"]
 }
 const button = (name: RegExp) => screen.getByRole("button", { name })
 
@@ -47,13 +50,16 @@ const armed = Option.some({ method: Option.some("SQUASH"), viewerCanCancel: true
 
 const catchUp = ({
   how = "MERGE" as const,
+  ways,
   mayUpdate = true,
   refusal
 }: {
-  readonly how?: "MERGE" | "REBASE"
+  readonly how?: UpdateWay
+  /** Both, on the repositories that offer a choice. Just the one otherwise. */
+  readonly ways?: ReadonlyArray<UpdateWay>
   readonly mayUpdate?: boolean
   readonly refusal?: string
-}) => Option.some({ how, mayUpdate, refusal: Option.fromNullishOr(refusal) })
+}) => Option.some({ how, ways: ways ?? [how], mayUpdate, refusal: Option.fromNullishOr(refusal) })
 
 const behind: MergeState = { ...ready, update: catchUp({}) }
 
@@ -128,6 +134,138 @@ describe("the word on the button that lands the change", () => {
     )
 
     expect(button(/Merge/)).toHaveProperty("disabled", true)
+  })
+})
+
+/**
+ * The other ways in, behind the caret GitHub's own button keeps them behind.
+ *
+ * Reading only the repository's default meant a repository that allows all three
+ * offered one, so a reviewer who rebases everything was given a squash and
+ * nothing to press instead. "It doesn't have the rebase buttons" is what that
+ * cost, in the words of the reader who uninstalled over it.
+ */
+describe("the other ways a press could land", () => {
+  const allowing = (methods: ReadonlyArray<MergeMethod>): MergeState => ({
+    ...ready,
+    method: Option.some(methods[0] as MergeMethod),
+    methods
+  })
+
+  const otherWays = () => screen.queryByRole("button", { name: /Other ways to/ })
+
+  test("says nothing where the repository allows one way in", () => {
+    // Which is most of them. A caret over a menu of one is a control that looks
+    // like a choice and is not.
+    render(
+      <Merge state="open"
+        merge={Option.some(allowing(["SQUASH"]))}
+        actions={{ merge: () => Effect.void }}
+      />
+    )
+
+    expect(otherWays()).toBeNull()
+  })
+
+  test("offers the rest where the repository allows more than one", async () => {
+    render(
+      <Merge state="open"
+        merge={Option.some(allowing(["SQUASH", "REBASE"]))}
+        actions={{ merge: () => Effect.void }}
+      />
+    )
+
+    await userEvent.click(screen.getByRole("button", { name: /Other ways to/ }))
+
+    expect(screen.getByText("Rebase and merge")).toBeDefined()
+  })
+
+  test("sends the way the reader picked, and says so on the button", async () => {
+    const sent: Array<string> = []
+    render(
+      <Merge state="open"
+        merge={Option.some(allowing(["SQUASH", "REBASE"]))}
+        actions={{ merge: (method) => Effect.sync(() => void sent.push(method)) }}
+      />
+    )
+
+    await userEvent.click(screen.getByRole("button", { name: /Other ways to/ }))
+    await userEvent.click(screen.getByText("Rebase and merge"))
+
+    await userEvent.click(button(/Rebase and merge/))
+    await userEvent.click(button(/Confirm rebase and merge/))
+
+    await waitFor(() => expect(sent).toEqual(["REBASE"]))
+  })
+
+  test("goes away while the button is asking", async () => {
+    // The reader is two presses into one act, and a menu that changed what the
+    // second press would do is a menu that rewrites the question after it was
+    // asked.
+    render(
+      <Merge state="open"
+        merge={Option.some(allowing(["SQUASH", "REBASE"]))}
+        actions={{ merge: () => Effect.void }}
+      />
+    )
+
+    await userEvent.click(button(/Squash and merge/))
+
+    expect(otherWays()).toBeNull()
+  })
+
+  test("offers both ways of catching a branch up, and sends the one picked", async () => {
+    const sent: Array<string> = []
+    render(
+      <Merge state="open"
+        merge={Option.some({ ...ready, update: catchUp({ ways: ["MERGE", "REBASE"] }) })}
+        actions={{ update: (how) => Effect.sync(() => void sent.push(how)) }}
+      />
+    )
+
+    await userEvent.click(screen.getByRole("button", { name: /Other ways to/ }))
+    await userEvent.click(screen.getByText("Update with rebase"))
+
+    await userEvent.click(button(/Update branch/))
+    await userEvent.click(button(/Confirm update branch/))
+
+    await waitFor(() => expect(sent).toEqual(["REBASE"]))
+  })
+
+  test("does not follow the reader to the next pull request", async () => {
+    // This screen stays mounted from one pull request to the next, so a rebase
+    // chosen on one would otherwise be waiting on the one after it.
+    const card = (url: string) => (
+      <Merge state="open"
+        url={url}
+        merge={Option.some(allowing(["SQUASH", "REBASE"]))}
+        actions={{ merge: () => Effect.void }}
+      />
+    )
+    const { rerender } = render(card("https://github.com/o/r/pull/1"))
+
+    await userEvent.click(screen.getByRole("button", { name: /Other ways to/ }))
+    await userEvent.click(screen.getByText("Rebase and merge"))
+    expect(button(/Rebase and merge/)).toBeDefined()
+
+    rerender(card("https://github.com/o/r/pull/2"))
+
+    expect(button(/Squash and merge/)).toBeDefined()
+  })
+
+  test("sends GitHub's own way where the reader picked nothing", async () => {
+    const sent: Array<string> = []
+    render(
+      <Merge state="open"
+        merge={Option.some({ ...ready, update: catchUp({ how: "REBASE" }) })}
+        actions={{ update: (how) => Effect.sync(() => void sent.push(how)) }}
+      />
+    )
+
+    await userEvent.click(button(/Update branch/))
+    await userEvent.click(button(/Confirm update branch/))
+
+    await waitFor(() => expect(sent).toEqual(["REBASE"]))
   })
 })
 

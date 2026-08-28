@@ -108,7 +108,11 @@ const NOTHING_IN_THE_WAY: MergeState = {
   // the repositories most tests are written against. A merge state naming none
   // is a merge nobody may press — see `whatCanBeDone` — which is a fact worth
   // one test of its own rather than the default every other test inherits.
-  method: Option.some("SQUASH")
+  method: Option.some("SQUASH"),
+  // One way in, so there is nothing to offer beside the button. A repository
+  // that allows more is what the picker is for, and it is worth saying so in the
+  // tests that are about it rather than in every test that is not.
+  methods: ["SQUASH"]
 }
 
 /**

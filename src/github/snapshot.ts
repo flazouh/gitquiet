@@ -508,9 +508,9 @@ const allowedChoice = <A extends Offered>(offers: ReadonlyArray<A>): A | undefin
  * None where nothing in the list is both allowed and sendable, which greys the
  * button rather than guessing at a word GitHub might refuse.
  */
-const landingMethod = (pullRequest: {
+const landingMethods = (pullRequest: {
   readonly viewerMergeActions?: ReadonlyArray<MergeAction> | null | undefined
-}): Option.Option<MergeMethod> => {
+}): { readonly on: Option.Option<MergeMethod>; readonly among: ReadonlyArray<MergeMethod> } => {
   const direct = pullRequest.viewerMergeActions?.find(({ name }) => name === "DIRECT_MERGE")
   // Narrowed before the choice rather than after it, so a fourth word in that
   // field costs the reader the method GitHub prefers and not the button.
@@ -518,7 +518,17 @@ const landingMethod = (pullRequest: {
     sendable(method.name) ? [{ ...method, name: method.name }] : []
   )
 
-  return Option.fromNullishOr(allowedChoice(ours)?.name)
+  const on = Option.fromNullishOr(allowedChoice(ours)?.name)
+  return {
+    on,
+    // In GitHub's order and not with the default first: their own dropdown lists
+    // the three the same way round every time, and a list that reorders itself
+    // per repository is a list nobody's hand learns. Empty where nothing can be
+    // sent, so the two answers agree about a repository with no way in.
+    among: Option.isNone(on)
+      ? []
+      : ours.filter((method) => method.allowableStatus === "ALLOWED").map(({ name }) => name)
+  }
 }
 
 /**
@@ -625,9 +635,27 @@ const branchUpdate = (pullRequest: {
   // drawn either way, and a refused update is the sentence saying why.
   const allowed = allowedChoice(methods)
   const chosen = allowed ?? methods.find((method) => method.isDefault === true) ?? methods[0]
+  const how = chosen?.name === "REBASE" ? "REBASE" : "MERGE"
+
+  /*
+   * The ways worth offering beside it, which is the allowed ones and the one on
+   * the button.
+   *
+   * The button's own way is in the list whether GitHub allowed it or not,
+   * because the button is drawn either way and a caret whose menu did not
+   * contain the word above it would be a menu that cannot get back to where it
+   * started. Nothing is offered at all where that is the only entry — see
+   * `MergeState.methods` for the same rule on the merge.
+   */
+  const ways = ["MERGE" as const, "REBASE" as const].filter(
+    (way) =>
+      way === how ||
+      methods.some((method) => method.name === way && method.allowableStatus === "ALLOWED")
+  )
 
   return Option.some({
-    how: chosen?.name === "REBASE" ? "REBASE" : "MERGE",
+    how,
+    ways,
     mayUpdate: allowed !== undefined,
     refusal: Option.fromNullishOr(chosen?.failureReason)
   })
@@ -1108,21 +1136,25 @@ export const toSnapshot = Effect.fn("toSnapshot")(function* (
     remarks,
     checks,
     reviews,
-    merge: Option.map(box, (said) => ({
-      ...whatIsInTheWay(said.mergeRequirements),
-      queue: mergeQueue(said.pullRequest),
-      autoMerge: autoMergeOf(said.pullRequest),
-      mayBypass: said.pullRequest.viewerCanAdminBypassMergeRequirements === true,
-      update: branchUpdate(said.pullRequest),
-      channels: worthWatching(said.pullRequest.mergeBoxAliveChannels),
-      stack: stackIn(
-        reference,
-        route.pullRequest.baseBranch,
-        said.pullRequest.stackedBaseRefName,
-        said.mergeRequirements?.conditions ?? []
-      ),
-      method: landingMethod(said.pullRequest)
-    }))
+    merge: Option.map(box, (said) => {
+      const landing = landingMethods(said.pullRequest)
+      return {
+        ...whatIsInTheWay(said.mergeRequirements),
+        queue: mergeQueue(said.pullRequest),
+        autoMerge: autoMergeOf(said.pullRequest),
+        mayBypass: said.pullRequest.viewerCanAdminBypassMergeRequirements === true,
+        update: branchUpdate(said.pullRequest),
+        channels: worthWatching(said.pullRequest.mergeBoxAliveChannels),
+        stack: stackIn(
+          reference,
+          route.pullRequest.baseBranch,
+          said.pullRequest.stackedBaseRefName,
+          said.mergeRequirements?.conditions ?? []
+        ),
+        method: landing.on,
+        methods: landing.among
+      }
+    })
   }
 
   return snapshot

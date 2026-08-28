@@ -70,7 +70,8 @@ const level: MergeState = {
   mayBypass: false,
   channels: [],
   stack: Option.none(),
-  method: Option.some("SQUASH")
+  method: Option.some("SQUASH"),
+  methods: ["SQUASH"]
 }
 
 const owing = (some: Partial<Owing> = {}): Owing => ({
@@ -185,7 +186,7 @@ describe("what a pull request owes, everything that is not a thread", () => {
   test("a branch behind is yours where you may catch it up", () => {
     const behind: MergeState = {
       ...level,
-      update: Option.some({ how: "MERGE", mayUpdate: true, refusal: Option.none() })
+      update: Option.some({ how: "MERGE", ways: ["MERGE"], mayUpdate: true, refusal: Option.none() })
     }
 
     expect(courts({ merge: Option.some(behind) })).toEqual(["needs-you"])
@@ -196,6 +197,7 @@ describe("what a pull request owes, everything that is not a thread", () => {
       ...level,
       update: Option.some({
         how: "MERGE",
+        ways: ["MERGE"],
         mayUpdate: false,
         refusal: Option.some("You do not have write access to this fork")
       })
@@ -249,7 +251,7 @@ describe("the four Courts of one pull request", () => {
     lastReviewPoint: Option.some("aaa"),
     merge: Option.some({
       ...level,
-      update: Option.some({ how: "REBASE", mayUpdate: true, refusal: Option.none() })
+      update: Option.some({ how: "REBASE", ways: ["REBASE"], mayUpdate: true, refusal: Option.none() })
     })
   })
 

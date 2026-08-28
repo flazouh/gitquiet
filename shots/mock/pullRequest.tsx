@@ -545,10 +545,16 @@ export const SNAPSHOT: PullRequestSnapshot = {
      * only one on the panel that is about the pull request as a whole rather than
      * about something inside it.
      */
-    update: Option.some({ how: "MERGE", mayUpdate: true, refusal: Option.none() }),
+    update: Option.some({
+      how: "MERGE",
+      ways: ["MERGE", "REBASE"],
+      mayUpdate: true,
+      refusal: Option.none()
+    }),
     mayBypass: false,
     channels: [],
-    method: Option.some("SQUASH")
+    method: Option.some("SQUASH"),
+    methods: ["MERGE", "SQUASH", "REBASE"]
   })
 }
 

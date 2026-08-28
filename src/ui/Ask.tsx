@@ -1,7 +1,9 @@
+import * as Menu from "@radix-ui/react-dropdown-menu"
 import { Effect, Option } from "effect"
-import type { MergeMethod } from "../domain/PullRequest"
+import type { MergeMethod, UpdateWay } from "../domain/PullRequest"
 import type { Doing } from "../domain/doable"
 import { useArt } from "./art"
+import { ROOT_ID } from "./mount"
 import { Says } from "./says"
 
 export type MergeActions = {
@@ -22,8 +24,14 @@ export type MergeActions = {
   readonly dequeue?: () => Effect.Effect<void, unknown>
   /** Calls off a merge GitHub is holding until this becomes mergeable. */
   readonly cancel?: () => Effect.Effect<void, unknown>
-  /** Catches the branch up with the one it would land on. */
-  readonly update?: () => Effect.Effect<void, unknown>
+  /**
+   * Catches the branch up with the one it would land on, the way it is asked.
+   *
+   * The way is an argument for the reason the merge method is one: a repository
+   * can allow both, the two write different history, and the choice belongs to
+   * whoever pressed. See `BranchUpdate.ways`.
+   */
+  readonly update?: (how: UpdateWay) => Effect.Effect<void, unknown>
   /**
    * Closes it without merging.
    *
@@ -199,9 +207,31 @@ const STACK_MERGE_WORD: Record<MergeMethod, string> = {
  * one whose resting word is not ours: it names the commit the repository writes,
  * and a card that has not been told which keeps the plain word.
  */
+/**
+ * What one merge method is called, wherever it is offered.
+ *
+ * On the button and in the menu behind it, which is why it is a function rather
+ * than a table read twice: a method whose two names disagreed would be a menu
+ * whose tick lands on a word the button does not say.
+ */
+export const mergeWord = (method: MergeMethod, landsStack: boolean): string =>
+  (landsStack ? STACK_MERGE_WORD : MERGE_WORD)[method]
+
+/**
+ * What each way of catching a branch up is called.
+ *
+ * GitHub's own two words, from their own menu. A merge writes a commit into the
+ * branch and always works; a rebase moves the branch onto the base and keeps the
+ * history flat, which is why a reader who wants one of them wants it every time.
+ */
+export const UPDATE_WORD: Record<UpdateWay, string> = {
+  MERGE: "Update with merge commit",
+  REBASE: "Update with rebase"
+}
+
 const wordsOf = (doing: Asking, method: Option.Option<MergeMethod>, landsStack: boolean): Wording =>
   doing === "merge" && Option.isSome(method)
-    ? { ...WORDS.merge, rest: (landsStack ? STACK_MERGE_WORD : MERGE_WORD)[method.value] }
+    ? { ...WORDS.merge, rest: mergeWord(method.value, landsStack) }
     : WORDS[doing]
 
 /** What the second press is called, on a control that asks before it acts. */
@@ -237,6 +267,91 @@ const wordsFor = (words: Wording): ReadonlyArray<string> => [
 ]
 
 /**
+ * The other ways one press could land, for the button that has more than one.
+ *
+ * A word, whether it is the one in use, and what to do about it. Written that
+ * way rather than as a merge method or an update way because both of those
+ * buttons want the same control and neither of their vocabularies belongs to
+ * the other — and because a value that travelled through here as a string would
+ * have to be cast back into its own type at the far end, which is a cast that
+ * can be wrong. Whoever builds one of these has the type and keeps it.
+ *
+ * Never handed in with one entry. A caret over a menu of one is a control that
+ * looks like a choice and is not, and both callers already know when they have
+ * nothing to offer.
+ */
+export type Otherwise = ReadonlyArray<{
+  readonly word: string
+  /** Whether this is the one the button says, which is where the tick goes. */
+  readonly on: boolean
+  readonly pick: () => void
+}>
+
+/**
+ * The caret beside a button, and the ways behind it.
+ *
+ * GitHub's own merge button keeps its three methods here and so does their
+ * Update branch, so this is the shape the reader's hand is already looking for.
+ * A menu rather than a row of buttons because the choice is made rarely and read
+ * constantly: the word that matters is on the button, and the other two are one
+ * click away rather than two thirds of the width away.
+ *
+ * Drawn inside our own root for the reason `SettingsMenu` gives: the colours are
+ * inline custom properties on that element, and a menu portalled to the body
+ * comes out wearing the light pack over a dark page.
+ */
+const Caret = ({
+  otherwise,
+  label,
+  disabled,
+  tone
+}: {
+  readonly otherwise: Otherwise
+  readonly label: string
+  readonly disabled: boolean
+  readonly tone: string
+}) => {
+  const art = useArt()
+  const Down = art["chevron-down"]
+  const Tick = art.tick
+  const inOurs = typeof document === "undefined" ? null : document.getElementById(ROOT_ID)
+
+  return (
+    <Menu.Root>
+      <Menu.Trigger
+        disabled={disabled}
+        aria-label={`Other ways to ${label}`}
+        className={`t-ask-more text-xs font-semibold disabled:opacity-50 ${tone}`}
+      >
+        <Down size={12} />
+      </Menu.Trigger>
+      <Menu.Portal container={inOurs}>
+        <Menu.Content
+          align="end"
+          sideOffset={4}
+          className="z-50 min-w-44 rounded-md bg-raised p-1 text-ink shadow-lg ring-1 ring-line"
+        >
+          {otherwise.map((way) => (
+            <Menu.Item
+              key={way.word}
+              onSelect={way.pick}
+              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-xs outline-none data-[highlighted]:bg-hover"
+            >
+              {/* The tick keeps its space on every row, so the words line up and
+                  the list does not shift as the answer moves down it. */}
+              <span className="flex w-3.5 shrink-0 justify-center">
+                {way.on ? <Tick size={12} /> : null}
+              </span>
+              {way.word}
+            </Menu.Item>
+          ))}
+        </Menu.Content>
+      </Menu.Portal>
+    </Menu.Root>
+  )
+}
+
+/**
  * A button that asks before it acts, without becoming somewhere else.
  *
  * The asking used to happen around the button rather than in it: the label grew
@@ -258,6 +373,7 @@ export const Ask = ({
   press,
   onCancel,
   method = Option.none(),
+  otherwise,
   landsStack = false,
   className = ""
 }: {
@@ -283,6 +399,13 @@ export const Ask = ({
    * a branch, and nothing about how a landed pull request landed is in reach.
    */
   readonly method?: Option.Option<MergeMethod>
+  /**
+   * The other ways this press could land, where there is more than one.
+   *
+   * Absent on the seven buttons that do one thing, and on a repository that
+   * allows one way in — which is most of them.
+   */
+  readonly otherwise?: Otherwise
   /**
    * Whether the press this button asks for lands a stack of pull requests
    * rather than the one being read — see `wouldLand`, which is the fact and
@@ -344,6 +467,18 @@ export const Ask = ({
           waiting={words.working}
         />
       </button>
+      {/* Gone while the button is asking. The reader is two presses into one
+          act, and a menu that changed what the second press would do is a menu
+          that rewrites the question after it was asked. It comes back with the
+          resting word. */}
+      {otherwise !== undefined && !asking ? (
+        <Caret
+          otherwise={otherwise}
+          label={named}
+          disabled={disabled}
+          tone={tone.rest}
+        />
+      ) : null}
       {/* Mounted only while it is wanted, and grown from nothing rather than
           dropped in: the cell it lives in opens from no width at all, so the
           control gains a half instead of the row gaining a button. */}

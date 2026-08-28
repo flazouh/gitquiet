@@ -12,7 +12,8 @@ const ready: MergeState = {
   update: Option.none(),
   channels: [],
   stack: Option.none(),
-  method: Option.some("SQUASH")
+  method: Option.some("SQUASH"),
+  methods: ["SQUASH"]
 }
 
 const inA = (queue: Partial<MergeQueue>): MergeState => ({
@@ -29,7 +30,7 @@ const inA = (queue: Partial<MergeQueue>): MergeState => ({
 
 const behind = (mayUpdate: boolean): MergeState => ({
   ...ready,
-  update: Option.some({ how: "MERGE", mayUpdate, refusal: Option.none() })
+  update: Option.some({ how: "MERGE", ways: ["MERGE"], mayUpdate, refusal: Option.none() })
 })
 
 /** The top of a three-deep stack, with the middle layer in whatever state. */

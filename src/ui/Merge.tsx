@@ -9,11 +9,20 @@ import type {
   MergeState,
   PullRequestState,
   Review,
-  ReviewDecision
+  ReviewDecision,
+  UpdateWay
 } from "../domain/PullRequest"
 import { faceOf, type MergeFace } from "../domain/doable"
 import { holdingItUp, wouldLand } from "../domain/pressing"
-import { Ask, type Asking, type MergeActions, type Merging } from "./Ask"
+import {
+  Ask,
+  type Asking,
+  type MergeActions,
+  type Merging,
+  mergeWord,
+  type Otherwise,
+  UPDATE_WORD
+} from "./Ask"
 import { useArt } from "./art"
 import { changeWord, FileMark } from "./FileHeading"
 import { MergeUnread } from "./MergeUnread"
@@ -97,6 +106,41 @@ export const Merge = ({
 }) => {
   const [merging, setMerging] = useState<Merging>({ step: "idle" })
   const face = faceOf({ state, merge })
+
+  /*
+   * The ways the reader picked, and the pull request they picked them on.
+   *
+   * The address travels with the choice rather than being cleared when the card
+   * moves on: this screen stays mounted from one pull request to the next, so a
+   * rebase chosen on one would otherwise be waiting on the next, and a pair that
+   * says which pull request it belongs to simply stops matching. The same shape
+   * the file browser keeps its marked lines in, and for the same reason — an
+   * effect that cleared them would run a render after the one it was correcting.
+   *
+   * Nothing at all until a reader picks, so the card follows GitHub while nobody
+   * has disagreed with it: a pull request re-read after a rule changed can come
+   * back allowing a different set, and a choice seeded from the old one would go
+   * on naming a way this repository no longer takes.
+   */
+  const [picked, setPicked] = useState<{
+    readonly url?: string
+    readonly method?: MergeMethod
+    readonly way?: UpdateWay
+  }>({})
+  const mine = picked.url === url ? picked : {}
+
+  const live = face.kind === "live" ? Option.some(face.merge) : Option.none()
+  /** The merge method on the button: the reader's, while the repository still allows it. */
+  const method = Option.flatMap(live, (said) =>
+    mine.method !== undefined && said.methods.includes(mine.method)
+      ? Option.some(mine.method)
+      : said.method
+  )
+  const catchUp = Option.flatMap(live, (said) => said.update)
+  /** The same for catching the branch up. */
+  const way = Option.map(catchUp, (said) =>
+    mine.way !== undefined && said.ways.includes(mine.way) ? mine.way : said.how
+  )
   /*
    * What this card may ask for, which is the domain's answer plus the branch.
    *
@@ -120,13 +164,64 @@ export const Merge = ({
    * verb, so the two say no together rather than one of them guessing.
    */
   const actionFor = (doing: Asking): (() => Effect.Effect<void, unknown>) | undefined => {
-    if (doing !== "merge") return actions?.[doing]
+    if (doing === "merge") {
+      const merge = actions?.merge
+      if (merge === undefined || Option.isNone(method)) return undefined
+      return () => merge(method.value)
+    }
 
-    const merge = actions?.merge
-    const method = face.kind === "live" ? face.merge.method : Option.none<MergeMethod>()
-    if (merge === undefined || Option.isNone(method)) return undefined
-    return () => merge(method.value)
+    if (doing === "update") {
+      const update = actions?.update
+      if (update === undefined) return undefined
+      // A merge where nothing said otherwise, which is the way that always
+      // works: this button is drawn on a branch that is behind whether GitHub
+      // named a way or not.
+      return () => update(Option.getOrElse(way, () => "MERGE" as const))
+    }
+
+    return actions?.[doing]
   }
+
+  /*
+   * Whether one press lands more than this pull request.
+   *
+   * What the press lands rather than whether a stack exists: read from the last
+   * open layer of a half-landed stack, the press is down to one pull request,
+   * and a word saying stack would claim work that went in already.
+   */
+  const landsStack = Option.match(
+    Option.flatMap(live, (said) => said.stack),
+    { onNone: () => false, onSome: (stack) => wouldLand(stack).length > 1 }
+  )
+
+  /*
+   * The other ways each of the two buttons could land, or nothing to offer.
+   *
+   * Nothing where the repository allows one way in, which is most of them: a
+   * caret over a menu of one is a control that looks like a choice and is not.
+   */
+  const otherMethods = Option.flatMap(live, (said) =>
+    said.methods.length > 1 && Option.isSome(method)
+      ? Option.some<Otherwise>(
+          said.methods.map((one) => ({
+            word: mergeWord(one, landsStack),
+            on: one === method.value,
+            pick: () => setPicked({ ...mine, url, method: one })
+          }))
+        )
+      : Option.none()
+  )
+  const otherWays = Option.flatMap(catchUp, (said) =>
+    said.ways.length > 1 && Option.isSome(way)
+      ? Option.some<Otherwise>(
+          said.ways.map((one) => ({
+            word: UPDATE_WORD[one],
+            on: one === way.value,
+            pick: () => setPicked({ ...mine, url, way: one })
+          }))
+        )
+      : Option.none()
+  )
 
   const press = (doing: Asking) => {
     const act = actionFor(doing)
@@ -166,6 +261,10 @@ export const Merge = ({
       actions={actions}
       prepareThrough={prepareThrough}
       press={press}
+      method={method}
+      landsStack={landsStack}
+      otherMethods={otherMethods}
+      otherWays={otherWays}
       onCancel={() => setMerging({ step: "idle" })}
     />
   )
@@ -507,6 +606,10 @@ const MergeCard = ({
   actions,
   prepareThrough,
   press,
+  method,
+  landsStack,
+  otherMethods,
+  otherWays,
   onCancel
 }: {
   readonly face: MergeFace
@@ -522,6 +625,21 @@ const MergeCard = ({
   readonly actions?: MergeActions
   readonly prepareThrough: number
   readonly press: (doing: Asking) => void
+  /**
+   * The way the merge button would land this, which is the reader's where they
+   * picked one and the repository's where they did not.
+   *
+   * Read above rather than off the face here, because the choice is a piece of
+   * state and this card is the drawing. The two used to be one read of one
+   * field, and the field is still what a reader who has not touched the menu
+   * gets — see the card above, where the picked one is held.
+   */
+  readonly method: Option.Option<MergeMethod>
+  readonly landsStack: boolean
+  /** The other merge methods, where the repository allows more than one. */
+  readonly otherMethods: Option.Option<Otherwise>
+  /** The other ways to catch the branch up, where GitHub allows both. */
+  readonly otherWays: Option.Option<Otherwise>
   readonly onCancel: () => void
 }) => {
   const art = useArt()
@@ -558,14 +676,8 @@ const MergeCard = ({
     actions,
     press,
     onCancel,
-    method: merge.method,
-    // What the press lands rather than whether a stack exists: read from the
-    // last open layer of a half-landed stack, the press is down to one pull
-    // request, and a button saying stack would claim work that went in already.
-    landsStack: Option.match(merge.stack, {
-      onNone: () => false,
-      onSome: (stack) => wouldLand(stack).length > 1
-    })
+    method,
+    landsStack
   }
   // A stack makes GitHub's own word for this pull request the wrong answer for
   // the card. Asked about the top of a stack with a draft under it they say
@@ -712,10 +824,25 @@ const MergeCard = ({
               something GitHub refuses, so the domain names the queue verb instead
               and there is one button either way: the paragraph above has already
               said why, and this column has room for two controls, not three. */}
-          <Ask doing={Option.getOrElse(face.queueing, () => "merge" as const)} {...wiring} />
+          {(() => {
+            const doing = Option.getOrElse(face.queueing, () => "merge" as const)
+            return (
+              <Ask
+                doing={doing}
+                {...wiring}
+                /* Only the direct merge chooses. A repository with a queue is not
+                   sent a method at all — joining the line posts its own word —
+                   so a caret on that button would offer three answers to a
+                   question GitHub is not asking. */
+                otherwise={doing === "merge" ? Option.getOrUndefined(otherMethods) : undefined}
+              />
+            )
+          })()}
           {/* Shown only while there is catching up to do. Whether it may be pressed
               is the domain's answer; whether the fact exists at all is this one. */}
-          {Option.isSome(merge.update) ? <Ask doing="update" {...wiring} /> : null}
+          {Option.isSome(merge.update) ? (
+            <Ask doing="update" {...wiring} otherwise={Option.getOrUndefined(otherWays)} />
+          ) : null}
           <Ask doing={face.drafting} {...wiring} />
           <Ask
             doing="close"

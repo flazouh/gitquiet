@@ -172,6 +172,11 @@ const mergeOf = (facts: CardFacts): MergeState => {
             // GitHub's own update is a merge unless the repository says otherwise,
             // and the documented API does not say otherwise.
             how: "MERGE" as const,
+            // One way, so the button offers no caret. Which of the two a
+            // repository allows is the same missing fact as the merge method
+            // below, and inventing a rebase this window cannot check would be a
+            // menu entry GitHub refuses.
+            ways: ["MERGE" as const],
             mayUpdate: facts.merge.mayUpdateBranch,
             refusal: Option.fromNullishOr(facts.merge.whyNotUpdate[0] ?? null)
           })
@@ -193,6 +198,9 @@ const mergeOf = (facts: CardFacts): MergeState => {
      * drawn.
      */
     method: Option.some("SQUASH"),
+    // The one it posts, so nothing is offered beside the button until the facts
+    // above carry the repository's own answer.
+    methods: ["SQUASH" as const],
     /*
      * The stack, which GitHub keeps and only their own routes report.
      *

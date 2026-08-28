@@ -372,7 +372,18 @@ export type MergeBlocker = {
  */
 export type BranchUpdate = {
   /** What pressing it does, in GitHub's word for it. */
-  readonly how: "MERGE" | "REBASE"
+  readonly how: UpdateWay
+  /**
+   * The other ways GitHub would accept, this one among them.
+   *
+   * A repository can allow both, and which of the two lands is a real choice: a
+   * merge writes a commit into the branch and always works, a rebase rewrites it
+   * onto the base and keeps the history flat. GitHub's own button offers both
+   * behind a caret and it used to be read here as a verdict rather than a
+   * choice, so a reader who rebases everything got a merge commit and no way to
+   * say otherwise. Empty is impossible: the way on the button is always in here.
+   */
+  readonly ways: ReadonlyArray<UpdateWay>
   /** Whether the Participant may do it from here. */
   readonly mayUpdate: boolean
   /**
@@ -400,6 +411,15 @@ export type AutoMerge = {
  * send — see `MergeState.method`.
  */
 export type MergeMethod = "MERGE" | "SQUASH" | "REBASE"
+
+/**
+ * The two ways GitHub will catch a branch up with the one it left.
+ *
+ * Not the merge methods, though two of the words are the same: this is what
+ * happens to the branch while the pull request stays open, and a squash is not
+ * one of the answers.
+ */
+export type UpdateWay = "MERGE" | "REBASE"
 
 /**
  * The line a repository makes pull requests stand in before they land.
@@ -566,6 +586,20 @@ export type MergeState = {
    * word in that field — theirs to add, and not ours to post.
    */
   readonly method: Option.Option<MergeMethod>
+  /**
+   * The other ways this repository would accept, the one above among them.
+   *
+   * GitHub's own merge button keeps these behind a caret, and reading only the
+   * default meant a repository that allows all three offered one — so a reviewer
+   * who rebases everything was given a squash and nothing to press instead. The
+   * word on the button is still the repository's own default, because that is
+   * what their page opens on and what most presses want.
+   *
+   * In GitHub's order, and only the ones they marked allowed and this can send.
+   * Empty exactly when {@link method} is none, and one long on a repository that
+   * allows a single way in — which is when nothing is worth offering.
+   */
+  readonly methods: ReadonlyArray<MergeMethod>
 }
 
 /**

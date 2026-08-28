@@ -106,6 +106,14 @@ the same file opens at the same lines. The entry is replaced rather than pushed,
 so Back is still the way out of the page rather than a way of undoing a review
 one file at a time.
 
+## Merging
+
+The button that lands a pull request opens on the repository's own default and
+keeps the other ways GitHub allows behind a caret, the way GitHub's own merge
+box does. Update branch works the same: a merge commit or a rebase, whichever
+GitHub says is allowed. Both only offer what GitHub answered with, so a way a
+repository does not permit is never on the menu.
+
 ## Privacy
 
 There is no account and no server of ours. GitQuiet uses the GitHub session you

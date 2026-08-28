@@ -565,6 +565,78 @@ describe("the way a press would land a pull request", () => {
   })
 })
 
+/**
+ * The ways a repository allows, all of them, so the reader can pick.
+ *
+ * Only the default reached the card before this, so a repository that allows all
+ * three offered one and a reviewer who rebases everything was given a squash and
+ * nothing to press instead. That is what Luke uninstalled over, in as many
+ * words: "it doesn't have the rebase buttons".
+ */
+describe("the ways a press could land a pull request", () => {
+  test("carries every one GitHub allows, in GitHub's own order", async () => {
+    const snapshot = await snapshotOf(
+      draft,
+      landingWith([
+        { name: "MERGE", isDefault: true, allowableStatus: "ALLOWED" },
+        { name: "SQUASH", isDefault: false, allowableStatus: "ALLOWED" },
+        { name: "REBASE", isDefault: false, allowableStatus: "ALLOWED" }
+      ])
+    )
+
+    expect(merging(snapshot).methods).toEqual(["MERGE", "SQUASH", "REBASE"])
+  })
+
+  test("leaves out the ones GitHub refuses", async () => {
+    const snapshot = await snapshotOf(
+      draft,
+      landingWith([
+        { name: "MERGE", isDefault: true, allowableStatus: "BLOCKED" },
+        { name: "SQUASH", isDefault: false, allowableStatus: "ALLOWED" },
+        { name: "REBASE", isDefault: false, allowableStatus: "ALLOWED" }
+      ])
+    )
+
+    expect(merging(snapshot).methods).toEqual(["SQUASH", "REBASE"])
+  })
+
+  test("is the one way in, on a repository that allows one", async () => {
+    // Which is most of them, and it is what stops a caret being drawn over a
+    // menu of one.
+    const snapshot = await snapshotOf(
+      draft,
+      landingWith([
+        { name: "SQUASH", isDefault: true, allowableStatus: "ALLOWED" },
+        { name: "REBASE", isDefault: false, allowableStatus: "BLOCKED" }
+      ])
+    )
+
+    expect(merging(snapshot).methods).toEqual(["SQUASH"])
+  })
+
+  test("is empty exactly where there is no way in at all", async () => {
+    const snapshot = await snapshotOf(
+      draft,
+      landingWith([{ name: "MERGE", isDefault: true, allowableStatus: "BLOCKED" }])
+    )
+
+    expect(Option.isNone(merging(snapshot).method)).toBe(true)
+    expect(merging(snapshot).methods).toEqual([])
+  })
+
+  test("leaves out a word this could not post", async () => {
+    const snapshot = await snapshotOf(
+      draft,
+      landingWith([
+        { name: "FAST_FORWARD", isDefault: false, allowableStatus: "ALLOWED" },
+        { name: "SQUASH", isDefault: true, allowableStatus: "ALLOWED" }
+      ])
+    )
+
+    expect(merging(snapshot).methods).toEqual(["SQUASH"])
+  })
+})
+
 describe("a pull request nobody wrote a description for", () => {
   test("reads it, with nothing where the description would be", async () => {
     // GitHub sends `"body": null` rather than an empty string, and refusing that
@@ -882,6 +954,51 @@ describe("a repository that merges through a queue", () => {
     if (Option.isNone(update)) throw new Error("expected an update to be offered")
     expect(update.value.how).toBe("MERGE")
     expect(update.value.mayUpdate).toBe(true)
+  })
+
+  test("carries both ways of catching up where GitHub allows both", async () => {
+    // GitHub's own Update branch keeps the two behind a caret, and it was read
+    // here as a verdict rather than a choice: a reader who rebases everything
+    // got a merge commit and nothing to press instead.
+    const snapshot = await snapshotOf(draft, behind([
+      { name: "MERGE", allowableStatus: "ALLOWED", isDefault: true },
+      { name: "REBASE", allowableStatus: "ALLOWED" }
+    ]))
+
+    const update = merging(snapshot).update
+    if (Option.isNone(update)) throw new Error("expected an update to be offered")
+    expect(update.value.how).toBe("MERGE")
+    expect(update.value.ways).toEqual(["MERGE", "REBASE"])
+  })
+
+  test("carries one way where GitHub allows one", async () => {
+    const snapshot = await snapshotOf(draft, behind([
+      { name: "MERGE", allowableStatus: "ALLOWED", isDefault: true },
+      { name: "REBASE", allowableStatus: "UNAVAILABLE" }
+    ]))
+
+    const update = merging(snapshot).update
+    if (Option.isNone(update)) throw new Error("expected an update to be offered")
+    expect(update.value.ways).toEqual(["MERGE"])
+  })
+
+  test("keeps the way on the button among the ways, even when GitHub refuses it", async () => {
+    // The button is drawn on a branch that is behind whether the press would go
+    // through or not, and a menu that did not contain the word above it would be
+    // a menu with no way back to where it started.
+    const snapshot = await snapshotOf(draft, behind([
+      {
+        name: "REBASE",
+        allowableStatus: "BLOCKED",
+        isDefault: true,
+        failureReason: "This branch cannot be rebased."
+      }
+    ]))
+
+    const update = merging(snapshot).update
+    if (Option.isNone(update)) throw new Error("expected an update to be offered")
+    expect(update.value.how).toBe("REBASE")
+    expect(update.value.ways).toEqual(["REBASE"])
   })
 
   test("keeps GitHub's reason for refusing the update, which is the useful half", async () => {

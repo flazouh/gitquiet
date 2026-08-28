@@ -36,7 +36,7 @@ import { markPreparedTraversal } from "@/ui/preparedNavigation"
 import { answerPressesIn, holdForRedraw, ourOwnRowsDrawn } from "@/ui/going"
 import { pullRequestNamed } from "@/ui/lastDrawn"
 import { isDashboard } from "@/domain/pages"
-import type { Check, MergeMethod, NewComment } from "@/domain/PullRequest"
+import type { Check, MergeMethod, NewComment, UpdateWay } from "@/domain/PullRequest"
 import { fromPathname, pathOf, type PullRequestRef } from "@/domain/PullRequestRef"
 import type { Size } from "@/domain/workingSet"
 import type { GitHubGateway, Review } from "@/ports/GitHubGateway"
@@ -273,20 +273,13 @@ const open = (
   const markReady = () => writing(markReadyForReview(reference))
   const toDraft = () => writing(convertToDraft(reference))
 
-  // How is GitHub's own verdict, read off the snapshot the card is showing:
-  // it says which of the two it would use, and a rebase it has already ruled
-  // out comes back refused.
-  const update = () =>
-    writing(
-      Effect.gen(function* () {
-        const { snapshot } = yield* Fiber.join(latest)
-        const catchUp = Option.flatMap(snapshot.merge, (said) => said.update)
-        return yield* updatePullRequestBranch(
-          reference,
-          Option.isSome(catchUp) ? catchUp.value.how : "MERGE"
-        )
-      })
-    )
+  // How comes from the button, which opens on GitHub's own verdict and offers
+  // the other way behind a caret where GitHub allows both. It used to be read
+  // off the snapshot here, which made it a verdict rather than a choice: a
+  // reader who rebases everything got a merge commit and nothing to press
+  // instead. A rebase GitHub has already ruled out still comes back refused,
+  // and the card says so.
+  const update = (how: UpdateWay) => writing(updatePullRequestBranch(reference, how))
 
   // The read above was started before this function had anything to render
   // into, so the first ask is given what is already in flight. Every ask after
