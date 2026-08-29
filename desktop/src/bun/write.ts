@@ -1,6 +1,6 @@
 import { Effect } from "effect"
-import type { Asked, Card } from "../shared/wire"
-import { graphRead } from "./api"
+import type { Asked, Card, MergeWay } from "../shared/wire"
+import { graphRead, restRead } from "./api"
 
 /**
  * The eight things a card can do to a pull request.
@@ -145,4 +145,33 @@ export const write = Effect.fn("write")(function* (token: string, card: Card, as
   const { query, input } = mutation(asked)
 
   yield* graphRead<unknown>(token, query, { input: { ...input, [idFieldOf(asked)]: id } })
+})
+
+/**
+ * Which ways this repository allows, out of its own settings.
+ *
+ * Three booleans on the repository object, which is where GitHub's merge box
+ * gets its verdicts from in the first place. One documented REST read, and the
+ * only way this window can answer the question at all.
+ */
+export const waysToMerge = Effect.fn("waysToMerge")(function* (
+  token: string,
+  where: { readonly owner: string; readonly repo: string }
+) {
+  const repo = yield* restRead<{
+    readonly allow_merge_commit?: boolean
+    readonly allow_squash_merge?: boolean
+    readonly allow_rebase_merge?: boolean
+  }>(token, `/repos/${where.owner}/${where.repo}`)
+
+  /*
+   * In GitHub's own order, which is the order their dropdown lists them and the
+   * order the extension keeps for the same reason: a list that reorders itself
+   * per repository is a list nobody's hand learns.
+   */
+  return [
+    ...(repo.allow_merge_commit === false ? [] : (["MERGE"] as const)),
+    ...(repo.allow_squash_merge === false ? [] : (["SQUASH"] as const)),
+    ...(repo.allow_rebase_merge === false ? [] : (["REBASE"] as const))
+  ] satisfies ReadonlyArray<MergeWay>
 })

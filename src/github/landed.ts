@@ -59,6 +59,41 @@ export const landedState = (reference: PullRequestRef): Option.Option<PullReques
   return Option.some(held.state)
 }
 
+/**
+ * Anything carrying a state and a reference, which is both things a read of ours
+ * hands back: a whole pull request, and a row in a list.
+ */
+type Standing = {
+  readonly reference: PullRequestRef
+  readonly state: PullRequestState
+}
+
+/**
+ * The same, worn by whatever was read.
+ *
+ * One function for the card and the lists, because it was the card alone for a
+ * while and that was the gap: a merge landed, Home was opened from memory, and
+ * the pull request sat under Needs You until the live read replaced it two
+ * seconds later. Every shelf is decoded through here now, live or remembered, so
+ * a row cannot say open about a pull request this extension merged.
+ *
+ * Handed back unchanged where there is nothing to say, so the common case costs
+ * one map lookup and allocates nothing.
+ */
+export const asLanded = <Read extends Standing>(read: Read): Read =>
+  Option.match(landedState(read.reference), {
+    onNone: () => read,
+    onSome: (state) => (state === read.state ? read : { ...read, state })
+  })
+
+/** The same over a list, which is how every shelf and every page of one arrives. */
+export const allAsLanded = <Read extends Standing>(
+  rows: ReadonlyArray<Read>
+): ReadonlyArray<Read> => {
+  if (landed.size === 0) return rows
+  return rows.map(asLanded)
+}
+
 /** Empties it, for a test that must not read what another test wrote. */
 export const forgetLanded = (): void => {
   landed.clear()

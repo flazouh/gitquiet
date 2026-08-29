@@ -297,6 +297,9 @@ export type CardFacts = {
  * nothing else, so there is no way to ask GitHub for a pull request that merges
  * alone. Refused out loud rather than quietly queued the ordinary way.
  */
+/** The three ways GitHub will land a pull request, as a repository allows them. */
+export type MergeWay = "MERGE" | "SQUASH" | "REBASE"
+
 export type Asked =
   | { readonly doing: "merge"; readonly method: "MERGE" | "SQUASH" | "REBASE" }
   | { readonly doing: "enqueue"; readonly how: "GROUP" | "SOLO" }
@@ -356,6 +359,22 @@ export type Wire = {
       workingSet: { params: void; response: Answered<ReadonlyArray<WorkingSetRow>> }
       /** One pull request, whole: everything its card draws except file content. */
       card: { params: Card; response: Answered<CardFacts> }
+      /**
+       * Which ways this repository allows a pull request to be landed.
+       *
+       * The extension reads this off GitHub's own merge box, which answers per
+       * pull request with a verdict on each of the three. There is no merge box
+       * here, and the documented API has no equivalent — so the repository's own
+       * settings are asked instead, which is where those verdicts come from.
+       *
+       * By repository rather than by pull request, which is what the settings
+       * are. A pull request a rule is holding is still refused on the press, and
+       * GitHub's sentence for that is the one the reader gets.
+       */
+      howToMerge: {
+        params: { readonly owner: string; readonly repo: string }
+        response: Answered<ReadonlyArray<MergeWay>>
+      }
       /**
        * The content of some files, for a card already on screen.
        *

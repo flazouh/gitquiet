@@ -1,11 +1,5 @@
 import { Effect, Option } from "effect"
-import {
-  closePullRequest,
-  convertToDraft,
-  markReadyForReview,
-  mergePullRequest,
-  reopenPullRequest
-} from "../../../src/app/pullRequest"
+import { ROW_WRITES } from "../../../src/app/rowWrites"
 import { loadWorkingSet, rememberedWorkingSet } from "../../../src/app/workingSet"
 import type { RowDoing } from "../../../src/domain/doable"
 import type { PullRequestRef } from "../../../src/domain/PullRequestRef"
@@ -72,26 +66,21 @@ const remembered = () => {
   return rememberedWorkingSet().pipe(Effect.provide(gatewayFrom(rows)))
 }
 
+
+
 /**
  * One verb, against one row, through a gateway with no rows in it.
  *
  * The reads on this screen are served from the rows the window already fetched;
  * a write has nothing to serve from and goes to GitHub, so it is built the way
  * the card builds its own — empty, and answered over the wire.
+ *
+ * The verbs themselves are the extension's, and were a copy of them until the
+ * copy drifted: merging from a row learnt to ask a repository how it merges on
+ * one surface and went on posting `SQUASH` on this one. See `ROW_WRITES`.
  */
-const WRITES = {
-  // The way in is named here, a row having no merge state to read it off. The
-  // same gap the extension's own list has, and the reason the card is where a
-  // merge belongs — see `MergeState.method`.
-  merge: (reference: PullRequestRef) => mergePullRequest(reference, "SQUASH"),
-  close: closePullRequest,
-  reopen: reopenPullRequest,
-  markReady: markReadyForReview,
-  toDraft: convertToDraft
-} as const satisfies Record<RowDoing, (reference: PullRequestRef) => unknown>
-
 const askFor = (doing: RowDoing, reference: PullRequestRef) =>
-  Effect.provide(WRITES[doing](reference), gatewayFrom([]))
+  Effect.provide(ROW_WRITES[doing](reference), gatewayFrom([]))
 
 export const WorkingSet = () => (
   <Supplied>

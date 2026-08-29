@@ -127,7 +127,7 @@ import { decodeMentionable, decodeReferable, numberedIn, peopleIn } from "./sugg
 import { hashIn, hashOfMutationIn, nonceOn, releaseOn, servedFor, whenAsked } from "./persisted"
 import { scopedRepositoryIn } from "./scoped"
 import { decodeUploadedAsset, decodeUploadPolicy, repositoryNumberFor } from "./uploading"
-import { landedState, recordLanded } from "./landed"
+import { allAsLanded, asLanded, recordLanded } from "./landed"
 import { preloadedIn } from "./preloaded"
 import { repositoriesFrom } from "./repositories"
 import { decodeSidebar, standingFrom } from "./standing"
@@ -1786,8 +1786,12 @@ const shelfIn = (
   raw: unknown
 ): Effect.Effect<ReadonlyArray<InvolvedPullRequest>, WorkingSetError> =>
   decodeShelf(raw).pipe(
+    // Corrected here because this is the one place both reads of a shelf pass
+    // through, the live one and the remembered one. A merged pull request drawn
+    // under Needs You is what happens without it — `courtOf` files on the state,
+    // and the state was GitHub's alone.
     Effect.map((decoded) =>
-      involvedIn(Option.some(shelf), decoded.results)
+      allAsLanded(involvedIn(Option.some(shelf), decoded.results))
     ),
     Effect.catch((cause) =>
       Effect.fail(new WorkingSetError({ route, reason: "undecodable", detail: String(cause) }))
@@ -1874,30 +1878,6 @@ const wroteIssue = Effect.fn("wroteIssue")(function* (reference: IssueRef) {
   if (Option.isSome(route)) yield* forgetRoute(route.value)
 })
 
-/**
- * The pull request as our own writes know it, where GitHub has not caught up yet.
- *
- * Applied on every read of a whole pull request, live or remembered, rather than
- * on the screen that pressed the button. It used to live in the pull request
- * screen, where it was a variable in one `open()` call — so walking out of a
- * merged pull request and back in lost it, which is exactly the walk a reader
- * makes.
- *
- * The card, and only the card. A list decodes rows through `workingSet` and
- * never comes past here, so a merged pull request can still sit in a shelf for
- * the second the live read takes. And the map behind it is per tab, this layer
- * being built in a content script, so a second tab has its own empty one. Both
- * are the same shape of gap and neither is covered by pretending otherwise.
- */
-const asLanded = (
-  reference: PullRequestRef,
-  snapshot: PullRequestSnapshot
-): PullRequestSnapshot =>
-  Option.match(landedState(reference), {
-    onNone: () => snapshot,
-    onSome: (state) => (state === snapshot.state ? snapshot : { ...snapshot, state })
-  })
-
 export const layer = Layer.succeed(GitHubGateway, {
     snapshot: Effect.fn("GitHubGateway.snapshot")(function* (reference: PullRequestRef) {
       const raw = yield* payloadsThroughWorker(reference)
@@ -1917,7 +1897,7 @@ export const layer = Layer.succeed(GitHubGateway, {
        * answering perfectly well. The page still draws now; it is only the next
        * visit that goes back to GitHub, which is where the answer is.
        */
-      const said = asLanded(reference, snapshot)
+      const said = asLanded(snapshot)
 
       /*
        * Kept only where GitHub agrees with our own last word, which is what the
@@ -1935,7 +1915,7 @@ export const layer = Layer.succeed(GitHubGateway, {
       if (raw.mergeBox !== null && raw.header !== null) {
         yield* Effect.forkDetach(
           Effect.suspend(() =>
-            asLanded(reference, snapshot).state === snapshot.state
+            asLanded(snapshot).state === snapshot.state
               ? remember(reference, raw)
               : Effect.void
           )
@@ -1955,7 +1935,7 @@ export const layer = Layer.succeed(GitHubGateway, {
       // before a schema changed fails here and is a miss, where a stored
       // snapshot would have been a lie in the right shape.
       return yield* decodeInto(reference, raw.value).pipe(
-        Effect.map((snapshot) => Option.some(asLanded(reference, snapshot))),
+        Effect.map((snapshot) => Option.some(asLanded(snapshot))),
         Effect.catch(() => Effect.succeed(Option.none<PullRequestSnapshot>()))
       )
     }),

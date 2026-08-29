@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 import { ApplicationMenu, BrowserWindow, defineElectrobunRPC } from "electrobun/bun"
-import type { Answered, Asked, Card, Pending, Viewer, WayIn, Wire } from "../shared/wire"
+import type { Answered, Asked, Card, MergeWay, Pending, Viewer, WayIn, Wire } from "../shared/wire"
 import { whoAmI } from "./api"
 import { readCard, readPatches } from "./card"
 import { readCommit } from "./commit"
@@ -8,7 +8,7 @@ import { mainViewUrl, viteIsUp, waitForVite } from "./mainViewUrl"
 import { macMenu } from "./menu"
 import { nextPageZoom, type PageZoomHow } from "../shared/pageZoom"
 import { sayOnLines, sayOnThePullRequest } from "./say"
-import { write } from "./write"
+import { waysToMerge, write } from "./write"
 import {
   demoCard,
   demoCommit,
@@ -289,6 +289,18 @@ const rpc = defineElectrobunRPC<Wire, "bun">("bun", {
           fromGitHubOrDemo(
             () => demoCard(card),
             (token) => readCard(token, card)
+          )
+        ),
+
+      /*
+       * The demo answers all three, which is what the demo repository is: nothing
+       * about it forbids a way in, so nothing is filtered out of the list.
+       */
+      howToMerge: (where: { readonly owner: string; readonly repo: string }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed<ReadonlyArray<MergeWay>>(["MERGE", "SQUASH", "REBASE"]),
+            (token) => waysToMerge(token, where)
           )
         ),
 

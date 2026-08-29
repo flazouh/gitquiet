@@ -1,11 +1,6 @@
 import { Effect, Fiber, Option } from "effect";
 import { forgetIntent, intendedPath } from "@/app/intent";
 import {
-  closePullRequest,
-  convertToDraft,
-  markReadyForReview,
-  mergeAsTheRepositoryDoes,
-  reopenPullRequest,
 } from "@/app/pullRequest";
 import {
   loadActivity,
@@ -27,6 +22,7 @@ import { THE_WORKING_SET } from "@/ui/lastDrawn";
 import { handBack, markPage, markScreenRoute, reveal, ungate } from "@/ui/mount";
 import { whenLocationChanges } from "@/ui/navigation";
 import { DASHBOARD, HOME, type Place } from "@/ui/place";
+import { ROW_WRITES } from "@/app/rowWrites";
 import { standAScreen } from "@/shell/screen";
 import { settings, throughGitHub } from "@/shell/supplied";
 import type { RepositoryActivity } from "@/domain/activity";
@@ -36,23 +32,7 @@ import { loginOnPage, participantOnPage } from "@/ui/viewer";
 import { WorkingSetScreen } from "@/ui/WorkingSetScreen";
 import "@/ui/styles.css";
 
-/**
- * Which app-level write each verb a row can offer stands for.
- *
- * Only the five the state alone allows — see `whatStateAllows` — since the
- * queue verbs need a merge state no row has read. Asked for by name so the menu
- * hands over a verb rather than a function, which is what lets the same menu
- * serve a surface whose gateway is nothing like this one.
- */
-const WRITES = {
-  /* Reads how this repository merges before it merges, a row carrying none of
-     that. See `mergeAsTheRepositoryDoes`. */
-  merge: mergeAsTheRepositoryDoes,
-  close: closePullRequest,
-  reopen: reopenPullRequest,
-  markReady: markReadyForReview,
-  toDraft: convertToDraft,
-} as const satisfies Record<RowDoing, (reference: PullRequestRef) => unknown>;
+
 
 /**
  * The list as the reader last saw it, kept for as long as this document lives.
@@ -181,7 +161,7 @@ const open = (place: Place, route: string): (() => void) => {
    * and are reported, as everywhere else that writes.
    */
   const askFor = (doing: RowDoing, reference: PullRequestRef) =>
-    WRITES[doing](reference).pipe(
+    ROW_WRITES[doing](reference).pipe(
       throughGitHub,
       Effect.tapError((error) => Effect.sync(() => reportError(error))),
     );

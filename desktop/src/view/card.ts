@@ -172,3 +172,24 @@ export const askForCommit = Effect.fn("askForCommit")(function* (reference: Repo
 
   return commitDetailFrom(answered.it) satisfies CommitDetail
 })
+
+/**
+ * Which ways this repository allows, asked of the main process.
+ *
+ * The shared row write reaches for this before it merges — see
+ * `mergeAsTheRepositoryDoes` — so the desktop list lands a pull request the way
+ * its repository does rather than posting `SQUASH` and repeating GitHub's
+ * refusal back to the reader.
+ */
+export const askHowToMerge = Effect.fn("askHowToMerge")(function* (
+  reference: PullRequestRef
+) {
+  const answered = yield* Effect.tryPromise({
+    try: () => ask("howToMerge", { owner: reference.owner, repo: reference.repo }),
+    catch: (cause) => refused(reference, "howToMerge", String(cause))
+  })
+
+  if (!answered.ok) return yield* Effect.fail(refused(reference, "howToMerge", answered.why))
+
+  return answered.it
+})
