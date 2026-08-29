@@ -1806,7 +1806,11 @@ const foundIn = (route: string, raw: unknown): Effect.Effect<Found, WorkingSetEr
       return {
         // None, and not a shelf: this route puts nothing anywhere on the reader's
         // behalf, and saying it did would put a stranger's work in Needs You.
-        rows: involvedIn(Option.none(), listing.results),
+        //
+        // Corrected the same way a shelf is, and for the same reason: a
+        // repository's own list is where somebody watches their pull request
+        // land, and it was the one list still drawing it open afterwards.
+        rows: allAsLanded(involvedIn(Option.none(), listing.results)),
         pages: Option.map(
           listing.pageInfo === null || listing.pageInfo === undefined
             ? Option.none()

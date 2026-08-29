@@ -168,6 +168,12 @@ export const waysToMerge = Effect.fn("waysToMerge")(function* (
    * In GitHub's own order, which is the order their dropdown lists them and the
    * order the extension keeps for the same reason: a list that reorders itself
    * per repository is a list nobody's hand learns.
+   *
+   * A field GitHub left out is read as allowed, which is the safe way round.
+   * Offering a way the repository forbids costs a press and GitHub's own
+   * sentence saying why; hiding one it allows leaves a reader with no way to
+   * land a pull request and nothing on screen to say what happened. Where the
+   * three are all absent this hands back all three, and the press decides.
    */
   return [
     ...(repo.allow_merge_commit === false ? [] : (["MERGE"] as const)),
