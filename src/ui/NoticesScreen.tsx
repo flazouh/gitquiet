@@ -1,4 +1,4 @@
-import { type Effect, Option } from "effect"
+import { Effect, Option } from "effect"
 import { useMemo, useState } from "react"
 import type { Notice, Press } from "../domain/notices"
 import type { Repository } from "../domain/repositories"
@@ -20,7 +20,7 @@ export type NoticesScreenProps = {
    */
   readonly preload?: () => Effect.Effect<Option.Option<ReadonlyArray<Notice>>>
   /** Carries out one of GitHub's own forms, read off the row it belongs to. */
-  readonly onPress: (press: Press) => void
+  readonly onPress: (press: Press) => Effect.Effect<void, unknown>
   /** Restores GitHub's own inbox, which is still on the page behind this. */
   readonly onStepAside: () => void
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
@@ -50,7 +50,10 @@ const AFTER: Readonly<Record<string, Since>> = {
   mark: { unread: false },
   unmark: { unread: true },
   archive: { gone: true },
-  unarchive: { gone: true },
+  // Nothing, and not `gone`. Un-archiving puts a Notice back into the inbox this
+  // screen is reading, so the row belongs where it is. It said `gone` — the same
+  // as archiving — which would have taken the row away for doing the opposite.
+  unarchive: {},
   subscribe: { subscribed: true },
   unsubscribe: { subscribed: false }
 }
@@ -80,7 +83,7 @@ export const NoticesScreen = ({
   signedIn = viewerOnPage
 }: NoticesScreenProps) => {
   const live = useLive(load, preload, where)
-  const { read } = live
+  const { read, again } = live
   const waiting = useWaiting(read.status)
 
   /*
@@ -135,7 +138,28 @@ export const NoticesScreen = ({
       )
     }
 
-    onPress(press)
+    /*
+     * A refusal takes the row back to what it was and reads the inbox again.
+     *
+     * This used to be sent and forgotten. The row stayed the way the reader had
+     * asked for it whatever GitHub said, so an archive their server refused left
+     * a Notice off the screen until the page was opened again — which is the one
+     * outcome an inbox must never have.
+     */
+    Effect.runFork(
+      onPress(press).pipe(
+        Effect.catch(() =>
+          Effect.sync(() => {
+            setSince((held) =>
+              Object.fromEntries(
+                Object.entries(held).filter(([id]) => !press.ids.includes(id))
+              )
+            )
+            again()
+          })
+        )
+      )
+    )
   }
 
   return (

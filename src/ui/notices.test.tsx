@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen, within } from "@testing-library/react"
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import type { Notice, Press, PressKind } from "../domain/notices"
@@ -38,7 +38,10 @@ const notice = (what: Partial<Notice> & Pick<Notice, "id">): Notice => ({
   ...what
 })
 
-const show = (notices: ReadonlyArray<Notice>, onPress: (press: Press) => void = () => {}) =>
+const show = (
+  notices: ReadonlyArray<Notice>,
+  onPress: (press: Press) => Effect.Effect<void, unknown> = () => Effect.void
+) =>
   render(
     <Toasts>
       <NoticesScreen
@@ -202,9 +205,30 @@ describe("the reader's inbox, grouped by who acts next", () => {
       expect(within(row).queryByRole("button", { name: /Save/ })).toBeNull()
     })
 
+    test("puts the row back when GitHub refuses the press", async () => {
+      /*
+       * An archive their server refused used to take the Notice off the screen
+       * anyway, and leave it off until the inbox was opened again. The row is
+       * drawn the way the reader asked for, and GitHub's no is what puts it back.
+       */
+      show([notice({ id: "NT_one" })], () => Effect.fail(new Error("nope")))
+
+      const rows = await screen.findAllByRole("listitem")
+      const first = rows[0]
+      if (first === undefined) throw new Error("no rows")
+
+      await userEvent.click(within(first).getByRole("button", { name: /Done/ }))
+
+      await waitFor(async () =>
+        expect(await screen.findAllByRole("listitem")).toHaveLength(1)
+      )
+    })
+
     test("sends GitHub's own form for the row that was pressed", async () => {
       const sent: Array<Press> = []
-      show([notice({ id: "NT_one" }), notice({ id: "NT_two" })], (press) => sent.push(press))
+      show([notice({ id: "NT_one" }), notice({ id: "NT_two" })], (press) =>
+        Effect.sync(() => void sent.push(press))
+      )
 
       const rows = await screen.findAllByRole("listitem")
       const first = rows[0]
@@ -267,7 +291,7 @@ describe("the reader's inbox, grouped by who acts next", () => {
       <NoticesScreen
         load={() => Effect.never}
         preload={() => Effect.succeed(Option.some(kept))}
-        onPress={() => {}}
+        onPress={() => Effect.void}
         onStepAside={() => {}}
       />
     )

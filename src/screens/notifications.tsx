@@ -67,20 +67,16 @@ const open = (query: string): (() => void) => {
   /*
    * One of their own forms, sent as their page sends it.
    *
-   * Nothing is waited for and nothing comes back: their server answers with a zero-byte body,
-   * so a re-read is the only thing that could confirm it, and the row is already drawn the way
-   * the reader asked for. A refusal is reported and left at that — the next read of the inbox
-   * shows the row as it really is.
+   * Nothing comes back: their server answers with a zero-byte body, so the row is drawn the
+   * way the reader asked for and a re-read is the only thing that could confirm it. The
+   * refusal is handed back rather than swallowed, because the screen is what puts the row
+   * right again — see `pressed` in `NoticesScreen`.
    */
-  const press = (one: Press): void => {
-    Effect.runFork(
-      pressNotice(one).pipe(
-        throughGitHub,
-        Effect.tapError((error) => Effect.sync(() => reportError(error))),
-        Effect.ignore
-      )
+  const press = (one: Press) =>
+    pressNotice(one).pipe(
+      throughGitHub,
+      Effect.tapError((error) => Effect.sync(() => reportError(error)))
     )
-  }
 
   return standAScreen({
     place: NOTIFICATIONS,

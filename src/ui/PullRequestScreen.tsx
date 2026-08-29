@@ -338,6 +338,20 @@ export const PullRequestScreen = ({
       (...given) =>
         meanwhile((loaded) => asDone(loaded, doing), alsoOnRefusal(act(...given), again))
 
+    /*
+     * The branch is not a `Doing` and cannot be one: it outlives the pull
+     * request, and GitHub answers whether it may go in a field of its own. So it
+     * misses the loop above, and used to miss the read with it — the card said
+     * "Branch deleted" and went on offering to delete it, because `mayDelete` is
+     * read off a snapshot nobody had asked for again.
+     *
+     * No state to wear on the way, unlike the five verbs that name one. Deleting
+     * a branch leaves the pull request exactly as it was.
+     */
+    const alsoRead = (act: Asked): Asked =>
+      (...given) =>
+        meanwhile((loaded) => loaded, alsoOnRefusal(act(...given), again))
+
     return {
       ...actions,
       ...Object.fromEntries(
@@ -345,7 +359,10 @@ export const PullRequestScreen = ({
           doing,
           through(doing, actions[doing] as Asked)
         ])
-      )
+      ),
+      ...(actions.deleteBranch === undefined
+        ? {}
+        : { deleteBranch: alsoRead(actions.deleteBranch) })
     }
   }, [actions, meanwhile, again])
 

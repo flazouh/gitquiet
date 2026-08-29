@@ -1,4 +1,4 @@
-import { Option } from "effect"
+import { Effect, Option } from "effect"
 import type { Notice, Press, PressKind, Standing } from "../../src/domain/notices"
 import { NoticesScreen } from "../../src/ui/NoticesScreen"
 import { alreadyKnown, nothingRemembered, settled, STORE, type View } from "../view"
@@ -271,7 +271,7 @@ export const NOTIFICATIONS_VIEW: View = {
       preload={alreadyKnown(NOTICES)}
       recallRepositories={nothingRemembered()}
       signedIn={() => true}
-      onPress={() => {}}
+      onPress={() => Effect.void}
       onStepAside={() => {}}
     />
   )
