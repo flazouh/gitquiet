@@ -157,29 +157,19 @@ const open = (
   }
 
   /*
-   * Once a merge has landed here, a later read that still says Open is GitHub's
-   * own page not yet caught up with itself. A merge is the one change with no
-   * way back — there is no un-merge, only a fresh revert pull request — so the
-   * later word is the stale one, and this holds the merged state against it.
-   * Set by `merge` on the press that succeeds; every other state is left as read.
+   * Nothing here holds a state against a read that has not caught up. That
+   * belongs to the gateway now — see `asLanded` — because it has to outlive this
+   * function: every navigation of ours closes the screen and calls `open` again,
+   * so a variable in this scope covered the reader who stayed and lost the one
+   * who walked out of the pull request and back into it.
    */
-  let merged = false
-  const asMerged = (loaded: Loaded): Loaded =>
-    merged && loaded.snapshot.state !== "merged"
-      ? { ...loaded, snapshot: { ...loaded.snapshot, state: "merged" } }
-      : loaded
-
   const asking = (partly: (loaded: Loaded) => void) =>
     writing(
       loadPullRequest(reference, (loaded) => {
-        const shown = asMerged(loaded)
-        entitle(shown)
-        partly(shown)
+        entitle(loaded)
+        partly(loaded)
       })
-    ).pipe(
-      Effect.map(asMerged),
-      Effect.tap((loaded) => Effect.sync(() => entitle(loaded)))
-    )
+    ).pipe(Effect.tap((loaded) => Effect.sync(() => entitle(loaded))))
 
   /*
    * The pull request as its own routes have it, which lands a whole read before
@@ -264,7 +254,7 @@ const open = (
         const stacked = Option.flatMap(snapshot.merge, (said) => said.stack)
         return yield* mergePullRequest(reference, method, Option.isSome(stacked))
       })
-    ).pipe(Effect.tap(() => Effect.sync(() => void (merged = true))))
+    )
   const enqueue = () => writing(enqueuePullRequest(reference))
   const dequeue = () => writing(dequeuePullRequest(reference))
   const cancel = () => writing(cancelAutoMerge(reference))

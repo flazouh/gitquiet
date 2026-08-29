@@ -105,6 +105,26 @@ const keepRecent = Effect.fn("snapshots.keepRecent")(function* (
   if (evicted.length > 0) yield* orNothing(() => store.remove(evicted), undefined)
 })
 
+/**
+ * Drops what is kept about one pull request.
+ *
+ * Called by the writes. A write is the one moment this file can be sure the
+ * payloads it holds describe a pull request that is no longer in that shape, and
+ * without this there is nothing else that would ever say so: eviction here is by
+ * cap alone, so a merged pull request went on being served as open on every cold
+ * open until forty others had pushed it out.
+ *
+ * The index is left alone. A key naming nothing reads as a miss, and `keepRecent`
+ * drops it on the next write that reaches the cap — where rewriting the index
+ * here would be a second round trip through storage on the way out of a merge.
+ */
+export const forget = Effect.fn("snapshots.forget")(function* (reference: PullRequestRef) {
+  const store = area()
+  if (store === undefined) return
+
+  yield* orNothing(() => store.remove([keyFor(reference)]), undefined)
+})
+
 export const remember = Effect.fn("snapshots.remember")(function* (
   reference: PullRequestRef,
   payloads: RawPayloads
