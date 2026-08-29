@@ -213,6 +213,20 @@ export const recallRoute = Effect.fn("snapshots.recallRoute")(function* (route: 
   return isAnswer(entry) ? Option.some(entry.payload) : Option.none<unknown>()
 })
 
+/**
+ * Drops what one route last answered.
+ *
+ * The other half of {@link forget}, for the pages kept by their own address: an
+ * issue, a repository front. Same reason and same shape — a write has just made
+ * the kept answer wrong, and nothing else here would ever say so.
+ */
+export const forgetRoute = Effect.fn("snapshots.forgetRoute")(function* (route: string) {
+  const store = area()
+  if (store === undefined) return
+
+  yield* orNothing(() => store.remove([`${ROUTE}${route}`]), undefined)
+})
+
 export const rememberRoute = Effect.fn("snapshots.rememberRoute")(function* (
   route: string,
   payload: unknown,

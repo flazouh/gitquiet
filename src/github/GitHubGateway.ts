@@ -70,6 +70,7 @@ import type { Version } from "../domain/release"
 import { strandsIn, type Strand } from "../domain/strand"
 import {
   forget,
+  forgetRoute,
   recall,
   recallHash,
   recallRoute,
@@ -1835,6 +1836,18 @@ const undecodableFrom =
  * queue and a branch caught up are not states, but they are still facts the kept
  * payloads now have wrong.
  */
+/**
+ * The same for an issue: what it last answered is no longer what it would.
+ *
+ * Kept under its own address, which carries the deploy's hash, so the route has
+ * to be rebuilt to be dropped. Where no hash is on hand there is nothing kept
+ * under one either, and the miss costs a read the next visit was making anyway.
+ */
+const wroteIssue = Effect.fn("wroteIssue")(function* (reference: IssueRef) {
+  const route = yield* keptIssueRoute(reference)
+  if (Option.isSome(route)) yield* forgetRoute(route.value)
+})
+
 const wrote = Effect.fn("wrote")(function* (
   reference: PullRequestRef,
   state?: PullRequestState
@@ -2501,6 +2514,7 @@ export const layer = Layer.succeed(GitHubGateway, {
         id,
         newStateReason: REASON_OF[settling.as]
       })
+      yield* wroteIssue(reference)
     }),
 
     reopenIssue: Effect.fn("GitHubGateway.reopenIssue")(function* (
@@ -2508,6 +2522,7 @@ export const layer = Layer.succeed(GitHubGateway, {
       id: string
     ) {
       yield* mutating(reference, REOPEN_ISSUE, { id })
+      yield* wroteIssue(reference)
     }),
 
     /**
@@ -3777,6 +3792,14 @@ export const layer = Layer.succeed(GitHubGateway, {
           detail: `HTTP ${response.status}`
         })
       }
+
+      /*
+       * The kept front still says the star is where it was, and the star is on
+       * the front. Only the default branch's, which is the one a reader lands on
+       * and the only one this knows the key for — a front kept for some other
+       * branch keeps its old count until it is read again.
+       */
+      yield* forgetRoute(frontKey(reference, null))
     }),
 
     treeCommits: Effect.fn("GitHubGateway.treeCommits")(function* (
