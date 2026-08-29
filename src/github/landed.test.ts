@@ -1,7 +1,7 @@
 import { describe, expect, test, afterEach } from "bun:test"
 import { Option } from "effect"
 import type { PullRequestRef } from "../domain/PullRequestRef"
-import { allAsLanded, asLanded, forgetLanded, landedState, recordLanded } from "./landed"
+import { asLanded, forgetLanded, landedState, recordLanded } from "./landed"
 
 const one: PullRequestRef = { owner: "flazouh", repo: "gitquiet", number: 7 }
 const other: PullRequestRef = { owner: "flazouh", repo: "gitquiet", number: 8 }
@@ -79,25 +79,5 @@ describe("what a read wears once our own write disagrees with it", () => {
     recordLanded(one, "merged")
 
     expect(asLanded(row(one, "open")).title).toBe("Make the widget spin")
-  })
-
-  test("corrects the one row in a list and leaves its neighbours", () => {
-    /*
-     * The fault this was written for. A merge landed, Home was opened from
-     * memory, and the pull request sat under Needs You for the two seconds the
-     * live read took — `courtOf` files on the state, and the state was GitHub's
-     * alone until the lists were decoded through here too.
-     */
-    recordLanded(one, "merged")
-
-    const rows = allAsLanded([row(one, "open"), row(other, "open")])
-
-    expect(rows.map((each) => each.state)).toEqual(["merged", "open"])
-  })
-
-  test("hands a list straight back when nothing has been written at all", () => {
-    const rows = [row(one, "open")]
-
-    expect(allAsLanded(rows)).toBe(rows)
   })
 })

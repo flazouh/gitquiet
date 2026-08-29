@@ -236,6 +236,9 @@ export type ReviewFacts = {
  * worth testing once. GitHub's own page can name the individual rule that failed;
  * the documented API cannot, and this does not pretend otherwise.
  */
+/** The three ways GitHub will land a pull request, as a repository allows them. */
+export type MergeWay = "MERGE" | "SQUASH" | "REBASE"
+
 export type MergeFacts = {
   readonly mergeable: "MERGEABLE" | "CONFLICTING" | "UNKNOWN"
   readonly status: string
@@ -249,6 +252,15 @@ export type MergeFacts = {
     readonly mayQueue: boolean
     readonly url: string | null
   } | null
+  /**
+   * The ways this repository allows a pull request to be landed.
+   *
+   * Read on the same side of the wire as every other conclusion about merging,
+   * which is what keeps the card and a row in the list answering the same
+   * question the same way. They did not: the card posted `SQUASH` whatever the
+   * repository allowed while the list had learnt to ask.
+   */
+  readonly ways: ReadonlyArray<MergeWay>
 }
 
 /**
@@ -297,11 +309,8 @@ export type CardFacts = {
  * nothing else, so there is no way to ask GitHub for a pull request that merges
  * alone. Refused out loud rather than quietly queued the ordinary way.
  */
-/** The three ways GitHub will land a pull request, as a repository allows them. */
-export type MergeWay = "MERGE" | "SQUASH" | "REBASE"
-
 export type Asked =
-  | { readonly doing: "merge"; readonly method: "MERGE" | "SQUASH" | "REBASE" }
+  | { readonly doing: "merge"; readonly method: MergeWay }
   | { readonly doing: "enqueue"; readonly how: "GROUP" | "SOLO" }
   | { readonly doing: "updateBranch"; readonly how: "MERGE" | "REBASE" }
   | { readonly doing: "close" }

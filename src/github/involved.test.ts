@@ -63,6 +63,24 @@ describe("reading a Working Set row as an Involved Pull Request", () => {
     expect(involvedFrom(Option.some("needs-action"), row({ repoNameWithOwner: "/octo-repo" }))).toEqual(Option.none())
   })
 
+  test("a row wears what our own write made true, whatever the listing says", async () => {
+    /*
+     * The fault this was written for. A merge landed, a list was opened from
+     * memory, and the pull request sat under Needs You until the live read
+     * replaced it two seconds later — `courtOf` files on the state, and the
+     * state was GitHub's alone. Here rather than at the reads, because every
+     * listing there is comes through this one function and patching the callers
+     * missed one of them.
+     */
+    const { forgetLanded, recordLanded } = await import("./landed")
+    recordLanded({ owner: "octo-org", repo: "octo-repo", number: 2 }, "merged")
+
+    const listed = involvedIn(Option.some("needs-action"), [row({ number: 1 }), row({ number: 2 })])
+
+    expect(listed.map((one) => one.state)).toEqual(["open", "merged"])
+    forgetLanded()
+  })
+
   test("the dropped row does not take the rest of the listing with it", () => {
     const listed = involvedIn(Option.some("needs-action"), [
       row({ number: 1, repoNameWithOwner: "noslash" }),

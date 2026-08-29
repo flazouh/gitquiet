@@ -1,4 +1,5 @@
 import { Option } from "effect"
+import { preferredWay } from "../shared/merging"
 import { fromPatch } from "../../../src/domain/fromPatch"
 import { blockersOf } from "../../../src/domain/landing"
 import type {
@@ -186,21 +187,17 @@ const mergeOf = (facts: CardFacts): MergeState => {
     // page of theirs here.
     channels: [],
     /*
-     * The way in, which the facts this window reads do not carry.
+     * The way in, out of the repository's own settings.
      *
-     * The extension reads it off GitHub's own merge box, which answers with the
-     * three methods and a verdict apiece. Nothing in {@link MergeFacts} says, so
-     * this keeps posting the commonest of the three and repeats GitHub's refusal
-     * on a repository that allows only a merge commit. What would fill it is the
-     * repository itself — `allow_merge_commit`, `allow_squash_merge` and
-     * `allow_rebase_merge` are documented fields — read into `MergeFacts` on the
-     * other side of this wire, where every other conclusion about merging is
-     * drawn.
+     * `MergeFacts.ways` carries them, read on the other side of the wire where
+     * every other conclusion about merging is drawn. Before that this posted
+     * `SQUASH` whatever the repository allowed, and repeated GitHub's refusal on
+     * one that allows only a merge commit — while the list beside it had learnt
+     * to ask. One window, one answer now. Which of the allowed ways is preferred
+     * is `preferredWay`, and it is the same function the list presses through.
      */
-    method: Option.some("SQUASH"),
-    // The one it posts, so nothing is offered beside the button until the facts
-    // above carry the repository's own answer.
-    methods: ["SQUASH" as const],
+    method: Option.fromNullishOr(preferredWay(facts.merge.ways)),
+    methods: facts.merge.ways,
     /*
      * The stack, which GitHub keeps and only their own routes report.
      *

@@ -837,7 +837,8 @@ const reviewsOf = (row: WorkingSetRow): ReadonlyArray<ReviewFacts> => {
  * every pull request offers its merge button is a demo of one state.
  */
 const mergeOf = (row: WorkingSetRow): CardFacts["merge"] => ({
-  mergeable: "MERGEABLE",
+  ways: ["MERGE", "SQUASH", "REBASE"],
+    mergeable: "MERGEABLE",
   status: row.state === "draft" ? "DRAFT" : row.reviewed === "approved" ? "CLEAN" : "BLOCKED",
   mayBypass: false,
   mayUpdateBranch: row.number === 71230,

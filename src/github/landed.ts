@@ -86,14 +86,6 @@ export const asLanded = <Read extends Standing>(read: Read): Read =>
     onSome: (state) => (state === read.state ? read : { ...read, state })
   })
 
-/** The same over a list, which is how every shelf and every page of one arrives. */
-export const allAsLanded = <Read extends Standing>(
-  rows: ReadonlyArray<Read>
-): ReadonlyArray<Read> => {
-  if (landed.size === 0) return rows
-  return rows.map(asLanded)
-}
-
 /** Empties it, for a test that must not read what another test wrote. */
 export const forgetLanded = (): void => {
   landed.clear()

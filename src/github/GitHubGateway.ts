@@ -127,7 +127,7 @@ import { decodeMentionable, decodeReferable, numberedIn, peopleIn } from "./sugg
 import { hashIn, hashOfMutationIn, nonceOn, releaseOn, servedFor, whenAsked } from "./persisted"
 import { scopedRepositoryIn } from "./scoped"
 import { decodeUploadedAsset, decodeUploadPolicy, repositoryNumberFor } from "./uploading"
-import { allAsLanded, asLanded, recordLanded } from "./landed"
+import { asLanded, recordLanded } from "./landed"
 import { preloadedIn } from "./preloaded"
 import { repositoriesFrom } from "./repositories"
 import { decodeSidebar, standingFrom } from "./standing"
@@ -1786,12 +1786,8 @@ const shelfIn = (
   raw: unknown
 ): Effect.Effect<ReadonlyArray<InvolvedPullRequest>, WorkingSetError> =>
   decodeShelf(raw).pipe(
-    // Corrected here because this is the one place both reads of a shelf pass
-    // through, the live one and the remembered one. A merged pull request drawn
-    // under Needs You is what happens without it — `courtOf` files on the state,
-    // and the state was GitHub's alone.
     Effect.map((decoded) =>
-      allAsLanded(involvedIn(Option.some(shelf), decoded.results))
+      involvedIn(Option.some(shelf), decoded.results)
     ),
     Effect.catch((cause) =>
       Effect.fail(new WorkingSetError({ route, reason: "undecodable", detail: String(cause) }))
@@ -1806,11 +1802,7 @@ const foundIn = (route: string, raw: unknown): Effect.Effect<Found, WorkingSetEr
       return {
         // None, and not a shelf: this route puts nothing anywhere on the reader's
         // behalf, and saying it did would put a stranger's work in Needs You.
-        //
-        // Corrected the same way a shelf is, and for the same reason: a
-        // repository's own list is where somebody watches their pull request
-        // land, and it was the one list still drawing it open afterwards.
-        rows: allAsLanded(involvedIn(Option.none(), listing.results)),
+        rows: involvedIn(Option.none(), listing.results),
         pages: Option.map(
           listing.pageInfo === null || listing.pageInfo === undefined
             ? Option.none()

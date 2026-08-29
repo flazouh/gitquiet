@@ -1,8 +1,6 @@
 import { Effect, Fiber, Option } from "effect";
 import { forgetIntent, intendedPath } from "@/app/intent";
 import {
-} from "@/app/pullRequest";
-import {
   loadActivity,
   loadRepositories,
   rememberedActivity,
@@ -31,8 +29,6 @@ import { Home } from "@/ui/Home";
 import { loginOnPage, participantOnPage } from "@/ui/viewer";
 import { WorkingSetScreen } from "@/ui/WorkingSetScreen";
 import "@/ui/styles.css";
-
-
 
 /**
  * The list as the reader last saw it, kept for as long as this document lives.

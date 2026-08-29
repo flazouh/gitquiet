@@ -12,7 +12,8 @@ import {
   type UpdateMethod,
   WorkingSetError
 } from "../../../src/ports/GitHubGateway"
-import type { MergeWay, WorkingSetRow } from "../shared/wire"
+import type { WorkingSetRow } from "../shared/wire"
+import { preferredWay } from "../shared/merging"
 import {
   askForCard,
   askForCommit,
@@ -177,20 +178,6 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
    * is still reading. That cost eight seconds on one press before anything typechecked
    * this file — see `rememberedRows`.
    */
-  /**
-   * Which of the ways a repository allows to put on the button.
-   *
-   * GitHub's repository settings say which are allowed and name no default, so
-   * one is chosen here: squash, then a merge commit, then rebase. That is the
-   * order their own dropdown marks by default on a repository that allows all
-   * three, and the order matters only where several are allowed — the reader
-   * gets a way that works either way.
-   */
-  const preferred = (ways: ReadonlyArray<MergeWay>): MergeWay | undefined =>
-    ways.find((way) => way === "SQUASH") ??
-    ways.find((way) => way === "MERGE") ??
-    ways[0]
-
   const missing = (what: string) => (reference: PullRequestRef | RepoRef) =>
     Effect.fail(
       new GatewayError({
@@ -395,26 +382,29 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
     reply: missing("reply to a thread"),
 
     /*
+     * The same question the extension asks its merge box, answered from the only
+     * place this window can ask: the repository's own settings, which is where
+     * those verdicts come from anyway.
+     *
+     * `stacked` is false because nothing here can find out, not because anything
+     * checked. This window draws no stacks — `snapshot.ts` hands the merge box
+     * `stack: Option.none()` and holds to it — so the ordinary route is the only
+     * one it can send to. Press it on a layer of a real stack and GitHub answers
+     * 422, and the reader gets their sentence about a branch being out of date.
+     */
+    howToMerge: (reference: PullRequestRef) =>
+      Effect.map(askHowToMerge(reference), (ways) => ({
+        method: Option.fromNullishOr(preferredWay(ways)),
+        stacked: false
+      })),
+
+    /*
      * Stacks, which this window says it knows nothing about and then holds to.
      *
      * `snapshot.ts` hands the merge box `stack: Option.none()`, so the controls that
      * would reach these are never drawn. They are here for the day it answers
      * otherwise, and until then a call is a mistake rather than a reader's press.
      */
-    /*
-     * The same question the extension asks its merge box, answered from the only
-     * place this window can ask: the repository's own settings, which is where
-     * those verdicts come from anyway.
-     *
-     * Never a layer of a stack. `snapshot.ts` hands the merge box
-     * `stack: Option.none()` and holds to it, so this window has no stacks to
-     * land and says so rather than guessing at one.
-     */
-    howToMerge: (reference: PullRequestRef) =>
-      Effect.map(askHowToMerge(reference), (ways) => ({
-        method: Option.fromNullishOr(preferred(ways)),
-        stacked: false
-      })),
     mergeStack: missing("merge a stack"),
     makeStack: missing("make a stack"),
     // The same arrangement for the branch: `headRef.mayDelete` is false in every

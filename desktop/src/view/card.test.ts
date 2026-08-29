@@ -38,6 +38,7 @@ const facts = (some: Partial<CardFacts> = {}): CardFacts => ({
   checks: [],
   reviews: [],
   merge: {
+    ways: ["MERGE", "SQUASH", "REBASE"],
     mergeable: "MERGEABLE",
     status: "CLEAN",
     mayBypass: false,

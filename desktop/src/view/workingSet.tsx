@@ -66,8 +66,6 @@ const remembered = () => {
   return rememberedWorkingSet().pipe(Effect.provide(gatewayFrom(rows)))
 }
 
-
-
 /**
  * One verb, against one row, through a gateway with no rows in it.
  *

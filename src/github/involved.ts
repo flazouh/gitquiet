@@ -1,4 +1,5 @@
 import { Option } from "effect"
+import { asLanded } from "./landed"
 import type {
   CheckRollup,
   InvolvedPullRequest,
@@ -109,7 +110,12 @@ export const involvedIn = (
 ): ReadonlyArray<InvolvedPullRequest> =>
   rows.flatMap((row) => Option.match(involvedFrom(shelf, row), {
     onNone: (): ReadonlyArray<InvolvedPullRequest> => [],
-    onSome: (involved) => [involved]
+    // Wearing whatever a write of ours has since made true. Here because this is
+    // the one function every listing passes through — the six shelves, a
+    // repository's own list, and both of those again out of the store. It was
+    // done at the call sites instead, and the second call site was missed, which
+    // is how a merged pull request went on sitting in a repository's list.
+    onSome: (involved) => [asLanded(involved)]
   }))
 
 /**

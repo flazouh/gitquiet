@@ -7,12 +7,14 @@ import type {
   FaceFacts,
   FileFacts,
   MergeFacts,
+  MergeWay,
   RemarkFacts,
   ReviewFacts,
   SaidFacts,
   ThreadFacts
 } from "../shared/wire"
 import { graphRead, restRead } from "./api"
+import { waysToMerge } from "./write"
 
 /**
  * One pull request, read from the documented API.
@@ -428,7 +430,11 @@ const anchorOf = (thread: {
   }
 }
 
-const mergeOf = (pull: NonNullable<NonNullable<Answer["repository"]>["pullRequest"]>): MergeFacts => ({
+const mergeOf = (
+  pull: NonNullable<NonNullable<Answer["repository"]>["pullRequest"]>,
+  ways: ReadonlyArray<MergeWay>
+): MergeFacts => ({
+  ways,
   mergeable: pull.mergeable,
   status: pull.mergeStateStatus,
   mayBypass: pull.viewerCanMergeAsAdmin,
@@ -468,12 +474,22 @@ const readFiles = Effect.fn("readFiles")(function* (token: string, card: Card) {
 })
 
 export const readCard = Effect.fn("readCard")(function* (token: string, card: Card) {
-  const [answer, rest] = yield* Effect.all(
+  /*
+   * Three reads at once, the third being the repository's own merge settings.
+   *
+   * Beside the other two rather than behind them, so it costs no wait: the card
+   * is not drawn until all three land anyway. It is here rather than left to the
+   * view because this is where every other conclusion about merging is drawn,
+   * and a card that decided it separately is how the card and a row in the list
+   * came to answer the same question two different ways.
+   */
+  const [answer, rest, ways] = yield* Effect.all(
     [
       graphRead<Answer>(token, QUERY, { owner: card.owner, repo: card.repo, number: card.number }),
-      readFiles(token, card)
+      readFiles(token, card),
+      waysToMerge(token, card)
     ],
-    { concurrency: 2 }
+    { concurrency: 3 }
   )
 
   const pull = answer.repository?.pullRequest
@@ -532,7 +548,7 @@ export const readCard = Effect.fn("readCard")(function* (token: string, card: Ca
         return decision === undefined ? null : { reviewer: faceOf(one.author), decision }
       })
       .filter((one): one is ReviewFacts => one !== null),
-    merge: mergeOf(pull)
+    merge: mergeOf(pull, ways)
   } satisfies CardFacts
 })
 
