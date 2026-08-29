@@ -7,6 +7,20 @@ import type { PullRequestSnapshot, PullRequestState } from "../domain/PullReques
 import type { PullRequestRef } from "../domain/PullRequestRef"
 import { PullRequestScreen } from "./PullRequestScreen"
 
+/**
+ * Closing, which is behind the glyph at the end of the merge card's row.
+ *
+ * Two presses, as it always was: the item arms on the first and goes to GitHub
+ * on the second. The menu holds itself open between them, so both land on the
+ * same item.
+ */
+const openTheRest = async () => {
+  await userEvent.click(
+    screen.getByRole("button", { name: /More to do with this pull request/ })
+  )
+}
+const rest = (name: RegExp) => screen.getByRole("menuitem", { name })
+
 afterEach(cleanup)
 
 const reference: PullRequestRef = { owner: "acme", repo: "widgets", number: 7 }
@@ -81,8 +95,9 @@ describe("a verb pressed on the merge card", () => {
 
     await waitFor(() => expect(screen.getByRole("region", { name: "Merge" })).toBeDefined())
 
-    await userEvent.click(screen.getByRole("button", { name: /Close pull request/ }))
-    await userEvent.click(screen.getByRole("button", { name: /Confirm close pull request/ }))
+    await openTheRest()
+    await userEvent.click(rest(/Close pull request/))
+    await userEvent.click(rest(/Confirm/))
 
     // GitHub has not answered and is not going to until this test says so.
     await waitFor(() => expect(screen.getByText(/ended without landing/)).toBeDefined())
@@ -103,18 +118,19 @@ describe("a verb pressed on the merge card", () => {
 
     await waitFor(() => expect(screen.getByRole("region", { name: "Merge" })).toBeDefined())
 
-    await userEvent.click(screen.getByRole("button", { name: /Close pull request/ }))
-    await userEvent.click(screen.getByRole("button", { name: /Confirm close pull request/ }))
+    await openTheRest()
+    await userEvent.click(rest(/Close pull request/))
+    await userEvent.click(rest(/Confirm/))
 
     await waitFor(() => expect(screen.getByText(/ended without landing/)).toBeDefined())
 
     ask.fail()
 
-    // The controls are back, and so is the sentence saying why they are.
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Close pull request/ })).toBeDefined()
-    )
-    expect(screen.getByText(/GitHub said no/)).toBeDefined()
+    // The controls are back, and so is the sentence saying why they are. The
+    // menu shut when the reader let go of it, so this opens it again.
+    await waitFor(() => expect(screen.getByText(/GitHub said no/)).toBeDefined())
+    await openTheRest()
+    expect(rest(/Close pull request/).getAttribute("data-disabled")).toBeNull()
   })
 
   test("hands the verbs back where the write never reached GitHub at all", async () => {
@@ -136,15 +152,13 @@ describe("a verb pressed on the merge card", () => {
 
     await waitFor(() => expect(screen.getByRole("region", { name: "Merge" })).toBeDefined())
 
-    await userEvent.click(screen.getByRole("button", { name: /Close pull request/ }))
-    await userEvent.click(screen.getByRole("button", { name: /Confirm close pull request/ }))
+    await openTheRest()
+    await userEvent.click(rest(/Close pull request/))
+    await userEvent.click(rest(/Confirm/))
 
     await waitFor(() => expect(screen.getByText("GitHub could not be reached.")).toBeDefined())
 
-    expect(screen.getByRole("button", { name: /Close pull request/ })).toHaveProperty(
-      "disabled",
-      false
-    )
+    expect(rest(/Close pull request/).getAttribute("data-disabled")).toBeNull()
   })
 
   test("hands the verbs back once the verb has landed", async () => {
@@ -175,21 +189,16 @@ describe("a verb pressed on the merge card", () => {
 
     await waitFor(() => expect(screen.getByRole("region", { name: "Merge" })).toBeDefined())
 
-    await userEvent.click(screen.getByRole("button", { name: /Mark ready for review/ }))
-    await userEvent.click(screen.getByRole("button", { name: /Confirm mark ready for review/ }))
+    await openTheRest()
+    await userEvent.click(rest(/Mark ready for review/))
+    await userEvent.click(rest(/Confirm/))
 
-    // The draft door turning around is the write having landed.
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Convert to draft/ })).toBeDefined()
-    )
-    expect(screen.getByRole("button", { name: /Convert to draft/ })).toHaveProperty(
-      "disabled",
-      false
-    )
-    expect(screen.getByRole("button", { name: /Close pull request/ })).toHaveProperty(
-      "disabled",
-      false
-    )
+    // The draft door turning around is the write having landed. Read out of the
+    // same menu, which stays open across the press: an item that came back
+    // greyed is the fault this was written for.
+    await waitFor(() => expect(rest(/Convert to draft/)).toBeDefined())
+    expect(rest(/Convert to draft/).getAttribute("data-disabled")).toBeNull()
+    expect(rest(/Close pull request/).getAttribute("data-disabled")).toBeNull()
   })
 })
 
@@ -244,8 +253,9 @@ describe("a pull request that changed under a write of ours", () => {
     await waitFor(() => expect(screen.getByRole("region", { name: "Merge" })).toBeDefined())
     expect(reads).toBe(1)
 
-    await userEvent.click(screen.getByRole("button", { name: /Close pull request/ }))
-    await userEvent.click(screen.getByRole("button", { name: /Confirm close pull request/ }))
+    await openTheRest()
+    await userEvent.click(rest(/Close pull request/))
+    await userEvent.click(rest(/Confirm/))
 
     await waitFor(() => expect(screen.getByText(/GitHub said no/)).toBeDefined())
     await waitFor(() => expect(reads).toBe(2))
@@ -274,8 +284,9 @@ describe("a pull request that changed under a write of ours", () => {
 
     await waitFor(() => expect(screen.getByRole("region", { name: "Merge" })).toBeDefined())
 
-    await userEvent.click(screen.getByRole("button", { name: /Close pull request/ }))
-    await userEvent.click(screen.getByRole("button", { name: /Confirm close pull request/ }))
+    await openTheRest()
+    await userEvent.click(rest(/Close pull request/))
+    await userEvent.click(rest(/Confirm/))
 
     await waitFor(() => expect(screen.getByText("GitHub could not be reached.")).toBeDefined())
     expect(reads).toBe(1)

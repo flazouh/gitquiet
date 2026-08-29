@@ -415,7 +415,11 @@ describe("what the pull request is, in four sections", () => {
     expect(within(merge).getByRole("button", { name: /Squash and merge/ }).hasAttribute("disabled")).toBe(
       true
     )
-    expect(within(merge).getByRole("button", { name: /Close pull request/ })).toBeDefined()
+    // The verbs a pull request meets once in its life are behind the glyph at
+    // the end of that row, and this screen wires none of them, so there is no
+    // glyph to find. That the rest stay reachable while the merge is blocked is
+    // the card's own question — see `merge.test.tsx`.
+    expect(within(merge).queryByRole("button", { name: /More to do/ })).toBeNull()
   })
 
   /*

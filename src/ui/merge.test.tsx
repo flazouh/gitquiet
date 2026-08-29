@@ -31,6 +31,20 @@ const ready: MergeState = {
 const button = (name: RegExp) => screen.getByRole("button", { name })
 
 /**
+ * Opens the glyph at the end of the row, where the rare verbs live.
+ *
+ * Drafting and closing a pull request happen once in its life, and they used to
+ * be two of four controls in a column narrow enough that the row wrapped. What
+ * wrapped was never chosen, so they are behind this now.
+ */
+const openTheRest = async () => {
+  await userEvent.click(screen.getByRole("button", { name: /More to do with this pull request/ }))
+}
+
+/** A verb in that menu, by the word it wears. */
+const item = (name: RegExp) => screen.getByRole("menuitem", { name })
+
+/**
  * A blocker as the snapshot builds them, saying only the part a test is about.
  *
  * Written out in full in five tests, none of which was about the files a
@@ -329,19 +343,22 @@ describe("the merge card", () => {
   })
 
   test("changes the word on the half that acts, so being armed looks like something", async () => {
-    render(<Merge merge={Option.some(ready)} state="open" actions={{ toDraft: () => Effect.void }} />)
+    // Asked of the merge, which is the verb that kept its seat in the row. The
+    // swap belongs to a button; the verbs behind the glyph swap their own word
+    // in place, a menu item having nowhere to rise from.
+    render(<Merge merge={Option.some(ready)} state="open" actions={{ merge: () => Effect.void }} />)
 
     // Both words are there the whole time — the swap is one rising as the other
     // leaves — so which is shown is the one not hidden from a reader.
     const word = (name: RegExp, said: string) => within(button(name)).getByText(said)
 
-    expect(word(/Convert to draft/, "Confirm").getAttribute("aria-hidden")).toBe("true")
-    expect(word(/Convert to draft/, "Convert to draft").getAttribute("aria-hidden")).toBeNull()
+    expect(word(/Squash and merge/, "Confirm").getAttribute("aria-hidden")).toBe("true")
+    expect(word(/Squash and merge/, "Squash and merge").getAttribute("aria-hidden")).toBeNull()
 
-    await userEvent.click(button(/Convert to draft/))
+    await userEvent.click(button(/Squash and merge/))
 
-    expect(word(/Confirm convert to draft/, "Confirm").getAttribute("aria-hidden")).toBeNull()
-    expect(word(/Confirm convert to draft/, "Convert to draft").getAttribute("aria-hidden")).toBe(
+    expect(word(/Confirm squash and merge/, "Confirm").getAttribute("aria-hidden")).toBeNull()
+    expect(word(/Confirm squash and merge/, "Squash and merge").getAttribute("aria-hidden")).toBe(
       "true"
     )
   })
@@ -351,19 +368,18 @@ describe("the merge card", () => {
       <Merge state="open" merge={Option.some(ready)} actions={{ merge: () => Effect.void, close: () => Effect.void }} />
     )
 
-    await userEvent.click(button(/Close pull request/))
+    await userEvent.click(button(/Squash and merge/))
 
-    const yes = button(/Confirm close pull request/)
-    const no = button(/Do not close pull request/)
+    const yes = button(/Confirm squash and merge/)
+    const no = button(/Do not squash and merge/)
     // The pair is one control in the place the single button stood: the way out
     // is inside it, and the buttons beside it are not. Asked of the control
     // rather than of the verb's own parent, which the split button put a wrapper
     // between — the shape of the markup is not what this is about.
     const control = yes.closest(".t-ask")
     expect(control?.contains(no)).toBe(true)
-    expect(control?.contains(button(/Squash and merge/))).toBe(false)
-    // And the buttons it stands beside are left alone, still saying what they do.
-    expect(button(/Squash and merge/)).toBeDefined()
+    // And what it stands beside is left alone, still saying what it does.
+    expect(screen.getByRole("button", { name: /More to do/ })).toBeDefined()
   })
 
   test("merges on the second press", async () => {
@@ -746,10 +762,11 @@ describe("the merge card", () => {
       />
     )
 
-    await userEvent.click(button(/Mark ready for review/))
+    await openTheRest()
+    await userEvent.click(item(/Mark ready for review/))
     expect(marked).toBe(0)
 
-    await userEvent.click(button(/Confirm mark ready for review/))
+    await userEvent.click(item(/Confirm/))
 
     await waitFor(() => expect(marked).toBe(1))
   })
@@ -762,8 +779,9 @@ describe("the merge card", () => {
       <Merge merge={Option.some(ready)} state="open" actions={{ toDraft: () => Effect.sync(() => void (drafted += 1)) }} />
     )
 
-    await userEvent.click(button(/Convert to draft/))
-    await userEvent.click(button(/Confirm convert to draft/))
+    await openTheRest()
+    await userEvent.click(item(/Convert to draft/))
+    await userEvent.click(item(/Confirm/))
 
     await waitFor(() => expect(drafted).toBe(1))
   })
@@ -779,10 +797,11 @@ describe("the merge card", () => {
     let closes = 0
     render(<Merge state="open" merge={Option.some(ready)} actions={{ close: () => Effect.sync(() => void (closes += 1)) }} />)
 
-    await userEvent.click(button(/Close pull request/))
+    await openTheRest()
+    await userEvent.click(item(/Close pull request/))
 
     expect(closes).toBe(0)
-    expect(button(/Confirm close pull request/)).toBeDefined()
+    expect(item(/Confirm/)).toBeDefined()
   })
 
   test("closes it on the second press", async () => {
@@ -796,8 +815,9 @@ describe("the merge card", () => {
       />
     )
 
-    await userEvent.click(button(/Close pull request/))
-    await userEvent.click(button(/Confirm close pull request/))
+    await openTheRest()
+    await userEvent.click(item(/Close pull request/))
+    await userEvent.click(item(/Confirm/))
 
     await waitFor(() => expect(closes).toBe(1))
   })
@@ -812,8 +832,9 @@ describe("the merge card", () => {
       />
     )
 
-    await userEvent.click(button(/Close pull request/))
-    await userEvent.click(button(/Confirm close pull request/))
+    await openTheRest()
+    await userEvent.click(item(/Close pull request/))
+    await userEvent.click(item(/Confirm/))
 
     await waitFor(() => expect(screen.getByText("GitHub could not be reached.")).toBeDefined())
   })
@@ -822,7 +843,9 @@ describe("the merge card", () => {
     render(<Merge state="open" merge={Option.some(ready)} />)
 
     expect(button(/Squash and merge/)).toHaveProperty("disabled", true)
-    expect(button(/Close pull request/)).toHaveProperty("disabled", true)
+    // And the glyph is not drawn at all: every verb behind it needs somebody to
+    // send it, and a menu of nothing is a menu nobody should be able to open.
+    expect(screen.queryByRole("button", { name: /More to do/ })).toBeNull()
   })
 
 })

@@ -163,7 +163,18 @@ const TONE: Record<Asking, { readonly rest: string; readonly armed: string }> = 
   },
   dequeue: { rest: "bg-surface text-fail", armed: "bg-fail-emphasis text-ink-on-emphasis" },
   cancel: { rest: "bg-surface text-fail", armed: "bg-fail-emphasis text-ink-on-emphasis" },
-  update: { rest: "bg-surface text-ink", armed: "bg-accent-emphasis text-ink-on-emphasis" },
+  /*
+   * A fill rather than the card's own, which is what makes it a secondary button
+   * instead of a line of text.
+   *
+   * It gained a caret, and a split with no fill is a label with a chevron
+   * floating beside it: the seam between the halves is the surface behind them
+   * showing through, and on `bg-surface` there was nothing to show. `bg-canvas`
+   * is what every other quiet control in this interface is drawn on — the file
+   * band's own buttons, the rail's head — so this is the house answer rather
+   * than a colour chosen for one button.
+   */
+  update: { rest: "bg-canvas text-ink", armed: "bg-accent-emphasis text-ink-on-emphasis" },
   close: { rest: "bg-surface text-fail", armed: "bg-fail-emphasis text-ink-on-emphasis" },
   markReady: {
     rest: "bg-accent-emphasis text-ink-on-emphasis",
@@ -359,6 +370,100 @@ const Caret = ({
               {way.word}
             </Menu.Item>
           ))}
+        </Menu.Content>
+      </Menu.Portal>
+    </Menu.Root>
+  )
+}
+
+/**
+ * The verbs that did not get a button, behind one glyph at the end of the row.
+ *
+ * A card with four controls in a four-hundred pixel column is a card whose row
+ * wraps, and what wrapped was never chosen: the two that fell to the second line
+ * were the two nobody presses. So the row keeps what a reader came for and the
+ * rest go here.
+ *
+ * No state of its own. Each item drives the same {@link press} the buttons drive
+ * and reads the same {@link Merging}, so a verb asked for here arms, confirms,
+ * reports and refuses exactly as it would have on the row — the words on the
+ * item are the words that were on the button, from the same table.
+ *
+ * The menu is held open through the first press for the reason the row menu
+ * holds its own open: a question asked twice cannot be asked twice by a control
+ * that leaves after the first half.
+ */
+export const Overflow = ({
+  verbs,
+  merging,
+  can,
+  actions,
+  press,
+  onCancel,
+  landsStack = false
+}: {
+  /** In the order they are offered, which is rarest last. */
+  readonly verbs: ReadonlyArray<Asking>
+  readonly merging: Merging
+  readonly can: ReadonlySet<Asking>
+  readonly actions?: MergeActions
+  readonly press: (doing: Asking) => void
+  readonly onCancel: () => void
+  readonly landsStack?: boolean
+}) => {
+  const art = useArt()
+  const More = art.more
+  const inOurs = typeof document === "undefined" ? null : document.getElementById(ROOT_ID)
+  const offered = verbs.filter((doing) => actions?.[doing] !== undefined)
+  if (offered.length === 0) return null
+
+  return (
+    <Menu.Root
+      // Leaving withdraws the question. A verb left armed behind a closed menu is
+      // a press the reader has forgotten making, waiting for a second one.
+      onOpenChange={(open) => {
+        if (!open && merging.step === "asking") onCancel()
+      }}
+    >
+      <Menu.Trigger
+        aria-label="More to do with this pull request"
+        className="flex shrink-0 items-center rounded-md px-1.5 py-1.5 text-ink-muted hover:bg-hover hover:text-ink"
+      >
+        <More size={16} />
+      </Menu.Trigger>
+      <Menu.Portal container={inOurs}>
+        <Menu.Content
+          align="end"
+          sideOffset={4}
+          className="t-dropdown z-50 min-w-44 rounded-md bg-raised p-1 text-ink shadow-pop ring-1 ring-line"
+        >
+          {offered.map((doing) => {
+            const words = wordsOf(doing, Option.none(), landsStack)
+            const asking = merging.step === "asking" && merging.doing === doing
+            const stopped = !can.has(doing) || merging.step === "working"
+
+            return (
+              <Menu.Item
+                key={doing}
+                disabled={stopped && !asking}
+                /*
+                 * Held open on purpose, the way the row's own menu holds itself
+                 * open: a click here is half a question, and a menu that shut on
+                 * the first press would take the second one somewhere the reader
+                 * cannot make it.
+                 */
+                onSelect={(event) => {
+                  event.preventDefault()
+                  press(doing)
+                }}
+                className={`flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-xs outline-none data-[disabled]:cursor-default data-[disabled]:opacity-50 data-[highlighted]:bg-hover ${
+                  asking ? `font-semibold ${TONE[doing].armed}` : ""
+                }`}
+              >
+                {labelFor(merging, doing, asking, words)}
+              </Menu.Item>
+            )
+          })}
         </Menu.Content>
       </Menu.Portal>
     </Menu.Root>

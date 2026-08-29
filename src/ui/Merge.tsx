@@ -21,6 +21,7 @@ import {
   type Merging,
   mergeWord,
   type Otherwise,
+  Overflow,
   UPDATE_WORD
 } from "./Ask"
 import { useArt } from "./art"
@@ -793,10 +794,18 @@ const MergeCard = ({
           </span>
         </p>
       ) : null}
+      {/* The button is on this line rather than down in the row, because this
+          line is the whole reason to press it.
+
+          Every blocker above carries its own explanation directly underneath
+          it, and this warning follows the same shape — but its answer used to be
+          swept into a row of verbs about the pull request's fate, two lines
+          away, where a reader looking at the sentence had to find it among
+          Convert to draft and Close. An action belongs beside its cause. */}
       {prepareThrough >= 3 && Option.isSome(merge.update) ? (
-        <p className="flex items-start gap-2 px-3 py-2 text-xs leading-snug text-ink-muted">
+        <div className="flex items-start gap-2 px-3 py-2 text-xs leading-snug text-ink-muted">
           <Alert size={12} className="mt-0.5 shrink-0 text-warn" />
-          <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span>The base branch has moved on since this one left it.</span>
             {/* GitHub's own words for why not. Without them the button is grey
                 for a reason the reader has to go to GitHub to find out, which
@@ -805,7 +814,15 @@ const MergeCard = ({
               <span>{merge.update.value.refusal.value}</span>
             ) : null}
           </span>
-        </p>
+          {prepareThrough >= 4 ? (
+            <Ask
+              doing="update"
+              {...wiring}
+              otherwise={Option.getOrUndefined(otherWays)}
+              className="shrink-0"
+            />
+          ) : null}
+        </div>
       ) : null}
       {prepareThrough >= 3 && merging.step === "refused" ? (
         <p className="flex items-start gap-2 px-3 py-2 text-xs leading-snug text-fail">
@@ -818,12 +835,22 @@ const MergeCard = ({
           split over two lines beside "Close pull request" split over two lines
           was four lines of button and no way to tell which word belonged to
           which. */}
+      {/* One line, at every width worth reading a diff in.
+
+          This row held four controls in a four-hundred pixel column, so it
+          wrapped — and what wrapped was never chosen: the two that fell to the
+          second line were the two nobody presses, and Close ended up stranded in
+          a corner of its own by a margin meant for a width this card never has.
+
+          So the row keeps the one act the card exists for, and the rest are
+          behind the glyph at the end of it. Catching the branch up is not here
+          at all any more; it is beside the sentence that says why to press it. */}
       {prepareThrough >= 4 ? (
-        <div className="@container flex flex-wrap items-center gap-2 px-3 py-2.5">
+        <div className="flex items-center gap-2 px-3 py-2.5">
           {/* One way in, never two. Where a queue exists the direct merge is
               something GitHub refuses, so the domain names the queue verb instead
               and there is one button either way: the paragraph above has already
-              said why, and this column has room for two controls, not three. */}
+              said why. */}
           {(() => {
             const doing = Option.getOrElse(face.queueing, () => "merge" as const)
             return (
@@ -838,23 +865,12 @@ const MergeCard = ({
               />
             )
           })()}
-          {/* Shown only while there is catching up to do. Whether it may be pressed
-              is the domain's answer; whether the fact exists at all is this one. */}
-          {Option.isSome(merge.update) ? (
-            <Ask doing="update" {...wiring} otherwise={Option.getOrUndefined(otherWays)} />
-          ) : null}
-          <Ask doing={face.drafting} {...wiring} />
-          <Ask
-            doing="close"
-            {...wiring}
-            // Pushed to the far edge, but only while there is an edge to push to.
-            // An automatic margin does not stop this row wrapping, it only decides
-            // where the wrapped button lands, and what it decided was the far right
-            // of a line of its own — a button stranded in the corner under two that
-            // start at the left. Below the width that holds them all, it wraps into
-            // line with the rest instead.
-            className="@[27rem]:ml-auto"
-          />
+          {/* Rarest last, and both of them rare: a pull request is drafted or
+              closed once in its life, where the button beside them is the reason
+              this card is on the screen. */}
+          <span className="ml-auto flex shrink-0 items-center">
+            <Overflow verbs={[face.drafting, "close"]} {...wiring} />
+          </span>
         </div>
       ) : null}
     </Section>
