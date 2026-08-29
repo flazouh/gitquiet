@@ -4,7 +4,7 @@ import {
   closePullRequest,
   convertToDraft,
   markReadyForReview,
-  mergePullRequest,
+  mergeAsTheRepositoryDoes,
   reopenPullRequest,
 } from "@/app/pullRequest";
 import {
@@ -46,11 +46,12 @@ import "@/ui/styles.css";
  */
 const WRITES = {
   /*
-   * The commonest of the three, named here because a row has no merge state to
-   * read the repository's own out of — see `mergePullRequest`. The card reads
-   * it and says so on the button.
+   * Reads how this repository merges before it merges, because a row has none of
+   * that on it. It used to send `SQUASH` outright, which a repository that
+   * forbids squashing refuses and a layer of a stack refuses for a different
+   * reason again — see `mergeAsTheRepositoryDoes`.
    */
-  merge: (reference: PullRequestRef) => mergePullRequest(reference, "SQUASH"),
+  merge: mergeAsTheRepositoryDoes,
   close: closePullRequest,
   reopen: reopenPullRequest,
   markReady: markReadyForReview,

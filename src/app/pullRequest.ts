@@ -233,6 +233,40 @@ export const mergePullRequest = Effect.fn("mergePullRequest")(function* (
 })
 
 /**
+ * Merges it from a surface that has never read a merge box.
+ *
+ * A row in a list carries six fields and not one of them is about merging, so
+ * this used to send `SQUASH` and hope. It is wrong twice over: a repository that
+ * allows only merge commits refuses it, and a layer of a stack is refused by the
+ * ordinary merge route whatever method it names — the press came back talking
+ * about a branch being out of date, on a pull request nothing was wrong with.
+ *
+ * One extra read, made when the reader presses rather than for every row on the
+ * way in. That is the trade the Working Set is built on: forty merge boxes to
+ * draw a list nobody is going to merge from is the cost this avoids, and the one
+ * row somebody does press can afford to ask.
+ *
+ * A merge box that names no method is a merge GitHub would refuse anyway, and it
+ * fails here saying so rather than sending a body with the field missing.
+ */
+export const mergeAsTheRepositoryDoes = Effect.fn("mergeAsTheRepositoryDoes")(function* (
+  reference: PullRequestRef
+) {
+  const gateway = yield* GitHubGateway
+  const how = yield* gateway.howToMerge(reference)
+
+  if (Option.isNone(how.method)) {
+    return yield* Effect.fail(
+      new Error("GitHub named no way to merge this pull request.")
+    )
+  }
+
+  yield* how.stacked
+    ? gateway.mergeStack(reference, how.method.value)
+    : gateway.merge(reference, how.method.value)
+})
+
+/**
  * Makes the stack GitHub offers to make out of this pull request.
  *
  * Nothing is handed in but the pull request, although the stack is several of

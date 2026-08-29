@@ -508,7 +508,7 @@ const allowedChoice = <A extends Offered>(offers: ReadonlyArray<A>): A | undefin
  * None where nothing in the list is both allowed and sendable, which greys the
  * button rather than guessing at a word GitHub might refuse.
  */
-const landingMethods = (pullRequest: {
+export const landingMethods = (pullRequest: {
   readonly viewerMergeActions?: ReadonlyArray<MergeAction> | null | undefined
 }): { readonly on: Option.Option<MergeMethod>; readonly among: ReadonlyArray<MergeMethod> } => {
   const direct = pullRequest.viewerMergeActions?.find(({ name }) => name === "DIRECT_MERGE")

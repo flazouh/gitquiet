@@ -94,7 +94,8 @@ import {
   toDiffs,
   toExtraDiffs,
   toHeldBack,
-  toSnapshot
+  toSnapshot,
+  landingMethods
 } from "./snapshot"
 import { happeningsFrom } from "./activity"
 import { statIn } from "./diffStat"
@@ -2372,6 +2373,31 @@ export const layer = Layer.succeed(GitHubGateway, {
       return Option.some(branches)
     }),
 
+    howToMerge: Effect.fn("GitHubGateway.howToMerge")(function* (reference: PullRequestRef) {
+      const raw = yield* fetchRoute(reference, MERGE_BOX)
+      const decoded = yield* decodeMergeBox(raw).pipe(
+        Effect.catch((cause) =>
+          Effect.fail(
+            new GatewayError({
+              reference,
+              route: MERGE_BOX,
+              reason: "undecodable",
+              detail: String(cause)
+            })
+          )
+        )
+      )
+
+      return {
+        method: landingMethods(decoded.pullRequest).on,
+        // The merge box's own word for it, which is the same field the card's
+        // stack is read from. A layer answers 422 on the ordinary merge route,
+        // so this is the difference between a press that works and one that
+        // comes back talking about a branch being out of date.
+        stacked: typeof decoded.pullRequest.stackedBaseRefName === "string"
+      }
+    }),
+
     sizeOf: Effect.fn("GitHubGateway.sizeOf")(function* (reference: PullRequestRef) {
       const raw = yield* fetchRoute(reference, DIFFSTAT)
 
@@ -4192,6 +4218,9 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     // Nothing to stack against: a lone pull request has no siblings here, and a
     // row with no branches is a row drawn flat.
     branches: () => Effect.succeed(Option.none()),
+    // No merge box behind a recording either. A test that wants a row's merge to
+    // go somewhere says so with a layer of its own.
+    howToMerge: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
     // No listing here to want sizes for. A failure rather than zero lines,
     // because a recording that cannot say is not a pull request that changes
     // nothing — and the lists already draw a row whose size never arrived.
@@ -4339,6 +4368,9 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     // Nothing to stack against: a lone pull request has no siblings here, and a
     // row with no branches is a row drawn flat.
     branches: () => Effect.succeed(Option.none()),
+    // No merge box behind a recording either. A test that wants a row's merge to
+    // go somewhere says so with a layer of its own.
+    howToMerge: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
     // As above: nothing is listed here, so nothing here has a size.
     sizeOf: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
     // Nothing was kept about any row, here as above.

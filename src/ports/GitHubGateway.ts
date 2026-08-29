@@ -1097,6 +1097,21 @@ export class GitHubGateway extends Context.Service<
       reference: PullRequestRef
     ) => Effect.Effect<Option.Option<Branches>, GatewayError>
     /**
+     * How this pull request would land, for a surface that has not read a merge box.
+     *
+     * A row in a list carries six fields and not one of them is about merging, so
+     * the menu on it used to send `SQUASH` and hope: wrong on a repository that
+     * forbids squashing, and refused outright on a layer of a stack, which lands
+     * through a route of its own. One read, made when the reader presses rather
+     * than for every row on the way in, which is what the card gets for free.
+     */
+    readonly howToMerge: (
+      reference: PullRequestRef
+    ) => Effect.Effect<
+      { readonly method: Option.Option<MergeMethod>; readonly stacked: boolean },
+      GatewayError
+    >
+    /**
      * How many lines one listed pull request changes.
      *
      * A read per row, because GitHub has no batch for it — and affordable all the
