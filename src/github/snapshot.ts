@@ -290,6 +290,32 @@ const layerState = (state: string): PullRequestState =>
  * it up, which layer is the foundation — is answered by counting from the
  * bottom, so the bottom is where the list starts.
  */
+/**
+ * Whether a merge box describes a layer of a stack, by the one rule there is.
+ *
+ * Asked in two places. The card reads a whole {@link Stack} out of these same
+ * conditions; a row in a list asks only this much, to pick between the two merge
+ * routes before it presses. That second reading used to be
+ * `stackedBaseRefName != null`, which the payload sets from any seat, so the two
+ * disagreed — and a disagreement here is a refused press, each route turning
+ * away the other's pull request with a sentence about a branch being out of date.
+ */
+export const stacked = (
+  conditions: ReadonlyArray<{
+    readonly type?: string | null | undefined
+    readonly stack?: { readonly number: number } | null | undefined
+    readonly entries?: ReadonlyArray<unknown> | null | undefined
+  }>
+): boolean => {
+  const condition = conditions.find((one) => one.type === "STACK")
+  return (
+    condition?.stack !== undefined &&
+    condition.stack !== null &&
+    condition.entries !== undefined &&
+    condition.entries !== null
+  )
+}
+
 const stackIn = (
   reference: PullRequestRef,
   /** The base branch of the pull request being read, which is the stack's floor only from the foundation. */
@@ -316,7 +342,7 @@ const stackIn = (
   const condition = conditions.find((one) => one.type === "STACK")
   const held = condition?.stack
   const entries = condition?.entries
-  if (held === undefined || held === null || entries === undefined || entries === null) {
+  if (!stacked(conditions) || held === undefined || held === null || entries === undefined || entries === null) {
     return Option.none()
   }
 

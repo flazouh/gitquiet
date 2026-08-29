@@ -95,7 +95,8 @@ import {
   toExtraDiffs,
   toHeldBack,
   toSnapshot,
-  landingMethods
+  landingMethods,
+  stacked
 } from "./snapshot"
 import { happeningsFrom } from "./activity"
 import { statIn } from "./diffStat"
@@ -1113,6 +1114,20 @@ const writing = Effect.fn("writing")(function* (
       detail: reasonGiven(said) ?? `HTTP ${response.status}`
     })
   }
+
+  /*
+   * The write worked, so what is kept about this pull request describes one that
+   * no longer exists in that shape.
+   *
+   * Here rather than at each of the fourteen call sites, which is where it began.
+   * Every pull request write in this file goes through this one function and it
+   * returns only on success, so this is the one place that cannot be forgotten —
+   * and it was already being forgotten: resolving a thread, posting a review and
+   * making a stack all left the kept payloads saying otherwise.
+   */
+  const leaves = LEAVES_IT[route]
+  if (leaves !== undefined) recordLanded(reference, leaves)
+  yield* forget(reference)
 })
 
 /**
@@ -1826,17 +1841,27 @@ const undecodableFrom =
     Effect.fail(new GatewayError({ reference, route, reason: "undecodable", detail: String(cause) }))
 
 /**
- * What a write leaves behind it.
+ * What each write route leaves the pull request as.
  *
- * Two things, and neither is optional. The stored payloads are dropped, because
- * they describe the pull request as it was before the press. And where the verb
- * ends in a state the domain can name, that state is written down, because for
- * the next second or two GitHub's own routes will still answer with the old one.
+ * The domain already owns this pairing — `LEADS_TO` in `doable.ts` is the same
+ * five verbs against the same five states — and this is the other half of it,
+ * keyed by the address rather than by the verb, because the address is what a
+ * write has in its hand down here.
  *
- * Every write calls this, including the four that name no state: a place in a
- * queue and a branch caught up are not states, but they are still facts the kept
- * payloads now have wrong.
+ * The routes not named are the ones that change a pull request without changing
+ * what it is: a place in a queue, a branch caught up, a thread resolved, a
+ * branch deleted. Their payloads are dropped just the same, since every one of
+ * those facts is in them.
  */
+const LEAVES_IT: Readonly<Record<string, PullRequestState>> = {
+  [MERGE]: "merged",
+  [MERGE_STACK]: "merged",
+  [CLOSE]: "closed",
+  [REOPEN]: "open",
+  [MARK_READY]: "open",
+  [TO_DRAFT]: "draft"
+}
+
 /**
  * The same for an issue: what it last answered is no longer what it would.
  *
@@ -1849,22 +1874,20 @@ const wroteIssue = Effect.fn("wroteIssue")(function* (reference: IssueRef) {
   if (Option.isSome(route)) yield* forgetRoute(route.value)
 })
 
-const wrote = Effect.fn("wrote")(function* (
-  reference: PullRequestRef,
-  state?: PullRequestState
-) {
-  if (state !== undefined) recordLanded(reference, state)
-  yield* forget(reference)
-})
-
 /**
  * The pull request as our own writes know it, where GitHub has not caught up yet.
  *
- * Applied here rather than on the screen that pressed the button, so that every
- * surface gets it: the card, the lists, a second tab. It used to live in the
- * pull request screen, where it was a variable in one `open()` call — so walking
- * out of a merged pull request and back in lost it, which is exactly the walk a
- * reader makes.
+ * Applied on every read of a whole pull request, live or remembered, rather than
+ * on the screen that pressed the button. It used to live in the pull request
+ * screen, where it was a variable in one `open()` call — so walking out of a
+ * merged pull request and back in lost it, which is exactly the walk a reader
+ * makes.
+ *
+ * The card, and only the card. A list decodes rows through `workingSet` and
+ * never comes past here, so a merged pull request can still sit in a shelf for
+ * the second the live read takes. And the map behind it is per tab, this layer
+ * being built in a content script, so a second tab has its own empty one. Both
+ * are the same shape of gap and neither is covered by pretending otherwise.
  */
 const asLanded = (
   reference: PullRequestRef,
@@ -1903,9 +1926,20 @@ export const layer = Layer.succeed(GitHubGateway, {
        * correct that without rewriting their shape — so a read taken mid-lag
        * would put "open" back the moment the write had dropped it, and that copy
        * outlives the minute the correction lasts.
+       *
+       * Asked inside the fork rather than before it, because the fork is the
+       * moment it matters. A read that began before a merge lands after it, and
+       * a verdict taken at fork time was taken while the pull request was still
+       * open — so the write dropped the payloads and this put them back.
        */
-      if (raw.mergeBox !== null && raw.header !== null && said.state === snapshot.state) {
-        yield* Effect.forkDetach(remember(reference, raw))
+      if (raw.mergeBox !== null && raw.header !== null) {
+        yield* Effect.forkDetach(
+          Effect.suspend(() =>
+            asLanded(reference, snapshot).state === snapshot.state
+              ? remember(reference, raw)
+              : Effect.void
+          )
+        )
       }
 
       return said
@@ -2162,7 +2196,6 @@ export const layer = Layer.succeed(GitHubGateway, {
         mergeMethod: method,
         bypassBranchProtections: false
       })
-      yield* wrote(reference, "merged")
     }),
 
     /**
@@ -2178,7 +2211,6 @@ export const layer = Layer.succeed(GitHubGateway, {
       method: MergeMethod
     ) {
       yield* writing(reference, MERGE_STACK, { mergeMethod: method })
-      yield* wrote(reference, "merged")
     }),
 
     /**
@@ -2273,21 +2305,16 @@ export const layer = Layer.succeed(GitHubGateway, {
       // a value it cannot read is ignored rather than refused, and the request
       // succeeds having done something else — so nothing else goes in the body.
       yield* writing(reference, ENQUEUE, { mergeMethod: how })
-      // No state. A place in the queue is not one, and the kept payloads say the
-      // pull request is standing outside a line it has now joined.
-      yield* wrote(reference)
     }),
 
     dequeue: Effect.fn("GitHubGateway.dequeue")(function* (reference: PullRequestRef) {
       yield* writing(reference, DEQUEUE)
-      yield* wrote(reference)
     }),
 
     cancelAutoMerge: Effect.fn("GitHubGateway.cancelAutoMerge")(function* (
       reference: PullRequestRef
     ) {
       yield* writing(reference, CANCEL_AUTO_MERGE)
-      yield* wrote(reference)
     }),
 
     updateBranch: Effect.fn("GitHubGateway.updateBranch")(function* (
@@ -2295,19 +2322,14 @@ export const layer = Layer.succeed(GitHubGateway, {
       how: UpdateMethod
     ) {
       yield* writing(reference, UPDATE_BRANCH, { updateMethod: how })
-      // The head commit is a new one, so the kept payloads carry the old sha and
-      // every check that ran against it.
-      yield* wrote(reference)
     }),
 
     close: Effect.fn("GitHubGateway.close")(function* (reference: PullRequestRef) {
       yield* writing(reference, CLOSE)
-      yield* wrote(reference, "closed")
     }),
 
     reopen: Effect.fn("GitHubGateway.reopen")(function* (reference: PullRequestRef) {
       yield* writing(reference, REOPEN)
-      yield* wrote(reference, "open")
     }),
 
     /*
@@ -2326,19 +2348,14 @@ export const layer = Layer.succeed(GitHubGateway, {
 
     markReady: Effect.fn("GitHubGateway.markReady")(function* (reference: PullRequestRef) {
       yield* writing(reference, MARK_READY)
-      yield* wrote(reference, "open")
     }),
 
     toDraft: Effect.fn("GitHubGateway.toDraft")(function* (reference: PullRequestRef) {
       yield* writing(reference, TO_DRAFT)
-      yield* wrote(reference, "draft")
     }),
 
     deleteBranch: Effect.fn("GitHubGateway.deleteBranch")(function* (reference: PullRequestRef) {
       yield* writing(reference, DELETE_BRANCH)
-      // No state: the pull request is what it was. The kept payloads still carry
-      // `mayDelete` on a branch that is now gone, which is what this drops.
-      yield* wrote(reference)
     }),
 
     branches: Effect.fn("GitHubGateway.branches")(function* (reference: PullRequestRef) {
@@ -2385,11 +2402,11 @@ export const layer = Layer.succeed(GitHubGateway, {
 
       return {
         method: landingMethods(decoded.pullRequest).on,
-        // The merge box's own word for it, which is the same field the card's
-        // stack is read from. A layer answers 422 on the ordinary merge route,
-        // so this is the difference between a press that works and one that
-        // comes back talking about a branch being out of date.
-        stacked: typeof decoded.pullRequest.stackedBaseRefName === "string"
+        // The same rule the card's own stack is read by — see `stacked`. A layer
+        // answers 422 on the ordinary merge route, so this is the difference
+        // between a press that works and one that comes back talking about a
+        // branch being out of date.
+        stacked: stacked(decoded.mergeRequirements?.conditions ?? [])
       }
     }),
 
@@ -4363,8 +4380,7 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     // Nothing to stack against: a lone pull request has no siblings here, and a
     // row with no branches is a row drawn flat.
     branches: () => Effect.succeed(Option.none()),
-    // No merge box behind a recording either. A test that wants a row's merge to
-    // go somewhere says so with a layer of its own.
+    // A hand-built snapshot carries no merge box to read this out of.
     howToMerge: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),
     // As above: nothing is listed here, so nothing here has a size.
     sizeOf: (reference: PullRequestRef) => Effect.fail(notRecorded(reference)),

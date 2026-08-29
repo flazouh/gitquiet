@@ -126,17 +126,19 @@ export const NoticesScreen = ({
   }
 
   const pressed = (press: Press): void => {
-    const after = AFTER[press.kind]
-    if (after !== undefined) {
-      setSince((held) =>
-        Object.fromEntries([
-          ...Object.entries(held),
-          // Every id on the form, because `mark` and `unmark` are bulk routes: their forms take
-          // a list, and a screen that grew a way to press one over a Court would send several.
-          ...press.ids.map((id) => [id, { ...held[id], ...after }] as const)
-        ])
-      )
-    }
+    // Empty for a press that changes nothing on the row, which is not the same as
+    // a press that does nothing: the write still goes, and the refusal still has
+    // to be heard. It is also the list of fields to take back, below.
+    const after = AFTER[press.kind] ?? {}
+
+    setSince((held) =>
+      Object.fromEntries([
+        ...Object.entries(held),
+        // Every id on the form, because `mark` and `unmark` are bulk routes: their forms take
+        // a list, and a screen that grew a way to press one over a Court would send several.
+        ...press.ids.map((id) => [id, { ...held[id], ...after }] as const)
+      ])
+    )
 
     /*
      * A refusal takes the row back to what it was and reads the inbox again.
@@ -150,9 +152,21 @@ export const NoticesScreen = ({
       onPress(press).pipe(
         Effect.catch(() =>
           Effect.sync(() => {
+            // Only what this press set. Dropping the row's whole entry took an
+            // earlier success with it: mark a Notice read, archive it, have the
+            // archive refused, and it came back unread as well as back.
             setSince((held) =>
               Object.fromEntries(
-                Object.entries(held).filter(([id]) => !press.ids.includes(id))
+                Object.entries(held).map(([id, was]) =>
+                  press.ids.includes(id)
+                    ? [
+                        id,
+                        Object.fromEntries(
+                          Object.entries(was).filter(([field]) => !(field in after))
+                        ) as Since
+                      ]
+                    : [id, was]
+                )
               )
             )
             again()

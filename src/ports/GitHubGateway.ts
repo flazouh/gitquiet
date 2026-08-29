@@ -1099,11 +1099,8 @@ export class GitHubGateway extends Context.Service<
     /**
      * How this pull request would land, for a surface that has not read a merge box.
      *
-     * A row in a list carries six fields and not one of them is about merging, so
-     * the menu on it used to send `SQUASH` and hope: wrong on a repository that
-     * forbids squashing, and refused outright on a layer of a stack, which lands
-     * through a route of its own. One read, made when the reader presses rather
-     * than for every row on the way in, which is what the card gets for free.
+     * One read, made when the reader presses rather than for every row on the way
+     * in. Why a row cannot answer this for itself is on `mergeAsTheRepositoryDoes`.
      */
     readonly howToMerge: (
       reference: PullRequestRef

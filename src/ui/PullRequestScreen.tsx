@@ -15,7 +15,7 @@ import type {
   ReviewThread
 } from "../domain/PullRequest"
 import { pathOf, type PullRequestRef } from "../domain/PullRequestRef"
-import { type Doing, DOINGS, stateAfter } from "../domain/doable"
+import { type Doing, stateAfter } from "../domain/doable"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
 import type { MergeActions } from "./Ask"
@@ -233,15 +233,6 @@ const alsoOnRefusal = (
     )
   )
 
-/**
- * A verb as this screen passes it on, argument and all.
- *
- * Loose in its arguments on purpose: the nine verbs do not agree on them, and
- * the wrapper's whole job is to hand on what it was given without reading it.
- * The types the caller actually sees are `MergeActions`, which names each one.
- */
-type Asked = (...given: ReadonlyArray<never>) => Effect.Effect<void, unknown>
-
 export const PullRequestScreen = ({
   reference,
   preparing = false,
@@ -333,36 +324,50 @@ export const PullRequestScreen = ({
      * with no way, and GitHub was sent a body with the field missing and picked
      * its own. So a reader who chose Rebase and merge got whatever GitHub
      * defaults to, and the button said the word they picked either way.
-     */
-    const through = (doing: Doing, act: Asked): Asked =>
-      (...given) =>
-        meanwhile((loaded) => asDone(loaded, doing), alsoOnRefusal(act(...given), again))
-
-    /*
-     * The branch is not a `Doing` and cannot be one: it outlives the pull
-     * request, and GitHub answers whether it may go in a field of its own. So it
-     * misses the loop above, and used to miss the read with it — the card said
-     * "Branch deleted" and went on offering to delete it, because `mayDelete` is
-     * read off a snapshot nobody had asked for again.
      *
-     * No state to wear on the way, unlike the five verbs that name one. Deleting
-     * a branch leaves the pull request exactly as it was.
+     * Generic in those arguments, so each verb keeps its own. This was a loop
+     * over `DOINGS` writing into an `Object.fromEntries`, which type-checked
+     * nothing at all: what that returns carries an index signature and no known
+     * properties, so `MergeActions` was satisfied by the spread of `actions`
+     * alone and every wrapped verb went in unread. A verb wrapped at the wrong
+     * arity — exactly the fault above — still compiled. Nine named lines cost
+     * eight more than the loop and are checked one by one.
+     *
+     * `doing` is optional because one of them names no state. Deleting a branch
+     * leaves the pull request as it was, so there is nothing to wear on the way
+     * and only the read to do afterwards.
      */
-    const alsoRead = (act: Asked): Asked =>
-      (...given) =>
-        meanwhile((loaded) => loaded, alsoOnRefusal(act(...given), again))
+    const wrap = <Given extends ReadonlyArray<unknown>>(
+      doing: Doing | undefined,
+      act: (...given: Given) => Effect.Effect<void, unknown>
+    ) =>
+      (...given: Given) =>
+        meanwhile(
+          (loaded) => (doing === undefined ? loaded : asDone(loaded, doing)),
+          alsoOnRefusal(act(...given), again)
+        )
 
     return {
       ...actions,
-      ...Object.fromEntries(
-        DOINGS.filter((doing) => actions[doing] !== undefined).map((doing) => [
-          doing,
-          through(doing, actions[doing] as Asked)
-        ])
-      ),
-      ...(actions.deleteBranch === undefined
-        ? {}
-        : { deleteBranch: alsoRead(actions.deleteBranch) })
+      ...(actions.merge && { merge: wrap("merge", actions.merge) }),
+      ...(actions.enqueue && { enqueue: wrap("enqueue", actions.enqueue) }),
+      ...(actions.dequeue && { dequeue: wrap("dequeue", actions.dequeue) }),
+      ...(actions.cancel && { cancel: wrap("cancel", actions.cancel) }),
+      ...(actions.update && { update: wrap("update", actions.update) }),
+      ...(actions.close && { close: wrap("close", actions.close) }),
+      ...(actions.markReady && { markReady: wrap("markReady", actions.markReady) }),
+      ...(actions.toDraft && { toDraft: wrap("toDraft", actions.toDraft) }),
+      ...(actions.reopen && { reopen: wrap("reopen", actions.reopen) }),
+      /*
+       * The branch is not a `Doing` and cannot be one: it outlives the pull
+       * request, and GitHub answers whether it may go in a field of its own. It
+       * used to miss the read with it — the card said "Branch deleted" and went
+       * on offering to delete it, because `mayDelete` is read off a snapshot
+       * nobody had asked for again.
+       */
+      ...(actions.deleteBranch && {
+        deleteBranch: wrap(undefined, actions.deleteBranch)
+      })
     }
   }, [actions, meanwhile, again])
 

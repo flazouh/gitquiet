@@ -45,12 +45,8 @@ import "@/ui/styles.css";
  * serve a surface whose gateway is nothing like this one.
  */
 const WRITES = {
-  /*
-   * Reads how this repository merges before it merges, because a row has none of
-   * that on it. It used to send `SQUASH` outright, which a repository that
-   * forbids squashing refuses and a layer of a stack refuses for a different
-   * reason again — see `mergeAsTheRepositoryDoes`.
-   */
+  /* Reads how this repository merges before it merges, a row carrying none of
+     that. See `mergeAsTheRepositoryDoes`. */
   merge: mergeAsTheRepositoryDoes,
   close: closePullRequest,
   reopen: reopenPullRequest,
