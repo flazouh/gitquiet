@@ -7,7 +7,6 @@ import {
   continueRender,
   delayRender,
   Freeze,
-  interpolate,
   OffthreadVideo,
   Sequence,
   Series,
@@ -16,18 +15,16 @@ import {
 } from "remotion";
 import { SimulatedCursor } from "@/components/remocn/simulated-cursor";
 import { SoftBlurIn } from "@/components/remocn/soft-blur-in";
-import { CLAMP, EXPO, fadeIn } from "@/lib/remocn/scene-motion";
+import { fadeIn } from "@/lib/remocn/scene-motion";
 import {
   GRADIENT,
   INK,
-  MARK,
   MUTED,
   ON_GRADIENT,
   ON_GRADIENT_MUTED,
   PAGE,
 } from "@/palette";
 import { Callout } from "@/Callout";
-import { GroupHeader, ORANGE, PullRequestRow } from "@/Row";
 import { Shot } from "@/Shot";
 import { bedWash } from "@/Wash";
 
@@ -218,10 +215,10 @@ const TurnScene: React.FC = () => {
 
 /** The group meanings are the README's own words. */
 const GROUP_LABELS: { text: string; y: number; at: number }[] = [
-  { text: "You can act on it now", y: 91, at: 171 },
-  { text: "Someone else has to act", y: 387, at: 192 },
-  { text: "A machine is still working", y: 525, at: 213 },
-  { text: "Finished", y: 635, at: 234 },
+  { text: "You can act on it now", y: 91, at: 90 },
+  { text: "Someone else has to act", y: 387, at: 108 },
+  { text: "A machine is still working", y: 525, at: 126 },
+  { text: "Finished", y: 635, at: 144 },
 ];
 
 const ListScene: React.FC = () => (
@@ -235,7 +232,7 @@ const ListScene: React.FC = () => (
       enter={12}
       views={[
         { at: 12, x: 0, y: 100, w: 2560 },
-        { at: 592, x: 0, y: 120, w: 2510 },
+        { at: 360, x: 0, y: 116, w: 2520 },
       ]}
     />
     {GROUP_LABELS.map((label) => (
@@ -249,57 +246,17 @@ const ListScene: React.FC = () => (
         at={label.at}
       />
     ))}
+    <SimulatedCursor
+      points={[
+        { x: 1180, y: 690, hold: 0 },
+        { x: 470, y: 141, hold: 52 },
+        { x: 472, y: 143, hold: 30, click: true },
+      ]}
+      size={28}
+      speed={0.62}
+    />
   </Dark>
 );
-
-/** The cursor's path: a leg is 24 frames, then the rest, then the press. */
-const LEG = 24;
-const REST_HOLD = 106;
-const ARRIVE = LEG;
-const CLICK = LEG + REST_HOLD + LEG;
-
-const RestScene: React.FC = () => {
-  const frame = useCurrentFrame();
-  const hover = fadeIn(frame, ARRIVE + 2, 6);
-  const prefetch = interpolate(frame, [ARRIVE + 6, ARRIVE + 26], [0, 1], {
-    ...CLAMP,
-    easing: EXPO,
-  });
-  const press = interpolate(
-    frame,
-    [CLICK, CLICK + 4, CLICK + 8],
-    [1, 0.985, 1],
-    CLAMP,
-  );
-  return (
-    <Dark>
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: 288,
-          transform: "translateX(-50%)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 18,
-        }}
-      >
-        <GroupHeader label="Needs You" count="1" color={ORANGE} />
-        <div style={{ transform: `scale(${press})` }}>
-          <PullRequestRow hover={hover} prefetch={prefetch} width={1120} />
-        </div>
-      </div>
-      <SimulatedCursor
-        points={[
-          { x: 1150, y: 660, hold: 0 },
-          { x: 700, y: 385, hold: REST_HOLD },
-          { x: 703, y: 387, hold: 20, click: true },
-        ]}
-        size={30}
-      />
-    </Dark>
-  );
-};
 
 /**
  * The pull request the press opened, as GitQuiet drew it: the still is the
@@ -307,8 +264,6 @@ const RestScene: React.FC = () => {
  */
 const PrOpenScene: React.FC = () => {
   const frame = useCurrentFrame();
-  const count = Math.round(interpolate(frame, [0, 9], [0, 287], CLAMP));
-  const payoff = interpolate(frame, [470, 486], [1, 0], CLAMP);
   return (
     <Dark>
       <Shot
@@ -317,80 +272,61 @@ const PrOpenScene: React.FC = () => {
         width={1064}
         height={580}
         top={40}
-        enter={9}
+        enter={7}
         views={[
           { at: 0, x: 0, y: 0, w: 2560 },
-          { at: 540, x: 0, y: 30, w: 2470 },
-          { at: 700, x: 0, y: 46, w: 2420 },
+          { at: 260, x: 0, y: 24, w: 2500 },
         ]}
       />
+      {/* The address is the argument: nothing was migrated, nothing moved. */}
       <div
         style={{
           position: "absolute",
           left: 0,
           right: 0,
-          top: 630,
+          top: 648,
           display: "flex",
-          alignItems: "baseline",
           justifyContent: "center",
-          gap: 18,
-          opacity: payoff,
+          opacity: fadeIn(frame, 56, 10),
         }}
       >
         <span
           style={{
-            fontSize: 46,
-            fontWeight: 700,
-            color: MARK,
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
-          {count}
-          <span style={{ fontSize: 27, fontWeight: 600 }}> ms</span>
-        </span>
-        <span
-          style={{
-            fontSize: 24,
-            color: INK,
+            fontSize: 26,
             fontWeight: 500,
-            opacity: fadeIn(frame, 10, 8),
+            color: MUTED,
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+            padding: "10px 20px",
+            borderRadius: 10,
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
           }}
         >
-          to readable, after that rest.
-        </span>
-        <span
-          style={{ fontSize: 24, color: MUTED, opacity: fadeIn(frame, 26, 10) }}
-        >
-          GitHub: 2132 ms.
+          github.com<span style={{ color: INK }}>/oven-sh/bun/pull/18742</span>
         </span>
       </div>
-      <Callout
-        text="The checks, at the top"
-        x={450}
-        y={120}
-        dx={-235}
-        dy={4}
-        at={578}
-      />
-      <Callout
-        text="The conversation, under them"
-        x={470}
-        y={235}
-        dx={-230}
-        dy={-25}
-        at={598}
-      />
-      <Callout
-        text="Files next to their diffs"
-        x={700}
-        y={430}
-        dx={-30}
-        dy={-160}
-        at={628}
-      />
     </Dark>
   );
 };
+
+const PageScene: React.FC = () => (
+  <Dark>
+    <Shot
+      src="pull-request.png"
+      sourceWidth={2560}
+      width={1064}
+      height={580}
+      top={40}
+      views={[
+        { at: 0, x: 0, y: 24, w: 2500 },
+        { at: 190, x: 0, y: 44, w: 2450 },
+      ]}
+    />
+    <Callout text="Checks" x={430} y={112} dx={-215} dy={4} at={44} />
+    <Callout text="Conversation" x={455} y={228} dx={-232} dy={-18} at={70} />
+    <Callout text="Files, and their diffs" x={800} y={548} dx={-70} dy={-190} at={96} />
+  </Dark>
+);
 
 const PrConvoScene: React.FC = () => (
   <Dark>
@@ -402,11 +338,7 @@ const PrConvoScene: React.FC = () => (
       top={40}
       views={[
         { at: 0, x: 0, y: 380, w: 1350 },
-        { at: 262, x: 0, y: 398, w: 1332 },
-        { at: 300, x: 0, y: 856, w: 1350 },
-        { at: 352, x: 0, y: 862, w: 1336 },
-        { at: 386, x: 0, y: 180, w: 1500 },
-        { at: 432, x: 0, y: 190, w: 1478 },
+        { at: 246, x: 0, y: 398, w: 1330 },
       ]}
     />
     <Callout
@@ -415,25 +347,42 @@ const PrConvoScene: React.FC = () => (
       y={140}
       dx={-300}
       dy={60}
-      at={16}
-      until={272}
+      at={22}
+    />
+  </Dark>
+);
+
+const VerdictScene: React.FC = () => (
+  <Dark>
+    <Shot
+      src="pull-request.png"
+      sourceWidth={2560}
+      width={1064}
+      height={580}
+      top={40}
+      views={[
+        { at: 0, x: 0, y: 856, w: 1350 },
+        { at: 96, x: 0, y: 862, w: 1336 },
+        { at: 128, x: 0, y: 180, w: 1500 },
+        { at: 196, x: 0, y: 190, w: 1478 },
+      ]}
     />
     <Callout
-      text="Verdict and merge, in one place"
+      text="Review and merge, together"
       x={620}
       y={560}
       dx={-320}
       dy={-40}
-      at={296}
-      until={366}
+      at={16}
+      until={112}
     />
     <Callout
-      text="It remembers what you have seen"
+      text="3 of 7 seen"
       x={860}
       y={200}
       dx={196}
       dy={-112}
-      at={392}
+      at={150}
     />
   </Dark>
 );
@@ -464,10 +413,12 @@ const RunScene: React.FC = () => (
 );
 
 const MONTAGE: { src: string; frames: number }[] = [
-  { src: "issues.png", frames: 24 },
-  { src: "commits.png", frames: 24 },
-  { src: "actions.png", frames: 24 },
-  { src: "notifications.png", frames: 67 },
+  { src: "issues.png", frames: 48 },
+  { src: "commits.png", frames: 44 },
+  { src: "run.png", frames: 44 },
+  { src: "actions.png", frames: 44 },
+  { src: "notifications.png", frames: 48 },
+  { src: "repo-home.png", frames: 168 },
 ];
 
 const MontageScene: React.FC = () => (
@@ -490,7 +441,7 @@ const MontageScene: React.FC = () => (
         </Series.Sequence>
       ))}
     </Series>
-    <Caption text="Every page. The same four groups." at={96} />
+    <Caption text="Every page. The same four groups." at={286} />
   </Dark>
 );
 
@@ -555,15 +506,16 @@ const CtaScene: React.FC = () => {
  * on the press (the arrival is the claim) and at the end.
  */
 const BEATS: { scene: React.FC; frames: number; out: Out }[] = [
-  { scene: ProblemScene, frames: 594, out: "wash" },
-  { scene: TurnScene, frames: 109, out: "wash" },
-  { scene: ListScene, frames: 612, out: "fade" },
-  { scene: RestScene, frames: 164, out: "cut" },
-  { scene: PrOpenScene, frames: 712, out: "fade" },
-  { scene: PrConvoScene, frames: 435, out: "fade" },
-  { scene: RunScene, frames: 177, out: "fade" },
-  { scene: MontageScene, frames: 139, out: "wash" },
-  { scene: CtaScene, frames: 168, out: "cut" },
+  { scene: ProblemScene, frames: 325, out: "wash" },
+  { scene: TurnScene, frames: 150, out: "wash" },
+  { scene: ListScene, frames: 368, out: "cut" },
+  { scene: PrOpenScene, frames: 292, out: "fade" },
+  { scene: PageScene, frames: 217, out: "fade" },
+  { scene: PrConvoScene, frames: 280, out: "fade" },
+  { scene: VerdictScene, frames: 209, out: "fade" },
+  { scene: RunScene, frames: 152, out: "wash" },
+  { scene: MontageScene, frames: 416, out: "wash" },
+  { scene: CtaScene, frames: 435, out: "cut" },
 ];
 
 export const DAY_DURATION_IN_FRAMES = BEATS.reduce(
