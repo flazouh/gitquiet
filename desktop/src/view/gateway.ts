@@ -379,6 +379,15 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
      * would reach these are never drawn. They are here for the day it answers
      * otherwise, and until then a call is a mistake rather than a reader's press.
      */
+    /*
+     * The extension reads a merge box to find out how a repository merges before
+     * a list row is merged. This window has no merge box: `snapshot.ts` builds
+     * its merge state by hand, so there is nothing here to read the methods off.
+     * Its own list keeps the older bargain and names `SQUASH` — see `WRITES` in
+     * `view/workingSet.tsx` — so nothing calls this, and a call is a mistake
+     * rather than a reader's press.
+     */
+    howToMerge: missing("read how this repository merges"),
     mergeStack: missing("merge a stack"),
     makeStack: missing("make a stack"),
     // The same arrangement for the branch: `headRef.mayDelete` is false in every
