@@ -3,7 +3,12 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Deferred, Effect, Option } from "effect"
 import { aComment, aMergeState, aSnapshot, aThread, person } from "../../tests/snapshots"
-import type { PullRequestSnapshot, PullRequestState } from "../domain/PullRequest"
+import type {
+  MergeMethod,
+  PullRequestSnapshot,
+  PullRequestState,
+  UpdateWay
+} from "../domain/PullRequest"
 import type { PullRequestRef } from "../domain/PullRequestRef"
 import { PullRequestScreen } from "./PullRequestScreen"
 
@@ -778,5 +783,74 @@ describe("a pull request that could not be read", () => {
         expect(screen.getByRole("heading").textContent).toContain("acme wants a single sign-on")
       )
     })
+  })
+})
+
+describe("the choice on a split button and the write underneath it", () => {
+  /*
+   * The wrapper that gives every verb its optimistic state and its re-read used
+   * to take no arguments. Two of the verbs have one, and both are the reader's
+   * own choice: which way the repository merges, and which way a branch is
+   * caught up. Both arrived at the wrapper and went no further, so GitHub was
+   * sent a body with the field missing and chose for itself — while the button
+   * went on saying the word the reader picked.
+   */
+  test("sends the merge method the button is showing", async () => {
+    let sent: MergeMethod | undefined
+    render(
+      <PullRequestScreen
+        reference={reference}
+        load={() =>
+          Effect.succeed({
+            snapshot: aSnapshot({
+              reference,
+              merge: aMergeState({ method: Option.some("SQUASH"), methods: ["SQUASH", "MERGE"] })
+            })
+          })
+        }
+        fetchDiffs={() => Effect.succeed([])}
+        onStepAside={() => {}}
+        actions={{ merge: (method) => Effect.sync(() => void (sent = method)) }}
+      />
+    )
+
+    await waitFor(() => expect(screen.getByRole("region", { name: "Merge" })).toBeDefined())
+    await userEvent.click(screen.getByRole("button", { name: /Squash and merge/ }))
+    await userEvent.click(screen.getByRole("button", { name: /Confirm squash and merge/ }))
+
+    await waitFor(() => expect(sent).toBe("SQUASH"))
+  })
+
+  test("sends the way the branch is being caught up", async () => {
+    let sent: UpdateWay | undefined
+    render(
+      <PullRequestScreen
+        reference={reference}
+        load={() =>
+          Effect.succeed({
+            snapshot: aSnapshot({
+              reference,
+              merge: aMergeState({
+                update: Option.some({
+                  how: "REBASE",
+                  ways: ["REBASE", "MERGE"],
+                  mayUpdate: true,
+                  refusal: Option.none()
+                })
+              })
+            })
+          })
+        }
+        fetchDiffs={() => Effect.succeed([])}
+        onStepAside={() => {}}
+        actions={{ update: (how) => Effect.sync(() => void (sent = how)) }}
+      />
+    )
+
+    await waitFor(() => expect(screen.getByRole("region", { name: "Merge" })).toBeDefined())
+    await userEvent.click(screen.getByRole("button", { name: /Update branch/ }))
+    await userEvent.click(screen.getByRole("button", { name: /Confirm update branch/ }))
+
+    await waitFor(() => expect(sent).toBe("REBASE"))
   })
 })

@@ -233,6 +233,15 @@ const alsoOnRefusal = (
     )
   )
 
+/**
+ * A verb as this screen passes it on, argument and all.
+ *
+ * Loose in its arguments on purpose: the nine verbs do not agree on them, and
+ * the wrapper's whole job is to hand on what it was given without reading it.
+ * The types the caller actually sees are `MergeActions`, which names each one.
+ */
+type Asked = (...given: ReadonlyArray<never>) => Effect.Effect<void, unknown>
+
 export const PullRequestScreen = ({
   reference,
   preparing = false,
@@ -314,15 +323,27 @@ export const PullRequestScreen = ({
   const acting = useMemo<MergeActions | undefined>(() => {
     if (actions === undefined) return undefined
 
-    const through = (doing: Doing, act: () => Effect.Effect<void, unknown>) => () =>
-      meanwhile((loaded) => asDone(loaded, doing), alsoOnRefusal(act(), again))
+    /*
+     * Whatever the caller passed goes on to the verb underneath.
+     *
+     * Two of these take an argument — the way this repository merges, and the
+     * way a branch is caught up — and both are the reader's own choice, made on
+     * the button. Wrapped without the arguments, as this was, the choice reached
+     * the wrapper and stopped: `merge` was called with no method and `update`
+     * with no way, and GitHub was sent a body with the field missing and picked
+     * its own. So a reader who chose Rebase and merge got whatever GitHub
+     * defaults to, and the button said the word they picked either way.
+     */
+    const through = (doing: Doing, act: Asked): Asked =>
+      (...given) =>
+        meanwhile((loaded) => asDone(loaded, doing), alsoOnRefusal(act(...given), again))
 
     return {
       ...actions,
       ...Object.fromEntries(
         DOINGS.filter((doing) => actions[doing] !== undefined).map((doing) => [
           doing,
-          through(doing, actions[doing] as () => Effect.Effect<void, unknown>)
+          through(doing, actions[doing] as Asked)
         ])
       )
     }
