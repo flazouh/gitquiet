@@ -1875,21 +1875,6 @@ const asLanded = (
     onSome: (state) => (state === snapshot.state ? snapshot : { ...snapshot, state })
   })
 
-/**
- * Whether GitHub is still answering with a state our own write has replaced.
- *
- * The reason payloads read in that window are not kept. Correcting the snapshot
- * is not enough on its own: what goes into the store is GitHub's raw JSON, which
- * this cannot correct without rewriting their shape, so a read taken mid-lag
- * would put "open" back into the store the moment the write had dropped it — and
- * that copy outlives the minute the correction lasts.
- */
-const stillLagging = (reference: PullRequestRef, snapshot: PullRequestSnapshot): boolean =>
-  Option.match(landedState(reference), {
-    onNone: () => false,
-    onSome: (state) => state !== snapshot.state
-  })
-
 export const layer = Layer.succeed(GitHubGateway, {
     snapshot: Effect.fn("GitHubGateway.snapshot")(function* (reference: PullRequestRef) {
       const raw = yield* payloadsThroughWorker(reference)
@@ -1909,11 +1894,21 @@ export const layer = Layer.succeed(GitHubGateway, {
        * answering perfectly well. The page still draws now; it is only the next
        * visit that goes back to GitHub, which is where the answer is.
        */
-      if (raw.mergeBox !== null && raw.header !== null && !stillLagging(reference, snapshot)) {
+      const said = asLanded(reference, snapshot)
+
+      /*
+       * Kept only where GitHub agrees with our own last word, which is what the
+       * two states differing says. Correcting the snapshot is not enough on its
+       * own: what goes into the store is GitHub's raw JSON, and this cannot
+       * correct that without rewriting their shape — so a read taken mid-lag
+       * would put "open" back the moment the write had dropped it, and that copy
+       * outlives the minute the correction lasts.
+       */
+      if (raw.mergeBox !== null && raw.header !== null && said.state === snapshot.state) {
         yield* Effect.forkDetach(remember(reference, raw))
       }
 
-      return asLanded(reference, snapshot)
+      return said
     }),
 
     tolerated: asTolerated,
