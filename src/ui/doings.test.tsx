@@ -83,10 +83,20 @@ describe("what a row offers to do", () => {
     expect(screen.queryByLabelText("What to do with #12")).toBeNull()
   })
 
-  test("no button on a merged row, every verb being past", () => {
+  test("a merged row keeps its address, every verb being past", async () => {
+    /*
+     * The menu used to be dropped whole where no verb applied, on the grounds
+     * that a row with nothing to offer needs no button. It had one thing left to
+     * offer. A merged pull request is the one people paste into a message, and
+     * it was the only row in the list whose link could not be copied.
+     */
     listing("merged")
 
-    expect(screen.queryByLabelText("What to do with #12")).toBeNull()
+    await userEvent.click(screen.getByLabelText("What to do with #12"))
+
+    expect(screen.getByRole("menuitem", { name: /Copy link/ })).toBeDefined()
+    expect(screen.queryByRole("menuitem", { name: /Merge/ })).toBeNull()
+    expect(screen.queryByRole("menuitem", { name: /Close/ })).toBeNull()
   })
 
   /*

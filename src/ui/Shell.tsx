@@ -1,4 +1,5 @@
 import { Effect, Option } from "effect"
+import { beyond } from "./beyond"
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import type {
   Check,
@@ -308,7 +309,7 @@ export const Shell = ({
   // put here — and putting it here beats reading the whole page again.
   const [posted, setPosted] = useState<ReadonlyArray<ReviewThread>>([])
   const threads = useMemo(
-    () => [...snapshot.threads, ...posted],
+    () => [...snapshot.threads, ...beyond(snapshot.threads, posted)],
     [snapshot.threads, posted]
   )
 
@@ -318,7 +319,10 @@ export const Shell = ({
    * they already have in their hand is a second of nothing happening.
    */
   const [said, setSaid] = useState<ReadonlyArray<Remark>>([])
-  const remarks = useMemo(() => [...snapshot.remarks, ...said], [snapshot.remarks, said])
+  const remarks = useMemo(
+    () => [...snapshot.remarks, ...beyond(snapshot.remarks, said)],
+    [snapshot.remarks, said]
+  )
 
   const onSay = useMemo(
     () =>

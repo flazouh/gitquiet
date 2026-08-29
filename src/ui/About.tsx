@@ -154,7 +154,15 @@ export const About = ({
      * through the threads and the remarks has formed the thought this panel is for. Their own
      * page keeps it at the top of another tab, behind a dialog.
      */}
-    {prepareThrough < 9 || onReview === undefined || viewer === undefined ? null : (
+    {/* Nothing to give a verdict on once the thing has landed or been dropped.
+        GitHub's own page takes the panel away there too, and this one kept
+        offering Approve and Request changes on a pull request that was merged
+        an hour ago — the only panel in this column that never read the state. */}
+    {prepareThrough < 9 ||
+    onReview === undefined ||
+    viewer === undefined ||
+    snapshot.state === "merged" ||
+    snapshot.state === "closed" ? null : (
       <Verdict
         reviews={snapshot.reviews}
         viewer={viewer}

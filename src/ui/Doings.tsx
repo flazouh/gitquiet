@@ -229,11 +229,6 @@ export const Doings = ({
     [COPY_LETTER]: copy
   })
 
-  // After the letters and not before them: a row with nothing left to offer
-  // draws no button, and an early return above a hook is the same component
-  // calling a different number of them from one render to the next.
-  if (verbs.length === 0) return <span aria-hidden="true" />
-
   const wordFor = (doing: RowDoing): string => {
     if (step.kind === "armed" && step.doing === doing) return CONFIRM
     return WORD[doing]
@@ -373,7 +368,13 @@ export const Doings = ({
             )
           })}
 
-          <Menu.Separator className="my-1 h-px bg-line-muted" />
+          {/* Nothing above it on a merged row, and then nothing to separate.
+              The menu used to be dropped whole where no verb applied, which took
+              the copy with it: a merged pull request is the one every other row
+              links to, and it was the one row whose address could not be had. */}
+          {verbs.length === 0 ? null : (
+            <Menu.Separator className="my-1 h-px bg-line-muted" />
+          )}
 
           <Copying copied={copied} onCopy={copy} capped={capped} art={art} />
         </Menu.Content>

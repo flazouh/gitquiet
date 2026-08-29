@@ -1,4 +1,5 @@
 import { Effect, Option } from "effect"
+import { beyond } from "./beyond"
 import { useEffect, useMemo, useState } from "react"
 import { closingOf, type Closing, type IssueSnapshot, type Remark, type Settled } from "../domain/Issue"
 import { type IssueRef, type ListedIssue, nameOf } from "../domain/issues"
@@ -346,7 +347,7 @@ export const IssueScreen = ({
             <Conversation
               threads={[]}
               subject="issue"
-              remarks={[...snapshot.remarks, ...said]}
+              remarks={[...snapshot.remarks, ...beyond(snapshot.remarks, said)]}
               viewer={Option.getOrUndefined(
                 Option.map(snapshot.viewer, (person) => ({
                   login: person.login,
