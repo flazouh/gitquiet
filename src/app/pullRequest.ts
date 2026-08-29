@@ -256,9 +256,14 @@ export const mergeAsTheRepositoryDoes = Effect.fn("mergeAsTheRepositoryDoes")(fu
   const how = yield* gateway.howToMerge(reference)
 
   if (Option.isNone(how.method)) {
-    return yield* Effect.fail(
-      new Error("GitHub named no way to merge this pull request.")
-    )
+    // Shaped as the gateway's own refusals are, because that is what the sentence
+    // in front of the reader is read out of — see `reasonFor`. A plain Error has
+    // no `detail`, and the row would have said GitHub could not be reached about
+    // a GitHub that answered perfectly well.
+    return yield* Effect.fail({
+      reason: "rejected" as const,
+      detail: "GitHub names no way to merge this pull request."
+    })
   }
 
   yield* how.stacked
