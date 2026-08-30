@@ -198,6 +198,32 @@ const Install = () => {
         </div>
 
         <section className="border-t border-rule py-16">
+          <h2 className="m-0 text-[22px] font-semibold tracking-[-0.02em]">Compared to</h2>
+          <p className="m-0 mt-4 max-w-2xl text-pretty text-[17px] leading-relaxed text-muted">
+            GitQuiet is a working set on github.com, no extra login, filed by next
+            action. Not an AI reviewer.
+          </p>
+          <ul className="m-0 mt-6 flex list-none flex-col gap-3 p-0 text-[16px]">
+            <li>
+              <Quietly at="/compare/prflow">PRFlow</Quietly>
+              {" — "}in the tab, not a Chromium side panel.
+            </li>
+            <li>
+              <Quietly at="/compare/github-pr-sidebar">GitHub PR Sidebar</Quietly>
+              {" — "}one screen, not a side panel and a new tab.
+            </li>
+            <li>
+              <Quietly at="/compare/refined-github">Refined GitHub</Quietly>
+              {" — "}a queue, not github.com polish.
+            </li>
+            <li>
+              <Quietly at="/compare/octobox">Octobox</Quietly>
+              {" — "}on github.com, not a hosted inbox.
+            </li>
+          </ul>
+        </section>
+
+        <section className="border-t border-rule py-16">
           <p className="m-0 max-w-2xl text-pretty text-[17px] leading-relaxed text-muted">
             All four are the same code, under AGPL-3.0.{" "}
             <Quietly at="/privacy.html">Read the privacy policy</Quietly>, or{" "}

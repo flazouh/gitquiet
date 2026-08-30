@@ -7,7 +7,7 @@ import { inShort, useStars } from "./stars"
 /**
  * The parts every page of this site draws the same way.
  *
- * Written once because there are three pages now. They carry the same nav, the same
+ * Written once because the pages share them. They carry the same nav, the same
  * footer and the same lit header, and a second copy of any of them is a pair that
  * drifts: the radius on one, the star chip on the other, and a reader moving between
  * them feels a site assembled rather than made.
