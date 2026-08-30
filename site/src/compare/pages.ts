@@ -3,8 +3,9 @@
  * side panels, a github.com polish pack, and a hosted notifications inbox.
  *
  * No fifth. Graphite is stacked-PR authoring. GitHush is a secrets scanner.
- * GitQuick is PR analytics. AI review sidebars are a different product. Those
- * names collide or sit in another class; they do not get a URL here.
+ * GitQuick is PR analytics. AI review sidebars are a different product. Attention
+ * Set is a PAT near-miss on the two side-panel pages (whose-turn popup, Needs you /
+ * Waiting), not a URL of its own. Aviator's AttentionSet is a merge queue; skip it.
  */
 export type Compared = {
   readonly slug: string
@@ -24,7 +25,7 @@ export const COMPARED: readonly Compared[] = [
     h1: "In the tab, not a Chrome side panel.",
     dek: "GitQuiet is a working set on github.com. PRFlow is a Chromium side panel with its own login.",
     they: "PRFlow lives at prflow-ext.com (not prflow.dev). It is a Chromium side panel. It asks for a PAT, and it is read-only. Pull requests sit in role buckets.",
-    axis: "The job looks close: a list of pull requests beside GitHub. The surface is not. PRFlow is a panel Chrome draws next to the page. GitQuiet is the page.",
+    axis: "The job looks close: a list of pull requests beside GitHub. The surface is not. PRFlow is a panel Chrome draws next to the page. GitQuiet is the page. Attention Set is a PAT near-miss on the same axis: a whose-turn popup (Needs you / Waiting, no Running), not a fifth URL.",
     we: "GitQuiet uses the GitHub session you already have. No extra login, no PAT. Every pull request you are in, across repositories, filed by next action: Needs You, Waiting, Running, Settled. It writes back through GitHub's own routes. This is not an AI reviewer.",
     themAt: "https://prflow-ext.com"
   },
@@ -34,8 +35,8 @@ export const COMPARED: readonly Compared[] = [
     h1: "One screen, not a side panel and a new tab.",
     dek: "GitQuiet is a working set in the tab. GitHub PR Sidebar is a Chromium side panel; a click opens GitHub in a new tab.",
     they: "GitHub PR Sidebar has no site of its own, only a Chrome listing. It is a Chromium side panel. It asks for a PAT. Groups are thinner. Opening a pull request leaves the panel.",
-    axis: "Same job as PRFlow: a list in Chrome's side panel. Same gap: the list is not the place you work, and it needs a token GitQuiet does not.",
-    we: "GitQuiet files every pull request you are in on github.com, by whose turn it is, and keeps you there. Existing session. No extra login. Not an AI reviewer.",
+    axis: "Same job as PRFlow: a list in Chrome's side panel. Same gap: the list is not the place you work, and it needs a token GitQuiet does not. Attention Set is the same PAT near-miss in a whose-turn popup. GitQuiet files by next action, including Running.",
+    we: "GitQuiet files every pull request you are in on github.com by next action: Needs You, Waiting, Running, Settled. Existing session. No extra login. Not an AI reviewer.",
     themAt: undefined
   },
   {
@@ -43,7 +44,7 @@ export const COMPARED: readonly Compared[] = [
     name: "Refined GitHub",
     h1: "A queue, not github.com polish.",
     dek: "Refined GitHub adds hundreds of tweaks to github.com. GitQuiet is a working set: every pull request you are in, sorted by next action.",
-    they: "Refined GitHub runs on Chrome, Firefox and Safari. It polishes the pages GitHub already draws. It is not a queue, and it does not file your working set by whose turn it is.",
+    they: "Refined GitHub runs on Chrome, Firefox and Safari. It polishes the pages GitHub already draws. It is not a queue, and it does not file your working set by next action.",
     axis: "Closest surface: both sit on github.com. Different job. Polish leaves you assembling 'what is owed' from Conversation, Commits, Checks and Files. A working set is that list, already filed.",
     we: "GitQuiet is the queue: Needs You, Waiting, Running, Settled, across repositories, in the tab. No extra login. Not an AI reviewer. Issues, Actions and commits use the same model.",
     themAt: "https://github.com/refined-github/refined-github"
