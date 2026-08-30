@@ -3,7 +3,7 @@ builder = "RAILPACK"
 buildCommand = "bun install --frozen-lockfile && bun install --frozen-lockfile --cwd site && bun run --cwd site build"
 
 [deploy]
-startCommand = "bunx --bun serve site/dist -l ${PORT:-3000}"
+startCommand = "bun site/serve.ts"
 healthcheckPath = "/"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"

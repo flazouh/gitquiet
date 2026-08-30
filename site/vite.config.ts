@@ -60,9 +60,9 @@ export default defineConfig({
          *
          * A page of its own rather than a route: there is no router here, and one
          * would be a dependency and a history to maintain for a second address.
-         * `serve dist` resolves `/welcome` to this file. It is served without `-s`,
-         * which rewrote every address to `index.html` and answered `/welcome` with
-         * the landing page — see `railway.toml`.
+         * `site/serve.ts` resolves `/welcome` to this file. It does not rewrite
+         * unknown addresses to `index.html`; that used to answer `/welcome` with
+         * the landing page.
          */
         welcome: fileURLToPath(new URL("./welcome.html", import.meta.url)),
 
@@ -71,7 +71,21 @@ export default defineConfig({
          * from the hero, from the footer, and from the store listings, so it is a
          * page of its own for the same reason `/welcome` is.
          */
-        install: fileURLToPath(new URL("./install.html", import.meta.url))
+        install: fileURLToPath(new URL("./install.html", import.meta.url)),
+
+        /*
+         * Four comparison pages, one axis each. Same reason they are files rather
+         * than a router: `site/serve.ts` maps `/compare/prflow` to this HTML, and
+         * a crawler has to see a unique title without running the bundle first.
+         */
+        "compare/prflow": fileURLToPath(new URL("./compare/prflow.html", import.meta.url)),
+        "compare/github-pr-sidebar": fileURLToPath(
+          new URL("./compare/github-pr-sidebar.html", import.meta.url)
+        ),
+        "compare/refined-github": fileURLToPath(
+          new URL("./compare/refined-github.html", import.meta.url)
+        ),
+        "compare/octobox": fileURLToPath(new URL("./compare/octobox.html", import.meta.url))
       }
     }
   }
