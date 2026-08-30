@@ -144,7 +144,7 @@ const ProblemScene: React.FC = () => {
         </Sequence>
       </div>
       <Callout
-        text="One pull request, four tabs"
+        text="Nothing here says it needs you"
         x={700}
         y={104}
         dx={-274}

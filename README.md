@@ -11,14 +11,13 @@ GitHub is where your work lives. GitQuiet is where you do it.
 
 ---
 
-GitHub splits a pull request by record type: Conversation, Commits, Checks, Files.
-None of those four tabs answers the question you opened it with, so you read all
-of them and work it out again on the next visit.
+Nothing on a GitHub page tells you whether it needs you. You work that out
+yourself, on every page and every visit.
 
-GitQuiet is its own interface on that data, and it files everything by what needs
-you. It opens on github.com's own addresses, in Primer tokens and Octicons, so it
-follows whichever theme you already use. Their header, nav and repository tabs
-are left exactly as they are.
+GitQuiet is its own interface on the same data, and it files everything by what
+needs you. It opens on the addresses you already use, in Primer tokens and
+Octicons, so it follows whichever theme you have. Their header, nav and
+repository tabs are left exactly as they are.
 
 ## Four groups
 
@@ -56,7 +55,7 @@ you last looked, all above the diff.
 
 </details>
 
-## The fourteen pages
+## Where it opens
 
 Listed in [`src/ui/place.ts`](./src/ui/place.ts), which is the one list both the
 router and the takeover read.
