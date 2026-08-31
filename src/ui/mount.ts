@@ -1,5 +1,6 @@
 import { Effect, type Fiber } from "effect"
 import { runWhenIdle } from "./idle"
+import { keepFew } from "./keepFew"
 import { type Stop, whenAddressChanges } from "./navigation"
 import { CONVERSATION, type Place, respell } from "./place"
 import { clearPreparedTraversal, markPreparedTraversal } from "./preparedNavigation"
@@ -95,15 +96,7 @@ const keepScreenSnapshot = (
   route: string,
   snapshot: Snapshot
 ): void => {
-  screens.get(route)?.prepared?.dispose()
-  screens.delete(route)
-  screens.set(route, snapshot)
-
-  const oldest = screens.keys().next()
-  if (screens.size > HOW_MANY_SCREENS && !oldest.done) {
-    screens.get(oldest.value)?.prepared?.dispose()
-    screens.delete(oldest.value)
-  }
+  keepFew(screens, route, snapshot, HOW_MANY_SCREENS, (gone) => gone.prepared?.dispose())
 }
 
 const routeNow = (target: Document, exact?: string): string | null => {

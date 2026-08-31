@@ -1,4 +1,5 @@
 import { Option } from "effect"
+import { keepFew } from "./keepFew"
 import type { IssueRef } from "../domain/issues"
 import { keyOf, type PullRequestRef, type RepoRef } from "../domain/PullRequestRef"
 
@@ -69,11 +70,7 @@ export const lastDrawn = <T>(page: string): Option.Option<T> => {
 
 /** Writes down what a page was drawn from, and forgets the oldest to make room. */
 export const keepDrawn = (page: string, value: unknown): void => {
-  drawn.delete(page)
-  drawn.set(page, value)
-
-  const oldest = drawn.keys().next()
-  if (drawn.size > HOW_MANY && !oldest.done) drawn.delete(oldest.value)
+  keepFew(drawn, page, value, HOW_MANY)
 }
 
 /** Empties it, for a test that must not read what another test drew. */

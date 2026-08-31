@@ -60,6 +60,7 @@ import {
   OWNED_TRAVERSAL,
   whenPreparedTraversalIsOffered,
 } from "@/ui/preparedNavigation";
+import { keepFew } from "@/ui/keepFew";
 import { hintRead, showLingering } from "@/ui/lingeringHint";
 import type { Point } from "@/ui/near";
 import {
@@ -303,12 +304,7 @@ export default defineContentScript({
     const preparedScreens = new Map<string, Screen>();
     const HOW_MANY_PREPARED = 8;
     const keepPrepared = (route: string, screen: Screen): void => {
-      preparedScreens.delete(route);
-      preparedScreens.set(route, screen);
-      const oldest = preparedScreens.keys().next();
-      if (preparedScreens.size > HOW_MANY_PREPARED && !oldest.done) {
-        preparedScreens.delete(oldest.value);
-      }
+      keepFew(preparedScreens, route, screen, HOW_MANY_PREPARED);
     };
     /** The screen kinds already following this document's address. */
     const up = new Set<Wanted>();
@@ -348,6 +344,10 @@ export default defineContentScript({
      * page-world guard cancels their router when the traversal starts.
      */
     const armReturnTo = (address: string): void => {
+      // A reader who chose GitHub's pages must not have Back intercepted into
+      // ours — the same rule prepareScreen applies to a hover.
+      if (view === "github") return;
+
       const to = new URL(address, window.location.origin);
       const page = pageAt(to.pathname, to.search);
       if (page === null) return;
@@ -377,14 +377,15 @@ export default defineContentScript({
       if (page === null) return;
 
       const place = placeFor(page, address.pathname);
-      const screen = preparedScreens.get(respell(place, path));
+      // The place's own spelling of the route, which the prepared map, the live
+      // cache and the standing screen's attribute all key by.
+      const spelled = respell(place, path);
+      const screen = preparedScreens.get(spelled);
       if (screen === undefined) return;
       const prepared = hasPreparedScreen(document, path, place);
       document.dispatchEvent(new CustomEvent(OWNED_TRAVERSAL, { detail: path }));
       const screenClaimedTheRoute = prepared && !hasPreparedScreen(document, path, place);
-      // The attribute holds the place's own spelling of the route, so the
-      // traversal's spelling — path and search — is respelt before comparing.
-      const routeAlreadyStands = theScreenHasRoute(document, respell(place, path));
+      const routeAlreadyStands = theScreenHasRoute(document, spelled);
       if (
         !screenClaimedTheRoute &&
         !routeAlreadyStands &&

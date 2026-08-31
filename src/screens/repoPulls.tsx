@@ -1,6 +1,7 @@
 import { Effect, Fiber, Option } from "effect"
 import { rememberedRepositories } from "@/app/destinations"
 import { forgetIntent, intendedPath } from "@/app/intent"
+import { keepFew } from "@/ui/keepFew"
 import { type Listed, loadRepoList, rememberedRepoList } from "@/app/repoList"
 import type { PullRequestRef } from "@/domain/PullRequestRef"
 import { addressFor, type RepoList, repoListIn, seeding } from "@/domain/repoList"
@@ -58,10 +59,7 @@ const asLastSeen = new Map<string, Listed>()
 const HOW_MANY_SEEN = 8
 
 const keepSeen = (address: string, listed: Listed): void => {
-  asLastSeen.delete(address)
-  asLastSeen.set(address, listed)
-  const oldest = asLastSeen.keys().next()
-  if (asLastSeen.size > HOW_MANY_SEEN && !oldest.done) asLastSeen.delete(oldest.value)
+  keepFew(asLastSeen, address, listed, HOW_MANY_SEEN)
 }
 
 /**
