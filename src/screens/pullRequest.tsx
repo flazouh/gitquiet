@@ -32,7 +32,7 @@ import { layerSizes } from "@/app/sizes"
 import { uploadFile } from "@/app/attaching"
 import { loadSuggesting } from "@/app/suggesting"
 import { forgetIntent, intendedPath, prepareTo } from "@/app/intent"
-import { markPreparedTraversal } from "@/ui/preparedNavigation"
+import { markPreparedTraversal, OWNED_TRAVERSAL, preparedArrival } from "@/ui/preparedNavigation"
 import { answerPressesIn, holdForRedraw, ourOwnRowsDrawn } from "@/ui/going"
 import { pullRequestNamed } from "@/ui/lastDrawn"
 import { isDashboard } from "@/domain/pages"
@@ -451,6 +451,9 @@ export const start = (): void => {
   let unoffer = (): void => {}
   /** The pull request drawn ahead of the address, if this is one. */
   let promised: string | null = null
+  /** The pull request this screen is showing, so one address is opened once. */
+  let shown: string | null = null
+  const arriving = preparedArrival()
   let abandoning: ReturnType<typeof setTimeout> | undefined
   /**
    * Whose page this reader wants. Assumed until storage answers, which it
@@ -478,6 +481,7 @@ export const start = (): void => {
     close = () => {}
     clearTimeout(abandoning)
     promised = null
+    shown = null
     reveal(document)
     ungate(document)
     unoffer()
@@ -500,10 +504,16 @@ export const start = (): void => {
   handToGitHub = useGitHub
 
   function show(path: string, ahead = false, inPlace = false): void {
+    // Arriving where the interface already is: the same guard the issue screen
+    // has always had. Drawing again would throw away a pull request that is on
+    // the screen and correct — fresh closures, fresh atoms, four fresh reads.
+    if (shown === path) return
+
     preparing?.close()
     preparing = null
     close()
     close = () => {}
+    shown = null
     unoffer()
     unoffer = () => {}
     clearTimeout(abandoning)
@@ -533,6 +543,7 @@ export const start = (): void => {
     }
 
     close = open(reference.value, ahead, useGitHub, inPlace)
+    shown = path
 
     if (!ahead) return
     promised = path
@@ -543,11 +554,33 @@ export const start = (): void => {
       close()
       close = () => {}
       promised = null
+      shown = null
       ungate(document)
     }, ABANDON)
   }
 
+  /*
+   * The shell resumes a live cached tree by this event before the address
+   * commits — see `standDown` in `shell/screen.tsx`. When one is cached for the
+   * destination, its resume listener is there by construction, so the tree will
+   * be standing again by the time the address moves; the commit below must not
+   * tear it down to open the same page over it.
+   */
+  document.addEventListener(OWNED_TRAVERSAL, (event) => {
+    const going = (event as CustomEvent<string>).detail
+    const asks = going.indexOf("?")
+    const path = asks === -1 ? going : going.slice(0, asks)
+    if (Option.isNone(fromPathname(path))) return
+    if (!hasPreparedScreen(document, path, CONVERSATION)) return
+    arriving.start(path)
+  })
+
   whenLocationChanges(window, (path) => {
+    // The address catching up with a tree the traversal already resumed.
+    if (arriving.committed(path)) {
+      shown = path
+      return
+    }
     // Arriving where the interface already is. Drawing it again would throw
     // away a pull request that is on the screen and correct.
     if (promised === path) {
@@ -580,7 +613,13 @@ export const start = (): void => {
         const inPlace = ourOwnRowsDrawn(window)
         forgetIntent(window)
 
-        if (Option.isSome(fromPathname(here))) show(here, false, inPlace)
+        if (Option.isSome(fromPathname(here))) {
+          // As the issue screen does: where this stand-up claims a prepared
+          // screen, the address commit that follows must not open it again.
+          const prepared = hasPreparedScreen(document, here, CONVERSATION)
+          show(here, false, inPlace)
+          if (prepared) arriving.start(here)
+        }
         /*
          * Drawn on the promise of a press, ahead of the address agreeing — but
          * only where the address is being moved by a document that is on its way.

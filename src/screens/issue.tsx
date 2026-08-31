@@ -24,7 +24,7 @@ import {
   ungate
 } from "@/ui/mount"
 import { ISSUE } from "@/ui/place"
-import { markPreparedTraversal, preparedArrival } from "@/ui/preparedNavigation"
+import { markPreparedTraversal, OWNED_TRAVERSAL, preparedArrival } from "@/ui/preparedNavigation"
 import { whenLocationChanges } from "@/ui/navigation"
 import { offerOurPage } from "@/ui/theirTabs"
 import "@/ui/styles.css"
@@ -284,8 +284,27 @@ export const start = (): void => {
     shown = path
   }
 
+  /*
+   * The shell resumes a live cached tree by this event before the address
+   * commits — see `standDown` in `shell/screen.tsx`. When one is cached for the
+   * destination, its resume listener is there by construction, so the tree will
+   * be standing again by the time the address moves; the commit below must not
+   * tear it down to open the same page over it.
+   */
+  document.addEventListener(OWNED_TRAVERSAL, (event) => {
+    const going = (event as CustomEvent<string>).detail
+    const asks = going.indexOf("?")
+    const path = asks === -1 ? going : going.slice(0, asks)
+    if (Option.isNone(fromPathname(path))) return
+    if (!hasPreparedScreen(document, path, ISSUE)) return
+    arriving.start(path)
+  })
+
   whenLocationChanges(window, (path) => {
-    if (arriving.committed(path)) return
+    if (arriving.committed(path)) {
+      shown = path
+      return
+    }
     show(path)
   })
 

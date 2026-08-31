@@ -89,6 +89,7 @@ import {
   type Place,
   placeLoadedOn,
   placeOwning,
+  respell,
 } from "@/ui/place";
 import "@/ui/gates.load.css";
 import "@/ui/gates.soft.css";
@@ -328,7 +329,9 @@ export default defineContentScript({
       const prepared = hasPreparedScreen(document, path, place);
       document.dispatchEvent(new CustomEvent(OWNED_TRAVERSAL, { detail: path }));
       const screenClaimedTheRoute = prepared && !hasPreparedScreen(document, path, place);
-      const routeAlreadyStands = theScreenHasRoute(document, path);
+      // The attribute holds the place's own spelling of the route, so the
+      // traversal's spelling — path and search — is respelt before comparing.
+      const routeAlreadyStands = theScreenHasRoute(document, respell(place, path));
       if (
         !screenClaimedTheRoute &&
         !routeAlreadyStands &&
