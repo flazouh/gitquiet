@@ -114,6 +114,12 @@ export const connect = async (url: string): Promise<Connection> => {
 
 export type Session = {
   readonly extensionId: string
+  /**
+   * The DevTools connection to the page itself, for a probe that needs a domain
+   * this file has no opinion about — network conditions, input, tracing. The
+   * page is already attached and `Runtime` and `Page` are already enabled on it.
+   */
+  readonly tab: Connection
   readonly evaluate: <A,>(expression: string) => Promise<A>
   /**
    * Evaluates in the content script's own world rather than the page's. The two
@@ -284,6 +290,7 @@ export const withExtension = async (
 
   return {
     extensionId: installed?.id ?? seenId,
+    tab,
     evaluate,
     evaluateInExtension: <A,>(expression: string): Promise<A> => {
       const world = worlds.get("extension")
