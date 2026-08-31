@@ -192,7 +192,21 @@ const SETTLE = 2_500
  *
  * Its own failure is swallowed to a report: an audit that threw on a page it did not
  * understand would be a worse fault than the one it looks for.
+ *
+ * A leak goes two ways, and both respect that this extension collects nothing. `reportError`
+ * reaches Sentry only in a build carrying a DSN, and none is shipped — so in the store it is
+ * silent by design. The console line is the one a person actually reads, and it is on only
+ * in a development build, where the page is the developer's own and no reader is watching it.
  */
+const announce = (place: string, leaks: ReadonlyArray<Leak>): void => {
+  if (import.meta.env.DEV !== true) return
+  for (const leak of leaks)
+    // eslint-disable-next-line no-console -- dev-only, never in a shipped build
+    console.warn(
+      `[gitquiet] gate leak on "${place}": ${leak.narrow} misses, ${leak.coarse} is still on the page (${leak.found})`
+    )
+}
+
 export const auditTakeover = (target: Document, place: Place): void => {
   const view = typeof document === "undefined" ? null : target.defaultView
   if (view === null) return
@@ -201,7 +215,10 @@ export const auditTakeover = (target: Document, place: Place): void => {
     Effect.runSync(
       Effect.try(() => {
         const leaks = leaksIn(target, place)
-        if (leaks.length > 0) reportError(new GateLeak(place.name, leaks))
+        if (leaks.length > 0) {
+          reportError(new GateLeak(place.name, leaks))
+          announce(place.name, leaks)
+        }
       }).pipe(Effect.catch((error) => Effect.sync(() => reportError(error))))
     )
   }, SETTLE)
