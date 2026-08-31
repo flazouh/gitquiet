@@ -432,6 +432,29 @@ describe("the merge card", () => {
     expect(yes.querySelector(".t-rotate")).toBeNull()
   })
 
+  test("gives each of the rest its glyph, and the close its own red", async () => {
+    /*
+     * Two words in a plain list, and one of them ends the pull request. The
+     * glyph says which state each verb leads to, the way the row menu's items
+     * do; the red is muted rather than filled, because filled is what the next
+     * press looks like and a rest that already looks armed says nothing when the
+     * arming happens.
+     */
+    render(
+      <Merge state="open" merge={Option.some(ready)} actions={{ close: () => Effect.void, toDraft: () => Effect.void }} />
+    )
+
+    await openTheRest()
+
+    const close = item(/Close pull request/)
+    const draft = item(/Convert to draft/)
+
+    expect(close.className).toContain("bg-fail-muted")
+    expect(draft.className).not.toContain("bg-fail-muted")
+    expect(close.querySelector("svg")).not.toBeNull()
+    expect(draft.querySelector("svg")).not.toBeNull()
+  })
+
   test("backs out without merging", async () => {
     let merges = 0
     render(<Merge state="open" merge={Option.some(ready)} actions={{ merge: () => Effect.sync(() => void (merges += 1)) }} />)

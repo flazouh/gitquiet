@@ -1,8 +1,9 @@
 import * as Menu from "@radix-ui/react-dropdown-menu"
 import { Effect, Option } from "effect"
 import type { MergeMethod, UpdateWay } from "../domain/PullRequest"
-import type { Doing } from "../domain/doable"
+import type { Doing, RowDoing } from "../domain/doable"
 import { useArt } from "./art"
+import { LOOK } from "./rowDoings"
 import { ROOT_ID } from "./mount"
 import { Says } from "./says"
 
@@ -402,8 +403,15 @@ export const Overflow = ({
   onCancel,
   landsStack = false
 }: {
-  /** In the order they are offered, which is rarest last. */
-  readonly verbs: ReadonlyArray<Asking>
+  /**
+   * In the order they are offered, which is rarest last.
+   *
+   * The narrower vocabulary, and deliberately: every item here wears the glyph
+   * of the state its verb leads to, and {@link LOOK} answers for those five and
+   * no more. A verb added to this menu that has no glyph is a compile error
+   * rather than an item drawn blank.
+   */
+  readonly verbs: ReadonlyArray<RowDoing>
   readonly merging: Merging
   readonly can: ReadonlySet<Asking>
   readonly actions?: MergeActions
@@ -441,6 +449,8 @@ export const Overflow = ({
             const words = wordsOf(doing, Option.none(), landsStack)
             const asking = merging.step === "asking" && merging.doing === doing
             const stopped = !can.has(doing) || merging.step === "working"
+            const look = LOOK[doing]
+            const Glyph = art[look.art]
 
             return (
               <Menu.Item
@@ -456,10 +466,26 @@ export const Overflow = ({
                   event.preventDefault()
                   press(doing)
                 }}
+                /*
+                 * The one that ends a pull request wears a red of its own while
+                 * it rests, which none of the others do: it sits in a list of
+                 * ordinary choices and is the only one there is no way back from
+                 * on this card. Muted rather than filled, because filled is what
+                 * the next press looks like — see {@link TONE} — and a rest that
+                 * already looks armed says nothing when the arming happens.
+                 */
                 className={`flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-xs outline-none data-[disabled]:cursor-default data-[disabled]:opacity-50 data-[highlighted]:bg-hover ${
-                  asking ? `font-semibold ${TONE[doing].armed}` : ""
+                  asking
+                    ? `font-semibold ${TONE[doing].armed}`
+                    : doing === "close"
+                      ? "bg-fail-muted"
+                      : ""
                 }`}
               >
+                {/* Dimmed with the item it sits in, and never on its own: an
+                    unpressable verb whose glyph still carried its full colour
+                    read as the one thing on the menu that was available. */}
+                <Glyph size={14} className={asking ? undefined : look.tone} />
                 {labelFor(merging, doing, asking, words)}
               </Menu.Item>
             )
