@@ -638,6 +638,10 @@ export const PULL_REQUEST_VIEW: View = {
         actions={{
           merge: () => Effect.void,
           update: () => Effect.void,
+          // Both of the rare ones, so the overflow behind the glyph draws the
+          // shape it really has: a draft door and the one press that ends the
+          // pull request. Wired to nothing, like the three above it.
+          toDraft: () => Effect.void,
           close: () => Effect.void
         }}
       />
