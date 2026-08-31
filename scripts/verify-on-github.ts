@@ -21,10 +21,13 @@ import { withExtension } from "./chrome"
  *     bun run verify:live
  *     bun run verify:live --pull https://github.com/owner/repo/pull/1
  *
- * The profile is a throwaway, so the visit is signed out and the interface can
- * only reach its failure screen — which still answers the styling questions,
- * since that screen is drawn from the same stylesheet as everything else. To see
- * the Control Center instead, hand it a signed-in session:
+ * The profile lives at a fixed path in /tmp and persists between runs and
+ * reboots do not always clear it — so a session signed in there once stays
+ * signed in, and "throwaway" only holds on a machine that never signed in.
+ * Signed out, the interface can only reach its failure screen — which still
+ * answers the styling questions, since that screen is drawn from the same
+ * stylesheet as everything else. To see the Control Center instead, hand it a
+ * signed-in session:
  *
  *     bun run verify:live --cookies /tmp/gh-cookies.json
  *
