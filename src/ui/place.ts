@@ -14,6 +14,7 @@ import { releasesIn } from "../domain/release";
 import { repoHomeIn } from "../domain/repoHome";
 import { runAddressIn } from "../domain/run";
 import { actionsIn } from "../domain/strand";
+import { THEIR_TABS } from "./theirTabs";
 
 /**
  * Where on a GitHub page the interface goes, described per page.
@@ -186,7 +187,7 @@ export const CONVERSATION: Place = {
    */
   bands: [
     '[class*="PullRequestHeader"]',
-    '[aria-label="Pull request navigation"]',
+    THEIR_TABS,
     /*
      * Their banner offering to stack this pull request with the ones below it.
      *
