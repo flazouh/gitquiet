@@ -17,17 +17,26 @@ const probesOnDisk = readdirSync("scripts")
   .filter((name) => /^probe-.*-dom\.js$/.test(name))
   .map((name) => `scripts/${name}`)
 
+const probesInLedger = PROBED_PAGES.map((page) => page.probe).filter(
+  (probe): probe is string => probe !== undefined
+)
+
 describe("the probed-page ledger is complete and well-formed", () => {
   test("every DOM probe on disk has exactly one row", () => {
-    const listed = PROBED_PAGES.map((page) => page.probe).sort()
-    expect(listed).toEqual([...probesOnDisk].sort())
+    expect([...probesInLedger].sort()).toEqual([...probesOnDisk].sort())
   })
 
   test("no row names a probe that is not there", () => {
-    const missing = PROBED_PAGES.map((page) => page.probe).filter(
-      (probe) => !probesOnDisk.includes(probe)
-    )
+    const missing = probesInLedger.filter((probe) => !probesOnDisk.includes(probe))
     expect(missing).toEqual([])
+  })
+
+  test("a row with no probe is a canary-only target: it names a place and a url", () => {
+    for (const page of PROBED_PAGES)
+      if (page.probe === undefined) {
+        expect(page.place).toBeDefined()
+        expect(page.url).toBeDefined()
+      }
   })
 
   test("every capture date is a real YYYY-MM-DD", () => {
