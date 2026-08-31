@@ -7,6 +7,7 @@ import {
   continueRender,
   delayRender,
   Freeze,
+  interpolate,
   OffthreadVideo,
   Sequence,
   staticFile,
@@ -14,7 +15,7 @@ import {
 } from "remotion";
 import { SimulatedCursor } from "@/components/remocn/simulated-cursor";
 import { SoftBlurIn } from "@/components/remocn/soft-blur-in";
-import { fadeIn } from "@/lib/remocn/scene-motion";
+import { CLAMP, fadeIn } from "@/lib/remocn/scene-motion";
 import {
   GRADIENT,
   INK,
@@ -315,7 +316,7 @@ const PrConvoScene: React.FC = () => (
       ]}
     />
     <Callout
-      text="Unresolved threads, above the diff"
+      text="Unresolved threads above the diff, and find works"
       x={740}
       y={140}
       dx={-300}
@@ -345,6 +346,146 @@ const VerdictScene: React.FC = () => (
       dx={-320}
       dy={-40}
       at={12}
+    />
+  </Dark>
+);
+
+const WhitespaceScene: React.FC = () => (
+  <Dark>
+    <Shot
+      src="pull-request.png"
+      sourceWidth={2560}
+      width={1064}
+      height={580}
+      top={40}
+      views={[
+        { at: 0, x: 1360, y: 380, w: 1180 },
+        { at: 250, x: 1360, y: 400, w: 1160 },
+      ]}
+    />
+    <Callout
+      text="Whitespace-only changes, folded by default"
+      x={640}
+      y={648}
+      at={40}
+    />
+  </Dark>
+);
+
+/**
+ * The pull request wearing a colour pack, then another: Dracula, then Tokyo
+ * Night, cross-faded at the midpoint. The code follows the pack, which is the
+ * whole claim GitHub cannot make with light and dark.
+ */
+const ThemesScene: React.FC = () => {
+  const frame = useCurrentFrame();
+  const swap = interpolate(frame, [128, 150], [0, 1], CLAMP);
+  return (
+    <Dark>
+      <div style={{ opacity: 1 - swap }}>
+        <Shot
+          src="pr-dracula.png"
+          sourceWidth={2560}
+          width={1120}
+          height={620}
+          top={30}
+          enter={8}
+          views={[
+            { at: 0, x: 0, y: 0, w: 2560 },
+            { at: 250, x: 0, y: 30, w: 2500 },
+          ]}
+        />
+      </div>
+      {swap > 0 ? (
+        <div style={{ opacity: swap }}>
+          <Shot
+            src="pr-tokyo.png"
+            sourceWidth={2560}
+            width={1120}
+            height={620}
+            top={30}
+            views={[
+              { at: 0, x: 0, y: 20, w: 2540 },
+              { at: 250, x: 0, y: 50, w: 2480 },
+            ]}
+          />
+        </div>
+      ) : null}
+      <Callout text="Thirty colour packs" x={640} y={660} at={24} />
+    </Dark>
+  );
+};
+
+const SplitScene: React.FC = () => (
+  <Dark>
+    <Shot
+      src="pr-split.png"
+      sourceWidth={2560}
+      width={1120}
+      height={620}
+      top={30}
+      enter={8}
+      views={[
+        { at: 0, x: 0, y: 0, w: 2560 },
+        { at: 120, x: 1360, y: 420, w: 1200 },
+        { at: 270, x: 1360, y: 440, w: 1180 },
+      ]}
+    />
+    <Callout
+      text="Side by side, remembered, no reload"
+      x={640}
+      y={648}
+      at={150}
+    />
+  </Dark>
+);
+
+const TreeScene: React.FC = () => (
+  <Dark>
+    <Shot
+      src="pull-request.png"
+      sourceWidth={2560}
+      width={1064}
+      height={580}
+      top={40}
+      views={[
+        { at: 0, x: 660, y: 340, w: 920 },
+        { at: 240, x: 660, y: 360, w: 900 },
+      ]}
+    />
+    <Callout
+      text="The tree stays, at any width"
+      x={640}
+      y={648}
+      at={30}
+    />
+  </Dark>
+);
+
+const ReviewScene: React.FC = () => (
+  <Dark>
+    <Shot
+      src="pull-request.png"
+      sourceWidth={2560}
+      width={1064}
+      height={580}
+      top={40}
+      views={[
+        { at: 0, x: 830, y: 200, w: 1720 },
+        { at: 420, x: 830, y: 220, w: 1700 },
+      ]}
+    />
+    <Callout
+      text="Review mode: j / k, x marks read"
+      x={640}
+      y={624}
+      at={60}
+    />
+    <Callout
+      text="It remembers what you have seen"
+      x={640}
+      y={672}
+      at={240}
     />
   </Dark>
 );
@@ -410,14 +551,19 @@ const CtaScene: React.FC = () => {
  * on the press (the arrival is the claim) and at the end.
  */
 const BEATS: { scene: React.FC; frames: number; out: Out }[] = [
-  { scene: ProblemScene, frames: 501, out: "wash" },
-  { scene: TurnScene, frames: 128, out: "wash" },
-  { scene: ListScene, frames: 280, out: "cut" },
-  { scene: PrOpenScene, frames: 243, out: "fade" },
-  { scene: PageScene, frames: 180, out: "fade" },
-  { scene: PrConvoScene, frames: 228, out: "fade" },
-  { scene: VerdictScene, frames: 150, out: "wash" },
-  { scene: CtaScene, frames: 404, out: "cut" },
+  { scene: ProblemScene, frames: 546, out: "wash" },
+  { scene: TurnScene, frames: 150, out: "wash" },
+  { scene: ListScene, frames: 366, out: "cut" },
+  { scene: PrOpenScene, frames: 309, out: "fade" },
+  { scene: PageScene, frames: 253, out: "fade" },
+  { scene: PrConvoScene, frames: 353, out: "fade" },
+  { scene: WhitespaceScene, frames: 283, out: "fade" },
+  { scene: ThemesScene, frames: 259, out: "fade" },
+  { scene: SplitScene, frames: 277, out: "fade" },
+  { scene: TreeScene, frames: 251, out: "fade" },
+  { scene: ReviewScene, frames: 433, out: "fade" },
+  { scene: VerdictScene, frames: 143, out: "wash" },
+  { scene: CtaScene, frames: 420, out: "cut" },
 ];
 
 export const DAY_DURATION_IN_FRAMES = BEATS.reduce(
