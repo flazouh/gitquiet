@@ -202,7 +202,7 @@ export const auditTakeover = (target: Document, place: Place): void => {
       Effect.try(() => {
         const leaks = leaksIn(target, place)
         if (leaks.length > 0) reportError(new GateLeak(place.name, leaks))
-      }).pipe(Effect.catchAll((error) => Effect.sync(() => reportError(error))))
+      }).pipe(Effect.catch((error) => Effect.sync(() => reportError(error))))
     )
   }, SETTLE)
 }
