@@ -25,6 +25,7 @@ import {
   PAGE,
 } from "@/palette";
 import { Callout } from "@/Callout";
+import { Receipt } from "@/Receipt";
 import { Shot } from "@/Shot";
 import { bedWash } from "@/Wash";
 
@@ -350,6 +351,12 @@ const PrConvoScene: React.FC = () => (
       dy={60}
       at={22}
     />
+    <Receipt
+      count="206"
+      ask="Keep a comment when its line changes"
+      theirs="GitHub drops it out of Files changed on the next push"
+      at={120}
+    />
   </Dark>
 );
 
@@ -398,6 +405,96 @@ const RunScene: React.FC = () => (
       dx={-220}
       dy={-140}
       at={84}
+    />
+  </Dark>
+);
+
+
+/**
+ * The chapter card. Everything after it is a request somebody made to GitHub
+ * that is still open, shown answered — which is the reason a stranger scrolling
+ * past recognises their own complaint.
+ */
+const ChapterScene: React.FC = () => {
+  const frame = useCurrentFrame();
+  return (
+    <Bed>
+      <AbsoluteFill style={{ transform: "translateY(-18px)" }}>
+        <SoftBlurIn
+          text="Asked for. Still open."
+          fontSize={72}
+          fontWeight={700}
+          color={ON_GRADIENT}
+        />
+      </AbsoluteFill>
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: 430,
+          textAlign: "center",
+          fontSize: 28,
+          fontWeight: 500,
+          color: ON_GRADIENT_MUTED,
+          opacity: fadeIn(frame, 62, 12),
+        }}
+      >
+        Their community board, answered here.
+      </div>
+    </Bed>
+  );
+};
+
+const WhitespaceScene: React.FC = () => (
+  <Dark>
+    <Shot
+      src="pull-request.png"
+      sourceWidth={2560}
+      width={1064}
+      height={580}
+      top={40}
+      views={[
+        { at: 0, x: 1380, y: 300, w: 1180 },
+        { at: 300, x: 1380, y: 330, w: 1150 },
+      ]}
+    />
+    <Receipt
+      count="446"
+      ask="Hide whitespace changes by default"
+      theirs="Their checkbox forgets itself on the next page"
+      at={20}
+    />
+  </Dark>
+);
+
+const ActionsScene: React.FC = () => (
+  <Dark>
+    <Shot
+      src="actions.png"
+      sourceWidth={2560}
+      width={1064}
+      height={580}
+      top={40}
+      enter={8}
+      views={[
+        { at: 8, x: 0, y: 0, w: 2560 },
+        { at: 300, x: 0, y: 46, w: 2560 },
+      ]}
+    />
+    <Callout
+      text="11 strands, from 34 runs"
+      x={700}
+      y={112}
+      dx={318}
+      dy={-16}
+      at={196}
+    />
+    <Receipt
+      count="400"
+      ask="Stop showing workflows as one flat list"
+      theirs="Four threads asking, all four still in their backlog"
+      at={18}
     />
   </Dark>
 );
@@ -496,16 +593,19 @@ const CtaScene: React.FC = () => {
  * on the press (the arrival is the claim) and at the end.
  */
 const BEATS: { scene: React.FC; frames: number; out: Out }[] = [
-  { scene: ProblemScene, frames: 509, out: "wash" },
-  { scene: TurnScene, frames: 109, out: "wash" },
-  { scene: ListScene, frames: 268, out: "cut" },
-  { scene: PrOpenScene, frames: 232, out: "fade" },
-  { scene: PageScene, frames: 183, out: "fade" },
-  { scene: PrConvoScene, frames: 245, out: "fade" },
-  { scene: VerdictScene, frames: 125, out: "fade" },
-  { scene: RunScene, frames: 165, out: "wash" },
-  { scene: MontageScene, frames: 202, out: "wash" },
-  { scene: CtaScene, frames: 382, out: "cut" },
+  { scene: ProblemScene, frames: 511, out: "wash" },
+  { scene: TurnScene, frames: 139, out: "wash" },
+  { scene: ListScene, frames: 277, out: "cut" },
+  { scene: PrOpenScene, frames: 252, out: "fade" },
+  { scene: PageScene, frames: 185, out: "fade" },
+  { scene: PrConvoScene, frames: 372, out: "fade" },
+  { scene: VerdictScene, frames: 152, out: "wash" },
+  { scene: ChapterScene, frames: 241, out: "wash" },
+  { scene: WhitespaceScene, frames: 347, out: "fade" },
+  { scene: ActionsScene, frames: 343, out: "fade" },
+  { scene: RunScene, frames: 260, out: "wash" },
+  { scene: MontageScene, frames: 211, out: "wash" },
+  { scene: CtaScene, frames: 420, out: "cut" },
 ];
 
 export const DAY_DURATION_IN_FRAMES = BEATS.reduce(
