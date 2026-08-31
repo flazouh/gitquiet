@@ -105,6 +105,7 @@ const decorateBlock = (block: MarkdownBlock, options: ParseOptions): MarkdownBlo
 }
 
 const RAW = "https://raw.githubusercontent.com"
+const GITHUB = "https://github.com"
 
 /** An address that already says where it is: it has a scheme, or it starts at a root. */
 const ROOTED = /^(?:[a-z][a-z0-9+.-]*:|\/)/iu
@@ -132,6 +133,34 @@ const inTheRepository = (src: string, options: ParseOptions): string => {
    */
   const from = `${RAW}/${owner}/${repo}/${options.branch ?? "HEAD"}/${options.at ?? ""}`
   return new URL(src, from).toString()
+}
+
+/**
+ * A link's address, read as a path in the repository the markdown came out of.
+ *
+ * A README writes `[Cross-tool analysis](analysis/index.md)`, meaning a file in the
+ * repository, and GitHub's own rendering points that at `/{owner}/{repo}/blob/{branch}/…`.
+ * Left as written it resolves against whatever page the reader is standing on — the front
+ * page is `github.com/{owner}/{repo}`, so `analysis/index.md` becomes
+ * `github.com/{owner}/analysis/index.md`, a repository that is not there and a 404 the moment
+ * it is pressed.
+ *
+ * The sibling of {@link inTheRepository}, and the two differ only in the host. A picture is
+ * fetched, so its file is read off their raw host; a link is walked to, so its file is the
+ * blob page on github.com that shows it. The `..` and `./` walk from {@link options.at} is the
+ * same for both, because a relative address means the same thing whether it names a picture or
+ * a page.
+ *
+ * A fragment is left alone: `#usage` is an anchor inside this very rendering rather than a
+ * file, and rooting it would send a reader out of the page they are on. A rooted or schemed
+ * address is left alone as well, exactly as a picture's is.
+ */
+const linkedInTheRepository = (href: string, options: ParseOptions): string => {
+  const { owner, repo } = options
+  if (owner === undefined || repo === undefined) return href
+  if (href === "" || href.startsWith("#") || ROOTED.test(href)) return href
+  const from = `${GITHUB}/${owner}/${repo}/blob/${options.branch ?? "HEAD"}/${options.at ?? ""}`
+  return new URL(href, from).toString()
 }
 
 /*
@@ -192,6 +221,13 @@ const decorateInline = (node: MarkdownInline, options: ParseOptions): ReadonlyAr
     case "text":
       return splitText(node.text, options)
     case "link":
+      return [
+        {
+          ...node,
+          href: node.href === null ? null : linkedInTheRepository(node.href, options),
+          children: decorateInlines(node.children, options)
+        }
+      ]
     case "strong":
     case "em":
     case "delete":

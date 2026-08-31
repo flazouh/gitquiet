@@ -391,6 +391,83 @@ describe("parsing markdown into a document", () => {
     ])
   })
 
+  /*
+   * A README says `[Cross-tool analysis](analysis/index.md)`, which is a file in the repository
+   * rather than an address. GitHub's own rendering points those at their blob view, and a parse
+   * that leaves them alone hands the page an address that resolves against the front page the
+   * reader is standing on — `github.com/{owner}/analysis/index.md`, a repository that is not there.
+   */
+  test("reads a relative link as a file in the repository the markdown belongs to", () => {
+    const doc = parseMarkdown("[Cross-tool analysis](analysis/index.md)", {
+      owner: "LukasParke",
+      repo: "tui-patterns"
+    })
+
+    expect(doc.blocks).toMatchObject([
+      {
+        type: "paragraph",
+        children: [
+          {
+            type: "link",
+            href: "https://github.com/LukasParke/tui-patterns/blob/HEAD/analysis/index.md"
+          }
+        ]
+      }
+    ])
+  })
+
+  test("reads a relative link from the branch and the file it was given", () => {
+    const doc = parseMarkdown("[a guide](../guide.md)", {
+      owner: "flazouh",
+      repo: "gitquiet",
+      branch: "next",
+      at: "docs/reading.md"
+    })
+
+    expect(doc.blocks).toMatchObject([
+      {
+        type: "paragraph",
+        children: [
+          { type: "link", href: "https://github.com/flazouh/gitquiet/blob/next/guide.md" }
+        ]
+      }
+    ])
+  })
+
+  test("leaves a fragment link alone, since it is an anchor in this rendering", () => {
+    const doc = parseMarkdown("[usage](#usage)", { owner: "flazouh", repo: "gitquiet" })
+
+    expect(doc.blocks).toMatchObject([
+      { type: "paragraph", children: [{ type: "link", href: "#usage" }] }
+    ])
+  })
+
+  test("leaves a rooted or schemed link alone, as a picture's is", () => {
+    const doc = parseMarkdown("[home](https://example.com) and [root](/octo/repo)", {
+      owner: "flazouh",
+      repo: "gitquiet"
+    })
+
+    expect(doc.blocks).toMatchObject([
+      {
+        type: "paragraph",
+        children: [
+          { type: "link", href: "https://example.com" },
+          { type: "text", text: " and " },
+          { type: "link", href: "/octo/repo" }
+        ]
+      }
+    ])
+  })
+
+  test("leaves a relative link alone where there is no repository to read it from", () => {
+    const doc = parseMarkdown("[a guide](docs/guide.md)")
+
+    expect(doc.blocks).toMatchObject([
+      { type: "paragraph", children: [{ type: "link", href: "docs/guide.md" }] }
+    ])
+  })
+
   test("reads a block quote, a rule, and the usual inline marks", () => {
     const doc = parseMarkdown("> note\n\n---\n\n**bold** and *em* and ~~gone~~ and `code`")
 
