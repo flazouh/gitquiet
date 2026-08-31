@@ -218,40 +218,49 @@ export const standAScreen = (screen: Screen): Standing => {
     const keepLive = event instanceof CustomEvent && event.detail === true
     stopWaitingForABody()
     letGo()
+    /*
+     * Remembered now, in the same task as the word to go, rather than when the next
+     * bar stands. The wait was the window a quick Back fell into: for up to four
+     * hundred milliseconds the tree that would have answered was still mounted and
+     * not yet in the cache, so the traversal rebuilt the page from nothing —
+     * `screen.test.tsx` holds the test that caught it. Only the unmounting still
+     * waits, below, because cleanup is the expensive half and the bar is the part
+     * of it a reader would see leave too early.
+     */
+    const remembered =
+      keepLive &&
+      rememberLiveScreen(container, place, () => {
+        stopResuming()
+        runWhenIdle(unmount, 2_000)
+      })
+    if (remembered) {
+      preparedRoots.add(container)
+      preparedBridges.set(container, {
+        adopt: (screen) => {
+          adopted = screen
+        }
+      })
+      const exactRoute = container.getAttribute("data-gitquiet-route")
+      if (exactRoute !== null) {
+        const resume = (event: Event): void => {
+          if ((event as CustomEvent<string>).detail !== exactRoute) return
+          if (!hasPreparedScreen(document, exactRoute, place)) return
+          stopResuming()
+          standAScreen(screen)
+        }
+        document.addEventListener(OWNED_TRAVERSAL, resume)
+        stopResuming = () => {
+          document.removeEventListener(OWNED_TRAVERSAL, resume)
+          stopResuming = () => {}
+        }
+      }
+      return
+    }
     whenAnotherBarStands(document, () => {
       // Another stand-up on this container has the tree now, which is the screen on the
       // page: this one's tree stopped existing the moment that render replaced it.
       // Cleanup can be expensive on a large pull request. Leave the navigation task
       // free to paint the prepared route before React runs every outgoing cleanup.
-      const remembered =
-        keepLive &&
-        rememberLiveScreen(container, place, () => {
-          stopResuming()
-          runWhenIdle(unmount, 2_000)
-        })
-      if (remembered) {
-        preparedRoots.add(container)
-        preparedBridges.set(container, {
-          adopt: (screen) => {
-            adopted = screen
-          }
-        })
-        const exactRoute = container.getAttribute("data-gitquiet-route")
-        if (exactRoute !== null) {
-          const resume = (event: Event): void => {
-            if ((event as CustomEvent<string>).detail !== exactRoute) return
-            if (!hasPreparedScreen(document, exactRoute, place)) return
-            stopResuming()
-            standAScreen(screen)
-          }
-          document.addEventListener(OWNED_TRAVERSAL, resume)
-          stopResuming = () => {
-            document.removeEventListener(OWNED_TRAVERSAL, resume)
-            stopResuming = () => {}
-          }
-        }
-        return
-      }
       runWhenIdle(unmount, 2_000)
     })
   }

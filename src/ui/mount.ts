@@ -143,11 +143,15 @@ export const rememberPreparedScreen = (
   dispose?: () => void
 ): void => {
   const screens = screenSnapshots(target)
-  if (screens === null || prepared.innerHTML === "") return
+  if (screens === null) return
+  // Read once: serialising a large pull request's tree is the expensive line in
+  // here, and this now runs in the navigation task that stands the screen down.
+  const html = prepared.innerHTML
+  if (html === "") return
 
   keepScreenSnapshot(screens, route, {
     place: place.name,
-    html: prepared.innerHTML,
+    html,
     prepared:
       dispose === undefined ? undefined : { element: prepared as HTMLElement, dispose }
   })
