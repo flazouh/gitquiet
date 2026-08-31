@@ -280,6 +280,104 @@ describe("an address moved to a screen that never arrives", () => {
   })
 })
 
+/*
+ * The repair is for a screen that is not coming, and a screen on its way is not
+ * that. Signed out, on a cold cache, the screen for a big repository can still
+ * be standing up when the deadline fires — and the repair then loads a whole
+ * document over a press that was working, which throws away every live screen
+ * the document was holding for Back. Demonstrated on live github.com by
+ * scripts/probe-back-live.ts.
+ */
+describe("an address moved to a screen that is still arriving", () => {
+  /** Runs whatever the deadline queued, once, and hands back what it queued next. */
+  const deadlinePasses = (page: ReturnType<typeof aPageOfOurs>): number => {
+    const queued = [...page.recorded.later]
+    page.recorded.later.length = 0
+    queued.forEach((run) => run())
+    return page.recorded.later.length
+  }
+
+  test("is waited for while the gate says a takeover is coming", () => {
+    const page = aPageOfOurs()
+    answerPressesIn(page.screen, page.window, aPullRequest)
+    press(rowIn(page.screen))
+    ;(page.window.location as { pathname: string }).pathname = "/owner/repo/pull/12"
+
+    page.window.document.documentElement.setAttribute("data-gitquiet-gating", "")
+    const rearmed = deadlinePasses(page)
+
+    expect(page.recorded.replaced).toEqual([])
+    expect(rearmed).toBe(1)
+  })
+
+  test("is waited for while a standing screen is visibly still reading", () => {
+    const page = aPageOfOurs()
+    answerPressesIn(page.screen, page.window, aPullRequest)
+    press(rowIn(page.screen))
+    ;(page.window.location as { pathname: string }).pathname = "/owner/repo/pull/12"
+
+    const reading = page.window.document.createElement("div")
+    reading.setAttribute("data-gitquiet-loading", "")
+    page.screen.append(reading)
+    deadlinePasses(page)
+
+    expect(page.recorded.replaced).toEqual([])
+  })
+
+  test("is left alone once the wait ends in the screen it was waiting for", () => {
+    const page = aPageOfOurs()
+    answerPressesIn(page.screen, page.window, aPullRequest)
+    press(rowIn(page.screen))
+    ;(page.window.location as { pathname: string }).pathname = "/owner/repo/pull/12"
+
+    page.window.document.documentElement.setAttribute("data-gitquiet-gating", "")
+    deadlinePasses(page)
+
+    // The takeover settled: the gate came down and the card stands where the
+    // list was, which is what an arrival looks like from here.
+    page.window.document.documentElement.removeAttribute("data-gitquiet-gating")
+    page.screen.remove()
+    const card = page.window.document.createElement("div")
+    card.id = ROOT_ID
+    page.window.document.body.append(card)
+    deadlinePasses(page)
+
+    expect(page.recorded.replaced).toEqual([])
+  })
+
+  test("is repaired once nothing says anything is coming any more", () => {
+    const page = aPageOfOurs()
+    answerPressesIn(page.screen, page.window, aPullRequest)
+    press(rowIn(page.screen))
+    ;(page.window.location as { pathname: string }).pathname = "/owner/repo/pull/12"
+
+    page.window.document.documentElement.setAttribute("data-gitquiet-gating", "")
+    deadlinePasses(page)
+    page.window.document.documentElement.removeAttribute("data-gitquiet-gating")
+    deadlinePasses(page)
+
+    expect(page.recorded.replaced).toEqual(["/owner/repo/pull/12"])
+  })
+
+  test("does not wait forever on a read that never ends", () => {
+    const page = aPageOfOurs()
+    answerPressesIn(page.screen, page.window, aPullRequest)
+    press(rowIn(page.screen))
+    ;(page.window.location as { pathname: string }).pathname = "/owner/repo/pull/12"
+
+    // A wedged read: the marker never comes down. The failsafe has to stay one.
+    const reading = page.window.document.createElement("div")
+    reading.setAttribute("data-gitquiet-loading", "")
+    page.screen.append(reading)
+
+    let deadlines = 0
+    while (deadlinePasses(page) > 0 && deadlines < 20) deadlines += 1
+
+    expect(page.recorded.replaced).toEqual(["/owner/repo/pull/12"])
+    expect(deadlines).toBeLessThan(20)
+  })
+})
+
 describe("another view of the screen already standing", () => {
   /*
    * Why this is a function and not a push. The watcher every screen hears the

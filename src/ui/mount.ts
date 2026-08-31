@@ -8,7 +8,7 @@ import {
   markPreparedTraversal,
   preparedTraversal
 } from "./preparedNavigation"
-import { finishNavigation } from "./navigationTiming"
+import { finishNavigation, READING } from "./navigationTiming"
 
 export const ROOT_ID = "gitquiet-root"
 
@@ -617,6 +617,30 @@ export const theScreenIsNotElsewhere = (
 
 export const theScreenArrived = (target: Document, place: string, path: string): boolean =>
   theScreenShown(target) === place && target.documentElement.getAttribute(AT) === path
+
+/**
+ * Whether anything is still on its way to the page, asked by a repair deciding
+ * whether to give up on a push.
+ *
+ * Two signs, and each is a deadline's own business ending a deadline's own way.
+ * The gate up is a takeover that has not settled: the shell raised it on the
+ * press and either the arriving screen's takeover lowers it or the shell's
+ * give-up does, eight seconds in. A reading mark inside the standing screen is
+ * a screen that has the page and is waiting on GitHub: the read lands and the
+ * mark comes down, or the read fails and the screen draws its failure — or
+ * steps aside, which takes {@link SHOWN} down with it.
+ *
+ * What neither sign can be is a screen that is not coming. That case — the
+ * script that never ran, the press a dead version never answered — raises
+ * nothing and reads nothing, so a repair told "no" here is not being asked for
+ * more patience than those deadlines already spend.
+ */
+export const stillArriving = (target: Document): boolean => {
+  if (target.documentElement.hasAttribute(GATING)) return true
+
+  const standing = theScreenOnThePage(target)
+  return standing !== null && standing.querySelector(READING) !== null
+}
 
 /**
  * Says when the document has a body, which at `document_start` it does not.

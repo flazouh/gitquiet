@@ -14,7 +14,13 @@ export const NAVIGATION_END_MARK = "gitquiet:navigation-end"
 /** The browser announces a traversal just after the button that started it. */
 const SAME_TRAVERSAL_MS = 100
 
-const READING = "[data-gitquiet-loading]"
+/**
+ * The one contract the rest of the extension reads off a wait: the page has not
+ * been read yet. Written by `Waiting.tsx`, read here to know when a measurement
+ * can finish, and read by the repair in `going.ts` to know a screen standing
+ * with this inside it is working, not wedged.
+ */
+export const READING = "[data-gitquiet-loading]"
 
 /** Do not retain a screen that never finishes its read. */
 const READING_LIMIT_MS = 20_000
