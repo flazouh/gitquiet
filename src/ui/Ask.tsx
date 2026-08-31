@@ -2,6 +2,7 @@ import * as Menu from "@radix-ui/react-dropdown-menu"
 import { Effect, Option } from "effect"
 import type { MergeMethod, UpdateWay } from "../domain/PullRequest"
 import type { Doing, RowDoing } from "../domain/doable"
+import type { ArtName } from "./art"
 import { useArt } from "./art"
 import { LOOK } from "./rowDoings"
 import { ROOT_ID } from "./mount"
@@ -294,6 +295,15 @@ const wordsFor = (words: Wording): ReadonlyArray<string> => [
  */
 export type Otherwise = ReadonlyArray<{
   readonly word: string
+  /**
+   * The glyph beside it, named by whoever built the entry.
+   *
+   * Here for the reason the word is: this control serves two vocabularies and
+   * belongs to neither, so it is handed the drawing rather than working one out
+   * from a method it would have to be told about. A caller that has the type
+   * knows which picture goes with it.
+   */
+  readonly art: ArtName
   /** Whether this is the one the button says, which is where the tick goes. */
   readonly on: boolean
   readonly pick: () => void
@@ -357,20 +367,29 @@ const Caret = ({
           sideOffset={4}
           className="z-50 min-w-44 rounded-md bg-raised p-1 text-ink shadow-lg ring-1 ring-line"
         >
-          {otherwise.map((way) => (
-            <Menu.Item
-              key={way.word}
-              onSelect={way.pick}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-xs outline-none data-[highlighted]:bg-hover"
-            >
-              {/* The tick keeps its space on every row, so the words line up and
-                  the list does not shift as the answer moves down it. */}
-              <span className="flex w-3.5 shrink-0 justify-center">
-                {way.on ? <Tick size={12} /> : null}
-              </span>
-              {way.word}
-            </Menu.Item>
-          ))}
+          {otherwise.map((way) => {
+            const Glyph = art[way.art]
+
+            return (
+              <Menu.Item
+                key={way.word}
+                onSelect={way.pick}
+                className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-xs outline-none data-[highlighted]:bg-hover"
+              >
+                {/* The tick keeps its space on every row, so the words line up and
+                    the list does not shift as the answer moves down it. */}
+                <span className="flex w-3.5 shrink-0 justify-center">
+                  {way.on ? <Tick size={12} /> : null}
+                </span>
+                {/* Muted, all three of them. The tick is what says which way is in
+                    use, and a glyph coloured to agree with it would be saying it
+                    twice — while three coloured glyphs in a list of three read as
+                    three different kinds of thing. */}
+                <Glyph size={14} className="text-ink-muted" />
+                {way.word}
+              </Menu.Item>
+            )
+          })}
         </Menu.Content>
       </Menu.Portal>
     </Menu.Root>

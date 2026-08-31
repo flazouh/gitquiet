@@ -48,6 +48,19 @@ export type ArtName =
   | "pull-request-draft"
   | "pull-request-merged"
   | "pull-request-closed"
+  /*
+   * The three ways a pull request lands, for the menu that offers them.
+   *
+   * Neither set ships a squash or a rebase, so these are the nearest true
+   * picture each of them has rather than GitHub's own drawing: a merge is the
+   * two lines joining, a squash is the one commit it leaves, and a rebase is the
+   * branch moved. Named for what they mean rather than for the glyph behind
+   * them, so a set that grows a real pair can answer these without the menu
+   * knowing.
+   */
+  | "merge-commit"
+  | "squash"
+  | "rebase"
   /**
    * Two for an issue where a pull request has four, because an issue has two
    * states: nothing merges and nothing is a draft.

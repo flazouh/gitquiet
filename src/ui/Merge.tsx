@@ -24,6 +24,7 @@ import {
   Overflow,
   UPDATE_WORD
 } from "./Ask"
+import type { ArtName } from "./art"
 import { useArt } from "./art"
 import { changeWord, FileMark } from "./FileHeading"
 import { MergeUnread } from "./MergeUnread"
@@ -31,6 +32,27 @@ import { reasonFor } from "./refusal"
 import { Section } from "./Section"
 import { TheStack } from "./TheStack"
 import { Who } from "./Who"
+
+/**
+ * What each way of landing leaves behind, as a picture.
+ *
+ * Written here rather than in the menu because the menu is handed the drawing
+ * and never the method — see {@link Otherwise}. The pictures are what the ways
+ * do: two lines joining, the single commit a squash leaves, the branch a rebase
+ * moves. Neither icon set ships a squash or a rebase of its own, so these are
+ * the nearest true thing each has rather than GitHub's own drawing.
+ */
+const LANDS_AS: Record<MergeMethod, ArtName> = {
+  MERGE: "merge-commit",
+  SQUASH: "squash",
+  REBASE: "rebase"
+}
+
+/** The same for catching a branch up, which GitHub does two of the three ways. */
+const CAUGHT_UP_AS: Record<UpdateWay, ArtName> = {
+  MERGE: "merge-commit",
+  REBASE: "rebase"
+}
 
 /**
  * Merging and closing, in the one place someone looks for them.
@@ -206,6 +228,7 @@ export const Merge = ({
       ? Option.some<Otherwise>(
           said.methods.map((one) => ({
             word: mergeWord(one, landsStack),
+            art: LANDS_AS[one],
             on: one === method.value,
             pick: () => setPicked({ ...mine, url, method: one })
           }))
@@ -217,6 +240,7 @@ export const Merge = ({
       ? Option.some<Otherwise>(
           said.ways.map((one) => ({
             word: UPDATE_WORD[one],
+            art: CAUGHT_UP_AS[one],
             on: one === way.value,
             pick: () => setPicked({ ...mine, url, way: one })
           }))

@@ -194,6 +194,26 @@ describe("the other ways a press could land", () => {
     expect(screen.getByText("Rebase and merge")).toBeDefined()
   })
 
+  test("draws each way beside a picture of what it leaves behind", async () => {
+    /*
+     * Three words that differ by one verb apiece, in a menu read at a glance.
+     * Neither icon set ships a squash or a rebase, so the pictures are the
+     * nearest true thing each has — see `LANDS_AS`.
+     */
+    render(
+      <Merge state="open"
+        merge={Option.some(allowing(["SQUASH", "MERGE", "REBASE"]))}
+        actions={{ merge: () => Effect.void }}
+      />
+    )
+
+    await userEvent.click(screen.getByRole("button", { name: /Other ways to/ }))
+
+    for (const word of ["Merge pull request", "Squash and merge", "Rebase and merge"]) {
+      expect(screen.getByRole("menuitem", { name: word }).querySelector("svg")).not.toBeNull()
+    }
+  })
+
   test("sends the way the reader picked, and says so on the button", async () => {
     const sent: Array<string> = []
     render(
