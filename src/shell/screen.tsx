@@ -19,7 +19,7 @@ import {
   whenTakenOver,
   whenThereIsAPage
 } from "../ui/mount"
-import type { Place } from "../ui/place"
+import { type Place, respell } from "../ui/place"
 import { OWNED_TRAVERSAL } from "../ui/preparedNavigation"
 import { prepareRouteActivation } from "../ui/routeActivation"
 import { Supplied } from "./supplied"
@@ -243,7 +243,9 @@ export const standAScreen = (screen: Screen): Standing => {
       const exactRoute = container.getAttribute("data-gitquiet-route")
       if (exactRoute !== null) {
         const resume = (event: Event): void => {
-          if ((event as CustomEvent<string>).detail !== exactRoute) return
+          // The traversal spells its destination with the search; the attribute
+          // holds the place's own spelling. Same page, so same spelling first.
+          if (respell(place, (event as CustomEvent<string>).detail) !== exactRoute) return
           if (!hasPreparedScreen(document, exactRoute, place)) return
           stopResuming()
           standAScreen(screen)

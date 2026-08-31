@@ -547,12 +547,14 @@ describe("a traversal the cache was kept for", () => {
     // `src/screens/pullRequest.tsx` — while the browser names a traversal
     // destination by pathname and search: `whenTraversalStarts` in
     // `src/ui/navigation.ts` hands over `${pathname}${search}`. One page, spelt
-    // two ways, and every exact-string lookup between them misses.
+    // two ways — and the place's own `spelling` is what reconciles them, as
+    // `CONVERSATION` and `ISSUE` declare it in `place.ts`.
+    const paged: Place = { ...MINE, spelling: (path) => path }
     history.replaceState(null, "", "/mine?w=1")
     theirPage()
 
     const first = standAScreen({
-      place: MINE,
+      place: paged,
       route: "/mine",
       draw: () => (
         <>
@@ -570,7 +572,7 @@ describe("a traversal the cache was kept for", () => {
       draw: () => <p>second screen</p>
     })
     await drawn("#region", "second screen")
-    await until(() => hasPreparedScreen(document, "/mine", MINE))
+    await until(() => hasPreparedScreen(document, "/mine", paged))
 
     document.dispatchEvent(new CustomEvent(OWNED_TRAVERSAL, { detail: "/mine?w=1" }))
     history.replaceState(null, "", "/mine?w=1")

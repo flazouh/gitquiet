@@ -1,7 +1,7 @@
 import { Effect, type Fiber } from "effect"
 import { runWhenIdle } from "./idle"
 import { type Stop, whenAddressChanges } from "./navigation"
-import { CONVERSATION, type Place } from "./place"
+import { CONVERSATION, type Place, respell } from "./place"
 import {
   clearPreparedTraversal,
   markPreparedTraversal,
@@ -149,7 +149,7 @@ export const rememberPreparedScreen = (
   const html = prepared.innerHTML
   if (html === "") return
 
-  keepScreenSnapshot(screens, route, {
+  keepScreenSnapshot(screens, respell(place, route), {
     place: place.name,
     html,
     prepared:
@@ -176,7 +176,7 @@ export const hasPreparedScreen = (
   route: string,
   place: Place
 ): boolean => {
-  const snapshot = screenSnapshots(target)?.get(route)
+  const snapshot = screenSnapshots(target)?.get(respell(place, route))
   return snapshot?.place === place.name && snapshot.prepared !== undefined
 }
 
@@ -198,10 +198,11 @@ const claimPreparedScreen = (
   place: Place,
   exactRoute?: string
 ): HTMLElement | null => {
-  const route = routeNow(target, exactRoute)
+  const asked = routeNow(target, exactRoute)
   const screens = screenSnapshots(target)
-  if (route === null || screens === null) return null
+  if (asked === null || screens === null) return null
 
+  const route = respell(place, asked)
   const snapshot = screens.get(route)
   if (snapshot?.place !== place.name || snapshot.prepared === undefined) return null
 
@@ -220,10 +221,11 @@ const seedRememberedScreen = (
   place: Place,
   exactRoute?: string
 ): void => {
-  const route = routeNow(target, exactRoute)
+  const asked = routeNow(target, exactRoute)
   const screens = screenSnapshots(target)
-  if (route === null || screens === null) return
+  if (asked === null || screens === null) return
 
+  const route = respell(place, asked)
   const snapshot = screens.get(route)
   if (snapshot === undefined || snapshot.place !== place.name) return
 
@@ -679,7 +681,14 @@ export const interfaceContainer = (
     if (already.getAttribute(BELONGS_TO) === place.name) {
       const route = routeNow(target, exactRoute)
       const drawnRoute = already.getAttribute(ROUTE)
-      if (route === null || drawnRoute === null || route === drawnRoute) {
+      // Both spelt the place's way before comparing: the attribute can hold the
+      // live address a redirect wrote while the screen names a bare path, and
+      // one page spelt two ways must not read as two pages.
+      if (
+        route === null ||
+        drawnRoute === null ||
+        respell(place, route) === respell(place, drawnRoute)
+      ) {
         already.removeAttribute(LEAVING)
         if (marked === already) marked = null
         ours = already
@@ -713,7 +722,7 @@ export const interfaceContainer = (
     seedRememberedScreen(target, made, place, exactRoute)
   }
   const madeRoute = routeNow(target, exactRoute)
-  if (madeRoute !== null) made.setAttribute(ROUTE, madeRoute)
+  if (madeRoute !== null) made.setAttribute(ROUTE, respell(place, madeRoute))
   ours = made
   theScreenMoved(target)
   return made
@@ -768,7 +777,7 @@ export const activatePreparedTraversal = (
   leaving.setAttribute(LEAVING, "")
   takeOffThePage(leaving, true)
   slot.append(arriving)
-  arriving.setAttribute(ROUTE, route)
+  arriving.setAttribute(ROUTE, respell(place, route))
   target.documentElement.setAttribute(TAKEN, "")
   target.documentElement.setAttribute(SHOWN, place.name)
   hideTheirs(slot, arriving)
@@ -1017,7 +1026,7 @@ export const takeOverSlot = (
     theScreenActivityChanged(container)
     const route = routeNow(target, exactRoute)
     if (route !== null) {
-      container.setAttribute(ROUTE, route)
+      container.setAttribute(ROUTE, respell(place, route))
       finishNavigation(target, route, container)
     }
     hideTheirs(into, container)

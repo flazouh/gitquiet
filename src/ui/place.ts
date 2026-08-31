@@ -60,6 +60,20 @@ export type Place = {
    */
   readonly owns: (path: string, search?: string) => boolean;
   /**
+   * How this place spells one page's route from an address, where the address
+   * alone does not spell it.
+   *
+   * Absent from almost every place, because for almost every page the address is
+   * the identity: a repository's list under two searches is two filters, and two
+   * routes. A pull request's conversation is not — `/owner/repo/pull/7` with any
+   * search on it is one page — and its screen names its route by the path alone.
+   * The browser meanwhile names a traversal destination by path and search, so
+   * without this one page was spelt two ways, and every exact-string lookup
+   * between the cache and a traversal missed. See `respell`, which every lookup
+   * goes through.
+   */
+  readonly spelling?: (path: string, search: string) => string;
+  /**
    * A selector that proves this page from its markup, for a page no address names.
    *
    * Absent from every place but the wall, and the wall is why it exists: GitHub
@@ -145,9 +159,29 @@ export type Place = {
  * today, something else next week — so these match on the part that is stable
  * and fall back to the whole repository content when the layout moves.
  */
+/**
+ * One route, spelt the way its place spells it.
+ *
+ * Takes a route however it arrived — a screen's own bare path, a traversal
+ * destination carrying its search, an address read off the bar's trail — and
+ * hands back the one spelling the caches key by. Idempotent, so a route already
+ * spelt right passes through unchanged, and safe as the default: a place with no
+ * spelling of its own keeps the whole address, which is what every list wants.
+ */
+export const respell = (place: Place, route: string): string => {
+  if (place.spelling === undefined) return route;
+  const asks = route.indexOf("?");
+  return asks === -1
+    ? place.spelling(route, "")
+    : place.spelling(route.slice(0, asks), route.slice(asks));
+};
+
 export const CONVERSATION: Place = {
   name: "conversation",
   owns: (path) => Option.isSome(pullRequestIn(path)),
+  // One conversation under any search: `?w=1`, a notification referrer, all of
+  // them are this page, and its screen names its route by the path alone.
+  spelling: (path) => path,
   regions: [
     'react-app[app-name="pull-requests"] [class*="PageLayoutContent"]',
     '[class*="PageLayoutContent"]',
@@ -244,6 +278,8 @@ export const COMMIT: Place = {
 export const ISSUE: Place = {
   name: "issue",
   owns: (path) => Option.isSome(issueIn(path)),
+  // One issue under any search, exactly as a pull request's conversation is.
+  spelling: (path) => path,
   regions: ['[data-testid="issue-viewer-container"]'],
   /*
    * The Turbo frame the region lives in. Further up the tree and therefore
