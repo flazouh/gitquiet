@@ -9,7 +9,6 @@ import {
   Freeze,
   OffthreadVideo,
   Sequence,
-  Series,
   staticFile,
   useCurrentFrame,
 } from "remotion";
@@ -25,7 +24,6 @@ import {
   PAGE,
 } from "@/palette";
 import { Callout } from "@/Callout";
-import { Receipt } from "@/Receipt";
 import { Shot } from "@/Shot";
 import { bedWash } from "@/Wash";
 
@@ -87,33 +85,6 @@ const Bed: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </AbsoluteFill>
 );
 
-/** One sentence in the band under the card. */
-const Caption: React.FC<{ text: string; at?: number }> = ({ text, at = 8 }) => {
-  const frame = useCurrentFrame();
-  return (
-    <div
-      style={{
-        position: "absolute",
-        left: 0,
-        right: 0,
-        top: 648,
-        textAlign: "center",
-        fontSize: 27,
-        fontWeight: 500,
-        color: INK,
-        opacity: fadeIn(frame, at, 10),
-      }}
-    >
-      {text}
-    </div>
-  );
-};
-
-/**
- * GitHub, as recorded: the same pull request the rest of the video opens,
- * pressed on github.com and waited for. The receipts under it are GitHub's
- * own published measurements, quoted rather than pointed.
- */
 const ProblemScene: React.FC = () => {
   const video = (
     <OffthreadVideo
@@ -351,12 +322,6 @@ const PrConvoScene: React.FC = () => (
       dy={60}
       at={22}
     />
-    <Receipt
-      count="206"
-      ask="Keep a comment when its line changes"
-      theirs="GitHub drops it out of Files changed on the next push"
-      at={120}
-    />
   </Dark>
 );
 
@@ -384,154 +349,6 @@ const VerdictScene: React.FC = () => (
   </Dark>
 );
 
-const RunScene: React.FC = () => (
-  <Dark>
-    <Shot
-      src="run.png"
-      sourceWidth={2560}
-      width={1064}
-      height={580}
-      top={40}
-      views={[
-        { at: 0, x: 0, y: 0, w: 2560 },
-        { at: 72, x: 0, y: 120, w: 1500 },
-        { at: 170, x: 0, y: 132, w: 1476 },
-      ]}
-    />
-    <Callout
-      text="Opened on the line that broke"
-      x={620}
-      y={330}
-      dx={-220}
-      dy={-140}
-      at={84}
-    />
-  </Dark>
-);
-
-
-/**
- * The chapter card. Everything after it is a request somebody made to GitHub
- * that is still open, shown answered — which is the reason a stranger scrolling
- * past recognises their own complaint.
- */
-const ChapterScene: React.FC = () => {
-  const frame = useCurrentFrame();
-  return (
-    <Bed>
-      <AbsoluteFill style={{ transform: "translateY(-18px)" }}>
-        <SoftBlurIn
-          text="Asked for. Still open."
-          fontSize={72}
-          fontWeight={700}
-          color={ON_GRADIENT}
-        />
-      </AbsoluteFill>
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          top: 430,
-          textAlign: "center",
-          fontSize: 28,
-          fontWeight: 500,
-          color: ON_GRADIENT_MUTED,
-          opacity: fadeIn(frame, 62, 12),
-        }}
-      >
-        Their community board, answered here.
-      </div>
-    </Bed>
-  );
-};
-
-const WhitespaceScene: React.FC = () => (
-  <Dark>
-    <Shot
-      src="pull-request.png"
-      sourceWidth={2560}
-      width={1064}
-      height={580}
-      top={40}
-      views={[
-        { at: 0, x: 1380, y: 300, w: 1180 },
-        { at: 300, x: 1380, y: 330, w: 1150 },
-      ]}
-    />
-    <Receipt
-      count="446"
-      ask="Hide whitespace changes by default"
-      theirs="Their checkbox forgets itself on the next page"
-      at={20}
-    />
-  </Dark>
-);
-
-const ActionsScene: React.FC = () => (
-  <Dark>
-    <Shot
-      src="actions.png"
-      sourceWidth={2560}
-      width={1064}
-      height={580}
-      top={40}
-      enter={8}
-      views={[
-        { at: 8, x: 0, y: 0, w: 2560 },
-        { at: 300, x: 0, y: 46, w: 2560 },
-      ]}
-    />
-    <Callout
-      text="11 strands, from 34 runs"
-      x={700}
-      y={112}
-      dx={318}
-      dy={-16}
-      at={196}
-    />
-    <Receipt
-      count="400"
-      ask="Stop showing workflows as one flat list"
-      theirs="Four threads asking, all four still in their backlog"
-      at={18}
-    />
-  </Dark>
-);
-
-const MONTAGE: { src: string; frames: number }[] = [
-  { src: "issues.png", frames: 28 },
-  { src: "commits.png", frames: 26 },
-  { src: "run.png", frames: 26 },
-  { src: "actions.png", frames: 26 },
-  { src: "notifications.png", frames: 28 },
-  { src: "repo-home.png", frames: 68 },
-];
-
-const MontageScene: React.FC = () => (
-  <Dark>
-    <Series>
-      {MONTAGE.map((page) => (
-        <Series.Sequence key={page.src} durationInFrames={page.frames}>
-          <Shot
-            src={page.src}
-            sourceWidth={2560}
-            width={1064}
-            height={580}
-            top={40}
-            enter={5}
-            views={[
-              { at: 5, x: 0, y: 0, w: 2560 },
-              { at: 60, x: 0, y: 12, w: 2520 },
-            ]}
-          />
-        </Series.Sequence>
-      ))}
-    </Series>
-    <Caption text="Every page. The same four groups." at={150} />
-  </Dark>
-);
-
 const CtaScene: React.FC = () => {
   const frame = useCurrentFrame();
   return (
@@ -552,7 +369,7 @@ const CtaScene: React.FC = () => {
           top: 418,
           display: "flex",
           justifyContent: "center",
-          opacity: fadeIn(frame, 252, 12),
+          opacity: fadeIn(frame, 150, 12),
         }}
       >
         <div
@@ -578,7 +395,7 @@ const CtaScene: React.FC = () => {
           fontSize: 25,
           fontWeight: 500,
           color: ON_GRADIENT_MUTED,
-          opacity: fadeIn(frame, 300, 12),
+          opacity: fadeIn(frame, 262, 12),
         }}
       >
         gitquiet.com
@@ -593,19 +410,14 @@ const CtaScene: React.FC = () => {
  * on the press (the arrival is the claim) and at the end.
  */
 const BEATS: { scene: React.FC; frames: number; out: Out }[] = [
-  { scene: ProblemScene, frames: 511, out: "wash" },
-  { scene: TurnScene, frames: 139, out: "wash" },
-  { scene: ListScene, frames: 277, out: "cut" },
-  { scene: PrOpenScene, frames: 252, out: "fade" },
-  { scene: PageScene, frames: 185, out: "fade" },
-  { scene: PrConvoScene, frames: 372, out: "fade" },
-  { scene: VerdictScene, frames: 152, out: "wash" },
-  { scene: ChapterScene, frames: 241, out: "wash" },
-  { scene: WhitespaceScene, frames: 347, out: "fade" },
-  { scene: ActionsScene, frames: 343, out: "fade" },
-  { scene: RunScene, frames: 260, out: "wash" },
-  { scene: MontageScene, frames: 211, out: "wash" },
-  { scene: CtaScene, frames: 420, out: "cut" },
+  { scene: ProblemScene, frames: 501, out: "wash" },
+  { scene: TurnScene, frames: 128, out: "wash" },
+  { scene: ListScene, frames: 280, out: "cut" },
+  { scene: PrOpenScene, frames: 243, out: "fade" },
+  { scene: PageScene, frames: 180, out: "fade" },
+  { scene: PrConvoScene, frames: 228, out: "fade" },
+  { scene: VerdictScene, frames: 150, out: "wash" },
+  { scene: CtaScene, frames: 404, out: "cut" },
 ];
 
 export const DAY_DURATION_IN_FRAMES = BEATS.reduce(
