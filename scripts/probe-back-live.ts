@@ -56,10 +56,8 @@ type Sample = {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-const session = await (async () => {
-  await rm(PROFILE, { recursive: true, force: true })
-  return withExtension(REPO, EXTENSION)
-})()
+await rm(PROFILE, { recursive: true, force: true })
+const session = await withExtension(REPO, EXTENSION)
 
 const arrived = await session.evaluate<boolean>(`
   document.querySelector("#gitquiet-root a[href]") !== null

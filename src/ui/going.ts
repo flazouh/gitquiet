@@ -36,9 +36,12 @@ type World = Window & { gitquietOwnRows?: true }
  * of the outcomes here. See {@link goTo}, and {@link STILL_ARRIVING_CHECKS} for
  * what a deadline reached does about a screen that is slow rather than absent.
  *
- * Exported because the shell holds reading ahead for the same span, on the same
- * argument: past this, either the press's screen is drawing its answer or the
- * press has failed, and neither is a read worth competing with.
+ * Exported because the shell holds reading ahead for the same span. That hold is
+ * a bound rather than a proof: a slow arrival can still be reading past it, and
+ * a guess resumed then is competing with the press again — but holding for the
+ * repair's whole patience would cost every quick press its reading ahead, since
+ * the strict arrival mark only the pull request screen publishes is what would
+ * have to release the hold early.
  */
 export const ARRIVING = 1_500
 
