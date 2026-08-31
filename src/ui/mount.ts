@@ -1022,7 +1022,17 @@ export const takeOverSlot = (
     theScreenActivityChanged(container)
     const route = routeNow(target, exactRoute)
     if (route !== null) {
-      container.setAttribute(ROUTE, respell(place, route))
+      /*
+       * Written only where nothing was written when the container was made, or
+       * where the screen named its exact route. The fallback here is the live
+       * address, and a takeover can settle after the address has moved on — a
+       * screen then filed in the cache under the next page's route answers for
+       * the wrong page. The address at stand-up, already on the container, is
+       * the honest one; `markScreenRoute` is what updates it on a redirect.
+       */
+      if (exactRoute !== undefined || container.getAttribute(ROUTE) === null) {
+        container.setAttribute(ROUTE, respell(place, route))
+      }
       finishNavigation(target, route, container)
     }
     hideTheirs(into, container)
