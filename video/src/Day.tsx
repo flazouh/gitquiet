@@ -340,7 +340,7 @@ const VerdictScene: React.FC = () => (
       ]}
     />
     <Callout
-      text="Review and merge, together"
+      text="Your review, right there"
       x={620}
       y={560}
       dx={-320}
@@ -523,7 +523,7 @@ const CtaScene: React.FC = () => {
             fontWeight: 600,
           }}
         >
-          Free on Chrome and Firefox
+          Free and open source
         </div>
       </div>
       <div
@@ -537,6 +537,21 @@ const CtaScene: React.FC = () => {
           fontWeight: 500,
           color: ON_GRADIENT_MUTED,
           opacity: fadeIn(frame, 262, 12),
+        }}
+      >
+        Chrome · Firefox · Safari
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: 548,
+          textAlign: "center",
+          fontSize: 25,
+          fontWeight: 500,
+          color: ON_GRADIENT,
+          opacity: fadeIn(frame, 300, 12),
         }}
       >
         gitquiet.com
@@ -562,8 +577,8 @@ const BEATS: { scene: React.FC; frames: number; out: Out }[] = [
   { scene: SplitScene, frames: 277, out: "fade" },
   { scene: TreeScene, frames: 251, out: "fade" },
   { scene: ReviewScene, frames: 433, out: "fade" },
-  { scene: VerdictScene, frames: 143, out: "wash" },
-  { scene: CtaScene, frames: 420, out: "cut" },
+  { scene: VerdictScene, frames: 199, out: "wash" },
+  { scene: CtaScene, frames: 421, out: "cut" },
 ];
 
 export const DAY_DURATION_IN_FRAMES = BEATS.reduce(
