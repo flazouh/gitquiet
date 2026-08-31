@@ -186,7 +186,7 @@ export const CONVERSATION: Place = {
    */
   bands: [
     '[class*="PullRequestHeader"]',
-    '[aria-label="Pull request navigation tabs"]',
+    '[aria-label="Pull request navigation"]',
     /*
      * Their banner offering to stack this pull request with the ones below it.
      *

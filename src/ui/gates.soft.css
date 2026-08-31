@@ -13,7 +13,7 @@
 /* conversation: swapped in without a load. */
 html[data-gitquiet-gating] react-app[app-name="pull-requests"] [class*="PageLayoutContent"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
 html[data-gitquiet-gating] react-app[app-name="pull-requests"] [class*="PullRequestHeader"],
-html[data-gitquiet-gating] react-app[app-name="pull-requests"] [aria-label="Pull request navigation tabs"],
+html[data-gitquiet-gating] react-app[app-name="pull-requests"] [aria-label="Pull request navigation"],
 html[data-gitquiet-gating] react-app[app-name="pull-requests"] [data-component="Banner"][aria-label="Can Stack Banner"] {
   display: none;
 }
