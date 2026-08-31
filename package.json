@@ -34,8 +34,8 @@
     "canary": "bun scripts/build-canary-manifest.ts && sed \"s|__REPO__|$PWD|\" scripts/canary.js | ego-browser nodejs",
     "build:canary-manifest": "bun scripts/build-canary-manifest.ts",
     "verify:live": "wxt build && bun scripts/verify-on-github.ts",
-    "test": "bun test --timeout 20000",
-    "test:watch": "bun test --timeout 20000 --watch",
+    "test": "bun test --timeout 40000",
+    "test:watch": "bun test --timeout 40000 --watch",
     "build:tree-icons": "bun scripts/build-tree-icons.ts"
   },
   "devDependencies": {

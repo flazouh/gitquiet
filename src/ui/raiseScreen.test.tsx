@@ -20,6 +20,20 @@ type Answered = {
   readonly onStepAside?: () => void
 }
 
+/**
+ * Typing with no sleep between keystrokes.
+ *
+ * `userEvent`'s default puts a turn of the event loop between every event of
+ * every key, and one keystroke is several events. Two sentences of a draft are
+ * seventy-seven keys, which became a few hundred turns — each one shared with a
+ * worker per core under `--parallel`, which is how sending a form crossed the
+ * twenty-second limit on a loaded run and read as the form failing to send.
+ * Every keystroke still lands as its own events and its own render, which is
+ * the point — the draft has to survive being typed rather than assigned. Only
+ * the sleeping in between is gone.
+ */
+const typist = () => userEvent.setup({ delay: null })
+
 /*
  * Queried inside what this test rendered, rather than through `screen`.
  *
@@ -69,9 +83,10 @@ describe("the form for raising an issue", () => {
         })
     })
 
-    await userEvent.type(title(form), "octo-repo login loops on an expired token")
-    await userEvent.type(body(form), "Every second run, on a cold keychain.")
-    await userEvent.click(form.getByText("Raise it"))
+    const user = typist()
+    await user.type(title(form), "octo-repo login loops on an expired token")
+    await user.type(body(form), "Every second run, on a cold keychain.")
+    await user.click(form.getByText("Raise it"))
 
     await waitFor(() =>
       expect(asked).toEqual([
@@ -81,23 +96,15 @@ describe("the form for raising an issue", () => {
         }
       ])
     )
-    /*
-     * Seventy-seven keystrokes, against a five second default.
-     *
-     * `userEvent.type` sends a key at a time and the form draws again on each
-     * one, so the two sentences above cost seventy-seven renders. That is the
-     * point — the draft has to survive being typed rather than assigned — but on
-     * two slow cores under `--parallel` it crosses five seconds, and a killed
-     * test reads as the form failing to send.
-     */
-  }, 20_000)
+  })
 
   test("goes to the issue GitHub gave a number to", async () => {
     const went: Array<Raised> = []
     const form = drawn({ onRaised: (raised) => went.push(raised) })
 
-    await userEvent.type(title(form), "a thing that happened")
-    await userEvent.click(form.getByText("Raise it"))
+    const user = typist()
+    await user.type(title(form), "a thing that happened")
+    await user.click(form.getByText("Raise it"))
 
     await waitFor(() => expect(went).toEqual([LANDED]))
   })
@@ -111,8 +118,9 @@ describe("the form for raising an issue", () => {
      */
     const form = drawn({ raise: () => Effect.never })
 
-    await userEvent.type(title(form), "something to report")
-    await userEvent.click(form.getByText("Raise it"))
+    const user = typist()
+    await user.type(title(form), "something to report")
+    await user.click(form.getByText("Raise it"))
 
     await waitFor(() =>
       expect(form.getByRole("button", { name: "Raising…" }).querySelector(".t-rotate")).not.toBeNull()
@@ -138,8 +146,9 @@ describe("the form for raising an issue", () => {
         })
     })
 
-    await userEvent.type(body(form), "a description and nothing else")
-    await userEvent.click(form.getByText("Raise it"))
+    const user = typist()
+    await user.type(body(form), "a description and nothing else")
+    await user.click(form.getByText("Raise it"))
 
     expect(asked).toBe(0)
   })
@@ -151,9 +160,10 @@ describe("the form for raising an issue", () => {
   test("keeps what was typed and says what was refused", async () => {
     const form = drawn({ raise: () => Effect.fail(new Error("Title can't be blank")) })
 
-    await userEvent.type(title(form), "worth keeping")
-    await userEvent.type(body(form), "and this too")
-    await userEvent.click(form.getByText("Raise it"))
+    const user = typist()
+    await user.type(title(form), "worth keeping")
+    await user.type(body(form), "and this too")
+    await user.click(form.getByText("Raise it"))
 
     await waitFor(() => expect(form.getByText(/would not take that/)).toBeTruthy())
     expect(form.getByText(/Title can't be blank/)).toBeTruthy()
@@ -171,7 +181,7 @@ describe("the form for raising an issue", () => {
         })
     })
 
-    await userEvent.type(title(form), "sent without leaving the title{Meta>}{Enter}{/Meta}")
+    await typist().type(title(form), "sent without leaving the title{Meta>}{Enter}{/Meta}")
 
     await waitFor(() => expect(asked).toHaveLength(1))
     expect(asked[0]?.title).toBe("sent without leaving the title")
