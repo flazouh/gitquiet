@@ -149,19 +149,19 @@ const ProblemScene: React.FC = () => {
         y={104}
         dx={-274}
         dy={52}
-        at={181}
+        at={110}
       />
       <Callout
-        text="Tab switches: 10+ seconds. Their changelog."
+        text="10+ seconds to reach the diff. Their changelog."
         x={385}
         y={660}
-        at={400}
+        at={300}
       />
       <Callout
         text="A 1 GB JavaScript heap. Their engineering blog."
         x={890}
         y={660}
-        at={470}
+        at={400}
       />
     </Dark>
   );
@@ -215,10 +215,10 @@ const TurnScene: React.FC = () => {
 
 /** The group meanings are the README's own words. */
 const GROUP_LABELS: { text: string; y: number; at: number }[] = [
-  { text: "You can act on it now", y: 91, at: 90 },
-  { text: "Someone else has to act", y: 387, at: 108 },
-  { text: "A machine is still working", y: 525, at: 126 },
-  { text: "Finished", y: 635, at: 144 },
+  { text: "You can act on it now", y: 91, at: 84 },
+  { text: "Someone else has to act", y: 387, at: 102 },
+  { text: "A machine is still working", y: 525, at: 120 },
+  { text: "Finished", y: 635, at: 138 },
 ];
 
 const ListScene: React.FC = () => (
@@ -231,8 +231,8 @@ const ListScene: React.FC = () => (
       top={40}
       enter={12}
       views={[
-        { at: 12, x: 0, y: 100, w: 2560 },
-        { at: 360, x: 0, y: 116, w: 2520 },
+        { at: 10, x: 0, y: 100, w: 2560 },
+        { at: 280, x: 0, y: 116, w: 2520 },
       ]}
     />
     {GROUP_LABELS.map((label) => (
@@ -249,8 +249,8 @@ const ListScene: React.FC = () => (
     <SimulatedCursor
       points={[
         { x: 1180, y: 690, hold: 0 },
-        { x: 470, y: 141, hold: 52 },
-        { x: 472, y: 143, hold: 30, click: true },
+        { x: 470, y: 141, hold: 96 },
+        { x: 472, y: 143, hold: 24, click: true },
       ]}
       size={28}
       speed={0.62}
@@ -325,6 +325,7 @@ const PageScene: React.FC = () => (
     <Callout text="Checks" x={430} y={112} dx={-215} dy={4} at={44} />
     <Callout text="Conversation" x={455} y={228} dx={-232} dy={-18} at={70} />
     <Callout text="Files, and their diffs" x={800} y={548} dx={-70} dy={-190} at={96} />
+    <Callout text="3 of 7 seen" x={905} y={112} dx={112} dy={4} at={140} />
   </Dark>
 );
 
@@ -362,9 +363,7 @@ const VerdictScene: React.FC = () => (
       top={40}
       views={[
         { at: 0, x: 0, y: 856, w: 1350 },
-        { at: 96, x: 0, y: 862, w: 1336 },
-        { at: 128, x: 0, y: 180, w: 1500 },
-        { at: 196, x: 0, y: 190, w: 1478 },
+        { at: 120, x: 0, y: 868, w: 1326 },
       ]}
     />
     <Callout
@@ -373,16 +372,7 @@ const VerdictScene: React.FC = () => (
       y={560}
       dx={-320}
       dy={-40}
-      at={16}
-      until={112}
-    />
-    <Callout
-      text="3 of 7 seen"
-      x={860}
-      y={200}
-      dx={196}
-      dy={-112}
-      at={150}
+      at={12}
     />
   </Dark>
 );
@@ -413,12 +403,12 @@ const RunScene: React.FC = () => (
 );
 
 const MONTAGE: { src: string; frames: number }[] = [
-  { src: "issues.png", frames: 48 },
-  { src: "commits.png", frames: 44 },
-  { src: "run.png", frames: 44 },
-  { src: "actions.png", frames: 44 },
-  { src: "notifications.png", frames: 48 },
-  { src: "repo-home.png", frames: 168 },
+  { src: "issues.png", frames: 28 },
+  { src: "commits.png", frames: 26 },
+  { src: "run.png", frames: 26 },
+  { src: "actions.png", frames: 26 },
+  { src: "notifications.png", frames: 28 },
+  { src: "repo-home.png", frames: 68 },
 ];
 
 const MontageScene: React.FC = () => (
@@ -435,13 +425,13 @@ const MontageScene: React.FC = () => (
             enter={5}
             views={[
               { at: 5, x: 0, y: 0, w: 2560 },
-              { at: 85, x: 0, y: 12, w: 2520 },
+              { at: 60, x: 0, y: 12, w: 2520 },
             ]}
           />
         </Series.Sequence>
       ))}
     </Series>
-    <Caption text="Every page. The same four groups." at={286} />
+    <Caption text="Every page. The same four groups." at={150} />
   </Dark>
 );
 
@@ -465,7 +455,7 @@ const CtaScene: React.FC = () => {
           top: 418,
           display: "flex",
           justifyContent: "center",
-          opacity: fadeIn(frame, 42, 12),
+          opacity: fadeIn(frame, 252, 12),
         }}
       >
         <div
@@ -491,7 +481,7 @@ const CtaScene: React.FC = () => {
           fontSize: 25,
           fontWeight: 500,
           color: ON_GRADIENT_MUTED,
-          opacity: fadeIn(frame, 97, 12),
+          opacity: fadeIn(frame, 300, 12),
         }}
       >
         gitquiet.com
@@ -506,16 +496,16 @@ const CtaScene: React.FC = () => {
  * on the press (the arrival is the claim) and at the end.
  */
 const BEATS: { scene: React.FC; frames: number; out: Out }[] = [
-  { scene: ProblemScene, frames: 325, out: "wash" },
-  { scene: TurnScene, frames: 150, out: "wash" },
-  { scene: ListScene, frames: 368, out: "cut" },
-  { scene: PrOpenScene, frames: 292, out: "fade" },
-  { scene: PageScene, frames: 217, out: "fade" },
-  { scene: PrConvoScene, frames: 280, out: "fade" },
-  { scene: VerdictScene, frames: 209, out: "fade" },
-  { scene: RunScene, frames: 152, out: "wash" },
-  { scene: MontageScene, frames: 416, out: "wash" },
-  { scene: CtaScene, frames: 435, out: "cut" },
+  { scene: ProblemScene, frames: 509, out: "wash" },
+  { scene: TurnScene, frames: 109, out: "wash" },
+  { scene: ListScene, frames: 268, out: "cut" },
+  { scene: PrOpenScene, frames: 232, out: "fade" },
+  { scene: PageScene, frames: 183, out: "fade" },
+  { scene: PrConvoScene, frames: 245, out: "fade" },
+  { scene: VerdictScene, frames: 125, out: "fade" },
+  { scene: RunScene, frames: 165, out: "wash" },
+  { scene: MontageScene, frames: 202, out: "wash" },
+  { scene: CtaScene, frames: 382, out: "cut" },
 ];
 
 export const DAY_DURATION_IN_FRAMES = BEATS.reduce(
