@@ -11,6 +11,15 @@ import {
 import { finishNavigation } from "./navigationTiming"
 
 export const ROOT_ID = "gitquiet-root"
+
+/**
+ * The mark on everything of ours that lives in `body` rather than in the root — the
+ * bar, the hover-card hosts, the toaster. Owned and documented by `outside.ts`, which
+ * re-exports it; defined here because that file imports this one, and because a screen
+ * standing on `body` itself needs the mark to tell its own furniture from the page it
+ * is hiding.
+ */
+export const OUTSIDE = "data-gitquiet-outside"
 export const SCREEN_ACTIVITY = "data-gitquiet-screen-activity"
 
 const firstOf = (
@@ -808,6 +817,11 @@ const hideTheirs = (slot: Element, root: Element): void => {
     // twice — would otherwise hide the interface the first one rendered and
     // leave the page apparently empty while the DOM insists it is all there.
     if (child === root || child.id === ROOT_ID) continue
+    // Nor the furniture of ours that lives beside the root rather than in it. On a
+    // region of GitHub's this never matches; on `body` itself the bar and the
+    // hover-card hosts are siblings of the root, and hiding a sibling by position
+    // is exactly what this does.
+    if (child.hasAttribute(OUTSIDE)) continue
     hide(child)
   }
 }

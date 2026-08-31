@@ -13,10 +13,14 @@
  * look for the mark: a new one gets the treatment by existing rather than by being remembered.
  */
 
-import { ROOT_ID } from "./mount"
+import { OUTSIDE, ROOT_ID } from "./mount"
 
-/** The mark. Read by `primer.css`, `quiet.css` and {@link Theme}. */
-export const OUTSIDE = "data-gitquiet-outside";
+/**
+ * The mark. Read by `primer.css`, `quiet.css` and {@link Theme}. Defined in `mount.ts`
+ * — this file imports it, so a definition here would be a cycle — and re-exported from
+ * here, where the story above is the reason it exists.
+ */
+export { OUTSIDE };
 
 /** Where the hover cards, and anything else Radix portals, are put. */
 export const OVER_ID = "gitquiet-over";
