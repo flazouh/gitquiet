@@ -80,8 +80,10 @@ export const recall = Effect.fn("snapshots.recall")(function* (reference: PullRe
   const key = keyFor(reference)
   const held = yield* orNothing(() => store.get(key), {})
   const entry: unknown = held[key]
+  if (!isEntry(entry)) return Option.none<RawPayloads>()
 
-  return isEntry(entry) ? Option.some(entry.payloads) : Option.none<RawPayloads>()
+  yield* Effect.sync(() => Effect.runFork(touchRecent(store, [INDEX], key)))
+  return Option.some(entry.payloads)
 })
 
 /**
@@ -103,6 +105,38 @@ const keepRecent = Effect.fn("snapshots.keepRecent")(function* (
 
   yield* orNothing(() => store.set({ [index]: ordered.slice(0, cap) }), undefined)
   if (evicted.length > 0) yield* orNothing(() => store.remove(evicted), undefined)
+})
+
+/**
+ * Notes that a key was just read, in whichever index holds it.
+ *
+ * The claim above — reading something again counts as recent — was only true
+ * because a recall is normally followed by a live read that writes. A page read
+ * from memory whose live read then failed, or was abandoned by a quick Back,
+ * aged as though it were never touched, and was evicted by newer writes while
+ * it was the page the reader kept coming back to. Moved to the front of the
+ * index it is already in, never added: a key without an entry is a miss, and
+ * putting it back would keep a name that answers nothing.
+ *
+ * Forked by the callers rather than waited on, because a recall is on the cold
+ * path this file exists to shorten.
+ */
+const touchRecent = Effect.fn("snapshots.touchRecent")(function* (
+  store: ForgetfulKeyValue,
+  indexes: ReadonlyArray<string>,
+  key: string
+) {
+  for (const index of indexes) {
+    const held = yield* orNothing(() => store.get(index), {})
+    const kept = asKeys(held[index])
+    if (!kept.includes(key)) continue
+
+    yield* orNothing(
+      () => store.set({ [index]: [key, ...kept.filter((other) => other !== key)] }),
+      undefined
+    )
+    return
+  }
 })
 
 /**
@@ -209,8 +243,12 @@ export const recallRoute = Effect.fn("snapshots.recallRoute")(function* (route: 
   const key = `${ROUTE}${route}`
   const held = yield* orNothing(() => store.get(key), {})
   const entry: unknown = held[key]
+  if (!isAnswer(entry)) return Option.none<unknown>()
 
-  return isAnswer(entry) ? Option.some(entry.payload) : Option.none<unknown>()
+  yield* Effect.sync(() =>
+    Effect.runFork(touchRecent(store, [STANDING_INDEX, ROUTE_INDEX], key))
+  )
+  return Option.some(entry.payload)
 })
 
 /**
