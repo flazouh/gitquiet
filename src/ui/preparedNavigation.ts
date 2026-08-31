@@ -5,21 +5,62 @@ const PREPARED_TRAVERSAL_OFFER = "data-gitquiet-prepared-traversal-offer"
 const preparedMarker = (target: Document): HTMLMetaElement | null =>
   target.querySelector(`meta[name="${PREPARED_TRAVERSAL_ROUTE}"]`)
 
-/** Arms one route without invalidating styles across the page root. */
-export const markPreparedTraversal = (target: Document, route: string): void => {
+/**
+ * How many routes may be armed at once.
+ *
+ * One slot was the whole of it, and one slot is why the browser's own Back
+ * button never went fast: every navigation leaves a page worth returning to,
+ * and the next arm threw the last one away. Eight matches the live screen
+ * cache in `mount.ts` — an armed route whose tree has been evicted is a guard
+ * intercept that ends in a rebuild, so arming further back buys nothing.
+ */
+const HOW_MANY_ARMED = 8
+
+/*
+ * Space-separated in one meta, newest last. A URL path never holds a literal
+ * space — the page world's guard and this world both read the same attribute,
+ * and one attribute is the whole channel between them.
+ */
+const armedRoutes = (target: Document): ReadonlyArray<string> => {
+  const content = preparedMarker(target)?.content
+  return content === undefined || content === "" ? [] : content.split(" ")
+}
+
+const writeArmed = (target: Document, routes: ReadonlyArray<string>): void => {
+  if (routes.length === 0) {
+    preparedMarker(target)?.remove()
+    return
+  }
   const marker = preparedMarker(target) ?? target.createElement("meta")
   marker.name = PREPARED_TRAVERSAL_ROUTE
-  marker.content = route
+  marker.content = routes.join(" ")
   if (!marker.isConnected) (target.head ?? target.documentElement).append(marker)
 }
 
-/** Reads the exact route that can use its live cached screen. */
-export const preparedTraversal = (target: Document): string | null =>
-  preparedMarker(target)?.content ?? null
+/** Arms one route without invalidating styles across the page root. */
+export const markPreparedTraversal = (target: Document, route: string): void => {
+  const routes = armedRoutes(target).filter((armed) => armed !== route)
+  routes.push(route)
+  writeArmed(target, routes.slice(-HOW_MANY_ARMED))
+}
 
-/** Clears the route marker after the cached screen takes control. */
-export const clearPreparedTraversal = (target: Document): void => {
-  preparedMarker(target)?.remove()
+/** The newest route that can use its live cached screen, if any is armed. */
+export const preparedTraversal = (target: Document): string | null => {
+  const routes = armedRoutes(target)
+  return routes.length === 0 ? null : (routes[routes.length - 1] ?? null)
+}
+
+/** Whether this exact route is armed for a history traversal. */
+export const armedTraversal = (target: Document, route: string): boolean =>
+  armedRoutes(target).includes(route)
+
+/** Disarms one route after its cached screen takes control, or every route. */
+export const clearPreparedTraversal = (target: Document, route?: string): void => {
+  if (route === undefined) {
+    preparedMarker(target)?.remove()
+    return
+  }
+  writeArmed(target, armedRoutes(target).filter((armed) => armed !== route))
 }
 
 /** Offers a traversal from the page world through the DOM shared with content scripts. */

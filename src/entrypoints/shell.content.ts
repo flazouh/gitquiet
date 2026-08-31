@@ -56,6 +56,7 @@ import {
   smoothed,
 } from "@/ui/lingering";
 import {
+  markPreparedTraversal,
   OWNED_TRAVERSAL,
   whenPreparedTraversalIsOffered,
 } from "@/ui/preparedNavigation";
@@ -288,8 +289,27 @@ export default defineContentScript({
       view = stored.page.view;
     });
 
-    /** The loaded screen for the one exact route armed for an instant traversal. */
+    /**
+     * The loaded screens for the routes armed for an instant traversal, keyed by
+     * each place's own spelling of the route.
+     *
+     * A short trail rather than one slot: one slot meant every arm threw the last
+     * one away — a hover over any other warmable link between hovering Back and
+     * pressing it lost the armed page. Eight matches the live screen cache in
+     * `mount.ts`, which is what an armed route is worth anything without. What an
+     * entry holds is a module surface the browser has fetched anyway, so a short
+     * map of them costs nothing worth counting.
+     */
     const preparedScreens = new Map<string, Screen>();
+    const HOW_MANY_PREPARED = 8;
+    const keepPrepared = (route: string, screen: Screen): void => {
+      preparedScreens.delete(route);
+      preparedScreens.set(route, screen);
+      const oldest = preparedScreens.keys().next();
+      if (preparedScreens.size > HOW_MANY_PREPARED && !oldest.done) {
+        preparedScreens.delete(oldest.value);
+      }
+    };
     /** The screen kinds already following this document's address. */
     const up = new Set<Wanted>();
 
@@ -301,13 +321,13 @@ export default defineContentScript({
       const page = pageAt(address.pathname, address.search);
       if (page === null) return;
 
+      const place = placeFor(page, address.pathname);
       Effect.runFork(
         screenFor(page).pipe(
           Effect.tap((screen) =>
             Effect.sync(() => {
-              preparedScreens.clear();
-              preparedScreens.set(path, screen);
-              if (prepareCachedTraversal(document, path, placeFor(page, address.pathname))) return;
+              keepPrepared(respell(place, path), screen);
+              if (prepareCachedTraversal(document, path, place)) return;
               screen.prepare?.(address.pathname);
             }),
           ),
@@ -317,15 +337,48 @@ export default defineContentScript({
     };
     whenPreparing(window, prepareScreen);
 
-    const openPreparedTraversal = (path: string): void => {
-      const screen = preparedScreens.get(path);
-      if (screen === undefined) return;
+    /**
+     * Arms a history traversal back to the page of ours being left.
+     *
+     * This is what puts the browser's own Back button — and Alt+Left, and a
+     * trackpad swipe — on the fast path. Until it existed, only a hover over the
+     * bar's Back button armed anything, so a plain Back fell to GitHub's router
+     * and a rebuild. The tree itself is written into the live cache the moment
+     * the screen stands down; this writes down the module and the route so the
+     * page-world guard cancels their router when the traversal starts.
+     */
+    const armReturnTo = (address: string): void => {
+      const to = new URL(address, window.location.origin);
+      const page = pageAt(to.pathname, to.search);
+      if (page === null) return;
 
+      const place = placeFor(page, to.pathname);
+      Effect.runFork(
+        screenFor(page).pipe(
+          Effect.tap((screen) =>
+            Effect.sync(() => {
+              keepPrepared(respell(place, address), screen);
+              markPreparedTraversal(document, address);
+            }),
+          ),
+          Effect.ignore,
+        ),
+      );
+    };
+    /** The address of ours the reader is on, which the next navigation leaves. */
+    let leavable: string | null =
+      pageAt(window.location.pathname, window.location.search) === null
+        ? null
+        : `${window.location.pathname}${window.location.search}`;
+
+    const openPreparedTraversal = (path: string): void => {
       const address = new URL(path, window.location.origin);
       const page = pageAt(address.pathname, address.search);
       if (page === null) return;
 
       const place = placeFor(page, address.pathname);
+      const screen = preparedScreens.get(respell(place, path));
+      if (screen === undefined) return;
       const prepared = hasPreparedScreen(document, path, place);
       document.dispatchEvent(new CustomEvent(OWNED_TRAVERSAL, { detail: path }));
       const screenClaimedTheRoute = prepared && !hasPreparedScreen(document, path, place);
@@ -926,6 +979,12 @@ export default defineContentScript({
       // would have carried it out by hand has nothing left to do.
       stayingPut();
       stayingPut = () => {};
+      // The page being left is the one a traversal comes back to. Armed on
+      // every navigation, whichever gesture made it, so the browser's own Back
+      // button is as fast as the bar's.
+      const left = leavable;
+      leavable = pageAt(path, search) === null ? null : `${path}${search}`;
+      if (left !== null && left !== leavable) armReturnTo(left);
       const page = pageAt(path, search);
       if (page === null) {
         ungate();

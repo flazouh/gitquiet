@@ -2,9 +2,9 @@ export const OWNED_ROUTE = "data-gitquiet-owned-route"
 const OWNED_ROUTE_OFFER = "data-gitquiet-owned-route-offer"
 const OWNED_ROUTE_OFFER_PATH = "data-gitquiet-owned-route-offer-path"
 import {
+  armedTraversal,
   clearPreparedTraversal,
-  offerPreparedTraversal,
-  preparedTraversal
+  offerPreparedTraversal
 } from "../ui/preparedNavigation"
 
 /** Marks one link whose next plain click is handled by this extension. */
@@ -96,9 +96,7 @@ export const guardPreparedTraversal = (
   target: Document = document
 ): boolean => {
   const move = event as TraversalAttempt
-  const prepared = preparedTraversal(target)
   if (
-    prepared === null ||
     move.navigationType !== "traverse" ||
     move.destination?.sameDocument !== true ||
     move.destination.url === undefined
@@ -106,10 +104,11 @@ export const guardPreparedTraversal = (
     return false
 
   const destination = new URL(move.destination.url)
-  if (`${destination.pathname}${destination.search}` !== prepared) return false
+  const going = `${destination.pathname}${destination.search}`
+  if (!armedTraversal(target, going)) return false
 
-  clearPreparedTraversal(target)
-  offerPreparedTraversal(target, prepared)
+  clearPreparedTraversal(target, going)
+  offerPreparedTraversal(target, going)
   event.stopImmediatePropagation()
   return true
 }

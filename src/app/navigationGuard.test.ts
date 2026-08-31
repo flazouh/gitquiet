@@ -94,6 +94,39 @@ describe("the page-world guard for an owned route", () => {
     stop()
   })
 
+  test("keeps every armed route, not only the newest", async () => {
+    // The trail a reader actually walks: the working set, then a list, then a
+    // pull request — each navigation arming the page it left. A Back through
+    // them lands on the oldest arm, and one slot used to have thrown it away.
+    markPreparedTraversal(document, "/pulls")
+    markPreparedTraversal(document, "/owner/repo/pulls?q=is%3Aopen")
+    markPreparedTraversal(document, "/owner/repo/pull/12")
+
+    let offered: string | null = null
+    const stop = whenPreparedTraversalIsOffered(document, (route) => {
+      offered = route
+    })
+    const traversal = (to: string): Event =>
+      ({
+        navigationType: "traverse",
+        destination: { url: `${window.location.origin}${to}`, sameDocument: true },
+        stopImmediatePropagation: () => {}
+      }) as unknown as Event
+
+    expect(guardPreparedTraversal(traversal("/pulls"), document)).toBe(true)
+    await Promise.resolve()
+    expect(offered as unknown).toBe("/pulls")
+
+    // Disarmed one at a time: the guarded route is spent, the other two stand.
+    expect(guardPreparedTraversal(traversal("/pulls"), document)).toBe(false)
+    expect(
+      guardPreparedTraversal(traversal("/owner/repo/pulls?q=is%3Aopen"), document)
+    ).toBe(true)
+    expect(guardPreparedTraversal(traversal("/owner/repo/pull/12"), document)).toBe(true)
+    document.querySelector(`meta[name="${PREPARED_TRAVERSAL_ROUTE}"]`)?.remove()
+    stop()
+  })
+
   test("cancels a duplicate document navigation but keeps the history push", () => {
     let documentLoadCancelled = false
     let documentLoadStopped = false
