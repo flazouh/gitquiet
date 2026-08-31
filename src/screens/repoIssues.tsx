@@ -54,7 +54,13 @@ let asLastSeen: { readonly address: string; readonly listed: ListedIssues } | un
 const open = (
   list: IssueList,
   /** Another view of this same screen, without a document. See {@link goWithin}. */
-  press: (path: string) => void
+  press: (path: string) => void,
+  /**
+   * The exact pathname of the address this screen is stood up for, handed on to
+   * the mark that says it has been drawn. Off the address rather than rebuilt
+   * from the data, because the comparison it feeds is exact — see `useDrawnAt`.
+   */
+  at: string
 ): (() => void) => {
   const asked = queryFor(list)
 
@@ -142,6 +148,7 @@ const open = (
     place: REPO_ISSUES,
     draw: (standing) => (
       <IssueListScreen
+        at={at}
         repo={list.repo}
         load={read}
         recallRepositories={recallRepositories}
@@ -220,7 +227,7 @@ export const start = (): void => {
       return
     }
 
-    close = open(list.value, press)
+    close = open(list.value, press, new URL(url).pathname)
     standingFor = url
   }
 

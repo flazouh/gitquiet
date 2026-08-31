@@ -196,3 +196,39 @@ describe("a repository's pull request list", () => {
     await waitFor(() => expect(handed).toBe(true))
   })
 })
+
+/*
+ * The mark the shell's repair and its reading-ahead hold both read. Straight off
+ * the address the entry parsed, never rebuilt from the data: the comparison it
+ * feeds is exact, and a reconstruction that dropped a trailing slash would turn
+ * a working press into a document load. See `useDrawnAt`.
+ */
+describe("which address this list claims to have drawn", () => {
+  const drawn = () => document.documentElement.getAttribute("data-gitquiet-at")
+
+  afterEach(() => document.documentElement.removeAttribute("data-gitquiet-at"))
+
+  test("claims the pathname it stands for once rows are drawn", async () => {
+    showing((partly) => {
+      partly(listed([involved(1)]))
+      return never()
+    }, { at: "/vercel/next.js/pulls" })
+
+    await screen.findAllByRole("link", { name: /pull request/ })
+    await waitFor(() => expect(drawn()).toBe("/vercel/next.js/pulls"))
+  })
+
+  test("claims nothing while it is still reading", async () => {
+    showing(never, { at: "/vercel/next.js/pulls" })
+
+    await screen.findByText(/Reading this repository/)
+    expect(drawn()).toBeNull()
+  })
+
+  test("claims the address when the read fails, because the failure screen is the answer", async () => {
+    showing(() => Effect.fail(new Error("500")), { at: "/vercel/next.js/pulls" })
+
+    await screen.findByText(/signed out|GitHub sends/)
+    await waitFor(() => expect(drawn()).toBe("/vercel/next.js/pulls"))
+  })
+})

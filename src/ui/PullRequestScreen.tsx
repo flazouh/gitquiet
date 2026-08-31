@@ -25,7 +25,7 @@ import type { Review as Said } from "../ports/GitHubGateway"
 import type { Repository } from "../domain/repositories"
 import { TheBar } from "./TheBar"
 import type { AskLayerSizes } from "./useLayerSizes"
-import { useDrawnAt } from "./drawnAt"
+import { DrawnAt } from "./drawnAt"
 import { type Load, useLive } from "./useLive"
 import { ReadFailed } from "./ReadFailed"
 import { usePreparedActive } from "./usePreparedActive"
@@ -158,12 +158,6 @@ const viewerOnPage = (): boolean =>
   (document.querySelector('meta[name="user-login"]')?.getAttribute("content") ?? "") !== ""
 
 const READING = "Reading this pull request…"
-
-const DrawnAt = ({ path, root }: { readonly path: string | null; readonly root?: Element }) => {
-  const active = usePreparedActive(root)
-  useDrawnAt(active ? path : null)
-  return null
-}
 
 const LiveWatch = ({
   root,
@@ -476,7 +470,7 @@ export const PullRequestScreen = ({
   if (read.status === "failed") {
     return (
       <>
-        <DrawnAt path={pathOf(reference)} root={preparedRoot} />
+        <DrawnAt path={pathOf(reference)} />
         <ReadFailed
           signedOut={!signedIn()}
           what="This pull request"
@@ -501,10 +495,7 @@ export const PullRequestScreen = ({
     // milliseconds lying over the card. The wait comes second so it is painted on
     // top without a stacking order to maintain.
     <div className="relative">
-      <DrawnAt
-        path={read.status === "loading" ? null : pathOf(reference)}
-        root={preparedRoot}
-      />
+      <DrawnAt path={read.status === "loading" ? null : pathOf(reference)} />
       <LiveWatch root={preparedRoot} watch={watch} channels={channels} again={again} />
       {/*
        * Ours at the top of the document, theirs hidden by the fact of it. Their repository nav

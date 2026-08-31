@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react"
 import { markScreenRoute, theScreenIsAt, theScreenLeft } from "./mount"
+import { useScreenActivity } from "./screenActivity"
 
 /**
  * Says which address the screen has the page for, from the page rather than from
@@ -46,4 +47,22 @@ export const useDrawnAt = (path: string | null, target: Document = document): vo
     theScreenIsAt(target, path, owner)
     return () => theScreenLeft(target, owner)
   }, [path, target])
+}
+
+/**
+ * The same claim as a component, for a screen that says it from its render.
+ *
+ * One component rather than the hook called in every screen, because the half
+ * the screens would each get wrong on their own is activity: a screen kept as a
+ * live history entry stays mounted off the page, and a mark it went on
+ * publishing would claim the page for a screen that is not on it.
+ * `useScreenActivity` is the answer the provider around every screen already
+ * carries — false for a detached live entry, false again for a route rendered
+ * quietly off the page — so the claim is only ever made from the tree that has
+ * the page.
+ */
+export const DrawnAt = ({ path }: { readonly path: string | null }) => {
+  const active = useScreenActivity()
+  useDrawnAt(active ? path : null)
+  return null
 }

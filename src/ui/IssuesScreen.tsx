@@ -9,6 +9,7 @@ import type { Repository } from "../domain/repositories"
 import { HERE } from "./dress"
 import { IssueList } from "./IssueList"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
+import { DrawnAt } from "./drawnAt"
 import { TheBar } from "./TheBar"
 import { type Load, useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
@@ -38,6 +39,14 @@ export type IssuesScreenProps = {
   readonly signedIn?: () => boolean
   /** What this page is called in this document's memory. See {@link useLive}. */
   readonly where?: string
+  /**
+   * The exact pathname this screen stands for, straight from the address the
+   * entry parsed and never rebuilt from the data. The mark it feeds is compared
+   * for equality by the shell's repair — see `useDrawnAt` — and a reconstruction
+   * that dropped so much as a trailing slash would turn a working press into a
+   * document load.
+   */
+  readonly at?: string
 }
 
 /**
@@ -139,6 +148,7 @@ export const IssuesScreen = ({
   onGo,
   seed,
   where,
+  at,
   signedIn = viewerOnPage
 }: IssuesScreenProps) => {
   const live = useLive(load, preload, where)
@@ -158,13 +168,18 @@ export const IssuesScreen = ({
 
   if (read.status === "failed") {
     return (
-      <ReadFailed
+      <>
+        {/* The failure screen is the answer for this address: a repair loading
+            the document over it would take away the sentence that says why. */}
+        <DrawnAt path={at ?? null} />
+        <ReadFailed
         signedOut={!signedIn()}
         why={read.why}
         what={WHAT[involvement]}
         onStepAside={onStepAside}
         asideLabel="Show GitHub's list"
-      />
+        />
+      </>
     )
   }
 
@@ -175,6 +190,7 @@ export const IssuesScreen = ({
     // two slots throughout: the wait has to be the same element on both sides of
     // the answer or the dissolve has nothing to start from.
     <div className="relative">
+      <DrawnAt path={read.status === "loading" ? null : (at ?? null)} />
       <TheBar where={{ kind: "home" }} recall={recallRepositories} owed={owed} />
       {listed === undefined ? null : (
         <div className="t-panels flex flex-col gap-1 py-3">
