@@ -31,6 +31,39 @@ import type { View } from "./view"
  * writes the landing page's manifest from it, so this order is the page's order and
  * nothing else has to be told about a view being added.
  */
+/**
+ * The pull request again, wearing what GitHub cannot: a colour pack and a
+ * side-by-side layout. Same screen and same data as PULL_REQUEST_VIEW; only
+ * the remembered settings differ, which is the point — these are a reader's
+ * own choices, photographed so the video can show them.
+ *
+ * The store reads one blob under `gitquiet.settings` (see `src/ui/keeping.ts`),
+ * so a per-view choice nests the group it touches under that key.
+ */
+const SETTINGS_KEY = "gitquiet.settings"
+const prUnder = (name: string, caption: string, settings: Record<string, unknown>): View => ({
+  ...PULL_REQUEST_VIEW,
+  name,
+  caption,
+  chosen: { [SETTINGS_KEY]: settings },
+})
+
+const PR_DRACULA = prUnder(
+  "pull-request-dracula",
+  "The same pull request in a colour pack, the code and the interface following it together",
+  { theme: { pack: "dracula", appearance: "dark" } },
+)
+const PR_TOKYO = prUnder(
+  "pull-request-tokyo",
+  "One of thirty packs, because a reviewer reads this page all day",
+  { theme: { pack: "tokyo-night", appearance: "dark" } },
+)
+const PR_SPLIT = prUnder(
+  "pull-request-split",
+  "Side by side when a block was rewritten, chosen and remembered without a reload",
+  { diff: { layout: "split" } },
+)
+
 export const VIEWS: ReadonlyArray<View> = [
   WORKING_SET_VIEW,
   PULL_REQUEST_VIEW,
@@ -48,7 +81,10 @@ export const VIEWS: ReadonlyArray<View> = [
   PROFILE_VIEW,
   PERSON_REPOS_VIEW,
   RAISE_VIEW,
-  SIGN_ON_VIEW
+  SIGN_ON_VIEW,
+  PR_DRACULA,
+  PR_TOKYO,
+  PR_SPLIT
 ]
 
 export const viewNamed = (name: string): View | undefined =>
