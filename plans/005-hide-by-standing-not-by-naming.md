@@ -1,6 +1,6 @@
 # 005 — Hide by standing, not by naming
 
-- **Status**: TODO
+- **Status**: SUPERSEDED by 006
 - **Commit**: dbde9d0
 - **Severity**: HIGH
 - **Category**: Architecture & failure modes
