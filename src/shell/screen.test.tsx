@@ -502,11 +502,11 @@ describe("a read already running by the time the screen asks for it", () => {
 /**
  * Back, pressed by the browser's own button rather than the bar's.
  *
- * The two tests here are red on purpose: each one writes down a way the
- * interface loses the tree it was keeping for exactly this press, found by the
- * navigation audit of 31 Aug 2026. They stand at the end of the file because a
+ * Each test here writes down a way the interface once lost the tree it was
+ * keeping for exactly this press, found red by the navigation audit of
+ * 31 Aug 2026 and fixed since. They stand at the end of the file because a
  * failing assertion skips its own cleanup, and the handover these tests catch
- * mid-flight would otherwise land its timer in whichever test ran next.
+ * mid-flight would land its timer in whichever test ran next.
  */
 describe("a traversal the cache was kept for", () => {
   test("keeps the leaving tree claimable the moment it is told to go", async () => {
