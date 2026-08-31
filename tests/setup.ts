@@ -47,10 +47,15 @@ const { configure } = await import("@testing-library/react")
  *
  * This budget is spent inside `bun test`'s own per-test limit, so the two are raised
  * together: a wait long enough to outlast that limit turns a slow test into a killed one,
- * which reads as a different fault in a different place. Four seconds against the twenty
+ * which reads as a different fault in a different place. Eight seconds against the forty
  * below leaves the wait reporting its own failure, which names the value it never saw.
+ *
+ * Eight rather than four since 2026-09-01, on the same evidence one machine further
+ * along: twelve cores under fourteen busy neighbours popped a handful of these waits a
+ * shade over four seconds — a pull request screen's first draw, a verdict panel's answer
+ * — every one of them green run alone. The budget was measuring the neighbours.
  */
-configure({ asyncUtilTimeout: 4_000 })
+configure({ asyncUtilTimeout: 8_000 })
 
 /**
  * How long one test may take before it is killed, which is the limit the budget above is
@@ -58,11 +63,16 @@ configure({ asyncUtilTimeout: 4_000 })
  *
  * Five seconds is the default and it is not a statement about any test here; it is what
  * is left over. Highlighting a fence takes a shikitheme and a grammar, and on a loaded
- * runner that alone ran to 6130ms and was killed a second after the work was done. Twenty
+ * runner that alone ran to 6130ms and was killed a second after the work was done. Forty
  * seconds is still far below the job's own ten minutes, so a genuine hang is caught by
  * one of the two rather than by neither.
+ *
+ * Forty rather than twenty since 2026-09-01: a repository walk and two shell screens
+ * were killed at twenty on a loaded twelve-core machine and finished a few seconds
+ * later run alone. The limit exists to catch a hang, and a hang does not finish at
+ * twenty-five.
  */
-setDefaultTimeout(20_000)
+setDefaultTimeout(40_000)
 
 /**
  * Nothing a test starts is allowed to be joined by the test after it.
