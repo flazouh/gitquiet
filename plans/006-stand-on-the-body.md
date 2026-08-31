@@ -1,6 +1,6 @@
 # 006 — Stand on the body
 
-- **Status**: TODO — supersedes 005
+- **Status**: IN PROGRESS — home stands on the body (e8ea371); the other places next
 - **Commit**: 8419849
 - **Severity**: HIGH
 - **Category**: Architecture & failure modes
