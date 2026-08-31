@@ -43,7 +43,7 @@ const githubPage = (): Document => {
         <div class="prc-PageLayout-PageLayoutWrapper-2BhU2">
           <header class="prc-PageLayout-Header-0of-R">
             title and state
-            <nav aria-label="Pull request navigation tabs">Conversation Commits Checks Files changed</nav>
+            <nav aria-label="Pull request navigation">Conversation Commits Checks Files changed</nav>
           </header>
           <div class="prc-PageLayout-PageLayoutContent-BneH9">
             <div class="js-updatable-content">GitHub's conversation</div>
@@ -77,7 +77,7 @@ const commitPage = (): Document => {
 const slotOf = (page: Document) => page.querySelector('[class*="PageLayoutContent"]')!
 const theirsIn = (page: Document) => page.querySelector(".js-updatable-content")!
 const theirTabsIn = (page: Document) =>
-  page.querySelector('[aria-label="Pull request navigation tabs"]')!
+  page.querySelector('[aria-label="Pull request navigation"]')!
 
 describe("slotting into GitHub's pull request page", () => {
   test("recognises the exact route already on the page", () => {
@@ -257,7 +257,7 @@ describe("slotting into GitHub's pull request page", () => {
     theirTabsIn(page).remove()
 
     const again = page.createElement("nav")
-    again.setAttribute("aria-label", "Pull request navigation tabs")
+    again.setAttribute("aria-label", "Pull request navigation")
     page.querySelector('[class*="PageLayout-Header"]')!.append(again)
     await Promise.resolve()
 

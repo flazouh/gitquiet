@@ -7,7 +7,7 @@ import { SWITCH_ID, offerOurPage } from "./theirTabs"
  * carries a per-deploy hash.
  */
 const TABS = `
-  <nav aria-label="Pull request navigation tabs">
+  <nav aria-label="Pull request navigation">
     <div class="prc-TabNav-TabNavTabList-Ave63">
       <a class="TabNav-item prc-TabNav-TabNavLink-u3umI selected" href="/o/r/pull/1">Conversation</a>
       <a class="TabNav-item prc-TabNav-TabNavLink-u3umI" href="/o/r/pull/1/files">Files changed</a>
@@ -16,7 +16,7 @@ const TABS = `
 
 /** The same row, were they ever to build it out of a list. */
 const LISTED = `
-  <nav aria-label="Pull request navigation tabs">
+  <nav aria-label="Pull request navigation">
     <ul class="prc-TabNav-TabNavTabList-Ave63">
       <li class="prc-TabNav-Item-9sQ2z"><a class="tab selected" href="/o/r/pull/1">Conversation</a></li>
       <li class="prc-TabNav-Item-9sQ2z"><a class="tab" href="/o/r/pull/1/files">Files changed</a></li>
@@ -59,7 +59,7 @@ const COMMIT_HEADER = `
   </div>`
 
 const switchIn = (page: Document) => page.getElementById(SWITCH_ID)
-const rowIn = (page: Document) => page.querySelector('[aria-label="Pull request navigation tabs"]')
+const rowIn = (page: Document) => page.querySelector('[aria-label="Pull request navigation"]')
 const stripIn = (page: Document) => page.querySelector('[class*="TabNavTabList"]')!
 const settle = () => new Promise((wake) => setTimeout(wake, 20))
 
