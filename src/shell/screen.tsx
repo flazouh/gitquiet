@@ -248,7 +248,15 @@ export const standAScreen = (screen: Screen): Standing => {
           if (respell(place, (event as CustomEvent<string>).detail) !== exactRoute) return
           if (!hasPreparedScreen(document, exactRoute, place)) return
           stopResuming()
-          standAScreen(screen)
+          /*
+           * With the route this listener matched, never the screen's own: most
+           * screens declare none and follow the address, and this event fires
+           * before the address commits — a stand-up that asked the address
+           * would look the cache up under the page being left, miss its own
+           * tree, and rebuild the page the tree was kept to answer. Found on
+           * github.com by `scripts/probe-back-live.ts`, not by any unit test.
+           */
+          standAScreen({ ...screen, route: exactRoute })
         }
         document.addEventListener(OWNED_TRAVERSAL, resume)
         stopResuming = () => {
