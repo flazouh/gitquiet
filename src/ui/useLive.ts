@@ -224,9 +224,13 @@ export const useLive = <T>(
         ? Effect.void
         : preload().pipe(
             Effect.map((was) => {
-              // Only while nothing better has arrived. A memory landing after
-              // GitHub's own answer is a list going backwards.
-              if (Option.isSome(was) && Option.isNone(get.get(early))) {
+              // A memory is a whole page, so it lands over a stage as well as
+              // over nothing: which of the two the reader sees must not depend
+              // on whether the store or GitHub answered first. It cannot land
+              // over GitHub's own answer — `shownFrom` prefers a live success
+              // to anything in `early` — and it still marks the read as
+              // remembered, so no later stage takes the page apart.
+              if (Option.isSome(was)) {
                 remembered = true
                 get.set(early, was)
               }
