@@ -147,7 +147,7 @@ const Marquee = () => (
             color: INK
           }}
         >
-          GitHub is where your work lives. GitQuiet is where you do it.
+          A faster, quieter GitHub.
         </p>
       </div>
       <div style={{ position: "relative", height: 460 }}>

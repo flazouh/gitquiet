@@ -4,13 +4,12 @@ Rewritten 2026-08-16.
 
 ## The frame
 
-GitHub is where the work lives. GitQuiet is where you do it.
+A faster, quieter GitHub.
 
 That is the whole positioning, and every line on the page has to sit inside it.
 GitHub keeps being the system of record: the repositories, the reviews, the
-merges, the permissions, the teammates. GitQuiet is the place you actually sit
-and work, and it happens to open on github.com's own URLs today and in a window
-tomorrow.
+merges, the permissions, the teammates. GitQuiet is the client you sit in, and
+it happens to open on github.com's own URLs today and in a window tomorrow.
 
 **Words that are now banned from the page.** Each of them describes the
 plumbing, and each of them makes GitQuiet sound like a patch on somebody else's
@@ -20,6 +19,8 @@ product rather than a place of its own:
 - fourteen pages
 - on github.com itself
 - improves, fixes, replaces
+- GitHub is where your work lives. GitQuiet is where you do it.
+- GitHub is where the work lives. GitQuiet is where you do it.
 
 The comparison section that used to carry them is gone, so there is nowhere left
 on the page where they belong.
@@ -55,10 +56,6 @@ length is not the constraint. CodeRabbit runs to 3166 words.
 **Headline**
 
 > A faster, quieter GitHub.
-
-**Subhead** (12 words)
-
-> GitHub is where your work lives. GitQuiet is where you do it.
 
 **Primary button:** Add to Chrome
 
@@ -147,7 +144,6 @@ same pass:
 
 | File | Line |
 | --- | --- |
-| `README.md` | 6, 19 |
-| `site/src/assets.tsx` | 150, 292 |
-| `site/src/Page.tsx` | hero |
+| `README.md` | 18 |
+| `site/src/assets.tsx` | 292 |
 | `site/src/features.ts` | caption 1 |

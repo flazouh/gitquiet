@@ -50,16 +50,6 @@ export const Page = () => (
           A faster, quieter GitHub.
         </h1>
 
-        {/*
-          Twelve words, and they say where you are rather than what is modified.
-          The subhead this replaced ran to forty-four: it named the category, counted
-          the pages and described the mechanism before saying what a reader gets, at
-          three times the length of every page it was measured against. See `COPY.md`.
-        */}
-        <p className="mt-7 max-w-xl text-pretty text-[clamp(1.05rem,2.2vw,1.3rem)] leading-relaxed text-ink/70">
-          GitHub is where your work lives. GitQuiet is where you do it.
-        </p>
-
         <div className="mt-10">
           <AddToChrome big />
         </div>

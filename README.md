@@ -3,7 +3,6 @@
 ![GitQuiet](site/public/store/marquee.png)
 
 **A faster, quieter GitHub.**
-GitHub is where your work lives. GitQuiet is where you do it.
 
 [Install for Chrome](https://chromewebstore.google.com/detail/gitquiet/ichobjnihnofjkpoegikjhefmoekaahe) · [gitquiet.com](https://gitquiet.com) · [Licence](#licence)
 
