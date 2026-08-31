@@ -16,8 +16,12 @@
  */
 
 export type ProbedPage = {
-  /** The probe that reprints this page's DOM, refreshing the selectors and the fixture. */
-  readonly probe: string
+  /**
+   * The probe that reprints this page's DOM, refreshing the selectors and the fixture.
+   * Absent on a canary-only row: a page reached by a stable URL and checked live, whose
+   * selectors were read ad hoc rather than by a dedicated `probe-*-dom.js`.
+   */
+  readonly probe?: string
   /** The day its output was last taken from live GitHub, `YYYY-MM-DD`. */
   readonly capturedOn: string
   /** A plain-English name for the page, for a report to read. */
@@ -92,6 +96,16 @@ export const PROBED_PAGES: ReadonlyArray<ProbedPage> = [
     probe: "scripts/probe-flicker-dom.js",
     capturedOn: "2026-08-12",
     page: "takeover timing, no single page"
+  },
+  {
+    // Canary-only: a nested page that carries bands, checked at a permanent address so
+    // a rename of its header or tab strip goes red on a schedule and not only in the
+    // field. PR #1 of a large public repository never disappears and renders in the
+    // current layout. Added the day GitHub reworded this page's tab strip.
+    capturedOn: "2026-09-01",
+    page: "a pull request",
+    place: "conversation",
+    url: "https://github.com/facebook/react/pull/1"
   }
 ]
 

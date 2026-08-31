@@ -26,6 +26,29 @@
         "div.js-notifications-container"
       ],
       "bands": []
+    },
+    {
+      "place": "conversation",
+      "page": "a pull request",
+      "url": "https://github.com/facebook/react/pull/1",
+      "regions": [
+        "react-app[app-name=\"pull-requests\"] [class*=\"PageLayoutContent\"]",
+        "[class*=\"PageLayoutContent\"]"
+      ],
+      "bands": [
+        {
+          "narrow": "[class*=\"PullRequestHeader\"]",
+          "coarse": "[class*=\"PullRequestHeader\"]"
+        },
+        {
+          "narrow": "[aria-label=\"Pull request navigation\"]",
+          "coarse": "*"
+        },
+        {
+          "narrow": "[data-component=\"Banner\"][aria-label=\"Can Stack Banner\"]",
+          "coarse": "[data-component=\"Banner\"]"
+        }
+      ]
     }
   ]
 }
