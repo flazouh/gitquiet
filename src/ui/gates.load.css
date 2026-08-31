@@ -191,7 +191,7 @@ html[data-gitquiet-taken] div.js-notifications-container > *:not(#gitquiet-root)
 /* home: before ours is up. */
 html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) #dashboard.dashboard > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
 html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) div.copilotPreview__container,
-html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) div.feed-background:has(#dashboard.dashboard) aside.feed-left-sidebar[aria-label="Account"],
+html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) div.feed-background:has(#dashboard.dashboard) aside.feed-left-sidebar[aria-label="Dashboard menu"],
 html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) div.feed-content:has(#dashboard.dashboard) div.feed-main__universe--spinner,
 html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) div.feed-content:has(#dashboard.dashboard) aside.feed-right-column[aria-label="Explore"] {
   display: none;
@@ -200,7 +200,7 @@ html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) div.feed-content:h
 /* home: for as long as ours is in charge. */
 html[data-gitquiet-taken] #dashboard.dashboard > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
 html[data-gitquiet-taken] div.copilotPreview__container,
-html[data-gitquiet-taken] div.feed-background:has(#dashboard.dashboard) aside.feed-left-sidebar[aria-label="Account"],
+html[data-gitquiet-taken] div.feed-background:has(#dashboard.dashboard) aside.feed-left-sidebar[aria-label="Dashboard menu"],
 html[data-gitquiet-taken] div.feed-content:has(#dashboard.dashboard) div.feed-main__universe--spinner,
 html[data-gitquiet-taken] div.feed-content:has(#dashboard.dashboard) aside.feed-right-column[aria-label="Explore"] {
   display: none;

@@ -689,7 +689,7 @@ export const HOME: Place = {
    * readers asked them to end.
    *
    * It is also the one selector here that had to be narrowed, and the probe is what
-   * said so. `/feed` carries the same `aside.feed-left-sidebar[aria-label="Account"]`
+   * said so. `/feed` carries the same `aside.feed-left-sidebar[aria-label="Dashboard menu"]`
    * to the attribute — GitHub named this page's own furniture after that one — and
    * these rules are switched on at the press, while the page being left is still on
    * the screen. Named plainly, pressing Home from the feed would take the feed's own
@@ -700,7 +700,7 @@ export const HOME: Place = {
    */
   bands: [
     "div.copilotPreview__container",
-    'div.feed-background:has(#dashboard.dashboard) aside.feed-left-sidebar[aria-label="Account"]',
+    'div.feed-background:has(#dashboard.dashboard) aside.feed-left-sidebar[aria-label="Dashboard menu"]',
     /*
      * Their spinner, which stands where their lists are going to be.
      *

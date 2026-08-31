@@ -300,7 +300,7 @@ const home = (): Document => {
     <div class="application-main">
       <div class="color-bg-default">
         <div class="d-md-flex feed-background">
-          <aside class="feed-left-sidebar col-md-4 col-lg-3 border-right" aria-label="Account">
+          <aside class="feed-left-sidebar col-md-4 col-lg-3 border-right" aria-label="Dashboard menu">
             <div class="dashboard-sidebar">
               <div class="px-2">
                 <react-partial partial-name="dashboard-repositories" class="loaded">
@@ -410,7 +410,7 @@ const feed = (): Document => {
     <div class="application-main">
       <div class="color-bg-default">
         <div class="d-md-flex feed-background">
-          <aside class="feed-left-sidebar col-md-4 col-lg-3 border-right" aria-label="Account">
+          <aside class="feed-left-sidebar col-md-4 col-lg-3 border-right" aria-label="Dashboard menu">
             <div class="dashboard-sidebar">their account and their repositories</div>
           </aside>
           <div class="flex-auto col-md-8 col-lg-8">

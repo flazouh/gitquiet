@@ -84,7 +84,7 @@ html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has(section[data
 /* home: swapped in without a load. */
 html[data-gitquiet-gating] #dashboard.dashboard > *:not(#gitquiet-root):not(:has(#gitquiet-root)),
 html[data-gitquiet-gating] div.copilotPreview__container,
-html[data-gitquiet-gating] div.feed-background:has(#dashboard.dashboard) aside.feed-left-sidebar[aria-label="Account"],
+html[data-gitquiet-gating] div.feed-background:has(#dashboard.dashboard) aside.feed-left-sidebar[aria-label="Dashboard menu"],
 html[data-gitquiet-gating] div.feed-content:has(#dashboard.dashboard) div.feed-main__universe--spinner,
 html[data-gitquiet-gating] div.feed-content:has(#dashboard.dashboard) aside.feed-right-column[aria-label="Explore"] {
   display: none;
