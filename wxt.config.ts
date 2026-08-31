@@ -37,18 +37,20 @@ export default defineConfig({
   manifest: ({ browser }) => ({
     /*
      * Chrome Web Store search weighs the package name and this short description
-     * (the listing summary) hardest. Brand alone does not match the queries people
-     * type (`github pull request`, `github pr review`). Keep the long store
-     * description in the developer dashboard, not here.
+     * (the listing summary) hardest. The name is the quieter line. The summary
+     * names the browser so a Firefox listing does not read as Chrome's.
+     *
+     * The long description is store/listing-description.txt, submitted with the
+     * release, not a dashboard field of its own.
      *
      * One sentence for every store, because two would have let one of them drift.
-     * The length that fits all of them is the App Store's, and `manifest.test.ts`
-     * holds every target to it and says what happened without it.
+     * The length that fits all of them is the App Store's (112), and
+     * `manifest.test.ts` holds every target to it and says what happened without it.
      */
-    name: "GitQuiet - GitHub Pull Request Review",
+    name: "GitQuiet - A faster, quieter GitHub",
     // Toolbar / overflow menus. Store listing keeps the longer `name`.
     short_name: "GitQuiet",
-    description: `GitHub pull request review in ${readIn[browser] ?? "your browser"}. Every PR on one screen, sorted by who has to act next.`,
+    description: `A faster, quieter GitHub in ${readIn[browser] ?? "your browser"}. Every pull request you're in, one screen, sorted by next action.`,
     ...(process.env.RELEASE_VERSION === undefined
       ? {}
       : { version: process.env.RELEASE_VERSION }),
