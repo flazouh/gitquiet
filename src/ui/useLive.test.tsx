@@ -361,6 +361,33 @@ describe("a read that says what it has on the way", () => {
     await waitFor(() => expect(rowsOf()).toBe("round 1 rows,round 1 checks"))
   })
 
+  test("shows no stage over a memory that arrives a moment after it", async () => {
+    // The same race run the other way. The store is asked and GitHub is asked in
+    // the same breath, and nothing orders their answers: on a machine whose disk
+    // is busier than its network, the read's first stage lands first. Which of
+    // the two the reader gets must not depend on who won.
+    const remembered = gate()
+    const preload = () =>
+      Effect.promise(() => remembered.waited).pipe(
+        Effect.as(Option.some(["remembered rows", "remembered checks"]))
+      )
+
+    const read = staging()
+    render(<Screen load={read.load} preload={preload} />)
+
+    read.rows()
+    await waitFor(() => expect(read.told()).toBe(1))
+
+    remembered.open()
+
+    // The memory is a whole page and the stage is part of one, exactly as the
+    // test above says. Arriving second does not make it less of one.
+    await waitFor(() => expect(rowsOf()).toBe("remembered rows,remembered checks"))
+
+    read.checks()
+    await waitFor(() => expect(rowsOf()).toBe("round 1 rows,round 1 checks"))
+  })
+
 })
 
 describe("coming back to the tab", () => {

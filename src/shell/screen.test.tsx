@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 import { held, prepareAScreen, standAScreen } from "./screen"
 import { BAR_ID } from "../ui/barSlot"
-import { hasPreparedScreen, holdTheSurface, interfaceContainer } from "../ui/mount"
+import { GOING, hasPreparedScreen, holdTheSurface, interfaceContainer } from "../ui/mount"
 import { OWNED_TRAVERSAL } from "../ui/preparedNavigation"
 import type { Place } from "../ui/place"
 import { TheBar } from "../ui/TheBar"
@@ -496,5 +496,89 @@ describe("a read already running by the time the screen asks for it", () => {
     const again: Array<string> = []
     expect(await Effect.runPromise(load((value) => again.push(value)))).toBe("last")
     expect(again).toEqual(["first"])
+  })
+})
+
+/**
+ * Back, pressed by the browser's own button rather than the bar's.
+ *
+ * The two tests here are red on purpose: each one writes down a way the
+ * interface loses the tree it was keeping for exactly this press, found by the
+ * navigation audit of 31 Aug 2026. They stand at the end of the file because a
+ * failing assertion skips its own cleanup, and the handover these tests catch
+ * mid-flight would otherwise land its timer in whichever test ran next.
+ */
+describe("a traversal the cache was kept for", () => {
+  test("keeps the leaving tree claimable the moment it is told to go", async () => {
+    history.replaceState(null, "", "/mine")
+    theirPage()
+
+    // With a bar, as every real screen has one: a leaving screen whose bar is
+    // standing waits for the next bar before it is remembered — see
+    // `whenAnotherBarStands` — and that wait is what this test is about.
+    const first = standAScreen({
+      place: MINE,
+      route: "/mine",
+      draw: () => (
+        <>
+          <TheBar where={{ kind: "home" }} />
+          <p>live first screen</p>
+        </>
+      )
+    })
+    await drawn("#region", "live first screen")
+
+    // What the screen arriving over this one says as it takes the page, with
+    // the detail that asks for the tree to be kept live for Back.
+    first.container.dispatchEvent(new CustomEvent(GOING, { detail: true }))
+
+    // Asserted in the same task, without `until`, because the wait is the bug:
+    // the cache entry is written only when the next screen's bar stands, or
+    // four hundred milliseconds later — `HANDOVER` in `barSlot.ts` — and a
+    // reader's back-press does not wait. Until it lands, Back rebuilds the page
+    // from nothing while the tree that would have answered is still mounted.
+    expect(hasPreparedScreen(document, "/mine", MINE)).toBe(true)
+
+    first.close()
+  })
+
+  test("resumes the live tree when the traversal spells the page with its search", async () => {
+    // A pull request's screen names its route by pathname alone — `pathOf` in
+    // `src/screens/pullRequest.tsx` — while the browser names a traversal
+    // destination by pathname and search: `whenTraversalStarts` in
+    // `src/ui/navigation.ts` hands over `${pathname}${search}`. One page, spelt
+    // two ways, and every exact-string lookup between them misses.
+    history.replaceState(null, "", "/mine?w=1")
+    theirPage()
+
+    const first = standAScreen({
+      place: MINE,
+      route: "/mine",
+      draw: () => (
+        <>
+          <TheBar where={{ kind: "home" }} />
+          <p>live first screen</p>
+        </>
+      )
+    })
+    await drawn("#region", "live first screen")
+
+    history.pushState(null, "", "/other")
+    const second = standAScreen({
+      place: OTHER,
+      route: "/other",
+      draw: () => <p>second screen</p>
+    })
+    await drawn("#region", "second screen")
+    await until(() => hasPreparedScreen(document, "/mine", MINE))
+
+    document.dispatchEvent(new CustomEvent(OWNED_TRAVERSAL, { detail: "/mine?w=1" }))
+    history.replaceState(null, "", "/mine?w=1")
+    await drawn("#region", "live first screen")
+
+    expect(document.getElementById("gitquiet-root")?.textContent).toContain("live first screen")
+
+    second.close()
+    first.close()
   })
 })
