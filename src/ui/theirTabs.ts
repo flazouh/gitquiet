@@ -15,7 +15,16 @@
 
 export const SWITCH_ID = "gitquiet-switch"
 
-const THEIR_TABS = '[aria-label="Pull request navigation"]'
+/**
+ * Their pull request tab row — Conversation, Commits, Checks, Files changed.
+ *
+ * The one place this label lives. Two readers want it: this module, to find the row and
+ * stand the way-back control at the end of it, and the conversation place, to hide the row
+ * when ours is up. GitHub rewords it — "Pull request navigation tabs" became "Pull request
+ * navigation" on 2026-09-01 — and a copy of the label in each reader is a rename that fixes
+ * one and leaves the other, which is exactly what happened once.
+ */
+export const THEIR_TABS = '[aria-label="Pull request navigation"]'
 
 /**
  * Where this stands on a commit's own page, which has no tab row.
