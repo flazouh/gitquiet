@@ -47,10 +47,22 @@ const addressOf = (list: RepoList): string =>
  * back to a list that has lost its shape reads as a list that has been reloaded,
  * which is precisely what did not happen.
  *
- * One complete result is held. A document open for an afternoon must not keep
- * every filter its reader has passed through.
+ * A few complete results are held, newest last, so a reader moving between two
+ * filters of one list — or two repositories' lists — comes back to each whole.
+ * One slot used to be the bound, and one slot meant list A, list B and Back to
+ * A always missed. Eight matches the other short memories of a sitting, and a
+ * document open for an afternoon still does not keep every filter its reader
+ * has passed through.
  */
-let asLastSeen: { readonly address: string; readonly listed: Listed } | undefined
+const asLastSeen = new Map<string, Listed>()
+const HOW_MANY_SEEN = 8
+
+const keepSeen = (address: string, listed: Listed): void => {
+  asLastSeen.delete(address)
+  asLastSeen.set(address, listed)
+  const oldest = asLastSeen.keys().next()
+  if (asLastSeen.size > HOW_MANY_SEEN && !oldest.done) asLastSeen.delete(oldest.value)
+}
 
 /**
  * Puts one repository's list on the page, and hands back the way to take
@@ -74,7 +86,7 @@ const open = (
       // than a paler copy of it read out of the store.
       Effect.tap((listed) =>
         Effect.sync(() => {
-          asLastSeen = { address: addressOf(list), listed }
+          keepSeen(addressOf(list), listed)
         })
       ),
       Effect.tapError((error) => Effect.sync(() => reportError(error)))
@@ -89,7 +101,7 @@ const open = (
    * asks, after which stages go straight through.
    */
   /** This very page, as this document last had it up. */
-  const held = asLastSeen?.address === addressOf(list) ? asLastSeen.listed : undefined
+  const held = asLastSeen.get(addressOf(list))
 
   /*
    * What to show while the live read finds out what is there now, asked for at the
