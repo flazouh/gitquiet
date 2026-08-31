@@ -18,7 +18,7 @@ import { settings, throughGitHub } from "@/shell/supplied"
 import { HistoryScreen } from "@/ui/HistoryScreen"
 import { goWithin } from "@/ui/going"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
-import { whenLocationChanges } from "@/ui/navigation"
+import { whenAddressChanges } from "@/ui/navigation"
 import { COMMITS } from "@/ui/place"
 import { openedNamed } from "@/ui/lastDrawn"
 import "@/ui/styles.css"
@@ -222,7 +222,7 @@ export const start = (): void => {
 
   // The whole address, not the path: which page of the branch this is lives in the
   // query, and a reader pressing Older changes nothing else.
-  whenLocationChanges(window, () => show(window.location.href))
+  whenAddressChanges(window, () => show(window.location.href))
 
   Effect.runFork(
     chosenView(store).pipe(

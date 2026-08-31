@@ -9,7 +9,7 @@ import type { View } from "@/domain/Settings"
 import { chosenView } from "@/app/settings"
 import { goTo as moveTheAddress, goWithin } from "@/ui/going"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
-import { whenLocationChanges } from "@/ui/navigation"
+import { whenAddressChanges } from "@/ui/navigation"
 import { REPO_PULLS } from "@/ui/place"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
@@ -293,8 +293,11 @@ export const start = (): void => {
     standingFor = url
   }
 
-  // The whole address, not the path: the search lives in the query.
-  whenLocationChanges(window, () => show(window.location.href))
+  // The whole address, not the path: the search lives in the query. A Back
+  // between two filters of one list changes only the search, so the watcher
+  // has to hear the search too — the guard on one address asked for twice is
+  // what keeps this screen's own pushes from redrawing double.
+  whenAddressChanges(window, () => show(window.location.href))
 
   Effect.runFork(
     chosenView(store).pipe(

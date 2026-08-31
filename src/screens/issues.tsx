@@ -16,7 +16,7 @@ import type { View } from "@/domain/Settings"
 import { chosenView } from "@/app/settings"
 import { goWithin } from "@/ui/going"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
-import { whenLocationChanges } from "@/ui/navigation"
+import { whenAddressChanges } from "@/ui/navigation"
 import { ISSUES } from "@/ui/place"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
@@ -241,7 +241,7 @@ export const start = (): void => {
 
   // The whole address, not the path: which page of which tab this is lives in
   // the query, and a reader pressing Next changes nothing else.
-  whenLocationChanges(window, () => show(window.location.href))
+  whenAddressChanges(window, () => show(window.location.href))
 
   Effect.runFork(
     chosenView(store).pipe(

@@ -10,7 +10,7 @@ import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
-import { whenLocationChanges } from "@/ui/navigation"
+import { whenAddressChanges } from "@/ui/navigation"
 import { NoticesScreen } from "@/ui/NoticesScreen"
 import { NOTIFICATIONS } from "@/ui/place"
 import { openedNamed } from "@/ui/lastDrawn"
@@ -151,8 +151,10 @@ export const start = (): void => {
     on = query
   }
 
-  // The whole address and not the path, because which inbox this is lives in the query.
-  whenLocationChanges(window, () => show(window.location.href))
+  // The whole address and not the path, because which inbox this is lives in
+  // the query — and the watcher has to hear the search too, or a Back between
+  // two inboxes moves the address bar and leaves the other inbox standing.
+  whenAddressChanges(window, () => show(window.location.href))
 
   Effect.runFork(
     chosenView(store).pipe(
