@@ -24,7 +24,7 @@ html[data-gitquiet-taken] main:has(div.org-sso) > *:not(#gitquiet-root):not(:has
 html[data-gitquiet-page="conversation"]:not([data-gitquiet-revealed]) react-app[app-name="pull-requests"] [class*="PageLayoutContent"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
 html[data-gitquiet-page="conversation"]:not([data-gitquiet-revealed]) [class*="PageLayoutContent"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
 html[data-gitquiet-page="conversation"]:not([data-gitquiet-revealed]) [class*="PullRequestHeader"],
-html[data-gitquiet-page="conversation"]:not([data-gitquiet-revealed]) [aria-label="Pull request navigation tabs"],
+html[data-gitquiet-page="conversation"]:not([data-gitquiet-revealed]) [aria-label="Pull request navigation"],
 html[data-gitquiet-page="conversation"]:not([data-gitquiet-revealed]) [data-component="Banner"][aria-label="Can Stack Banner"] {
   display: none;
 }
@@ -33,7 +33,7 @@ html[data-gitquiet-page="conversation"]:not([data-gitquiet-revealed]) [data-comp
 html[data-gitquiet-taken] react-app[app-name="pull-requests"] [class*="PageLayoutContent"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
 html[data-gitquiet-taken] [class*="PageLayoutContent"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
 html[data-gitquiet-taken] [class*="PullRequestHeader"],
-html[data-gitquiet-taken] [aria-label="Pull request navigation tabs"],
+html[data-gitquiet-taken] [aria-label="Pull request navigation"],
 html[data-gitquiet-taken] [data-component="Banner"][aria-label="Can Stack Banner"] {
   display: none;
 }

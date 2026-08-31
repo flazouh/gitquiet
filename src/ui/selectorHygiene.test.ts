@@ -48,10 +48,12 @@ const selectorsOf = PLACES.flatMap((place) => [
  */
 const ACKNOWLEDGED: ReadonlyMap<string, string> = new Map([
   [
-    '[aria-label="Pull request navigation tabs"]',
+    '[aria-label="Pull request navigation"]',
     "Their Conversation/Commits/Checks/Files row carries no id or stable class; the tab " +
       "strip is named only by this label, and the band is already scoped to the pull " +
-      "request page by the marker the gate is generated under."
+      "request page by the marker the gate is generated under. GitHub reworded this label " +
+      "from 'Pull request navigation tabs' on 2026-09-01 — caught live by the canary — " +
+      "which is the standing argument for keeping the guard net on the nested pages."
   ]
 ])
 
