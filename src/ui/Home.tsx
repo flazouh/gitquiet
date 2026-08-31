@@ -10,6 +10,7 @@ import type { Keys } from "../keys/commands"
 import { Activity } from "./Activity"
 import { Repositories } from "./Repositories"
 import { WorkingSetScreen } from "./WorkingSetScreen"
+import { ACTIVITY_ELSEWHERE, THE_RAIL } from "./lastDrawn"
 import { type Load, useLive } from "./useLive"
 import { useSettings } from "./useSettings"
 
@@ -69,7 +70,7 @@ export const Home = ({
 }: HomeProps) => {
   const { settings, change } = useSettings()
 
-  const everything = useLive(repositories, rememberedRepositories)
+  const everything = useLive(repositories, rememberedRepositories, THE_RAIL)
   const known = everything.read.status === "ready" ? everything.read.value : undefined
 
   // Both written against whatever the settings are at the moment of the press rather than
@@ -143,7 +144,7 @@ const Elsewhere = ({
   readonly read: Load<ReadonlyArray<RepositoryActivity>>
   readonly remembered?: () => Effect.Effect<Option.Option<ReadonlyArray<RepositoryActivity>>>
 }) => {
-  const live = useLive(read, remembered)
+  const live = useLive(read, remembered, ACTIVITY_ELSEWHERE)
 
   return (
     <Activity

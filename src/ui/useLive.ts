@@ -115,9 +115,8 @@ export const useLive = <T>(
    * Named by the caller rather than worked out here, because the name has to be
    * the same on both visits and nothing in this hook knows what it is reading.
    * The names are in `lastDrawn.ts`, together, so that two of them claiming one
-   * page is a thing you can see. Left out by every screen that has not been
-   * given one yet, and by the two that read twice on one page — `ProfileScreen`
-   * and `Home` — until each of their reads is named separately.
+   * page is a thing you can see. The two screens that read twice on one page —
+   * `ProfileScreen` and `Home` — name each of their reads separately there.
    */
   where?: string
 ): Live<T> => {

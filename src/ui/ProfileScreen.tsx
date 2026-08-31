@@ -11,6 +11,7 @@ import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import { columnsIn, Row } from "./RepoRow"
 import { Section } from "./Section"
 import { TheBar } from "./TheBar"
+import { profileOwnedNamed, profileSaidNamed } from "./lastDrawn"
 import type { Load } from "./useLive"
 import { useLive } from "./useLive"
 import { type TheirColumn, usePerson } from "./usePerson"
@@ -261,8 +262,8 @@ export const ProfileScreen = ({
 }: ProfileScreenProps) => {
   const served = usePerson(readWho, login, elsewhere)
   const them = who ?? served
-  const said = useLive(answering).read
-  const list = useLive(owned).read
+  const said = useLive(answering, undefined, profileSaidNamed(login)).read
+  const list = useLive(owned, undefined, profileOwnedNamed(login)).read
   const waiting = useWaiting(list.status === "ready" ? said.status : list.status)
 
   /*

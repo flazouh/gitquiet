@@ -100,6 +100,21 @@ export const repoNamed = (repo: RepoRef, branch: string | null): string =>
 
 export const THE_WORKING_SET = "the working set"
 
+/*
+ * The home page reads twice on one page — the Rail's repositories and the
+ * activity beside them — so each read is named separately, exactly as the
+ * caution in `useLive` asks. One instance of each stands on the page at a time,
+ * which is what lets a fixed name be the page.
+ */
+export const THE_RAIL = "the rail"
+
+export const ACTIVITY_ELSEWHERE = "activity elsewhere"
+
+/* A profile's two reads, told apart the same way, and by whose profile it is. */
+export const profileSaidNamed = (login: string): string => `profile said ${login}`
+
+export const profileOwnedNamed = (login: string): string => `profile owned ${login}`
+
 /**
  * A page named by the identity its screen was opened for, which is the parsed
  * address: a list and its filters, a run and its id, a person and their tab.
