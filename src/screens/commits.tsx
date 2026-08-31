@@ -42,11 +42,7 @@ const open = (
   list: CommitList,
   /** Another view of this same screen, without a document. See {@link goWithin}. */
   press: (path: string) => void,
-  /**
-   * The exact pathname of the address this screen is stood up for, handed on to
-   * the mark that says it has been drawn. Off the address rather than rebuilt
-   * from the data, because the comparison it feeds is exact — see `useDrawnAt`.
-   */
+  /** The exact pathname this screen is stood up for. See `DrawnAt` in `drawnAt.tsx`. */
   at: string
 ): (() => void) => {
   // Started before anything is waited on: reading the branch and waiting for GitHub

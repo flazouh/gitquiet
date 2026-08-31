@@ -60,6 +60,19 @@ export const useDrawnAt = (path: string | null, target: Document = document): vo
  * carries — false for a detached live entry, false again for a route rendered
  * quietly off the page — so the claim is only ever made from the tree that has
  * the page.
+ *
+ * What a screen passes as `path` is the exact pathname it stands for, straight
+ * from the address its entry parsed and never rebuilt from the data. The
+ * comparison this feeds is equality against the pathname a press pushed, and
+ * the wrong answer loads a document: a reconstruction that dropped so much as a
+ * trailing slash would turn a working press into a reload. For the same reason
+ * a screen whose entry keeps it up across an address change must not pass a
+ * path that can go stale on such a move — a stale claim under a fresh address
+ * is exactly the wrong-page signal the repair acts on.
+ *
+ * A failure screen passes its path too. It is an answer for the address — the
+ * sentence that says why, and the way to GitHub's own page — and a repair that
+ * loaded the document over it would take both away.
  */
 export const DrawnAt = ({ path }: { readonly path: string | null }) => {
   const active = useScreenActivity()

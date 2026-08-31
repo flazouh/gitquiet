@@ -40,13 +40,7 @@ export type IssueListScreenProps = {
   readonly signedIn?: () => boolean
   /** What this page is called in this document's memory. See {@link useLive}. */
   readonly where?: string
-  /**
-   * The exact pathname this screen stands for, straight from the address the
-   * entry parsed and never rebuilt from the data. The mark it feeds is compared
-   * for equality by the shell's repair — see `useDrawnAt` — and a reconstruction
-   * that dropped so much as a trailing slash would turn a working press into a
-   * document load.
-   */
+  /** The exact pathname this screen stands for, as {@link DrawnAt} needs it said. */
   readonly at?: string
 }
 
@@ -87,8 +81,7 @@ export const IssueListScreen = ({
   if (read.status === "failed") {
     return (
       <>
-        {/* The failure screen is the answer for this address: a repair loading
-            the document over it would take away the sentence that says why. */}
+        {/* The failure screen is an answer too. See {@link DrawnAt}. */}
         <DrawnAt path={at ?? null} />
         <ReadFailed
         signedOut={!signedIn()}
