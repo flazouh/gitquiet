@@ -61,6 +61,14 @@ type Watcher = {
 const result = await build({
   configFile: false,
   publicDir: false,
+  /*
+   * Relative, because these files are served from `chrome-extension://…/screens/`
+   * and referenced by a stylesheet that lives beside them. Vite's default is `/`,
+   * which wrote the fonts into the CSS as `/inter-…woff2` — the extension's root,
+   * where they are not — so every request 404ed and the interface silently fell
+   * back to system type. `verify-on-github.ts` now checks the face really loads.
+   */
+  base: "./",
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: [

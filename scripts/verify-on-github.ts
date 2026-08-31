@@ -4,12 +4,17 @@ import { withExtension } from "./chrome"
  * Checks the built extension on github.com itself, which is the only place most
  * of its claims can be tested.
  *
- * The claims changed shape when the interface stopped replacing the page. It now
- * slots into GitHub's own layout, so what has to hold is the opposite of what
- * used to: their header, their repository nav and their pull request title and
- * tabs are all still there and still working, their conversation is hidden
- * rather than destroyed, and our part of the page is drawn in their typeface,
- * their surfaces and their borders — whichever theme the reader happens to use.
+ * The claims follow the design, and the design has moved twice. The interface
+ * slots into GitHub's own layout rather than replacing the page — and inside
+ * that layout it now stands its own bar where their site header was and its own
+ * band where their pull request header and tabs were, because ours says the
+ * same things in one band instead of four (`bands` in `src/ui/place.ts`, and
+ * `gates.bar.css` for their nav). So what has to hold is: everything of theirs
+ * is hidden rather than destroyed — their header, their tabs, their
+ * conversation are all still in the document for the moment we step aside —
+ * their stylesheets survive, and our part of the page is drawn in its own
+ * typeface, Inter Variable, which the build ships and which must really load
+ * rather than fall back silently.
  *
  * Run it after `bun run build`:
  *
@@ -40,12 +45,19 @@ type Measured = {
   readonly courts: ReadonlyArray<string>
   readonly groups: number
   readonly mountedInTheirLayout: boolean
-  readonly theirHeaderStands: boolean
-  readonly theirPullRequestHeaderStands: boolean
+  readonly ourBarStands: boolean
+  /** Their site header is still a node in the document, for when we step aside. */
+  readonly theirHeaderKept: boolean
+  /** And not painted while our bar is saying the same things. */
+  readonly theirHeaderQuiet: boolean
+  readonly theirPullRequestHeaderKept: boolean
+  readonly theirPullRequestHeaderQuiet: boolean
   readonly theirConversationHidden: number
   readonly theirStylesheets: number
   readonly ourFont: string | null
   readonly theirFont: string
+  /** Whether Inter Variable really loaded, rather than the stack falling back. */
+  readonly interLoaded: boolean
   readonly ourSurface: string | null
   readonly theirSurface: string
   readonly ourBorder: string | null
@@ -66,14 +78,27 @@ type Measured = {
 
 const FAILURES: ReadonlyArray<readonly [string, (found: Measured) => boolean]> = [
   ["the interface never mounted in GitHub's layout", (found) => !found.mountedInTheirLayout],
-  ["GitHub's site header did not survive", (found) => !found.theirHeaderStands],
+  ["our bar never stood over their header", (found) => !found.ourBarStands],
+  ["GitHub's site header was destroyed rather than hidden", (found) => !found.theirHeaderKept],
   [
-    "GitHub's pull request header and tabs did not survive",
-    (found) => !found.theirPullRequestHeaderStands
+    "GitHub's site header is still showing beside our bar",
+    (found) => found.ourBarStands && !found.theirHeaderQuiet
+  ],
+  [
+    "GitHub's pull request header was destroyed rather than hidden",
+    (found) => !found.theirPullRequestHeaderKept
+  ],
+  [
+    "GitHub's pull request header is still showing over the card",
+    (found) => found.theirPullRequestHeaderKept && !found.theirPullRequestHeaderQuiet
   ],
   ["GitHub's own stylesheets were stripped", (found) => found.theirStylesheets < 10],
   ["GitHub's conversation was destroyed rather than hidden", (found) => found.theirConversationHidden === 0],
-  ["the interface is not rendering in GitHub's typeface", (found) => found.ourFont !== found.theirFont],
+  [
+    "the interface is not rendering in its own typeface",
+    (found) => found.ourFont === null || !found.ourFont.includes("Inter Variable")
+  ],
+  ["Inter never loaded, so the interface fell back silently", (found) => !found.interLoaded],
   [
     "the interface drew glyphs, and none of them are GitHub's own",
     (found) => found.glyphs > 0 && found.octicons === 0
@@ -110,13 +135,26 @@ const look = () =>
       courts,
       groups: document.querySelectorAll("#gitquiet-root details").length,
       mountedInTheirLayout: root !== null && slot !== null && slot.contains(root),
-      theirHeaderStands: (document.querySelector(".header-wrapper")?.clientHeight ?? 0) > 40,
-      theirPullRequestHeaderStands:
-        (document.querySelector('[class*="PageLayout-Header"]')?.clientHeight ?? 0) > 40,
+      ourBarStands: (document.getElementById("gitquiet-bar")?.children.length ?? 0) > 0,
+      theirHeaderKept:
+        document.querySelector("header.GlobalNav, header.AppHeader, .header-wrapper") !== null,
+      theirHeaderQuiet:
+        (document.querySelector("header.GlobalNav, header.AppHeader, .header-wrapper")
+          ?.clientHeight ?? 0) < 40,
+      theirPullRequestHeaderKept:
+        document.querySelector(
+          '[class*="PullRequestHeader"], [aria-label="Pull request navigation tabs"]'
+        ) !== null,
+      theirPullRequestHeaderQuiet: [
+        ...document.querySelectorAll(
+          '[class*="PullRequestHeader"], [aria-label="Pull request navigation tabs"]'
+        )
+      ].every((band) => band.clientHeight === 0),
       theirConversationHidden: document.querySelectorAll("[data-gitquiet-hidden]").length,
       theirStylesheets: document.querySelectorAll('link[rel="stylesheet"]').length,
       ourFont: read(root, "fontFamily"),
       theirFont: getComputedStyle(document.body).fontFamily,
+      interLoaded: document.fonts.check('16px "Inter Variable"'),
       ourSurface: read(ourBox, "backgroundColor"),
       theirSurface: getComputedStyle(document.body).backgroundColor,
       ourBorder: read(ourBox, "borderTopColor"),
@@ -182,4 +220,6 @@ if (failed.length > 0) {
   console.error(failed.map((reason) => `✗ ${reason}`).join("\n"))
   process.exit(1)
 }
-console.log("✓ the interface sits inside GitHub's page, in GitHub's clothes, with their page intact")
+console.log(
+  "✓ the interface sits inside GitHub's page, in its own type and bar, with their page hidden underneath rather than destroyed"
+)
