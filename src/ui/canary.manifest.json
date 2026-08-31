@@ -1,0 +1,48 @@
+{
+  "targets": [
+    {
+      "place": "home",
+      "page": "home dashboard",
+      "url": "https://github.com/",
+      "regions": [
+        "#dashboard.dashboard"
+      ],
+      "bands": [
+        {
+          "narrow": "div.copilotPreview__container",
+          "coarse": "div.copilotPreview__container"
+        },
+        {
+          "narrow": "div.feed-background:has(#dashboard.dashboard) aside.feed-left-sidebar[aria-label=\"Dashboard menu\"]",
+          "coarse": "div.feed-background aside.feed-left-sidebar"
+        },
+        {
+          "narrow": "div.feed-content:has(#dashboard.dashboard) div.feed-main__universe--spinner",
+          "coarse": "div.feed-content div.feed-main__universe--spinner"
+        },
+        {
+          "narrow": "div.feed-content:has(#dashboard.dashboard) aside.feed-right-column[aria-label=\"Explore\"]",
+          "coarse": "div.feed-content aside.feed-right-column"
+        }
+      ]
+    },
+    {
+      "place": "dashboard",
+      "page": "pull request dashboard",
+      "url": "https://github.com/pulls",
+      "regions": [
+        "[data-testid=\"pulls-dashboard-surface-layout\"]"
+      ],
+      "bands": []
+    },
+    {
+      "place": "notifications",
+      "page": "notifications",
+      "url": "https://github.com/notifications",
+      "regions": [
+        "div.js-notifications-container"
+      ],
+      "bands": []
+    }
+  ]
+}
