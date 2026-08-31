@@ -339,21 +339,20 @@ const home = (): Document => {
 };
 
 describe("taking over the home dashboard", () => {
-  test("finds the centre column and not the whole page", () => {
+  test("stands on the document's own surface, proved to be home's", () => {
+    // `body`, not a region of GitHub's — the first place migrated to
+    // `plans/006-stand-on-the-body.md`. The `:has()` is the proof: the same
+    // selector on the feed fixture below finds nothing.
     const page = home();
 
     const slot = findSlot(page, HOME);
 
-    expect(slot?.id).toBe("dashboard");
+    expect(slot).toBe(page.body);
   });
 
-  test("takes their greeting and their chat box with the region", () => {
-    /*
-     * Measured rather than assumed: `div.copilotPreview__container` holds the
-     * greeting, the Preview chip, the ask box and the five action buttons in one
-     * element, and it sits inside the region — so the thing 200 people asked to be
-     * able to switch off goes with the takeover rather than needing a rule.
-     */
+  test("takes their greeting and their chat box with the surface", () => {
+    // The thing 200 people asked to be able to switch off goes with the takeover
+    // by position now, not by a rule that names it.
     const page = home();
     const container = interfaceContainer(page, HOME);
 
@@ -364,9 +363,12 @@ describe("taking over the home dashboard", () => {
   });
 
   test("takes the repositories sidebar, which the Rail replaces", () => {
-    // Outside `main` and outside the region, so this one has to be named: two lists
-    // of repositories on one screen is the duplication their own readers asked them
-    // to end.
+    /*
+     * The one that was named, and the naming is why it leaked: GitHub reworded the
+     * sidebar's `aria-label` from "Account" to "Dashboard menu" and the band hid
+     * nothing for weeks. As a sibling of the surface it goes by position, and no
+     * rename can bring it back.
+     */
     const page = home();
 
     takeOverSlot(page, interfaceContainer(page, HOME), HOME);
@@ -374,14 +376,28 @@ describe("taking over the home dashboard", () => {
     expect(visible(page, "their repositories")).toBe(false);
   });
 
-  test("leaves the site header alone", () => {
-    // How somebody gets around the rest of GitHub. It already works, and replacing
-    // it would only make this page stranger than the one beside it.
+  test("takes their header with everything else, for ours to replace", () => {
+    // The bar this screen draws is the page's bar. Their header goes with the
+    // surface — hidden, not removed, so `theirNav` can still read it.
     const page = home();
 
     takeOverSlot(page, interfaceContainer(page, HOME), HOME);
 
-    expect(visible(page, "site nav")).toBe(true);
+    expect(visible(page, "site nav")).toBe(false);
+  });
+
+  test("never touches its own furniture standing beside it", () => {
+    // The bar and the hover hosts live in `body` too, marked as ours. Hiding
+    // by position has to mean their page, not everything.
+    const page = home();
+    const furniture = page.createElement("div");
+    furniture.setAttribute("data-gitquiet-outside", "");
+    furniture.textContent = "our bar";
+    page.body.appendChild(furniture);
+
+    takeOverSlot(page, interfaceContainer(page, HOME), HOME);
+
+    expect(visible(page, "our bar")).toBe(true);
   });
 
   test("gives the page back whole", () => {
@@ -392,6 +408,7 @@ describe("taking over the home dashboard", () => {
     expect(visible(page, "their greeting and chat box")).toBe(true);
     expect(visible(page, "their pull requests and issues")).toBe(true);
     expect(visible(page, "their repositories")).toBe(true);
+    expect(visible(page, "site nav")).toBe(true);
     expect(page.getElementById(ROOT_ID)).toBeNull();
   });
 });

@@ -655,77 +655,44 @@ export const RELEASES: Place = {
 export const HOME: Place = {
   name: "home",
   owns: (path) => isHome(path),
-  regions: ["#dashboard.dashboard"],
   /*
-   * One step out: the column that region is the whole of. Measured at the same width
-   * as the region on a live page, so a takeover that lands here rather than in
-   * `#dashboard` is in the right part of the page and looks it.
-   */
-  fallback: "main.flex-1",
-  stages: ["#dashboard.dashboard"],
-  /*
-   * Nothing to wait for. Their Rails dashboard container exists on this page and
-   * nowhere else, so its presence is already the proof the pull request pages need a
-   * marker for.
+   * The document's own surface, not a region of GitHub's — the first place to stand
+   * the way `plans/006-stand-on-the-body.md` says every place eventually will. The
+   * four bands this page used to name are all inside the one wrapper `body` holds,
+   * so hiding by position takes the sidebar, the spinner, the Copilot ask box and
+   * the Explore panel without naming any of them — which is what let the sidebar
+   * stand beside the Rail for weeks when GitHub reworded its label.
    *
-   * Probed against `/feed`, which was the doubt: that page is `dashboard_feed#show`,
-   * names its own column `#feed.dashboard`, and carries no Copilot container — so this
-   * stage and that band are both false there. The sidebar was the one hook the two
-   * pages really do share, and it is proved rather than named; see `bands` below.
+   * `:has(#dashboard.dashboard)` is the proof this is home's document, and it is a
+   * *finding* claim: if GitHub renames the column, this matches nothing, the
+   * takeover declines, and the reader has GitHub whole rather than a hybrid. It is
+   * also what keeps the press safe — these rules are switched on while the page
+   * being left is still on the screen, and `/feed` names its own column
+   * `#feed.dashboard`, so a reader pressing Home from the feed keeps the feed until
+   * home's document is really there. Probed live on 2026-08-31: one match on `/`,
+   * none on `/feed`.
+   *
+   * Standing here rather than in their `main` also ends the fight `widths.css` was
+   * refereeing: GitHub keeps `main` at `display: none` until a partial loads, and
+   * our container used to be inside it.
+   */
+  regions: ["body:has(#dashboard.dashboard)"],
+  /*
+   * The surface without the proof. The fallback is only offered once parsing is
+   * over, when the column never appeared at all — and the address already said this
+   * is home, so the right thing is still our screen on the whole document.
+   */
+  fallback: "body",
+  /*
+   * Nothing to wait for, and no steady-state rule: `gateCss` writes only the
+   * pre-reveal flash cover for a stage that is the surface itself, because `body`
+   * also holds our bar, our hover hosts and other extensions' furniture. The steady
+   * state is `hideTheirs`, which marks what stood there at the takeover and leaves
+   * everything carrying the outside mark alone.
    */
   soft: {},
-  /*
-   * Two, and each earns its place by what it holds.
-   *
-   * `copilotPreview__container` was measured holding the greeting, the Preview chip,
-   * the ask box and the Agent / Create issue / Write code / Git / Pull requests
-   * buttons — five of the complaints in `docs/spec/home.md` in one element. It is
-   * inside the region, so the region already takes it; naming it anyway is what puts
-   * it in the soft sheet, and what keeps it hidden if this ever stands in the column
-   * rather than in the region.
-   *
-   * The sidebar is outside `main` and holds their repository list. The Rail replaces
-   * it, and two lists of repositories on one screen is the duplication their own
-   * readers asked them to end.
-   *
-   * It is also the one selector here that had to be narrowed, and the probe is what
-   * said so. `/feed` carries the same `aside.feed-left-sidebar[aria-label="Dashboard menu"]`
-   * to the attribute — GitHub named this page's own furniture after that one — and
-   * these rules are switched on at the press, while the page being left is still on
-   * the screen. Named plainly, pressing Home from the feed would take the feed's own
-   * sidebar off the screen for as long as GitHub took to answer. So it is proved
-   * against the region: `#dashboard.dashboard` is home's column and `/feed` names its
-   * own `#feed.dashboard`, which is why the `:has()` is false there and true here.
-   * The same trick as `:has(.js-issue-row)` on a repository's list, one level up.
-   */
-  bands: [
-    "div.copilotPreview__container",
-    'div.feed-background:has(#dashboard.dashboard) aside.feed-left-sidebar[aria-label="Dashboard menu"]',
-    /*
-     * Their spinner, which stands where their lists are going to be.
-     *
-     * Part of a mechanism worth knowing about, because it is the one thing on this page
-     * that hides *our* interface as well as theirs: GitHub keeps `main` at
-     * `display: none` until one of their partials is marked loaded, and shows this in its
-     * place. Our container is inside that `main`, so their rule took the whole takeover
-     * off the screen — and their partials are inside the region we hid, so the class that
-     * would lift it may never be set at all. `widths.css` is what answers that; this band
-     * only takes the spinner, which would otherwise sit above the finished list.
-     *
-     * Proved against the column for the same reason the sidebar is: `/feed` is rendered
-     * by the same layout and has a spinner of its own.
-     */
-    "div.feed-content:has(#dashboard.dashboard) div.feed-main__universe--spinner",
-    /*
-     * Their Explore panel, 312 pixels of trending repositories down the right.
-     *
-     * Nothing on this page is here because we wanted the reader's attention, and this is
-     * the one thing on theirs that is only that: it was measured reading "Loading" beside
-     * a finished list. Taking it is also what gives the Courts the width — with it on the
-     * page the interface stopped at 1078 pixels inside a 1512-pixel window.
-     */
-    'div.feed-content:has(#dashboard.dashboard) aside.feed-right-column[aria-label="Explore"]',
-  ],
+  /* None left. Everything this page ever named is a child of the surface now. */
+  bands: [],
 };
 
 /**

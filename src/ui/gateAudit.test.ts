@@ -1,6 +1,23 @@
 import { describe, expect, test } from "bun:test"
 import { coarsen, GateLeak, leaksIn } from "./gateAudit"
-import { HOME } from "./place"
+import type { Place } from "./place"
+
+/**
+ * Home as it stood before `plans/006-stand-on-the-body.md`, when its sidebar was a
+ * named band. The live place stands on `body` now and carries no bands, so the audit
+ * has nothing to say about it — this fixture keeps the Account-rename scenario the
+ * audit exists for, for the places that still name what they hide.
+ */
+const BANDED: Place = {
+  name: "home",
+  owns: () => true,
+  regions: ["#dashboard.dashboard"],
+  fallback: "main.flex-1",
+  bands: [
+    "div.copilotPreview__container",
+    'div.feed-background:has(#dashboard.dashboard) aside.feed-left-sidebar[aria-label="Dashboard menu"]'
+  ]
+}
 
 /**
  * The home page down to the sidebar band and the column its `:has()` proves against.
@@ -55,7 +72,7 @@ describe("coarsen strips what GitHub rewords and keeps what it does not", () => 
 
 describe("leaksIn tells a stale band from a page that has moved on", () => {
   test("reports the sidebar when GitHub has reworded its label out from under the band", () => {
-    const leaks = leaksIn(homeWith("Account"), HOME, shown)
+    const leaks = leaksIn(homeWith("Account"), BANDED, shown)
 
     expect(leaks).toHaveLength(1)
     expect(leaks[0]?.coarse).toBe("div.feed-background aside.feed-left-sidebar")
@@ -63,27 +80,27 @@ describe("leaksIn tells a stale band from a page that has moved on", () => {
   })
 
   test("says nothing while the band still matches the label it names", () => {
-    expect(leaksIn(homeWith("Dashboard menu"), HOME, shown)).toHaveLength(0)
+    expect(leaksIn(homeWith("Dashboard menu"), BANDED, shown)).toHaveLength(0)
   })
 
   test("says nothing when their sidebar is hidden, however it was hidden", () => {
     const page = homeWith("Account")
     page.querySelector("aside.feed-left-sidebar")?.setAttribute("hidden", "")
 
-    expect(leaksIn(page, HOME, shown)).toHaveLength(0)
+    expect(leaksIn(page, BANDED, shown)).toHaveLength(0)
   })
 
   test("says nothing on a page that has no sidebar at all", () => {
     const page = homeWith("Account")
     page.querySelector("aside.feed-left-sidebar")?.remove()
 
-    expect(leaksIn(page, HOME, shown)).toHaveLength(0)
+    expect(leaksIn(page, BANDED, shown)).toHaveLength(0)
   })
 })
 
 describe("the reported error is worded to group across a rename", () => {
   test("names the coarse family, never the value that changed", () => {
-    const error = new GateLeak(HOME.name, leaksIn(homeWith("Account"), HOME, shown))
+    const error = new GateLeak(BANDED.name, leaksIn(homeWith("Account"), BANDED, shown))
 
     expect(error.name).toBe("GateLeak")
     expect(error.message).toContain("div.feed-background aside.feed-left-sidebar")

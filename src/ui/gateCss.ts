@@ -1,5 +1,5 @@
 import { BAR_ID } from "./barSlot"
-import { ROOT_ID } from "./mount"
+import { OUTSIDE, ROOT_ID } from "./mount"
 import type { Place } from "./place"
 
 /**
@@ -18,8 +18,25 @@ import type { Place } from "./place"
  * the search together or not at all.
  */
 
-/** Never this one: it is the interface the rules exist to show. */
-const OURS = `:not(#${ROOT_ID}):not(:has(#${ROOT_ID}))`
+/**
+ * Never this one: it is the interface the rules exist to show. Nor anything carrying
+ * the outside mark — the bar, the hover-card hosts, the toaster live in `body` beside
+ * the root rather than in it, and a screen whose stage is `body` itself would
+ * otherwise hide its own furniture along with GitHub's page.
+ */
+const OURS = `:not(#${ROOT_ID}):not(:has(#${ROOT_ID})):not([${OUTSIDE}])`
+
+/**
+ * Whether a stage is the document's own surface rather than a region of GitHub's.
+ *
+ * It changes which rules a stage may have. A region of theirs is only ever theirs, so
+ * a rule may hide its children for as long as ours is in charge. `body` is everybody's
+ * — our hover hosts are made there mid-session, and other extensions stand there too —
+ * so the only rule allowed on it is the pre-reveal flash cover, and the steady state
+ * belongs to `hideTheirs`, which marks what stood there at the takeover and is re-run
+ * by the takeover's own observer.
+ */
+const isTheSurface = (stage: string): boolean => stage === "body" || stage.startsWith("body:")
 
 /**
  * Their children, rather than the region itself.
@@ -97,12 +114,18 @@ export const loadSheet = (places: ReadonlyArray<Place>): string =>
   places
     .map((place) => {
       const theirs = [...stagesOf(place).map(emptied), ...place.bands]
+      const standing = [
+        ...stagesOf(place)
+          .filter((stage) => !isTheSurface(stage))
+          .map(emptied),
+        ...place.bands
+      ]
       const here = `html[data-gitquiet-page="${place.name}"]`
       return [
         `/* ${place.name}: before ours is up. */`,
         block(theirs.map((one) => `${here}:not([data-gitquiet-revealed]) ${one}`)),
         `/* ${place.name}: for as long as ours is in charge. */`,
-        block(theirs.map((one) => `html[data-gitquiet-taken] ${one}`))
+        block(standing.map((one) => `html[data-gitquiet-taken] ${one}`))
       ].join("\n")
     })
     .join("\n")
