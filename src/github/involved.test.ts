@@ -5,7 +5,7 @@ import { involvedFrom, involvedIn, sizeIn, standingsIn } from "./involved"
 import type { DeferredRoute, WorkingSetRow } from "./wire"
 
 const row = (over: Partial<WorkingSetRow> = {}): WorkingSetRow => ({
-  id: 4153828483,
+  id: "PR_kwDOABCDE84AAAAB",
   number: 1457,
   title: "price claude turns from the streamed usage",
   repoNameWithOwner: "octo-org/octo-repo",
@@ -37,8 +37,8 @@ describe("reading a Working Set row as an Involved Pull Request", () => {
     })
   })
 
-  test("keeps GitHub's numeric id, which the deferred read is keyed by", () => {
-    expect(one().id).toBe(4153828483)
+  test("keeps GitHub's node id, which the deferred read is keyed by", () => {
+    expect(one().id).toBe("PR_kwDOABCDE84AAAAB")
   })
 
   test("a draft arrives as open with a flag, and becomes a draft", () => {
@@ -131,11 +131,11 @@ describe("what the deferred read adds", () => {
   test("a passing rollup carries its counts", () => {
     const standings = standingsIn(
       deferred([
-        { id: 1, statusCheckRollup: { state: "SUCCESS", totalCount: 12, successCount: 12 } }
+        { id: "1", statusCheckRollup: { state: "SUCCESS", totalCount: 12, successCount: 12 } }
       ])
     )
 
-    expect(standings.get(1)?.checks).toEqual(
+    expect(standings.get("1")?.checks).toEqual(
       Option.some({ state: "passing", total: 12, passed: 12 })
     )
   })
@@ -145,11 +145,11 @@ describe("what the deferred read adds", () => {
     // The row has room for that and no room for thirteen names.
     const standings = standingsIn(
       deferred([
-        { id: 2, statusCheckRollup: { state: "FAILURE", totalCount: 13, successCount: 11 } }
+        { id: "2", statusCheckRollup: { state: "FAILURE", totalCount: 13, successCount: 11 } }
       ])
     )
 
-    expect(standings.get(2)?.checks).toEqual(
+    expect(standings.get("2")?.checks).toEqual(
       Option.some({ state: "failing", total: 13, passed: 11 })
     )
   })
@@ -160,9 +160,9 @@ describe("what the deferred read adds", () => {
     // would be for.
     for (const state of ["PENDING", "ERROR", "EXPECTED"] as const) {
       const standings = standingsIn(
-        deferred([{ id: 3, statusCheckRollup: { state, totalCount: 4, successCount: 1 } }])
+        deferred([{ id: "3", statusCheckRollup: { state, totalCount: 4, successCount: 1 } }])
       )
-      expect(standings.get(3)?.checks).toEqual(
+      expect(standings.get("3")?.checks).toEqual(
         Option.some({ state: "running", total: 4, passed: 1 })
       )
     }
@@ -171,37 +171,37 @@ describe("what the deferred read adds", () => {
   test("a pull request with no checks has none, whether null or absent", () => {
     // Both shapes come back from GitHub: explicitly null on one with no checks
     // configured, and missing altogether on another.
-    expect(standingsIn(deferred([{ id: 4, statusCheckRollup: null }])).get(4)?.checks).toEqual(
+    expect(standingsIn(deferred([{ id: "4", statusCheckRollup: null }])).get("4")?.checks).toEqual(
       Option.none()
     )
-    expect(standingsIn(deferred([{ id: 5 }])).get(5)?.checks).toEqual(Option.none())
+    expect(standingsIn(deferred([{ id: "5" }])).get("5")?.checks).toEqual(Option.none())
   })
 
   test("review decisions come through as opinions", () => {
     const standings = standingsIn(
       deferred([
-        { id: 6, reviewDecisionState: "APPROVED" },
-        { id: 7, reviewDecisionState: "CHANGES_REQUESTED" },
-        { id: 8, reviewDecisionState: "REVIEW_REQUIRED" },
-        { id: 9, reviewDecisionState: null }
+        { id: "6", reviewDecisionState: "APPROVED" },
+        { id: "7", reviewDecisionState: "CHANGES_REQUESTED" },
+        { id: "8", reviewDecisionState: "REVIEW_REQUIRED" },
+        { id: "9", reviewDecisionState: null }
       ])
     )
 
-    expect(standings.get(6)?.reviewed).toEqual(Option.some("approved"))
-    expect(standings.get(7)?.reviewed).toEqual(Option.some("changes-requested"))
-    expect(standings.get(8)?.reviewed).toEqual(Option.some("review-required"))
-    expect(standings.get(9)?.reviewed).toEqual(Option.none())
+    expect(standings.get("6")?.reviewed).toEqual(Option.some("approved"))
+    expect(standings.get("7")?.reviewed).toEqual(Option.some("changes-requested"))
+    expect(standings.get("8")?.reviewed).toEqual(Option.some("review-required"))
+    expect(standings.get("9")?.reviewed).toEqual(Option.none())
   })
 })
 
 describe("joining the two reads", () => {
   test("a row gains what the deferred read said about it", () => {
     const joined = withStandings(
-      [one({ id: 100 })],
+      [one({ id: "100" })],
       standingsIn(
         deferred([
           {
-            id: 100,
+            id: "100",
             statusCheckRollup: { state: "SUCCESS", totalCount: 3, successCount: 3 },
             reviewDecisionState: "APPROVED"
           }
@@ -217,7 +217,7 @@ describe("joining the two reads", () => {
     // The distinction the reader depends on: no checks configured is finished,
     // and not yet asked about is still loading. An empty rollup would draw the
     // first while meaning the second.
-    const joined = withStandings([one({ id: 200 })], standingsIn(deferred([])))
+    const joined = withStandings([one({ id: "200" })], standingsIn(deferred([])))
 
     expect(joined[0]?.checks).toEqual(Option.none())
   })
@@ -234,8 +234,8 @@ describe("how big a pull request is", () => {
 
   test("a row gains the size that was read for it", () => {
     const joined = withSizes(
-      [one({ id: 300 })],
-      new Map([[300, { added: 120, deleted: 8 }]])
+      [one({ id: "300" })],
+      new Map([["300", { added: 120, deleted: 8 }]])
     )
 
     expect(joined[0]?.size).toEqual(Option.some({ added: 120, deleted: 8 }))
@@ -245,6 +245,6 @@ describe("how big a pull request is", () => {
     // Zero lines and not yet measured are different rows, and only one of them
     // is worth reading: `+0 −0` on a four thousand line change is a lie a row
     // has no way to correct.
-    expect(withSizes([one({ id: 400 })], new Map())[0]?.size).toEqual(Option.none())
+    expect(withSizes([one({ id: "400" })], new Map())[0]?.size).toEqual(Option.none())
   })
 })

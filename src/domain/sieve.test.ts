@@ -9,7 +9,7 @@ const NOW = Date.parse("2026-07-30T00:00:00Z")
 
 const one = (over: Partial<InvolvedPullRequest> = {}): InvolvedPullRequest => ({
   reference: { owner: "flazouh", repo: "octo-repo", number: 1457 },
-  id: 1457,
+  id: "1457",
   title: "price claude turns from the streamed usage",
   author: { login: "flazouh", isAutomated: false, faceUrl: Option.none() },
   state: "open",

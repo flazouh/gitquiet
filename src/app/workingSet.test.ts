@@ -33,7 +33,7 @@ const json = (body: unknown): Response =>
   new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } })
 
 const aRow = (over: Record<string, unknown> = {}) => ({
-  id: 4153828483,
+  id: "PR_kwDOABCDE84AAAAB",
   number: 1457,
   title: "price claude turns from the streamed usage",
   repoNameWithOwner: "octo-org/octo-repo",
@@ -128,7 +128,7 @@ describe("reading the whole Working Set", () => {
   test("asks for branches where two pull requests share a repository", async () => {
     const asked = intercept((url) => {
       if (url.includes("filter=needs-action")) {
-        return aShelf([aRow(), aRow({ id: 42, number: 1458, title: "the one above" })])
+        return aShelf([aRow(), aRow({ id: "42", number: 1458, title: "the one above" })])
       }
       if (url.includes("merge_box")) return new Response("nope", { status: 500 })
       return oneRow(url)

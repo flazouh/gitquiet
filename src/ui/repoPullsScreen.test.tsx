@@ -18,7 +18,7 @@ afterEach(cleanup)
 
 const involved = (number: number, over: Partial<InvolvedPullRequest> = {}): InvolvedPullRequest => ({
   reference: { owner: "vercel", repo: "next.js", number },
-  id: number,
+  id: String(number),
   title: `pull request ${number}`,
   author: { login: "icyJoseph", isAutomated: false, faceUrl: Option.none() },
   state: "open",

@@ -33,7 +33,7 @@ const json = (body: unknown): Response =>
   new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } })
 
 const aRow = (over: Record<string, unknown> = {}) => ({
-  id: 4120501898,
+  id: "PR_kwDOABCDE84AAAAB",
   number: 96113,
   title: "stop blurring on navigations",
   repoNameWithOwner: "vercel/next.js",
@@ -135,7 +135,7 @@ describe("reading one page of a repository's pull requests", () => {
       if (url.includes("/pulls?q=")) {
         const page = new URL(url).searchParams.get("page")
         return page === "2"
-          ? searchAnswer([aRow({ id: 42, number: 96114, title: "the second page" })], {
+          ? searchAnswer([aRow({ id: "42", number: 96114, title: "the second page" })], {
               currentPage: 2,
               totalPages: 2,
               totalCount: 2
@@ -260,7 +260,7 @@ describe("reading one page of a repository's pull requests", () => {
   test("hands over the flat rows before the branches fold them into a stack", async () => {
     intercept((url) => {
       if (url.includes("/pulls?q=")) {
-        return searchAnswer([aRow(), aRow({ id: 42, number: 96114, title: "the one above" })])
+        return searchAnswer([aRow(), aRow({ id: "42", number: 96114, title: "the one above" })])
       }
       if (url.includes("merge_box")) return new Response("nope", { status: 500 })
       return oneStranger(url)
@@ -282,7 +282,7 @@ describe("reading one page of a repository's pull requests", () => {
     // row is a candidate and all of them get asked about.
     const asked = intercept((url) => {
       if (url.includes("/pulls?q=")) {
-        return searchAnswer([aRow(), aRow({ id: 42, number: 96114, title: "the one above" })])
+        return searchAnswer([aRow(), aRow({ id: "42", number: 96114, title: "the one above" })])
       }
       if (url.includes("merge_box")) return new Response("nope", { status: 500 })
       return oneStranger(url)

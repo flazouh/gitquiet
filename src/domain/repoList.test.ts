@@ -213,7 +213,7 @@ describe("the address the filter box moves this page to", () => {
 describe("writing the reader's own involvement back onto a page of a repository", () => {
   const row = (id: number, over: Partial<InvolvedPullRequest> = {}): InvolvedPullRequest => ({
     reference: { owner: "o", repo: "r", number: id },
-    id,
+    id: String(id),
     title: `pull request ${id}`,
     author: { login: "someone", isAutomated: false, faceUrl: Option.none() },
     state: "open",
@@ -269,7 +269,7 @@ describe("writing the reader's own involvement back onto a page of a repository"
     const shown = onTheirShelves([row(1)], [on(1, "needs-action"), on(99, "needs-action")])
 
     expect(shown).toHaveLength(1)
-    expect(shown[0]?.id).toBe(1)
+    expect(shown[0]?.id).toBe("1")
   })
 
   test("keeps everything else the search said about the row", () => {

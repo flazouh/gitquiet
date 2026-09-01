@@ -16,7 +16,7 @@ afterEach(cleanup)
 
 const involved = (state: PullRequestState = "open"): InvolvedPullRequest => ({
   reference: { owner: "flazouh", repo: "octo-repo", number: 12 },
-  id: 12000,
+  id: "12000",
   title: "teach the reader to close a pull request",
   author: { login: "flazouh", isAutomated: false, faceUrl: Option.none() },
   state,

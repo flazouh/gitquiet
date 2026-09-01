@@ -25,7 +25,7 @@ afterEach(cleanup)
 
 const involved = (over: Partial<InvolvedPullRequest> = {}): InvolvedPullRequest => ({
   reference: { owner: "flazouh", repo: "octo-repo", number: 1 },
-  id: 1000,
+  id: "1000",
   title: "a pull request",
   author: { login: "flazouh", isAutomated: false, faceUrl: Option.none() },
   state: "open",

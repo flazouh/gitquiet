@@ -11,7 +11,7 @@ afterEach(cleanup)
 
 const involved = (title: string, number = 1): InvolvedPullRequest => ({
   reference: { owner: "flazouh", repo: "octo-repo", number },
-  id: number * 1000,
+  id: String(number * 1000),
   title,
   author: { login: "flazouh", isAutomated: false, faceUrl: Option.none() },
   state: "open",

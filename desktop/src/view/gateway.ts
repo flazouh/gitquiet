@@ -145,7 +145,7 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
    * written out separately and then one of them was not written at all, which is a
    * whole list drawn with no word for its checks.
    */
-  const standings = (wanted?: ReadonlySet<number>): Standings =>
+  const standings = (wanted?: ReadonlySet<string>): Standings =>
     new Map(
       rows
         .filter((row) => wanted === undefined || wanted.has(row.id))
@@ -218,7 +218,7 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
             )
       ),
 
-    standingsFor: (ids: ReadonlyArray<number>) => Effect.succeed(standings(new Set(ids))),
+    standingsFor: (ids: ReadonlyArray<string>) => Effect.succeed(standings(new Set(ids))),
 
     branches: (reference: PullRequestRef) =>
       Effect.succeed(
