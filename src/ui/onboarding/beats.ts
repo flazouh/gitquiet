@@ -60,7 +60,7 @@ export const BEATS: ReadonlyArray<Beat> = [
    */
   {
     title: "Welcome to GitQuiet.",
-    says: ["GitHub is where your work lives. GitQuiet is where you do it."],
+    says: ["A faster, quieter GitHub."],
     picture: "working-set"
   },
   {

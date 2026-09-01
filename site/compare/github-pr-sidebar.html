@@ -20,7 +20,30 @@
     <meta name="twitter:image" content="https://gitquiet.com/og.png" />
   </head>
   <body>
-    <div id="page"></div>
+    <div id="page">
+      <!--
+        The copy a crawler that never runs the bundle can still read. Indexes that skip
+        JavaScript kept only /privacy, because that file is HTML and this one was an
+        empty #page waiting for React. createRoot replaces this on mount; that is
+        intended.
+      -->
+      <main>
+        <p>GitQuiet vs GitHub PR Sidebar</p>
+        <h1>One screen, not a side panel and a new tab.</h1>
+        <p>GitQuiet is a working set in the tab. GitHub PR Sidebar is a Chromium side panel; a click opens GitHub in a new tab.</p>
+        <h2>GitHub PR Sidebar</h2>
+        <p>GitHub PR Sidebar has no site of its own, only a Chrome listing. It is a Chromium side panel. It asks for a PAT. Groups are thinner. Opening a pull request leaves the panel.</p>
+        <p>No site of its own.</p>
+        <h2>GitQuiet</h2>
+        <p>GitQuiet files every pull request you are in on github.com by next action: Needs You, Waiting, Running, Settled. Existing session. No extra login. Not an AI reviewer.</p>
+        <p>Same job as PRFlow: a list in Chrome's side panel. Same gap: the list is not the place you work, and it needs a token GitQuiet does not. Attention Set is the same PAT near-miss in a whose-turn popup. GitQuiet files by next action, including Running.</p>
+        <p>
+          <a href="/compare/prflow">GitQuiet vs PRFlow</a>
+          <a href="/compare/refined-github">GitQuiet vs Refined GitHub</a>
+          <a href="/compare/octobox">GitQuiet vs Octobox</a>
+        </p>
+      </main>
+    </div>
     <script type="module" src="/src/compare.tsx"></script>
   </body>
 </html>
