@@ -1339,19 +1339,27 @@ export type PreviewStackRoute = typeof PreviewStackRoute["Type"]
  * ordinary kind. Stacks are found from base and head branches instead, which
  * this row does not carry at all — see `src/domain/stacks.ts`.
  */
-const WorkingSetRow = Schema.Struct({
-  /**
-   * GitHub's node id, which is what the deferred route is keyed by.
-   *
-   * A string such as `PR_kwDOQbgJEc8AAAABBO1ScQ`, not a number. GitHub sent a
-   * numeric database id here until 2026-08-27, when both this route and the
-   * deferred route moved to the GraphQL node id and the deferred route's own
-   * parameter was renamed from `pr_ids[]` to `ids[]`. Nothing here reads the id;
-   * it is an opaque key that has to match between a row and the deferred answer
-   * about it, so its only requirement is that both routes spell it the same way,
-   * which they still do.
-   */
-  id: Schema.String,
+/**
+ * An identifier this codebase only ever matches, never reads.
+ *
+ * GitHub sent a numeric database id on these routes until 2026-08-27, then moved
+ * to a GraphQL node id string such as `PR_kwDOQbgJEc8AAAABBO1ScQ` in the same
+ * change that renamed the deferred route's parameter from `pr_ids[]` to `ids[]`.
+ * The old numeric schema then decoded no row and both the Working Set and a
+ * repository's list drew the read-failed screen.
+ *
+ * So an id here is a string or a number, and either is accepted. Nothing reads
+ * its value — it is an opaque key that has to match between a row and the
+ * deferred answer about it — so `involvedFrom` and `standingsIn` put it through
+ * `String()` and the rest of the codebase sees one type. A flip in either
+ * direction is then a non-event rather than a blank screen. This is the one
+ * place the "never guess" rule bends, and it bends safely: a key nobody
+ * interprets cannot be interpreted wrongly.
+ */
+export const OpaqueId = Schema.Union([Schema.String, Schema.Number])
+
+export const WorkingSetRow = Schema.Struct({
+  id: OpaqueId,
   number: Schema.Number,
   title: Schema.String,
   /** `owner/repo`, since the Working Set crosses repositories. */
@@ -1430,8 +1438,8 @@ export type Listing = typeof Listing["Type"]
 export const DeferredRoute = Schema.Struct({
   results: Schema.Array(
     Schema.Struct({
-      /** The node id, matching {@link WorkingSetRow.id}. A string, not a number. */
-      id: Schema.String,
+      /** The id, matching {@link WorkingSetRow.id}. String or number, see {@link OpaqueId}. */
+      id: OpaqueId,
       /**
        * Absent altogether on a pull request with no checks at all, which one
        * observed row was — hence optional rather than merely nullable.

@@ -67,7 +67,11 @@ export const involvedFrom = (
 ): Option.Option<InvolvedPullRequest> =>
   Option.map(splitRepo(row.repoNameWithOwner), ({ owner, repo }) => ({
     reference: { owner, repo, number: row.number },
-    id: row.id,
+    // `String()` because the id is opaque and GitHub has sent it as both a number
+    // and a string — see {@link OpaqueId}. Normalised here so the rest of the
+    // codebase keys by one type, and so a row and the deferred answer about it
+    // match whichever shape GitHub is sending this week.
+    id: String(row.id),
     title: row.title,
     author: {
       // A row without an author is one whose account is gone. GitHub renders
@@ -149,7 +153,9 @@ export const standingsIn = (route: DeferredRoute): Standings => {
   >()
 
   for (const result of route.results) {
-    found.set(result.id, {
+    // `String()` for the reason `involvedFrom` gives: an opaque id GitHub sends
+    // as a number or a string, keyed here the one way the rows are keyed.
+    found.set(String(result.id), {
       checks: Option.map(nothing(result.statusCheckRollup), (rollup) => ({
         state: rollupState(rollup.state),
         total: rollup.totalCount,

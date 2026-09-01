@@ -41,6 +41,21 @@ describe("reading a Working Set row as an Involved Pull Request", () => {
     expect(one().id).toBe("PR_kwDOABCDE84AAAAB")
   })
 
+  test("takes the id as a string or a number, and keys by a string either way", () => {
+    // The 2026-08-27 break, made a non-event. GitHub sent a numeric id here for
+    // years and a node id string after, and the deferred answer is keyed by
+    // whichever the row carried. `String()` at both ends means a flip in either
+    // direction still matches rather than blanking the list. See `OpaqueId`.
+    expect(one({ id: 4153828483 }).id).toBe("4153828483")
+    expect(one({ id: "PR_kwDOABCDE84AAAAB" }).id).toBe("PR_kwDOABCDE84AAAAB")
+
+    const numeric = withStandings(
+      [one({ id: 4153828483 })],
+      standingsIn(deferred([{ id: 4153828483, reviewDecisionState: "APPROVED" }]))
+    )
+    expect(numeric[0]?.reviewed).toEqual(Option.some("approved"))
+  })
+
   test("a draft arrives as open with a flag, and becomes a draft", () => {
     // GitHub reports a draft as OPEN with isDraft set. Everything above this
     // treats draft as a state of its own, because a draft can be neither merged
