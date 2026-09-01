@@ -121,9 +121,10 @@ removes it by construction.
 
 ## Issues
 
-One per page, opened 2026-09-01, in the order to build them:
-[#43 file view](https://github.com/flazouh/gitquiet/issues/43),
-[#44 folder listing](https://github.com/flazouh/gitquiet/issues/44),
-[#45 blame](https://github.com/flazouh/gitquiet/issues/45),
-[#46 compare](https://github.com/flazouh/gitquiet/issues/46),
-[#47 search](https://github.com/flazouh/gitquiet/issues/47).
+One per page, opened 2026-09-01 on the private notes repository, in the order
+to build them:
+[gitquiet-notes#1 file view](https://github.com/flazouh/gitquiet-notes/issues/1),
+[#2 folder listing](https://github.com/flazouh/gitquiet-notes/issues/2),
+[#3 blame](https://github.com/flazouh/gitquiet-notes/issues/3),
+[#4 compare](https://github.com/flazouh/gitquiet-notes/issues/4),
+[#5 search](https://github.com/flazouh/gitquiet-notes/issues/5).
