@@ -220,12 +220,17 @@ export const Merge = ({
   /*
    * Whether a merge press here joins the queue rather than landing now.
    *
-   * The repository having a queue is the whole of it. After `whatCanBeDone` the
-   * merge button is offered on such a repository only for a layer of a stack,
-   * which posts `enqueue_stack` — joining the queue by the stack's own route —
-   * so the word on it has to say joining rather than merging.
+   * Both halves asked, rather than the queue alone. A queued repository offers
+   * this button for one thing — a layer of a stack, which posts `enqueue_stack`
+   * and so joins the line by the stack's own route — but that is `whatCanBeDone`'s
+   * rule and not this card's to assume. Read from the queue alone, the word would
+   * be right only for as long as that rule holds somewhere else, which is how the
+   * button came to say "Merge when ready" over a press already sent elsewhere.
    */
-  const queued = Option.isSome(Option.flatMap(live, (said) => said.queue))
+  const queued = Option.match(live, {
+    onNone: () => false,
+    onSome: (said) => Option.isSome(said.queue) && Option.isSome(said.stack)
+  })
 
   /*
    * The other ways each of the two buttons could land, or nothing to offer.

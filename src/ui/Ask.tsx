@@ -214,6 +214,23 @@ const STACK_MERGE_WORD: Record<MergeMethod, string> = {
 }
 
 /**
+ * The same press again, where the repository lands through a merge queue.
+ *
+ * A layer of a stack is the one thing the merge button still asks for on a
+ * queued repository — see `whatCanBeDone`, which sends a layer by the stack's
+ * own route whatever the queue does. That press joins the line rather than
+ * landing anything now, so a word naming a commit would promise work the queue
+ * has not agreed to do yet, and "Merge stack" would say it had already happened.
+ *
+ * Which is why neither of these names a method. GitHub's own button drops it
+ * here too, and for the same reason rather than by copying them: the method is
+ * still sent and still decides the commits, but it is not what the press does
+ * next.
+ */
+const QUEUED_STACK_WORD = "Enqueue stack"
+const QUEUED_LAYER_WORD = "Enqueue pull request"
+
+/**
  * What a button says, once the repository has had its say about merging.
  *
  * Every verb but the merge reads straight off {@link WORDS}. The merge is the
@@ -227,33 +244,15 @@ const STACK_MERGE_WORD: Record<MergeMethod, string> = {
  * than a table read twice: a method whose two names disagreed would be a menu
  * whose tick lands on a word the button does not say.
  */
-/**
- * The same press, where the repository lands through a merge queue.
- *
- * A layer of a stack is the one thing this button still asks for on a queued
- * repository — see `whatCanBeDone`, which sends a layer by the stack's own route
- * whatever the queue does. That press joins the queue rather than landing
- * anything now, so a word naming a commit would promise work the queue has not
- * agreed to do yet, and "Merge stack" would say the merge had happened.
- *
- * GitHub's own button drops the method here and says one of these two. So does
- * this, and for their reason rather than by copying them: the method is still
- * sent and still decides the commits, but it is not what the press does next.
- */
-const QUEUED_STACK_WORD = "Enqueue stack"
-const QUEUED_LAYER_WORD = "Enqueue pull request"
-
 export const mergeWord = (
   method: MergeMethod,
   landsStack: boolean,
   /** Whether the press joins a queue rather than landing now. */
   queued = false
-): string =>
-  queued
-    ? landsStack
-      ? QUEUED_STACK_WORD
-      : QUEUED_LAYER_WORD
-    : (landsStack ? STACK_MERGE_WORD : MERGE_WORD)[method]
+): string => {
+  if (queued) return landsStack ? QUEUED_STACK_WORD : QUEUED_LAYER_WORD
+  return (landsStack ? STACK_MERGE_WORD : MERGE_WORD)[method]
+}
 
 /**
  * What each way of catching a branch up is called.
