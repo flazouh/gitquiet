@@ -69,6 +69,7 @@ import {
 } from "@/ui/navigation";
 import {
   ACTIONS,
+  BLAME,
   COMMIT,
   COMMITS,
   CONVERSATION,
@@ -155,6 +156,7 @@ const PLACE_OF: Record<Wanted, Place> = {
   "repo-issues": REPO_ISSUES,
   raise: RAISE,
   issues: ISSUES,
+  blame: BLAME,
   run: RUN,
   actions: ACTIONS,
   releases: RELEASES,

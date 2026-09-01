@@ -18,6 +18,12 @@ describe("the title an address earns the moment it is the page", () => {
     )
   })
 
+  test("blame keeps the file's own name in front of the repository's", () => {
+    expect(titleAt("blame", "/flazouh/gitquiet/blame/main/src/ui/going.ts")).toBe(
+      "Blame of going.ts · flazouh/gitquiet"
+    )
+  })
+
   test("a pull request says its number before its words are known", () => {
     expect(titleAt("pull-request", "/oven-sh/bun/pull/1934")).toBe(
       "Pull Request #1934 · oven-sh/bun"
