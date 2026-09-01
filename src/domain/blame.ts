@@ -1,5 +1,5 @@
 import { Option } from "effect"
-import { NOT_AN_OWNER } from "./repoHome"
+import { NOT_AN_OWNER, unescaped } from "./repoHome"
 
 /**
  * A file's blame — `/owner/repo/blame/BRANCH/PATH`.
@@ -98,15 +98,6 @@ export const blameIn = (url: string): Option.Option<BlameAt> => {
 
   return Option.some({ repo: { owner, repo }, branch, path })
 }
-
-/**
- * A path segment as it was written, or as it arrived where it is not escaped.
- *
- * A lone `%` in a file name is a segment `decodeURIComponent` throws on, and a
- * file named that way is a file, not an address this refuses to read.
- */
-const unescaped = (segment: string): string =>
-  Option.getOrElse(Option.liftThrowable(decodeURIComponent)(segment), () => segment)
 
 /**
  * Every {@link Range} of a blame page, banded into {@link Span}s.

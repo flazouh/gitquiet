@@ -1,16 +1,11 @@
-import { Effect, Option } from "effect"
-import { type CSSProperties, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
-import { diffChoices } from "../domain/choices"
+import { Option } from "effect"
+import { useEffect, useState } from "react"
 import type { Opened } from "../domain/repoHome"
-import { wholeFile } from "../domain/wholeFile"
-import { type DiffEngine, PAPER } from "../ports/Renderer"
 import { FileAlso } from "./FileAlso"
 import { FileMark } from "./FileHeading"
 import { Markdown } from "./Markdown"
-import { useRenderer } from "./renderer"
-import { usePaintedTheme } from "./Theme"
-import { useSettings } from "./useSettings"
 import { type Way, Ways } from "./Ways"
+import { WholeFile } from "./WholeFile"
 
 export type ReadingProps = {
   readonly path: string
@@ -39,78 +34,6 @@ export type ReadingProps = {
  * label strip that `quiet.css` deliberately leaves unpainted.
  */
 const SHEET = "bg-raised"
-
-/**
- * The file, drawn by the renderer every diff on every other screen is drawn by.
- *
- * A file nothing has happened to is a patch of all context, so this hands the
- * renderer one and gets the reader's theme, font, wrapping and line numbers for
- * nothing. See `src/domain/wholeFile.ts`.
- */
-const Source = ({ opened }: { readonly opened: Opened }) => {
-  const host = useRef<HTMLDivElement | null>(null)
-  const load = useRenderer()
-  const painted = usePaintedTheme()
-  const { settings } = useSettings()
-  const [engine, setEngine] = useState<DiffEngine | null>(null)
-  const [unavailable, setUnavailable] = useState(false)
-
-  const patch = useMemo(() => wholeFile(opened.path, opened.lines), [opened])
-  // Deferred for the same reason as `Shell`: redrawing the file is heavy, and
-  // the click that changed a knob paints its menu before this catches up.
-  const settled = useDeferredValue(settings)
-  const choices = useMemo(() => diffChoices(settled.diff), [settled.diff])
-
-  useEffect(() => {
-    const loading = Effect.runFork(
-      load.pipe(Effect.match({ onSuccess: setEngine, onFailure: () => setUnavailable(true) }))
-    )
-    return () => loading.interruptUnsafe()
-  }, [load])
-
-  useEffect(() => {
-    const container = host.current
-    const source = Option.getOrNull(patch)
-    if (engine === null || container === null || source === null) return
-
-    const live = engine.renderDiff(container, {
-      patch: source,
-      path: opened.path,
-      theme: painted.scheme,
-      pack: painted.pack,
-      // Unified whatever the reader chose for diffs. Split is two columns of the
-      // same file here, which is the setting doing the opposite of what it is
-      // for: there is no before and after in a file nothing happened to.
-      choices: { ...choices, layout: "unified" },
-      notes: [],
-      fillNote: () => undefined
-    })
-    return () => live.destroy()
-  }, [engine, patch, opened.path, choices, painted.scheme, painted.pack])
-
-  if (Option.isNone(patch)) {
-    return <p className="px-4 py-3 text-sm text-ink-muted">This file is empty.</p>
-  }
-
-  if (unavailable) {
-    return (
-      <p className="px-4 py-3 text-sm text-ink-muted">
-        The renderer could not be loaded, so nothing is shown rather than half of it.
-      </p>
-    )
-  }
-
-  /*
-   * The renderer paints its own background, so it is told which one.
-   *
-   * Everywhere else it prints on the page's canvas and there that is right: a
-   * diff is the whole screen. Here the file is one card of three, so it prints
-   * on the sheet and the page shows around it. The variable is the only way in:
-   * the renderer writes its colours onto its own host as inline styles, which no
-   * container can overrule, but it reads this one from whatever is above it.
-   */
-  return <div ref={host} style={{ [PAPER]: "var(--color-raised)" } as CSSProperties} />
-}
 
 /** The two ways to read the same markdown file, where GitHub rendered it. */
 const WAYS = [
@@ -199,7 +122,7 @@ export const Reading = ({
             />
           </div>
         ) : (
-          <Source opened={opened} />
+          <WholeFile path={opened.path} lines={opened.lines} />
         )}
       </div>
     </section>

@@ -7,6 +7,18 @@ read), GitHub Community discussions (upvotes from the GraphQL `upvoteCount`),
 and the feature lists of 20 competing tools. The covered list is the 19 places
 in `src/ui/place.ts`.
 
+## Correction, 2026-09-02
+
+The code was read after this survey, not before it. Two of the three addresses named
+below as the file view are already built: the repository front page owns `/tree/` and
+`/blob/`, and a file opened there is drawn by the diff renderer every other screen uses,
+whole in the document, with the browser's own find and selection left alone. That is the
+fix the complaints in section 1 ask for. What was uncovered was blame alone, and
+`docs/spec/blame.md` covers it; it is built on the `stand-on-body` branch. What the file
+view still lacks is smaller: a line or range in the address (`#L42-L48`) opening at those
+lines, a folder address opening the folder rather than a failed file, and a said reason
+on a file GitHub sends without its lines. The ranking below is kept as it was found.
+
 ## The answer
 
 The single-file view, `/OWNER/REPO/blob/BRANCH/PATH`, with the directory

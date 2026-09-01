@@ -1,24 +1,19 @@
-import { Effect, Option } from "effect"
-import { type CSSProperties, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
+import type { Effect, Option } from "effect"
+import { useMemo, useRef } from "react"
 import { createPortal } from "react-dom"
-import { diffChoices } from "../domain/choices"
 import type { Blamed } from "../domain/blame"
 import { spansOf } from "../domain/blame"
 import type { RepoRef } from "../domain/PullRequestRef"
 import type { Repository } from "../domain/repositories"
-import { wholeFile } from "../domain/wholeFile"
-import { type DiffEngine, PAPER } from "../ports/Renderer"
 import { keyOf, notesOf } from "./blameNotes"
 import { DrawnAt } from "./drawnAt"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
-import { useRenderer } from "./renderer"
 import { SpanHeading } from "./SpanHeading"
 import { TheBar } from "./TheBar"
-import { usePaintedTheme } from "./Theme"
 import { useLive } from "./useLive"
-import { useSettings } from "./useSettings"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
+import { WholeFile } from "./WholeFile"
 
 export type BlameScreenProps = {
   readonly repo: RepoRef
@@ -39,22 +34,14 @@ export type BlameScreenProps = {
 /**
  * The whole file, with each Span's commit hung as a row where it starts.
  *
- * The same renderer every other screen draws a file through — see
- * `ReadingPane`'s `Source`, which this mirrors — so the file is whole in the
- * document from the first paint and browser find works on all of it. What is
- * new is the rows: one per Span past the first, hung under the last line of
- * whatever came before it, each carrying that commit's face, name, message
- * and age, or a thin divider where the commit already told its story higher
- * on the page.
+ * The file itself is `WholeFile`, the same drawing the pane beside a
+ * repository's tree uses. What is blame's own is the rows: one per Span past
+ * the first, hung under the last line of whatever came before it, each
+ * carrying that commit's face, name, message and age, or a thin divider where
+ * the commit already told its story higher on the page. The first Span has no
+ * line to hang under, so it stands above the file instead.
  */
 const BlamedFile = ({ blamed, path }: { readonly blamed: Blamed; readonly path: string }) => {
-  const host = useRef<HTMLDivElement | null>(null)
-  const load = useRenderer()
-  const painted = usePaintedTheme()
-  const { settings } = useSettings()
-  const [engine, setEngine] = useState<DiffEngine | null>(null)
-  const [unavailable, setUnavailable] = useState(false)
-
   const spans = useMemo(() => spansOf(blamed.ranges, blamed.commits), [blamed])
   const notes = useMemo(() => notesOf(spans), [spans])
   /*
@@ -69,13 +56,10 @@ const BlamedFile = ({ blamed, path }: { readonly blamed: Blamed; readonly path: 
   )
   const first = spans[0]
 
-  const patch = useMemo(() => wholeFile(path, blamed.lines), [path, blamed.lines])
-  const settled = useDeferredValue(settings)
-  const choices = useMemo(() => diffChoices(settled.diff), [settled.diff])
-
-  // One element per row, made once and kept: the renderer asks for a row's
-  // contents while it is drawing, and a row rebuilt on every render would be
-  // a heading the portal below has to reattach every time.
+  // One element per row, made once and kept, the way `Files` keeps its own:
+  // the renderer asks for a row's contents while it is drawing, and a row
+  // rebuilt on every render would be a heading the portal below has to
+  // reattach every time.
   const rows = useRef(new Map<string, HTMLElement>())
   const rowFor = (key: string): HTMLElement => {
     const held = rows.current.get(key)
@@ -86,46 +70,15 @@ const BlamedFile = ({ blamed, path }: { readonly blamed: Blamed; readonly path: 
   }
   for (const note of notes) rowFor(note.key)
 
-  useEffect(() => {
-    const loading = Effect.runFork(
-      load.pipe(Effect.match({ onSuccess: setEngine, onFailure: () => setUnavailable(true) }))
-    )
-    return () => loading.interruptUnsafe()
-  }, [load])
-
-  useEffect(() => {
-    const container = host.current
-    const source = Option.getOrNull(patch)
-    if (engine === null || container === null || source === null) return
-
-    const live = engine.renderDiff(container, {
-      patch: source,
-      path,
-      theme: painted.scheme,
-      pack: painted.pack,
-      choices: { ...choices, layout: "unified" },
-      notes,
-      fillNote: (key) => rows.current.get(key)
-    })
-    return () => live.destroy()
-  }, [engine, patch, path, choices, painted.scheme, painted.pack, notes])
-
-  if (Option.isNone(patch)) {
-    return <p className="p-4 text-sm text-ink-muted">This file is empty.</p>
-  }
-
-  if (unavailable) {
-    return (
-      <p className="p-4 text-sm text-ink-muted">
-        The renderer could not be loaded, so nothing is shown rather than half of it.
-      </p>
-    )
-  }
-
   return (
     <>
       {first === undefined ? null : <SpanHeading span={first} />}
-      <div ref={host} style={{ [PAPER]: "var(--color-raised)" } as CSSProperties} />
+      <WholeFile
+        path={path}
+        lines={blamed.lines}
+        notes={notes}
+        fillNote={(key) => rows.current.get(key)}
+      />
       {[...rows.current].map(([key, node]) => {
         const span = bySpanKey.get(key)
         return span === undefined ? null : createPortal(<SpanHeading span={span} />, node)

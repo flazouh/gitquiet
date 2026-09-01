@@ -475,5 +475,5 @@ export const repoHomeIn = (url: string): Option.Option<RepoHome> => {
  * A lone `%` in a file name is a segment `decodeURIComponent` throws on, and a
  * file named that way is a file, not an address this refuses to read.
  */
-const unescaped = (segment: string): string =>
+export const unescaped = (segment: string): string =>
   Option.getOrElse(Option.liftThrowable(decodeURIComponent)(segment), () => segment)
