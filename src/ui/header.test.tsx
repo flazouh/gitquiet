@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen } from "@testing-library/react"
 import { Option } from "effect"
 import { AUTHOR, aMergeState, aSnapshot } from "../../tests/snapshots"
-import type { Seat } from "../domain/PullRequest"
+import type { MergeQueue, Seat } from "../domain/PullRequest"
 import { Header } from "./Header"
 import { BROWSER } from "./marks"
 
@@ -11,6 +11,15 @@ afterEach(cleanup)
 /** Long enough ago that ages are printed as dates, so the clock cannot move them. */
 const OPENED = "2024-02-28T09:00:00Z"
 const ENDED = "2024-03-02T10:00:00Z"
+
+/** A queue this pull request is standing in, first in line. */
+const inTheQueue: MergeQueue = {
+  waiting: true,
+  position: Option.some(1),
+  viewerCanQueue: true,
+  mayJoin: true,
+  url: Option.none()
+}
 
 describe("the badge that says where a pull request stands", () => {
   test("says when it landed, beside the word", () => {
@@ -39,6 +48,44 @@ describe("the badge that says where a pull request stands", () => {
     const badge = screen.getByLabelText("Open 28 Feb")
     expect(badge.textContent).toContain("Open")
     expect(badge.textContent).toContain("28 Feb")
+  })
+
+  test("says Queued, on one standing in the merge queue, since that is where it stands", () => {
+    // GitHub's own page badges a pull request in the queue "Queued", and a
+    // reader arriving here from it saw "Open" on the same pull request: the
+    // one word that says the merge is already in hand was the one word missing.
+    // The state itself stays open — see `stateOf` — so the badge reads the
+    // queue, which is the thing that knows.
+    render(
+      <Header
+        snapshot={aSnapshot({
+          state: "open",
+          openedAt: Option.some(OPENED),
+          merge: aMergeState({ queue: Option.some(inTheQueue) })
+        })}
+      />
+    )
+
+    const badge = screen.getByLabelText("Queued 28 Feb")
+    expect(badge.textContent).toContain("Queued")
+    expect(badge.textContent).not.toContain("Open")
+    expect(badge.className).toContain("text-busy")
+  })
+
+  test("still says Open where the repository has a queue this one has not joined", () => {
+    // A queue is a fact about the repository; standing in it is a fact about
+    // this pull request. Only the second changes the word.
+    render(
+      <Header
+        snapshot={aSnapshot({
+          state: "open",
+          openedAt: Option.some(OPENED),
+          merge: aMergeState({ queue: Option.some({ ...inTheQueue, waiting: false }) })
+        })}
+      />
+    )
+
+    expect(screen.getByLabelText("Open 28 Feb")).toBeDefined()
   })
 
   test("says when it was opened, on a draft, since that is when it began", () => {

@@ -440,7 +440,9 @@ const whatIsInTheWay = (
       readonly conflicts?: ReadonlyArray<string> | null | undefined
       readonly isConflictResolvableInWeb?: boolean | null | undefined
     }>
-  } | null
+  } | null,
+  /** Whether this pull request is standing in the merge queue. */
+  inQueue: boolean
 ): Pick<MergeState, "isMergeable" | "blockers"> => {
   // Null once it has landed. Nothing is required of a pull request that is
   // already in, and saying "not ready to merge" over one would be this reading
@@ -449,8 +451,15 @@ const whatIsInTheWay = (
 
   const isMergeable =
     requirements.state === "MERGEABLE" || requirements.state === "MERGEABLE_IF_STATUSES_PASS"
+  // Their "must be open and not in draft mode" condition fails on a pull request
+  // in the queue, because the state it reads is QUEUED rather than OPEN. Their
+  // own page hides the requirements behind the queue box, so nobody sees it
+  // there; drawn here it was the queue objecting to a pull request it had
+  // already taken. Only while standing in the line: a draft the queue has not
+  // taken fails the same condition for the reason it names.
   const failed = requirements.conditions
     .filter((condition) => condition.result === "FAILED")
+    .filter((condition) => !(inQueue && condition.type === "PULL_REQUEST_STATE"))
     .map((condition) => ({
       name: condition.displayName,
       explanation: whatWentWrong(condition.message) ?? condition.description,
@@ -1164,9 +1173,13 @@ export const toSnapshot = Effect.fn("toSnapshot")(function* (
     reviews,
     merge: Option.map(box, (said) => {
       const landing = landingMethods(said.pullRequest)
+      const queue = mergeQueue(said.pullRequest)
       return {
-        ...whatIsInTheWay(said.mergeRequirements),
-        queue: mergeQueue(said.pullRequest),
+        ...whatIsInTheWay(
+          said.mergeRequirements,
+          Option.exists(queue, (said) => said.waiting)
+        ),
+        queue,
         autoMerge: autoMergeOf(said.pullRequest),
         mayBypass: said.pullRequest.viewerCanAdminBypassMergeRequirements === true,
         update: branchUpdate(said.pullRequest),

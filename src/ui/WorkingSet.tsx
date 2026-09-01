@@ -8,6 +8,7 @@ import {
   nameOf,
   pageOf
 } from "../domain/issues"
+import type { PullRequestState } from "../domain/PullRequest"
 import type { PullRequestRef } from "../domain/PullRequestRef"
 import { asked, sieveOf, termsIn, undecided } from "../domain/sieve"
 import { stepping } from "../domain/stepping"
@@ -381,6 +382,18 @@ const Sized = ({ size }: { readonly size: Option.Option<Size> }) =>
     )
   })
 
+/**
+ * The colour of the glyph on a row.
+ *
+ * Green is the colour of a live merge button, which a row standing in the
+ * queue is not: that one is drawn in the colour of a wait, and everything
+ * that is over is drawn in the colour of nothing to do.
+ */
+const glyphTone = (state: PullRequestState, inQueue: boolean): string => {
+  if (inQueue) return "text-busy"
+  return state === "open" ? "text-pass" : "text-ink-muted"
+}
+
 const Row = ({
   one,
   court,
@@ -401,7 +414,10 @@ const Row = ({
   readonly stackPosition?: { readonly at: number; readonly of: number }
 }) => {
   const art = useArt()
-  const Art = art[pullRequestName(one.state)]
+  // The shelf is GitHub's word for where this row was found, and the queue's
+  // shelf is the one place a listing says a pull request is standing in line.
+  const inQueue = Option.exists(one.shelf, (shelf) => shelf === "merge-queue")
+  const Art = art[pullRequestName(one.state, inQueue)]
   const address = addressOf(one.reference)
   const at = arriving(address)
   const here = isWithin(one.reference, within)
@@ -477,9 +493,12 @@ const Row = ({
          */}
         <Who login={one.author.login} src={Option.getOrUndefined(one.author.faceUrl)} />
 
+        {/* Named only when queued: the Court heading already says Running,
+            and the glyph is the one thing on the row that says why. */}
         <Art
           size={14}
-          className={`shrink-0 ${one.state === "open" ? "text-pass" : "text-ink-muted"}`}
+          aria-label={inQueue ? "Queued" : undefined}
+          className={`shrink-0 ${glyphTone(one.state, inQueue)}`}
         />
 
         {/*
