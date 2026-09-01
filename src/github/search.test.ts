@@ -110,6 +110,20 @@ describe("reading a page of GitHub's pull request search", () => {
     expect(found.rows[0]?.why).toEqual(Option.none())
   })
 
+  test("drops a row it cannot read and keeps the rest, rather than blanking the page", async () => {
+    // The resilience the loose listing buys. A row whose shape GitHub changed, or
+    // one carrying a field in a form nothing here decodes, costs that one row. The
+    // twenty-four beside it are still the list the reader came for. Only a payload
+    // with no rows array at all is a read that failed.
+    intercept(() =>
+      Response.json(searchPayload([aRow(), { itemType: "pull_request", broken: true }, aRow({ permalink: "https://github.com/vercel/next.js/pull/96114", number: 96114 })]))
+    )
+
+    const found = await Effect.runPromise(searching("repo:vercel/next.js is:pr"))
+
+    expect(found.rows.map((row) => row.reference.number)).toEqual([96113, 96114])
+  })
+
   test("says how many there are altogether, where GitHub said", async () => {
     // A repository can have two thousand open pull requests and a page holds
     // twenty-five. Without the count the reader cannot tell a small repository from

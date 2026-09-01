@@ -1405,6 +1405,17 @@ export const WorkingSetRow = Schema.Struct({
 
 export type WorkingSetRow = typeof WorkingSetRow["Type"]
 
+/** How many rows there are altogether, when GitHub says. Shared by both listings below. */
+const PageInfo = Schema.optional(
+  Schema.NullOr(
+    Schema.Struct({
+      currentPage: Schema.Number,
+      totalPages: Schema.Number,
+      totalCount: Schema.Number
+    })
+  )
+)
+
 /**
  * A page of rows, which is what both of their pull request lists answer with.
  *
@@ -1412,21 +1423,39 @@ export type WorkingSetRow = typeof WorkingSetRow["Type"]
  * `/pulls?q=…` serves an arbitrary search, and the rows are the same rows. Only the
  * shelf route fills in `category`, so what a payload holds is said by which route was
  * asked rather than by anything in the answer, and both callers know which they asked.
+ *
+ * The strict version, every row decoded. This is what `check-drift` reads a live
+ * page against, so a field that changed shape fails here and is caught the day it
+ * ships. The runtime reads {@link LooseListing} instead, for the reason given there.
  */
 export const Listing = Schema.Struct({
   results: Schema.Array(WorkingSetRow),
-  pageInfo: Schema.optional(
-    Schema.NullOr(
-      Schema.Struct({
-        currentPage: Schema.Number,
-        totalPages: Schema.Number,
-        totalCount: Schema.Number
-      })
-    )
-  )
+  pageInfo: PageInfo
 })
 
 export type Listing = typeof Listing["Type"]
+
+/**
+ * The same page, with the rows left undecoded.
+ *
+ * What the runtime reads, so that one row GitHub changed does not take the other
+ * twenty-four with it. `whereverItIs` finds the page by its `results` array, and
+ * `involvedIn` then decodes each row on its own with {@link WorkingSetRow},
+ * keeping the ones that decode and dropping the ones that do not. A repository's
+ * list drawn short is worth more than a repository's list drawn blank.
+ *
+ * The cost is that the finder is less specific: it locates any object with a
+ * `results` array rather than one whose rows have the shape of a pull request.
+ * The two routes that read a Listing each answer with exactly one such object, so
+ * on those two the looseness costs nothing — and the strict {@link Listing} above
+ * is what still guards the shape, on a schedule, before a reader is involved.
+ */
+export const LooseListing = Schema.Struct({
+  results: Schema.Array(Schema.Unknown),
+  pageInfo: PageInfo
+})
+
+export type LooseListing = typeof LooseListing["Type"]
 
 /**
  * What the rows arrive without: how the checks stand, and how the reviews did.
