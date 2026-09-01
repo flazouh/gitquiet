@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
-import { GHOST_ID, plantGistSearch } from "./gistSearch"
+import { GHOST_ID, plantGistSearch, reapplyGistSearch } from "./gistSearch"
 
 const html = readFileSync("tests/fixtures/gistList.html", "utf8")
 const pageOf = (source: string): Document => new DOMParser().parseFromString(source, "text/html")
@@ -78,5 +78,37 @@ describe("the search bar over a reader's own gists", () => {
     plantGistSearch(page)
 
     expect(page.getElementById(GHOST_ID)).toBeNull()
+  })
+
+  test("matches on the extra text a caller supplies, for a Label GitHub does not carry", () => {
+    const page = pageOf(html)
+    plantGistSearch(page, (id) => (id === "bbb222" ? "backoff-strategy" : ""))
+
+    typeInto(page, "backoff-strategy")
+
+    expect(visibleTitles(page)).toEqual(["retry.py"])
+  })
+
+  test("re-runs the search already typed, against fresh extra text", () => {
+    const page = pageOf(html)
+    let label = ""
+    plantGistSearch(page, (id) => (id === "bbb222" ? label : ""))
+
+    typeInto(page, "backoff-strategy")
+    expect(visibleTitles(page)).toEqual([])
+
+    label = "backoff-strategy"
+    reapplyGistSearch(page, (id) => (id === "bbb222" ? label : ""))
+
+    expect(visibleTitles(page)).toEqual(["retry.py"])
+  })
+
+  test("does nothing on reapply where nothing has been typed", () => {
+    const page = pageOf(html)
+    plantGistSearch(page)
+
+    reapplyGistSearch(page, () => "")
+
+    expect(visibleTitles(page)).toEqual(["deploy-notes.md", "retry.py", "config.json"])
   })
 })

@@ -26,16 +26,21 @@ export type GistRow = {
 
 /**
  * Whether a Row answers a free-text search, over everything a reader might
- * remember about a gist they wrote: its name, its description, and the
- * content GitHub already sent.
+ * remember about a gist they wrote: its name, its description, the content
+ * GitHub already sent, and — through `extra` — whatever this extension has
+ * kept about it that GitHub never carries, a Label or a Name.
+ *
+ * `extra` is a caller-built string rather than a `KeptGists` lookup, so this
+ * stays a pure function of one Row and does not have to know the shape
+ * `gistLabels.ts` keeps things in.
  *
  * An empty query matches everything, which is what lets Label filtering and
  * text search share one predicate rather than two.
  */
-export const matchesQuery = (row: GistRow, query: string): boolean => {
+export const matchesQuery = (row: GistRow, query: string, extra: string = ""): boolean => {
   const asked = query.trim().toLowerCase()
   if (asked.length === 0) return true
 
-  const haystack = [row.title, row.description ?? "", row.preview].join(" ").toLowerCase()
+  const haystack = [row.title, row.description ?? "", row.preview, extra].join(" ").toLowerCase()
   return haystack.includes(asked)
 }

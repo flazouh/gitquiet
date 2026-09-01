@@ -42,4 +42,9 @@ describe("whether a gist matches a search", () => {
     expect(matchesQuery(row({ description: null }), "harness")).toBe(true)
     expect(matchesQuery(row({ description: null }), "nonsense")).toBe(false)
   })
+
+  test("matches on the extra text a caller supplies, for a Label or a Name GitHub does not carry", () => {
+    expect(matchesQuery(row(), "runbook", "deploy runbook")).toBe(true)
+    expect(matchesQuery(row(), "runbook")).toBe(false)
+  })
 })
