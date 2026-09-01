@@ -15,7 +15,7 @@
 
 export const SWITCH_ID = "gitquiet-switch"
 
-const THEIR_TABS = '[aria-label="Pull request navigation tabs"]'
+const THEIR_TABS = '[aria-label="Pull request navigation"]'
 
 /**
  * Where this stands on a commit's own page, which has no tab row.
