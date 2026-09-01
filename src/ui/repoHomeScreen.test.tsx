@@ -372,3 +372,51 @@ describe("a repository's front page", () => {
     expect(handed).toBe(1)
   })
 })
+
+/* The same mark every screen publishes now. See `repoPullsScreen.test.tsx` for why. */
+describe("which address this page claims to have drawn", () => {
+  const drawn = () => document.documentElement.getAttribute("data-gitquiet-at")
+
+  afterEach(() => document.documentElement.removeAttribute("data-gitquiet-at"))
+
+  test("claims the pathname it stands for once the front is drawn", async () => {
+    showing(() => Effect.succeed(front("caller")), { at: "/flowline-labs/flowline" })
+
+    await waitFor(() => expect(drawn()).toBe("/flowline-labs/flowline"))
+  })
+
+  test("claims nothing while it is still reading", async () => {
+    showing(() => Effect.never as Effect.Effect<Front>, { at: "/flowline-labs/flowline" })
+
+    await screen.findByText(/Reading/)
+    expect(drawn()).toBeNull()
+  })
+
+  /*
+   * The move the entry makes without standing a new page up: a file opening in
+   * the tree, or the way back out of it. The claim has to move with the redraw
+   * or it goes stale under the fresh address, which is the wrong-page signal
+   * the repair loads a document over.
+   */
+  test("moves its claim when the same tree redraws for another address", async () => {
+    const view = showing(() => Effect.succeed(front("caller")), {
+      at: "/flowline-labs/flowline"
+    })
+
+    await waitFor(() => expect(drawn()).toBe("/flowline-labs/flowline"))
+
+    view.rerender(
+      <RepoHomeScreen
+        repo={{ owner: "flowline-labs", repo: "flowline" }}
+        load={() => Effect.succeed(front("caller"))}
+        onStepAside={() => {}}
+        signedIn={() => true}
+        at="/flowline-labs/flowline/blob/main/README.md"
+      />
+    )
+
+    await waitFor(() =>
+      expect(drawn()).toBe("/flowline-labs/flowline/blob/main/README.md")
+    )
+  })
+})

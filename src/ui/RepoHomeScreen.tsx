@@ -17,6 +17,7 @@ import { ASIDE, PRESSABLE } from "./dress"
 import { GitHubHtml } from "./GitHubHtml"
 import { Markdown } from "./Markdown"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
+import { DrawnAt } from "./drawnAt"
 import type { Shelf } from "../app/shelf"
 import { Reading } from "./ReadingPane"
 import { RepoTree } from "./RepoTree"
@@ -33,6 +34,8 @@ export type RepoHomeScreenProps = {
   readonly preload?: () => Effect.Effect<Option.Option<Front>>
   /** What this page is called in this document's memory. See {@link useLive}. */
   readonly where?: string
+  /** The exact pathname this screen stands for, as {@link DrawnAt} needs it said. */
+  readonly at?: string
   /** Restores GitHub's own page, which is still behind this one. */
   readonly onStepAside: () => void
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
@@ -574,6 +577,7 @@ export const RepoHomeScreen = ({
   load,
   preload,
   where,
+  at,
   onStepAside,
   recallRepositories,
   signedIn = viewerOnPage,
@@ -618,13 +622,17 @@ export const RepoHomeScreen = ({
 
   if (read.status === "failed") {
     return (
-      <ReadFailed
-        signedOut={!signedIn()}
-        why={read.why}
-        what={`${repo.owner}/${repo.repo}`}
-        onStepAside={onStepAside}
-        asideLabel="Show GitHub's page"
-      />
+      <>
+        {/* The failure screen is an answer too. See {@link DrawnAt}. */}
+        <DrawnAt path={at ?? null} />
+        <ReadFailed
+          signedOut={!signedIn()}
+          why={read.why}
+          what={`${repo.owner}/${repo.repo}`}
+          onStepAside={onStepAside}
+          asideLabel="Show GitHub's page"
+        />
+      </>
     )
   }
 
@@ -632,6 +640,7 @@ export const RepoHomeScreen = ({
 
   return (
     <div className="relative">
+      <DrawnAt path={read.status === "loading" ? null : (at ?? null)} />
       {/*
        * The way out, in the same corner as every other screen. This page
        * replaces their file toolbar, and a reader who still wants something on
