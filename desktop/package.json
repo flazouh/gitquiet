@@ -28,7 +28,7 @@
     "effect": "^4.0.0-rc.111",
     "electrobun": "^1.18.1",
     "framer-motion": "^13.1.1",
-    "lucide-react": "^1.33.0",
+    "lucide-react": "^1.37.0",
     "radix-ui": "^1.6.7",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -40,8 +40,8 @@
     "@tailwindcss/vite": "^4.3.3",
     "@types/bun": "latest",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^6.1.0",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^6.1.1",
     "tailwindcss": "^4.3.3",
     "vite": "^8.2.2"
   }
