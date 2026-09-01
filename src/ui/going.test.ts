@@ -245,6 +245,12 @@ describe("an address moved to a screen that never arrives", () => {
 
     // Nothing new on the page, and the address has arrived where it was sent.
     ;(page.window.location as { pathname: string }).pathname = "/owner/repo/pull/12"
+    // The verdict has to survive to a second deadline before it costs a
+    // document: measured twice, cut once.
+    const queued = [...page.recorded.later]
+    page.recorded.later.length = 0
+    queued.forEach((run) => run())
+    expect(page.recorded.replaced).toEqual([])
     page.recorded.later.forEach((run) => run())
 
     expect(page.recorded.replaced).toEqual(["/owner/repo/pull/12"])
@@ -355,8 +361,32 @@ describe("an address moved to a screen that is still arriving", () => {
     deadlinePasses(page)
     page.window.document.documentElement.removeAttribute("data-gitquiet-gating")
     deadlinePasses(page)
+    deadlinePasses(page)
 
     expect(page.recorded.replaced).toEqual(["/owner/repo/pull/12"])
+  })
+
+  /*
+   * The moment a page changes hands, the mark of the screen being swept can
+   * stand under the fresh address for a few milliseconds more — no gate, no
+   * read in flight, nothing for patience to see. Measured live by
+   * scripts/probe-back-live.ts. A verdict sampled inside that window and acted
+   * on is a document loaded over a press that was working, so no verdict costs
+   * a document until it has survived to a second deadline.
+   */
+  test("is left alone where the wrong answer does not survive to a second deadline", () => {
+    const page = aPageOfOurs()
+    // The swept screen's mark, standing under the fresh address for the few
+    // milliseconds before its tree hears it is off the page.
+    let stale = true
+    goTo(page.window, "/owner/repo/pull/12", () => !stale)
+    ;(page.window.location as { pathname: string }).pathname = "/owner/repo/pull/12"
+
+    deadlinePasses(page)
+    stale = false
+    deadlinePasses(page)
+
+    expect(page.recorded.replaced).toEqual([])
   })
 
   test("does not wait forever on a read that never ends", () => {
@@ -434,6 +464,9 @@ describe("another view of the screen already standing", () => {
 
     goWithin(page.window, "/issues/assigned?page=2", () => {}, () => standingFor)
     arrivedAt(page.window, "/issues/assigned", "?page=2")
+    const queued = [...page.recorded.later]
+    page.recorded.later.length = 0
+    queued.forEach((run) => run())
     page.recorded.later.forEach((run) => run())
 
     expect(page.recorded.replaced).toEqual(["/issues/assigned?page=2"])
@@ -728,6 +761,11 @@ describe("hearing that the trail moved", () => {
 describe("what counts as the screen having arrived", () => {
   const settled = (page: ReturnType<typeof aPageOfOurs>, path: string) => {
     ;(page.window.location as { pathname: string }).pathname = path
+    // Twice, because no verdict costs a document until it has survived to a
+    // second deadline: measured twice, cut once.
+    const queued = [...page.recorded.later]
+    page.recorded.later.length = 0
+    queued.forEach((run) => run())
     page.recorded.later.forEach((run) => run())
   }
 

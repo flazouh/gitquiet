@@ -332,10 +332,10 @@ export const watchTheTrail = (target: Window, moved: () => void): Stop => {
  * the page they had been looking at.
  *
  * So the push is provisional. If no screen has arrived by {@link ARRIVING} — and
- * none is visibly still on its way, see {@link STILL_ARRIVING_CHECKS} — the
- * same address is loaded properly: `replace`, not `assign`, so the entry this
- * pushed is the one the document lands on rather than a second one beside it. The
- * reader waits as long as they always used to, and history says one true thing.
+ * none is visibly still on its way, see {@link STILL_ARRIVING_CHECKS}, and the
+ * verdict has held for a second deadline — the same address is loaded properly:
+ * `replace`, not `assign`, so the entry this pushed is the one the document
+ * lands on rather than a second one beside it. History says one true thing.
  */
 /**
  * The whole address, so that two of them can be compared.
@@ -402,7 +402,7 @@ export const goTo = (
    */
   target.history.pushState(null, "", path)
 
-  const deadline = (patience: number): void => {
+  const deadline = (patience: number, confirmed: boolean): void => {
     // Somewhere else entirely by now: a second press, or the back button. This
     // address is nobody's to repair.
     if (addressOf(target) !== path) return
@@ -413,14 +413,27 @@ export const goTo = (
     // reader the answer and this document every screen it holds for Back. The
     // patience runs out all the same, so a wedged arrival is still repaired.
     if (patience > 0 && stillArriving(target.document)) {
-      target.setTimeout(() => deadline(patience - 1), ARRIVING)
+      target.setTimeout(() => deadline(patience - 1, false), ARRIVING)
+      return
+    }
+
+    /*
+     * Measured twice, cut once. The moment a page changes hands, the mark of
+     * the screen being swept stands under the fresh address for a few
+     * milliseconds more — no gate, no read in flight, nothing above to see —
+     * and a verdict sampled inside that window is wrong in the one way this
+     * function must never be. It resolves before the next deadline; a wrong
+     * page that is really wrong is still wrong then.
+     */
+    if (!confirmed) {
+      target.setTimeout(() => deadline(patience, true), ARRIVING)
       return
     }
 
     target.location.replace(path)
   }
 
-  target.setTimeout(() => deadline(STILL_ARRIVING_CHECKS), ARRIVING)
+  target.setTimeout(() => deadline(STILL_ARRIVING_CHECKS, false), ARRIVING)
 }
 
 /**
