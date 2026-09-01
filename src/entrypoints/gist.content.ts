@@ -1,5 +1,6 @@
 import { defineContentScript } from "wxt/utils/define-content-script"
 import { plantSecretBanner } from "@/ui/gistBanner"
+import { plantGistSearch } from "@/ui/gistSearch"
 
 /**
  * `gist.github.com`'s own content script, separate from `shell.content.ts` on
@@ -18,9 +19,14 @@ export default defineContentScript({
   matches: ["*://gist.github.com/*"],
   runAt: "document_idle",
   main() {
-    plantSecretBanner(document)
+    const plantEverything = (): void => {
+      plantSecretBanner(document)
+      plantGistSearch(document)
+    }
 
-    const watching = new MutationObserver(() => plantSecretBanner(document))
+    plantEverything()
+
+    const watching = new MutationObserver(plantEverything)
     watching.observe(document.body, { childList: true, subtree: true })
   }
 })
