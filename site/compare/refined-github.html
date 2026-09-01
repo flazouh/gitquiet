@@ -20,7 +20,30 @@
     <meta name="twitter:image" content="https://gitquiet.com/og.png" />
   </head>
   <body>
-    <div id="page"></div>
+    <div id="page">
+      <!--
+        The copy a crawler that never runs the bundle can still read. Indexes that skip
+        JavaScript kept only /privacy, because that file is HTML and this one was an
+        empty #page waiting for React. createRoot replaces this on mount; that is
+        intended.
+      -->
+      <main>
+        <p>GitQuiet vs Refined GitHub</p>
+        <h1>A queue, not github.com polish.</h1>
+        <p>Refined GitHub adds hundreds of tweaks to github.com. GitQuiet is a working set: every pull request you are in, sorted by next action.</p>
+        <h2>Refined GitHub</h2>
+        <p>Refined GitHub runs on Chrome, Firefox and Safari. It polishes the pages GitHub already draws. It is not a queue, and it does not file your working set by next action.</p>
+        <p><a href="https://github.com/refined-github/refined-github">github.com/refined-github/refined-github</a></p>
+        <h2>GitQuiet</h2>
+        <p>GitQuiet is the queue: Needs You, Waiting, Running, Settled, across repositories, in the tab. No extra login. Not an AI reviewer. Issues, Actions and commits use the same model.</p>
+        <p>Closest surface: both sit on github.com. Different job. Polish leaves you assembling 'what is owed' from Conversation, Commits, Checks and Files. A working set is that list, already filed.</p>
+        <p>
+          <a href="/compare/prflow">GitQuiet vs PRFlow</a>
+          <a href="/compare/github-pr-sidebar">GitQuiet vs GitHub PR Sidebar</a>
+          <a href="/compare/octobox">GitQuiet vs Octobox</a>
+        </p>
+      </main>
+    </div>
     <script type="module" src="/src/compare.tsx"></script>
   </body>
 </html>

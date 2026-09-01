@@ -77,6 +77,9 @@ export default defineConfig({
          * Four comparison pages, one axis each. Same reason they are files rather
          * than a router: `site/serve.ts` maps `/compare/prflow` to this HTML, and
          * a crawler has to see a unique title without running the bundle first.
+         * A unique title is not enough: they also need the H1 and the job in the
+         * body, or they keep only /privacy, which is the one file that was already
+         * HTML. The copy inside `#page` is that body; React replaces it on mount.
          */
         "compare/prflow": fileURLToPath(new URL("./compare/prflow.html", import.meta.url)),
         "compare/github-pr-sidebar": fileURLToPath(
