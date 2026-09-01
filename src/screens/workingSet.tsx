@@ -67,7 +67,19 @@ const placeAt = (path: string): Place => (isHome(path) ? HOME : DASHBOARD);
  * the attribute holding GitHub's own list out of sight would still be set over a
  * page that is not a list at all.
  */
-const open = (place: Place, route: string): (() => void) => {
+const open = (
+  place: Place,
+  route: string,
+): { close: () => void; retell: (path: string) => void } => {
+  /*
+   * The pathname the claim below says, mutable because this screen outlives an
+   * address change: GitHub answers /pulls and then redirects to /pulls/inbox a
+   * tenth of a second later, and the list stays up through it. The same rows are
+   * the answer at either address, so the claim moves rather than the screen.
+   * See `DrawnAt` in `drawnAt.tsx` for what a claim gone stale would cost.
+   */
+  let at = route;
+
   /**
    * The issues in the Courts, said for the screen that a press on one of them
    * opens.
@@ -176,7 +188,7 @@ const open = (place: Place, route: string): (() => void) => {
     );
   };
 
-  return standAScreen({
+  const standing = standAScreen({
     place,
     route,
     /*
@@ -206,6 +218,7 @@ const open = (place: Place, route: string): (() => void) => {
         <Home
           load={read}
           preload={remembered}
+          at={at}
           // The same list under the same name on both addresses, which is what
           // `warming.ts` already treats them as: walking from `/` to a pull
           // request and back is the same Back as from `/pulls`.
@@ -235,6 +248,7 @@ const open = (place: Place, route: string): (() => void) => {
         <WorkingSetScreen
           load={read}
           preload={remembered}
+          at={at}
           where={THE_WORKING_SET}
           onOpen={openWithTheKeyboard}
           onStepAside={standing.stepAside}
@@ -255,7 +269,17 @@ const open = (place: Place, route: string): (() => void) => {
           }
         />
       ),
-  }).close;
+  });
+
+  return {
+    close: standing.close,
+    // Redrawn rather than poked into a store: `draw` reads `at` each time, so a
+    // redraw is the whole of moving the claim.
+    retell: (path) => {
+      at = path;
+      standing.redraw();
+    },
+  };
 };
 
 /**
@@ -279,7 +303,7 @@ export const start = (): void => {
 
   const store = settings();
 
-  let close = (): void => {};
+  let up: ReturnType<typeof open> | null = null;
   let view: View = "ours";
 
   /*
@@ -308,12 +332,15 @@ export const start = (): void => {
      * stood up in the region that arrives with it.
      */
     if (place !== null && place === standing) {
+      // The screen stays; its claim and its route move to the address it is
+      // now standing for.
+      up?.retell(path);
       markScreenRoute(document, path);
       return;
     }
 
-    close();
-    close = () => {};
+    up?.close();
+    up = null;
     standing = null;
 
     /*
@@ -345,7 +372,7 @@ export const start = (): void => {
     // is still the page being left.
     markPage(document, place);
     standing = place;
-    close = open(place, path);
+    up = open(place, path);
     markScreenRoute(document, path);
   };
 
