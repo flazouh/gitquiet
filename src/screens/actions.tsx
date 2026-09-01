@@ -29,7 +29,11 @@ const recallRepositories = () => rememberedRepositories().pipe(throughGitHub)
  * borrow, the wait for the address, the failsafe — belongs to `standAScreen`. What is left
  * here is what this screen alone knows: what it reads and what it draws.
  */
-const open = (repo: RepoRef): (() => void) => {
+const open = (
+  repo: RepoRef,
+  /** The exact pathname this screen is stood up for. See `DrawnAt` in `drawnAt.tsx`. */
+  at: string
+): (() => void) => {
   const reading = () =>
     loadStrands(repo).pipe(
       throughGitHub,
@@ -67,6 +71,7 @@ const open = (repo: RepoRef): (() => void) => {
     place: ACTIONS,
     draw: (standing) => (
       <StrandsScreen
+        at={at}
         repo={repo}
         where={openedNamed("actions", repo)}
         load={read}
@@ -130,7 +135,7 @@ export const start = (): void => {
       return
     }
 
-    close = open(repo.value)
+    close = open(repo.value, new URL(url, window.location.origin).pathname)
     on = address
   }
 

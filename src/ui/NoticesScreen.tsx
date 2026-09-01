@@ -4,6 +4,7 @@ import type { Notice, Press } from "../domain/notices"
 import type { Repository } from "../domain/repositories"
 import { Notices } from "./Notices"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
+import { DrawnAt } from "./drawnAt"
 import { TheBar } from "./TheBar"
 import { type Load, useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
@@ -27,6 +28,8 @@ export type NoticesScreenProps = {
   readonly signedIn?: () => boolean
   /** What this page is called in this document's memory. See {@link useLive}. */
   readonly where?: string
+  /** The exact pathname this screen stands for, as {@link DrawnAt} needs it said. */
+  readonly at?: string
 }
 
 const READING = "Reading your notifications…"
@@ -80,6 +83,7 @@ export const NoticesScreen = ({
   onStepAside,
   recallRepositories,
   where,
+  at,
   signedIn = viewerOnPage
 }: NoticesScreenProps) => {
   const live = useLive(load, preload, where)
@@ -115,13 +119,17 @@ export const NoticesScreen = ({
 
   if (read.status === "failed") {
     return (
-      <ReadFailed
-        signedOut={!signedIn()}
-        why={read.why}
-        what="Your notifications"
-        onStepAside={onStepAside}
-        asideLabel="Show GitHub's inbox"
-      />
+      <>
+        {/* The failure screen is an answer too. See {@link DrawnAt}. */}
+        <DrawnAt path={at ?? null} />
+        <ReadFailed
+          signedOut={!signedIn()}
+          why={read.why}
+          what="Your notifications"
+          onStepAside={onStepAside}
+          asideLabel="Show GitHub's inbox"
+        />
+      </>
     )
   }
 
@@ -181,6 +189,7 @@ export const NoticesScreen = ({
     // throughout: the wait has to be the same element on both sides of the answer, or the
     // dissolve has nothing to start from.
     <div className="relative">
+      <DrawnAt path={read.status === "loading" ? null : (at ?? null)} />
       <TheBar where={{ kind: "home" }} recall={recallRepositories} unread={unreadIn(shown)} />
       {shown === undefined ? null : (
         <div className="t-panels flex flex-col gap-1 py-3">

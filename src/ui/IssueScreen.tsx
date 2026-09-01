@@ -13,6 +13,7 @@ import { reasonFor } from "./refusal"
 import { SETTLED } from "./Settle"
 import { done, refused } from "./Toasts"
 import { TheBar } from "./TheBar"
+import { DrawnAt } from "./drawnAt"
 import { useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -32,6 +33,8 @@ export type IssueScreenProps = {
   readonly preload?: () => Effect.Effect<Option.Option<LoadedIssue>>
   /** What this page is called in this document's memory. See {@link useLive}. */
   readonly where?: string
+  /** The exact pathname this screen stands for, as {@link DrawnAt} needs it said. */
+  readonly at?: string
   /**
    * The row the list drew for this issue, where the reader pressed one.
    *
@@ -132,6 +135,7 @@ export const IssueScreen = ({
   load,
   preload,
   where,
+  at,
   row,
   onStepAside,
   onUseGitHub,
@@ -273,29 +277,33 @@ export const IssueScreen = ({
     const out = !signedIn()
 
     return (
-      // Its own padding as a card, and nothing more: the frame either side of it
-      // is the shell's, the same one the panels stand in when the read works.
-      <div className="Box my-2 p-4">
-        <h2 className="mb-1 text-base font-semibold">
-          {out ? "You are signed out of GitHub" : "This issue could not be read"}
-        </h2>
-        <p className="mb-3 max-w-prose text-sm text-ink-muted">
-          {out
-            ? "GitHub answers as if this issue does not exist while nobody is signed in. Sign in and open it again."
-            : "Nothing is shown rather than part of it. GitHub's own issue is still here."}
-        </p>
-        {out ? (
-          <a
-            className="btn btn-sm btn-primary mr-2"
-            href={`https://github.com/login?return_to=${encodeURIComponent(location.href)}`}
-          >
-            Sign in to GitHub
-          </a>
-        ) : null}
-        <button type="button" className="btn btn-sm" onClick={onStepAside}>
-          Show GitHub's issue
-        </button>
-      </div>
+      <>
+        {/* The failure screen is an answer too. See {@link DrawnAt}. */}
+        <DrawnAt path={at ?? null} />
+        // Its own padding as a card, and nothing more: the frame either side of it
+        // is the shell's, the same one the panels stand in when the read works.
+        <div className="Box my-2 p-4">
+          <h2 className="mb-1 text-base font-semibold">
+            {out ? "You are signed out of GitHub" : "This issue could not be read"}
+          </h2>
+          <p className="mb-3 max-w-prose text-sm text-ink-muted">
+            {out
+              ? "GitHub answers as if this issue does not exist while nobody is signed in. Sign in and open it again."
+              : "Nothing is shown rather than part of it. GitHub's own issue is still here."}
+          </p>
+          {out ? (
+            <a
+              className="btn btn-sm btn-primary mr-2"
+              href={`https://github.com/login?return_to=${encodeURIComponent(location.href)}`}
+            >
+              Sign in to GitHub
+            </a>
+          ) : null}
+          <button type="button" className="btn btn-sm" onClick={onStepAside}>
+            Show GitHub's issue
+          </button>
+        </div>
+      </>
     )
   }
 
@@ -303,6 +311,7 @@ export const IssueScreen = ({
 
   return (
     <div className="relative">
+      <DrawnAt path={read.status === "loading" ? null : (at ?? null)} />
       <TheBar
         where={{ kind: "repository", owner: reference.owner, repo: reference.repo }}
         recall={recallRepositories}

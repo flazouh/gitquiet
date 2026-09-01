@@ -23,7 +23,11 @@ import "@/ui/styles.css"
  * it arrive a second later and correct the counts. Nothing here waits on a request
  * before drawing anything.
  */
-const open = (page: PersonPage): (() => void) => {
+const open = (
+  page: PersonPage,
+  /** The exact pathname this screen is stood up for. See `DrawnAt` in `drawnAt.tsx`. */
+  at: string
+): (() => void) => {
   const reading = (partly: (shown: Shown) => void) =>
     theirWholeList(page, document, (list: TheirList) =>
       // The first thirty rows, and the sentence that says they are the first thirty.
@@ -56,6 +60,7 @@ const open = (page: PersonPage): (() => void) => {
     place: PERSON_REPOS,
     draw: (standing) => (
       <PersonReposScreen
+        at={at}
         login={page.login}
         where={openedNamed("person-repos", page)}
         load={read}
@@ -120,7 +125,7 @@ export const start = (): void => {
       return
     }
 
-    close = open(page.value)
+    close = open(page.value, new URL(url, window.location.origin).pathname)
     on = address
   }
 

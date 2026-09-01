@@ -36,7 +36,11 @@ const UNKNOWN = { machine: null, chip: null } as const
  * Changes are drawn as soon as they land and the download row appears over the top of them a
  * moment later, rather than the reader waiting on a fragment to read a release note.
  */
-const open = (repo: RepoRef): (() => void) => {
+const open = (
+  repo: RepoRef,
+  /** The exact pathname this screen is stood up for. See `DrawnAt` in `drawnAt.tsx`. */
+  at: string
+): (() => void) => {
   const reading = (partly: (shown: Shown) => void) =>
     loadReleases(repo).pipe(
       throughGitHub,
@@ -108,6 +112,7 @@ const open = (repo: RepoRef): (() => void) => {
     place: RELEASES,
     draw: (standing) => (
       <ReleasesScreen
+        at={at}
         repo={repo}
         where={openedNamed("releases", repo)}
         load={read}
@@ -171,7 +176,7 @@ export const start = (): void => {
       return
     }
 
-    close = open(repo.value)
+    close = open(repo.value, new URL(url, window.location.origin).pathname)
     on = address
   }
 
