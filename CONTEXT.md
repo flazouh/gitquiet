@@ -228,6 +228,24 @@ _Avoid_: source code zip, auto-generated asset
 **Pre-release** is GitHub's word and is kept verbatim, like Reason. It is exact, readers use it,
 and it comes off a flag on the record rather than from anything this interface works out.
 
+### Blame
+
+**Blamed Line**:
+One line of a file, carrying the commit that last touched it. The unit the blame screen draws one row per, in place of GitHub's Range.
+_Avoid_: blame entry, line attribution
+
+**Span**:
+Every consecutive Blamed Line naming the same commit, drawn as one strip with the commit told once at its top rather than once per line. `docs/spec/blame.md` counts why: 157 ranges of `oven-sh/bun`'s README described 30 commits between them, and a repository's `.git-blame-ignore-revs` file, where present, changes which commit a Span names without changing where the Span itself breaks.
+_Avoid_: chunk, range, group
+
+**Repeat**:
+A Span whose commit already told its story higher up the same page. Drawn thin, without the avatar and the message told a second time, the way a Bare Version is drawn thin rather than as a card with nothing on it.
+_Avoid_: duplicate commit, same commit again
+
+**Ignore File**:
+The repository's `.git-blame-ignore-revs`, kept verbatim as the name of the convention `git blame --ignore-revs-file` and GitHub's own payload both use.
+_Avoid_: ignore revs, blame ignore file
+
 ## Not built
 
 Words removed from the vocabulary above because nothing answers to them yet. Kept

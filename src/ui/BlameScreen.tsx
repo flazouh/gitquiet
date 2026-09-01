@@ -47,7 +47,7 @@ export type BlameScreenProps = {
  * and age, or a thin divider where the commit already told its story higher
  * on the page.
  */
-const Blamed_ = ({ blamed, path }: { readonly blamed: Blamed; readonly path: string }) => {
+const BlamedFile = ({ blamed, path }: { readonly blamed: Blamed; readonly path: string }) => {
   const host = useRef<HTMLDivElement | null>(null)
   const load = useRenderer()
   const painted = usePaintedTheme()
@@ -57,8 +57,14 @@ const Blamed_ = ({ blamed, path }: { readonly blamed: Blamed; readonly path: str
 
   const spans = useMemo(() => spansOf(blamed.ranges, blamed.commits), [blamed])
   const notes = useMemo(() => notesOf(spans), [spans])
+  /*
+   * Every Span, keyed the same way `notes` keys its rows — not just the ones
+   * with a row. `rowFor` below only ever asks this for a key `notesOf` produced,
+   * which is never the first Span's, so there is nothing to exclude here without
+   * repeating the rule `noteFor` already owns.
+   */
   const bySpanKey = useMemo(
-    () => new Map(spans.filter((span) => span.start > 1).map((span) => [keyOf(span), span])),
+    () => new Map(spans.map((span) => [keyOf(span), span])),
     [spans]
   )
   const first = spans[0]
@@ -180,7 +186,7 @@ export const BlameScreen = ({
           ) : null}
         </div>
         {read.status === "ready" ? (
-          <Blamed_ blamed={read.value} path={path} />
+          <BlamedFile blamed={read.value} path={path} />
         ) : (
           <Waiting what={READING} leaving={!waiting} />
         )}

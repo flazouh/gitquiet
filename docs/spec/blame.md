@@ -1,7 +1,7 @@
 # Spec: Blame
 
-Status: draft-for-review. Nothing is built. The vocabulary is proposed in the Language
-section below and is not yet in `CONTEXT.md`.
+Status: built. The vocabulary below is in `CONTEXT.md`. Re-blaming and very large files are
+still open, per Open Questions.
 
 Covers one address: `/{owner}/{repo}/blame/{branch}/{path}`. Correction to the survey that
 led here: `docs/uncovered-pages-pain-points.md` named "the file view, `/blob`, `/tree` and
