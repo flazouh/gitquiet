@@ -1,18 +1,10 @@
 import { Effect } from "effect"
-import type { Commit, Range } from "../domain/blame"
+import type { Blamed, Range as BlameRange } from "../domain/blame"
 import { BlameRoute, FileLines } from "./wire"
 import { whereverAmong } from "./wherever"
 
 const findBlame = whereverAmong(BlameRoute)
 const findLines = whereverAmong(FileLines)
-
-/** What one page of blame is drawn from, once decoded. */
-export type Blamed = {
-  readonly ranges: ReadonlyArray<Range>
-  readonly commits: ReadonlyMap<string, Commit>
-  readonly ignoreRevsPresent: boolean
-  readonly lines: ReadonlyArray<string>
-}
 
 /**
  * `ranges` in ascending line order, out of the object GitHub keys it by.
@@ -25,7 +17,7 @@ export type Blamed = {
  */
 const rangesInOrder = (
   ranges: Record<string, { readonly start: number; readonly end: number; readonly commitOid: string }>
-): ReadonlyArray<Range> =>
+): ReadonlyArray<BlameRange> =>
   Object.values(ranges)
     .map(({ start, end, commitOid }) => ({ start, end, commitOid }))
     .sort((one, two) => one.start - two.start)

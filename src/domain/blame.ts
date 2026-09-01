@@ -58,6 +58,19 @@ export type Span = {
 }
 
 /**
+ * One page of blame, once every range, every commit and the file's own lines
+ * have been read.
+ */
+export type Blamed = {
+  readonly ranges: ReadonlyArray<Range>
+  readonly commits: ReadonlyMap<string, Commit>
+  /** True on a repository that keeps a `.git-blame-ignore-revs` file. */
+  readonly ignoreRevsPresent: boolean
+  /** The file, a line per entry, exactly as GitHub sent it. */
+  readonly lines: ReadonlyArray<string>
+}
+
+/**
  * Reads a file's blame out of an address, or nothing where the address is not
  * one.
  *
