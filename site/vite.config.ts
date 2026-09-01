@@ -74,6 +74,16 @@ export default defineConfig({
         install: fileURLToPath(new URL("./install.html", import.meta.url)),
 
         /*
+         * `/github-pr-inbox`, a job page for github pr inbox, not a fifth compare.
+         *
+         * Same reason it is a file rather than a router: `site/serve.ts` maps
+         * `/github-pr-inbox` to this HTML, and a crawler has to see a unique title
+         * and the H1 in the body without running the bundle first. The copy inside
+         * `#page` is that body; React replaces it on mount.
+         */
+        "github-pr-inbox": fileURLToPath(new URL("./github-pr-inbox.html", import.meta.url)),
+
+        /*
          * Four comparison pages, one axis each. Same reason they are files rather
          * than a router: `site/serve.ts` maps `/compare/prflow` to this HTML, and
          * a crawler has to see a unique title without running the bundle first.

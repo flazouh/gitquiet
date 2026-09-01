@@ -6,6 +6,8 @@
  * GitQuick is PR analytics. AI review sidebars are a different product. Attention
  * Set is a PAT near-miss on the two side-panel pages (whose-turn popup, Needs you /
  * Waiting), not a URL of its own. Aviator's AttentionSet is a merge queue; skip it.
+ * Pullwatch is a read-only toolbar popup named on `/github-pr-inbox`, not a compare
+ * URL. The GitHub PR inbox job is that page, not a fifth compare.
  */
 export type Compared = {
   readonly slug: string
