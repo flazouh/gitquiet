@@ -1,9 +1,11 @@
 # Spec: Gists
 
-Status: draft-for-review. Nothing is built. The vocabulary is proposed in the Language section
-below and is not yet in `CONTEXT.md`. Evidence is in `docs/gist-pain-points.md`, five sweeps
-across Hacker News, Reddit, GitHub Community discussions, and thirteen years of third-party
-tooling.
+Status: built. Both slices are shipped and verified live on a real account: the secret/private
+banner, the search bar reaching file content and stored Labels, and Label/Name editing
+persisted in `storage.sync`. The vocabulary below is in `CONTEXT.md`. Open Questions —
+click-to-filter-by-Label chips, pagination depth, starred gists — are still open. Evidence is
+in `docs/gist-pain-points.md`, five sweeps across Hacker News, Reddit, GitHub Community
+discussions, and thirteen years of third-party tooling.
 
 Covers `gist.github.com`, a different host from `github.com`. Two slices, in the order they
 ship: the secret/private warning first, because it is small and answers a safety complaint

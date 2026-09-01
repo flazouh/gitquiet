@@ -246,6 +246,23 @@ _Avoid_: duplicate commit, same commit again
 The repository's `.git-blame-ignore-revs`, kept verbatim as the name of the convention `git blame --ignore-revs-file` and GitHub's own payload both use.
 _Avoid_: ignore revs, blame ignore file
 
+### Gists
+
+**Label**:
+A word a reader attaches to one of their own gists, kept by this extension rather than by
+GitHub, because gists carry none. A gist may carry more than one.
+_Avoid_: tag, folder, category
+
+**Named**:
+A gist whose own display name a reader has set, in place of the filename GitHub picked by ASCII
+sort. Stored the same way a Label is, because GitHub has no field for either.
+_Avoid_: renamed, titled, custom name
+
+**Own Gists**:
+The set a reader's own gist list is read from and organized over — every gist the signed-in
+reader owns, public and secret both.
+_Avoid_: my gists, personal gists
+
 ## Not built
 
 Words removed from the vocabulary above because nothing answers to them yet. Kept
