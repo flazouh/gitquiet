@@ -45,8 +45,23 @@ describe("crawler-visible copy inside #page", () => {
     expect(source).not.toContain("/compare/attention-set")
   })
 
+  test("github-review-queue has the live h1, and is not a fifth compare", () => {
+    const source = html("../github-review-queue.html")
+    expect(h1In(source)).toBe("A GitHub review queue, in the tab")
+    expect(source).not.toContain("/compare/pullwatch")
+    expect(source).not.toContain("/compare/attention-set")
+  })
+
   test("install crawler copy links the inbox job", () => {
     expect(html("../install.html")).toContain("/github-pr-inbox")
+  })
+
+  test("install crawler copy links the review-queue job", () => {
+    expect(html("../install.html")).toContain("/github-review-queue")
+  })
+
+  test("inbox crawler copy links the sibling review-queue job", () => {
+    expect(html("../github-pr-inbox.html")).toContain("/github-review-queue")
   })
 
   test("compare pages stay four", () => {

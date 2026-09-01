@@ -225,6 +225,10 @@ const Install = () => {
             For one list of the pull requests that need you, see{" "}
             <Quietly at="/github-pr-inbox">a GitHub PR inbox, in the tab</Quietly>.
           </p>
+          <p className="m-0 mt-4 max-w-2xl text-pretty text-[17px] leading-relaxed text-muted">
+            For a queue you drain, next review rather than recency, see{" "}
+            <Quietly at="/github-review-queue">a GitHub review queue, in the tab</Quietly>.
+          </p>
         </section>
 
         <section className="border-t border-rule py-16">
