@@ -221,6 +221,10 @@ const Install = () => {
               {" — "}on github.com, not a hosted inbox.
             </li>
           </ul>
+          <p className="m-0 mt-8 max-w-2xl text-pretty text-[17px] leading-relaxed text-muted">
+            For one list of the pull requests that need you, see{" "}
+            <Quietly at="/github-pr-inbox">a GitHub PR inbox, in the tab</Quietly>.
+          </p>
         </section>
 
         <section className="border-t border-rule py-16">

@@ -37,4 +37,24 @@ describe("crawler-visible copy inside #page", () => {
     expect(source).toContain(page.dek)
     expect(source).toContain(page.we)
   })
+
+  test("github-pr-inbox has the live h1, and is not a fifth compare", () => {
+    const source = html("../github-pr-inbox.html")
+    expect(h1In(source)).toBe("A GitHub PR inbox, in the tab")
+    expect(source).not.toContain("/compare/pullwatch")
+    expect(source).not.toContain("/compare/attention-set")
+  })
+
+  test("install crawler copy links the inbox job", () => {
+    expect(html("../install.html")).toContain("/github-pr-inbox")
+  })
+
+  test("compare pages stay four", () => {
+    expect(COMPARED.map((page) => page.slug)).toEqual([
+      "prflow",
+      "github-pr-sidebar",
+      "refined-github",
+      "octobox"
+    ])
+  })
 })
