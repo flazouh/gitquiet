@@ -49,6 +49,16 @@
           "coarse": "[data-component=\"Banner\"]"
         }
       ]
+    },
+    {
+      "place": "blame",
+      "page": "a file's blame",
+      "url": "https://github.com/oven-sh/bun/blame/main/README.md",
+      "regions": [
+        "#repo-content-pjax-container",
+        "turbo-frame#repo-content-turbo-frame"
+      ],
+      "bands": []
     }
   ]
 }

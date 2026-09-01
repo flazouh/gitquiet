@@ -1,5 +1,6 @@
 import { Option } from "effect";
 import { AUTH_CLASS, THE_WALL_BOX } from "../github/signOn";
+import { blameIn } from "../domain/blame";
 import { fromPathname as commitIn } from "../domain/CommitRef";
 import { commitListIn } from "../domain/commitList";
 import { issueDashboardIn } from "../domain/issueDashboard";
@@ -537,6 +538,38 @@ export const REPO_HOME: Place = {
 };
 
 /**
+ * A file's blame — `/owner/repo/blame/BRANCH/PATH`.
+ *
+ * Read live on `oven-sh/bun/blame/main/README.md`, 2026-09-01: the same three
+ * hooks `REPO_HOME` already keys on — `#repo-content-pjax-container`,
+ * `turbo-frame#repo-content-turbo-frame`, `react-app[app-name="code-view"]` —
+ * because blame is one more page of the same code view application, not a
+ * different one. It is not `REPO_HOME` itself, unlike `/tree` and `/blob`:
+ * blame answers a different question with a different shape of data — a
+ * commit per line, banded into Spans — and has no tree beside it to keep in
+ * step with. See `docs/spec/blame.md`.
+ *
+ * One region, taking everything: the breadcrumbs, the age legend, GitHub's own
+ * banner about a repository's `.git-blame-ignore-revs` file, and every Span
+ * are all inside `#repo-content-pjax-container` on the page this was read
+ * from, the same way a front page's tab row is inside the code view app
+ * rather than above it.
+ */
+export const BLAME: Place = {
+  name: "blame",
+  owns: (path) => Option.isSome(blameIn(`https://github.com${path}`)),
+  regions: ["#repo-content-pjax-container"],
+  fallback: "turbo-frame#repo-content-turbo-frame",
+  stages: [
+    "#repo-content-pjax-container",
+    "turbo-frame#repo-content-turbo-frame",
+  ],
+  soft: { within: 'react-app[app-name="code-view"]' },
+  // Nothing. The region takes GitHub's whole answer to "who wrote this".
+  bands: [],
+};
+
+/**
  * One workflow run — `/owner/repo/actions/runs/{id}`.
  *
  * The only page here whose region is the Turbo frame itself. Measured on run
@@ -926,6 +959,7 @@ export const PLACES: ReadonlyArray<Place> = [
   RAISE,
   REPO_ISSUES,
   REPO_HOME,
+  BLAME,
   ISSUE,
   ISSUES,
   RUN,
@@ -974,6 +1008,12 @@ const BY_ADDRESS: ReadonlyArray<Place> = [
    * matter: `/notifications` is one address that no other place here claims.
    */
   NOTIFICATIONS,
+  /*
+   * Before a repository's front page, though the order costs nothing here either:
+   * `repoHomeIn` already refuses a `blame` kind outright, so the two addresses never
+   * overlap.
+   */
+  BLAME,
   REPO_HOME,
   /*
    * Last of all, after a repository's front page, because a login is the shortest

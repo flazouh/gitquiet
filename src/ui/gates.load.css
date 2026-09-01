@@ -124,6 +124,18 @@ html[data-gitquiet-taken] [class*="RecentlyTouchedBranches-module__Flash"] {
   display: none;
 }
 
+/* blame: before ours is up. */
+html[data-gitquiet-page="blame"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
+html[data-gitquiet-page="blame"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]) {
+  display: none;
+}
+
+/* blame: for as long as ours is in charge. */
+html[data-gitquiet-taken] #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
+html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]) {
+  display: none;
+}
+
 /* issue: before ours is up. */
 html[data-gitquiet-page="issue"]:not([data-gitquiet-revealed]) [data-testid="issue-viewer-container"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]) {
   display: none;
