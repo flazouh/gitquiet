@@ -65,9 +65,30 @@ const NOTHING: ReadonlySet<never> = new Set()
  * yet touch.
  */
 export const standingIn = (merge: MergeState): Option.Option<Standing> =>
-  Option.map(merge.queue, (queue) =>
-    queue.waiting ? "dequeue" : Option.isSome(merge.autoMerge) ? "cancel" : "enqueue"
-  )
+  Option.flatMap(merge.queue, (queue) => {
+    if (queue.waiting) return Option.some<Standing>("dequeue")
+    if (Option.isSome(merge.autoMerge)) return Option.some<Standing>("cancel")
+
+    /*
+     * A layer of a stack joins by the stack's own route, so the queue has no
+     * verb to offer it.
+     *
+     * None rather than "enqueue", which is the one no here that is not about
+     * permission: joining is still what the reader wants and still what the
+     * press does, but `enqueue_stack` is what does it. GitHub's own button asks
+     * whether this is a layer before it asks about the queue, and the queue
+     * route refuses one with a sentence about the branch being out of date —
+     * untrue of it, and answerable by nothing the card could offer.
+     *
+     * Said here rather than in `whatCanBeDone` alone because the card draws its
+     * queue control from this answer as well — see `faceOf`. Left to the verb
+     * list, the button went on saying "Merge when ready" over a press that had
+     * already been sent somewhere else.
+     */
+    return Option.isSome(merge.stack)
+      ? Option.none<Standing>()
+      : Option.some<Standing>("enqueue")
+  })
 
 /**
  * What may be asked of this pull request, now, by this reader.
@@ -105,31 +126,14 @@ export const whatCanBeDone = ({ state, merge }: Wanting): ReadonlySet<Doing> => 
     onSome: (stack) => holdingItUp(stack).length > 0
   })
 
-  const standing = standingIn(merge)
-
   /*
-   * A layer of a stack lands by the stack's own route, queue or no queue.
-   *
-   * GitHub's own button asks whether this is a layer before it asks anything
-   * about the queue, and posts `enqueue_stack` when it is — on a repository with
-   * a queue that is what joining the queue means, and their button says "Enqueue
-   * stack" rather than "Merge when ready". Recorded in
-   * `docs/spec/github-write-api.md`.
-   *
-   * Having the two the other way round is a button that cannot work. The queue
-   * route refuses a layer with "This pull request is out of date. Refresh the
-   * page and try again.", which is untrue of it — the same sentence the wrong
-   * merge route answers with — and there is nothing the reader can do about it:
-   * a level branch is offered no catch-up, and refreshing changes nothing.
-   *
-   * Only the joining moves. Leaving the queue and calling off an armed merge
-   * stay the queue's own, because a stack already in it went in by that route.
+   * None where the repository has no queue, and none as well for a layer of a
+   * stack, which joins by the stack's own route — see {@link standingIn}. Both
+   * arrive here as the same answer because both mean the same thing: the press
+   * that lands this one is the merge, whatever it is called on the button.
    */
-  const joinsAsAStack = Option.isSome(merge.stack)
-  const byTheStack =
-    Option.isNone(standing) || (standing.value === "enqueue" && joinsAsAStack)
-
-  if (byTheStack) {
+  const standing = standingIn(merge)
+  if (Option.isNone(standing)) {
     // A press has to name a way of merging, so a merge box that named none this
     // can send is a no — see `MergeState.method`.
     if (merge.isMergeable && !held && Option.isSome(merge.method)) can.add("merge")

@@ -218,6 +218,16 @@ export const Merge = ({
   )
 
   /*
+   * Whether a merge press here joins the queue rather than landing now.
+   *
+   * The repository having a queue is the whole of it. After `whatCanBeDone` the
+   * merge button is offered on such a repository only for a layer of a stack,
+   * which posts `enqueue_stack` — joining the queue by the stack's own route —
+   * so the word on it has to say joining rather than merging.
+   */
+  const queued = Option.isSome(Option.flatMap(live, (said) => said.queue))
+
+  /*
    * The other ways each of the two buttons could land, or nothing to offer.
    *
    * Nothing where the repository allows one way in, which is most of them: a
@@ -288,6 +298,7 @@ export const Merge = ({
       press={press}
       method={method}
       landsStack={landsStack}
+      queued={queued}
       otherMethods={otherMethods}
       otherWays={otherWays}
       onCancel={() => setMerging({ step: "idle" })}
@@ -633,6 +644,7 @@ const MergeCard = ({
   press,
   method,
   landsStack,
+  queued,
   otherMethods,
   otherWays,
   onCancel
@@ -661,6 +673,14 @@ const MergeCard = ({
    */
   readonly method: Option.Option<MergeMethod>
   readonly landsStack: boolean
+  /**
+   * Whether the merge press joins a queue rather than landing now.
+   *
+   * True only where the repository has a queue, which after `whatCanBeDone` is
+   * only ever a layer of a stack: everything else there is offered the queue's
+   * own verb instead. It changes the word on the button and nothing else.
+   */
+  readonly queued: boolean
   /** The other merge methods, where the repository allows more than one. */
   readonly otherMethods: Option.Option<Otherwise>
   /** The other ways to catch the branch up, where GitHub allows both. */
@@ -702,7 +722,8 @@ const MergeCard = ({
     press,
     onCancel,
     method,
-    landsStack
+    landsStack,
+    queued
   }
   // A stack makes GitHub's own word for this pull request the wrong answer for
   // the card. Asked about the top of a stack with a draft under it they say
