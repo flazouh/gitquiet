@@ -118,3 +118,12 @@ in 2026-07, drew 783 points on HN
 stuck deleted bases as the complaints. The broken back button is the most
 repeated single HN complaint and hits every page; a full page replacement
 removes it by construction.
+
+## Issues
+
+One per page, opened 2026-09-01, in the order to build them:
+[#43 file view](https://github.com/flazouh/gitquiet/issues/43),
+[#44 folder listing](https://github.com/flazouh/gitquiet/issues/44),
+[#45 blame](https://github.com/flazouh/gitquiet/issues/45),
+[#46 compare](https://github.com/flazouh/gitquiet/issues/46),
+[#47 search](https://github.com/flazouh/gitquiet/issues/47).
