@@ -1080,7 +1080,7 @@ export class GitHubGateway extends Context.Service<
      * undo the whole point of a listing that costs two requests.
      */
     readonly standingsFor: (
-      ids: ReadonlyArray<number>
+      ids: ReadonlyArray<string>
     ) => Effect.Effect<Standings, WorkingSetError>
     /**
      * The two branch names a stack is found by matching.
@@ -1131,7 +1131,7 @@ export class GitHubGateway extends Context.Service<
      * only way to find out.
      */
     readonly rememberedRows: (
-      rows: ReadonlyArray<{ readonly id: number; readonly reference: PullRequestRef }>
+      rows: ReadonlyArray<{ readonly id: string; readonly reference: PullRequestRef }>
     ) => Effect.Effect<RememberedRows>
     /**
      * Who somebody is, as their own hovercard tells it.

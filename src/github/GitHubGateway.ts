@@ -280,9 +280,15 @@ const shelfRoute = (shelf: Shelf): string =>
  *
  * The ids go in repeated square-bracket parameters, which is Rails' way of
  * spelling an array and not something to tidy: their route reads no other form.
+ *
+ * `ids[]`, not `pr_ids[]`. GitHub renamed the parameter on 2026-08-27 in the same
+ * change that moved the id itself from a database number to a node id string:
+ * the old `pr_ids[]` name now answers 200 with an empty `results`, which read as
+ * a whole list with no checks on any row. The ids are node ids and go in
+ * unescaped exactly as their own dashboard sends them.
  */
-const deferredRoute = (ids: ReadonlyArray<number>): string =>
-  `/pulls/inbox/deferred?page=1&${ids.map((id) => `pr_ids%5B%5D=${id}`).join("&")}`
+const deferredRoute = (ids: ReadonlyArray<string>): string =>
+  `/pulls/inbox/deferred?page=1&${ids.map((id) => `ids%5B%5D=${encodeURIComponent(id)}`).join("&")}`
 
 /**
  * Their own repository picker's route.
@@ -1062,8 +1068,8 @@ const fragmentAt = Effect.fn("fragmentAt")(function* (route: string) {
 })
 
 /** Ids in the batches GitHub's own dashboard asks in. */
-const inBatches = (ids: ReadonlyArray<number>): ReadonlyArray<ReadonlyArray<number>> => {
-  const batches: Array<ReadonlyArray<number>> = []
+const inBatches = (ids: ReadonlyArray<string>): ReadonlyArray<ReadonlyArray<string>> => {
+  const batches: Array<ReadonlyArray<string>> = []
   for (let at = 0; at < ids.length; at += PER_BATCH) {
     batches.push(ids.slice(at, at + PER_BATCH))
   }
@@ -2787,7 +2793,7 @@ export const layer = Layer.succeed(GitHubGateway, {
       )
     }),
 
-    standingsFor: Effect.fn("GitHubGateway.standingsFor")(function* (ids: ReadonlyArray<number>) {
+    standingsFor: Effect.fn("GitHubGateway.standingsFor")(function* (ids: ReadonlyArray<string>) {
       if (ids.length === 0) return new Map() as Standings
 
       // Concurrently, because the batches are independent and a Working Set of
@@ -2811,7 +2817,7 @@ export const layer = Layer.succeed(GitHubGateway, {
         { concurrency: "unbounded" }
       )
 
-      const joined = new Map<number, ReturnType<Standings["get"]> & {}>()
+      const joined = new Map<string, ReturnType<Standings["get"]> & {}>()
       for (const batch of batches) {
         for (const [id, standing] of batch) joined.set(id, standing)
       }

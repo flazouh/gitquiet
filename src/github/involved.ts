@@ -144,7 +144,7 @@ export const sizeIn = (route: DiffstatRoute): Size => ({
 
 export const standingsIn = (route: DeferredRoute): Standings => {
   const found = new Map<
-    number,
+    string,
     { checks: Option.Option<CheckRollup>; reviewed: Option.Option<Opinion> }
   >()
 

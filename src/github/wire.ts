@@ -1340,8 +1340,18 @@ export type PreviewStackRoute = typeof PreviewStackRoute["Type"]
  * this row does not carry at all — see `src/domain/stacks.ts`.
  */
 const WorkingSetRow = Schema.Struct({
-  /** GitHub's own numeric id, which is what the deferred route is keyed by. */
-  id: Schema.Number,
+  /**
+   * GitHub's node id, which is what the deferred route is keyed by.
+   *
+   * A string such as `PR_kwDOQbgJEc8AAAABBO1ScQ`, not a number. GitHub sent a
+   * numeric database id here until 2026-08-27, when both this route and the
+   * deferred route moved to the GraphQL node id and the deferred route's own
+   * parameter was renamed from `pr_ids[]` to `ids[]`. Nothing here reads the id;
+   * it is an opaque key that has to match between a row and the deferred answer
+   * about it, so its only requirement is that both routes spell it the same way,
+   * which they still do.
+   */
+  id: Schema.String,
   number: Schema.Number,
   title: Schema.String,
   /** `owner/repo`, since the Working Set crosses repositories. */
@@ -1420,7 +1430,8 @@ export type Listing = typeof Listing["Type"]
 export const DeferredRoute = Schema.Struct({
   results: Schema.Array(
     Schema.Struct({
-      id: Schema.Number,
+      /** The node id, matching {@link WorkingSetRow.id}. A string, not a number. */
+      id: Schema.String,
       /**
        * Absent altogether on a pull request with no checks at all, which one
        * observed row was — hence optional rather than merely nullable.

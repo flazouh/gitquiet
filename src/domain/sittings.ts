@@ -93,7 +93,7 @@ const changedFirst = (left: InvolvedPullRequest, right: InvolvedPullRequest): nu
  * company.
  */
 const deduped = (involved: ReadonlyArray<InvolvedPullRequest>): ReadonlyArray<InvolvedPullRequest> => {
-  const best = new Map<number, InvolvedPullRequest>()
+  const best = new Map<string, InvolvedPullRequest>()
 
   for (const one of involved) {
     const already = best.get(one.id)

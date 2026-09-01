@@ -220,8 +220,8 @@ export const addressFor = (list: RepoList, box: string): Option.Option<string> =
  */
 const shelvedById = (
   shelved: ReadonlyArray<InvolvedPullRequest>
-): ReadonlyMap<number, InvolvedPullRequest> => {
-  const best = new Map<number, InvolvedPullRequest>()
+): ReadonlyMap<string, InvolvedPullRequest> => {
+  const best = new Map<string, InvolvedPullRequest>()
 
   for (const one of shelved) {
     const already = best.get(one.id)
