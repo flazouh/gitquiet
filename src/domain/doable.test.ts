@@ -165,6 +165,36 @@ describe("what can be done to a pull request", () => {
     test("holds a draft out of the line as well as out of the merge", () => {
       expect(can("draft", inA({})).has("enqueue")).toBe(false)
     })
+
+    test("sends a layer of a stack by the stack's route rather than the queue's", () => {
+      // The fault a reader hit on a stacked pull request in a queued repository.
+      // GitHub's own button asks whether this is a layer before it asks about
+      // the queue, and posts `enqueue_stack`; offered the queue instead, the
+      // press comes back saying the pull request is out of date. It is not, and
+      // nothing is offered to catch it up, so the reader is left with a button
+      // that cannot work. See `docs/spec/github-write-api.md`.
+      const layered: MergeState = { ...inA({}), stack: onTopOf("open").stack }
+      const asked = can("open", layered)
+
+      expect(asked.has("merge")).toBe(true)
+      expect(asked.has("enqueue")).toBe(false)
+    })
+
+    test("leaves a layer already standing in the line to the queue's own verbs", () => {
+      // Only the joining moves to the stack's route. A stack already in the
+      // queue went in by that route and comes out by this one.
+      const layered: MergeState = { ...inA({ waiting: true }), stack: onTopOf("open").stack }
+
+      expect(can("open", layered).has("dequeue")).toBe(true)
+    })
+
+    test("offers a layer held up from below neither press", () => {
+      const layered: MergeState = { ...inA({}), stack: onTopOf("draft").stack }
+      const asked = can("open", layered)
+
+      expect(asked.has("merge")).toBe(false)
+      expect(asked.has("enqueue")).toBe(false)
+    })
   })
 })
 

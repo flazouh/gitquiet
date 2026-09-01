@@ -372,6 +372,29 @@ is not a merge method at all:
 On a repository without a queue, the same route takes a real merge method and
 the same commit fields as `merge`, and means what its name says.
 
+### A stack is asked about before the queue is
+
+A layer of a stack never uses the queue route, whether or not the repository has
+a queue. GitHub's own merge button tests the stack first and posts
+`enqueue_stack`; only a pull request that is not a layer reaches
+`enable_auto_merge`, and only then does one reach `merge`. Their button relabels
+itself "Enqueue stack" in that case.
+
+The body is the merge body, not the queue one:
+`{authorEmail?, commitMessage, commitTitle, mergeMethod}`, where `mergeMethod` is
+a real method — `MERGE`, `SQUASH` or `REBASE` — and never `GROUP` or `SOLO`.
+Those two words belong to `enable_auto_merge` alone.
+
+Read from their own bundle on 2026-09-01 rather than from a press, because the
+press that would have recorded it lands somebody's work. The route table and the
+submit handler are in the pull request chunk, keyed `enqueueStack: "enqueue_stack"`.
+
+What it costs to have this backwards: `enable_auto_merge` refuses a layer with
+"This pull request is out of date. Refresh the page and try again.", which is the
+same sentence the wrong merge route answers with and is untrue of both. The
+branch is level, so no catch-up is offered either, and the reader is left with a
+button that cannot work and advice that changes nothing.
+
 Which of the three is on offer is not something to infer from whether
 `mergeQueue` is present. `merge_box` answers it directly, in
 `pullRequest.viewerMergeActions`:
