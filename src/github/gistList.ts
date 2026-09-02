@@ -45,7 +45,52 @@ const rowFrom = (row: Element): GistRow | null => {
     .replace(/\s+/g, " ")
     .trim()
 
-  return { id: address.id, owner: address.owner, title, description, preview, secret, updatedAt }
+  return {
+    id: address.id,
+    owner: address.owner,
+    title,
+    description,
+    preview,
+    secret,
+    updatedAt,
+    ...countsIn(row, address.id)
+  }
+}
+
+/** The leading number out of a count link's own words — "6 forks", "1 file". */
+const howMany = (said: string | null | undefined): number => {
+  const found = /^\s*(\d[\d,]*)/.exec(said ?? "")
+  return found === null ? 0 : Number(found[1]?.replaceAll(",", "") ?? 0)
+}
+
+/**
+ * The four counts their row prints, each told apart by where its link points.
+ *
+ * By destination rather than by position: all four are the same muted link in the same
+ * list, and the row omits the ones that are zero on some pages and prints them on
+ * others. Reading the third `<li>` would be reading whichever count happened to survive.
+ *
+ * The files link is the one pointing at the gist itself, which is also what the title
+ * links to — so it is matched last, after the three that carry a suffix.
+ */
+const countsIn = (
+  row: Element,
+  id: string
+): { files: number; forks: number; comments: number; stars: number } => {
+  const links = [...row.querySelectorAll<HTMLAnchorElement>("a[href]")]
+  const withHref = (ending: string): number =>
+    howMany(
+      links.find((link) => (link.getAttribute("href") ?? "").endsWith(ending))?.textContent
+    )
+
+  return {
+    files: howMany(
+      links.find((link) => (link.getAttribute("href") ?? "").endsWith(`/${id}`))?.textContent
+    ),
+    forks: withHref(`/${id}/forks`),
+    comments: withHref(`/${id}#comments`),
+    stars: withHref(`/${id}/stargazers`)
+  }
 }
 
 /** One row's own element, paired with what was read out of it. */
@@ -69,3 +114,24 @@ export const placedRowsOnPage = (page: Document): ReadonlyArray<PlacedRow> =>
 /** Every row on a reader's own gist list page. */
 export const rowsOnPage = (page: Document): ReadonlyArray<GistRow> =>
   placedRowsOnPage(page).map(({ row }) => row)
+
+/**
+ * The address of the page of older gists, where their list says there is one.
+ *
+ * Read off the "Older" link in their own pager rather than by counting rows against a
+ * page size, because the page size is theirs to change and a count that guessed it
+ * wrong would either stop early — losing gists — or ask for a page that does not exist.
+ *
+ * This is what makes the list whole. A reader with two hundred gists has GitHub's list
+ * across seven pages, and the complaint recorded on Hacker News in 2012 is exactly that:
+ * "browsing through 20 pages of 3-line excerpts". A search that reads only the page in
+ * front of the reader answers the same way GitHub's does, which is the thing this
+ * extension exists here to stop doing. See `research/gist-pain-points.md` in the notes
+ * repository.
+ */
+export const olderPageIn = (page: Document): string | null => {
+  const older = [...page.querySelectorAll(".pagination a")].find(
+    (link) => link.textContent?.trim() === "Older"
+  )
+  return older?.getAttribute("href") ?? null
+}
