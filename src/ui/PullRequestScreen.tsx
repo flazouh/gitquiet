@@ -93,6 +93,8 @@ export type PullRequestScreenProps = {
    * a file arrived in it. See `attaching.ts`.
    */
   readonly onUpload?: (file: File) => Effect.Effect<Uploaded, unknown>
+  /** One whole file at one commit, for revealing what the hunks left out. */
+  readonly readWholeFile?: (sha: string, path: string) => Effect.Effect<string, unknown>
   /** Marks one thread resolved, which is how a finding leaves the conversation. */
   readonly onSettle?: (threadId: string) => Effect.Effect<unknown, unknown>
   /** Opens a resolved thread again, which is the other half of resolving one. */
@@ -245,6 +247,7 @@ export const PullRequestScreen = ({
   postRemark,
   suggest,
   onUpload,
+  readWholeFile,
   onSettle,
   onUnsettle,
   onReply,
@@ -524,6 +527,7 @@ export const PullRequestScreen = ({
           postRemark={postRemark}
           suggest={suggest}
           onUpload={onUpload}
+          readWholeFile={readWholeFile}
           onSettle={settling}
           onUnsettle={unsettling}
           onReply={onReply}

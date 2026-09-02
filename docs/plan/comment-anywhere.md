@@ -1,6 +1,6 @@
 # Commenting where the diff does not reach
 
-Status: steps 0, 1 and 2 done, 2026-09-02. Step 2 answered all three questions and reversed
+Status: steps 0, 1, 2 and 3 done, 2026-09-02. Step 2 answered all three questions and reversed
 this plan's section 3; steps 3, 4 and 5 are now unblocked and section 5 needs re-reading
 against what was measured. See `docs/spec/github-write-api.md`, "What `create_review_comment`
 takes, measured".
@@ -398,10 +398,25 @@ the rollout is on there.
 
 ### Step 3. Expand the context of a changed file
 
-**Unblocked.** Step 2 answered yes, and gave more than a yes: every out-of-hunk marker
-carries `ctx`, GitHub's own answer to how far to expand around it — `[147, 153]` for a
-thread on line 150, three lines either side. Step 0 draws such a thread above the file
-today; this step is what puts it back beside its own line.
+**Built, 2026-09-02.** `src/domain/revealing.ts` says which halves a file needs,
+`src/app/revealing.ts` fetches and keeps them off the raw route, and `src/diff/engine.ts`
+hands Pierre a `loadDiffFiles` it calls on the press. `Reveal` is in `CONTEXT.md`.
+
+Two things were learned that the plan could not have known. `expandUnchanged` is not the
+switch for this: it renders every line of every file from the first paint, and turning it
+on took the shots stage from ten seconds to over ten minutes on a seven-file pull request.
+The separators between the hunks already offer the expansion and `loadDiffFiles` is what
+they call, so the option stays off. And Pierre throws
+`deletionLine and additionLine are null` when the halves it is handed do not reconcile with
+the patch it parsed — which is why `src/app/revealing.ts` fails rather than sending
+`before: null` for a file that had an old half.
+
+Neither was catchable by a unit test, because the tests stub the renderer. Both came out of
+`bun run qa`, and the QA mock now builds its halves from each file's own patch so the stage
+keeps exercising the real renderer.
+
+Verified end to end in a browser against the stage: pressing a separator's down arrow drew
+exactly `expansionLineCount` lines, and Expand all drew the remaining 2,416.
 
 Give the reader the rest of the file to click on. Pierre already has the shape
 for it: `processFile` in `@pierre/diffs` takes a patch together with `oldFile`

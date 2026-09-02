@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import { Effect, Option } from "effect"
 import { aComment, aThread, anchoredAt, person } from "../../tests/snapshots"
+import { revealer } from "../app/revealing"
 import type { DiffHandle, DiffRequest } from "../ports/Renderer"
 import type { ChangedFile } from "../domain/PullRequest"
 import { diffChoices } from "../domain/choices"
@@ -319,5 +320,67 @@ describe("a remark on a line this file's diff does not contain", () => {
       expect(screen.queryByText(/Fetching this file/)).toBeNull()
     })
     expect(screen.queryByLabelText("Said about lines not in this diff")).toBeNull()
+  })
+})
+
+describe("revealing the lines GitHub left out between the hunks", () => {
+  /*
+   * GitHub sends a file's hunks and three lines either side. The rest of the
+   * file has to be fetched before the renderer can draw it, so the pane hands
+   * over the way to fetch rather than the file: a file nobody expands costs no
+   * request. See `docs/plan/comment-anywhere.md`, step 3.
+   */
+  const reading = (sha: string, path: string) => Effect.succeed(`${path} at ${sha}`)
+
+  test("hands the renderer a way to fetch the rest of a changed file", async () => {
+    render(
+      <Theme>
+        <SettingsProvider store={holding(DEFAULTS)}>
+          {pane({ revealing: revealer(reading, { base: "base", head: "head" }) })}
+        </SettingsProvider>
+      </Theme>
+    )
+
+    expect(typeof (await drawn()).reveal).toBe("function")
+  })
+
+  test("that way answers with both halves of the file", async () => {
+    render(
+      <Theme>
+        <SettingsProvider store={holding(DEFAULTS)}>
+          {pane({ revealing: revealer(reading, { base: "base", head: "head" }) })}
+        </SettingsProvider>
+      </Theme>
+    )
+
+    expect(await (await drawn()).reveal!()).toEqual({
+      before: "src/one.ts at base",
+      after: "src/one.ts at head"
+    })
+  })
+
+  test("offers none for a file the pull request deleted", async () => {
+    render(
+      <Theme>
+        <SettingsProvider store={holding(DEFAULTS)}>
+          {pane({
+            revealing: revealer(reading, { base: "base", head: "head" }),
+            file: { ...file, changeType: "deleted" }
+          })}
+        </SettingsProvider>
+      </Theme>
+    )
+
+    expect((await drawn()).reveal).toBeUndefined()
+  })
+
+  test("offers none at all where nothing can fetch a file", async () => {
+    render(
+      <Theme>
+        <SettingsProvider store={holding(DEFAULTS)}>{pane()}</SettingsProvider>
+      </Theme>
+    )
+
+    expect((await drawn()).reveal).toBeUndefined()
   })
 })

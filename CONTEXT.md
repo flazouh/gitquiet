@@ -64,6 +64,10 @@ _Avoid_: incremental diff, delta, new changes
 A record that a Participant has read one specific version of one file. It expires when that file changes again.
 _Avoid_: viewed checkbox, seen flag
 
+**Reveal**:
+Drawing the lines of a changed file that GitHub's own patch leaves out. Their diff carries the hunks and three lines either side, so a reader who wants to read around a change, or to say something about a line between two hunks, has nothing there to press. Revealing fetches the file's two whole halves and hands them to the renderer, which works the diff out again and draws as much as was asked for. Costs nothing on a file nobody reveals: the fetch is a function the renderer calls on the press, never before, and the halves are named by commit so a file revealed twice is read once.
+_Avoid_: expand, unfold, show more
+
 **Out of Reach**:
 A review thread hung on a line the diff GitHub sent for that file does not contain, so there is no line in the drawing to open it under. GitHub's own Files changed page lets a reviewer comment on any line of a changed file, expanded or not, and those threads arrive in the payload like any other while the diff stays the hunks. Drawn above the file, with the line it names said in words, rather than handed to a renderer that has nowhere to put it. Judged on the last line of a range, which is where a row hangs, and never claimed before the file's diff has landed.
 _Avoid_: orphan, unanchored, hidden comment

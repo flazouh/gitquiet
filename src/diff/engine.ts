@@ -13,6 +13,7 @@
  * React and no coupling to how the rest of the interface is built.
  */
 
+import { Effect } from "effect"
 import type { DiffChoices } from "../domain/choices"
 import { syntaxOf } from "../domain/syntax"
 import { PAPER, type DiffHandle, type DiffRequest, type DiffSide, type Note, type Picked } from "../ports/Renderer"
@@ -195,6 +196,48 @@ export const renderDiff = (container: HTMLElement, request: DiffRequest): DiffHa
     lineDiffType: choices.withinLine,
     collapsedContextThreshold: choices.context,
     expansionLineCount: choices.expansion,
+
+    /*
+     * Revealing the lines between the hunks.
+     *
+     * GitHub sends three lines around each change and nothing else, so the rest
+     * of the file has to be fetched before it can be drawn. Pierre asks for it
+     * itself, through this, and only when a reader presses to see more — which
+     * is why the caller hands over a function rather than a file, and why a file
+     * nobody expands costs no request at all.
+     *
+     * `expandUnchanged` is deliberately not set. It is not the switch for this:
+     * it renders every line of every file from the first paint, which on the
+     * shots stage took a seven-file pull request from seconds to over ten
+     * minutes. The separators between the hunks already offer the expansion,
+     * and `loadDiffFiles` is what they call when one is pressed.
+     *
+     * The offer is turned off where the caller has no way to fetch. `oldFile`
+     * being null is Pierre's shape for a file that did not exist before, so a
+     * caller that cannot read the old half of a file that had one must fail
+     * rather than send null: that is a modified file redrawn as an addition.
+     * `domain/revealing.ts` is the rule, and it is the caller's to keep.
+     */
+    ...(request.reveal === undefined
+      ? {}
+      : {
+          loadDiffFiles: () =>
+            Effect.runPromise(
+              Effect.map(
+                Effect.tryPromise({
+                  try: () => request.reveal!(),
+                  catch: (cause) => new Error(String(cause))
+                }),
+                (halves) => ({
+                  oldFile:
+                    halves.before === null
+                      ? null
+                      : { name: request.path, contents: halves.before },
+                  newFile: { name: request.path, contents: halves.after }
+                })
+              )
+            )
+        }),
 
     // Marking lines out and saying something about them. Both ways in that
     // GitHub has: dragging across the numbers, and the plus that follows the

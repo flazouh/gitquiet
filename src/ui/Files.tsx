@@ -8,6 +8,7 @@ import { Effect, Option } from "effect"
 import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { afterPaint, whenIdle } from "../app/idle"
+import type { Revealer } from "../app/revealing"
 import type { DiffEngine, DiffHandle, DiffSide, Note as NoteAt, Picked } from "../ports/Renderer"
 import type { Uploaded } from "../domain/attaching"
 import type { Suggesting } from "../domain/suggesting"
@@ -344,6 +345,12 @@ export type FileDiffPaneProps = {
   readonly ask: (path: string) => Effect.Effect<Option.Option<FileDiff>>
   /** Prose files can be read as the document they become rather than as a diff. */
   readonly reading?: boolean
+  /**
+   * The way to fetch whole files, so a reader can reveal what the hunks left
+   * out. Absent where nothing can fetch them, and the diff then draws its
+   * hunks alone. See `src/app/revealing.ts`.
+   */
+  readonly revealing?: Revealer
   /** How the reader has asked for diffs to be drawn. */
   readonly choices: DiffChoices
   /**
@@ -427,7 +434,8 @@ const FileDiffPaneView = ({
   atLine,
   onPicked,
   suggest,
-  onUpload
+  onUpload,
+  revealing
 }: FileDiffPaneProps) => {
   const host = useRef<HTMLDivElement | null>(null)
   const painted = usePaintedTheme()
@@ -548,6 +556,18 @@ const FileDiffPaneView = ({
   }, [load])
 
   /*
+   * The way to reveal this file's hidden lines, or nothing where there is none.
+   *
+   * Held still across renders because the renderer takes it as part of what it
+   * draws from, and a fresh function each render is the whole file drawn again
+   * for a way in that answers the same.
+   */
+  const reveal = useMemo(
+    () => revealing?.forFile(file.path, file.changeType),
+    [revealing, file.path, file.changeType]
+  )
+
+  /*
    * Which lines GitHub's diff for this file holds, or nothing until it lands.
    *
    * Read off `whole`, which is what GitHub sent, rather than off the patch
@@ -649,6 +669,10 @@ const FileDiffPaneView = ({
         // open a box whose Comment button cannot come up, over a draft that can be
         // saved and never sent.
         onPick: canPost ? setPicked : undefined,
+        // The way to fetch the rest of the file, so a reader can reveal what
+        // GitHub left out between the hunks. The renderer calls it on a press
+        // and not before, so a file nobody expands costs no request.
+        reveal,
         notes: atRender.current,
         fillNote: (key) => rows.current.get(key)
       })
@@ -663,7 +687,7 @@ const FileDiffPaneView = ({
     }
     // Every one of these is baked into the DOM the renderer writes, so a change
     // to any of them is a file drawn again from the patch.
-  }, [engine, shown, file.path, prose, drawnWith, canPost])
+  }, [engine, shown, file.path, prose, drawnWith, canPost, reveal])
 
   useEffect(() => {
     handle.current?.showNotes(notes)
