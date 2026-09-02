@@ -14,6 +14,9 @@ export type Surface = "content-script" | "service-worker" | "prefetch" | "workin
   | "person-repos"
   | "profile"
   | "sign-on"
+  /** `gist.github.com`, which is its own content script and its own host. */
+  | "gist-list"
+  | "compare"
 
 const readEnvironmentValue = (key: string): string | undefined => {
   const environment: unknown = import.meta.env

@@ -1,6 +1,12 @@
 # Spec: Which files conflict
 
-Status: measured
+Status: built. Every acceptance criterion below is covered by a test in
+`src/ui/merge.test.tsx`, including the link out to their conflicts page. The editor
+stays theirs, for the reason under Out of scope — and `research/pages-to-replace.md`
+in the notes repository agrees, ranking that page sixth and conditioning any move on
+it: "Do the path list on the pull request first. Replace the editor only if people
+still leave for GitHub after they see the paths." Nobody has measured whether they
+do.
 
 ## Problem
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Option } from "effect"
-import { elsewhereThan, fromPathname, toUrl } from "./PullRequestRef"
+import { elsewhereThan, fromPathname, toUrl, opensOnFiles } from "./PullRequestRef"
 
 describe("recognising a pull request from a URL", () => {
   const recognised = [
@@ -26,9 +26,10 @@ describe("recognising a pull request from a URL", () => {
     "/microsoft/vscode/issues/1",
     "/microsoft/vscode/pull/not-a-number",
     "/microsoft/vscode/pull/",
-    // The tabs beside the conversation are GitHub's own, and they are good: a
-    // diff, a commit list and a check run are all things they already do well.
-    "/microsoft/vscode/pull/327442/files",
+    // Two of the three tabs beside the conversation are GitHub's own, and they are
+    // good: a commit list and a check run are both things they already do well.
+    // Files used to be the third, on the same reasoning — see `PULL_REQUEST_PATH`
+    // for the evidence that stopped supporting it.
     "/microsoft/vscode/pull/327442/commits",
     "/microsoft/vscode/pull/327442/checks",
     "/microsoft/vscode/pull/1/commits/abc123"
@@ -94,5 +95,46 @@ describe("linking back to GitHub", () => {
     expect(toUrl({ owner: "microsoft", repo: "vscode", number: 327442 })).toBe(
       "https://github.com/microsoft/vscode/pull/327442"
     )
+  })
+
+  /**
+   * The Files tab, which is this page and not a different one.
+   *
+   * GitHub's own engineering post about it reports a gigabyte of heap, four
+   * hundred thousand DOM nodes and a hard file cap. This interface already draws
+   * every file of a pull request inside its own screen; the address only had to be
+   * read. See `research/pages-to-replace.md` in the notes repository.
+   */
+  describe("the Files tab", () => {
+    test("is the same pull request, read from its own address", () => {
+      expect(Option.getOrNull(fromPathname("/microsoft/vscode/pull/327442/files"))).toEqual({
+        owner: "microsoft",
+        repo: "vscode",
+        number: 327442
+      })
+    })
+
+    test("says it is the Files tab, so the screen opens on the diff", () => {
+      // A reader who pressed "Files changed" asked for the diff, and showing them
+      // the description instead answers a question they did not ask.
+      expect(opensOnFiles("/microsoft/vscode/pull/327442/files")).toBe(true)
+      expect(opensOnFiles("/microsoft/vscode/pull/327442/files/")).toBe(true)
+    })
+
+    test("under either of the two words GitHub is mid-rename between", () => {
+      // Read live on 2026-09-02: following `/files` arrives at `/changes`. Reading
+      // only the new one ignores every link ever written; only the old one ignores
+      // the address the reader is actually on.
+      expect(
+        Option.getOrNull(fromPathname("/microsoft/vscode/pull/327442/changes"))
+      ).toEqual({ owner: "microsoft", repo: "vscode", number: 327442 })
+      expect(opensOnFiles("/microsoft/vscode/pull/327442/changes")).toBe(true)
+    })
+
+    test("and the conversation is not the Files tab", () => {
+      expect(opensOnFiles("/microsoft/vscode/pull/327442")).toBe(false)
+      expect(opensOnFiles("/microsoft/vscode/pull/327442/commits")).toBe(false)
+      expect(opensOnFiles("/microsoft/vscode/pull/327442/checks")).toBe(false)
+    })
   })
 })

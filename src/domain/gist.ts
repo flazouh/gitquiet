@@ -67,3 +67,97 @@ export const gistListIn = (url: string): Option.Option<GistList> => {
 
   return Option.some({ owner, page: Number.isNaN(page) ? 1 : page })
 }
+
+/**
+ * One file inside a gist, as their own page already rendered it.
+ *
+ * `rendered` is the difference between a README GitHub turned into HTML and a source
+ * file it printed as lines, and the screen draws them differently: the first is prose
+ * and the second is code. Reading the text of both and hoping is how a markdown file
+ * ends up in a monospace column with its heading markers showing.
+ */
+export type GistFile = {
+  readonly name: string
+  /** Off their own `type-…` class, which is the language they highlighted it as. */
+  readonly language: string | null
+  readonly content: string
+  readonly rendered: boolean
+  /**
+   * What GitHub rendered, for a file they turned into HTML.
+   *
+   * Their markup rather than their text, because the text of a rendered README is the
+   * README with every heading, list and code block flattened into one paragraph — which
+   * is what this drew before, and it looked exactly like a wall of prose. The third
+   * payload that arrives already rendered; see `GitHubHtml`, which draws the other two.
+   *
+   * Null for a file they printed as lines, where {@link content} is the whole of it.
+   */
+  readonly html: string | null
+  /** Their raw link, which is the one control on a file row worth keeping. */
+  readonly raw: string | null
+}
+
+/** One gist, everything their page says about it. */
+export type GistSeen = {
+  readonly owner: string
+  readonly id: string
+  readonly title: string
+  readonly description: string | null
+  readonly secret: boolean
+  readonly updatedAt: string
+  readonly files: ReadonlyArray<GistFile>
+  readonly revisions: number
+  readonly forks: number
+  readonly stars: number
+  readonly comments: number
+}
+
+/**
+ * Whether an address is one of their two editors: making a gist, or changing one.
+ *
+ * `gist.github.com/` itself is the new-gist form — their site has no other home — and
+ * `/{owner}/{id}/edit` is the one for a gist that exists. Neither is a page this
+ * extension draws: they are forms, and a form GitHub already knows how to post is not
+ * one worth rebuilding. What they get instead is room. See `gistEditing.css`.
+ *
+ * Recorded on Reddit in 2024 at 23 points: "I find the edit window is extremely tiny to
+ * be usable... To be able to modify a code efficiently the display I would expect it to
+ * take the full width least and be much taller." Measured live on 2026-09-02, signed in,
+ * in a 1256 by 888 window: their editor is 978 wide and 322 tall. A third of the height
+ * of the window it is in.
+ */
+export const isGistEditing = (url: string): boolean => {
+  const address = URL.parse(url)
+  if (address === null || address.hostname !== "gist.github.com") return false
+
+  const segments = address.pathname.split("/").filter((part) => part.length > 0)
+  if (segments.length === 0) return true
+
+  const [owner, id, last] = segments
+  return (
+    segments.length === 3 &&
+    last === "edit" &&
+    owner !== undefined &&
+    id !== undefined &&
+    !NOT_AN_OWNER.has(owner.toLowerCase())
+  )
+}
+
+/**
+ * Their starred page, which is a list of gists somebody else wrote.
+ *
+ * An Open Question in `docs/spec/gists.md` until it turned out to cost nothing: read
+ * live on 2026-09-02, `/starred` serves the same `.gist-snippet` rows and the same pager
+ * as a reader's own list, so every reader this codebase already has answers it.
+ *
+ * Its own address rather than an owner's, which is why `NOT_AN_OWNER` holds the word:
+ * `gistListIn` must never read `/starred` as a list belonging to somebody called
+ * "starred".
+ */
+export const isGistStarred = (url: string): boolean => {
+  const address = URL.parse(url)
+  if (address === null || address.hostname !== "gist.github.com") return false
+
+  const segments = address.pathname.split("/").filter((part) => part.length > 0)
+  return segments.length === 1 && segments[0]?.toLowerCase() === "starred"
+}
