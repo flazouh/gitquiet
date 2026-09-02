@@ -1,6 +1,9 @@
 # Commenting where the diff does not reach
 
-Status: proposed
+Status: steps 0, 1, 2 and 3 done, 2026-09-02. Step 2 answered all three questions and reversed
+this plan's section 3; steps 3, 4 and 5 are now unblocked and section 5 needs re-reading
+against what was measured. See `docs/spec/github-write-api.md`, "What `create_review_comment`
+takes, measured".
 
 Two GitHub Community discussions ask for the same thing from two directions.
 [#4452](https://github.com/orgs/community/discussions/4452), 2,352 upvotes, asks
@@ -149,6 +152,19 @@ Two limits from the same announcement, both stated by GitHub:
 
 ## 3. For an unchanged file: `FILE`, a whole-file patch, or neither
 
+> **Corrected 2026-09-02 by the experiment in step 2.** The premise below is wrong. GitHub's
+> `page_data` route *does* accept a review comment on a file the pull request did not change:
+> `flazouh/ghpro-scratch#14` answered 200 with a real thread on `notes.md`, which that pull
+> request never touched. It refuses only a path it cannot resolve in any tree, with 422
+> `{"error":"Path could not be resolved."}`. Their own changelog sentence quoted below
+> describes their client, not their server.
+>
+> The conclusion still holds and the reason is now different and weaker. Such a thread is
+> real and every reader finds it on the Conversation page, but the file gets no entry in
+> `diffSummaries`, so it is drawn nowhere in any diff and the Conversation page does not say
+> which file it is about. It is not invisible; it is unplaceable. Section 5 is worth
+> re-reading against that before it is built.
+
 Neither. GitHub does not accept a review comment on a file the pull request did
 not change, and the sentence above says so in their own words. The route belongs
 to a pull request and the path is checked against the comparison the pull request
@@ -293,6 +309,14 @@ without the ones after it. Every step names its failing test first.
 
 ### Step 0. Draw the threads that already arrive
 
+**Built, 2026-09-02.** `threadsOn` in `src/ui/threads.ts` splits a file's threads by
+whether its diff holds the line they hang on, and `Files.tsx` draws the ones it does not
+above the file with their line said in words. The renderer is handed no row for them, so
+what Pierre does with an annotation on a line it never drew stopped mattering and is still
+unestablished. `Out of Reach` is in `CONTEXT.md`. Both new pane tests were run against the
+old behaviour first and failed.
+
+
 The cheapest useful slice, and the only one that changes nothing about writing.
 When a thread is anchored outside the lines the renderer drew, say so instead of
 dropping it. The file heading gains a line saying how many remarks sit outside
@@ -308,6 +332,13 @@ Files: `src/ui/threads.ts`, `src/ui/Files.tsx`, `src/ui/FileHeading.tsx`.
 Estimate: about 3 hours.
 
 ### Step 1. Carry the side
+
+**Already built when this plan was re-read on 2026-09-02.** `NewComment` in
+`src/domain/PullRequest.ts` carries a side, `Shell.tsx` sends `anchorSideOf(note.side)`, and
+`GitHubGateway.comment` writes `asTheyNameIt(note.side)` rather than a hardcoded `"right"`.
+The `endSide` half below is not done: `picked` still reads only `side`, so a drag crossing
+the two halves still collapses to one.
+
 
 Take `Picked.side` from the pick through to the wire, so a remark on a deleted
 line is posted against the old file.
@@ -330,6 +361,14 @@ Files: `src/domain/PullRequest.ts`, `src/github/GitHubGateway.ts`,
 Estimate: about 2 hours.
 
 ### Step 2. Settle the route by experiment
+
+**Done, 2026-09-02, against `flazouh/ghpro-scratch#14`.** All three answers are recorded in
+`docs/spec/github-write-api.md` under "What `create_review_comment` takes, measured". In
+short: a line below the hunks is taken and comes back as `R150` with `ctx: [147, 153]`, the
+lines GitHub says to reveal around it; both `"file"` and `"FILE"` are taken and both answer
+`"file"`; a path outside the comparison is taken too, and only an unresolvable path is
+refused. Nothing needed GitHub's per-repository rollout — the route took the line on a
+repository whose own page offers no such thing.
 
 Nothing below this line should be built on a guess about what the server takes.
 Three questions, one scratch pull request, one signed-in browser. There is no dry
@@ -359,7 +398,25 @@ the rollout is on there.
 
 ### Step 3. Expand the context of a changed file
 
-Only if step 2 answers yes to its first question.
+**Built, 2026-09-02.** `src/domain/revealing.ts` says which halves a file needs,
+`src/app/revealing.ts` fetches and keeps them off the raw route, and `src/diff/engine.ts`
+hands Pierre a `loadDiffFiles` it calls on the press. `Reveal` is in `CONTEXT.md`.
+
+Two things were learned that the plan could not have known. `expandUnchanged` is not the
+switch for this: it renders every line of every file from the first paint, and turning it
+on took the shots stage from ten seconds to over ten minutes on a seven-file pull request.
+The separators between the hunks already offer the expansion and `loadDiffFiles` is what
+they call, so the option stays off. And Pierre throws
+`deletionLine and additionLine are null` when the halves it is handed do not reconcile with
+the patch it parsed — which is why `src/app/revealing.ts` fails rather than sending
+`before: null` for a file that had an old half.
+
+Neither was catchable by a unit test, because the tests stub the renderer. Both came out of
+`bun run qa`, and the QA mock now builds its halves from each file's own patch so the stage
+keeps exercising the real renderer.
+
+Verified end to end in a browser against the stage: pressing a separator's down arrow drew
+exactly `expansionLineCount` lines, and Expand all drew the remaining 2,416.
 
 Give the reader the rest of the file to click on. Pierre already has the shape
 for it: `processFile` in `@pierre/diffs` takes a patch together with `oldFile`

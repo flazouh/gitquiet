@@ -212,3 +212,40 @@ describe("a read that failed", () => {
     expect(screen.getByRole("button", { name: "Show GitHub's list" })).toBeTruthy()
   })
 })
+
+/* The same mark every list publishes now. See `repoPullsScreen.test.tsx` for why. */
+describe("which address this list claims to have drawn", () => {
+  const drawn = () => document.documentElement.getAttribute("data-gitquiet-at")
+
+  afterEach(() => document.documentElement.removeAttribute("data-gitquiet-at"))
+
+  test("claims the pathname it stands for once rows are drawn", async () => {
+    render(
+      <IssueListScreen
+        repo={repo}
+        at="/flowline-labs/flowline/issues"
+        load={() => Effect.succeed(listed([issue(31)]))}
+        onStepAside={() => {}}
+        onPage={() => {}}
+      />
+    )
+
+    await screen.findByRole("link", { name: /Issue #/ })
+    await waitFor(() => expect(drawn()).toBe("/flowline-labs/flowline/issues"))
+  })
+
+  test("claims nothing while it is still reading", async () => {
+    render(
+      <IssueListScreen
+        repo={repo}
+        at="/flowline-labs/flowline/issues"
+        load={() => Effect.never as Effect.Effect<ListedIssues>}
+        onStepAside={() => {}}
+        onPage={() => {}}
+      />
+    )
+
+    await screen.findByText(/Reading this repository's issues/)
+    expect(drawn()).toBeNull()
+  })
+})

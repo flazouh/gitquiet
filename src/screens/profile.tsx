@@ -34,7 +34,11 @@ import "@/ui/styles.css"
  */
 const PAGES = 3
 
-const open = (page: PersonPage): (() => void) => {
+const open = (
+  page: PersonPage,
+  /** The exact pathname this screen is stood up for. See `DrawnAt` in `drawnAt.tsx`. */
+  at: string
+): (() => void) => {
   const now = new Date()
 
   const asking = (partly: (said: Answering) => void) =>
@@ -74,6 +78,7 @@ const open = (page: PersonPage): (() => void) => {
     place: PROFILE,
     draw: (standing) => (
       <ProfileScreen
+        at={at}
         login={page.login}
         answering={answering}
         owned={owned}
@@ -130,7 +135,7 @@ export const start = (): void => {
       return
     }
 
-    close = open(page.value)
+    close = open(page.value, new URL(url, window.location.origin).pathname)
     on = page.value.login
   }
 

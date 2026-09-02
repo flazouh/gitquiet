@@ -5,6 +5,7 @@ import type { Keys } from "../keys/commands"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
+import { DrawnAt } from "./drawnAt"
 import { type Load, useLive } from "./useLive"
 import type { Repository } from "../domain/repositories"
 import { TheBar } from "./TheBar"
@@ -56,6 +57,8 @@ export type RepoPullsScreenProps = {
   readonly signedIn?: () => boolean
   /** What this page is called in this document's memory. See {@link useLive}. */
   readonly where?: string
+  /** The exact pathname this screen stands for, as {@link DrawnAt} needs it said. */
+  readonly at?: string
 }
 
 const WORKING = "Reading this repository's pull requests…"
@@ -93,6 +96,7 @@ export const RepoPullsScreen = ({
   onQuery,
   keys,
   where,
+  at,
   signedIn = viewerOnPage
 }: RepoPullsScreenProps) => {
   const live = useLive(load, preload, where)
@@ -101,13 +105,17 @@ export const RepoPullsScreen = ({
 
   if (read.status === "failed") {
     return (
-      <ReadFailed
-        signedOut={!signedIn()}
-        why={read.why}
-        what={`The pull requests in ${repo.owner}/${repo.repo}`}
-        onStepAside={onStepAside}
-        asideLabel="Show GitHub's list"
-      />
+      <>
+        {/* The failure screen is an answer too. See {@link DrawnAt}. */}
+        <DrawnAt path={at ?? null} />
+        <ReadFailed
+          signedOut={!signedIn()}
+          why={read.why}
+          what={`The pull requests in ${repo.owner}/${repo.repo}`}
+          onStepAside={onStepAside}
+          asideLabel="Show GitHub's list"
+        />
+      </>
     )
   }
 
@@ -122,6 +130,7 @@ export const RepoPullsScreen = ({
     // two slots throughout: the wait has to be the same element on both sides of
     // the answer or the dissolve has nothing to start from.
     <div className="relative">
+      <DrawnAt path={read.status === "loading" ? null : (at ?? null)} />
       {/*
        * Their whole header goes, both rows of it, and this says the same things in one:
        * the repository, and the tabs read off their own nav.

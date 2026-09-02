@@ -64,6 +64,14 @@ _Avoid_: incremental diff, delta, new changes
 A record that a Participant has read one specific version of one file. It expires when that file changes again.
 _Avoid_: viewed checkbox, seen flag
 
+**Reveal**:
+Drawing the lines of a changed file that GitHub's own patch leaves out. Their diff carries the hunks and three lines either side, so a reader who wants to read around a change, or to say something about a line between two hunks, has nothing there to press. Revealing fetches the file's two whole halves and hands them to the renderer, which works the diff out again and draws as much as was asked for. Costs nothing on a file nobody reveals: the fetch is a function the renderer calls on the press, never before, and the halves are named by commit so a file revealed twice is read once.
+_Avoid_: expand, unfold, show more
+
+**Out of Reach**:
+A review thread hung on a line the diff GitHub sent for that file does not contain, so there is no line in the drawing to open it under. GitHub's own Files changed page lets a reviewer comment on any line of a changed file, expanded or not, and those threads arrive in the payload like any other while the diff stays the hunks. Drawn above the file, with the line it names said in words, rather than handed to a renderer that has nowhere to put it. Judged on the last line of a range, which is where a row hangs, and never claimed before the file's diff has landed.
+_Avoid_: orphan, unanchored, hidden comment
+
 **Unsent Comment**:
 A comment a Participant has written on a line and GitHub is holding, shown to nobody else until the review carrying it is submitted.
 _Avoid_: pending comment, draft comment, unpublished comment
@@ -227,6 +235,45 @@ _Avoid_: source code zip, auto-generated asset
 
 **Pre-release** is GitHub's word and is kept verbatim, like Reason. It is exact, readers use it,
 and it comes off a flag on the record rather than from anything this interface works out.
+
+### Blame
+
+**Blamed Line**:
+One line of a file, carrying the commit that last touched it. The unit the blame screen draws one row per, in place of GitHub's Range.
+_Avoid_: blame entry, line attribution
+
+**Span**:
+Every consecutive Blamed Line naming the same commit, drawn as one strip with the commit told once at its top rather than once per line. `docs/spec/blame.md` counts why: 157 ranges of `oven-sh/bun`'s README described 30 commits between them, and a repository's `.git-blame-ignore-revs` file, where present, changes which commit a Span names without changing where the Span itself breaks.
+_Avoid_: chunk, range, group
+
+**Repeat**:
+A Span whose commit already told its story higher up the same page. Drawn thin, without the avatar and the message told a second time, the way a Bare Version is drawn thin rather than as a card with nothing on it.
+_Avoid_: duplicate commit, same commit again
+
+**Ignore File**:
+The repository's `.git-blame-ignore-revs`, kept verbatim as the name of the convention `git blame --ignore-revs-file` and GitHub's own payload both use.
+_Avoid_: ignore revs, blame ignore file
+
+**Web Landing**:
+A commit GitHub applied itself, because it was landed with their Merge button or written in their browser. Git records `GitHub` at `noreply@github.com` as the committer on those and leaves the person as the author, so the name GitHub sends is nobody's while the face beside it is still the right person's. A Span on one names nobody rather than naming GitHub, and the message leads the row instead. Two of the four commits in `fixtures/github/blame.json` are one.
+_Avoid_: web-flow, bot commit, noreply
+
+### Gists
+
+**Label**:
+A word a reader attaches to one of their own gists, kept by this extension rather than by
+GitHub, because gists carry none. A gist may carry more than one.
+_Avoid_: tag, folder, category
+
+**Named**:
+A gist whose own display name a reader has set, in place of the filename GitHub picked by ASCII
+sort. Stored the same way a Label is, because GitHub has no field for either.
+_Avoid_: renamed, titled, custom name
+
+**Own Gists**:
+The set a reader's own gist list is read from and organized over — every gist the signed-in
+reader owns, public and secret both.
+_Avoid_: my gists, personal gists
 
 ## Not built
 

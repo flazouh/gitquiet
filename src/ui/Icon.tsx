@@ -13,8 +13,8 @@ export { SpinnerIcon } from "./art"
  * `useArt` once at the top and passes it down, which is a line more and keeps
  * the glyph a check is drawn as in the same set as everything around it.
  */
-export const pullRequestArt = (art: Set, state: PullRequestState): Art =>
-  art[pullRequestName(state)]
+export const pullRequestArt = (art: Set, state: PullRequestState, inQueue = false): Art =>
+  art[pullRequestName(state, inQueue)]
 
 /**
  * The colour a check state is drawn in, beside the glyph it is drawn as.

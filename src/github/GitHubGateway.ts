@@ -42,7 +42,6 @@ import {
 import { contributionsIn, contributionsRoute } from "./contributions"
 import { askingOnce } from "./flight"
 import { hovercardRoute, portraitIn } from "./hovercard"
-import { numbersInNodeIds } from "./nodeIds"
 import { payloadsThroughWorker } from "./throughTheWorker"
 import {
   decodeDeferred,
@@ -121,6 +120,7 @@ import {
 import { commitFromKept, keptCommitFrom } from "./keptCommit"
 import { keepTabs, keptTabs, tabsOnPage } from "./repoTabs"
 import { openedFrom } from "./file"
+import { blamedFrom } from "./blame"
 import type { Named, Numbered, Suggesting } from "../domain/suggesting"
 import type { Uploaded } from "../domain/attaching"
 import { decodeAddedComment, issueFrom, remarkFrom } from "./issueView"
@@ -281,9 +281,15 @@ const shelfRoute = (shelf: Shelf): string =>
  *
  * The ids go in repeated square-bracket parameters, which is Rails' way of
  * spelling an array and not something to tidy: their route reads no other form.
+ *
+ * `ids[]`, not `pr_ids[]`. GitHub renamed the parameter on 2026-08-27 in the same
+ * change that moved the id itself from a database number to a node id string:
+ * the old `pr_ids[]` name now answers 200 with an empty `results`, which read as
+ * a whole list with no checks on any row. The ids are node ids and go in
+ * unescaped exactly as their own dashboard sends them.
  */
-const deferredRoute = (ids: ReadonlyArray<number>): string =>
-  `/pulls/inbox/deferred?page=1&${ids.map((id) => `pr_ids%5B%5D=${id}`).join("&")}`
+const deferredRoute = (ids: ReadonlyArray<string>): string =>
+  `/pulls/inbox/deferred?page=1&${ids.map((id) => `ids%5B%5D=${encodeURIComponent(id)}`).join("&")}`
 
 /**
  * Their own repository picker's route.
@@ -1063,8 +1069,8 @@ const fragmentAt = Effect.fn("fragmentAt")(function* (route: string) {
 })
 
 /** Ids in the batches GitHub's own dashboard asks in. */
-const inBatches = (ids: ReadonlyArray<number>): ReadonlyArray<ReadonlyArray<number>> => {
-  const batches: Array<ReadonlyArray<number>> = []
+const inBatches = (ids: ReadonlyArray<string>): ReadonlyArray<ReadonlyArray<string>> => {
+  const batches: Array<ReadonlyArray<string>> = []
   for (let at = 0; at < ids.length; at += PER_BATCH) {
     batches.push(ids.slice(at, at + PER_BATCH))
   }
@@ -1088,7 +1094,7 @@ const writing = Effect.fn("writing")(function* (
   route: string,
   // A number among them because one route names a stack by GitHub's own id for
   // it, which is a number and not one of the numbers in a list.
-  body?: Readonly<Record<string, string | number | boolean | ReadonlyArray<number> | ReadonlyArray<string>>>,
+  body?: Readonly<Record<string, string | number | boolean | ReadonlyArray<number>>>,
   method: "POST" | "PUT" = "POST"
 ) {
   const url = `https://github.com/${reference.owner}/${reference.repo}/pull/${reference.number}${route}`
@@ -2789,24 +2795,13 @@ export const layer = Layer.succeed(GitHubGateway, {
     }),
 
     standingsFor: Effect.fn("GitHubGateway.standingsFor")(function* (ids: ReadonlyArray<string>) {
-      /*
-       * Turned into numbers before anything is batched, rather than while a URL is
-       * being spelt.
-       *
-       * The two halves of this route disagree about what names a pull request: it
-       * takes the number and answers with the node id. Decoding at the spelling
-       * meant a batch of ids none of which could be read still became a request,
-       * with an empty `pr_ids[]` — and that answers 200 with no results, which
-       * looks exactly like an honest answer about rows that have no checks.
-       */
-      const numbers = numbersInNodeIds(ids)
-      if (numbers.length === 0) return new Map() as Standings
+      if (ids.length === 0) return new Map() as Standings
 
       // Concurrently, because the batches are independent and a Working Set of
       // forty is five round trips that would otherwise be taken one at a time
       // while the reader looks at rows with no checks on them.
       const batches = yield* Effect.all(
-        inBatches(numbers).map((batch) =>
+        inBatches(ids).map((batch) =>
           Effect.gen(function* () {
             const route = deferredRoute(batch)
             const raw = yield* fetchViewerRoute(route)
@@ -3895,6 +3890,25 @@ export const layer = Layer.succeed(GitHubGateway, {
     }),
 
     /**
+     * One file's blame, for the screen `docs/spec/blame.md` describes.
+     *
+     * Their page for it rather than a route: the ranges, the commits and the
+     * file's own lines are three of their payloads sitting in one document,
+     * exactly as a blob's lines and rendering are, so one fetch answers all
+     * of it.
+     */
+    blameAt: Effect.fn("GitHubGateway.blameAt")(function* (
+      reference: RepoRef,
+      branch: string,
+      path: string
+    ) {
+      const route = `/blame/${branch}/${path.split("/").map(encodeURIComponent).join("/")}`
+      const { payloads } = yield* readRepoPage(reference, route)
+
+      return yield* blamedFrom(payloads).pipe(Effect.catch(undecodableFrom(reference, route)))
+    }),
+
+    /**
      * One file as its own text, off their raw route.
      *
      * The route is on github.com and the answer is not: it redirects to the raw
@@ -4253,6 +4267,7 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     standing: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     treePaths: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     fileAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    blameAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     rawFileAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     treeCommits: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     whoTouched: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
@@ -4400,6 +4415,7 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     standing: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     treePaths: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     fileAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    blameAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     rawFileAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     treeCommits: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     whoTouched: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),

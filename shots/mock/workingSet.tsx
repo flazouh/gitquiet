@@ -432,7 +432,7 @@ const ROWS: ReadonlyArray<Row> = [
 
 const involvedFrom = (row: Row, at: number): InvolvedPullRequest => ({
   reference: { owner: row.owner, repo: row.repo, number: row.number },
-  id: `PR_${1000 + at}`,
+  id: String(1000 + at),
   title: row.title,
   author: row.automated === true ? machine(row.author) : person(row.author),
   state: row.state ?? (row.shelf === "your-drafts" ? "draft" : "open"),

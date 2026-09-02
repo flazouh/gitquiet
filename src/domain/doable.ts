@@ -65,9 +65,30 @@ const NOTHING: ReadonlySet<never> = new Set()
  * yet touch.
  */
 export const standingIn = (merge: MergeState): Option.Option<Standing> =>
-  Option.map(merge.queue, (queue) =>
-    queue.waiting ? "dequeue" : Option.isSome(merge.autoMerge) ? "cancel" : "enqueue"
-  )
+  Option.flatMap(merge.queue, (queue) => {
+    if (queue.waiting) return Option.some<Standing>("dequeue")
+    if (Option.isSome(merge.autoMerge)) return Option.some<Standing>("cancel")
+
+    /*
+     * A layer of a stack joins by the stack's own route, so the queue has no
+     * verb to offer it.
+     *
+     * None rather than "enqueue", which is the one no here that is not about
+     * permission: joining is still what the reader wants and still what the
+     * press does, but `enqueue_stack` is what does it. GitHub's own button asks
+     * whether this is a layer before it asks about the queue, and the queue
+     * route refuses one with a sentence about the branch being out of date —
+     * untrue of it, and answerable by nothing the card could offer.
+     *
+     * Said here rather than in `whatCanBeDone` alone because the card draws its
+     * queue control from this answer as well — see `faceOf`. Left to the verb
+     * list, the button went on saying "Merge when ready" over a press that had
+     * already been sent somewhere else.
+     */
+    return Option.isSome(merge.stack)
+      ? Option.none<Standing>()
+      : Option.some<Standing>("enqueue")
+  })
 
 /**
  * What may be asked of this pull request, now, by this reader.
@@ -105,6 +126,12 @@ export const whatCanBeDone = ({ state, merge }: Wanting): ReadonlySet<Doing> => 
     onSome: (stack) => holdingItUp(stack).length > 0
   })
 
+  /*
+   * None where the repository has no queue, and none as well for a layer of a
+   * stack, which joins by the stack's own route — see {@link standingIn}. Both
+   * arrive here as the same answer because both mean the same thing: the press
+   * that lands this one is the merge, whatever it is called on the button.
+   */
   const standing = standingIn(merge)
   if (Option.isNone(standing)) {
     // A press has to name a way of merging, so a merge box that named none this

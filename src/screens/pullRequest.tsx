@@ -26,6 +26,7 @@ import {
   unsettleThread,
   updatePullRequestBranch
 } from "@/app/pullRequest"
+import { loadWholeFile } from "@/app/revealing"
 import { rememberedRepositories } from "@/app/destinations"
 import { pullRequestEntitled } from "@/app/entitling"
 import { layerSizes } from "@/app/sizes"
@@ -373,6 +374,7 @@ const open = (
          * `attaching.md` for their three requests.
          */
         onUpload={(file) => writing(uploadFile(reference, file))}
+        readWholeFile={(sha, path) => loadWholeFile(reference, sha, path).pipe(throughGitHub)}
         onSettle={settle}
         onUnsettle={unsettle}
         onReply={reply}

@@ -11,18 +11,37 @@ import { BROWSER } from "./marks"
 import { ageOf, momentOf } from "./when"
 import { Who } from "./Who"
 
-const STATE_TONE: Record<PullRequestState, string> = {
+/**
+ * What the badge says, which is the state and one thing more.
+ *
+ * Queued is not a fifth state: `stateOf` keeps a queued pull request open,
+ * because where it stands in the line is already on the merge state. But
+ * GitHub's own page badges it "Queued", and a reader arriving from there saw
+ * "Open" on the same pull request — the one word saying the merge is in hand
+ * was the one missing. So the badge reads the queue as well as the state, and
+ * the queue wins while this is standing in it.
+ */
+type Badge = PullRequestState | "queued"
+
+/**
+ * Queued in the colour of a wait, and on a tint rather than a fill: the ink is
+ * the pack's own busy colour, which every pack chose, where a fill under white
+ * ink is a colour none of them did.
+ */
+const BADGE_TONE: Record<Badge, string> = {
   open: "bg-pass-emphasis text-ink-on-emphasis",
   draft: "bg-surface text-ink-muted",
   merged: "bg-done-emphasis text-ink-on-emphasis",
-  closed: "bg-fail-emphasis text-ink-on-emphasis"
+  closed: "bg-fail-emphasis text-ink-on-emphasis",
+  queued: "bg-attention-muted text-busy"
 }
 
-const STATE_WORD: Record<PullRequestState, string> = {
+const BADGE_WORD: Record<Badge, string> = {
   open: "Open",
   draft: "Draft",
   merged: "Merged",
-  closed: "Closed"
+  closed: "Closed",
+  queued: "Queued"
 }
 
 /** What the moment beside the word is the moment of, said as it reads. */
@@ -179,8 +198,13 @@ export const Header = ({
   const Tick = art.tick
   const Copy = art.copy
   const External = art["external"]
-  const Art = pullRequestArt(art, snapshot.state)
-  const word = STATE_WORD[snapshot.state]
+  const inQueue = Option.exists(
+    Option.flatMap(snapshot.merge, (said) => said.queue),
+    (queue) => queue.waiting
+  )
+  const badge: Badge = inQueue ? "queued" : snapshot.state
+  const Art = pullRequestArt(art, snapshot.state, inQueue)
+  const word = BADGE_WORD[badge]
   const moment = momentIn(snapshot)
   const age = Option.getOrUndefined(Option.map(moment, (at) => ageOf(at)))
   const size = sizeOf(snapshot.files)
@@ -215,7 +239,7 @@ export const Header = ({
           title={Option.getOrUndefined(
             Option.map(moment, (at) => `${STATE_VERB[snapshot.state]} ${momentOf(at)}`)
           )}
-          className={`flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold ${STATE_TONE[snapshot.state]}`}
+          className={`flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold ${BADGE_TONE[badge]}`}
         >
           <Art size={12} />
           {word}

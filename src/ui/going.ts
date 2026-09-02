@@ -1,6 +1,12 @@
 import { Effect } from "effect"
 import { BAR_ID } from "./barSlot"
-import { holdTheSurface, ROOT_ID, theScreenOnThePage } from "./mount"
+import {
+  holdTheSurface,
+  ROOT_ID,
+  stillArriving,
+  theScreenOnThePage,
+  theScreenStandsFor
+} from "./mount"
 import { beginNavigation } from "./navigationTiming"
 import type { Stop } from "./navigation"
 
@@ -26,19 +32,45 @@ import type { Stop } from "./navigation"
 type World = Window & { gitquietOwnRows?: true }
 
 /**
- * How long the screen being gone to has to appear before the address is made
- * honest the slow way.
+ * How long the screen being gone to has to appear before the repair starts
+ * asking whether it is coming at all.
  *
  * Generously longer than it takes. The screen replacing this one is a separate
  * content script the shell fetches on the press, and it stands on the page
  * within about a fifth of a second — but it is a separate script, so it can fail
  * to arrive at all, and an address pointing at a page nobody drew is the worst
- * of the outcomes here. See {@link goTo}.
+ * of the outcomes here. See {@link goTo}, and {@link STILL_ARRIVING_CHECKS} for
+ * what a deadline reached does about a screen that is slow rather than absent.
  *
- * Exported because the shell holds reading ahead for the same span, on the same
- * argument: past this, whatever the press was going to do it has done.
+ * Exported because the shell holds reading ahead for the same span. That hold is
+ * a bound rather than a proof: a slow arrival can still be reading past it, and
+ * a guess resumed then is competing with the press again — but holding for the
+ * repair's whole patience would cost every quick press its reading ahead, since
+ * the strict arrival mark only the pull request screen publishes is what would
+ * have to release the hold early.
  */
 export const ARRIVING = 1_500
+
+/**
+ * How many more deadlines a screen that is visibly still arriving is given.
+ *
+ * The repair is for a screen that is not coming, and for most of its life it
+ * could not tell that from a screen that is merely slow: signed out, on a cold
+ * cache, a big repository's list can still be standing up when the first
+ * deadline fires, and the repair then loaded a whole document over a press that
+ * was working — which also threw away every live screen this document was
+ * holding for Back. Reproduced on live github.com by
+ * `scripts/probe-back-live.ts`.
+ *
+ * So a deadline that finds the arrival still moving — see `stillArriving`: the
+ * gate up, or a standing screen with a read visibly in flight — waits another
+ * {@link ARRIVING} instead of replacing, up to this many times. Five puts the
+ * forced answer at nine seconds, deliberately past everyone else's give-ups:
+ * the shell drops the gate at eight, and a screen whose read fails draws its
+ * failure or steps aside well before that. By the last check a working arrival
+ * has finished or given up on itself, and what is left really is not coming.
+ */
+const STILL_ARRIVING_CHECKS = 5
 
 /**
  * Whether the screen on the page is one of ours, drawing rows of its own.
@@ -97,6 +129,17 @@ export const holdForRedraw = (target: Window, redraws: boolean): boolean => {
  */
 export const holdsForTraversal = (standing: string | null, arriving: string): boolean =>
   standing !== null && standing !== arriving
+
+/**
+ * Asks {@link holdsForTraversal} about the page, and holds where it says so.
+ *
+ * The shape {@link holdForRedraw} already has, for the traversal that function
+ * cannot answer, so that both of the reasons a screen is kept on the page while
+ * another draws are written in one file rather than one here and one in the shell.
+ */
+export const holdForTraversal = (target: Document, arriving: string): void => {
+  if (holdsForTraversal(theScreenStandsFor(target), arriving)) holdTheSurface(target)
+}
 
 /**
  * The browser's own account of where this tab has been.
@@ -333,10 +376,11 @@ export const watchTheTrail = (target: Window, moved: () => void): Stop => {
  * entry with nothing behind it, so the reader pressed Back and appeared to skip
  * the page they had been looking at.
  *
- * So the push is provisional. If no screen has arrived by {@link ARRIVING}, the
- * same address is loaded properly — `replace`, not `assign`, so the entry this
- * pushed is the one the document lands on rather than a second one beside it. The
- * reader waits as long as they always used to, and history says one true thing.
+ * So the push is provisional. If no screen has arrived by {@link ARRIVING} — and
+ * none is visibly still on its way, see {@link STILL_ARRIVING_CHECKS}, and the
+ * verdict has held for a second deadline — the same address is loaded properly:
+ * `replace`, not `assign`, so the entry this pushed is the one the document
+ * lands on rather than a second one beside it. History says one true thing.
  */
 /**
  * The whole address, so that two of them can be compared.
@@ -403,14 +447,38 @@ export const goTo = (
    */
   target.history.pushState(null, "", path)
 
-  target.setTimeout(() => {
+  const deadline = (patience: number, confirmed: boolean): void => {
     // Somewhere else entirely by now: a second press, or the back button. This
     // address is nobody's to repair.
     if (addressOf(target) !== path) return
     if (cameUp()) return
 
+    // Slow is not absent. A gate still up or a read visibly in flight is a
+    // press being answered, and loading a document over it would cost the
+    // reader the answer and this document every screen it holds for Back. The
+    // patience runs out all the same, so a wedged arrival is still repaired.
+    if (patience > 0 && stillArriving(target.document)) {
+      target.setTimeout(() => deadline(patience - 1, false), ARRIVING)
+      return
+    }
+
+    /*
+     * Measured twice, cut once. The moment a page changes hands, the mark of
+     * the screen being swept stands under the fresh address for a few
+     * milliseconds more — no gate, no read in flight, nothing above to see —
+     * and a verdict sampled inside that window is wrong in the one way this
+     * function must never be. It resolves before the next deadline; a wrong
+     * page that is really wrong is still wrong then.
+     */
+    if (!confirmed) {
+      target.setTimeout(() => deadline(patience, true), ARRIVING)
+      return
+    }
+
     target.location.replace(path)
-  }, ARRIVING)
+  }
+
+  target.setTimeout(() => deadline(STILL_ARRIVING_CHECKS, false), ARRIVING)
 }
 
 /**

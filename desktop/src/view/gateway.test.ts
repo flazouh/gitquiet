@@ -16,7 +16,7 @@ const gatewayFrom = async () => {
 }
 
 const ROW: WorkingSetRow = {
-  id: 1,
+  id: "1",
   owner: "flazouh",
   repo: "working-set",
   number: 7,

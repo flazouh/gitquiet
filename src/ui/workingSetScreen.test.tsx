@@ -11,7 +11,7 @@ afterEach(cleanup)
 
 const involved = (title: string, number = 1): InvolvedPullRequest => ({
   reference: { owner: "flazouh", repo: "octo-repo", number },
-  id: `PR_${number * 1000}`,
+  id: String(number * 1000),
   title,
   author: { login: "flazouh", isAutomated: false, faceUrl: Option.none() },
   state: "open",
@@ -374,5 +374,72 @@ describe("the Working Set screen", () => {
 
     expect(screen.getByText(/still true enough/)).toBeDefined()
     expect(screen.queryByText(/could not be read/)).toBeNull()
+  })
+})
+
+/* The same mark every list publishes now. See `repoPullsScreen.test.tsx` for why. */
+describe("which address this list claims to have drawn", () => {
+  const drawn = () => document.documentElement.getAttribute("data-gitquiet-at")
+
+  afterEach(() => document.documentElement.removeAttribute("data-gitquiet-at"))
+
+  test("claims the pathname it stands for once rows are drawn", async () => {
+    render(
+      <WorkingSetScreen
+        at="/pulls"
+        load={() => Effect.succeed(listOf("Ship the claim"))}
+        onOpen={() => {}}
+        onStepAside={() => {}}
+      />
+    )
+
+    await screen.findByText("Ship the claim")
+    await waitFor(() => expect(drawn()).toBe("/pulls"))
+  })
+
+  test("claims nothing while it is still reading", async () => {
+    const reading = held<ReturnType<typeof listOf>>()
+    render(
+      <WorkingSetScreen
+        at="/pulls"
+        load={() => reading.read}
+        onOpen={() => {}}
+        onStepAside={() => {}}
+      />
+    )
+
+    await screen.findByText(/Reading your pull requests/)
+    expect(drawn()).toBeNull()
+  })
+
+  /*
+   * The move the entry makes without standing a new screen up: GitHub redirects
+   * /pulls to /pulls/inbox and the list stays. The claim has to move with it —
+   * a claim gone stale under the fresh address is the wrong-page signal the
+   * repair loads a document over.
+   */
+  test("moves its claim when the entry retells the address", async () => {
+    const showing = render(
+      <WorkingSetScreen
+        at="/pulls"
+        load={() => Effect.succeed(listOf("Ship the claim"))}
+        onOpen={() => {}}
+        onStepAside={() => {}}
+      />
+    )
+
+    await screen.findByText("Ship the claim")
+    await waitFor(() => expect(drawn()).toBe("/pulls"))
+
+    showing.rerender(
+      <WorkingSetScreen
+        at="/pulls/inbox"
+        load={() => Effect.succeed(listOf("Ship the claim"))}
+        onOpen={() => {}}
+        onStepAside={() => {}}
+      />
+    )
+
+    await waitFor(() => expect(drawn()).toBe("/pulls/inbox"))
   })
 })

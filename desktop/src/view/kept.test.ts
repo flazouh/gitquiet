@@ -14,7 +14,7 @@ const somewhere = (): Somewhere & { readonly held: Map<string, string> } => {
 }
 
 const row = (number: number): WorkingSetRow => ({
-  id: number,
+  id: String(number),
   owner: "cli",
   repo: "cli",
   number,

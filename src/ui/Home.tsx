@@ -32,6 +32,8 @@ export type HomeProps = {
   readonly preload?: () => Effect.Effect<Option.Option<ReadonlyArray<Sitting>>>
   /** What this page is called in this document's memory. See {@link useLive}. */
   readonly where?: string
+  /** The exact pathname this page stands for, handed on to the list underneath. */
+  readonly at?: string
   readonly onOpen: (reference: PullRequestRef) => void
   readonly onStepAside: () => void
   readonly ask?: (
@@ -57,6 +59,7 @@ export const Home = ({
   load,
   preload,
   where,
+  at,
   onOpen,
   onStepAside,
   ask,
@@ -101,6 +104,7 @@ export const Home = ({
       load={load}
       preload={preload}
       where={where}
+      at={at}
       onOpen={onOpen}
       onStepAside={onStepAside}
       ask={ask}

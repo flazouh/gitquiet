@@ -7,6 +7,7 @@ import type { Listed, Strand } from "../domain/strand"
 import { useArt } from "./art"
 import { CHIP } from "./dress"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
+import { DrawnAt } from "./drawnAt"
 import { Strands } from "./Strands"
 import { TheBar } from "./TheBar"
 import { useLive } from "./useLive"
@@ -36,6 +37,8 @@ export type StrandsScreenProps = {
   readonly signedIn?: () => boolean
   /** What this page is called in this document's memory. See {@link useLive}. */
   readonly where?: string
+  /** The exact pathname this screen stands for, as {@link DrawnAt} needs it said. */
+  readonly at?: string
 }
 
 const READING = "Reading this repository's runs…"
@@ -116,6 +119,7 @@ export const StrandsScreen = ({
   onStepAside,
   recallRepositories,
   where,
+  at,
   signedIn = viewerOnPage
 }: StrandsScreenProps) => {
   const live = useLive(load, preload, where)
@@ -150,13 +154,17 @@ export const StrandsScreen = ({
 
   if (read.status === "failed") {
     return (
-      <ReadFailed
-        signedOut={!signedIn()}
-        why={read.why}
-        what={`The runs in ${repo.owner}/${repo.repo}`}
-        onStepAside={onStepAside}
-        asideLabel="Show GitHub's list"
-      />
+      <>
+        {/* The failure screen is an answer too. See {@link DrawnAt}. */}
+        <DrawnAt path={at ?? null} />
+        <ReadFailed
+          signedOut={!signedIn()}
+          why={read.why}
+          what={`The runs in ${repo.owner}/${repo.repo}`}
+          onStepAside={onStepAside}
+          asideLabel="Show GitHub's list"
+        />
+      </>
     )
   }
 
@@ -178,6 +186,7 @@ export const StrandsScreen = ({
     // throughout: the wait has to be the same element on both sides of the answer, or the
     // dissolve has nothing to start from.
     <div className="relative">
+      <DrawnAt path={read.status === "loading" ? null : (at ?? null)} />
       <TheBar
         where={{ kind: "repository", owner: repo.owner, repo: repo.repo }}
         recall={recallRepositories}

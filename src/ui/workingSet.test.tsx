@@ -19,7 +19,7 @@ const involved = (
   over: Partial<InvolvedPullRequest> = {}
 ): InvolvedPullRequest => ({
   reference: { owner: "flazouh", repo: "octo-repo", number },
-  id: `PR_${number * 1000}`,
+  id: String(number * 1000),
   title: `pull request ${number}`,
   author: { login: "flazouh", isAutomated: false, faceUrl: Option.none() },
   state: "open",
@@ -91,6 +91,17 @@ describe("the Working Set", () => {
     expect(screen.getByRole("region", { name: "Waiting" })).toBeDefined()
     expect(screen.getByRole("region", { name: "Running" })).toBeDefined()
     expect(screen.getByRole("region", { name: "Settled" })).toBeDefined()
+  })
+
+  test("draws a row standing in the merge queue as queued, not as open", () => {
+    // The Court already says Running; the glyph on the row said Open, in green,
+    // which is the colour of a merge button and not of a wait.
+    showing([on("merge-queue", 3), on("needs-action", 4)])
+
+    const third = screen.getByRole("link", { name: /pull request 3/ })
+    const fourth = screen.getByRole("link", { name: /pull request 4/ })
+    expect(within(third).getByLabelText("Queued").getAttribute("class")).toContain("text-busy")
+    expect(within(fourth).queryByLabelText("Queued")).toBeNull()
   })
 
   test("puts a green pull request nobody must approve under Needs You", () => {

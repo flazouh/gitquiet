@@ -34,7 +34,7 @@ import {
   ARRIVING,
   drawingOurOwnRows,
   goTo,
-  holdsForTraversal,
+  holdForTraversal,
 } from "@/ui/going";
 import {
   activatePreparedTraversal,
@@ -45,7 +45,6 @@ import {
   theScreenArrived,
   theScreenHasRoute,
   theScreenIsNotElsewhere,
-  theScreenStandsFor,
   unmarkPage,
 } from "@/ui/mount";
 import { linkNear, type Reached } from "@/ui/linkNear";
@@ -71,6 +70,7 @@ import {
 } from "@/ui/navigation";
 import {
   ACTIONS,
+  BLAME,
   COMMIT,
   COMMITS,
   CONVERSATION,
@@ -157,6 +157,7 @@ const PLACE_OF: Record<Wanted, Place> = {
   "repo-issues": REPO_ISSUES,
   raise: RAISE,
   issues: ISSUES,
+  blame: BLAME,
   run: RUN,
   actions: ACTIONS,
   releases: RELEASES,
@@ -329,11 +330,9 @@ export default defineContentScript({
       const screen = preparedScreens.get(path);
 
       // Nothing read ahead for this address, which is every traversal: neither Back
-      // nor Forward is a link, so no pointer ever warmed one. `holdsForTraversal`
-      // says why the screen already standing has to be held across the gap.
+      // nor Forward is a link, so no pointer ever warmed one.
       if (screen === undefined) {
-        if (holdsForTraversal(theScreenStandsFor(document), place.name))
-          holdTheSurface(document);
+        holdForTraversal(document, place.name);
         return;
       }
 

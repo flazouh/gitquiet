@@ -91,8 +91,13 @@ export type Answered<A> = { readonly ok: true; readonly it: A } | { readonly ok:
  * needed to work it out, which is the reason for doing it this way round.
  */
 export type WorkingSetRow = {
-  /** GitHub's numeric id, which is what the interface keys rows by. */
-  readonly id: number
+  /**
+   * GitHub's id, which is what the interface keys rows by. A string, matching the
+   * shared `InvolvedPullRequest.id`: the desktop reads a numeric `databaseId` off
+   * GraphQL and the browser reads a node id string off github.com, and the domain
+   * treats either as the same opaque key, so both hand it over as a string.
+   */
+  readonly id: string
   readonly owner: string
   readonly repo: string
   readonly number: number

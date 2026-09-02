@@ -1,4 +1,4 @@
-import { Option } from "effect"
+import { Option, Schema } from "effect"
 import { asLanded } from "./landed"
 import type {
   CheckRollup,
@@ -9,12 +9,18 @@ import type {
   Standings
 } from "../domain/workingSet"
 import { whereverItIs } from "./wherever"
-import { DeferredRoute, DiffstatRoute, Listing, type WorkingSetRow } from "./wire"
+import { DeferredRoute, DiffstatRoute, LooseListing, WorkingSetRow } from "./wire"
 
-export const decodeShelf = whereverItIs(Listing)
-export const decodeQuery = whereverItIs(Listing)
+// LooseListing, not Listing: the page is found by its rows array and each row is
+// decoded on its own below, so one row GitHub changed drops rather than blanking
+// the page. The strict Listing is what `check-drift` reads a live page against.
+export const decodeShelf = whereverItIs(LooseListing)
+export const decodeQuery = whereverItIs(LooseListing)
 export const decodeDeferred = whereverItIs(DeferredRoute)
 export const decodeDiffstat = whereverItIs(DiffstatRoute)
+
+/** One row, decoded on its own, so a row that will not decode is a row and not the page. */
+const decodeRow = Schema.decodeUnknownOption(WorkingSetRow)
 
 /**
  * Turning GitHub's Working Set rows into Involved Pull Requests.
@@ -67,7 +73,11 @@ export const involvedFrom = (
 ): Option.Option<InvolvedPullRequest> =>
   Option.map(splitRepo(row.repoNameWithOwner), ({ owner, repo }) => ({
     reference: { owner, repo, number: row.number },
-    id: row.id,
+    // `String()` because the id is opaque and GitHub has sent it as both a number
+    // and a string — see {@link OpaqueId}. Normalised here so the rest of the
+    // codebase keys by one type, and so a row and the deferred answer about it
+    // match whichever shape GitHub is sending this week.
+    id: String(row.id),
     title: row.title,
     author: {
       // A row without an author is one whose account is gone. GitHub renders
@@ -98,25 +108,53 @@ export const involvedFrom = (
   }))
 
 /**
- * Every row of a listing that can be addressed, in the order GitHub gave them.
+ * Every row of a listing that can be read and addressed, in the order GitHub gave them.
+ *
+ * Each row is decoded on its own from the raw listing, so a row whose shape GitHub
+ * changed is dropped rather than failing the whole page — the difference between a
+ * repository's list drawn short and drawn blank. A row that decodes but cannot be
+ * addressed is dropped the same way, for the reason `involvedFrom` gives. The rows
+ * arrive undecoded because the runtime reads {@link LooseListing}; see it for why.
  *
  * The shelf is passed rather than read because a row does not carry it: it is the
  * request that knew which shelf was being asked for. None where the listing was a
  * plain query and so no shelf was involved at all.
+ *
+ * A count of rows that would not decode is warned in a development build, the way
+ * `gateAudit` warns a stale takeover: nothing is sent anywhere, and a maintainer
+ * running the canary sees a shape change reach the rows before a reader does.
  */
 export const involvedIn = (
   shelf: Option.Option<Shelf>,
-  rows: ReadonlyArray<WorkingSetRow>
-): ReadonlyArray<InvolvedPullRequest> =>
-  rows.flatMap((row) => Option.match(involvedFrom(shelf, row), {
-    onNone: (): ReadonlyArray<InvolvedPullRequest> => [],
-    // Wearing whatever a write of ours has since made true. Here because this is
-    // the one function every listing passes through — the six shelves, a
-    // repository's own list, and both of those again out of the store. It was
-    // done at the call sites instead, and the second call site was missed, which
-    // is how a merged pull request went on sitting in a repository's list.
-    onSome: (involved) => [asLanded(involved)]
-  }))
+  rows: ReadonlyArray<unknown>
+): ReadonlyArray<InvolvedPullRequest> => {
+  let undecodable = 0
+  const involved = rows.flatMap((raw): ReadonlyArray<InvolvedPullRequest> => {
+    const row = decodeRow(raw)
+    if (Option.isNone(row)) {
+      undecodable += 1
+      return []
+    }
+    return Option.match(involvedFrom(shelf, row.value), {
+      onNone: (): ReadonlyArray<InvolvedPullRequest> => [],
+      // Wearing whatever a write of ours has since made true. Here because this is
+      // the one function every listing passes through — the six shelves, a
+      // repository's own list, and both of those again out of the store. It was
+      // done at the call sites instead, and the second call site was missed, which
+      // is how a merged pull request went on sitting in a repository's list.
+      onSome: (one) => [asLanded(one)]
+    })
+  })
+
+  if (undecodable > 0 && import.meta.env.DEV) {
+    // eslint-disable-next-line no-console -- dev-only, never in a shipped build
+    console.warn(
+      `[gitquiet] dropped ${undecodable} of ${rows.length} listing rows that would not decode`
+    )
+  }
+
+  return involved
+}
 
 /**
  * Their five status states as the three a row can draw.
@@ -149,7 +187,9 @@ export const standingsIn = (route: DeferredRoute): Standings => {
   >()
 
   for (const result of route.results) {
-    found.set(result.id, {
+    // `String()` for the reason `involvedFrom` gives: an opaque id GitHub sends
+    // as a number or a string, keyed here the one way the rows are keyed.
+    found.set(String(result.id), {
       checks: Option.map(nothing(result.statusCheckRollup), (rollup) => ({
         state: rollupState(rollup.state),
         total: rollup.totalCount,

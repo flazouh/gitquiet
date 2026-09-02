@@ -131,7 +131,7 @@ const row = (
  */
 const STARTING: ReadonlyArray<WorkingSetRow> = [
   row({
-    id: 9001,
+    id: "9001",
     owner: "vercel",
     repo: "next.js",
     number: 71204,
@@ -148,7 +148,7 @@ const STARTING: ReadonlyArray<WorkingSetRow> = [
     reviewed: "approved"
   }),
   row({
-    id: 9002,
+    id: "9002",
     owner: "vercel",
     repo: "next.js",
     number: 71219,
@@ -164,7 +164,7 @@ const STARTING: ReadonlyArray<WorkingSetRow> = [
     reviewed: "approved"
   }),
   row({
-    id: 9003,
+    id: "9003",
     owner: "vercel",
     repo: "next.js",
     number: 71230,
@@ -179,7 +179,7 @@ const STARTING: ReadonlyArray<WorkingSetRow> = [
     reviewed: "review-required"
   }),
   row({
-    id: 9004,
+    id: "9004",
     owner: "oven-sh",
     repo: "bun",
     number: 14882,
@@ -199,7 +199,7 @@ const STARTING: ReadonlyArray<WorkingSetRow> = [
     reviewed: "review-required"
   }),
   row({
-    id: 9005,
+    id: "9005",
     owner: "microsoft",
     repo: "vscode",
     number: 231447,
@@ -216,7 +216,7 @@ const STARTING: ReadonlyArray<WorkingSetRow> = [
     reviewed: "review-required"
   }),
   row({
-    id: 9006,
+    id: "9006",
     owner: "oven-sh",
     repo: "bun",
     number: 14901,
@@ -231,7 +231,7 @@ const STARTING: ReadonlyArray<WorkingSetRow> = [
     checks: { state: "running", total: 9, passed: 4 }
   }),
   row({
-    id: 9007,
+    id: "9007",
     owner: "denoland",
     repo: "deno",
     number: 26011,
@@ -247,7 +247,7 @@ const STARTING: ReadonlyArray<WorkingSetRow> = [
     reviewed: "review-required"
   }),
   row({
-    id: 9008,
+    id: "9008",
     owner: "withastro",
     repo: "astro",
     number: 12194,
@@ -263,7 +263,7 @@ const STARTING: ReadonlyArray<WorkingSetRow> = [
     reviewed: "review-required"
   }),
   row({
-    id: 9009,
+    id: "9009",
     owner: "tailwindlabs",
     repo: "tailwindcss",
     number: 14855,
@@ -280,7 +280,7 @@ const STARTING: ReadonlyArray<WorkingSetRow> = [
     inMergeQueue: true
   }),
   row({
-    id: 9010,
+    id: "9010",
     owner: "vitejs",
     repo: "vite",
     number: 18422,
@@ -297,7 +297,7 @@ const STARTING: ReadonlyArray<WorkingSetRow> = [
     reviewed: "approved"
   }),
   row({
-    id: 9011,
+    id: "9011",
     owner: "remix-run",
     repo: "react-router",
     number: 12010,
@@ -314,7 +314,7 @@ const STARTING: ReadonlyArray<WorkingSetRow> = [
     reviewed: "approved"
   }),
   row({
-    id: 9012,
+    id: "9012",
     owner: "nodejs",
     repo: "node",
     number: 55391,
@@ -337,7 +337,7 @@ const STARTING: ReadonlyArray<WorkingSetRow> = [
    * the one worth having twice on screen.
    */
   row({
-    id: 9013,
+    id: "9013",
     owner: "oven-sh",
     repo: "bun",
     number: 14930,
@@ -354,7 +354,7 @@ const STARTING: ReadonlyArray<WorkingSetRow> = [
     reviewed: "review-required"
   }),
   row({
-    id: 9014,
+    id: "9014",
     owner: "oven-sh",
     repo: "bun",
     number: 14944,
@@ -371,7 +371,7 @@ const STARTING: ReadonlyArray<WorkingSetRow> = [
   }),
   /* Somebody has asked the reader by name, and it is a robot. */
   row({
-    id: 9015,
+    id: "9015",
     owner: "microsoft",
     repo: "vscode",
     number: 231502,
@@ -395,7 +395,7 @@ const STARTING: ReadonlyArray<WorkingSetRow> = [
   }),
   /* Asked of a team the reader is on, which is a different sentence to being asked. */
   row({
-    id: 9016,
+    id: "9016",
     owner: "denoland",
     repo: "deno",
     number: 26044,
@@ -418,7 +418,7 @@ const STARTING: ReadonlyArray<WorkingSetRow> = [
   }),
   /* The reader's own, with somebody waiting on a change rather than on a review. */
   row({
-    id: 9017,
+    id: "9017",
     owner: "withastro",
     repo: "astro",
     number: 12208,
@@ -435,7 +435,7 @@ const STARTING: ReadonlyArray<WorkingSetRow> = [
   }),
   /* A draft of the reader's own that has been sitting there a fortnight. */
   row({
-    id: 9019,
+    id: "9019",
     owner: "tailwindlabs",
     repo: "tailwindcss",
     number: 14790,
@@ -452,7 +452,7 @@ const STARTING: ReadonlyArray<WorkingSetRow> = [
   }),
   /* Closed rather than landed, which is most of what Settled is for. */
   row({
-    id: 9020,
+    id: "9020",
     owner: "remix-run",
     repo: "react-router",
     number: 12043,

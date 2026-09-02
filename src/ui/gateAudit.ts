@@ -199,7 +199,7 @@ const SETTLE = 2_500
  * in a development build, where the page is the developer's own and no reader is watching it.
  */
 const announce = (place: string, leaks: ReadonlyArray<Leak>): void => {
-  if (import.meta.env.DEV !== true) return
+  if (!import.meta.env.DEV) return
   for (const leak of leaks)
     // eslint-disable-next-line no-console -- dev-only, never in a shipped build
     console.warn(

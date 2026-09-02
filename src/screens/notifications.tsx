@@ -29,7 +29,11 @@ const recallRepositories = () => rememberedRepositories().pipe(throughGitHub)
  * the wait for the address, the failsafe — belongs to `standAScreen`. What is left here is what
  * this screen alone knows: what it reads, what it draws, and what a press on a row sends back.
  */
-const open = (query: string): (() => void) => {
+const open = (
+  query: string,
+  /** The exact pathname this screen is stood up for. See `DrawnAt` in `drawnAt.tsx`. */
+  at: string
+): (() => void) => {
   const reading = () =>
     loadNotices(query).pipe(
       throughGitHub,
@@ -82,6 +86,7 @@ const open = (query: string): (() => void) => {
     place: NOTIFICATIONS,
     draw: (standing) => (
       <NoticesScreen
+        at={at}
         load={read}
         preload={remembered}
         onPress={press}
@@ -147,7 +152,7 @@ export const start = (): void => {
       return
     }
 
-    close = open(query)
+    close = open(query, new URL(url, window.location.origin).pathname)
     on = query
   }
 

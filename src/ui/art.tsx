@@ -49,6 +49,12 @@ export type ArtName =
   | "pull-request-merged"
   | "pull-request-closed"
   /*
+   * One standing in the merge queue. Not a state — `stateOf` keeps a queued
+   * pull request open, since the queue is on the merge state — but a place a
+   * badge and a row both have to draw, in the glyph GitHub's own page uses.
+   */
+  | "pull-request-queued"
+  /*
    * The three ways a pull request lands, for the menu that offers them.
    *
    * Neither set ships a squash or a rebase, so these are the nearest true
@@ -381,7 +387,10 @@ export const useArt = (): Set => useContext(Drawn) ?? THE_ART
  * from the context and a screen still importing the glyph directly cannot come
  * to different conclusions about what a merged pull request looks like.
  */
-export const pullRequestName = (state: PullRequestState): ArtName => {
+export const pullRequestName = (state: PullRequestState, inQueue = false): ArtName => {
+  // The queue outranks the state, on the one state it can hold: a merged or
+  // closed pull request is out of every queue, whatever a stale entry says.
+  if (inQueue && state === "open") return "pull-request-queued"
   switch (state) {
     case "draft":
       return "pull-request-draft"

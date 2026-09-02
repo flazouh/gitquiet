@@ -54,6 +54,12 @@ html[data-gitquiet-gating] react-app[app-name="code-view"] [class*="RecentlyTouc
   display: none;
 }
 
+/* blame: swapped in without a load. */
+html[data-gitquiet-gating] react-app[app-name="code-view"] #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
+html[data-gitquiet-gating] react-app[app-name="code-view"] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]) {
+  display: none;
+}
+
 /* issue: swapped in without a load. */
 html[data-gitquiet-gating] react-app[app-name="issues-react"] [data-testid="issue-viewer-container"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]) {
   display: none;

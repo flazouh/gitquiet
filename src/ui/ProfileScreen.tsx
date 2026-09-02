@@ -12,6 +12,7 @@ import { columnsIn, Row } from "./RepoRow"
 import { Section } from "./Section"
 import { TheBar } from "./TheBar"
 import type { Load } from "./useLive"
+import { DrawnAt } from "./drawnAt"
 import { useLive } from "./useLive"
 import { type TheirColumn, usePerson } from "./usePerson"
 import { useWaiting } from "./useWaiting"
@@ -44,6 +45,8 @@ export type ProfileScreenProps = {
    */
   readonly elsewhere?: TheirColumn
   readonly onStepAside: () => void
+  /** The exact pathname this screen stands for, as {@link DrawnAt} needs it said. */
+  readonly at?: string
   readonly signedIn?: () => boolean
   readonly now?: Date
 }
@@ -250,6 +253,7 @@ const Instead = ({
  */
 export const ProfileScreen = ({
   login,
+  at,
   answering,
   owned,
   who,
@@ -273,18 +277,25 @@ export const ProfileScreen = ({
    */
   if (list.status === "failed" && said.status === "failed") {
     return (
-      <ReadFailed
-        signedOut={!signedIn()}
-        why={list.why}
-        what={`${login}'s profile`}
-        onStepAside={onStepAside}
-        asideLabel="Show GitHub's page"
-      />
+      <>
+        {/* The failure screen is an answer too. See {@link DrawnAt}. */}
+        <DrawnAt path={at ?? null} />
+        <ReadFailed
+          signedOut={!signedIn()}
+          why={list.why}
+          what={`${login}'s profile`}
+          onStepAside={onStepAside}
+          asideLabel="Show GitHub's page"
+        />
+      </>
     )
   }
 
   return (
     <div className="relative">
+      <DrawnAt
+        path={list.status === "loading" && said.status === "loading" ? null : (at ?? null)}
+      />
       <TheBar where={{ kind: "person", login }} />
       <div className="flex min-w-0 flex-col gap-4 py-3 lg:flex-row lg:items-start">
         {them === undefined ? null : <PersonAside who={them} onStepAside={onStepAside} />}

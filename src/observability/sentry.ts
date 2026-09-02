@@ -6,6 +6,7 @@ export type Surface = "content-script" | "service-worker" | "prefetch" | "workin
   | "commits"
   | "repo-issues"
   | "issues"
+  | "blame"
   | "actions"
   | "releases"
   | "raise"

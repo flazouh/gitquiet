@@ -20,6 +20,7 @@ import { ASIDE, FIELD } from "./dress"
 import { PersonAside } from "./PersonAside"
 import { PersonTabs } from "./PersonTabs"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
+import { DrawnAt } from "./drawnAt"
 import { type Columns, columnsIn, Row } from "./RepoRow"
 import { painted, Section } from "./Section"
 import { TheBar } from "./TheBar"
@@ -72,6 +73,8 @@ export type PersonReposScreenProps = {
   readonly now?: Date
   /** What this page is called in this document's memory. See {@link useLive}. */
   readonly where?: string
+  /** The exact pathname this screen stands for, as {@link DrawnAt} needs it said. */
+  readonly at?: string
 }
 
 const READING = "Reading their repositories…"
@@ -278,6 +281,7 @@ export const PersonReposScreen = ({
   onStepAside,
   signedIn = viewerOnPage,
   where,
+  at,
   now = new Date()
 }: PersonReposScreenProps) => {
   /* What was given, or what the page says once it has been parsed. See `usePerson`. */
@@ -307,13 +311,17 @@ export const PersonReposScreen = ({
 
   if (read.status === "failed") {
     return (
-      <ReadFailed
-        signedOut={!signedIn()}
-        why={read.why}
-        what={`${login}'s repositories`}
-        onStepAside={onStepAside}
-        asideLabel="Show GitHub's page"
-      />
+      <>
+        {/* The failure screen is an answer too. See {@link DrawnAt}. */}
+        <DrawnAt path={at ?? null} />
+        <ReadFailed
+          signedOut={!signedIn()}
+          why={read.why}
+          what={`${login}'s repositories`}
+          onStepAside={onStepAside}
+          asideLabel="Show GitHub's page"
+        />
+      </>
     )
   }
 
@@ -321,6 +329,7 @@ export const PersonReposScreen = ({
 
   return (
     <div className="relative">
+      <DrawnAt path={read.status === "loading" ? null : (at ?? null)} />
       <TheBar where={{ kind: "person", login }} />
       <div className="flex min-w-0 flex-col gap-4 py-3 lg:flex-row lg:items-start">
         {them === undefined ? null : <PersonAside who={them} onStepAside={onStepAside} />}

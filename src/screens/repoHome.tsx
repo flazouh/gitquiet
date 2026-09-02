@@ -104,11 +104,13 @@ const shelves = new Map<string, Shelf>()
  */
 type Open = {
   readonly close: () => void
-  readonly retarget: (reading: string | null, branch: string | null) => void
+  readonly retarget: (reading: string | null, branch: string | null, path: string) => void
 }
 
 const open = (
   home: RepoHome,
+  /** The exact pathname this screen is stood up for. See `DrawnAt` in `drawnAt.tsx`. */
+  at: string,
   /**
    * A push this screen made, told with what the pushed address means, so the
    * caller can answer it if the address is ever walked back into: the address
@@ -299,6 +301,7 @@ const open = (
       ? root
       : `/${home.repo.owner}/${home.repo.repo}/blob/${branchNow}/${escaped(reading)}`
     if (window.location.pathname === at) return
+    claimAt = at
     onMove(at, {
       repo: home.repo,
       branch: reading === null ? home.branch : branchNow,
@@ -311,6 +314,13 @@ const open = (
   // Which file is open in the reading pane, or the README where none is.
   let showing = home.reading
   let showingBranch = home.branch ?? undefined
+  /*
+   * The pathname the claim below says, mutable because this screen outlives an
+   * address change: a file opening in the tree and the way back out of it are
+   * redraws of the same page. See `DrawnAt` in `drawnAt.tsx` for what a claim
+   * gone stale would cost.
+   */
+  let claimAt = at
 
   const page = standAScreen({
     place: REPO_HOME,
@@ -321,6 +331,7 @@ const open = (
         preload={remembered}
         where={repoNamed(home.repo, home.branch)}
         recallRepositories={recallRepositories}
+        at={claimAt}
         onStepAside={standing.stepAside}
         onStar={(to) => starRepo(home.repo, to).pipe(throughGitHub)}
         loadStanding={standingOf}
@@ -346,8 +357,12 @@ const open = (
 
   return {
     close: page.close,
-    retarget: (reading, branch) => {
+    retarget: (reading, branch, path) => {
+      claimAt = path
       if (reading !== showing || (branch ?? undefined) !== showingBranch) show(reading, branch)
+      // Nothing else moved, so nothing else redraws this tree: the claim's own
+      // prop has to be carried to the screen all the same.
+      else page.redraw()
     }
   }
 }
@@ -452,7 +467,7 @@ export const start = (): void => {
      */
     if (up !== undefined && on !== undefined && sameTree(on, home, defaultBranch)) {
       on = home
-      up.retarget(home.reading, home.branch)
+      up.retarget(home.reading, home.branch, new URL(url, window.location.origin).pathname)
       return
     }
 
@@ -469,6 +484,7 @@ export const start = (): void => {
     const repo = home.repo
     up = open(
       home,
+      new URL(url, window.location.origin).pathname,
       moved,
       (name) => toBranch(repo, name),
       (branch) => {
@@ -515,7 +531,7 @@ export const start = (): void => {
     stopWaiting()
 
     up?.close()
-    up = open(home, moved, (chosen) => toBranch(repo, chosen))
+    up = open(home, at, moved, (chosen) => toBranch(repo, chosen))
     on = home
   }
 

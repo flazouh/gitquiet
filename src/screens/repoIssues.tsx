@@ -54,7 +54,9 @@ let asLastSeen: { readonly address: string; readonly listed: ListedIssues } | un
 const open = (
   list: IssueList,
   /** Another view of this same screen, without a document. See {@link goWithin}. */
-  press: (path: string) => void
+  press: (path: string) => void,
+  /** The exact pathname this screen is stood up for. See `DrawnAt` in `drawnAt.tsx`. */
+  at: string
 ): (() => void) => {
   const asked = queryFor(list)
 
@@ -142,6 +144,7 @@ const open = (
     place: REPO_ISSUES,
     draw: (standing) => (
       <IssueListScreen
+        at={at}
         repo={list.repo}
         load={read}
         recallRepositories={recallRepositories}
@@ -220,7 +223,7 @@ export const start = (): void => {
       return
     }
 
-    close = open(list.value, press)
+    close = open(list.value, press, new URL(url).pathname)
     standingFor = url
   }
 

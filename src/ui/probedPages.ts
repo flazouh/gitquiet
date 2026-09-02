@@ -106,6 +106,15 @@ export const PROBED_PAGES: ReadonlyArray<ProbedPage> = [
     page: "a pull request",
     place: "conversation",
     url: "https://github.com/facebook/react/pull/1"
+  },
+  {
+    probe: "scripts/probe-blame-dom.js",
+    capturedOn: "2026-09-01",
+    page: "a file's blame",
+    place: "blame",
+    // A README's blame rather than code: it never disappears, and a repository this
+    // widely forked keeps its default branch's README under that same name.
+    url: "https://github.com/oven-sh/bun/blame/main/README.md"
   }
 ]
 

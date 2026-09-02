@@ -41,7 +41,9 @@ const recallRepositories = () => rememberedRepositories().pipe(throughGitHub)
 const open = (
   list: CommitList,
   /** Another view of this same screen, without a document. See {@link goWithin}. */
-  press: (path: string) => void
+  press: (path: string) => void,
+  /** The exact pathname this screen is stood up for. See `DrawnAt` in `drawnAt.tsx`. */
+  at: string
 ): (() => void) => {
   // Started before anything is waited on: reading the branch and waiting for GitHub
   // to render a region to stand in have nothing to say to each other.
@@ -137,6 +139,7 @@ const open = (
     place: COMMITS,
     draw: (standing) => (
       <HistoryScreen
+        at={at}
         list={list}
         load={read}
         preload={remembered}
@@ -216,7 +219,7 @@ export const start = (): void => {
       return
     }
 
-    close = open(list.value, press)
+    close = open(list.value, press, new URL(url).pathname)
     standingFor = url
   }
 

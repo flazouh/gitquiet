@@ -1,4 +1,5 @@
 import { ACTIONS_VIEW } from "./mock/actions"
+import { BLAME_VIEW } from "./mock/blame"
 import { COMMIT_VIEW } from "./mock/commit"
 import { COMMITS_VIEW } from "./mock/commits"
 import { ISSUE_VIEW } from "./mock/issue"
@@ -41,6 +42,7 @@ export const VIEWS: ReadonlyArray<View> = [
   REPO_ISSUES_VIEW,
   COMMITS_VIEW,
   REPO_HOME_VIEW,
+  BLAME_VIEW,
   RUN_VIEW,
   ACTIONS_VIEW,
   RELEASES_VIEW,

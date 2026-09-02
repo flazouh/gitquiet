@@ -8,14 +8,14 @@
     <title>Install GitQuiet - Chrome, Safari, Firefox and macOS</title>
     <meta
       name="description"
-      content="Every way to install GitQuiet: the Chrome Web Store, the Mac App Store for Safari, Firefox, and a signed macOS app. Current version and file sizes, read live."
+      content="Every way to install GitQuiet: the Chrome Web Store, Firefox, a Safari disk image, and a signed macOS app. Current version and file sizes, read live."
     />
     <link rel="canonical" href="https://gitquiet.com/install" />
 
     <meta property="og:title" content="Install GitQuiet" />
     <meta
       property="og:description"
-      content="Chrome, Safari, Firefox and a macOS app. One codebase, four ways in, nothing to configure."
+      content="Chrome, Firefox, a Safari disk image and a macOS app. One codebase, four ways in, nothing to configure."
     />
     <meta property="og:url" content="https://gitquiet.com/install" />
     <meta property="og:image" content="https://gitquiet.com/og.png" />
@@ -24,12 +24,33 @@
     <meta name="twitter:title" content="Install GitQuiet" />
     <meta
       name="twitter:description"
-      content="Chrome, Safari, Firefox and a macOS app. One codebase, four ways in."
+      content="Chrome, Firefox, a Safari disk image and a macOS app. One codebase, four ways in."
     />
     <meta name="twitter:image" content="https://gitquiet.com/og.png" />
   </head>
   <body>
-    <div id="page"></div>
+    <div id="page">
+      <!--
+        The copy a crawler that never runs the bundle can still read. Indexes that skip
+        JavaScript kept only /privacy, because that file is HTML and this one was an
+        empty #page waiting for React. createRoot replaces this on mount; that is
+        intended.
+      -->
+      <main>
+        <h1>Install GitQuiet.</h1>
+        <p>One codebase, four ways in. Nothing to configure after any of them.</p>
+        <p>
+          <a href="https://chromewebstore.google.com/detail/gitquiet/ichobjnihnofjkpoegikjhefmoekaahe">Chrome</a>
+          <a href="https://github.com/flazouh/gitquiet/releases/latest/download/GitQuiet-safari.dmg">Safari</a>
+          <a href="https://addons.mozilla.org/firefox/addon/gitquiet/">Firefox</a>
+          <a href="https://github.com/flazouh/gitquiet/releases/latest/download/GitQuiet-macos-arm64.dmg">Mac</a>
+        </p>
+        <p>
+          For one list of the pull requests that need you, see
+          <a href="/github-pr-inbox">a GitHub PR inbox, in the tab</a>.
+        </p>
+      </main>
+    </div>
     <script type="module" src="/src/install.tsx"></script>
   </body>
 </html>

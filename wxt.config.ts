@@ -37,18 +37,20 @@ export default defineConfig({
   manifest: ({ browser }) => ({
     /*
      * Chrome Web Store search weighs the package name and this short description
-     * (the listing summary) hardest. Brand alone does not match the queries people
-     * type (`github pull request`, `github pr review`). Keep the long store
-     * description in the developer dashboard, not here.
+     * (the listing summary) hardest. The name is the quieter line. The summary
+     * names the browser so a Firefox listing does not read as Chrome's.
+     *
+     * The long description is store/listing-description.txt, submitted with the
+     * release, not a dashboard field of its own.
      *
      * One sentence for every store, because two would have let one of them drift.
-     * The length that fits all of them is the App Store's, and `manifest.test.ts`
-     * holds every target to it and says what happened without it.
+     * The length that fits all of them is the App Store's (112), and
+     * `manifest.test.ts` holds every target to it and says what happened without it.
      */
-    name: "GitQuiet - GitHub Pull Request Review",
+    name: "GitQuiet - A faster, quieter GitHub",
     // Toolbar / overflow menus. Store listing keeps the longer `name`.
     short_name: "GitQuiet",
-    description: `GitHub pull request review in ${readIn[browser] ?? "your browser"}. Every PR on one screen, sorted by who has to act next.`,
+    description: `A faster, quieter GitHub in ${readIn[browser] ?? "your browser"}. Every pull request you're in, one screen, sorted by next action.`,
     ...(process.env.RELEASE_VERSION === undefined
       ? {}
       : { version: process.env.RELEASE_VERSION }),
@@ -92,7 +94,22 @@ export default defineConfig({
     // not the page's, so listening on it has to be asked for by name.
     // Written `https` rather than `wss`, which Chrome does not accept as a
     // scheme here: permission to a host covers its websocket.
-    host_permissions: ["*://github.com/*", "https://alive.github.com/*"],
+    /*
+     * `gist.github.com` is its own host, and a bare `github.com` pattern does not
+     * cover a different subdomain — Chrome match patterns are exact on the host
+     * unless written with a leading `*.`. Named separately rather than widened to
+     * `*://*.github.com/*`, which would also grant every other subdomain GitHub
+     * has ever stood up and nobody has asked this extension to run on.
+     *
+     * See `docs/spec/gists.md`. This page is not `place.ts`'s to gate: it carries
+     * no React application and nothing here replaces a region of it, so the only
+     * thing this permission is for is `gist.content.ts` appending to the page.
+     */
+    host_permissions: [
+      "*://github.com/*",
+      "*://gist.github.com/*",
+      "https://alive.github.com/*"
+    ],
     // Display settings are kept in `storage.sync`, so a reader who chose
     // side-by-side diffs on one machine has them on the next. Without this the
     // API is simply absent in the content script, and choices last as long as

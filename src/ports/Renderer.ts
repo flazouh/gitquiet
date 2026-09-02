@@ -49,10 +49,35 @@ export type DiffHandle = {
   readonly destroy: () => void
 }
 
+/**
+ * A file's two whole halves, for revealing the lines a patch leaves out.
+ *
+ * `before` is nothing on a file the pull request added, where there is no old
+ * half and saying so is the truth rather than a failed read. Both are the
+ * file's own text, exactly as it is stored.
+ */
+export type BothHalves = {
+  readonly before: string | null
+  readonly after: string
+}
+
 export type DiffRequest = {
   /** A unified diff, as GitHub gives it: `@@` hunks and their context. */
   readonly patch: string
   readonly path: string
+  /**
+   * Fetches the whole file so the reader can reveal what the hunks left out.
+   *
+   * Called by the renderer when a reader asks to see more, not before, so a
+   * file nobody expands costs nothing. Absent where nothing can fetch it or
+   * where there is nothing to reveal — a deleted file — and the diff then
+   * draws its hunks alone, as it always has.
+   *
+   * A `PromiseLike` rather than an Effect because this is Pierre's own shape:
+   * the renderer is a separately built bundle that knows nothing of Effect, and
+   * its `loadDiffFiles` is what this becomes.
+   */
+  readonly reveal?: () => PromiseLike<BothHalves>
   readonly theme: "light" | "dark"
   /**
    * The colour pack the screens are wearing.

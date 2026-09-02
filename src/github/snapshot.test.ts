@@ -671,6 +671,28 @@ describe("a repository that merges through a queue", () => {
     expect(snapshot.state).toBe("open")
   })
 
+  test("drops GitHub's objection that it must be open, once it is standing in the line", async () => {
+    // Their `PULL_REQUEST_STATE` condition fails on a queued pull request,
+    // because the state it reads is QUEUED rather than OPEN. Their own page
+    // hides the requirements behind the queue box, so nobody sees it there;
+    // here it was drawn as a blocker under "waiting in the merge queue", which
+    // is the queue refusing a pull request it has already taken.
+    const snapshot = await snapshotOf(draft, throughAQueue({ waiting: true }))
+
+    expect(merging(snapshot).blockers.map((blocker) => blocker.name)).not.toContain(
+      "Pull request state"
+    )
+  })
+
+  test("keeps that objection on one the queue has not taken", async () => {
+    // The fixture is a draft, which is the other thing the condition is about.
+    const snapshot = await snapshotOf(draft, throughAQueue({ waiting: false }))
+
+    expect(merging(snapshot).blockers.map((blocker) => blocker.name)).toContain(
+      "Pull request state"
+    )
+  })
+
   test("reads the queue, and where in it this pull request is waiting", async () => {
     const snapshot = await snapshotOf(draft, throughAQueue({ position: 3 }))
 

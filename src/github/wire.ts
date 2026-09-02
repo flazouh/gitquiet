@@ -743,6 +743,47 @@ export const FileRendering = Schema.Struct({
 export type FileRendering = typeof FileRendering["Type"]
 
 /**
+ * One file's blame, off `/owner/repo/blame/BRANCH/PATH`.
+ *
+ * `ranges` is keyed by the starting line number as GitHub writes it, a string
+ * rather than a number, because the payload is JSON and every key is one.
+ * `commits` is keyed by SHA so many ranges can share one entry rather than
+ * repeating the same author and message once per range. `ignoreRevs` names
+ * the repository's `.git-blame-ignore-revs` file where GitHub found one; the
+ * ranges above already reflect it, so this is read only to tell the reader it
+ * is in play.
+ */
+export const BlameRoute = Schema.Struct({
+  blame: Schema.Struct({
+    ranges: Schema.Record(
+      Schema.String,
+      Schema.Struct({
+        start: Schema.Number,
+        end: Schema.Number,
+        commitOid: Schema.String
+      })
+    ),
+    commits: Schema.Record(
+      Schema.String,
+      Schema.Struct({
+        oid: Schema.String,
+        message: Schema.String,
+        authorAvatarUrl: Schema.String,
+        committerName: Schema.String,
+        committerEmail: Schema.String,
+        committedDate: Schema.String
+      })
+    ),
+    ignoreRevs: Schema.Struct({
+      path: Schema.String,
+      present: Schema.Boolean
+    })
+  })
+})
+
+export type BlameRoute = typeof BlameRoute["Type"]
+
+/**
  * What each row of the file list was last touched by.
  *
  * A route of its own, and the one extra request this page spends. Their own page
@@ -1339,20 +1380,27 @@ export type PreviewStackRoute = typeof PreviewStackRoute["Type"]
  * ordinary kind. Stacks are found from base and head branches instead, which
  * this row does not carry at all — see `src/domain/stacks.ts`.
  */
-const WorkingSetRow = Schema.Struct({
-  /**
-   * GitHub's own id for the pull request, which is what the deferred route is keyed by.
-   *
-   * A number until GitHub made it their global node id — `PR_kwDOAn8RLM8AAAABB5X9Fw`
-   * rather than `123456789`. Every shelf and the query route changed together, and
-   * with the schema still asking for a number all three failed to decode, which is
-   * the whole Working Set replaced by "Something GitHub sends has changed". Found by
-   * `scripts/check-drift.ts` against a capture taken on 2026-09-02.
-   *
-   * Opaque either way. Nothing here reads it apart from handing it back on the
-   * deferred route's `pr_ids[]`, so a string serves exactly as well as a number did.
-   */
-  id: Schema.String,
+/**
+ * An identifier this codebase only ever matches, never reads.
+ *
+ * GitHub sent a numeric database id on these routes until 2026-08-27, then moved
+ * to a GraphQL node id string such as `PR_kwDOQbgJEc8AAAABBO1ScQ` in the same
+ * change that renamed the deferred route's parameter from `pr_ids[]` to `ids[]`.
+ * The old numeric schema then decoded no row and both the Working Set and a
+ * repository's list drew the read-failed screen.
+ *
+ * So an id here is a string or a number, and either is accepted. Nothing reads
+ * its value — it is an opaque key that has to match between a row and the
+ * deferred answer about it — so `involvedFrom` and `standingsIn` put it through
+ * `String()` and the rest of the codebase sees one type. A flip in either
+ * direction is then a non-event rather than a blank screen. This is the one
+ * place the "never guess" rule bends, and it bends safely: a key nobody
+ * interprets cannot be interpreted wrongly.
+ */
+export const OpaqueId = Schema.Union([Schema.String, Schema.Number])
+
+export const WorkingSetRow = Schema.Struct({
+  id: OpaqueId,
   number: Schema.Number,
   title: Schema.String,
   /** `owner/repo`, since the Working Set crosses repositories. */
@@ -1398,6 +1446,17 @@ const WorkingSetRow = Schema.Struct({
 
 export type WorkingSetRow = typeof WorkingSetRow["Type"]
 
+/** How many rows there are altogether, when GitHub says. Shared by both listings below. */
+const PageInfo = Schema.optional(
+  Schema.NullOr(
+    Schema.Struct({
+      currentPage: Schema.Number,
+      totalPages: Schema.Number,
+      totalCount: Schema.Number
+    })
+  )
+)
+
 /**
  * A page of rows, which is what both of their pull request lists answer with.
  *
@@ -1405,21 +1464,39 @@ export type WorkingSetRow = typeof WorkingSetRow["Type"]
  * `/pulls?q=…` serves an arbitrary search, and the rows are the same rows. Only the
  * shelf route fills in `category`, so what a payload holds is said by which route was
  * asked rather than by anything in the answer, and both callers know which they asked.
+ *
+ * The strict version, every row decoded. This is what `check-drift` reads a live
+ * page against, so a field that changed shape fails here and is caught the day it
+ * ships. The runtime reads {@link LooseListing} instead, for the reason given there.
  */
 export const Listing = Schema.Struct({
   results: Schema.Array(WorkingSetRow),
-  pageInfo: Schema.optional(
-    Schema.NullOr(
-      Schema.Struct({
-        currentPage: Schema.Number,
-        totalPages: Schema.Number,
-        totalCount: Schema.Number
-      })
-    )
-  )
+  pageInfo: PageInfo
 })
 
 export type Listing = typeof Listing["Type"]
+
+/**
+ * The same page, with the rows left undecoded.
+ *
+ * What the runtime reads, so that one row GitHub changed does not take the other
+ * twenty-four with it. `whereverItIs` finds the page by its `results` array, and
+ * `involvedIn` then decodes each row on its own with {@link WorkingSetRow},
+ * keeping the ones that decode and dropping the ones that do not. A repository's
+ * list drawn short is worth more than a repository's list drawn blank.
+ *
+ * The cost is that the finder is less specific: it locates any object with a
+ * `results` array rather than one whose rows have the shape of a pull request.
+ * The two routes that read a Listing each answer with exactly one such object, so
+ * on those two the looseness costs nothing — and the strict {@link Listing} above
+ * is what still guards the shape, on a schedule, before a reader is involved.
+ */
+export const LooseListing = Schema.Struct({
+  results: Schema.Array(Schema.Unknown),
+  pageInfo: PageInfo
+})
+
+export type LooseListing = typeof LooseListing["Type"]
 
 /**
  * What the rows arrive without: how the checks stand, and how the reviews did.
@@ -1431,8 +1508,8 @@ export type Listing = typeof Listing["Type"]
 export const DeferredRoute = Schema.Struct({
   results: Schema.Array(
     Schema.Struct({
-      /** The same id the rows carry, which is what this route is asked by. */
-      id: Schema.String,
+      /** The id, matching {@link WorkingSetRow.id}. String or number, see {@link OpaqueId}. */
+      id: OpaqueId,
       /**
        * Absent altogether on a pull request with no checks at all, which one
        * observed row was — hence optional rather than merely nullable.

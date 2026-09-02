@@ -128,6 +128,7 @@ const open = (
     route,
     draw: (standing: Standing) => (
       <IssueScreen
+        at={route}
         reference={reference}
         load={read}
         preload={() => Fiber.join(remembered)}

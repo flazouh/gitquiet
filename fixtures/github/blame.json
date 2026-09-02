@@ -1,0 +1,107 @@
+{
+  "payload": {
+    "codeViewBlameRoute": {
+      "blame": {
+        "ranges": {
+          "1": {
+            "start": 1,
+            "oldStart": 2,
+            "end": 1,
+            "oldEnd": 2,
+            "commitOid": "f0c283c632816143d8eb3a9dc9ed41d326dcbde1",
+            "reblamePath": "README.md"
+          },
+          "2": {
+            "start": 2,
+            "oldStart": 2,
+            "end": 2,
+            "oldEnd": 2,
+            "commitOid": "55a9cccac06403fe1486168378246b34a957f0a1",
+            "reblamePath": "README.md"
+          },
+          "3": {
+            "start": 3,
+            "oldStart": 4,
+            "end": 3,
+            "oldEnd": 4,
+            "commitOid": "f0c283c632816143d8eb3a9dc9ed41d326dcbde1",
+            "reblamePath": "README.md"
+          },
+          "4": {
+            "start": 4,
+            "oldStart": 4,
+            "end": 4,
+            "oldEnd": 4,
+            "commitOid": "784022785dc62482f82dc5b2ce0833c03c34d901",
+            "reblamePath": "README.md"
+          },
+          "5": {
+            "start": 5,
+            "oldStart": 5,
+            "end": 6,
+            "oldEnd": 6,
+            "commitOid": "18362505429f99662f4423264147896d23313dbe",
+            "reblamePath": "README.md"
+          }
+        },
+        "commits": {
+          "f0c283c632816143d8eb3a9dc9ed41d326dcbde1": {
+            "oid": "f0c283c632816143d8eb3a9dc9ed41d326dcbde1",
+            "message": "Add Bun logo",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/oven-sh/bun/commit/f0c283c632816143d8eb3a9dc9ed41d326dcbde1\">Add Bun logo</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/5665358?s=80&v=4",
+            "committerName": "Jarred Sumner",
+            "committerEmail": "jarred@jarredsumner.com",
+            "committedDate": "2022-07-06T04:12:45.000-07:00",
+            "firstParentOid": "4654de7ee544b1ad43e6bf1a8134b20b9bda03cc"
+          },
+          "55a9cccac06403fe1486168378246b34a957f0a1": {
+            "oid": "55a9cccac06403fe1486168378246b34a957f0a1",
+            "message": "bun.sh -> bun.com (#20909)",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/oven-sh/bun/commit/55a9cccac06403fe1486168378246b34a957f0a1\">bun.sh -&gt; bun.com (#20909)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/709451?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2025-07-10T00:10:43.000-07:00",
+            "firstParentOid": "72b5c0885a4812de79c29c4c76d6e65bea1b6ab8"
+          },
+          "784022785dc62482f82dc5b2ce0833c03c34d901": {
+            "oid": "784022785dc62482f82dc5b2ce0833c03c34d901",
+            "message": "revert the last commit\n\nwe were testing if we could disable push-to-main permissions\ni should probably just stop committing to main",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/oven-sh/bun/commit/784022785dc62482f82dc5b2ce0833c03c34d901\">revert the last commit</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/24465214?s=80&v=4",
+            "committerName": "dave caruso",
+            "committerEmail": "me@paperdave.net",
+            "committedDate": "2024-06-01T01:39:55.000-07:00",
+            "firstParentOid": "bc64e6b8e5d721cb2fcbb588f7fd5cb0be96579f"
+          },
+          "18362505429f99662f4423264147896d23313dbe": {
+            "oid": "18362505429f99662f4423264147896d23313dbe",
+            "message": "Docs tweaks (#2160)\n\n* Tweaks\r\n\r\n* Add ecosystem. Add bunx. Flesh out install.\r\n\r\n* Tweaks\r\n\r\n* Add TS to installation\r\n\r\n* Tweaks\r\n\r\n* New readme\r\n\r\n* Write new readme\r\n\r\n* Tweak\r\n\r\n* Center header\r\n\r\n* Bun\r\n\r\n* tweaks\r\n\r\n* No dollar sign\r\n\r\n* Fix links\r\n\r\n* Update\r\n\r\n* Tweak",
+            "shortMessageHtmlLink": "<a class=\"Link--secondary color-fg-default\" data-pjax=\"true\" href=\"/oven-sh/bun/commit/18362505429f99662f4423264147896d23313dbe\">Docs tweaks (#2160)</a>",
+            "authorAvatarUrl": "https://avatars.githubusercontent.com/u/3084745?s=80&v=4",
+            "committerName": "GitHub",
+            "committerEmail": "noreply@github.com",
+            "committedDate": "2023-02-24T16:33:53.000-08:00",
+            "firstParentOid": "1d85b5efa83a28c46e50ebae041ac480b33fb116"
+          }
+        },
+        "ignoreRevs": {
+          "path": ".git-blame-ignore-revs",
+          "present": true,
+          "timedOut": null
+        }
+      }
+    },
+    "codeViewBlobLayoutRoute.StyledBlob": {
+      "rawLines": [
+        "<p align=\"center\">",
+        "  <a href=\"https://bun.com\"><img src=\"https://github.com/user-attachments/assets/50282090-adfd-4ddb-9e27-c30753c6b161\" alt=\"Logo\" height=170></a>",
+        "</p>",
+        "<h1 align=\"center\">Bun</h1>",
+        "",
+        "<p align=\"center\">"
+      ]
+    }
+  }
+}

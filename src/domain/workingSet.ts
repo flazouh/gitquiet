@@ -156,13 +156,7 @@ export const withStandings = (
  */
 export type InvolvedPullRequest = {
   readonly reference: PullRequestRef
-  /**
-   * GitHub's own id, which is the only key the deferred read answers by.
-   *
-   * A number until they made it their global node id, `PR_kwDOAn8RLM8AAAABB5X9Fw`.
-   * Opaque to everything here: it is read from a row and handed straight back on
-   * the deferred route, and nothing counts, sorts or compares it. See `wire.ts`.
-   */
+  /** GitHub's node id, which is the only key the deferred read answers by. */
   readonly id: string
   readonly title: string
   readonly author: Participant

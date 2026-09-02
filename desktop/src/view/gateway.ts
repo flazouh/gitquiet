@@ -145,7 +145,7 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
    * written out separately and then one of them was not written at all, which is a
    * whole list drawn with no word for its checks.
    */
-  const standings = (wanted?: ReadonlySet<number>): Standings =>
+  const standings = (wanted?: ReadonlySet<string>): Standings =>
     new Map(
       rows
         .filter((row) => wanted === undefined || wanted.has(row.id))
@@ -218,7 +218,7 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
             )
       ),
 
-    standingsFor: (ids: ReadonlyArray<number>) => Effect.succeed(standings(new Set(ids))),
+    standingsFor: (ids: ReadonlyArray<string>) => Effect.succeed(standings(new Set(ids))),
 
     branches: (reference: PullRequestRef) =>
       Effect.succeed(
@@ -439,6 +439,11 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
     upload: missing("upload a file"),
     treePaths: missing("read file tree"),
     fileAt: missing("read a file"),
+    // Blame is a screen this window has not built. It is a page of GitHub's
+    // code view, and this gateway reaches GitHub through the documented API
+    // rather than through page routes, so there is nothing here to read it
+    // with until that screen exists.
+    blameAt: missing("read a file's blame"),
     rawFileAt: missing("read raw file"),
     treeCommits: missing("read tree commits"),
     whoTouched: missing("read commit author"),

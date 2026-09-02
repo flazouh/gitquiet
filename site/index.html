@@ -29,7 +29,22 @@
     <meta name="twitter:image" content="https://gitquiet.com/og.png" />
   </head>
   <body>
-    <div id="page"></div>
+    <div id="page">
+      <!--
+        The copy a crawler that never runs the bundle can still read. Indexes that skip
+        JavaScript kept only /privacy, because that file is HTML and this one was an
+        empty #page waiting for React. createRoot replaces this on mount; that is
+        intended.
+      -->
+      <main>
+        <h1>A faster, quieter GitHub.</h1>
+        <p>A faster, quieter GitHub. Every pull request you're in, one screen, sorted by next action. Not an AI reviewer. No extra login.</p>
+        <p>
+          <a href="https://chromewebstore.google.com/detail/gitquiet/ichobjnihnofjkpoegikjhefmoekaahe">Add to Chrome</a>
+          <a href="/install">Install</a>
+        </p>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

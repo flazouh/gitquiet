@@ -22,6 +22,7 @@ import { diffChoices, treeChoices } from "../domain/choices"
 import { keyOf } from "../domain/PullRequestRef"
 import { keptReads } from "../app/kept"
 import { hasLandedBefore, LANDING, markLanded } from "./landing"
+import { revealer } from "../app/revealing"
 import type { Keys } from "../keys/commands"
 import { CommitView } from "./CommitView"
 import { FileBrowser } from "./FileBrowser"
@@ -65,6 +66,14 @@ export type ShellProps = {
    * a file arrived in it. See `attaching.ts`.
    */
   readonly onUpload?: (file: File) => Effect.Effect<Uploaded, unknown>
+  /**
+   * One whole file at one commit, for revealing the lines between the hunks.
+   *
+   * Handed in as a read rather than as a Revealer because which two commits a
+   * file is revealed between belongs to the snapshot, which is this component's
+   * to know. See `src/app/revealing.ts`.
+   */
+  readonly readWholeFile?: (sha: string, path: string) => Effect.Effect<string, unknown>
   /** Marks one thread resolved, which is how a finding leaves the conversation. */
   readonly onSettle?: (threadId: string) => Effect.Effect<unknown, unknown>
   /** Opens a resolved thread again, from the foot of the thread itself. */
@@ -177,6 +186,7 @@ export const Shell = ({
   postRemark,
   suggest,
   onUpload,
+  readWholeFile,
   onSettle,
   onUnsettle,
   onReply,
@@ -323,6 +333,23 @@ export const Shell = ({
         : (body: string) =>
             Effect.map(postRemark(body), (remark) => setSaid((held) => [...held, remark])),
     [postRemark]
+  )
+
+  /*
+   * The way to reveal the lines GitHub left out of every file in this diff.
+   *
+   * Built here because it is keyed by this pull request's own two commits, and
+   * a file kept under the wrong pair is a file from another comparison. Only
+   * the pull request's own browser is given one: a commit read inside this page
+   * is a different comparison, between that commit and its parent, and the same
+   * revealer there would reveal the wrong halves.
+   */
+  const revealing = useMemo(
+    () =>
+      readWholeFile === undefined
+        ? undefined
+        : revealer(readWholeFile, { base: snapshot.baseSha, head: snapshot.headSha }),
+    [readWholeFile, snapshot.baseSha, snapshot.headSha]
   )
 
   const onPost = useMemo(
@@ -601,6 +628,7 @@ export const Shell = ({
                   onPost={onPost}
                   suggest={suggest}
                   onUpload={onUpload}
+                  revealing={revealing}
                   answering={answering}
                   review={{
                     active: reviewing,

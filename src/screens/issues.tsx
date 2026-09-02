@@ -60,7 +60,9 @@ let asLastSeen: { readonly address: string; readonly listed: ListedIssues } | un
 const open = (
   dash: IssueDashboard,
   /** Another view of this same screen, without a document. See {@link goWithin}. */
-  press: (path: string) => void
+  press: (path: string) => void,
+  /** The exact pathname this screen is stood up for. See `DrawnAt` in `drawnAt.tsx`. */
+  at: string
 ): (() => void) => {
   const asked = queryFor(dash)
 
@@ -154,6 +156,7 @@ const open = (
     place: ISSUES,
     draw: (standing) => (
       <IssuesScreen
+        at={at}
         involvement={dash.involvement}
         load={read}
         recallRepositories={recallRepositories}
@@ -235,7 +238,7 @@ export const start = (): void => {
       return
     }
 
-    close = open(dash.value, press)
+    close = open(dash.value, press, new URL(url).pathname)
     standingFor = url
   }
 

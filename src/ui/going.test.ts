@@ -270,6 +270,12 @@ describe("an address moved to a screen that never arrives", () => {
 
     // Nothing new on the page, and the address has arrived where it was sent.
     ;(page.window.location as { pathname: string }).pathname = "/owner/repo/pull/12"
+    // The verdict has to survive to a second deadline before it costs a
+    // document: measured twice, cut once.
+    const queued = [...page.recorded.later]
+    page.recorded.later.length = 0
+    queued.forEach((run) => run())
+    expect(page.recorded.replaced).toEqual([])
     page.recorded.later.forEach((run) => run())
 
     expect(page.recorded.replaced).toEqual(["/owner/repo/pull/12"])
@@ -302,6 +308,128 @@ describe("an address moved to a screen that never arrives", () => {
     page.recorded.later.forEach((run) => run())
 
     expect(page.recorded.replaced).toEqual([])
+  })
+})
+
+/*
+ * The repair is for a screen that is not coming, and a screen on its way is not
+ * that. Signed out, on a cold cache, the screen for a big repository can still
+ * be standing up when the deadline fires — and the repair then loads a whole
+ * document over a press that was working, which throws away every live screen
+ * the document was holding for Back. Demonstrated on live github.com by
+ * scripts/probe-back-live.ts.
+ */
+describe("an address moved to a screen that is still arriving", () => {
+  /** Runs whatever the deadline queued, once, and hands back what it queued next. */
+  const deadlinePasses = (page: ReturnType<typeof aPageOfOurs>): number => {
+    const queued = [...page.recorded.later]
+    page.recorded.later.length = 0
+    queued.forEach((run) => run())
+    return page.recorded.later.length
+  }
+
+  test("is waited for while the gate says a takeover is coming", () => {
+    const page = aPageOfOurs()
+    answerPressesIn(page.screen, page.window, aPullRequest)
+    press(rowIn(page.screen))
+    ;(page.window.location as { pathname: string }).pathname = "/owner/repo/pull/12"
+
+    page.window.document.documentElement.setAttribute("data-gitquiet-gating", "")
+    const rearmed = deadlinePasses(page)
+
+    expect(page.recorded.replaced).toEqual([])
+    expect(rearmed).toBe(1)
+  })
+
+  test("is waited for while a standing screen is visibly still reading", () => {
+    const page = aPageOfOurs()
+    answerPressesIn(page.screen, page.window, aPullRequest)
+    press(rowIn(page.screen))
+    ;(page.window.location as { pathname: string }).pathname = "/owner/repo/pull/12"
+
+    const reading = page.window.document.createElement("div")
+    reading.setAttribute("data-gitquiet-loading", "")
+    page.screen.append(reading)
+    deadlinePasses(page)
+
+    expect(page.recorded.replaced).toEqual([])
+  })
+
+  test("is left alone once the wait ends in the screen it was waiting for", () => {
+    const page = aPageOfOurs()
+    answerPressesIn(page.screen, page.window, aPullRequest)
+    press(rowIn(page.screen))
+    ;(page.window.location as { pathname: string }).pathname = "/owner/repo/pull/12"
+
+    page.window.document.documentElement.setAttribute("data-gitquiet-gating", "")
+    deadlinePasses(page)
+
+    // The takeover settled: the gate came down and the card stands where the
+    // list was, which is what an arrival looks like from here.
+    page.window.document.documentElement.removeAttribute("data-gitquiet-gating")
+    page.screen.remove()
+    const card = page.window.document.createElement("div")
+    card.id = ROOT_ID
+    page.window.document.body.append(card)
+    deadlinePasses(page)
+
+    expect(page.recorded.replaced).toEqual([])
+  })
+
+  test("is repaired once nothing says anything is coming any more", () => {
+    const page = aPageOfOurs()
+    answerPressesIn(page.screen, page.window, aPullRequest)
+    press(rowIn(page.screen))
+    ;(page.window.location as { pathname: string }).pathname = "/owner/repo/pull/12"
+
+    page.window.document.documentElement.setAttribute("data-gitquiet-gating", "")
+    deadlinePasses(page)
+    page.window.document.documentElement.removeAttribute("data-gitquiet-gating")
+    deadlinePasses(page)
+    deadlinePasses(page)
+
+    expect(page.recorded.replaced).toEqual(["/owner/repo/pull/12"])
+  })
+
+  /*
+   * The moment a page changes hands, the mark of the screen being swept can
+   * stand under the fresh address for a few milliseconds more — no gate, no
+   * read in flight, nothing for patience to see. Measured live by
+   * scripts/probe-back-live.ts. A verdict sampled inside that window and acted
+   * on is a document loaded over a press that was working, so no verdict costs
+   * a document until it has survived to a second deadline.
+   */
+  test("is left alone where the wrong answer does not survive to a second deadline", () => {
+    const page = aPageOfOurs()
+    // The swept screen's mark, standing under the fresh address for the few
+    // milliseconds before its tree hears it is off the page.
+    let stale = true
+    goTo(page.window, "/owner/repo/pull/12", () => !stale)
+    ;(page.window.location as { pathname: string }).pathname = "/owner/repo/pull/12"
+
+    deadlinePasses(page)
+    stale = false
+    deadlinePasses(page)
+
+    expect(page.recorded.replaced).toEqual([])
+  })
+
+  test("does not wait forever on a read that never ends", () => {
+    const page = aPageOfOurs()
+    answerPressesIn(page.screen, page.window, aPullRequest)
+    press(rowIn(page.screen))
+    ;(page.window.location as { pathname: string }).pathname = "/owner/repo/pull/12"
+
+    // A wedged read: the marker never comes down. The failsafe has to stay one.
+    const reading = page.window.document.createElement("div")
+    reading.setAttribute("data-gitquiet-loading", "")
+    page.screen.append(reading)
+
+    let deadlines = 0
+    while (deadlinePasses(page) > 0 && deadlines < 20) deadlines += 1
+
+    expect(page.recorded.replaced).toEqual(["/owner/repo/pull/12"])
+    expect(deadlines).toBeLessThan(20)
   })
 })
 
@@ -361,6 +489,9 @@ describe("another view of the screen already standing", () => {
 
     goWithin(page.window, "/issues/assigned?page=2", () => {}, () => standingFor)
     arrivedAt(page.window, "/issues/assigned", "?page=2")
+    const queued = [...page.recorded.later]
+    page.recorded.later.length = 0
+    queued.forEach((run) => run())
     page.recorded.later.forEach((run) => run())
 
     expect(page.recorded.replaced).toEqual(["/issues/assigned?page=2"])
@@ -655,6 +786,11 @@ describe("hearing that the trail moved", () => {
 describe("what counts as the screen having arrived", () => {
   const settled = (page: ReturnType<typeof aPageOfOurs>, path: string) => {
     ;(page.window.location as { pathname: string }).pathname = path
+    // Twice, because no verdict costs a document until it has survived to a
+    // second deadline: measured twice, cut once.
+    const queued = [...page.recorded.later]
+    page.recorded.later.length = 0
+    queued.forEach((run) => run())
     page.recorded.later.forEach((run) => run())
   }
 

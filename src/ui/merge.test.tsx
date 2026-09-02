@@ -1158,6 +1158,45 @@ describe("a repository that merges through a queue", () => {
     expect(screen.queryByRole("button", { name: /Squash and merge/ })).toBeNull()
   })
 
+  test("sends a layer of a stack by the stack's route, and says joining on it", () => {
+    /*
+     * The fault a reader hit on a stacked pull request in a queued repository.
+     *
+     * The queue route refuses a layer with "This pull request is out of date",
+     * which is untrue of it and offers nothing to do about it, so the only
+     * press on the card could not work. GitHub asks about the stack before the
+     * queue and posts `enqueue_stack`. The word joins rather than merges,
+     * because on this repository the press puts the stack in the line.
+     */
+    const seated = (number: number, seat: "below" | "here"): StackLayer => ({
+      reference: { owner: "flazouh", repo: "stack-probe", number },
+      title: `module ${number}`,
+      headBranch: `feat-${number}`,
+      state: "open",
+      seat
+    })
+    const layered: MergeState = {
+      ...inA({}),
+      stack: Option.some({
+        number: 11,
+        layers: [seated(8, "below"), seated(9, "here")],
+        floor: Option.none()
+      })
+    }
+
+    render(
+      <Merge
+        state="open"
+        merge={Option.some(layered)}
+        actions={{ merge: () => Effect.void, enqueue: () => Effect.void }}
+      />
+    )
+
+    expect(button(/^Enqueue stack/)).toBeDefined()
+    expect(screen.queryByRole("button", { name: /Merge when ready/ })).toBeNull()
+    expect(screen.queryByRole("button", { name: /Squash and merge stack/ })).toBeNull()
+  })
+
   test("joins the queue on the second press, as merging does", async () => {
     let joined = 0
     render(<Merge state="open" merge={Option.some(inA({}))} actions={{ enqueue: () => Effect.sync(() => void (joined += 1)) }} />)

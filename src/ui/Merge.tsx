@@ -218,6 +218,21 @@ export const Merge = ({
   )
 
   /*
+   * Whether a merge press here joins the queue rather than landing now.
+   *
+   * Both halves asked, rather than the queue alone. A queued repository offers
+   * this button for one thing — a layer of a stack, which posts `enqueue_stack`
+   * and so joins the line by the stack's own route — but that is `whatCanBeDone`'s
+   * rule and not this card's to assume. Read from the queue alone, the word would
+   * be right only for as long as that rule holds somewhere else, which is how the
+   * button came to say "Merge when ready" over a press already sent elsewhere.
+   */
+  const queued = Option.match(live, {
+    onNone: () => false,
+    onSome: (said) => Option.isSome(said.queue) && Option.isSome(said.stack)
+  })
+
+  /*
    * The other ways each of the two buttons could land, or nothing to offer.
    *
    * Nothing where the repository allows one way in, which is most of them: a
@@ -288,6 +303,7 @@ export const Merge = ({
       press={press}
       method={method}
       landsStack={landsStack}
+      queued={queued}
       otherMethods={otherMethods}
       otherWays={otherWays}
       onCancel={() => setMerging({ step: "idle" })}
@@ -633,6 +649,7 @@ const MergeCard = ({
   press,
   method,
   landsStack,
+  queued,
   otherMethods,
   otherWays,
   onCancel
@@ -661,6 +678,14 @@ const MergeCard = ({
    */
   readonly method: Option.Option<MergeMethod>
   readonly landsStack: boolean
+  /**
+   * Whether the merge press joins a queue rather than landing now.
+   *
+   * True only where the repository has a queue, which after `whatCanBeDone` is
+   * only ever a layer of a stack: everything else there is offered the queue's
+   * own verb instead. It changes the word on the button and nothing else.
+   */
+  readonly queued: boolean
   /** The other merge methods, where the repository allows more than one. */
   readonly otherMethods: Option.Option<Otherwise>
   /** The other ways to catch the branch up, where GitHub allows both. */
@@ -702,7 +727,8 @@ const MergeCard = ({
     press,
     onCancel,
     method,
-    landsStack
+    landsStack,
+    queued
   }
   // A stack makes GitHub's own word for this pull request the wrong answer for
   // the card. Asked about the top of a stack with a draft under it they say

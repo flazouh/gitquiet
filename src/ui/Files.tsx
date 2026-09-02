@@ -8,6 +8,7 @@ import { Effect, Option } from "effect"
 import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { afterPaint, whenIdle } from "../app/idle"
+import type { Revealer } from "../app/revealing"
 import type { DiffEngine, DiffHandle, DiffSide, Note as NoteAt, Picked } from "../ports/Renderer"
 import type { Uploaded } from "../domain/attaching"
 import type { Suggesting } from "../domain/suggesting"
@@ -28,7 +29,7 @@ import { rowMarks, shortCount, type RowMark } from "./rowMarks"
 import { DRAWING, showLine } from "./showLine"
 import { changesBetween } from "./treeRows"
 import { type Answering, ThreadInDiff } from "./ThreadView"
-import { threadKey, threadNotes, threadsIn } from "./threads"
+import { drawnIn, threadKey, threadNotes, threadsOn } from "./threads"
 import {
   MATERIAL_BY_EXTENSION,
   MATERIAL_BY_FILE_NAME,
@@ -344,6 +345,12 @@ export type FileDiffPaneProps = {
   readonly ask: (path: string) => Effect.Effect<Option.Option<FileDiff>>
   /** Prose files can be read as the document they become rather than as a diff. */
   readonly reading?: boolean
+  /**
+   * The way to fetch whole files, so a reader can reveal what the hunks left
+   * out. Absent where nothing can fetch them, and the diff then draws its
+   * hunks alone. See `src/app/revealing.ts`.
+   */
+  readonly revealing?: Revealer
   /** How the reader has asked for diffs to be drawn. */
   readonly choices: DiffChoices
   /**
@@ -427,7 +434,8 @@ const FileDiffPaneView = ({
   atLine,
   onPicked,
   suggest,
-  onUpload
+  onUpload,
+  revealing
 }: FileDiffPaneProps) => {
   const host = useRef<HTMLDivElement | null>(null)
   const painted = usePaintedTheme()
@@ -547,16 +555,44 @@ const FileDiffPaneView = ({
     return () => loading.interruptUnsafe()
   }, [load])
 
-  // The threads GitHub already holds against lines of this file. Read here
-  // rather than passed in already filtered, so a caller cannot hand this file
-  // another file's remarks.
-  const hung = useMemo(() => threadsIn(threads, file.path), [threads, file.path])
+  /*
+   * The way to reveal this file's hidden lines, or nothing where there is none.
+   *
+   * Held still across renders because the renderer takes it as part of what it
+   * draws from, and a fresh function each render is the whole file drawn again
+   * for a way in that answers the same.
+   */
+  const reveal = useMemo(
+    () => revealing?.forFile(file.path, file.changeType),
+    [revealing, file.path, file.changeType]
+  )
+
+  /*
+   * Which lines GitHub's diff for this file holds, or nothing until it lands.
+   *
+   * Read off `whole`, which is what GitHub sent, rather than off the patch
+   * actually drawn: hiding whitespace folds lines away for the reader's own
+   * sake, and a remark called unreachable because of a knob they can turn back
+   * would be this pane blaming GitHub for its own setting.
+   */
+  const drawn = useMemo(
+    () => (Option.isSome(whole.diff) ? drawnIn(whole.diff.value.lines) : null),
+    [whole.diff]
+  )
+
+  // The threads GitHub already holds against lines of this file, split by
+  // whether there is a line here to hang them on. Read here rather than passed
+  // in already filtered, so a caller cannot hand this file another file's.
+  const { inReach: hung, outOfReach } = useMemo(
+    () => threadsOn(threads, file.path, drawn),
+    [threads, file.path, drawn]
+  )
 
   // Every note that should be hanging in the diff: what has been said about
   // this file, what has been written about it, and the lines being written
   // about right now.
   const notes = useMemo((): ReadonlyArray<NoteAt> => {
-    const said = threadNotes(threads, file.path)
+    const said = threadNotes(hung)
     const written = drafts.map((draft) => ({
       key: draftKey(draft),
       side: draft.side,
@@ -569,7 +605,7 @@ const FileDiffPaneView = ({
     const at = draftKey({ path: file.path, ...picked })
     if (written.some((note) => note.key === at)) return [...said, ...written]
     return [...said, ...written, { key: WRITING, side: picked.side, line: picked.to }]
-  }, [threads, drafts, picked, file.path])
+  }, [hung, drafts, picked, file.path])
 
   // One element per note, made here and kept: the renderer asks for a row's
   // contents while it is drawing, which is no time to be creating React roots,
@@ -633,6 +669,10 @@ const FileDiffPaneView = ({
         // open a box whose Comment button cannot come up, over a draft that can be
         // saved and never sent.
         onPick: canPost ? setPicked : undefined,
+        // The way to fetch the rest of the file, so a reader can reveal what
+        // GitHub left out between the hunks. The renderer calls it on a press
+        // and not before, so a file nobody expands costs no request.
+        reveal,
         notes: atRender.current,
         fillNote: (key) => rows.current.get(key)
       })
@@ -647,7 +687,7 @@ const FileDiffPaneView = ({
     }
     // Every one of these is baked into the DOM the renderer writes, so a change
     // to any of them is a file drawn again from the patch.
-  }, [engine, shown, file.path, prose, drawnWith, canPost])
+  }, [engine, shown, file.path, prose, drawnWith, canPost, reveal])
 
   useEffect(() => {
     handle.current?.showNotes(notes)
@@ -777,6 +817,41 @@ const FileDiffPaneView = ({
           note.key
         )
       })}
+      {/* Threads GitHub holds against lines this file's diff does not contain.
+          Drawn here, above the file, because there is no line in it to hang
+          them under and the alternative is a file that reads as though nobody
+          said anything about it. See `CONTEXT.md`, Out of Reach. */}
+      {outOfReach.length === 0 ? null : (
+        <section
+          aria-label="Said about lines not in this diff"
+          /* The dress the note rows wear, named again: those are portalled into
+             the renderer's shadow root and carry it themselves, and a thread out
+             here would otherwise be the one comment on the page drawn in the
+             pane's own size. Held to the same width for the same reason. */
+          className="border-b border-line bg-surface font-sans text-sm text-ink"
+        >
+          <p className="px-3 py-1.5 text-xs text-ink-muted">
+            {outOfReach.length === 1
+              ? "One comment is on a line GitHub left out of this file's diff."
+              : `${outOfReach.length} comments are on lines GitHub left out of this file's diff.`}
+          </p>
+          {outOfReach.map(({ thread, at }) => (
+            <div
+              key={threadKey(thread)}
+              className="w-[min(46rem,100%)] border-t border-line px-3 py-2"
+            >
+              {/* The line is said here because the thread is not beside it. */}
+              <p className="pb-1.5 font-mono text-xs text-ink-muted">
+                {at.startLine === at.line
+                  ? `Line ${at.line}`
+                  : `Lines ${at.startLine} to ${at.line}`}
+                {at.side === "before" ? ", as it was before" : ""}
+              </p>
+              <ThreadInDiff thread={thread} answering={answering} />
+            </div>
+          ))}
+        </section>
+      )}
       {prose !== undefined ? (
         <ProseDiff diff={prose} />
       ) : asking ? (

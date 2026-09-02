@@ -22,7 +22,12 @@ import "@/ui/styles.css"
  * The closing half is not tidiness. GitHub navigates between runs without loading a page,
  * so the interface for the run being left is still standing when the next arrives.
  */
-const open = (reference: RunRef, onUseGitHub?: () => void): (() => void) => {
+const open = (
+  reference: RunRef,
+  /** The exact pathname this screen is stood up for. See `DrawnAt` in `drawnAt.tsx`. */
+  at: string,
+  onUseGitHub?: () => void
+): (() => void) => {
   const reading = <A, E>(work: Effect.Effect<A, E, GitHubGateway>) =>
     work.pipe(
       throughGitHub,
@@ -78,6 +83,7 @@ const open = (reference: RunRef, onUseGitHub?: () => void): (() => void) => {
     place: RUN,
     draw: (standing) => (
       <RunScreen
+        at={at}
         reference={reference}
         load={read}
         preload={remembered}
@@ -148,7 +154,7 @@ export const start = (): void => {
       return
     }
 
-    close = open(reference.value, useGitHub)
+    close = open(reference.value, new URL(url, window.location.origin).pathname, useGitHub)
   }
 
   whenLocationChanges(window, () => show(window.location.href))

@@ -214,6 +214,23 @@ const STACK_MERGE_WORD: Record<MergeMethod, string> = {
 }
 
 /**
+ * The same press again, where the repository lands through a merge queue.
+ *
+ * A layer of a stack is the one thing the merge button still asks for on a
+ * queued repository — see `whatCanBeDone`, which sends a layer by the stack's
+ * own route whatever the queue does. That press joins the line rather than
+ * landing anything now, so a word naming a commit would promise work the queue
+ * has not agreed to do yet, and "Merge stack" would say it had already happened.
+ *
+ * Which is why neither of these names a method. GitHub's own button drops it
+ * here too, and for the same reason rather than by copying them: the method is
+ * still sent and still decides the commits, but it is not what the press does
+ * next.
+ */
+const QUEUED_STACK_WORD = "Enqueue stack"
+const QUEUED_LAYER_WORD = "Enqueue pull request"
+
+/**
  * What a button says, once the repository has had its say about merging.
  *
  * Every verb but the merge reads straight off {@link WORDS}. The merge is the
@@ -227,8 +244,15 @@ const STACK_MERGE_WORD: Record<MergeMethod, string> = {
  * than a table read twice: a method whose two names disagreed would be a menu
  * whose tick lands on a word the button does not say.
  */
-export const mergeWord = (method: MergeMethod, landsStack: boolean): string =>
-  (landsStack ? STACK_MERGE_WORD : MERGE_WORD)[method]
+export const mergeWord = (
+  method: MergeMethod,
+  landsStack: boolean,
+  /** Whether the press joins a queue rather than landing now. */
+  queued = false
+): string => {
+  if (queued) return landsStack ? QUEUED_STACK_WORD : QUEUED_LAYER_WORD
+  return (landsStack ? STACK_MERGE_WORD : MERGE_WORD)[method]
+}
 
 /**
  * What each way of catching a branch up is called.
@@ -242,9 +266,14 @@ export const UPDATE_WORD: Record<UpdateWay, string> = {
   REBASE: "Update with rebase"
 }
 
-const wordsOf = (doing: Asking, method: Option.Option<MergeMethod>, landsStack: boolean): Wording =>
+const wordsOf = (
+  doing: Asking,
+  method: Option.Option<MergeMethod>,
+  landsStack: boolean,
+  queued = false
+): Wording =>
   doing === "merge" && Option.isSome(method)
-    ? { ...WORDS.merge, rest: mergeWord(method.value, landsStack) }
+    ? { ...WORDS.merge, rest: mergeWord(method.value, landsStack, queued) }
     : WORDS[doing]
 
 /** What the second press is called, on a control that asks before it acts. */
@@ -539,6 +568,7 @@ export const Ask = ({
   method = Option.none(),
   otherwise,
   landsStack = false,
+  queued = false,
   className = ""
 }: {
   /** What this button asks for, which decides its words, its colours and its name. */
@@ -577,6 +607,14 @@ export const Ask = ({
    * an ordinary merge, whatever the panel above still draws.
    */
   readonly landsStack?: boolean
+  /**
+   * Whether this press joins a merge queue rather than landing now.
+   *
+   * Only the merge button reads it, and only a layer of a stack reaches it on a
+   * queued repository: every other press there is the queue's own verb, which
+   * carries its own word. See {@link mergeWord}.
+   */
+  readonly queued?: boolean
   readonly className?: string
 }) => {
   const art = useArt()
@@ -584,7 +622,7 @@ export const Ask = ({
   // Resolved once and handed to all four readers. Resolved four times over, the
   // one that skipped it — the waiting word — was right only for as long as
   // {@link wordsOf} replaced nothing but the resting word.
-  const words = wordsOf(doing, method, landsStack)
+  const words = wordsOf(doing, method, landsStack, queued)
   const verb = words.rest
   const tone = TONE[doing]
   const named = `${verb.charAt(0).toLowerCase()}${verb.slice(1)}`

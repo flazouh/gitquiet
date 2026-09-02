@@ -22,6 +22,7 @@ import { CHECK_TONE, checkArt } from "./Icon"
 import { reasonFor } from "./refusal"
 import { Section } from "./Section"
 import { TheBar } from "./TheBar"
+import { DrawnAt } from "./drawnAt"
 import { useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -59,6 +60,8 @@ export type RunScreenProps = {
   readonly press?: (what: Pressing) => Effect.Effect<unknown, unknown>
   /** What this page is called in this document's memory. See {@link useLive}. */
   readonly where?: string
+  /** The exact pathname this screen stands for, as {@link DrawnAt} needs it said. */
+  readonly at?: string
 }
 
 /**
@@ -621,7 +624,8 @@ export const RunScreen = ({
   onStepAside,
   onUseGitHub,
   press,
-  where
+  where,
+  at
 }: RunScreenProps) => {
   const live = useLive(load, preload, where)
   const { read } = live
@@ -671,15 +675,19 @@ export const RunScreen = ({
 
   if (read.status === "failed") {
     return (
-      <div className="Box my-2 p-4">
-        <h2 className="mb-1 text-base font-semibold">This run could not be read</h2>
-        <p className="mb-3 max-w-prose text-sm text-ink-muted">
-          Nothing is shown rather than part of it. GitHub's own run page is still here.
-        </p>
-        <button type="button" className="btn btn-sm" onClick={onStepAside}>
-          Show GitHub's run
-        </button>
-      </div>
+      <>
+        {/* The failure screen is an answer too. See {@link DrawnAt}. */}
+        <DrawnAt path={at ?? null} />
+        <div className="Box my-2 p-4">
+          <h2 className="mb-1 text-base font-semibold">This run could not be read</h2>
+          <p className="mb-3 max-w-prose text-sm text-ink-muted">
+            Nothing is shown rather than part of it. GitHub's own run page is still here.
+          </p>
+          <button type="button" className="btn btn-sm" onClick={onStepAside}>
+            Show GitHub's run
+          </button>
+        </div>
+      </>
     )
   }
 
@@ -706,6 +714,7 @@ export const RunScreen = ({
 
   return (
     <div className="relative">
+      <DrawnAt path={read.status === "loading" ? null : (at ?? null)} />
       <TheBar
         where={{ kind: "repository", owner: reference.repo.owner, repo: reference.repo.repo }}
         onStepAside={onUseGitHub}

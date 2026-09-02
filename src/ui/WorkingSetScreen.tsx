@@ -13,6 +13,7 @@ import { TheBar } from "./TheBar";
 import { useWaiting } from "./useWaiting";
 import { Waiting } from "./Waiting";
 import { ReadFailed, viewerOnPage } from "./ReadFailed";
+import { DrawnAt } from "./drawnAt";
 import type { Asking } from "./Doings";
 import { type Load, useLive } from "./useLive";
 import { WorkingSet } from "./WorkingSet";
@@ -28,6 +29,8 @@ export type WorkingSetScreenProps = {
   readonly preload?: () => Effect.Effect<Option.Option<ReadonlyArray<Sitting>>>;
   /** What this page is called in this document's memory. See {@link useLive}. */
   readonly where?: string;
+  /** The exact pathname this screen stands for, as {@link DrawnAt} needs it said. */
+  readonly at?: string;
   readonly onOpen: (reference: PullRequestRef) => void;
   /** Restores GitHub's own list, which is still on the page behind this. */
   readonly onStepAside: () => void;
@@ -121,6 +124,7 @@ export const WorkingSetScreen = ({
   load,
   preload,
   where,
+  at,
   onOpen,
   onStepAside,
   pinned,
@@ -207,6 +211,8 @@ export const WorkingSetScreen = ({
   if (read.status === "failed") {
     return (
       <>
+        {/* The failure screen is an answer too. See {@link DrawnAt}. */}
+        <DrawnAt path={at ?? null} />
         {bar}
         <ReadFailed
           signedOut={!signedIn()}
@@ -224,6 +230,7 @@ export const WorkingSetScreen = ({
     // slots throughout, so the wait is the same element before and after GitHub
     // answers and the dissolve has a resting state to start from.
     <div className="relative">
+      <DrawnAt path={read.status === "loading" ? null : (at ?? null)} />
       {read.status === "ready" ? (
         <WorkingSet
           sittings={read.value}

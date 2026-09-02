@@ -207,7 +207,7 @@ const rowFrom = (
 ): WorkingSetRow => ({
   // A pull request with no `databaseId` cannot be keyed, and GitHub only omits
   // it for things the token may not see. The caller drops those.
-  id: node.databaseId ?? 0,
+  id: String(node.databaseId ?? 0),
   owner: node.repository.owner.login,
   repo: node.repository.name,
   number: node.number,

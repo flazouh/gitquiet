@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import type { ListedIssues } from "../app/issueList"
@@ -187,5 +187,44 @@ describe("a read that failed", () => {
 
     expect(await screen.findByText(/The issues assigned to you/)).toBeTruthy()
     expect(screen.getByRole("button", { name: "Show GitHub's list" })).toBeTruthy()
+  })
+})
+
+/* The same mark every list publishes now. See `repoPullsScreen.test.tsx` for why. */
+describe("which address this list claims to have drawn", () => {
+  const drawn = () => document.documentElement.getAttribute("data-gitquiet-at")
+
+  afterEach(() => document.documentElement.removeAttribute("data-gitquiet-at"))
+
+  test("claims the pathname it stands for once rows are drawn", async () => {
+    render(
+      <IssuesScreen
+        involvement="assigned"
+        at="/issues/assigned"
+        load={() => Effect.succeed({ rows: [issue(31)], pages: Option.none() })}
+        onStepAside={() => {}}
+        onPage={() => {}}
+        onGo={() => {}}
+      />
+    )
+
+    await screen.findByRole("link", { name: /Issue / })
+    await waitFor(() => expect(drawn()).toBe("/issues/assigned"))
+  })
+
+  test("claims nothing while it is still reading", async () => {
+    render(
+      <IssuesScreen
+        involvement="assigned"
+        at="/issues/assigned"
+        load={() => Effect.never as Effect.Effect<ListedIssues>}
+        onStepAside={() => {}}
+        onPage={() => {}}
+        onGo={() => {}}
+      />
+    )
+
+    await screen.findByText(/Reading your issues/)
+    expect(drawn()).toBeNull()
   })
 })

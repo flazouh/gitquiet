@@ -6,6 +6,7 @@ import { Branches, type LoadBranches } from "./Branches"
 import { History } from "./History"
 import { Authors, type LoadAuthors, Dates } from "./Sifting"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
+import { DrawnAt } from "./drawnAt"
 import { TheBar } from "./TheBar"
 import { type Load, useLive } from "./useLive"
 import { type AskSizes, useSizes } from "./useSizes"
@@ -61,6 +62,8 @@ export type HistoryScreenProps = {
   readonly signedIn?: () => boolean
   /** What this page is called in this document's memory. See {@link useLive}. */
   readonly where?: string
+  /** The exact pathname this screen stands for, as {@link DrawnAt} needs it said. */
+  readonly at?: string
 }
 
 const WORKING = "Reading this branch's commits…"
@@ -85,6 +88,7 @@ export const HistoryScreen = ({
   onStepAside,
   recallRepositories,
   where,
+  at,
   signedIn = viewerOnPage
 }: HistoryScreenProps) => {
   const live = useLive(load, preload, where)
@@ -98,13 +102,17 @@ export const HistoryScreen = ({
 
   if (read.status === "failed") {
     return (
-      <ReadFailed
+      <>
+        {/* The failure screen is an answer too. See {@link DrawnAt}. */}
+        <DrawnAt path={at ?? null} />
+        <ReadFailed
         signedOut={!signedIn()}
         why={read.why}
         what={`The commits in ${owner}/${repo}`}
         onStepAside={onStepAside}
         asideLabel="Show GitHub's list"
-      />
+        />
+      </>
     )
   }
 
@@ -113,6 +121,7 @@ export const HistoryScreen = ({
     // has to be the same element on both sides of the answer or the dissolve
     // has nothing to start from.
     <div className="relative">
+      <DrawnAt path={read.status === "loading" ? null : (at ?? null)} />
       <TheBar where={{ kind: "repository", owner, repo }} recall={recallRepositories} />
       {history === undefined ? null : (
         <div>

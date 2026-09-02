@@ -16,12 +16,10 @@
 #
 # Regenerate:  gitleaks git --log-opts=--all -f json -r out.json
 #
-# The three below are the measured corpus rather than history: review comments
-# read off public pull requests on other people's repositories, where a bot
-# quoted a base64 blob that decodes to somebody's `encryptionKey`. Nothing here
-# reaches anything of ours, and the corpus is what the numbers in `docs/` are
-# checked against, so it is kept as it was read. Path fingerprints, because the
-# scan CI runs is `gitleaks dir`.
+# The measured corpus that used to be listed below has gone with it: the harvest
+# and the documents checked against it now live in the notes repository, so the
+# three `docs/data/collision_sample.json` fingerprints name a path this
+# repository no longer has. Nothing tracked here trips the scanner.
 #
 # Regenerate:  gitleaks dir . -f json -r out.json
 
@@ -35,7 +33,3 @@ dc6fd4534c6ba8f152684f41e10870afe23f0385:tests/fixtures/releasesList.html:generi
 f173b2befc6888fd5d08fdcefbee9bab1207f743:tests/fixtures/personRepos.html:generic-api-key:269
 f173b2befc6888fd5d08fdcefbee9bab1207f743:tests/fixtures/personReposArchived.html:generic-api-key:257
 f173b2befc6888fd5d08fdcefbee9bab1207f743:tests/fixtures/personReposCounted.html:generic-api-key:257
-
-docs/data/collision_sample.json:generic-api-key:157
-docs/data/collision_sample.json:generic-api-key:239
-docs/data/collision_sample.json:generic-api-key:317

@@ -55,6 +55,14 @@ export const titleAt = (what: Wanted, path: string): string | null => {
       }
       return repo
     }
+    case "blame": {
+      const name = rest[rest.length - 1]
+      return repo === null
+        ? null
+        : name === undefined || name.length === 0
+          ? `Blame · ${repo}`
+          : `Blame of ${name} · ${repo}`
+    }
     case "pull-request": {
       const number = rest[0] === "pull" ? rest[1] : undefined
       return repo === null || number === undefined
