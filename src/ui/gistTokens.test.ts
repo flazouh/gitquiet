@@ -61,7 +61,8 @@ describe("the gist screens paint with colours this codebase has", () => {
   for (const path of [
     "src/ui/GistListScreen.tsx",
     "src/ui/GistRowView.tsx",
-    "src/ui/GistScreen.tsx"
+    "src/ui/GistScreen.tsx",
+    "src/ui/GistMarks.tsx"
   ]) {
     test(`${path} names no colour that does not exist`, () => {
       const unknown = [...new Set(painted(readFileSync(path, "utf8")))].filter(

@@ -1,6 +1,7 @@
 import { useState } from "react"
 import type { GistSeen } from "../domain/gist"
 import { everyLabelKnown, type KeptGists, labelsOf, nameOf } from "../domain/gistLabels"
+import { Count, LabelAndName, LabelChips } from "./GistMarks"
 import { GitHubHtml } from "./GitHubHtml"
 import { TheBar } from "./TheBar"
 
@@ -39,37 +40,13 @@ const SecretNotice = () => (
   </div>
 )
 
-/** "6 forks", and nothing where there are none. Their head does the same. */
-const Count = ({ many, one, href }: { many: number; one: string; href: string }) =>
-  many === 0 ? null : (
-    <a href={href} className="text-xs text-ink-muted hover:underline">
-      {many} {one}
-      {many === 1 ? "" : "s"}
-    </a>
-  )
-
 export const GistScreen = ({ gist, kept, onChange, onStepAside }: GistScreenProps) => {
   const labels = labelsOf(kept, gist.id)
   const name = nameOf(kept, gist.id)
   const known = everyLabelKnown(kept)
 
   const [open, setOpen] = useState(false)
-  const [typed, setTyped] = useState(labels.join(", "))
-  const [called, setCalled] = useState(name ?? "")
-
   const at = `/${gist.owner}/${gist.id}`
-
-  const save = (): void => {
-    onChange(
-      gist.id,
-      typed
-        .split(",")
-        .map((one) => one.trim())
-        .filter((one) => one.length > 0),
-      called.trim().length === 0 ? null : called.trim()
-    )
-    setOpen(false)
-  }
 
   return (
     <>
@@ -140,58 +117,18 @@ export const GistScreen = ({ gist, kept, onChange, onStepAside }: GistScreenProp
             </button>
           </div>
 
-          {labels.length === 0 ? null : (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {labels.map((label) => (
-                <span key={label} className="rounded-full bg-hover px-2 text-xs text-ink-muted">
-                  {label}
-                </span>
-              ))}
-            </div>
-          )}
+          <LabelChips labels={labels} />
 
           {open ? (
-            <div className="mt-2 flex flex-col gap-2 border-t border-line-muted pt-2">
-              <label className="flex flex-col gap-1 text-xs text-ink-muted">
-                Name
-                <input
-                  value={called}
-                  onChange={(event) => setCalled(event.target.value)}
-                  placeholder={gist.title}
-                  className="h-8 rounded-md bg-hover px-2 text-sm"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-ink-muted">
-                Labels, separated by commas
-                <input
-                  value={typed}
-                  onChange={(event) => setTyped(event.target.value)}
-                  list="gist-labels-known"
-                  className="h-8 rounded-md bg-hover px-2 text-sm"
-                />
-              </label>
-              <datalist id="gist-labels-known">
-                {known.map((label) => (
-                  <option key={label} value={label} />
-                ))}
-              </datalist>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={save}
-                  className="h-7 rounded-md bg-accent-emphasis px-3 text-xs text-ink-on-emphasis"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className="h-7 rounded-md px-3 text-xs text-ink-muted hover:bg-hover"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
+            <LabelAndName
+              id={gist.id}
+              title={gist.title}
+              labels={labels}
+              name={name}
+              known={known}
+              onChange={onChange}
+              onClose={() => setOpen(false)}
+            />
           ) : null}
         </div>
 
