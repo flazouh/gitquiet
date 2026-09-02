@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import type { GistRow, Kind, Order } from "../domain/gistList"
 import { sifted } from "../domain/gistList"
 import { exported } from "../domain/gistExport"
 import { everyLabelKnown, type KeptGists, labelsOf, nameOf } from "../domain/gistLabels"
 import { GistRowView } from "./GistRowView"
 import { TheBar } from "./TheBar"
+import { useSlashFocuses } from "./useSlashFocuses"
 
 /**
  * A reader's own gists — `gist.github.com/{owner}`.
@@ -74,33 +75,8 @@ export const GistListScreen = ({
   const [picked, setPicked] = useState<ReadonlyArray<string>>([])
   const search = useRef<HTMLInputElement | null>(null)
 
-  /*
-   * `/` puts the caret in the search box, which is the shortcut GitHub had here and
-   * removed in 2024 — "this change was in fact intentional... it wasn't being used very
-   * much", GitHub Community #131464, against a reader in #140427 saying "it's such a
-   * pain compared to how simple it was before". It costs one listener to give back.
-   *
-   * Not while the reader is already typing somewhere. A `/` meant for a filename, a
-   * Label, or GitHub's own box is a `/`, and stealing it is worse than never having the
-   * shortcut at all.
-   */
-  useEffect(() => {
-    const heard = (event: KeyboardEvent): void => {
-      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return
-      const on = event.target
-      const typing =
-        on instanceof HTMLElement &&
-        (on.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(on.tagName))
-      if (typing) return
-
-      event.preventDefault()
-      search.current?.focus()
-      search.current?.select()
-    }
-
-    document.addEventListener("keydown", heard)
-    return () => document.removeEventListener("keydown", heard)
-  }, [])
+  // Given back, and left alone while the reader is already typing. See the hook.
+  useSlashFocuses(search)
 
   const known = useMemo(() => everyLabelKnown(kept), [kept])
 

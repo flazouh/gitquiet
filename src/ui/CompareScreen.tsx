@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import type { Changed, Comparing } from "../domain/compare"
 import { TheBar } from "./TheBar"
+import { useSlashFocuses } from "./useSlashFocuses"
 
 /**
  * Two refs, and what stands between them — `/{owner}/{repo}/compare/{base}...{head}`.
@@ -46,29 +47,9 @@ export const CompareScreen = ({
   const [query, setQuery] = useState("")
   const box = useRef<HTMLInputElement | null>(null)
 
-  /*
-   * `/` puts the caret in the filter, the same shortcut the gist list gives back. On a
-   * page whose whole reason to exist is filtering by path, a reader should not have to
-   * reach for the mouse to start.
-   */
-  useEffect(() => {
-    const heard = (event: KeyboardEvent): void => {
-      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return
-      const on = event.target
-      if (
-        on instanceof HTMLElement &&
-        (on.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(on.tagName))
-      ) {
-        return
-      }
-      event.preventDefault()
-      box.current?.focus()
-      box.current?.select()
-    }
-
-    document.addEventListener("keydown", heard)
-    return () => document.removeEventListener("keydown", heard)
-  }, [])
+  // On a page whose whole reason to exist is filtering by path, a reader should not
+  // have to reach for the mouse to start.
+  useSlashFocuses(box)
 
   const shown = useMemo(() => {
     const asked = query.trim().toLowerCase()
