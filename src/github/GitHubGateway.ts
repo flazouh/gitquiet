@@ -281,7 +281,7 @@ const shelfRoute = (shelf: Shelf): string =>
  * The ids go in repeated square-bracket parameters, which is Rails' way of
  * spelling an array and not something to tidy: their route reads no other form.
  */
-const deferredRoute = (ids: ReadonlyArray<number>): string =>
+const deferredRoute = (ids: ReadonlyArray<string>): string =>
   `/pulls/inbox/deferred?page=1&${ids.map((id) => `pr_ids%5B%5D=${id}`).join("&")}`
 
 /**
@@ -1062,8 +1062,8 @@ const fragmentAt = Effect.fn("fragmentAt")(function* (route: string) {
 })
 
 /** Ids in the batches GitHub's own dashboard asks in. */
-const inBatches = (ids: ReadonlyArray<number>): ReadonlyArray<ReadonlyArray<number>> => {
-  const batches: Array<ReadonlyArray<number>> = []
+const inBatches = (ids: ReadonlyArray<string>): ReadonlyArray<ReadonlyArray<string>> => {
+  const batches: Array<ReadonlyArray<string>> = []
   for (let at = 0; at < ids.length; at += PER_BATCH) {
     batches.push(ids.slice(at, at + PER_BATCH))
   }
@@ -1087,7 +1087,7 @@ const writing = Effect.fn("writing")(function* (
   route: string,
   // A number among them because one route names a stack by GitHub's own id for
   // it, which is a number and not one of the numbers in a list.
-  body?: Readonly<Record<string, string | number | boolean | ReadonlyArray<number>>>,
+  body?: Readonly<Record<string, string | number | boolean | ReadonlyArray<number> | ReadonlyArray<string>>>,
   method: "POST" | "PUT" = "POST"
 ) {
   const url = `https://github.com/${reference.owner}/${reference.repo}/pull/${reference.number}${route}`
@@ -2787,7 +2787,7 @@ export const layer = Layer.succeed(GitHubGateway, {
       )
     }),
 
-    standingsFor: Effect.fn("GitHubGateway.standingsFor")(function* (ids: ReadonlyArray<number>) {
+    standingsFor: Effect.fn("GitHubGateway.standingsFor")(function* (ids: ReadonlyArray<string>) {
       if (ids.length === 0) return new Map() as Standings
 
       // Concurrently, because the batches are independent and a Working Set of
@@ -2811,7 +2811,7 @@ export const layer = Layer.succeed(GitHubGateway, {
         { concurrency: "unbounded" }
       )
 
-      const joined = new Map<number, ReturnType<Standings["get"]> & {}>()
+      const joined = new Map<string, ReturnType<Standings["get"]> & {}>()
       for (const batch of batches) {
         for (const [id, standing] of batch) joined.set(id, standing)
       }

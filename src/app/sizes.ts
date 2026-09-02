@@ -35,8 +35,8 @@ export const sizesOf = Effect.fn("sizesOf")(function* (
   const found = yield* Effect.all(
     rows.map((one) =>
       gateway.sizeOf(one.reference).pipe(
-        Effect.map((size): ReadonlyArray<readonly [number, Size]> => [[one.id, size]]),
-        Effect.orElseSucceed((): ReadonlyArray<readonly [number, Size]> => [])
+        Effect.map((size): ReadonlyArray<readonly [string, Size]> => [[one.id, size]]),
+        Effect.orElseSucceed((): ReadonlyArray<readonly [string, Size]> => [])
       )
     ),
     { concurrency: AT_ONCE }

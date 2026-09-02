@@ -1340,8 +1340,19 @@ export type PreviewStackRoute = typeof PreviewStackRoute["Type"]
  * this row does not carry at all — see `src/domain/stacks.ts`.
  */
 const WorkingSetRow = Schema.Struct({
-  /** GitHub's own numeric id, which is what the deferred route is keyed by. */
-  id: Schema.Number,
+  /**
+   * GitHub's own id for the pull request, which is what the deferred route is keyed by.
+   *
+   * A number until GitHub made it their global node id — `PR_kwDOAn8RLM8AAAABB5X9Fw`
+   * rather than `123456789`. Every shelf and the query route changed together, and
+   * with the schema still asking for a number all three failed to decode, which is
+   * the whole Working Set replaced by "Something GitHub sends has changed". Found by
+   * `scripts/check-drift.ts` against a capture taken on 2026-09-02.
+   *
+   * Opaque either way. Nothing here reads it apart from handing it back on the
+   * deferred route's `pr_ids[]`, so a string serves exactly as well as a number did.
+   */
+  id: Schema.String,
   number: Schema.Number,
   title: Schema.String,
   /** `owner/repo`, since the Working Set crosses repositories. */
@@ -1420,7 +1431,8 @@ export type Listing = typeof Listing["Type"]
 export const DeferredRoute = Schema.Struct({
   results: Schema.Array(
     Schema.Struct({
-      id: Schema.Number,
+      /** The same id the rows carry, which is what this route is asked by. */
+      id: Schema.String,
       /**
        * Absent altogether on a pull request with no checks at all, which one
        * observed row was — hence optional rather than merely nullable.

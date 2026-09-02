@@ -377,7 +377,7 @@ export const rememberSize = (reference: PullRequestRef, size: Size) =>
   keepRow(rowKey(SIZE, reference), size)
 
 export const rememberStanding = (
-  id: number,
+  id: string,
   standing: { readonly checks: Option.Option<CheckRollup>; readonly reviewed: Option.Option<Opinion> }
 ) =>
   keepRow(`${STANDING}${id}`, {
@@ -405,7 +405,7 @@ const nothingKept: RememberedRows = { branches: new Map(), sizes: new Map(), sta
  * spent on the one path whose whole purpose is to answer before the network can.
  */
 export const recallRows = Effect.fn("snapshots.recallRows")(function* (
-  rows: ReadonlyArray<{ readonly id: number; readonly reference: PullRequestRef }>
+  rows: ReadonlyArray<{ readonly id: string; readonly reference: PullRequestRef }>
 ) {
   const store = area()
   if (store === undefined || rows.length === 0) return nothingKept
@@ -423,8 +423,8 @@ export const recallRows = Effect.fn("snapshots.recallRows")(function* (
   )
 
   const branches = new Map<string, Branches>()
-  const sizes = new Map<number, Size>()
-  const standings = new Map<number, { checks: Option.Option<CheckRollup>; reviewed: Option.Option<Opinion> }>()
+  const sizes = new Map<string, Size>()
+  const standings = new Map<string, { checks: Option.Option<CheckRollup>; reviewed: Option.Option<Opinion> }>()
 
   for (const one of rows) {
     const stack: unknown = held[rowKey(BRANCHES, one.reference)]

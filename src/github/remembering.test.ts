@@ -153,7 +153,7 @@ const offline = (): void => {
 }
 
 const aRow = (number: number, over: Record<string, unknown> = {}) => ({
-  id: 4_000_000 + number,
+  id: `PR_${4_000_000 + number}`,
   number,
   title: `something number ${number}`,
   repoNameWithOwner: "microsoft/vscode",
@@ -194,7 +194,7 @@ const oneShelved = (url: string): Response => {
   if (url.includes("/pulls/inbox/deferred")) {
     return Response.json(
       deferredPayload([
-        { id: 4_000_001, statusCheckRollup: { state: "SUCCESS", totalCount: 2, successCount: 2 } }
+        { id: "PR_4000001", statusCheckRollup: { state: "SUCCESS", totalCount: 2, successCount: 2 } }
       ])
     )
   }
@@ -214,7 +214,7 @@ const oneAwaitingReview = (url: string): Response => {
   if (url.includes("/pulls/inbox/deferred")) {
     return Response.json(
       deferredPayload([
-        { id: 4_000_001, statusCheckRollup: { state: "SUCCESS", totalCount: 2, successCount: 2 } }
+        { id: "PR_4000001", statusCheckRollup: { state: "SUCCESS", totalCount: 2, successCount: 2 } }
       ])
     )
   }

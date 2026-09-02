@@ -283,11 +283,11 @@ const ROWS: ReadonlyArray<Row> = [
 const involvedFrom = (row: Row): InvolvedPullRequest => ({
   reference: { owner: REPO.owner, repo: REPO.repo, number: row.number },
   /*
-   * GitHub's own numeric id is what the deferred reads answer by, and this stage has no
+   * GitHub's own id is what the deferred reads answer by, and this stage has no
    * deferred read. The number is used instead because it is the one thing about a row
    * that is certainly unique in one repository, and nothing on the screen draws it.
    */
-  id: row.number,
+  id: String(row.number),
   title: row.title,
   author: person(row.author),
   state: row.draft === true ? "draft" : "open",

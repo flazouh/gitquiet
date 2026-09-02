@@ -93,7 +93,7 @@ export const sizeOf = (files: ReadonlyArray<ChangedFile>): Size => ({
 })
 
 /** What that read said, by the id it answered about. */
-export type Sizes = ReadonlyMap<number, Size>
+export type Sizes = ReadonlyMap<string, Size>
 
 /**
  * The same pull requests with their sizes, where the sizes are known.
@@ -122,7 +122,7 @@ export const withSizes = (
  * public API are missing the same two facts and complete them the same way.
  */
 export type Standings = ReadonlyMap<
-  number,
+  string,
   { readonly checks: Option.Option<CheckRollup>; readonly reviewed: Option.Option<Opinion> }
 >
 
@@ -156,8 +156,14 @@ export const withStandings = (
  */
 export type InvolvedPullRequest = {
   readonly reference: PullRequestRef
-  /** GitHub's numeric id, which is the only key the deferred read answers by. */
-  readonly id: number
+  /**
+   * GitHub's own id, which is the only key the deferred read answers by.
+   *
+   * A number until they made it their global node id, `PR_kwDOAn8RLM8AAAABB5X9Fw`.
+   * Opaque to everything here: it is read from a row and handed straight back on
+   * the deferred route, and nothing counts, sorts or compares it. See `wire.ts`.
+   */
+  readonly id: string
   readonly title: string
   readonly author: Participant
   readonly state: PullRequestState

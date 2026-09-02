@@ -28,7 +28,7 @@ const intercept = (respond: (url: string) => Response): ReadonlyArray<Call> => {
 }
 
 const aRow = (over: Record<string, unknown> = {}) => ({
-  id: 4153828483,
+  id: "PR_kwDOAn8RLM8AAAABB5X9Fw",
   number: 1457,
   title: "price claude turns from the streamed usage",
   repoNameWithOwner: "octo-org/octo-repo",
@@ -60,7 +60,7 @@ const readingShelf = Effect.gen(function* () {
   return yield* gateway.workingSet("needs-action")
 }).pipe(Effect.provide(layer))
 
-const readingStandings = (ids: ReadonlyArray<number>) =>
+const readingStandings = (ids: ReadonlyArray<string>) =>
   Effect.gen(function* () {
     const gateway = yield* GitHubGateway
     return yield* gateway.standingsFor(ids)
@@ -135,7 +135,7 @@ describe("reading how the listed pull requests stand", () => {
   test("spells the ids the way their route reads them", async () => {
     const calls = intercept(() => Response.json(deferredPayload([])))
 
-    await Effect.runPromise(readingStandings([11, 22]))
+    await Effect.runPromise(readingStandings(["11", "22"]))
 
     expect(calls[0]?.url).toBe(
       "https://github.com/pulls/inbox/deferred?page=1&pr_ids%5B%5D=11&pr_ids%5B%5D=22"
@@ -147,7 +147,7 @@ describe("reading how the listed pull requests stand", () => {
     // nobody has tested, and being wrong costs the whole listing's second half.
     const calls = intercept(() => Response.json(deferredPayload([])))
 
-    await Effect.runPromise(readingStandings([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
+    await Effect.runPromise(readingStandings(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]))
 
     expect(calls).toHaveLength(2)
     expect(calls[0]?.url).toContain("pr_ids%5B%5D=9")
@@ -159,7 +159,7 @@ describe("reading how the listed pull requests stand", () => {
       Response.json(
         deferredPayload([
           {
-            id: url.includes("pr_ids%5B%5D=10") ? 10 : 1,
+            id: url.includes("pr_ids%5B%5D=10") ? "10" : "1",
             statusCheckRollup: { state: "SUCCESS", totalCount: 2, successCount: 2 }
           }
         ])
@@ -167,9 +167,9 @@ describe("reading how the listed pull requests stand", () => {
     )
 
     const standings = await Effect.runPromise(
-      readingStandings([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+      readingStandings(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"])
     )
 
-    expect([...standings.keys()].toSorted((left, right) => left - right)).toEqual([1, 10])
+    expect([...standings.keys()].toSorted()).toEqual(["1", "10"])
   })
 })

@@ -364,7 +364,7 @@ const involved = (
   shelf: Shelf,
 ): InvolvedPullRequest => ({
   reference: { owner: "flazouh", repo, number },
-  id: number * 1000,
+  id: `PR_${number * 1000}`,
   title: `pull request ${number}`,
   author: { login: "flazouh", isAutomated: false, faceUrl: Option.none() },
   state: "open",
