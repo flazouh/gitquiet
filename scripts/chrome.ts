@@ -49,8 +49,22 @@ export const findChrome = (): string => {
 }
 
 const CHROME = findChrome()
-const PORT = 9222
-const PROFILE = "/tmp/gitquiet-csp-profile"
+
+/**
+ * The port this harness talks to Chrome on, and the reason it can be moved.
+ *
+ * A probe spawns its own Chrome and then polls the port until something answers.
+ * Something else answering is not a case it could tell apart: a Chrome the reader
+ * already had open with remote debugging on takes the port, replies to the poll,
+ * and every step after it — the extension, the target, the evaluates — is run
+ * against their own browser and their own tabs. Which happened, on 9222, to a
+ * Chrome with seven tabs of somebody's evening in it.
+ *
+ * A probe that must not touch a browser already running sets this to a port
+ * nothing else has. The default stays where every existing probe expects it.
+ */
+const PORT = Number(process.env["GITQUIET_CDP_PORT"] ?? 9222)
+const PROFILE = process.env["GITQUIET_CDP_PROFILE"] ?? "/tmp/gitquiet-csp-profile"
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
