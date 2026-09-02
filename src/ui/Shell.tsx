@@ -19,7 +19,7 @@ import type { Suggesting } from "../domain/suggesting"
 import type { DiffSide } from "../ports/Renderer"
 import { sizeOf } from "../domain/workingSet"
 import { diffChoices, treeChoices } from "../domain/choices"
-import { keyOf } from "../domain/PullRequestRef"
+import { keyOf, opensOnFiles } from "../domain/PullRequestRef"
 import { keptReads } from "../app/kept"
 import { hasLandedBefore, LANDING, markLanded } from "./landing"
 import { revealer } from "../app/revealing"
@@ -427,11 +427,28 @@ export const Shell = ({
     { readonly path: string; readonly line?: number } | undefined
   >(() => {
     const at = lookingAt(window.location.hash)
-    if (at === null) return undefined
-    // The first of a run. A reader who sent a link to lines 42 to 48 was
-    // pointing at what starts on 42, and putting the middle of the run in the
-    // centre of the screen would be answering a question nobody asked.
-    return { path: at.path, line: at.lines?.from }
+    if (at !== null) {
+      // The first of a run. A reader who sent a link to lines 42 to 48 was
+      // pointing at what starts on 42, and putting the middle of the run in the
+      // centre of the screen would be answering a question nobody asked.
+      return { path: at.path, line: at.lines?.from }
+    }
+
+    /*
+     * Their Files tab, which names no file and means all of them.
+     *
+     * `/pull/N/files` is this same page — one screen draws both — and the only
+     * difference is what it opens on. A reader who pressed "Files changed" asked
+     * for the diff, and opening on the description answers a question they did not
+     * ask. The first file, because that is what their own tab shows.
+     *
+     * Nothing here checks the path against the snapshot, for the reason the
+     * fragment above gives: the page can be drawn from a partly-read snapshot.
+     */
+    const first = opensOnFiles(window.location.pathname)
+      ? snapshot.files[0]?.path
+      : undefined
+    return first === undefined ? undefined : { path: first }
   })
 
   /*
