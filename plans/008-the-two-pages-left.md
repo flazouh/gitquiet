@@ -1,75 +1,82 @@
-# 008 — The two pages left, and why neither is built yet
+# 008 — The last two pages, and where the list ends
 
-- **Status**: OPEN. Findings only. Nothing here is built.
-- **Severity**: LOW for Compare, LOW for Conflicts
+- **Status**: DONE. Compare is built. Conflicts was already answered.
+- **Severity**: LOW
 - **Category**: Coverage
 - **Source**: `research/pages-to-replace.md` in the notes repository, ranked candidates 4 and 6
 
-## Where the list stands
+## A note on measuring whether a screen drew
 
-That research ranked six pages. Four are now answered:
+Worth reading before anything below, because it cost an hour of this pass. The code view
+*looked* unbuilt when measured through `textContent` and `querySelectorAll`. The diff
+engine renders into a `<diffs-container>` custom element with a shadow root, so both read
+empty on a page that was drawing the file perfectly. The measurement was wrong, not the
+code. Anything checking whether a screen drew should take a screenshot or measure the
+container's height, not count nodes.
+
+## Compare, and where its file list actually lives
+
+This section first said not to build it, on the grounds that its markup had no name.
+It has a name. I had not looked hard enough, and the way to find it was written in this
+same plan one paragraph further down: watch the network, not the document.
+
+Watching a signed-in compare load shows the page carries no file list at all and defers
+it to:
+
+    /{owner}/{repo}/compare/file-list?range={base}...{head}
+
+which answers with ordinary diff markup — a `#toc`, a row per file, both counts, and an
+`<svg title>` naming what happened to it. That is the address to read, and it is now in
+`domain/compare.ts` as `fileListRoute`.
+
+Two things about the address parser were worth testing, because both were wrong first:
+
+- A branch may carry a slash. `claude/gist-screen` is two segments once a path is split,
+  so the range is rejoined rather than read out of the first segment after `compare`.
+- The longest separator decides and does not fall back. `main...` read as a two-dot
+  range gives a head of a single dot, which is a comparison against a branch that cannot
+  exist. An address that names a separator and does not finish it is unfinished, not
+  shorter, and their own form is the right thing to leave on the screen.
+
+The screen lists what changed, filtered by path — Community #165765, which is the whole
+reason the page earns a place. It does not draw the hunks: their fragment renders a
+handful of files and defers the rest, so a screen that fetched every hunk to show a list
+would pay the whole cost of the page it replaced. Their anchors are kept instead.
+
+Verified live on a forty-one-file comparison: 41 files, +2856 −692, matching their own
+"Showing 41 changed files with 2,856 additions and 692 deletions."
+
+## Conflicts, which was already answered
+
+The research ranks this sixth and says what to do about it: "Do the path list on the
+pull request first. Replace the editor only if people still leave for GitHub after they
+see the paths."
+
+The path list is built. `docs/spec/conflicted-files.md` specified it, `Merge.tsx` draws
+it, and every acceptance criterion in that spec is covered by a test in
+`merge.test.tsx` — including the link out to their conflicts page. That spec's status
+line said "measured" long after it was built, which is fixed now.
+
+The editor stays theirs, and that is a decision already written down rather than one
+made here. The spec's own Out of scope says "Resolving a conflict here. Their editor
+does it, and this links to it." Three things agree with it: resolving a conflict is a
+write, and this codebase does not invent second routes for writes; GitHub disables
+their own editor for anything but a simple line clash, so a replacement would have to
+answer the hard cases their page refuses; and the research conditions the whole move on
+whether people still leave after seeing the paths, which nobody has measured.
+
+If that measurement is ever taken and says they do leave, this is the page to build
+next, and it should get a spec before it gets a screen.
+
+## Where the list ends
+
+All six pages the research ranked are now answered:
 
 | # | Page | State |
 | --- | --- | --- |
-| 1 | Files changed — `/pull/N/files` | **Built.** The parser reads it, and both words for it: GitHub redirects `/files` to `/changes`. |
-| 2 | Code view — `/blob`, `/tree` | Already built, before this pass. Confirmed live: syntax highlighting, line numbers, the tree beside it. |
-| 3 | Notifications | Already built. `NOTIFICATIONS` in `place.ts`. |
-| 5 | Blame | Already built. `BLAME` in `place.ts`. |
-| 4 | Compare — `/compare/...` | Not built. See below. |
-| 6 | Conflict editor — `/pull/N/conflicts` | Not built. Not investigated. |
-
-A note on #2, because it cost an hour of this pass: the code view *looked* unbuilt when measured
-through `textContent` and `querySelectorAll`. The diff engine renders into a `<diffs-container>`
-custom element with a shadow root, so both read empty on a page that was drawing the file
-perfectly. The measurement was wrong, not the code. Anything checking whether a screen drew
-should take a screenshot or measure the container's height, not count nodes.
-
-## Compare, and why not to scrape it today
-
-The research already hedges: "Weaker evidence than Files changed. Build it if compare is a daily
-path for the same people who review." Its own strength rating is medium, against very high for
-Files changed.
-
-Probed live on 2026-09-02, signed in, on `flazouh/gitquiet/compare/main...claude/gist-screen`:
-
-- No `react-app.embeddedData` payload at all. Two `react-partial.embeddedData` scripts, both
-  shell: `docsUrl`, and the signed-in header's own props.
-- None of the older markers either: no `diffs-container`, no `file-header`, no
-  `data-file-path`, no `data-tagsearch-path`, no `js-diff-progressive`.
-- No filename from the diff appears anywhere in 271KB of HTML.
-- `turbo-frame` and `include-fragment` both present.
-
-So the file list arrives in a deferred fragment, and the initial document says nothing about
-what changed. Building here means finding that fragment's address, fetching it, and parsing
-markup with no name yet.
-
-**The argument against doing that now is the rest of this session.** GitHub moved two payload
-shapes underneath this codebase in one day: the Working Set's row id became a global node id,
-and the blob page's `rawLines` moved to `codeViewBlobLayoutRoute.StyledBlob` with the plain
-JSON variant no longer carrying it at all. Both were caught, one of them only because a
-screenshot looked wrong. A third reader built against undocumented markup that GitHub is
-visibly mid-rewrite on is the most fragile thing that could be added right now, and it would be
-added for the weakest-evidence page on the list.
-
-### What to do instead, when this is picked up
-
-1. **Ask first whether compare is a daily path.** The research conditions the whole item on it.
-   Everything below is wasted if the answer is no.
-2. **Find the fragment, not the page.** Watch the network on a signed-in compare with the
-   extension off, and record the address the file list actually arrives at. That address is the
-   thing to read, and it is the thing to put in `check-drift.ts` so it cannot move silently.
-3. **Add it to the drift check before writing the screen.** Both of this session's breakages
-   were invisible to 4,400 passing tests and obvious to `check-drift.ts` in one run. A reader
-   with no drift coverage is a reader that fails in front of a reader.
-4. **The strongest single feature is path filtering.** Community #165765: "GitHub's `/compare`
-   page does not support filtering by path. That means when there a lot of changes in the other
-   projects it gets very hard to read the comparison." This codebase already has the tree, the
-   filter and the diff to answer that with.
-
-## Conflicts
-
-Not investigated in this pass. The research rates it "low for speed, high for missing facts",
-which makes it a different kind of build from every other page here: the complaint is not that
-the editor is slow but that it does not tell you enough. That is a spec question before it is
-an engineering one, and it should get the same treatment `docs/spec/gists.md` got — the
-evidence read first, the language settled, then the screen.
+| 1 | Files changed | Built |
+| 2 | Code view | Already built |
+| 3 | Notifications | Already built |
+| 4 | Compare | Built |
+| 5 | Blame | Already built |
+| 6 | Conflicts | Path list built; editor out of scope by the spec's own decision |
