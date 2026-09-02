@@ -20,6 +20,7 @@ import type { DiffSide } from "../ports/Renderer"
 import { sizeOf } from "../domain/workingSet"
 import { diffChoices, treeChoices } from "../domain/choices"
 import { keyOf } from "../domain/PullRequestRef"
+import { quoting } from "../domain/fileAt"
 import { keptReads } from "../app/kept"
 import { hasLandedBefore, LANDING, markLanded } from "./landing"
 import { revealer } from "../app/revealing"
@@ -466,8 +467,18 @@ export const Shell = ({
         setReading(undefined)
         setWanted({ path })
       },
+      // The same address a remark quotes a file into, built in the one place
+      // that knows how. See `domain/fileAt.ts`.
       hrefFor: (ref: FileRef) =>
-        `https://github.com/${snapshot.reference.owner}/${snapshot.reference.repo}/blob/${snapshot.headSha}/${ref.path}#L${ref.line}`
+        quoting(
+          {
+            owner: snapshot.reference.owner,
+            repo: snapshot.reference.repo,
+            on: snapshot.headSha,
+            path: ref.path
+          },
+          { from: ref.line, to: ref.line }
+        )
     }),
     [snapshot.files, snapshot.headSha, snapshot.reference.owner, snapshot.reference.repo]
   )
