@@ -121,6 +121,16 @@ describe("linking back to GitHub", () => {
       expect(opensOnFiles("/microsoft/vscode/pull/327442/files/")).toBe(true)
     })
 
+    test("under either of the two words GitHub is mid-rename between", () => {
+      // Read live on 2026-09-02: following `/files` arrives at `/changes`. Reading
+      // only the new one ignores every link ever written; only the old one ignores
+      // the address the reader is actually on.
+      expect(
+        Option.getOrNull(fromPathname("/microsoft/vscode/pull/327442/changes"))
+      ).toEqual({ owner: "microsoft", repo: "vscode", number: 327442 })
+      expect(opensOnFiles("/microsoft/vscode/pull/327442/changes")).toBe(true)
+    })
+
     test("and the conversation is not the Files tab", () => {
       expect(opensOnFiles("/microsoft/vscode/pull/327442")).toBe(false)
       expect(opensOnFiles("/microsoft/vscode/pull/327442/commits")).toBe(false)

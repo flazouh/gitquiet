@@ -42,7 +42,7 @@ export type PullRequestRef = typeof PullRequestRef["Type"]
  * interface already draws every file of a pull request inside its own screen; all
  * that address ever needed was to be read.
  */
-const PULL_REQUEST_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:\/files)?\/?$/
+const PULL_REQUEST_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:\/(?:files|changes))?\/?$/
 
 /**
  * Whether an address is the Files tab rather than the conversation.
@@ -50,9 +50,16 @@ const PULL_REQUEST_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:\/files)?\/?$/
  * The same page either way — one screen draws both — and the difference is only
  * what it opens on. A reader who pressed "Files changed" asked for the diff, and
  * showing them the description instead is answering a question they did not ask.
+ *
+ * Two words for it, because GitHub is mid-rename: `/files` is what every link ever
+ * written points at and what their own redirect still accepts, and `/changes` is
+ * what that redirect now lands on. Read live on 2026-09-02, following `/files`
+ * arrives at `/changes`. Reading only the new one would ignore every bookmark and
+ * every link in every issue; reading only the old one would ignore the address the
+ * reader is actually on.
  */
 export const opensOnFiles = (pathname: string): boolean =>
-  /^\/[^/]+\/[^/]+\/pull\/\d+\/files\/?$/.test(pathname)
+  /^\/[^/]+\/[^/]+\/pull\/\d+\/(?:files|changes)\/?$/.test(pathname)
 
 export const fromPathname = (pathname: string): Option.Option<PullRequestRef> => {
   const match = PULL_REQUEST_PATH.exec(pathname)
