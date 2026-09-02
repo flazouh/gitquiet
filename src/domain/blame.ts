@@ -28,9 +28,37 @@ export type Commit = {
   readonly message: string
   readonly authorAvatarUrl: string
   readonly committerName: string
+  /** Read only to tell a person's commit from a Web Landing. See {@link nameOn}. */
+  readonly committerEmail: string
   /** ISO 8601, as GitHub sends it. */
   readonly committedDate: string
 }
+
+/** The address git writes on a commit GitHub applied itself. */
+const THE_WEB = "noreply@github.com"
+
+/**
+ * The person a Span names, or nothing on a Web Landing.
+ *
+ * Blame exists to name whoever wrote a line, and the name GitHub sends is the
+ * committer's. Those are the same person until a pull request is landed with
+ * their Merge button or a file is edited in their browser: GitHub applies
+ * that commit, so git records `GitHub` at `noreply@github.com` as the
+ * committer and the person stays the author. Two of the four commits in
+ * `fixtures/github/blame.json` are that, and in a repository where changes
+ * arrive through pull requests it is most of them.
+ *
+ * The payload carries the author's picture and no author name, so there is
+ * nothing truer to print. Nothing is printed instead: the face beside it is
+ * already the right person's, and a row saying `GitHub` wrote a line is the
+ * one thing on this screen that would be false.
+ *
+ * The address is matched whole rather than by its ending. A person who hides
+ * their email commits as `1234+them@users.noreply.github.com` and is a person,
+ * with their own name on the commit.
+ */
+export const nameOn = (commit: Commit): string | null =>
+  commit.committerEmail.toLowerCase() === THE_WEB ? null : commit.committerName
 
 /** One contiguous run of lines GitHub's own payload says one commit touched. */
 export type Range = {

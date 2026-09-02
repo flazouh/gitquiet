@@ -246,6 +246,10 @@ _Avoid_: duplicate commit, same commit again
 The repository's `.git-blame-ignore-revs`, kept verbatim as the name of the convention `git blame --ignore-revs-file` and GitHub's own payload both use.
 _Avoid_: ignore revs, blame ignore file
 
+**Web Landing**:
+A commit GitHub applied itself, because it was landed with their Merge button or written in their browser. Git records `GitHub` at `noreply@github.com` as the committer on those and leaves the person as the author, so the name GitHub sends is nobody's while the face beside it is still the right person's. A Span on one names nobody rather than naming GitHub, and the message leads the row instead. Two of the four commits in `fixtures/github/blame.json` are one.
+_Avoid_: web-flow, bot commit, noreply
+
 ### Gists
 
 **Label**:

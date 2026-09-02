@@ -20,6 +20,7 @@ const LOGO_COMMIT: Commit = {
   message: "Add Bun logo",
   authorAvatarUrl: "https://avatars.githubusercontent.com/u/5665358?s=80&v=4",
   committerName: "Jarred Sumner",
+  committerEmail: "jarred@jarredsumner.com",
   committedDate: daysAgo(365 * 3)
 }
 
@@ -28,6 +29,7 @@ const DOMAIN_COMMIT: Commit = {
   message: "bun.sh -> bun.com (#20909)",
   authorAvatarUrl: "https://avatars.githubusercontent.com/u/709451?s=80&v=4",
   committerName: "GitHub",
+  committerEmail: "noreply@github.com",
   committedDate: daysAgo(60)
 }
 
@@ -36,6 +38,7 @@ const REVERT_COMMIT: Commit = {
   message: "revert the last commit",
   authorAvatarUrl: "https://avatars.githubusercontent.com/u/24465214?s=80&v=4",
   committerName: "dave caruso",
+  committerEmail: "me@paperdave.net",
   committedDate: daysAgo(820)
 }
 
@@ -44,6 +47,7 @@ const DOCS_COMMIT: Commit = {
   message: "Docs tweaks (#2160)",
   authorAvatarUrl: "https://avatars.githubusercontent.com/u/3084745?s=80&v=4",
   committerName: "GitHub",
+  committerEmail: "noreply@github.com",
   committedDate: daysAgo(1290)
 }
 

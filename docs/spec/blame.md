@@ -125,6 +125,17 @@ page, the second Span for that commit is a single thin divider naming the commit
 157-range, 30-commit worked example collapses its repeated commits into thin dividers the same
 way a Bare Version collapses into a marker on the releases screen.
 
+**A Web Landing names nobody.** GitHub sends the committer's name and the author's picture,
+and no author name. Those are the same person until a pull request is landed with their Merge
+button, at which point GitHub applies the commit and git records `GitHub` at
+`noreply@github.com` as the committer. Two of the four commits in `fixtures/github/blame.json`
+are that, and in a repository where changes arrive through pull requests it is most of them.
+So a Span whose committer is that address prints no name at all: the face is already the right
+person's, and a row saying `GitHub` wrote a line is the one thing on this screen that would be
+false. `nameOn` in `src/domain/blame.ts` is the rule. An author's name would be truer still and
+costs one request per commit — 30 of them on the worked example — which is the same bill
+`whoTouched` pays on the repository front page and is not paid here.
+
 **The Ignore File is one line, when present.** "Blame follows `.git-blame-ignore-revs`" at the
 top of the page, linked to the file, only drawn when `ignoreRevs.present` is true. Nothing
 drawn when it is absent, which is the ordinary case.

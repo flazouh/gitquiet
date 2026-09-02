@@ -10,6 +10,7 @@ const commit = (over: Partial<Commit> = {}): Commit => ({
   message: "Add Bun logo\n\nAnd centre it, while at it.",
   authorAvatarUrl: "https://avatars.githubusercontent.com/u/1",
   committerName: "Jarred Sumner",
+  committerEmail: "jarred@jarredsumner.com",
   committedDate: "2022-07-06T04:12:45.000-07:00",
   ...over
 })
@@ -29,6 +30,21 @@ describe("a Span's heading", () => {
     expect(screen.getByText("Jarred Sumner")).toBeTruthy()
     expect(screen.getByText("Add Bun logo")).toBeTruthy()
     expect(screen.queryByText(/centre it/)).toBeNull()
+  })
+
+  test("names nobody where GitHub applied the commit, and keeps the face", () => {
+    render(
+      <SpanHeading
+        span={span({
+          commit: commit({ committerName: "GitHub", committerEmail: "noreply@github.com" })
+        })}
+      />
+    )
+
+    expect(screen.queryByText("GitHub")).toBeNull()
+    // The message is the row now, and the author's own face is still beside it.
+    expect(screen.getByText("Add Bun logo")).toBeTruthy()
+    expect(document.querySelector("img")).toBeTruthy()
   })
 
   test("draws a Repeat thin: the message named, no face and no name again", () => {

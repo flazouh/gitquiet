@@ -20,6 +20,7 @@ const commit = (over: Partial<Commit> = {}): Commit => ({
   message: "Add Bun logo",
   authorAvatarUrl: "https://avatars.githubusercontent.com/u/1",
   committerName: "Jarred Sumner",
+  committerEmail: "jarred@jarredsumner.com",
   committedDate: "2022-07-06T04:12:45.000-07:00",
   ...over
 })

@@ -27,6 +27,7 @@ describe("one file's blame, read out of their page", () => {
       message: "Add Bun logo",
       authorAvatarUrl: "https://avatars.githubusercontent.com/u/5665358?s=80&v=4",
       committerName: "Jarred Sumner",
+      committerEmail: "jarred@jarredsumner.com",
       committedDate: "2022-07-06T04:12:45.000-07:00"
     })
   })

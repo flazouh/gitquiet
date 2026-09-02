@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Option } from "effect"
-import { type Commit, type Range, blameIn, spansOf } from "./blame"
+import { type Commit, type Range, blameIn, nameOn, spansOf } from "./blame"
 
 const parsed = (url: string) => Option.getOrNull(blameIn(url))
 
@@ -53,6 +53,7 @@ const commit = (over: Partial<Commit> = {}): Commit => ({
   message: "Add Bun logo",
   authorAvatarUrl: "https://avatars.githubusercontent.com/u/1",
   committerName: "Jarred Sumner",
+  committerEmail: "jarred@jarredsumner.com",
   committedDate: "2022-07-06T04:12:45.000-07:00",
   ...over
 })
@@ -123,5 +124,29 @@ describe("banding ranges into Spans", () => {
 
   test("draws nothing for no ranges", () => {
     expect(spansOf([], new Map())).toEqual([])
+  })
+})
+
+describe("who a Span names", () => {
+  test("names the person who committed it", () => {
+    expect(nameOn(commit())).toBe("Jarred Sumner")
+  })
+
+  test("names nobody where GitHub applied the commit itself", () => {
+    expect(
+      nameOn(commit({ committerName: "GitHub", committerEmail: "noreply@github.com" }))
+    ).toBeNull()
+  })
+
+  test("reads that address however it is cased", () => {
+    expect(
+      nameOn(commit({ committerName: "GitHub", committerEmail: "NoReply@GitHub.com" }))
+    ).toBeNull()
+  })
+
+  test("still names a person who hides their own email", () => {
+    expect(
+      nameOn(commit({ committerName: "flazouh", committerEmail: "1+flazouh@users.noreply.github.com" }))
+    ).toBe("flazouh")
   })
 })

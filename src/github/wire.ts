@@ -770,6 +770,7 @@ export const BlameRoute = Schema.Struct({
         message: Schema.String,
         authorAvatarUrl: Schema.String,
         committerName: Schema.String,
+        committerEmail: Schema.String,
         committedDate: Schema.String
       })
     ),
