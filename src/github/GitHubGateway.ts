@@ -42,6 +42,7 @@ import {
 import { contributionsIn, contributionsRoute } from "./contributions"
 import { askingOnce } from "./flight"
 import { hovercardRoute, portraitIn } from "./hovercard"
+import { numbersInNodeIds } from "./nodeIds"
 import { payloadsThroughWorker } from "./throughTheWorker"
 import {
   decodeDeferred,
@@ -281,7 +282,7 @@ const shelfRoute = (shelf: Shelf): string =>
  * The ids go in repeated square-bracket parameters, which is Rails' way of
  * spelling an array and not something to tidy: their route reads no other form.
  */
-const deferredRoute = (ids: ReadonlyArray<string>): string =>
+const deferredRoute = (ids: ReadonlyArray<number>): string =>
   `/pulls/inbox/deferred?page=1&${ids.map((id) => `pr_ids%5B%5D=${id}`).join("&")}`
 
 /**
@@ -1062,8 +1063,8 @@ const fragmentAt = Effect.fn("fragmentAt")(function* (route: string) {
 })
 
 /** Ids in the batches GitHub's own dashboard asks in. */
-const inBatches = (ids: ReadonlyArray<string>): ReadonlyArray<ReadonlyArray<string>> => {
-  const batches: Array<ReadonlyArray<string>> = []
+const inBatches = (ids: ReadonlyArray<number>): ReadonlyArray<ReadonlyArray<number>> => {
+  const batches: Array<ReadonlyArray<number>> = []
   for (let at = 0; at < ids.length; at += PER_BATCH) {
     batches.push(ids.slice(at, at + PER_BATCH))
   }
@@ -2788,13 +2789,24 @@ export const layer = Layer.succeed(GitHubGateway, {
     }),
 
     standingsFor: Effect.fn("GitHubGateway.standingsFor")(function* (ids: ReadonlyArray<string>) {
-      if (ids.length === 0) return new Map() as Standings
+      /*
+       * Turned into numbers before anything is batched, rather than while a URL is
+       * being spelt.
+       *
+       * The two halves of this route disagree about what names a pull request: it
+       * takes the number and answers with the node id. Decoding at the spelling
+       * meant a batch of ids none of which could be read still became a request,
+       * with an empty `pr_ids[]` — and that answers 200 with no results, which
+       * looks exactly like an honest answer about rows that have no checks.
+       */
+      const numbers = numbersInNodeIds(ids)
+      if (numbers.length === 0) return new Map() as Standings
 
       // Concurrently, because the batches are independent and a Working Set of
       // forty is five round trips that would otherwise be taken one at a time
       // while the reader looks at rows with no checks on them.
       const batches = yield* Effect.all(
-        inBatches(ids).map((batch) =>
+        inBatches(numbers).map((batch) =>
           Effect.gen(function* () {
             const route = deferredRoute(batch)
             const raw = yield* fetchViewerRoute(route)

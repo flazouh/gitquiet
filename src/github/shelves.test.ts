@@ -132,13 +132,45 @@ describe("reading how the listed pull requests stand", () => {
     expect(standings.size).toBe(0)
   })
 
-  test("spells the ids the way their route reads them", async () => {
+  /*
+   * Real node ids and the numbers inside them, off a live dashboard on 2026-09-02.
+   *
+   * The two halves of this route disagree about what names a pull request: it is
+   * asked with the number and it answers with the node id. Asked with node ids it
+   * returns 200 and no results at all, which is every check and every review
+   * decision quietly missing from a list that otherwise looks right. So the ask is
+   * spelt here in both, and the answer only in the id the rows are held under.
+   */
+  const NODE = [
+    "PR_kwDOSqzG5M8AAAABB4wjtw",
+    "PR_kwDOQbgJEc8AAAABBwT2OA",
+    "PR_kwDOT1slMM8AAAABB0ZjQA",
+    "PR_kwDOQbgJEc8AAAABBzSDHg",
+    "PR_kwDOSqzG5M8AAAABBocYug",
+    "PR_kwDOAn8RLM8AAAABB5X9Fw",
+    "PR_kwDOAn8RLM8AAAABB4_xTA",
+    "PR_kwDOAn8RLM8AAAABB4mnsQ",
+    "PR_kwDOAn8RLM8AAAABB3zSOw",
+    "PR_kwDOAn8RLM5O2iyL"
+  ] as const
+  /*
+   * The tenth is an older pull request, and its id is the shorter shape: twelve
+   * bytes with a four-byte number rather than sixteen with an eight-byte one. Both
+   * are in circulation, and a decoder that read only the wide form dropped every
+   * older row into a list with no checks on it.
+   */
+  const NUMBER = [
+    4421591991, 4412732984, 4417020736, 4415849246, 4404484282, 4422237463, 4421841228,
+    4421429169, 4420588091, 1322921099
+  ] as const
+
+  test("asks by the number inside the node id, which is the only name it answers to", async () => {
     const calls = intercept(() => Response.json(deferredPayload([])))
 
-    await Effect.runPromise(readingStandings(["11", "22"]))
+    await Effect.runPromise(readingStandings([NODE[0], NODE[1]]))
 
     expect(calls[0]?.url).toBe(
-      "https://github.com/pulls/inbox/deferred?page=1&pr_ids%5B%5D=11&pr_ids%5B%5D=22"
+      `https://github.com/pulls/inbox/deferred?page=1&pr_ids%5B%5D=${NUMBER[0]}&pr_ids%5B%5D=${NUMBER[1]}`
     )
   })
 
@@ -147,11 +179,13 @@ describe("reading how the listed pull requests stand", () => {
     // nobody has tested, and being wrong costs the whole listing's second half.
     const calls = intercept(() => Response.json(deferredPayload([])))
 
-    await Effect.runPromise(readingStandings(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]))
+    await Effect.runPromise(readingStandings([...NODE]))
 
     expect(calls).toHaveLength(2)
-    expect(calls[0]?.url).toContain("pr_ids%5B%5D=9")
-    expect(calls[1]?.url).toBe("https://github.com/pulls/inbox/deferred?page=1&pr_ids%5B%5D=10")
+    expect(calls[0]?.url).toContain(`pr_ids%5B%5D=${NUMBER[8]}`)
+    expect(calls[1]?.url).toBe(
+      `https://github.com/pulls/inbox/deferred?page=1&pr_ids%5B%5D=${NUMBER[9]}`
+    )
   })
 
   test("joins every batch into one answer", async () => {
@@ -159,17 +193,26 @@ describe("reading how the listed pull requests stand", () => {
       Response.json(
         deferredPayload([
           {
-            id: url.includes("pr_ids%5B%5D=10") ? "10" : "1",
+            id: url.includes(`pr_ids%5B%5D=${NUMBER[9]}`) ? NODE[9] : NODE[0],
             statusCheckRollup: { state: "SUCCESS", totalCount: 2, successCount: 2 }
           }
         ])
       )
     )
 
-    const standings = await Effect.runPromise(
-      readingStandings(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"])
-    )
+    const standings = await Effect.runPromise(readingStandings([...NODE]))
 
-    expect([...standings.keys()].toSorted()).toEqual(["1", "10"])
+    expect([...standings.keys()].toSorted()).toEqual([NODE[9], NODE[0]].toSorted())
+  })
+
+  test("asks nothing where no id could be read, rather than asking about none", async () => {
+    // A route asked with an empty `pr_ids[]` answers 200 and nothing, which looks
+    // exactly like a route asked properly about rows that have no checks.
+    const calls = intercept(() => Response.json(deferredPayload([])))
+
+    const standings = await Effect.runPromise(readingStandings(["PR_nonsense", "4421591991"]))
+
+    expect(calls).toHaveLength(0)
+    expect(standings.size).toBe(0)
   })
 })

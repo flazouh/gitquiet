@@ -152,8 +152,23 @@ const offline = (): void => {
   })
 }
 
+/**
+ * Node ids of the shape GitHub really sends, packing 4,000,001 and up.
+ *
+ * A made-up string in this field is not a smaller version of the real thing: the
+ * deferred read decodes the number out of it, so an id that decodes to nothing is
+ * a row that silently arrives with no checks. Written out rather than encoded
+ * here, because a test that builds its input with the same rules the code reads it
+ * by proves only that the two agree. See `nodeIds.ts` for the format.
+ */
+const NODE_IDS: Record<number, string> = {
+  1: "PR_kwDOAnGcQM8AAAAAAD0JAQ",
+  2: "PR_kwDOAnGcQM8AAAAAAD0JAg",
+  3: "PR_kwDOAnGcQM8AAAAAAD0JAw"
+}
+
 const aRow = (number: number, over: Record<string, unknown> = {}) => ({
-  id: `PR_${4_000_000 + number}`,
+  id: NODE_IDS[number] ?? `PR_unreadable-${number}`,
   number,
   title: `something number ${number}`,
   repoNameWithOwner: "microsoft/vscode",
@@ -194,7 +209,7 @@ const oneShelved = (url: string): Response => {
   if (url.includes("/pulls/inbox/deferred")) {
     return Response.json(
       deferredPayload([
-        { id: "PR_4000001", statusCheckRollup: { state: "SUCCESS", totalCount: 2, successCount: 2 } }
+        { id: NODE_IDS[1], statusCheckRollup: { state: "SUCCESS", totalCount: 2, successCount: 2 } }
       ])
     )
   }
@@ -214,7 +229,7 @@ const oneAwaitingReview = (url: string): Response => {
   if (url.includes("/pulls/inbox/deferred")) {
     return Response.json(
       deferredPayload([
-        { id: "PR_4000001", statusCheckRollup: { state: "SUCCESS", totalCount: 2, successCount: 2 } }
+        { id: NODE_IDS[1], statusCheckRollup: { state: "SUCCESS", totalCount: 2, successCount: 2 } }
       ])
     )
   }
