@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import { Effect, Option } from "effect"
+import { aComment, aThread, anchoredAt, person } from "../../tests/snapshots"
 import type { DiffHandle, DiffRequest } from "../ports/Renderer"
 import type { ChangedFile } from "../domain/PullRequest"
 import { diffChoices } from "../domain/choices"
@@ -246,5 +247,77 @@ describe("a pane with no renderer behind it", () => {
       expect(screen.getByText(/could not be loaded/)).toBeDefined()
     })
     expect(asked).toHaveLength(0)
+  })
+})
+
+describe("a remark on a line this file's diff does not contain", () => {
+  /*
+   * GitHub lets a reviewer comment on any line of a changed file from their own
+   * Files changed page, expanded or not, and sends the file's hunks all the
+   * same. Such a thread names a line nothing here drew, so there is no row for
+   * the renderer to hang it in and the file used to read as though nobody had
+   * said anything about it. See `CONTEXT.md`, Out of Reach.
+   */
+  const far = aThread(
+    "t-far",
+    [aComment(person("ana"), "this constant is stale")],
+    false,
+    anchoredAt("src/one.ts", 150)
+  )
+
+  test("is drawn above the file, since there is no line to hang it under", async () => {
+    render(
+      <Theme>
+        <SettingsProvider store={holding(DEFAULTS)}>{pane({ threads: [far] })}</SettingsProvider>
+      </Theme>
+    )
+
+    const said = await screen.findByLabelText("Said about lines not in this diff")
+    expect(said.textContent).toContain("One comment is on a line GitHub left out")
+    expect(said.textContent).toContain("Line 150")
+    expect(said.textContent).toContain("this constant is stale")
+  })
+
+  test("is not handed to the renderer, which has no line to put it on", async () => {
+    render(
+      <Theme>
+        <SettingsProvider store={holding(DEFAULTS)}>{pane({ threads: [far] })}</SettingsProvider>
+      </Theme>
+    )
+
+    expect((await drawn()).notes ?? []).toEqual([])
+  })
+
+  test("says nothing where the thread is on a line the diff does hold", async () => {
+    const near = aThread(
+      "t-near",
+      [aComment(person("ana"), "about the new line")],
+      false,
+      anchoredAt("src/one.ts", 2)
+    )
+
+    render(
+      <Theme>
+        <SettingsProvider store={holding(DEFAULTS)}>{pane({ threads: [near] })}</SettingsProvider>
+      </Theme>
+    )
+
+    await drawn()
+    expect(screen.queryByLabelText("Said about lines not in this diff")).toBeNull()
+  })
+
+  test("claims nothing while GitHub has not sent this file's diff", async () => {
+    render(
+      <Theme>
+        <SettingsProvider store={holding(DEFAULTS)}>
+          {pane({ threads: [far], file: { ...file, diff: Option.none() } })}
+        </SettingsProvider>
+      </Theme>
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Fetching this file/)).toBeNull()
+    })
+    expect(screen.queryByLabelText("Said about lines not in this diff")).toBeNull()
   })
 })

@@ -64,6 +64,10 @@ _Avoid_: incremental diff, delta, new changes
 A record that a Participant has read one specific version of one file. It expires when that file changes again.
 _Avoid_: viewed checkbox, seen flag
 
+**Out of Reach**:
+A review thread hung on a line the diff GitHub sent for that file does not contain, so there is no line in the drawing to open it under. GitHub's own Files changed page lets a reviewer comment on any line of a changed file, expanded or not, and those threads arrive in the payload like any other while the diff stays the hunks. Drawn above the file, with the line it names said in words, rather than handed to a renderer that has nowhere to put it. Judged on the last line of a range, which is where a row hangs, and never claimed before the file's diff has landed.
+_Avoid_: orphan, unanchored, hidden comment
+
 **Unsent Comment**:
 A comment a Participant has written on a line and GitHub is holding, shown to nobody else until the review carrying it is submitted.
 _Avoid_: pending comment, draft comment, unpublished comment

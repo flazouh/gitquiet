@@ -390,6 +390,24 @@ const THREADS: ReadonlyArray<ReviewThread> = [
       )
     ]
   },
+  /*
+   * Out of Reach: a colleague left this from GitHub's own Files changed page, on
+   * a line far below the hunks GitHub sends for this file. It has no line here to
+   * hang under, so the pane draws it above the file instead of dropping it.
+   */
+  {
+    id: "T-6",
+    isResolved: false,
+    at: at("src/bun.js/api/server.zig", 2890),
+    comments: [
+      said(
+        "C-9",
+        person("dperrault"),
+        "While you are in here: this helper still assumes the old flag order, and it is the only other caller.",
+        12
+      )
+    ]
+  },
   {
     id: "T-5",
     isResolved: true,

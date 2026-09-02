@@ -1,6 +1,6 @@
 # Commenting where the diff does not reach
 
-Status: proposed
+Status: steps 0 and 1 built, 2026-09-02. Steps 2 to 5 wait on the experiment in step 2.
 
 Two GitHub Community discussions ask for the same thing from two directions.
 [#4452](https://github.com/orgs/community/discussions/4452), 2,352 upvotes, asks
@@ -293,6 +293,14 @@ without the ones after it. Every step names its failing test first.
 
 ### Step 0. Draw the threads that already arrive
 
+**Built, 2026-09-02.** `threadsOn` in `src/ui/threads.ts` splits a file's threads by
+whether its diff holds the line they hang on, and `Files.tsx` draws the ones it does not
+above the file with their line said in words. The renderer is handed no row for them, so
+what Pierre does with an annotation on a line it never drew stopped mattering and is still
+unestablished. `Out of Reach` is in `CONTEXT.md`. Both new pane tests were run against the
+old behaviour first and failed.
+
+
 The cheapest useful slice, and the only one that changes nothing about writing.
 When a thread is anchored outside the lines the renderer drew, say so instead of
 dropping it. The file heading gains a line saying how many remarks sit outside
@@ -308,6 +316,13 @@ Files: `src/ui/threads.ts`, `src/ui/Files.tsx`, `src/ui/FileHeading.tsx`.
 Estimate: about 3 hours.
 
 ### Step 1. Carry the side
+
+**Already built when this plan was re-read on 2026-09-02.** `NewComment` in
+`src/domain/PullRequest.ts` carries a side, `Shell.tsx` sends `anchorSideOf(note.side)`, and
+`GitHubGateway.comment` writes `asTheyNameIt(note.side)` rather than a hardcoded `"right"`.
+The `endSide` half below is not done: `picked` still reads only `side`, so a drag crossing
+the two halves still collapses to one.
+
 
 Take `Picked.side` from the pick through to the wire, so a remark on a deleted
 line is posted against the old file.
