@@ -82,6 +82,17 @@ export type GistFile = {
   readonly language: string | null
   readonly content: string
   readonly rendered: boolean
+  /**
+   * What GitHub rendered, for a file they turned into HTML.
+   *
+   * Their markup rather than their text, because the text of a rendered README is the
+   * README with every heading, list and code block flattened into one paragraph — which
+   * is what this drew before, and it looked exactly like a wall of prose. The third
+   * payload that arrives already rendered; see `GitHubHtml`, which draws the other two.
+   *
+   * Null for a file they printed as lines, where {@link content} is the whole of it.
+   */
+  readonly html: string | null
   /** Their raw link, which is the one control on a file row worth keeping. */
   readonly raw: string | null
 }

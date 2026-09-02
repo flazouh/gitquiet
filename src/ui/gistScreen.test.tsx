@@ -23,6 +23,7 @@ const gist = (over: Partial<GistSeen> = {}): GistSeen => ({
       language: "markdown",
       content: "Run migrations before the deploy step",
       rendered: true,
+      html: "<h2>Deploying</h2><p>Run migrations before the deploy step</p>",
       raw: "/octocat/aaa111/raw/abc/deploy-notes.md"
     },
     {
@@ -30,6 +31,7 @@ const gist = (over: Partial<GistSeen> = {}): GistSeen => ({
       language: "python",
       content: "def exponential_backoff(attempt):",
       rendered: false,
+      html: null,
       raw: "/octocat/aaa111/raw/abc/retry.py"
     }
   ],
@@ -49,12 +51,12 @@ describe("one gist", () => {
     expect(screen.getByText(/exponential_backoff/)).toBeTruthy()
   })
 
-  test("draws prose as prose and code as code", () => {
-    // A markdown file in a monospace column with its heading markers showing is the
-    // thing `rendered` exists to prevent.
+  test("keeps what GitHub rendered, rather than flattening it to its text", () => {
+    // The text alone is the README with every heading, list and code block folded into
+    // one paragraph, which is what this drew first and it looked like a wall of prose.
     showing()
 
-    expect(screen.getByText(/Run migrations/).tagName).toBe("P")
+    expect(screen.getByRole("heading", { name: "Deploying" })).toBeTruthy()
     expect(screen.getByText(/exponential_backoff/).tagName).toBe("PRE")
   })
 

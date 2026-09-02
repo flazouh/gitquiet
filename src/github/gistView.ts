@@ -31,6 +31,7 @@ const fileFrom = (element: Element): GistFile | null => {
   if (name === undefined || name === "") return null
 
   const body = element.querySelector(".Box-body")
+  const prose = element.querySelector(".markdown-body")
   const classes = body?.getAttribute("class") ?? ""
   const language = /\btype-([a-z0-9+#-]+)/i.exec(classes)?.[1] ?? null
 
@@ -40,7 +41,8 @@ const fileFrom = (element: Element): GistFile | null => {
     content: (body?.textContent ?? "").replace(/\n{3,}/g, "\n\n").trim(),
     // Their own word for it: a file GitHub turned into HTML carries `markdown-body`,
     // and one it printed as lines does not.
-    rendered: element.querySelector(".markdown-body") !== null,
+    rendered: prose !== null,
+    html: prose === null ? null : prose.innerHTML,
     raw:
       [...element.querySelectorAll<HTMLAnchorElement>("a[href]")]
         .find((link) => link.textContent?.trim() === "Raw")

@@ -1,6 +1,7 @@
 import { useState } from "react"
 import type { GistSeen } from "../domain/gist"
 import { everyLabelKnown, type KeptGists, labelsOf, nameOf } from "../domain/gistLabels"
+import { GitHubHtml } from "./GitHubHtml"
 import { TheBar } from "./TheBar"
 
 /**
@@ -211,11 +212,15 @@ export const GistScreen = ({ gist, kept, onChange, onStepAside }: GistScreenProp
                 )}
               </span>
             </div>
-            {file.rendered ? (
-              // Prose GitHub already turned into HTML, drawn as prose.
-              <p className="max-w-prose p-3 text-sm whitespace-pre-wrap">{file.content}</p>
-            ) : (
+            {file.html === null ? (
               <pre className="overflow-auto p-3 text-xs">{file.content}</pre>
+            ) : (
+              // What GitHub already rendered, kept as markup. Its text alone is the
+              // README with every heading, list and code block flattened into one
+              // paragraph, which is what this drew before.
+              <div className="p-3">
+                <GitHubHtml html={file.html} />
+              </div>
             )}
           </div>
         ))}

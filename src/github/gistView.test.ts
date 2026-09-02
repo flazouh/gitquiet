@@ -43,6 +43,15 @@ describe("one gist, read out of their page", () => {
     expect(files[1]?.rendered).toBe(false)
   })
 
+  test("keeps the markup GitHub rendered, not only its text", () => {
+    // Their `.markdown-body` is HTML they already made; its text is that HTML with every
+    // heading and code block flattened into one run of words.
+    const files = seen()?.files ?? []
+
+    expect(files[0]?.html).toContain("<p>")
+    expect(files[1]?.html).toBeNull()
+  })
+
   test("reads each file's content and its raw link", () => {
     const files = seen()?.files ?? []
 
