@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { findSlot, interfaceContainer, ROOT_ID, takeOverSlot } from "./mount";
 import {
   ACTIONS,
+  BLAME,
   COMMIT,
   COMMITS,
   CONVERSATION,
@@ -66,6 +67,7 @@ const ADDRESSES: ReadonlyArray<readonly [string, Place]> = [
   ["/notifications", NOTIFICATIONS],
   ["/facebook/react", REPO_HOME],
   ["/facebook/react/tree/main/src", REPO_HOME],
+  ["/facebook/react/blame/main/README.md", BLAME],
 ];
 
 /** Pages of GitHub's that this extension has no screen for, and must not claim. */
@@ -118,6 +120,10 @@ const THEIRS: Array<string> = [
   "/pricing",
   "/marketplace",
   "/orgs/facebook/repositories",
+  // A branchless blame, and a branch with no path after it. GitHub does not serve
+  // either, and `blameIn` refuses both rather than guessing what was meant.
+  "/facebook/react/blame",
+  "/facebook/react/blame/main",
 ];
 
 /** A whole address as the two halves `placeOwning` is asked with. */

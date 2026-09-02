@@ -1,0 +1,117 @@
+<!--
+  Synthetic, not captured. The real list page was fetched live to confirm the
+  class names and structure below — `.gist-snippet`, `.gist-snippet-meta`,
+  `.Label`, `<relative-time>`, `.js-gist-file-update-container` — and then
+  this was hand-written with placeholder content, because the real page
+  carries a reader's own gist descriptions and file previews, which have no
+  business in a committed fixture. See `docs/spec/gists.md`.
+-->
+<html>
+<body>
+<div id="gist-pjax-container">
+  <div class="gist-snippet">
+    <div class="gist-snippet-meta d-flex flex-lg-row flex-column width-full">
+      <ul class="col-lg-5 col-12 flex-order-2 f6">
+        <li class="d-inline-block"><a class="Link--muted" href="/octocat/aaa111">1 file</a></li>
+      </ul>
+      <div class="flex-order-1 col-lg-7 col-12 d-flex">
+        <div class="d-inline-block px-lg-2 px-0">
+          <span>
+            <a href="/octocat">octocat</a>
+            / <a href="/octocat/aaa111"><strong class="css-truncate-target">deploy-notes.md</strong></a>
+            <span title="Only those with the link can see this gist." data-view-component="true" class="Label">
+              Secret
+            </span>
+          </span>
+          <div class="color-fg-muted f6">
+            Last active
+            <relative-time tense="past" datetime="2026-08-27T00:09:42+02:00">August 27, 2026</relative-time>
+          </div>
+          <span class="f6 color-fg-muted">
+            Notes on rolling out the staging environment
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="js-gist-file-update-container js-task-list-container">
+      <div id="file-deploy-notes-md" class="file my-2">
+        <div class="Box-body readme blob">
+          <article class="markdown-body entry-content container-lg">
+            <p>Run migrations before the deploy step, never after — the queue drains slowly.</p>
+          </article>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gist-snippet">
+    <div class="gist-snippet-meta d-flex flex-lg-row flex-column width-full">
+      <ul class="col-lg-5 col-12 flex-order-2 f6">
+        <li class="d-inline-block"><a class="Link--muted" href="/octocat/bbb222">1 file</a></li>
+      </ul>
+      <div class="flex-order-1 col-lg-7 col-12 d-flex">
+        <div class="d-inline-block px-lg-2 px-0">
+          <span>
+            <a href="/octocat">octocat</a>
+            / <a href="/octocat/bbb222"><strong class="css-truncate-target">retry.py</strong></a>
+          </span>
+          <div class="color-fg-muted f6">
+            Last active
+            <relative-time tense="past" datetime="2026-07-01T10:00:00+02:00">July 1, 2026</relative-time>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="js-gist-file-update-container js-task-list-container">
+      <div id="file-retry-py" class="file my-2">
+        <div class="Box-body blob">
+          <table class="highlight tab-size">
+            <tbody>
+              <tr><td class="blob-code">def exponential_backoff(attempt):</td></tr>
+              <tr><td class="blob-code">    return min(2 ** attempt, 60)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="gist-snippet">
+    <div class="gist-snippet-meta d-flex flex-lg-row flex-column width-full">
+      <ul class="col-lg-5 col-12 flex-order-2 f6">
+        <li class="d-inline-block"><a class="Link--muted" href="/octocat/ccc333">2 files</a></li>
+      </ul>
+      <div class="flex-order-1 col-lg-7 col-12 d-flex">
+        <div class="d-inline-block px-lg-2 px-0">
+          <span>
+            <a href="/octocat">octocat</a>
+            / <a href="/octocat/ccc333"><strong class="css-truncate-target">config.json</strong></a>
+          </span>
+          <div class="color-fg-muted f6">
+            Last active
+            <relative-time tense="past" datetime="2026-06-15T08:30:00+02:00">June 15, 2026</relative-time>
+          </div>
+          <span class="f6 color-fg-muted">
+            Shared config for the widget project
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="js-gist-file-update-container js-task-list-container">
+      <div id="file-config-json" class="file my-2">
+        <div class="Box-body blob">
+          <table class="highlight"><tbody><tr><td class="blob-code">{ "theme": "dark" }</td></tr></tbody></table>
+        </div>
+      </div>
+      <div id="file-readme-md" class="file my-2">
+        <div class="Box-body readme blob">
+          <article class="markdown-body entry-content container-lg">
+            <p>Widget config, keep in sync with the dashboard repo.</p>
+          </article>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -108,6 +108,7 @@ const result = await build({
         "repo-issues": here("../src/screens/repoIssues.tsx"),
         raise: here("../src/screens/raise.tsx"),
         issues: here("../src/screens/issues.tsx"),
+        blame: here("../src/screens/blame.tsx"),
         run: here("../src/screens/run.tsx"),
         actions: here("../src/screens/actions.tsx"),
         releases: here("../src/screens/releases.tsx"),

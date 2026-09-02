@@ -29,6 +29,7 @@ import type { Portrait } from "../domain/portrait"
 import type { Raised, Raising } from "../domain/raising"
 import type { Attached, Version } from "../domain/release"
 import type { Front, Opened, Standing, Starring, Touch, TouchWho } from "../domain/repoHome"
+import type { Blamed } from "../domain/blame"
 import type { Repository } from "../domain/repositories"
 import type { RunOpening, RunRef } from "../domain/run"
 import type { Strand } from "../domain/strand"
@@ -698,6 +699,16 @@ export class GitHubGateway extends Context.Service<
       branch: string,
       path: string
     ) => Effect.Effect<string, GatewayError>
+
+    /**
+     * One file's blame: every range, the commit each one names, and the
+     * file's own lines to draw beside it. See `docs/spec/blame.md`.
+     */
+    readonly blameAt: (
+      reference: RepoRef,
+      branch: string,
+      path: string
+    ) => Effect.Effect<Blamed, GatewayError>
 
     /**
      * Star a repository, or take the star back.

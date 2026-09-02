@@ -236,6 +236,53 @@ const FILES = [
   fileFrom("test/js/bun/http/serve-stream.test.ts", STREAM_TEST)
 ]
 
+
+const BASE_SHA = "9c1b5f4e2a7d3086bb41f5c9e0d27a6318f4b0c5"
+
+/**
+ * One whole half of a file, built so that diffing the two halves gives back
+ * that file's own patch and nothing else.
+ *
+ * The stage has no route to GitHub, and revealing the lines between the hunks
+ * needs the rest of the file. Inventing text will not do: the renderer diffs
+ * the halves it is handed against the patch it already parsed, and unrelated
+ * text made it throw `deletionLine and additionLine are null`. The shots caught
+ * that and no unit test could, because they stub the renderer.
+ *
+ * So the halves are built out of the patch. Every line the patch names goes at
+ * the number the patch gives it, and the gaps are filled by a counter rather
+ * than by the line number — the tenth untouched line of one half is the tenth
+ * of the other, whatever the hunks have done to the numbering between them, so
+ * the two align exactly and the only difference left is the change itself.
+ */
+const wholeOf = (path: string, half: "before" | "after", beyond = 60): string => {
+  const file = FILES.find((one) => one.path === path)
+  const lines = file === undefined ? [] : Option.getOrElse(Option.map(file.diff, (held) => held.lines), () => [])
+
+  const named = new Map<number, string>()
+  for (const line of lines) {
+    if (line.kind === "hunk") continue
+    const at = half === "before" ? line.beforeLine : line.afterLine
+    if (Option.isSome(at)) named.set(at.value, line.text.slice(1))
+  }
+
+  // A little past the last hunk, so there is something to reveal at the end
+  // without the stage building thousands of lines it never draws.
+  const highest = Math.max(0, ...named.keys()) + beyond
+  let untouched = 0
+  const out: Array<string> = []
+  for (let at = 1; at <= highest; at += 1) {
+    const said = named.get(at)
+    if (said !== undefined) {
+      out.push(said)
+      continue
+    }
+    untouched += 1
+    out.push(`// untouched line ${untouched}`)
+  }
+  return out.join("\n")
+}
+
 const commit = (sha: string, headline: string, hours: number): Commit => ({
   sha,
   abbreviatedSha: sha.slice(0, 7),
@@ -390,6 +437,24 @@ const THREADS: ReadonlyArray<ReviewThread> = [
       )
     ]
   },
+  /*
+   * Out of Reach: a colleague left this from GitHub's own Files changed page, on
+   * a line far below the hunks GitHub sends for this file. It has no line here to
+   * hang under, so the pane draws it above the file instead of dropping it.
+   */
+  {
+    id: "T-6",
+    isResolved: false,
+    at: at("src/bun.js/api/server.zig", 2890),
+    comments: [
+      said(
+        "C-9",
+        person("dperrault"),
+        "While you are in here: this helper still assumes the old flag order, and it is the only other caller.",
+        12
+      )
+    ]
+  },
   {
     id: "T-5",
     isResolved: true,
@@ -509,7 +574,7 @@ export const SNAPSHOT: PullRequestSnapshot = {
   headRef: { mayDelete: false, mayRestore: false },
   proposal: Option.none(),
   headSha: HEAD_SHA,
-  baseSha: "9c1b5f4e2a7d3086bb41f5c9e0d27a6318f4b0c5",
+  baseSha: BASE_SHA,
   viewer: { login: VIEWER, lastReviewPoint: Option.some(LAST_REVIEW_POINT) },
   files: FILES,
   commits: COMMITS,
@@ -604,6 +669,13 @@ export const PULL_REQUEST_VIEW: View = {
         preload={alreadyKnown(LOADED)}
         recallRepositories={nothingRemembered()}
         fetchDiffs={settled([])}
+        /*
+         * The whole of each file, so the stage exercises revealing the lines
+         * between the hunks with the real renderer rather than a stub.
+         */
+        readWholeFile={(sha, path) =>
+          Effect.succeed(wholeOf(path, sha === BASE_SHA ? "before" : "after"))
+        }
         onStepAside={() => {}}
         onUseGitHub={() => {}}
         signedIn={() => true}

@@ -120,6 +120,7 @@ import {
 import { commitFromKept, keptCommitFrom } from "./keptCommit"
 import { keepTabs, keptTabs, tabsOnPage } from "./repoTabs"
 import { openedFrom } from "./file"
+import { blamedFrom } from "./blame"
 import type { Named, Numbered, Suggesting } from "../domain/suggesting"
 import type { Uploaded } from "../domain/attaching"
 import { decodeAddedComment, issueFrom, remarkFrom } from "./issueView"
@@ -3889,6 +3890,25 @@ export const layer = Layer.succeed(GitHubGateway, {
     }),
 
     /**
+     * One file's blame, for the screen `docs/spec/blame.md` describes.
+     *
+     * Their page for it rather than a route: the ranges, the commits and the
+     * file's own lines are three of their payloads sitting in one document,
+     * exactly as a blob's lines and rendering are, so one fetch answers all
+     * of it.
+     */
+    blameAt: Effect.fn("GitHubGateway.blameAt")(function* (
+      reference: RepoRef,
+      branch: string,
+      path: string
+    ) {
+      const route = `/blame/${branch}/${path.split("/").map(encodeURIComponent).join("/")}`
+      const { payloads } = yield* readRepoPage(reference, route)
+
+      return yield* blamedFrom(payloads).pipe(Effect.catch(undecodableFrom(reference, route)))
+    }),
+
+    /**
      * One file as its own text, off their raw route.
      *
      * The route is on github.com and the answer is not: it redirects to the raw
@@ -4247,6 +4267,7 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     standing: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     treePaths: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     fileAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    blameAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     rawFileAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     treeCommits: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     whoTouched: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
@@ -4394,6 +4415,7 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     standing: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     treePaths: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     fileAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    blameAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     rawFileAt: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     treeCommits: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     whoTouched: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),

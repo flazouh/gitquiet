@@ -94,7 +94,22 @@ export default defineConfig({
     // not the page's, so listening on it has to be asked for by name.
     // Written `https` rather than `wss`, which Chrome does not accept as a
     // scheme here: permission to a host covers its websocket.
-    host_permissions: ["*://github.com/*", "https://alive.github.com/*"],
+    /*
+     * `gist.github.com` is its own host, and a bare `github.com` pattern does not
+     * cover a different subdomain — Chrome match patterns are exact on the host
+     * unless written with a leading `*.`. Named separately rather than widened to
+     * `*://*.github.com/*`, which would also grant every other subdomain GitHub
+     * has ever stood up and nobody has asked this extension to run on.
+     *
+     * See `docs/spec/gists.md`. This page is not `place.ts`'s to gate: it carries
+     * no React application and nothing here replaces a region of it, so the only
+     * thing this permission is for is `gist.content.ts` appending to the page.
+     */
+    host_permissions: [
+      "*://github.com/*",
+      "*://gist.github.com/*",
+      "https://alive.github.com/*"
+    ],
     // Display settings are kept in `storage.sync`, so a reader who chose
     // side-by-side diffs on one machine has them on the next. Without this the
     // API is simply absent in the content script, and choices last as long as

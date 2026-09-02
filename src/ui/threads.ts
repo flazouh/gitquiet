@@ -1,6 +1,6 @@
 import { Option } from "effect"
 import type { DiffSide, Note } from "../ports/Renderer"
-import type { ReviewThread, ThreadAnchor } from "../domain/PullRequest"
+import type { DiffLine, ReviewThread, ThreadAnchor } from "../domain/PullRequest"
 
 /**
  * A review thread that knows where it goes.
@@ -43,7 +43,7 @@ export const anchorSideOf = (side: DiffSide): ThreadAnchor["side"] =>
   side === "deletions" ? "before" : "after"
 
 /** Every thread hung off a line of this file, in the order they arrived. */
-export const threadsIn = (
+const threadsIn = (
   threads: ReadonlyArray<ReviewThread>,
   path: string
 ): ReadonlyArray<AnchoredThread> =>
@@ -54,17 +54,83 @@ export const threadsIn = (
   )
 
 /**
+ * The lines a file's diff holds, as its two halves number them.
+ *
+ * Both halves, because the two are numbered apart and a remark on a removed
+ * line belongs to the old file's numbering. A set rather than the hunk bounds:
+ * the lines are already carried on every {@link DiffLine} GitHub sent, so this
+ * counts what is there rather than re-deriving it from the `@@` headers and
+ * getting a second opinion about the same file.
+ */
+export type Drawn = {
+  readonly before: ReadonlySet<number>
+  readonly after: ReadonlySet<number>
+}
+
+export const drawnIn = (lines: ReadonlyArray<DiffLine>): Drawn => {
+  const before = new Set<number>()
+  const after = new Set<number>()
+
+  for (const line of lines) {
+    if (Option.isSome(line.beforeLine)) before.add(line.beforeLine.value)
+    if (Option.isSome(line.afterLine)) after.add(line.afterLine.value)
+  }
+
+  return { before, after }
+}
+
+/**
+ * This file's threads, split by whether the diff holds the line they hang on.
+ *
+ * The split exists because GitHub lets a reviewer comment on any line of a
+ * changed file from their own Files changed page, expanded or not, while the
+ * diff they send for that file still holds only its hunks. Such a thread
+ * arrives in the payload like any other and names a line nothing here drew, so
+ * there is no row for it to hang in. Handed to the renderer anyway it is a
+ * remark nobody sees, and the file reads as though nobody said anything about
+ * it. See `CONTEXT.md`, Out of Reach.
+ *
+ * Nothing is out of reach while `drawn` is null. The diff arrives after the
+ * threads do, and a file whose content has not landed cannot be said to be
+ * missing a line — the pane would accuse GitHub of hiding remarks for as long
+ * as the fetch takes, and then take it back.
+ */
+export type OnFile = {
+  readonly inReach: ReadonlyArray<AnchoredThread>
+  readonly outOfReach: ReadonlyArray<AnchoredThread>
+}
+
+export const threadsOn = (
+  threads: ReadonlyArray<ReviewThread>,
+  path: string,
+  drawn: Drawn | null
+): OnFile => {
+  const mine = threadsIn(threads, path)
+  if (drawn === null) return { inReach: mine, outOfReach: [] }
+
+  const inReach: Array<AnchoredThread> = []
+  const outOfReach: Array<AnchoredThread> = []
+
+  for (const hung of mine) {
+    // The last line of the range, because that is the line the row hangs off.
+    // A range whose first line was drawn and whose last was not has nowhere to
+    // open, which is the same nowhere as a range drawn on neither.
+    const half = hung.at.side === "before" ? drawn.before : drawn.after
+    ;(half.has(hung.at.line) ? inReach : outOfReach).push(hung)
+  }
+
+  return { inReach, outOfReach }
+}
+
+/**
  * Where the renderer should open a row for each of this file's threads.
  *
  * Off the last line of a range rather than the first, which is where GitHub
  * draws it: a remark about lines 137 to 140 opened above 137 separates the
  * reader from the code it is about by the whole of the block.
  */
-export const threadNotes = (
-  threads: ReadonlyArray<ReviewThread>,
-  path: string
-): ReadonlyArray<Note> =>
-  threadsIn(threads, path).map(({ thread, at }) => ({
+export const threadNotes = (hung: ReadonlyArray<AnchoredThread>): ReadonlyArray<Note> =>
+  hung.map(({ thread, at }) => ({
     key: threadKey(thread),
     side: sideOf(at.side),
     line: at.line

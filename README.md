@@ -73,6 +73,7 @@ router and the takeover read.
 | `/owner/repo/pull/N` | one pull request |
 | `/owner/repo/commits/BRANCH` | a branch's commits |
 | `/owner/repo/commit/SHA` | one commit |
+| `/owner/repo/blame/BRANCH/PATH` | who wrote each line |
 | `/owner/repo/actions` | workflow runs |
 | `/owner/repo/actions/runs/ID` | one run |
 | `/notifications` | your inbox |

@@ -154,6 +154,55 @@ line. `left` is not measured. It is inferred from the `L` marker above and from
 written on the deletions side. A remark on a removed line, captured off the
 wire, is the request that would settle it, and none has been read here.
 
+### What `create_review_comment` takes, measured
+
+Exercised against `flazouh/ghpro-scratch#14` on 2 September 2026, from a signed-in browser,
+sending exactly the body `GitHubGateway.comment` sends and varying one thing at a time. The
+pull request changes line 3 of a 200-line file, so its one hunk covers lines 1 to 6 and
+everything below is outside the diff GitHub sends. This settles the three questions step 2
+of `docs/plan/comment-anywhere.md` asked.
+
+| Sent | Answer | Marker it comes back under |
+| --- | --- | --- |
+| `line: 150`, far below the hunks | 200, real thread | `R150`, with `ctx: [147, 153]` |
+| `subjectType: "file"`, no line | 200, thread says `"file"` | `FILE` |
+| `subjectType: "FILE"`, no line | 200, thread says `"file"` | `FILE` |
+| `path` of a file the pull request did not change | 200, real thread | none — the file is not in the payload |
+| `path` of a file that is in no tree | 422 `{"error":"Path could not be resolved."}` | — |
+
+**A line outside the hunks is taken, and GitHub draws it.** The thread comes back under
+`R150` in `diffSummaries[].markersMap`, and beside it GitHub sends `ctx: [147, 153]` — the
+lines to reveal around it, three either side. Their own Files changed page shows the comment.
+So the route was never the obstacle, and `ctx` is GitHub saying how far to expand.
+
+**Both spellings of the subject type are accepted and both come back as `file`.** The upper
+case `FILE` read out of their bundle and the lower case `file` in their REST reference are
+the same thing to this route, which normalises to lower case in the answer. Send `"file"`,
+because that is what comes back. The marker for it is `FILE`, upper case, which is the
+spelling `spotAt` in `src/github/snapshot.ts` already drops.
+
+**A path outside the comparison is accepted, and this is the surprise.** GitHub's own
+changelog says these comments "can only be added to files already changed", and their own
+page enforces that. The route does not. It answers 200 with a real thread on a file the
+pull request never touched, and refuses only a path it cannot resolve in any tree — 422
+`Path could not be resolved.`, word for word.
+
+That acceptance is not the same as the comment being usable, and the difference is the whole
+of it:
+
+| Where | A line below the hunks | A file-level comment on a changed file | Anything on an unchanged file |
+| --- | --- | --- | --- |
+| `pull/N/changes` payload | `R150` on the file's `markersMap` | `FILE` on the file's `markersMap` | the file has no `diffSummaries` entry at all |
+| GitHub's Files changed page | shown | shown | not shown |
+| GitHub's Conversation page | shown | shown | shown, without naming the file |
+
+So a remark on an unchanged file is a real GitHub object that every reader can find on the
+Conversation page and nobody can find in the diff, and which does not say which file it is
+about. `docs/plan/comment-anywhere.md` section 3 concluded the server would refuse it. The
+server does not; their client does. The conclusion the plan drew from that — do not offer
+it — still holds, but for a different and weaker reason, and section 5 of that plan is
+worth re-reading before it is built.
+
 ### `submitBatch` decides it, and `true` sends
 
 `true` posts the comment at once. `false` holds it in the Participant's own

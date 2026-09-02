@@ -743,6 +743,47 @@ export const FileRendering = Schema.Struct({
 export type FileRendering = typeof FileRendering["Type"]
 
 /**
+ * One file's blame, off `/owner/repo/blame/BRANCH/PATH`.
+ *
+ * `ranges` is keyed by the starting line number as GitHub writes it, a string
+ * rather than a number, because the payload is JSON and every key is one.
+ * `commits` is keyed by SHA so many ranges can share one entry rather than
+ * repeating the same author and message once per range. `ignoreRevs` names
+ * the repository's `.git-blame-ignore-revs` file where GitHub found one; the
+ * ranges above already reflect it, so this is read only to tell the reader it
+ * is in play.
+ */
+export const BlameRoute = Schema.Struct({
+  blame: Schema.Struct({
+    ranges: Schema.Record(
+      Schema.String,
+      Schema.Struct({
+        start: Schema.Number,
+        end: Schema.Number,
+        commitOid: Schema.String
+      })
+    ),
+    commits: Schema.Record(
+      Schema.String,
+      Schema.Struct({
+        oid: Schema.String,
+        message: Schema.String,
+        authorAvatarUrl: Schema.String,
+        committerName: Schema.String,
+        committerEmail: Schema.String,
+        committedDate: Schema.String
+      })
+    ),
+    ignoreRevs: Schema.Struct({
+      path: Schema.String,
+      present: Schema.Boolean
+    })
+  })
+})
+
+export type BlameRoute = typeof BlameRoute["Type"]
+
+/**
  * What each row of the file list was last touched by.
  *
  * A route of its own, and the one extra request this page spends. Their own page

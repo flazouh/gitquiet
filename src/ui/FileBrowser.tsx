@@ -30,6 +30,7 @@ import { chordFor, type Keys } from "../keys/commands";
 import { Cap } from "./Cap";
 import { draftsIn, dropDraft, saveDraft, type Draft } from "./drafts";
 import { FileDiffPane, FileTreePane, type FileDiffPaneProps } from "./Files";
+import type { Revealer } from "../app/revealing";
 import { FileHeading } from "./FileHeading";
 import { Counts } from "./Counts";
 import { RailHead } from "./RailHead";
@@ -88,6 +89,11 @@ export type FileBrowserProps = {
    * a file arrived in it. See `attaching.ts`.
    */
   readonly onUpload?: (file: File) => Effect.Effect<Uploaded, unknown>;
+  /**
+   * The way to fetch whole files, so a reader can reveal the lines GitHub left
+   * out between the hunks. See `src/app/revealing.ts`.
+   */
+  readonly revealing?: Revealer;
   /**
    * Gives the files the full viewport without replacing this component.
    *
@@ -206,6 +212,7 @@ type DrawingProps = {
   readonly onPicked?: (picked: Picked | null) => void;
   readonly suggest?: FileBrowserProps["suggest"];
   readonly onUpload?: FileBrowserProps["onUpload"];
+  readonly revealing?: FileBrowserProps["revealing"];
 };
 
 /** Changes the visible drawing without rendering the prepared diff inside it again. */
@@ -228,6 +235,7 @@ const Drawing = memo(
     onPicked,
     suggest,
     onUpload,
+    revealing,
   }: DrawingProps) => {
     const heldDrafts = useMemo(() => draftsIn(drafts, file.path), [drafts, file.path]);
     const post = useMemo<FileDiffPaneProps["onPost"]>(
@@ -274,6 +282,7 @@ const Drawing = memo(
           onPicked={onPicked}
           suggest={suggest}
           onUpload={onUpload}
+          revealing={revealing}
         />
       </div>
     );
@@ -303,6 +312,7 @@ export const FileBrowser = ({
   viewer,
   suggest,
   onUpload,
+  revealing,
   review,
   onReading,
   display,
@@ -1130,6 +1140,7 @@ export const FileBrowser = ({
                     onPicked={one.path === file?.path ? onPicked : undefined}
                     suggest={suggest}
                     onUpload={onUpload}
+                    revealing={revealing}
                   />
                 ))}
           </div>
