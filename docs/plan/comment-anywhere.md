@@ -1,6 +1,9 @@
 # Commenting where the diff does not reach
 
-Status: steps 0 and 1 built, 2026-09-02. Steps 2 to 5 wait on the experiment in step 2.
+Status: steps 0, 1 and 2 done, 2026-09-02. Step 2 answered all three questions and reversed
+this plan's section 3; steps 3, 4 and 5 are now unblocked and section 5 needs re-reading
+against what was measured. See `docs/spec/github-write-api.md`, "What `create_review_comment`
+takes, measured".
 
 Two GitHub Community discussions ask for the same thing from two directions.
 [#4452](https://github.com/orgs/community/discussions/4452), 2,352 upvotes, asks
@@ -148,6 +151,19 @@ Two limits from the same announcement, both stated by GitHub:
 > files).
 
 ## 3. For an unchanged file: `FILE`, a whole-file patch, or neither
+
+> **Corrected 2026-09-02 by the experiment in step 2.** The premise below is wrong. GitHub's
+> `page_data` route *does* accept a review comment on a file the pull request did not change:
+> `flazouh/ghpro-scratch#14` answered 200 with a real thread on `notes.md`, which that pull
+> request never touched. It refuses only a path it cannot resolve in any tree, with 422
+> `{"error":"Path could not be resolved."}`. Their own changelog sentence quoted below
+> describes their client, not their server.
+>
+> The conclusion still holds and the reason is now different and weaker. Such a thread is
+> real and every reader finds it on the Conversation page, but the file gets no entry in
+> `diffSummaries`, so it is drawn nowhere in any diff and the Conversation page does not say
+> which file it is about. It is not invisible; it is unplaceable. Section 5 is worth
+> re-reading against that before it is built.
 
 Neither. GitHub does not accept a review comment on a file the pull request did
 not change, and the sentence above says so in their own words. The route belongs
@@ -346,6 +362,14 @@ Estimate: about 2 hours.
 
 ### Step 2. Settle the route by experiment
 
+**Done, 2026-09-02, against `flazouh/ghpro-scratch#14`.** All three answers are recorded in
+`docs/spec/github-write-api.md` under "What `create_review_comment` takes, measured". In
+short: a line below the hunks is taken and comes back as `R150` with `ctx: [147, 153]`, the
+lines GitHub says to reveal around it; both `"file"` and `"FILE"` are taken and both answer
+`"file"`; a path outside the comparison is taken too, and only an unresolvable path is
+refused. Nothing needed GitHub's per-repository rollout — the route took the line on a
+repository whose own page offers no such thing.
+
 Nothing below this line should be built on a guess about what the server takes.
 Three questions, one scratch pull request, one signed-in browser. There is no dry
 run on these routes, so each question costs a real comment on a throwaway pull
@@ -374,7 +398,10 @@ the rollout is on there.
 
 ### Step 3. Expand the context of a changed file
 
-Only if step 2 answers yes to its first question.
+**Unblocked.** Step 2 answered yes, and gave more than a yes: every out-of-hunk marker
+carries `ctx`, GitHub's own answer to how far to expand around it — `[147, 153]` for a
+thread on line 150, three lines either side. Step 0 draws such a thread above the file
+today; this step is what puts it back beside its own line.
 
 Give the reader the rest of the file to click on. Pierre already has the shape
 for it: `processFile` in `@pierre/diffs` takes a patch together with `oldFile`
