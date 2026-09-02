@@ -15,7 +15,7 @@ export type GistRow = {
    * Read live on 2026-09-02: the list page ships a preview of each gist's
    * files inline, the same markdown-body or code block the gist's own page
    * draws. This is what GitHub's own search does not read — confirmed in
-   * `docs/gist-pain-points.md` — and it costs nothing extra to read, because
+   * `research/gist-pain-points.md` in the notes repository — and it costs nothing extra to read, because
    * it is already in the document.
    */
   readonly preview: string

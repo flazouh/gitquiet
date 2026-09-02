@@ -4,7 +4,7 @@ Status: built. Both slices are shipped and verified live on a real account: the 
 banner, the search bar reaching file content and stored Labels, and Label/Name editing
 persisted in `storage.sync`. The vocabulary below is in `CONTEXT.md`. Open Questions —
 click-to-filter-by-Label chips, pagination depth, starred gists — are still open. Evidence is
-in `docs/gist-pain-points.md`, five sweeps across Hacker News, Reddit, GitHub Community
+in the notes repository's `research/gist-pain-points.md`, five sweeps across Hacker News, Reddit, GitHub Community
 discussions, and thirteen years of third-party tooling.
 
 Covers `gist.github.com`, a different host from `github.com`. Two slices, in the order they
@@ -154,7 +154,7 @@ servers, their own sync) is not accidentally implied.
 
 Gist creation and editing are untouched. The editor-is-too-small complaint (Reddit, 23 points:
 "the display I would expect it to take the full width least and be much taller") is real and
-recorded in `docs/gist-pain-points.md`, but it is a different surface — the create/edit flow
+recorded in the notes repository's `research/gist-pain-points.md`, but it is a different surface — the create/edit flow
 rather than the list — and is not in this slice.
 
 ## Implementation Decisions
@@ -205,7 +205,7 @@ without a new revision, so a second search moments later costs nothing more.
 
 ## Evidence
 
-Full sweep, with every quote and URL, is `docs/gist-pain-points.md`. Restated here only where a
+Full sweep, with every quote and URL, is the notes repository's `research/gist-pain-points.md`. Restated here only where a
 number decided the scope:
 
 | Fact | Value |

@@ -3,10 +3,12 @@
 Status: built. The vocabulary below is in `CONTEXT.md`. Re-blaming and very large files are
 still open, per Open Questions.
 
-Covers one address: `/{owner}/{repo}/blame/{branch}/{path}`. Correction to the survey that
-led here: `docs/uncovered-pages-pain-points.md` named "the file view, `/blob`, `/tree` and
-`/blame`" as one uncovered surface. Reading `src/domain/repoHome.ts` and
-`src/screens/repoHome.tsx` found that two of those three are already built — `REPO_HOME`
+Covers one address: `/{owner}/{repo}/blame/{branch}/{path}`.
+
+A correction to the survey that led here. That survey lives in this project's notes
+repository, as `research/uncovered-pages-pain-points.md`, and it named "the file view,
+`/blob`, `/tree` and `/blame`" as one uncovered surface. Reading `src/domain/repoHome.ts`
+and `src/screens/repoHome.tsx` found that two of those three are already built — `REPO_HOME`
 owns `/tree/...` and `/blob/...` today, and a file opened there is drawn by the same diff
 renderer a pull request uses, which is the fix the research's own complaints (slow scrolling,
 hijacked Ctrl+F, broken text selection) were asking for. Blame alone has no place, no reader,
@@ -24,8 +26,8 @@ file blame is asked about most: a large one.
 Blame answers one question: who wrote this line, and when. GitHub's own page answers it by
 drawing a virtualized code view — the same renderer as `/blob` — with a coloured strip and a
 commit summary glued to every unbroken run of lines one commit touched. The renderer is the
-same one the file-view complaints in `docs/uncovered-pages-pain-points.md` are about, and
-blame inherits every one of them on top of its own.
+same one the file-view complaints in that survey are about, and blame inherits every one of
+them on top of its own.
 
 ### The renderer does not put the file in the document
 
@@ -253,8 +255,8 @@ Read live on 2026-09-01, `oven-sh/bun/blame/main/README.md` and
 
 ## Further Notes
 
-**This is the narrower of the two pages the survey named.** `docs/uncovered-pages-pain-points.md`
-named "the file view" as the single largest uncovered surface, by all four sources. Reading the
+**This is the narrower of the two pages the survey named.** It named "the file view" as the
+single largest uncovered surface, by all four of its sources. Reading the
 code before writing this spec found two of its three addresses — `/tree` and `/blob` — already
 built, drawn by the same renderer the pull request diff uses, which independently answers the
 loudest complaint in that survey: slow scrolling and broken browser find. What was left uncovered
