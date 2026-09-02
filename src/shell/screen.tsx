@@ -10,7 +10,6 @@ import {
   handBack,
   hasPreparedScreen,
   interfaceContainer,
-  landWhenArrived,
   markPage,
   ourSurface,
   rememberLiveScreen,
@@ -20,6 +19,7 @@ import {
   whenTakenOver,
   whenThereIsAPage
 } from "../ui/mount"
+import { landWhenArrived } from "../ui/landing"
 import type { Place } from "../ui/place"
 import { OWNED_TRAVERSAL } from "../ui/preparedNavigation"
 import { prepareRouteActivation } from "../ui/routeActivation"

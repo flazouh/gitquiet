@@ -328,15 +328,9 @@ export default defineContentScript({
       const place = placeFor(page, address.pathname);
       const screen = preparedScreens.get(path);
 
-      /*
-       * Nothing read ahead for this address, which is every traversal: a screen is
-       * prepared when a pointer lingers near a link to it, and neither Back nor
-       * Forward is a link. The screen that answers here is already up and redraws
-       * itself when the address commits — on a task of React's own, later than this
-       * one — so what is standing has to be held across the gap. Without it the
-       * reader is shown a frame of nothing. See `holdsForTraversal` for the
-       * measurement and for why a screen redrawing in place is not held.
-       */
+      // Nothing read ahead for this address, which is every traversal: neither Back
+      // nor Forward is a link, so no pointer ever warmed one. `holdsForTraversal`
+      // says why the screen already standing has to be held across the gap.
       if (screen === undefined) {
         if (holdsForTraversal(theScreenStandsFor(document), place.name))
           holdTheSurface(document);

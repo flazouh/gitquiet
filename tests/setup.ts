@@ -2,7 +2,7 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator"
 import { afterEach, setDefaultTimeout } from "bun:test"
 import { forgetFlights } from "../src/github/flight"
 import { forgetDrawn } from "../src/ui/lastDrawn"
-import { forgetLanded } from "../src/ui/mount"
+import { forgetLanded } from "../src/ui/landing"
 import { forgetEverything } from "./storage"
 
 /**
