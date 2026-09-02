@@ -52,6 +52,8 @@ export type Wanted =
    */
   | "person-repos"
   | "profile"
+  /** Two refs compared, which is how a pull request starts. */
+  | "compare"
   /**
    * The odd one, and the only one here that is not a page of GitHub's at all.
    *
@@ -93,6 +95,7 @@ export const WANTED: ReadonlyArray<Wanted> = [
   "notifications",
   "person-repos",
   "profile",
+  "compare",
   "sign-on"
 ]
 

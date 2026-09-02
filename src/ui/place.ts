@@ -3,6 +3,7 @@ import { AUTH_CLASS, THE_WALL_BOX } from "../github/signOn";
 import { blameIn } from "../domain/blame";
 import { fromPathname as commitIn } from "../domain/CommitRef";
 import { commitListIn } from "../domain/commitList";
+import { compareIn } from "../domain/compare";
 import { issueDashboardIn } from "../domain/issueDashboard";
 import { issueListIn } from "../domain/issueList";
 import { fromPathname as issueIn } from "../domain/issues";
@@ -555,6 +556,22 @@ export const REPO_HOME: Place = {
  * from, the same way a front page's tab row is inside the code view app
  * rather than above it.
  */
+/**
+ * Two refs compared — `/{owner}/{repo}/compare/{base}...{head}`.
+ *
+ * Their own page defers its file list to a fragment and carries nothing about it in the
+ * document, so this screen stands on the body rather than inside one of their regions:
+ * there is no region holding the thing it replaces. See `plans/008-the-two-pages-left.md`.
+ */
+export const COMPARE: Place = {
+  name: "compare",
+  owns: (path) => Option.isSome(compareIn(`https://github.com${path}`)),
+  regions: [],
+  fallback: "body",
+  stages: ["body"],
+  bands: []
+};
+
 export const BLAME: Place = {
   name: "blame",
   owns: (path) => Option.isSome(blameIn(`https://github.com${path}`)),
@@ -986,6 +1003,7 @@ export const PLACES: ReadonlyArray<Place> = [
  * every address, so adding it here would change nothing. See `SIGN_ON`.
  */
 const BY_ADDRESS: ReadonlyArray<Place> = [
+  COMPARE,
   CONVERSATION,
   COMMIT,
   COMMITS,

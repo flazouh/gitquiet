@@ -72,6 +72,7 @@ import {
   ACTIONS,
   BLAME,
   COMMIT,
+  COMPARE,
   COMMITS,
   CONVERSATION,
   DASHBOARD,
@@ -164,6 +165,7 @@ const PLACE_OF: Record<Wanted, Place> = {
   notifications: NOTIFICATIONS,
   "person-repos": PERSON_REPOS,
   profile: PROFILE,
+  compare: COMPARE,
   /*
    * The one entry here that `pageAt` can never return, because its place is
    * deliberately absent from the routing table: a wall has no address of its own.

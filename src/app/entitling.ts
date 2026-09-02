@@ -46,6 +46,14 @@ export const titleAt = (what: Wanted, path: string): string | null => {
   const rest = tail(path)
 
   switch (what) {
+    case "compare": {
+      // Their own words for it, which a reader coming back to the tab is looking for:
+      // "Comparing main...next · owner/repo". The range is spelt from the address
+      // rather than parsed, because a title is wanted before anything is read.
+      if (repo === null) return null
+      const range = rest.slice(1).join("/")
+      return range === "" ? repo : `Comparing ${decodeURIComponent(range)} · ${repo}`
+    }
     case "repo-home": {
       if (repo === null) return null
       // A file wears its own name; the tree and the front page are the repository.

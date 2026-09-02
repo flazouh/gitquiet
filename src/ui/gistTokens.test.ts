@@ -55,14 +55,15 @@ const painted = (source: string): ReadonlyArray<string> =>
     .map((found) => found[1] ?? "")
     .filter((suffix) => !TAILWIND.has(suffix))
 
-describe("the gist screens paint with colours this codebase has", () => {
+describe("these screens paint with colours this codebase has", () => {
   const known = defined()
 
   for (const path of [
     "src/ui/GistListScreen.tsx",
     "src/ui/GistRowView.tsx",
     "src/ui/GistScreen.tsx",
-    "src/ui/GistMarks.tsx"
+    "src/ui/GistMarks.tsx",
+    "src/ui/CompareScreen.tsx"
   ]) {
     test(`${path} names no colour that does not exist`, () => {
       const unknown = [...new Set(painted(readFileSync(path, "utf8")))].filter(
