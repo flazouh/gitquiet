@@ -1242,7 +1242,8 @@ describe("what the gateway sends to GitHub", () => {
             path: "src/index.ts",
             body: "This file should not be in this pull request.",
             baseSha: base,
-            headSha: head
+            headSha: head,
+            lines: null
           })
         }).pipe(Effect.provide(layer))
       )

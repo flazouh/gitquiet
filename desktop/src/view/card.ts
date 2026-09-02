@@ -93,7 +93,7 @@ export const askToSay = Effect.fn("askToSay")(function* (
    * `CONTEXT.md`, File Remark.
    */
   const lines = note.lines
-  if (lines === undefined) {
+  if (lines === null) {
     return yield* Effect.fail(
       refused(reference, "comment", "This window says things about lines, not about a whole file.")
     )

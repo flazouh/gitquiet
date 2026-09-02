@@ -13,15 +13,28 @@ export const lineLabel = (from: number, to: number): string =>
   from === to ? `Line ${from}` : `Lines ${from} to ${to}`
 
 export type NoteProps = {
-  readonly from: number
-  readonly to: number
+  /**
+   * The lines it is about, or nothing where it is about the whole file.
+   *
+   * Nothing is a File Remark, which has no line to name and no draft key to be
+   * kept under. See `CONTEXT.md`, File Remark.
+   */
+  readonly from?: number
+  readonly to?: number
   /** What was written before, or nothing at all for a fresh box. */
   readonly body: string
   /** Whoever is writing, so a remark is signed the way it will appear. */
   readonly viewer?: { readonly login: string; readonly faceUrl?: string }
   /** Sends it to GitHub. Absent where nothing is wired up to. */
   readonly onPost?: (body: string) => Effect.Effect<void, unknown>
-  readonly onSave: (body: string) => void
+  /**
+   * Keeps what was written against the lines it is about, unsent.
+   *
+   * Absent on a box with no lines to key a draft by — a File Remark — where
+   * leaving the box keeps nothing rather than keeping it somewhere nothing
+   * will look for it again. See `src/ui/drafts.ts`.
+   */
+  readonly onSave?: (body: string) => void
   readonly onDiscard: () => void
   /** Who can be mentioned and what can be referred to. See `Writing`. */
   readonly suggest?: () => Effect.Effect<Suggesting, unknown>
@@ -67,7 +80,11 @@ export const Note = ({
   const [posting, setPosting] = useState(false)
   const [refused, setRefused] = useState<string | undefined>(undefined)
 
-  const where = lineLabel(from, to)
+  // What this box is about, said above it. A File Remark names the file rather
+  // than a line, because "Line 0" is what naming a line it does not have looks
+  // like.
+  const aboutLines = from !== undefined && to !== undefined
+  const where = aboutLines ? lineLabel(from, to) : "About this file"
 
   if (!editing) {
     return (
@@ -92,10 +109,11 @@ export const Note = ({
 
   const keep = () => {
     const written = text.trim()
-    if (written === "") return onDiscard()
+    if (written === "" || onSave === undefined) return onDiscard()
     onSave(written)
     setEditing(false)
   }
+
 
   const post = () => {
     const written = text.trim()
@@ -129,7 +147,7 @@ export const Note = ({
         <Writing
           text={text}
           onText={setText}
-          placeholder="Say something about these lines"
+          placeholder={aboutLines ? "Say something about these lines" : "Say something about this file"}
           onEscape={onDiscard}
           onSend={() => void post()}
           suggest={suggest}
@@ -149,14 +167,19 @@ export const Note = ({
         >
           <Says among={WORDS} said={posting ? WORDS[1] : WORDS[0]} waiting={WORDS[1]} />
         </button>
-        <button
-          type="button"
-          className={`${BUTTON} disabled:opacity-40`}
-          disabled={text.trim() === "" || posting}
-          onClick={keep}
-        >
-          Save draft
-        </button>
+        {/* Only where there is somewhere to keep it. A draft hangs on the lines
+            it is about, so a File Remark has no key to be found again by, and a
+            button that quietly discarded instead would be worse than none. */}
+        {onSave === undefined ? null : (
+          <button
+            type="button"
+            className={`${BUTTON} disabled:opacity-40`}
+            disabled={text.trim() === "" || posting}
+            onClick={keep}
+          >
+            Save draft
+          </button>
+        )}
         <button type="button" className={BUTTON} disabled={posting} onClick={onDiscard}>
           Cancel
         </button>

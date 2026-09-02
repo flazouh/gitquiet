@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import { aComment, aThread, anchoredAt, person } from "../../tests/snapshots"
 import { revealer } from "../app/revealing"
@@ -312,7 +313,7 @@ describe("a remark on a line this file's diff does not contain", () => {
       "t-file",
       [aComment(person("ana"), "This file should not be in this pull request.")],
       false,
-      Option.some({ path: "src/one.ts" })
+      Option.some({ path: "src/one.ts", lines: null })
     )
 
     render(
@@ -333,7 +334,7 @@ describe("a remark on a line this file's diff does not contain", () => {
       "t-file",
       [aComment(person("ana"), "This file should not be in this pull request.")],
       false,
-      Option.some({ path: "src/one.ts" })
+      Option.some({ path: "src/one.ts", lines: null })
     )
 
     render(
@@ -343,6 +344,62 @@ describe("a remark on a line this file's diff does not contain", () => {
     )
 
     expect((await drawn()).notes ?? []).toEqual([])
+  })
+
+  test("offers a way to say something about the file, and sends it with no lines", async () => {
+    const posted: Array<{ readonly lines?: unknown; readonly body: string }> = []
+
+    render(
+      <Theme>
+        <SettingsProvider store={holding(DEFAULTS)}>
+          {pane({
+            onPost: (note) => {
+              posted.push(note)
+              return Effect.void
+            }
+          })}
+        </SettingsProvider>
+      </Theme>
+    )
+
+    await userEvent.click(await screen.findByRole("button", { name: "Say something about this file" }))
+    await userEvent.type(
+      screen.getByRole("textbox"),
+      "This file should not be in this pull request."
+    )
+    await userEvent.click(screen.getByRole("button", { name: "Comment" }))
+
+    expect(posted).toEqual([
+      { body: "This file should not be in this pull request." }
+    ])
+  })
+
+  test("names the file rather than a line it does not have, and keeps no draft", async () => {
+    render(
+      <Theme>
+        <SettingsProvider store={holding(DEFAULTS)}>
+          {pane({ onPost: () => Effect.void })}
+        </SettingsProvider>
+      </Theme>
+    )
+
+    await userEvent.click(await screen.findByRole("button", { name: "Say something about this file" }))
+
+    expect(screen.getByText("About this file")).toBeTruthy()
+    expect(screen.queryByText("Line 0")).toBeNull()
+    // A draft hangs on the lines it is about, and this has none to hang on.
+    expect(screen.queryByRole("button", { name: "Save draft" })).toBeNull()
+  })
+
+  test("offers no such way where nothing is wired up to send it", async () => {
+    render(
+      <Theme>
+        <SettingsProvider store={holding(DEFAULTS)}>{pane()}</SettingsProvider>
+      </Theme>
+    )
+
+    await drawn()
+    expect(screen.queryByRole("button", { name: "Say something about this file" })).toBeNull()
   })
 
   test("claims nothing while GitHub has not sent this file's diff", async () => {

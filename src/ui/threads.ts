@@ -130,7 +130,7 @@ export const threadsOn = (
 
   for (const hung of threadsIn(threads, path)) {
     const lines = hung.at.lines
-    if (lines === undefined) {
+    if (lines === null) {
       aboutTheFile.push(hung)
       continue
     }

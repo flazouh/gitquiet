@@ -1965,11 +1965,12 @@ export const layer = Layer.succeed(GitHubGateway, {
        * `docs/spec/github-write-api.md`.
        */
       const spot = ((): { readonly flat: object; readonly positioning: object } => {
-        if (note.lines === undefined) {
+        const lines = note.lines
+        if (lines === null) {
           return { flat: { subjectType: "file" }, positioning: { type: "file" } }
         }
 
-        const { side: half, line, startLine } = note.lines
+        const { side: half, line, startLine } = lines
         const side = asTheyNameIt(half)
         const range = startLine === line ? {} : { startLine, startSide: side }
         return {
@@ -2024,7 +2025,7 @@ export const layer = Layer.succeed(GitHubGateway, {
 
       return yield* toCreatedThread(JSON.parse(said), {
         path: note.path,
-        ...(note.lines === undefined ? {} : { lines: note.lines })
+        lines: note.lines
       }).pipe(
         Effect.catch((cause) =>
           Effect.fail(
@@ -2078,7 +2079,7 @@ export const layer = Layer.succeed(GitHubGateway, {
         })
       }
 
-      const thread = yield* toCreatedThread(parsed(said), { path: "" }).pipe(
+      const thread = yield* toCreatedThread(parsed(said), { path: "", lines: null }).pipe(
         Effect.catch((cause) =>
           Effect.fail(
             new GatewayError({

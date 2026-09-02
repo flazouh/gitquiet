@@ -14,7 +14,7 @@ const at = (
 
 /** A thread about the file as a whole: a path, and no line anywhere. */
 const aboutTheFile = (id: string, path: string): ReviewThread =>
-  aThread(id, [aComment(person("ana"), `about ${path}`)], false, Option.some({ path }))
+  aThread(id, [aComment(person("ana"), `about ${path}`)], false, Option.some({ path, lines: null }))
 
 const onLine = (id: string, path: string, line: number): ReviewThread =>
   aThread(id, [aComment(person("ana"), `about ${path}:${line}`)], false, anchoredAt(path, line))

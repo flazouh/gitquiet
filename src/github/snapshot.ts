@@ -201,7 +201,7 @@ const anchorsIn = (
 
       for (const thread of marker.threads) {
         if (spot === THE_FILE) {
-          found.set(String(thread.id), { path: summary.path })
+          found.set(String(thread.id), { path: summary.path, lines: null })
           continue
         }
 
