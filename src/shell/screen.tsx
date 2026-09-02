@@ -19,6 +19,7 @@ import {
   whenTakenOver,
   whenThereIsAPage
 } from "../ui/mount"
+import { landWhenArrived } from "../ui/landing"
 import type { Place } from "../ui/place"
 import { OWNED_TRAVERSAL } from "../ui/preparedNavigation"
 import { prepareRouteActivation } from "../ui/routeActivation"
@@ -163,6 +164,11 @@ export const standAScreen = (screen: Screen): Standing => {
     reveal(document)
     ungate(document)
   }, FAILSAFE)
+
+  // And the entrance, which belongs to the first screen this document shows and to
+  // no screen after it. Said here rather than in one screen's own tree, because
+  // every screen has panels and only one of them is a pull request.
+  const stopLanding = landWhenArrived(document)
 
   // Assigned once there is a page to step aside from. Until then the button that calls
   // it cannot be on the screen, because nothing is.
@@ -353,6 +359,7 @@ export const standAScreen = (screen: Screen): Standing => {
       }
       watching = false
       clearTimeout(failsafe)
+      stopLanding()
       // Nothing is waiting for this page any more. Left alone the wait holds an address
       // watcher and a mutation observer open for as long as its patience lasts. Null
       // where the reader left before the document had a body, which is a screen that

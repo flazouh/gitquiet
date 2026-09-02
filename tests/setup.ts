@@ -2,6 +2,7 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator"
 import { afterEach, setDefaultTimeout } from "bun:test"
 import { forgetFlights } from "../src/github/flight"
 import { forgetDrawn } from "../src/ui/lastDrawn"
+import { forgetLanded } from "../src/ui/landing"
 import { forgetEverything } from "./storage"
 
 /**
@@ -105,6 +106,16 @@ afterEach(forgetFlights)
  * test began, and with a route asked again after a wait it had.
  */
 afterEach(forgetEverything)
+
+/*
+ * And the mark saying this document has watched the interface arrive.
+ *
+ * Kept on `documentElement`, which is one element for the whole run: a test that
+ * lands a screen would otherwise hand every test after it a document where the
+ * entrance is already over, and the test that asserts a first arrival still
+ * animates would pass for the wrong reason. See `hasLandedBefore`.
+ */
+afterEach(() => forgetLanded(document))
 
 /**
  * And nothing a test drew is allowed to be drawn again for the test after it.

@@ -21,6 +21,7 @@ import { sizeOf } from "../domain/workingSet"
 import { diffChoices, treeChoices } from "../domain/choices"
 import { keyOf } from "../domain/PullRequestRef"
 import { keptReads } from "../app/kept"
+import { hasLandedBefore, LANDING, markLanded } from "./landing"
 import { revealer } from "../app/revealing"
 import type { Keys } from "../keys/commands"
 import { CommitView } from "./CommitView"
@@ -145,15 +146,6 @@ const NO_READER = new Error("Nothing is wired to read commits.")
  */
 const PREPARED = 17
 
-/**
- * How long an arrival may keep entering, in milliseconds.
- *
- * Past the last panel's stagger and its travel — five staggers of forty and a
- * quarter second of entrance is under half a second — so nothing is cut off
- * mid-arrival, and early enough that the first late read to land finds the
- * page already still.
- */
-const LANDING = 700
 
 /**
  * The one command that belongs to the page rather than to a panel in it.
@@ -542,11 +534,18 @@ export const Shell = ({
    * about answers. The delay is the entrance's own length — the longest stagger
    * plus the travel — with a beat to spare.
    */
-  const [landed, setLanded] = useState(false)
+  const [landed, setLanded] = useState(() => hasLandedBefore(document))
   useEffect(() => {
-    const timer = setTimeout(() => setLanded(true), LANDING)
+    if (landed) return
+    const timer = setTimeout(() => {
+      // On the document as well as in this state, so that the screen replacing
+      // this one starts landed rather than entering all over again. See
+      // `hasLandedBefore`.
+      markLanded(document)
+      setLanded(true)
+    }, LANDING)
     return () => clearTimeout(timer)
-  }, [])
+  }, [landed])
 
   return (
     <KeyboardScope value={ours}>

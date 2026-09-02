@@ -34,6 +34,7 @@ import {
   ARRIVING,
   drawingOurOwnRows,
   goTo,
+  holdForTraversal,
 } from "@/ui/going";
 import {
   activatePreparedTraversal,
@@ -319,14 +320,22 @@ export default defineContentScript({
     whenPreparing(window, prepareScreen);
 
     const openPreparedTraversal = (path: string): void => {
-      const screen = preparedScreens.get(path);
-      if (screen === undefined) return;
-
       const address = new URL(path, window.location.origin);
       const page = pageAt(address.pathname, address.search);
+      // Somewhere of GitHub's. Their page is the one to arrive at, and a surface of
+      // ours held over it is an interface standing on a page nobody is on.
       if (page === null) return;
 
       const place = placeFor(page, address.pathname);
+      const screen = preparedScreens.get(path);
+
+      // Nothing read ahead for this address, which is every traversal: neither Back
+      // nor Forward is a link, so no pointer ever warmed one.
+      if (screen === undefined) {
+        holdForTraversal(document, place.name);
+        return;
+      }
+
       const prepared = hasPreparedScreen(document, path, place);
       document.dispatchEvent(new CustomEvent(OWNED_TRAVERSAL, { detail: path }));
       const screenClaimedTheRoute = prepared && !hasPreparedScreen(document, path, place);

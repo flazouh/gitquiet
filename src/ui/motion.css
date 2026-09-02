@@ -681,6 +681,25 @@
 }
 
 /**
+ * And once for the document, not once for each screen that stands on it.
+ *
+ * The mark above is written by `Shell`, which is the pull request's. Every other
+ * screen renders its own tree and never had one, so a list's panels entered on
+ * every visit — including a Back onto a list the reader had just left, where the
+ * rows arrive whole in a single commit and only the filter bar above them fades.
+ * Recorded at 120 frames a second: 183 milliseconds of one strip of a settled
+ * page still arriving.
+ *
+ * `data-gitquiet-arrived` is set on the document once any screen's own arrival is
+ * over, so it is absent for exactly the one entrance worth watching and present
+ * for every move after it. A real page load empties it. See `hasLandedBefore`.
+ */
+[data-gitquiet-arrived] :is(#gitquiet-root, [data-gitquiet-outside]) .t-panels > *,
+[data-gitquiet-arrived] :is(#gitquiet-root, [data-gitquiet-outside]) .t-panel-fade {
+  animation: none;
+}
+
+/**
  * A filter chip's menu, growing out of the chip that opened it.
  *
  * The origin is the corner the menu is pinned to, so the growth reads as coming
