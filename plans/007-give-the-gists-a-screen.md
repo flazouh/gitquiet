@@ -1,6 +1,6 @@
 # 007 — Give the gists a screen, for the same reason every other page has one
 
-- **Status**: TODO
+- **Status**: DONE. All five steps, plus two gaps a later sweep found.
 - **Severity**: MEDIUM
 - **Category**: Consistency & architecture
 - **Estimated scope**: a gist Place, a list screen, a gist screen; `gist.content.ts` stands them
@@ -111,11 +111,16 @@ carry no React application, and that really did mean something before `plans/006
    can be skipped and left for later without the interface looking half-finished.
 4. **Step 5** last, when the code it describes is real.
 
-## What this does not do
+## What this ended up doing beyond the plan
 
-The Open Questions in `docs/spec/gists.md` stay open — click-to-filter-by-Label chips,
-pagination depth, starred gists. None of them is easier or harder after this plan, and
-bundling them in would make a consistency change into a feature change.
+The three Open Questions in `docs/spec/gists.md` were meant to stay open. All three turned out
+to cost nothing once the screens existed: the Label control is an inline editor on the row, the
+pagination depth is every page, and `/starred` serves the same rows as a reader's own list.
 
-Gist creation and editing stay GitHub's, for the reason the spec already gives: the editor is a
-different surface from the list, and the complaint about it is real but separate.
+Two more gaps came out of a second research sweep, both client-fixable and neither in the
+original notes: GitHub's account export carries no gist data at all, and their editor is a third
+of the height of the window it sits in. Both are built. Bulk delete was found in the same sweep
+and deliberately not built; the spec says why.
+
+Gist creation and editing stay GitHub's, as planned — but the editor gets room, which is the
+one thing about it a stylesheet can fix.
