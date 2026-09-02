@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { GistRow, Kind, Order } from "../domain/gistList"
 import { sifted } from "../domain/gistList"
+import { exported } from "../domain/gistExport"
 import { everyLabelKnown, type KeptGists, labelsOf, nameOf } from "../domain/gistLabels"
 import { GistRowView } from "./GistRowView"
 import { TheBar } from "./TheBar"
@@ -22,6 +23,14 @@ import { TheBar } from "./TheBar"
 
 export type GistListScreenProps = {
   readonly rows: ReadonlyArray<GistRow>
+  /**
+   * Whose gists these are, which changes only the words.
+   *
+   * The starred list is somebody else's gists and this reader's Labels, and every
+   * control on the screen means the same thing on both. What it must not do is call
+   * them "your gists", which is the one sentence that would be wrong.
+   */
+  readonly whose: "own" | "starred"
   /** Whether every page of their list was read, or the walk stopped short. */
   readonly whole: boolean
   readonly kept: KeptGists
@@ -53,6 +62,7 @@ const ORDERS: ReadonlyArray<readonly [Order, string]> = [
 
 export const GistListScreen = ({
   rows,
+  whose,
   whole,
   kept,
   onChange,
@@ -105,6 +115,29 @@ export const GistListScreen = ({
     [rows, kind, order, query, picked, kept]
   )
 
+  /**
+   * Their list, written out as a file the reader keeps.
+   *
+   * GitHub's own account export does not include gist data, which is why "archive my
+   * gists" is itself a genre of published script. This screen has already read every
+   * page to search it, so the export is what it is holding, written down — plus the two
+   * fields GitHub could never export because GitHub does not have them.
+   *
+   * Built and revoked here rather than held: an object URL that outlives the press is a
+   * copy of the reader's whole list kept alive in the page for no reason.
+   */
+  const takeACopy = (): void => {
+    const file = new Blob([JSON.stringify(exported(rows, kept, whole), null, 2)], {
+      type: "application/json"
+    })
+    const at = URL.createObjectURL(file)
+    const link = document.createElement("a")
+    link.href = at
+    link.download = `gists-${new Date().toISOString().slice(0, 10)}.json`
+    link.click()
+    URL.revokeObjectURL(at)
+  }
+
   const toggle = (label: string): void =>
     setPicked((held) =>
       held.includes(label) ? held.filter((one) => one !== label) : [...held, label]
@@ -130,8 +163,10 @@ export const GistListScreen = ({
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            aria-label="Search your gists"
-            placeholder="Search your gists — titles, descriptions, and the file content GitHub's own search does not read.  /"
+            aria-label={whose === "own" ? "Search your gists" : "Search your starred gists"}
+            placeholder={`Search ${
+              whose === "own" ? "your gists" : "the gists you have starred"
+            } — titles, descriptions, and the file content GitHub's own search does not read.  /`}
             className="h-8 min-w-64 grow rounded-md bg-raised px-3 text-sm"
           />
           <label className="sr-only" htmlFor="gist-kind">
@@ -171,6 +206,14 @@ export const GistListScreen = ({
           >
             New gist
           </a>
+          <button
+            type="button"
+            onClick={takeACopy}
+            disabled={rows.length === 0}
+            className="h-8 rounded-md bg-surface px-3 text-xs disabled:opacity-50"
+          >
+            Export
+          </button>
           <button
             type="button"
             onClick={onStepAside}
@@ -216,7 +259,9 @@ export const GistListScreen = ({
 
         <p className="text-xs text-ink-muted">
           {shown.length === rows.length
-            ? `${rows.length} gist${rows.length === 1 ? "" : "s"}`
+            ? `${rows.length} ${whose === "starred" ? "starred " : ""}gist${
+                rows.length === 1 ? "" : "s"
+              }`
             : `${shown.length} of ${rows.length}`}
           {whole ? null : " · some older pages could not be read, so this list is short"}
         </p>

@@ -1,5 +1,5 @@
 import { Option } from "effect"
-import { gistListIn, gistViewIn } from "../domain/gist"
+import { gistListIn, gistViewIn, isGistStarred } from "../domain/gist"
 import type { Place } from "./place"
 
 /**
@@ -53,6 +53,19 @@ export const GIST_LIST: Place = {
   owns: (path, search) => Option.isSome(gistListIn(gistAddress(path, search)))
 }
 
+/**
+ * The gists this reader has starred, which are somebody else's.
+ *
+ * The same screen as their own list draws it, because it is the same rows: a Label on a
+ * gist somebody else wrote is exactly as useful as one on your own, and arguably more,
+ * since you did not name the file.
+ */
+export const GIST_STARRED: Place = {
+  ...WHOLE_PAGE,
+  name: "gist-starred",
+  owns: (path, search) => isGistStarred(gistAddress(path, search))
+}
+
 /** One gist. */
 export const GIST_VIEW: Place = {
   ...WHOLE_PAGE,
@@ -71,6 +84,7 @@ export const GIST_VIEW: Place = {
  * agreeing.
  */
 export const gistPlaceOwning = (path: string, search: string = ""): Place | null => {
+  if (GIST_STARRED.owns(path, search)) return GIST_STARRED
   if (GIST_VIEW.owns(path, search)) return GIST_VIEW
   if (GIST_LIST.owns(path, search)) return GIST_LIST
   return null

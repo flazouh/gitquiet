@@ -11,7 +11,7 @@ import type { GistSeen } from "@/domain/gist"
 import { gistOnPage } from "@/github/gistView"
 import { GistListScreen } from "@/ui/GistListScreen"
 import { GistScreen } from "@/ui/GistScreen"
-import { GIST_LIST, GIST_VIEW } from "@/ui/gistPlace"
+import { GIST_LIST, GIST_STARRED, GIST_VIEW } from "@/ui/gistPlace"
 import { Option } from "effect"
 import { handBack } from "@/ui/mount"
 import { whenAddressChanges } from "@/ui/navigation"
@@ -87,12 +87,13 @@ export default defineContentScript({
       handBack(document)
     }
 
-    const drawList = (): Standing =>
+    const drawList = (place: typeof GIST_LIST, whose: "own" | "starred"): Standing =>
       standAScreen({
-        place: GIST_LIST,
+        place,
         draw: () => (
           <GistListScreen
             rows={rows}
+            whose={whose}
             whole={whole}
             kept={kept}
             onChange={onChange}
@@ -157,14 +158,15 @@ export default defineContentScript({
         return
       }
 
-      if (!GIST_LIST.owns(path, search)) {
+      const starred = GIST_STARRED.owns(path, search)
+      if (!starred && !GIST_LIST.owns(path, search)) {
         stepAside()
         return
       }
 
       if (stood === path) return
       stood = path
-      standing = drawList()
+      standing = drawList(starred ? GIST_STARRED : GIST_LIST, starred ? "starred" : "own")
 
       Effect.runFork(
         readOwnGists(document, readPage).pipe(

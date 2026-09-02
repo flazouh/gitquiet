@@ -142,3 +142,22 @@ export const isGistEditing = (url: string): boolean => {
     !NOT_AN_OWNER.has(owner.toLowerCase())
   )
 }
+
+/**
+ * Their starred page, which is a list of gists somebody else wrote.
+ *
+ * An Open Question in `docs/spec/gists.md` until it turned out to cost nothing: read
+ * live on 2026-09-02, `/starred` serves the same `.gist-snippet` rows and the same pager
+ * as a reader's own list, so every reader this codebase already has answers it.
+ *
+ * Its own address rather than an owner's, which is why `NOT_AN_OWNER` holds the word:
+ * `gistListIn` must never read `/starred` as a list belonging to somebody called
+ * "starred".
+ */
+export const isGistStarred = (url: string): boolean => {
+  const address = URL.parse(url)
+  if (address === null || address.hostname !== "gist.github.com") return false
+
+  const segments = address.pathname.split("/").filter((part) => part.length > 0)
+  return segments.length === 1 && segments[0]?.toLowerCase() === "starred"
+}

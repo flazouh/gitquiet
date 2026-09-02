@@ -35,11 +35,18 @@ describe("which gist screen owns an address", () => {
   })
 
   test("the site's own words are not an owner", () => {
-    // `/search`, `/discover`, `/mine`, `/starred`. A parser that did not know them would
-    // read the whole site as somebody's gist list and blank it.
+    // `/search`, `/discover`, `/mine`. A parser that did not know them would read the
+    // whole site as somebody's gist list and blank it.
     expect(gistPlaceOwning("/search", "?q=thing")).toBeNull()
     expect(gistPlaceOwning("/discover", "")).toBeNull()
-    expect(gistPlaceOwning("/starred", "")).toBeNull()
+    expect(gistPlaceOwning("/mine", "")).toBeNull()
+  })
+
+  test("starred is its own screen, and never a list belonging to nobody", () => {
+    // `NOT_AN_OWNER` still holds the word, which is what keeps `gistListIn` from
+    // reading `/starred` as a list belonging to somebody called "starred".
+    expect(gistPlaceOwning("/starred", "")?.name).toBe("gist-starred")
+    expect(GIST_LIST.owns("/starred", "")).toBe(false)
   })
 
   test("nothing at the root", () => {

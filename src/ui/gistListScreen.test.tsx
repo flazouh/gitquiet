@@ -27,10 +27,16 @@ const ROWS = [
   row({ id: "ccc333", title: "config.json", description: "widget config", preview: "theme dark", forks: 4, updatedAt: "2026-06-15T08:30:00Z" })
 ]
 
-const showing = (kept: KeptGists = new Map(), rows = ROWS, whole = true) =>
+const showing = (
+  kept: KeptGists = new Map(),
+  rows = ROWS,
+  whole = true,
+  whose: "own" | "starred" = "own"
+) =>
   render(
     <GistListScreen
       rows={rows}
+      whose={whose}
       whole={whole}
       kept={kept}
       onChange={() => {}}
@@ -176,5 +182,28 @@ describe("a reader's own gists", () => {
     showing()
 
     expect(screen.getByRole("link", { name: "New gist" })).toBeTruthy()
+  })
+
+  test("offers a copy of the list, which GitHub's own export does not include", () => {
+    // "archive my gists" is itself a genre of published script, because GitHub's account
+    // export carries no gist data at all.
+    showing()
+
+    expect(screen.getByRole("button", { name: "Export" })).toBeTruthy()
+  })
+
+  test("offers no copy of an empty list", () => {
+    showing(new Map(), [])
+
+    expect(screen.getByRole("button", { name: "Export" }).hasAttribute("disabled")).toBe(true)
+  })
+
+  test("draws the starred list too, without calling it yours", () => {
+    // Somebody else's gists and this reader's Labels. Every control means the same
+    // thing on both; the one sentence that would be wrong is "your gists".
+    showing(new Map(), ROWS, true, "starred")
+
+    expect(screen.getByLabelText("Search your starred gists")).toBeTruthy()
+    expect(screen.getByText("3 starred gists")).toBeTruthy()
   })
 })
