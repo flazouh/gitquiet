@@ -67,3 +67,36 @@ export const gistListIn = (url: string): Option.Option<GistList> => {
 
   return Option.some({ owner, page: Number.isNaN(page) ? 1 : page })
 }
+
+/**
+ * One file inside a gist, as their own page already rendered it.
+ *
+ * `rendered` is the difference between a README GitHub turned into HTML and a source
+ * file it printed as lines, and the screen draws them differently: the first is prose
+ * and the second is code. Reading the text of both and hoping is how a markdown file
+ * ends up in a monospace column with its heading markers showing.
+ */
+export type GistFile = {
+  readonly name: string
+  /** Off their own `type-…` class, which is the language they highlighted it as. */
+  readonly language: string | null
+  readonly content: string
+  readonly rendered: boolean
+  /** Their raw link, which is the one control on a file row worth keeping. */
+  readonly raw: string | null
+}
+
+/** One gist, everything their page says about it. */
+export type GistSeen = {
+  readonly owner: string
+  readonly id: string
+  readonly title: string
+  readonly description: string | null
+  readonly secret: boolean
+  readonly updatedAt: string
+  readonly files: ReadonlyArray<GistFile>
+  readonly revisions: number
+  readonly forks: number
+  readonly stars: number
+  readonly comments: number
+}

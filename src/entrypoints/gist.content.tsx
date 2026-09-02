@@ -6,9 +6,13 @@ import { withLabels, withName, type KeptGists } from "@/domain/gistLabels"
 import type { GistRow } from "@/domain/gistList"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import { standAScreen, type Standing } from "@/shell/screen"
+import { gistViewIn } from "@/domain/gist"
+import type { GistSeen } from "@/domain/gist"
+import { gistOnPage } from "@/github/gistView"
 import { GistListScreen } from "@/ui/GistListScreen"
-import { plantSecretBanner } from "@/ui/gistBanner"
+import { GistScreen } from "@/ui/GistScreen"
 import { GIST_LIST, GIST_VIEW } from "@/ui/gistPlace"
+import { Option } from "effect"
 import { handBack } from "@/ui/mount"
 import { whenAddressChanges } from "@/ui/navigation"
 import "@/ui/styles.css"
@@ -96,6 +100,14 @@ export default defineContentScript({
         )
       })
 
+    const drawGist = (gist: GistSeen): Standing =>
+      standAScreen({
+        place: GIST_VIEW,
+        draw: () => (
+          <GistScreen gist={gist} kept={kept} onChange={onChange} onStepAside={stepAside} />
+        )
+      })
+
     /**
      * Whichever screen this address is, or GitHub's own page where it is neither.
      *
@@ -108,9 +120,23 @@ export default defineContentScript({
       const path = window.location.pathname
       const search = window.location.search
 
-      if (GIST_VIEW.owns(path, search)) {
-        // Their gist page, plus the warning it has always needed.
-        plantSecretBanner(document)
+      const one = gistViewIn(`https://gist.github.com${path}${search}`)
+      if (Option.isSome(one)) {
+        if (stood === path) return
+
+        /*
+         * Read before anything is stood, and their page kept where it cannot be.
+         *
+         * The list can draw an empty screen and fill it, because the rows arrive from a
+         * fetch this file makes. A gist is already in the document, so there is nothing
+         * to wait for — and a page this cannot read is a page with nothing to put in
+         * front of the reader, which is GitHub's to keep.
+         */
+        const seen = gistOnPage(document, one.value.owner, one.value.id)
+        if (seen === null) return
+
+        stood = path
+        standing = drawGist(seen)
         return
       }
 

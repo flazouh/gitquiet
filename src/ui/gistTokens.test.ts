@@ -58,7 +58,11 @@ const painted = (source: string): ReadonlyArray<string> =>
 describe("the gist screens paint with colours this codebase has", () => {
   const known = defined()
 
-  for (const path of ["src/ui/GistListScreen.tsx", "src/ui/GistRowView.tsx"]) {
+  for (const path of [
+    "src/ui/GistListScreen.tsx",
+    "src/ui/GistRowView.tsx",
+    "src/ui/GistScreen.tsx"
+  ]) {
     test(`${path} names no colour that does not exist`, () => {
       const unknown = [...new Set(painted(readFileSync(path, "utf8")))].filter(
         (suffix) => !known.has(suffix)
