@@ -358,21 +358,29 @@ export const Shell = ({
         ? undefined
         : (note: {
             readonly path: string
-            readonly side: DiffSide
-            readonly from: number
-            readonly to: number
+            readonly lines?: {
+              readonly side: DiffSide
+              readonly from: number
+              readonly to: number
+            }
             readonly body: string
           }) =>
             Effect.map(
               postComment({
                 path: note.path,
-                // The half of the diff the lines were marked on, which is the
-                // file their numbers belong to. A remark on a removed line
-                // carried over to the new file is a remark on whichever line
-                // the change happened to leave at that number.
-                side: anchorSideOf(note.side),
-                line: note.to,
-                startLine: note.from,
+                // Absent on a File Remark, which is about the file rather than
+                // any line of it. Where there are lines, the half of the diff
+                // they were marked on is the file their numbers belong to: a
+                // remark on a removed line carried over to the new file is a
+                // remark on whichever line the change happened to leave there.
+                lines:
+                  note.lines === undefined
+                    ? null
+                    : {
+                        side: anchorSideOf(note.lines.side),
+                        line: note.lines.to,
+                        startLine: note.lines.from
+                      },
                 body: note.body,
                 baseSha: snapshot.baseSha,
                 headSha: snapshot.headSha

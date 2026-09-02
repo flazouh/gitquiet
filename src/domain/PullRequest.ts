@@ -103,12 +103,28 @@ export type ThreadComment = {
  */
 export type ThreadAnchor = {
   readonly path: string
-  /** Which side of the diff the line is numbered on. */
-  readonly side: "before" | "after"
-  /** The line it is hung from, which for a range is the last of them. */
-  readonly line: number
-  /** The first line of the range, equal to {@link line} for a single line. */
-  readonly startLine: number
+  /**
+   * The lines it hangs from, or nothing on a File Remark.
+   *
+   * Null is not a missing answer. A remark about the file as a whole — "this
+   * should not be in this pull request" — is not about line 40, and GitHub
+   * carries it under the marker `FILE` rather than under `R40`.
+   *
+   * Required and nullable rather than optional, which is the stricter of the
+   * two on purpose. Optional, an anchor still written the old flat way — `{path,
+   * side, line, startLine}` — satisfies this type, because every field it must
+   * have is there and the rest are excess. Every such anchor then reads as a
+   * File Remark. That is not a hypothetical: it is what the shots caught after
+   * this field was first written optional.
+   */
+  readonly lines: {
+    /** Which side of the diff the line is numbered on. */
+    readonly side: "before" | "after"
+    /** The line it is hung from, which for a range is the last of them. */
+    readonly line: number
+    /** The first line of the range, equal to {@link ThreadAnchor.lines.line} for a single line. */
+    readonly startLine: number
+  } | null
 }
 
 /**
@@ -122,17 +138,19 @@ export type ThreadAnchor = {
 export type NewComment = {
   readonly path: string
   /**
-   * Which side of the diff the lines are numbered on, spelled as
-   * {@link ThreadAnchor} spells it.
+   * The lines it is about, or nothing to say it about the file as a whole.
    *
-   * A remark on a removed line belongs to the old file's numbering. Sent
-   * without this, it would be filed against the new file at the same number,
-   * where it lands on whatever happens to sit there now or on nothing at all.
+   * The side is carried because a remark on a removed line belongs to the old
+   * file's numbering. Sent without it, such a remark is filed against the new
+   * file at the same number, where it lands on whatever happens to sit there
+   * now or on nothing at all.
+   *
+   * Null is a File Remark, which GitHub takes as a subject type rather than a
+   * line. Both spellings of that type are accepted and both come back as
+   * `file`; see `docs/spec/github-write-api.md`. Nullable rather than optional
+   * for the reason {@link ThreadAnchor.lines} gives.
    */
-  readonly side: ThreadAnchor["side"]
-  /** The last line of the range, which for a single line is the only one. */
-  readonly line: number
-  readonly startLine: number
+  readonly lines: NonNullable<ThreadAnchor["lines"]> | null
   readonly body: string
   readonly baseSha: string
   readonly headSha: string

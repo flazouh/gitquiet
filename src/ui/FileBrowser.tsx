@@ -69,13 +69,18 @@ export type FileBrowserProps = {
   readonly threads?: ReadonlyArray<ReviewThread>;
   /** What can be done to a thread hung off a line here. See `ThreadView`. */
   readonly answering?: Answering;
-  /** Sends a remark on some lines of a file to GitHub. */
+  /**
+   * Sends a remark about a file to GitHub: about some of its lines, or about
+   * the whole of it. See `CONTEXT.md`, File Remark.
+   */
   readonly onPost?: (note: {
     readonly path: string;
-    /** Which half of the diff the lines were marked on, since the two are numbered apart. */
-    readonly side: DiffSide;
-    readonly from: number;
-    readonly to: number;
+    readonly lines?: {
+      /** Which half of the diff the lines were marked on, since the two are numbered apart. */
+      readonly side: DiffSide;
+      readonly from: number;
+      readonly to: number;
+    };
     readonly body: string;
   }) => Effect.Effect<void, unknown>;
   /** Whoever is writing, so the box is signed the way the remark will be. */

@@ -15,6 +15,17 @@ export type AnchoredThread = {
 }
 
 /**
+ * One whose anchor names lines, carried out where a caller can read them.
+ *
+ * A row hangs off a line, so everything that draws one needs a thread that has
+ * one. Lifting the lines here is what lets that be a fact of the type rather
+ * than a check every drawing repeats.
+ */
+export type LineThread = AnchoredThread & {
+  readonly lines: NonNullable<ThreadAnchor["lines"]>
+}
+
+/**
  * The row a thread hangs in, named after the thread and not after its line.
  *
  * The renderer keeps a row's contents against this key, so a file redrawn at a
@@ -29,7 +40,7 @@ export const threadKey = (thread: ReviewThread): string => `thread:${thread.id}`
  * was removed belongs to the old file's numbering, and put on the new file's
  * it would land on whatever happens to sit at that number now.
  */
-export const sideOf = (side: ThreadAnchor["side"]): DiffSide =>
+export const sideOf = (side: NonNullable<ThreadAnchor["lines"]>["side"]): DiffSide =>
   side === "before" ? "deletions" : "additions"
 
 /**
@@ -39,7 +50,7 @@ export const sideOf = (side: ThreadAnchor["side"]): DiffSide =>
  * the renderer hands over is the half of its own two the pointer was on, and
  * what a remark travels to GitHub as is the file that half is numbered in.
  */
-export const anchorSideOf = (side: DiffSide): ThreadAnchor["side"] =>
+export const anchorSideOf = (side: DiffSide): NonNullable<ThreadAnchor["lines"]>["side"] =>
   side === "deletions" ? "before" : "after"
 
 /** Every thread hung off a line of this file, in the order they arrived. */
@@ -96,8 +107,16 @@ export const drawnIn = (lines: ReadonlyArray<DiffLine>): Drawn => {
  * as the fetch takes, and then take it back.
  */
 export type OnFile = {
-  readonly inReach: ReadonlyArray<AnchoredThread>
-  readonly outOfReach: ReadonlyArray<AnchoredThread>
+  readonly inReach: ReadonlyArray<LineThread>
+  readonly outOfReach: ReadonlyArray<LineThread>
+  /**
+   * Threads about the file as a whole rather than about any line of it.
+   *
+   * A third kind and not a worse second: a File Remark is not missing a line,
+   * it never had one, and calling it out of reach would tell the reader GitHub
+   * had hidden something. See `CONTEXT.md`, File Remark.
+   */
+  readonly aboutTheFile: ReadonlyArray<AnchoredThread>
 }
 
 export const threadsOn = (
@@ -105,21 +124,32 @@ export const threadsOn = (
   path: string,
   drawn: Drawn | null
 ): OnFile => {
-  const mine = threadsIn(threads, path)
-  if (drawn === null) return { inReach: mine, outOfReach: [] }
+  const inReach: Array<LineThread> = []
+  const outOfReach: Array<LineThread> = []
+  const aboutTheFile: Array<AnchoredThread> = []
 
-  const inReach: Array<AnchoredThread> = []
-  const outOfReach: Array<AnchoredThread> = []
+  for (const hung of threadsIn(threads, path)) {
+    const lines = hung.at.lines
+    if (lines === null) {
+      aboutTheFile.push(hung)
+      continue
+    }
 
-  for (const hung of mine) {
+    // Nothing can be judged out of reach before the diff lands, so everything
+    // with a line counts as in reach until it does.
+    if (drawn === null) {
+      inReach.push({ ...hung, lines })
+      continue
+    }
+
     // The last line of the range, because that is the line the row hangs off.
     // A range whose first line was drawn and whose last was not has nowhere to
     // open, which is the same nowhere as a range drawn on neither.
-    const half = hung.at.side === "before" ? drawn.before : drawn.after
-    ;(half.has(hung.at.line) ? inReach : outOfReach).push(hung)
+    const half = lines.side === "before" ? drawn.before : drawn.after
+    ;(half.has(lines.line) ? inReach : outOfReach).push({ ...hung, lines })
   }
 
-  return { inReach, outOfReach }
+  return { inReach, outOfReach, aboutTheFile }
 }
 
 /**
@@ -129,9 +159,9 @@ export const threadsOn = (
  * draws it: a remark about lines 137 to 140 opened above 137 separates the
  * reader from the code it is about by the whole of the block.
  */
-export const threadNotes = (hung: ReadonlyArray<AnchoredThread>): ReadonlyArray<Note> =>
-  hung.map(({ thread, at }) => ({
+export const threadNotes = (hung: ReadonlyArray<LineThread>): ReadonlyArray<Note> =>
+  hung.map(({ thread, lines }) => ({
     key: threadKey(thread),
-    side: sideOf(at.side),
-    line: at.line
+    side: sideOf(lines.side),
+    line: lines.line
   }))

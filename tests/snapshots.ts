@@ -61,7 +61,7 @@ export const aRemark = (id: string, author: Participant, body = "a remark"): Rem
 
 /** A thread hung off one line of a file, for the diff to draw it beside. */
 export const anchoredAt = (path: string, line: number): Option.Option<ThreadAnchor> =>
-  Option.some({ path, side: "after", line, startLine: line })
+  Option.some({ path, lines: { side: "after", line, startLine: line } })
 
 export const aFile = (path: string, readByViewer = false): ChangedFile => ({
   path,

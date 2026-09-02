@@ -375,12 +375,19 @@ export type FileDiffPaneProps = {
   readonly threads?: ReadonlyArray<ReviewThread>
   /** What can be done to a thread hung off a line here. See `ThreadView`. */
   readonly answering?: Answering
-  /** Sends a remark to GitHub. Absent where nothing is wired up to. */
+  /**
+   * Sends a remark to GitHub. Absent where nothing is wired up to.
+   *
+   * The lines are absent on a File Remark, which is about the file as a whole
+   * rather than about any line of it. See `CONTEXT.md`, File Remark.
+   */
   readonly onPost?: (note: {
-    /** Which half of the diff the lines were marked on, since the two are numbered apart. */
-    readonly side: DiffSide
-    readonly from: number
-    readonly to: number
+    readonly lines?: {
+      /** Which half of the diff the lines were marked on, since the two are numbered apart. */
+      readonly side: DiffSide
+      readonly from: number
+      readonly to: number
+    }
     readonly body: string
   }) => Effect.Effect<void, unknown>
   /** Whoever is writing, so the box is signed the way the remark will be. */
@@ -583,7 +590,7 @@ const FileDiffPaneView = ({
   // The threads GitHub already holds against lines of this file, split by
   // whether there is a line here to hang them on. Read here rather than passed
   // in already filtered, so a caller cannot hand this file another file's.
-  const { inReach: hung, outOfReach } = useMemo(
+  const { inReach: hung, outOfReach, aboutTheFile } = useMemo(
     () => threadsOn(threads, file.path, drawn),
     [threads, file.path, drawn]
   )
@@ -738,6 +745,10 @@ const FileDiffPaneView = ({
     told.current?.(picked)
   }, [picked])
 
+  // Whether the box for a File Remark is open. One per pane, because there is
+  // one file, and closed again the moment the remark is sent.
+  const [sayingAboutFile, setSayingAboutFile] = useState(false)
+
   const letGo = () => {
     setPicked(null)
     handle.current?.unpick()
@@ -777,7 +788,7 @@ const FileDiffPaneView = ({
                 onPost === undefined
                   ? undefined
                   : (body) =>
-                      onPost({ ...picked, body }).pipe(Effect.tap(() => Effect.sync(letGo)))
+                      onPost({ lines: picked, body }).pipe(Effect.tap(() => Effect.sync(letGo)))
               }
               onSave={(body) => {
                 onSaveDraft?.({ path: file.path, ...picked, body })
@@ -804,7 +815,7 @@ const FileDiffPaneView = ({
               onPost === undefined
                 ? undefined
                 : (body) =>
-                    onPost({ side: draft.side, from: draft.from, to: draft.to, body }).pipe(
+                    onPost({ lines: { side: draft.side, from: draft.from, to: draft.to }, body }).pipe(
                       Effect.tap(() => Effect.sync(() => onDropDraft?.(note.key)))
                     )
             }
@@ -817,35 +828,79 @@ const FileDiffPaneView = ({
           note.key
         )
       })}
-      {/* Threads GitHub holds against lines this file's diff does not contain.
-          Drawn here, above the file, because there is no line in it to hang
-          them under and the alternative is a file that reads as though nobody
-          said anything about it. See `CONTEXT.md`, Out of Reach. */}
-      {outOfReach.length === 0 ? null : (
+      {/* What is said about this file with no line in the drawing to hang it
+          under: remarks about the file as a whole, and threads GitHub holds
+          against lines this file's diff does not contain. Both would otherwise
+          be handed to a renderer with nowhere to put them, and the file would
+          read as though nobody had said anything about it. See `CONTEXT.md`,
+          File Remark and Out of Reach. */}
+      {aboutTheFile.length === 0 && outOfReach.length === 0 && !canPost ? null : (
         <section
-          aria-label="Said about lines not in this diff"
+          aria-label="Said about this file"
           /* The dress the note rows wear, named again: those are portalled into
              the renderer's shadow root and carry it themselves, and a thread out
              here would otherwise be the one comment on the page drawn in the
              pane's own size. Held to the same width for the same reason. */
           className="border-b border-line bg-surface font-sans text-sm text-ink"
         >
-          <p className="px-3 py-1.5 text-xs text-ink-muted">
-            {outOfReach.length === 1
-              ? "One comment is on a line GitHub left out of this file's diff."
-              : `${outOfReach.length} comments are on lines GitHub left out of this file's diff.`}
-          </p>
-          {outOfReach.map(({ thread, at }) => (
+          {/* The way to say something about the file rather than about a line
+              of it. Quiet, and a line of text rather than a button with a box
+              around it: it is the rarer of the two things a reader says here,
+              and the gutter's plus is the other. */}
+          {!canPost ? null : sayingAboutFile ? (
+            <div className="w-[min(46rem,100%)] border-b border-line px-3 py-2">
+              <Note
+                body=""
+                viewer={viewer}
+                onPost={
+                  onPost === undefined
+                    ? undefined
+                    : (body) =>
+                        onPost({ body }).pipe(
+                          Effect.tap(() => Effect.sync(() => setSayingAboutFile(false)))
+                        )
+                }
+                onDiscard={() => setSayingAboutFile(false)}
+                suggest={suggest}
+                onUpload={onUpload}
+              />
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSayingAboutFile(true)}
+              className="w-full px-3 py-1.5 text-left text-xs text-ink-muted hover:text-ink"
+            >
+              Say something about this file
+            </button>
+          )}
+          {aboutTheFile.map(({ thread }) => (
+            <div
+              key={threadKey(thread)}
+              className="w-[min(46rem,100%)] border-b border-line px-3 py-2"
+            >
+              <p className="pb-1.5 text-xs text-ink-muted">About this file</p>
+              <ThreadInDiff thread={thread} answering={answering} />
+            </div>
+          ))}
+          {outOfReach.length === 0 ? null : (
+            <p className="px-3 py-1.5 text-xs text-ink-muted">
+              {outOfReach.length === 1
+                ? "One comment is on a line GitHub left out of this file's diff."
+                : `${outOfReach.length} comments are on lines GitHub left out of this file's diff.`}
+            </p>
+          )}
+          {outOfReach.map(({ thread, lines }) => (
             <div
               key={threadKey(thread)}
               className="w-[min(46rem,100%)] border-t border-line px-3 py-2"
             >
               {/* The line is said here because the thread is not beside it. */}
               <p className="pb-1.5 font-mono text-xs text-ink-muted">
-                {at.startLine === at.line
-                  ? `Line ${at.line}`
-                  : `Lines ${at.startLine} to ${at.line}`}
-                {at.side === "before" ? ", as it was before" : ""}
+                {lines.startLine === lines.line
+                  ? `Line ${lines.line}`
+                  : `Lines ${lines.startLine} to ${lines.line}`}
+                {lines.side === "before" ? ", as it was before" : ""}
               </p>
               <ThreadInDiff thread={thread} answering={answering} />
             </div>

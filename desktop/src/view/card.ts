@@ -86,13 +86,26 @@ export const askToSay = Effect.fn("askToSay")(function* (
   reference: PullRequestRef,
   note: NewComment
 ) {
+  /*
+   * Lines only. This window has no way to say something about a file as a whole
+   * yet, and the route it asks is named for the lines it takes, so a File Remark
+   * fails here rather than being sent as a remark on line nothing. See
+   * `CONTEXT.md`, File Remark.
+   */
+  const lines = note.lines
+  if (lines === null) {
+    return yield* Effect.fail(
+      refused(reference, "comment", "This window says things about lines, not about a whole file.")
+    )
+  }
+
   const answered = yield* Effect.tryPromise({
     try: () =>
       ask("sayOnLines", {
         ...reference,
         path: note.path,
-        line: note.line,
-        startLine: note.startLine,
+        line: lines.line,
+        startLine: lines.startLine,
         body: note.body,
         headSha: note.headSha
       }),

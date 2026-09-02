@@ -8,9 +8,13 @@ import { type Drawn, drawnIn, threadKey, threadNotes, threadsOn } from "./thread
 const at = (
   path: string,
   line: number,
-  side: ThreadAnchor["side"] = "after",
+  side: NonNullable<ThreadAnchor["lines"]>["side"] = "after",
   startLine = line
-): Option.Option<ThreadAnchor> => Option.some({ path, side, line, startLine })
+): Option.Option<ThreadAnchor> => Option.some({ path, lines: { side, line, startLine } })
+
+/** A thread about the file as a whole: a path, and no line anywhere. */
+const aboutTheFile = (id: string, path: string): ReviewThread =>
+  aThread(id, [aComment(person("ana"), `about ${path}`)], false, Option.some({ path, lines: null }))
 
 const onLine = (id: string, path: string, line: number): ReviewThread =>
   aThread(id, [aComment(person("ana"), `about ${path}:${line}`)], false, anchoredAt(path, line))
@@ -134,6 +138,28 @@ describe("a remark on a line the diff never drew", () => {
 
     expect(reached([spanning], "src/spin.ts", drew([], [137])).outOfReach.length).toBe(1)
     expect(reached([spanning], "src/spin.ts", drew([], [140])).inReach.length).toBe(1)
+  })
+
+  test("keeps a thread about the whole file out of both, since it never had a line", () => {
+    const whole = aboutTheFile("t8", "src/spin.ts")
+
+    const found = reached([whole], "src/spin.ts", drew([], [1, 2, 3]))
+
+    expect(found.inReach).toEqual([])
+    expect(found.outOfReach).toEqual([])
+    expect(found.aboutTheFile.map((one) => one.thread.id)).toEqual(["t8"])
+  })
+
+  test("hands the renderer no row for one either", () => {
+    const whole = aboutTheFile("t8", "src/spin.ts")
+
+    expect(threadNotes(reached([whole], "src/spin.ts").inReach)).toEqual([])
+  })
+
+  test("keeps one about another file out of this one", () => {
+    const found = reached([aboutTheFile("t8", "README.md")], "src/spin.ts")
+
+    expect(found.aboutTheFile).toEqual([])
   })
 
   test("claims nothing is out of reach while the diff has not arrived", () => {

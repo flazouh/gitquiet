@@ -1,6 +1,7 @@
 # Commenting where the diff does not reach
 
-Status: steps 0, 1, 2 and 3 done, 2026-09-02. Step 2 answered all three questions and reversed
+Status: steps 0 to 4 done, 2026-09-02. Only step 5 is left, and it needs a decision rather than
+a build: step 2 found GitHub takes such a comment and draws it nowhere. Step 2 answered all three questions and reversed
 this plan's section 3; steps 3, 4 and 5 are now unblocked and section 5 needs re-reading
 against what was measured. See `docs/spec/github-write-api.md`, "What `create_review_comment`
 takes, measured".
@@ -444,7 +445,20 @@ Estimate: about 2 days.
 
 ### Step 4. A remark about a changed file as a whole
 
-Only if step 2 settles the spelling of the subject type.
+**Built, 2026-09-02.** `ThreadAnchor` and `NewComment` nest their lines under the path now,
+and null there is a File Remark. The gateway sends a subject type instead of a line, the pane
+draws such a thread above the file, and a reader can write one from the same place.
+
+The plan said the reading half needed nothing. It did. `spotAt` dropped a `FILE` marker and
+the path beside it went too, so a File Remark reached the conversation naming no file at all.
+
+Two things worth keeping. `lines` was written optional first, the way `LookingAt` has it, and
+that quietly accepted every anchor still written the old flat way: each one satisfied the new
+type and read as a File Remark, so every thread in the shots stage drew as one. Nothing in
+4,374 tests caught it and the type checker was happy; `bun run qa` caught it in a picture. It
+is required-and-nullable now, and the same change found eight other sites that would have been
+wrong. And `Note` had a Save draft button that a File Remark cannot honour, because a draft
+hangs on the lines it is about — it is hidden rather than left to discard quietly.
 
 Failing test first: in `src/github/GitHubGateway.test.ts`, a test named "says
 something about the file rather than about a line" sends a comment with no line

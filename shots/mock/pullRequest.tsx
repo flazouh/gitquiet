@@ -358,7 +358,7 @@ const said = (
 })
 
 const at = (path: string, line: number): Option.Option<ThreadAnchor> =>
-  Option.some({ path, side: "after", line, startLine: line })
+  Option.some({ path, lines: { side: "after", line, startLine: line } })
 
 /**
  * The conversation, chosen so that the owed panel has more than one Court in it.
@@ -687,9 +687,15 @@ export const PULL_REQUEST_VIEW: View = {
          */
         postComment={(note) =>
           Effect.succeed({
-            id: `T-${note.path}:${note.line}`,
+            id: `T-${note.path}:${note.lines === null ? "file" : note.lines.line}`,
             isResolved: false,
-            at: at(note.path, note.line),
+            // A File Remark comes back anchored to the file and to no line,
+            // which is what makes the pane draw it above the diff rather than
+            // hang a row somewhere in it.
+            at:
+              note.lines === null
+                ? Option.some({ path: note.path, lines: null })
+                : at(note.path, note.lines.line),
             comments: [said("C-said", person(VIEWER), note.body, 0)]
           })
         }
