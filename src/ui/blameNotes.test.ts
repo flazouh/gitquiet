@@ -3,7 +3,7 @@ import type { Commit, Span } from "../domain/blame"
 import { keyOf, noteFor, notesOf } from "./blameNotes"
 
 const commit = (over: Partial<Commit> = {}): Commit => ({
-  oid: "f0c283c",
+  oid: "logo-commit",
   message: "Add Bun logo",
   authorAvatarUrl: "https://avatars.githubusercontent.com/u/1",
   committerName: "Jarred Sumner",
@@ -23,7 +23,7 @@ const span = (over: Partial<Span> = {}): Span => ({
 describe("where a Span's heading hangs", () => {
   test("hangs under the line before the Span begins", () => {
     expect(noteFor(span({ start: 4 }))).toEqual({
-      key: "span-f0c283c-4",
+      key: "span-logo-commit-4",
       side: "additions",
       line: 3
     })
@@ -43,13 +43,13 @@ describe("every Span turned into rows for the renderer", () => {
   test("skips the first Span and keeps every other, in order", () => {
     const spans = [
       span({ start: 1 }),
-      span({ start: 4, commit: commit({ oid: "abc123" }) }),
-      span({ start: 9, commit: commit({ oid: "def456" }) })
+      span({ start: 4, commit: commit({ oid: "domain-commit" }) }),
+      span({ start: 9, commit: commit({ oid: "docs-commit" }) })
     ]
 
     expect(notesOf(spans)).toEqual([
-      { key: "span-abc123-4", side: "additions", line: 3 },
-      { key: "span-def456-9", side: "additions", line: 8 }
+      { key: "span-domain-commit-4", side: "additions", line: 3 },
+      { key: "span-docs-commit-9", side: "additions", line: 8 }
     ])
   })
 
