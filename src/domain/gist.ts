@@ -111,3 +111,34 @@ export type GistSeen = {
   readonly stars: number
   readonly comments: number
 }
+
+/**
+ * Whether an address is one of their two editors: making a gist, or changing one.
+ *
+ * `gist.github.com/` itself is the new-gist form — their site has no other home — and
+ * `/{owner}/{id}/edit` is the one for a gist that exists. Neither is a page this
+ * extension draws: they are forms, and a form GitHub already knows how to post is not
+ * one worth rebuilding. What they get instead is room. See `gistEditing.css`.
+ *
+ * Recorded on Reddit in 2024 at 23 points: "I find the edit window is extremely tiny to
+ * be usable... To be able to modify a code efficiently the display I would expect it to
+ * take the full width least and be much taller." Measured live on 2026-09-02, signed in,
+ * in a 1256 by 888 window: their editor is 978 wide and 322 tall. A third of the height
+ * of the window it is in.
+ */
+export const isGistEditing = (url: string): boolean => {
+  const address = URL.parse(url)
+  if (address === null || address.hostname !== "gist.github.com") return false
+
+  const segments = address.pathname.split("/").filter((part) => part.length > 0)
+  if (segments.length === 0) return true
+
+  const [owner, id, last] = segments
+  return (
+    segments.length === 3 &&
+    last === "edit" &&
+    owner !== undefined &&
+    id !== undefined &&
+    !NOT_AN_OWNER.has(owner.toLowerCase())
+  )
+}

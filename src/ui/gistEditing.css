@@ -1,0 +1,55 @@
+/**
+ * Room to write in, on the two pages this extension does not otherwise touch.
+ *
+ * Their gist editor is the fourth pain point in `research/gist-pain-points.md` in the
+ * notes repository, and the only one of the four that is a layout constraint rather
+ * than a missing feature. Reddit, 2024, 23 points: "I find the edit window is extremely
+ * tiny to be usable... To be able to modify a code efficiently the display I would
+ * expect it to take the full width least and be much taller." The top reply is
+ * resignation rather than a fix: "I never actually write code in the online gist
+ * editor, I just paste some finalized code blocks into it." GitHub Community #13206
+ * says the same thing twice more: "the Gist window is soo small", "is not resizable".
+ *
+ * Measured live, signed in, on 2026-09-02 in a 1256 by 888 window: `.CodeMirror` is 978
+ * wide and 322 tall. A third of the height of the window it is in.
+ *
+ * A stylesheet rather than a screen, deliberately. These are forms, and GitHub already
+ * knows how to post them — rebuilding one would mean owning gist creation, which is a
+ * write this extension has no business inventing a second route for. Everything below
+ * only changes how much of the window their own form is allowed to use.
+ *
+ * Scoped to an attribute this extension sets, so nothing here speaks on a page it was
+ * not asked to. See `isGistEditing`.
+ */
+
+[data-gitquiet-gist-editing] .gist-content,
+[data-gitquiet-gist-editing] .js-blob-form,
+[data-gitquiet-gist-editing] .container-lg {
+  /*
+   * The width first, which is the half their own container decides. Their form sits in
+   * a 980-pixel column inside whatever the window is, so a wide screen spends its extra
+   * room on margin.
+   */
+  max-width: none;
+  width: 100%;
+}
+
+/*
+ * And the height, which is the half the reader actually complained about.
+ *
+ * `min-height` rather than `height`, so a gist of three lines is still three lines tall
+ * and only a long one grows: the complaint is about not having room, not about every
+ * file being forced to fill a screen. `65vh` leaves the header, the description field
+ * and their Save button on screen at once in the window measured above — a taller
+ * editor than that is one that pushes its own Save button off the bottom, which is a
+ * different way to be unusable.
+ */
+[data-gitquiet-gist-editing] .CodeMirror {
+  min-height: 65vh;
+  resize: vertical;
+  overflow: auto;
+}
+
+[data-gitquiet-gist-editing] .CodeMirror-scroll {
+  min-height: 65vh;
+}

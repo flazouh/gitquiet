@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Option } from "effect"
-import { gistListIn, gistViewIn } from "./gist"
+import { gistListIn, gistViewIn, isGistEditing } from "./gist"
 
 const parsedView = (url: string) => Option.getOrNull(gistViewIn(url))
 const parsedList = (url: string) => Option.getOrNull(gistListIn(url))
@@ -58,5 +58,33 @@ describe("the address of a reader's own gist list", () => {
 
   test("refuses another host", () => {
     expect(parsedList("https://github.com/octocat")).toBeNull()
+  })
+})
+
+describe("their two editors, which get room rather than a screen", () => {
+  const at = (path: string): string => `https://gist.github.com${path}`
+
+  test("the new-gist form, which is their site's own home", () => {
+    expect(isGistEditing(at("/"))).toBe(true)
+    expect(isGistEditing(at(""))).toBe(true)
+  })
+
+  test("editing a gist that exists", () => {
+    expect(isGistEditing(at("/octocat/aaa111/edit"))).toBe(true)
+  })
+
+  test("not a gist being read, nor a list, nor their other sub-pages", () => {
+    // A stylesheet that widened a page it was not asked to is a page this extension
+    // broke while touching nothing on it.
+    expect(isGistEditing(at("/octocat/aaa111"))).toBe(false)
+    expect(isGistEditing(at("/octocat"))).toBe(false)
+    expect(isGistEditing(at("/octocat/aaa111/revisions"))).toBe(false)
+    expect(isGistEditing(at("/octocat/aaa111/forks"))).toBe(false)
+  })
+
+  test("not the site's own words, and not another host", () => {
+    expect(isGistEditing(at("/search/edit"))).toBe(false)
+    expect(isGistEditing(at("/discover"))).toBe(false)
+    expect(isGistEditing("https://github.com/")).toBe(false)
   })
 })

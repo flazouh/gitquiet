@@ -6,7 +6,7 @@ import { withLabels, withName, type KeptGists } from "@/domain/gistLabels"
 import type { GistRow } from "@/domain/gistList"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import { standAScreen, type Standing } from "@/shell/screen"
-import { gistViewIn } from "@/domain/gist"
+import { gistViewIn, isGistEditing } from "@/domain/gist"
 import type { GistSeen } from "@/domain/gist"
 import { gistOnPage } from "@/github/gistView"
 import { GistListScreen } from "@/ui/GistListScreen"
@@ -16,6 +16,7 @@ import { Option } from "effect"
 import { handBack } from "@/ui/mount"
 import { whenAddressChanges } from "@/ui/navigation"
 import "@/ui/styles.css"
+import "@/ui/gistEditing.css"
 
 /**
  * `gist.github.com`'s own content script, separate from `shell.content.ts` on purpose.
@@ -116,9 +117,25 @@ export default defineContentScript({
      * between them is this function, and adding the second screen is a branch here
      * rather than a second reader of the address somewhere else.
      */
+    /** The mark `gistEditing.css` hangs on, and nothing else. */
+    const EDITING = "data-gitquiet-gist-editing"
+
     const show = (): void => {
       const path = window.location.pathname
       const search = window.location.search
+
+      /*
+       * Their editor, given room. Set before anything else decides what to draw, because
+       * this is the one page here that gets a stylesheet and no screen: it is a form
+       * GitHub already knows how to post, and the complaint about it is that it is too
+       * small rather than that it is wrong.
+       */
+      const editing = isGistEditing(`https://gist.github.com${path}${search}`)
+      document.documentElement.toggleAttribute(EDITING, editing)
+      if (editing) {
+        stepAside()
+        return
+      }
 
       const one = gistViewIn(`https://gist.github.com${path}${search}`)
       if (Option.isSome(one)) {
