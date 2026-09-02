@@ -131,6 +131,20 @@ describe("durations and curves", () => {
  * to the arrival: once the screen says it has landed, the panels stop entering.
  */
 describe("the entrance runs once, on arrival", () => {
+  test("a document that has watched one arrival takes the entrance off every screen after", () => {
+    // The mark above is `Shell`'s, and `Shell` is the pull request's. Every other
+    // screen renders its own tree, so a list's panels entered on every visit —
+    // including a Back onto the list the reader had just left.
+    const arrived = sheet
+      .split("}")
+      .filter((rule) => rule.includes("[data-gitquiet-arrived]"))
+    expect(arrived.length).toBeGreaterThan(0)
+    const covered = arrived.join("}")
+    expect(covered).toContain(".t-panels > *")
+    expect(covered).toContain(".t-panel-fade")
+    expect(covered).toContain("animation: none")
+  })
+
   test("a landed page takes the entrance off its panels", () => {
     const landed = sheet
       .split("}")

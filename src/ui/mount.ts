@@ -786,6 +786,30 @@ export const markLanded = (target: Document): void => {
   target.documentElement.setAttribute(LANDED_BEFORE, "")
 }
 
+/**
+ * How long an arrival may keep entering, in milliseconds.
+ *
+ * Past the last panel's stagger and its travel — five staggers of forty and a
+ * quarter second of entrance is under half a second — so nothing is cut off
+ * mid-arrival, and early enough that the first late read to land finds the page
+ * already still. The same number `Shell` waits, held here because every screen
+ * has to agree about it and only one of them is a pull request.
+ */
+export const LANDING = 700
+
+/**
+ * Says so once this screen's own arrival is over, and hands back the way to stop.
+ *
+ * Called by every screen rather than by one of them. `Shell` held this alone, and
+ * `Shell` is the pull request's, so a reader who only ever walked between lists
+ * marked nothing and watched every list enter again on the way back.
+ */
+export const landWhenArrived = (target: Document): (() => void) => {
+  if (hasLandedBefore(target)) return () => {}
+  const timer = setTimeout(() => markLanded(target), LANDING)
+  return () => clearTimeout(timer)
+}
+
 /** Forgets it, for a test that must not land on what another test landed. */
 export const forgetLanded = (target: Document): void => {
   target.documentElement.removeAttribute(LANDED_BEFORE)

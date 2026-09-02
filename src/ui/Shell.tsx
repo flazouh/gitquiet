@@ -21,7 +21,7 @@ import { sizeOf } from "../domain/workingSet"
 import { diffChoices, treeChoices } from "../domain/choices"
 import { keyOf } from "../domain/PullRequestRef"
 import { keptReads } from "../app/kept"
-import { hasLandedBefore, markLanded } from "./mount"
+import { hasLandedBefore, LANDING, markLanded } from "./mount"
 import type { Keys } from "../keys/commands"
 import { CommitView } from "./CommitView"
 import { FileBrowser } from "./FileBrowser"
@@ -137,15 +137,6 @@ const NO_READER = new Error("Nothing is wired to read commits.")
  */
 const PREPARED = 17
 
-/**
- * How long an arrival may keep entering, in milliseconds.
- *
- * Past the last panel's stagger and its travel — five staggers of forty and a
- * quarter second of entrance is under half a second — so nothing is cut off
- * mid-arrival, and early enough that the first late read to land finds the
- * page already still.
- */
-const LANDING = 700
 
 /**
  * The one command that belongs to the page rather than to a panel in it.
