@@ -227,9 +227,7 @@ describe("a draft pull request carrying bot findings", () => {
 
     expect(Option.getOrUndefined(thread?.at ?? Option.none())).toEqual({
       path: "src/vs/sessions/contrib/changes/browser/media/multiFileDiffEditor.css",
-      side: "after",
-      line: 105,
-      startLine: 105
+      lines: { side: "after", line: 105, startLine: 105 }
     })
   })
 
@@ -240,8 +238,7 @@ describe("a draft pull request carrying bot findings", () => {
     // GitHub keys the marker by the last line and names the first in `start`,
     // so a remark about 137–140 is not reported as a remark about 140.
     expect(Option.getOrUndefined(thread?.at ?? Option.none())).toMatchObject({
-      line: 140,
-      startLine: 137
+      lines: { line: 140, startLine: 137 }
     })
   })
 

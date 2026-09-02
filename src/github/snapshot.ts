@@ -151,7 +151,25 @@ export const toCreatedThread = Effect.fn("toCreatedThread")(function* (
  * was. Anything else is a spelling we have not seen, and a thread put on the
  * wrong line is worse than a thread left in the column, so it is dropped.
  */
-const spotAt = (key: string): { side: "before" | "after"; line: number } | null => {
+/** GitHub's own marker for a thread about the file rather than a line of it. */
+const THE_FILE = "FILE"
+
+/**
+ * Where a marker puts a thread: on some lines, or on the whole file.
+ *
+ * `R150` and `L12` name a side and a line. `FILE` names no line at all, and
+ * used to be dropped here along with the path beside it — so a File Remark
+ * reached the conversation saying nothing about which file it was about. It is
+ * read now, and the path travels with it.
+ *
+ * Anything else is a marker nothing here knows, and is skipped rather than
+ * guessed at.
+ */
+const spotAt = (
+  key: string
+): { side: "before" | "after"; line: number } | typeof THE_FILE | null => {
+  if (key === THE_FILE) return THE_FILE
+
   const found = /^([LR])(\d+)$/.exec(key)
   if (found === null) return null
 
@@ -182,12 +200,20 @@ const anchorsIn = (
       if (spot === null) continue
 
       for (const thread of marker.threads) {
+        if (spot === THE_FILE) {
+          found.set(String(thread.id), { path: summary.path })
+          continue
+        }
+
+        // The start of a range, where their marker names one. A start that read
+        // as the file marker would be a range beginning nowhere, which is not a
+        // thing their payload says; it falls back to the end, as a missing one does.
         const from = thread.start === undefined || thread.start === null ? null : spotAt(thread.start)
+        const started = from === null || from === THE_FILE ? spot.line : from.line
+
         found.set(String(thread.id), {
           path: summary.path,
-          side: spot.side,
-          line: spot.line,
-          startLine: from?.line ?? spot.line
+          lines: { side: spot.side, line: spot.line, startLine: started }
         })
       }
     }

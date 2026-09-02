@@ -69,7 +69,19 @@ const saidOf = (said: SaidFacts): ThreadComment => ({
 export const threadOf = (thread: ThreadFacts): ReviewThread => ({
   id: thread.id,
   isResolved: thread.isResolved,
-  at: Option.fromNullishOr(thread.at),
+  /*
+   * The wire says the anchor flat, and the domain nests the lines under the
+   * path, so this is where the two meet.
+   *
+   * The wire keeps its shape on purpose: it is the protocol between two
+   * processes and the main one writes it, so widening it for a File Remark
+   * this window cannot make yet would be a change on both sides of a boundary
+   * for nothing to send through it. See `CONTEXT.md`, File Remark.
+   */
+  at: Option.map(Option.fromNullishOr(thread.at), ({ path, side, line, startLine }) => ({
+    path,
+    lines: { side, line, startLine }
+  })),
   comments: thread.comments.map(saidOf)
 })
 

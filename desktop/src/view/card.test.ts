@@ -144,7 +144,7 @@ describe("a card, built from what the main process read", () => {
     )
 
     const [thread] = snapshot.threads
-    expect(Option.getOrNull(thread?.at ?? Option.none())?.line).toBe(146)
+    expect(Option.getOrNull(thread?.at ?? Option.none())?.lines?.line).toBe(146)
     expect(thread?.comments[0]?.author.login).toBe("williammartin")
     expect(thread?.comments[0]?.author.faceUrl).toEqual(Option.none())
   })

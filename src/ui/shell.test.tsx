@@ -731,9 +731,7 @@ describe("a remark written on a line the pull request removed", () => {
     expect(posted).toHaveLength(1)
     expect(posted[0]).toMatchObject({
       path: "src/spin.ts",
-      side: "before",
-      line: 43,
-      startLine: 43
+      lines: { side: "before", line: 43, startLine: 43 }
     })
   })
 })

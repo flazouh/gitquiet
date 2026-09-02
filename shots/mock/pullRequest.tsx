@@ -687,9 +687,15 @@ export const PULL_REQUEST_VIEW: View = {
          */
         postComment={(note) =>
           Effect.succeed({
-            id: `T-${note.path}:${note.line}`,
+            id: `T-${note.path}:${note.lines?.line ?? "file"}`,
             isResolved: false,
-            at: at(note.path, note.line),
+            // A File Remark comes back anchored to the file and to no line,
+            // which is what makes the pane draw it above the diff rather than
+            // hang a row somewhere in it.
+            at:
+              note.lines === undefined
+                ? Option.some({ path: note.path })
+                : at(note.path, note.lines.line),
             comments: [said("C-said", person(VIEWER), note.body, 0)]
           })
         }

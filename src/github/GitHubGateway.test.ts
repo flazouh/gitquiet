@@ -1148,8 +1148,7 @@ describe("what the gateway sends to GitHub", () => {
           body: "This drops the index.",
           baseSha: base,
           headSha: head,
-          side: "after",
-          ...note
+          lines: { side: note.side ?? "after", line: note.line, startLine: note.startLine }
         })
       }).pipe(Effect.provide(layer))
 
@@ -1222,6 +1221,51 @@ describe("what the gateway sends to GitHub", () => {
      * `right` in lower case for the new one. Nothing here has read a request
      * carrying the other word off the wire.
      */
+    /*
+     * A File Remark: about the file, not about any line of it.
+     *
+     * "This file should not be in this pull request" is not about line 40, and
+     * hanging it on one is how it gets read as being about that line. GitHub's
+     * route takes a subject type instead of a line, and which word it takes was
+     * settled by experiment rather than read out of their bundle: both `file`
+     * and `FILE` are accepted and both come back as `file`, so `file` is what
+     * goes out. Measured against `flazouh/ghpro-scratch#14` on 2 September 2026
+     * — see `docs/spec/github-write-api.md`.
+     */
+    test("says something about the file rather than about a line", async () => {
+      const calls = intercept(written)
+
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const gateway = yield* GitHubGateway
+          return yield* gateway.comment(draft, {
+            path: "src/index.ts",
+            body: "This file should not be in this pull request.",
+            baseSha: base,
+            headSha: head
+          })
+        }).pipe(Effect.provide(layer))
+      )
+
+      expect(calls[0]!.body).toMatchObject({
+        comparisonStartOid: base,
+        comparisonEndOid: head,
+        path: "src/index.ts",
+        submitBatch: true,
+        subjectType: "file",
+        positioning: {
+          type: "file",
+          baseCommitOid: base,
+          headCommitOid: head,
+          path: "src/index.ts"
+        }
+      })
+      // None of the three, because there is no line for them to be about.
+      expect(calls[0]!.body).not.toHaveProperty("line")
+      expect(calls[0]!.body).not.toHaveProperty("side")
+      expect(calls[0]!.body).not.toHaveProperty("startLine")
+    })
+
     test("puts a remark on a removed line on the old file's numbering", async () => {
       const calls = intercept(written)
 
@@ -1257,9 +1301,7 @@ describe("what the gateway sends to GitHub", () => {
       // the interface on a line it is not about.
       expect(Option.getOrUndefined(thread.at)).toEqual({
         path: "src/index.ts",
-        side: "before",
-        line: 12,
-        startLine: 12
+        lines: { side: "before", line: 12, startLine: 12 }
       })
     })
 

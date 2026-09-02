@@ -103,12 +103,23 @@ export type ThreadComment = {
  */
 export type ThreadAnchor = {
   readonly path: string
-  /** Which side of the diff the line is numbered on. */
-  readonly side: "before" | "after"
-  /** The line it is hung from, which for a range is the last of them. */
-  readonly line: number
-  /** The first line of the range, equal to {@link line} for a single line. */
-  readonly startLine: number
+  /**
+   * The lines it hangs from, or nothing on a File Remark.
+   *
+   * Nothing is not a missing answer. A remark about the file as a whole — "this
+   * should not be in this pull request" — is not about line 40, and GitHub
+   * carries it under the marker `FILE` rather than under `R40`. Shaped the way
+   * `LookingAt` in `domain/lookingAt.ts` shapes the same question, so a reader
+   * of one already reads the other.
+   */
+  readonly lines?: {
+    /** Which side of the diff the line is numbered on. */
+    readonly side: "before" | "after"
+    /** The line it is hung from, which for a range is the last of them. */
+    readonly line: number
+    /** The first line of the range, equal to {@link ThreadAnchor.lines.line} for a single line. */
+    readonly startLine: number
+  }
 }
 
 /**
@@ -122,17 +133,18 @@ export type ThreadAnchor = {
 export type NewComment = {
   readonly path: string
   /**
-   * Which side of the diff the lines are numbered on, spelled as
-   * {@link ThreadAnchor} spells it.
+   * The lines it is about, or nothing to say it about the file as a whole.
    *
-   * A remark on a removed line belongs to the old file's numbering. Sent
-   * without this, it would be filed against the new file at the same number,
-   * where it lands on whatever happens to sit there now or on nothing at all.
+   * The side is carried because a remark on a removed line belongs to the old
+   * file's numbering. Sent without it, such a remark is filed against the new
+   * file at the same number, where it lands on whatever happens to sit there
+   * now or on nothing at all.
+   *
+   * Absent is a File Remark, which GitHub takes as a subject type rather than a
+   * line. Both spellings of that type are accepted and both come back as
+   * `file`; see `docs/spec/github-write-api.md`.
    */
-  readonly side: ThreadAnchor["side"]
-  /** The last line of the range, which for a single line is the only one. */
-  readonly line: number
-  readonly startLine: number
+  readonly lines?: NonNullable<ThreadAnchor["lines"]>
   readonly body: string
   readonly baseSha: string
   readonly headSha: string

@@ -273,7 +273,7 @@ describe("a remark on a line this file's diff does not contain", () => {
       </Theme>
     )
 
-    const said = await screen.findByLabelText("Said about lines not in this diff")
+    const said = await screen.findByLabelText("Said about this file")
     expect(said.textContent).toContain("One comment is on a line GitHub left out")
     expect(said.textContent).toContain("Line 150")
     expect(said.textContent).toContain("this constant is stale")
@@ -304,7 +304,45 @@ describe("a remark on a line this file's diff does not contain", () => {
     )
 
     await drawn()
-    expect(screen.queryByLabelText("Said about lines not in this diff")).toBeNull()
+    expect(screen.queryByLabelText("Said about this file")).toBeNull()
+  })
+
+  test("draws a remark about the file as a whole in the same place, saying so", async () => {
+    const whole = aThread(
+      "t-file",
+      [aComment(person("ana"), "This file should not be in this pull request.")],
+      false,
+      Option.some({ path: "src/one.ts" })
+    )
+
+    render(
+      <Theme>
+        <SettingsProvider store={holding(DEFAULTS)}>{pane({ threads: [whole] })}</SettingsProvider>
+      </Theme>
+    )
+
+    const said = await screen.findByLabelText("Said about this file")
+    expect(said.textContent).toContain("About this file")
+    expect(said.textContent).toContain("should not be in this pull request")
+    // It never had a line, so it is not reported as one GitHub left out.
+    expect(said.textContent).not.toContain("left out of this file's diff")
+  })
+
+  test("hands the renderer no row for one about the whole file", async () => {
+    const whole = aThread(
+      "t-file",
+      [aComment(person("ana"), "This file should not be in this pull request.")],
+      false,
+      Option.some({ path: "src/one.ts" })
+    )
+
+    render(
+      <Theme>
+        <SettingsProvider store={holding(DEFAULTS)}>{pane({ threads: [whole] })}</SettingsProvider>
+      </Theme>
+    )
+
+    expect((await drawn()).notes ?? []).toEqual([])
   })
 
   test("claims nothing while GitHub has not sent this file's diff", async () => {
@@ -319,7 +357,7 @@ describe("a remark on a line this file's diff does not contain", () => {
     await waitFor(() => {
       expect(screen.queryByText(/Fetching this file/)).toBeNull()
     })
-    expect(screen.queryByLabelText("Said about lines not in this diff")).toBeNull()
+    expect(screen.queryByLabelText("Said about this file")).toBeNull()
   })
 })
 

@@ -1838,7 +1838,7 @@ const foundIn = (route: string, raw: unknown): Effect.Effect<Found, WorkingSetEr
  * two halves as `R{line}` for the new file and `L{line}` for the old: no
  * request carrying the word for the old file has been read off the wire here.
  */
-const asTheyNameIt = (side: ThreadAnchor["side"]): "left" | "right" =>
+const asTheyNameIt = (side: NonNullable<ThreadAnchor["lines"]>["side"]): "left" | "right" =>
   side === "before" ? "left" : "right"
 
 /** What a payload that would not decode becomes, on the way out of here. */
@@ -1948,31 +1948,49 @@ export const layer = Layer.succeed(GitHubGateway, {
       note: NewComment
     ) {
       const url = `https://github.com/${reference.owner}/${reference.repo}/pull/${reference.number}${COMMENT}`
-      const side = asTheyNameIt(note.side)
-      // Their own box sends the range twice — once flat, once inside the
-      // positioning it wants back — and refuses a body that carries only one
-      // of them. A single line is a range whose ends agree. Both ends take the
-      // same side: a reader marks lines out on one half of the diff, and a
-      // range whose ends disagreed would run from the old file into the new.
-      const range = note.startLine === note.line ? {} : { startLine: note.startLine, startSide: side }
+
+      /*
+       * Where the remark goes: on some lines, or on the file as a whole.
+       *
+       * Their own box sends a range twice — once flat, once inside the
+       * positioning it wants back — and refuses a body carrying only one of
+       * them. A single line is a range whose ends agree, and their box sends no
+       * start at all for one. Both ends take the same side: a reader marks lines
+       * out on one half of the diff, and a range whose ends disagreed would run
+       * from the old file into the new.
+       *
+       * A File Remark sends none of that and a subject type instead. `file` in
+       * lower case, which is what the route answers with whichever of the two
+       * spellings goes in — measured, not read out of their bundle. See
+       * `docs/spec/github-write-api.md`.
+       */
+      const spot = ((): { readonly flat: object; readonly positioning: object } => {
+        if (note.lines === undefined) {
+          return { flat: { subjectType: "file" }, positioning: { type: "file" } }
+        }
+
+        const { side: half, line, startLine } = note.lines
+        const side = asTheyNameIt(half)
+        const range = startLine === line ? {} : { startLine, startSide: side }
+        return {
+          flat: { line, side, subjectType: "line", ...range },
+          positioning: { type: "line", line, ...range }
+        }
+      })()
+
       const body = {
         comparisonStartOid: note.baseSha,
         comparisonEndOid: note.headSha,
         text: note.body,
         submitBatch: true,
         path: note.path,
-        line: note.line,
-        side,
-        subjectType: "line",
-        ...range,
+        ...spot.flat,
         positioning: {
-          type: "line",
           baseCommitOid: note.baseSha,
           headCommitOid: note.headSha,
           commitOid: note.headSha,
           path: note.path,
-          line: note.line,
-          ...range
+          ...spot.positioning
         }
       }
 
@@ -2006,9 +2024,7 @@ export const layer = Layer.succeed(GitHubGateway, {
 
       return yield* toCreatedThread(JSON.parse(said), {
         path: note.path,
-        side: note.side,
-        line: note.line,
-        startLine: note.startLine
+        ...(note.lines === undefined ? {} : { lines: note.lines })
       }).pipe(
         Effect.catch((cause) =>
           Effect.fail(
@@ -2062,12 +2078,7 @@ export const layer = Layer.succeed(GitHubGateway, {
         })
       }
 
-      const thread = yield* toCreatedThread(parsed(said), {
-        path: "",
-        side: "after",
-        line: 0,
-        startLine: 0
-      }).pipe(
+      const thread = yield* toCreatedThread(parsed(said), { path: "" }).pipe(
         Effect.catch((cause) =>
           Effect.fail(
             new GatewayError({
