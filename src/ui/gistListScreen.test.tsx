@@ -159,4 +159,22 @@ describe("a reader's own gists", () => {
 
     expect(screen.getByText(/Nothing here matches/)).toBeTruthy()
   })
+
+  test("keeps the file preview their list prints, folded", () => {
+    // Parity, folded rather than dropped: "browsing through 20 pages of 3-line excerpts"
+    // is the complaint, so printing every excerpt at full height is the thing being
+    // complained about — but a reader who found a gist by a word in its content should
+    // be able to see the word.
+    showing()
+
+    const folds = screen.getAllByText("Preview")
+    expect(folds.length).toBe(3)
+    expect(folds[0]?.closest("details")?.open).toBe(false)
+  })
+
+  test("offers a way to make one, which their header carries", () => {
+    showing()
+
+    expect(screen.getByRole("link", { name: "New gist" })).toBeTruthy()
+  })
 })

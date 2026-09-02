@@ -62,7 +62,7 @@ export const GistRowView = ({ row, labels, name, known, onChange }: GistRowViewP
         {row.secret ? (
           <span
             title="Anyone with the link can see this gist. The link is the only thing keeping it out of a search engine."
-            className="rounded-full border border-warn px-2 text-xs text-warn"
+            className="rounded-full bg-attention-muted px-2 text-xs text-ink"
           >
             Secret
           </span>
@@ -71,6 +71,25 @@ export const GistRowView = ({ row, labels, name, known, onChange }: GistRowViewP
 
       {row.description === null ? null : (
         <p className="mt-1 max-w-prose text-sm text-ink-muted">{row.description}</p>
+      )}
+
+      {/*
+        The file content their list prints under every row, folded.
+        
+        Parity, and the reason it is folded rather than dropped: the oldest complaint in
+        the whole survey is "browsing through 20 pages of 3-line excerpts", so a list
+        that prints every excerpt at full height is the thing being complained about.
+        But the excerpt is also what makes their list scannable when a filename does not
+        say enough, and this screen's own search reads it — a reader who found a gist by
+        a word in its content should be able to see the word.
+      */}
+      {row.preview === "" ? null : (
+        <details className="mt-1">
+          <summary className="cursor-pointer text-xs text-ink-muted">Preview</summary>
+          <pre className="mt-1 max-h-48 overflow-auto rounded-md bg-inset p-2 text-xs whitespace-pre-wrap">
+            {row.preview}
+          </pre>
+        </details>
       )}
 
       <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -103,7 +122,7 @@ export const GistRowView = ({ row, labels, name, known, onChange }: GistRowViewP
       )}
 
       {open ? (
-        <div className="mt-2 flex flex-col gap-2 border-t border-subtle pt-2">
+        <div className="mt-2 flex flex-col gap-2 border-t border-line-muted pt-2">
           <label className="flex flex-col gap-1 text-xs text-ink-muted">
             Name
             <input
@@ -132,7 +151,7 @@ export const GistRowView = ({ row, labels, name, known, onChange }: GistRowViewP
             <button
               type="button"
               onClick={save}
-              className="h-7 rounded-md bg-accent px-3 text-xs"
+              className="h-7 rounded-md bg-accent-emphasis px-3 text-xs text-ink-on-emphasis"
             >
               Save
             </button>

@@ -164,6 +164,13 @@ export const GistListScreen = ({
               </option>
             ))}
           </select>
+          {/* Parity: their header carries this and a reader arriving here still wants it. */}
+          <a
+            href="https://gist.github.com/"
+            className="h-8 rounded-md bg-accent-emphasis px-3 text-xs leading-8 text-ink-on-emphasis"
+          >
+            New gist
+          </a>
           <button
             type="button"
             onClick={onStepAside}
@@ -187,7 +194,9 @@ export const GistListScreen = ({
                 aria-pressed={picked.includes(label)}
                 onClick={() => toggle(label)}
                 className={`h-6 rounded-full px-2 text-xs ${
-                  picked.includes(label) ? "bg-accent text-ink" : "bg-raised text-ink-muted"
+                  picked.includes(label)
+                    ? "bg-accent-emphasis text-ink-on-emphasis"
+                    : "bg-raised text-ink-muted"
                 }`}
               >
                 {label}
