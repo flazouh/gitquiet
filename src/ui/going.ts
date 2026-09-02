@@ -71,6 +71,34 @@ export const holdForRedraw = (target: Window, redraws: boolean): boolean => {
 }
 
 /**
+ * Whether a history traversal has to keep the standing screen on the page while the
+ * screen for where it goes draws.
+ *
+ * The same hold {@link holdForRedraw} takes, asked for the case that function cannot
+ * answer: a traversal that lands on a different screen kind. Back and Forward are not
+ * links, so no pointer ever lingered near one and no screen is ever prepared for where
+ * they go. The screen that answers is already up and redraws itself when the address
+ * commits — on a task of React's own, which is a task later than this decision — and in
+ * between the leaving screen has closed and the arriving one has not painted.
+ *
+ * Recorded on a live GitHub, pressing Back from pull request 2428 to the list: the pull
+ * request whole at 1242ms, one frame of nothing at 1258ms, the list's rows at 1275ms.
+ * Seventeen milliseconds of a page with no interface on it, and nothing of GitHub's
+ * either, because the gate held. See `holdTheSurface` for what the hold does.
+ *
+ * Not held where the standing screen is the one that answers. That screen redraws in
+ * place and never replaces its container, so nothing would ever sweep the mark, and a
+ * container left marked can never hand the page back to GitHub: `Takeover.stepAside`
+ * refuses while the mark is on it.
+ *
+ * Named by place rather than by address. Two addresses of one kind — a list and its
+ * second page, a person's three tabs — are one screen redrawing, and the place is the
+ * only thing that says so.
+ */
+export const holdsForTraversal = (standing: string | null, arriving: string): boolean =>
+  standing !== null && standing !== arriving
+
+/**
  * The browser's own account of where this tab has been.
  *
  * `history` will not say. It answers a count and nothing else, so a control built

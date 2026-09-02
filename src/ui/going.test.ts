@@ -12,6 +12,7 @@ import {
   goTo,
   goWithin,
   holdForRedraw,
+  holdsForTraversal,
   ourOwnRowsDrawn,
   oursToAnswer,
   theTrail,
@@ -100,6 +101,30 @@ describe("returning within one standing screen", () => {
 
     expect(inPlace).toBe(true)
     expect(ourSurface(page.window.document)).toBe(page.window.document.body)
+  })
+})
+
+/**
+ * Back and Forward, which nothing ever reads ahead for.
+ *
+ * A screen is prepared when a pointer lingers near a link to it. Neither button is a
+ * link, so a traversal always arrives with nothing warmed, and the screen that answers
+ * for where it lands redraws itself a task later than the one this decision is made in.
+ * The frame between the two is what these are about.
+ */
+describe("traversing to a screen nothing prepared", () => {
+  test("holds the surface where another screen kind answers for the address", () => {
+    expect(holdsForTraversal("working-set", "pull-request")).toBe(true)
+  })
+
+  test("lets go where the standing screen redraws for the address in place", () => {
+    // It never replaces its container, so nothing would sweep the mark, and a container
+    // left marked can never hand the page back to GitHub.
+    expect(holdsForTraversal("pull-request", "pull-request")).toBe(false)
+  })
+
+  test("holds nothing where nothing of ours is standing", () => {
+    expect(holdsForTraversal(null, "pull-request")).toBe(false)
   })
 })
 

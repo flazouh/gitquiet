@@ -34,6 +34,7 @@ import {
   ARRIVING,
   drawingOurOwnRows,
   goTo,
+  holdsForTraversal,
 } from "@/ui/going";
 import {
   activatePreparedTraversal,
@@ -44,6 +45,7 @@ import {
   theScreenArrived,
   theScreenHasRoute,
   theScreenIsNotElsewhere,
+  theScreenStandsFor,
   unmarkPage,
 } from "@/ui/mount";
 import { linkNear, type Reached } from "@/ui/linkNear";
@@ -317,14 +319,30 @@ export default defineContentScript({
     whenPreparing(window, prepareScreen);
 
     const openPreparedTraversal = (path: string): void => {
-      const screen = preparedScreens.get(path);
-      if (screen === undefined) return;
-
       const address = new URL(path, window.location.origin);
       const page = pageAt(address.pathname, address.search);
+      // Somewhere of GitHub's. Their page is the one to arrive at, and a surface of
+      // ours held over it is an interface standing on a page nobody is on.
       if (page === null) return;
 
       const place = placeFor(page, address.pathname);
+      const screen = preparedScreens.get(path);
+
+      /*
+       * Nothing read ahead for this address, which is every traversal: a screen is
+       * prepared when a pointer lingers near a link to it, and neither Back nor
+       * Forward is a link. The screen that answers here is already up and redraws
+       * itself when the address commits — on a task of React's own, later than this
+       * one — so what is standing has to be held across the gap. Without it the
+       * reader is shown a frame of nothing. See `holdsForTraversal` for the
+       * measurement and for why a screen redrawing in place is not held.
+       */
+      if (screen === undefined) {
+        if (holdsForTraversal(theScreenStandsFor(document), place.name))
+          holdTheSurface(document);
+        return;
+      }
+
       const prepared = hasPreparedScreen(document, path, place);
       document.dispatchEvent(new CustomEvent(OWNED_TRAVERSAL, { detail: path }));
       const screenClaimedTheRoute = prepared && !hasPreparedScreen(document, path, place);

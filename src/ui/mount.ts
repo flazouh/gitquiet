@@ -751,6 +751,15 @@ export const theScreenOnThePage = (target: Document): Element | null =>
 export const theScreenHasRoute = (target: Document, route: string): boolean =>
   theScreenOnThePage(target)?.getAttribute(ROUTE) === route
 
+/**
+ * The name of the place the screen on the page took, or nothing where none is up.
+ *
+ * Asked before a history traversal commits, to tell a move between two of our screens
+ * from one screen redrawing for a second address of its own. See `holdsForTraversal`.
+ */
+export const theScreenStandsFor = (target: Document): string | null =>
+  theScreenOnThePage(target)?.getAttribute(BELONGS_TO) ?? null
+
 /** Updates the exact route after the browser redirects within the same screen. */
 export const markScreenRoute = (target: Document, route: string): void => {
   const screen = theScreenOnThePage(target) ?? (ours?.ownerDocument === target ? ours : null)
