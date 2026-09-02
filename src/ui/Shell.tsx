@@ -21,6 +21,7 @@ import { sizeOf } from "../domain/workingSet"
 import { diffChoices, treeChoices } from "../domain/choices"
 import { keyOf } from "../domain/PullRequestRef"
 import { keptReads } from "../app/kept"
+import { hasLandedBefore, markLanded } from "./mount"
 import type { Keys } from "../keys/commands"
 import { CommitView } from "./CommitView"
 import { FileBrowser } from "./FileBrowser"
@@ -515,11 +516,18 @@ export const Shell = ({
    * about answers. The delay is the entrance's own length — the longest stagger
    * plus the travel — with a beat to spare.
    */
-  const [landed, setLanded] = useState(false)
+  const [landed, setLanded] = useState(() => hasLandedBefore(document))
   useEffect(() => {
-    const timer = setTimeout(() => setLanded(true), LANDING)
+    if (landed) return
+    const timer = setTimeout(() => {
+      // On the document as well as in this state, so that the screen replacing
+      // this one starts landed rather than entering all over again. See
+      // `hasLandedBefore`.
+      markLanded(document)
+      setLanded(true)
+    }, LANDING)
     return () => clearTimeout(timer)
-  }, [])
+  }, [landed])
 
   return (
     <KeyboardScope value={ours}>

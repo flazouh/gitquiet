@@ -887,4 +887,33 @@ describe("the page lands once", () => {
       { timeout: 3000 }
     )
   })
+
+  /*
+   * Once, and once for the document rather than once per screen.
+   *
+   * Every navigation of ours closes the screen and stands a new one up, so a flag
+   * held in a component starts false again on every one of them — and the page
+   * replays its entrance for somewhere the reader is returning to. Recorded at
+   * 120fps pressing Back onto a list: the rows landed at full strength and the
+   * filter bar above them faded in over the 183 milliseconds after, which is
+   * `t-panel-in` running on a panel nobody was waiting for.
+   *
+   * The reader watched the interface arrive on the first screen. The second is a
+   * move, and a move that fades is a page that looks unsure of itself.
+   */
+  test("does not enter again for a screen that replaces one already landed", async () => {
+    const first = showing(aSnapshot({}))
+    await waitFor(
+      () => {
+        expect(document.querySelector("[data-gitquiet-landed]")).not.toBeNull()
+      },
+      { timeout: 3000 }
+    )
+    first.unmount()
+
+    showing(aSnapshot({}))
+
+    // Now, rather than after the entrance it has no reason to run.
+    expect(document.querySelector("[data-gitquiet-landed]")).not.toBeNull()
+  })
 })
