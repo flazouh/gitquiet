@@ -60,3 +60,39 @@ export const blameAt = ({ owner, repo, on, path }: FileAt): string =>
 /** This file at a sha, which is the permalink their own menu copies. */
 export const blobAt = ({ owner, repo, on, path }: FileAt): string =>
   `/${owner}/${repo}/blob/${through(on)}/${through(path)}`
+
+/**
+ * This file at a sha, whole, for quoting into something said about the pull
+ * request.
+ *
+ * The one address here that is absolute rather than a path, because it goes
+ * inside a comment rather than into a link on our own page. GitHub renders such
+ * an address into a box of its own: the file named, the line named, the commit
+ * named, and the code itself quoted under them. Read live on
+ * `flazouh/ghpro-scratch#14`, 2 September 2026.
+ *
+ * That is what makes it the answer to
+ * [community #9099](https://github.com/orgs/community/discussions/9099), where a
+ * reader wants to say something about a file the pull request did not change.
+ * GitHub's review route takes such a comment and then draws it in no diff and
+ * names no file, so it is worse than useless; this says more, on every page, to
+ * everybody. See `docs/plan/comment-anywhere.md`, step 5.
+ *
+ * A sha rather than a branch is the caller's business and not enforced here,
+ * but it is the whole point: a branch moves, and the lines this quotes move
+ * with it.
+ */
+export const quoting = (
+  at: FileAt,
+  lines?: { readonly from: number; readonly to: number }
+): string => {
+  const address = `https://github.com${blobAt(at)}`
+  if (lines === undefined) return address
+
+  // Sorted, because a reader who dragged upwards meant both numbers, and
+  // GitHub reads a backwards run as no run at all.
+  const from = Math.min(lines.from, lines.to)
+  const to = Math.max(lines.from, lines.to)
+
+  return from === to ? `${address}#L${from}` : `${address}#L${from}-L${to}`
+}

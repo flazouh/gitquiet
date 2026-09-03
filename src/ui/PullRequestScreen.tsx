@@ -95,6 +95,8 @@ export type PullRequestScreenProps = {
   readonly onUpload?: (file: File) => Effect.Effect<Uploaded, unknown>
   /** One whole file at one commit, for revealing what the hunks left out. */
   readonly readWholeFile?: (sha: string, path: string) => Effect.Effect<string, unknown>
+  /** Every path in the repository at a commit, for bringing a file in. */
+  readonly readPaths?: (sha: string) => Effect.Effect<ReadonlyArray<string>, unknown>
   /** Marks one thread resolved, which is how a finding leaves the conversation. */
   readonly onSettle?: (threadId: string) => Effect.Effect<unknown, unknown>
   /** Opens a resolved thread again, which is the other half of resolving one. */
@@ -248,6 +250,7 @@ export const PullRequestScreen = ({
   suggest,
   onUpload,
   readWholeFile,
+  readPaths,
   onSettle,
   onUnsettle,
   onReply,
@@ -528,6 +531,7 @@ export const PullRequestScreen = ({
           suggest={suggest}
           onUpload={onUpload}
           readWholeFile={readWholeFile}
+          readPaths={readPaths}
           onSettle={settling}
           onUnsettle={unsettling}
           onReply={onReply}

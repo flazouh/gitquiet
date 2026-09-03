@@ -1,18 +1,22 @@
 /**
- * How a small control is dressed, in one place, with no line anywhere in it.
+ * How a control or a card is dressed, in one place, with no line anywhere in it.
  *
- * Borderless is the paradigm both shells already spend a file on — `src/ui/quiet.css`
- * on GitHub's page and `desktop/src/view/style.css` in the window, each taking
- * borders off components that shipped with them. Those files can only ever catch
- * what they know about, and every chip and field added since was written with an
- * outline and then quietly overridden twice. What separates things instead is a
- * fill, a corner and space, which is what these strings are.
+ * Both shells used to take borders off after the fact — `quiet.css` on GitHub's
+ * page and `desktop/src/view/style.css` in the window — so a card asked for
+ * `rounded-md border` and then two files argued about what that meant. The
+ * window won with a 10px well and a 3px inset. The extension won with twelve
+ * pixels and no inset. The merge card was two products.
  *
- * Dress only: no width, no height, no font size. Those belong to the place the
- * control stands, and a field in the Rail is not the size of a field on Home.
+ * The look lives here now. `!` beats Primer's `!important` utilities on
+ * github.com, so the same class string is what both surfaces draw.
  *
- * The colours are the pack tokens rather than values, so a chip follows the reader
- * into dark, dimmed and every other pack without this file naming one.
+ * Dress only for the small controls: no width, no height, no font size. Those
+ * belong to the place the control stands, and a field in the Rail is not the
+ * size of a field on Home. A card is the exception — its corner and fill are
+ * the whole of what says "one group".
+ *
+ * The colours are the pack tokens rather than values, so a chip follows the
+ * reader into dark, dimmed and every other pack without this file naming one.
  */
 
 /**
@@ -23,8 +27,40 @@
  */
 export const TINT = "bg-hover"
 
+/**
+ * A named card: a fill and a corner, no line.
+ *
+ * `!rounded-lg` is twelve pixels and beats Primer's `.rounded-md`, which is six
+ * and `!important`. Without the bang the extension kept GitHub's six and the
+ * edge stayed on.
+ */
+export const CARD = "!rounded-lg !border-0 bg-surface"
+
+/**
+ * A notice that is not about the thing being read.
+ *
+ * Same shape as {@link CARD}. The accent tint rather than another rung of the
+ * ladder, because two packs put `inset` and `surface` at the same value and a
+ * second fill taken from them is invisible.
+ */
+export const NOTICE = "!rounded-lg !border-0 bg-accent-muted"
+
+/** The label row on a card: no rule, no tint of its own. */
+export const CARD_HEAD = "flex items-center gap-2 border-b-0 bg-transparent px-3 py-2"
+
 /** Somewhere a cursor goes: the tint says it is a place to type without drawing a box. */
-export const FIELD = `rounded-md ${TINT} text-ink placeholder:text-ink-muted`
+export const FIELD = `!border-0 rounded-md ${TINT} text-ink placeholder:text-ink-muted`
+
+/**
+ * A surface that covers the list: a menu, a picker, a hover card.
+ *
+ * A shadow earns its keep here. Whitespace cannot separate what sits on top of
+ * something else. The line comes off — the fill and the shadow are enough.
+ */
+export const FLOAT = "!rounded-md !border-0 bg-raised shadow-pop"
+
+/** A sheet over the page: the same argument as {@link FLOAT}, at the card's corner. */
+export const SHEET = "!rounded-lg !border-0 bg-canvas shadow-pop"
 
 /**
  * A fact standing beside something larger: a count, a share, a release name.
@@ -122,3 +158,18 @@ export const PRESSABLE = `rounded-md ${TINT}`
  * where `enabled:` matches nothing.
  */
 export const GHOST = "rounded-md"
+
+/**
+ * A verb that asks twice, and the halves it grows.
+ *
+ * Layout and padding only. The grid track that opens from `0fr`, the hover
+ * veil, the press scale, and the cross arriving stay in `motion.css`: Tailwind
+ * cannot animate a fractional track, and a mix-based veil painted these
+ * buttons white in WebKit.
+ */
+export const ASK = "inline-grid items-stretch gap-0 rounded-md data-[asking]:gap-px"
+export const ASK_GROUP = "flex items-stretch gap-px"
+export const ASK_YES = "relative isolate whitespace-nowrap px-3 py-1.5"
+export const ASK_MORE = "relative isolate flex items-center p-1.5"
+export const ASK_OUT = "grid overflow-hidden"
+export const ASK_NO = "relative isolate flex items-center px-2 py-1.5"

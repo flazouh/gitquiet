@@ -10,6 +10,7 @@ import {
 } from "../domain/Settings"
 import { KNOB_ART } from "./knobArt"
 import { ROOT_ID } from "./mount"
+import { FIELD, FLOAT } from "./dress"
 import { Slide } from "./Slide"
 
 /**
@@ -64,7 +65,7 @@ const Pick = ({ knob, chosen, onPick }: Control) => (
     aria-label={knob.label}
     value={chosen ?? knob.fallback}
     onChange={(event) => onPick(knob.key, event.target.value)}
-    className="max-w-40 shrink-0 truncate rounded-md border border-line bg-raised px-1.5 py-0.5 text-xs text-ink"
+    className={`max-w-40 shrink-0 truncate px-1.5 py-0.5 text-xs ${FIELD}`}
   >
     {knob.choices.map((choice) => (
       <option key={choice.value} value={choice.value}>
@@ -244,7 +245,7 @@ export const SettingsMenu = ({
           sideOffset={4}
           collisionPadding={8}
           aria-label={label}
-          className="t-dropdown z-50 max-h-[var(--radix-popover-content-available-height)] w-80 overflow-y-auto rounded-md border border-line bg-raised p-1 text-xs shadow-pop"
+          className={`t-dropdown z-50 max-h-[var(--radix-popover-content-available-height)] w-80 overflow-y-auto p-1 text-xs ${FLOAT}`}
         >
           <Section name="Appearance">
             <Group knobs={THEME_KNOBS} chosen={settings.theme} onPick={pickTheme} />

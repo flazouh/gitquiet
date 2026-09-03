@@ -27,6 +27,8 @@ import {
   updatePullRequestBranch
 } from "@/app/pullRequest"
 import { loadWholeFile } from "@/app/revealing"
+import { keptReads } from "@/app/kept"
+import { loadTreePaths } from "@/app/repoHome"
 import { rememberedRepositories } from "@/app/destinations"
 import { pullRequestEntitled } from "@/app/entitling"
 import { layerSizes } from "@/app/sizes"
@@ -38,7 +40,7 @@ import { answerPressesIn, holdForRedraw, ourOwnRowsDrawn } from "@/ui/going"
 import { pullRequestNamed } from "@/ui/lastDrawn"
 import { isDashboard } from "@/domain/pages"
 import type { Check, MergeMethod, NewComment, UpdateWay } from "@/domain/PullRequest"
-import { fromPathname, pathOf, type PullRequestRef } from "@/domain/PullRequestRef"
+import { fromPathname, pathOf, type PullRequestRef, type RepoRef } from "@/domain/PullRequestRef"
 import type { Size } from "@/domain/workingSet"
 import type { GitHubGateway, Review } from "@/ports/GitHubGateway"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
@@ -208,6 +210,20 @@ const open = (
   const fetchDiffs = (paths: ReadonlyArray<string>, head: string) =>
     loadDiffs(reference, head, paths).pipe(throughGitHub)
 
+  /*
+   * Every path in the repository, read once per commit.
+   *
+   * One request and a large answer — seven thousand paths on `facebook/react`,
+   * per the gateway's own note — and a reader who brings in two files should
+   * pay for it once. A sha names one tree for ever, so keeping it is sound as
+   * well as quick.
+   */
+  const treePaths = keptReads(
+    ({ repo, sha }: { repo: RepoRef; sha: string }) =>
+      loadTreePaths(repo, sha).pipe(throughGitHub),
+    ({ repo, sha }) => `${repo.owner}/${repo.repo}:${sha}`
+  )
+
   const readCommit = (sha: string) =>
     loadCommit(reference, sha).pipe(throughGitHub)
 
@@ -375,6 +391,7 @@ const open = (
          */
         onUpload={(file) => writing(uploadFile(reference, file))}
         readWholeFile={(sha, path) => loadWholeFile(reference, sha, path).pipe(throughGitHub)}
+        readPaths={(sha) => treePaths.ask({ repo: reference, sha })}
         onSettle={settle}
         onUnsettle={unsettle}
         onReply={reply}

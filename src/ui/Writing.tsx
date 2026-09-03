@@ -17,6 +17,7 @@ import {
   type Suggesting
 } from "../domain/suggesting"
 import { type ArtName, useArt } from "./art"
+import { FLOAT } from "./dress"
 import { Markdown } from "./Markdown"
 import { continued, indented, linked } from "./typing"
 import { type Way, Ways } from "./Ways"
@@ -618,7 +619,7 @@ export const Writing = ({
         <ul
           role="listbox"
           aria-label={asked?.kind === "person" ? "People to mention" : "Issues to refer to"}
-          className="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-md border border-line bg-surface shadow-lg"
+          className={`absolute inset-x-0 top-full z-30 mt-1 overflow-hidden ${FLOAT}`}
         >
           {offered.map((one, index) => (
             <li key={chosen(one)}>

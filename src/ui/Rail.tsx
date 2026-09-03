@@ -5,7 +5,7 @@ import type { RepositoryAtWork } from "../domain/rail"
 import { matching, type Repository, withPinToggled } from "../domain/repositories"
 import { SILENT, type Keys } from "../keys/commands"
 import { type ArtName, useArt } from "./art"
-import { FIELD, HERE, PRESSABLE } from "./dress"
+import { CARD, FIELD, HERE, PRESSABLE } from "./dress"
 import { Face } from "./Face"
 import { Menu, type Row } from "./Menu"
 import { participantRows } from "./participant"
@@ -460,7 +460,7 @@ export const Rail = ({
        * owns and can put away. `self-start` so it is as tall as its contents and no taller —
        * a full-height card with six inches of nothing under the account is a column again.
        */
-      className={`t-rail flex shrink-0 flex-col gap-2 self-start overflow-hidden rounded-lg border border-line bg-raised p-2 ${
+      className={`t-rail flex shrink-0 flex-col gap-2 self-start overflow-hidden p-2 ${CARD} ${
         narrow ? "w-14" : "w-60"
       }`}
     >

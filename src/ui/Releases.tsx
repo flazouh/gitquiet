@@ -239,7 +239,7 @@ const TheRest = ({
         />
         {how === 1 ? "1 other file" : `${how} other files`}
       </summary>
-      <div className="divide-y divide-line-muted border-line-muted border-t">
+      <div className="border-line-muted border-t">
         {rest.map((one) => (
           <OfBuild key={one.name} build={one} />
         ))}
@@ -372,7 +372,7 @@ export const Releases = ({ versions }: { readonly versions: ReadonlyArray<Versio
           This repository has published no releases.
         </p>
       ) : (
-        <ul className="divide-y divide-line-muted">
+        <ul>
           {rows.map((row, at) => (
             <OfRow
               key={

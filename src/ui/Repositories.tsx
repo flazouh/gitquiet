@@ -258,7 +258,7 @@ export const Repositories = ({
           ) : (
             <ul
               aria-label="Every repository you have"
-              className="flex list-none flex-col divide-y divide-line-muted p-0"
+              className="flex list-none flex-col p-0"
             >
               {shown.map((one) => (
                 <Row key={one.nameWithOwner} one={one} work={work.get(one.nameWithOwner)} />

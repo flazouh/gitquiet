@@ -13,7 +13,7 @@ import { leadFor } from "../domain/repoHome"
 import type { Repository } from "../domain/repositories"
 import { mountSprite } from "./FileHeading"
 import { Branches, type LoadBranches } from "./Branches"
-import { ASIDE, PRESSABLE } from "./dress"
+import { ASIDE, CARD, PRESSABLE } from "./dress"
 import { GitHubHtml } from "./GitHubHtml"
 import { Markdown } from "./Markdown"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
@@ -158,7 +158,7 @@ const Files = ({
    */
   <section
     aria-label="Files"
-    className="flex h-96 min-h-0 flex-col overflow-hidden rounded-lg border border-line lg:h-auto lg:flex-1"
+    className={`flex h-96 min-h-0 flex-col overflow-hidden lg:h-auto lg:flex-1 ${CARD}`}
   >
     {/*
      * The branch and the history, over the tree they are about.
@@ -337,7 +337,7 @@ const Readme = ({
   return (
     <section
       aria-label="Readme"
-      className="max-w-4xl rounded-lg border border-line px-6 py-5 lg:col-start-2 lg:row-start-2"
+      className={`max-w-4xl px-6 py-5 lg:col-start-2 lg:row-start-2 ${CARD}`}
     >
       <h2 className="mb-4 text-sm font-semibold text-ink-muted">{welcome.name}</h2>
       {welcome.timedOut ? (
@@ -429,7 +429,7 @@ const Facts = ({
    */
   <section
     aria-label="About"
-    className="flex min-w-0 items-center gap-3 rounded-lg border border-line px-4 py-2 lg:col-span-2 lg:row-start-1"
+    className={`flex min-w-0 items-center gap-3 px-4 py-2 lg:col-span-2 lg:row-start-1 ${CARD}`}
   >
     {Option.match(about.description, {
       onNone: () => null,

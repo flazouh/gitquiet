@@ -237,6 +237,56 @@ const FILES = [
 ]
 
 
+
+/**
+ * The three files this pull request did not touch, as they would read.
+ *
+ * The stage has no route to GitHub and `wholeOf` above only knows the files
+ * that have a patch, so a file brought in would otherwise draw as sixty lines
+ * of filler. These are what the pane exists to show: ordinary code, in a file
+ * the change never mentions, with the line somebody wants to point at in it.
+ */
+const UNTOUCHED: Readonly<Record<string, ReadonlyArray<string>>> = {
+  "src/bun.js/api/config.zig": [
+    "const std = @import(\"std\");",
+    "const bun = @import(\"root\").bun;",
+    "",
+    "/// Flags a response carries while it is being written.",
+    "///",
+    "/// The order matters: `has_written_status` is checked before the body is",
+    "/// touched, and `detachByteStream` clears both together.",
+    "pub const ResponseFlags = packed struct(u8) {",
+    "    aborted: bool = false,",
+    "    has_written_status: bool = false,",
+    "    is_waiting_body: bool = false,",
+    "    _padding: u5 = 0,",
+    "",
+    "    pub fn clear(this: *ResponseFlags) void {",
+    "        this.has_written_status = false;",
+    "        this.is_waiting_body = false;",
+    "    }",
+    "};",
+    "",
+    "pub const Defaults = struct {",
+    "    pub const max_header_bytes: usize = 16 * 1024;",
+    "    pub const idle_timeout_ms: u32 = 10_000;",
+    "};"
+  ],
+  "src/bun.js/webcore/blob.zig": [
+    "const std = @import(\"std\");",
+    "",
+    "pub const Blob = struct {",
+    "    bytes: []u8,",
+    "    offset: usize = 0,",
+    "};"
+  ],
+  "src/http/websocket.zig": [
+    "const std = @import(\"std\");",
+    "",
+    "pub const Opcode = enum(u4) { text = 0x1, binary = 0x2, close = 0x8 };"
+  ]
+}
+
 const BASE_SHA = "9c1b5f4e2a7d3086bb41f5c9e0d27a6318f4b0c5"
 
 /**
@@ -674,7 +724,20 @@ export const PULL_REQUEST_VIEW: View = {
          * between the hunks with the real renderer rather than a stub.
          */
         readWholeFile={(sha, path) =>
-          Effect.succeed(wholeOf(path, sha === BASE_SHA ? "before" : "after"))
+          Effect.succeed(
+            UNTOUCHED[path]?.join("\n") ?? wholeOf(path, sha === BASE_SHA ? "before" : "after")
+          )
+        }
+        /*
+         * Every path, for bringing in a file the pull request did not change.
+         * The changed ones plus a few it did not touch, which is the case the
+         * pane exists for.
+         */
+        readPaths={() =>
+          Effect.succeed([
+            ...FILES.map((one) => one.path),
+            ...Object.keys(UNTOUCHED)
+          ])
         }
         onStepAside={() => {}}
         onUseGitHub={() => {}}
