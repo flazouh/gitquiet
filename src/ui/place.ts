@@ -4,6 +4,7 @@ import { blameIn } from "../domain/blame";
 import { fromPathname as commitIn } from "../domain/CommitRef";
 import { commitListIn } from "../domain/commitList";
 import { compareIn } from "../domain/compare";
+import { discussionListIn } from "../domain/discussions";
 import { issueDashboardIn } from "../domain/issueDashboard";
 import { issueListIn } from "../domain/issueList";
 import { fromPathname as issueIn } from "../domain/issues";
@@ -690,6 +691,39 @@ export const RELEASES: Place = {
 };
 
 /**
+ * A repository's Discussions tab at `/owner/repo/discussions`, and one category of it.
+ *
+ * The same two content hooks every other repository tab uses, measured on 2026-09-03 against
+ * `vercel/next.js`: the pjax container is present ten times, the Turbo frame is present, and
+ * there is no `react-app` at all. This is the last large list on github.com still rendered by
+ * Rails end to end, which is why the read is a scrape and why this screen costs one request.
+ *
+ * Their own pager goes with the list. `discussionListIn` reads the page out of the address, so a
+ * reader on page three is drawn page three rather than page one.
+ */
+export const DISCUSSIONS: Place = {
+  name: "discussions",
+  owns: (path, search) =>
+    Option.isSome(discussionListIn(`https://github.com${path}${search ?? ""}`)),
+  regions: ["#repo-content-pjax-container"],
+  fallback: "turbo-frame#repo-content-turbo-frame",
+  stages: ["#repo-content-pjax-container", "turbo-frame#repo-content-turbo-frame"],
+  /*
+   * The heading their own list is labelled by, which is written by this page and by nothing
+   * else. Every other hook here is a content region shared with the Code tab, so the proof has
+   * to be the content itself.
+   *
+   * Measured rather than assumed, because the doubt was the neighbour: read on 2026-09-03,
+   * `#discussions-list` is on `/vercel/next.js/discussions` and is absent from
+   * `/vercel/next.js/discussions/70178`. So a reader pressing one discussion is never left
+   * looking at a page this rule has blanked.
+   */
+  soft: { holding: ":has(#discussions-list)" },
+  // Nothing. The region is the rows, their categories and their pager together.
+  bands: [],
+};
+
+/**
  * The home dashboard at `/`, and at `/dashboard`, which is the same page.
  *
  * The odd one in a different way from a repository's list: this page is Rails-rendered
@@ -982,6 +1016,7 @@ export const PLACES: ReadonlyArray<Place> = [
   RUN,
   ACTIONS,
   RELEASES,
+  DISCUSSIONS,
   NOTIFICATIONS,
   HOME,
   PROFILE,
@@ -1021,6 +1056,13 @@ const BY_ADDRESS: ReadonlyArray<Place> = [
    * claims one address and never a page beside it.
    */
   RELEASES,
+  /*
+   * Before a repository's front page, as everything else is. Its own neighbours are refused by
+   * the parser rather than by the order: `discussionListIn` takes three segments ending in
+   * `discussions` and five with `categories` fourth, so `/discussions/new` and one discussion's
+   * own page both fall through to whatever claims them next.
+   */
+  DISCUSSIONS,
   /*
    * Before a repository's front page, as everything else is, and the order does not otherwise
    * matter: `/notifications` is one address that no other place here claims.

@@ -18,6 +18,7 @@ import {
   PLACES,
   PROFILE,
   RAISE,
+  DISCUSSIONS,
   RELEASES,
   REPO_HOME,
   REPO_ISSUES,
@@ -64,6 +65,9 @@ const ADDRESSES: ReadonlyArray<readonly [string, Place]> = [
   ["/facebook/react/actions/runs/30866145080/job/1234", RUN],
   ["/facebook/react/actions", ACTIONS],
   ["/facebook/react/releases", RELEASES],
+  ["/facebook/react/discussions", DISCUSSIONS],
+  ["/facebook/react/discussions/categories/q-a", DISCUSSIONS],
+  ["/facebook/react/discussions?discussions_q=is%3Aunanswered&page=2", DISCUSSIONS],
   ["/notifications", NOTIFICATIONS],
   ["/facebook/react", REPO_HOME],
   ["/facebook/react/tree/main/src", REPO_HOME],
@@ -92,6 +96,15 @@ const THEIRS: Array<string> = [
   "/facebook/react/releases/tag/v19.0.0",
   "/facebook/react/releases/latest",
   "/facebook/react/tags",
+  /*
+   * One discussion, the form for raising one, and an organisation's discussions. The first two
+   * are a press away from the list and the third is where GitHub's own product feedback lives,
+   * so a place that read `/discussions` as a prefix would claim all three and gate a page it
+   * cannot draw.
+   */
+  "/facebook/react/discussions/70178",
+  "/facebook/react/discussions/new",
+  "/orgs/community/discussions",
   // Their own stars pages, which are somebody else's list under a reserved word.
   "/stars/flazouh",
   "/stars/flazouh/lists/tools",

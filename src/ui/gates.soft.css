@@ -87,6 +87,12 @@ html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has(section[data
   display: none;
 }
 
+/* discussions: swapped in without a load. */
+html[data-gitquiet-gating] #repo-content-pjax-container:has(#discussions-list) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has(#discussions-list) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
+  display: none;
+}
+
 /* home: swapped in without a load. */
 html[data-gitquiet-gating] body:has(#dashboard.dashboard) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;

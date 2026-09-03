@@ -101,6 +101,18 @@ export const titleAt = (what: Wanted, path: string): string | null => {
       return onRepo(path, "Actions")
     case "releases":
       return onRepo(path, "Releases")
+    case "discussions": {
+      /*
+       * The category, where the address names one, because that is the page the reader chose
+       * and the one they are looking for in a row of tabs. Their own word for it, spelt from
+       * the slug rather than from a read: a title is wanted before anything is read.
+       */
+      if (repo === null) return null
+      const slug = rest[0] === "discussions" && rest[1] === "categories" ? rest[2] : undefined
+      return slug === undefined || slug === ""
+        ? `Discussions · ${repo}`
+        : `${decodeURIComponent(slug)} · Discussions · ${repo}`
+    }
     case "raise":
       return onRepo(path, "New issue")
     case "working-set":

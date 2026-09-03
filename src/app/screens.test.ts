@@ -9,7 +9,7 @@ afterEach(() => {
 })
 
 describe("naming the screen a page wants", () => {
-  test("knows the nineteen pages this extension has a screen for", () => {
+  test("knows the twenty pages this extension has a screen for", () => {
     expect([...WANTED]).toEqual([
       "pull-request",
       "commit",
@@ -25,6 +25,7 @@ describe("naming the screen a page wants", () => {
       "run",
       "actions",
       "releases",
+      "discussions",
       "notifications",
       "person-repos",
       "profile",

@@ -41,6 +41,7 @@ export type Wanted =
   | "run"
   | "actions"
   | "releases"
+  | "discussions"
   | "notifications"
   /**
    * A person's repositories tab, and their profile. Their stars is a place already —
@@ -92,6 +93,7 @@ export const WANTED: ReadonlyArray<Wanted> = [
   "run",
   "actions",
   "releases",
+  "discussions",
   "notifications",
   "person-repos",
   "profile",
