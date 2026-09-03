@@ -7,6 +7,7 @@ import type { RepoRef } from "../domain/PullRequestRef"
 import type { IssueState } from "../domain/issues"
 import { type ArtName, useArt } from "./art"
 import { Cap } from "./Cap"
+import { FIELD, FLOAT, PRESSABLE } from "./dress"
 import { ROOT_ID } from "./mount"
 import { useKeying, useLetters } from "./useLetters"
 
@@ -178,7 +179,7 @@ export const Settle = ({ state, where, allowed, onSettle, onReopen }: SettleProp
             align="end"
             sideOffset={4}
             onKeyDown={letters}
-            className="t-dropdown z-50 min-w-60 rounded-md border border-line bg-raised p-1 shadow-pop"
+            className={`t-dropdown z-50 min-w-60 p-1 ${FLOAT}`}
           >
             {CLOSES.map((one) => {
               const Glyph = art[one.art]
@@ -252,7 +253,7 @@ const Naming = ({
           if (event.key === "Escape") onDrop()
         }}
         placeholder="#78, owner/repo#78, or a link"
-        className="w-56 rounded-md border border-line bg-inset px-2 py-1 text-xs text-ink placeholder:text-ink-muted"
+        className={`w-56 px-2 py-1 text-xs ${FIELD}`}
       />
       {/* The name it read back, so the press is made against what was understood rather than
           against what was typed. A number in one repository and a number in another look
@@ -272,7 +273,7 @@ const Naming = ({
 
 /** The same face as the other controls in this header, neither loud nor hidden. */
 const FACE =
-  "flex shrink-0 items-center rounded-md border border-line px-2.5 py-1 text-xs text-ink hover:bg-hover"
+  `flex shrink-0 items-center px-2.5 py-1 text-xs text-ink hover:bg-active ${PRESSABLE}`
 
 const ITEM =
   "flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-xs text-ink outline-none data-[highlighted]:bg-hover data-[disabled]:opacity-50"

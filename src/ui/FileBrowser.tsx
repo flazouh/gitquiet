@@ -100,6 +100,13 @@ export type FileBrowserProps = {
    */
   readonly revealing?: Revealer;
   /**
+   * Opens a file the pull request did not change, to read and to quote from.
+   *
+   * Absent where nothing can fetch one. See `src/ui/BroughtIn.tsx` and
+   * `CONTEXT.md`, Brought In.
+   */
+  readonly onBringIn?: () => void;
+  /**
    * Gives the files the full viewport without replacing this component.
    *
    * Keeping the same component preserves the open file, its scroll position,
@@ -318,6 +325,7 @@ export const FileBrowser = ({
   suggest,
   onUpload,
   revealing,
+  onBringIn,
   review,
   onReading,
   display,
@@ -1092,6 +1100,16 @@ export const FileBrowser = ({
               A direct flex child of the subcard: the tree is virtualised and
               sizes itself to its box, and a wrapper that ate the `flex-1` left
               that box at no height, so the rows existed and drew nothing. */}
+          {onBringIn === undefined ? null : (
+            <button
+              type="button"
+              onClick={onBringIn}
+              title="Read a file this pull request did not change, and quote its lines into the conversation"
+              className="order-last shrink-0 border-t border-line px-2 py-1.5 text-left text-xs text-ink-muted hover:bg-hover hover:text-ink"
+            >
+              Bring in a file
+            </button>
+          )}
           {prepareThrough >= 1 ? (
             <FileTreePane
               key={`${tree.density}|${tree.flatten}|${tree.folders}|${tree.search}|${tree.sticky}`}

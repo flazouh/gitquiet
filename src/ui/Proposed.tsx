@@ -4,6 +4,7 @@ import type { Chain } from "../domain/PullRequest"
 import { aroundHere } from "../domain/pressing"
 import type { Size } from "../domain/workingSet"
 import { useArt } from "./art"
+import { NOTICE } from "./dress"
 import { reasonFor } from "./refusal"
 import { Says } from "./says"
 import { ROOM, StackTree } from "./StackTree"
@@ -276,12 +277,7 @@ const Offer = ({
       // answer, which puts them at the top of the document two cards above the
       // sentence saying what happened.
       tabIndex={-1}
-      // No border: `quiet.css` takes the border off every named section on this
-      // page, so the class the header card carries has never drawn a line here
-      // or anywhere else. What separates this strip from the header card
-      // directly beneath it is the fill that file gives `.t-proposed` and the
-      // wider gap under it — nothing else on the column stands this far apart.
-      className="t-proposed t-panel-fade mb-3 shrink-0 rounded-md p-2.5"
+      className={`t-panel-fade mb-3 shrink-0 p-2.5 ${NOTICE}`}
     >
       {/* The sentence and the press on one row, which is the row GitHub puts
           their own Preview stack button on. It also takes a whole row off the

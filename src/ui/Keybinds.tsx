@@ -153,7 +153,7 @@ export const Keybinds = ({ settings, onChange, keys }: KeybindsProps) => {
   }
 
   return (
-    <ul className="divide-y divide-line">
+    <ul>
       {KEYBOARD.map(({ command, word, gist }) => (
         <Row
           key={command}

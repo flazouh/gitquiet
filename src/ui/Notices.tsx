@@ -286,7 +286,7 @@ export const Notices = ({
           {docket.notices.length === 0 ? (
             <p className="px-3 py-2 text-xs text-ink-muted">Nothing.</p>
           ) : (
-            <ul className="divide-y divide-line-muted">
+            <ul>
               {docket.notices.map((notice) => (
                 <Row key={notice.id} notice={notice} onPress={onPress} />
               ))}

@@ -102,7 +102,7 @@ export const PersonAside = ({ who, onStepAside }: PersonAsideProps) => {
      */
     <aside
       aria-label={`About ${who.login}`}
-      className={`t-panel-fade shrink-0 overflow-hidden rounded-md border bg-canvas lg:sticky lg:top-3 lg:w-72 ${paint.edge}`}
+      className={`t-panel-fade shrink-0 overflow-hidden lg:sticky lg:top-3 lg:w-72 ${paint.edge}`}
     >
       <div className="flex min-w-0 flex-col gap-3 p-3">
         <div className="flex min-w-0 items-center gap-3">

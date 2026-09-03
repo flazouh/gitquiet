@@ -1,7 +1,6 @@
 # Commenting where the diff does not reach
 
-Status: steps 0 to 4 done, 2026-09-02. Only step 5 is left, and it needs a decision rather than
-a build: step 2 found GitHub takes such a comment and draws it nowhere. Step 2 answered all three questions and reversed
+Status: all five steps done, 2026-09-02. Step 2 answered all three questions and reversed
 this plan's section 3; steps 3, 4 and 5 are now unblocked and section 5 needs re-reading
 against what was measured. See `docs/spec/github-write-api.md`, "What `create_review_comment`
 takes, measured".

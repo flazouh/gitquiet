@@ -12,6 +12,7 @@ import {
 } from "./checkReads"
 import { type CheckSteps as StepReads, CheckSteps } from "./CheckSteps"
 import { useArt } from "./art"
+import { SHEET } from "./dress"
 import { CHECK_TONE, checkArt } from "./Icon"
 import { LogPanel } from "./LogPanel"
 import { type Reading, useReading } from "./reading"
@@ -214,7 +215,7 @@ export const CheckDialog = ({
       // narrow dialog turns every line into three.
       // Over a dimmed page, which is what a modal is: the backdrop and the shadow
       // place it, and an outline on top of both is a belt over braces.
-      className="t-modal max-h-[calc(100vh-var(--sheet-away,4rem))] w-[56rem] max-w-[calc(100vw-var(--sheet-away,4rem))] overflow-auto rounded-md bg-canvas p-0 text-ink shadow-pop backdrop:bg-black/50"
+      className={`t-modal max-h-[calc(100vh-var(--sheet-away,4rem))] w-[56rem] max-w-[calc(100vw-var(--sheet-away,4rem))] overflow-auto p-0 text-ink backdrop:bg-black/50 ${SHEET}`}
     >
       {/* The title strip, held apart by its own fill rather than by a rule under it:
           it is a lighter surface than the body it heads, which says the same thing

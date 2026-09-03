@@ -212,7 +212,7 @@ export const TheStack = ({ stack }: { readonly stack: Stack }) => {
           <span className={`${CHIP} font-mono text-xs text-ink`}>{stack.floor.value}</span>
         </p>
       ) : null}
-      <ul className="divide-y divide-line-muted border-t border-line-muted">
+      <ul className="border-t border-line-muted">
         {stack.layers.map((layer, index) => (
           <Layer
             key={layer.reference.number}

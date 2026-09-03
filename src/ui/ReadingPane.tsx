@@ -1,6 +1,7 @@
 import { Option } from "effect"
 import { useEffect, useState } from "react"
 import type { Opened } from "../domain/repoHome"
+import { CARD } from "./dress"
 import { FileAlso } from "./FileAlso"
 import { FileMark } from "./FileHeading"
 import { Markdown } from "./Markdown"
@@ -30,8 +31,8 @@ export type ReadingProps = {
  * Raised rather than the surface the lists wear. Every pack puts raised above
  * the page; only some put surface above it, and in the pack this was built
  * against surface is four values *below* the canvas, which is a card nobody can
- * see. On the body rather than on the card, because a card's first child is a
- * label strip that `quiet.css` deliberately leaves unpainted.
+ * see. On the body rather than on the card, so the heading strip stays the
+ * card's own fill.
  */
 const SHEET = "bg-raised"
 
@@ -78,7 +79,7 @@ export const Reading = ({
   return (
     <section
       aria-label="File"
-      className="min-w-0 overflow-hidden rounded-lg border border-line lg:col-start-2 lg:row-start-2"
+      className={`min-w-0 overflow-hidden lg:col-start-2 lg:row-start-2 ${CARD}`}
     >
       <div className="flex items-center gap-2 px-3 py-1.5">
         {/* The same chip the diff prints over a file, because the tree beside

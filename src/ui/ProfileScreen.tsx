@@ -193,7 +193,7 @@ const Owns = ({
         </a>
       }
     >
-      <ul className="flex list-none flex-col divide-y divide-line-muted p-0">
+      <ul className="flex list-none flex-col p-0">
         {few.map((one) => (
           <Row key={one.nameWithOwner} one={one} columns={columns} now={now} />
         ))}

@@ -5,7 +5,7 @@ import { toUrl } from "../domain/PullRequestRef"
 import { whichLayer } from "../domain/pressing"
 import { sizeOf } from "../domain/workingSet"
 import { useArt } from "./art"
-import { CHIP, GHOST } from "./dress"
+import { CARD, CHIP, GHOST } from "./dress"
 import { pullRequestArt } from "./Icon"
 import { BROWSER } from "./marks"
 import { ageOf, momentOf } from "./when"
@@ -221,7 +221,7 @@ export const Header = ({
     // apart. The bar is the page's, and this one heads the pull request.
     <section
       aria-label="This pull request"
-      className="t-panel-fade mb-1.5 shrink-0 rounded-md border border-line bg-surface p-1"
+      className={`t-panel-fade mb-1.5 shrink-0 p-1 ${CARD}`}
     >
       {/* No padding of its own: the card's own inset is what holds both rows
           off its border, so the badge's fill starts where the well's fill

@@ -2,7 +2,7 @@ import * as Bubble from "@radix-ui/react-hover-card"
 import { Effect, Option } from "effect"
 import { useEffect, useState } from "react"
 import type { Portrait } from "../domain/portrait"
-import { HERE } from "./dress"
+import { FLOAT, HERE } from "./dress"
 import { OVER_ID, outsideHost } from "./outside"
 import { type Count, type Look, usePortraits } from "./portraits"
 
@@ -241,7 +241,7 @@ export const Who = ({
           collisionPadding={8}
           // Raised and shadowed rather than outlined: it is over the row it belongs
           // to, and the shadow is what says so on GitHub's page and in the window.
-          className="t-card z-50 rounded-md bg-raised px-3 py-2 text-ink shadow-pop"
+          className={`t-card z-50 px-3 py-2 text-ink ${FLOAT}`}
         >
           <Card login={login} portrait={portrait} year={year} />
         </Bubble.Content>

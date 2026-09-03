@@ -1,6 +1,25 @@
 import { readdirSync, readFileSync } from "node:fs"
 import { describe, expect, test } from "bun:test"
-import { CHIP, FIELD, HERE, INSIDE, PILL, PRESSABLE, TINT } from "./dress"
+import {
+  ASK,
+  ASK_GROUP,
+  ASK_MORE,
+  ASK_NO,
+  ASK_OUT,
+  ASK_YES,
+  CARD,
+  CARD_HEAD,
+  CHIP,
+  FIELD,
+  FLOAT,
+  HERE,
+  INSIDE,
+  NOTICE,
+  PILL,
+  PRESSABLE,
+  SHEET,
+  TINT
+} from "./dress"
 
 const EVERY_DRESS = { CHIP, FIELD, PILL, PRESSABLE }
 
@@ -10,7 +29,7 @@ describe("how a small control is dressed", () => {
     // added here would be a border in every chip and field at once, and both
     // shells would go back to overriding it component by component.
     for (const [name, dress] of Object.entries(EVERY_DRESS)) {
-      expect(dress, name).not.toContain("border")
+      expect(dress.replaceAll("!border-0", ""), name).not.toContain("border")
     }
   })
 
@@ -88,6 +107,71 @@ describe("where the reader is", () => {
  * `/owner/repo/pull/542` were drawn and announced identically, so the fill that means "this is
  * the one" was on a link to a page nobody was on.
  */
+describe("a named card", () => {
+  test("is a fill and a corner, with the line taken off hard enough for GitHub", () => {
+    expect(CARD).toContain("!rounded-lg")
+    expect(CARD).toContain("!border-0")
+    expect(CARD).toContain("bg-surface")
+  })
+
+  test("is the same shape as a notice, and a different fill", () => {
+    expect(NOTICE).toContain("!rounded-lg")
+    expect(NOTICE).toContain("!border-0")
+    expect(NOTICE).toContain("bg-accent-muted")
+    expect(NOTICE).not.toContain("bg-surface")
+  })
+
+  test("has no strip under its label", () => {
+    expect(CARD_HEAD).toContain("border-b-0")
+    expect(CARD_HEAD).toContain("bg-transparent")
+  })
+
+  test("is what every remaining card wears, so no file still asks for a line", () => {
+    // The fault this file exists to end: a card wrote `rounded-md border` and
+    // two sheets argued about the rest. A third file doing that is the fork
+    // coming back.
+    const leftover = readdirSync("src/ui")
+      .filter((name) => name.endsWith(".tsx") && !name.endsWith(".test.tsx"))
+      .filter((name) => {
+        const src = readFileSync(`src/ui/${name}`, "utf8")
+        return /rounded-(?:md|lg) border border-line\b/.test(src)
+      })
+
+    expect(leftover).toEqual([])
+  })
+})
+
+describe("the two-press control", () => {
+  test("is layout and padding, not a fill or a line", () => {
+    // The verb paints its own fill. A tint here would sit under green and grey
+    // the same way and make both of them a chip.
+    for (const [name, dress] of Object.entries({ ASK, ASK_GROUP, ASK_YES, ASK_MORE, ASK_OUT, ASK_NO })) {
+      expect(dress.replaceAll("!border-0", ""), name).not.toContain("border")
+      expect(dress, name).not.toContain("bg-")
+    }
+  })
+
+  test("leaves the opening track and the veil to the motion sheet", () => {
+    expect(ASK).not.toContain("grid-cols")
+    expect(ASK_YES).toContain("isolate")
+    expect(ASK_MORE).toContain("isolate")
+    expect(ASK_NO).toContain("isolate")
+  })
+})
+
+describe("a surface that covers the list", () => {
+  test("is a raised fill with a shadow and no line", () => {
+    expect(FLOAT).toContain("!border-0")
+    expect(FLOAT).toContain("bg-raised")
+    expect(FLOAT).toContain("shadow-pop")
+  })
+
+  test("is a sheet at the card's corner when it is the page", () => {
+    expect(SHEET).toContain("!rounded-lg")
+    expect(SHEET).toContain("bg-canvas")
+  })
+})
+
 describe("the section the reader is in", () => {
   test("fills nothing at all, both fills being spoken for", () => {
     // `TINT` is what anything takes under a pointer and `HERE` is the page being read. A third

@@ -2,7 +2,7 @@ import type { CheckState } from "../domain/PullRequest"
 import type { RepoRef } from "../domain/PullRequestRef"
 import type { Listed, Strand } from "../domain/strand"
 import { useArt } from "./art"
-import { CHIP } from "./dress"
+import { CARD, CHIP } from "./dress"
 import { CHECK_TONE, checkArt } from "./Icon"
 import { ageOf, momentOf } from "./when"
 
@@ -219,7 +219,7 @@ export const Strands = ({
   return (
     <section
       aria-label="Runs"
-      className="t-panel-fade overflow-hidden rounded-md border border-line bg-surface"
+      className={`t-panel-fade overflow-hidden ${CARD}`}
     >
       {strands.map((strand) => (
         <div
