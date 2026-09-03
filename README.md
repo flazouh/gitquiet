@@ -55,7 +55,7 @@ you last looked, all above the diff.
 
 </details>
 
-## The fourteen pages
+## The pages
 
 Listed in [`src/ui/place.ts`](./src/ui/place.ts), which is the one list both the
 router and the takeover read.
@@ -76,6 +76,8 @@ router and the takeover read.
 | `/owner/repo/blame/BRANCH/PATH` | who wrote each line |
 | `/owner/repo/actions` | workflow runs |
 | `/owner/repo/actions/runs/ID` | one run |
+| `/owner/repo/discussions` | its discussions |
+| `/owner/repo/discussions/categories/SLUG` | one category of them |
 | `/notifications` | your inbox |
 
 ## Keyboard

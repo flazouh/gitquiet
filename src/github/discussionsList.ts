@@ -255,3 +255,27 @@ export const isKeptDiscussions = (value: unknown): value is ReadonlyArray<Listed
     typeof one.category === "object"
   )
 }
+
+/**
+ * Whether a whole page of discussions came back out of the store as it went in.
+ *
+ * Beside {@link isKeptDiscussions} because both are claims about what this file writes, and the
+ * gateway then needs no cast: an entry written before the shape carried its categories would
+ * answer `undefined` for them and empty the filter, so the entry is refused whole.
+ */
+export const isKeptFound = (
+  value: unknown
+): value is {
+  readonly rows: ReadonlyArray<ListedDiscussion>
+  readonly categories: ReadonlyArray<Category>
+  readonly more: boolean
+} => {
+  if (typeof value !== "object" || value === null) return false
+
+  const kept: Record<string, unknown> = { ...value }
+  return (
+    isKeptDiscussions(kept.rows) &&
+    Array.isArray(kept.categories) &&
+    typeof kept.more === "boolean"
+  )
+}

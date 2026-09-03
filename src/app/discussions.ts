@@ -1,5 +1,5 @@
-import { Effect, type Option } from "effect"
-import type { RepoRef } from "../domain/PullRequestRef"
+import { Effect } from "effect"
+import type { DiscussionList } from "../domain/discussions"
 import { GitHubGateway } from "../ports/GitHubGateway"
 
 /**
@@ -9,14 +9,9 @@ import { GitHubGateway } from "../ports/GitHubGateway"
  * GitHub still renders this list on the server, so everything the screen draws is in the one
  * document. There is nothing here for a second request to add.
  */
-export const loadDiscussions = Effect.fn("loadDiscussions")(function* (
-  repo: RepoRef,
-  category: Option.Option<string>,
-  query: string,
-  page: number
-) {
+export const loadDiscussions = Effect.fn("loadDiscussions")(function* (list: DiscussionList) {
   const gateway = yield* GitHubGateway
-  return yield* gateway.discussions(repo, category, query, page)
+  return yield* gateway.discussions(list)
 })
 
 /**
@@ -24,14 +19,11 @@ export const loadDiscussions = Effect.fn("loadDiscussions")(function* (
  *
  * What the screen paints with while the live read is in the air. Nothing where this address has
  * not been read on this browser before, and nothing kept under one category is ever handed to
- * another: the store is keyed by the whole route.
+ * another: the store is keyed by `listRouteOf`, which is the whole address.
  */
 export const rememberedDiscussions = Effect.fn("rememberedDiscussions")(function* (
-  repo: RepoRef,
-  category: Option.Option<string>,
-  query: string,
-  page: number
+  list: DiscussionList
 ) {
   const gateway = yield* GitHubGateway
-  return yield* gateway.rememberedDiscussions(repo, category, query, page)
+  return yield* gateway.rememberedDiscussions(list)
 })

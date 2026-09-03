@@ -491,7 +491,7 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
      * documented API with a token, and that API answers discussions through GraphQL
      * rather than through the routes this port's other reads use.
      */
-    discussions: missing("read discussions"),
+    discussions: (list) => missing("read discussions")(list.repo),
     rememberedDiscussions: () => Effect.succeed(Option.none()),
 
     /*

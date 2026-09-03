@@ -8,6 +8,7 @@ import {
   discussionListIn,
   docketsOf,
   listAddressOf,
+  listRouteOf,
   type ListedDiscussion
 } from "./discussions"
 
@@ -290,5 +291,51 @@ describe("filing a page of rows into Courts", () => {
     const filed = docketsOf(rows).reduce((sum, one) => sum + one.count, 0)
 
     expect(filed).toBe(rows.length)
+  })
+})
+
+describe("writing a whole page's address and reading it back", () => {
+  const list = (over: Partial<Parameters<typeof listRouteOf>[0]> = {}) => ({
+    repo: { owner: "vercel", repo: "next.js" },
+    category: Option.none<string>(),
+    query: "",
+    page: 1,
+    ...over
+  })
+
+  test("the plain list is the plain address", () => {
+    expect(listRouteOf(list())).toBe("/vercel/next.js/discussions")
+  })
+
+  test("a category, a search and a page are all in it", () => {
+    expect(
+      listRouteOf(list({ category: Option.some("help"), query: "is:unanswered", page: 3 }))
+    ).toBe("/vercel/next.js/discussions/categories/help?discussions_q=is%3Aunanswered&page=3")
+  })
+
+  /*
+   * Three things read this string: the gateway asks GitHub at it, the store keeps the answer
+   * under it, and the screen tells one visit from another by it. A hand-made join stood in for
+   * the third once, and its separator could appear inside a search.
+   */
+  test("every shape of list reads back as the list it was written from", () => {
+    const every = [
+      list(),
+      list({ category: Option.some("show-and-tell") }),
+      list({ query: "sort:top" }),
+      list({ page: 4 }),
+      list({ category: Option.some("q&a"), query: "is:open label:\"good first\"", page: 2 })
+    ]
+
+    for (const one of every) {
+      expect(discussionListIn(at(listRouteOf(one)))).toEqual(Option.some(one))
+    }
+  })
+
+  test("two lists that differ only in where the words fall get different addresses", () => {
+    const asCategory = listRouteOf(list({ category: Option.some("help"), query: "open" }))
+    const asQuery = listRouteOf(list({ query: "help open" }))
+
+    expect(asCategory).not.toBe(asQuery)
   })
 })

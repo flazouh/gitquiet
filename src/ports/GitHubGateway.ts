@@ -30,7 +30,7 @@ import type { Raised, Raising } from "../domain/raising"
 import type { Attached, Version } from "../domain/release"
 import type { Front, Opened, Standing, Starring, Touch, TouchWho } from "../domain/repoHome"
 import type { Blamed } from "../domain/blame"
-import type { Category, ListedDiscussion } from "../domain/discussions"
+import type { Category, DiscussionList, ListedDiscussion } from "../domain/discussions"
 import type { Repository } from "../domain/repositories"
 import type { RunOpening, RunRef } from "../domain/run"
 import type { Strand } from "../domain/strand"
@@ -575,17 +575,13 @@ export class GitHubGateway extends Context.Service<
      * header and the keyboard-shortcuts dialog, and neither holds a row. There is no payload to
      * decode and no persisted query on the page to borrow.
      *
-     * The category is part of the address rather than of the query, because their own sidebar
-     * links it that way and a reader who arrives on one of those links has it there already.
-     * Everything else a reader can narrow the list by is carried through in `query` untouched,
-     * the way `issueSearch` carries theirs.
+     * One {@link DiscussionList} and not four arguments, because that type already is the four:
+     * the repository, the category their sidebar links rather than queries, the search carried
+     * through untouched the way `issueSearch` carries theirs, and the page. `listRouteOf` turns
+     * it into the address, and the store is keyed by the same string, so a category and a search
+     * can never be handed each other's rows.
      */
-    readonly discussions: (
-      reference: RepoRef,
-      category: Option.Option<string>,
-      query: string,
-      page: number
-    ) => Effect.Effect<FoundDiscussions, GatewayError>
+    readonly discussions: (list: DiscussionList) => Effect.Effect<FoundDiscussions, GatewayError>
 
     /**
      * The same page as it was last read, without asking GitHub.
@@ -595,10 +591,7 @@ export class GitHubGateway extends Context.Service<
      * and the whole point of this screen is which rows are stuck.
      */
     readonly rememberedDiscussions: (
-      reference: RepoRef,
-      category: Option.Option<string>,
-      query: string,
-      page: number
+      list: DiscussionList
     ) => Effect.Effect<Option.Option<FoundDiscussions>, GatewayError>
 
     /**

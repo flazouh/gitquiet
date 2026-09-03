@@ -166,6 +166,15 @@ export const courtOf = (one: ListedDiscussion): Court => {
   }
 }
 
+/** Where a repository's discussions are, and one category of them. */
+export const listAddressOf = (
+  repo: { readonly owner: string; readonly repo: string },
+  category: Option.Option<string> = Option.none()
+): string =>
+  Option.isSome(category)
+    ? `/${repo.owner}/${repo.repo}/discussions/categories/${encodeURIComponent(category.value)}`
+    : `/${repo.owner}/${repo.repo}/discussions`
+
 /**
  * A repository's discussion list — `/{owner}/{repo}/discussions`, and one category of it.
  *
@@ -298,14 +307,40 @@ export const discussionIn = (url: string): Option.Option<DiscussionRef> => {
 export const addressOf = (reference: DiscussionRef): string =>
   `/${reference.owner}/${reference.repo}/discussions/${reference.number}`
 
-/** Where a repository's discussions are, and one category of them. */
-export const listAddressOf = (
-  repo: { readonly owner: string; readonly repo: string },
-  category: Option.Option<string> = Option.none()
-): string =>
-  Option.isSome(category)
-    ? `/${repo.owner}/${repo.repo}/discussions/categories/${encodeURIComponent(category.value)}`
-    : `/${repo.owner}/${repo.repo}/discussions`
+/**
+ * The whole address of one page of a list: the repository, the category, the search and the
+ * page.
+ *
+ * Written once and read by three. The gateway asks GitHub at it, the store keeps the answer
+ * under it, and the screen tells one visit from another by it. Those were three strings before,
+ * and the third was a hand-made join whose separator could appear inside a search — so a
+ * category with no query and a query that began with the category's name were one name.
+ *
+ * The inverse of {@link discussionListIn}, and the two are tested against each other: an address
+ * this writes reads back as the list it was written from.
+ */
+export const listRouteOf = (list: DiscussionList): string =>
+  `/${list.repo.owner}/${list.repo.repo}${listWithinRepo(list)}`
+
+/**
+ * The same address with the repository taken off the front.
+ *
+ * The half a read of one of GitHub's own repository pages takes, since that read is given the
+ * repository separately. Its own function rather than a slice off {@link listRouteOf}, because
+ * cutting a prefix back off a string that was just built is a way of being wrong later.
+ */
+export const listWithinRepo = (list: DiscussionList): string => {
+  const path = Option.isSome(list.category)
+    ? `/discussions/categories/${encodeURIComponent(list.category.value)}`
+    : "/discussions"
+
+  const asked = new URLSearchParams()
+  if (list.query !== "") asked.set("discussions_q", list.query)
+  if (list.page > firstPage) asked.set("page", String(list.page))
+
+  const search = asked.toString()
+  return search === "" ? path : `${path}?${search}`
+}
 
 /**
  * The Courts a repository's discussions have, which is three of the product's four.
