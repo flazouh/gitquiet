@@ -78,6 +78,7 @@ import {
   remember,
   rememberBranches,
   rememberHash,
+  rememberLanded,
   rememberRoute,
   rememberSize,
   rememberStanding,
@@ -128,7 +129,7 @@ import { decodeMentionable, decodeReferable, numberedIn, peopleIn } from "./sugg
 import { hashIn, hashOfMutationIn, nonceOn, releaseOn, servedFor, whenAsked } from "./persisted"
 import { scopedRepositoryIn } from "./scoped"
 import { decodeUploadedAsset, decodeUploadPolicy, repositoryNumberFor } from "./uploading"
-import { asLanded, recordLanded } from "./landed"
+import { asLanded, landedNow, recordLanded, seeded } from "./landed"
 import { preloadedIn } from "./preloaded"
 import { repositoriesFrom } from "./repositories"
 import { decodeSidebar, standingFrom } from "./standing"
@@ -1133,7 +1134,13 @@ const writing = Effect.fn("writing")(function* (
    * making a stack all left the kept payloads saying otherwise.
    */
   const leaves = LEAVES_IT[route]
-  if (leaves !== undefined) recordLanded(reference, leaves)
+  if (leaves !== undefined) {
+    recordLanded(reference, leaves)
+    // Written down as well as remembered, so that the next document knows what
+    // this one did. Forked: the screen has already moved, and the reader is not
+    // waiting on a storage write to be told what they just pressed.
+    yield* Effect.forkDetach(rememberLanded(landedNow()))
+  }
   yield* forget(reference)
 })
 
@@ -1792,7 +1799,8 @@ const shelfIn = (
   route: string,
   raw: unknown
 ): Effect.Effect<ReadonlyArray<InvolvedPullRequest>, WorkingSetError> =>
-  decodeShelf(raw).pipe(
+  seeded.pipe(
+    Effect.andThen(() => decodeShelf(raw)),
     Effect.map((decoded) =>
       involvedIn(Option.some(shelf), decoded.results)
     ),
@@ -1803,7 +1811,8 @@ const shelfIn = (
 
 /** One page of a search, out of GitHub's payload for it. The same again, for the other list. */
 const foundIn = (route: string, raw: unknown): Effect.Effect<Found, WorkingSetError> =>
-  decodeQuery(raw).pipe(
+  seeded.pipe(
+    Effect.andThen(() => decodeQuery(raw)),
     Effect.map((decoded): Found => {
       const listing = decoded
       return {
@@ -1885,6 +1894,11 @@ export const layer = Layer.succeed(GitHubGateway, {
     snapshot: Effect.fn("GitHubGateway.snapshot")(function* (reference: PullRequestRef) {
       const raw = yield* payloadsThroughWorker(reference)
 
+      // Before the state is worn, since wearing it is the whole reason this is
+      // read at all. A card opened cold in a new tab, on a pull request closed
+      // from a list in the last one, is the case it exists for.
+      yield* seeded
+
       const snapshot = yield* decodeInto(reference, raw)
 
       /*
@@ -1933,6 +1947,8 @@ export const layer = Layer.succeed(GitHubGateway, {
     remembered: Effect.fn("GitHubGateway.remembered")(function* (reference: PullRequestRef) {
       const raw = yield* recall(reference)
       if (Option.isNone(raw)) return Option.none<PullRequestSnapshot>()
+
+      yield* seeded
 
       // Decoded through exactly the path a live read takes. A payload kept
       // before a schema changed fails here and is a miss, where a stored

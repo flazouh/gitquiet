@@ -4,6 +4,7 @@ import * as Atom from "effect/unstable/reactivity/Atom"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useAtomRefresh, useAtomValue } from "./atoms"
 import { keepDrawn, lastDrawn } from "./lastDrawn"
+import { wornOut } from "./worn"
 
 /**
  * Reading something from GitHub and never resting on what was remembered.
@@ -102,23 +103,6 @@ export type Live<T> = {
  * not each pay for the whole thing. Coming back to the tab ignores it.
  */
 const FRESH = "10 seconds"
-
-/**
- * How long a change is worn before the read is believed over it.
- *
- * A cap rather than a policy: `until` is what normally takes a change off, and
- * this is only for the change that never gets its yes — the pull request somebody
- * else reopened from another tab, the run that failed to cancel in a way GitHub
- * never reported. Without it a read would be overruled by a press made an hour
- * ago, which is the failure the other direction and the worse one, because
- * nothing would ever correct it.
- *
- * Five minutes rather than the one `landed.ts` allows itself. That one covers the
- * seconds between a write and GitHub's page data catching up; this one has to
- * cover their search index, which is what the Working Set is read from and which
- * is behind by minutes rather than seconds on a busy morning.
- */
-const WEARING = 5 * 60_000
 
 /** One {@link Worn} change, and when it was made, so it can be given up on. */
 type Wearing<T> = Worn<T> & { readonly at: number }
@@ -290,7 +274,7 @@ export const useLive = <T>(
   const now = Date.now()
   const standing =
     said.status === "ready"
-      ? worn.filter((one) => now - one.at <= WEARING && !one.until(said.value))
+      ? worn.filter((one) => !wornOut(one.at, now) && !one.until(said.value))
       : worn
 
   /*
