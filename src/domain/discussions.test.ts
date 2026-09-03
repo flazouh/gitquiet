@@ -18,7 +18,7 @@ const row = (over: Partial<ListedDiscussion> = {}): ListedDiscussion => ({
   id: "D_kwDOBC3Cis4Abtsx",
   title: "High Memory Usage by next-server process.",
   url: "/vercel/next.js/discussions/70178",
-  category: { name: "Help", slug: "help", emoji: "🎓" },
+  category: { name: "Help", slug: "help", emoji: { kind: "text", text: "🎓" } },
   answerable: true,
   answered: false,
   closed: false,

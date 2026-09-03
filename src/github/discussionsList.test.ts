@@ -54,11 +54,31 @@ describe("reading their list page", () => {
    * report". The name is read off their category link rather than off the emoji box beside it.
    */
   test("reads the category off their own link, emoji and all", () => {
-    expect(rows[0]?.category).toEqual({ name: "Feedback", slug: "feedback", emoji: "💬" })
+    expect(rows[0]?.category).toEqual({
+      name: "Feedback",
+      slug: "feedback",
+      emoji: { kind: "text", text: "💬" }
+    })
     expect(numbered(98177)?.category).toEqual({
       name: "App Router",
       slug: "app-router",
-      emoji: "🏎️"
+      emoji: { kind: "text", text: "🏎️" }
+    })
+  })
+
+  /*
+   * `:shipit:` is a picture rather than a character, so GitHub draws it as an `<img>` and not as
+   * a `g-emoji`. A read that knew only about the second left `vercel/next.js`'s Show and tell
+   * rows with a blank where every other row has its picture.
+   */
+  test("reads a category whose emoji is one of GitHub's own, which is an image", () => {
+    const shown = numbered(10640)?.category
+
+    expect(shown?.name).toBe("Show and tell")
+    expect(shown?.emoji).toEqual({
+      kind: "image",
+      url: "https://github.githubassets.com/assets/shipit-ee78ea3eb431.png",
+      name: "shipit"
     })
   })
 
@@ -206,7 +226,11 @@ describe("the rest of the page", () => {
       "show-and-tell",
       "turbopack-error-report"
     ])
-    expect(categories[0]).toEqual({ name: "App Router", slug: "app-router", emoji: "🏎️" })
+    expect(categories[0]).toEqual({
+      name: "App Router",
+      slug: "app-router",
+      emoji: { kind: "text", text: "🏎️" }
+    })
   })
 
   /*
@@ -220,12 +244,12 @@ describe("the rest of the page", () => {
     expect(named).toContain("Turbopack Error Report")
   })
 
-  /** Empty where a maintainer uploaded an image rather than choosing an emoji. */
-  test("a category with no emoji reads as having none rather than failing", () => {
+  /** The sidebar draws GitHub's own emoji as an image there too, exactly as the rows do. */
+  test("a category whose emoji is an image is read as one in the sidebar as well", () => {
     const shown = categoriesOnPage(real).find((one) => one.slug === "show-and-tell")
 
     expect(shown?.name).toBe("Show and tell")
-    expect(shown?.emoji).toBe("")
+    expect(shown?.emoji.kind).toBe("image")
   })
 
   test("says there is another page, off their own next link", () => {

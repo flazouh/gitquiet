@@ -20,7 +20,7 @@
  * served it on 2026-09-03.
  */
 
-import type { Category, DiscussionRef, ListedDiscussion } from "../domain/discussions"
+import type { Category, DiscussionRef, Emoji, ListedDiscussion } from "../domain/discussions"
 import { text } from "./outcome"
 
 const parse = (html: string): Document => new DOMParser().parseFromString(html, "text/html")
@@ -55,6 +55,26 @@ const numberIn = (label: string, pattern: RegExp): number => {
 }
 
 /**
+ * The picture a category wears, out of whichever of the two elements GitHub used for it.
+ *
+ * An ordinary emoji is a character inside a `g-emoji`. One of GitHub's own is an `<img>` with
+ * the name in its `alt`, because `:shipit:` is a picture rather than a character. Reading only
+ * the first drew `vercel/next.js`'s Show and tell with a blank where every other row has one.
+ */
+const emojiIn = (within: Element | null): Emoji => {
+  if (within === null) return { kind: "none" }
+
+  const said = text(within.querySelector("g-emoji"))
+  if (said !== "") return { kind: "text", text: said }
+
+  const image = within.querySelector("img[alt^=':'], img.discussions-emoji-box")
+  const url = image?.getAttribute("src") ?? ""
+  if (url === "") return { kind: "none" }
+
+  return { kind: "image", url, name: (image?.getAttribute("alt") ?? "").replace(/^:|:$/g, "") }
+}
+
+/**
  * The category the row was asked in.
  *
  * The emoji is read off their own box rather than mapped from the name. A maintainer chose it,
@@ -68,7 +88,7 @@ const categoryIn = (row: Element): Category => {
   return {
     name: text(link),
     slug: decodeURIComponent(CATEGORY.exec(url)?.[1] ?? ""),
-    emoji: text(row.querySelector("g-emoji"))
+    emoji: emojiIn(row.querySelector(".bg-discussions-row-emoji-box"))
   }
 }
 
@@ -205,9 +225,7 @@ export const categoriesOnPage = (html: string): ReadonlyArray<Category> => {
     const name = text(link.querySelector(".ActionList-item-label")).replace(/\s+/g, " ")
     if (slug === "" || name === "" || found.has(slug)) continue
 
-    // Empty where a maintainer uploaded an image instead of choosing an emoji, which
-    // `vercel/next.js` has done for Show and tell.
-    found.set(slug, { name, slug, emoji: text(link.querySelector("g-emoji")) })
+    found.set(slug, { name, slug, emoji: emojiIn(link) })
   }
 
   return [...found.values()]

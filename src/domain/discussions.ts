@@ -33,6 +33,21 @@ export type DiscussionRef = {
 }
 
 /**
+ * The picture a maintainer chose for a category.
+ *
+ * Three cases and not a string, because GitHub draws two different things there and a string
+ * would have to stand for both. A category set to an ordinary emoji gets a `g-emoji` element
+ * holding the character. A category set to one of GitHub's own — `:shipit:`, `:octocat:` — gets
+ * an `<img>` instead, because those are not characters at all. `vercel/next.js` has one of each
+ * among its nine, and a read that only knew about the first drew Show and tell with a blank
+ * where every other row has its picture.
+ */
+export type Emoji =
+  | { readonly kind: "none" }
+  | { readonly kind: "text"; readonly text: string }
+  | { readonly kind: "image"; readonly url: string; readonly name: string }
+
+/**
  * The category a discussion was asked in, as their row prints it.
  *
  * The emoji is theirs and is carried rather than mapped to an Octicon. A maintainer chose it,
@@ -43,7 +58,7 @@ export type Category = {
   readonly name: string
   /** The last segment of `/discussions/categories/{slug}`, which is what an address takes. */
   readonly slug: string
-  readonly emoji: string
+  readonly emoji: Emoji
 }
 
 /**

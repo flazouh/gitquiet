@@ -2,6 +2,7 @@ import { Option } from "effect"
 import {
   type Answering,
   type Category,
+  type Emoji,
   type ListedDiscussion,
   answeringOf,
   docketsOf,
@@ -46,6 +47,21 @@ const TONE: Record<Answering, string> = {
 }
 
 /**
+ * The picture a maintainer chose for a category, however GitHub stores it.
+ *
+ * An ordinary emoji is a character and is drawn as one. One of GitHub's own — `:shipit:`,
+ * `:octocat:` — is an image on their servers, and it is drawn from there rather than replaced
+ * with something else: a category with a blank where every other row has a picture reads as a
+ * row that failed to load.
+ */
+const Picture = ({ emoji }: { readonly emoji: Emoji }) => {
+  if (emoji.kind === "text") return <>{emoji.text}</>
+  if (emoji.kind === "none") return null
+
+  return <img src={emoji.url} alt="" width={16} height={16} className="inline-block" />
+}
+
+/**
  * What has been done to a discussion regardless of its answer.
  *
  * Their own row prints "· Closed · Unanswered" together, so these two are drawn beside the
@@ -80,7 +96,7 @@ const Row = ({ one }: { readonly one: ListedDiscussion }) => {
           question at a glance. Hidden from a reader being read to: the category is named below
           it in words. */}
       <span aria-hidden="true" className="mt-0.5 w-5 shrink-0 text-center text-sm">
-        {one.category.emoji}
+        <Picture emoji={one.category.emoji} />
       </span>
 
       <div className="min-w-0 flex-1">
@@ -166,7 +182,10 @@ export const Categories = ({
           )}`}
           href={listAddressOf(repo, Option.some(one.slug))}
         >
-          <span aria-hidden="true">{one.emoji}</span> {one.name}
+          <span aria-hidden="true">
+            <Picture emoji={one.emoji} />
+          </span>{" "}
+          {one.name}
         </a>
       ))}
     </nav>
