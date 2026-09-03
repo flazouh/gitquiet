@@ -250,9 +250,17 @@ export const discussionOnPage = (
     return said === null ? [] : [{ said, under: under(container) }]
   })
 
+  /*
+   * Which of them stand on their own. Asked of this set rather than of the replies map, because
+   * those are two different questions: a reply whose comment is on the page but could not be
+   * read has an entry in the map and nothing to hang under, and filtering by the map would drop
+   * it without a word.
+   */
+  const standing = new Set(spoken.filter((one) => one.under === null).map((one) => one.said.id))
+
   const repliesTo = new Map<string, Array<Reply>>()
   for (const one of spoken) {
-    if (one.under === null) continue
+    if (one.under === null || !standing.has(one.under)) continue
     const held = repliesTo.get(one.under)
     if (held === undefined) repliesTo.set(one.under, [one.said])
     else held.push(one.said)
@@ -264,7 +272,7 @@ export const discussionOnPage = (
      * dropped. Their own pager can serve one, and a reply with nothing to hang under is still
      * something somebody wrote.
      */
-    .filter((one) => one.under === null || !repliesTo.has(one.under))
+    .filter((one) => one.under === null || !standing.has(one.under))
     .map((one) => ({ ...one.said, replies: repliesTo.get(one.said.id) ?? [] }))
 
   /*

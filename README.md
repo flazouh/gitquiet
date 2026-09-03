@@ -78,6 +78,7 @@ router and the takeover read.
 | `/owner/repo/actions/runs/ID` | one run |
 | `/owner/repo/discussions` | its discussions |
 | `/owner/repo/discussions/categories/SLUG` | one category of them |
+| `/owner/repo/discussions/N` | one discussion |
 | `/notifications` | your inbox |
 
 ## Keyboard

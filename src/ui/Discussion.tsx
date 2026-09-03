@@ -4,6 +4,7 @@ import {
   type Comment,
   type DiscussionSnapshot,
   type Reply,
+  addressOf,
   answerOf,
   answeringOf,
   listAddressOf,
@@ -138,7 +139,7 @@ export const Discussion = ({ snapshot }: { readonly snapshot: DiscussionSnapshot
   const said = SAID[answering]
   const answer = answerOf(snapshot)
   const likely = mostUpvoted(snapshot)
-  const where = `/${snapshot.reference.owner}/${snapshot.reference.repo}/discussions/${snapshot.reference.number}`
+  const where = addressOf(snapshot.reference)
   const count = spokenOn(snapshot)
 
   return (

@@ -140,19 +140,30 @@ both go with it.
 
 ### One discussion opens on its Answer
 
-A Question that has an Answer draws the Answer under the body, before the other replies, with
-the rest below it in order. That is what the reader came for, and GitHub already knows which
-comment it is: the comment carries `timeline-chosen-answer` and the page carries `answered`.
+A Question that has an Answer draws the Answer under the body, before the other replies, and
+leaves it in the thread as well. That is what the reader came for, and GitHub already knows
+which comment it is: the comment carries `timeline-chosen-answer` and the page carries
+`answered`. Their own page leaves it wherever it happened to be said, which on a nine-comment
+thread is somewhere in the middle.
 
-A Stale Question draws the reply the reader is most likely to mark, which is the most upvoted
-one, under the body with the mark offered on it. Nothing is marked without a press.
+A Stale Question draws the reply the most people upvoted, under a heading that says nobody
+marked an answer. It is offered as what it is and never as the answer: guessing at one would be
+this screen making the claim it exists to say GitHub cannot make. Marking one is a write, and
+the write is not built.
+
+The question itself folds after about a screenful. `vercel/next.js#70178` is 700 pixels of
+question before the first reply, and on this page what is under the question is the point of it.
+
+The screen is not grouped into the four Courts, unlike the list it is opened from. Those sort
+many things by who owes the next move; a discussion is one thing, one move is owed on it, and
+the header says which.
 
 ## What this does not do
 
 - **No cross-repository list.** `github.com/discussions` exists for a signed-in reader and is
   a separate screen with a separate spec. This one is about a repository.
-- **No poll voting.** A Poll is drawn and counted, and voting goes back through GitHub's own
-  page. Writing a vote is in the write spec, not this one.
+- **No writing.** Marking an answer, replying, upvoting, closing and locking all go back through
+  GitHub's own page. Every one of them is a write, and the writes are a spec of their own.
 - **No category management.** Making and ordering categories is a maintainer setting and
   belongs where the other settings are.
 - **No claim about spam.** Spam in Discussions is a real complaint and a moderation problem.

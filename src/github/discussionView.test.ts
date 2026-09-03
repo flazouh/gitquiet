@@ -195,3 +195,34 @@ describe("coming back with nothing rather than with something wrong", () => {
     expect(nine.comments.some((said) => said.id === "7197489")).toBe(false)
   })
 })
+
+describe("a thread their pager served in pieces", () => {
+  /*
+   * A reply whose comment is not on the page. Their pager can serve one, and a reply with
+   * nothing to hang under is still something somebody wrote, so it stands on its own rather than
+   * being dropped for having no parent.
+   */
+  const orphaned = [
+    '<h1><span class="js-issue-title">A question</span></h1>',
+    '<div class="js-comment-container">',
+    '  <div class="discussions-timeline-scroll-target" id="discussion-1"></div>',
+    '  <div class="js-comment-body">the question</div>',
+    "</div>",
+    // Their nesting, the way round their page has it: the block holds the reply, never the
+    // other way about.
+    '<div id="child-comments-discussioncomment-999">',
+    '  <div class="js-comment-container js-nested-comment-container">',
+    '    <div class="discussions-timeline-scroll-target" id="discussioncomment-2"></div>',
+    '    <div class="js-comment-body">a reply to a comment nobody sent</div>',
+    "  </div>",
+    "</div>"
+  ].join("")
+
+  test("keeps a reply whose comment never arrived", () => {
+    const found = Option.getOrThrow(discussionOnPage(at(1), `<html><body>${orphaned}</body></html>`))
+
+    expect(found.comments).toHaveLength(1)
+    expect(found.comments[0]?.id).toBe("2")
+    expect(found.comments[0]?.body).toContain("nobody sent")
+  })
+})
