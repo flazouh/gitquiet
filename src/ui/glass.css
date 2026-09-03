@@ -215,7 +215,7 @@
  * `--gitquiet-gutter` the bar and the columns read, so the three move together.
  *
  * `!important` because Sonner writes these offsets inline from its own prop, and an important
- * declaration is the one thing that answers an inline one. `:has(#gitquiet-bar)` and not the
+ * declaration is the one thing that answers an inline one. The mark on the document, not the
  * attribute this file's other rules also accept, because this one is a claim about the page:
  * it is only true where our bar took GitHub's page over. A screen mounted inside a page of
  * ours has a bar too and must not move that page's toasts. The window keeps the twelve the
