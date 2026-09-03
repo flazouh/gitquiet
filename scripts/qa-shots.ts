@@ -8,6 +8,7 @@ import { connect, findChrome } from "./chrome"
  *     bun run qa                     every view, into .output/qa
  *     bun run qa --view working-set  one view
  *     bun run qa --view a,b          a handful
+ *     bun run qa --port 5207         a stage of this checkout's own
  *
  * `shots/capture.js` does this job for the store images and does it through ego,
  * which is a browser this machine may not have. This one drives whatever
@@ -31,7 +32,17 @@ const argumentAfter = (flag: string): string | undefined => {
   return at === -1 ? undefined : Bun.argv[at + 1]
 }
 
-const STAGE = "http://localhost:5199"
+/**
+ * The stage's own port, which is 5199 unless somebody says otherwise.
+ *
+ * Asked for on the command line because a machine can have more than one checkout of this
+ * repository, and every one of them stages on the same port. A stage answering at 5199 that
+ * belongs to another worktree looks exactly like this one's: the script found it, decided the
+ * stage was already up, and photographed that tree's views. Which reads as a view this branch
+ * added having gone missing.
+ */
+const STAGE_PORT = argumentAfter("--port") ?? "5199"
+const STAGE = `http://localhost:${STAGE_PORT}`
 const OUT = argumentAfter("--out") ?? ".output/qa"
 const ONLY = argumentAfter("--view")?.split(",")
 const PORT = 9333
@@ -47,10 +58,15 @@ const stageAnswers = (): Promise<boolean> =>
 
 const startStageIfDown = async (): Promise<(() => void) | null> => {
   if (await stageAnswers()) return null
-  const vite = Bun.spawn(["bunx", "vite", "--config", "shots/vite.config.ts"], {
-    stdout: "ignore",
-    stderr: "ignore"
-  })
+  // The port goes to vite as well. Its config holds `strictPort`, so a stage told to be
+  // somewhere else has to be told, rather than drifting to the next free number.
+  const vite = Bun.spawn(
+    ["bunx", "vite", "--config", "shots/vite.config.ts", "--port", STAGE_PORT],
+    {
+      stdout: "ignore",
+      stderr: "ignore"
+    }
+  )
   for (let attempt = 0; attempt < 120; attempt++) {
     if (await stageAnswers()) return () => vite.kill()
     await sleep(250)
