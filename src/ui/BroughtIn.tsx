@@ -196,16 +196,21 @@ export const BroughtIn = ({
                         ? undefined
                         : (body) =>
                             /*
-                             * The address first and the sentence under it, which
-                             * is the order a diff reads in: the code, then what
-                             * somebody said about it.
+                             * The sentence first and the address under it.
+                             *
+                             * The other way round reads well on GitHub, where
+                             * the address becomes a box of code: point, then
+                             * evidence. It reads badly everywhere a comment is
+                             * summarised by its first line — this interface's own
+                             * conversation column included, where the row became
+                             * a hundred characters of URL. Caught on camera.
                              */
                             Effect.map(
                               onSay(
-                                `${quoting(
+                                `${body}\n\n${quoting(
                                   { owner: repo.owner, repo: repo.repo, on: headSha, path: chosen },
                                   { from: picked.from, to: picked.to }
-                                )}\n\n${body}`
+                                )}`
                               ),
                               () => setPicked(null)
                             )

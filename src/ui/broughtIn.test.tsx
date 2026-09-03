@@ -105,7 +105,7 @@ describe("a file brought into a review", () => {
     expect(typeof asked[0]!.onPick).toBe("function")
   })
 
-  test("sends what was marked to the conversation, as an address and a sentence", async () => {
+  test("sends what was marked to the conversation, as a sentence and an address", async () => {
     const said: Array<string> = []
 
     showing({
@@ -124,8 +124,13 @@ describe("a file brought into a review", () => {
     await userEvent.type(await screen.findByRole("textbox"), "The old flag order is assumed here.")
     await userEvent.click(screen.getByRole("button", { name: "Comment" }))
 
+    /*
+     * The sentence first, so that every place a comment is summarised by its
+     * first line says something. The address under it still renders as a box of
+     * code on GitHub's own pages.
+     */
     expect(said).toEqual([
-      "https://github.com/oven-sh/bun/blob/f4a97b1e2c3d4a5b6c7d8e9f0a1b2c3d4e5f6a7b/src/config/loader.ts#L2-L3\n\nThe old flag order is assumed here."
+      "The old flag order is assumed here.\n\nhttps://github.com/oven-sh/bun/blob/f4a97b1e2c3d4a5b6c7d8e9f0a1b2c3d4e5f6a7b/src/config/loader.ts#L2-L3"
     ])
   })
 
@@ -147,7 +152,8 @@ describe("a file brought into a review", () => {
     await userEvent.type(await screen.findByRole("textbox"), "This one.")
     await userEvent.click(screen.getByRole("button", { name: "Comment" }))
 
-    expect(said[0]).toContain("/src/config/loader.ts#L2\n\n")
+    expect(said[0]).toContain("This one.\n\nhttps://github.com/oven-sh/bun/blob/")
+    expect(said[0]).toContain("/src/config/loader.ts#L2")
   })
 
   test("says so where the file cannot be read at that commit", async () => {
