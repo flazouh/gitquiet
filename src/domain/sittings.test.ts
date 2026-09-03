@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Option } from "effect"
 import type { InvolvedPullRequest, Shelf } from "./workingSet"
-import { afterDoing, sittingsIn, worthAskingForBranches } from "./sittings"
+import { afterDoing, saysItIs, sittingsIn, worthAskingForBranches } from "./sittings"
 
 const involved = (
   number: number,
@@ -237,6 +237,62 @@ describe("what the list looks like the instant a verb lands", () => {
     expect(back[0]?.piles[0]?.one.state).toBe("draft")
   })
 
+  test("stops a run that the verb stopped", () => {
+    /*
+     * Nothing goes on being checked once a pull request is settled, so "CI
+     * running" under a closed one is not lag but a sentence about a machine that
+     * has stopped. It was on the screen: a stacked pull request closed from its
+     * row kept the running badge it had a second earlier, and with the pile
+     * staying under its foundation's heading that badge was most of what a reader
+     * had to go on.
+     */
+    const sittings = sittingsIn(
+      [on("needs-action", 1, { checks: Option.some({ state: "running", total: 6, passed: 3 }) })],
+      noBranches
+    )
+
+    const after = afterDoing(sittings, "close", { owner: "flazouh", repo: "octo-repo", number: 1 })
+
+    expect(after[0]?.piles[0]?.one.checks).toEqual(Option.none())
+  })
+
+  test("keeps a run that had already finished", () => {
+    // What the checks came to is why it was closed about as often as not, and
+    // unlike a run in flight it is still true a second later.
+    const sittings = sittingsIn(
+      [on("needs-action", 1, { checks: Option.some({ state: "failing", total: 6, passed: 3 }) })],
+      noBranches
+    )
+
+    const after = afterDoing(sittings, "close", { owner: "flazouh", repo: "octo-repo", number: 1 })
+
+    expect(after[0]?.piles[0]?.one.checks).toEqual(
+      Option.some({ state: "failing", total: 6, passed: 3 })
+    )
+  })
+
+  test("leaves a run alone where the verb did not settle anything", () => {
+    const sittings = sittingsIn(
+      [
+        on("your-drafts", 1, {
+          state: "draft",
+          checks: Option.some({ state: "running", total: 6, passed: 3 })
+        })
+      ],
+      noBranches
+    )
+
+    const after = afterDoing(sittings, "markReady", {
+      owner: "flazouh",
+      repo: "octo-repo",
+      number: 1
+    })
+
+    expect(after[0]?.piles[0]?.one.checks).toEqual(
+      Option.some({ state: "running", total: 6, passed: 3 })
+    )
+  })
+
   test("frees what was standing on it once the foundation lands", () => {
     /*
      * The reason this cannot be a patch to one row. A pull request that is ready
@@ -266,6 +322,47 @@ describe("what the list looks like the instant a verb lands", () => {
     const after = afterDoing(sittings, "close", { owner: "flazouh", repo: "other", number: 1 })
 
     expect(after).toBe(sittings)
+  })
+})
+
+describe("whether the list has caught up with a verb", () => {
+  /*
+   * The question a screen asks of the read that follows one of its own writes.
+   * GitHub's search index is behind a write by seconds to minutes, so a Working
+   * Set arriving straight after a close routinely still calls the pull request
+   * open — and something has to tell that apart from a list that has genuinely
+   * caught up, or the change is shown and then taken away again.
+   */
+  const one = { owner: "flazouh", repo: "octo-repo", number: 1 }
+
+  test("says no while the row still carries the state it had", () => {
+    const sittings = sittingsIn([on("needs-action", 1)], noBranches)
+
+    expect(saysItIs(sittings, one, "closed")).toBe(false)
+  })
+
+  test("says yes once the row carries the state the verb led to", () => {
+    const sittings = sittingsIn([on("needs-action", 1, { state: "closed" })], noBranches)
+
+    expect(saysItIs(sittings, one, "closed")).toBe(true)
+  })
+
+  test("says yes about a pull request that has left the list", () => {
+    // Closing one is exactly the sort of thing that takes it off every shelf the
+    // reader is on, and a list it is no longer in is not a list disagreeing.
+    const sittings = sittingsIn([on("needs-action", 2)], noBranches)
+
+    expect(saysItIs(sittings, one, "closed")).toBe(true)
+  })
+
+  test("finds a row wherever in a stack it sits", () => {
+    const sittings = sittingsIn(
+      [on("ready-to-merge", 1), on("ready-to-merge", 2, { state: "closed" })],
+      branchesFrom({ 1: ["main", "one"], 2: ["one", "two"] })
+    )
+
+    expect(saysItIs(sittings, { ...one, number: 2 }, "closed")).toBe(true)
+    expect(saysItIs(sittings, { ...one, number: 2 }, "merged")).toBe(false)
   })
 })
 

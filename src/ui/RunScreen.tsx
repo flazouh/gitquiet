@@ -651,17 +651,35 @@ export const RunScreen = ({
     }
 
     setPressed({ step: "working", what })
+    // What the press leaves the run as, named once because both halves below
+    // need it: the state to wear, and the state that says GitHub has agreed.
+    const settling = what === "cancel" ? "cancelled" : "running"
     Effect.runFork(
       live
         .meanwhile(
-          (opening) => ({
-            ...opening,
-            run: { ...opening.run, state: what === "cancel" ? "cancelled" : "running" },
-            presses:
-              what === "cancel"
-                ? { ...opening.presses, mayCancel: false }
-                : { mayRerun: false, mayRerunFailed: false, mayCancel: true }
-          }),
+          {
+            change: (opening) => ({
+              ...opening,
+              run: { ...opening.run, state: settling },
+              presses:
+                what === "cancel"
+                  ? { ...opening.presses, mayCancel: false }
+                  : { mayRerun: false, mayRerunFailed: false, mayCancel: true }
+            }),
+            /*
+             * Until their run page says it too, which is not when their form
+             * answers. Cancelling a run is a request to a scheduler rather than a
+             * write to a row: GitHub take the press, answer at once, and go on
+             * serving "In progress" for several seconds while the jobs wind down.
+             * A re-run is the same in reverse — the page keeps describing the
+             * attempt that finished until the new one is queued.
+             *
+             * So the read that lands right after a press is the one that has not
+             * caught up, and believing it put "In progress" and "1 still going"
+             * back on the screen underneath a button that said Cancelled.
+             */
+            until: (opening) => opening.run.state === settling
+          },
           press(what)
         )
         .pipe(

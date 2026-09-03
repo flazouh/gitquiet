@@ -4,17 +4,22 @@ import userEvent from "@testing-library/user-event"
 import { Deferred, Effect, Option } from "effect"
 import { afterwards } from "../../tests/afterwards"
 import { sittingsIn } from "../domain/sittings"
+import type { PullRequestState } from "../domain/PullRequest"
 import type { InvolvedPullRequest, Shelf } from "../domain/workingSet"
 import { WorkingSetScreen } from "./WorkingSetScreen"
 
 afterEach(cleanup)
 
-const involved = (title: string, number = 1): InvolvedPullRequest => ({
+const involved = (
+  title: string,
+  number = 1,
+  state: PullRequestState = "open"
+): InvolvedPullRequest => ({
   reference: { owner: "flazouh", repo: "octo-repo", number },
   id: String(number * 1000),
   title,
   author: { login: "flazouh", isAutomated: false, faceUrl: Option.none() },
-  state: "open",
+  state,
   shelf: Option.some<Shelf>("needs-action"),
   why: Option.none(),
   readByViewer: true,
@@ -30,9 +35,22 @@ const involved = (title: string, number = 1): InvolvedPullRequest => ({
   size: Option.none()
 })
 
-const listOf = (...titles: ReadonlyArray<string>) =>
+/**
+ * A Working Set of the given rows, each named and each in a state.
+ *
+ * A bare string is the ordinary case — an open pull request, which is what nearly
+ * every test here wants. The pair is for the tests about lag, where the whole
+ * question is what GitHub's own list says the state is.
+ */
+type Told = string | { readonly title: string; readonly state: PullRequestState }
+
+const listOf = (...told: ReadonlyArray<Told>) =>
   sittingsIn(
-    titles.map((title, at) => involved(title, at + 1)),
+    told.map((one, at) =>
+      typeof one === "string"
+        ? involved(one, at + 1)
+        : involved(one.title, at + 1, one.state)
+    ),
     () => Option.none()
   )
 
@@ -275,6 +293,84 @@ describe("the Working Set screen", () => {
 
     // GitHub has not answered and is not going to until this test says so.
     await waitFor(() => expect(screen.getByRole("heading", { name: /Settled/i })).toBeDefined())
+  })
+
+  test("keeps the row moved while GitHub's list is still behind the write", async () => {
+    /*
+     * The one path neither test above walks: GitHub says yes.
+     *
+     * The Working Set is read off their search, whose index is behind a write by
+     * seconds to minutes, so the re-read that follows a close routinely still
+     * calls the pull request open. That answer used to win — the row was back
+     * under Needs You with the toast about having closed it still on the screen,
+     * wearing the check badge it had before. Recorded on `OpenRouterInterns/perry`.
+     *
+     * The `load` here is that lag written down: it never stops saying open,
+     * however many times it is asked.
+     */
+    let reads = 0
+
+    render(
+      <WorkingSetScreen
+        load={() => {
+          reads += 1
+          return Effect.succeed(listOf("close me"))
+        }}
+        onOpen={() => {}}
+        onStepAside={() => {}}
+        ask={() => Effect.void}
+      />
+    )
+
+    await waitFor(() => expect(screen.getByText("close me")).toBeDefined())
+
+    await userEvent.click(screen.getByLabelText("What to do with #1"))
+    await userEvent.click(screen.getByText("Close"))
+    await userEvent.click(screen.getByText("Confirm"))
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: /Settled/i })).toBeDefined())
+
+    // The write landed and the read it asked for came back saying open. The row
+    // stays where the reader put it.
+    await waitFor(() => expect(reads).toBeGreaterThan(1))
+    expect(screen.getByRole("heading", { name: /Settled/i })).toBeDefined()
+    expect(screen.queryByRole("heading", { name: /Needs You/i })).toBeNull()
+  })
+
+  test("lets the list speak again once GitHub agrees", async () => {
+    /*
+     * The other half of the rule above, and the reason it is `until` rather than
+     * a timer: a change is worn to cover a lag, not to overrule GitHub. The
+     * moment their list says closed too, this screen is holding nothing — so a
+     * pull request somebody else reopens from another tab is reported the next
+     * time this one is looked at, rather than being sat on for five minutes.
+     */
+    looking(undoing)
+    let state: PullRequestState = "open"
+
+    render(
+      <WorkingSetScreen
+        load={() => Effect.succeed(listOf({ title: "close me", state }))}
+        onOpen={() => {}}
+        onStepAside={() => {}}
+        ask={() => Effect.sync(() => void (state = "closed"))}
+      />
+    )
+
+    await waitFor(() => expect(screen.getByText("close me")).toBeDefined())
+
+    await userEvent.click(screen.getByLabelText("What to do with #1"))
+    await userEvent.click(screen.getByText("Close"))
+    await userEvent.click(screen.getByText("Confirm"))
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: /Settled/i })).toBeDefined())
+
+    // Their list has caught up by now, so nothing here is being worn. Somebody
+    // reopens it elsewhere, and coming back to the tab is what asks again.
+    state = "open"
+    document.dispatchEvent(new Event("visibilitychange", { bubbles: true }))
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: /Needs You/i })).toBeDefined())
   })
 
   test("puts the row back where GitHub refused the verb", async () => {

@@ -1,6 +1,7 @@
 import { Effect, Option } from "effect"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { Starring } from "../domain/repoHome"
+import { wornOut } from "./worn"
 import { PRESSABLE } from "./dress"
 
 export type StarProps = {
@@ -24,17 +25,42 @@ export type StarProps = {
  * of the two.
  */
 export const Star = ({ starring, count, onStar }: StarProps) => {
-  const [said, setSaid] = useState<Starring | undefined>(undefined)
+  const [said, setSaid] = useState<{ readonly to: Starring; readonly at: number } | undefined>(
+    undefined
+  )
   const [burst, setBurst] = useState(0)
 
-  const showing = said ?? starring
+  /*
+   * The press stands over the page's answer only until the page agrees with it.
+   *
+   * It used to stand over it forever. Nothing here ever compared the two, so a
+   * star given a minute ago went on being drawn from the press whatever the page
+   * said next — including on a repository the reader had since unstarred
+   * somewhere else, whose read this would quietly overrule for as long as the
+   * document lived. Worn out after a while as well, for the press that never gets
+   * its yes at all.
+   */
+  const holding =
+    said !== undefined && said.to !== starring && !wornOut(said.at) ? said.to : undefined
+
+  /*
+   * And dropped once it is spent, rather than merely passed over. An agreement
+   * that is only skipped leaves the press sitting there, ready to be applied
+   * again the moment the page's answer moves on — which would put the star back
+   * on a repository the reader had since unstarred somewhere else.
+   */
+  useEffect(() => {
+    if (said !== undefined && holding === undefined) setSaid(undefined)
+  }, [said, holding])
+
+  const showing = holding ?? starring
   if (showing === "barred") return null
 
   const starred = showing === "starred"
   const going: Starring = starred ? "unstarred" : "starred"
 
   const press = (): void => {
-    setSaid(going)
+    setSaid({ to: going, at: Date.now() })
     // Only on the way in. Taking a star back is a correction, and a correction
     // that throws sparks reads as a celebration of the wrong thing.
     if (going === "starred") setBurst((many) => many + 1)
@@ -45,7 +71,7 @@ export const Star = ({ starring, count, onStar }: StarProps) => {
     // Back to whatever the page said, not to the opposite of the press. Those
     // differ on the second press of a pair, and the page's own answer is the
     // one that was true a moment ago.
-    void Effect.runPromise(asked.pipe(Effect.catch(() => Effect.sync(() => setSaid(starring)))))
+    void Effect.runPromise(asked.pipe(Effect.catch(() => Effect.sync(() => setSaid(undefined)))))
   }
 
   return (

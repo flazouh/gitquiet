@@ -10,6 +10,7 @@ import { Conversation } from "./Conversation"
 import { Description } from "./Description"
 import { IssueHeader, ListedHeader } from "./IssueHeader"
 import { reasonFor } from "./refusal"
+import { wornOut } from "./worn"
 import { SETTLED } from "./Settle"
 import { done, refused } from "./Toasts"
 import { TheBar } from "./TheBar"
@@ -106,9 +107,6 @@ type Shown = {
   readonly closing: Option.Option<Closing>
 }
 
-const shownOf = (snapshot: IssueSnapshot | undefined): Shown | undefined =>
-  snapshot === undefined ? undefined : { state: snapshot.state, closing: snapshot.closing }
-
 /**
  * What a close says once it happened, which is where the duplicate earns its extra words.
  *
@@ -177,8 +175,46 @@ export const IssueScreen = ({
    * an issue is a decision the reader has already made, and a header that waits four hundred
    * milliseconds to agree reads as a header that did not hear. Put back where GitHub refuses,
    * which is the only honest thing an optimistic page can do with a no.
+   *
+   * And taken off once GitHub says the same thing, which it did not used to be.
+   * Nothing here ever compared the press against the read, so a close made a
+   * minute ago went on being drawn whatever arrived afterwards — including over
+   * an issue somebody had since reopened, whose read this quietly overruled for
+   * as long as the document lived. Worn out after a while as well, for the press
+   * GitHub never gets round to agreeing with. See `worn.ts`, which is where the
+   * three screens holding one of these keep the rule.
    */
-  const [asked, setAsked] = useState<Shown | undefined>(undefined)
+  const [asked, setAsked] = useState<{ readonly shown: Shown; readonly at: number } | undefined>(
+    undefined
+  )
+
+  /*
+   * The press, while it is still saying something the read does not.
+   *
+   * Both halves matter. A press the read agrees with is not being worn — it has
+   * landed, and whatever happens to the issue next is GitHub's to report. A press
+   * older than the window is given up on, because an overlay nothing ever takes
+   * off is a page that cannot be corrected.
+   */
+  const holding = (() => {
+    if (asked === undefined) return undefined
+    if (read.status !== "ready") return asked.shown
+    if (wornOut(asked.at)) return undefined
+    return read.value.snapshot.state === asked.shown.state ? undefined : asked.shown
+  })()
+
+  /*
+   * And dropped, rather than merely passed over.
+   *
+   * Ignoring a press the read agrees with is not the same as letting go of it: an
+   * agreement that is only skipped is a press still sitting there, ready to be
+   * applied again the moment the read moves on — so an issue closed here, agreed
+   * about, and then reopened from another tab came back reading Closed, which is
+   * the fault this was supposed to end.
+   */
+  useEffect(() => {
+    if (asked !== undefined && holding === undefined) setAsked(undefined)
+  }, [asked, holding])
 
   const onSettle = useMemo(
     () =>
@@ -190,8 +226,10 @@ export const IssueScreen = ({
             // an issue that has been read. Answered rather than asserted: this is a press.
             if (on === undefined) return Effect.void
 
-            const was = shownOf(on)
-            setAsked({ state: "closed", closing: Option.some(closingOf(settling)) })
+            setAsked({
+              shown: { state: "closed", closing: Option.some(closingOf(settling)) },
+              at: Date.now()
+            })
 
             return settle(on.id, settling).pipe(
               Effect.map(() => {
@@ -202,12 +240,12 @@ export const IssueScreen = ({
                     : {
                         said: "Undo",
                         go: () => {
-                          setAsked({ state: "open", closing: Option.none() })
+                          setAsked({ shown: { state: "open", closing: Option.none() }, at: Date.now() })
                           Effect.runFork(
                             reopen(on.id).pipe(
                               Effect.catch((cause) =>
                                 Effect.sync(() => {
-                                  setAsked(was)
+                                  setAsked(undefined)
                                   refused(reasonFor(cause))
                                 })
                               )
@@ -219,7 +257,7 @@ export const IssueScreen = ({
               }),
               Effect.catch((cause) =>
                 Effect.sync(() => {
-                  setAsked(was)
+                  setAsked(undefined)
                   refused(reasonFor(cause))
                 })
               )
@@ -236,14 +274,13 @@ export const IssueScreen = ({
             const on = read.status === "ready" ? read.value.snapshot : undefined
             if (on === undefined) return Effect.void
 
-            const was = shownOf(on)
-            setAsked({ state: "open", closing: Option.none() })
+            setAsked({ shown: { state: "open", closing: Option.none() }, at: Date.now() })
 
             return reopen(on.id).pipe(
               Effect.map(() => done("This issue is open again")),
               Effect.catch((cause) =>
                 Effect.sync(() => {
-                  setAsked(was)
+                  setAsked(undefined)
                   refused(reasonFor(cause))
                 })
               )
@@ -334,7 +371,7 @@ export const IssueScreen = ({
         // bar above. `#gitquiet-root` insets every screen now.
         <div className="t-panels flex flex-col pt-2">
           <IssueHeader
-            snapshot={asked === undefined ? snapshot : { ...snapshot, ...asked }}
+            snapshot={holding === undefined ? snapshot : { ...snapshot, ...holding }}
             onSettle={onSettle}
             onReopen={onReopen}
           />

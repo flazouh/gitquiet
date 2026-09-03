@@ -95,6 +95,31 @@ describe("the star", () => {
     expect(container.querySelectorAll(".t-star-spark")).toHaveLength(0)
   })
 
+  test("lets the page say the star is gone once it has agreed about it", async () => {
+    /*
+     * The press stands over the page's answer only until the answer agrees. It
+     * used to stand over it for as long as the document lived, so a star given
+     * here went on being drawn over a repository the reader had since unstarred
+     * somewhere else — a control that could not be corrected by the page it is
+     * drawn on.
+     */
+    const { rerender } = showing("unstarred", { onStar: () => Effect.void })
+
+    await userEvent.click(screen.getByRole("button"))
+    expect(screen.getByRole("button").getAttribute("aria-pressed")).toBe("true")
+
+    // The page catches up, and then it is unstarred from another tab.
+    rerender(<Star starring="starred" count={Option.some(1205)} onStar={() => Effect.void} />)
+    await waitFor(() =>
+      expect(screen.getByRole("button").getAttribute("aria-pressed")).toBe("true")
+    )
+
+    rerender(<Star starring="unstarred" count={Option.some(1204)} onStar={() => Effect.void} />)
+    await waitFor(() =>
+      expect(screen.getByRole("button").getAttribute("aria-pressed")).toBe("false")
+    )
+  })
+
   test("is not there at all for a reader who may not star", async () => {
     showing("barred")
 

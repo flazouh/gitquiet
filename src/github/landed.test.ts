@@ -1,7 +1,7 @@
 import { describe, expect, test, afterEach } from "bun:test"
 import { Option } from "effect"
 import type { PullRequestRef } from "../domain/PullRequestRef"
-import { asLanded, forgetLanded, landedState, recordLanded } from "./landed"
+import { asLanded, forgetLanded, landedNow, landedState, recordLanded, seedLanded } from "./landed"
 
 const one: PullRequestRef = { owner: "flazouh", repo: "gitquiet", number: 7 }
 const other: PullRequestRef = { owner: "flazouh", repo: "gitquiet", number: 8 }
@@ -38,21 +38,77 @@ describe("what our own writes know that a read does not", () => {
   })
 
   test("lets go once GitHub has had long enough to agree", () => {
-    // The whole reason this is not permanent. It covers the seconds GitHub's own
-    // page data takes to catch up; past that, GitHub is the better source and a
-    // held state is only a way to go on saying something wrong — a pull request
-    // reopened from another tab, say.
+    // The whole reason this is not permanent. Past the window GitHub is the
+    // better source, and a held state is only a way to go on saying something
+    // wrong — a pull request reopened from another tab, say.
     recordLanded(one, "merged")
-    Date.now = () => clock() + 61_000
+    Date.now = () => clock() + 6 * 60_000
 
     expect(Option.isNone(landedState(one))).toBe(true)
   })
 
-  test("still holds just inside the minute", () => {
+  test("still holds while their search index could still be behind", () => {
+    // A minute was the window while this covered their page data alone. The
+    // Working Set is read off their search, which is behind by minutes.
     recordLanded(one, "merged")
-    Date.now = () => clock() + 59_000
+    Date.now = () => clock() + 4 * 60_000
 
     expect(landedState(one)).toEqual(Option.some("merged"))
+  })
+})
+
+describe("what one document tells the next about its own writes", () => {
+  /*
+   * The map is per document and the reader's browsing is not. Close a pull
+   * request on Home, open GitHub in a new tab, and their search still has it
+   * open — so without this the row is back under Needs You, in a document that
+   * has no idea a press ever happened.
+   */
+  test("hands out what was written, to be kept", () => {
+    recordLanded(one, "merged")
+
+    expect(landedNow()).toEqual({
+      "flazouh/gitquiet#7": { state: "merged", at: clock() }
+    })
+  })
+
+  test("hands out nothing once the window has passed", () => {
+    recordLanded(one, "merged")
+    Date.now = () => clock() + 6 * 60_000
+
+    expect(landedNow()).toEqual({})
+  })
+
+  test("puts back what an earlier document wrote", () => {
+    seedLanded({ "flazouh/gitquiet#7": { state: "closed", at: Date.now() } })
+
+    expect(landedState(one)).toEqual(Option.some("closed"))
+  })
+
+  test("leaves this document's own press alone, it being the newer", () => {
+    recordLanded(one, "open")
+    seedLanded({ "flazouh/gitquiet#7": { state: "closed", at: Date.now() } })
+
+    expect(landedState(one)).toEqual(Option.some("open"))
+  })
+
+  test("ignores a record older than the window", () => {
+    seedLanded({ "flazouh/gitquiet#7": { state: "closed", at: Date.now() - 6 * 60_000 } })
+
+    expect(Option.isNone(landedState(one))).toBe(true)
+  })
+
+  test("ignores anything that is not a state and a moment", () => {
+    // Whatever is in storage was written by a build that may not be this one, so
+    // it is shaped rather than trusted.
+    seedLanded({
+      "flazouh/gitquiet#7": { state: "abandoned", at: Date.now() },
+      "flazouh/gitquiet#8": "closed",
+      "flazouh/gitquiet#9": { state: "closed" }
+    })
+
+    expect(Option.isNone(landedState(one))).toBe(true)
+    expect(Option.isNone(landedState(other))).toBe(true)
   })
 })
 

@@ -1,5 +1,5 @@
 import { Effect, Option } from "effect"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { Notice, Press } from "../domain/notices"
 import type { Repository } from "../domain/repositories"
 import { Notices } from "./Notices"
@@ -9,6 +9,7 @@ import { TheBar } from "./TheBar"
 import { type Load, useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
+import { wornOut } from "./worn"
 
 export type NoticesScreenProps = {
   readonly load: Load<ReadonlyArray<Notice>>
@@ -47,9 +48,21 @@ type Since = {
   readonly subscribed?: boolean
   /** Archived, which takes it out of the inbox. There is nothing left to draw. */
   readonly gone?: boolean
+  /**
+   * When the press was made, which is what lets a correction be given up on.
+   *
+   * These used to be kept forever. Nothing compared a press against the read
+   * behind it, so a Notice marked read a minute ago went on being drawn read
+   * however many times the inbox arrived saying otherwise — and an inbox that
+   * cannot be corrected by its own read is the one outcome this screen must not
+   * have. Now a press comes off the moment the read says the same thing, and is
+   * given up on after the window in `worn.ts` either way.
+   */
+  readonly at: number
 }
 
-const AFTER: Readonly<Record<string, Since>> = {
+/** What each press claims, before the moment it was made is put on it. */
+const AFTER: Readonly<Record<string, Omit<Since, "at">>> = {
   mark: { unread: false },
   unmark: { unread: true },
   archive: { gone: true },
@@ -103,7 +116,7 @@ export const NoticesScreen = ({
     () =>
       notices?.flatMap((one): ReadonlyArray<Notice> => {
         const done = since[one.id]
-        if (done === undefined) return [one]
+        if (done === undefined || wornOut(done.at)) return [one]
         if (done.gone === true) return []
 
         return [
@@ -116,6 +129,32 @@ export const NoticesScreen = ({
       }),
     [notices, since]
   )
+
+  /*
+   * A press comes off the moment the inbox says the same thing.
+   *
+   * Archiving is the one that needs no comparison: a row the inbox no longer
+   * carries is a row GitHub has agreed about, and the entry has nothing left to
+   * hide. The other two are read off the row itself.
+   */
+  useEffect(() => {
+    if (notices === undefined) return
+
+    setSince((held) => {
+      const kept = Object.entries(held).filter(([id, done]) => {
+        const still = notices.find((one) => one.id === id)
+        if (done.gone === true) return still !== undefined
+        if (still === undefined) return false
+
+        return (
+          (done.unread !== undefined && done.unread !== still.unread) ||
+          (done.subscribed !== undefined && done.subscribed !== still.subscribed)
+        )
+      })
+
+      return kept.length === Object.keys(held).length ? held : Object.fromEntries(kept)
+    })
+  }, [notices])
 
   if (read.status === "failed") {
     return (
@@ -139,12 +178,14 @@ export const NoticesScreen = ({
     // to be heard. It is also the list of fields to take back, below.
     const after = AFTER[press.kind] ?? {}
 
+    const at = Date.now()
+
     setSince((held) =>
       Object.fromEntries([
         ...Object.entries(held),
         // Every id on the form, because `mark` and `unmark` are bulk routes: their forms take
         // a list, and a screen that grew a way to press one over a Court would send several.
-        ...press.ids.map((id) => [id, { ...held[id], ...after }] as const)
+        ...press.ids.map((id) => [id, { ...held[id], ...after, at }] as const)
       ])
     )
 

@@ -266,6 +266,103 @@ describe("the reader's inbox, grouped by who acts next", () => {
     })
   })
 
+  describe("a press that GitHub has since caught up with", () => {
+    /*
+     * A correction is worn over the read until the read says the same thing, and
+     * then it has to come off. It never did: nothing compared the press against
+     * the inbox behind it, so a Notice marked read a minute ago went on being
+     * drawn read however many times the inbox arrived saying otherwise — which
+     * makes an inbox that cannot be corrected by its own read, the one outcome
+     * this screen must not have.
+     *
+     * Coming back to the tab is what asks again, which is how these drive a
+     * second read without reaching for anything the screen does not offer.
+     */
+    const looking = () => {
+      Object.defineProperty(document, "visibilityState", {
+        value: "visible",
+        configurable: true
+      })
+    }
+
+    const askAgain = () => {
+      document.dispatchEvent(new Event("visibilitychange", { bubbles: true }))
+    }
+
+    test("lets a later read say a Notice is unread again", async () => {
+      looking()
+      let saying: ReadonlyArray<Notice> = [notice({ id: "one", unread: true })]
+
+      render(
+        <Toasts>
+          <NoticesScreen
+            load={() => Effect.succeed(saying)}
+            onPress={() => Effect.void}
+            onStepAside={() => {}}
+          />
+        </Toasts>
+      )
+
+      const row = await screen.findByRole("listitem")
+      await userEvent.click(within(row).getByRole("button", { name: "Mark read" }))
+
+      // Worn: the inbox still says unread and the press is what is on the screen.
+      expect(
+        within(await screen.findByRole("listitem")).getByRole("button", { name: "Mark unread" })
+      ).toBeTruthy()
+
+      // GitHub agrees, so the press has nothing left to say and comes off.
+      saying = [notice({ id: "one", unread: false })]
+      askAgain()
+      await waitFor(async () =>
+        expect(
+          within(await screen.findByRole("listitem")).getByRole("button", { name: "Mark unread" })
+        ).toBeTruthy()
+      )
+
+      // And now somebody comments. That is the inbox's to report, and it used to
+      // be a fact this screen sat on for the life of the document.
+      saying = [notice({ id: "one", unread: true })]
+      askAgain()
+      await waitFor(async () =>
+        expect(
+          within(await screen.findByRole("listitem")).getByRole("button", { name: "Mark read" })
+        ).toBeTruthy()
+      )
+    })
+
+    test("puts an archived Notice back once the inbox has it again", async () => {
+      looking()
+      let saying: ReadonlyArray<Notice> = [notice({ id: "one", title: "done with this" })]
+
+      render(
+        <Toasts>
+          <NoticesScreen
+            load={() => Effect.succeed(saying)}
+            onPress={() => Effect.void}
+            onStepAside={() => {}}
+          />
+        </Toasts>
+      )
+
+      const row = await screen.findByRole("listitem")
+      await userEvent.click(within(row).getByRole("button", { name: "Done" }))
+      expect(screen.queryByRole("link", { name: "done with this" })).toBeNull()
+
+      // GitHub agrees: it has left the inbox, so the press is spent.
+      saying = []
+      askAgain()
+      await waitFor(() => expect(screen.queryByRole("listitem")).toBeNull())
+
+      // Un-archived from somewhere else. The inbox is the answer.
+      saying = [notice({ id: "one", title: "done with this" })]
+      askAgain()
+      await waitFor(() =>
+        expect(screen.getByRole("link", { name: "done with this" })).toBeTruthy()
+      )
+    })
+  })
+
   /*
    * The decision `DASHBOARD` and `ACTIONS` both record, made once more: their filter pane goes
    * with their list, and this screen offers no box of its own in its place.
