@@ -67,6 +67,7 @@ import {
   hasMoreAfter,
   isKeptFound
 } from "./discussionsList"
+import { discussionOnPage, isKeptDiscussion } from "./discussionView"
 import { isKeptNotices, noticesOnPage } from "./notifications"
 import { asKept, personKept } from "./keptPerson"
 import { personOnPage } from "./person"
@@ -141,7 +142,14 @@ import { repositoriesFrom } from "./repositories"
 import { decodeSidebar, standingFrom } from "./standing"
 import type { Happening } from "../domain/activity"
 import { type CommitList, type History, routeFor } from "../domain/commitList"
-import { listRouteOf, listWithinRepo, type DiscussionList } from "../domain/discussions"
+import {
+  addressOf as discussionAddress,
+  listRouteOf,
+  listWithinRepo,
+  type DiscussionList,
+  type DiscussionRef,
+  type DiscussionSnapshot
+} from "../domain/discussions"
 import type { IssueSnapshot, Settling } from "../domain/Issue"
 import type { InvolvedIssue, Involvement, IssueRef } from "../domain/issues"
 import type { Front, Starring } from "../domain/repoHome"
@@ -3332,6 +3340,43 @@ export const layer = Layer.succeed(GitHubGateway, {
     }),
 
     /**
+     * One discussion, read as the document they serve it as.
+     *
+     * A failure and not an empty snapshot where the page cannot be read. The screen has a word
+     * for a read that did not come — it hands the document back to GitHub — and no word at all
+     * for a discussion with no title, which it would draw over the top of their page.
+     */
+    discussion: Effect.fn("GitHubGateway.discussion")(function* (reference: DiscussionRef) {
+      const route = discussionAddress(reference)
+      const document = yield* repoDocument(reference, `/discussions/${reference.number}`)
+
+      const found = discussionOnPage(reference, document)
+      if (Option.isNone(found)) {
+        return yield* new GatewayError({
+          reference,
+          route,
+          reason: "undecodable",
+          detail: "the page GitHub served carries no discussion"
+        })
+      }
+
+      yield* Effect.forkDetach(rememberRoute(route, found.value))
+
+      return found.value
+    }),
+
+    rememberedDiscussion: Effect.fn("GitHubGateway.rememberedDiscussion")(function* (
+      reference: DiscussionRef
+    ) {
+      const raw = yield* recallRoute(discussionAddress(reference))
+      if (Option.isNone(raw)) return Option.none<DiscussionSnapshot>()
+
+      return isKeptDiscussion(raw.value)
+        ? Option.some(raw.value)
+        : Option.none<DiscussionSnapshot>()
+    }),
+
+    /**
      * Their inbox, read as the document they serve it as.
      *
      * One request, and the lightest read on this interface. Their `/notifications` is Rails
@@ -4353,6 +4398,8 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     rememberedReleases: () => Effect.succeed(Option.none()),
     discussions: (list: DiscussionList) => Effect.fail(nothingRecordedFor(list.repo)),
     rememberedDiscussions: () => Effect.succeed(Option.none()),
+    discussion: (reference: DiscussionRef) => Effect.fail(nothingRecordedFor(reference)),
+    rememberedDiscussion: () => Effect.succeed(Option.none()),
     // An empty inbox, which is what a page nobody recorded looks like from here, and
     // nothing written to one: a press answered without a request would be this layer
     // telling a test that GitHub agreed to something nobody asked.
@@ -4503,6 +4550,8 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     rememberedReleases: () => Effect.succeed(Option.none()),
     discussions: (list: DiscussionList) => Effect.fail(nothingRecordedFor(list.repo)),
     rememberedDiscussions: () => Effect.succeed(Option.none()),
+    discussion: (reference: DiscussionRef) => Effect.fail(nothingRecordedFor(reference)),
+    rememberedDiscussion: () => Effect.succeed(Option.none()),
     // An empty inbox, which is what a page nobody recorded looks like from here, and
     // nothing written to one: a press answered without a request would be this layer
     // telling a test that GitHub agreed to something nobody asked.

@@ -493,6 +493,8 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
      */
     discussions: (list) => missing("read discussions")(list.repo),
     rememberedDiscussions: () => Effect.succeed(Option.none()),
+    discussion: (reference) => missing("read a discussion")(reference),
+    rememberedDiscussion: () => Effect.succeed(Option.none()),
 
     /*
      * The inbox, a person's pages, the repository list and the activity feed.

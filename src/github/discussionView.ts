@@ -267,3 +267,25 @@ export const discussionOnPage = (
     comments
   })
 }
+
+/**
+ * Whether what came back out of the store is still the shape that went in.
+ *
+ * The same guard the lists keep, and for the same reason: an entry written before an update is
+ * the one shape that would reach the screen and fail there. The comments are proved to be an
+ * array and the title to be a string, because those two are what the screen draws before it
+ * draws anything else.
+ */
+export const isKeptDiscussion = (value: unknown): value is DiscussionSnapshot => {
+  if (typeof value !== "object" || value === null) return false
+
+  const kept: Record<string, unknown> = { ...value }
+  return (
+    typeof kept.id === "string" &&
+    typeof kept.title === "string" &&
+    typeof kept.body === "string" &&
+    typeof kept.answerable === "boolean" &&
+    typeof kept.answered === "boolean" &&
+    Array.isArray(kept.comments)
+  )
+}

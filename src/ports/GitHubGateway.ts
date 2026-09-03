@@ -30,7 +30,13 @@ import type { Raised, Raising } from "../domain/raising"
 import type { Attached, Version } from "../domain/release"
 import type { Front, Opened, Standing, Starring, Touch, TouchWho } from "../domain/repoHome"
 import type { Blamed } from "../domain/blame"
-import type { Category, DiscussionList, ListedDiscussion } from "../domain/discussions"
+import type {
+  Category,
+  DiscussionList,
+  DiscussionRef,
+  DiscussionSnapshot,
+  ListedDiscussion
+} from "../domain/discussions"
 import type { Repository } from "../domain/repositories"
 import type { RunOpening, RunRef } from "../domain/run"
 import type { Strand } from "../domain/strand"
@@ -593,6 +599,32 @@ export class GitHubGateway extends Context.Service<
     readonly rememberedDiscussions: (
       list: DiscussionList
     ) => Effect.Effect<Option.Option<FoundDiscussions>, GatewayError>
+
+    /**
+     * One discussion, whole, out of the document GitHub serves it as.
+     *
+     * One request, where their own page is one and then a dozen more: measured on 2026-09-03,
+     * `vercel/next.js/discussions/70178` is 396,008 bytes carrying nine comments, and the menu
+     * beside each of those comments is a route of its own that is asked for when it is opened.
+     *
+     * Fails rather than answering with nothing where the document is not a discussion. A page
+     * this cannot read is a page the screen has to hand back to GitHub, and a snapshot with no
+     * title and no body would be drawn over the top of whatever they really sent.
+     */
+    readonly discussion: (
+      reference: DiscussionRef
+    ) => Effect.Effect<DiscussionSnapshot, GatewayError>
+
+    /**
+     * The discussion as it was the last time it was read, without asking GitHub.
+     *
+     * What the screen paints with while the live read is in the air. Worth less here than on a
+     * list and still worth having: the body and the first comments rarely change, and the fact
+     * that does change is the one this screen is about.
+     */
+    readonly rememberedDiscussion: (
+      reference: DiscussionRef
+    ) => Effect.Effect<Option.Option<DiscussionSnapshot>, GatewayError>
 
     /**
      * Every Notice in the reader's inbox, out of one fetch of their own page.
