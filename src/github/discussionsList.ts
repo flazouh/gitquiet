@@ -61,7 +61,7 @@ const numberIn = (label: string, pattern: RegExp): number => {
  * the name in its `alt`, because `:shipit:` is a picture rather than a character. Reading only
  * the first drew `vercel/next.js`'s Show and tell with a blank where every other row has one.
  */
-const emojiIn = (within: Element | null): Emoji => {
+export const emojiIn = (within: Element | null): Emoji => {
   if (within === null) return { kind: "none" }
 
   const said = text(within.querySelector("g-emoji"))

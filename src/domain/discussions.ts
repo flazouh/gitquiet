@@ -122,12 +122,29 @@ export type ListedDiscussion = {
 }
 
 /**
- * What one row is waiting for.
+ * What deciding an Answering and a Court needs, which is less than a whole discussion.
+ *
+ * The sibling of `workingSet.ts`'s and `issues.ts`'s, and here for the reason theirs are: the
+ * rule is one rule, and it is asked twice. A row on the list has these five fields and a
+ * discussion's own page has them too, so both are weighed by the same code rather than by two
+ * copies of it that drift.
+ */
+export type Weighing = {
+  readonly answerable: boolean
+  readonly answered: boolean
+  readonly closed: boolean
+  readonly locked: boolean
+  /** Replies of every depth, which is the number their own row prints. */
+  readonly comments: number
+}
+
+/**
+ * What one discussion is waiting for.
  *
  * Closed and locked are not among the four. Either one finishes a discussion whatever it was
  * waiting for, and that is a Court rather than an Answering: {@link courtOf} reads all three.
  */
-export const answeringOf = (one: ListedDiscussion): Answering => {
+export const answeringOf = (one: Weighing): Answering => {
   if (!one.answerable) return "unanswerable"
   if (one.answered) return "answered"
   return one.comments > 0 ? "stale" : "unanswered"
@@ -146,7 +163,7 @@ export const answeringOf = (one: ListedDiscussion): Answering => {
  * vocabulary and off this screen, rather than filled with something that is not a machine
  * working.
  */
-export const courtOf = (one: ListedDiscussion): Court => {
+export const courtOf = (one: Weighing): Court => {
   // Somebody ended it, or nobody can add to it. Either way nothing is owed on it now, whatever
   // it was waiting for a moment ago. Read before the Answering, because their own rows carry
   // "· Closed · Unanswered" together and the first of those two is the last word.
@@ -379,3 +396,99 @@ export const docketsOf = (rows: ReadonlyArray<ListedDiscussion>): ReadonlyArray<
     const held = rows.filter((one) => courtOf(one) === court)
     return { court, discussions: held, count: held.length }
   })
+
+/**
+ * One reply, under one comment.
+ *
+ * Its own type rather than a comment that happens to have no replies, because GitHub allows
+ * exactly one level of nesting: a reply cannot be replied to, and a type that let it would be a
+ * type describing a page that cannot exist.
+ */
+export type Reply = {
+  /** GitHub's own name for it, which is what a permalink and every write take. */
+  readonly id: string
+  readonly author: string
+  readonly at: string
+  /** Their rendered markdown, as they served it. */
+  readonly body: string
+  readonly upvotes: number
+  /**
+   * Whether this is the marked Answer.
+   *
+   * On a reply as well as on a comment, because the page says so per comment and this reads what
+   * the page says. Whether GitHub lets anybody mark a reply is their rule to change, and a read
+   * that assumed the answer was always top-level would lose it on the day they do.
+   */
+  readonly isAnswer: boolean
+}
+
+/** One comment on a discussion, and the replies underneath it. */
+export type Comment = Reply & {
+  readonly replies: ReadonlyArray<Reply>
+}
+
+/**
+ * One discussion, whole: what was asked, what everybody said, and which of it was the answer.
+ *
+ * One read. Their own page is served by Rails with the body and every comment already in it, so
+ * unlike a pull request's six requests there is nothing here to defer.
+ */
+export type DiscussionSnapshot = {
+  readonly reference: DiscussionRef
+  /** GitHub's own name for the discussion, which every write takes instead of the number. */
+  readonly id: string
+  readonly title: string
+  readonly category: Category
+  readonly answerable: boolean
+  readonly answered: boolean
+  readonly closed: boolean
+  readonly locked: boolean
+  readonly upvotes: number
+  readonly author: string
+  readonly askedAt: string
+  /** Their rendered markdown for the opening post. */
+  readonly body: string
+  readonly comments: ReadonlyArray<Comment>
+}
+
+/**
+ * Every comment of every depth, which is the number a Court is weighed against.
+ *
+ * Counted rather than taken from a field, because the page never prints one number for it: their
+ * header says "6 comments · 3 replies" and their own list row says 9.
+ */
+export const spokenOn = (snapshot: DiscussionSnapshot): number =>
+  snapshot.comments.reduce((sum, one) => sum + 1 + one.replies.length, 0)
+
+/**
+ * The five fields the Answering and the Court are decided from, out of a whole discussion.
+ *
+ * So the page and the row are weighed by one rule. A discussion drawn as Stale on the list and
+ * as something else on its own page would be two answers to one question, and the reader would
+ * have to decide which of the two screens to believe.
+ */
+export const weighingOf = (snapshot: DiscussionSnapshot): Weighing => ({
+  answerable: snapshot.answerable,
+  answered: snapshot.answered,
+  closed: snapshot.closed,
+  locked: snapshot.locked,
+  comments: spokenOn(snapshot)
+})
+
+/**
+ * The marked Answer, wherever in the thread it is.
+ *
+ * Looked for among the replies as well as among the comments, for the reason {@link Reply} gives
+ * about `isAnswer`. Nothing where none is marked, which is 94 of the 98 unanswered Questions
+ * counted across eight repositories.
+ */
+export const answerOf = (snapshot: DiscussionSnapshot): Option.Option<Reply> => {
+  for (const one of snapshot.comments) {
+    if (one.isAnswer) return Option.some(one)
+
+    const below = one.replies.find((reply) => reply.isAnswer)
+    if (below !== undefined) return Option.some(below)
+  }
+
+  return Option.none()
+}

@@ -1,0 +1,3085 @@
+
+<!DOCTYPE html>
+<html
+  lang="en"
+  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"
+  data-a11y-animated-images="system" data-a11y-link-underlines="true"
+  >
+  <head>
+    <meta charset="utf-8">
+  
+  
+  
+    
+  
+  
+  <title>High Memory Usage by next-server process. · vercel/next.js · Discussion #70178 · GitHub</title>
+  <meta name="route-pattern" content="/_view_fragments/Voltron::DiscussionsFragmentsController/show/:user_id/:repository/:discussion_number/discussion_layout(.:format)" data-turbo-transient>
+  <meta name="route-controller" content="voltron_discussions_fragments" data-turbo-transient>
+  <meta name="route-action" content="discussion_layout" data-turbo-transient>
+  <meta name="fetch-nonce" content="v2:905a6821-e61f-09f1-50b5-413310398b8f">
+  <meta name="current-catalog-service-hash" content="9f0abe34da433c9b6db74bffa2466494a717b579a96b30a5d252e5090baea7be">
+  <meta name="request-id" content="D5C8:348D4:2AF5840:255EAFC:6A99FC49" data-pjax-transient="true"/><meta name="html-safe-nonce" content="5a2894a7dc184cf9e2659921827d38c07cde9dd190a97955e19b954629bdbe0a" data-pjax-transient="true"/><meta name="visitor-payload" content="eyJyZWZlcnJlciI6IiIsInJlcXVlc3RfaWQiOiJENUM4OjM0OEQ0OjJBRjU4NDA6MjU1RUFGQzo2QTk5RkM0OSIsInZpc2l0b3JfaWQiOiI3MTc0MjYxMTExODY0ODE4NzYxIiwicmVnaW9uX2VkZ2UiOiJmcmEiLCJyZWdpb25fcmVuZGVyIjoiZnJhIn0=" data-pjax-transient="true"/><meta name="visitor-hmac" content="8a737a4048a4e18edcf86fbd3062139a94059582bc2cda2e9f3c51eec2b85133" data-pjax-transient="true"/>
+    <meta name="hovercard-subject-tag" content="discussion:7197489" data-turbo-transient>
+  <meta name="github-keyboard-shortcuts" content="repository,copilot" data-turbo-transient="true" />
+  <meta name="selected-link" value="repo_discussions" data-turbo-transient>
+    <meta name="google-site-verification" content="Apib7-x98H0j5cPqHWwSMm6dNU4GmODRoqxLiDzdx9I">
+<meta name="octolytics-url" content="https://collector.github.com/github/collect" />
+  <meta name="analytics-location" content="/&lt;user-name&gt;/&lt;repo-name&gt;/voltron/discussions_fragments/discussion_layout" data-turbo-transient="true" />
+    <meta name="user-login" content="">
+    <meta name="viewport" content="width=device-width">
+      <meta name="description" content="High Memory Usage by next-server process.">
+    
+    <meta property="fb:app_id" content="1401488693436528">
+    <meta name="apple-itunes-app" content="app-id=1477376905, app-argument=https://github.com/_view_fragments/Voltron::DiscussionsFragmentsController/show/vercel/next.js/70178/discussion_layout" />
+      <meta name="twitter:image" content="https://opengraph.githubassets.com/0f1255a5c00f5a6950ba32c882688e45545522dc0eb1e640ba9995575ef5f63d/vercel/next.js/discussions/70178" /><meta name="twitter:site" content="@github" /><meta name="twitter:card" content="summary_large_image" /><meta name="twitter:title" content="High Memory Usage by next-server process. · vercel/next.js · Discussion #70178" /><meta name="twitter:description" content="Summary We&amp;#39;re experiencing significantly high memory usage by the next-server process when using Turbopack locally. Initially when the server is started using next dev --turbo, the process is w..." />
+  <meta property="og:image" content="https://opengraph.githubassets.com/0f1255a5c00f5a6950ba32c882688e45545522dc0eb1e640ba9995575ef5f63d/vercel/next.js/discussions/70178" /><meta property="og:image:alt" content="Summary We&#39;re experiencing significantly high memory usage by the next-server process when using Turbopack locally. Initially when the server is started using next dev --turbo, the process is well ..." /><meta property="og:image:width" content="1200" /><meta property="og:image:height" content="600" /><meta property="og:site_name" content="GitHub" /><meta property="og:type" content="object" /><meta property="og:title" content="High Memory Usage by next-server process. · vercel/next.js · Discussion #70178" /><meta property="og:url" content="https://github.com/vercel/next.js/discussions/70178" /><meta property="og:description" content="Summary We&#39;re experiencing significantly high memory usage by the next-server process when using Turbopack locally. Initially when the server is started using next dev --turbo, the process is well ..." />
+      <meta name="hostname" content="github.com">
+        <meta name="expected-hostname" content="github.com">
+  <meta http-equiv="x-pjax-version" content="c692b45336ab7346b9968389bd79fc511a7b99ae31c360aee302f247f0eaba95" data-turbo-track="reload">
+  <meta http-equiv="x-pjax-csp-version" content="2af6a6627810d190be616096b617c8f37a1419b9435f76190f0e0d7638222ac1" data-turbo-track="reload">
+  <meta http-equiv="x-pjax-css-version" content="b7a4653359baeee3d827ca91d7c149e4962234557341efae58fad4aa5ce82a0a" data-turbo-track="reload">
+  <meta http-equiv="x-pjax-js-version" content="24b0cf7ae0ab8ca5ef84dd139a65bd45c51fcf5d4249d112ef3ce171761cb418" data-turbo-track="reload">
+  <meta name="turbo-cache-control" content="no-preview" data-turbo-transient="">
+        <meta name="voltron-timing" value="281">
+  <meta name="go-import" content="github.com/vercel/next.js git https://github.com/vercel/next.js.git">
+  <meta name="octolytics-dimension-user_id" content="14985020" /><meta name="octolytics-dimension-user_login" content="vercel" /><meta name="octolytics-dimension-repository_id" content="70107786" /><meta name="octolytics-dimension-repository_nwo" content="vercel/next.js" /><meta name="octolytics-dimension-repository_public" content="true" /><meta name="octolytics-dimension-repository_is_fork" content="false" /><meta name="octolytics-dimension-repository_network_root_id" content="70107786" /><meta name="octolytics-dimension-repository_network_root_nwo" content="vercel/next.js" />
+    <meta name="turbo-body-classes" content="logged-out env-production page-responsive">
+  <meta name="disable-turbo" content="false">
+  <meta name="browser-stats-url" content="https://api.github.com/_private/browser/stats">
+  <meta name="browser-errors-url" content="https://api.github.com/_private/browser/errors">
+  <meta name="release" content="0b9fb118de2fe22b1dcc3f585f019b7f9f979024" data-turbo-track="reload">
+  <meta name="ui-target" content="full">
+  
+<meta name="theme-color" content="#1e2327">
+<meta name="color-scheme" content="light dark" />
+  </head>
+  <body class="logged-out env-production page-responsive" style="word-wrap: break-word;" >
+    <div data-turbo-body class="logged-out env-production page-responsive" style="word-wrap: break-word;" >
+      <div id="__primerPortalRoot__" style="z-index: 1000; position: absolute; width: 100%;" data-turbo-permanent></div>
+    <div class="position-relative header-wrapper js-header-wrapper ">
+      <a href="#start-of-content" data-skip-target-assigned="false" class="px-2 tmp-py-4 color-bg-accent-emphasis color-fg-on-emphasis show-on-focus js-skip-to-content">Skip to content</a>
+      <span data-view-component="true" class="progress-pjax-loader Progress position-fixed width-full">
+    <span style="width: 0%;" data-view-component="true" class="Progress-item progress-pjax-loader-bar left-0 top-0 color-bg-accent-emphasis"></span>
+</span>      
+<react-partial
+  partial-name="keyboard-shortcuts-dialog"
+  data-ssr="false"
+  data-attempted-ssr="false"
+  data-react-profiling="false"
+>
+  <div data-target="react-partial.reactRoot"></div>
+</react-partial>
+          
+<react-partial
+  partial-name="marketing-header"
+  data-ssr="true"
+  data-attempted-ssr="true"
+  data-react-profiling="false"
+>
+  <div data-target="react-partial.reactRoot"><div data-color-mode="dark" data-light-theme="light" data-dark-theme="dark"></div></div>
+</react-partial>
+      <div hidden="hidden" data-view-component="true" class="js-stale-session-flash stale-session-flash flash flash-warn flash-full">
+        <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-alert">
+</svg>
+        <span class="js-stale-session-flash-signed-in" hidden>You signed in with another tab or window. <a class="Link--inTextBlock" href="">Reload</a> to refresh your session.</span>
+        <span class="js-stale-session-flash-signed-out" hidden>You signed out in another tab or window. <a class="Link--inTextBlock" href="">Reload</a> to refresh your session.</span>
+        <span class="js-stale-session-flash-switched" hidden>You switched accounts on another tab or window. <a class="Link--inTextBlock" href="">Reload</a> to refresh your session.</span>
+    <button id="icon-button-6071da74-9d84-4cb9-836d-5be2b050e00f" aria-labelledby="tooltip-6c37e396-5686-4ed6-bcd4-be2556ae9b53" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium flash-close js-flash-close">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x Button-visual">
+</svg>
+</button>
+</div>
+    </div>
+  <div id="start-of-content" class="show-on-focus"></div>
+    <div id="js-flash-container" class="flash-container" data-turbo-replace>
+  <template class="js-flash-template">
+<div class="flash flash-full   {{ className }}">
+  <div >
+    <button autofocus class="flash-close js-flash-close" type="button" aria-label="Dismiss this message">
+      <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+</svg>
+    </button>
+    <div aria-atomic="true" role="alert" class="js-flash-alert">
+      <div>{{ message }}</div>
+    </div>
+  </div>
+</div>
+  </template>
+</div>
+  <div
+    class="application-main "
+    data-commit-hovercards-enabled
+    data-discussion-hovercards-enabled
+    data-issue-and-pr-hovercards-enabled
+    data-project-hovercards-enabled
+  >
+        <div itemscope itemtype="http://schema.org/SoftwareSourceCode" class="">
+    <main id="js-repo-pjax-container" >
+    
+      <include-fragment src="/in-product-messaging/budget-threshold-banner?organization=vercel" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment>
+  
+  <div id="repository-container-header"  class="tmp-pt-3 hide-full-screen" style="background-color: var(--page-header-bgColor, var(--color-page-header-bg));" data-turbo-replace>
+      <div class="d-flex flex-nowrap flex-justify-end tmp-mb-3  tmp-px-3 tmp-px-lg-5" style="gap: 1rem;">
+        <div class="flex-auto min-width-0 width-fit">
+  <div class=" d-flex flex-wrap flex-items-center wb-break-word f3 text-normal">
+      <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-repo color-fg-muted mr-2 tmp-mr-2">
+</svg>
+    <span class="author flex-self-stretch" itemprop="author">
+      <a class="url fn" rel="author" data-hovercard-type="organization" data-hovercard-url="/orgs/vercel/hovercard" href="/vercel">
+        vercel
+</a>    </span>
+    <span class="mx-1 flex-self-stretch color-fg-muted">/</span>
+    <strong itemprop="name" class="mr-2 flex-self-stretch">
+      <a data-pjax="#repo-content-pjax-container" data-turbo-frame="repo-content-turbo-frame" href="/vercel/next.js">next.js</a>
+    </strong>
+    <span></span><span class="Label Label--secondary v-align-middle mr-1">Public</span>
+  </div>
+        </div>
+        <div id="repository-details-container" class="flex-shrink-0" data-turbo-replace style="max-width: 70%;">
+            <ul class="pagehead-actions flex-shrink-0 d-none d-md-inline" style="padding: 2px 0;">
+  <li>
+            <a href="/login?return_to=%2Fvercel%2Fnext.js" rel="nofollow" id="repository-details-watch-button" aria-label="You must be signed in to change notification settings" data-view-component="true" class="btn-sm btn">    <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-bell mr-2 tmp-mr-2">
+</svg>Notifications
+</a>    
+  </li>
+  <li>
+          <a icon="repo-forked" id="fork-button" href="/login?return_to=%2Fvercel%2Fnext.js" rel="nofollow" data-view-component="true" class="btn-sm btn">    <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-repo-forked mr-2 tmp-mr-2">
+</svg>Fork
+    <span id="repo-network-counter" data-pjax-replace="true" data-turbo-replace="true" title="31,871" data-view-component="true" class="Counter">31.9k</span>
+</a>
+  </li>
+  <li>
+        <div data-view-component="true" class="BtnGroup d-flex">
+        <a href="/login?return_to=%2Fvercel%2Fnext.js" rel="nofollow" aria-label="You must be signed in to star a repository" data-view-component="true" class="tooltipped tooltipped-sw btn-sm btn">    <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-star v-align-text-bottom d-inline-block mr-2 tmp-mr-2">
+</svg><span data-view-component="true" class="d-inline">
+          Star
+</span>          <span id="repo-stars-counter-star" aria-label="142083 users starred this repository" data-singular-suffix="user starred this repository" data-plural-suffix="users starred this repository" data-turbo-replace="true" title="142,083" data-view-component="true" class="Counter js-social-count">142k</span>
+</a></div>
+  </li>
+</ul>
+        </div>
+      </div>
+        <div id="responsive-meta-container" data-turbo-replace>
+</div>
+          <nav data-pjax="#js-repo-pjax-container" aria-label="Repository" data-view-component="true" class="js-repo-nav js-sidenav-container-pjax js-responsive-underlinenav overflow-hidden UnderlineNav px-3 tmp-px-3 px-md-4 tmp-px-md-4 px-lg-5 tmp-px-lg-5">
+  <ul data-view-component="true" class="UnderlineNav-body list-style-none">
+      <li data-view-component="true" class="d-inline-flex">
+  <a id="code-tab" href="/vercel/next.js" data-tab-item="i0code-tab" data-selected-links="repo_source repo_downloads repo_commits repo_releases repo_tags repo_branches repo_packages repo_deployments repo_attestations /vercel/next.js" data-pjax="#repo-content-pjax-container" data-turbo-frame="repo-content-turbo-frame" data-hotkey="g c" data-command-id="repositories:go-to-code" data-react-nav="code-view" data-react-nav-anchor="code-view-repo-link" data-view-component="true" class="UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item">
+              <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-code UnderlineNav-octicon d-none d-sm-inline">
+</svg>
+        <span data-content="Code">Code</span>
+          <span id="code-repo-tab-count" data-pjax-replace="" data-turbo-replace="" title="Not available" data-view-component="true" class="Counter"></span>
+</a></li>
+      <li data-view-component="true" class="d-inline-flex">
+  <a id="issues-tab" href="/vercel/next.js/issues" data-tab-item="i1issues-tab" data-selected-links="repo_issues repo_labels repo_milestones /vercel/next.js/issues" data-pjax="#repo-content-pjax-container" data-turbo-frame="repo-content-turbo-frame" data-hotkey="g i" data-command-id="repositories:go-to-issues" data-react-nav="issues-react" data-view-component="true" class="UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item">
+              <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-issue-opened UnderlineNav-octicon d-none d-sm-inline">
+</svg>
+        <span data-content="Issues">Issues</span>
+          <span id="issues-repo-tab-count" data-pjax-replace="" data-turbo-replace="" title="1,015" data-view-component="true" class="Counter">1k</span>
+</a></li>
+      <li data-view-component="true" class="d-inline-flex">
+  <a id="pull-requests-tab" href="/vercel/next.js/pulls" data-tab-item="i2pull-requests-tab" data-selected-links="repo_pulls checks /vercel/next.js/pulls" data-pjax="#repo-content-pjax-container" data-turbo-frame="repo-content-turbo-frame" data-hotkey="g p" data-command-id="repositories:go-to-pull-requests" data-view-component="true" class="UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item">
+              <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-git-pull-request UnderlineNav-octicon d-none d-sm-inline">
+</svg>
+        <span data-content="Pull requests">Pull requests</span>
+          <span id="pull-requests-repo-tab-count" data-pjax-replace="" data-turbo-replace="" title="2,274" data-view-component="true" class="Counter">2.3k</span>
+</a></li>
+      <li data-view-component="true" class="d-inline-flex">
+  <a id="discussions-tab" href="/vercel/next.js/discussions" data-tab-item="i3discussions-tab" data-selected-links="repo_discussions /vercel/next.js/discussions" data-pjax="#repo-content-pjax-container" data-turbo-frame="repo-content-turbo-frame" data-hotkey="g g" data-command-id="repositories:go-to-discussions" aria-current="page" data-view-component="true" class="UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item selected">
+              <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-comment-discussion UnderlineNav-octicon d-none d-sm-inline">
+</svg>
+        <span data-content="Discussions">Discussions</span>
+          <span id="discussions-repo-tab-count" data-pjax-replace="" data-turbo-replace="" title="Not available" data-view-component="true" class="Counter"></span>
+</a></li>
+      <li data-view-component="true" class="d-inline-flex">
+  <a id="actions-tab" href="/vercel/next.js/actions" data-tab-item="i4actions-tab" data-selected-links="repo_actions /vercel/next.js/actions" data-pjax="#repo-content-pjax-container" data-turbo-frame="repo-content-turbo-frame" data-hotkey="g a" data-command-id="repositories:go-to-actions" data-view-component="true" class="UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item">
+              <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-play UnderlineNav-octicon d-none d-sm-inline">
+</svg>
+        <span data-content="Actions">Actions</span>
+          <span id="actions-repo-tab-count" data-pjax-replace="" data-turbo-replace="" title="Not available" data-view-component="true" class="Counter"></span>
+</a></li>
+      <li data-view-component="true" class="d-inline-flex">
+  <a id="security-and-quality-tab" href="/vercel/next.js/security" data-tab-item="i5security-and-quality-tab" data-selected-links="security overview alerts policy token_scanning code_scanning /vercel/next.js/security" data-pjax="#repo-content-pjax-container" data-turbo-frame="repo-content-turbo-frame" data-hotkey="g s" data-command-id="repositories:go-to-security" data-view-component="true" class="UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item">
+              <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-shield UnderlineNav-octicon d-none d-sm-inline">
+</svg>
+        <span data-content="Security and quality">Security and quality</span>
+          <span id="security-and-quality-repo-tab-count" data-pjax-replace="" data-turbo-replace="" title="61" data-view-component="true" class="Counter">61</span>
+</a></li>
+      <li data-view-component="true" class="d-inline-flex">
+  <a id="insights-tab" href="/vercel/next.js/pulse" data-tab-item="i6insights-tab" data-selected-links="repo_graphs repo_contributors dependency_graph dependabot_updates pulse people community /vercel/next.js/pulse" data-pjax="#repo-content-pjax-container" data-turbo-frame="repo-content-turbo-frame" data-command-id="repositories:go-to-insights" data-view-component="true" class="UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item">
+              <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-graph UnderlineNav-octicon d-none d-sm-inline">
+</svg>
+        <span data-content="Insights">Insights</span>
+          <span id="insights-repo-tab-count" data-pjax-replace="" data-turbo-replace="" title="Not available" data-view-component="true" class="Counter"></span>
+</a></li>
+</ul>
+    <div style="visibility:hidden;" data-view-component="true" class="UnderlineNav-actions js-responsive-underlinenav-overflow position-absolute pr-3 tmp-pr-3 pr-md-4 tmp-pr-md-4 pr-lg-5 tmp-pr-lg-5 right-0">      <action-menu data-select-variant="none" data-view-component="true">
+  <focus-group direction="vertical" mnemonics retain>
+    <button id="action-menu-9563ba67-8329-4490-80c2-ca7bab980e66-button" popovertarget="action-menu-9563ba67-8329-4490-80c2-ca7bab980e66-overlay" aria-controls="action-menu-9563ba67-8329-4490-80c2-ca7bab980e66-list" aria-haspopup="true" aria-labelledby="tooltip-0a45f380-80df-4317-ae0e-d365458ff8d9" type="button" data-view-component="true" class="Button Button--iconOnly Button--secondary Button--medium UnderlineNav-item">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-kebab-horizontal Button-visual">
+</svg>
+</button>
+<anchored-position data-target="action-menu.overlay" id="action-menu-9563ba67-8329-4490-80c2-ca7bab980e66-overlay" anchor="action-menu-9563ba67-8329-4490-80c2-ca7bab980e66-button" align="start" side="outside-bottom" anchor-offset="normal" popover="auto" data-view-component="true">
+  <div data-view-component="true" class="Overlay Overlay--size-auto">
+      <div data-view-component="true" class="Overlay-body Overlay-body--paddingNone">          <action-list>
+  <div data-view-component="true">
+    <ul aria-labelledby="action-menu-9563ba67-8329-4490-80c2-ca7bab980e66-button" id="action-menu-9563ba67-8329-4490-80c2-ca7bab980e66-list" role="menu" data-view-component="true" class="ActionListWrap--inset ActionListWrap">
+        <li hidden="hidden" data-menu-item="i0code-tab" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    <a tabindex="-1" id="item-c3ea2183-8a7a-4033-a5d0-7d49aa3c90bd" href="/vercel/next.js" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-code">
+</svg>
+        </span>
+        <span data-view-component="true" class="ActionListItem-label">
+          Code
+</span>      
+</a>
+</li>
+        <li hidden="hidden" data-menu-item="i1issues-tab" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    <a tabindex="-1" id="item-449512aa-e1f9-49a4-ab2d-fa19d6a170fe" href="/vercel/next.js/issues" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-issue-opened">
+</svg>
+        </span>
+        <span data-view-component="true" class="ActionListItem-label">
+          Issues
+</span>      
+</a>
+</li>
+        <li hidden="hidden" data-menu-item="i2pull-requests-tab" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    <a tabindex="-1" id="item-215320f6-119d-4b06-8b18-fc7c45e41273" href="/vercel/next.js/pulls" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-git-pull-request">
+</svg>
+        </span>
+        <span data-view-component="true" class="ActionListItem-label">
+          Pull requests
+</span>      
+</a>
+</li>
+        <li hidden="hidden" data-menu-item="i3discussions-tab" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    <a tabindex="-1" id="item-a649c7a7-24b9-44c7-b269-dcfed686a628" href="/vercel/next.js/discussions" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-comment-discussion">
+</svg>
+        </span>
+        <span data-view-component="true" class="ActionListItem-label">
+          Discussions
+</span>      
+</a>
+</li>
+        <li hidden="hidden" data-menu-item="i4actions-tab" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    <a tabindex="-1" id="item-e48365d2-10ae-41ea-a7ce-6dfd0848ffa7" href="/vercel/next.js/actions" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-play">
+</svg>
+        </span>
+        <span data-view-component="true" class="ActionListItem-label">
+          Actions
+</span>      
+</a>
+</li>
+        <li hidden="hidden" data-menu-item="i5security-and-quality-tab" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    <a tabindex="-1" id="item-ea1e6255-f484-4854-93ff-3a05ef4f6f31" href="/vercel/next.js/security" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-shield">
+</svg>
+        </span>
+        <span data-view-component="true" class="ActionListItem-label">
+          Security and quality
+</span>      
+</a>
+</li>
+        <li hidden="hidden" data-menu-item="i6insights-tab" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    <a tabindex="-1" id="item-2e5c6d6a-a3b2-4a8c-8a4e-bd4647c767af" href="/vercel/next.js/pulse" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-graph">
+</svg>
+        </span>
+        <span data-view-component="true" class="ActionListItem-label">
+          Insights
+</span>      
+</a>
+</li>
+</ul>    
+</div></action-list>
+</div>
+</div></anchored-position>  </focus-group>
+</action-menu></div>
+</nav>
+  </div>
+<turbo-frame id="repo-content-turbo-frame" target="_top" data-turbo-action="advance" class="">
+    <div id="repo-content-pjax-container" class="repository-content " >
+          <div class="sticky-header-shadow color-shadow-small" id="sticky-header-backdrop"></div>
+    <div class="clearfix new-discussion-timeline js-check-all-container container-xl tmp-px-3 tmp-px-md-4 tmp-px-lg-5 tmp-mt-4" data-pjax="" data-turbo-frame="">
+        <div id="discussion_bucket" class="gutter-condensed gutter-lg flex-column flex-md-row d-flex flex-wrap">
+  <div class="clearfix flex-shrink-0 js-issues-results col-12 flex-wrap sticky-header-wrapper js-observe-sticky-header-height" id="discussions-header-wrapper">
+    <div
+  class="js-socket-channel js-updatable-content"
+  data-channel="eyJjIjoiZGlzY3Vzc2lvbjo3MTk3NDg5IiwidCI6MTc4ODQ3NjQ4OX0=--8cfdc42cb26f2d32b45cb0464546069a978c6d96c82f3e951dc37de8f6379d97"
+  data-gid="D_kwDOBC3Cis4AbdMx"
+  data-url="/vercel/next.js/discussions/70178/title"
+>
+  <div
+    id="partial-discussion-header"
+    class="non-sticky-header-container gh-header js-details-container Details js-discussions-title-container"
+  >
+    <div class="gh-header-show gh-header-no-access">
+      <div class="d-flex flex-column flex-md-row flex-items-start">
+        <div class="d-flex width-full flex-order-1 flex-md-order-none">
+          <div class="d-flex flex-column">
+            <h1 class="gh-header-title flex-auto wb-break-word f1 mr-0">
+              <span class="js-issue-title markdown-title" >
+                High Memory Usage by next-server process.
+              </span>
+              <span class="gh-header-number f1-light">#70178</span>
+            </h1>
+            <div class="d-flex flex-wrap flex-items-center tmp-mb-3 mt-2">
+                <span title="Unanswered" data-view-component="true" class="State color-bg-default color-fg-muted mr-2 tmp-mr-2 border">Unanswered</span>
+              <div class="color-fg-muted my-1" >
+                  <a
+                    href="/ShivamArora"
+                    class="Link--secondary text-bold d-inline-block"
+                    data-hovercard-type="user" data-hovercard-url="/users/ShivamArora/hovercard"
+                  >
+                    <span >
+                      ShivamArora
+                    </span>
+                  </a>
+                  asked this question in
+                <a class="color-fg-inherit text-bold" href="/vercel/next.js/discussions/categories/help">Help</a>
+              </div>
+            </div>
+          </div>
+        </div>
+          <div class="gh-header-actions mt-0 mt-md-1 mb-2 mb-md-0 flex-shrink-0 d-flex">
+          </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 js-toggle-stuck" data-toggle-sticky-element="discussions-header-wrapper,sticky-header-backdrop"></div>
+  <div class="sticky-header-container">
+    <div class="d-flex flex-items-center">
+      <div class="d-flex flex-1 flex-row flex-items-center min-width-0 my-2">
+        <div class="min-width-0">
+          <div class="d-flex text-bold f5">
+            <a class="js-issue-title css-truncate css-truncate-target Link--primary width-fit markdown-title js-smoothscroll-anchor" href="#top">
+              High Memory Usage by next-server process.
+            </a>
+            <span class="gh-header-number color-fg-muted pl-1">#70178</span>
+          </div>
+          <div class="meta color-fg-muted width-fit">
+            <div class="d-flex flex-row flex-items-center">
+  <div class="pr-2 d-flex flex-row">
+      <a
+        href="/ShivamArora"
+        class="author d-flex flex-items-center Link--primary text-bold"
+        data-hovercard-type="user" data-hovercard-url="/users/ShivamArora/hovercard" data-hovercard-z-index-override="111"
+      >
+        <img class="mr-1 avatar mt-0 avatar-user" src="https://avatars.githubusercontent.com/u/4353659?s=40&amp;v=4" width="20" height="20" alt="@ShivamArora" />
+        <span class="d-none d-md-inline-block mr-1" >
+          ShivamArora
+        </span>
+      </a>
+  </div>
+  <div >
+    <relative-time datetime="2024-09-17T08:29:25Z" class="no-wrap">Sep 17, 2024</relative-time>
+    <span class="mx-1">&middot;</span>
+    6 comments
+      <span class="mx-1">&middot;</span>
+      3 replies
+  </div>
+</div>
+          </div>
+        </div>
+      </div>
+      <div class="tmp-ml-3">
+        <a href="#top" class="color-fg-muted tmp-py-3 ml-2 f6 d-none d-md-inline-block">Return to top</a>
+      </div>
+    </div>
+  </div>
+</div>
+  </div>
+<div class="flex-shrink-0 col-12 col-md-9 tmp-mb-4 tmp-mb-md-0">
+  <div
+    class="js-quote-selection-container js-discussion-quote-selection"
+    data-quote-markdown=".js-comment-body"
+    data-issue-and-pr-hovercards-enabled
+    data-discussion-hovercards-enabled
+    data-team-hovercards-enabled
+    data-timeline-item-src="/vercel/next.js/discussions/70178/timeline_anchor"
+    id="js-discussions-timeline-anchor-loader"
+  >
+    <div class="discussion js-discussion js-socket-channel js-updatable-content"
+      data-discussion-hovercards-enabled
+      data-repository-hovercards-enabled
+      data-commit-hovercards-enabled
+      data-channel="eyJjIjoiZGlzY3Vzc2lvbjo3MTk3NDg5IiwidCI6MTc4ODQ3NjQ4OX0=--8cfdc42cb26f2d32b45cb0464546069a978c6d96c82f3e951dc37de8f6379d97"
+    >
+        <div
+  class="TimelineItem pt-0 js-comment-container discussion-timeline-item ml-0"
+  data-gid="D_kwDOBC3Cis4AbdMx"
+  data-url="/vercel/next.js/discussions/70178/body"
+>
+  <div
+  class="discussions-timeline-scroll-target js-targetable-element"
+  id="discussion-7197489"
+  data-hpc
+>
+  <div
+    class="
+      timeline-comment-group
+      reactions-with-gap
+      discussion-comment
+      js-discussion-comment
+      js-minimizable-comment-group
+      js-targetable-element
+      TimelineItem-body
+      js-timeline-discussion-comment my-1
+    "
+    data-error=""
+  >
+      <div class="d-flex">
+  <div class="width-full">
+    <div
+      class="timeline-comment unminimized-comment comment previewable-edit js-task-list-container flex-auto box-shadow-none js-comment"
+      data-body-version="21f26819d1516ac003944567325e1b398fe92f33e0e1e4614fc11084662c387f"
+    >
+<div class="edit-comment-hide">
+  <div class="clearfix d-flex tmp-px-3 flex-row-reverse flex-items-center">
+    <div class="timeline-comment-actions flex-shrink-0">
+      <div class="d-flex flex-row flex-items-center">
+        <comment-actions-container>
+  <experimental-action-menu data-anchor-align="end" data-anchor-side="outside-bottom" data-view-component="true">
+  <button role="button" id="Discussion-actions-7197489-text" aria-haspopup="true" aria-expanded="false" aria-controls="Discussion-actions-7197489-list" aria-labelledby="tooltip-4b5c867c-1280-4093-bc0a-3e76a1341aa4" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-kebab-horizontal Button-visual">
+</svg>
+</button>
+  <div class="Overlay-backdrop--anchor" data-menu-overlay>
+    <div class="Overlay Overlay-whenNarrow Overlay--height-auto Overlay--width-auto" hidden>
+      <div class="Overlay-body Overlay-body--paddingNone">
+        <ul class="ActionList" id="Discussion-actions-7197489-list" role="menu" aria-labelledby="Discussion-actions-7197489-text">
+            <include-fragment data-target="action-menu.includeFragment" loading="lazy" src="/vercel/next.js/discussions/70178/actions_menu?form_path=%2Fvercel%2Fnext.js%2Fdiscussions%2F70178" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+              <li
+                class="ActionList-item d-flex flex-items-center flex-justify-center text-center"
+                data-target="action-menu.includeFragmentLoadingItem"
+                aria-disabled="true"
+              >
+                <span data-view-component="true">
+  <svg aria-label="Loading content..." style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="m-2 tmp-m-2 anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+              </li>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment>        </ul>
+      </div>
+    </div>
+  </div>
+</experimental-action-menu>
+  <template data-target="comment-actions-container.dialogTemplate">
+<dialog-helper>
+  <dialog id="{{dialogId}}" aria-modal="true" aria-labelledby="{{dialogId}}-title" aria-describedby="{{dialogId}}-description" data-view-component="true" class="Overlay Overlay-whenNarrow Overlay--size-medium Overlay--motion-scaleFade Overlay--size-auto Overlay--disableScroll">
+    <div data-view-component="true" class="Overlay-header">
+  <div class="Overlay-headerContentWrap">
+    <div class="Overlay-titleWrap">
+      <h1 class="Overlay-title " id="{{dialogId}}-title">
+        {{title}}
+      </h1>
+    </div>
+    <div class="Overlay-actionWrap">
+      <button data-close-dialog-id="{{dialogId}}" aria-label="Close" aria-label="Close" type="button" data-view-component="true" class="close-button Overlay-closeButton"><svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+</svg></button>
+    </div>
+  </div>
+</div>
+      <scrollable-region data-labelled-by="{{dialogId}}-title">
+        <div data-view-component="true" class="Overlay-body">        <include-fragment src="{{src}}" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+          <div class="text-center" data-hide-on-error>
+            <span data-view-component="true">
+  <svg aria-label="Loading" style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+          </div>
+          <div class="text-center" data-show-on-error hidden>
+            Something went wrong.
+          </div>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment></div>
+      </scrollable-region>
+</dialog></dialog-helper>
+  </template>
+  <div data-target="comment-actions-container.dialogContainer"></div>
+  <div hidden>
+    <button data-hotkey="r" type="button" data-view-component="true" class="js-comment-quote-reply Button--secondary Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">Quote reply</span>
+  </span>
+</button>
+  </div>
+</comment-actions-container>
+      </div>
+    </div>
+     <div class="d-none d-sm-flex flex-items-center">
+        <span class="d-inline-block js-comment-edit-history">
+        </span>
+    </div>
+    <h2 data-view-component="true" class="timeline-comment-header-text text-normal f5 pb-0 tmp-pb-0 pt-2 tmp-pt-2">
+      <div class="d-flex flex-items-center Truncate">
+            <a data-hovercard-type="user" data-hovercard-url="/users/ShivamArora/hovercard" href="/ShivamArora" data-view-component="true" class="Truncate Link--primary Link d-flex flex-items-center text-bold"><img aria-hidden="true" src="https://avatars.githubusercontent.com/u/4353659?s=64&amp;v=4" alt="" size="32" height="32" width="32" data-view-component="true" class="avatar circle mr-2 tmp-mr-2" />
+  <div class="d-flex flex-column Truncate">
+    <span data-view-component="true" class="Truncate-text text-bold">ShivamArora</span>
+  </div></a>
+        <a
+          href="#discussion-7197489"
+          id="discussion-7197489-permalink"
+          class="Link--secondary js-timestamp d-inline-block ml-2"
+        >
+          <relative-time datetime="2024-09-17T08:29:25Z" class="no-wrap">Sep 17, 2024</relative-time>
+        </a>
+          <div class="d-none d-sm-inline-flex ml-2" >
+  
+</div>
+      </div>
+</h2>  </div>
+</div>
+      <div class="">
+        <div class="edit-comment-hide">
+            <task-lists disabled sortable>
+  <table class="d-block" role="presentation" data-paste-markdown-skip>
+    <tbody
+      class="d-block"
+    >
+        <tr class="d-block">
+    <td
+      class="d-block color-fg-default comment-body markdown-body js-comment-body"
+    >
+        <h3 dir="auto">Summary</h3>
+<p dir="auto">We're experiencing significantly high memory usage by the <code class="notranslate">next-server</code> process when using Turbopack locally.</p>
+<p dir="auto">Initially when the server is started using <code class="notranslate">next dev --turbo</code>, the process is well under 250MB. But as soon as we open a page and the compilation starts for the page, the memory usage jumps to ~6.5GB and then doesn't come down even after the page has been compiled and displayed and the system is in an idle state.</p>
+<p dir="auto">On making changes to the codebase with HMR, we've seen the memory usage jumping to even 10-11GB at times which makes it difficult to work with the project as the system becomes slow.</p>
+<p dir="auto">Comparatively when we don't use turbopack and start the project with Webpack, it takes around 3.5GB-4GB when a page is loaded and turbopack is using comparatively more than 1.5x memory than Webpack.</p>
+<p dir="auto">We haven't been able to identify what is the root cause behind such high memory consumption. And it is making tremendously difficult to use turbopack with our project.</p>
+<h3 dir="auto">Additional information</h3>
+<div class="highlight highlight-source-js notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="`next info` output:
+Operating System:
+  Platform: darwin
+  Arch: arm64
+  Version: Darwin Kernel Version 23.6.0: Mon Jul 29 21:13:04 PDT 2024; root:xnu-10063.141.2~1/RELEASE_ARM64_T6020
+  Available memory (MB): 16384
+  Available CPU cores: 10
+Binaries:
+  Node: 18.20.4
+  npm: 10.7.0
+Relevant Packages:
+  next: 14.2.11 // Latest available version is detected (14.2.11).
+  eslint-config-next: 14.2.11
+  react: 18.3.1
+  react-dom: 18.3.1
+Next.js Config:
+  output: N/A"><pre class="notranslate"><span class="pl-s">`next info`</span><span class="pl-kos"></span> output:
+Operating <span class="pl-v">System</span>:
+  Platform: <span class="pl-s1">darwin</span>
+  Arch: <span class="pl-s1">arm64</span>
+  Version: <span class="pl-v">Darwin</span> <span class="pl-v">Kernel</span> <span class="pl-v">Version</span> <span class="pl-c1">23.6</span><span class="pl-c1">.0</span>: <span class="pl-v">Mon</span> <span class="pl-v">Jul</span> <span class="pl-c1">29</span> <span class="pl-c1">21</span>:<span class="pl-c1">13</span>:<span class="pl-c1">04</span> <span class="pl-c1">PDT</span> <span class="pl-c1">2024</span><span class="pl-kos">;</span> root:<span class="pl-s1">xnu</span><span class="pl-c1">-</span><span class="pl-c1">10063.141</span><span class="pl-c1">.2</span><span class="pl-c1">~</span><span class="pl-c1">1</span><span class="pl-c1">/</span><span class="pl-c1">RELEASE_ARM64_T6020</span>
+  <span class="pl-v">Available</span> <span class="pl-s1">memory</span> <span class="pl-kos">(</span><span class="pl-c1">MB</span><span class="pl-kos">)</span>: <span class="pl-c1">16384</span>
+  Available <span class="pl-c1">CPU</span> <span class="pl-s1">cores</span>: <span class="pl-c1">10</span>
+Binaries:
+  Node: <span class="pl-c1">18.20</span><span class="pl-c1">.4</span>
+  npm: <span class="pl-c1">10.7</span><span class="pl-c1">.0</span>
+Relevant <span class="pl-v">Packages</span>:
+  next: <span class="pl-c1">14.2</span><span class="pl-c1">.11</span> <span class="pl-c">// Latest available version is detected (14.2.11).</span>
+  <span class="pl-s1">eslint</span><span class="pl-c1">-</span><span class="pl-s1">config</span><span class="pl-c1">-</span><span class="pl-s1">next</span>: <span class="pl-c1">14.2</span><span class="pl-c1">.11</span>
+  react: <span class="pl-c1">18.3</span><span class="pl-c1">.1</span>
+  <span class="pl-s1">react</span><span class="pl-c1">-</span><span class="pl-s1">dom</span>: <span class="pl-c1">18.3</span><span class="pl-c1">.1</span>
+<span class="pl-v">Next</span><span class="pl-kos">.</span><span class="pl-c1">js</span><span class="pl-kos"></span> Config:
+  output: <span class="pl-v">N</span><span class="pl-c1">/</span><span class="pl-v">A</span></pre></div>
+<div class="snippet-clipboard-content notranslate position-relative overflow-auto" data-snippet-clipboard-copy-content="
+### Example
+_No response_"><pre class="notranslate"><code class="notranslate">
+### Example
+_No response_
+</code></pre></div>
+    </td>
+  </tr>
+    </tbody>
+  </table>
+</task-lists>
+          <div class="d-block d-sm-flex flex-items-center tmp-mb-3 tmp-ml-3">
+            <div class="d-flex flex-1 flex-justify-between flex-items-center">
+              <div class="d-flex flex-items-center">
+                  <div class="d-flex">
+    <div data-replace-remote-form-target>
+    <div
+      class="text-center discussion-vote-form position-relative"
+    >
+        <button aria-label="Upvote: 9" aria-disabled="true" id="discussion-upvote-button-Discussion-7197489" type="button" data-view-component="true" class="social-reaction-summary-item js-upvote-button Link--secondary btn-invisible btn d-flex flex-items-center mx-auto tmp-mx-auto">    <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-arrow-up m-0 tmp-m-0">
+</svg>
+        <span>9</span>
+</button>        
+    </div>
+  </div>
+                  </div>
+    <div class="reactions-container d-flex flex-items-start flex-row-reverse flex-justify-end d-md-flex ml-2"
+  >
+    <div class="js-reactions-container">
+      <div  class=" js-comment-reactions-options d-flex flex-items-center flex-row flex-wrap">
+      </div>
+      <details class="dropdown details-reset details-overlay d-inline-block js-all-reactions-popover" hidden>
+        <summary aria-haspopup="true" data-view-component="true" class="Button--link Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">All reactions</span>
+  </span>
+</summary>
+        <ul class="dropdown-menu dropdown-menu-se">
+        </ul>
+      </details>
+    </div>
+  </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+</div></div>
+  </div>
+</div>
+</div>
+<div class="js-timeline-marker">
+    <div class="d-flex flex-items-center flex-wrap">
+  <div class="js-socket-channel js-updatable-content d-flex flex-auto"
+  data-channel="eyJjIjoiZGlzY3Vzc2lvbjo3MTk3NDg5IiwidCI6MTc4ODQ3NjQ4OX0=--8cfdc42cb26f2d32b45cb0464546069a978c6d96c82f3e951dc37de8f6379d97"
+  data-url="/vercel/next.js/discussions/70178/comment_count"
+  data-gid="D_kwDOBC3Cis4AbdMx"
+>
+  <h2 id="discussion-comment-count" data-view-component="true" class="f4 my-2 tmp-my-2">
+    <span class="sr-only">Replies: </span>
+    <span >
+      6 comments
+    </span>
+      <span aria-hidden="true">&middot;</span>
+      <span class="text-normal" >
+        3 replies
+      </span>
+</h2></div>
+    <nav aria-label="Sort comments" id="discussion-comment-header">
+      <segmented-control>
+  <ul aria-labelledby="discussion-comment-header" role="list" data-view-component="true" class="SegmentedControl--medium SegmentedControl">
+      <li class="SegmentedControl-item SegmentedControl-item--selected" role="listitem" data-targets="segmented-control.items">
+  <a href="/vercel/next.js/discussions/70178?sort=old" aria-current="true" data-view-component="true" class="Button--invisible Button--medium Button Button--invisible-noVisuals">  <span class="Button-content">
+    <span class="Button-label">Oldest</span>
+  </span>
+</a>
+</li>
+      <li class="SegmentedControl-item" role="listitem" data-targets="segmented-control.items">
+  <a href="/vercel/next.js/discussions/70178?sort=new" aria-current="false" data-view-component="true" class="Button--invisible Button--medium Button Button--invisible-noVisuals">  <span class="Button-content">
+    <span class="Button-label">Newest</span>
+  </span>
+</a>
+</li>
+      <li class="SegmentedControl-item" role="listitem" data-targets="segmented-control.items">
+  <a href="/vercel/next.js/discussions/70178?sort=top" aria-current="false" data-view-component="true" class="Button--invisible Button--medium Button Button--invisible-noVisuals">  <span class="Button-content">
+    <span class="Button-label">Top</span>
+  </span>
+</a>
+</li>
+</ul></segmented-control>
+    </nav>
+</div>
+      <div
+    class="js-timeline-item js-timeline-progressive-focus-container js-quote-selection-container"
+      data-gid="DC_kwDOBC3Cis4AptvG"
+    data-quote-markdown=".js-comment-body"
+  >
+    <div
+      class="TimelineItem discussion-timeline-item mx-0 js-comment-container"
+      data-open-edit-form-after-load="false"
+    >
+        <div
+  class="discussions-timeline-scroll-target js-targetable-element"
+  id="discussioncomment-10935238"
+    data-gid="DC_kwDOBC3Cis4AptvG"
+    data-url="/vercel/next.js/discussions/70178/comments/10935238"
+>
+  <div
+    class="
+      timeline-comment-group
+      reactions-with-gap
+      discussion-comment
+      js-discussion-comment
+      js-minimizable-comment-group
+      js-targetable-element
+      TimelineItem-body
+      js-timeline-discussion-comment my-1
+    "
+    data-error=""
+  >
+      <div class="d-flex">
+  <div class="width-full">
+    <div
+      class="timeline-comment unminimized-comment comment previewable-edit js-task-list-container flex-auto box-shadow-none js-comment"
+      data-body-version="74d2f556b665912b388be93c7530281b6f5421c01c1954ac7d4cd6b681ea5448"
+    >
+<div class="edit-comment-hide">
+  <div class="clearfix d-flex tmp-px-3 flex-row-reverse flex-items-center">
+    <div class="timeline-comment-actions flex-shrink-0">
+      <div class="d-flex flex-row flex-items-center">
+        <comment-actions-container>
+  <experimental-action-menu data-anchor-align="end" data-anchor-side="outside-bottom" data-view-component="true">
+  <button role="button" id="Comment-actions-10935238-text" aria-haspopup="true" aria-expanded="false" aria-controls="Comment-actions-10935238-list" aria-labelledby="tooltip-cbe7ae81-afbd-4c27-b2bb-578b3b5d7191" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-kebab-horizontal Button-visual">
+</svg>
+</button>
+  <div class="Overlay-backdrop--anchor" data-menu-overlay>
+    <div class="Overlay Overlay-whenNarrow Overlay--height-auto Overlay--width-auto" hidden>
+      <div class="Overlay-body Overlay-body--paddingNone">
+        <ul class="ActionList" id="Comment-actions-10935238-list" role="menu" aria-labelledby="Comment-actions-10935238-text">
+            <include-fragment data-target="action-menu.includeFragment" loading="lazy" src="/vercel/next.js/discussions/70178/comments/10935238/comment_actions_menu?form_path=%2Fvercel%2Fnext.js%2Fdiscussions%2F70178%2Fcomments%2F10935238" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+              <li
+                class="ActionList-item d-flex flex-items-center flex-justify-center text-center"
+                data-target="action-menu.includeFragmentLoadingItem"
+                aria-disabled="true"
+              >
+                <span data-view-component="true">
+  <svg aria-label="Loading content..." style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="m-2 tmp-m-2 anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+              </li>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment>        </ul>
+      </div>
+    </div>
+  </div>
+</experimental-action-menu>
+  <template data-target="comment-actions-container.dialogTemplate">
+<dialog-helper>
+  <dialog id="{{dialogId}}" aria-modal="true" aria-labelledby="{{dialogId}}-title" aria-describedby="{{dialogId}}-description" data-view-component="true" class="Overlay Overlay-whenNarrow Overlay--size-medium Overlay--motion-scaleFade Overlay--size-auto Overlay--disableScroll">
+    <div data-view-component="true" class="Overlay-header">
+  <div class="Overlay-headerContentWrap">
+    <div class="Overlay-titleWrap">
+      <h1 class="Overlay-title " id="{{dialogId}}-title">
+        {{title}}
+      </h1>
+    </div>
+    <div class="Overlay-actionWrap">
+      <button data-close-dialog-id="{{dialogId}}" aria-label="Close" aria-label="Close" type="button" data-view-component="true" class="close-button Overlay-closeButton"><svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+</svg></button>
+    </div>
+  </div>
+</div>
+      <scrollable-region data-labelled-by="{{dialogId}}-title">
+        <div data-view-component="true" class="Overlay-body">        <include-fragment src="{{src}}" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+          <div class="text-center" data-hide-on-error>
+            <span data-view-component="true">
+  <svg aria-label="Loading" style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+          </div>
+          <div class="text-center" data-show-on-error hidden>
+            Something went wrong.
+          </div>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment></div>
+      </scrollable-region>
+</dialog></dialog-helper>
+  </template>
+  <div data-target="comment-actions-container.dialogContainer"></div>
+  <div hidden>
+    <button data-hotkey="r" type="button" data-view-component="true" class="js-comment-quote-reply Button--secondary Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">Quote reply</span>
+  </span>
+</button>
+  </div>
+</comment-actions-container>
+      </div>
+    </div>
+     <div class="d-none d-sm-flex flex-items-center">
+        <span class="d-inline-block js-comment-edit-history">
+        </span>
+    </div>
+    <h3 data-view-component="true" class="timeline-comment-header-text text-normal f5 pb-0 tmp-pb-0 pt-2 tmp-pt-2">
+      <div class="d-flex flex-items-center Truncate">
+            <a data-hovercard-type="user" data-hovercard-url="/users/raju-sirigineedi/hovercard" href="/raju-sirigineedi" data-view-component="true" class="Truncate Link--primary Link d-flex flex-items-center text-bold"><img aria-hidden="true" src="https://avatars.githubusercontent.com/u/146961815?s=64&amp;v=4" alt="" size="32" height="32" width="32" data-view-component="true" class="avatar circle mr-2 tmp-mr-2" />
+  <div class="d-flex flex-column Truncate">
+    <span data-view-component="true" class="Truncate-text text-bold">raju-sirigineedi</span>
+  </div></a>
+        <a
+          href="#discussioncomment-10935238"
+          id="discussioncomment-10935238-permalink"
+          class="Link--secondary js-timestamp d-inline-block ml-2"
+        >
+          <relative-time datetime="2024-10-14T11:00:13Z" class="no-wrap">Oct 14, 2024</relative-time>
+        </a>
+          <div class="d-none d-sm-inline-flex ml-2" >
+  
+</div>
+      </div>
+</h3>  </div>
+</div>
+      <div class="color-bg-default border-bottom position-relative">
+        <div class="edit-comment-hide">
+            <task-lists disabled sortable>
+  <table class="d-block" role="presentation" data-paste-markdown-skip>
+    <tbody
+      class="d-block"
+    >
+        <tr class="d-block">
+    <td
+      class="d-block color-fg-default comment-body markdown-body js-comment-body"
+    >
+        <p dir="auto">Hey <a class="user-mention notranslate" data-hovercard-type="user" data-hovercard-url="/users/ShivamArora/hovercard" href="https://github.com/ShivamArora">@ShivamArora</a> We are experiencing the same problem. Did you find any workaround for it. ?</p>
+    </td>
+  </tr>
+    </tbody>
+  </table>
+</task-lists>
+          <div class="d-block d-sm-flex flex-items-center tmp-mb-3 tmp-ml-3">
+            <div class="d-flex flex-1 flex-justify-between flex-items-center">
+              <div class="d-flex flex-items-center">
+                  <div class="d-flex">
+    <div data-replace-remote-form-target>
+    <div
+      class="text-center discussion-vote-form position-relative"
+    >
+        <button aria-label="Upvote: 1" aria-disabled="true" id="discussion-upvote-button-DiscussionComment-10935238" type="button" data-view-component="true" class="social-reaction-summary-item js-upvote-button Link--secondary btn-invisible btn d-flex flex-items-center mx-auto tmp-mx-auto">    <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-arrow-up m-0 tmp-m-0">
+</svg>
+        <span>1</span>
+</button>        
+    </div>
+  </div>
+                  </div>
+    <div class="reactions-container d-flex flex-items-start flex-row-reverse flex-justify-end d-md-flex ml-2"
+  >
+    <div class="js-reactions-container">
+      <div  class=" js-comment-reactions-options d-flex flex-items-center flex-row flex-wrap">
+      </div>
+      <details class="dropdown details-reset details-overlay d-inline-block js-all-reactions-popover" hidden>
+        <summary aria-haspopup="true" data-view-component="true" class="Button--link Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">All reactions</span>
+  </span>
+</summary>
+        <ul class="dropdown-menu dropdown-menu-se">
+        </ul>
+      </details>
+    </div>
+  </div>
+              </div>
+                <div class="f6 tmp-mr-3">
+                  <span class="color-fg-muted no-wrap" >
+                    3 replies
+                  </span>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+          <div class="js-timeline-marker color-bg-inset border-top color-border-default mt-n1 rounded-bottom-2" data-child-comments id="child-comments-discussioncomment-10935238">
+    <div class="TimelineItem js-comment-container js-nested-comment-container js-targetable-element ml-0 pb-2 tmp-pl-3 discussion-nested-comment-timeline-item discussion-primer-next-nested-comment-timeline-item width-full">
+      <div class="avatar-parent-child flex-column flex-items-center TimelineItem-avatar left-0 tmp-ml-3"><a class="d-inline-block" data-hovercard-type="user" data-hovercard-url="/users/ShivamArora/hovercard" href="/ShivamArora"><img class="avatar rounded-2 mr-2 avatar-user" src="https://avatars.githubusercontent.com/u/4353659?s=60&amp;v=4" width="30" height="30" alt="@ShivamArora" /></a></div>
+        <div class="discussions-timeline-scroll-target" id="discussioncomment-11004713"
+  data-gid="DC_kwDOBC3Cis4Ap-sp"
+  data-url="/vercel/next.js/discussions/70178/comments/11004713"
+  data-error=""
+>
+  <div
+    class="
+      timeline-comment-group
+      discussion-comment
+      js-discussion-comment
+      js-minimizable-comment-group
+      js-targetable-element
+      TimelineItem-body
+      discussion-nested-comment-group position-relative
+      mt-0 pl-2
+    "
+  >
+      <div class="d-flex">
+  <div class="width-full">
+    <div
+      class="timeline-comment unminimized-comment comment previewable-edit js-task-list-container flex-auto box-shadow-none js-comment border-0 color-bg-inset nested-discussion-timeline-comment tmp-ml-n3"
+      data-body-version="68fbff1f85f2512e6a3c23888e22ec0f19c352f183123b713e76815d65b8cfcb"
+    >
+<div class="edit-comment-hide">
+  <div class="clearfix d-flex tmp-px-3 flex-row-reverse flex-items-center border-bottom-0 color-bg-inset">
+    <div class="timeline-comment-actions flex-shrink-0">
+      <div class="d-flex flex-row flex-items-center">
+        <comment-actions-container>
+  <experimental-action-menu data-anchor-align="end" data-anchor-side="outside-bottom" data-view-component="true">
+  <button role="button" id="Comment-actions-11004713-text" aria-haspopup="true" aria-expanded="false" aria-controls="Comment-actions-11004713-list" aria-labelledby="tooltip-d3b40b60-6cff-4d27-87a0-31bc95743b93" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-kebab-horizontal Button-visual">
+</svg>
+</button>
+  <div class="Overlay-backdrop--anchor" data-menu-overlay>
+    <div class="Overlay Overlay-whenNarrow Overlay--height-auto Overlay--width-auto" hidden>
+      <div class="Overlay-body Overlay-body--paddingNone">
+        <ul class="ActionList" id="Comment-actions-11004713-list" role="menu" aria-labelledby="Comment-actions-11004713-text">
+            <include-fragment data-target="action-menu.includeFragment" loading="lazy" src="/vercel/next.js/discussions/70178/comments/11004713/comment_actions_menu?form_path=%2Fvercel%2Fnext.js%2Fdiscussions%2F70178%2Fcomments%2F11004713" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+              <li
+                class="ActionList-item d-flex flex-items-center flex-justify-center text-center"
+                data-target="action-menu.includeFragmentLoadingItem"
+                aria-disabled="true"
+              >
+                <span data-view-component="true">
+  <svg aria-label="Loading content..." style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="m-2 tmp-m-2 anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+              </li>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment>        </ul>
+      </div>
+    </div>
+  </div>
+</experimental-action-menu>
+  <template data-target="comment-actions-container.dialogTemplate">
+<dialog-helper>
+  <dialog id="{{dialogId}}" aria-modal="true" aria-labelledby="{{dialogId}}-title" aria-describedby="{{dialogId}}-description" data-view-component="true" class="Overlay Overlay-whenNarrow Overlay--size-medium Overlay--motion-scaleFade Overlay--size-auto Overlay--disableScroll">
+    <div data-view-component="true" class="Overlay-header">
+  <div class="Overlay-headerContentWrap">
+    <div class="Overlay-titleWrap">
+      <h1 class="Overlay-title " id="{{dialogId}}-title">
+        {{title}}
+      </h1>
+    </div>
+    <div class="Overlay-actionWrap">
+      <button data-close-dialog-id="{{dialogId}}" aria-label="Close" aria-label="Close" type="button" data-view-component="true" class="close-button Overlay-closeButton"><svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+</svg></button>
+    </div>
+  </div>
+</div>
+      <scrollable-region data-labelled-by="{{dialogId}}-title">
+        <div data-view-component="true" class="Overlay-body">        <include-fragment src="{{src}}" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+          <div class="text-center" data-hide-on-error>
+            <span data-view-component="true">
+  <svg aria-label="Loading" style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+          </div>
+          <div class="text-center" data-show-on-error hidden>
+            Something went wrong.
+          </div>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment></div>
+      </scrollable-region>
+</dialog></dialog-helper>
+  </template>
+  <div data-target="comment-actions-container.dialogContainer"></div>
+  <div hidden>
+    <button data-hotkey="r" type="button" data-view-component="true" class="js-comment-quote-reply Button--secondary Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">Quote reply</span>
+  </span>
+</button>
+  </div>
+</comment-actions-container>
+      </div>
+    </div>
+     <div class="d-none d-sm-flex flex-items-center">
+        <span class="d-inline-block js-comment-edit-history">
+        </span>
+    </div>
+    <h4 data-view-component="true" class="timeline-comment-header-text text-normal f5 pb-1 tmp-pb-1 pt-0 tmp-pt-0">
+      <div class="d-flex flex-items-center Truncate">
+            <a width="fit" data-hovercard-type="user" data-hovercard-url="/users/ShivamArora/hovercard" href="/ShivamArora" data-view-component="true" class="author Truncate-text lh-condensed Link--primary Link text-bold">ShivamArora</a>
+        <a
+          href="#discussioncomment-11004713"
+          id="discussioncomment-11004713-permalink"
+          class="Link--secondary js-timestamp d-inline-block ml-2"
+        >
+          <relative-time datetime="2024-10-21T12:04:05Z" class="no-wrap">Oct 21, 2024</relative-time>
+        </a>
+          <div class="d-none d-sm-inline-flex ml-2" >
+    <span title="This user is the author of this discussion." data-view-component="true" class="Label py-0 tmp-py-0 ml-1 tmp-ml-1">
+  Author
+</span>
+</div>
+      </div>
+</h4>  </div>
+</div>
+      <div class="">
+        <div class="edit-comment-hide">
+            <task-lists disabled sortable>
+  <table class="d-block" role="presentation" data-paste-markdown-skip>
+    <tbody
+      class="d-block"
+    >
+        <tr class="d-block">
+    <td
+      class="d-block color-fg-default comment-body markdown-body js-comment-body tmp-px-3 pt-0 pb-2"
+    >
+        <p dir="auto">Hey <a class="user-mention notranslate" data-hovercard-type="user" data-hovercard-url="/users/raju-sirigineedi/hovercard" href="https://github.com/raju-sirigineedi">@raju-sirigineedi</a> , haven't found any workarounds for it. Found 2-3 issues in the next forums from the discord server, but seems like people are asking to accept the high memory usage instead of fixing it.</p>
+<p dir="auto">Please let us know in case you find a fix for this. As a temporary measure, we're sticking to webpack as it is taking lesser memory than turbopack contrary to the claims by turbopack.</p>
+    </td>
+  </tr>
+    </tbody>
+  </table>
+</task-lists>
+          <div class="d-block d-sm-flex flex-items-center ml-1">
+            <div class="d-flex flex-1 flex-justify-between flex-items-center">
+              <div class="d-flex flex-items-center">
+    <div class="reactions-container d-flex flex-items-start flex-row-reverse flex-justify-end d-md-flex ml-2"
+  >
+    <div class="js-reactions-container">
+      <div  class=" js-comment-reactions-options d-flex flex-items-center flex-row flex-wrap">
+      </div>
+      <details class="dropdown details-reset details-overlay d-inline-block js-all-reactions-popover" hidden>
+        <summary aria-haspopup="true" data-view-component="true" class="Button--link Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">All reactions</span>
+  </span>
+</summary>
+        <ul class="dropdown-menu dropdown-menu-se">
+        </ul>
+      </details>
+    </div>
+  </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+</div></div>
+  </div>
+</div>
+    </div>
+    <div class="TimelineItem js-comment-container js-nested-comment-container js-targetable-element ml-0 pb-2 tmp-pl-3 discussion-nested-comment-timeline-item discussion-primer-next-nested-comment-timeline-item width-full">
+      <div class="avatar-parent-child flex-column flex-items-center TimelineItem-avatar left-0 tmp-ml-3"><a class="d-inline-block" data-hovercard-type="user" data-hovercard-url="/users/raju-sirigineedi/hovercard" href="/raju-sirigineedi"><img class="avatar rounded-2 mr-2 avatar-user" src="https://avatars.githubusercontent.com/u/146961815?s=60&amp;v=4" width="30" height="30" alt="@raju-sirigineedi" /></a></div>
+        <div class="discussions-timeline-scroll-target" id="discussioncomment-11150494"
+  data-gid="DC_kwDOBC3Cis4AqiSe"
+  data-url="/vercel/next.js/discussions/70178/comments/11150494"
+  data-error=""
+>
+  <div
+    class="
+      timeline-comment-group
+      discussion-comment
+      js-discussion-comment
+      js-minimizable-comment-group
+      js-targetable-element
+      TimelineItem-body
+      discussion-nested-comment-group position-relative
+      mt-0 pl-2
+    "
+  >
+      <div class="d-flex">
+  <div class="width-full">
+    <div
+      class="timeline-comment unminimized-comment comment previewable-edit js-task-list-container flex-auto box-shadow-none js-comment border-0 color-bg-inset nested-discussion-timeline-comment tmp-ml-n3"
+      data-body-version="e8598d0edd6cdccfb5cb94a660982c89d4c9bcc7b5bac48a9e8263339ab652eb"
+    >
+<div class="edit-comment-hide">
+  <div class="clearfix d-flex tmp-px-3 flex-row-reverse flex-items-center border-bottom-0 color-bg-inset">
+    <div class="timeline-comment-actions flex-shrink-0">
+      <div class="d-flex flex-row flex-items-center">
+        <comment-actions-container>
+  <experimental-action-menu data-anchor-align="end" data-anchor-side="outside-bottom" data-view-component="true">
+  <button role="button" id="Comment-actions-11150494-text" aria-haspopup="true" aria-expanded="false" aria-controls="Comment-actions-11150494-list" aria-labelledby="tooltip-4bfdd851-09bf-4df8-9843-84404c68e03a" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-kebab-horizontal Button-visual">
+</svg>
+</button>
+  <div class="Overlay-backdrop--anchor" data-menu-overlay>
+    <div class="Overlay Overlay-whenNarrow Overlay--height-auto Overlay--width-auto" hidden>
+      <div class="Overlay-body Overlay-body--paddingNone">
+        <ul class="ActionList" id="Comment-actions-11150494-list" role="menu" aria-labelledby="Comment-actions-11150494-text">
+            <include-fragment data-target="action-menu.includeFragment" loading="lazy" src="/vercel/next.js/discussions/70178/comments/11150494/comment_actions_menu?form_path=%2Fvercel%2Fnext.js%2Fdiscussions%2F70178%2Fcomments%2F11150494" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+              <li
+                class="ActionList-item d-flex flex-items-center flex-justify-center text-center"
+                data-target="action-menu.includeFragmentLoadingItem"
+                aria-disabled="true"
+              >
+                <span data-view-component="true">
+  <svg aria-label="Loading content..." style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="m-2 tmp-m-2 anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+              </li>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment>        </ul>
+      </div>
+    </div>
+  </div>
+</experimental-action-menu>
+  <template data-target="comment-actions-container.dialogTemplate">
+<dialog-helper>
+  <dialog id="{{dialogId}}" aria-modal="true" aria-labelledby="{{dialogId}}-title" aria-describedby="{{dialogId}}-description" data-view-component="true" class="Overlay Overlay-whenNarrow Overlay--size-medium Overlay--motion-scaleFade Overlay--size-auto Overlay--disableScroll">
+    <div data-view-component="true" class="Overlay-header">
+  <div class="Overlay-headerContentWrap">
+    <div class="Overlay-titleWrap">
+      <h1 class="Overlay-title " id="{{dialogId}}-title">
+        {{title}}
+      </h1>
+    </div>
+    <div class="Overlay-actionWrap">
+      <button data-close-dialog-id="{{dialogId}}" aria-label="Close" aria-label="Close" type="button" data-view-component="true" class="close-button Overlay-closeButton"><svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+</svg></button>
+    </div>
+  </div>
+</div>
+      <scrollable-region data-labelled-by="{{dialogId}}-title">
+        <div data-view-component="true" class="Overlay-body">        <include-fragment src="{{src}}" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+          <div class="text-center" data-hide-on-error>
+            <span data-view-component="true">
+  <svg aria-label="Loading" style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+          </div>
+          <div class="text-center" data-show-on-error hidden>
+            Something went wrong.
+          </div>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment></div>
+      </scrollable-region>
+</dialog></dialog-helper>
+  </template>
+  <div data-target="comment-actions-container.dialogContainer"></div>
+  <div hidden>
+    <button data-hotkey="r" type="button" data-view-component="true" class="js-comment-quote-reply Button--secondary Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">Quote reply</span>
+  </span>
+</button>
+  </div>
+</comment-actions-container>
+      </div>
+    </div>
+     <div class="d-none d-sm-flex flex-items-center">
+        <span class="d-inline-block js-comment-edit-history">
+        </span>
+    </div>
+    <h4 data-view-component="true" class="timeline-comment-header-text text-normal f5 pb-1 tmp-pb-1 pt-0 tmp-pt-0">
+      <div class="d-flex flex-items-center Truncate">
+            <a width="fit" data-hovercard-type="user" data-hovercard-url="/users/raju-sirigineedi/hovercard" href="/raju-sirigineedi" data-view-component="true" class="author Truncate-text lh-condensed Link--primary Link text-bold">raju-sirigineedi</a>
+        <a
+          href="#discussioncomment-11150494"
+          id="discussioncomment-11150494-permalink"
+          class="Link--secondary js-timestamp d-inline-block ml-2"
+        >
+          <relative-time datetime="2024-11-05T06:06:48Z" class="no-wrap">Nov 5, 2024</relative-time>
+        </a>
+          <div class="d-none d-sm-inline-flex ml-2" >
+  
+</div>
+      </div>
+</h4>  </div>
+</div>
+      <div class="">
+        <div class="edit-comment-hide">
+            <task-lists disabled sortable>
+  <table class="d-block" role="presentation" data-paste-markdown-skip>
+    <tbody
+      class="d-block"
+    >
+        <tr class="d-block">
+    <td
+      class="d-block color-fg-default comment-body markdown-body js-comment-body tmp-px-3 pt-0 pb-2"
+    >
+        <p dir="auto">Hi <a class="user-mention notranslate" data-hovercard-type="user" data-hovercard-url="/users/ShivamArora/hovercard" href="https://github.com/ShivamArora">@ShivamArora</a>, try upgrading to next 15. I mean the migration might be rough since our codebases are too big, but its worth the shot. We are feeling good dev experience compared to 14.<br>
+We created an experimental branch to our repo with next 15, and followed their guide to migrate. Its good.</p>
+    </td>
+  </tr>
+    </tbody>
+  </table>
+</task-lists>
+          <div class="d-block d-sm-flex flex-items-center ml-1">
+            <div class="d-flex flex-1 flex-justify-between flex-items-center">
+              <div class="d-flex flex-items-center">
+    <div class="reactions-container d-flex flex-items-start flex-row-reverse flex-justify-end d-md-flex ml-2"
+  >
+    <div class="js-reactions-container">
+      <div  class=" js-comment-reactions-options d-flex flex-items-center flex-row flex-wrap">
+      </div>
+      <details class="dropdown details-reset details-overlay d-inline-block js-all-reactions-popover" hidden>
+        <summary aria-haspopup="true" data-view-component="true" class="Button--link Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">All reactions</span>
+  </span>
+</summary>
+        <ul class="dropdown-menu dropdown-menu-se">
+        </ul>
+      </details>
+    </div>
+  </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+</div></div>
+  </div>
+</div>
+    </div>
+    <div class="TimelineItem js-comment-container js-nested-comment-container js-targetable-element ml-0 pb-2 tmp-pl-3 discussion-nested-comment-timeline-item discussion-primer-next-nested-comment-timeline-item width-full">
+      <div class="avatar-parent-child flex-column flex-items-center TimelineItem-avatar left-0 tmp-ml-3"><a class="d-inline-block" data-hovercard-type="user" data-hovercard-url="/users/ShivamArora/hovercard" href="/ShivamArora"><img class="avatar rounded-2 mr-2 avatar-user" src="https://avatars.githubusercontent.com/u/4353659?s=60&amp;v=4" width="30" height="30" alt="@ShivamArora" /></a></div>
+        <div class="discussions-timeline-scroll-target" id="discussioncomment-11151219"
+  data-gid="DC_kwDOBC3Cis4Aqidz"
+  data-url="/vercel/next.js/discussions/70178/comments/11151219"
+  data-error=""
+>
+  <div
+    class="
+      timeline-comment-group
+      discussion-comment
+      js-discussion-comment
+      js-minimizable-comment-group
+      js-targetable-element
+      TimelineItem-body
+      discussion-nested-comment-group position-relative
+      mt-0 pl-2
+    "
+  >
+      <div class="d-flex">
+  <div class="width-full">
+    <div
+      class="timeline-comment unminimized-comment comment previewable-edit js-task-list-container flex-auto box-shadow-none js-comment border-0 color-bg-inset nested-discussion-timeline-comment tmp-ml-n3"
+      data-body-version="3325aae14a1e0305b09ce6728fbd960dd111108af367868a24192dfc292f570e"
+    >
+<div class="edit-comment-hide">
+  <div class="clearfix d-flex tmp-px-3 flex-row-reverse flex-items-center border-bottom-0 color-bg-inset">
+    <div class="timeline-comment-actions flex-shrink-0">
+      <div class="d-flex flex-row flex-items-center">
+        <comment-actions-container>
+  <experimental-action-menu data-anchor-align="end" data-anchor-side="outside-bottom" data-view-component="true">
+  <button role="button" id="Comment-actions-11151219-text" aria-haspopup="true" aria-expanded="false" aria-controls="Comment-actions-11151219-list" aria-labelledby="tooltip-cd38a874-88f8-46d9-90d6-13ac0d0537d7" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-kebab-horizontal Button-visual">
+</svg>
+</button>
+  <div class="Overlay-backdrop--anchor" data-menu-overlay>
+    <div class="Overlay Overlay-whenNarrow Overlay--height-auto Overlay--width-auto" hidden>
+      <div class="Overlay-body Overlay-body--paddingNone">
+        <ul class="ActionList" id="Comment-actions-11151219-list" role="menu" aria-labelledby="Comment-actions-11151219-text">
+            <include-fragment data-target="action-menu.includeFragment" loading="lazy" src="/vercel/next.js/discussions/70178/comments/11151219/comment_actions_menu?form_path=%2Fvercel%2Fnext.js%2Fdiscussions%2F70178%2Fcomments%2F11151219" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+              <li
+                class="ActionList-item d-flex flex-items-center flex-justify-center text-center"
+                data-target="action-menu.includeFragmentLoadingItem"
+                aria-disabled="true"
+              >
+                <span data-view-component="true">
+  <svg aria-label="Loading content..." style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="m-2 tmp-m-2 anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+              </li>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment>        </ul>
+      </div>
+    </div>
+  </div>
+</experimental-action-menu>
+  <template data-target="comment-actions-container.dialogTemplate">
+<dialog-helper>
+  <dialog id="{{dialogId}}" aria-modal="true" aria-labelledby="{{dialogId}}-title" aria-describedby="{{dialogId}}-description" data-view-component="true" class="Overlay Overlay-whenNarrow Overlay--size-medium Overlay--motion-scaleFade Overlay--size-auto Overlay--disableScroll">
+    <div data-view-component="true" class="Overlay-header">
+  <div class="Overlay-headerContentWrap">
+    <div class="Overlay-titleWrap">
+      <h1 class="Overlay-title " id="{{dialogId}}-title">
+        {{title}}
+      </h1>
+    </div>
+    <div class="Overlay-actionWrap">
+      <button data-close-dialog-id="{{dialogId}}" aria-label="Close" aria-label="Close" type="button" data-view-component="true" class="close-button Overlay-closeButton"><svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+</svg></button>
+    </div>
+  </div>
+</div>
+      <scrollable-region data-labelled-by="{{dialogId}}-title">
+        <div data-view-component="true" class="Overlay-body">        <include-fragment src="{{src}}" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+          <div class="text-center" data-hide-on-error>
+            <span data-view-component="true">
+  <svg aria-label="Loading" style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+          </div>
+          <div class="text-center" data-show-on-error hidden>
+            Something went wrong.
+          </div>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment></div>
+      </scrollable-region>
+</dialog></dialog-helper>
+  </template>
+  <div data-target="comment-actions-container.dialogContainer"></div>
+  <div hidden>
+    <button data-hotkey="r" type="button" data-view-component="true" class="js-comment-quote-reply Button--secondary Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">Quote reply</span>
+  </span>
+</button>
+  </div>
+</comment-actions-container>
+      </div>
+    </div>
+     <div class="d-none d-sm-flex flex-items-center">
+        <span class="d-inline-block js-comment-edit-history">
+        </span>
+    </div>
+    <h4 data-view-component="true" class="timeline-comment-header-text text-normal f5 pb-1 tmp-pb-1 pt-0 tmp-pt-0">
+      <div class="d-flex flex-items-center Truncate">
+            <a width="fit" data-hovercard-type="user" data-hovercard-url="/users/ShivamArora/hovercard" href="/ShivamArora" data-view-component="true" class="author Truncate-text lh-condensed Link--primary Link text-bold">ShivamArora</a>
+        <a
+          href="#discussioncomment-11151219"
+          id="discussioncomment-11151219-permalink"
+          class="Link--secondary js-timestamp d-inline-block ml-2"
+        >
+          <relative-time datetime="2024-11-05T07:43:50Z" class="no-wrap">Nov 5, 2024</relative-time>
+        </a>
+          <div class="d-none d-sm-inline-flex ml-2" >
+    <span title="This user is the author of this discussion." data-view-component="true" class="Label py-0 tmp-py-0 ml-1 tmp-ml-1">
+  Author
+</span>
+</div>
+      </div>
+</h4>  </div>
+</div>
+      <div class="">
+        <div class="edit-comment-hide">
+            <task-lists disabled sortable>
+  <table class="d-block" role="presentation" data-paste-markdown-skip>
+    <tbody
+      class="d-block"
+    >
+        <tr class="d-block">
+    <td
+      class="d-block color-fg-default comment-body markdown-body js-comment-body tmp-px-3 pt-0 pb-2"
+    >
+        <p dir="auto">I'm looking forward to the same <a class="user-mention notranslate" data-hovercard-type="user" data-hovercard-url="/users/raju-sirigineedi/hovercard" href="https://github.com/raju-sirigineedi">@raju-sirigineedi</a> . Just blocked on storybook as it hasn't completely rolled out support for Next 15 at the moment. Will try upgrading once they roll out support and share feedback.</p>
+    </td>
+  </tr>
+    </tbody>
+  </table>
+</task-lists>
+          <div class="d-block d-sm-flex flex-items-center ml-1">
+            <div class="d-flex flex-1 flex-justify-between flex-items-center">
+              <div class="d-flex flex-items-center">
+    <div class="reactions-container d-flex flex-items-start flex-row-reverse flex-justify-end d-md-flex ml-2 has-reactions"
+  >
+    <div class="js-reactions-container">
+      <div  class=" js-comment-reactions-options d-flex flex-items-center flex-row flex-wrap">
+            <button name="input[content]" id="reactions--reaction_button_component-8210a7" value="THUMBS_UP react" data-button-index-position="0" data-reaction-label="+1" data-reaction-content="+1" aria-pressed="false" type="submit" disabled="disabled" data-view-component="true" class="social-reaction-summary-item js-reaction-group-button btn-link d-flex no-underline color-fg-muted flex-items-baseline">    <g-emoji alias="+1" fallback-src="https://github.githubassets.com/assets/1f44d-41cb66fe1e22.png" class="social-button-emoji">👍</g-emoji>
+            <span>1</span>
+</button>      </div>
+      <details class="dropdown details-reset details-overlay d-inline-block js-all-reactions-popover" hidden>
+        <summary aria-haspopup="true" data-view-component="true" class="Button--link Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">All reactions</span>
+  </span>
+</summary>
+        <ul class="dropdown-menu dropdown-menu-se">
+            <li class="dropdown-item" aria-label="+1">
+              <g-emoji alias="+1" fallback-src="https://github.githubassets.com/assets/1f44d-41cb66fe1e22.png" class="social-button-emoji">👍</g-emoji>
+              <span>1</span>
+            </li>
+        </ul>
+      </details>
+    </div>
+  </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+</div></div>
+  </div>
+</div>
+    </div>
+</div>
+    </div>
+</div></div>
+  </div>
+</div>
+    </div>
+  </div>
+  <div
+    class="js-timeline-item js-timeline-progressive-focus-container js-quote-selection-container"
+      data-gid="DC_kwDOBC3Cis4A0wG5"
+    data-quote-markdown=".js-comment-body"
+  >
+    <div
+      class="TimelineItem discussion-timeline-item mx-0 js-comment-container"
+      data-open-edit-form-after-load="false"
+    >
+        <div
+  class="discussions-timeline-scroll-target js-targetable-element"
+  id="discussioncomment-13828537"
+    data-gid="DC_kwDOBC3Cis4A0wG5"
+    data-url="/vercel/next.js/discussions/70178/comments/13828537"
+>
+  <div
+    class="
+      timeline-comment-group
+      reactions-with-gap
+      discussion-comment
+      js-discussion-comment
+      js-minimizable-comment-group
+      js-targetable-element
+      TimelineItem-body
+      js-timeline-discussion-comment my-1
+    "
+    data-error=""
+  >
+      <div class="d-flex">
+  <div class="width-full">
+    <div
+      class="timeline-comment unminimized-comment comment previewable-edit js-task-list-container flex-auto box-shadow-none js-comment"
+      data-body-version="ce8d74eec91a6081508f3c8d23af393ae76361170f2cd91baf94e753b263c9df"
+    >
+<div class="edit-comment-hide">
+  <div class="clearfix d-flex tmp-px-3 flex-row-reverse flex-items-center">
+    <div class="timeline-comment-actions flex-shrink-0">
+      <div class="d-flex flex-row flex-items-center">
+        <comment-actions-container>
+  <experimental-action-menu data-anchor-align="end" data-anchor-side="outside-bottom" data-view-component="true">
+  <button role="button" id="Comment-actions-13828537-text" aria-haspopup="true" aria-expanded="false" aria-controls="Comment-actions-13828537-list" aria-labelledby="tooltip-9c2e071d-0c96-4a4e-9232-da3a3910587c" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-kebab-horizontal Button-visual">
+</svg>
+</button>
+  <div class="Overlay-backdrop--anchor" data-menu-overlay>
+    <div class="Overlay Overlay-whenNarrow Overlay--height-auto Overlay--width-auto" hidden>
+      <div class="Overlay-body Overlay-body--paddingNone">
+        <ul class="ActionList" id="Comment-actions-13828537-list" role="menu" aria-labelledby="Comment-actions-13828537-text">
+            <include-fragment data-target="action-menu.includeFragment" loading="lazy" src="/vercel/next.js/discussions/70178/comments/13828537/comment_actions_menu?form_path=%2Fvercel%2Fnext.js%2Fdiscussions%2F70178%2Fcomments%2F13828537" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+              <li
+                class="ActionList-item d-flex flex-items-center flex-justify-center text-center"
+                data-target="action-menu.includeFragmentLoadingItem"
+                aria-disabled="true"
+              >
+                <span data-view-component="true">
+  <svg aria-label="Loading content..." style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="m-2 tmp-m-2 anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+              </li>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment>        </ul>
+      </div>
+    </div>
+  </div>
+</experimental-action-menu>
+  <template data-target="comment-actions-container.dialogTemplate">
+<dialog-helper>
+  <dialog id="{{dialogId}}" aria-modal="true" aria-labelledby="{{dialogId}}-title" aria-describedby="{{dialogId}}-description" data-view-component="true" class="Overlay Overlay-whenNarrow Overlay--size-medium Overlay--motion-scaleFade Overlay--size-auto Overlay--disableScroll">
+    <div data-view-component="true" class="Overlay-header">
+  <div class="Overlay-headerContentWrap">
+    <div class="Overlay-titleWrap">
+      <h1 class="Overlay-title " id="{{dialogId}}-title">
+        {{title}}
+      </h1>
+    </div>
+    <div class="Overlay-actionWrap">
+      <button data-close-dialog-id="{{dialogId}}" aria-label="Close" aria-label="Close" type="button" data-view-component="true" class="close-button Overlay-closeButton"><svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+</svg></button>
+    </div>
+  </div>
+</div>
+      <scrollable-region data-labelled-by="{{dialogId}}-title">
+        <div data-view-component="true" class="Overlay-body">        <include-fragment src="{{src}}" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+          <div class="text-center" data-hide-on-error>
+            <span data-view-component="true">
+  <svg aria-label="Loading" style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+          </div>
+          <div class="text-center" data-show-on-error hidden>
+            Something went wrong.
+          </div>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment></div>
+      </scrollable-region>
+</dialog></dialog-helper>
+  </template>
+  <div data-target="comment-actions-container.dialogContainer"></div>
+  <div hidden>
+    <button data-hotkey="r" type="button" data-view-component="true" class="js-comment-quote-reply Button--secondary Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">Quote reply</span>
+  </span>
+</button>
+  </div>
+</comment-actions-container>
+      </div>
+    </div>
+     <div class="d-none d-sm-flex flex-items-center">
+        <span class="d-inline-block js-comment-edit-history">
+        </span>
+    </div>
+    <h3 data-view-component="true" class="timeline-comment-header-text text-normal f5 pb-0 tmp-pb-0 pt-2 tmp-pt-2">
+      <div class="d-flex flex-items-center Truncate">
+            <a data-hovercard-type="user" data-hovercard-url="/users/teknology/hovercard" href="/teknology" data-view-component="true" class="Truncate Link--primary Link d-flex flex-items-center text-bold"><img aria-hidden="true" src="https://avatars.githubusercontent.com/u/8380473?s=64&amp;v=4" alt="" size="32" height="32" width="32" data-view-component="true" class="avatar circle mr-2 tmp-mr-2" />
+  <div class="d-flex flex-column Truncate">
+    <span data-view-component="true" class="Truncate-text text-bold">teknology</span>
+  </div></a>
+        <a
+          href="#discussioncomment-13828537"
+          id="discussioncomment-13828537-permalink"
+          class="Link--secondary js-timestamp d-inline-block ml-2"
+        >
+          <relative-time datetime="2025-07-21T03:42:07Z" class="no-wrap">Jul 21, 2025</relative-time>
+        </a>
+          <div class="d-none d-sm-inline-flex ml-2" >
+  
+</div>
+      </div>
+</h3>  </div>
+</div>
+      <div class="">
+        <div class="edit-comment-hide">
+            <task-lists disabled sortable>
+  <table class="d-block" role="presentation" data-paste-markdown-skip>
+    <tbody
+      class="d-block"
+    >
+        <tr class="d-block">
+    <td
+      class="d-block color-fg-default comment-body markdown-body js-comment-body"
+    >
+        <p dir="auto">I'm having the same issue. It's as if Next has a memory leak.</p>
+    </td>
+  </tr>
+    </tbody>
+  </table>
+</task-lists>
+          <div class="d-block d-sm-flex flex-items-center tmp-mb-3 tmp-ml-3">
+            <div class="d-flex flex-1 flex-justify-between flex-items-center">
+              <div class="d-flex flex-items-center">
+                  <div class="d-flex">
+    <div data-replace-remote-form-target>
+    <div
+      class="text-center discussion-vote-form position-relative"
+    >
+        <button aria-label="Upvote: 2" aria-disabled="true" id="discussion-upvote-button-DiscussionComment-13828537" type="button" data-view-component="true" class="social-reaction-summary-item js-upvote-button Link--secondary btn-invisible btn d-flex flex-items-center mx-auto tmp-mx-auto">    <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-arrow-up m-0 tmp-m-0">
+</svg>
+        <span>2</span>
+</button>        
+    </div>
+  </div>
+                  </div>
+    <div class="reactions-container d-flex flex-items-start flex-row-reverse flex-justify-end d-md-flex ml-2"
+  >
+    <div class="js-reactions-container">
+      <div  class=" js-comment-reactions-options d-flex flex-items-center flex-row flex-wrap">
+      </div>
+      <details class="dropdown details-reset details-overlay d-inline-block js-all-reactions-popover" hidden>
+        <summary aria-haspopup="true" data-view-component="true" class="Button--link Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">All reactions</span>
+  </span>
+</summary>
+        <ul class="dropdown-menu dropdown-menu-se">
+        </ul>
+      </details>
+    </div>
+  </div>
+              </div>
+                <div class="f6 tmp-mr-3">
+                  <span class="color-fg-muted no-wrap" >
+                    0 replies
+                  </span>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+          <div class="js-timeline-marker" data-child-comments id="child-comments-discussioncomment-13828537">
+</div>
+    </div>
+</div></div>
+  </div>
+</div>
+    </div>
+  </div>
+      <div
+    class="js-timeline-item js-timeline-progressive-focus-container js-quote-selection-container"
+      data-gid="DC_kwDOBC3Cis4A05pw"
+    data-quote-markdown=".js-comment-body"
+  >
+    <div
+      class="TimelineItem discussion-timeline-item mx-0 js-comment-container"
+      data-open-edit-form-after-load="false"
+    >
+        <div
+  class="discussions-timeline-scroll-target js-targetable-element"
+  id="discussioncomment-13867632"
+    data-gid="DC_kwDOBC3Cis4A05pw"
+    data-url="/vercel/next.js/discussions/70178/comments/13867632"
+>
+  <div
+    class="
+      timeline-comment-group
+      reactions-with-gap
+      discussion-comment
+      js-discussion-comment
+      js-minimizable-comment-group
+      js-targetable-element
+      TimelineItem-body
+      js-timeline-discussion-comment my-1
+    "
+    data-error=""
+  >
+      <div class="d-flex">
+  <div class="width-full">
+    <div
+      class="timeline-comment unminimized-comment comment previewable-edit js-task-list-container flex-auto box-shadow-none js-comment"
+      data-body-version="6638cb70b92e77ef33fda54afd407f91263aa738b6d3f3f012d39e9de4ac684e"
+    >
+<div class="edit-comment-hide">
+  <div class="clearfix d-flex tmp-px-3 flex-row-reverse flex-items-center">
+    <div class="timeline-comment-actions flex-shrink-0">
+      <div class="d-flex flex-row flex-items-center">
+        <comment-actions-container>
+  <experimental-action-menu data-anchor-align="end" data-anchor-side="outside-bottom" data-view-component="true">
+  <button role="button" id="Comment-actions-13867632-text" aria-haspopup="true" aria-expanded="false" aria-controls="Comment-actions-13867632-list" aria-labelledby="tooltip-d04918c3-e633-4b50-8747-35afa759bba2" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-kebab-horizontal Button-visual">
+</svg>
+</button>
+  <div class="Overlay-backdrop--anchor" data-menu-overlay>
+    <div class="Overlay Overlay-whenNarrow Overlay--height-auto Overlay--width-auto" hidden>
+      <div class="Overlay-body Overlay-body--paddingNone">
+        <ul class="ActionList" id="Comment-actions-13867632-list" role="menu" aria-labelledby="Comment-actions-13867632-text">
+            <include-fragment data-target="action-menu.includeFragment" loading="lazy" src="/vercel/next.js/discussions/70178/comments/13867632/comment_actions_menu?form_path=%2Fvercel%2Fnext.js%2Fdiscussions%2F70178%2Fcomments%2F13867632" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+              <li
+                class="ActionList-item d-flex flex-items-center flex-justify-center text-center"
+                data-target="action-menu.includeFragmentLoadingItem"
+                aria-disabled="true"
+              >
+                <span data-view-component="true">
+  <svg aria-label="Loading content..." style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="m-2 tmp-m-2 anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+              </li>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment>        </ul>
+      </div>
+    </div>
+  </div>
+</experimental-action-menu>
+  <template data-target="comment-actions-container.dialogTemplate">
+<dialog-helper>
+  <dialog id="{{dialogId}}" aria-modal="true" aria-labelledby="{{dialogId}}-title" aria-describedby="{{dialogId}}-description" data-view-component="true" class="Overlay Overlay-whenNarrow Overlay--size-medium Overlay--motion-scaleFade Overlay--size-auto Overlay--disableScroll">
+    <div data-view-component="true" class="Overlay-header">
+  <div class="Overlay-headerContentWrap">
+    <div class="Overlay-titleWrap">
+      <h1 class="Overlay-title " id="{{dialogId}}-title">
+        {{title}}
+      </h1>
+    </div>
+    <div class="Overlay-actionWrap">
+      <button data-close-dialog-id="{{dialogId}}" aria-label="Close" aria-label="Close" type="button" data-view-component="true" class="close-button Overlay-closeButton"><svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+</svg></button>
+    </div>
+  </div>
+</div>
+      <scrollable-region data-labelled-by="{{dialogId}}-title">
+        <div data-view-component="true" class="Overlay-body">        <include-fragment src="{{src}}" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+          <div class="text-center" data-hide-on-error>
+            <span data-view-component="true">
+  <svg aria-label="Loading" style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+          </div>
+          <div class="text-center" data-show-on-error hidden>
+            Something went wrong.
+          </div>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment></div>
+      </scrollable-region>
+</dialog></dialog-helper>
+  </template>
+  <div data-target="comment-actions-container.dialogContainer"></div>
+  <div hidden>
+    <button data-hotkey="r" type="button" data-view-component="true" class="js-comment-quote-reply Button--secondary Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">Quote reply</span>
+  </span>
+</button>
+  </div>
+</comment-actions-container>
+      </div>
+    </div>
+     <div class="d-none d-sm-flex flex-items-center">
+        <span class="d-inline-block js-comment-edit-history">
+          <edit-history>
+  <experimental-action-menu data-anchor-align="end" data-anchor-side="outside-bottom" data-view-component="true">
+  <button role="button" aria-haspopup="true" aria-controls="discussion-edit-history-13867632-list" aria-expanded="false" id="discussion-edit-history-13867632-text" data-target="edit-history.menuTrigger" type="button" data-view-component="true" class="Button--invisible Button--small Button">  <span class="Button-content">
+    <span class="Button-label">edited</span>
+  </span>
+    <span class="Button-visual Button-trailingAction">
+      <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-triangle-down">
+</svg>
+    </span>
+</button>
+  <div class="Overlay-backdrop--anchor" data-menu-overlay>
+    <div class="Overlay Overlay-whenNarrow Overlay--height-auto Overlay--width-auto" hidden>
+      <div class="Overlay-body Overlay-body--paddingNone">
+        <ul class="ActionList" id="discussion-edit-history-13867632-list" role="menu" aria-labelledby="discussion-edit-history-13867632-text">
+            <include-fragment data-target="action-menu.includeFragment" loading="lazy" src="/vercel/next.js/discussions/70178/comments/13867632/edits_log" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+              <li
+                class="ActionList-item d-flex flex-items-center flex-justify-center text-center"
+                data-target="action-menu.includeFragmentLoadingItem"
+                aria-disabled="true"
+              >
+                <span data-view-component="true">
+  <svg aria-label="Loading content..." style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="m-2 tmp-m-2 anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+              </li>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment>        </ul>
+      </div>
+    </div>
+  </div>
+</experimental-action-menu>
+  <template data-target="edit-history.deletedDialogTemplate">
+<dialog-helper>
+  <dialog data-action="cancel:edit-history#removeDialog" id="{{dialogId}}" aria-modal="true" aria-labelledby="{{dialogId}}-title" aria-describedby="{{dialogId}}-description" data-view-component="true" class="Overlay Overlay-whenNarrow Overlay--size-medium Overlay--motion-scaleFade Overlay--disableScroll">
+    <div data-view-component="true" class="Overlay-header">
+  <div class="Overlay-headerContentWrap">
+    <div class="Overlay-titleWrap">
+      <h1 class="Overlay-title " id="{{dialogId}}-title">
+        {{editor}}&#39;s edit
+      </h1>
+    </div>
+    <div class="Overlay-actionWrap">
+      <button data-close-dialog-id="{{dialogId}}" aria-label="Close" aria-label="Close" type="button" data-view-component="true" class="close-button Overlay-closeButton"><svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+</svg></button>
+    </div>
+  </div>
+</div>
+      <scrollable-region data-labelled-by="{{dialogId}}-title">
+        <div data-view-component="true" class="Overlay-body">        {{actor}} deleted this content
+        <relative-time class="no-wrap" datetime="{{datetime}}"></relative-time>.
+</div>
+      </scrollable-region>
+</dialog></dialog-helper>
+  </template>
+  <template data-target="edit-history.diffDialogTemplate">
+<dialog-helper>
+  <dialog data-action="cancel:edit-history#removeDialog" id="{{dialogId}}" aria-modal="true" aria-labelledby="{{dialogId}}-title" aria-describedby="{{dialogId}}-description" data-view-component="true" class="Overlay Overlay-whenNarrow Overlay--size-large Overlay--motion-scaleFade Overlay--disableScroll">
+    <div data-view-component="true" class="Overlay-header">
+  <div class="Overlay-headerContentWrap">
+    <div class="Overlay-titleWrap">
+      <h1 class="Overlay-title " id="{{dialogId}}-title">
+        {{editor}}&#39;s edit
+      </h1>
+    </div>
+    <div class="Overlay-actionWrap">
+      <button data-close-dialog-id="{{dialogId}}" aria-label="Close" aria-label="Close" type="button" data-view-component="true" class="close-button Overlay-closeButton"><svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+</svg></button>
+    </div>
+  </div>
+</div>
+      <scrollable-region data-labelled-by="{{dialogId}}-title">
+        <div data-view-component="true" class="Overlay-body p-0 tmp-p-0">        <include-fragment src="{{src}}" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+          <div class="text-center" data-hide-on-error>
+            <span data-view-component="true">
+  <svg aria-label="Loading" style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+          </div>
+          <div class="text-center" data-show-on-error hidden>
+            Something went wrong.
+          </div>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment></div>
+      </scrollable-region>
+</dialog></dialog-helper>
+  </template>
+</edit-history>
+        </span>
+    </div>
+    <h3 data-view-component="true" class="timeline-comment-header-text text-normal f5 pb-0 tmp-pb-0 pt-2 tmp-pt-2">
+      <div class="d-flex flex-items-center Truncate">
+            <a data-hovercard-type="user" data-hovercard-url="/users/pnogier/hovercard" href="/pnogier" data-view-component="true" class="Truncate Link--primary Link d-flex flex-items-center text-bold"><img aria-hidden="true" src="https://avatars.githubusercontent.com/u/25363506?s=64&amp;v=4" alt="" size="32" height="32" width="32" data-view-component="true" class="avatar circle mr-2 tmp-mr-2" />
+  <div class="d-flex flex-column Truncate">
+    <span data-view-component="true" class="Truncate-text text-bold">pnogier</span>
+  </div></a>
+        <a
+          href="#discussioncomment-13867632"
+          id="discussioncomment-13867632-permalink"
+          class="Link--secondary js-timestamp d-inline-block ml-2"
+        >
+          <relative-time datetime="2025-07-23T19:36:19Z" class="no-wrap">Jul 23, 2025</relative-time>
+        </a>
+          <div class="d-none d-sm-inline-flex ml-2" >
+  
+</div>
+      </div>
+</h3>  </div>
+</div>
+      <div class="">
+        <div class="edit-comment-hide">
+            <task-lists disabled sortable>
+  <table class="d-block" role="presentation" data-paste-markdown-skip>
+    <tbody
+      class="d-block"
+    >
+        <tr class="d-block">
+    <td
+      class="d-block color-fg-default comment-body markdown-body js-comment-body"
+    >
+        <p dir="auto">Hi there, it's been a long time that I have the same issue.</p>
+<p dir="auto">We have a pretty big Next project, but it is impossible to work with in dev mode. It goes up to more than 13gb of memory usage at each fast refresh. Even tho my mac (M1 Pro) has 16gb unified memory, so it goes up to about 20gb in swap.</p>
+<p dir="auto">For real this is getting crazy. I am used to have slowness issues as I often work with React Native on iOS and Android simulators, running XCode and Android Studio at the same time, but wow, it is so fast compared to just using Next in dev mode...</p>
+<p dir="auto">Next seems to not be scalable at all, or have a memory leak somewhere, maybe it is on our side tho..<br>
+We had this issue on every previous version since next <code class="notranslate">12.x.x</code>. Now we are using <code class="notranslate">15.3.2</code>.</p>
+<p dir="auto">It would be really helpful if someone has a workaround, or even a bit of an idea of what could be happening.</p>
+<p dir="auto">Thanks in advance,<br>
+Have a great day</p>
+    </td>
+  </tr>
+    </tbody>
+  </table>
+</task-lists>
+          <div class="d-block d-sm-flex flex-items-center tmp-mb-3 tmp-ml-3">
+            <div class="d-flex flex-1 flex-justify-between flex-items-center">
+              <div class="d-flex flex-items-center">
+                  <div class="d-flex">
+    <div data-replace-remote-form-target>
+    <div
+      class="text-center discussion-vote-form position-relative"
+    >
+        <button aria-label="Upvote: 9" aria-disabled="true" id="discussion-upvote-button-DiscussionComment-13867632" type="button" data-view-component="true" class="social-reaction-summary-item js-upvote-button Link--secondary btn-invisible btn d-flex flex-items-center mx-auto tmp-mx-auto">    <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-arrow-up m-0 tmp-m-0">
+</svg>
+        <span>9</span>
+</button>        
+    </div>
+  </div>
+                  </div>
+    <div class="reactions-container d-flex flex-items-start flex-row-reverse flex-justify-end d-md-flex ml-2"
+  >
+    <div class="js-reactions-container">
+      <div  class=" js-comment-reactions-options d-flex flex-items-center flex-row flex-wrap">
+      </div>
+      <details class="dropdown details-reset details-overlay d-inline-block js-all-reactions-popover" hidden>
+        <summary aria-haspopup="true" data-view-component="true" class="Button--link Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">All reactions</span>
+  </span>
+</summary>
+        <ul class="dropdown-menu dropdown-menu-se">
+        </ul>
+      </details>
+    </div>
+  </div>
+              </div>
+                <div class="f6 tmp-mr-3">
+                  <span class="color-fg-muted no-wrap" >
+                    0 replies
+                  </span>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+          <div class="js-timeline-marker" data-child-comments id="child-comments-discussioncomment-13867632">
+</div>
+    </div>
+</div></div>
+  </div>
+</div>
+    </div>
+  </div>
+  <div
+    class="js-timeline-item js-timeline-progressive-focus-container js-quote-selection-container"
+      data-gid="DC_kwDOBC3Cis4A15e6"
+    data-quote-markdown=".js-comment-body"
+  >
+    <div
+      class="TimelineItem discussion-timeline-item mx-0 js-comment-container"
+      data-open-edit-form-after-load="false"
+    >
+        <div
+  class="discussions-timeline-scroll-target js-targetable-element"
+  id="discussioncomment-14129082"
+    data-gid="DC_kwDOBC3Cis4A15e6"
+    data-url="/vercel/next.js/discussions/70178/comments/14129082"
+>
+  <div
+    class="
+      timeline-comment-group
+      reactions-with-gap
+      discussion-comment
+      js-discussion-comment
+      js-minimizable-comment-group
+      js-targetable-element
+      TimelineItem-body
+      js-timeline-discussion-comment my-1
+    "
+    data-error=""
+  >
+      <div class="d-flex">
+  <div class="width-full">
+    <div
+      class="timeline-comment unminimized-comment comment previewable-edit js-task-list-container flex-auto box-shadow-none js-comment"
+      data-body-version="7a3c6a245f9fe8e7d05fc9fac7aa16693a6ca8c8e9a88cf25ebbcbaa363b0074"
+    >
+<div class="edit-comment-hide">
+  <div class="clearfix d-flex tmp-px-3 flex-row-reverse flex-items-center">
+    <div class="timeline-comment-actions flex-shrink-0">
+      <div class="d-flex flex-row flex-items-center">
+        <comment-actions-container>
+  <experimental-action-menu data-anchor-align="end" data-anchor-side="outside-bottom" data-view-component="true">
+  <button role="button" id="Comment-actions-14129082-text" aria-haspopup="true" aria-expanded="false" aria-controls="Comment-actions-14129082-list" aria-labelledby="tooltip-afd6b582-7117-4678-aa47-e535fcf29f1d" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-kebab-horizontal Button-visual">
+</svg>
+</button>
+  <div class="Overlay-backdrop--anchor" data-menu-overlay>
+    <div class="Overlay Overlay-whenNarrow Overlay--height-auto Overlay--width-auto" hidden>
+      <div class="Overlay-body Overlay-body--paddingNone">
+        <ul class="ActionList" id="Comment-actions-14129082-list" role="menu" aria-labelledby="Comment-actions-14129082-text">
+            <include-fragment data-target="action-menu.includeFragment" loading="lazy" src="/vercel/next.js/discussions/70178/comments/14129082/comment_actions_menu?form_path=%2Fvercel%2Fnext.js%2Fdiscussions%2F70178%2Fcomments%2F14129082" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+              <li
+                class="ActionList-item d-flex flex-items-center flex-justify-center text-center"
+                data-target="action-menu.includeFragmentLoadingItem"
+                aria-disabled="true"
+              >
+                <span data-view-component="true">
+  <svg aria-label="Loading content..." style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="m-2 tmp-m-2 anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+              </li>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment>        </ul>
+      </div>
+    </div>
+  </div>
+</experimental-action-menu>
+  <template data-target="comment-actions-container.dialogTemplate">
+<dialog-helper>
+  <dialog id="{{dialogId}}" aria-modal="true" aria-labelledby="{{dialogId}}-title" aria-describedby="{{dialogId}}-description" data-view-component="true" class="Overlay Overlay-whenNarrow Overlay--size-medium Overlay--motion-scaleFade Overlay--size-auto Overlay--disableScroll">
+    <div data-view-component="true" class="Overlay-header">
+  <div class="Overlay-headerContentWrap">
+    <div class="Overlay-titleWrap">
+      <h1 class="Overlay-title " id="{{dialogId}}-title">
+        {{title}}
+      </h1>
+    </div>
+    <div class="Overlay-actionWrap">
+      <button data-close-dialog-id="{{dialogId}}" aria-label="Close" aria-label="Close" type="button" data-view-component="true" class="close-button Overlay-closeButton"><svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+</svg></button>
+    </div>
+  </div>
+</div>
+      <scrollable-region data-labelled-by="{{dialogId}}-title">
+        <div data-view-component="true" class="Overlay-body">        <include-fragment src="{{src}}" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+          <div class="text-center" data-hide-on-error>
+            <span data-view-component="true">
+  <svg aria-label="Loading" style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+          </div>
+          <div class="text-center" data-show-on-error hidden>
+            Something went wrong.
+          </div>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment></div>
+      </scrollable-region>
+</dialog></dialog-helper>
+  </template>
+  <div data-target="comment-actions-container.dialogContainer"></div>
+  <div hidden>
+    <button data-hotkey="r" type="button" data-view-component="true" class="js-comment-quote-reply Button--secondary Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">Quote reply</span>
+  </span>
+</button>
+  </div>
+</comment-actions-container>
+      </div>
+    </div>
+     <div class="d-none d-sm-flex flex-items-center">
+        <span class="d-inline-block js-comment-edit-history">
+        </span>
+    </div>
+    <h3 data-view-component="true" class="timeline-comment-header-text text-normal f5 pb-0 tmp-pb-0 pt-2 tmp-pt-2">
+      <div class="d-flex flex-items-center Truncate">
+            <a data-hovercard-type="user" data-hovercard-url="/users/jelling/hovercard" href="/jelling" data-view-component="true" class="Truncate Link--primary Link d-flex flex-items-center text-bold"><img aria-hidden="true" src="https://avatars.githubusercontent.com/u/1887486?s=64&amp;v=4" alt="" size="32" height="32" width="32" data-view-component="true" class="avatar circle mr-2 tmp-mr-2" />
+  <div class="d-flex flex-column Truncate">
+    <span data-view-component="true" class="Truncate-text text-bold">jelling</span>
+  </div></a>
+        <a
+          href="#discussioncomment-14129082"
+          id="discussioncomment-14129082-permalink"
+          class="Link--secondary js-timestamp d-inline-block ml-2"
+        >
+          <relative-time datetime="2025-08-16T22:17:00Z" class="no-wrap">Aug 16, 2025</relative-time>
+        </a>
+          <div class="d-none d-sm-inline-flex ml-2" >
+  
+</div>
+      </div>
+</h3>  </div>
+</div>
+      <div class="">
+        <div class="edit-comment-hide">
+            <task-lists disabled sortable>
+  <table class="d-block" role="presentation" data-paste-markdown-skip>
+    <tbody
+      class="d-block"
+    >
+        <tr class="d-block">
+    <td
+      class="d-block color-fg-default comment-body markdown-body js-comment-body"
+    >
+        <p dir="auto">Same issue here.  Most promising issue tracking this seems to be: <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="2989332526" data-permission-text="Title is private" data-url="https://github.com/vercel/next.js/issues/78069" data-hovercard-type="issue" data-hovercard-url="/vercel/next.js/issues/78069/hovercard" href="https://github.com/vercel/next.js/issues/78069">#78069</a></p>
+    </td>
+  </tr>
+    </tbody>
+  </table>
+</task-lists>
+          <div class="d-block d-sm-flex flex-items-center tmp-mb-3 tmp-ml-3">
+            <div class="d-flex flex-1 flex-justify-between flex-items-center">
+              <div class="d-flex flex-items-center">
+                  <div class="d-flex">
+    <div data-replace-remote-form-target>
+    <div
+      class="text-center discussion-vote-form position-relative"
+    >
+        <button aria-label="Upvote: 2" aria-disabled="true" id="discussion-upvote-button-DiscussionComment-14129082" type="button" data-view-component="true" class="social-reaction-summary-item js-upvote-button Link--secondary btn-invisible btn d-flex flex-items-center mx-auto tmp-mx-auto">    <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-arrow-up m-0 tmp-m-0">
+</svg>
+        <span>2</span>
+</button>        
+    </div>
+  </div>
+                  </div>
+    <div class="reactions-container d-flex flex-items-start flex-row-reverse flex-justify-end d-md-flex ml-2"
+  >
+    <div class="js-reactions-container">
+      <div  class=" js-comment-reactions-options d-flex flex-items-center flex-row flex-wrap">
+      </div>
+      <details class="dropdown details-reset details-overlay d-inline-block js-all-reactions-popover" hidden>
+        <summary aria-haspopup="true" data-view-component="true" class="Button--link Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">All reactions</span>
+  </span>
+</summary>
+        <ul class="dropdown-menu dropdown-menu-se">
+        </ul>
+      </details>
+    </div>
+  </div>
+              </div>
+                <div class="f6 tmp-mr-3">
+                  <span class="color-fg-muted no-wrap" >
+                    0 replies
+                  </span>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+          <div class="js-timeline-marker" data-child-comments id="child-comments-discussioncomment-14129082">
+</div>
+    </div>
+</div></div>
+  </div>
+</div>
+    </div>
+  </div>
+  <div
+    class="js-timeline-item js-timeline-progressive-focus-container js-quote-selection-container"
+      data-gid="DC_kwDOBC3Cis4BFl_j"
+    data-quote-markdown=".js-comment-body"
+  >
+    <div
+      class="TimelineItem discussion-timeline-item mx-0 js-comment-container"
+      data-open-edit-form-after-load="false"
+    >
+        <div
+  class="discussions-timeline-scroll-target js-targetable-element"
+  id="discussioncomment-18243555"
+    data-gid="DC_kwDOBC3Cis4BFl_j"
+    data-url="/vercel/next.js/discussions/70178/comments/18243555"
+>
+  <div
+    class="
+      timeline-comment-group
+      reactions-with-gap
+      discussion-comment
+      js-discussion-comment
+      js-minimizable-comment-group
+      js-targetable-element
+      TimelineItem-body
+      js-timeline-discussion-comment my-1
+    "
+    data-error=""
+  >
+      <div class="d-flex">
+  <div class="width-full">
+    <div
+      class="timeline-comment unminimized-comment comment previewable-edit js-task-list-container flex-auto box-shadow-none js-comment"
+      data-body-version="73359b58780eea8e0071c879fc83fd9f2ebb35825e44fe29b5fcb92de0daaeb0"
+    >
+<div class="edit-comment-hide">
+  <div class="clearfix d-flex tmp-px-3 flex-row-reverse flex-items-center">
+    <div class="timeline-comment-actions flex-shrink-0">
+      <div class="d-flex flex-row flex-items-center">
+        <comment-actions-container>
+  <experimental-action-menu data-anchor-align="end" data-anchor-side="outside-bottom" data-view-component="true">
+  <button role="button" id="Comment-actions-18243555-text" aria-haspopup="true" aria-expanded="false" aria-controls="Comment-actions-18243555-list" aria-labelledby="tooltip-af3c4eb5-f58b-4678-abc4-79ecb0c21cfc" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-kebab-horizontal Button-visual">
+</svg>
+</button>
+  <div class="Overlay-backdrop--anchor" data-menu-overlay>
+    <div class="Overlay Overlay-whenNarrow Overlay--height-auto Overlay--width-auto" hidden>
+      <div class="Overlay-body Overlay-body--paddingNone">
+        <ul class="ActionList" id="Comment-actions-18243555-list" role="menu" aria-labelledby="Comment-actions-18243555-text">
+            <include-fragment data-target="action-menu.includeFragment" loading="lazy" src="/vercel/next.js/discussions/70178/comments/18243555/comment_actions_menu?form_path=%2Fvercel%2Fnext.js%2Fdiscussions%2F70178%2Fcomments%2F18243555" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+              <li
+                class="ActionList-item d-flex flex-items-center flex-justify-center text-center"
+                data-target="action-menu.includeFragmentLoadingItem"
+                aria-disabled="true"
+              >
+                <span data-view-component="true">
+  <svg aria-label="Loading content..." style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="m-2 tmp-m-2 anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+              </li>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment>        </ul>
+      </div>
+    </div>
+  </div>
+</experimental-action-menu>
+  <template data-target="comment-actions-container.dialogTemplate">
+<dialog-helper>
+  <dialog id="{{dialogId}}" aria-modal="true" aria-labelledby="{{dialogId}}-title" aria-describedby="{{dialogId}}-description" data-view-component="true" class="Overlay Overlay-whenNarrow Overlay--size-medium Overlay--motion-scaleFade Overlay--size-auto Overlay--disableScroll">
+    <div data-view-component="true" class="Overlay-header">
+  <div class="Overlay-headerContentWrap">
+    <div class="Overlay-titleWrap">
+      <h1 class="Overlay-title " id="{{dialogId}}-title">
+        {{title}}
+      </h1>
+    </div>
+    <div class="Overlay-actionWrap">
+      <button data-close-dialog-id="{{dialogId}}" aria-label="Close" aria-label="Close" type="button" data-view-component="true" class="close-button Overlay-closeButton"><svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+</svg></button>
+    </div>
+  </div>
+</div>
+      <scrollable-region data-labelled-by="{{dialogId}}-title">
+        <div data-view-component="true" class="Overlay-body">        <include-fragment src="{{src}}" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+          <div class="text-center" data-hide-on-error>
+            <span data-view-component="true">
+  <svg aria-label="Loading" style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+          </div>
+          <div class="text-center" data-show-on-error hidden>
+            Something went wrong.
+          </div>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment></div>
+      </scrollable-region>
+</dialog></dialog-helper>
+  </template>
+  <div data-target="comment-actions-container.dialogContainer"></div>
+  <div hidden>
+    <button data-hotkey="r" type="button" data-view-component="true" class="js-comment-quote-reply Button--secondary Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">Quote reply</span>
+  </span>
+</button>
+  </div>
+</comment-actions-container>
+      </div>
+    </div>
+     <div class="d-none d-sm-flex flex-items-center">
+        <span class="d-inline-block js-comment-edit-history">
+        </span>
+    </div>
+    <h3 data-view-component="true" class="timeline-comment-header-text text-normal f5 pb-0 tmp-pb-0 pt-2 tmp-pt-2">
+      <div class="d-flex flex-items-center Truncate">
+            <a data-hovercard-type="user" data-hovercard-url="/users/brillaintlcd/hovercard" href="/brillaintlcd" data-view-component="true" class="Truncate Link--primary Link d-flex flex-items-center text-bold"><img aria-hidden="true" src="https://avatars.githubusercontent.com/u/72091386?s=64&amp;v=4" alt="" size="32" height="32" width="32" data-view-component="true" class="avatar circle mr-2 tmp-mr-2" />
+  <div class="d-flex flex-column Truncate">
+    <span data-view-component="true" class="Truncate-text text-bold">brillaintlcd</span>
+  </div></a>
+        <a
+          href="#discussioncomment-18243555"
+          id="discussioncomment-18243555-permalink"
+          class="Link--secondary js-timestamp d-inline-block ml-2"
+        >
+          <relative-time datetime="2026-09-02T04:30:47Z" class="no-wrap">Sep 2, 2026</relative-time>
+        </a>
+          <div class="d-none d-sm-inline-flex ml-2" >
+  
+</div>
+      </div>
+</h3>  </div>
+</div>
+      <div class="">
+        <div class="edit-comment-hide">
+            <task-lists disabled sortable>
+  <table class="d-block" role="presentation" data-paste-markdown-skip>
+    <tbody
+      class="d-block"
+    >
+        <tr class="d-block">
+    <td
+      class="d-block color-fg-default comment-body markdown-body js-comment-body"
+    >
+        <p dir="auto">This issue seems to be fixed in the newly released version <a href="https://nextjs.org/blog/next-16-3" rel="nofollow">v16.3</a>. I'm afraid, I haven't found any other solutions for the older versions.</p>
+<p dir="auto">This solution worked for me and it dropped my average memory consumption from (~8-10GB) to (~1.8-2GB). Unlike before, where it used to never cleanup memory and constantly consume more and more, it now also actively optimizes memory usage - which is amazing as well.</p>
+    </td>
+  </tr>
+    </tbody>
+  </table>
+</task-lists>
+          <div class="d-block d-sm-flex flex-items-center tmp-mb-3 tmp-ml-3">
+            <div class="d-flex flex-1 flex-justify-between flex-items-center">
+              <div class="d-flex flex-items-center">
+                  <div class="d-flex">
+    <div data-replace-remote-form-target>
+    <div
+      class="text-center discussion-vote-form position-relative"
+    >
+        <button aria-label="Upvote: 1" aria-disabled="true" id="discussion-upvote-button-DiscussionComment-18243555" type="button" data-view-component="true" class="social-reaction-summary-item js-upvote-button Link--secondary btn-invisible btn d-flex flex-items-center mx-auto tmp-mx-auto">    <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-arrow-up m-0 tmp-m-0">
+</svg>
+        <span>1</span>
+</button>        
+    </div>
+  </div>
+                  </div>
+    <div class="reactions-container d-flex flex-items-start flex-row-reverse flex-justify-end d-md-flex ml-2"
+  >
+    <div class="js-reactions-container">
+      <div  class=" js-comment-reactions-options d-flex flex-items-center flex-row flex-wrap">
+      </div>
+      <details class="dropdown details-reset details-overlay d-inline-block js-all-reactions-popover" hidden>
+        <summary aria-haspopup="true" data-view-component="true" class="Button--link Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">All reactions</span>
+  </span>
+</summary>
+        <ul class="dropdown-menu dropdown-menu-se">
+        </ul>
+      </details>
+    </div>
+  </div>
+              </div>
+                <div class="f6 tmp-mr-3">
+                  <span class="color-fg-muted no-wrap" >
+                    0 replies
+                  </span>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+          <div class="js-timeline-marker" data-child-comments id="child-comments-discussioncomment-18243555">
+</div>
+    </div>
+</div></div>
+  </div>
+</div>
+    </div>
+  </div>
+  <div
+    class="js-timeline-item js-timeline-progressive-focus-container js-quote-selection-container"
+      data-gid="DC_kwDOBC3Cis4BFt7G"
+    data-quote-markdown=".js-comment-body"
+  >
+    <div
+      class="TimelineItem discussion-timeline-item mx-0 js-comment-container"
+      data-open-edit-form-after-load="false"
+    >
+        <div
+  class="discussions-timeline-scroll-target js-targetable-element"
+  id="discussioncomment-18276038"
+    data-gid="DC_kwDOBC3Cis4BFt7G"
+    data-url="/vercel/next.js/discussions/70178/comments/18276038"
+>
+  <div
+    class="
+      timeline-comment-group
+      reactions-with-gap
+      discussion-comment
+      js-discussion-comment
+      js-minimizable-comment-group
+      js-targetable-element
+      TimelineItem-body
+      js-timeline-discussion-comment my-1
+    "
+    data-error=""
+  >
+      <div class="d-flex">
+  <div class="width-full">
+    <div
+      class="timeline-comment unminimized-comment comment previewable-edit js-task-list-container flex-auto box-shadow-none js-comment"
+      data-body-version="ddd6a3a8e1357692a3052eadf0992616a6c367997f0ae8fca0e3c851c07ae8b6"
+    >
+<div class="edit-comment-hide">
+  <div class="clearfix d-flex tmp-px-3 flex-row-reverse flex-items-center">
+    <div class="timeline-comment-actions flex-shrink-0">
+      <div class="d-flex flex-row flex-items-center">
+        <comment-actions-container>
+  <experimental-action-menu data-anchor-align="end" data-anchor-side="outside-bottom" data-view-component="true">
+  <button role="button" id="Comment-actions-18276038-text" aria-haspopup="true" aria-expanded="false" aria-controls="Comment-actions-18276038-list" aria-labelledby="tooltip-2be02829-ed1c-44e0-83dc-33f8bc27f700" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-kebab-horizontal Button-visual">
+</svg>
+</button>
+  <div class="Overlay-backdrop--anchor" data-menu-overlay>
+    <div class="Overlay Overlay-whenNarrow Overlay--height-auto Overlay--width-auto" hidden>
+      <div class="Overlay-body Overlay-body--paddingNone">
+        <ul class="ActionList" id="Comment-actions-18276038-list" role="menu" aria-labelledby="Comment-actions-18276038-text">
+            <include-fragment data-target="action-menu.includeFragment" loading="lazy" src="/vercel/next.js/discussions/70178/comments/18276038/comment_actions_menu?form_path=%2Fvercel%2Fnext.js%2Fdiscussions%2F70178%2Fcomments%2F18276038" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+              <li
+                class="ActionList-item d-flex flex-items-center flex-justify-center text-center"
+                data-target="action-menu.includeFragmentLoadingItem"
+                aria-disabled="true"
+              >
+                <span data-view-component="true">
+  <svg aria-label="Loading content..." style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="m-2 tmp-m-2 anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+              </li>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment>        </ul>
+      </div>
+    </div>
+  </div>
+</experimental-action-menu>
+  <template data-target="comment-actions-container.dialogTemplate">
+<dialog-helper>
+  <dialog id="{{dialogId}}" aria-modal="true" aria-labelledby="{{dialogId}}-title" aria-describedby="{{dialogId}}-description" data-view-component="true" class="Overlay Overlay-whenNarrow Overlay--size-medium Overlay--motion-scaleFade Overlay--size-auto Overlay--disableScroll">
+    <div data-view-component="true" class="Overlay-header">
+  <div class="Overlay-headerContentWrap">
+    <div class="Overlay-titleWrap">
+      <h1 class="Overlay-title " id="{{dialogId}}-title">
+        {{title}}
+      </h1>
+    </div>
+    <div class="Overlay-actionWrap">
+      <button data-close-dialog-id="{{dialogId}}" aria-label="Close" aria-label="Close" type="button" data-view-component="true" class="close-button Overlay-closeButton"><svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+</svg></button>
+    </div>
+  </div>
+</div>
+      <scrollable-region data-labelled-by="{{dialogId}}-title">
+        <div data-view-component="true" class="Overlay-body">        <include-fragment src="{{src}}" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true">
+          <div class="text-center" data-hide-on-error>
+            <span data-view-component="true">
+  <svg aria-label="Loading" style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" role="img" data-view-component="true" class="anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg></span>
+          </div>
+          <div class="text-center" data-show-on-error hidden>
+            Something went wrong.
+          </div>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment></div>
+      </scrollable-region>
+</dialog></dialog-helper>
+  </template>
+  <div data-target="comment-actions-container.dialogContainer"></div>
+  <div hidden>
+    <button data-hotkey="r" type="button" data-view-component="true" class="js-comment-quote-reply Button--secondary Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">Quote reply</span>
+  </span>
+</button>
+  </div>
+</comment-actions-container>
+      </div>
+    </div>
+     <div class="d-none d-sm-flex flex-items-center">
+        <span class="d-inline-block js-comment-edit-history">
+        </span>
+    </div>
+    <h3 data-view-component="true" class="timeline-comment-header-text text-normal f5 pb-0 tmp-pb-0 pt-2 tmp-pt-2">
+      <div class="d-flex flex-items-center Truncate">
+            <a data-hovercard-type="user" data-hovercard-url="/users/pnogier/hovercard" href="/pnogier" data-view-component="true" class="Truncate Link--primary Link d-flex flex-items-center text-bold"><img aria-hidden="true" src="https://avatars.githubusercontent.com/u/25363506?s=64&amp;v=4" alt="" size="32" height="32" width="32" data-view-component="true" class="avatar circle mr-2 tmp-mr-2" />
+  <div class="d-flex flex-column Truncate">
+    <span data-view-component="true" class="Truncate-text text-bold">pnogier</span>
+  </div></a>
+        <a
+          href="#discussioncomment-18276038"
+          id="discussioncomment-18276038-permalink"
+          class="Link--secondary js-timestamp d-inline-block ml-2"
+        >
+          <relative-time datetime="2026-09-03T20:31:50Z" class="no-wrap">Sep 3, 2026</relative-time>
+        </a>
+          <div class="d-none d-sm-inline-flex ml-2" >
+  
+</div>
+      </div>
+</h3>  </div>
+</div>
+      <div class="">
+        <div class="edit-comment-hide">
+            <task-lists disabled sortable>
+  <table class="d-block" role="presentation" data-paste-markdown-skip>
+    <tbody
+      class="d-block"
+    >
+        <tr class="d-block">
+    <td
+      class="d-block color-fg-default comment-body markdown-body js-comment-body"
+    >
+        <p dir="auto"><a class="user-mention notranslate" data-hovercard-type="user" data-hovercard-url="/users/brillaintlcd/hovercard" href="https://github.com/brillaintlcd">@brillaintlcd</a> Indeed, fixed and wow what a relief. At a point next server was taking up to 45gb of ram, and making my mac unusable.<br>
+<code class="notranslate">v16.3</code> is impressive as I never exceed 1.5/2 gb now.<br>
+Thanks a lot to everyone who worked on this, even if it took time..</p>
+    </td>
+  </tr>
+    </tbody>
+  </table>
+</task-lists>
+          <div class="d-block d-sm-flex flex-items-center tmp-mb-3 tmp-ml-3">
+            <div class="d-flex flex-1 flex-justify-between flex-items-center">
+              <div class="d-flex flex-items-center">
+                  <div class="d-flex">
+    <div data-replace-remote-form-target>
+    <div
+      class="text-center discussion-vote-form position-relative"
+    >
+        <button aria-label="Upvote: 2" aria-disabled="true" id="discussion-upvote-button-DiscussionComment-18276038" type="button" data-view-component="true" class="social-reaction-summary-item js-upvote-button Link--secondary btn-invisible btn d-flex flex-items-center mx-auto tmp-mx-auto">    <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-arrow-up m-0 tmp-m-0">
+</svg>
+        <span>2</span>
+</button>        
+    </div>
+  </div>
+                  </div>
+    <div class="reactions-container d-flex flex-items-start flex-row-reverse flex-justify-end d-md-flex ml-2 has-reactions"
+  >
+    <div class="js-reactions-container">
+      <div  class=" js-comment-reactions-options d-flex flex-items-center flex-row flex-wrap">
+            <button name="input[content]" id="reactions--reaction_button_component-5e2c61" value="ROCKET react" data-button-index-position="6" data-reaction-label="Rocket" data-reaction-content="rocket" aria-pressed="false" type="submit" disabled="disabled" data-view-component="true" class="social-reaction-summary-item js-reaction-group-button btn-link d-flex no-underline color-fg-muted flex-items-baseline">    <g-emoji alias="rocket" fallback-src="https://github.githubassets.com/assets/1f680-d0ef47fdb515.png" class="social-button-emoji">🚀</g-emoji>
+            <span>1</span>
+</button>      </div>
+      <details class="dropdown details-reset details-overlay d-inline-block js-all-reactions-popover" hidden>
+        <summary aria-haspopup="true" data-view-component="true" class="Button--link Button--medium Button">  <span class="Button-content">
+    <span class="Button-label">All reactions</span>
+  </span>
+</summary>
+        <ul class="dropdown-menu dropdown-menu-se">
+            <li class="dropdown-item" aria-label="rocket">
+              <g-emoji alias="rocket" fallback-src="https://github.githubassets.com/assets/1f680-d0ef47fdb515.png" class="social-button-emoji">🚀</g-emoji>
+              <span>1</span>
+            </li>
+        </ul>
+      </details>
+    </div>
+  </div>
+              </div>
+                <div class="f6 tmp-mr-3">
+                  <span class="color-fg-muted no-wrap" >
+                    0 replies
+                  </span>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+          <div class="js-timeline-marker" data-child-comments id="child-comments-discussioncomment-18276038">
+</div>
+    </div>
+</div></div>
+  </div>
+</div>
+    </div>
+  </div>
+    <div
+    class="js-timeline-marker js-socket-channel js-updatable-content"
+    data-timeline-updated-at="2026-09-03 20:31:50 UTC"
+    data-gid="D_kwDOBC3Cis4AbdMx"
+    data-url="/vercel/next.js/discussions/70178/timeline?sort=old&amp;timeline_last_modified=2026-09-03+20%3A31%3A50+UTC"
+    data-channel="eyJjIjoiZGlzY3Vzc2lvbjo3MTk3NDg5OnRpbWVsaW5lIiwidCI6MTc4ODQ3NjQ4OX0=--8101e553d8d564ad313a3e966ded01c3cd450f433ae23bad117d7f917b22a0c5"
+  >
+  </div>
+  <!-- '"` --><!-- </textarea></xmp> --></option></form><form class="d-none js-timeline-marker-form" data-turbo="false" action="/_graphql/MarkNotificationSubjectAsRead" accept-charset="UTF-8" data-remote="true" method="post"><input type="hidden" data-csrf="true" name="authenticity_token" value="redacted-authenticity-token-1" />
+    <input type="hidden" name="variables[subjectId]" value="D_kwDOBC3Cis4AbdMx">
+</form></div>
+    </div>
+    <span id="issue-comment-box"></span>
+    <div class="discussion-timeline-actions">
+      <div data-view-component="true" class="tmp-mt-3 flash flash-warn">
+    <a rel="nofollow" class="btn btn-primary" href="/join?source=comment-repo">Sign up for free</a>
+    <strong>to join this conversation on GitHub</strong>.
+    Already have an account?
+    <a rel="nofollow" class="Link--inTextBlock" data-test-selector="comments-sign-in-link" href="/login?return_to=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Fdiscussions%2F70178">Sign in to comment</a>
+</div>
+    </div>
+  </div>
+</div>
+         <div id="partial-discussion-sidebar"
+  class="flex-shrink-0 col-12 col-md-3 tmp-mt-3 tmp-mt-md-0 js-socket-channel js-updatable-content"
+  data-channel="eyJjIjoiZGlzY3Vzc2lvbjo3MTk3NDg5IiwidCI6MTc4ODQ3NjQ4OX0=--8cfdc42cb26f2d32b45cb0464546069a978c6d96c82f3e951dc37de8f6379d97"
+  data-gid="D_kwDOBC3Cis4AbdMx"
+  data-url="/vercel/next.js/discussions/70178/sidebar"
+  data-project-hovercards-enabled>
+  <div class="discussion-sidebar-item pt-0">
+    <div>
+      <div>
+    <div class="text-bold discussion-sidebar-heading">
+      Category
+    </div>
+    <a href="/vercel/next.js/discussions/categories/help"
+       class="Link--onHover d-flex flex-row flex-items-center text-small color-fg-default text-bold no-underline"
+    >
+      <div class="d-flex flex-justify-center flex-items-center bg-discussions-row-emoji-box-small rounded-2 flex-shrink-0 mr-2" aria-hidden="true">
+        <g-emoji alias="mortar_board" fallback-src="https://github.githubassets.com/assets/1f393-852c7412e9c7.png" class="f5">🎓</g-emoji>
+      </div>
+      Help
+    </a>
+</div>
+    </div>
+  </div>
+  <div class="discussion-sidebar-item js-discussion-sidebar-item">
+          <div class="discussion-sidebar-heading text-bold">
+        Labels
+      </div>
+    <div class="d-flex flex-wrap">
+        None yet
+    </div>
+</div>
+  <div id="partial-users-participants" class="discussion-sidebar-item">
+  <div class="participation">
+    <div class="discussion-sidebar-heading text-bold">
+      6 participants
+    </div>
+    <div class="participation-avatars d-flex flex-wrap" >
+      <a class="participant-avatar" data-hovercard-type="user" data-hovercard-url="/users/ShivamArora/hovercard" href="/ShivamArora">
+      <img src="https://avatars.githubusercontent.com/u/4353659?s=48&amp;v=4" alt="@ShivamArora" size="24" height="24" width="24" data-view-component="true" class="avatar circle" /> 
+</a>      <a class="participant-avatar" data-hovercard-type="user" data-hovercard-url="/users/jelling/hovercard" href="/jelling">
+      <img src="https://avatars.githubusercontent.com/u/1887486?s=48&amp;v=4" alt="@jelling" size="24" height="24" width="24" data-view-component="true" class="avatar circle" /> 
+</a>      <a class="participant-avatar" data-hovercard-type="user" data-hovercard-url="/users/teknology/hovercard" href="/teknology">
+      <img src="https://avatars.githubusercontent.com/u/8380473?s=48&amp;v=4" alt="@teknology" size="24" height="24" width="24" data-view-component="true" class="avatar circle" /> 
+</a>      <a class="participant-avatar" data-hovercard-type="user" data-hovercard-url="/users/pnogier/hovercard" href="/pnogier">
+      <img src="https://avatars.githubusercontent.com/u/25363506?s=48&amp;v=4" alt="@pnogier" size="24" height="24" width="24" data-view-component="true" class="avatar circle" /> 
+</a>      <a class="participant-avatar" data-hovercard-type="user" data-hovercard-url="/users/brillaintlcd/hovercard" href="/brillaintlcd">
+      <img src="https://avatars.githubusercontent.com/u/72091386?s=48&amp;v=4" alt="@brillaintlcd" size="24" height="24" width="24" data-view-component="true" class="avatar circle" /> 
+</a>      <a class="participant-avatar" data-hovercard-type="user" data-hovercard-url="/users/raju-sirigineedi/hovercard" href="/raju-sirigineedi">
+      <img src="https://avatars.githubusercontent.com/u/146961815?s=48&amp;v=4" alt="@raju-sirigineedi" size="24" height="24" width="24" data-view-component="true" class="avatar circle" /> 
+</a>    </div>
+  </div>
+</div>
+  
+</div>
+<template class="js-discussions-markdown-toolbar-template">
+  <markdown-toolbar role="presentation" for="{{ textareaId }}" data-no-focus="true" data-view-component="true" class="CommentBox-toolbar">
+  <action-bar role="toolbar" data-view-component="true" class="ActionBar overflow-visible">
+  <div data-target="action-bar.itemContainer" data-view-component="true" class="ActionBar-item-container">
+      <div data-targets="action-bar.items" data-view-component="true" class="ActionBar-item"><button id="action-bar-482cb4d8-b789-4f87-a33f-6938d104a229" data-md-button="header-3" aria-labelledby="tooltip-d6c9cbb4-56f0-4096-a726-bb595753d76b" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-heading Button-visual">
+</svg>
+</button>
+</div>
+      <div data-targets="action-bar.items" data-view-component="true" class="ActionBar-item"><button id="action-bar-66a7be7d-5d1b-4d39-9f47-f55c17c955e5" data-md-button="bold" data-hotkey-scope="{{ textareaId }}" data-hotkey="Control+b" aria-labelledby="tooltip-aaddf5ed-836c-4519-8e1e-fb28414a9767" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-bold Button-visual">
+</svg>
+</button>
+</div>
+      <div data-targets="action-bar.items" data-view-component="true" class="ActionBar-item"><button id="action-bar-a93854c9-dae3-4496-b90f-3815a2431379" data-md-button="italic" data-hotkey-scope="{{ textareaId }}" data-hotkey="Control+i" aria-labelledby="tooltip-69a31cc9-45f1-46ec-bef7-a99f7ad192c9" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-italic Button-visual">
+</svg>
+</button>
+</div>
+      <div data-targets="action-bar.items" data-view-component="true" class="ActionBar-item"><button id="action-bar-ba030d1b-ba0e-4c7f-97ee-1a070a914750" data-md-button="quote" data-hotkey-scope="{{ textareaId }}" data-hotkey="Control+Shift+&gt;" aria-labelledby="tooltip-9ac40479-fa23-41b4-8a22-513114484ec0" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-quote Button-visual">
+</svg>
+</button>
+</div>
+      <div data-targets="action-bar.items" data-view-component="true" class="ActionBar-item"><button id="action-bar-cb5c1cf4-57a4-492c-837c-b0ed04cbc5b7" data-md-button="code" data-hotkey-scope="{{ textareaId }}" data-hotkey="Control+e" aria-labelledby="tooltip-983a99ab-422f-4213-970a-10647813c6a3" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-code Button-visual">
+</svg>
+</button>
+</div>
+      <div data-targets="action-bar.items" data-view-component="true" class="ActionBar-item"><button id="action-bar-be85c57f-4fe1-4cbf-b02e-84efa2abf867" data-md-button="link" data-hotkey-scope="{{ textareaId }}" data-hotkey="Control+k" aria-labelledby="tooltip-727109c6-8236-4abb-ba34-362175256c67" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-link Button-visual">
+</svg>
+</button>
+</div>
+      <hr role="presentation" aria-hidden="true" data-targets="action-bar.items" data-view-component="true" class="ActionBar-item ActionBar-divider" />
+      <div data-targets="action-bar.items" data-view-component="true" class="ActionBar-item"><button id="action-bar-c6290ec0-a7c5-4629-ac90-75c4a88d155c" data-md-button="ordered-list" data-hotkey-scope="{{ textareaId }}" data-hotkey="Control+Shift+&amp;" aria-labelledby="tooltip-9b06dfcd-85cc-46d9-83df-74ce2f8484dc" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-list-ordered Button-visual">
+</svg>
+</button>
+</div>
+      <div data-targets="action-bar.items" data-view-component="true" class="ActionBar-item"><button id="action-bar-8245e049-a706-4204-b4f7-1207f2581e13" data-md-button="unordered-list" data-hotkey-scope="{{ textareaId }}" data-hotkey="Control+Shift+*" aria-labelledby="tooltip-c4dc9b48-96aa-4cb4-b4ce-2ce50188feb7" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-list-unordered Button-visual">
+</svg>
+</button>
+</div>
+      <div data-targets="action-bar.items" data-view-component="true" class="ActionBar-item"><button id="action-bar-d76a6e0e-0e24-48e7-83ec-0caafd6e5e9e" data-md-button="task-list" data-hotkey-scope="{{ textareaId }}" data-hotkey="Control+Shift+L" aria-labelledby="tooltip-14d9be29-00d5-4d71-8db3-e739f669803d" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-tasklist Button-visual">
+</svg>
+</button>
+</div>
+      <hr role="presentation" aria-hidden="true" data-targets="action-bar.items" data-view-component="true" class="ActionBar-item ActionBar-divider" />
+      <div data-targets="action-bar.items" data-view-component="true" class="ActionBar-item"><button id="action-bar-e6be95e6-a876-4ef9-975c-c8622ad73e9c" data-file-attachment-for="fc-{{ textareaId }}" aria-labelledby="tooltip-03789064-935f-411f-be54-1d9d964dd83b" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-paperclip Button-visual">
+</svg>
+</button>
+</div>
+      <div data-targets="action-bar.items" data-view-component="true" class="ActionBar-item"><button id="action-bar-b43599d6-3398-48ff-86d8-3fbceba0175d" data-md-button="mention" aria-labelledby="tooltip-55f73bab-07bd-4cb8-878d-29837092c5aa" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-mention Button-visual">
+</svg>
+</button>
+</div>
+      <div data-targets="action-bar.items" data-view-component="true" class="ActionBar-item"><button id="action-bar-575bf695-0e19-43fa-9c1e-26f72ef9f770" data-md-button="ref" aria-labelledby="tooltip-a4efac09-5008-450f-9691-db9a4d165781" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-cross-reference Button-visual">
+</svg>
+</button>
+</div>
+</div>    <action-menu data-target="action-bar.moreMenu" hidden="hidden" data-select-variant="none" data-view-component="true" class="ActionBar-more-menu">
+  <focus-group direction="vertical" mnemonics retain>
+    <button id="action-bar-f03929b1-e5e6-42d4-a6f9-779bba5be172-button" popovertarget="action-bar-f03929b1-e5e6-42d4-a6f9-779bba5be172-overlay" aria-controls="action-bar-f03929b1-e5e6-42d4-a6f9-779bba5be172-list" aria-haspopup="true" aria-labelledby="tooltip-4eda47f3-7146-480d-b799-ca3ae22e4f7e" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-kebab-horizontal Button-visual">
+</svg>
+</button>
+<anchored-position data-target="action-menu.overlay" id="action-bar-f03929b1-e5e6-42d4-a6f9-779bba5be172-overlay" anchor="action-bar-f03929b1-e5e6-42d4-a6f9-779bba5be172-button" align="end" side="outside-bottom" anchor-offset="normal" popover="auto" data-view-component="true">
+  <div data-view-component="true" class="Overlay Overlay--size-auto">
+      <div data-view-component="true" class="Overlay-body Overlay-body--paddingNone">          <action-list>
+  <div data-view-component="true">
+    <ul aria-labelledby="action-bar-f03929b1-e5e6-42d4-a6f9-779bba5be172-button" id="action-bar-f03929b1-e5e6-42d4-a6f9-779bba5be172-list" role="menu" data-view-component="true" class="ActionListWrap--inset ActionListWrap">
+        <li value="" hidden="hidden" data-for="action-bar-482cb4d8-b789-4f87-a33f-6938d104a229" data-action="click:action-bar#menuItemClick" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    <button tabindex="-1" id="item-c8c76819-ff06-4980-853f-b0dcf10c20bd" type="button" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-heading">
+</svg>
+        </span>
+        <span data-view-component="true" class="ActionListItem-label">
+          Heading
+</span>      
+</button>
+</li>
+        <li value="" hidden="hidden" data-for="action-bar-66a7be7d-5d1b-4d39-9f47-f55c17c955e5" data-action="click:action-bar#menuItemClick" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    <button tabindex="-1" id="item-25bb0c2a-4abf-4b28-aa75-0f8ea09497ff" type="button" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-bold">
+</svg>
+        </span>
+        <span data-view-component="true" class="ActionListItem-label">
+          Bold
+</span>      
+</button>
+</li>
+        <li value="" hidden="hidden" data-for="action-bar-a93854c9-dae3-4496-b90f-3815a2431379" data-action="click:action-bar#menuItemClick" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    <button tabindex="-1" id="item-ca54d5f1-994b-4762-8fb2-6ffaebcc9708" type="button" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-italic">
+</svg>
+        </span>
+        <span data-view-component="true" class="ActionListItem-label">
+          Italic
+</span>      
+</button>
+</li>
+        <li value="" hidden="hidden" data-for="action-bar-ba030d1b-ba0e-4c7f-97ee-1a070a914750" data-action="click:action-bar#menuItemClick" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    <button tabindex="-1" id="item-763a5e04-7eba-4664-83d7-8b8976f76bae" type="button" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-quote">
+</svg>
+        </span>
+        <span data-view-component="true" class="ActionListItem-label">
+          Quote
+</span>      
+</button>
+</li>
+        <li value="" hidden="hidden" data-for="action-bar-cb5c1cf4-57a4-492c-837c-b0ed04cbc5b7" data-action="click:action-bar#menuItemClick" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    <button tabindex="-1" id="item-df79bcc8-37d6-434a-9fca-8e88d705ea1c" type="button" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-code">
+</svg>
+        </span>
+        <span data-view-component="true" class="ActionListItem-label">
+          Code
+</span>      
+</button>
+</li>
+        <li value="" hidden="hidden" data-for="action-bar-be85c57f-4fe1-4cbf-b02e-84efa2abf867" data-action="click:action-bar#menuItemClick" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    <button tabindex="-1" id="item-ff59d039-7e58-4e5c-b3a6-056229acbd3d" type="button" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-link">
+</svg>
+        </span>
+        <span data-view-component="true" class="ActionListItem-label">
+          Link
+</span>      
+</button>
+</li>
+        <li hidden="hidden" role="presentation" aria-hidden="true" data-view-component="true" class="ActionList-sectionDivider"></li>
+        <li value="" hidden="hidden" data-for="action-bar-c6290ec0-a7c5-4629-ac90-75c4a88d155c" data-action="click:action-bar#menuItemClick" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    <button tabindex="-1" id="item-e6248710-a217-4984-86bc-0e550220e0af" type="button" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-list-ordered">
+</svg>
+        </span>
+        <span data-view-component="true" class="ActionListItem-label">
+          Numbered list
+</span>      
+</button>
+</li>
+        <li value="" hidden="hidden" data-for="action-bar-8245e049-a706-4204-b4f7-1207f2581e13" data-action="click:action-bar#menuItemClick" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    <button tabindex="-1" id="item-e387ba4b-1515-4f3a-91c4-3184b0b82ab8" type="button" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-list-unordered">
+</svg>
+        </span>
+        <span data-view-component="true" class="ActionListItem-label">
+          Unordered list
+</span>      
+</button>
+</li>
+        <li value="" hidden="hidden" data-for="action-bar-d76a6e0e-0e24-48e7-83ec-0caafd6e5e9e" data-action="click:action-bar#menuItemClick" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    <button tabindex="-1" id="item-9523fa09-2ce9-4f17-a270-ae2c54b23ed4" type="button" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-tasklist">
+</svg>
+        </span>
+        <span data-view-component="true" class="ActionListItem-label">
+          Task list
+</span>      
+</button>
+</li>
+        <li hidden="hidden" role="presentation" aria-hidden="true" data-view-component="true" class="ActionList-sectionDivider"></li>
+        <li value="" hidden="hidden" data-for="action-bar-e6be95e6-a876-4ef9-975c-c8622ad73e9c" data-action="click:action-bar#menuItemClick" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    <button tabindex="-1" id="item-77a6028b-40d6-41c4-9a99-85b12292f98b" type="button" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-paperclip">
+</svg>
+        </span>
+        <span data-view-component="true" class="ActionListItem-label">
+          Attach files
+</span>      
+</button>
+</li>
+        <li value="" hidden="hidden" data-for="action-bar-b43599d6-3398-48ff-86d8-3fbceba0175d" data-action="click:action-bar#menuItemClick" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    <button tabindex="-1" id="item-e69e6222-7fd7-43c2-81f2-830f1f6a8eaa" type="button" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-mention">
+</svg>
+        </span>
+        <span data-view-component="true" class="ActionListItem-label">
+          Mention
+</span>      
+</button>
+</li>
+        <li value="" hidden="hidden" data-for="action-bar-575bf695-0e19-43fa-9c1e-26f72ef9f770" data-action="click:action-bar#menuItemClick" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    <button tabindex="-1" id="item-bd9e4703-4d2f-43a4-81b8-3a59c3d8592f" type="button" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-cross-reference">
+</svg>
+        </span>
+        <span data-view-component="true" class="ActionListItem-label">
+          Reference
+</span>      
+</button>
+</li>
+</ul>    
+</div></action-list>
+</div>
+</div></anchored-position>  </focus-group>
+</action-menu></action-bar></markdown-toolbar>
+<dialog-helper>
+  <dialog id="saved_replies_menu_{{ textareaId }}-dialog" aria-modal="true" aria-labelledby="saved_replies_menu_{{ textareaId }}-dialog-title" aria-describedby="saved_replies_menu_{{ textareaId }}-dialog-description" data-view-component="true" class="Overlay Overlay-whenNarrow Overlay--size-medium Overlay--motion-scaleFade Overlay--placement-bottom-whenNarrow js-saved-reply-container Overlay--disableScroll">
+    <div data-view-component="true" class="Overlay-header">
+  <div class="Overlay-headerContentWrap">
+    <div class="Overlay-titleWrap">
+      <h1 class="Overlay-title " id="saved_replies_menu_{{ textareaId }}-dialog-title">
+        Select a reply
+      </h1>
+    </div>
+    <div class="Overlay-actionWrap">
+      <button data-close-dialog-id="saved_replies_menu_{{ textareaId }}-dialog" aria-label="Close" aria-label="Close" type="button" data-view-component="true" class="close-button Overlay-closeButton"><svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+</svg></button>
+    </div>
+  </div>
+</div>
+      <scrollable-region data-labelled-by="saved_replies_menu_{{ textareaId }}-dialog-title">
+        <div data-view-component="true" class="Overlay-body">    <include-fragment aria-label="Loading" role="menuitem" loading="lazy" src="/settings/replies?context=none" data-nonce="v2:905a6821-e61f-09f1-50b5-413310398b8f" data-view-component="true" class="js-saved-reply-include-fragment">
+      <span data-view-component="true">
+  <svg style="box-sizing: content-box; color: var(--color-icon-primary);" width="32" height="32" viewBox="0 0 16 16" fill="none" aria-hidden="true" data-view-component="true" class="tmp-my-6 mx-auto tmp-mx-auto d-block anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+</svg>    <span class="sr-only">Loading</span>
+</span>
+  <div data-show-on-forbidden-error hidden>
+    <div class="Box">
+  <div class="blankslate-container">
+    <div data-view-component="true" class="blankslate blankslate-spacious color-bg-default rounded-2">
+      <h3 data-view-component="true" class="blankslate-heading">        Uh oh!
+</h3>
+      <p data-view-component="true" class="blankslate-description">        <p class="color-fg-muted my-2 mb-2 ws-normal">There was an error while loading. <a class="Link--inTextBlock" data-turbo="false" href="" aria-label="Please reload this page">Please reload this page</a>.</p>
+</p>
+</div>  </div>
+</div>  </div>
+</include-fragment></div>
+      </scrollable-region>
+      <div data-view-component="true" class="Overlay-footer Overlay-footer--alignEnd Overlay-footer--divided">    <a href="/settings/replies?return_to=1" data-view-component="true" class="Button--invisible Button--medium Button Button--fullWidth">  <span class="Button-content Button-content--alignStart">
+      <span class="Button-visual Button-leadingVisual">
+        <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-plus">
+</svg>
+      </span>
+    <span class="Button-label">Create a new saved reply</span>
+  </span>
+</a>
+</div>
+</dialog></dialog-helper>
+</template>
+  <template id="emoji-reaction-button-template-+1">
+    <button name="input[content]" id="reactions--reaction_button_component-679489" value="THUMBS_UP unreact" data-button-index-position="0" data-reaction-label="+1" data-reaction-content="+1" aria-pressed="true" type="submit" data-view-component="true" class="social-reaction-summary-item js-reaction-group-button user-has-reacted btn-link d-flex no-underline flex-items-baseline">    <g-emoji alias="+1" fallback-src="https://github.githubassets.com/assets/1f44d-41cb66fe1e22.png" class="social-button-emoji">👍</g-emoji>
+    <span class="js-discussion-reaction-group-count">1</span>
+</button>  
+</template>
+  <template id="emoji-reaction-button-template--1">
+    <button name="input[content]" id="reactions--reaction_button_component-53aac2" value="THUMBS_DOWN unreact" data-button-index-position="1" data-reaction-label="-1" data-reaction-content="-1" aria-pressed="true" type="submit" data-view-component="true" class="social-reaction-summary-item js-reaction-group-button user-has-reacted btn-link d-flex no-underline flex-items-baseline">    <g-emoji alias="-1" fallback-src="https://github.githubassets.com/assets/1f44e-ce91733aae25.png" class="social-button-emoji">👎</g-emoji>
+    <span class="js-discussion-reaction-group-count">1</span>
+</button>  
+</template>
+  <template id="emoji-reaction-button-template-smile">
+    <button name="input[content]" id="reactions--reaction_button_component-b9c59d" value="LAUGH unreact" data-button-index-position="2" data-reaction-label="Laugh" data-reaction-content="smile" aria-pressed="true" type="submit" data-view-component="true" class="social-reaction-summary-item js-reaction-group-button user-has-reacted btn-link d-flex no-underline flex-items-baseline">    <g-emoji alias="smile" fallback-src="https://github.githubassets.com/assets/1f604-7528822fb4c5.png" class="social-button-emoji">😄</g-emoji>
+    <span class="js-discussion-reaction-group-count">1</span>
+</button>  
+</template>
+  <template id="emoji-reaction-button-template-tada">
+    <button name="input[content]" id="reactions--reaction_button_component-c756a0" value="HOORAY unreact" data-button-index-position="3" data-reaction-label="Hooray" data-reaction-content="tada" aria-pressed="true" type="submit" data-view-component="true" class="social-reaction-summary-item js-reaction-group-button user-has-reacted btn-link d-flex no-underline flex-items-baseline">    <g-emoji alias="tada" fallback-src="https://github.githubassets.com/assets/1f389-36899a2cb781.png" class="social-button-emoji">🎉</g-emoji>
+    <span class="js-discussion-reaction-group-count">1</span>
+</button>  
+</template>
+  <template id="emoji-reaction-button-template-thinking_face">
+    <button name="input[content]" id="reactions--reaction_button_component-029840" value="CONFUSED unreact" data-button-index-position="4" data-reaction-label="Confused" data-reaction-content="thinking_face" aria-pressed="true" type="submit" data-view-component="true" class="social-reaction-summary-item js-reaction-group-button user-has-reacted btn-link d-flex no-underline flex-items-baseline">    <g-emoji alias="thinking_face" fallback-src="https://github.githubassets.com/assets/1f615-4bb1369c4251.png" class="social-button-emoji">😕</g-emoji>
+    <span class="js-discussion-reaction-group-count">1</span>
+</button>  
+</template>
+  <template id="emoji-reaction-button-template-heart">
+    <button name="input[content]" id="reactions--reaction_button_component-843247" value="HEART unreact" data-button-index-position="5" data-reaction-label="Heart" data-reaction-content="heart" aria-pressed="true" type="submit" data-view-component="true" class="social-reaction-summary-item js-reaction-group-button user-has-reacted btn-link d-flex no-underline flex-items-baseline">    <g-emoji alias="heart" fallback-src="https://github.githubassets.com/assets/2764-982dc91ea48a.png" class="social-button-emoji">❤️</g-emoji>
+    <span class="js-discussion-reaction-group-count">1</span>
+</button>  
+</template>
+  <template id="emoji-reaction-button-template-rocket">
+    <button name="input[content]" id="reactions--reaction_button_component-3e57fa" value="ROCKET unreact" data-button-index-position="6" data-reaction-label="Rocket" data-reaction-content="rocket" aria-pressed="true" type="submit" data-view-component="true" class="social-reaction-summary-item js-reaction-group-button user-has-reacted btn-link d-flex no-underline flex-items-baseline">    <g-emoji alias="rocket" fallback-src="https://github.githubassets.com/assets/1f680-d0ef47fdb515.png" class="social-button-emoji">🚀</g-emoji>
+    <span class="js-discussion-reaction-group-count">1</span>
+</button>  
+</template>
+  <template id="emoji-reaction-button-template-eyes">
+    <button name="input[content]" id="reactions--reaction_button_component-82bebf" value="EYES unreact" data-button-index-position="7" data-reaction-label="Eyes" data-reaction-content="eyes" aria-pressed="true" type="submit" data-view-component="true" class="social-reaction-summary-item js-reaction-group-button user-has-reacted btn-link d-flex no-underline flex-items-baseline">    <g-emoji alias="eyes" fallback-src="https://github.githubassets.com/assets/1f440-ee44e91e92a7.png" class="social-button-emoji">👀</g-emoji>
+    <span class="js-discussion-reaction-group-count">1</span>
+</button>  
+</template>
+    </div>
+    </div>
+  </div>
+</turbo-frame>
+    </main>
+  </div>
+  </div>
+    <ghcc-consent id="ghcc" class="position-fixed bottom-0 left-0" style="z-index: 999999"
+      data-locale="en"
+      data-initial-cookie-consent-allowed=""
+      data-cookie-consent-required="true"
+    ></ghcc-consent>
+  <div id="ajax-error-message" class="ajax-error-message flash flash-error" hidden>
+    <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-alert">
+</svg>
+    <button type="button" class="flash-close js-ajax-error-dismiss" aria-label="Dismiss error">
+      <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+</svg>
+    </button>
+    You can’t perform that action at this time.
+  </div>
+    <template id="site-details-dialog">
+  <details class="details-reset details-overlay details-overlay-dark lh-default color-fg-default hx_rsm" open>
+    <summary role="button" aria-label="Close dialog"></summary>
+    <details-dialog class="Box Box--overlay d-flex flex-column anim-fade-in fast hx_rsm-dialog hx_rsm-modal">
+      <button class="Box-btn-octicon m-0 btn-octicon position-absolute right-0 top-0" type="button" aria-label="Close dialog" data-close-dialog>
+        <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+</svg>
+      </button>
+      <div class="octocat-spinner tmp-my-6 js-details-dialog-spinner"></div>
+    </details-dialog>
+  </details>
+</template>
+    <div class="Popover js-hovercard-content position-absolute" style="display: none; outline: none;">
+  <div class="Popover-message Popover-message--bottom-left Popover-message--large Box color-shadow-large" style="width:360px;">
+  </div>
+</div>
+    <template id="snippet-clipboard-copy-button">
+  <div class="zeroclipboard-container position-absolute right-0 top-0">
+    <clipboard-copy aria-label="Copy code to clipboard" class="ClipboardButton btn js-clipboard-copy m-2 p-0" data-copy-feedback="Copied!" data-tooltip-direction="w">
+      <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon m-2 tmp-m-2">
+</svg>
+      <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none m-2 tmp-m-2">
+</svg>
+    </clipboard-copy>
+  </div>
+</template>
+<template id="snippet-clipboard-copy-button-unpositioned">
+  <div class="zeroclipboard-container">
+    <clipboard-copy aria-label="Copy code to clipboard" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w">
+      <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
+</svg>
+      <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
+</svg>
+    </clipboard-copy>
+  </div>
+</template>
+    </div>
+    <div id="js-global-screen-reader-notice" class="sr-only mt-n1" aria-live="polite" aria-atomic="true" ></div>
+    <div id="js-global-screen-reader-notice-assertive" class="sr-only mt-n1" aria-live="assertive" aria-atomic="true"></div>
+  </body>
+</html>
