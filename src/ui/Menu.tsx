@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from "react"
 import { type ArtName, useArt } from "./art"
+import { FLOAT } from "./dress"
 import { Field } from "./Field"
 import { Owner } from "./Owner"
 import { useMenuPhase } from "./useMenuPhase"
@@ -183,14 +184,13 @@ export const Menu = ({
       /*
        * The pack's own shadow rather than Tailwind's grey one.
        *
-       * A surface lying over something else is the one place a shadow earns its keep — the
-       * argument is written out in `quiet.css` — and that file only reaches inside our root.
-       * The bar's menus are portalled above the page, so a `shadow-lg` there was the only
-       * thing holding a menu off a strip it matched to within one step of the ladder.
+       * A surface lying over something else is the one place a shadow earns its keep.
+       * `FLOAT` is that look, on the class, so a menu portalled above the page still
+       * has it.
        */
       className={`t-menu ${
         phase === "here" ? "is-open" : phase === "leaving" ? "is-closing" : ""
-      } absolute z-20 flex max-h-80 ${wide} flex-col gap-0.5 overflow-y-auto rounded-md bg-raised p-1 shadow-pop ${PLACED[origin]}`}
+      } absolute z-20 flex max-h-80 ${wide} flex-col gap-0.5 overflow-y-auto p-1 ${FLOAT} ${PLACED[origin]}`}
     >
       {find === undefined ? null : (
         // The field a picker is opened to type into. Nothing else in the menu is

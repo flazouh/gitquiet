@@ -2,7 +2,7 @@ import { Effect, Option } from "effect"
 import { type CSSProperties, useDeferredValue, useEffect, useMemo, useRef, useState } from "react"
 import { diffChoices } from "../domain/choices"
 import { wholeFile } from "../domain/wholeFile"
-import { type DiffEngine, type Note, PAPER } from "../ports/Renderer"
+import { type DiffEngine, type Note, type Picked, PAPER } from "../ports/Renderer"
 import { useRenderer } from "./renderer"
 import { usePaintedTheme } from "./Theme"
 import { useSettings } from "./useSettings"
@@ -15,6 +15,14 @@ export type WholeFileProps = {
   readonly notes?: ReadonlyArray<Note>
   /** Fills one row. Called per key; the element it returns is kept and reused. */
   readonly fillNote?: (key: string) => HTMLElement | undefined
+  /**
+   * Lines were dragged out, or the gutter's plus was clicked. Null on letting go.
+   *
+   * Absent where there is nothing to say about a line, which is the pane beside
+   * a repository's tree: it draws a file to be read, and a remark written there
+   * would have no pull request to belong to.
+   */
+  readonly onPick?: (picked: Picked | null) => void
 }
 
 const NO_NOTES: ReadonlyArray<Note> = []
@@ -33,7 +41,13 @@ const NO_NOTES: ReadonlyArray<Note> = []
  * The rows are the only difference between them, so they are the only thing
  * this takes beyond the file.
  */
-export const WholeFile = ({ path, lines, notes = NO_NOTES, fillNote }: WholeFileProps) => {
+export const WholeFile = ({
+  path,
+  lines,
+  notes = NO_NOTES,
+  fillNote,
+  onPick
+}: WholeFileProps) => {
   const host = useRef<HTMLDivElement | null>(null)
   const load = useRenderer()
   const painted = usePaintedTheme()
@@ -75,10 +89,11 @@ export const WholeFile = ({ path, lines, notes = NO_NOTES, fillNote }: WholeFile
       // for: there is no before and after in a file nothing happened to.
       choices: { ...choices, layout: "unified" },
       notes,
-      fillNote: (key) => fill.current?.(key)
+      fillNote: (key) => fill.current?.(key),
+      onPick
     })
     return () => live.destroy()
-  }, [engine, patch, path, choices, painted.scheme, painted.pack, notes])
+  }, [engine, patch, path, choices, painted.scheme, painted.pack, notes, onPick])
 
   if (Option.isNone(patch)) {
     return <p className="px-4 py-3 text-sm text-ink-muted">This file is empty.</p>

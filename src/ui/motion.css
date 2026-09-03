@@ -206,30 +206,18 @@
  * came.
  */
 :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask {
-  display: inline-grid;
+  /* Layout and padding live on the component. This is the track that opens. */
   grid-template-columns: auto 0fr;
-  align-items: stretch;
-  border-radius: 6px;
-  /* The seam between the halves is the card showing through, so neither half
-     needs a border of its own on a green button or on a grey one. */
-  gap: 0;
   transition: grid-template-columns var(--resize-dur) var(--resize-ease);
 }
 
 :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask[data-asking] {
   grid-template-columns: auto 1fr;
-  gap: 1px;
 }
 
 :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-yes {
-  position: relative;
-  /* Stacking context: without it, `::after` at z-index -1 paints behind the
-     whole button in the parent context — which is why the first veil was
-     invisible on the green merge control. */
-  isolation: isolate;
-  border-radius: 6px 0 0 6px;
-  padding: 0.375rem 0.75rem;
-  white-space: nowrap;
+  /* Flat on the side the cross arrives at; the resting round lives below. */
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
   transition:
     background-color var(--duration-quick) var(--ease-out),
     color var(--duration-quick) var(--ease-out),
@@ -291,7 +279,7 @@
    leaves — a button left with one flat edge and nothing beside it reads as
    half of something missing. */
 :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask:not([data-asking]) .t-ask-yes {
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 /**
@@ -307,39 +295,18 @@
  * trick the cancelling cross uses — neither half carries a border, so the pair
  * works on a green fill and on a grey one.
  */
-:is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-group {
-  display: flex;
-  align-items: stretch;
-  gap: 1px;
-}
-
 :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-more {
-  position: relative;
-  isolation: isolate;
-  display: flex;
-  align-items: center;
-  border-radius: 0 6px 6px 0;
-  padding: 0.375rem 0.375rem;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
 
 /* With a caret beside it the verb keeps its flat right edge, cross or no cross.
-   Without one it is round again, which is what the rule below this says. */
+   Without one it is round again, which is what the rule above this says. */
 :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask[data-more]:not([data-asking]) .t-ask-yes {
-  border-radius: 6px 0 0 6px;
-}
-
-:is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-out {
-  display: grid;
-  overflow: hidden;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
 }
 
 :is(#gitquiet-root, [data-gitquiet-outside]) .t-ask-no {
-  position: relative;
-  isolation: isolate;
-  display: flex;
-  align-items: center;
-  border-radius: 0 6px 6px 0;
-  padding: 0.375rem 0.5rem;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
   /* Quick in: the cross is a response, not a surface opening. */
   animation: t-ask-in var(--duration-quick) var(--ease-out) both;
 }

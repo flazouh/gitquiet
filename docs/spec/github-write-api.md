@@ -196,6 +196,14 @@ of it:
 | GitHub's Files changed page | shown | shown | not shown |
 | GitHub's Conversation page | shown | shown | shown, without naming the file |
 
+**A permalink in an ordinary comment says more than that comment does.** Posted into
+`flazouh/ghpro-scratch#14` on 2 September 2026 and read back off their own page:
+`https://github.com/{owner}/{repo}/blob/{sha}/{path}#L120` is server-rendered into a box of
+its own, carrying the file's name, `Line 120 in b11a958` with the commit linked, and the line
+itself quoted in a `js-file-line-container`. A range, `#L120-L124`, quotes all five. So the
+form this interface can offer for an unchanged file names the file, the line and the commit,
+where the review comment GitHub does accept names none of them.
+
 So a remark on an unchanged file is a real GitHub object that every reader can find on the
 Conversation page and nobody can find in the diff, and which does not say which file it is
 about. `docs/plan/comment-anywhere.md` section 3 concluded the server would refuse it. The

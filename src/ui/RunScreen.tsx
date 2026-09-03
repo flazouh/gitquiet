@@ -17,7 +17,7 @@ import {
   unescaped
 } from "../domain/run"
 import { useArt } from "./art"
-import { CHIP, PILL } from "./dress"
+import { CARD, CHIP, PILL } from "./dress"
 import { CHECK_TONE, checkArt } from "./Icon"
 import { reasonFor } from "./refusal"
 import { Section } from "./Section"
@@ -203,7 +203,7 @@ const Press = ({
       aria-label={asking ? `Confirm ${words.rest.toLowerCase()}` : undefined}
       aria-busy={working ? true : undefined}
       onClick={() => press(what)}
-      className={`shrink-0 rounded-md border border-line px-2 py-1 text-xs font-semibold disabled:opacity-50 ${
+      className={`shrink-0 rounded-md px-2 py-1 text-xs font-semibold disabled:opacity-50 ${
         asking ? tone.armed : tone.rest
       }`}
     >
@@ -283,7 +283,7 @@ const RunHeader = ({
   return (
     <section
       aria-label="This run"
-      className="t-panel-fade mb-1.5 shrink-0 rounded-md border border-line bg-surface p-1"
+      className={`t-panel-fade mb-1.5 shrink-0 p-1 ${CARD}`}
     >
       <div className="mb-1 flex items-center gap-2.5">
         <span

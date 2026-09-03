@@ -80,7 +80,7 @@ export const Commits = ({
         {/* Opened, all of them: the fold is what keeps the wall of commits out
           of the way, so once someone has asked for it there is no second limit
           to fight. */}
-        <div ref={nearby} className="divide-y divide-line-muted border-t border-line-muted">
+        <div ref={nearby} className="border-t border-line-muted">
           {commits.map((commit) => (
             <a
               key={commit.sha}

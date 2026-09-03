@@ -3,11 +3,10 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import type { Chain, Seat } from "../domain/PullRequest"
+import { NOTICE } from "./dress"
 import { Proposed } from "./Proposed"
 
 afterEach(cleanup)
-
-const quiet = await Bun.file(new URL("./quiet.css", import.meta.url)).text()
 
 const layer = (number: number, seat: Seat) => ({
   reference: { owner: "flazouh", repo: "stack-probe", number },
@@ -105,22 +104,19 @@ describe("the stack this pull request could be a layer of", () => {
 
 describe("how the strip is dressed", () => {
   test("wears no border, because nothing on this page would draw one", () => {
-    // `quiet.css` takes the border off every named section on the page, so a
-    // border class here is a decision that never reached the screen.
     render(<Proposed chain={pair} />)
 
-    expect(card().getAttribute("class")).not.toContain("border")
+    expect(card().className.split(/\s+/)).toContain("!border-0")
   })
 
   test("wears a tone of its own, named where the card fills are decided", () => {
     // The strip is not the pull request the reader came for, and a fill it
     // shares with the header card underneath leaves the two reading as one.
-    // `quiet.css` sets that fill at a specificity a class cannot beat, so the
-    // exception has to live there as well.
     render(<Proposed chain={pair} />)
 
-    expect(card().getAttribute("class")).toContain("t-proposed")
-    expect(quiet).toContain("section.t-proposed[aria-label]")
+    for (const one of NOTICE.split(/\s+/)) {
+      expect(card().className.split(/\s+/)).toContain(one)
+    }
   })
 })
 

@@ -1,7 +1,7 @@
 import { Effect, Option } from "effect"
 import { type ReactNode, useEffect, useState } from "react"
 import type { Hand, Standing as Stands } from "../domain/repoHome"
-import { ASIDE } from "./dress"
+import { ASIDE, CARD } from "./dress"
 export type StandingProps = {
   /** Nothing until `/owner/repo/_sidebar` lands. Nothing ever, where it fails. */
   readonly stands: Stands | undefined
@@ -33,7 +33,7 @@ export const Languages = ({ stands }: { readonly stands: Stands | undefined }) =
   return (
     <section
       aria-label="Languages"
-      className="shrink-0 rounded-lg border border-line px-3 py-2.5"
+      className={`shrink-0 px-3 py-2.5 ${CARD}`}
     >
       <div className="flex h-1.5 overflow-hidden rounded-full">
         {tongues.map((tongue) => (

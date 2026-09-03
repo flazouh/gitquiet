@@ -144,12 +144,14 @@ describe("saying what you think of a pull request", () => {
   test("turns its own edge the moment the verdict is sent, before the record has it", async () => {
     shown()
 
-    expect(screen.getByRole("region", { name: "Verdict" }).className).toContain("border-line")
+    expect(screen.getByRole("heading", { name: "Verdict" }).className).not.toMatch(
+      /text-(done|fail|busy)/
+    )
 
     await userEvent.click(screen.getByRole("button", { name: "Approve" }))
 
     await waitFor(() =>
-      expect(screen.getByRole("region", { name: "Verdict" }).className).toContain("border-done")
+      expect(screen.getByRole("heading", { name: "Verdict" }).className).toContain("text-done")
     )
     expect(screen.getByText("You approved this")).toBeDefined()
   })
@@ -159,7 +161,7 @@ describe("saying what you think of a pull request", () => {
     shown({ keep })
     await userEvent.click(screen.getByRole("button", { name: "Approve" }))
     await waitFor(() =>
-      expect(screen.getByRole("region", { name: "Verdict" }).className).toContain("border-done")
+      expect(screen.getByRole("heading", { name: "Verdict" }).className).toContain("text-done")
     )
     cleanup()
 
@@ -167,7 +169,9 @@ describe("saying what you think of a pull request", () => {
     // the commit before this one, which is the whole reason the sha is on the panel.
     shown({ keep, headSha: "0b1c2d3e4f5a6b7c" })
 
-    expect(screen.getByRole("region", { name: "Verdict" }).className).toContain("border-line")
+    expect(screen.getByRole("heading", { name: "Verdict" }).className).not.toMatch(
+      /text-(done|fail|busy)/
+    )
   })
 
   /*
@@ -185,10 +189,12 @@ describe("saying what you think of a pull request", () => {
     await waitFor(() =>
       expect(screen.getByText(/Can not approve your own pull request/)).toBeDefined()
     )
-    expect(screen.getByRole("region", { name: "Verdict" }).className).toContain("border-line")
+    expect(screen.getByRole("heading", { name: "Verdict" }).className).not.toMatch(
+      /text-(done|fail|busy)/
+    )
   })
 
-  test("turns the edge red where the reader asked for changes", async () => {
+  test("turns the title red where the reader asked for changes", async () => {
     shown()
     await opened()
 
@@ -196,7 +202,7 @@ describe("saying what you think of a pull request", () => {
     await userEvent.click(screen.getByRole("button", { name: "Request changes" }))
 
     await waitFor(() =>
-      expect(screen.getByRole("region", { name: "Verdict" }).className).toContain("border-fail")
+      expect(screen.getByRole("heading", { name: "Verdict" }).className).toContain("text-fail")
     )
   })
 

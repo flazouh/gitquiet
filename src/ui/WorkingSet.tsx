@@ -24,6 +24,7 @@ import { Keying } from "./useLetters"
 import { CHECK_TONE, OPINION_TONE, OPINION_WORDS, rollupArtState } from "./Icon"
 import { StillReading } from "./Waiting"
 import { rememberFilter, rememberedFilter } from "./remembered"
+import { CARD } from "./dress"
 import { Section } from "./Section"
 import { useKeyboard } from "./useKeyboard"
 import { useKeys } from "./useKeys"
@@ -434,7 +435,7 @@ const Row = ({
       // Named, because two stylesheets have to reach the thing that lights under
       // the pointer and it is no longer the anchor.
       data-row=""
-      className={`group grid items-center pr-1 hover:bg-hover ${chosen ? "bg-hover" : ""} ${
+      className={`group grid items-center rounded-md pr-1 hover:bg-hover ${chosen ? "bg-hover" : ""} ${
         at === undefined ? "" : "t-row-in"
       }`}
       style={
@@ -673,7 +674,7 @@ export const IssueRow = ({
     // it rather than something absent from the interface.
     <div
       data-row=""
-      className={`group grid items-center pr-1 hover:bg-hover ${chosen ? "bg-hover" : ""} ${
+      className={`group grid items-center rounded-md pr-1 hover:bg-hover ${chosen ? "bg-hover" : ""} ${
         at === undefined ? "" : "t-row-in"
       }`}
       style={
@@ -993,7 +994,7 @@ const Pile = ({
   return (
     <section
       data-stack=""
-      className="m-1 overflow-hidden rounded-md border border-line-muted bg-canvas"
+      className={`m-1 overflow-hidden ${CARD}`}
     >
       <div className="flex items-center justify-between border-b border-line-muted bg-hover px-3 py-1 text-xs text-ink-muted">
         <span data-stack-label="" className="flex items-center gap-1.5">
@@ -1002,7 +1003,7 @@ const Pile = ({
         </span>
         <span className="tabular-nums">{`${rows.length} pull requests`}</span>
       </div>
-      <div className="divide-y divide-line-muted">
+      <div>
         {rows.map((row, at) => (
           <Row
             key={addressOf(row.one.reference)}
@@ -1457,7 +1458,7 @@ export const WorkingSet = ({
                   art={COURT_ART[sitting.court]}
                   summary={<span className="tabular-nums">{sitting.count}</span>}
                 >
-                  <div className="divide-y divide-line-muted">
+                  <div>
                     {/* Both bands or neither: a Court holding one kind needs no line telling it
                         which kind it is, and the heading above already said. */}
                     {sitting.piles.length > 0 && sitting.issues.length > 0 ? (
@@ -1518,7 +1519,7 @@ export const WorkingSet = ({
                   art="issue"
                   summary={<span className="tabular-nums">{arranged.loose.length}</span>}
                 >
-                  <div className="divide-y divide-line-muted">
+                  <div>
                     {arranged.loose.map((one) => (
                       <IssueRow
                         key={addressOfIssue(one.reference)}

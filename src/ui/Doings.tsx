@@ -6,6 +6,7 @@ import { putsBack, type RowDoing, whatStateAllows } from "../domain/doable"
 import type { InvolvedPullRequest } from "../domain/workingSet"
 import { type Set, useArt } from "./art"
 import { askAndSay } from "./askAndSay"
+import { FLOAT } from "./dress"
 import { Cap } from "./Cap"
 import { ROOT_ID } from "./mount"
 import { ARMED, COPY_LETTER, LETTER, LOOK, ORDER, WORD } from "./rowDoings"
@@ -276,7 +277,7 @@ export const Doings = ({
           // Read by the stylesheet, which drops the closing keyframe when it is there. Radix
           // waits for an animation before it unmounts, so no animation is also no wait.
           data-snap={byKey ? "" : undefined}
-          className="t-dropdown z-50 min-w-44 rounded-md border border-line bg-raised p-1 shadow-pop"
+          className={`t-dropdown z-50 min-w-44 p-1 ${FLOAT}`}
         >
           {verbs.map((doing) => {
             const armed = step.kind === "armed" && step.doing === doing

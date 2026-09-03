@@ -62,7 +62,7 @@ export const Comments = ({
   /** Set where the surrounding row already supplies the padding and the edge. */
   readonly flush?: boolean
 }) => (
-  <div className="divide-y divide-line-muted">
+  <div>
     {comments.map((comment, index) => (
       <article
         key={`${id}:${index}`}

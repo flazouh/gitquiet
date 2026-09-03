@@ -334,7 +334,7 @@ const Happened = ({ one, now }: { readonly one: RepositoryActivity; readonly now
     >
       <ul
         aria-label={`What happened in ${name}`}
-        className="flex list-none flex-col divide-y divide-line-muted p-0"
+        className="flex list-none flex-col p-0"
       >
         {shown.map((happening) => (
           <Line

@@ -20,11 +20,13 @@ import type { DiffSide } from "../ports/Renderer"
 import { sizeOf } from "../domain/workingSet"
 import { diffChoices, treeChoices } from "../domain/choices"
 import { keyOf, opensOnFiles } from "../domain/PullRequestRef"
+import { quoting } from "../domain/fileAt"
 import { keptReads } from "../app/kept"
 import { hasLandedBefore, LANDING, markLanded } from "./landing"
 import { revealer } from "../app/revealing"
 import type { Keys } from "../keys/commands"
 import { CommitView } from "./CommitView"
+import { BroughtIn } from "./BroughtIn"
 import { FileBrowser } from "./FileBrowser"
 import { Header } from "./Header"
 import { About } from "./About"
@@ -74,6 +76,12 @@ export type ShellProps = {
    * to know. See `src/app/revealing.ts`.
    */
   readonly readWholeFile?: (sha: string, path: string) => Effect.Effect<string, unknown>
+  /**
+   * Every path in the repository at a commit, for bringing in a file the pull
+   * request did not change. Absent where nothing can list them, and the way in
+   * is not offered then. See `CONTEXT.md`, Brought In.
+   */
+  readonly readPaths?: (sha: string) => Effect.Effect<ReadonlyArray<string>, unknown>
   /** Marks one thread resolved, which is how a finding leaves the conversation. */
   readonly onSettle?: (threadId: string) => Effect.Effect<unknown, unknown>
   /** Opens a resolved thread again, from the foot of the thread itself. */
@@ -187,6 +195,7 @@ export const Shell = ({
   suggest,
   onUpload,
   readWholeFile,
+  readPaths,
   onSettle,
   onUnsettle,
   onReply,
@@ -344,6 +353,14 @@ export const Shell = ({
    * is a different comparison, between that commit and its parent, and the same
    * revealer there would reveal the wrong halves.
    */
+  /*
+   * Whether the pane is showing a file the pull request did not change.
+   *
+   * A third thing the pane can be, beside the diff and a commit's own files,
+   * and held here because this is where that swap already lives.
+   */
+  const [bringingIn, setBringingIn] = useState(false)
+
   const revealing = useMemo(
     () =>
       readWholeFile === undefined
@@ -483,8 +500,18 @@ export const Shell = ({
         setReading(undefined)
         setWanted({ path })
       },
+      // The same address a remark quotes a file into, built in the one place
+      // that knows how. See `domain/fileAt.ts`.
       hrefFor: (ref: FileRef) =>
-        `https://github.com/${snapshot.reference.owner}/${snapshot.reference.repo}/blob/${snapshot.headSha}/${ref.path}#L${ref.line}`
+        quoting(
+          {
+            owner: snapshot.reference.owner,
+            repo: snapshot.reference.repo,
+            on: snapshot.headSha,
+            path: ref.path
+          },
+          { from: ref.line, to: ref.line }
+        )
     }),
     [snapshot.files, snapshot.headSha, snapshot.reference.owner, snapshot.reference.repo]
   )
@@ -638,7 +665,19 @@ export const Shell = ({
               data-gitquiet-activation="files-panel"
               className="sticky top-[calc(var(--gitquiet-bar-h,0px)+0.5rem)] flex h-[calc(100vh-var(--gitquiet-bar-h,0px)-1rem)] min-h-[40rem] min-w-0 flex-1"
             >
-              {reading === undefined || loadCommit === undefined ? (
+              {bringingIn && readPaths !== undefined && readWholeFile !== undefined ? (
+                <BroughtIn
+                  repo={snapshot.reference}
+                  headSha={snapshot.headSha}
+                  paths={() => readPaths(snapshot.headSha)}
+                  readFile={(path) => readWholeFile(snapshot.headSha, path)}
+                  onSay={onSay}
+                  onClose={() => setBringingIn(false)}
+                  viewer={viewer}
+                  suggest={suggest}
+                  onUpload={onUpload}
+                />
+              ) : reading === undefined || loadCommit === undefined ? (
                 <FileBrowser
                   files={snapshot.files}
                   prepareThrough={Math.min(preparedStage - 14, 3)}
@@ -654,6 +693,11 @@ export const Shell = ({
                   suggest={suggest}
                   onUpload={onUpload}
                   revealing={revealing}
+                  onBringIn={
+                    readPaths === undefined || readWholeFile === undefined
+                      ? undefined
+                      : () => setBringingIn(true)
+                  }
                   answering={answering}
                   review={{
                     active: reviewing,

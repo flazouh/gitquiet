@@ -715,3 +715,51 @@ describe("the band says the least that is still true", () => {
     expect(next.textContent).not.toContain("file")
   })
 })
+
+describe("bringing in a file the pull request did not change", () => {
+  /*
+   * At the foot of the rail rather than in the band above it. The band is full:
+   * a text button there pushed Next off the right edge, which the shots caught.
+   * The rail is the list of this pull request's files, so the way to add one it
+   * does not have belongs at the end of that list.
+   */
+  test("offers the way in under the rail, where there is room for it", () => {
+    render(
+      <FileBrowser
+        files={[file("src/runtime/index.ts")]}
+        fetchDiffs={() => Effect.succeed([])}
+        diff={diffChoices(DEFAULTS.diff)}
+        tree={treeChoices(DEFAULTS.tree)}
+        onBringIn={() => {}}
+      />
+    )
+
+    const control = screen.getByRole("button", { name: "Bring in a file" })
+    const band = screen.getByLabelText("Files").firstElementChild as HTMLElement
+
+    expect(band.contains(control)).toBe(false)
+  })
+
+  test("hears the press", async () => {
+    let asked = 0
+    render(
+      <FileBrowser
+        files={[file("src/runtime/index.ts")]}
+        fetchDiffs={() => Effect.succeed([])}
+        diff={diffChoices(DEFAULTS.diff)}
+        tree={treeChoices(DEFAULTS.tree)}
+        onBringIn={() => (asked += 1)}
+      />
+    )
+
+    await userEvent.click(screen.getByRole("button", { name: "Bring in a file" }))
+
+    expect(asked).toBe(1)
+  })
+
+  test("offers none where nothing can list the repository's files", () => {
+    draw()
+
+    expect(screen.queryByRole("button", { name: "Bring in a file" })).toBeNull()
+  })
+})

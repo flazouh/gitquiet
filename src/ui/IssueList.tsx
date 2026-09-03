@@ -3,6 +3,7 @@ import { type ReactNode, useMemo, useState } from "react"
 import type { ListedIssues } from "../app/issueList"
 import { pageOf } from "../domain/issues"
 import { answersIssue, sieveOf } from "../domain/sieve"
+import { CARD, CARD_HEAD } from "./dress"
 import { Filters } from "./Filters"
 import { loginOnPage } from "./viewer"
 import { columnsForIssues, IssueRow } from "./WorkingSet"
@@ -127,10 +128,10 @@ export const IssueList = ({
        */}
       <section
         aria-label={`Issues in ${what}`}
-        className="shrink-0 overflow-hidden rounded-md border border-line bg-canvas"
+        className={`shrink-0 overflow-hidden ${CARD}`}
       >
         {heading ? (
-          <div className="flex items-center gap-2 border-b border-line bg-surface px-3 py-2">
+          <div className={CARD_HEAD}>
             <Tally pages={listed.pages} />
             {within === undefined ? null : <Raise within={within} />}
           </div>
@@ -141,7 +142,7 @@ export const IssueList = ({
         ) : shown.length === 0 ? (
           <p className="px-3 py-2 text-sm text-ink-muted">Nothing matches that.</p>
         ) : (
-          <div className="divide-y divide-line-muted">
+          <div>
             {shown.map((one) => (
               <IssueRow
                 key={pageOf(one.reference)}

@@ -1,6 +1,7 @@
 import { Effect, Option } from "effect"
 import { useState } from "react"
 import type { Starring } from "../domain/repoHome"
+import { PRESSABLE } from "./dress"
 
 export type StarProps = {
   readonly starring: Starring
@@ -52,7 +53,7 @@ export const Star = ({ starring, count, onStar }: StarProps) => {
       type="button"
       onClick={press}
       aria-pressed={starred}
-      className="t-star relative inline-flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-xs text-ink hover:bg-surface"
+      className={`t-star relative inline-flex items-center gap-1.5 px-2.5 py-1 text-xs text-ink hover:bg-active ${PRESSABLE}`}
     >
       <span className="relative inline-flex">
         <svg

@@ -68,6 +68,10 @@ _Avoid_: viewed checkbox, seen flag
 Drawing the lines of a changed file that GitHub's own patch leaves out. Their diff carries the hunks and three lines either side, so a reader who wants to read around a change, or to say something about a line between two hunks, has nothing there to press. Revealing fetches the file's two whole halves and hands them to the renderer, which works the diff out again and draws as much as was asked for. Costs nothing on a file nobody reveals: the fetch is a function the renderer calls on the press, never before, and the halves are named by commit so a file revealed twice is read once.
 _Avoid_: expand, unfold, show more
 
+**Brought In**:
+A file the pull request did not change, opened inside the review because the change cannot be judged without it. The reason a change is wrong is often in a file nobody touched, and GitHub has no review thread for that: their route takes one and then draws it in no diff and names no file. So what a reader marks on a Brought In file becomes a Remark carrying a permalink to those lines, which GitHub renders as a box naming the file, the line and the commit with the code quoted under it. Nothing here is offered as a review thread, because none exists.
+_Avoid_: unchanged file, extra file, context file
+
 **File Remark**:
 Something said about one changed file as a whole rather than about a line of it. "This should not be in this pull request" is not about line 40, and hanging it on one is how it gets read as being about that line. GitHub carries it under the marker `FILE` where a line thread is `R40` or `L12`, and takes it on the write as a subject type instead of a line. Drawn above the file, with the lines of that file left alone. Not a Remark, which is about the pull request and names no file at all.
 _Avoid_: file comment, file-level comment, subject type file

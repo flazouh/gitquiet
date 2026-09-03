@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { blameAt, blobAt, historyAt, rawAt, rawContentAt, type FileAt } from "./fileAt"
+import { blameAt, blobAt, historyAt, quoting, rawAt, rawContentAt, type FileAt } from "./fileAt"
 
 const at = (over: Partial<FileAt> = {}): FileAt => ({
   owner: "flowline-labs",
@@ -32,6 +32,44 @@ describe("the other pages of a file", () => {
     expect(blobAt(at({ on: "abc123" }))).toBe(
       "/flowline-labs/flowline/blob/abc123/src/ui/Field.tsx"
     )
+  })
+
+  /*
+   * The one address in this file that is whole rather than a path, because it
+   * goes inside a comment: GitHub renders such a link as a box naming the file,
+   * the line and the commit, with the code quoted under it. Verified on
+   * `flazouh/ghpro-scratch#14`, 2 September 2026.
+   */
+  describe("quoting a file into something said about the pull request", () => {
+    test("writes the whole address, since a path alone is not a link anybody can follow", () => {
+      expect(quoting(at({ on: "abc123" }))).toBe(
+        "https://github.com/flowline-labs/flowline/blob/abc123/src/ui/Field.tsx"
+      )
+    })
+
+    test("names one line the way GitHub's own permalink does", () => {
+      expect(quoting(at({ on: "abc123" }), { from: 120, to: 120 })).toBe(
+        "https://github.com/flowline-labs/flowline/blob/abc123/src/ui/Field.tsx#L120"
+      )
+    })
+
+    test("names a run of lines with both ends", () => {
+      expect(quoting(at({ on: "abc123" }), { from: 120, to: 124 })).toBe(
+        "https://github.com/flowline-labs/flowline/blob/abc123/src/ui/Field.tsx#L120-L124"
+      )
+    })
+
+    test("reads a run written backwards the way it was meant", () => {
+      expect(quoting(at({ on: "abc123" }), { from: 124, to: 120 })).toBe(
+        "https://github.com/flowline-labs/flowline/blob/abc123/src/ui/Field.tsx#L120-L124"
+      )
+    })
+
+    test("escapes the path the same way the other addresses do", () => {
+      expect(quoting(at({ on: "abc123", path: "docs/a b#c.md" }), { from: 2, to: 2 })).toBe(
+        "https://github.com/flowline-labs/flowline/blob/abc123/docs/a%20b%23c.md#L2"
+      )
+    })
   })
 
   test("encodes a space or a hash in the path, and leaves the slashes", () => {

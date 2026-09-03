@@ -226,10 +226,10 @@ const Fold = ({
         if (event.currentTarget.open === !shut) return
         onTurn()
       }}
-      className={`group shrink-0 overflow-hidden rounded-md border bg-canvas ${paint.edge}`}
+      className={`group shrink-0 overflow-hidden ${paint.edge}`}
     >
       <summary
-        className={`flex cursor-pointer list-none items-center gap-2 border-b px-3 py-2 hover:bg-hover [&::-webkit-details-marker]:hidden ${paint.header}`}
+        className={`flex cursor-pointer list-none items-center gap-2 hover:bg-hover [&::-webkit-details-marker]:hidden ${paint.header}`}
       >
         <Chevron
           size={12}
@@ -244,7 +244,7 @@ const Fold = ({
           {NAMED[group.life].gist}
         </span>
       </summary>
-      <ul className="flex list-none flex-col divide-y divide-line-muted p-0">
+      <ul className="flex list-none flex-col p-0">
         {group.rows.map((one, index) => (
           <Row
             key={one.nameWithOwner}

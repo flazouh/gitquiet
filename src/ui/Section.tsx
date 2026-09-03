@@ -7,7 +7,7 @@
  * shell each panel could reach in and adjust would not stay the same for long.
  */
 /**
- * What a section's edge says before anything inside it is read.
+ * What a section's title says before anything inside it is read.
  *
  * Four, and each one means exactly one thing. `bad` is broken — a red check, a
  * conflict — and it is the reason the others exist: a Court that says the reader
@@ -16,21 +16,15 @@
  * tell them apart has to open every one to find out which.
  */
 import { type ArtName, useArt } from "./art"
+import { CARD, CARD_HEAD } from "./dress"
 
 export type Tone = "plain" | "bad" | "attention" | "done"
 
-const EDGE: Record<Tone, string> = {
-  plain: "border-line",
-  bad: "border-fail",
-  attention: "border-busy",
-  done: "border-done"
-}
-
-const HEADER: Record<Tone, string> = {
-  plain: "border-line bg-surface",
-  bad: "border-fail bg-fail-muted",
-  attention: "border-busy bg-attention-muted",
-  done: "border-done bg-done-muted"
+const TITLE: Record<Tone, string> = {
+  plain: "",
+  bad: "text-fail",
+  attention: "text-busy",
+  done: "text-done"
 }
 
 /**
@@ -38,9 +32,10 @@ const HEADER: Record<Tone, string> = {
  * section's place. Exported so the two cannot drift: a Court that waits in one
  * colour and arrives in another is a flicker of colour where nothing changed.
  */
-export const painted = (tone: Tone): { readonly edge: string; readonly header: string } => ({
-  edge: EDGE[tone],
-  header: HEADER[tone]
+export const painted = (tone: Tone): { readonly edge: string; readonly header: string; readonly title: string } => ({
+  edge: CARD,
+  header: CARD_HEAD,
+  title: TITLE[tone]
 })
 
 /** A header's glyph, hidden from a reader who is being read to: the name is beside it. */
@@ -102,11 +97,11 @@ export const Section = ({
     // github.com it meant a light pack drew light-theme ink onto GitHub's dark
     // page, and the description could not be read. A card carries its own
     // floor; the space between cards is still the site's.
-    className={`shrink-0 overflow-hidden rounded-md border bg-canvas ${EDGE[tone]}`}
+    className={`shrink-0 overflow-hidden ${CARD}`}
   >
-    <div className={`flex items-center gap-2 border-b px-3 py-2 ${HEADER[tone]}`}>
+    <div className={CARD_HEAD}>
       {art === undefined ? null : <Mark art={art} />}
-      <h2 className="min-w-0 truncate text-xs font-semibold">{heading ?? name}</h2>
+      <h2 className={`min-w-0 truncate text-xs font-semibold ${TITLE[tone]}`}>{heading ?? name}</h2>
       {summary === undefined ? null : (
         <span className="min-w-0 flex-1 truncate text-xs text-ink-muted">{summary}</span>
       )}

@@ -458,7 +458,7 @@ const Verdicts = ({ reviews }: { readonly reviews: Option.Option<ReadonlyArray<R
   const ordered = [...reviews.value].sort((one, other) => RANK[one.decision] - RANK[other.decision])
 
   return (
-    <ul className="divide-y divide-line-muted border-b border-line-muted">
+    <ul className="border-b border-line-muted">
       {ordered.map((review) => {
         const Art = review.decision === "changes-requested" ? Err : Tick
 
@@ -771,7 +771,7 @@ const MergeCard = ({
         // One blocker to a row, its reason under its name rather than beside it:
         // these are two full sentences each, and side by side they wrapped into a
         // paragraph nobody could tell apart from the next one.
-        <ul className="divide-y divide-line-muted">
+        <ul>
           {merge.blockers.map((blocker) => (
             <li key={blocker.name} className="flex items-start gap-2 px-3 py-2">
               <Err size={12} className="mt-1 shrink-0 text-fail" />

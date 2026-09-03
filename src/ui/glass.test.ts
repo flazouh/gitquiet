@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs"
 import { describe, expect, test } from "bun:test"
 import { BAR_AT } from "./barSlot"
+import { CARD } from "./dress"
 import { REFRACTION_ID } from "./refraction"
 
 const glass = () => readFileSync("src/ui/glass.css", "utf8")
@@ -115,21 +116,12 @@ describe("the bar as glass", () => {
      * Not a number of its own. The pane floats over a column of cards, and a bar at one radius above
      * a card at another is two ideas of the same corner in one window.
      *
-     * Read from `quiet.css` and not from the component, because the component's class is not what
-     * gets drawn: `Section.tsx` writes `rounded-md`, and `quiet.css` takes every card on this page to
-     * `--radius-lg` with `!important`. A first version of this test read the class, matched the bar to
-     * six pixels, and reported parity with a number nobody sees while the cards sat at twelve.
-     *
-     * Twelve was argued down once here, on the grounds that a quarter of a forty pixel pane in each
-     * corner reads as a pill with tabs inside it. Matching the cards outranks that: the objection was
-     * about the pane alone, and the pane is never seen alone.
+     * Read from `dress.ts`, which is what the cards actually wear. A first version of this test
+     * matched the bar to the class on `Section.tsx` (`rounded-md`, six pixels) while two
+     * stylesheets took the cards to twelve, and reported parity with a number nobody saw.
      */
-    const shell = readFileSync("src/ui/quiet.css", "utf8")
-    const cards = shell.indexOf("#gitquiet-root section[aria-label],")
-    const step = /border-radius: var\(--radius-(sm|md|lg)\)/.exec(shell.slice(cards))?.[1]
-
-    expect(step).toBeDefined()
-    expect(paneRule()).toContain(`border-radius: var(--radius-${step})`)
+    expect(CARD).toContain("rounded-lg")
+    expect(paneRule()).toContain("border-radius: var(--radius-lg)")
   })
 
   test("is solid where a backdrop cannot be blurred", () => {

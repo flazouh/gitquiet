@@ -4,6 +4,7 @@ import type { MergeMethod, UpdateWay } from "../domain/PullRequest"
 import type { Doing, RowDoing } from "../domain/doable"
 import type { ArtName } from "./art"
 import { useArt } from "./art"
+import { ASK, ASK_GROUP, ASK_MORE, ASK_NO, ASK_OUT, ASK_YES, FLOAT } from "./dress"
 import { LOOK } from "./rowDoings"
 import { ROOT_ID } from "./mount"
 import { Says } from "./says"
@@ -384,7 +385,7 @@ const Caret = ({
       <Menu.Trigger
         disabled={disabled}
         aria-label={`Other ways to ${label}`}
-        className={`t-ask-more text-xs font-semibold disabled:opacity-50 ${
+        className={`t-ask-more ${ASK_MORE} text-xs font-semibold disabled:opacity-50 ${
           dim ? "opacity-50" : ""
         } ${tone}`}
       >
@@ -394,7 +395,7 @@ const Caret = ({
         <Menu.Content
           align="end"
           sideOffset={4}
-          className="z-50 min-w-44 rounded-md bg-raised p-1 text-ink shadow-lg ring-1 ring-line"
+          className={`z-50 min-w-44 p-1 text-ink ${FLOAT}`}
         >
           {otherwise.map((way) => {
             const Glyph = art[way.art]
@@ -491,7 +492,7 @@ export const Overflow = ({
         <Menu.Content
           align="end"
           sideOffset={4}
-          className="t-dropdown z-50 min-w-44 rounded-md bg-raised p-1 text-ink shadow-pop ring-1 ring-line"
+          className={`t-dropdown z-50 min-w-44 p-1 text-ink ${FLOAT}`}
         >
           {offered.map((doing) => {
             const words = wordsOf(doing, Option.none(), landsStack)
@@ -650,7 +651,7 @@ export const Ask = ({
 
   return (
     <span
-      className={`t-ask ${className}`}
+      className={`t-ask ${ASK} ${className}`}
       data-asking={asking ? "" : undefined}
       // Says there is a second half, so the verb keeps its flat right edge. The
       // caret is drawn only where it is offered and only while the button is not
@@ -658,7 +659,7 @@ export const Ask = ({
       data-more={otherwise !== undefined && !asking ? "" : undefined}
     >
       {/* One control in two halves, rather than a button and a button beside it. */}
-      <span className="t-ask-group">
+      <span className={`t-ask-group ${ASK_GROUP}`}>
         <button
           type="button"
           disabled={disabled && !asking}
@@ -668,7 +669,7 @@ export const Ask = ({
           // what the control they are standing on is doing.
           aria-busy={busy && merging.doing === doing ? true : undefined}
           onClick={() => press(doing)}
-          className={`t-ask-yes text-xs font-semibold disabled:opacity-50 ${
+          className={`t-ask-yes ${ASK_YES} text-xs font-semibold disabled:opacity-50 ${
             asking ? tone.armed : tone.rest
           }`}
         >
@@ -708,12 +709,12 @@ export const Ask = ({
           dropped in: the cell it lives in opens from no width at all, so the
           control gains a half instead of the row gaining a button. */}
       {asking ? (
-        <span className="t-ask-out">
+        <span className={`t-ask-out ${ASK_OUT}`}>
           <button
             type="button"
             aria-label={`Do not ${named}`}
             onClick={onCancel}
-            className="t-ask-no bg-surface text-ink-muted hover:text-ink"
+            className={`t-ask-no ${ASK_NO} bg-surface text-ink-muted hover:text-ink`}
           >
             <Close size={12} />
           </button>

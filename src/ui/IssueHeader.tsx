@@ -4,7 +4,7 @@ import type { Closing, IssueSnapshot, Label, Settled } from "../domain/Issue"
 import type { IssueRef, IssueState, ListedIssue } from "../domain/issues"
 import type { Participant } from "../domain/PullRequest"
 import { issueName, useArt } from "./art"
-import { CHIP } from "./dress"
+import { CARD, CHIP } from "./dress"
 import { toneOf } from "./labelTone"
 import { Settle } from "./Settle"
 import { ageOf, momentOf } from "./when"
@@ -164,7 +164,7 @@ export const IssueHeader = ({
 }) => (
   <section
     aria-label="This issue"
-    className="t-panel-fade mb-1.5 shrink-0 rounded-md border border-line bg-surface p-1"
+    className={`t-panel-fade mb-1.5 shrink-0 p-1 ${CARD}`}
   >
     <div className="mb-1 flex items-center gap-2.5">
       <TheState
@@ -235,7 +235,7 @@ export const IssueHeader = ({
 export const ListedHeader = ({ one }: { readonly one: ListedIssue }) => (
   <section
     aria-label="This issue"
-    className="t-panel-fade mb-1.5 shrink-0 rounded-md border border-line bg-surface p-1"
+    className={`t-panel-fade mb-1.5 shrink-0 p-1 ${CARD}`}
   >
     <div className="mb-1 flex items-center gap-2.5">
       {/* "Closed" and no more. GitHub's search says which of the two states an

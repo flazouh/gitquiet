@@ -676,6 +676,19 @@ export const PULL_REQUEST_VIEW: View = {
         readWholeFile={(sha, path) =>
           Effect.succeed(wholeOf(path, sha === BASE_SHA ? "before" : "after"))
         }
+        /*
+         * Every path, for bringing in a file the pull request did not change.
+         * The changed ones plus a few it did not touch, which is the case the
+         * pane exists for.
+         */
+        readPaths={() =>
+          Effect.succeed([
+            ...FILES.map((one) => one.path),
+            "src/bun.js/api/config.zig",
+            "src/bun.js/webcore/blob.zig",
+            "src/http/websocket.zig"
+          ])
+        }
         onStepAside={() => {}}
         onUseGitHub={() => {}}
         signedIn={() => true}

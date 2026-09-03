@@ -12,7 +12,7 @@ import {
 import { keysOf } from "../app/keyboard"
 import { Keybinds } from "./Keybinds"
 import { type ArtName, useArt } from "./art"
-import { HERE, TINT } from "./dress"
+import { HERE, SHEET, TINT } from "./dress"
 import { OVER_ID, outsideHost } from "./outside"
 import { sampleOf } from "./SettingsPreview"
 import { Slide } from "./Slide"
@@ -185,7 +185,7 @@ const Rows = ({ part, onLook }: { readonly part: Part; readonly onLook: Told }) 
         {part.heading}
       </h3>
     )}
-    <ul className="flex flex-col divide-y divide-line-muted">
+    <ul className="flex flex-col">
       {part.knobs.map((knob) => (
         <Row
           key={knob.key}
@@ -356,7 +356,7 @@ export const SettingsSheet = ({
        * costs: the sheet sat in the top-left corner with its own first heading
        * under the traffic lights, and looked like something that had come loose.
        */
-      className="t-modal m-auto h-[34rem] max-h-[calc(100vh-var(--sheet-away,4rem))] w-[64rem] max-w-[calc(100vw-var(--sheet-away,4rem))] overflow-hidden rounded-lg border border-line bg-canvas p-0 text-ink backdrop:bg-black/50"
+      className={`t-modal m-auto h-[34rem] max-h-[calc(100vh-var(--sheet-away,4rem))] w-[64rem] max-w-[calc(100vw-var(--sheet-away,4rem))] overflow-hidden p-0 text-ink backdrop:bg-black/50 ${SHEET}`}
     >
       <div className="relative flex h-full min-w-0">
         <nav
