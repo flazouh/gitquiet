@@ -28,17 +28,17 @@ the page fills up with them.
 
 Counted over the first page of the eight repositories above, 2026-09-03:
 
-| Repository | Rows | Questions | Answered | Replies, no answer | No reply yet |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| `vercel/next.js` | 25 | 16 | 1 | 15 | 0 |
-| `tailwindlabs/tailwindcss` | 25 | 10 | 4 | 6 | 0 |
-| `supabase/supabase` | 25 | 14 | 2 | 11 | 1 |
-| `vitejs/vite` | 25 | 18 | 5 | 13 | 0 |
-| `shadcn-ui/ui` | 25 | 10 | 2 | 8 | 0 |
-| `nuxt/nuxt` | 25 | 16 | 3 | 11 | 2 |
-| `laravel/framework` | 25 | 25 | 3 | 21 | 1 |
-| `denoland/deno` | 25 | 11 | 2 | 9 | 0 |
-| **Total** | **200** | **120** | **22** | **94** | **4** |
+| Repository | Rows | Questions | Answered | Replies, no answer | No reply yet | Closed | Locked |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `vercel/next.js` | 25 | 16 | 1 | 15 | 0 | 3 | 0 |
+| `tailwindlabs/tailwindcss` | 25 | 10 | 4 | 6 | 0 | 2 | 0 |
+| `supabase/supabase` | 25 | 14 | 2 | 11 | 1 | 0 | 1 |
+| `vitejs/vite` | 25 | 18 | 5 | 13 | 0 | 6 | 0 |
+| `shadcn-ui/ui` | 25 | 10 | 2 | 8 | 0 | 0 | 0 |
+| `nuxt/nuxt` | 25 | 16 | 3 | 11 | 2 | 4 | 0 |
+| `laravel/framework` | 25 | 25 | 3 | 21 | 1 | 1 | 0 |
+| `denoland/deno` | 25 | 11 | 2 | 9 | 0 | 7 | 0 |
+| **Total** | **200** | **120** | **22** | **94** | **4** | **23** | **1** |
 
 "Question" here means a row in a category that takes answers, which is the only kind of row
 GitHub prints the word Answered or Unanswered on. Eighteen percent of them are answered. The
@@ -47,6 +47,11 @@ rest are not, and 94 of those 98 have somebody's reply sitting in them already.
 Those 94 and those 4 are two different states of the world. One needs a person to write an
 answer. The other needs a person to point at an answer that is already there. GitHub draws
 them the same, and it is the 94 that make the page feel abandoned.
+
+Closing cuts across all of it. Twenty-three of the two hundred rows are closed, and a closed
+row keeps whatever answer word it had: their own row prints "· Closed · Unanswered" together.
+So closing is the one thing on the page that ends a question without answering it, and any
+reading of these rows has to take it before the answer word rather than after.
 
 ### The mark that says which is a fill on a check
 
@@ -108,7 +113,7 @@ So this list is grouped, and by the same four the rest of the product uses:
 | **Needs You** | Stale Questions. Somebody replied and nobody marked it. |
 | **Waiting** | Questions with no reply yet. |
 | **Running** | Nothing, and it is drawn as nothing. See below. |
-| **Settled** | Answered Questions, locked Discussions, and everything in a category that takes no answers. |
+| **Settled** | Answered Questions, closed and locked Discussions, and everything in a category that takes no answers. |
 
 Needs You is deliberately the biggest group on a busy repository, because that is what the
 census says is true. A reader who disagrees with the grouping has the category filter and
@@ -129,7 +134,9 @@ word rather than a glyph, because "Stale" and "Answered" are two words and an ou
 fill are one shape.
 
 The upvote count stays where GitHub puts it, on the left, because it is the one number on the
-page that readers use and it is already legible.
+page that readers use and it is already legible. A locked row has none: GitHub replaces the
+whole vote control with a padlock in the same pill, so the count and the discussion's own id
+both go with it.
 
 ### One discussion opens on its Answer
 

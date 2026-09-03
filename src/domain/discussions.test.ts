@@ -20,6 +20,7 @@ const row = (over: Partial<ListedDiscussion> = {}): ListedDiscussion => ({
   category: { name: "Help", slug: "help", emoji: "🎓" },
   answerable: true,
   answered: false,
+  closed: false,
   locked: false,
   upvotes: 9,
   comments: 9,
@@ -82,13 +83,32 @@ describe("which Court a discussion sits in", () => {
     expect(courtOf(row({ locked: true, comments: 0 }))).toBe("settled")
   })
 
+  /*
+   * Their own rows print "· Closed · Unanswered" together, so the two facts arrive together and
+   * one of them has to win. Closed wins: nobody is going to answer a question somebody ended.
+   */
+  test("closed is Settled, including the closed question nobody answered", () => {
+    expect(courtOf(row({ closed: true, comments: 9 }))).toBe("settled")
+    expect(courtOf(row({ closed: true, comments: 0 }))).toBe("settled")
+    expect(courtOf(row({ closed: true, answerable: false }))).toBe("settled")
+  })
+
+  /*
+   * Closing does not mark an answer, so the Answering of a closed Question is unchanged. The
+   * Court is where the two facts meet, and this is what keeps them from being folded into one.
+   */
+  test("closing does not answer, so the Answering of a closed question is still Stale", () => {
+    expect(answeringOf(row({ closed: true, comments: 9 }))).toBe("stale")
+  })
+
   test("Running is never returned, because no machine works on a discussion", () => {
     const every = [
       row({ comments: 9 }),
       row({ comments: 0 }),
       row({ answered: true }),
       row({ answerable: false }),
-      row({ locked: true })
+      row({ locked: true }),
+      row({ closed: true })
     ]
 
     expect(every.map(courtOf)).not.toContain("running")

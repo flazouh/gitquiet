@@ -86,6 +86,14 @@ export type ListedDiscussion = {
   readonly answerable: boolean
   /** Whether one of the replies is marked as the Answer. False on anything unanswerable. */
   readonly answered: boolean
+  /**
+   * Whether somebody closed it, which GitHub added to discussions after answers.
+   *
+   * Its own field beside {@link ListedDiscussion.answered}, because their row prints both and
+   * they are not the same claim. `vercel/next.js` has closed discussions in Ideas, a category
+   * that takes no answers at all, and closed Questions that are still unanswered.
+   */
+  readonly closed: boolean
   readonly locked: boolean
   readonly upvotes: number
   /** Replies of every depth, which is the number their own row prints. */
@@ -100,8 +108,8 @@ export type ListedDiscussion = {
 /**
  * What one row is waiting for.
  *
- * Locked is not one of the four. A locked discussion is finished whatever it was, and that is a
- * Court rather than an Answering: {@link courtOf} reads both.
+ * Closed and locked are not among the four. Either one finishes a discussion whatever it was
+ * waiting for, and that is a Court rather than an Answering: {@link courtOf} reads all three.
  */
 export const answeringOf = (one: ListedDiscussion): Answering => {
   if (!one.answerable) return "unanswerable"
@@ -123,8 +131,10 @@ export const answeringOf = (one: ListedDiscussion): Answering => {
  * working.
  */
 export const courtOf = (one: ListedDiscussion): Court => {
-  // Nobody can add to it, so nothing is owed on it, whatever it was waiting for a moment ago.
-  if (one.locked) return "settled"
+  // Somebody ended it, or nobody can add to it. Either way nothing is owed on it now, whatever
+  // it was waiting for a moment ago. Read before the Answering, because their own rows carry
+  // "· Closed · Unanswered" together and the first of those two is the last word.
+  if (one.closed || one.locked) return "settled"
 
   switch (answeringOf(one)) {
     case "stale":
