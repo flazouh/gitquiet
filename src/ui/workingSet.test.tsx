@@ -689,9 +689,27 @@ describe("a stack in the Working Set", () => {
   test("names no Court on a row the heading already covers", () => {
     render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
 
-    for (const row of within(theCard()).getAllByRole("link")) {
-      expect(row.textContent).not.toContain("Needs You")
-    }
+    // The foundation is where the heading says. Saying so again on its own row
+    // would be the heading read twice.
+    const [base] = within(theCard()).getAllByRole("link")
+    expect(base?.textContent).not.toContain("Needs You")
+  })
+
+  test("says a stacked pull request is Waiting, under a heading that says Needs You", () => {
+    /*
+     * The rule is not about closing, and this is the case that says so. GitHub
+     * calls the top of a stack ready to merge while the foundation is still in
+     * review, and this list has always known better: nothing above a foundation
+     * can land first, so the member is Waiting. That correction went into the
+     * label read aloud and nowhere a reader could see it, and the heading over
+     * the pile went on saying Needs You about all three rows.
+     */
+    render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
+
+    const [, middle, top] = within(theCard()).getAllByRole("link")
+    expect(middle?.textContent).toContain("Waiting")
+    expect(top?.textContent).toContain("Waiting")
+    expect(screen.getByRole("region", { name: "Needs You" })).toBeDefined()
   })
 
   test("gives every stack position its own column without padding the row", () => {

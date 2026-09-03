@@ -272,10 +272,14 @@ export const useLive = <T>(
    * leave to chance on a list somebody is about to press.
    */
   const now = Date.now()
-  const standing =
+  const kept =
     said.status === "ready"
       ? worn.filter((one) => !wornOut(one.at, now) && !one.until(said.value))
       : worn
+  // The same array where nothing was dropped, rather than a copy of it. Everything
+  // below turns on this identity: a new array every render is a fold redone every
+  // render and a prune scheduled every render.
+  const standing = kept.length === worn.length ? worn : kept
 
   /*
    * The pruning, which is only about memory. `standing` is already what is drawn;
@@ -284,7 +288,7 @@ export const useLive = <T>(
    * rewritten, so a shorter list is the only way one can have gone.
    */
   useEffect(() => {
-    if (standing.length !== worn.length) setWorn(standing)
+    if (standing !== worn) setWorn(standing)
   }, [standing, worn])
 
   const meanwhile = useCallback(
@@ -311,13 +315,26 @@ export const useLive = <T>(
     [again]
   )
 
-  const read =
-    said.status === "ready" && standing.length > 0
-      ? {
-          status: "ready" as const,
-          value: standing.reduce((value, one) => one.change(value), said.value)
-        }
-      : said
+  /*
+   * Folded once per answer rather than once per render.
+   *
+   * What a change does is not small — the Working Set's is the whole arrangement
+   * worked out again from the top — and a list holding one is a list somebody is
+   * scrolling, filtering and hovering. Redoing it on every keystroke in the filter
+   * box would be paying for the press over and over.
+   */
+  const read = useMemo(
+    () =>
+      said.status === "ready" && standing.length > 0
+        ? {
+            status: "ready" as const,
+            value: standing.reduce((value, one) => one.change(value), said.value)
+          }
+        : said,
+    // `said` is rebuilt every render out of the two below, so those are what it
+    // turns on, together with the changes still being worn over it.
+    [live, early, standing]
+  )
 
   return { read, again, meanwhile }
 }
