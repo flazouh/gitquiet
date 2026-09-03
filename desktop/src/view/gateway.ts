@@ -495,6 +495,11 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
     rememberedDiscussions: () => Effect.succeed(Option.none()),
     discussion: (reference) => missing("read a discussion")(reference),
     rememberedDiscussion: () => Effect.succeed(Option.none()),
+    /*
+     * And this one is refused twice over. Every press on a discussion is GitHub's own form sent
+     * back, and a form only exists on a page somebody loaded. This window loads no page.
+     */
+    pressDiscussion: (reference) => missing("write on a discussion")(reference),
 
     /*
      * The inbox, a person's pages, the repository list and the activity feed.

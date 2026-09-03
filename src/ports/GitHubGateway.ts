@@ -33,6 +33,7 @@ import type { Blamed } from "../domain/blame"
 import type {
   Category,
   DiscussionList,
+  DiscussionPress,
   DiscussionRef,
   DiscussionSnapshot,
   ListedDiscussion
@@ -625,6 +626,28 @@ export class GitHubGateway extends Context.Service<
     readonly rememberedDiscussion: (
       reference: DiscussionRef
     ) => Effect.Effect<Option.Option<DiscussionSnapshot>, GatewayError>
+
+    /**
+     * One of the four things a reader does to a discussion, and the discussion back.
+     *
+     * Every one of them goes the way a pull request's comment box goes: GitHub's own form is on
+     * the page, and this sends it back with whatever the reader typed added to it. Their page is
+     * Rails, so the token is signed for that render of that form and cannot be minted — which is
+     * a constraint of the platform and not a shortcut, since the extension is standing on the
+     * page the form was rendered into.
+     *
+     * Fails where the form is not there, which is what a reader who is not signed in gets, and
+     * what a locked discussion or an archived repository gets. The screen offers no control in
+     * those cases; this refusal is the second gate rather than the first.
+     *
+     * Answers with the discussion read again rather than with what the write returned. Their
+     * answer to one of these is a page or a fragment of one, and parsing a comment out of either
+     * would be a second scraper to keep. One read is cheaper than being wrong.
+     */
+    readonly pressDiscussion: (
+      reference: DiscussionRef,
+      press: DiscussionPress
+    ) => Effect.Effect<DiscussionSnapshot, GatewayError>
 
     /**
      * Every Notice in the reader's inbox, out of one fetch of their own page.

@@ -583,3 +583,25 @@ export const asWordsGo = (typed: string, words: string): string => {
 
   return [...chips, ...termsIn(words)].join(" ")
 }
+
+/**
+ * Something a reader does to a discussion, as the four presses their page offers.
+ *
+ * One type and not four methods on the port, because they are one act from the gateway's side:
+ * find the form GitHub put on the page for this, add whatever the reader typed, send it back.
+ * What differs between them is which form, and that is a line of code rather than a method.
+ */
+export type DiscussionPress =
+  /** Say something on the discussion itself. */
+  | { readonly kind: "say"; readonly body: string }
+  /** Reply under one comment, which is the one level of nesting GitHub allows. */
+  | { readonly kind: "reply"; readonly comment: string; readonly body: string }
+  /** Mark one comment as the Answer, which is the press this whole screen exists for. */
+  | { readonly kind: "mark-answer"; readonly comment: string }
+  /** Upvote the question, or something said about it. */
+  | {
+      readonly kind: "upvote"
+      readonly on: "Discussion" | "DiscussionComment"
+      /** GitHub's own name for whichever of the two it is. */
+      readonly id: string
+    }

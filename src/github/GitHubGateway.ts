@@ -68,6 +68,14 @@ import {
   isKeptFound
 } from "./discussionsList"
 import { discussionOnPage, isKeptDiscussion } from "./discussionView"
+import {
+  asForm as asDiscussionForm,
+  markingAnswer,
+  replyingUnder,
+  sayingOn,
+  upvoting,
+  type Posting
+} from "./discussionForms"
 import { isKeptNotices, noticesOnPage } from "./notifications"
 import { asKept, personKept } from "./keptPerson"
 import { personOnPage } from "./person"
@@ -145,6 +153,7 @@ import { type CommitList, type History, routeFor } from "../domain/commitList"
 import {
   addressOf as discussionAddress,
   listRouteOf,
+  type DiscussionPress,
   listWithinRepo,
   type DiscussionList,
   type DiscussionRef,
@@ -1502,6 +1511,32 @@ const repoDocument = Effect.fn("repoDocument")(function* (reference: RepoRef, ro
     catch: (cause) =>
       new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
   })
+})
+
+/**
+ * One discussion, read as the document GitHub serves it as.
+ *
+ * At the top level rather than inside the layer, because two of the layer's methods want it: the
+ * read itself, and every press, which answers with the discussion again once GitHub has taken
+ * the write.
+ */
+const readDiscussion = Effect.fn("readDiscussion")(function* (reference: DiscussionRef) {
+  const route = discussionAddress(reference)
+  const document = yield* repoDocument(reference, `/discussions/${reference.number}`)
+
+  const found = discussionOnPage(reference, document)
+  if (Option.isNone(found)) {
+    return yield* new GatewayError({
+      reference,
+      route,
+      reason: "undecodable",
+      detail: "the page GitHub served carries no discussion"
+    })
+  }
+
+  yield* Effect.forkDetach(rememberRoute(route, found.value))
+
+  return found.value
 })
 
 /** A read of one of a person's addresses, or why it did not come. */
@@ -3346,23 +3381,67 @@ export const layer = Layer.succeed(GitHubGateway, {
      * for a read that did not come — it hands the document back to GitHub — and no word at all
      * for a discussion with no title, which it would draw over the top of their page.
      */
-    discussion: Effect.fn("GitHubGateway.discussion")(function* (reference: DiscussionRef) {
-      const route = discussionAddress(reference)
-      const document = yield* repoDocument(reference, `/discussions/${reference.number}`)
+    discussion: (reference: DiscussionRef) => readDiscussion(reference),
 
-      const found = discussionOnPage(reference, document)
-      if (Option.isNone(found)) {
+    /**
+     * One of the four presses, sent as the form GitHub put on the page for it.
+     *
+     * The document is this tab's own, which is the whole of why this works: the extension is
+     * standing on the page their form was rendered into, and the token in it is signed for
+     * exactly that render.
+     */
+    pressDiscussion: Effect.fn("GitHubGateway.pressDiscussion")(function* (
+      reference: DiscussionRef,
+      press: DiscussionPress
+    ) {
+      const route = discussionAddress(reference)
+
+      const posting: Posting | null =
+        press.kind === "say"
+          ? sayingOn(document)
+          : press.kind === "reply"
+            ? replyingUnder(document, press.comment)
+            : press.kind === "mark-answer"
+              ? markingAnswer(document, press.comment)
+              : upvoting(document, press.on, press.id)
+
+      if (posting === null) {
         return yield* new GatewayError({
           reference,
           route,
-          reason: "undecodable",
-          detail: "the page GitHub served carries no discussion"
+          reason: "rejected",
+          detail: "GitHub rendered no form for that on this page, so there is nothing to send."
         })
       }
 
-      yield* Effect.forkDetach(rememberRoute(route, found.value))
+      const said = press.kind === "say" || press.kind === "reply" ? press.body : undefined
 
-      return found.value
+      const response = yield* Effect.tryPromise({
+        try: () =>
+          fetch(posting.action, {
+            method: "POST",
+            headers: { ...REQUIRED_HEADERS, "Content-Type": "application/x-www-form-urlencoded" },
+            credentials: "include",
+            body: asDiscussionForm(posting, said)
+          }),
+        catch: (cause) =>
+          new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+      })
+
+      if (!response.ok) {
+        return yield* new GatewayError({
+          reference,
+          route,
+          reason: "rejected",
+          detail: `HTTP ${response.status}`
+        })
+      }
+
+      // What was kept is now what GitHub would no longer answer with, so it goes before the read
+      // that follows it, exactly as a write on an issue drops the issue it wrote to.
+      yield* forgetRoute(route)
+
+      return yield* readDiscussion(reference)
     }),
 
     rememberedDiscussion: Effect.fn("GitHubGateway.rememberedDiscussion")(function* (
@@ -4400,6 +4479,7 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     rememberedDiscussions: () => Effect.succeed(Option.none()),
     discussion: (reference: DiscussionRef) => Effect.fail(nothingRecordedFor(reference)),
     rememberedDiscussion: () => Effect.succeed(Option.none()),
+    pressDiscussion: (reference: DiscussionRef) => Effect.fail(nothingRecordedFor(reference)),
     // An empty inbox, which is what a page nobody recorded looks like from here, and
     // nothing written to one: a press answered without a request would be this layer
     // telling a test that GitHub agreed to something nobody asked.
@@ -4552,6 +4632,7 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     rememberedDiscussions: () => Effect.succeed(Option.none()),
     discussion: (reference: DiscussionRef) => Effect.fail(nothingRecordedFor(reference)),
     rememberedDiscussion: () => Effect.succeed(Option.none()),
+    pressDiscussion: (reference: DiscussionRef) => Effect.fail(nothingRecordedFor(reference)),
     // An empty inbox, which is what a page nobody recorded looks like from here, and
     // nothing written to one: a press answered without a request would be this layer
     // telling a test that GitHub agreed to something nobody asked.
