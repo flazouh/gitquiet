@@ -242,12 +242,35 @@ const isSameOne = (pile: Piled, reference: PullRequestRef): boolean =>
   pile.one.reference.number === reference.number
 
 /**
- * Every pile with one pull request's state changed, wherever in them it sits.
+ * The pull request as the verb leaves it: the state, and a run that verb ended.
  *
- * Only the state. A shelf is GitHub's answer about what they think the reader
- * should do next, and guessing at it is how a row ends up under a heading the
- * next read disagrees with — where the state is not a guess at all: closing a
- * pull request is exactly what makes it closed.
+ * The state is not a guess — closing a pull request is exactly what makes it
+ * closed — and the shelf still is, which is why the shelf is left alone: it is
+ * GitHub's answer about what they think the reader should do next, and inventing
+ * one is how a row lands under a heading the next read disagrees with.
+ *
+ * A run in flight is the third thing, and it is neither. Nothing goes on being
+ * checked once a pull request is settled, so a row saying "CI running" under a
+ * closed pull request is not lag or a guess but a sentence about a machine that
+ * has stopped. It was on the screen: a stacked pull request closed from its row
+ * kept the running badge it had a second earlier, which is what made the close
+ * look as though it had not happened at all.
+ *
+ * Only a run still going. A rollup that passed or failed is what it was when the
+ * work stopped, which is worth keeping and is the answer to why it was closed
+ * about as often as not.
+ */
+const asSettled = (one: InvolvedPullRequest, state: PullRequestState): InvolvedPullRequest => ({
+  ...one,
+  state,
+  checks:
+    state === "open" || state === "draft"
+      ? one.checks
+      : Option.filter(one.checks, (rollup) => rollup.state !== "running")
+})
+
+/**
+ * Every pile with one pull request's verb worn, wherever in them it sits.
  */
 const wearing = (
   piles: ReadonlyArray<Piled>,
@@ -263,7 +286,7 @@ const wearing = (
     if (!isSameOne(pile, reference)) return { ...pile, above: above.piles }
 
     found = true
-    return { ...pile, one: { ...pile.one, state }, above: above.piles }
+    return { ...pile, one: asSettled(pile.one, state), above: above.piles }
   })
 
   return { piles: changed, found }
@@ -419,17 +442,40 @@ export const setAside = (
   )
 })
 
+/**
+ * One row on the screen: the pull request, its own Court, and the heading it is
+ * drawn under.
+ *
+ * The last two are the same on nearly every row and differ on exactly one kind:
+ * a member of a stack. A pile sits where its foundation sits, so a pull request
+ * closed in the middle of one goes on being drawn under Needs You — which is the
+ * right place for the pile and the wrong word for the row.
+ */
+export type Walked = {
+  readonly one: InvolvedPullRequest
+  readonly court: Court
+  readonly heading: Court
+}
+
+/**
+ * Every row on the screen with both its Courts, in the order the eye moves down
+ * them.
+ */
+export const walkThroughCourts = (sittings: ReadonlyArray<Sitting>): ReadonlyArray<Walked> => {
+  const stepping = (pile: Piled, heading: Court): ReadonlyArray<Walked> => [
+    { one: pile.one, court: pile.court, heading },
+    ...pile.above.flatMap((higher) => stepping(higher, heading))
+  ]
+
+  return sittings.flatMap((sitting) =>
+    sitting.piles.flatMap((pile) => stepping(pile, sitting.court))
+  )
+}
+
 /** Every pull request on the screen, in the order the eye moves down them. */
 export const walkThrough = (
   sittings: ReadonlyArray<Sitting>
-): ReadonlyArray<InvolvedPullRequest> => {
-  const stepping = (pile: Piled): ReadonlyArray<InvolvedPullRequest> => [
-    pile.one,
-    ...pile.above.flatMap(stepping)
-  ]
-
-  return sittings.flatMap((sitting) => sitting.piles.flatMap(stepping))
-}
+): ReadonlyArray<InvolvedPullRequest> => walkThroughCourts(sittings).map((walked) => walked.one)
 
 /**
  * The pull requests whose branches are worth a request.

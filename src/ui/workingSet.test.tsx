@@ -653,6 +653,47 @@ describe("a stack in the Working Set", () => {
     expect(screen.queryByRole("region", { name: "Waiting" })).toBeNull()
   })
 
+  test("says on the row when a stack member is not in the Court over it", () => {
+    /*
+     * The complaint this answers, from a live Working Set: a pull request closed
+     * from its row in the middle of a stack changed nothing anybody could see. A
+     * pile sits where its foundation sits, so it stayed in Needs You at stack
+     * position #2 — correct for the pile, since nothing above the foundation can
+     * land first, and silent about the row. The state was on the row all along,
+     * in the tint of a fourteen-pixel glyph and in the label read aloud.
+     */
+    const closedInTheMiddle = sittingsIn(
+      [chain[0]!, { ...chain[1]!, state: "closed" as const }, chain[2]!],
+      (one) =>
+        Option.some(
+          [
+            { baseBranch: "main", headBranch: "stack-1" },
+            { baseBranch: "stack-1", headBranch: "stack-2" },
+            { baseBranch: "stack-2", headBranch: "stack-3" }
+          ][one.reference.number - 1]!
+        )
+    )
+
+    render(<WorkingSet sittings={closedInTheMiddle} onOpen={() => {}} />)
+
+    const [, middle] = within(theCard()).getAllByRole("link")
+    expect(middle?.textContent).toContain("Settled")
+
+    // And only that row. The other two are where the heading says they are, and a
+    // Court named on every line would be the heading said three more times.
+    const [base, , top] = within(theCard()).getAllByRole("link")
+    expect(base?.textContent).not.toContain("Settled")
+    expect(top?.textContent).not.toContain("Settled")
+  })
+
+  test("names no Court on a row the heading already covers", () => {
+    render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
+
+    for (const row of within(theCard()).getAllByRole("link")) {
+      expect(row.textContent).not.toContain("Needs You")
+    }
+  })
+
   test("gives every stack position its own column without padding the row", () => {
     render(<WorkingSet sittings={stacked} onOpen={() => {}} />)
 
