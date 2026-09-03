@@ -1,5 +1,5 @@
-import { BAR_ID } from "./barSlot"
-import { OUTSIDE, ROOT_ID } from "./mount"
+import { BAR_ON_PAGE } from "./barSlot"
+import { OUTSIDE, ROOT_ID, WITHIN } from "./mount"
 import type { Place } from "./place"
 
 /**
@@ -24,7 +24,7 @@ import type { Place } from "./place"
  * the root rather than in it, and a screen whose stage is `body` itself would
  * otherwise hide its own furniture along with GitHub's page.
  */
-const OURS = `:not(#${ROOT_ID}):not(:has(#${ROOT_ID})):not([${OUTSIDE}])`
+const OURS = `:not(#${ROOT_ID}):not([${WITHIN}]):not([${OUTSIDE}])`
 
 /**
  * Whether a stage is the document's own surface rather than a region of GitHub's.
@@ -43,8 +43,11 @@ const isTheSurface = (stage: string): boolean => stage === "body" || stage.start
  *
  * The region is where ours stands, so hiding it hides ours the moment it is
  * appended — and on a soft navigation our root is a grandchild rather than a
- * child, which is what the second half of {@link OURS} is for: a box holding our
- * interface is never a box to hide.
+ * child, which is what the middle of {@link OURS} is for: a box holding our
+ * interface is never a box to hide. It reads a mark the takeover writes on the
+ * way down rather than asking `:has(#gitquiet-root)`, because that question,
+ * asked of a region as high as `body`, made every change anywhere beneath it
+ * restyle the whole interface. See `WITHIN` in `mount.ts`.
  */
 const emptied = (stage: string): string => `${stage} > *${OURS}`
 
@@ -178,7 +181,9 @@ export const softSheet = (places: ReadonlyArray<Place>): string =>
  *
  * Keyed on our bar being on the page rather than on the takeover having started. The page can
  * then never be left with no bar at all, which is what an attribute set at the press would do
- * for as long as the takeover took. `nav[aria-label="Repository"]` goes with it: their nav row
+ * for as long as the takeover took. Said as a mark on the document rather than as
+ * `html:has(#gitquiet-bar)`, which asked the same question of the whole document and made every
+ * change anywhere in it restyle everything — see `BAR_ON_PAGE`. `nav[aria-label="Repository"]` goes with it: their nav row
  * is inside that same header — measured by `scripts/probe-repo-nav-dom.js` — so one rule takes
  * both of their rows, and `theirNav.ts` reads the row out of the hidden element before our own
  * is drawn from it.
@@ -186,7 +191,7 @@ export const softSheet = (places: ReadonlyArray<Place>): string =>
 export const barSheet = (): string =>
   [
     "/* Their bar, wherever ours is standing. */",
-    block([`html:has(#${BAR_ID}) header.GlobalNav`])
+    block([`html[${BAR_ON_PAGE}] header.GlobalNav`])
   ].join("\n")
 
 /** What the generated files say at the top, so nobody edits one by hand. */

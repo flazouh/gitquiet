@@ -266,7 +266,7 @@ describe("the bar as glass", () => {
      */
     const sheet = readFileSync("src/ui/glass.css", "utf8")
 
-    expect(sheet).toContain("html:has(#gitquiet-bar) [data-sonner-toaster]")
+    expect(sheet).toContain("html[data-gitquiet-bar-standing] [data-sonner-toaster]")
     expect(sheet).toContain("--offset-right: var(--gitquiet-gutter) !important")
     expect(sheet).toContain("--offset-bottom: var(--gitquiet-gutter) !important")
     // The window keeps the twelve the component asks for: this file is only ever loaded

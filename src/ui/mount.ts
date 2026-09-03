@@ -22,6 +22,54 @@ export const ROOT_ID = "gitquiet-root"
 export const OUTSIDE = "data-gitquiet-outside"
 export const SCREEN_ACTIVITY = "data-gitquiet-screen-activity"
 
+/**
+ * The mark on every element between our root and the document, written when the
+ * root is put on the page.
+ *
+ * It says the one thing the rules around it need to know: this box holds the
+ * interface, so it is not a box to hide, to inset or to hold to their measure.
+ * Every rule that asks it used to ask `:has(#gitquiet-root)` instead, which is
+ * the same question and the wrong way to put it. A `:has()` whose subject can be
+ * `body` or `main` marks that ancestor as affected for the life of the page, and
+ * Chrome then invalidates its whole subtree on *any* change beneath it — so one
+ * comment opening in the column restyled all thousand-odd elements of it.
+ *
+ * Measured on the fixture stage with GitHub's own stylesheets loaded and our root
+ * put back inside their layout: one appended element cost 18ms of style with
+ * those rules and 5ms without. Their own sheets carry sixty more `:has()` rules
+ * we cannot touch, so this is a share of the cost rather than all of it — the
+ * rest is `docs/plan/restyle-scope.md`.
+ *
+ * The mark is written in the same breath as the append, before anything can
+ * recompute style, so there is no frame in which a gate rule sees an unmarked
+ * ancestor and hides the interface inside it.
+ */
+export const WITHIN = "data-gitquiet-within"
+
+/**
+ * Marks the way down to our root, and unmarks whatever no longer leads to it.
+ *
+ * From the root's parent to `body` inclusive: `body` is an ancestor like any
+ * other, and one screen here stands in a region that is a child of it.
+ *
+ * The sweep first, because a screen that moves — GitHub replacing the region
+ * under it, a soft navigation into another of ours — leaves the old chain marked,
+ * and a marked box that no longer holds anything of ours is a box of GitHub's
+ * that the gates would stop hiding.
+ */
+const markWithin = (target: Document, root: Element): void => {
+  for (const marked of target.querySelectorAll(`[${WITHIN}]`)) {
+    if (!marked.contains(root)) marked.removeAttribute(WITHIN)
+  }
+  for (
+    let above = root.parentElement;
+    above !== null && above !== target.documentElement;
+    above = above.parentElement
+  ) {
+    above.setAttribute(WITHIN, "")
+  }
+}
+
 const firstOf = (
   target: Document,
   selectors: ReadonlyArray<string>,
@@ -808,6 +856,7 @@ export const activatePreparedTraversal = (
   leaving.setAttribute(LEAVING, "")
   takeOffThePage(leaving, true)
   slot.append(arriving)
+  markWithin(target, arriving)
   arriving.setAttribute(ROUTE, route)
   target.documentElement.setAttribute(TAKEN, "")
   target.documentElement.setAttribute(SHOWN, place.name)
@@ -1059,6 +1108,10 @@ export const takeOverSlot = (
       }
     }
     into.append(container)
+    // In the same breath, so that no style recalculation can happen between the
+    // interface arriving and the marks that say the boxes above it are not
+    // GitHub's to hide. See {@link WITHIN}.
+    markWithin(target, container)
     theScreenActivityChanged(container)
     const route = routeNow(target, exactRoute)
     if (route !== null) {
@@ -1161,6 +1214,17 @@ export const takeOverSlot = (
 
     const parent = container.parentElement
     if (parent !== null) hideTheirs(parent, container)
+    /*
+     * And the way down to us, if GitHub has put a box of their own in between.
+     *
+     * Asked as one attribute read rather than by walking the chain, because this
+     * runs on every mutation of `body`: a wrapper inserted around our container
+     * arrives as its unmarked parent, and an unmarked parent is the one thing
+     * that would let a gate rule hide the interface. Every other way of losing
+     * the chain takes the container off the page with it, which the branch above
+     * answers by settling again.
+     */
+    if (parent !== null && !parent.hasAttribute(WITHIN)) markWithin(target, container)
     hideTheirBands(target, place)
   })
   watcher.observe(ground, { childList: true, subtree: true })

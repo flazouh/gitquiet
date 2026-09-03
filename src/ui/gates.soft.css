@@ -11,7 +11,7 @@
  */
 
 /* conversation: swapped in without a load. */
-html[data-gitquiet-gating] react-app[app-name="pull-requests"] [class*="PageLayoutContent"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
+html[data-gitquiet-gating] react-app[app-name="pull-requests"] [class*="PageLayoutContent"] > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-gating] react-app[app-name="pull-requests"] [class*="PullRequestHeader"],
 html[data-gitquiet-gating] react-app[app-name="pull-requests"] [aria-label="Pull request navigation"],
 html[data-gitquiet-gating] react-app[app-name="pull-requests"] [data-component="Banner"][aria-label="Can Stack Banner"] {
@@ -19,93 +19,93 @@ html[data-gitquiet-gating] react-app[app-name="pull-requests"] [data-component="
 }
 
 /* commits: swapped in without a load. */
-html[data-gitquiet-gating] #repo-content-pjax-container:has([data-testid="commit-row-item"]) > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
-html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has([data-testid="commit-row-item"]) > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]) {
+html[data-gitquiet-gating] #repo-content-pjax-container:has([data-testid="commit-row-item"]) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has([data-testid="commit-row-item"]) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
 
 /* dashboard: swapped in without a load. */
-html[data-gitquiet-gating] [data-testid="pulls-dashboard-surface-layout"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]) {
+html[data-gitquiet-gating] [data-testid="pulls-dashboard-surface-layout"] > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
 
 /* repo-pulls: swapped in without a load. */
-html[data-gitquiet-gating] #repo-content-pjax-container:has(.js-issue-row) > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
-html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has(.js-issue-row) > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]) {
+html[data-gitquiet-gating] #repo-content-pjax-container:has(.js-issue-row) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has(.js-issue-row) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
 
 /* raise: swapped in without a load. */
-html[data-gitquiet-gating] react-app[app-name="issues-react"] #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
-html[data-gitquiet-gating] react-app[app-name="issues-react"] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]) {
+html[data-gitquiet-gating] react-app[app-name="issues-react"] #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-gating] react-app[app-name="issues-react"] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
 
 /* repo-issues: swapped in without a load. */
-html[data-gitquiet-gating] react-app[app-name="issues-react"] #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
-html[data-gitquiet-gating] react-app[app-name="issues-react"] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]) {
+html[data-gitquiet-gating] react-app[app-name="issues-react"] #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-gating] react-app[app-name="issues-react"] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
 
 /* repo-home: swapped in without a load. */
-html[data-gitquiet-gating] react-app[app-name="code-view"] #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
-html[data-gitquiet-gating] react-app[app-name="code-view"] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
+html[data-gitquiet-gating] react-app[app-name="code-view"] #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-gating] react-app[app-name="code-view"] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-gating] react-app[app-name="code-view"] [class*="RecentlyTouchedBranches-module__Flash"] {
   display: none;
 }
 
 /* blame: swapped in without a load. */
-html[data-gitquiet-gating] react-app[app-name="code-view"] #repo-content-pjax-container > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
-html[data-gitquiet-gating] react-app[app-name="code-view"] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]) {
+html[data-gitquiet-gating] react-app[app-name="code-view"] #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-gating] react-app[app-name="code-view"] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
 
 /* issue: swapped in without a load. */
-html[data-gitquiet-gating] react-app[app-name="issues-react"] [data-testid="issue-viewer-container"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]) {
+html[data-gitquiet-gating] react-app[app-name="issues-react"] [data-testid="issue-viewer-container"] > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
 
 /* issues: swapped in without a load. */
-html[data-gitquiet-gating] react-app[app-name="issues-react"] > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]) {
+html[data-gitquiet-gating] react-app[app-name="issues-react"] > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
 
 /* run: swapped in without a load. */
-html[data-gitquiet-gating] run-summary turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]) {
+html[data-gitquiet-gating] run-summary turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
 
 /* actions: swapped in without a load. */
-html[data-gitquiet-gating] #repo-content-pjax-container:has([id^="check_suite_"]) > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
-html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has([id^="check_suite_"]) > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]) {
+html[data-gitquiet-gating] #repo-content-pjax-container:has([id^="check_suite_"]) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has([id^="check_suite_"]) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
 
 /* releases: swapped in without a load. */
-html[data-gitquiet-gating] #repo-content-pjax-container:has(section[data-release-anchor]) > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
-html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has(section[data-release-anchor]) > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]) {
+html[data-gitquiet-gating] #repo-content-pjax-container:has(section[data-release-anchor]) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has(section[data-release-anchor]) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
 
 /* home: swapped in without a load. */
-html[data-gitquiet-gating] body:has(#dashboard.dashboard) > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]) {
+html[data-gitquiet-gating] body:has(#dashboard.dashboard) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
 
 /* profile: swapped in without a load. */
-html[data-gitquiet-gating] main div.container-xl:has(.h-card):has(include-fragment[src*="tab=contributions"]) > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
+html[data-gitquiet-gating] main div.container-xl:has(.h-card):has(include-fragment[src*="tab=contributions"]) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-gating] main > div.position-sticky:has(.user-profile-sticky-bar) {
   display: none;
 }
 
 /* person-repos: swapped in without a load. */
-html[data-gitquiet-gating] main div.container-xl:has(.h-card):has(#user-repositories-list) > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
+html[data-gitquiet-gating] main div.container-xl:has(.h-card):has(#user-repositories-list) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-gating] main > div.position-sticky:has(.user-profile-sticky-bar) {
   display: none;
 }
 
 /* person-stars: swapped in without a load. */
-html[data-gitquiet-gating] main div.container-xl:has(.h-card):has(turbo-frame#user-starred-repos) > *:not(#gitquiet-root):not(:has(#gitquiet-root)):not([data-gitquiet-outside]),
+html[data-gitquiet-gating] main div.container-xl:has(.h-card):has(turbo-frame#user-starred-repos) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-gating] main > div.position-sticky:has(.user-profile-sticky-bar) {
   display: none;
 }

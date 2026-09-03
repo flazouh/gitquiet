@@ -108,7 +108,7 @@ describe("our floor under their page", () => {
   test("covers the two wrappers Home paints inside the body", () => {
     // Measured on the page: everything between the region and `body` is transparent
     // on a pull request, and Home nests its feed in two more filled layers.
-    expect(quiet()).toContain("div.feed-background:has(#gitquiet-root)")
-    expect(quiet()).toContain("div.color-bg-default:has(#gitquiet-root)")
+    expect(quiet()).toContain("div.feed-background[data-gitquiet-within]")
+    expect(quiet()).toContain("div.color-bg-default[data-gitquiet-within]")
   })
 })

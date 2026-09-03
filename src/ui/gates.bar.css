@@ -11,6 +11,6 @@
  */
 
 /* Their bar, wherever ours is standing. */
-html:has(#gitquiet-bar) header.GlobalNav {
+html[data-gitquiet-bar-standing] header.GlobalNav {
   display: none;
 }

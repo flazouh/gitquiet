@@ -18,7 +18,7 @@ const HERE = 'html[data-gitquiet-page="example"]'
 describe("the rules that keep GitHub's page off the screen", () => {
   test("hides what their region holds until ours is on the page", () => {
     expect(loadSheet([page])).toContain(
-      `${HERE}:not([data-gitquiet-revealed]) #theirs > *:not(#gitquiet-root):not(:has(#gitquiet-root))`
+      `${HERE}:not([data-gitquiet-revealed]) #theirs > *:not(#gitquiet-root):not([data-gitquiet-within])`
     )
   })
 
@@ -27,7 +27,7 @@ describe("the rules that keep GitHub's page off the screen", () => {
     // the page, and every insertion has to arrive under a rule that already
     // decided about it rather than wait for an observer to notice.
     expect(loadSheet([page])).toContain(
-      "html[data-gitquiet-taken] #theirs > *:not(#gitquiet-root):not(:has(#gitquiet-root))"
+      "html[data-gitquiet-taken] #theirs > *:not(#gitquiet-root):not([data-gitquiet-within])"
     )
   })
 
@@ -58,10 +58,11 @@ describe("the rules that keep GitHub's page off the screen", () => {
   test("never hides the box our own interface is standing in", () => {
     // The whole rule set is a hair away from hiding the interface it exists to
     // show: our root is a child of one of these regions, and on a soft navigation
-    // it is a grandchild of another.
+    // it is a grandchild of another. The mark on the way down is what answers the
+    // grandchild, and the takeover writes it in the same breath as the append.
     for (const rule of loadSheet([page]).split("\n")) {
       if (!rule.includes("> *")) continue
-      expect(rule).toContain(":not(#gitquiet-root):not(:has(#gitquiet-root))")
+      expect(rule).toContain(":not(#gitquiet-root):not([data-gitquiet-within])")
     }
   })
 

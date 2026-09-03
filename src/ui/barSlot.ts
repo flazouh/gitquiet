@@ -17,6 +17,21 @@ export const BAR_ID = "gitquiet-bar"
 export const BAR_MARK = "data-gitquiet-bar"
 
 /**
+ * The same fact written on the document, for the rules that hide GitHub's bar.
+ *
+ * `gates.bar.css` and `glass.css` used to ask `html:has(#gitquiet-bar)`, which is
+ * true and expensive: a `:has()` whose subject is `html` marks the whole document
+ * as affected, and every change anywhere in it then restyles everything. The
+ * attribute says the same thing for the price of a lookup — see `WITHIN` in
+ * `mount.ts`, which is the same repair one element lower.
+ *
+ * Written when the page's own slot is made and never taken off, exactly as the
+ * element itself is: the rules key on there being somewhere for a bar to stand,
+ * so that the page is never left with neither bar.
+ */
+export const BAR_ON_PAGE = "data-gitquiet-bar-standing"
+
+/**
  * How `glass.css` and `quiet.css` open every rule about the bar.
  *
  * Here rather than only in the stylesheets because `glass.test.ts` reads those rules by
@@ -34,13 +49,18 @@ export const BAR_AT = `:is(#${BAR_ID}, [${BAR_MARK}])`
  * vanishes on a soft navigation and comes back on a reload is the kind of fault nobody can
  * reproduce on purpose.
  *
- * Their bar is not removed, only hidden, and hidden by the presence of this element rather
- * than by an attribute: `html:has(#gitquiet-bar)`. That way the page can never be left with no
- * bar at all, which is what a rule keyed on "we are taking over" would do for as long as the
- * takeover took.
+ * Their bar is not removed, only hidden, and hidden by there being somewhere for ours to stand
+ * rather than by the takeover having started: {@link BAR_ON_PAGE} is written when this element
+ * is. That way the page can never be left with no bar at all, which is what a rule keyed on "we
+ * are taking over" would do for as long as the takeover took.
  */
 export const theBarSlot = (page: Document, within?: HTMLElement | undefined): HTMLElement => {
   const held = within ?? page.body
+  // Said of the document whichever call makes it true, including the one that
+  // finds a slot already standing: the rules that hide GitHub's bar read this
+  // rather than the element, and a second interface arriving must not leave the
+  // page with both bars. See {@link BAR_ON_PAGE}.
+  if (within === undefined) page.documentElement.setAttribute(BAR_ON_PAGE, "")
   const standing = within === undefined ? page.getElementById(BAR_ID) : firstBarIn(within)
   if (standing !== null) return standing
 
@@ -48,8 +68,8 @@ export const theBarSlot = (page: Document, within?: HTMLElement | undefined): HT
   /*
    * The id only for the page's own bar.
    *
-   * `gates.bar.css` hides GitHub's nav with `html:has(#gitquiet-bar)`, and `theirNav`
-   * rules the bar out by the same name when it reads theirs. Both are statements about
+   * `gates.bar.css` hides GitHub's nav on `html[data-gitquiet-bar-standing]`, and `theirNav`
+   * rules the bar out by this name when it reads theirs. Both are statements about
    * the one bar standing on a page of GitHub's. A screen mounted inside another page —
    * the landing page draws twelve — must not claim either, and cannot repeat an id
    * anyway. The mark is on both, and the stylesheets key off both.

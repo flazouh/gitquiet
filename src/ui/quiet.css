@@ -57,8 +57,8 @@ html[data-gitquiet-gating] body {
   background-color: var(--gitquiet-floor, var(--bgColor-default)) !important;
 }
 
-html[data-gitquiet-taken] div.color-bg-default:has(#gitquiet-root),
-html[data-gitquiet-taken] div.feed-background:has(#gitquiet-root) {
+html[data-gitquiet-taken] div.color-bg-default[data-gitquiet-within],
+html[data-gitquiet-taken] div.feed-background[data-gitquiet-within] {
   background-color: var(--gitquiet-floor, var(--bgColor-default)) !important;
 }
 

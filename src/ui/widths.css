@@ -120,7 +120,7 @@ html[data-gitquiet-taken] #gitquiet-root {
  * their system carries the flag, so no selector of ours outweighs it. Measured
  * without it: their thirty-two stood and the first card sat at sixty-four.
  */
-html[data-gitquiet-taken] #diff-comparison-viewer-container:has(#gitquiet-root) {
+html[data-gitquiet-taken] #diff-comparison-viewer-container[data-gitquiet-within] {
   max-width: none;
   padding-inline: 0 !important;
 }
@@ -140,7 +140,7 @@ html[data-gitquiet-taken] #diff-comparison-viewer-container:has(#gitquiet-root) 
  * `!important` because theirs is: the number arrives from `tmp-px-3 tmp-px-md-4
  * tmp-px-lg-5`, and a utility class in their system carries the flag.
  */
-html[data-gitquiet-taken] main div.container-xl:has(> #gitquiet-root) {
+html[data-gitquiet-taken] main div.container-xl[data-gitquiet-within] {
   padding-inline: 0 !important;
 }
 
@@ -154,7 +154,7 @@ html[data-gitquiet-taken] main div.container-xl:has(> #gitquiet-root) {
  * truncated earlier.
  */
 html[data-gitquiet-taken]
-  [data-testid="pulls-dashboard-surface-layout"]:has(#gitquiet-root) {
+  [data-testid="pulls-dashboard-surface-layout"][data-gitquiet-within] {
   max-width: none;
 }
 
@@ -183,20 +183,20 @@ html[data-gitquiet-taken]
  * is not enough against a centred cross axis; `align-self: stretch` is the line that
  * answers it.
  */
-html[data-gitquiet-taken] div.feed-background > div:has(#dashboard.dashboard #gitquiet-root),
-html[data-gitquiet-taken] div.feed-content:has(#dashboard.dashboard #gitquiet-root),
+html[data-gitquiet-taken] div.feed-background > div[data-gitquiet-within],
+html[data-gitquiet-taken] div.feed-content[data-gitquiet-within],
 html[data-gitquiet-taken]
-  div.dashboard-route.feed-main__universe:has(#dashboard.dashboard #gitquiet-root),
-html[data-gitquiet-taken] main:has(#dashboard.dashboard #gitquiet-root),
+  div.dashboard-route.feed-main__universe[data-gitquiet-within],
+html[data-gitquiet-taken] main[data-gitquiet-within],
 html[data-gitquiet-taken]
-  main:has(#dashboard.dashboard #gitquiet-root)
-  > div:has(#dashboard.dashboard #gitquiet-root),
-html[data-gitquiet-taken] #dashboard.dashboard:has(#gitquiet-root) {
+  main[data-gitquiet-within]
+  > div[data-gitquiet-within],
+html[data-gitquiet-taken] #dashboard.dashboard[data-gitquiet-within] {
   max-width: none;
   width: 100%;
 }
 
-html[data-gitquiet-taken] main:has(#dashboard.dashboard #gitquiet-root) {
+html[data-gitquiet-taken] main[data-gitquiet-within] {
   align-self: stretch;
 }
 
@@ -210,7 +210,7 @@ html[data-gitquiet-taken] main:has(#dashboard.dashboard #gitquiet-root) {
  * The same element the measure rule above names, and by the same class rather than by the
  * `tmp-` one beside it, which is theirs to delete.
  */
-html[data-gitquiet-taken] div.feed-content:has(#dashboard.dashboard #gitquiet-root) {
+html[data-gitquiet-taken] div.feed-content[data-gitquiet-within] {
   padding-inline: 0;
 }
 
@@ -234,6 +234,6 @@ html[data-gitquiet-taken] div.feed-content:has(#dashboard.dashboard #gitquiet-ro
 html[data-gitquiet-taken]
   .feed-content
   .dashboard-route.feed-main__universe:not(:has([partial-name].loaded))
-  main:has(#dashboard.dashboard #gitquiet-root) {
+  main[data-gitquiet-within] {
   display: block;
 }

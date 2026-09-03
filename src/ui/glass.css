@@ -221,7 +221,7 @@
  * ours has a bar too and must not move that page's toasts. The window keeps the twelve the
  * component asks for.
  */
-html:has(#gitquiet-bar) [data-sonner-toaster] {
+html[data-gitquiet-bar-standing] [data-sonner-toaster] {
   --offset-right: var(--gitquiet-gutter) !important;
   --offset-bottom: var(--gitquiet-gutter) !important;
 }

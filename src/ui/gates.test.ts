@@ -28,7 +28,7 @@ describe("the generated gate stylesheets", () => {
   test("hide their bar on the presence of ours, never on the takeover starting", () => {
     // Keyed the other way round, a press would take their bar off the screen before ours
     // arrived, and the page would have no bar at all for as long as that took.
-    expect(barSheet()).toContain("html:has(#gitquiet-bar) header.GlobalNav")
+    expect(barSheet()).toContain("html[data-gitquiet-bar-standing] header.GlobalNav")
     expect(barSheet()).not.toContain("data-gitquiet-gating")
   })
 

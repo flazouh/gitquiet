@@ -41,11 +41,18 @@ describe("the measures GitHub's own layout would otherwise hold", () => {
      * this extension left alone.
      *
      * The frame on the container itself is the exception and names it as the subject
-     * instead, which is why the match is for the id rather than for `:has()`.
+     * instead, which is why one of the two answers is the id.
+     *
+     * Either the id or the mark the takeover writes on every box between the root and the
+     * document: a rule about an ancestor says so with the mark, because asking the ancestor
+     * `:has(#gitquiet-root)` restyled the whole interface on every change inside it. See
+     * `WITHIN` in `mount.ts`.
      */
     for (const [selector] of widths().matchAll(/^html\[[^{]+/gm)) {
       expect(selector).toContain("[data-gitquiet-taken]")
-      expect(selector).toContain("#gitquiet-root")
+      expect(
+        selector.includes("#gitquiet-root") || selector.includes("[data-gitquiet-within]")
+      ).toBe(true)
     }
   })
 
@@ -95,7 +102,7 @@ describe("the measures GitHub's own layout would otherwise hold", () => {
   test("take GitHub's own inset off the one region that has one", () => {
     // Their thirty-two on a pull request is where this scale comes from, and it is a frame
     // only that region has. Ours is on the container, so theirs would be counted twice.
-    const rule = widths().slice(widths().indexOf("#diff-comparison-viewer-container:has"))
+    const rule = widths().slice(widths().indexOf("#diff-comparison-viewer-container["))
 
     expect(rule.slice(0, rule.indexOf("}"))).toContain("padding-inline: 0")
   })
