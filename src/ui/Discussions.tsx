@@ -1,12 +1,21 @@
 import { Option } from "effect"
+import { useState } from "react"
 import {
+  CHIPS,
   type Answering,
   type Category,
+  type Chip,
+  type DiscussionList,
   type Emoji,
   type ListedDiscussion,
   answeringOf,
+  asWordsGo,
+  asking,
   docketsOf,
-  listAddressOf
+  listAddressOf,
+  listRouteOf,
+  toggled,
+  wordsIn
 } from "../domain/discussions"
 import { COURT_ART, COURT_NAME, COURT_TONE } from "./courts"
 import { Section } from "./Section"
@@ -151,43 +160,165 @@ const Row = ({ one }: { readonly one: ListedDiscussion }) => {
  * quietly lose four of them.
  */
 export const Categories = ({
-  repo,
-  categories,
-  chosen
+  list,
+  categories
 }: {
-  readonly repo: { readonly owner: string; readonly repo: string }
+  readonly list: DiscussionList
   readonly categories: ReadonlyArray<Category>
-  readonly chosen: Option.Option<string>
 }) => {
-  if (categories.length === 0) return null
-
   const here = (slug: Option.Option<string>): string =>
-    Option.getOrElse(slug, () => "") === Option.getOrElse(chosen, () => "")
+    Option.getOrElse(slug, () => "") === Option.getOrElse(list.category, () => "")
       ? "bg-hover text-ink"
       : "text-ink-muted"
 
+  /*
+   * The category keeps whatever the reader was filtering by. Changing which category is being
+   * read is not a reason to forget that they asked for the stale ones, and their own sidebar
+   * loses it every time.
+   */
+  const to = (slug: Option.Option<string>): string =>
+    listRouteOf({ ...list, category: slug, page: 1 })
+
   return (
-    <nav aria-label="Categories" className="flex flex-wrap gap-1 px-3 py-2">
+    <div className="flex flex-col gap-2 px-3 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Sieves list={list} />
+        <Words list={list} />
+      </div>
+      {categories.length === 0 ? null : (
+        <nav aria-label="Categories" className="flex flex-wrap gap-1">
+          <a
+            className={`rounded px-2 py-0.5 text-xs no-underline hover:bg-hover ${here(
+              Option.none()
+            )}`}
+            href={to(Option.none())}
+          >
+            All
+          </a>
+          {categories.map((one) => (
+            <a
+              key={one.slug}
+              className={`rounded px-2 py-0.5 text-xs no-underline hover:bg-hover ${here(
+                Option.some(one.slug)
+              )}`}
+              href={to(Option.some(one.slug))}
+            >
+              <span aria-hidden="true">
+                <Picture emoji={one.emoji} />
+              </span>{" "}
+              {one.name}
+            </a>
+          ))}
+        </nav>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Where pressing a chip, or typing in the box, takes the reader.
+ *
+ * The first page every time. A reader on page four of everything who asks for the stale ones is
+ * asking a different question, and answering it with page four of the new question is how a
+ * filter comes back empty for no reason anybody can see.
+ */
+const asAsked = (list: DiscussionList, query: string): string =>
+  listRouteOf({ ...list, query, page: 1 })
+
+/**
+ * The filter bar: their own vocabulary, as things to press.
+ *
+ * Links and never buttons, because each one is an address. A reader can copy what they are
+ * looking at, send it to somebody, open it in a tab and come back to it, and the filtering is
+ * done by GitHub across every page rather than by this screen over the twenty-five rows it
+ * holds.
+ *
+ * Stale leads, and it is the reason this bar exists. Their own controls offer Unanswered, which
+ * is 98 of the 120 Questions counted across eight repositories; 94 of those already have
+ * somebody's reply in them and need pointing at rather than answering. Nobody would think to
+ * type `is:unanswered comments:>0`, and it is one press here.
+ */
+const Sieves = ({ list }: { readonly list: DiscussionList }) => (
+  <nav aria-label="Filters" className="flex flex-wrap items-center gap-1">
+    {CHIPS.map((chip: Chip) => (
       <a
-        className={`rounded px-2 py-0.5 text-xs no-underline hover:bg-hover ${here(Option.none())}`}
-        href={listAddressOf(repo)}
+        key={chip.name}
+        aria-current={asking(list.query, chip) ? "true" : undefined}
+        className={`rounded px-2 py-0.5 text-xs no-underline hover:bg-hover ${
+          asking(list.query, chip) ? "bg-hover text-ink" : "text-ink-muted"
+        }`}
+        href={asAsked(list, toggled(list.query, chip))}
       >
-        All
+        {chip.name}
       </a>
-      {categories.map((one) => (
+    ))}
+  </nav>
+)
+
+/**
+ * The box, for everything the chips have no word for.
+ *
+ * Holds the reader's own words and never the chips' terms, so a chip pressed does not turn up
+ * in the box as text to delete by hand. Submitting is a navigation, which is what every other
+ * control on this screen is.
+ */
+const Words = ({ list }: { readonly list: DiscussionList }) => {
+  const [typed, setTyped] = useState(wordsIn(list.query))
+
+  return (
+    <form
+      className="flex items-center gap-1"
+      onSubmit={(event) => {
+        event.preventDefault()
+        window.location.assign(asAsked(list, asWordsGo(list.query, typed)))
+      }}
+    >
+      <input
+        aria-label="Search these discussions"
+        className="w-48 rounded border border-edge bg-transparent px-2 py-0.5 text-xs text-ink"
+        placeholder="Search"
+        value={typed}
+        onChange={(event) => setTyped(event.target.value)}
+      />
+    </form>
+  )
+}
+
+/**
+ * Their pager, as the two presses a reader makes.
+ *
+ * Their own list prints no total anywhere and answers no route that does, so there is no page
+ * count to draw and nothing here claims one. Back is offered from page two onwards and forward
+ * only where GitHub drew a next link.
+ */
+export const Pages = ({
+  list,
+  more
+}: {
+  readonly list: DiscussionList
+  readonly more: boolean
+}) => {
+  if (list.page === 1 && !more) return null
+
+  return (
+    <nav aria-label="Pages" className="flex items-center gap-2 px-3 pb-2 text-xs">
+      {list.page > 1 ? (
         <a
-          key={one.slug}
-          className={`rounded px-2 py-0.5 text-xs no-underline hover:bg-hover ${here(
-            Option.some(one.slug)
-          )}`}
-          href={listAddressOf(repo, Option.some(one.slug))}
+          className="text-ink-accent no-underline hover:underline"
+          href={listRouteOf({ ...list, page: list.page - 1 })}
         >
-          <span aria-hidden="true">
-            <Picture emoji={one.emoji} />
-          </span>{" "}
-          {one.name}
+          Newer
         </a>
-      ))}
+      ) : null}
+      <span className="text-ink-muted tabular-nums">{`Page ${list.page}`}</span>
+      {more ? (
+        <a
+          className="text-ink-accent no-underline hover:underline"
+          href={listRouteOf({ ...list, page: list.page + 1 })}
+        >
+          Older
+        </a>
+      ) : null}
     </nav>
   )
 }

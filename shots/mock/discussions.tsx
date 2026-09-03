@@ -1,5 +1,5 @@
 import { Option } from "effect"
-import type { RepoRef } from "../../src/domain/PullRequestRef"
+import type { DiscussionList } from "../../src/domain/discussions"
 import { categoriesOnPage, discussionsOnPage } from "../../src/github/discussionsList"
 import { DiscussionsScreen, type Shown } from "../../src/ui/DiscussionsScreen"
 import listHtml from "../../tests/fixtures/discussionsList.html?raw"
@@ -20,7 +20,12 @@ import { alreadyKnown, nothingRemembered, settled, STORE, type View } from "../v
  * fourteen still open sit under Needs You and wear the word Stale.
  */
 
-const REPO: RepoRef = { owner: "vercel", repo: "next.js" }
+const LIST: DiscussionList = {
+  repo: { owner: "vercel", repo: "next.js" },
+  category: Option.none(),
+  query: "",
+  page: 1
+}
 
 const SHOWN: Shown = {
   rows: discussionsOnPage(listHtml),
@@ -35,8 +40,7 @@ export const DISCUSSIONS_VIEW: View = {
   ...STORE,
   draw: () => (
     <DiscussionsScreen
-      repo={REPO}
-      category={Option.none()}
+      list={LIST}
       load={settled(SHOWN)}
       preload={alreadyKnown(SHOWN)}
       recallRepositories={nothingRemembered()}

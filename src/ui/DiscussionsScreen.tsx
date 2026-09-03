@@ -1,8 +1,8 @@
-import { type Effect, Option } from "effect"
-import type { Category, ListedDiscussion } from "../domain/discussions"
+import type { Effect, Option } from "effect"
+import type { Category, DiscussionList, ListedDiscussion } from "../domain/discussions"
 import type { RepoRef } from "../domain/PullRequestRef"
 import type { Repository } from "../domain/repositories"
-import { Categories, Discussions } from "./Discussions"
+import { Categories, Discussions, Pages } from "./Discussions"
 import { DrawnAt } from "./drawnAt"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import { TheBar } from "./TheBar"
@@ -25,9 +25,11 @@ export type Shown = {
 }
 
 export type DiscussionsScreenProps = {
-  readonly repo: RepoRef
-  /** Whichever category the address named, which is where their own sidebar puts it. */
-  readonly category: Option.Option<string>
+  /**
+   * The whole address this screen is standing on: the repository, the category, the search and
+   * the page. Every control it draws writes another one of these, so it needs all four.
+   */
+  readonly list: DiscussionList
   readonly load: (partly: (shown: Shown) => void) => Effect.Effect<Shown, unknown>
   /** The page as the last visit left it, painted while the live read is in the air. */
   readonly preload?: () => Effect.Effect<Option.Option<Shown>>
@@ -51,8 +53,7 @@ const READING = "Reading this repository's discussions…"
  * answers it is on the row already.
  */
 export const DiscussionsScreen = ({
-  repo,
-  category,
+  list,
   load,
   preload,
   onStepAside,
@@ -61,6 +62,7 @@ export const DiscussionsScreen = ({
   at,
   signedIn = viewerOnPage
 }: DiscussionsScreenProps) => {
+  const repo: RepoRef = list.repo
   const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
@@ -95,16 +97,9 @@ export const DiscussionsScreen = ({
       />
       {shown === undefined ? null : (
         <div className="t-panels flex flex-col gap-3 pt-2 pb-2">
-          <Categories repo={repo} categories={shown.categories} chosen={category} />
+          <Categories list={list} categories={shown.categories} />
           <Discussions repo={repo} discussions={shown.rows} />
-          {shown.more ? (
-            <p className="px-3 pb-2 text-xs text-ink-muted">
-              {/* Their next link and not a page count. Their list prints no total anywhere on
-                  the page and answers no route that does, so the only honest thing to say is
-                  that there is another page. */}
-              GitHub has more discussions after these.
-            </p>
-          ) : null}
+          <Pages list={list} more={shown.more} />
         </div>
       )}
       {waiting ? (

@@ -73,8 +73,7 @@ const open = (
     draw: (standing) => (
       <DiscussionsScreen
         at={at}
-        repo={list.repo}
-        category={list.category}
+        list={list}
         where={openedNamed("discussions", list.repo)}
         load={read}
         preload={remembered}
