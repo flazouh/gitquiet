@@ -30,6 +30,7 @@ import type { Raised, Raising } from "../domain/raising"
 import type { Attached, Version } from "../domain/release"
 import type { Front, Opened, Standing, Starring, Touch, TouchWho } from "../domain/repoHome"
 import type { Blamed } from "../domain/blame"
+import type { Category, ListedDiscussion } from "../domain/discussions"
 import type { Repository } from "../domain/repositories"
 import type { RunOpening, RunRef } from "../domain/run"
 import type { Strand } from "../domain/strand"
@@ -190,6 +191,25 @@ export type Found = {
 export type FoundIssues = {
   readonly rows: ReadonlyArray<ListedIssue>
   readonly pages: Option.Option<Pages>
+}
+
+/**
+ * One page of a repository's discussions: the rows, every category the repository has, and
+ * whether there is another page.
+ *
+ * The categories come back with the rows rather than from a read of their own, because they are
+ * on the same document: their sidebar names all nine of `vercel/next.js`'s where the first page
+ * of rows mentions five. A category nobody has posted in yet is still a category, and a filter
+ * built from the rows would leave four of them off it.
+ *
+ * `more` and not a {@link Pages} count. Their discussions list prints no total anywhere on the
+ * page and answers no route that does, so the only honest thing to say is whether they drew a
+ * next link.
+ */
+export type FoundDiscussions = {
+  readonly rows: ReadonlyArray<ListedDiscussion>
+  readonly categories: ReadonlyArray<Category>
+  readonly more: boolean
 }
 
 /**
@@ -545,6 +565,41 @@ export class GitHubGateway extends Context.Service<
     readonly rememberedReleases: (
       reference: RepoRef
     ) => Effect.Effect<Option.Option<ReadonlyArray<Version>>, GatewayError>
+
+    /**
+     * One page of a repository's discussions, out of the document GitHub serves it as.
+     *
+     * One request, and it is scraping rather than a choice: their discussions list is the last
+     * large page on github.com still rendered by Rails end to end. Measured on 2026-09-03,
+     * `vercel/next.js/discussions` is 547,066 bytes with two React partials in it, the marketing
+     * header and the keyboard-shortcuts dialog, and neither holds a row. There is no payload to
+     * decode and no persisted query on the page to borrow.
+     *
+     * The category is part of the address rather than of the query, because their own sidebar
+     * links it that way and a reader who arrives on one of those links has it there already.
+     * Everything else a reader can narrow the list by is carried through in `query` untouched,
+     * the way `issueSearch` carries theirs.
+     */
+    readonly discussions: (
+      reference: RepoRef,
+      category: Option.Option<string>,
+      query: string,
+      page: number
+    ) => Effect.Effect<FoundDiscussions, GatewayError>
+
+    /**
+     * The same page as it was last read, without asking GitHub.
+     *
+     * Worth what it is worth on the Actions and Releases tabs. What it is not is a way of
+     * skipping the read: a discussion answered a minute ago is a row that has to change colour,
+     * and the whole point of this screen is which rows are stuck.
+     */
+    readonly rememberedDiscussions: (
+      reference: RepoRef,
+      category: Option.Option<string>,
+      query: string,
+      page: number
+    ) => Effect.Effect<Option.Option<FoundDiscussions>, GatewayError>
 
     /**
      * Every Notice in the reader's inbox, out of one fetch of their own page.

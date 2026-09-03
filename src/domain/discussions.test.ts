@@ -6,6 +6,7 @@ import {
   courtOf,
   discussionIn,
   discussionListIn,
+  docketsOf,
   listAddressOf,
   type ListedDiscussion
 } from "./discussions"
@@ -247,5 +248,47 @@ describe("writing the addresses back", () => {
 
     expect(written).toBe("/acme/tools/discussions/categories/q%26a")
     expect(Option.getOrThrow(discussionListIn(at(written))).category).toEqual(Option.some("q&a"))
+  })
+})
+
+describe("filing a page of rows into Courts", () => {
+  test("draws three headings and never a fourth, because no discussion runs", () => {
+    expect(docketsOf([]).map((one) => one.court)).toEqual(["needs-you", "waiting", "settled"])
+  })
+
+  test("keeps an empty Court, so Settled stays where the reader learnt it was", () => {
+    const dockets = docketsOf([row({ comments: 9 })])
+
+    expect(dockets.map((one) => one.count)).toEqual([1, 0, 0])
+    expect(dockets[1]?.discussions).toEqual([])
+  })
+
+  /*
+   * GitHub sorted the page, or the reader did with `sort:top`. Filing changes which rows sit
+   * together and nothing else, so the order inside a pile is theirs.
+   */
+  test("keeps their order inside each pile", () => {
+    const first = row({ reference: { owner: "a", repo: "b", number: 3 }, comments: 9 })
+    const second = row({ reference: { owner: "a", repo: "b", number: 2 }, answered: true })
+    const third = row({ reference: { owner: "a", repo: "b", number: 1 }, comments: 4 })
+
+    const dockets = docketsOf([first, second, third])
+
+    expect(dockets[0]?.discussions.map((one) => one.reference.number)).toEqual([3, 1])
+    expect(dockets[2]?.discussions.map((one) => one.reference.number)).toEqual([2])
+  })
+
+  test("files every row exactly once", () => {
+    const rows = [
+      row({ comments: 9 }),
+      row({ comments: 0 }),
+      row({ answered: true }),
+      row({ answerable: false }),
+      row({ closed: true })
+    ]
+
+    const filed = docketsOf(rows).reduce((sum, one) => sum + one.count, 0)
+
+    expect(filed).toBe(rows.length)
   })
 })

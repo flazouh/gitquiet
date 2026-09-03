@@ -21,6 +21,7 @@ import {
   GitHubGateway,
   WorkingSetError,
   type Found,
+  type FoundDiscussions,
   type FoundIssues,
   type QueueMethod,
   type Review,
@@ -60,6 +61,12 @@ import type { Pressing, RunOpening, RunRef } from "../domain/run"
 import { isKeptRun, pressOn, runOnPage } from "./runPage"
 import { isKeptStrands, runsOnPage } from "./actionsList"
 import { buildsOnPage, isKeptVersions, versionsOnPage } from "./releasesList"
+import {
+  categoriesOnPage,
+  discussionsOnPage,
+  hasMoreAfter,
+  isKeptDiscussions
+} from "./discussionsList"
 import { isKeptNotices, noticesOnPage } from "./notifications"
 import { asKept, personKept } from "./keptPerson"
 import { personOnPage } from "./person"
@@ -1455,6 +1462,34 @@ const strandsKey = (reference: RepoRef): string =>
 /** A repository's Releases tab, kept under the address its list is read at. */
 const releasesKey = (reference: RepoRef): string =>
   `/${reference.owner}/${reference.repo}/releases`
+
+/**
+ * Where one page of a repository's discussions is, category and query and all.
+ *
+ * Written once and used for both the read and the key it is kept under, so a filtered page and
+ * an unfiltered one can never be handed each other's rows out of the store. The category goes in
+ * the path because that is where GitHub's own sidebar puts it, and `discussions_q` is their name
+ * for the box rather than the `q` every other list on the site uses.
+ */
+const discussionsRoute = (
+  category: Option.Option<string>,
+  query: string,
+  page: number
+): string => {
+  const path = Option.isSome(category)
+    ? `/discussions/categories/${encodeURIComponent(category.value)}`
+    : "/discussions"
+
+  const asked = new URLSearchParams()
+  if (query !== "") asked.set("discussions_q", query)
+  if (page > 1) asked.set("page", String(page))
+
+  const search = asked.toString()
+  return search === "" ? path : `${path}?${search}`
+}
+
+const discussionsKey = (reference: RepoRef, route: string): string =>
+  `/${reference.owner}/${reference.repo}${route}`
 
 /**
  * One of a repository's own pages as the document it is served as.
@@ -3285,6 +3320,63 @@ export const layer = Layer.succeed(GitHubGateway, {
     }),
 
     /**
+     * Their discussions list, read as the document they serve it as.
+     *
+     * One request for the rows, the categories and the paging together, because all three are in
+     * the one document. Their own page spends more than that on the same screen: the row's
+     * hovercard, the vote form and the category menu are each a route of their own, and none of
+     * them is asked here.
+     */
+    discussions: Effect.fn("GitHubGateway.discussions")(function* (
+      reference: RepoRef,
+      category: Option.Option<string>,
+      query: string,
+      page: number
+    ) {
+      const route = discussionsRoute(category, query, page)
+      const document = yield* repoDocument(reference, route)
+
+      const found: FoundDiscussions = {
+        rows: discussionsOnPage(document),
+        categories: categoriesOnPage(document),
+        more: hasMoreAfter(document)
+      }
+
+      // Kept under the route rather than under the repository, so that a category and a search
+      // are never painted with each other's rows while their own read is in the air.
+      yield* Effect.forkDetach(rememberRoute(discussionsKey(reference, route), found))
+
+      return found
+    }),
+
+    rememberedDiscussions: Effect.fn("GitHubGateway.rememberedDiscussions")(function* (
+      reference: RepoRef,
+      category: Option.Option<string>,
+      query: string,
+      page: number
+    ) {
+      const route = discussionsRoute(category, query, page)
+      const raw = yield* recallRoute(discussionsKey(reference, route))
+      if (Option.isNone(raw)) return Option.none<FoundDiscussions>()
+
+      /*
+       * The rows are proved and the rest is taken from the same entry. An entry written before
+       * this shape had `categories` on it would answer `undefined` there and empty the filter,
+       * so the whole entry is refused rather than half-read.
+       */
+      const kept: Partial<FoundDiscussions> = raw.value as Partial<FoundDiscussions>
+      if (!isKeptDiscussions(kept.rows) || !Array.isArray(kept.categories)) {
+        return Option.none<FoundDiscussions>()
+      }
+
+      return Option.some({
+        rows: kept.rows,
+        categories: kept.categories,
+        more: kept.more === true
+      })
+    }),
+
+    /**
      * Their inbox, read as the document they serve it as.
      *
      * One request, and the lightest read on this interface. Their `/notifications` is Rails
@@ -4304,6 +4396,8 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     releases: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     builds: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     rememberedReleases: () => Effect.succeed(Option.none()),
+    discussions: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    rememberedDiscussions: () => Effect.succeed(Option.none()),
     // An empty inbox, which is what a page nobody recorded looks like from here, and
     // nothing written to one: a press answered without a request would be this layer
     // telling a test that GitHub agreed to something nobody asked.
@@ -4452,6 +4546,8 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     releases: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     builds: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     rememberedReleases: () => Effect.succeed(Option.none()),
+    discussions: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
+    rememberedDiscussions: () => Effect.succeed(Option.none()),
     // An empty inbox, which is what a page nobody recorded looks like from here, and
     // nothing written to one: a press answered without a request would be this layer
     // telling a test that GitHub agreed to something nobody asked.

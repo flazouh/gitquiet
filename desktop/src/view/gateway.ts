@@ -485,6 +485,16 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
     rememberedReleases: () => Effect.succeed(Option.none()),
 
     /*
+     * The Discussions tab, and this one is refused for a second reason on top of the
+     * screen not being here. The extension reads it by scraping the document GitHub
+     * serves, and this window has no page to scrape: it reaches GitHub through the
+     * documented API with a token, and that API answers discussions through GraphQL
+     * rather than through the routes this port's other reads use.
+     */
+    discussions: missing("read discussions"),
+    rememberedDiscussions: () => Effect.succeed(Option.none()),
+
+    /*
      * The inbox, a person's pages, the repository list and the activity feed.
      *
      * All of them are about the reader rather than about any one pull request, and
