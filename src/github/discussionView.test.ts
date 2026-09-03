@@ -91,6 +91,26 @@ describe("what everybody said", () => {
     expect(answer?.body).toContain("cacheComponents")
   })
 
+  /*
+   * Their page nests a reply's whole container inside its parent's, so every read on a comment
+   * can reach into the replies underneath it. This one is the case that caught it: the comment
+   * is by `raju-sirigineedi`, whose own name link carries no `author` class, and the three
+   * replies below it have one each. Reading `a.author` off the container signed the comment with
+   * the first reply's author.
+   */
+  test("a comment is read without the replies nested inside it", () => {
+    const first = nine.comments[0]
+
+    expect(first?.author).toBe("raju-sirigineedi")
+    expect(first?.at).toBe("2024-10-14T11:00:13Z")
+    expect(first?.body).toContain("@ShivamArora")
+    expect(first?.replies.map((said) => said.author)).toEqual([
+      "ShivamArora",
+      "raju-sirigineedi",
+      "ShivamArora"
+    ])
+  })
+
   test("a reply carries the same facts as a comment", () => {
     const reply = nine.comments[0]?.replies[0]
 

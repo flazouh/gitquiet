@@ -10,6 +10,7 @@ import {
   spokenOn,
   weighingOf
 } from "../domain/discussions"
+import { Folded } from "./Folded"
 import { GitHubHtml } from "./GitHubHtml"
 import { Section } from "./Section"
 import { ageOf, momentOf } from "./when"
@@ -92,7 +93,7 @@ const Spoken = ({ comment, where }: { readonly comment: Comment; readonly where:
   <li className="border-t border-edge first:border-t-0">
     <Said said={comment} where={where} marked={comment.isAnswer} />
     {comment.replies.length === 0 ? null : (
-      <ul className="ml-6 border-l border-edge">
+      <ul className="ml-6 list-none border-l border-edge">
         {comment.replies.map((reply) => (
           <li key={reply.id}>
             <Said said={reply} where={where} marked={reply.isAnswer} />
@@ -171,8 +172,13 @@ export const Discussion = ({ snapshot }: { readonly snapshot: DiscussionSnapshot
           {snapshot.closed ? <span className="font-semibold">Closed</span> : null}
           {snapshot.locked ? <span className="font-semibold">Locked</span> : null}
         </div>
-        <div className="px-3 pb-2 pt-1 text-sm">
-          <GitHubHtml html={snapshot.body} />
+        {/* Folded, because a body of three hundred lines puts the answer a screen below it,
+            and on this page the answer is what somebody came for. `vercel/next.js` #70178 is
+            700 pixels of question before the first reply. */}
+        <div className="text-sm">
+          <Folded>
+            <GitHubHtml html={snapshot.body} />
+          </Folded>
         </div>
       </Section>
 
@@ -204,7 +210,9 @@ export const Discussion = ({ snapshot }: { readonly snapshot: DiscussionSnapshot
         {snapshot.comments.length === 0 ? (
           <p className="px-3 py-2 text-sm text-ink-muted">Nobody has replied.</p>
         ) : (
-          <ul>
+          /* Markers off explicitly. The bodies below are drawn inside `markdown-body`, whose
+             stylesheet gives every list its bullet back, and it reaches these two as well. */
+          <ul className="list-none">
             {snapshot.comments.map((comment) => (
               <Spoken key={comment.id} comment={comment} where={where} />
             ))}

@@ -80,19 +80,43 @@ const namedWithin = (container: Element): Named | null => {
 }
 
 /**
- * Who wrote it, off their own class for the name.
+ * One comment with its replies taken out of it.
  *
- * `a.author` and not the first user link in the comment. A reply's first user link is the avatar,
- * which is an anchor around an image and reads as an empty name, and the links after it are the
- * `@mentions` inside what the person wrote. So the fallback is scoped out of the body as well:
- * a comment whose first word is a mention would otherwise be signed by the person mentioned.
+ * Their page nests a reply's whole container inside its parent's, so every read on a top-level
+ * comment can reach into the replies underneath it. That is not a hypothetical: on
+ * `vercel/next.js` #70178 the first comment is by `raju-sirigineedi` and its own name link
+ * carries no `author` class, while the three replies below it do — so asking the container for
+ * `a.author` signed that comment with a reply's author.
+ *
+ * A clone rather than a selector clever enough to avoid it, because the same trap is set for the
+ * body, the moment, the vote count and the answer mark, and one of those would have been missed.
  */
-const authorOf = (container: Element): Element | null => {
-  const named = container.querySelector("a.author[href]")
+const withoutReplies = (container: Element): Element => {
+  const own = container.cloneNode(true) as Element
+  for (const nested of [
+    ...own.querySelectorAll('.js-nested-comment-container, [id^="child-comments-"]')
+  ]) {
+    nested.remove()
+  }
+
+  return own
+}
+
+/**
+ * Who wrote it, off their own class for the name where they use one.
+ *
+ * A reply's name link carries `author` and a top-level comment's does not, so the class cannot be
+ * insisted on. The fallback takes the first user link that says a name and is not inside what the
+ * person wrote: their first link is the avatar, an anchor around an image that reads as an empty
+ * name, and the ones after it are the `@mentions` in the text. A comment beginning with a mention
+ * would otherwise be signed by whoever it mentions.
+ */
+const authorOf = (own: Element): Element | null => {
+  const named = own.querySelector("a.author[href]")
   if (named !== null) return named
 
   return (
-    [...container.querySelectorAll('a[data-hovercard-type="user"][href]')].find(
+    [...own.querySelectorAll('a[data-hovercard-type="user"][href]')].find(
       (one) => (one.textContent ?? "").trim() !== "" && one.closest(".js-comment-body") === null
     ) ?? null
   )
@@ -110,10 +134,16 @@ const saidIn = (container: Element): Reply | null => {
   const named = namedWithin(container)
   if (named === null || named.id === "") return null
 
-  const who = authorOf(container)
-  const when = container.querySelector("relative-time[datetime]")
-  const body = container.querySelector(".js-comment-body")
-  const upvote = container.querySelector('button[id^="discussion-upvote-button-"]')
+  /*
+   * Every field is read from the comment with its replies removed. See {@link withoutReplies}:
+   * their page nests a reply inside its parent, so the parent's first of anything can be the
+   * child's.
+   */
+  const own = withoutReplies(container)
+  const who = authorOf(own)
+  const when = own.querySelector("relative-time[datetime]")
+  const body = own.querySelector(".js-comment-body")
+  const upvote = own.querySelector('button[id^="discussion-upvote-button-"]')
 
   return {
     id: named.id,
@@ -126,7 +156,7 @@ const saidIn = (container: Element): Reply | null => {
      * rather than off the answer link in the header, because the header's link is an anchor to
      * a permalink and this has to hold for a page where GitHub changes what may be marked.
      */
-    isAnswer: container.querySelector(".timeline-chosen-answer") !== null
+    isAnswer: own.querySelector(".timeline-chosen-answer") !== null
   }
 }
 
