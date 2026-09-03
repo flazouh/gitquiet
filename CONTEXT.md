@@ -299,3 +299,13 @@ one at a time in Focus.
 
 **Review Pass**: one traversal of a Queue, from entering Focus to the Queue being
 empty.
+
+**Discussion**, **Category**, **Question**, **Answer**, **Working Answer**, **Me Too**: the
+Discussions surface, whose whole vocabulary sits in `docs/spec/discussions.md` until a screen
+answers to it. A discussion can be owed to somebody exactly as an issue can — a question nobody
+answered, an answer nobody came back to read — and it is the one kind of work here that can be
+owed and has no Court, because GitHub gives it no list to have one on: there is no
+`/discussions` for a signed-in person and no filter on either dashboard that would make one.
+The addresses of every page of it and the rules that need none of GitHub's markup are built, in
+`src/domain/discussions.ts`. Nothing reads a discussions page yet, and the spec's last section
+says what to capture first and why nothing was written against remembered markup.
