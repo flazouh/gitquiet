@@ -95,7 +95,16 @@ const Screen = ({
           onClick={() =>
             Effect.runFork(
               live
-                .meanwhile((rows) => rows.map((row) => (row === "open" ? "closed" : row)), change())
+                .meanwhile(
+                  {
+                    change: (rows: ReadonlyArray<string>) =>
+                      rows.map((row) => (row === "open" ? "closed" : row)),
+                    // GitHub has caught up once no row still says open, which is
+                    // what this stand-in for a close leaves behind.
+                    until: (rows: ReadonlyArray<string>) => !rows.includes("open")
+                  },
+                  change()
+                )
                 .pipe(
                   Effect.catchCause((cause) =>
                     Effect.sync(() => {

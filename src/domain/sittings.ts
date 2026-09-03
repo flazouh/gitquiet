@@ -314,6 +314,45 @@ export const afterDoing = (
   )
 }
 
+/**
+ * Whether the Working Set already says this pull request is in this state.
+ *
+ * The question a surface asks of the read that follows one of its own writes:
+ * has GitHub caught up? Their search index is behind a write by seconds to
+ * minutes, so a list arriving straight after a close routinely still calls the
+ * pull request open, and something has to be able to tell that apart from a list
+ * that has genuinely caught up.
+ *
+ * A row that is no longer in the Working Set at all counts as agreement. Closing
+ * a pull request is exactly the sort of thing that takes it off every shelf the
+ * reader is on, and a list it has left is not a list still disagreeing about it.
+ */
+export const saysItIs = (
+  sittings: ReadonlyArray<Sitting>,
+  reference: PullRequestRef,
+  state: PullRequestState
+): boolean => {
+  const looking = (pile: Piled): boolean | undefined => {
+    if (isSameOne(pile, reference)) return pile.one.state === state
+
+    for (const higher of pile.above) {
+      const found = looking(higher)
+      if (found !== undefined) return found
+    }
+
+    return undefined
+  }
+
+  for (const sitting of sittings) {
+    for (const pile of sitting.piles) {
+      const found = looking(pile)
+      if (found !== undefined) return found
+    }
+  }
+
+  return true
+}
+
 const anyIn = (pile: Piled, sieve: Sieve, now: number): boolean =>
   answers(pile.one, sieve, now) || pile.above.some((higher) => anyIn(higher, sieve, now))
 

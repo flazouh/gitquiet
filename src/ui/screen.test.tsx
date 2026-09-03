@@ -108,6 +108,42 @@ describe("a verb pressed on the merge card", () => {
     await waitFor(() => expect(screen.getByText(/ended without landing/)).toBeDefined())
   })
 
+  test("keeps the card closed while GitHub's page data is still behind", async () => {
+    /*
+     * The success path, which neither test around this one walks.
+     *
+     * GitHub's page data lags a write by a second or two, so the read this screen
+     * sends out the moment a close succeeds is the one most likely to still
+     * describe the pull request as open. Believing it took the card straight back
+     * to offering Close on something the reader had just closed.
+     *
+     * The `load` here is that lag written down: it never stops saying open.
+     */
+    let reads = 0
+
+    render(
+      <PullRequestScreen
+        reference={reference}
+        load={() => {
+          reads += 1
+          return Effect.succeed({ snapshot: ready() })
+        }}
+        fetchDiffs={() => Effect.succeed([])}
+        onStepAside={() => {}}
+        actions={{ close: () => Effect.void }}
+      />
+    )
+
+    await waitFor(() => expect(screen.getByRole("region", { name: "Merge" })).toBeDefined())
+
+    await openTheRest()
+    await userEvent.click(rest(/Close pull request/))
+    await userEvent.click(rest(/Confirm/))
+
+    await waitFor(() => expect(reads).toBeGreaterThan(1))
+    expect(screen.getByText(/ended without landing/)).toBeDefined()
+  })
+
   test("puts the card back where GitHub refused it", async () => {
     const ask = held()
 
