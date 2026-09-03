@@ -1,0 +1,80 @@
+<!--
+  Synthetic, not captured. The real gist page was fetched live on 2026-09-02 to
+  confirm the class names and structure below — `.gisthead`, `.file`,
+  `.gist-blob-name`, `.blob-wrapper`, `.markdown-body`, `<relative-time>` — and
+  then this was hand-written with placeholder content, for the reason
+  `gistList.html` gives: a real capture carries somebody's own files.
+  See `docs/spec/gists.md`.
+-->
+<html>
+<body>
+<div class="gisthead pagehead">
+  <div class="d-flex">
+    <h1 class="wb-break-word f3 text-normal">
+      <span class="author"><a href="/octocat">octocat</a></span>
+      <span class="mr-1">/</span>
+      <strong class="css-truncate-target">deploy-notes.md</strong>
+      <span title="Only those with the link can see this gist." class="Label">Secret</span>
+    </h1>
+    <div class="color-fg-muted f6">
+      Last active
+      <relative-time tense="past" datetime="2026-08-27T00:09:42+02:00">August 27, 2026</relative-time>
+    </div>
+    <div class="gist-count-links">
+      <a href="/octocat/aaa111/revisions">4 revisions</a>
+      <a href="/octocat/aaa111/forks">6 forks</a>
+      <a href="/octocat/aaa111/stargazers">4 stars</a>
+      <a href="#comments">2 comments</a>
+    </div>
+  </div>
+  <div class="gist-snippet-meta">
+    <span class="f6 color-fg-muted">Notes on rolling out the staging environment</span>
+  </div>
+</div>
+
+<div id="gist-pjax-container">
+  <div id="file-deploy-notes-md" class="file my-2">
+    <div class="file-header">
+      <div class="file-info">
+        <a class="wb-break-all" href="#file-deploy-notes-md">
+          <strong class="user-select-contain gist-blob-name css-truncate-target">
+            deploy-notes.md
+          </strong>
+        </a>
+      </div>
+      <div class="file-actions">
+        <a class="btn btn-sm" href="/octocat/aaa111/raw/abc/deploy-notes.md">Raw</a>
+      </div>
+    </div>
+    <div itemprop="text" class="Box-body readme blob-wrapper data type-markdown">
+      <article class="markdown-body entry-content container-lg">
+        <p>Run migrations before the deploy step, never after.</p>
+      </article>
+    </div>
+  </div>
+
+  <div id="file-retry-py" class="file my-2">
+    <div class="file-header">
+      <div class="file-info">
+        <a class="wb-break-all" href="#file-retry-py">
+          <strong class="user-select-contain gist-blob-name css-truncate-target">
+            retry.py
+          </strong>
+        </a>
+      </div>
+      <div class="file-actions">
+        <a class="btn btn-sm" href="/octocat/aaa111/raw/abc/retry.py">Raw</a>
+      </div>
+    </div>
+    <div itemprop="text" class="Box-body blob-wrapper data type-python">
+      <table class="highlight tab-size">
+        <tbody>
+          <tr><td class="blob-code">def exponential_backoff(attempt):</td></tr>
+          <tr><td class="blob-code">    return min(2 ** attempt, 60)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</body>
+</html>

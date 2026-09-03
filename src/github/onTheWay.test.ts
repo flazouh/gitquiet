@@ -14,8 +14,21 @@ describe("where a tab is going", () => {
     )
   })
 
-  test("is nothing for the tabs beside it, which stay GitHub's", () => {
-    expect(goingTo("https://github.com/microsoft/vscode/pull/327442/files")).toEqual(Option.none())
+  test("is the same pull request on their Files tab, which is this page too", () => {
+    // Worth warming for exactly the same reason the conversation is: a reader on
+    // that address is about to be shown this screen. See `PULL_REQUEST_PATH`.
+    expect(goingTo("https://github.com/microsoft/vscode/pull/327442/files")).toEqual(
+      Option.some(draft)
+    )
+  })
+
+  test("is nothing for the two tabs that stay GitHub's", () => {
+    expect(goingTo("https://github.com/microsoft/vscode/pull/327442/commits")).toEqual(
+      Option.none()
+    )
+    expect(goingTo("https://github.com/microsoft/vscode/pull/327442/checks")).toEqual(
+      Option.none()
+    )
   })
 
   test("is nothing for their other pages", () => {

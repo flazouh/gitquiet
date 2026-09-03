@@ -23,11 +23,43 @@ export const PullRequestRef = Schema.Struct({
 export type PullRequestRef = typeof PullRequestRef["Type"]
 
 /**
- * Only the pull request's own page, not the tabs beside it. Files, Commits and
- * Checks are GitHub's, and they stay GitHub's: this interface replaces the
- * conversation, which is where knowing what needs you is hard.
+ * The pull request's own page, and the Files tab beside it.
+ *
+ * Commits and Checks stay GitHub's, and they are good: a commit list and a check
+ * run are both things they already do well. Files used to be on that list, on the
+ * same reasoning, and the public record does not support it — see
+ * `research/pages-to-replace.md` in the notes repository, which ranks this the
+ * first page left worth replacing and calls the evidence very high.
+ *
+ * GitHub's own engineering post about that tab, 3 April 2026: a JavaScript heap
+ * over a gigabyte on large pull requests, more than four hundred thousand DOM
+ * nodes, an INP around 450ms on a ten-thousand-line split diff, and a hard cap at
+ * one to three thousand files. Their own fix was to virtualize p95 diffs, which
+ * took INP from 275–700ms down to 40–80ms — an admission of the size of the
+ * problem rather than a reason to leave the page alone.
+ *
+ * It is also the review surface, which is this product's whole vision. This
+ * interface already draws every file of a pull request inside its own screen; all
+ * that address ever needed was to be read.
  */
-const PULL_REQUEST_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)\/?$/
+const PULL_REQUEST_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:\/(?:files|changes))?\/?$/
+
+/**
+ * Whether an address is the Files tab rather than the conversation.
+ *
+ * The same page either way — one screen draws both — and the difference is only
+ * what it opens on. A reader who pressed "Files changed" asked for the diff, and
+ * showing them the description instead is answering a question they did not ask.
+ *
+ * Two words for it, because GitHub is mid-rename: `/files` is what every link ever
+ * written points at and what their own redirect still accepts, and `/changes` is
+ * what that redirect now lands on. Read live on 2026-09-02, following `/files`
+ * arrives at `/changes`. Reading only the new one would ignore every bookmark and
+ * every link in every issue; reading only the old one would ignore the address the
+ * reader is actually on.
+ */
+export const opensOnFiles = (pathname: string): boolean =>
+  /^\/[^/]+\/[^/]+\/pull\/\d+\/(?:files|changes)\/?$/.test(pathname)
 
 export const fromPathname = (pathname: string): Option.Option<PullRequestRef> => {
   const match = PULL_REQUEST_PATH.exec(pathname)

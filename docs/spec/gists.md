@@ -1,18 +1,19 @@
 # Spec: Gists
 
-Status: built. Both slices are shipped and verified live on a real account: the secret/private
-banner, the search bar reaching file content and stored Labels, and Label/Name editing
-persisted in `storage.sync`. The vocabulary below is in `CONTEXT.md`. Open Questions —
-click-to-filter-by-Label chips, pagination depth, starred gists — are still open. Evidence is
-in the notes repository's `research/gist-pain-points.md`, five sweeps across Hacker News, Reddit, GitHub Community
-discussions, and thirteen years of third-party tooling.
+Status: built, and since rebuilt as screens rather than as additions to GitHub's page — see
+`plans/007-give-the-gists-a-screen.md` for why that changed and what it cost. All four pain
+points in the research are answered, all three Open Questions are closed, and two more gaps
+found in a later sweep are answered as well. Verified live on a real account. The vocabulary
+below is in `CONTEXT.md`. Evidence is in the notes repository's `research/gist-pain-points.md`,
+five sweeps across Hacker News, Reddit, GitHub Community discussions, and thirteen years of
+third-party tooling.
 
 Covers `gist.github.com`, a different host from `github.com`. Two slices, in the order they
 ship: the secret/private warning first, because it is small and answers a safety complaint
 rather than a convenience one; organizing and searching a reader's own gists second, because it
 is the larger build and the one every other slice's evidence agrees is the biggest gap.
 
-## Why this is a different kind of page for this extension
+## Why this was a different kind of page, and no longer is
 
 Every other screen this extension draws stands on a React application GitHub built in the last
 few years — `code-view`, `pull-requests`, `issues-react` — and takes over a region of it, hiding
@@ -20,16 +21,18 @@ what GitHub drew and putting its own in the same place. `gist.github.com`, read 
 2026-09-02, has no `react-app` anywhere on it. It is Rails-rendered with `gist-pjax-container`
 and `gisthead`, the same vintage of markup the rest of GitHub left behind years ago.
 
-That changes what this extension does here. There is no region to take over and no reason to:
-GitHub's own gist page is plain, readable, and not slow. The two slices below add to the page
-rather than replacing any of it — a banner, a filter bar — which is a smaller and different kind
-of integration than every place in `src/ui/place.ts`. See Implementation Decisions.
+This spec originally read that as a reason not to take the page: no region to take over, and a
+page that is "plain, readable, and not slow". Two things have since made that argument wrong.
 
-It is also a different host, which `wxt.config.ts`'s `host_permissions: ["*://github.com/*", ...]`
-does not cover — a bare host in a Chrome match pattern does not include a different subdomain.
-Building here means a new host permission and a new content script, which is a Chrome Web Store
-re-review and a re-consent prompt for every installed reader, not a change hidden inside an
-existing grant.
+`plans/006-stand-on-the-body.md` established that a full-replacement screen does not need a
+React application under it at all — it stands on `document.body` and hides by position. And the
+host permission this spec worried about paying for is paid: `*://gist.github.com/*` is in
+`host_permissions` and a content script already matches it.
+
+What was left was the third reason, that GitHub's gist page is fine. It is fine. It is also not
+this interface, and a reader who has spent the day in this one can tell. So the gist pages are
+screens now, standing the way `/pulls` and `/notifications` do, and the one page that is still
+GitHub's is the editor — which gets room instead. See Implementation Decisions.
 
 ## Slice 1: the secret/private warning
 
@@ -161,20 +164,48 @@ rather than the list — and is not in this slice.
 
 ### A second, smaller content script
 
-`src/entrypoints/shell.content.ts` is built entirely around `src/ui/place.ts` and `mount.ts`'s
-takeover machinery — finding a React application's region, hiding it, standing something else
-in its place, and reversing that cleanly when GitHub swaps the page underneath a reader. None of
-that exists to solve on `gist.github.com`: there is no region to take over, because nothing here
-replaces any part of GitHub's page. So this is a second, separate content script,
-`src/entrypoints/gist.content.ts`, matched only to `*://gist.github.com/*`, that never imports
-`place.ts` or `mount.ts` and instead appends: a banner node beside GitHub's own `.Label`, a bar
-above GitHub's own gist rows.
+`src/entrypoints/gist.content.tsx` is matched only to `*://gist.github.com/*` and is the small
+shell that stands these screens. Separate from `shell.content.ts`, which carries press routing,
+reading ahead and prepared screens for a site this one does not have.
+
+It uses `mount.ts` and `shell/screen.tsx`, which the first version of this spec ruled out. What
+it still never imports is `place.ts`: that module is `github.com`'s router, where `/{owner}`
+names a person and here it names a gist list. The Places live in `src/ui/gistPlace.ts` instead,
+and both stand on `body` — the full-replacement kind, per `plans/006`.
 
 ### Addressing
 
-Two addresses, read by a domain parser the same shape as `blameIn` and `repoHomeIn`:
-`gistViewIn(url)` for `/{owner}/{gistId}`, and `gistListIn(url)` for `/{owner}` and
-`/{owner}?page={n}`. Both host-gated to `gist.github.com` rather than `github.com`.
+Four addresses, read by domain parsers the same shape as `blameIn` and `repoHomeIn`, all
+host-gated to `gist.github.com` rather than `github.com`:
+
+- `gistListIn(url)` for `/{owner}` and `/{owner}?page={n}` — a reader's Own Gists.
+- `gistViewIn(url)` for `/{owner}/{gistId}` — one gist. A third segment is one of their own
+  sub-pages, forks or revisions, and stays theirs.
+- `isGistStarred(url)` for `/starred`.
+- `isGistEditing(url)` for `/` and `/{owner}/{gistId}/edit` — the two forms, which get a
+  stylesheet and no screen.
+
+### Reading the list whole
+
+`readOwnGists` follows their own "Older" link and holds every page, to a depth of thirty. The
+page the reader is already on is not re-fetched: the content script is running in it. A page
+that fails keeps what came before it and the screen says the list is short, because a list
+quietly missing its oldest gists is a search that quietly says no about a gist the reader is
+sure they wrote.
+
+This is what answers "browsing through 20 pages of 3-line excerpts", and it is what makes every
+filter on the screen mean what it says.
+
+### Their editor gets room, not a screen
+
+The two forms are forms, and GitHub already knows how to post them. Rebuilding one would mean
+owning gist creation, which is a write with no route this extension has any business inventing
+a second way to make. `src/ui/gistEditing.css` only changes how much of the window their own
+form may use: measured live in a 1256 by 888 window, their editor is 978 by 322 and becomes
+1222 by 577.
+
+The same reasoning keeps Edit, Delete, Star and Fork as links to GitHub's own pages on the gist
+screen. Every one of them is a write.
 
 ### Where a Label and a Name live
 
@@ -192,16 +223,30 @@ thread is the worked case this has to answer for. Read lazily, the first time a 
 rather than on every visit to the list, and kept once read: a gist's content does not change
 without a new revision, so a second search moments later costs nothing more.
 
-## Open Questions
+## Open Questions, all three now closed
 
-- **How to write and read a Label's control.** Whether it is a small popover per row, matching
-  `Menu.tsx`'s pattern elsewhere in this codebase, or an inline chip strip, is undecided.
-- **Pagination depth.** GitHub's list page carries ten rows a page. Whether search and Label
-  filtering read every page up front, or only what has been scrolled to, is undecided — the
-  releases screen's own open question about how deep to read applies here as well.
-- **Starred gists.** The list's own nav read live on 2026-09-02 shows only "All gists," with no
-  visible "Starred" tab in the current UI. Whether starred gists are a third address this extension
-  reads is undecided until that address is found and probed.
+- **How to write and read a Label's control.** Settled as an inline editor folded behind
+  "Label / name…" on each row, with a `datalist` of every Label this reader has used before, so
+  one typed once is not typed twice.
+- **Pagination depth.** Settled as every page, to a bound of thirty. See "Reading the list
+  whole" above.
+- **Starred gists.** Settled: `/starred` serves the same `.gist-snippet` rows and the same pager
+  as a reader's own list, so the same reader and the same screen answer it. It never calls them
+  "your gists".
+
+## Considered and not built
+
+- **Bulk delete.** A real gap with real evidence — a whole webapp (`gist-cleaner`) exists for
+  it, and at least five "delete all your gists" scripts are themselves published as gists. Not
+  built, for the reason the editor is not rebuilt: it is a write, and this extension does not
+  invent second routes for writes. The client-side half of the complaint is finding the junk,
+  and that is what search, Labels and the five orders are for.
+- **Sort by creation date**, asked for in `isaacs/github#582`. Their row prints one date and
+  which date it is depends on the sort their page was already serving, so honouring it would be
+  a list that silently reorders itself into a lie.
+- **Image paste in the editor, pull requests on gists, org-owned gists.** All three need
+  GitHub's server. `#7923` at 2,086 upvotes is the largest number in the whole survey and is
+  still out of reach.
 
 ## Evidence
 

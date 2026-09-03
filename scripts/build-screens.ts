@@ -104,6 +104,7 @@ const result = await build({
         "working-set": here("../src/screens/workingSet.tsx"),
         "repo-pulls": here("../src/screens/repoPulls.tsx"),
         "repo-home": here("../src/screens/repoHome.tsx"),
+        compare: here("../src/screens/compare.tsx"),
         issue: here("../src/screens/issue.tsx"),
         "repo-issues": here("../src/screens/repoIssues.tsx"),
         raise: here("../src/screens/raise.tsx"),

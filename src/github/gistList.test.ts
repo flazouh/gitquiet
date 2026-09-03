@@ -62,4 +62,30 @@ describe("a reader's own gist list, read out of their page", () => {
   test("reads nothing off a page with no gist rows", () => {
     expect(rowsOnPage(pageOf("<html><body><p>Empty</p></body></html>")).length).toBe(0)
   })
+
+  /**
+   * Parity: their row prints four counts and a screen replacing it prints them too.
+   *
+   * Matched by where each link points rather than by its position in the list, because
+   * their row omits a zero on some pages and prints it on others — reading the third
+   * `<li>` would be reading whichever count happened to survive.
+   */
+  test("reads the four counts their row prints", () => {
+    const [first, second, third] = rowsOnPage(pageOf(html))
+
+    expect(first).toMatchObject({ files: 1, forks: 6, comments: 2, stars: 4 })
+    expect(second).toMatchObject({ files: 1, forks: 0, comments: 0, stars: 0 })
+    expect(third).toMatchObject({ files: 2, forks: 1, comments: 5, stars: 12 })
+  })
+
+  test("counts nothing where their row prints no such link", () => {
+    const bare = html.replace(/<li class="d-inline-block">[\s\S]*?<\/li>/g, "")
+
+    expect(rowsOnPage(pageOf(bare))[0]).toMatchObject({
+      files: 0,
+      forks: 0,
+      comments: 0,
+      stars: 0
+    })
+  })
 })

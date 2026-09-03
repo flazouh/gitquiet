@@ -1,0 +1,52 @@
+<!--
+  Synthetic, not captured. The real fragment was fetched live on 2026-09-02 from
+  `/{owner}/{repo}/compare/file-list?range={base}...{head}` to confirm the class
+  names and structure below — `#toc`, `li`, `.diffstat`, `.color-fg-success`,
+  `.color-fg-danger`, `a[href^="#diff-"]`, the `<svg title>` naming the change,
+  and the "Showing N changed files with A additions and D deletions." summary —
+  and then this was hand-written with placeholder paths, for the reason
+  `gistList.html` gives. See `plans/008-the-two-pages-left.md`.
+-->
+<html>
+<body>
+<div id="diff">
+  <div id="toc">
+    <div class="toc-diff-stats">
+      Showing <strong>3 changed files</strong> with <strong>128 additions</strong> and
+      <strong>9 deletions</strong>.
+    </div>
+    <ul>
+      <li><span>Split</span></li>
+      <li><span>Unified</span></li>
+      <li>
+        <span class="diffstat float-right">
+          <span class="color-fg-success">+82</span>
+          <span class="color-fg-danger">−7</span>
+          <a href="#diff-aaa111" class="tooltipped" aria-label="89 lines changed"></a>
+        </span>
+        <svg title="modified" aria-hidden="true"></svg>
+        <a class="Link--primary" href="#diff-aaa111">src/domain/gist.ts</a>
+      </li>
+      <li>
+        <span class="diffstat float-right">
+          <span class="color-fg-success">+46</span>
+          <span class="color-fg-danger">−0</span>
+          <a href="#diff-bbb222" class="tooltipped" aria-label="46 lines changed"></a>
+        </span>
+        <svg title="added" aria-hidden="true"></svg>
+        <a class="Link--primary" href="#diff-bbb222">plans/008-the-two-pages-left.md</a>
+      </li>
+      <li>
+        <span class="diffstat float-right">
+          <span class="color-fg-success">+0</span>
+          <span class="color-fg-danger">−2</span>
+          <a href="#diff-ccc333" class="tooltipped" aria-label="2 lines changed"></a>
+        </span>
+        <svg title="removed" aria-hidden="true"></svg>
+        <a class="Link--primary" href="#diff-ccc333">src/ui/gistSearch.ts</a>
+      </li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

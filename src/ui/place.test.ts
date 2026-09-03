@@ -68,13 +68,16 @@ const ADDRESSES: ReadonlyArray<readonly [string, Place]> = [
   ["/facebook/react", REPO_HOME],
   ["/facebook/react/tree/main/src", REPO_HOME],
   ["/facebook/react/blame/main/README.md", BLAME],
+  // Their Files tab is the same screen as the conversation, opened on the diff.
+  ["/facebook/react/pull/1749/files", CONVERSATION],
 ];
 
 /** Pages of GitHub's that this extension has no screen for, and must not claim. */
 const THEIRS: Array<string> = [
-  // The tabs beside a pull request are GitHub's on purpose: this interface replaces
-  // the conversation, and Files, Commits and Checks are theirs.
-  "/facebook/react/pull/1749/files",
+  // Two of the three tabs beside a pull request are GitHub's on purpose. Files is
+  // the conversation's own page now — see `PULL_REQUEST_PATH` for the evidence.
+  "/facebook/react/pull/1749/commits",
+  "/facebook/react/pull/1749/checks",
   // The two pages under the same word as the inbox. Neither lists a Notice: one lists the
   // threads the reader is subscribed to and the other lists repositories.
   "/notifications/subscriptions",
