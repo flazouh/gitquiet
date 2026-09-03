@@ -3,7 +3,7 @@ import { chosenView } from "@/app/settings"
 import { compareIn, fileListRoute, type Changed, type Comparing } from "@/domain/compare"
 import { changedInCompare } from "@/github/compare"
 import type { View } from "@/domain/Settings"
-import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { reportError } from "@/observability/report"
 import { standAScreen, type Standing } from "@/shell/screen"
 import { settings } from "@/shell/supplied"
 import { CompareScreen } from "@/ui/CompareScreen"
@@ -40,7 +40,6 @@ const readFileList = (comparing: Comparing): Effect.Effect<ReadonlyArray<Changed
   })
 
 export const start = (): void => {
-  initialiseErrorReporting("compare")
 
   const store = settings()
   let view: View = "ours"

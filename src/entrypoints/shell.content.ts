@@ -24,7 +24,7 @@ import { isHome } from "@/domain/pages";
 import { elsewhereThan } from "@/domain/PullRequestRef";
 import { noteArrival } from "@/github/arrival";
 import { layer as gatewayLayer } from "@/github/GitHubGateway";
-import { initialiseErrorReporting, reportError } from "@/observability/sentry";
+import { reportError } from "@/observability/report";
 import type { View } from "@/domain/Settings";
 import { browserSettings } from "@/settings/browserStore";
 import {
@@ -273,7 +273,6 @@ export default defineContentScript({
   main() {
     if (!claimShell(document)) return;
 
-    initialiseErrorReporting("prefetch");
 
     // Everything below is in aid of an interface that a reader can turn off,
     // and none of it is worth a single request when they have. Watched as well

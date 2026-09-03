@@ -6,7 +6,7 @@ import { chosenView } from "@/app/settings"
 import type { RepoRef } from "@/domain/PullRequestRef"
 import { type Raised, type Raising, raisingIn, seeding } from "@/domain/raising"
 import type { View } from "@/domain/Settings"
-import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { reportError } from "@/observability/report"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { goTo } from "@/ui/going"
@@ -80,7 +80,6 @@ export const start = (): void => {
   // of their form on the screen.
   markPage(document, RAISE)
 
-  initialiseErrorReporting("raise")
 
   const store = settings()
 

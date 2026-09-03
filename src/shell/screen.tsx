@@ -1,7 +1,7 @@
 import { Effect, Fiber, Option } from "effect"
 import type { ReactNode } from "react"
 import { createRoot, type Root } from "react-dom/client"
-import { reportError } from "../observability/sentry"
+import { reportError } from "../observability/report"
 import { whenAnotherBarStands } from "../ui/barSlot"
 import { runWhenIdle } from "../ui/idle"
 import {

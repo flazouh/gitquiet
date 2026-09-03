@@ -8,7 +8,7 @@ import { forgetIntent, intendedPath } from "@/app/intent"
 import { issueDrawn } from "@/app/rows"
 import { fromPathname, type IssueRef } from "@/domain/issues"
 import type { GitHubGateway } from "@/ports/GitHubGateway"
-import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { reportError } from "@/observability/report"
 import type { View } from "@/domain/Settings"
 import { chosenView, rememberView } from "@/app/settings"
 import { prepareAScreen, standAScreen, type Standing } from "@/shell/screen"
@@ -217,7 +217,6 @@ export const start = (): void => {
   // written per page and hang on this.
   markPage(document, ISSUE)
 
-  initialiseErrorReporting("content-script")
 
   const store = settings()
   const arriving = preparedArrival()

@@ -3,7 +3,7 @@ import { rememberedRepositories } from "@/app/destinations"
 import { loadCommit, loadCommitDiffs, rememberedCommit } from "@/app/pullRequest"
 import { fromPathname, type CommitRef } from "@/domain/CommitRef"
 import type { CommitDetail } from "@/domain/PullRequest"
-import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { reportError } from "@/observability/report"
 import type { View } from "@/domain/Settings"
 import { chosenView, rememberView } from "@/app/settings"
 import { standAScreen } from "@/shell/screen"
@@ -86,7 +86,6 @@ export const start = (): void => {
   // for one firing on the other takes the title row off every pull request.
   markPage(document, COMMIT)
 
-  initialiseErrorReporting("content-script")
 
   const store = settings()
 
