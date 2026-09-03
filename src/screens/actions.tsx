@@ -6,7 +6,7 @@ import { loadStrands, rememberedStrands } from "@/app/strands"
 import type { RepoRef } from "@/domain/PullRequestRef"
 import type { View } from "@/domain/Settings"
 import { actionsIn, type Strand } from "@/domain/strand"
-import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { reportError } from "@/observability/report"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
@@ -95,7 +95,6 @@ export const start = (): void => {
   // list on the screen.
   markPage(document, ACTIONS)
 
-  initialiseErrorReporting("actions")
 
   const store = settings()
 

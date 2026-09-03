@@ -4,7 +4,7 @@ import { type TheirList, theirWholeList } from "@/app/personRepos"
 import { chosenView } from "@/app/settings"
 import { type PersonPage, personReposIn } from "@/domain/person"
 import type { View } from "@/domain/Settings"
-import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { reportError } from "@/observability/report"
 import { held, standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { theirColumn } from "./theirColumn"
@@ -82,7 +82,6 @@ export const start = (): void => {
   // hang on this attribute. A frame late is a frame of their list on the screen.
   markPage(document, PERSON_REPOS)
 
-  initialiseErrorReporting("person-repos")
 
   const store = settings()
 

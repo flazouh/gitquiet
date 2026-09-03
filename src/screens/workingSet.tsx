@@ -11,7 +11,7 @@ import { loadWorkingSet, rememberedWorkingSet } from "@/app/workingSet";
 import { fromPathname, type PullRequestRef } from "@/domain/PullRequestRef";
 import type { RowDoing } from "@/domain/doable";
 import type { Sitting } from "@/domain/sittings";
-import { initialiseErrorReporting, reportError } from "@/observability/sentry";
+import { reportError } from "@/observability/report";
 import type { View } from "@/domain/Settings";
 import { chosenView } from "@/app/settings";
 import { isHome, showsWorkingSet } from "@/domain/pages";
@@ -299,7 +299,6 @@ export const start = (): void => {
   const arrivedOn = window.location.pathname;
   if (showsWorkingSet(arrivedOn)) markPage(document, placeAt(arrivedOn));
 
-  initialiseErrorReporting("working-set");
 
   const store = settings();
 

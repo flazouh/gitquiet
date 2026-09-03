@@ -21,7 +21,7 @@ import type { Front, RepoHome, Touch } from "@/domain/repoHome"
 import { repoHomeIn } from "@/domain/repoHome"
 import type { View } from "@/domain/Settings"
 import { frontInDocument, repoHomeInDocument } from "@/github/repoHome"
-import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { reportError } from "@/observability/report"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { lastDrawn, repoNamed } from "@/ui/lastDrawn"
@@ -376,7 +376,6 @@ const open = (
 export const start = (): void => {
   markPage(document, REPO_HOME)
 
-  initialiseErrorReporting("repo-home")
 
   const store = settings()
 
