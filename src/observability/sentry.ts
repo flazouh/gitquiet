@@ -10,6 +10,7 @@ export type Surface = "content-script" | "service-worker" | "prefetch" | "workin
   | "actions"
   | "releases"
   | "discussions"
+  | "discussion"
   | "raise"
   | "notifications"
   | "person-repos"

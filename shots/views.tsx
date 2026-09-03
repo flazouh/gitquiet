@@ -3,6 +3,7 @@ import { BLAME_VIEW } from "./mock/blame"
 import { COMMIT_VIEW } from "./mock/commit"
 import { COMMITS_VIEW } from "./mock/commits"
 import { COMPARE_VIEW } from "./mock/compare"
+import { DISCUSSION_VIEW } from "./mock/discussion"
 import { DISCUSSIONS_VIEW } from "./mock/discussions"
 import { ISSUE_VIEW } from "./mock/issue"
 import { ISSUES_VIEW } from "./mock/issues"
@@ -50,6 +51,7 @@ export const VIEWS: ReadonlyArray<View> = [
   ACTIONS_VIEW,
   RELEASES_VIEW,
   DISCUSSIONS_VIEW,
+  DISCUSSION_VIEW,
   NOTIFICATIONS_VIEW,
   PROFILE_VIEW,
   PERSON_REPOS_VIEW,

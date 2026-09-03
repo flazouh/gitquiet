@@ -101,6 +101,15 @@ export const titleAt = (what: Wanted, path: string): string | null => {
       return onRepo(path, "Actions")
     case "releases":
       return onRepo(path, "Releases")
+    case "discussion": {
+      /*
+       * Their own title for it, which is the number and the repository. The name of the
+       * discussion is not in the address, so it cannot be here: a title is wanted before
+       * anything is read, and a wrong name is worse than a stale one.
+       */
+      const number = rest[1]
+      return repo === null || number === undefined ? null : `Discussion #${number} · ${repo}`
+    }
     case "discussions": {
       /*
        * The category, where the address names one, because that is the page the reader chose

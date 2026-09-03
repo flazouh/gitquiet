@@ -4,7 +4,7 @@ import { blameIn } from "../domain/blame";
 import { fromPathname as commitIn } from "../domain/CommitRef";
 import { commitListIn } from "../domain/commitList";
 import { compareIn } from "../domain/compare";
-import { discussionListIn } from "../domain/discussions";
+import { discussionIn, discussionListIn } from "../domain/discussions";
 import { issueDashboardIn } from "../domain/issueDashboard";
 import { issueListIn } from "../domain/issueList";
 import { fromPathname as issueIn } from "../domain/issues";
@@ -724,6 +724,29 @@ export const DISCUSSIONS: Place = {
 };
 
 /**
+ * One discussion at `/owner/repo/discussions/N`.
+ *
+ * The same two content hooks the list beside it uses, measured on 2026-09-03 against
+ * `vercel/next.js` #70178: the pjax container is present nine times, the Turbo frame is present,
+ * and there is no `react-app`.
+ *
+ * Its proof is the wrapper GitHub writes around the thread, which the list does not have. Read
+ * the same day, `.js-discussion` is on `/discussions/70178` and absent from `/discussions`, and
+ * `#discussions-list` is the other way round. So the two pages never blank each other while a
+ * reader is pressing between them.
+ */
+export const DISCUSSION: Place = {
+  name: "discussion",
+  owns: (path) => Option.isSome(discussionIn(`https://github.com${path}`)),
+  regions: ["#repo-content-pjax-container"],
+  fallback: "turbo-frame#repo-content-turbo-frame",
+  stages: ["#repo-content-pjax-container", "turbo-frame#repo-content-turbo-frame"],
+  soft: { holding: ":has(.js-discussion)" },
+  // Nothing. The region is the thread and its header together.
+  bands: [],
+};
+
+/**
  * The home dashboard at `/`, and at `/dashboard`, which is the same page.
  *
  * The odd one in a different way from a repository's list: this page is Rails-rendered
@@ -1017,6 +1040,7 @@ export const PLACES: ReadonlyArray<Place> = [
   ACTIONS,
   RELEASES,
   DISCUSSIONS,
+  DISCUSSION,
   NOTIFICATIONS,
   HOME,
   PROFILE,
@@ -1062,6 +1086,12 @@ const BY_ADDRESS: ReadonlyArray<Place> = [
    * `discussions` and five with `categories` fourth, so `/discussions/new` and one discussion's
    * own page both fall through to whatever claims them next.
    */
+  /*
+   * Before the list, as the issue is before its own list. Neither actually needs the order —
+   * `discussionListIn` takes three segments and five, and `discussionIn` takes four — but the
+   * pair is read together and a reader of this table should not have to check that twice.
+   */
+  DISCUSSION,
   DISCUSSIONS,
   /*
    * Before a repository's front page, as everything else is, and the order does not otherwise
