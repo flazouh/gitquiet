@@ -407,11 +407,11 @@ export const Discussions = ({
           art={COURT_ART[docket.court]}
           summary={<span className="tabular-nums">{docket.count}</span>}
         >
-          {docket.discussions.length === 0 ? (
+          {docket.rows.length === 0 ? (
             <p className="px-3 py-2 text-xs text-ink-muted">Nothing.</p>
           ) : (
             <ul>
-              {docket.discussions.map((one) => (
+              {docket.rows.map((one) => (
                 <Row key={`${one.reference.number}`} one={one} />
               ))}
             </ul>

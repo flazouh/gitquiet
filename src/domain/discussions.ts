@@ -14,7 +14,7 @@
  */
 
 import { Option } from "effect"
-import { COURTS } from "./attention"
+import { COURTS_WITHOUT_RUNNING, filedByCourt, type Filed } from "./attention"
 import type { RepoRef } from "./PullRequestRef"
 import { NOT_AN_OWNER } from "./repoHome"
 import { asked, termsIn, toggling } from "./sieve"
@@ -440,42 +440,17 @@ export const listWithinHome = (list: DiscussionList): string => {
 }
 
 /**
- * The Courts a repository's discussions have, which is three of the product's four.
- *
- * Taken out of the four rather than written again, so the order a reader learns on every other
- * screen is the order here.
- *
- * Running is the one left out, and it is left out for the reason the inbox leaves it out:
- * {@link courtOf} cannot return it on any discussion, ever. Elsewhere an empty Court is drawn
- * anyway, because a reader finds Settled by where it sits and a heading that came and went with
- * the day's rows would take that away. That argument is about a Court which is empty this
- * morning and full this afternoon. A heading nothing can ever reach teaches the reader instead
- * that a heading may mean nothing.
- */
-export const DISCUSSION_COURTS: ReadonlyArray<Court> = COURTS.filter((court) => court !== "running")
-
-/** One Court of a repository's discussions, and the rows filed in it. */
-export type Docket = {
-  readonly court: Court
-  readonly discussions: ReadonlyArray<ListedDiscussion>
-  readonly count: number
-}
-
-/**
  * Every row in three piles, in the order a reader asks about them.
  *
- * GitHub's own order is kept inside each pile. They sorted the page, the reader may have sorted
- * it themselves with `sort:top`, and re-sorting it here would throw away an answer somebody
- * asked for. What this changes is which rows sit together, and nothing else.
- *
- * All three come back even where two are empty: "Nothing." under a heading is worth more than a
- * heading that moves.
+ * The same filing the inbox does, and it is `filedByCourt` for both rather than a copy each:
+ * three Courts because {@link courtOf} can never return Running here, and their own order kept
+ * inside each pile.
  */
 export const docketsOf = (rows: ReadonlyArray<ListedDiscussion>): ReadonlyArray<Docket> =>
-  DISCUSSION_COURTS.map((court) => {
-    const held = rows.filter((one) => courtOf(one) === court)
-    return { court, discussions: held, count: held.length }
-  })
+  filedByCourt(rows, courtOf, COURTS_WITHOUT_RUNNING)
+
+/** One Court of a home's discussions, and the rows filed in it. */
+export type Docket = Filed<ListedDiscussion>
 
 /**
  * One reply, under one comment.

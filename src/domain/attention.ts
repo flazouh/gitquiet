@@ -154,6 +154,51 @@ export type AttentionItem =
 export const COURTS = ["needs-you", "waiting", "running", "settled"] as const satisfies
   ReadonlyArray<Court>
 
+/**
+ * The three Courts a surface has when nothing on it can be Running.
+ *
+ * Taken out of the four rather than written again, so the order a reader learns on every other
+ * screen is the order on these, and cannot drift from it.
+ *
+ * Running is the one left out, on the inbox and on a home's discussions alike, because neither
+ * one's `courtOf` can return it on any row, ever. Elsewhere an empty Court is drawn anyway: a
+ * reader finds Settled by where it sits, and a heading that came and went with the day's rows
+ * would take that away. That argument is about a Court which is empty this morning and full this
+ * afternoon. A heading nothing can ever reach teaches the reader instead that a heading may mean
+ * nothing.
+ */
+export const COURTS_WITHOUT_RUNNING: ReadonlyArray<Court> = COURTS.filter(
+  (court) => court !== "running"
+)
+
+/** One Court, and the rows of any one surface filed in it. */
+export type Filed<T> = {
+  readonly court: Court
+  readonly rows: ReadonlyArray<T>
+  /** What a heading says without the Court being opened. */
+  readonly count: number
+}
+
+/**
+ * Every row in its Court, in the order a reader asks about them.
+ *
+ * Their own order is kept inside each pile. GitHub sorted the page, or the reader did, and
+ * re-sorting here would throw away an answer somebody asked for. What this changes is which rows
+ * sit together, and nothing else.
+ *
+ * Every Court asked for comes back even where it is empty: "Nothing." under a heading is worth
+ * more than a heading that moves.
+ */
+export const filedByCourt = <T>(
+  rows: ReadonlyArray<T>,
+  courtOf: (one: T) => Court,
+  courts: ReadonlyArray<Court> = COURTS
+): ReadonlyArray<Filed<T>> =>
+  courts.map((court) => {
+    const held = rows.filter((one) => courtOf(one) === court)
+    return { court, rows: held, count: held.length }
+  })
+
 /** One Court of one pull request, and the items filed in it. */
 export type Docket = {
   readonly court: Court

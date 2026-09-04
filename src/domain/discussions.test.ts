@@ -287,7 +287,7 @@ describe("filing a page of rows into Courts", () => {
     const dockets = docketsOf([row({ comments: 9 })])
 
     expect(dockets.map((one) => one.count)).toEqual([1, 0, 0])
-    expect(dockets[1]?.discussions).toEqual([])
+    expect(dockets[1]?.rows).toEqual([])
   })
 
   /*
@@ -301,8 +301,8 @@ describe("filing a page of rows into Courts", () => {
 
     const dockets = docketsOf([first, second, third])
 
-    expect(dockets[0]?.discussions.map((one) => one.reference.number)).toEqual([3, 1])
-    expect(dockets[2]?.discussions.map((one) => one.reference.number)).toEqual([2])
+    expect(dockets[0]?.rows.map((one) => one.reference.number)).toEqual([3, 1])
+    expect(dockets[2]?.rows.map((one) => one.reference.number)).toEqual([2])
   })
 
   test("files every row exactly once", () => {
