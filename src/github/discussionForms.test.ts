@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test"
 import {
+  doingNamed,
+  doingsIn,
   markingAnswer,
+  menuRouteIn,
   postingOf,
   reactingTo,
   reactionsWithin,
@@ -225,5 +228,80 @@ describe("putting one of the eight faces on something", () => {
     expect(reactionsWithin(both, "Discussion", "7")).not.toBeNull()
     expect(reactionsWithin(both, "DiscussionComment", "11")).not.toBeNull()
     expect(reactionsWithin(both, "DiscussionComment", "7")).toBeNull()
+  })
+})
+
+/*
+ * Their own menu, which is where close, lock, edit, delete and report all live. None of it is in
+ * the page: their markup carries an `include-fragment` per comment whose `src` is the route that
+ * serves it, and this codebase never writes that route.
+ *
+ * The fragment below is built to the shape their forms have, because their menu answers 404 to a
+ * reader who is not signed in and there is no recording of one. What is verified is the route,
+ * which is in every recording here, and the reading — which learns none of GitHub's names for
+ * these actions and so cannot be wrong about one.
+ */
+describe("everything else their menu offers", () => {
+  const page = parse(`
+    <div class="js-comment-container">
+      <div id="discussioncomment-11"></div>
+      <include-fragment src="/o/r/discussions/7/comments/11/comment_actions_menu?form_path=x">
+      </include-fragment>
+    </div>
+    <div class="js-comment-container">
+      <div id="discussion-7"></div>
+      <include-fragment src="/o/r/discussions/7/actions_menu?form_path=y"></include-fragment>
+    </div>`)
+
+  const menu = `
+    ${theirs("/close", '<button name="input[state]" value="CLOSED">Close discussion</button>')}
+    ${theirs("/lock", "<button>Lock conversation</button>")}
+    ${theirs("/delete", '<button class="color-fg-danger">Delete</button>')}
+    ${theirs("/nameless", "<button></button>")}`
+
+  test("reads the route off their own markup rather than writing one", () => {
+    expect(menuRouteIn(page, "DiscussionComment", "11")).toBe(
+      "/o/r/discussions/7/comments/11/comment_actions_menu?form_path=x"
+    )
+    expect(menuRouteIn(page, "Discussion", "7")).toBe("/o/r/discussions/7/actions_menu?form_path=y")
+    expect(menuRouteIn(page, "DiscussionComment", "999")).toBeNull()
+  })
+
+  /*
+   * Their words and their order, and this codebase knows none of them. That is the whole design:
+   * a menu that gains an entry next week gains it here too, with no change.
+   */
+  test("lists what their menu says, in their words", () => {
+    expect(doingsIn(menu).map((one) => one.said)).toEqual([
+      "Close discussion",
+      "Lock conversation",
+      "Delete"
+    ])
+  })
+
+  test("marks the destructive one where GitHub marked it", () => {
+    const doings = doingsIn(menu)
+
+    expect(doings.find((one) => one.said === "Delete")?.danger).toBe(true)
+    expect(doings.find((one) => one.said === "Lock conversation")?.danger).toBe(false)
+  })
+
+  /* A press nobody can name is a press nobody can decide to make. */
+  test("leaves out an entry with no words on it", () => {
+    expect(doingsIn(menu).some((one) => one.said === "")).toBe(false)
+  })
+
+  test("sends the form behind the words that were pressed", () => {
+    const posting = doingNamed(menu, "Close discussion")
+
+    expect(posting?.action).toBe("/close")
+    expect(posting?.fields["authenticity_token"]).toBe("a-token")
+    // Their submit button says which of several things a shared form is doing.
+    expect(posting?.fields["input[state]"]).toBe("CLOSED")
+  })
+
+  test("sends nothing for words their menu does not have", () => {
+    expect(doingNamed(menu, "Delete the repository")).toBeNull()
+    expect(doingNamed("", "Close discussion")).toBeNull()
   })
 })

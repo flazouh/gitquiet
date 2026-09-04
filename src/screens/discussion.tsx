@@ -1,6 +1,7 @@
 import { Effect, Fiber, Option } from "effect"
 import { rememberedRepositories } from "@/app/destinations"
 import { loadDiscussion, rememberedDiscussion } from "@/app/discussion"
+import { discussionDoings } from "@/app/discussionDoings"
 import { pressDiscussion } from "@/app/discussionPress"
 import { forgetIntent, intendedPath } from "@/app/intent"
 import { chosenView } from "@/app/settings"
@@ -82,6 +83,14 @@ const open = (
       Effect.tapError((error) => Effect.sync(() => reportError(error)))
     )
 
+  /*
+   * Their own menu, read from the route their markup names. Refused quietly rather than reported:
+   * a reader who may do nothing to a comment gets an empty menu from GitHub too, and that is not
+   * a fault worth a card.
+   */
+  const ask = (on: "Discussion" | "DiscussionComment", id: string) =>
+    discussionDoings(reference, on, id).pipe(throughGitHub)
+
   return standAScreen({
     place: DISCUSSION,
     draw: (standing) => (
@@ -92,6 +101,7 @@ const open = (
         load={read}
         preload={remembered}
         onPress={press}
+        onAsk={ask}
         recallRepositories={recallRepositories}
         onStepAside={standing.stepAside}
       />

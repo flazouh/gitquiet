@@ -33,6 +33,9 @@
  * GitHub's own page a press away. It is never a write sent somewhere it should not go.
  */
 
+import type { Doing } from "../domain/discussions"
+import { text } from "./outcome"
+
 /** One of their forms, as much of it as sending it back needs. */
 export type Posting = {
   /** Where it posts, as their markup gives it. */
@@ -248,4 +251,76 @@ export const reactionsWithin = (
   )
 
   return target?.closest(".js-comment-container") ?? null
+}
+
+/**
+ * Where GitHub keeps the menu of everything else a reader may do to one thing.
+ *
+ * Close, lock, edit, delete, report and whatever they ship next are all in it, and none of them
+ * is in the page: their markup carries an `include-fragment` per comment whose `src` is the route
+ * that serves the menu, loaded when somebody opens it.
+ *
+ * So the route is read off the page rather than built. That is the difference between this and a
+ * guess: `/discussions/70178/actions_menu?form_path=…` and
+ * `/discussions/70178/comments/10935238/comment_actions_menu?form_path=…` are GitHub's own
+ * strings, sitting in their own markup, and this codebase never writes either of them.
+ */
+export const menuRouteIn = (
+  page: Document,
+  kind: "Discussion" | "DiscussionComment",
+  id: string
+): string | null => {
+  const within = reactionsWithin(page, kind, id)
+  const fragment = within?.querySelector('include-fragment[src*="actions_menu"]') ?? null
+  const src = fragment?.getAttribute("src") ?? ""
+
+  return src === "" ? null : src
+}
+
+/** One entry of their menu, and the form behind it. */
+const entriesIn = (html: string): ReadonlyArray<{ said: string; form: Element }> => {
+  const menu = new DOMParser().parseFromString(html, "text/html")
+
+  return [...menu.querySelectorAll("form")].flatMap((form) => {
+    const control = form.querySelector("button, summary, [role='menuitem']")
+    const said = text(control).replace(/\s+/g, " ")
+
+    return said === "" ? [] : [{ said, form }]
+  })
+}
+
+/**
+ * Everything their menu offers, in their own words and their own order.
+ *
+ * A form with no readable control is left out: it is a thing this could send and could not name,
+ * and a button with no label is a press nobody can decide to make.
+ */
+export const doingsIn = (html: string): ReadonlyArray<Doing> =>
+  entriesIn(html).map(({ said, form }) => ({
+    said,
+    /*
+     * Their own word for destructive, where they use one. Read rather than decided: this
+     * codebase does not know which of their entries deletes something, and guessing would be
+     * either a warning on the wrong press or none on the right one.
+     */
+    danger: form.querySelector('[class*="danger"], [class*="Danger"]') !== null
+  }))
+
+/** The form behind one entry, found by the words on it. */
+export const doingNamed = (html: string, said: string): Posting | null => {
+  const found = entriesIn(html).find((entry) => entry.said === said)
+  if (found === undefined) return null
+
+  const posting = postingOf(found.form)
+  if (posting === null) return null
+
+  /*
+   * A submit button's own name and value are part of what a form sends, and their menus use one
+   * to say which of several things a shared form is doing. Added the way a browser would.
+   */
+  const control = found.form.querySelector("button[name][value]")
+  const name = control?.getAttribute("name") ?? ""
+  const value = control?.getAttribute("value") ?? ""
+
+  return name === "" ? posting : { ...posting, fields: { ...posting.fields, [name]: value } }
 }

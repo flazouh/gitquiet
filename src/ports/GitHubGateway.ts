@@ -35,6 +35,7 @@ import type {
   DiscussionList,
   DiscussionPress,
   DiscussionRef,
+  Doing,
   DiscussionSnapshot,
   ListedDiscussion
 } from "../domain/discussions"
@@ -648,6 +649,27 @@ export class GitHubGateway extends Context.Service<
       reference: DiscussionRef,
       press: DiscussionPress
     ) => Effect.Effect<DiscussionSnapshot, GatewayError>
+
+    /**
+     * Everything else GitHub offers on one thing, in their own words.
+     *
+     * Close, lock, edit, delete, report and whatever they ship next are one menu behind one
+     * button, and none of it is in the page: their markup carries an `include-fragment` per
+     * comment whose `src` serves it, loaded when somebody opens it. This asks for that route.
+     *
+     * Asked for when a reader opens the menu rather than when the discussion is read, because
+     * that is when their own page asks and because a discussion with thirty comments would
+     * otherwise be thirty-one requests to draw.
+     *
+     * What comes back is a list of their sentences, and nothing else. This codebase learns none
+     * of their names for these actions, so it cannot be wrong about one and cannot go stale when
+     * the list changes.
+     */
+    readonly discussionDoings: (
+      reference: DiscussionRef,
+      on: "Discussion" | "DiscussionComment",
+      id: string
+    ) => Effect.Effect<ReadonlyArray<Doing>, GatewayError>
 
     /**
      * Every Notice in the reader's inbox, out of one fetch of their own page.

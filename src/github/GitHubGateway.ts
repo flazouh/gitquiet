@@ -69,7 +69,10 @@ import {
 } from "./discussionsList"
 import { discussionOnPage, isKeptDiscussion } from "./discussionView"
 import {
+  doingNamed,
+  doingsIn,
   markingAnswer,
+  menuRouteIn,
   reactingTo,
   reactionsWithin,
   replyingUnder,
@@ -1550,6 +1553,27 @@ const discussionDocument = Effect.fn("discussionDocument")(function* (home: Home
     catch: (cause) =>
       new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
   })
+})
+
+/**
+ * The menu GitHub serves for one thing, as the markup they answer with.
+ *
+ * Empty rather than a failure where the route is not on the page or GitHub declines to serve it.
+ * A reader who may do nothing to a comment is shown a menu of nothing, which is what their own
+ * page shows, and it is not a fault worth a failure screen.
+ */
+const menuHtml = Effect.fn("menuHtml")(function* (
+  on: "Discussion" | "DiscussionComment",
+  id: string
+) {
+  const route = menuRouteIn(document, on, id)
+  if (route === null) return ""
+
+  const html = yield* fragmentAt(route).pipe(
+    Effect.catch(() => Effect.succeed(Option.none<string>()))
+  )
+
+  return Option.getOrElse(html, () => "")
 })
 
 /**
@@ -3423,7 +3447,23 @@ export const layer = Layer.succeed(GitHubGateway, {
     discussion: (reference: DiscussionRef) => readDiscussion(reference),
 
     /**
-     * One of the four presses, sent as the form GitHub put on the page for it.
+     * Everything else their menu offers on one thing, read from the route their own page names.
+     *
+     * Two requests where a press follows: one to read the menu, one to send the form in it. Their
+     * own page spends the first the moment somebody opens the menu, and the second is the press.
+     */
+    discussionDoings: Effect.fn("GitHubGateway.discussionDoings")(function* (
+      _reference: DiscussionRef,
+      on: "Discussion" | "DiscussionComment",
+      id: string
+    ) {
+      const html = yield* menuHtml(on, id)
+
+      return doingsIn(html)
+    }),
+
+    /**
+     * One of the presses, sent as the form GitHub put on the page for it.
      *
      * The document is this tab's own, which is the whole of why this works: the extension is
      * standing on the page their form was rendered into, and the token in it is signed for
@@ -3436,8 +3476,20 @@ export const layer = Layer.succeed(GitHubGateway, {
       const route = discussionAddress(reference)
       const reported = homeRef(reference.home)
 
+      /*
+       * A menu entry is the one press whose form is not on the page. Their markup names the
+       * route that serves it and the menu is read again here, so what is sent is the form behind
+       * the words the reader pressed rather than a route this codebase made up.
+       */
+      const inMenu =
+        press.kind !== "doing"
+          ? null
+          : doingNamed(yield* menuHtml(press.on, press.id), press.said)
+
       const posting: Posting | null =
-        press.kind === "say"
+        press.kind === "doing"
+          ? inMenu
+          : press.kind === "say"
           ? sayingOn(document)
           : press.kind === "reply"
             ? replyingUnder(document, press.comment)
@@ -4529,6 +4581,8 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     discussion: (reference: DiscussionRef) =>
       Effect.fail(nothingRecordedFor(homeRef(reference.home))),
     rememberedDiscussion: () => Effect.succeed(Option.none()),
+    // An empty menu, which is what a reader who may do nothing is shown.
+    discussionDoings: () => Effect.succeed([]),
     pressDiscussion: (reference: DiscussionRef) =>
       Effect.fail(nothingRecordedFor(homeRef(reference.home))),
     // An empty inbox, which is what a page nobody recorded looks like from here, and
@@ -4684,6 +4738,8 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     discussion: (reference: DiscussionRef) =>
       Effect.fail(nothingRecordedFor(homeRef(reference.home))),
     rememberedDiscussion: () => Effect.succeed(Option.none()),
+    // An empty menu, which is what a reader who may do nothing is shown.
+    discussionDoings: () => Effect.succeed([]),
     pressDiscussion: (reference: DiscussionRef) =>
       Effect.fail(nothingRecordedFor(homeRef(reference.home))),
     // An empty inbox, which is what a page nobody recorded looks like from here, and

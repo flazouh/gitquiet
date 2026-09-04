@@ -5,6 +5,7 @@ import {
   type Comment,
   type DiscussionPress,
   type DiscussionSnapshot,
+  type Doing,
   type Poll,
   type Reaction,
   type Reply,
@@ -44,6 +45,14 @@ const TONE: Record<Answering, string> = {
 
 /** How a press is sent, or nothing where this screen is drawn without one. */
 type Pressing = ((press: DiscussionPress) => Effect.Effect<unknown, unknown>) | undefined
+
+/** How their menu is asked for, or nothing where this screen is drawn without one. */
+type Asking =
+  | ((on: "Discussion" | "DiscussionComment", id: string) => Effect.Effect<
+      ReadonlyArray<Doing>,
+      unknown
+    >)
+  | undefined
 
 /**
  * A press GitHub itself offered, drawn only where it did.
@@ -170,7 +179,8 @@ const Said = ({
   said,
   where,
   marked = false,
-  onPress
+  onPress,
+  onAsk
 }: {
   readonly said: Reply
   /** The discussion's own address, so a permalink to this comment can be written. */
@@ -178,6 +188,7 @@ const Said = ({
   /** Whether to say out loud that this is the marked Answer. */
   readonly marked?: boolean
   readonly onPress?: Pressing
+  readonly onAsk?: Asking
 }) => {
   const age = ageOf(said.at)
 
@@ -231,6 +242,7 @@ const Said = ({
             {marked ? "Unmark" : "Mark as answer"}
           </Press>
         ) : null}
+        <More on="DiscussionComment" id={said.id} onAsk={onAsk} onPress={onPress} />
       </div>
       <div className="mt-1 text-sm">
         <GitHubHtml html={said.body} />
@@ -244,6 +256,89 @@ const Said = ({
         />
       </div>
     </div>
+  )
+}
+
+/**
+ * Everything else GitHub offers on one thing, in their own words.
+ *
+ * Closed until it is opened, and asked for then, because that is when their own page asks and
+ * because a discussion with thirty comments would otherwise be thirty-one requests to draw.
+ *
+ * This codebase knows none of these actions by name. What comes back is a list of GitHub's own
+ * sentences, and pressing one sends the form that sentence sits on — so the day they add one, it
+ * is here, and the day they rename one, it is renamed here.
+ *
+ * A destructive entry asks twice. GitHub marks those in their own markup where they mark them at
+ * all, and nothing here decides which of their entries deletes something.
+ */
+const More = ({
+  on,
+  id,
+  onAsk,
+  onPress
+}: {
+  readonly on: "Discussion" | "DiscussionComment"
+  readonly id: string
+  readonly onAsk: Asking
+  readonly onPress: Pressing
+}) => {
+  const [doings, setDoings] = useState<ReadonlyArray<Doing> | undefined>(undefined)
+  const [sure, setSure] = useState<string | undefined>(undefined)
+
+  if (onAsk === undefined || onPress === undefined) return null
+
+  return (
+    <details
+      className="inline-block"
+      onToggle={(event) => {
+        if (!(event.currentTarget as HTMLDetailsElement).open || doings !== undefined) return
+        Effect.runFork(
+          onAsk(on, id).pipe(
+            Effect.match({
+              onSuccess: (found) => setDoings(found),
+              // An empty menu, which is what a reader who may do nothing is shown.
+              onFailure: () => setDoings([])
+            })
+          )
+        )
+      }}
+    >
+      <summary className="cursor-pointer rounded px-1.5 py-0.5 text-xs text-ink-muted hover:bg-hover hover:text-ink">
+        More
+      </summary>
+      {doings === undefined ? (
+        <p className="px-2 py-1 text-xs text-ink-muted">Asking GitHub…</p>
+      ) : doings.length === 0 ? (
+        <p className="px-2 py-1 text-xs text-ink-muted">GitHub offers nothing here.</p>
+      ) : (
+        <ul className="list-none py-1">
+          {doings.map((doing) => (
+            <li key={doing.said}>
+              {doing.danger && sure !== doing.said ? (
+                <button
+                  type="button"
+                  className="rounded px-1.5 py-0.5 text-xs text-fail hover:bg-hover"
+                  onClick={() => setSure(doing.said)}
+                >
+                  {doing.said}
+                </button>
+              ) : (
+                <Press
+                  said={doing.danger ? `${doing.said}, and mean it` : doing.said}
+                  onPress={onPress}
+                  press={{ kind: "doing", on, id, said: doing.said }}
+                >
+                  <span className={doing.danger ? "text-fail" : undefined}>
+                    {doing.danger ? `${doing.said} — press again` : doing.said}
+                  </span>
+                </Press>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </details>
   )
 }
 
@@ -311,19 +406,33 @@ const Voting = ({ poll, onPress }: { readonly poll: Poll; readonly onPress?: Pre
 const Spoken = ({
   comment,
   where,
-  onPress
+  onPress,
+  onAsk
 }: {
   readonly comment: Comment
   readonly where: string
   readonly onPress?: Pressing
+  readonly onAsk?: Asking
 }) => (
   <li className="border-t border-edge first:border-t-0">
-    <Said said={comment} where={where} marked={comment.isAnswer} onPress={onPress} />
+    <Said
+      said={comment}
+      where={where}
+      marked={comment.isAnswer}
+      onPress={onPress}
+      onAsk={onAsk}
+    />
     {comment.replies.length === 0 ? null : (
       <ul className="ml-6 list-none border-l border-edge">
         {comment.replies.map((reply) => (
           <li key={reply.id}>
-            <Said said={reply} where={where} marked={reply.isAnswer} onPress={onPress} />
+            <Said
+              said={reply}
+              where={where}
+              marked={reply.isAnswer}
+              onPress={onPress}
+              onAsk={onAsk}
+            />
           </li>
         ))}
       </ul>
@@ -371,7 +480,8 @@ const mostUpvoted = (snapshot: DiscussionSnapshot): Option.Option<Reply> => {
  */
 export const Discussion = ({
   snapshot,
-  onPress
+  onPress,
+  onAsk
 }: {
   readonly snapshot: DiscussionSnapshot
   /**
@@ -382,6 +492,13 @@ export const Discussion = ({
    * anything is wired up to send it.
    */
   readonly onPress?: Pressing
+  /**
+   * How their own menu is asked for, or nothing on a screen that only reads.
+   *
+   * Apart from {@link onPress} because it happens at a different moment: the menu is read when
+   * somebody opens it and the form in it is sent when they press one of its entries.
+   */
+  readonly onAsk?: Asking
 }) => {
   const answering = answeringOf(weighingOf(snapshot))
   const said = SAID[answering]
@@ -429,6 +546,7 @@ export const Discussion = ({
           ) : null}
           {snapshot.closed ? <span className="font-semibold">Closed</span> : null}
           {snapshot.locked ? <span className="font-semibold">Locked</span> : null}
+          <More on="Discussion" id={snapshot.id} onAsk={onAsk} onPress={onPress} />
         </div>
         {/* Folded, because a body of three hundred lines puts the answer a screen below it,
             and on this page the answer is what somebody came for. `vercel/next.js` #70178 is
@@ -454,7 +572,7 @@ export const Discussion = ({
 
       {Option.isSome(answer) ? (
         <Section name="The answer" tone="done" art="tick">
-          <Said said={answer.value} where={where} onPress={onPress} />
+          <Said said={answer.value} where={where} onPress={onPress} onAsk={onAsk} />
         </Section>
       ) : null}
 
@@ -468,7 +586,7 @@ export const Discussion = ({
           art="needs-you"
           summary={<span className="text-xs text-ink-muted">most upvoted reply</span>}
         >
-          <Said said={likely.value} where={where} onPress={onPress} />
+          <Said said={likely.value} where={where} onPress={onPress} onAsk={onAsk} />
         </Section>
       ) : null}
 
@@ -484,7 +602,13 @@ export const Discussion = ({
              stylesheet gives every list its bullet back, and it reaches these two as well. */
           <ul className="list-none">
             {snapshot.comments.map((comment) => (
-              <Spoken key={comment.id} comment={comment} where={where} onPress={onPress} />
+              <Spoken
+                key={comment.id}
+                comment={comment}
+                where={where}
+                onPress={onPress}
+                onAsk={onAsk}
+              />
             ))}
           </ul>
         )}

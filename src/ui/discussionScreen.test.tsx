@@ -338,3 +338,119 @@ describe("the faces on what people said", () => {
     ])
   })
 })
+
+/*
+ * Their own menu, which is where close, lock, edit and delete all live. This screen knows none of
+ * them by name: it asks GitHub what is on offer, draws their sentences, and sends the form behind
+ * whichever one was pressed.
+ */
+describe("everything else GitHub offers", () => {
+  const menu = (
+    doings: ReadonlyArray<{ said: string; danger: boolean }>,
+    onPress: DiscussionScreenProps["onPress"] = () => Effect.succeed(stale)
+  ) =>
+    render(
+      <DiscussionScreen
+        reference={stale.reference}
+        load={() => Effect.succeed(stale)}
+        onPress={onPress}
+        onAsk={() => Effect.succeed(doings)}
+        signedIn={() => true}
+        onStepAside={() => {}}
+      />
+    )
+
+  test("asks nothing until a reader opens it", async () => {
+    let asked = 0
+    render(
+      <DiscussionScreen
+        reference={stale.reference}
+        load={() => Effect.succeed(stale)}
+        onPress={() => Effect.succeed(stale)}
+        onAsk={() => {
+          asked += 1
+          return Effect.succeed([])
+        }}
+        signedIn={() => true}
+        onStepAside={() => {}}
+      />
+    )
+
+    await screen.findByText("Stale")
+
+    // Seven of them on this thread, and not one request.
+    expect(asked).toBe(0)
+    expect(screen.getAllByText("More").length).toBeGreaterThan(1)
+  })
+
+  test("offers nothing where there is no way to ask", async () => {
+    render(
+      <DiscussionScreen
+        reference={stale.reference}
+        load={() => Effect.succeed(stale)}
+        signedIn={() => true}
+        onStepAside={() => {}}
+      />
+    )
+
+    await screen.findByText("Stale")
+    expect(screen.queryByText("More")).toBeNull()
+  })
+
+  test("draws their sentences, in their words", async () => {
+    menu([
+      { said: "Close discussion", danger: false },
+      { said: "Lock conversation", danger: false }
+    ])
+
+    const more = (await screen.findAllByText("More"))[0]!
+    fireEvent.click(more)
+
+    expect(await screen.findByRole("button", { name: "Close discussion" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Lock conversation" })).toBeTruthy()
+  })
+
+  test("sends the words that were pressed, and nothing about what they mean", async () => {
+    const pressed: Array<DiscussionPress> = []
+    menu([{ said: "Close discussion", danger: false }], (press) => {
+      pressed.push(press)
+      return Effect.succeed(stale)
+    })
+
+    fireEvent.click((await screen.findAllByText("More"))[0]!)
+    fireEvent.click(await screen.findByRole("button", { name: "Close discussion" }))
+
+    expect(pressed).toEqual([
+      { kind: "doing", on: "Discussion", id: stale.id, said: "Close discussion" }
+    ])
+  })
+
+  /*
+   * GitHub marks the destructive ones in their own markup. Nothing here decides which of their
+   * entries deletes something, and the one they marked asks twice.
+   */
+  test("a destructive entry asks twice", async () => {
+    const pressed: Array<DiscussionPress> = []
+    menu([{ said: "Delete", danger: true }], (press) => {
+      pressed.push(press)
+      return Effect.succeed(stale)
+    })
+
+    fireEvent.click((await screen.findAllByText("More"))[0]!)
+    fireEvent.click(await screen.findByRole("button", { name: "Delete" }))
+
+    expect(pressed).toEqual([])
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete, and mean it" }))
+
+    expect(pressed).toEqual([{ kind: "doing", on: "Discussion", id: stale.id, said: "Delete" }])
+  })
+
+  test("says so where GitHub offers nothing", async () => {
+    menu([])
+
+    fireEvent.click((await screen.findAllByText("More"))[0]!)
+
+    expect(await screen.findByText("GitHub offers nothing here.")).toBeTruthy()
+  })
+})

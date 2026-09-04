@@ -225,6 +225,25 @@ Each is drawn only where their form for it was on the page, so a reader who is n
 locked discussion and an archived repository all draw nothing. Their disabled "Marked as answer"
 badge is not a press and is not offered as one.
 
+### Everything else, without learning its name
+
+Close, lock, edit, delete and report are one menu behind one button, and none of it is in the
+page: their markup carries an `include-fragment` per comment whose `src` is the route that serves
+it. That route answers 404 to a reader who is not signed in, so its contents cannot be recorded
+here.
+
+So this screen does not learn them. It reads that route — theirs, off their own markup, never
+written here — and draws whatever came back, in GitHub's own sentences and GitHub's own order.
+Pressing one sends the form that sentence sits on. The day GitHub adds an entry it is here; the
+day they rename one it is renamed here; and there is no name in this codebase that can be wrong
+about any of it.
+
+The menu is asked for when a reader opens it, which is when their own page asks, and because a
+thread of thirty comments would otherwise be thirty-one requests to draw one page.
+
+A destructive entry asks twice. GitHub marks those in their own markup where they mark them at
+all, and nothing here decides which of their entries deletes something.
+
 Raising a discussion is handed over to GitHub's own form. Which category one goes in, and what
 each of a repository's categories is for, is their page's to explain.
 
@@ -234,13 +253,8 @@ each of a repository's categories is for, is their page's to explain.
   a separate screen with a separate spec. This one is about a repository.
 - **No closing, locking or reacting.** Those are writes like the four above and would be found
   the same way, and they are not built. A reader who wants one has GitHub's page a press away.
-- **No closing, locking, editing or deleting.** Those live behind
-  `/{owner}/{repo}/discussions/{n}/actions_menu`, which GitHub loads on demand and answers 404 to
-  a reader who is not signed in. Building them would mean guessing a route and a field name, which
-  is the one thing every other write here refuses to do. They need one recording of a signed-in
-  page; the finders would then be four more of the same shape.
 - **No cross-repository list.** `github.com/discussions` exists for a signed-in reader and cannot
-  be recorded from here for the same reason.
+  be recorded from here, so nothing is built against it.
 - **No category management.** Making and ordering categories is a maintainer setting and
   belongs where the other settings are.
 - **No claim about spam.** Spam in Discussions is a real complaint and a moderation problem.

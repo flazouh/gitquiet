@@ -4,7 +4,8 @@ import {
   homeName,
   type DiscussionPress,
   type DiscussionRef,
-  type DiscussionSnapshot
+  type DiscussionSnapshot,
+  type Doing
 } from "../domain/discussions"
 import type { Repository } from "../domain/repositories"
 import { Discussion } from "./Discussion"
@@ -33,6 +34,16 @@ export type DiscussionScreenProps = {
    * page. A test that only draws the screen passes neither and gets a discussion to read.
    */
   readonly onPress?: (press: DiscussionPress) => Effect.Effect<DiscussionSnapshot, unknown>
+  /**
+   * How their own menu is read, or nothing on a screen that only reads.
+   *
+   * Asked when a reader opens the menu rather than when the discussion is read: a thread of
+   * thirty comments would otherwise be thirty-one requests to draw one page.
+   */
+  readonly onAsk?: (
+    on: "Discussion" | "DiscussionComment",
+    id: string
+  ) => Effect.Effect<ReadonlyArray<Doing>, unknown>
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
   readonly signedIn?: () => boolean
   /** What this page is called in this document's memory. See {@link useLive}. */
@@ -54,6 +65,7 @@ export const DiscussionScreen = ({
   load,
   preload,
   onPress,
+  onAsk,
   onStepAside,
   recallRepositories,
   where,
@@ -106,7 +118,7 @@ export const DiscussionScreen = ({
       <TheBar where={whereFor(reference.home)} recall={recallRepositories} />
       {shown === undefined ? null : (
         <div className="t-panels flex flex-col pt-2 pb-2">
-          <Discussion snapshot={shown} onPress={pressing} />
+          <Discussion snapshot={shown} onPress={pressing} onAsk={onAsk} />
         </div>
       )}
       {waiting ? (

@@ -501,6 +501,8 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
      * back, and a form only exists on a page somebody loaded. This window loads no page.
      */
     pressDiscussion: (reference) => missing("write on a discussion")(homeRef(reference.home)),
+    // An empty menu, which is what a window with no page to read one from has.
+    discussionDoings: () => Effect.succeed([]),
 
     /*
      * The inbox, a person's pages, the repository list and the activity feed.

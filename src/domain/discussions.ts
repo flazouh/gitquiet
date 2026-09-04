@@ -753,7 +753,27 @@ export const asWordsGo = (typed: string, words: string): string => {
 }
 
 /**
- * Something a reader does to a discussion, as the four presses their page offers.
+ * One entry of the menu GitHub puts behind the button beside a comment.
+ *
+ * Their word for it and nothing else. Close, lock, edit, delete, report, and whatever they ship
+ * next, are all one thing from here: a form in a menu, named by the sentence a person reads
+ * before they press it. This codebase learns none of their names, so it cannot be wrong about
+ * them and cannot go stale when the list changes.
+ */
+export type Doing = {
+  /** GitHub's own label, exactly as their menu prints it. */
+  readonly said: string
+  /**
+   * Whether GitHub drew it as destructive.
+   *
+   * Off their own class where they use one, and false where they do not. Read rather than
+   * decided, and used to ask for a second press rather than to refuse the first.
+   */
+  readonly danger: boolean
+}
+
+/**
+ * Something a reader does to a discussion, as the presses their page offers.
  *
  * One type and not four methods on the port, because they are one act from the gateway's side:
  * find the form GitHub put on the page for this, add whatever the reader typed, send it back.
@@ -768,6 +788,19 @@ export type DiscussionPress =
   | { readonly kind: "mark-answer"; readonly comment: string }
   /** Answer a Poll, by the option's own id. */
   | { readonly kind: "vote"; readonly option: string }
+  /**
+   * One entry of their own menu, named by the words on it.
+   *
+   * The label goes back to the gateway, which reads the menu again and sends the form under that
+   * label. A round trip through GitHub's own string, which is the only thing either side knows
+   * about what the press does.
+   */
+  | {
+      readonly kind: "doing"
+      readonly on: "Discussion" | "DiscussionComment"
+      readonly id: string
+      readonly said: string
+    }
   /** Put one of the eight faces on something, or take it off again. */
   | {
       readonly kind: "react"
