@@ -7,7 +7,7 @@ import type { RepoRef } from "@/domain/PullRequestRef"
 import { downloadable } from "@/domain/release"
 import type { View } from "@/domain/Settings"
 import { releasesIn } from "@/domain/release"
-import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { reportError } from "@/observability/report"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
@@ -136,7 +136,6 @@ export const start = (): void => {
   // screen.
   markPage(document, RELEASES)
 
-  initialiseErrorReporting("releases")
 
   const store = settings()
 

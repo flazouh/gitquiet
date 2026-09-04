@@ -405,6 +405,40 @@ describe("running a run again, and stopping one", () => {
     await waitFor(() => expect(screen.getByLabelText(/Cancelled in/)).toBeDefined())
   })
 
+  test("keeps a cancelled run cancelled while their page still says otherwise", async () => {
+    /*
+     * The success path, which neither test above walks.
+     *
+     * Cancelling is a request to a scheduler and not a write to a row: GitHub take
+     * the press, answer at once, and go on serving "In progress" for several
+     * seconds while the jobs wind down. The read this screen sends out on success
+     * used to be believed over the press, so the header went back to "In progress"
+     * and "1 still going" underneath a button that said Cancelled — one screen
+     * contradicting itself, with no way left to press again.
+     *
+     * The `load` here is that behaviour written down: their page never stops
+     * saying the run is going.
+     */
+    let reads = 0
+
+    pressing({
+      load: () => {
+        reads += 1
+        return Effect.succeed(going)
+      },
+      press: () => Effect.void
+    })
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Cancel this run" })).toBeDefined()
+    )
+    await userEvent.click(screen.getByRole("button", { name: "Cancel this run" }))
+    await userEvent.click(screen.getByRole("button", { name: "Confirm cancel this run" }))
+
+    await waitFor(() => expect(reads).toBeGreaterThan(1))
+    expect(screen.getByLabelText(/Cancelled in/)).toBeDefined()
+  })
+
   test("repeats what GitHub said when it will not take the press", async () => {
     pressing({
       press: () => Effect.fail({ detail: "You do not have permission to re-run this workflow" })

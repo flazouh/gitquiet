@@ -335,6 +335,44 @@ describe("settling an issue from our own page", () => {
     await waitFor(() => expect(screen.getByLabelText(/^Open /)).toBeDefined())
   })
 
+  test("lets a later read say the issue is open again", async () => {
+    /*
+     * The press stands over the read only until the read agrees with it. It used
+     * to stand over it forever: nothing here compared the two, so a close made a
+     * minute ago went on being drawn over an issue somebody had since reopened
+     * from another tab, for as long as the document lived.
+     *
+     * Coming back to the tab is what asks again, which is how this drives a
+     * second read without reaching for anything the screen does not offer.
+     */
+    Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true })
+
+    let saying = issue
+    render(
+      closable({
+        load: () => Effect.succeed({ snapshot: saying }),
+        settle: () => Effect.void,
+        reopen: () => Effect.void
+      })
+    )
+
+    await userEvent.click(await screen.findByRole("button", { name: "Close issue" }))
+    await userEvent.click(await screen.findByRole("menuitem", { name: /completed/ }))
+
+    // Worn, while GitHub's own read still says open.
+    await waitFor(() => expect(screen.getByLabelText(/^Closed /)).toBeDefined())
+
+    // GitHub agrees, and then it is reopened somewhere else. That last fact is
+    // theirs to report, and this page has to be able to hear it.
+    saying = settled
+    document.dispatchEvent(new Event("visibilitychange", { bubbles: true }))
+    await waitFor(() => expect(screen.getByLabelText(/^Closed /)).toBeDefined())
+
+    saying = issue
+    document.dispatchEvent(new Event("visibilitychange", { bubbles: true }))
+    await waitFor(() => expect(screen.getByLabelText(/^Open /)).toBeDefined())
+  })
+
   test("opens a closed one again, on one press and no menu", async () => {
     let reopened = 0
     render(

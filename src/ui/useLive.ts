@@ -1,9 +1,10 @@
 import { Cause, Effect, Option } from "effect"
 import * as AsyncResult from "effect/unstable/reactivity/AsyncResult"
 import * as Atom from "effect/unstable/reactivity/Atom"
-import { useCallback, useMemo } from "react"
-import { useAtomAsk, useAtomRefresh, useAtomValue } from "./atoms"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { useAtomRefresh, useAtomValue } from "./atoms"
 import { keepDrawn, lastDrawn } from "./lastDrawn"
+import { wornOut } from "./worn"
 
 /**
  * Reading something from GitHub and never resting on what was remembered.
@@ -44,19 +45,44 @@ export type Read<T> =
  */
 export type Load<T> = (partly: (value: T) => void) => Effect.Effect<T, unknown>
 
+/**
+ * A change the reader has made, worn over every read until GitHub agrees.
+ *
+ * Both halves are required, and the second is the one worth explaining. A write
+ * that GitHub answers 200 to is not a write GitHub's reads know about yet: their
+ * search index is behind by seconds to minutes, their run page keeps saying "In
+ * progress" for a while after a cancel. So "the write worked" is the wrong moment
+ * to stop showing the change — at that moment the confirming read is at its most
+ * likely to still describe the world as it was, and it would win.
+ *
+ * `until` is how a caller says what agreement looks like: given a read, has GitHub
+ * caught up with this? The change is worn until that answers yes, and only then is
+ * the read left to speak for itself.
+ */
+export type Worn<T> = {
+  readonly change: (value: T) => T
+  readonly until: (value: T) => boolean
+}
+
 export type Live<T> = {
   readonly read: Read<T>
   /** Reads again, keeping what is on the screen if the new read fails. */
   readonly again: () => void
   /**
-   * Shows a change now, and takes it back if GitHub refuses it.
+   * Shows a change now, and keeps showing it until GitHub says the same thing.
    *
    * The list is the reader's answer to what to do next, and every write they
    * can make from it changes which part of it a row belongs to. Waiting for
    * eight requests to find that out means pressing Close and watching nothing
    * happen for most of a second — so the change is applied to what is on the
-   * screen, the ask goes out behind it, and the read that follows is the one
-   * that either confirms it or quietly puts it back.
+   * screen and the ask goes out behind it.
+   *
+   * What the read that follows does with it is the whole of {@link Worn}: it
+   * confirms the change and the change comes off, or it is a read taken mid-lag
+   * and the change stays on. Dropping it the moment the write succeeded is what
+   * this used to do, and it is the one moment that cannot be trusted: a pull
+   * request closed from a row was back under Your Move a second later, wearing
+   * the check badge it had before, because GitHub's own list had not caught up.
    *
    * Hands back an effect that answers as GitHub did, because the control that
    * asked is usually the only place a refusal makes sense: the row menu says why
@@ -64,7 +90,7 @@ export type Live<T> = {
    * row that moved and moved back for reasons nobody was told.
    */
   readonly meanwhile: (
-    change: (value: T) => T,
+    worn: Worn<T>,
     work: Effect.Effect<unknown, unknown>
   ) => Effect.Effect<void, unknown>
 }
@@ -78,11 +104,8 @@ export type Live<T> = {
  */
 const FRESH = "10 seconds"
 
-/** What a caller hands to {@link Live.meanwhile}, carried as one value. */
-type Meanwhile<T> = {
-  readonly change: (value: T) => T
-  readonly work: Effect.Effect<unknown, unknown>
-}
+/** One {@link Worn} change, and when it was made, so it can be given up on. */
+type Wearing<T> = Worn<T> & { readonly at: number }
 
 /**
  * What to show, from what the live read has got to and what was remembered.
@@ -196,22 +219,6 @@ export const useLive = <T>(
       focusSignal: Atom.windowFocusSignal
     })
 
-    /*
-     * Wrapped, so that a change can be shown against it before GitHub has been
-     * asked. A successful ask refreshes this — which is the re-read that used
-     * to be wired up by hand after every write, now happening behind a screen
-     * that already shows the answer rather than in front of one that does not.
-     */
-    const shown = Atom.optimistic(watched)
-
-    const meanwhile = Atom.optimisticFn(shown, {
-      reducer: (held: AsyncResult.AsyncResult<T, unknown>, asked: Meanwhile<T>) =>
-        held._tag === "Success" ? AsyncResult.success(asked.change(held.value)) : held,
-      // Whatever the caller is asking GitHub for. Its failure is what rolls the
-      // change back; nothing here needs to know what it was.
-      fn: Atom.fn((asked: Meanwhile<T>) => asked.work)
-    })
-
     /**
      * What the last visit left behind, where this platform keeps such things.
      *
@@ -234,23 +241,100 @@ export const useLive = <T>(
           )
     )
 
-    return { early, read: watched, shown, meanwhile, remembering }
+    return { early, read: watched, remembering }
   }, [load, preload, where])
 
-  const live = useAtomValue(atoms.shown)
+  const live = useAtomValue(atoms.read)
   const early = useAtomValue(atoms.early)
   const again = useAtomRefresh(atoms.read)
-  const ask = useAtomAsk(atoms.meanwhile)
 
   useAtomValue(atoms.remembering)
 
+  /**
+   * Every change the reader has made that GitHub has not yet said back.
+   *
+   * Held here rather than folded into the atom, because it is not something the
+   * read has an opinion about: the read is GitHub's answer, and this is the list
+   * of things that answer is allowed to be behind on.
+   */
+  const [worn, setWorn] = useState<ReadonlyArray<Wearing<T>>>([])
+
+  const said = shownFrom(live, early)
+
+  /*
+   * Which of them are still worth wearing, decided against the read itself.
+   *
+   * Worked out here rather than in an effect so that a read which agrees is drawn
+   * agreeing on the same frame it arrives. Doing it after the paint would show the
+   * change over a read that no longer needs it — harmless, since a change GitHub
+   * agrees with makes no difference — but it would also mean the one frame where
+   * the two disagree is decided by whichever ran first, which is not a thing to
+   * leave to chance on a list somebody is about to press.
+   */
+  const now = Date.now()
+  const kept =
+    said.status === "ready"
+      ? worn.filter((one) => !wornOut(one.at, now) && !one.until(said.value))
+      : worn
+  // The same array where nothing was dropped, rather than a copy of it. Everything
+  // below turns on this identity: a new array every render is a fold redone every
+  // render and a prune scheduled every render.
+  const standing = kept.length === worn.length ? worn : kept
+
+  /*
+   * The pruning, which is only about memory. `standing` is already what is drawn;
+   * this is what stops the array growing for the life of a long-lived list screen.
+   * Compared by length because entries are only ever appended and filtered, never
+   * rewritten, so a shorter list is the only way one can have gone.
+   */
+  useEffect(() => {
+    if (standing !== worn) setWorn(standing)
+  }, [standing, worn])
+
   const meanwhile = useCallback(
-    (change: (value: T) => T, work: Effect.Effect<unknown, unknown>) =>
-      ask({ change, work }).pipe(Effect.asVoid),
-    [ask]
+    (one: Worn<T>, work: Effect.Effect<unknown, unknown>) => {
+      const wearing: Wearing<T> = { ...one, at: Date.now() }
+      setWorn((held) => [...held, wearing])
+
+      return work.pipe(
+        /*
+         * A refusal takes it straight back off. GitHub has said this did not
+         * happen, so there is nothing to be behind on and nothing to wait for —
+         * the read was right all along and the reader is owed the sentence saying
+         * so, which is the caller's half of this.
+         */
+        Effect.tapError(() =>
+          Effect.sync(() => setWorn((held) => held.filter((each) => each !== wearing)))
+        ),
+        // And a success asks again, which is what gives `until` something to
+        // answer. The change stays on until it does.
+        Effect.tap(() => Effect.sync(again)),
+        Effect.asVoid
+      )
+    },
+    [again]
   )
 
-  const read = shownFrom(live, early)
+  /*
+   * Folded once per answer rather than once per render.
+   *
+   * What a change does is not small — the Working Set's is the whole arrangement
+   * worked out again from the top — and a list holding one is a list somebody is
+   * scrolling, filtering and hovering. Redoing it on every keystroke in the filter
+   * box would be paying for the press over and over.
+   */
+  const read = useMemo(
+    () =>
+      said.status === "ready" && standing.length > 0
+        ? {
+            status: "ready" as const,
+            value: standing.reduce((value, one) => one.change(value), said.value)
+          }
+        : said,
+    // `said` is rebuilt every render out of the two below, so those are what it
+    // turns on, together with the changes still being worn over it.
+    [live, early, standing]
+  )
 
   return { read, again, meanwhile }
 }

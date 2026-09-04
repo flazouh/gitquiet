@@ -4,7 +4,7 @@ import { gistLabelsArea, readKeptGists, writeKeptGists } from "@/app/gistLabels"
 import { readOwnGists } from "@/app/ownGists"
 import { withLabels, withName, type KeptGists } from "@/domain/gistLabels"
 import type { GistRow } from "@/domain/gistList"
-import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { reportError } from "@/observability/report"
 import { standAScreen, type Standing } from "@/shell/screen"
 import { gistViewIn, isGistEditing } from "@/domain/gist"
 import type { GistSeen } from "@/domain/gist"
@@ -59,7 +59,6 @@ export default defineContentScript({
   matches: ["*://gist.github.com/*"],
   runAt: "document_idle",
   main() {
-    initialiseErrorReporting("gist-list")
 
     let kept: KeptGists = new Map()
     let rows: ReadonlyArray<GistRow> = []

@@ -6,7 +6,7 @@ import { chosenView } from "@/app/settings"
 import type { Answering } from "@/domain/answering"
 import { type PersonPage, profileIn } from "@/domain/person"
 import type { View } from "@/domain/Settings"
-import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { reportError } from "@/observability/report"
 import { held, standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { theirColumn } from "./theirColumn"
@@ -101,7 +101,6 @@ export const start = (): void => {
   // and hang on this attribute. A frame late is a frame of their page on the screen.
   markPage(document, PROFILE)
 
-  initialiseErrorReporting("profile")
 
   const store = settings()
 

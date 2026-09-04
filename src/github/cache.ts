@@ -227,6 +227,41 @@ export const forgetRoute = Effect.fn("snapshots.forgetRoute")(function* (route: 
   yield* orNothing(() => store.remove([`${ROUTE}${route}`]), undefined)
 })
 
+/**
+ * Where what this extension's own writes made true is kept between documents.
+ *
+ * One key holding the lot, rather than a key each. It is a handful of small
+ * records covering the last few minutes of writing, every read of it wants all of
+ * them, and a name per pull request would be a name per pull request to evict.
+ *
+ * In `storage.local` and not in `storage.session`, which is what this wants and
+ * cannot have: session storage is closed to content scripts unless the worker
+ * opens it, and this interface is a content script. Every record carries the
+ * moment it was written and is ignored once that is old enough, so outliving the
+ * browser costs nothing — an entry from yesterday is dropped on sight rather than
+ * believed.
+ */
+const LANDED = "landed"
+
+export const recallLanded = Effect.fn("snapshots.recallLanded")(function* () {
+  const store = area()
+  if (store === undefined) return {}
+
+  const held = yield* orNothing(() => store.get(LANDED), {})
+  const entry: unknown = held[LANDED]
+
+  return typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>) : {}
+})
+
+export const rememberLanded = Effect.fn("snapshots.rememberLanded")(function* (
+  held: Record<string, unknown>
+) {
+  const store = area()
+  if (store === undefined) return
+
+  yield* orNothing(() => store.set({ [LANDED]: held }), undefined)
+})
+
 export const rememberRoute = Effect.fn("snapshots.rememberRoute")(function* (
   route: string,
   payload: unknown,

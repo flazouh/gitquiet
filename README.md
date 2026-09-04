@@ -121,9 +121,9 @@ already have, and your code and reviews stay in your browser. Every review,
 comment and merge goes back through GitHub, so a colleague who has never
 installed it sees your work exactly as usual.
 
-Error reporting is compiled in only when `VITE_SENTRY_DSN` is set at build time,
-and nothing in this repository sets it. See
-[`src/observability/sentry.ts`](./src/observability/sentry.ts).
+There is no error reporting service. A failure this extension carries on through
+goes to the browser's own console and nowhere else. See
+[`src/observability/report.ts`](./src/observability/report.ts).
 
 ## How it is built
 

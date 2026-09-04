@@ -43,7 +43,7 @@ import type { Check, MergeMethod, NewComment, UpdateWay } from "@/domain/PullReq
 import { fromPathname, pathOf, type PullRequestRef, type RepoRef } from "@/domain/PullRequestRef"
 import type { Size } from "@/domain/workingSet"
 import type { GitHubGateway, Review } from "@/ports/GitHubGateway"
-import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { reportError } from "@/observability/report"
 import type { View } from "@/domain/Settings"
 import { chosenView, rememberView } from "@/app/settings"
 import { prepareAScreen, standAScreen, type Standing } from "@/shell/screen"
@@ -461,7 +461,6 @@ export const start = (): void => {
   // written per page and hang on this.
   markPage(document, CONVERSATION)
 
-  initialiseErrorReporting("content-script")
 
   const store = settings()
 

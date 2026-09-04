@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/png" href="/store/icon-128.png" />
+
+    <title>GitQuiet: a GitHub review queue, in the tab</title>
+    <meta
+      name="description"
+      content="A GitHub review queue in the tab. Drain the next review, not recency. Existing GitHub session, no extra login. Not an AI reviewer."
+    />
+    <link rel="canonical" href="https://gitquiet.com/github-review-queue" />
+
+    <meta property="og:title" content="GitQuiet: a GitHub review queue, in the tab" />
+    <meta
+      property="og:description"
+      content="A GitHub review queue in the tab. Drain the next review, not recency. Existing GitHub session, no extra login. Not an AI reviewer."
+    />
+    <meta property="og:url" content="https://gitquiet.com/github-review-queue" />
+    <meta property="og:image" content="https://gitquiet.com/og.png" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="GitQuiet: a GitHub review queue, in the tab" />
+    <meta
+      name="twitter:description"
+      content="A GitHub review queue in the tab. Drain the next review, not recency. Existing GitHub session, no extra login. Not an AI reviewer."
+    />
+    <meta name="twitter:image" content="https://gitquiet.com/og.png" />
+  </head>
+  <body>
+    <div id="page">
+      <!--
+        The copy a crawler that never runs the bundle can still read. Indexes that skip
+        JavaScript kept only /privacy, because that file is HTML and this one was an
+        empty #page waiting for React. createRoot replaces this on mount; that is
+        intended.
+      -->
+      <main>
+        <h1>A GitHub review queue, in the tab</h1>
+        <p>A queue you drain. Next review, not recency. On the GitHub session you already have.</p>
+        <p>
+          People who look for a GitHub review queue want a queue they can drain.
+          Next review, not the newest request. One list of pull requests that need you is a different job:
+          <a href="/github-pr-inbox">a GitHub PR inbox, in the tab</a>.
+        </p>
+        <p>
+          GitHub's review-requested list is a filter. Newest first. Still a list you scan.
+          GitQuiet is a queue on github.com. Existing GitHub session. No extra login.
+          It writes back through GitHub's own routes. Not an AI reviewer.
+        </p>
+        <p>
+          <a href="https://chromewebstore.google.com/detail/pullwatch-pr-dashboard-fo/occmgmijpfljojcfifhhjoaeedmcbppl">Pullwatch</a>
+          is a read-only toolbar popup on the same session: To Review, Authored, Merged. A popup is not the page.
+        </p>
+        <p>
+          <a href="/compare/prflow">PRFlow</a>
+          and
+          <a href="/compare/github-pr-sidebar">GitHub PR Sidebar</a>
+          are Chromium side panels that ask for a PAT. They sit beside the tab. GitQuiet is the tab.
+        </p>
+        <p>
+          Attention Set is a PAT whose-turn popup. A near-miss, not a URL of its own.
+          Graphite is stacked pull requests. A different job.
+        </p>
+        <p>
+          <a href="/compare/prflow">GitQuiet vs PRFlow</a>
+          <a href="/compare/github-pr-sidebar">GitQuiet vs GitHub PR Sidebar</a>
+          <a href="/compare/refined-github">GitQuiet vs Refined GitHub</a>
+          <a href="/compare/octobox">GitQuiet vs Octobox</a>
+        </p>
+        <p>A faster, quieter GitHub.</p>
+        <p>
+          <a href="https://chromewebstore.google.com/detail/gitquiet/ichobjnihnofjkpoegikjhefmoekaahe">Add to Chrome</a>
+          <a href="/install">Install</a>
+        </p>
+      </main>
+    </div>
+    <script type="module" src="/src/review-queue.tsx"></script>
+  </body>
+</html>

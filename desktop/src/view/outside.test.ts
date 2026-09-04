@@ -6,20 +6,22 @@ import { beforeEach, describe, expect, it, mock } from "bun:test"
  * `rpc.ts` builds Electrobun's view side as its modules load, and that reaches for a
  * window this test does not have. Faked here so the rule under test can be imported at
  * all, and so what it asks the main process for can be read back.
+ *
+ * `./rpc` rather than `electrobun/view` underneath it, which is what this stood in for
+ * and what made it depend on running first. The view is built once as `rpc.ts` loads,
+ * so a test file that had already imported anything reaching `./rpc` — `gateway.ts`
+ * does — left a real `Electroview` built against whatever stub that file put on the
+ * global, and standing in for the module below it afterwards changed nothing: the
+ * object was already made. Every press was stopped, as it should be, and every one of
+ * them went to a bridge this file could not see. Standing in for the seam this module
+ * actually uses is a stand-in that cannot be beaten to it.
  */
 const asked: Array<{ readonly method: string; readonly params: unknown }> = []
 
-void mock.module("electrobun/view", () => ({
-  Electroview: class {
-    static defineRPC = (given: unknown) => given
-    rpc = {
-      request: {
-        openOutside: (params: unknown) => {
-          asked.push({ method: "openOutside", params })
-          return Promise.resolve({ ok: true })
-        }
-      }
-    }
+void mock.module("./rpc", () => ({
+  ask: (method: string, params: unknown) => {
+    asked.push({ method, params })
+    return Promise.resolve({ ok: true })
   }
 }))
 
