@@ -1,5 +1,5 @@
 import { Option } from "effect"
-import type { DiscussionList } from "../../src/domain/discussions"
+import type { DiscussionList } from "../../src/domain/discussionRoutes"
 import { categoriesOnPage, discussionsOnPage } from "../../src/github/discussionsList"
 import { DiscussionsScreen, type Shown } from "../../src/ui/DiscussionsScreen"
 import listHtml from "../../tests/fixtures/discussionsList.html?raw"

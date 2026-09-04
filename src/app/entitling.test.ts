@@ -105,3 +105,32 @@ describe("the fuller titles a screen says once it has read", () => {
     ).toBe("it broke · Issue #77 · oven-sh/bun")
   })
 })
+
+/*
+ * An organisation's discussions, which is where GitHub runs its own product feedback. Read by
+ * `repoIn` these were titled against a repository called `community` owned by `orgs`, because
+ * `repoIn` takes the first two segments of any address and calls them a repository.
+ */
+describe("an organisation's discussions", () => {
+  test("names the organisation, and never an owner called orgs", () => {
+    expect(titleAt("discussion", "/orgs/community/discussions/88425")).toBe(
+      "Discussion #88425 · community"
+    )
+    expect(titleAt("discussions", "/orgs/community/discussions")).toBe("Discussions · community")
+  })
+
+  test("names the category their address chose", () => {
+    expect(titleAt("discussions", "/orgs/community/discussions/categories/general")).toBe(
+      "general · Discussions · community"
+    )
+  })
+
+  test("still names a repository's the same way", () => {
+    expect(titleAt("discussion", "/vercel/next.js/discussions/70178")).toBe(
+      "Discussion #70178 · vercel/next.js"
+    )
+    expect(titleAt("discussions", "/vercel/next.js/discussions/categories/ideas")).toBe(
+      "ideas · Discussions · vercel/next.js"
+    )
+  })
+})

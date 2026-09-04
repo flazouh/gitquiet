@@ -4,7 +4,7 @@ import { blameIn } from "../domain/blame";
 import { fromPathname as commitIn } from "../domain/CommitRef";
 import { commitListIn } from "../domain/commitList";
 import { compareIn } from "../domain/compare";
-import { discussionIn, discussionListIn } from "../domain/discussions";
+import { discussionIn, discussionListIn } from "../domain/discussionRoutes";
 import { issueDashboardIn } from "../domain/issueDashboard";
 import { issueListIn } from "../domain/issueList";
 import { fromPathname as issueIn } from "../domain/issues";

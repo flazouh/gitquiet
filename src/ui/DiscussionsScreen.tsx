@@ -1,5 +1,6 @@
 import type { Effect, Option } from "effect"
-import { homeName, type Category, type DiscussionList, type ListedDiscussion } from "../domain/discussions"
+import { type Category, type ListedDiscussion } from "../domain/discussions"
+import { homeName, type DiscussionList } from "../domain/discussionRoutes"
 import type { Repository } from "../domain/repositories"
 import { Categories, Discussions, Pages, whereFor } from "./Discussions"
 import { DrawnAt } from "./drawnAt"

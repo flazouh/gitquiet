@@ -5,12 +5,8 @@ import { discussionDoings } from "@/app/discussionDoings"
 import { pressDiscussion } from "@/app/discussionPress"
 import { forgetIntent, intendedPath } from "@/app/intent"
 import { chosenView } from "@/app/settings"
-import {
-  addressOf,
-  discussionIn,
-  type DiscussionPress,
-  type DiscussionRef
-} from "@/domain/discussions"
+import { type DiscussionPress } from "@/domain/discussions"
+import { addressOf, discussionIn, type DiscussionRef } from "@/domain/discussionRoutes"
 import type { View } from "@/domain/Settings"
 import { reportError } from "@/observability/report"
 import { standAScreen } from "@/shell/screen"

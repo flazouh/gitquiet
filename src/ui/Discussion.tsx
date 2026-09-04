@@ -1,27 +1,23 @@
-import { Effect, Option } from "effect"
-import { useState, type ReactNode } from "react"
+import { Option } from "effect"
 import {
-  type Comment,
-  type DiscussionPress,
-  type DiscussionSnapshot,
-  type Doing,
-  type Poll,
-  type Reaction,
-  type Reply,
-  addressOf,
   answerOf,
   answeringOf,
-  listAddressOf,
   spokenOn,
-  weighingOf
+  weighingOf,
+  type Comment,
+  type DiscussionSnapshot,
+  type Reaction,
+  type Reply
 } from "../domain/discussions"
+import { addressOf, listAddressOf } from "../domain/discussionRoutes"
+import { ANSWERING_SAID, ANSWERING_TONE } from "./courts"
+import { More, Press, type Asking, type Pressing } from "./DiscussionPresses"
 import { Folded } from "./Folded"
 import { GitHubHtml } from "./GitHubHtml"
+import { Voting } from "./Poll"
 import { Saying } from "./Saying"
 import { Section } from "./Section"
 import { ageOf, momentOf } from "./when"
-import { reasonFor } from "./refusal"
-import { ANSWERING_SAID, ANSWERING_TONE } from "./courts"
 
 /**
  * What the discussion is waiting for, in a word.
@@ -31,80 +27,6 @@ import { ANSWERING_SAID, ANSWERING_TONE } from "./courts"
  * would leave the reader deciding which of them to believe.
  */
 
-
-/** How a press is sent, or nothing where this screen is drawn without one. */
-type Pressing = ((press: DiscussionPress) => Effect.Effect<unknown, unknown>) | undefined
-
-/** How their menu is asked for, or nothing where this screen is drawn without one. */
-type Asking =
-  | ((on: "Discussion" | "DiscussionComment", id: string) => Effect.Effect<
-      ReadonlyArray<Doing>,
-      unknown
-    >)
-  | undefined
-
-/**
- * A press GitHub itself offered, drawn only where it did.
- *
- * Never a control that fails when it is used. Every one of these is on the screen because
- * GitHub's own form for it is on the page, so a reader who is not signed in, a locked discussion
- * and an archived repository all draw the same thing, which is nothing.
- */
-const Press = ({
-  said,
-  onPress,
-  press,
-  children
-}: {
-  readonly said: string
-  readonly onPress: Pressing
-  readonly press: DiscussionPress
-  readonly children: ReactNode
-}) => {
-  const [sending, setSending] = useState(false)
-  const [refused, setRefused] = useState<string | undefined>(undefined)
-
-  if (onPress === undefined) return null
-
-  return (
-    <span className="flex items-center gap-1">
-      <button
-        type="button"
-        aria-label={said}
-        disabled={sending}
-        className="rounded px-1.5 py-0.5 text-xs text-ink-muted hover:bg-hover hover:text-ink disabled:opacity-50"
-        onClick={() => {
-          setSending(true)
-          setRefused(undefined)
-
-          Effect.runFork(
-            onPress(press).pipe(
-              Effect.match({
-                onSuccess: () => setSending(false),
-                /*
-                 * Said out loud rather than swallowed. Every one of these presses is offered
-                 * because GitHub's own form for it was on the page, so a refusal means something
-                 * changed underneath the reader and they are owed the reason.
-                 */
-                onFailure: (cause: unknown) => {
-                  setRefused(reasonFor(cause))
-                  setSending(false)
-                }
-              })
-            )
-          )
-        }}
-      >
-        {children}
-      </button>
-      {refused === undefined ? null : (
-        <span role="alert" className="text-xs text-fail">
-          {refused}
-        </span>
-      )}
-    </span>
-  )
-}
 
 /**
  * The faces on one thing, each of them a press where GitHub offered one.
@@ -247,143 +169,6 @@ const Said = ({
     </div>
   )
 }
-
-/**
- * Everything else GitHub offers on one thing, in their own words.
- *
- * Closed until it is opened, and asked for then, because that is when their own page asks and
- * because a discussion with thirty comments would otherwise be thirty-one requests to draw.
- *
- * This codebase knows none of these actions by name. What comes back is a list of GitHub's own
- * sentences, and pressing one sends the form that sentence sits on — so the day they add one, it
- * is here, and the day they rename one, it is renamed here.
- *
- * A destructive entry asks twice. GitHub marks those in their own markup where they mark them at
- * all, and nothing here decides which of their entries deletes something.
- */
-const More = ({
-  on,
-  id,
-  onAsk,
-  onPress
-}: {
-  readonly on: "Discussion" | "DiscussionComment"
-  readonly id: string
-  readonly onAsk: Asking
-  readonly onPress: Pressing
-}) => {
-  const [doings, setDoings] = useState<ReadonlyArray<Doing> | undefined>(undefined)
-  const [sure, setSure] = useState<string | undefined>(undefined)
-
-  if (onAsk === undefined || onPress === undefined) return null
-
-  return (
-    <details
-      className="inline-block"
-      onToggle={(event) => {
-        if (!(event.currentTarget as HTMLDetailsElement).open || doings !== undefined) return
-        Effect.runFork(
-          onAsk(on, id).pipe(
-            Effect.match({
-              onSuccess: (found) => setDoings(found),
-              // An empty menu, which is what a reader who may do nothing is shown.
-              onFailure: () => setDoings([])
-            })
-          )
-        )
-      }}
-    >
-      <summary className="cursor-pointer rounded px-1.5 py-0.5 text-xs text-ink-muted hover:bg-hover hover:text-ink">
-        More
-      </summary>
-      {doings === undefined ? (
-        <p className="px-2 py-1 text-xs text-ink-muted">Asking GitHub…</p>
-      ) : doings.length === 0 ? (
-        <p className="px-2 py-1 text-xs text-ink-muted">GitHub offers nothing here.</p>
-      ) : (
-        <ul className="list-none py-1">
-          {doings.map((doing) => (
-            <li key={doing.said}>
-              {doing.danger && sure !== doing.said ? (
-                <button
-                  type="button"
-                  className="rounded px-1.5 py-0.5 text-xs text-fail hover:bg-hover"
-                  onClick={() => setSure(doing.said)}
-                >
-                  {doing.said}
-                </button>
-              ) : (
-                <Press
-                  said={doing.danger ? `${doing.said}, and mean it` : doing.said}
-                  onPress={onPress}
-                  press={{ kind: "doing", on, id, said: doing.said }}
-                >
-                  <span className={doing.danger ? "text-fail" : undefined}>
-                    {doing.danger ? `${doing.said} — press again` : doing.said}
-                  </span>
-                </Press>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </details>
-  )
-}
-
-/**
- * A Poll, as the two things a reader wants from one: what it asked, and where the votes went.
- *
- * The results are always drawn, never hidden behind their "Show Results" press. A poll with two
- * votes on it is a poll whose answer is the point, and a reader who has not voted is not owed
- * less of it than one who has.
- *
- * Their percentage and their count, both taken as printed. They round, they round their way, and
- * a second arithmetic here would disagree with the page the reader just came from.
- */
-const Voting = ({ poll, onPress }: { readonly poll: Poll; readonly onPress?: Pressing }) => (
-  <Section
-    name={poll.question}
-    art="comments"
-    summary={
-      <span className="tabular-nums text-xs text-ink-muted">
-        {poll.votes === 1 ? "1 vote" : `${poll.votes} votes`}
-      </span>
-    }
-  >
-    <ul className="list-none px-3 py-2">
-      {poll.options.map((option) => (
-        <li key={option.id} className="py-1">
-          <div className="flex items-baseline gap-2 text-sm">
-            <span className={option.chosen ? "font-semibold text-ink" : "text-ink"}>
-              {option.name}
-            </span>
-            {option.chosen ? (
-              <span className="text-xs text-done">Yours</span>
-            ) : null}
-            <span className="ml-auto tabular-nums text-xs text-ink-muted">{`${option.share}%`}</span>
-            {poll.mayVote ? (
-              <Press
-                said={`Vote for ${option.name}`}
-                onPress={onPress}
-                press={{ kind: "vote", option: option.id }}
-              >
-                Vote
-              </Press>
-            ) : null}
-          </div>
-          {/* Their own bar, at their own width. A bar is what makes two numbers a shape. */}
-          <div className="mt-1 h-1 w-full rounded bg-hover">
-            <div className="h-1 rounded bg-busy" style={{ width: `${option.share}%` }} />
-          </div>
-        </li>
-      ))}
-    </ul>
-    {poll.locked ? (
-      <p className="px-3 pb-2 text-xs text-ink-muted">This poll is closed.</p>
-    ) : null}
-  </Section>
-)
 
 /**
  * One comment and the replies under it.

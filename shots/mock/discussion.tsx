@@ -1,5 +1,6 @@
 import { Option } from "effect"
-import type { DiscussionRef, DiscussionSnapshot } from "../../src/domain/discussions"
+import type { DiscussionSnapshot } from "../../src/domain/discussions"
+import type { DiscussionRef } from "../../src/domain/discussionRoutes"
 import { discussionOnPage } from "../../src/github/discussionView"
 import { DiscussionScreen } from "../../src/ui/DiscussionScreen"
 import pageHtml from "../../tests/fixtures/discussionView.html?raw"

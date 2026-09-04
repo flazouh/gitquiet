@@ -1,25 +1,8 @@
 import { Option } from "effect"
 import { useState } from "react"
-import {
-  CHIPS,
-  type Category,
-  type Chip,
-  type DiscussionList,
-  type Home,
-  type Emoji,
-  type ListedDiscussion,
-  answeringOf,
-  asWordsGo,
-  asking,
-  docketsOf,
-  homeName,
-  listAddressOf,
-  listRouteOf,
-  raisingAddressOf,
-  toggled,
-  wordsIn,
-  type Participant
-} from "../domain/discussions"
+import { type Category, type Emoji, type ListedDiscussion, answeringOf, docketsOf, type Participant } from "../domain/discussions"
+import { type DiscussionList, type Home, homeName, listAddressOf, listRouteOf, raisingAddressOf } from "../domain/discussionRoutes"
+import { CHIPS, type Chip, asWordsGo, asking, toggled, wordsIn } from "../domain/discussionSearch"
 import type { Where } from "./Bar"
 import { ANSWERING_SAID, ANSWERING_TONE, COURT_ART, COURT_NAME, COURT_TONE } from "./courts"
 import { Section } from "./Section"

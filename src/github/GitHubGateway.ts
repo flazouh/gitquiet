@@ -144,6 +144,7 @@ import { repositoriesFrom } from "./repositories"
 import { decodeSidebar, standingFrom } from "./standing"
 import type { Happening } from "../domain/activity"
 import { type CommitList, type History, routeFor } from "../domain/commitList"
+import type { DiscussionPress, DiscussionSnapshot } from "../domain/discussions"
 import {
   addressOf as discussionAddress,
   homePath,
@@ -151,11 +152,9 @@ import {
   listRouteOf,
   listWithinHome,
   type DiscussionList,
-  type DiscussionPress,
   type DiscussionRef,
-  type DiscussionSnapshot,
   type Home
-} from "../domain/discussions"
+} from "../domain/discussionRoutes"
 import type { IssueSnapshot, Settling } from "../domain/Issue"
 import type { InvolvedIssue, Involvement, IssueRef } from "../domain/issues"
 import type { Front, Starring } from "../domain/repoHome"

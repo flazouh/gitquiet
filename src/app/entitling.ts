@@ -13,6 +13,8 @@
  * words — and each screen says its own when the read lands.
  */
 
+import { Option } from "effect"
+import { discussionIn, discussionListIn, homeName } from "../domain/discussionRoutes"
 import type { Wanted } from "./screens"
 
 /** The two path segments every repository page starts with, or nothing. */
@@ -103,24 +105,38 @@ export const titleAt = (what: Wanted, path: string): string | null => {
       return onRepo(path, "Releases")
     case "discussion": {
       /*
-       * Their own title for it, which is the number and the repository. The name of the
+       * Their own title for it, which is the number and where it lives. The name of the
        * discussion is not in the address, so it cannot be here: a title is wanted before
        * anything is read, and a wrong name is worse than a stale one.
+       *
+       * Read by the domain's rule and not by `repoIn`, because a home is a repository or an
+       * organisation. Read the other way, `/orgs/community/discussions/88425` was titled against
+       * a repository called `community` owned by `orgs`.
        */
-      const number = rest[1]
-      return repo === null || number === undefined ? null : `Discussion #${number} · ${repo}`
+      return Option.match(discussionIn(`https://github.com${path}`), {
+        onNone: () => null,
+        onSome: (found) => `Discussion #${found.number} · ${homeName(found.home)}`
+      })
     }
     case "discussions": {
       /*
        * The category, where the address names one, because that is the page the reader chose
        * and the one they are looking for in a row of tabs. Their own word for it, spelt from
        * the slug rather than from a read: a title is wanted before anything is read.
+       *
+       * By the domain's rule for the same reason the discussion above it is: an organisation's
+       * discussions are a home, and never an owner called `orgs`.
        */
-      if (repo === null) return null
-      const slug = rest[0] === "discussions" && rest[1] === "categories" ? rest[2] : undefined
-      return slug === undefined || slug === ""
-        ? `Discussions · ${repo}`
-        : `${decodeURIComponent(slug)} · Discussions · ${repo}`
+      return Option.match(discussionListIn(`https://github.com${path}`), {
+        onNone: () => null,
+        onSome: (found) => {
+          const where = homeName(found.home)
+          return Option.match(found.category, {
+            onNone: () => `Discussions · ${where}`,
+            onSome: (slug) => `${decodeURIComponent(slug)} · Discussions · ${where}`
+          })
+        }
+      })
     }
     case "raise":
       return onRepo(path, "New issue")

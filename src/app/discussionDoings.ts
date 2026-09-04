@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import type { DiscussionRef } from "../domain/discussions"
+import type { DiscussionRef } from "../domain/discussionRoutes"
 import { GitHubGateway } from "../ports/GitHubGateway"
 
 /**

@@ -30,15 +30,8 @@ import type { Raised, Raising } from "../domain/raising"
 import type { Attached, Version } from "../domain/release"
 import type { Front, Opened, Standing, Starring, Touch, TouchWho } from "../domain/repoHome"
 import type { Blamed } from "../domain/blame"
-import type {
-  Category,
-  DiscussionList,
-  DiscussionPress,
-  DiscussionRef,
-  Doing,
-  DiscussionSnapshot,
-  ListedDiscussion
-} from "../domain/discussions"
+import type { Category, DiscussionPress, Doing, DiscussionSnapshot, ListedDiscussion } from "../domain/discussions"
+import type { DiscussionList, DiscussionRef } from "../domain/discussionRoutes"
 import type { Repository } from "../domain/repositories"
 import type { RunOpening, RunRef } from "../domain/run"
 import type { Strand } from "../domain/strand"

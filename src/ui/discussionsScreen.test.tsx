@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, within } from "@testing-library/react"
 import { Effect, Option } from "effect"
-import type { DiscussionList } from "../domain/discussions"
+import type { DiscussionList } from "../domain/discussionRoutes"
 import { categoriesOnPage, discussionsOnPage } from "../github/discussionsList"
 import { DiscussionsScreen, type Shown } from "./DiscussionsScreen"
 

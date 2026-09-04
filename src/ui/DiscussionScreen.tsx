@@ -1,12 +1,7 @@
 import { Effect, type Option } from "effect"
 import { useState } from "react"
-import {
-  homeName,
-  type DiscussionPress,
-  type DiscussionRef,
-  type DiscussionSnapshot,
-  type Doing
-} from "../domain/discussions"
+import { type DiscussionPress, type DiscussionSnapshot, type Doing } from "../domain/discussions"
+import { homeName, type DiscussionRef } from "../domain/discussionRoutes"
 import type { Repository } from "../domain/repositories"
 import { Discussion } from "./Discussion"
 import { whereFor } from "./Discussions"

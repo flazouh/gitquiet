@@ -21,13 +21,9 @@
  */
 
 import { Option } from "effect"
-import { discussionIn } from "../domain/discussions"
-import type {
-  Category,
-  DiscussionRef,
-  ListedDiscussion,
-  Participant
-} from "../domain/discussions"
+import { discussionIn } from "../domain/discussionRoutes"
+import type { Category, ListedDiscussion, Participant } from "../domain/discussions"
+import type { DiscussionRef } from "../domain/discussionRoutes"
 import { CATEGORY, categoryAt, emojiIn, upvotesIn } from "./discussionParts"
 import { text } from "./outcome"
 
