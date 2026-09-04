@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen, within } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { Effect, Option } from "effect"
-import type { DiscussionSnapshot } from "../domain/discussions"
+import type { DiscussionPress, DiscussionSnapshot } from "../domain/discussions"
 import { discussionOnPage } from "../github/discussionView"
-import { DiscussionScreen } from "./DiscussionScreen"
+import { DiscussionScreen, type DiscussionScreenProps } from "./DiscussionScreen"
 
 afterEach(cleanup)
 
@@ -116,5 +116,117 @@ describe("when the read does not come", () => {
     )
 
     expect(await screen.findByRole("button", { name: "Show GitHub's page" })).toBeTruthy()
+  })
+})
+
+/*
+ * Every control on this screen is behind two gates: whether GitHub rendered their own form for
+ * it, and whether anything is wired up to send it. Both are needed, and neither is guessed at.
+ */
+describe("the presses GitHub offered", () => {
+  const offered = (over: Partial<DiscussionSnapshot>): DiscussionSnapshot => ({
+    ...stale,
+    allowed: { say: true, upvote: true },
+    ...over
+  })
+
+  const marking = (snapshot: DiscussionSnapshot, onPress: DiscussionScreenProps["onPress"]) =>
+    render(
+      <DiscussionScreen
+        reference={snapshot.reference}
+        load={() => Effect.succeed(snapshot)}
+        onPress={onPress}
+        signedIn={() => true}
+        onStepAside={() => {}}
+      />
+    )
+
+  test("offers nothing where GitHub offered nothing, even with a way to send it", async () => {
+    marking(stale, () => Effect.succeed(stale))
+
+    await screen.findByText("Stale")
+    expect(screen.queryByRole("button", { name: /Mark this as the answer/ })).toBeNull()
+    expect(screen.queryByRole("button", { name: /Upvote this discussion/ })).toBeNull()
+  })
+
+  test("offers nothing where there is no way to send it, even where GitHub offered one", async () => {
+    render(
+      <DiscussionScreen
+        reference={stale.reference}
+        load={() => Effect.succeed(offered({}))}
+        signedIn={() => true}
+        onStepAside={() => {}}
+      />
+    )
+
+    await screen.findByText("Stale")
+    expect(screen.queryByRole("button", { name: /Upvote this discussion/ })).toBeNull()
+  })
+
+  test("upvotes the question, and says what it is voting on", async () => {
+    const pressed: Array<DiscussionPress> = []
+    marking(offered({}), (press) => {
+      pressed.push(press)
+      return Effect.succeed(offered({}))
+    })
+
+    const button = await screen.findByRole("button", { name: "Upvote this discussion" })
+    fireEvent.click(button)
+
+    expect(pressed).toEqual([{ kind: "upvote", on: "Discussion", id: stale.id }])
+  })
+
+  /*
+   * The press this whole screen argues for. On the eight repositories counted, 94 of the 98
+   * unanswered questions had somebody's reply in them and nobody had done this.
+   */
+  test("marks a comment as the answer, naming the comment and not the discussion", async () => {
+    const first = stale.comments[0]!
+    const pressed: Array<DiscussionPress> = []
+
+    marking(
+      offered({
+        comments: [{ ...first, mayMarkAnswer: true, replies: [] }]
+      }),
+      (press) => {
+        pressed.push(press)
+        return Effect.succeed(stale)
+      }
+    )
+
+    /*
+     * Scoped to the thread. The same comment is also the most upvoted one, so it is drawn twice:
+     * once under the heading that says nobody marked an answer, and once where it was said.
+     */
+    const thread = await screen.findByRole("region", { name: "1 reply" })
+    fireEvent.click(within(thread).getByRole("button", { name: "Mark this as the answer" }))
+
+    expect(pressed).toEqual([{ kind: "mark-answer", comment: first.id }])
+  })
+
+  /*
+   * What the press answered with is the discussion read again, so what is on the screen after one
+   * is what GitHub says now rather than what this screen guessed it would say.
+   */
+  test("draws what the press answered with", async () => {
+    const first = stale.comments[0]!
+
+    marking(
+      offered({ comments: [{ ...first, mayMarkAnswer: true, replies: [] }] }),
+      () => Effect.succeed({ ...answered, allowed: { say: false, upvote: false } })
+    )
+
+    const thread = await screen.findByRole("region", { name: "1 reply" })
+    fireEvent.click(within(thread).getByRole("button", { name: "Mark this as the answer" }))
+
+    await screen.findByRole("region", { name: "The answer" })
+  })
+
+  test("says a refusal out loud rather than swallowing it", async () => {
+    marking(offered({}), () => Effect.fail(new Error("GitHub said no")))
+
+    fireEvent.click(await screen.findByRole("button", { name: "Upvote this discussion" }))
+
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", "GitHub said no")
   })
 })

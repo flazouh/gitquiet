@@ -1,9 +1,15 @@
 import { Effect, Fiber, Option } from "effect"
 import { rememberedRepositories } from "@/app/destinations"
 import { loadDiscussion, rememberedDiscussion } from "@/app/discussion"
+import { pressDiscussion } from "@/app/discussionPress"
 import { forgetIntent, intendedPath } from "@/app/intent"
 import { chosenView } from "@/app/settings"
-import { addressOf, discussionIn, type DiscussionRef } from "@/domain/discussions"
+import {
+  addressOf,
+  discussionIn,
+  type DiscussionPress,
+  type DiscussionRef
+} from "@/domain/discussions"
 import type { View } from "@/domain/Settings"
 import { initialiseErrorReporting, reportError } from "@/observability/sentry"
 import { standAScreen } from "@/shell/screen"
@@ -65,6 +71,17 @@ const open = (
       Effect.catch(() => Effect.succeed(Option.none()))
     )
 
+  /*
+   * A press, sent as GitHub's own form and answered with the discussion again. Reported when it
+   * fails, because every one of these is offered only where their form was on the page: a refusal
+   * means something moved underneath the reader.
+   */
+  const press = (asked: DiscussionPress) =>
+    pressDiscussion(reference, asked).pipe(
+      throughGitHub,
+      Effect.tapError((error) => Effect.sync(() => reportError(error)))
+    )
+
   return standAScreen({
     place: DISCUSSION,
     draw: (standing) => (
@@ -74,6 +91,7 @@ const open = (
         where={openedNamed("discussion", reference)}
         load={read}
         preload={remembered}
+        onPress={press}
         recallRepositories={recallRepositories}
         onStepAside={standing.stepAside}
       />

@@ -30,6 +30,7 @@ import type {
 } from "../domain/discussions"
 import { text } from "./outcome"
 import { emojiIn } from "./discussionsList"
+import { markingAnswer, replyingUnder, sayingOn, upvoting } from "./discussionForms"
 
 const parse = (html: string): Document => new DOMParser().parseFromString(html, "text/html")
 
@@ -130,7 +131,7 @@ const authorOf = (own: Element): Element | null => {
  * would mean a second markdown engine that agrees with theirs about task lists, mentions,
  * permalink expansion and every alert box they have ever shipped.
  */
-const saidIn = (container: Element): Reply | null => {
+const saidIn = (page: Document, container: Element): Reply | null => {
   const named = namedWithin(container)
   if (named === null || named.id === "") return null
 
@@ -156,7 +157,16 @@ const saidIn = (container: Element): Reply | null => {
      * rather than off the answer link in the header, because the header's link is an anchor to
      * a permalink and this has to hold for a page where GitHub changes what may be marked.
      */
-    isAnswer: own.querySelector(".timeline-chosen-answer") !== null
+    isAnswer: own.querySelector(".timeline-chosen-answer") !== null,
+    /*
+     * What their page offered this reader, which is the presence of one of their own forms. Asked
+     * of the whole page rather than of this container, because the finders take a document: they
+     * are the same functions the gateway sends the press with, so what is drawn and what can be
+     * sent cannot disagree.
+     */
+    mayMarkAnswer: named.isOpening ? false : markingAnswer(page, named.id) !== null,
+    mayUpvote:
+      upvoting(page, named.isOpening ? "Discussion" : "DiscussionComment", named.id) !== null
   }
 }
 
@@ -235,7 +245,7 @@ export const discussionOnPage = (
   const opening = containers.find((one) => namedWithin(one)?.isOpening === true)
   if (opening === undefined) return Option.none()
 
-  const post = saidIn(opening)
+  const post = saidIn(page, opening)
   if (post === null) return Option.none()
 
   /*
@@ -246,7 +256,7 @@ export const discussionOnPage = (
   const spoken = containers.flatMap((container) => {
     if (container === opening) return []
 
-    const said = saidIn(container)
+    const said = saidIn(page, container)
     return said === null ? [] : [{ said, under: under(container) }]
   })
 
@@ -273,7 +283,11 @@ export const discussionOnPage = (
      * something somebody wrote.
      */
     .filter((one) => one.under === null || !standing.has(one.under))
-    .map((one) => ({ ...one.said, replies: repliesTo.get(one.said.id) ?? [] }))
+    .map((one) => ({
+      ...one.said,
+      replies: repliesTo.get(one.said.id) ?? [],
+      mayReply: replyingUnder(page, one.said.id) !== null
+    }))
 
   /*
    * The state pill in their header, which is the only place the two words appear on this page.
@@ -302,7 +316,11 @@ export const discussionOnPage = (
     author: post.author,
     askedAt: post.at,
     body: post.body,
-    comments
+    comments,
+    allowed: {
+      say: sayingOn(page) !== null,
+      upvote: post.mayUpvote
+    }
   })
 }
 

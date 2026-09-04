@@ -1,5 +1,6 @@
-import type { Effect, Option } from "effect"
-import type { DiscussionRef, DiscussionSnapshot } from "../domain/discussions"
+import { Effect, type Option } from "effect"
+import { useState } from "react"
+import type { DiscussionPress, DiscussionRef, DiscussionSnapshot } from "../domain/discussions"
 import type { Repository } from "../domain/repositories"
 import { Discussion } from "./Discussion"
 import { DrawnAt } from "./drawnAt"
@@ -19,6 +20,13 @@ export type DiscussionScreenProps = {
   readonly preload?: () => Effect.Effect<Option.Option<DiscussionSnapshot>>
   /** Restores GitHub's own page, which is still behind this. */
   readonly onStepAside: () => void
+  /**
+   * How a press reaches GitHub, or nothing on a screen that only reads.
+   *
+   * Every control is behind two gates: this, and whether GitHub's own form for it was on the
+   * page. A test that only draws the screen passes neither and gets a discussion to read.
+   */
+  readonly onPress?: (press: DiscussionPress) => Effect.Effect<DiscussionSnapshot, unknown>
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
   readonly signedIn?: () => boolean
   /** What this page is called in this document's memory. See {@link useLive}. */
@@ -39,6 +47,7 @@ export const DiscussionScreen = ({
   reference,
   load,
   preload,
+  onPress,
   onStepAside,
   recallRepositories,
   where,
@@ -48,6 +57,13 @@ export const DiscussionScreen = ({
   const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
+
+  /*
+   * What the last press answered with, which is the discussion read again. Held here rather than
+   * pushed back through `useLive`, because a press is not a fresh visit: the reader is standing
+   * where they were and one thing about it changed.
+   */
+  const [written, setWritten] = useState<DiscussionSnapshot | undefined>(undefined)
 
   if (read.status === "failed") {
     return (
@@ -65,7 +81,14 @@ export const DiscussionScreen = ({
     )
   }
 
-  const shown = read.status === "ready" ? read.value : undefined
+  const answered = read.status === "ready" ? read.value : undefined
+  const shown = written ?? answered
+
+  const pressing =
+    onPress === undefined
+      ? undefined
+      : (press: DiscussionPress) =>
+          onPress(press).pipe(Effect.tap((fresh) => Effect.sync(() => setWritten(fresh))))
 
   return (
     // The same wrapper for the wait and for the cards, holding both in the same slots throughout:
@@ -79,7 +102,7 @@ export const DiscussionScreen = ({
       />
       {shown === undefined ? null : (
         <div className="t-panels flex flex-col pt-2 pb-2">
-          <Discussion snapshot={shown} />
+          <Discussion snapshot={shown} onPress={pressing} />
         </div>
       )}
       {waiting ? (

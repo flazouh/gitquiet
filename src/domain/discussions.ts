@@ -414,6 +414,16 @@ export type Reply = {
   readonly body: string
   readonly upvotes: number
   /**
+   * Whether GitHub offered this reader a press to mark it, or to take the mark off.
+   *
+   * Read off their own page rather than worked out from a permission: the control is on the page
+   * when the reader may use it and absent when they may not, and that is a fact rather than a
+   * conclusion. See `discussionForms.ts`.
+   */
+  readonly mayMarkAnswer: boolean
+  /** Whether GitHub offered this reader a vote on it. False for everyone who is signed out. */
+  readonly mayUpvote: boolean
+  /**
    * Whether this is the marked Answer.
    *
    * On a reply as well as on a comment, because the page says so per comment and this reads what
@@ -426,6 +436,8 @@ export type Reply = {
 /** One comment on a discussion, and the replies underneath it. */
 export type Comment = Reply & {
   readonly replies: ReadonlyArray<Reply>
+  /** Whether GitHub offered this reader a box to reply under it. */
+  readonly mayReply: boolean
 }
 
 /**
@@ -450,6 +462,17 @@ export type DiscussionSnapshot = {
   /** Their rendered markdown for the opening post. */
   readonly body: string
   readonly comments: ReadonlyArray<Comment>
+  /**
+   * What GitHub offered this reader on this page.
+   *
+   * Every one of these is the presence of one of their own forms. A reader who is not signed in
+   * gets none of them, and so does a locked discussion and an archived repository — which is why
+   * this is read rather than derived from `locked` and a login.
+   */
+  readonly allowed: {
+    readonly say: boolean
+    readonly upvote: boolean
+  }
 }
 
 /**

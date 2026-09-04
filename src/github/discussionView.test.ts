@@ -226,3 +226,30 @@ describe("a thread their pager served in pieces", () => {
     expect(found.comments[0]?.body).toContain("nobody sent")
   })
 })
+
+describe("what their page offered this reader", () => {
+  /*
+   * Signed out, GitHub renders no box, no vote form and no mark-as-answer form on any of these
+   * three pages. So every control is refused, which is the same answer a locked discussion and
+   * an archived repository give, and the screen offers nothing it cannot send.
+   */
+  test("a signed-out page offers nothing, which is what these recordings are", () => {
+    for (const found of [one, nine, ended]) {
+      expect(found.allowed).toEqual({ say: false, upvote: false })
+      expect(found.comments.every((said) => !said.mayMarkAnswer && !said.mayUpvote)).toBe(true)
+      expect(found.comments.every((said) => !said.mayReply)).toBe(true)
+    }
+  })
+
+  /*
+   * Their disabled badge on the answered one reads "Marked as answer". Disabled is precisely the
+   * reader who may not press it, so it is not offered as a press.
+   */
+  test("their disabled badge is not a press", () => {
+    expect(one.comments.find((said) => said.isAnswer)?.mayMarkAnswer).toBe(false)
+  })
+
+  test("the opening post is never something to mark as the answer", () => {
+    expect(nine.comments.some((said) => said.id === nine.id)).toBe(false)
+  })
+})
