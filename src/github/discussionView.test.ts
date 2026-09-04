@@ -253,3 +253,59 @@ describe("what their page offered this reader", () => {
     expect(nine.comments.some((said) => said.id === nine.id)).toBe(false)
   })
 })
+
+/*
+ * `vercel/next.js#91275`, a poll with two options and two votes, served on 2026-09-04. Their
+ * page puts a poll in a table cell after the comment body, so a read of the body alone drops it
+ * and a read of the cell as body hands a reader a poll they cannot answer.
+ */
+const votingHtml = await Bun.file("tests/fixtures/discussionPoll.html").text()
+const asked = read(91275, votingHtml)
+
+describe("a discussion that is a poll", () => {
+  test("reads the question and both ways of answering it", () => {
+    const poll = Option.getOrThrow(asked.poll)
+
+    expect(poll.question).toBe(
+      "was non-standard characters [,(,),] in filenames one of the worst decisions ever?"
+    )
+    expect(poll.options.map((one) => one.name)).toEqual(["yes", "no"])
+    expect(poll.options.map((one) => one.id)).toEqual(["78929", "78930"])
+  })
+
+  /* Their number and not one worked out again: they round it, and they round it their way. */
+  test("takes the share their own page printed", () => {
+    const poll = Option.getOrThrow(asked.poll)
+
+    expect(poll.options.map((one) => one.share)).toEqual([100, 0])
+    expect(poll.votes).toBe(2)
+  })
+
+  /*
+   * Their markup names the route, the field and the value, so this is the one write on this
+   * screen that guesses at nothing. What it still needs is their vote button, which is hidden
+   * from everybody who is not signed in.
+   */
+  test("keeps the route their markup names, and refuses the vote nobody may take", () => {
+    const poll = Option.getOrThrow(asked.poll)
+
+    expect(poll.voteUrl).toBe("/vercel/next.js/discussions/91275/poll/votes")
+    expect(poll.field).toBe("24993")
+    expect(poll.locked).toBe(false)
+    expect(poll.mayVote).toBe(false)
+  })
+
+  test("nobody has voted here, because their mark is hidden from a reader who is not signed in", () => {
+    expect(Option.getOrThrow(asked.poll).options.every((one) => !one.chosen)).toBe(true)
+  })
+
+  test("a discussion that is not a poll carries none", () => {
+    expect(nine.poll).toEqual(Option.none())
+    expect(one.poll).toEqual(Option.none())
+  })
+
+  /* The body is still the body. A poll sits beside what was written, never instead of it. */
+  test("the question that carries the poll still carries its own words", () => {
+    expect(asked.body).toContain("dumbest decisions")
+  })
+})

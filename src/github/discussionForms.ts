@@ -177,3 +177,34 @@ export const sendingOf = (posting: Posting, said?: string): string => {
 
   return body.toString()
 }
+
+/**
+ * How a Poll is answered, which their own markup names outright.
+ *
+ * The one write on this screen that guesses at nothing. Their poll carries `data-vote-url`, the
+ * radio group carries the poll's id as its `name`, each option carries its own id as `value`,
+ * and the token sits beside them in `.js-data-url-post-csrf`. So the address, the field and the
+ * value are all read rather than assumed.
+ *
+ * Refused where their own vote button is missing or hidden, which is what a reader who is not
+ * signed in gets, and what a locked poll gets.
+ */
+export const votingIn = (page: Document, option: string): Posting | null => {
+  const poll = page.querySelector(".js-discussion-poll-component")
+  const action = poll?.getAttribute("data-vote-url") ?? ""
+  if (poll === null || action === "" || poll.getAttribute("data-poll-locked") === "true") {
+    return null
+  }
+
+  const button = poll.querySelector(".js-discussion-poll-vote-button")
+  if (button === null || button.hasAttribute("hidden") || button.hasAttribute("disabled")) {
+    return null
+  }
+
+  const chosen = poll.querySelector(`.js-discussion-poll-option[value="${option}"]`)
+  const field = chosen?.getAttribute("name") ?? ""
+  const token = poll.querySelector(".js-data-url-post-csrf")?.getAttribute("value") ?? ""
+  if (field === "" || token === "") return null
+
+  return { action, fields: { authenticity_token: token, [field]: option }, bodyField: null }
+}

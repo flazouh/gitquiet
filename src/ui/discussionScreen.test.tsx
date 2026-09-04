@@ -230,3 +230,62 @@ describe("the presses GitHub offered", () => {
     expect(await screen.findByRole("alert")).toHaveProperty("textContent", "GitHub said no")
   })
 })
+
+/*
+ * `vercel/next.js#91275` — two options, two votes, and a question nobody has voted on from here.
+ * Their page hides the results behind a press until you have voted; this draws them, because a
+ * poll's answer is the point of it.
+ */
+const pollHtml = await Bun.file("tests/fixtures/discussionPoll.html").text()
+const asked = Option.getOrThrow(discussionOnPage(at(91275), pollHtml))
+
+describe("a discussion that is a poll", () => {
+  test("asks the question and shows where the votes went", async () => {
+    show(asked)
+
+    const poll = await screen.findByRole("region", {
+      name: "was non-standard characters [,(,),] in filenames one of the worst decisions ever?"
+    })
+
+    expect(within(poll).getByText("yes")).toBeTruthy()
+    expect(within(poll).getByText("100%")).toBeTruthy()
+    expect(within(poll).getByText("0%")).toBeTruthy()
+    expect(within(poll).getByText("2 votes")).toBeTruthy()
+  })
+
+  test("offers no vote where GitHub hid their own button", async () => {
+    show(asked)
+
+    await screen.findByText("2 votes")
+    expect(screen.queryByRole("button", { name: "Vote for yes" })).toBeNull()
+  })
+
+  test("sends the option's own id where GitHub offered the press", async () => {
+    const poll = Option.getOrThrow(asked.poll)
+    const pressed: Array<DiscussionPress> = []
+
+    render(
+      <DiscussionScreen
+        reference={asked.reference}
+        load={() => Effect.succeed({ ...asked, poll: Option.some({ ...poll, mayVote: true }) })}
+        onPress={(press) => {
+          pressed.push(press)
+          return Effect.succeed(asked)
+        }}
+        signedIn={() => true}
+        onStepAside={() => {}}
+      />
+    )
+
+    fireEvent.click(await screen.findByRole("button", { name: "Vote for yes" }))
+
+    expect(pressed).toEqual([{ kind: "vote", option: "78929" }])
+  })
+
+  test("a discussion that is not a poll draws none", async () => {
+    show(stale)
+
+    await screen.findByText("Stale")
+    expect(screen.queryByText(/votes$/)).toBeNull()
+  })
+})

@@ -454,6 +454,53 @@ export type Reply = {
   readonly isAnswer: boolean
 }
 
+/**
+ * One way to answer a Poll, and how many people took it.
+ *
+ * The share is the number their own page prints beside the option rather than one worked out
+ * from the votes. They round it, they round it their way, and a second arithmetic here would
+ * disagree with the page a reader has just come from.
+ */
+export type PollOption = {
+  /** GitHub's own id for the option, which is what a vote sends. */
+  readonly id: string
+  readonly name: string
+  /** Their percentage, 0 to 100. */
+  readonly share: number
+  /** Whether this reader took it. Only ever true on a page GitHub served to somebody signed in. */
+  readonly chosen: boolean
+}
+
+/**
+ * A Poll, which is a discussion whose body carries one.
+ *
+ * Its own field on the snapshot rather than left inside the body's markup. Their page puts it in
+ * a table cell after the comment body, so drawing the body alone would drop it, and drawing the
+ * cell as body would hand a reader a poll they cannot vote in.
+ *
+ * A Poll never closes on its own. That is why Running is empty on the list beside this: there is
+ * no clock anywhere in this, and nothing is running down.
+ */
+export type Poll = {
+  readonly question: string
+  readonly options: ReadonlyArray<PollOption>
+  /** How many people have answered, as their footer counts it. */
+  readonly votes: number
+  /** Whether GitHub says nobody may answer any more. */
+  readonly locked: boolean
+  /**
+   * Where a vote is sent, off their own `data-vote-url`.
+   *
+   * Their markup names the route, so this is the one write on this screen that guesses at
+   * nothing at all: the address, the field and the value are all on the page.
+   */
+  readonly voteUrl: string
+  /** The name their radio group carries, which is GitHub's id for the poll itself. */
+  readonly field: string
+  /** Whether GitHub offered this reader a way to answer it. */
+  readonly mayVote: boolean
+}
+
 /** One comment on a discussion, and the replies underneath it. */
 export type Comment = Reply & {
   readonly replies: ReadonlyArray<Reply>
@@ -483,6 +530,8 @@ export type DiscussionSnapshot = {
   /** Their rendered markdown for the opening post. */
   readonly body: string
   readonly comments: ReadonlyArray<Comment>
+  /** The Poll their body carries, where the discussion is one. */
+  readonly poll: Option.Option<Poll>
   /**
    * What GitHub offered this reader on this page.
    *
@@ -642,6 +691,8 @@ export type DiscussionPress =
   | { readonly kind: "reply"; readonly comment: string; readonly body: string }
   /** Mark one comment as the Answer, which is the press this whole screen exists for. */
   | { readonly kind: "mark-answer"; readonly comment: string }
+  /** Answer a Poll, by the option's own id. */
+  | { readonly kind: "vote"; readonly option: string }
   /** Upvote the question, or something said about it. */
   | {
       readonly kind: "upvote"

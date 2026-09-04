@@ -74,6 +74,7 @@ import {
   sayingOn,
   sendingOf,
   upvoting,
+  votingIn,
   type Posting
 } from "./discussionForms"
 import { isKeptNotices, noticesOnPage } from "./notifications"
@@ -3403,7 +3404,9 @@ export const layer = Layer.succeed(GitHubGateway, {
             ? replyingUnder(document, press.comment)
             : press.kind === "mark-answer"
               ? markingAnswer(document, press.comment)
-              : upvoting(document, press.on, press.id)
+              : press.kind === "vote"
+                ? votingIn(document, press.option)
+                : upvoting(document, press.on, press.id)
 
       if (posting === null) {
         return yield* new GatewayError({

@@ -26,11 +26,12 @@ import type {
   Comment,
   DiscussionRef,
   DiscussionSnapshot,
+  Poll,
   Reply
 } from "../domain/discussions"
 import { text } from "./outcome"
 import { emojiIn } from "./discussionsList"
-import { markingAnswer, replyingUnder, sayingOn, upvoting } from "./discussionForms"
+import { markingAnswer, replyingUnder, sayingOn, upvoting, votingIn } from "./discussionForms"
 
 const parse = (html: string): Document => new DOMParser().parseFromString(html, "text/html")
 
@@ -317,6 +318,7 @@ export const discussionOnPage = (
     askedAt: post.at,
     body: post.body,
     comments,
+    poll: pollOnPage(page),
     allowed: {
       say: sayingOn(page) !== null,
       upvote: post.mayUpvote
@@ -344,4 +346,70 @@ export const isKeptDiscussion = (value: unknown): value is DiscussionSnapshot =>
     typeof kept.answered === "boolean" &&
     Array.isArray(kept.comments)
   )
+}
+
+/** Their percentage, off the number they printed rather than one worked out again. */
+const SHARE = /(\d+)\s*%/
+
+/**
+ * Whether an element is one their page is showing.
+ *
+ * GitHub renders the "you voted for this" mark on every option and hides all but the one taken,
+ * so its presence says nothing and only `hidden` does.
+ */
+const shown = (node: Element | null): boolean => node !== null && !node.hasAttribute("hidden")
+
+/**
+ * The Poll their body carries, or nothing where the discussion is not one.
+ *
+ * Read from the cell after the comment body, which is where their page puts it. Drawing the body
+ * alone would drop it; drawing the cell as body would hand a reader a poll they cannot answer.
+ *
+ * The options come from their radio group and the shares from their result rows, matched by
+ * position, because those are the same list drawn twice and only the first carries the ids.
+ */
+export const pollOnPage = (page: Document): Option.Option<Poll> => {
+  const poll = page.querySelector(".js-discussion-poll-component")
+  if (poll === null) return Option.none()
+
+  const voteUrl = poll.getAttribute("data-vote-url") ?? ""
+  const rows = [...poll.querySelectorAll('[id^="result-row-"]')]
+
+  const options = [...poll.querySelectorAll(".js-discussion-poll-option[value]")].flatMap(
+    (choice, at) => {
+      const id = choice.getAttribute("value") ?? ""
+      if (id === "") return []
+
+      const label = poll.querySelector(`label[for="${choice.getAttribute("id") ?? ""}"]`)
+      const row = rows[at]
+      const share = Number(SHARE.exec(text(row))?.[1])
+
+      return [
+        {
+          id,
+          name: text(label),
+          share: Number.isFinite(share) ? share : 0,
+          /*
+           * Their own words for it, and the mark has to be shown rather than merely there.
+           * GitHub renders it on every option and hides all but the one taken, so reading its
+           * presence made every option read as chosen on a page nobody had voted on.
+           */
+          chosen: shown(row?.querySelector('[aria-label="You voted for this option"]') ?? null)
+        }
+      ]
+    }
+  )
+
+  const votes = Number((/([\d,]+)\s+votes?/.exec(text(poll)) ?? [])[1]?.replace(/,/g, ""))
+  const first = options[0]
+
+  return Option.some({
+    question: text(poll.querySelector("#poll-question")),
+    options,
+    votes: Number.isFinite(votes) ? votes : 0,
+    locked: poll.getAttribute("data-poll-locked") === "true",
+    voteUrl,
+    field: poll.querySelector(".js-discussion-poll-option")?.getAttribute("name") ?? "",
+    mayVote: first !== undefined && votingIn(page, first.id) !== null
+  })
 }
