@@ -20,7 +20,9 @@
  * served it on 2026-09-03.
  */
 
-import type { Category, DiscussionRef, Emoji, ListedDiscussion } from "../domain/discussions"
+import { Option } from "effect"
+import type {
+  Participant, Category, DiscussionRef, Emoji, ListedDiscussion } from "../domain/discussions"
 import { text } from "./outcome"
 
 const parse = (html: string): Document => new DOMParser().parseFromString(html, "text/html")
@@ -106,12 +108,15 @@ const categoryIn = (row: Element): Category => {
  * the wide copy labels the images. So the labelled ones are read and the duplicates fall out
  * with them, rather than being de-duplicated afterwards by name.
  */
-const participantsIn = (row: Element): ReadonlyArray<string> => {
+const participantsIn = (row: Element): ReadonlyArray<Participant> => {
   const named = [...row.querySelectorAll('img[aria-label$="(participant)"]')]
   return named.flatMap((one) => {
     const said = one.getAttribute("aria-label") ?? ""
-    const who = said.replace(/\s*\(participant\)$/, "")
-    return who === "" ? [] : [who]
+    const login = said.replace(/\s*\(participant\)$/, "")
+    if (login === "") return []
+
+    const src = one.getAttribute("src") ?? ""
+    return [{ login, faceUrl: src === "" ? Option.none() : Option.some(src) }]
   })
 }
 

@@ -2,7 +2,6 @@ import { Option } from "effect"
 import { useState } from "react"
 import {
   CHIPS,
-  type Answering,
   type Category,
   type Chip,
   type DiscussionList,
@@ -18,12 +17,14 @@ import {
   listRouteOf,
   raisingAddressOf,
   toggled,
-  wordsIn
+  wordsIn,
+  type Participant
 } from "../domain/discussions"
 import type { Where } from "./Bar"
-import { COURT_ART, COURT_NAME, COURT_TONE } from "./courts"
+import { ANSWERING_SAID, ANSWERING_TONE, COURT_ART, COURT_NAME, COURT_TONE } from "./courts"
 import { Section } from "./Section"
 import { ageOf, momentOf } from "./when"
+import { Face } from "./Face"
 
 /**
  * What the bar is standing on, for either kind of home.
@@ -49,12 +50,6 @@ export const whereFor = (home: Home): Where =>
  * the first page of eight repositories on 2026-09-03, 94 of the 98 unanswered Questions were in
  * this state: somebody replied, and nobody marked what they said.
  */
-const SAID: Record<Answering, string> = {
-  stale: "Stale",
-  unanswered: "Unanswered",
-  answered: "Answered",
-  unanswerable: ""
-}
 
 /**
  * The colour each word wears, and there are only two.
@@ -64,12 +59,6 @@ const SAID: Record<Answering, string> = {
  * nobody has replied to is not a fault, and an answered one needs no emphasis to be found, since
  * the heading it sits under has already said it.
  */
-const TONE: Record<Answering, string> = {
-  stale: "text-busy",
-  unanswered: "text-ink-muted",
-  answered: "text-done",
-  unanswerable: ""
-}
 
 /**
  * The picture a maintainer chose for a category, however GitHub stores it.
@@ -79,11 +68,38 @@ const TONE: Record<Answering, string> = {
  * with something else: a category with a blank where every other row has a picture reads as a
  * row that failed to load.
  */
+/**
+ * Who has been in the thread, at most four of them.
+ *
+ * The same stack the inbox draws on its own rows, for the same reason: on a forum where a
+ * question can sit for a month, the people already in a thread say more about whether it is
+ * moving than the reply count does. Their page draws this stack too, so a reader who knows it
+ * from GitHub finds it where they left it.
+ *
+ * Hidden from a reader being read to. The author is named in words beside it, and four more
+ * names read aloud on every row is noise rather than help.
+ */
+const Who = ({ people }: { readonly people: ReadonlyArray<Participant> }) =>
+  people.length === 0 ? null : (
+    <span aria-hidden="true" className="flex shrink-0 items-center gap-1">
+      {people.slice(0, 4).map((one) => (
+        <Face key={one.login} faceUrl={one.faceUrl} name={one.login} />
+      ))}
+    </span>
+  )
+
 const Picture = ({ emoji }: { readonly emoji: Emoji }) => {
   if (emoji.kind === "text") return <>{emoji.text}</>
   if (emoji.kind === "none") return null
 
-  return <img src={emoji.url} alt="" width={16} height={16} className="inline-block" />
+  /*
+   * Named rather than `alt=""`. A custom emoji is the only thing on GitHub's own row that
+   * separates a Poll from a support question at a glance, so a reader who cannot see it is owed
+   * the name their maintainer gave it.
+   */
+  return (
+    <img src={emoji.url} alt={emoji.name} width={16} height={16} className="inline-block" />
+  )
 }
 
 /**
@@ -112,7 +128,7 @@ const Ended = ({ one }: { readonly one: ListedDiscussion }) => {
  */
 const Row = ({ one }: { readonly one: ListedDiscussion }) => {
   const answering = answeringOf(one)
-  const said = SAID[answering]
+  const said = ANSWERING_SAID[answering]
   const age = ageOf(one.askedAt)
 
   return (
@@ -127,7 +143,7 @@ const Row = ({ one }: { readonly one: ListedDiscussion }) => {
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
           {said === "" ? null : (
-            <span className={`shrink-0 text-xs font-semibold ${TONE[answering]}`}>{said}</span>
+            <span className={`shrink-0 text-xs font-semibold ${ANSWERING_TONE[answering]}`}>{said}</span>
           )}
           <a
             className="min-w-0 flex-1 truncate text-sm text-ink no-underline hover:underline"
@@ -156,6 +172,7 @@ const Row = ({ one }: { readonly one: ListedDiscussion }) => {
             </span>
           ))}
           <span aria-hidden="true">·</span>
+          <Who people={one.participants} />
           <span className="min-w-0 truncate">{one.author}</span>
           <span aria-hidden="true">·</span>
           <span className="tabular-nums">

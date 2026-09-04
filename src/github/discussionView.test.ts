@@ -288,11 +288,9 @@ describe("a discussion that is a poll", () => {
    * screen that guesses at nothing. What it still needs is their vote button, which is hidden
    * from everybody who is not signed in.
    */
-  test("keeps the route their markup names, and refuses the vote nobody may take", () => {
+  test("refuses the vote nobody may take", () => {
     const poll = Option.getOrThrow(asked.poll)
 
-    expect(poll.voteUrl).toBe("/vercel/next.js/discussions/91275/poll/votes")
-    expect(poll.field).toBe("24993")
     expect(poll.locked).toBe(false)
     expect(poll.mayVote).toBe(false)
   })

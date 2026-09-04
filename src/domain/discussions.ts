@@ -82,6 +82,13 @@ export type DiscussionRef = {
  * among its nine, and a read that only knew about the first drew Show and tell with a blank
  * where every other row has its picture.
  */
+/** One person in a discussion's avatar stack, as their row draws them. */
+export type Participant = {
+  readonly login: string
+  /** Their avatar, or nothing where GitHub's stack drew none. */
+  readonly faceUrl: Option.Option<string>
+}
+
 export type Emoji =
   | { readonly kind: "none" }
   | { readonly kind: "text"; readonly text: string }
@@ -165,8 +172,15 @@ export type ListedDiscussion = {
   readonly labels: ReadonlyArray<string>
   /** When it was asked, as their `relative-time` carries it. */
   readonly askedAt: string
+  /**
+   * Who has been in the thread, in the order their stack draws them.
+   *
+   * A face rather than only a name, because that is what the row draws, and the same shape the
+   * inbox draws for the same reason: on a busy forum the people already in a thread say more
+   * about whether it is moving than the reply count does.
+   */
+  readonly participants: ReadonlyArray<Participant>
   /** Everyone their avatar stack names, the author first. */
-  readonly participants: ReadonlyArray<string>
 }
 
 /**
@@ -561,15 +575,6 @@ export type Poll = {
   readonly votes: number
   /** Whether GitHub says nobody may answer any more. */
   readonly locked: boolean
-  /**
-   * Where a vote is sent, off their own `data-vote-url`.
-   *
-   * Their markup names the route, so this is the one write on this screen that guesses at
-   * nothing at all: the address, the field and the value are all on the page.
-   */
-  readonly voteUrl: string
-  /** The name their radio group carries, which is GitHub's id for the poll itself. */
-  readonly field: string
   /** Whether GitHub offered this reader a way to answer it. */
   readonly mayVote: boolean
 }

@@ -1,7 +1,6 @@
 import { Effect, Option } from "effect"
 import { useState, type ReactNode } from "react"
 import {
-  type Answering,
   type Comment,
   type DiscussionPress,
   type DiscussionSnapshot,
@@ -22,6 +21,7 @@ import { Saying } from "./Saying"
 import { Section } from "./Section"
 import { ageOf, momentOf } from "./when"
 import { reasonFor } from "./refusal"
+import { ANSWERING_SAID, ANSWERING_TONE } from "./courts"
 
 /**
  * What the discussion is waiting for, in a word.
@@ -30,19 +30,7 @@ import { reasonFor } from "./refusal"
  * on the list opens on the word Stale. Two screens that weighed the same thread differently
  * would leave the reader deciding which of them to believe.
  */
-const SAID: Record<Answering, string> = {
-  stale: "Stale",
-  unanswered: "Unanswered",
-  answered: "Answered",
-  unanswerable: ""
-}
 
-const TONE: Record<Answering, string> = {
-  stale: "text-busy",
-  unanswered: "text-ink-muted",
-  answered: "text-done",
-  unanswerable: ""
-}
 
 /** How a press is sent, or nothing where this screen is drawn without one. */
 type Pressing = ((press: DiscussionPress) => Effect.Effect<unknown, unknown>) | undefined
@@ -502,7 +490,7 @@ export const Discussion = ({
   readonly onAsk?: Asking
 }) => {
   const answering = answeringOf(weighingOf(snapshot))
-  const said = SAID[answering]
+  const said = ANSWERING_SAID[answering]
   const answer = answerOf(snapshot)
   const likely = mostUpvoted(snapshot)
   const where = addressOf(snapshot.reference)
@@ -516,7 +504,7 @@ export const Discussion = ({
         art="comments"
         summary={
           said === "" ? null : (
-            <span className={`text-xs font-semibold ${TONE[answering]}`}>{said}</span>
+            <span className={`text-xs font-semibold ${ANSWERING_TONE[answering]}`}>{said}</span>
           )
         }
       >

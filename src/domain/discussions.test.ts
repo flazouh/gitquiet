@@ -38,7 +38,7 @@ const row = (over: Partial<ListedDiscussion> = {}): ListedDiscussion => ({
   labels: [],
   author: "ShivamArora",
   askedAt: "2024-09-17T08:29:25Z",
-  participants: ["ShivamArora", "raju-sirigineedi", "teknology"],
+  participants: [],
   ...over
 })
 

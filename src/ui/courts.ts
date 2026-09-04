@@ -1,6 +1,7 @@
 import type { Court } from "../domain/workingSet"
 import type { ArtName } from "./art"
 import type { Tone } from "./Section"
+import type { Answering } from "../domain/discussions"
 
 /**
  * CONTEXT.md's four Courts, in the words it names them by.
@@ -95,3 +96,35 @@ export const COURT_ART: Record<Court, ArtName> = {
  */
 export const courtArt = (court: Court, moving: boolean): ArtName =>
   court === "running" && !moving ? "check-queued" : COURT_ART[court]
+
+/**
+ * The word a discussion wears for how far along its answer is.
+ *
+ * Here for the same reason the Courts above are: two screens name them now. The list writes it on
+ * every row and the discussion itself writes it at the top, and a reader who learns the word on
+ * one has learnt it for the other, which only holds while there is one place the word comes from.
+ *
+ * Unanswerable says nothing at all. A discussion in a category GitHub does not mark answers in is
+ * not unanswered; there is no answer to be had, and a blank is the honest word for that.
+ */
+export const ANSWERING_SAID: Record<Answering, string> = {
+  stale: "Stale",
+  unanswered: "Unanswered",
+  answered: "Answered",
+  unanswerable: ""
+}
+
+/**
+ * The colour each of those words wears, and there are only two.
+ *
+ * Stale is the busy colour the Needs You heading above it already wears, so the row and its
+ * heading make one statement rather than two. Everything else is muted: an unanswered question
+ * nobody has replied to is not a fault, and an answered one needs no emphasis to be found, since
+ * the heading it sits under has already said it.
+ */
+export const ANSWERING_TONE: Record<Answering, string> = {
+  stale: "text-busy",
+  unanswered: "text-ink-muted",
+  answered: "text-done",
+  unanswerable: ""
+}

@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { Option } from "effect"
 import { answeringOf, courtOf, type Answering } from "../domain/discussions"
 import {
   categoriesOnPage,
@@ -90,7 +91,18 @@ describe("reading their list page", () => {
    * and only the wide copy labels the images. Reading both would name everybody twice.
    */
   test("names each participant once, though their page draws the stack twice", () => {
-    expect(rows[0]?.participants).toEqual(["1minikadam", "GafelSon", "huklaa"])
+    expect(rows[0]?.participants.map((one) => one.login)).toEqual([
+      "1minikadam",
+      "GafelSon",
+      "huklaa"
+    ])
+  })
+
+  /* A face as well as a name, because the row draws the stack rather than listing it. */
+  test("keeps the face GitHub drew beside each name", () => {
+    const first = rows[0]?.participants[0]
+
+    expect(Option.getOrThrow(first?.faceUrl ?? Option.none())).toContain("avatars")
   })
 })
 

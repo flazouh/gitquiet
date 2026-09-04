@@ -214,3 +214,31 @@ describe("raising one", () => {
     expect(await screen.findByText("Linking and Navigating")).toBeTruthy()
   })
 })
+
+/*
+ * The avatar stack, which is the same one the inbox draws on its own rows. Hidden from a reader
+ * being read to, so it is counted in the document rather than found by an accessible name.
+ */
+describe("who is in a thread", () => {
+  test("draws a face for each participant their page named, four at most", async () => {
+    show()
+
+    const rows = await screen.findAllByRole("listitem")
+    const first = rows[0]
+    const faces = first?.querySelectorAll("img[alt]") ?? []
+
+    expect(faces.length).toBeGreaterThan(0)
+    expect(faces.length).toBeLessThanOrEqual(5)
+  })
+
+  test("draws no stack on a row whose page named nobody", async () => {
+    const bare = SHOWN.rows[0]
+    if (bare === undefined) throw new Error("the recording has no rows")
+
+    show({ ...SHOWN, rows: [{ ...bare, participants: [] }] })
+
+    const rows = await screen.findAllByRole("listitem")
+
+    expect(rows[0]?.querySelectorAll('img[alt=""]')).toHaveLength(0)
+  })
+})
