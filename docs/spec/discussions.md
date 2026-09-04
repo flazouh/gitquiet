@@ -3,13 +3,26 @@
 Status: draft-for-review. The vocabulary is proposed in the Language section below and is not
 yet in `CONTEXT.md`.
 
-Covers three addresses:
+Covers six addresses, which are three pages in two homes:
 
 | Address | Is |
 | --- | --- |
 | `/{owner}/{repo}/discussions` | every discussion in a repository |
 | `/{owner}/{repo}/discussions/categories/{slug}` | the same list, one category |
 | `/{owner}/{repo}/discussions/{number}` | one discussion |
+| `/orgs/{org}/discussions` | every discussion in an organisation |
+| `/orgs/{org}/discussions/categories/{slug}` | the same list, one category |
+| `/orgs/{org}/discussions/{number}` | one discussion |
+
+An organisation's are not a lesser version of a repository's. `orgs/community` is where GitHub
+runs its own product feedback, and it is the busiest Discussions surface there is: read on
+2026-09-04, its first page carries 25 rows across 23 categories, and one thread on it has 30
+comments of which 8 have been folded away by a moderator.
+
+The two are one page in two layouts. Every row, comment, category, poll and press is identical,
+which the parsers prove by reading both without a line of difference. What differs is the path in
+front of the word `discussions`, and the markup GitHub wraps the page in: a repository's uses the
+pjax container its other tabs use, and an organisation's has neither that nor a Turbo frame.
 
 The worked examples are eight repositories that run Discussions in earnest, read live and
 signed out on 2026-09-03: `vercel/next.js`, `tailwindlabs/tailwindcss`, `supabase/supabase`,
@@ -177,6 +190,28 @@ by; their own sidebar drops it every time.
 The pager is Newer and Older with no page count, because their list prints no total anywhere on
 the page and answers no route that does.
 
+### Polls
+
+A poll is drawn where their body carries one, with its results always shown. Their page hides the
+results behind a press until you have voted, and a poll's answer is the point of it.
+
+A vote is the one write on this screen that guesses at nothing: their markup names the route in
+`data-vote-url`, the radio group carries the poll's id as its `name`, each option carries its own
+id as its `value`, and the token sits beside them.
+
+Nothing about a poll runs down. There is no closing time anywhere in their markup, which is the
+second reason the Running Court is empty on the list.
+
+### Reactions
+
+The faces people put on a discussion, and only the ones somebody used. Their page renders a
+button for all eight with a zero on the seven nobody chose, and a row of eight zeroes under every
+comment is eight things to read and nothing to learn.
+
+Drawn apart from the upvote beside them, because GitHub counts them apart: an upvote ranks the
+thread and a face is an opinion about one thing somebody said. The last comment of
+`vercel/next.js#70178` carries one rocket and two upvotes.
+
 ### Writing
 
 Every write is GitHub's own form, sent back. Their discussion page is Rails, so each control that
@@ -184,7 +219,8 @@ changes something is a form whose token is signed for that render and cannot be 
 extension is standing on the page that form was rendered into, which is the whole of why this
 works. See `discussionForms.ts`.
 
-Four presses: say something, reply under a comment, mark a comment as the answer, and upvote.
+Six presses: say something, reply under a comment, mark a comment as the answer, upvote, put a
+face on something, and answer a poll.
 Each is drawn only where their form for it was on the page, so a reader who is not signed in, a
 locked discussion and an archived repository all draw nothing. Their disabled "Marked as answer"
 badge is not a press and is not offered as one.
@@ -198,8 +234,13 @@ each of a repository's categories is for, is their page's to explain.
   a separate screen with a separate spec. This one is about a repository.
 - **No closing, locking or reacting.** Those are writes like the four above and would be found
   the same way, and they are not built. A reader who wants one has GitHub's page a press away.
-- **No poll voting.** A poll's own markup arrives inside the body GitHub rendered and is drawn as
-  they drew it. Voting is a write nobody has looked for a form for.
+- **No closing, locking, editing or deleting.** Those live behind
+  `/{owner}/{repo}/discussions/{n}/actions_menu`, which GitHub loads on demand and answers 404 to
+  a reader who is not signed in. Building them would mean guessing a route and a field name, which
+  is the one thing every other write here refuses to do. They need one recording of a signed-in
+  page; the finders would then be four more of the same shape.
+- **No cross-repository list.** `github.com/discussions` exists for a signed-in reader and cannot
+  be recorded from here for the same reason.
 - **No category management.** Making and ordering categories is a maintainer setting and
   belongs where the other settings are.
 - **No claim about spam.** Spam in Discussions is a real complaint and a moderation problem.

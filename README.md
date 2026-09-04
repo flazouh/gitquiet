@@ -79,6 +79,8 @@ router and the takeover read.
 | `/owner/repo/discussions` | its discussions |
 | `/owner/repo/discussions/categories/SLUG` | one category of them |
 | `/owner/repo/discussions/N` | one discussion |
+| `/orgs/ORG/discussions` | an organisation's discussions |
+| `/orgs/ORG/discussions/N` | one of them |
 | `/notifications` | your inbox |
 
 ## Keyboard

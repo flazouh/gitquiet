@@ -156,6 +156,7 @@ import { type CommitList, type History, routeFor } from "../domain/commitList"
 import {
   addressOf as discussionAddress,
   homePath,
+  homeRef,
   listRouteOf,
   listWithinHome,
   type DiscussionList,
@@ -1517,18 +1518,6 @@ const repoDocument = Effect.fn("repoDocument")(function* (reference: RepoRef, ro
       new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
   })
 })
-
-/**
- * A discussion home as the {@link RepoRef} a failure is named against.
- *
- * `GatewayError` names a repository, and an organisation's discussions have none. The pair here
- * is the address rather than an owner and a name: `orgs/community` is what a failure report needs
- * to say which page could not be read, and nothing draws it on a screen.
- */
-const homeRef = (home: Home): RepoRef =>
-  home.kind === "repository"
-    ? { owner: home.owner, repo: home.repo }
-    : { owner: "orgs", repo: home.org }
 
 /**
  * One of GitHub's discussion pages as the document they serve it as.

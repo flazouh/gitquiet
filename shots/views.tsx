@@ -8,6 +8,7 @@ import { DISCUSSIONS_VIEW } from "./mock/discussions"
 import { ISSUE_VIEW } from "./mock/issue"
 import { ISSUES_VIEW } from "./mock/issues"
 import { NOTIFICATIONS_VIEW } from "./mock/notifications"
+import { ORG_DISCUSSIONS_VIEW } from "./mock/orgDiscussions"
 import { PERSON_REPOS_VIEW } from "./mock/personRepos"
 import { PROFILE_VIEW } from "./mock/profile"
 import { PULL_REQUEST_VIEW } from "./mock/pullRequest"
@@ -52,6 +53,7 @@ export const VIEWS: ReadonlyArray<View> = [
   RELEASES_VIEW,
   DISCUSSIONS_VIEW,
   DISCUSSION_VIEW,
+  ORG_DISCUSSIONS_VIEW,
   NOTIFICATIONS_VIEW,
   PROFILE_VIEW,
   PERSON_REPOS_VIEW,

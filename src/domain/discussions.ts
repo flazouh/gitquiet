@@ -15,6 +15,7 @@
 
 import { Option } from "effect"
 import { COURTS } from "./attention"
+import type { RepoRef } from "./PullRequestRef"
 import { NOT_AN_OWNER } from "./repoHome"
 import { asked, termsIn, toggling } from "./sieve"
 import type { Court } from "./workingSet"
@@ -42,6 +43,21 @@ export const homePath = (home: Home): string =>
 /** What to call it on the screen: `owner/repo`, or an organisation's own name. */
 export const homeName = (home: Home): string =>
   home.kind === "repository" ? `${home.owner}/${home.repo}` : home.org
+
+/**
+ * A home as the repository a failure is named against.
+ *
+ * Every read in this codebase reports where it went wrong as an owner and a repository, and an
+ * organisation's discussions have neither. The pair here is their address instead —
+ * `orgs/community` is what a failure report needs in order to say which page could not be read —
+ * and nothing draws it on a screen, which is what {@link homeName} is for.
+ *
+ * Here rather than in each gateway, because there are two of them and they had a copy each.
+ */
+export const homeRef = (home: Home): RepoRef =>
+  home.kind === "repository"
+    ? { owner: home.owner, repo: home.repo }
+    : { owner: "orgs", repo: home.org }
 
 /**
  * A discussion's address, which is where it lives and a number.
