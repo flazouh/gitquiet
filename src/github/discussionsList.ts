@@ -173,6 +173,15 @@ const discussionIn = (row: Element): ReadonlyArray<ListedDiscussion> => {
       locked: row.querySelector(".octicon-lock") !== null,
       upvotes: numberIn(upvote?.getAttribute("aria-label") ?? "", /^Upvote:\s*(\d+)$/),
       comments: numberIn(count?.getAttribute("aria-label") ?? "", COMMENTS),
+      /*
+       * Their own `data-name`, which is the label's name without the colour swatch and the
+       * whitespace their markup wraps it in. Read off the attribute rather than the text for
+       * that reason alone.
+       */
+      labels: [...row.querySelectorAll("a.IssueLabel[data-name]")].flatMap((one) => {
+        const name = one.getAttribute("data-name") ?? ""
+        return name === "" ? [] : [name]
+      }),
       author: text(author),
       askedAt: when?.getAttribute("datetime") ?? "",
       participants: participantsIn(row)
@@ -252,6 +261,7 @@ export const isKeptDiscussions = (value: unknown): value is ReadonlyArray<Listed
     typeof one.answerable === "boolean" &&
     typeof one.answered === "boolean" &&
     typeof one.comments === "number" &&
+    Array.isArray(one.labels) &&
     typeof one.category === "object"
   )
 }

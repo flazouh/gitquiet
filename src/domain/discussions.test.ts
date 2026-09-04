@@ -31,6 +31,7 @@ const row = (over: Partial<ListedDiscussion> = {}): ListedDiscussion => ({
   locked: false,
   upvotes: 9,
   comments: 9,
+  labels: [],
   author: "ShivamArora",
   askedAt: "2024-09-17T08:29:25Z",
   participants: ["ShivamArora", "raju-sirigineedi", "teknology"],

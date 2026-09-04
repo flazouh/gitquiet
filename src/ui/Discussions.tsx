@@ -14,6 +14,7 @@ import {
   docketsOf,
   listAddressOf,
   listRouteOf,
+  raisingAddressOf,
   toggled,
   wordsIn
 } from "../domain/discussions"
@@ -134,6 +135,11 @@ const Row = ({ one }: { readonly one: ListedDiscussion }) => {
           >
             {one.category.name}
           </a>
+          {one.labels.map((label) => (
+            <span key={label} className="rounded border border-edge px-1 text-ink-muted">
+              {label}
+            </span>
+          ))}
           <span aria-hidden="true">·</span>
           <span className="min-w-0 truncate">{one.author}</span>
           <span aria-hidden="true">·</span>
@@ -183,7 +189,17 @@ export const Categories = ({
     <div className="flex flex-col gap-2 px-3 py-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Sieves list={list} />
-        <Words list={list} />
+        <div className="flex items-center gap-2">
+          <Words list={list} />
+          {/* GitHub's own form, handed over rather than drawn: which category a discussion goes
+              in, and what each of a repository's categories is for, is their page's to explain. */}
+          <a
+            className="rounded px-2 py-0.5 text-xs text-ink-muted no-underline hover:bg-hover"
+            href={raisingAddressOf(list.repo)}
+          >
+            New discussion
+          </a>
+        </div>
       </div>
       {categories.length === 0 ? null : (
         <nav aria-label="Categories" className="flex flex-wrap gap-1">

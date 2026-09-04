@@ -194,3 +194,23 @@ describe("the filter bar", () => {
     )
   })
 })
+
+describe("raising one", () => {
+  /*
+   * Handed over rather than drawn. Which category a discussion goes in, and what each of a
+   * repository's categories is for, is their page's to explain.
+   */
+  test("sends a reader to GitHub's own form", async () => {
+    show()
+
+    const link = await screen.findByRole("link", { name: "New discussion" })
+
+    expect(link.getAttribute("href")).toBe("/vercel/next.js/discussions/new")
+  })
+
+  test("draws the label a maintainer put on a row", async () => {
+    show()
+
+    expect(await screen.findByText("Linking and Navigating")).toBeTruthy()
+  })
+})

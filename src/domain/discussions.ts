@@ -116,6 +116,14 @@ export type ListedDiscussion = {
   /** Replies of every depth, which is the number their own row prints. */
   readonly comments: number
   readonly author: string
+  /**
+   * Whatever a maintainer labelled it, in the order their row prints them.
+   *
+   * Carried because a label is how a maintainer triages, and a row without one loses the only
+   * thing on it that somebody put there on purpose. One of the twenty-five rows recorded here
+   * has one, which is what a label list looks like on a real repository.
+   */
+  readonly labels: ReadonlyArray<string>
   /** When it was asked, as their `relative-time` carries it. */
   readonly askedAt: string
   /** Everyone their avatar stack names, the author first. */
@@ -183,6 +191,19 @@ export const courtOf = (one: Weighing): Court => {
       return "settled"
   }
 }
+
+/**
+ * Where GitHub's own form for raising one is.
+ *
+ * Handed over rather than drawn. Raising a discussion asks which category, and which categories a
+ * repository has and what each one is for is their page's to explain — the same reason a reader
+ * choosing an issue template is sent to GitHub's own chooser rather than to this interface's
+ * form.
+ */
+export const raisingAddressOf = (repo: {
+  readonly owner: string
+  readonly repo: string
+}): string => `/${repo.owner}/${repo.repo}/discussions/new`
 
 /** Where a repository's discussions are, and one category of them. */
 export const listAddressOf = (

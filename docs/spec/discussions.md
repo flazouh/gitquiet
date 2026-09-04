@@ -158,12 +158,48 @@ The screen is not grouped into the four Courts, unlike the list it is opened fro
 many things by who owes the next move; a discussion is one thing, one move is owed on it, and
 the header says which.
 
+### The filter bar, in their own vocabulary
+
+Their controls offer Unanswered. On the census above that is 98 rows of 120, and 94 of those
+already have somebody's reply in them, so it is very nearly the whole list. `is:unanswered
+comments:>0` is the 94 a person can finish by pointing at what is already there, and GitHub
+answers it: measured on 2026-09-03, `comments:0` returned rows whose counts were all zero and
+`comments:>5` rows whose counts were all above five, so the qualifier is real on this route and
+not merely accepted.
+
+So Stale leads the bar and is one press. Nobody would think to type it.
+
+Every control is a link, which means what a reader is looking at is an address they can copy,
+send and come back to, and the filtering is GitHub's across every page rather than this screen's
+over the twenty-five rows it holds. Pressing a category keeps whatever the reader was filtering
+by; their own sidebar drops it every time.
+
+The pager is Newer and Older with no page count, because their list prints no total anywhere on
+the page and answers no route that does.
+
+### Writing
+
+Every write is GitHub's own form, sent back. Their discussion page is Rails, so each control that
+changes something is a form whose token is signed for that render and cannot be minted — and the
+extension is standing on the page that form was rendered into, which is the whole of why this
+works. See `discussionForms.ts`.
+
+Four presses: say something, reply under a comment, mark a comment as the answer, and upvote.
+Each is drawn only where their form for it was on the page, so a reader who is not signed in, a
+locked discussion and an archived repository all draw nothing. Their disabled "Marked as answer"
+badge is not a press and is not offered as one.
+
+Raising a discussion is handed over to GitHub's own form. Which category one goes in, and what
+each of a repository's categories is for, is their page's to explain.
+
 ## What this does not do
 
 - **No cross-repository list.** `github.com/discussions` exists for a signed-in reader and is
   a separate screen with a separate spec. This one is about a repository.
-- **No writing.** Marking an answer, replying, upvoting, closing and locking all go back through
-  GitHub's own page. Every one of them is a write, and the writes are a spec of their own.
+- **No closing, locking or reacting.** Those are writes like the four above and would be found
+  the same way, and they are not built. A reader who wants one has GitHub's page a press away.
+- **No poll voting.** A poll's own markup arrives inside the body GitHub rendered and is drawn as
+  they drew it. Voting is a write nobody has looked for a form for.
 - **No category management.** Making and ordering categories is a maintainer setting and
   belongs where the other settings are.
 - **No claim about spam.** Spam in Discussions is a real complaint and a moderation problem.

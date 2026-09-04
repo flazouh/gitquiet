@@ -285,3 +285,21 @@ describe("what came back out of the store", () => {
     expect(isKeptDiscussions({ rows })).toBe(false)
   })
 })
+
+describe("what a maintainer put on a row", () => {
+  /*
+   * One of the twenty-five, which is what a label list looks like on a real repository. Read off
+   * their `data-name` rather than the anchor's text, which carries a colour swatch and their own
+   * whitespace around it.
+   */
+  test("reads a label by their own name for it", () => {
+    const labelled = rows.filter((one) => one.labels.length > 0)
+
+    expect(labelled).toHaveLength(1)
+    expect(labelled[0]?.labels).toEqual(["Linking and Navigating"])
+  })
+
+  test("a row with none has none rather than a blank one", () => {
+    expect(rows[0]?.labels).toEqual([])
+  })
+})
