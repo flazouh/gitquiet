@@ -229,8 +229,9 @@ badge is not a press and is not offered as one.
 
 Close, lock, edit, delete and report are one menu behind one button, and none of it is in the
 page: their markup carries an `include-fragment` per comment whose `src` is the route that serves
-it. That route answers 404 to a reader who is not signed in, so its contents cannot be recorded
-here.
+it. That route answers 404 to a reader who is not signed in, so its contents cannot be recorded here
+— which is the reason for the design rather than a gap in it. The route itself is on all four
+recordings, for the discussion and for each of its comments.
 
 So this screen does not learn them. It reads that route — theirs, off their own markup, never
 written here — and draws whatever came back, in GitHub's own sentences and GitHub's own order.
@@ -249,12 +250,9 @@ each of a repository's categories is for, is their page's to explain.
 
 ## What this does not do
 
-- **No cross-repository list.** `github.com/discussions` exists for a signed-in reader and is
-  a separate screen with a separate spec. This one is about a repository.
-- **No closing, locking or reacting.** Those are writes like the four above and would be found
-  the same way, and they are not built. A reader who wants one has GitHub's page a press away.
-- **No cross-repository list.** `github.com/discussions` exists for a signed-in reader and cannot
-  be recorded from here, so nothing is built against it.
+- **No cross-repository list.** `github.com/discussions` redirects a signed-out reader to
+  `/login`, so there is no recording of it and nothing here reads it. It is the one Discussions
+  surface this extension does not answer.
 - **No category management.** Making and ordering categories is a maintainer setting and
   belongs where the other settings are.
 - **No claim about spam.** Spam in Discussions is a real complaint and a moderation problem.

@@ -365,3 +365,58 @@ describe("choosing what a press sends", () => {
       .toBeNull()
   })
 })
+
+/*
+ * The menu route, off the four pages GitHub actually served rather than off markup written here.
+ *
+ * This is what grounds close, lock, edit and delete. None of them is named anywhere in this
+ * codebase: the reader presses GitHub's own sentence and the form under it goes back. What has to
+ * be real is the route the menu is fetched from, and that is the `include-fragment` GitHub writes
+ * beside every discussion and every comment on it.
+ */
+describe("the menu route on the pages GitHub served", () => {
+  const recorded = [
+    ["a stale discussion", "tests/fixtures/discussionView.html", "7040452"],
+    ["an answered one", "tests/fixtures/discussionAnswered.html", ""],
+    ["a closed one", "tests/fixtures/discussionClosed.html", ""],
+    ["an organisation's", "tests/fixtures/orgDiscussion.html", ""]
+  ] as const
+
+  test("is written on every recording, for the discussion and for its comments", async () => {
+    for (const [, path] of recorded) {
+      const html = await Bun.file(path).text()
+      const page = new DOMParser().parseFromString(html, "text/html")
+      const fragments = page.querySelectorAll('include-fragment[src*="actions_menu"]')
+
+      expect(fragments.length).toBeGreaterThan(0)
+    }
+  })
+
+  /*
+   * Their two routes, which are different words for the discussion and for a comment on it. Read
+   * off the page and never built here, so the day they rename one this keeps working.
+   */
+  test("is their own path, and the two kinds have different ones", async () => {
+    const html = await Bun.file("tests/fixtures/orgDiscussion.html").text()
+    const page = new DOMParser().parseFromString(html, "text/html")
+
+    const forDiscussion = [...page.querySelectorAll('include-fragment[src*="/actions_menu"]')]
+    const forComment = [
+      ...page.querySelectorAll('include-fragment[src*="comment_actions_menu"]')
+    ]
+
+    expect(forDiscussion.length).toBeGreaterThan(0)
+    expect(forComment.length).toBeGreaterThan(0)
+    expect(forDiscussion[0]?.getAttribute("src")).toContain("/discussions/88425/")
+  })
+
+  /* The reader finds it through the same id every other press on the page is anchored to. */
+  test("is found through the comment it belongs to", async () => {
+    const html = await Bun.file("tests/fixtures/orgDiscussion.html").text()
+    const page = new DOMParser().parseFromString(html, "text/html")
+    const anyComment = page.querySelector('[id^="discussioncomment-"]')
+    const id = (anyComment?.getAttribute("id") ?? "").replace("discussioncomment-", "")
+
+    expect(menuRouteIn(page, "DiscussionComment", id)).toContain("comment_actions_menu")
+  })
+})
