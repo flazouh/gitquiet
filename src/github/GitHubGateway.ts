@@ -69,10 +69,10 @@ import {
 } from "./discussionsList"
 import { discussionOnPage, isKeptDiscussion } from "./discussionView"
 import {
-  asForm as asDiscussionForm,
   markingAnswer,
   replyingUnder,
   sayingOn,
+  sendingOf,
   upvoting,
   type Posting
 } from "./discussionForms"
@@ -3422,7 +3422,7 @@ export const layer = Layer.succeed(GitHubGateway, {
             method: "POST",
             headers: { ...REQUIRED_HEADERS, "Content-Type": "application/x-www-form-urlencoded" },
             credentials: "include",
-            body: asDiscussionForm(posting, said)
+            body: sendingOf(posting, said)
           }),
         catch: (cause) =>
           new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })

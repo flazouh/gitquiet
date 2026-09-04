@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import {
-  asForm,
   markingAnswer,
   postingOf,
   replyingUnder,
   sayingOn,
+  sendingOf,
   upvoting
 } from "./discussionForms"
 
@@ -159,7 +159,7 @@ describe("sending one back", () => {
   )!
 
   test("sends their fields under their names, with the words in the field they named", () => {
-    const body = new URLSearchParams(asForm(posting, "well said"))
+    const body = new URLSearchParams(sendingOf(posting, "well said"))
 
     expect(body.get("authenticity_token")).toBe("a-token")
     expect(body.get("variables[subjectId]")).toBe("D_kwDOBC3Cis4AbdMx")
@@ -167,7 +167,7 @@ describe("sending one back", () => {
   })
 
   test("a press that carries no words sends none", () => {
-    const body = new URLSearchParams(asForm(posting))
+    const body = new URLSearchParams(sendingOf(posting))
 
     expect(body.has("variables[body]")).toBe(false)
   })

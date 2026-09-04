@@ -163,8 +163,14 @@ export const upvoting = (
  * Their own fields first and in their own order, because that is the order their page sends them
  * and there is no reason to be the one request that differs. The words go last, under the name
  * the form gave, and a form that takes no words takes none.
+ *
+ * Not `saying.ts`'s `asForm`, and named apart from it so nobody reads the two as one function.
+ * That one is narrower on purpose: it insists on four named fields and posts the body under
+ * `comment[body]`, because a pull request's box is one form whose shape is known and a missing
+ * field there is worth failing over. This one is given whichever of four forms a press needs and
+ * has to take their word for every part of it.
  */
-export const asForm = (posting: Posting, said?: string): string => {
+export const sendingOf = (posting: Posting, said?: string): string => {
   const body = new URLSearchParams()
   for (const [name, value] of Object.entries(posting.fields)) body.set(name, value)
   if (posting.bodyField !== null && said !== undefined) body.set(posting.bodyField, said)
