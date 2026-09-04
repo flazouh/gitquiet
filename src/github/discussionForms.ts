@@ -35,6 +35,7 @@
 
 import type { Doing } from "../domain/discussions"
 import { text } from "./outcome"
+import type { DiscussionPress } from "@/domain/discussions"
 
 /** One of their forms, as much of it as sending it back needs. */
 export type Posting = {
@@ -323,4 +324,44 @@ export const doingNamed = (html: string, said: string): Posting | null => {
   const value = control?.getAttribute("value") ?? ""
 
   return name === "" ? posting : { ...posting, fields: { ...posting.fields, [name]: value } }
+}
+
+/**
+ * What one press sends, chosen by its kind.
+ *
+ * A `switch` over the union rather than a chain of conditions, exactly as `COURT_OF_INVOLVEMENT`
+ * is a lookup: an eighth kind added to `DiscussionPress` without a form decided for it is then a
+ * compile error, where the chain this replaces ended in a bare `else` that would have posted an
+ * upvote for it.
+ *
+ * `said` travels beside the form because only two kinds carry words, and the caller would
+ * otherwise ask a second time which two they are.
+ *
+ * A menu entry is the one press whose form is not on the page. Its markup arrives already
+ * fetched, in `menu`, because reading it is a network call and this is not the place for one.
+ */
+export const sending = (
+  page: Document,
+  press: DiscussionPress,
+  menu: string | null
+): { readonly posting: Posting | null; readonly said: string | undefined } => {
+  switch (press.kind) {
+    case "say":
+      return { posting: sayingOn(page), said: press.body }
+    case "reply":
+      return { posting: replyingUnder(page, press.comment), said: press.body }
+    case "mark-answer":
+      return { posting: markingAnswer(page, press.comment), said: undefined }
+    case "vote":
+      return { posting: votingIn(page, press.option), said: undefined }
+    case "react":
+      return {
+        posting: reactingTo(reactionsWithin(page, press.on, press.id), press.content),
+        said: undefined
+      }
+    case "upvote":
+      return { posting: upvoting(page, press.on, press.id), said: undefined }
+    case "doing":
+      return { posting: menu === null ? null : doingNamed(menu, press.said), said: undefined }
+  }
 }

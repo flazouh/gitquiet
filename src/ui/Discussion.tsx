@@ -21,6 +21,7 @@ import { GitHubHtml } from "./GitHubHtml"
 import { Saying } from "./Saying"
 import { Section } from "./Section"
 import { ageOf, momentOf } from "./when"
+import { reasonFor } from "./refusal"
 
 /**
  * What the discussion is waiting for, in a word.
@@ -98,7 +99,7 @@ const Press = ({
                  * changed underneath the reader and they are owed the reason.
                  */
                 onFailure: (cause: unknown) => {
-                  setRefused(cause instanceof Error ? cause.message : String(cause))
+                  setRefused(reasonFor(cause))
                   setSending(false)
                 }
               })

@@ -9,12 +9,14 @@ import {
   reactionsWithin,
   replyingUnder,
   sayingOn,
+  sending,
   sendingOf,
   upvoting
 } from "./discussionForms"
 
 const parse = (html: string): Document =>
   new DOMParser().parseFromString(`<html><body>${html}</body></html>`, "text/html")
+
 
 /*
  * The one form GitHub renders on a discussion to a reader who is not signed in, copied from
@@ -303,5 +305,63 @@ describe("everything else their menu offers", () => {
   test("sends nothing for words their menu does not have", () => {
     expect(doingNamed(menu, "Delete the repository")).toBeNull()
     expect(doingNamed("", "Close discussion")).toBeNull()
+  })
+})
+
+/*
+ * The chain this replaced ended in a bare `else`, so an eighth kind of press would have posted an
+ * upvote. These prove each kind reaches its own form, and the `switch` in `sending` proves the
+ * eighth would not compile.
+ */
+describe("choosing what a press sends", () => {
+  const page = parse(`
+    ${theirs("/say", '<textarea name="variables[body]"></textarea>')}
+    <div class="js-comment-container">
+      <div id="discussioncomment-11414161">
+        ${theirs("/reply-to-a-comment", '<textarea name="variables[body]"></textarea>')}
+        ${theirs("/mark-the-answer", '<button class="social-mark-answer" type="submit">Mark</button>')}
+      </div>
+    </div>`)
+
+  test("takes the words with it on the two presses that carry any", () => {
+    expect(sending(page, { kind: "say", body: "hello" }, null).said).toBe("hello")
+    expect(sending(page, { kind: "reply", comment: "11414161", body: "there" }, null).said).toBe(
+      "there"
+    )
+  })
+
+  test("carries no words on a press that sends none", () => {
+    for (const press of [
+      { kind: "mark-answer", comment: "11414161" },
+      { kind: "upvote", on: "Discussion", id: "7040452" },
+      { kind: "vote", option: "an-option" },
+      { kind: "react", on: "Discussion", id: "7040452", content: "heart" },
+      { kind: "doing", on: "Discussion", id: "7", said: "Lock" }
+    ] as const) {
+      expect(sending(page, press, null).said).toBeUndefined()
+    }
+  })
+
+  test("finds each kind its own form, and never another kind's", () => {
+    expect(sending(page, { kind: "say", body: "hello" }, null).posting?.action).toBe("/say")
+    expect(
+      sending(page, { kind: "reply", comment: "11414161", body: "there" }, null).posting?.action
+    ).toBe("/reply-to-a-comment")
+    expect(
+      sending(page, { kind: "mark-answer", comment: "11414161" }, null).posting?.action
+    ).toBe("/mark-the-answer")
+  })
+
+  /* Nothing to press against, which is every signed-out page. */
+  test("sends nothing where GitHub rendered no form for that kind", () => {
+    expect(sending(page, { kind: "upvote", on: "Discussion", id: "7040452" }, null).posting)
+      .toBeNull()
+    expect(sending(page, { kind: "vote", option: "an-option" }, null).posting).toBeNull()
+  })
+
+  /* A menu entry is the one press whose form is not on the page, so without the menu it has none. */
+  test("sends nothing for a menu entry when the menu was not read", () => {
+    expect(sending(page, { kind: "doing", on: "Discussion", id: "7", said: "Lock" }, null).posting)
+      .toBeNull()
   })
 })

@@ -68,20 +68,7 @@ import {
   isKeptFound
 } from "./discussionsList"
 import { discussionOnPage, isKeptDiscussion } from "./discussionView"
-import {
-  doingNamed,
-  doingsIn,
-  markingAnswer,
-  menuRouteIn,
-  reactingTo,
-  reactionsWithin,
-  replyingUnder,
-  sayingOn,
-  sendingOf,
-  upvoting,
-  votingIn,
-  type Posting
-} from "./discussionForms"
+import { doingsIn, menuRouteIn, sending, sendingOf } from "./discussionForms"
 import { isKeptNotices, noticesOnPage } from "./notifications"
 import { asKept, personKept } from "./keptPerson"
 import { personOnPage } from "./person"
@@ -3495,27 +3482,12 @@ export const layer = Layer.succeed(GitHubGateway, {
       /*
        * A menu entry is the one press whose form is not on the page. Their markup names the
        * route that serves it and the menu is read again here, so what is sent is the form behind
-       * the words the reader pressed rather than a route this codebase made up.
+       * the words the reader pressed rather than a route this codebase made up. Fetched before
+       * the choice below, which is why it is read out here and not inside it.
        */
-      const inMenu =
-        press.kind !== "doing"
-          ? null
-          : doingNamed(yield* menuHtml(press.on, press.id), press.said)
+      const menu = press.kind === "doing" ? yield* menuHtml(press.on, press.id) : null
 
-      const posting: Posting | null =
-        press.kind === "doing"
-          ? inMenu
-          : press.kind === "say"
-          ? sayingOn(document)
-          : press.kind === "reply"
-            ? replyingUnder(document, press.comment)
-            : press.kind === "mark-answer"
-              ? markingAnswer(document, press.comment)
-              : press.kind === "vote"
-                ? votingIn(document, press.option)
-                : press.kind === "react"
-                  ? reactingTo(reactionsWithin(document, press.on, press.id), press.content)
-                  : upvoting(document, press.on, press.id)
+      const { posting, said } = sending(document, press, menu)
 
       if (posting === null) {
         return yield* new GatewayError({
@@ -3525,8 +3497,6 @@ export const layer = Layer.succeed(GitHubGateway, {
           detail: "GitHub rendered no form for that on this page, so there is nothing to send."
         })
       }
-
-      const said = press.kind === "say" || press.kind === "reply" ? press.body : undefined
 
       const response = yield* Effect.tryPromise({
         try: () =>

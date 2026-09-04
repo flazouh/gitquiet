@@ -4,6 +4,7 @@ import { Effect, Option } from "effect"
 import type { DiscussionPress, DiscussionSnapshot } from "../domain/discussions"
 import { discussionOnPage } from "../github/discussionView"
 import { DiscussionScreen, type DiscussionScreenProps } from "./DiscussionScreen"
+import { GatewayError } from "@/ports/GitHubGateway"
 
 afterEach(cleanup)
 
@@ -224,12 +225,46 @@ describe("the presses GitHub offered", () => {
     await screen.findByRole("region", { name: "The answer" })
   })
 
+  /*
+   * Failed with the error the gateway actually sends, and not with a plain `Error`. A
+   * `GatewayError` carries no `message`, so a screen reading `cause.message` drew an alert with
+   * nothing in it, and a test that failed with an `Error` was the one shape that hid it.
+   */
   test("says a refusal out loud rather than swallowing it", async () => {
-    marking(offered({}), () => Effect.fail(new Error("GitHub said no")))
+    marking(offered({}), () =>
+      Effect.fail(
+        new GatewayError({
+          reference: { owner: "vercel", repo: "next.js" },
+          route: "upvote a discussion",
+          reason: "rejected",
+          detail: "GitHub said no"
+        })
+      )
+    )
 
     fireEvent.click(await screen.findByRole("button", { name: "Upvote this discussion" }))
 
     expect(await screen.findByRole("alert")).toHaveProperty("textContent", "GitHub said no")
+  })
+
+  test("says GitHub could not be reached when the call never landed", async () => {
+    marking(offered({}), () =>
+      Effect.fail(
+        new GatewayError({
+          reference: { owner: "vercel", repo: "next.js" },
+          route: "upvote a discussion",
+          reason: "unreachable",
+          detail: "TypeError: Failed to fetch"
+        })
+      )
+    )
+
+    fireEvent.click(await screen.findByRole("button", { name: "Upvote this discussion" }))
+
+    expect(await screen.findByRole("alert")).toHaveProperty(
+      "textContent",
+      "GitHub could not be reached."
+    )
   })
 })
 
