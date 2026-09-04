@@ -1,5 +1,5 @@
 import { Effect, type Option } from "effect";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import type { PullRequestRef } from "../domain/PullRequestRef";
 import type { Destination } from "../domain/Settings";
 import { LEADS_TO, type RowDoing } from "../domain/doable";
@@ -144,26 +144,10 @@ export const WorkingSetScreen = ({
   elsewhere,
 }: WorkingSetScreenProps) => {
   const live = useLive(load, preload, where);
-  const { read } = live;
+  const { read, meanwhile } = live;
   const waiting = useWaiting(read.status);
   const [waitingOn, setWaitingOn] = useState<PullRequestRef | undefined>();
-  const [moved, setMoved] = useState<ReadonlyArray<Sitting> | undefined>();
   const liveValue = read.status === "ready" ? read.value : undefined;
-  const lastWrite = useRef<{
-    readonly reference: PullRequestRef;
-    readonly state: (typeof LEADS_TO)[RowDoing];
-  }>();
-
-  useEffect(() => {
-    const write = lastWrite.current;
-    if (moved === undefined || liveValue === undefined || write === undefined) {
-      return;
-    }
-    if (saysItIs(liveValue, write.reference, write.state)) {
-      setMoved(undefined);
-      lastWrite.current = undefined;
-    }
-  }, [liveValue, moved]);
 
   /*
    * The Rail's repositories, out of the read that is already on the screen.
@@ -173,9 +157,7 @@ export const WorkingSetScreen = ({
    * work" is a fold over what has already arrived. Empty while the read is in flight —
    * navigation appears immediately and fills in, rather than waiting to appear.
    */
-  const sittings = moved ?? liveValue ?? EMPTY;
-  const sittingsRef = useRef(sittings);
-  sittingsRef.current = sittings;
+  const sittings = liveValue ?? EMPTY;
   const atWork = useMemo(() => repositoriesAtWork(sittings), [sittings]);
   const needsYou =
     sittings.find((sitting) => sitting.court === "needs-you")?.count ?? 0;
@@ -205,15 +187,14 @@ export const WorkingSetScreen = ({
               }).pipe(
                 Effect.andThen(ask(doing, reference)),
                 Effect.tap(() =>
-                  Effect.sync(() => {
-                    lastWrite.current = {
-                      reference,
-                      state: LEADS_TO[doing],
-                    };
-                    setMoved(
-                      afterDoing(sittingsRef.current, doing, reference),
-                    );
-                  }),
+                  meanwhile(
+                    {
+                      change: (held) => afterDoing(held, doing, reference),
+                      until: (held) =>
+                        saysItIs(held, reference, LEADS_TO[doing]),
+                    },
+                    Effect.void,
+                  ),
                 ),
                 Effect.ensuring(
                   Effect.sync(() => {
@@ -222,7 +203,7 @@ export const WorkingSetScreen = ({
                 ),
               ),
           },
-    [ask, waitingOn],
+    [ask, meanwhile, waitingOn],
   );
 
   /*
