@@ -93,6 +93,83 @@ export const restWrite = Effect.fn("restWrite")(function* <A>(
   })) as A
 })
 
+/** A write that answers with no body: starring, unstarring, cancelling a run. */
+export const restEmpty = Effect.fn("restEmpty")(function* (
+  token: string,
+  route: string,
+  method: "PUT" | "DELETE" | "POST" | "PATCH"
+) {
+  const response = yield* Effect.tryPromise({
+    try: () => fetch(`${REST}${route}`, { method, headers: asked(token) }),
+    catch: (cause) => new GitHubUnreachable(String(cause))
+  })
+
+  if (!response.ok) {
+    const detail = yield* Effect.promise(() => response.text())
+    return yield* Effect.fail(new GitHubRefused(response.status, detail.slice(0, 300)))
+  }
+})
+
+/**
+ * Bytes posted to GitHub's upload host, which is not api.github.com.
+ *
+ * Release assets go here. The path is a full URL because the host is different
+ * and the query already names the file.
+ */
+export const restUpload = Effect.fn("restUpload")(function* <A>(
+  token: string,
+  url: string,
+  body: Uint8Array,
+  contentType: string
+) {
+  const response = yield* Effect.tryPromise({
+    try: () =>
+      fetch(url, {
+        method: "POST",
+        headers: {
+          ...asked(token),
+          Accept: "application/vnd.github+json",
+          "Content-Type": contentType,
+          "Content-Length": String(body.byteLength)
+        },
+        body: body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as ArrayBuffer
+      }),
+    catch: (cause) => new GitHubUnreachable(String(cause))
+  })
+
+  if (!response.ok) {
+    const detail = yield* Effect.promise(() => response.text())
+    return yield* Effect.fail(new GitHubRefused(response.status, detail.slice(0, 300)))
+  }
+
+  return (yield* Effect.tryPromise({
+    try: () => response.json(),
+    catch: (cause) => new GitHubUnreachable(String(cause))
+  })) as A
+})
+
+/** A documented REST read that answers with text, not JSON. */
+export const restText = Effect.fn("restText")(function* (
+  token: string,
+  route: string,
+  accept = "application/vnd.github.raw"
+) {
+  const response = yield* Effect.tryPromise({
+    try: () => fetch(`${REST}${route}`, { headers: { ...asked(token), Accept: accept } }),
+    catch: (cause) => new GitHubUnreachable(String(cause))
+  })
+
+  if (!response.ok) {
+    const detail = yield* Effect.promise(() => response.text())
+    return yield* Effect.fail(new GitHubRefused(response.status, detail.slice(0, 300)))
+  }
+
+  return yield* Effect.tryPromise({
+    try: () => response.text(),
+    catch: (cause) => new GitHubUnreachable(String(cause))
+  })
+})
+
 /**
  * One GraphQL query, which for this app is usually the whole of a screen.
  *

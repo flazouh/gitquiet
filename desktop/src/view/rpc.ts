@@ -77,9 +77,14 @@ export const ask = <K extends keyof Requests>(
   // The cast is at the one place the untyped bridge is crossed. Electrobun's
   // request proxy is indexed by string, so the wire's own types are reasserted
   // here rather than being lost into every caller.
-  const asked = (
-    view.rpc as unknown as { request: Record<string, (p: unknown) => Promise<unknown>> }
-  ).request[what as string]!(params) as Promise<Requests[K]["response"]>
+  const send = (
+    view.rpc as unknown as { request: Record<string, ((p: unknown) => Promise<unknown>) | undefined> }
+  ).request[what as string]
+  if (typeof send !== "function") {
+    return Promise.reject(new Error(`GitQuiet's window has no way to ask for ${String(what)}.`))
+  }
+
+  const asked = send(params) as Promise<Requests[K]["response"]>
 
   const patience = WAITS_ON_A_PERSON.includes(what as string) ? LONG_PATIENCE : PATIENCE
   if (patience === LONG_PATIENCE) return asked

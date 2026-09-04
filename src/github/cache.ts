@@ -60,8 +60,10 @@ const asKeys = (value: unknown): ReadonlyArray<string> =>
  * Both mean the same thing here, which is that every read is a miss and every
  * write goes nowhere.
  */
+type ExtensionStore = { readonly storage?: { readonly local?: ForgetfulKeyValue } }
+
 const area = (): ForgetfulKeyValue | undefined =>
-  typeof browser === "undefined" ? undefined : browser.storage?.local
+  (globalThis as { browser?: ExtensionStore }).browser?.storage?.local
 
 /**
  * Storage failures are misses, never errors.

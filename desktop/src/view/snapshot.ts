@@ -1,4 +1,5 @@
 import { Option } from "effect"
+import { asLanded } from "../../../src/github/landed"
 import { preferredWay } from "../shared/merging"
 import { fromPatch } from "../../../src/domain/fromPatch"
 import { blockersOf } from "../../../src/domain/landing"
@@ -26,6 +27,7 @@ import type {
   SaidFacts,
   ThreadFacts
 } from "../shared/wire"
+import { stackFrom } from "./front"
 
 /**
  * A pull request card, built from what the main process read.
@@ -44,6 +46,7 @@ const faceOf = (face: FaceFacts): Participant => ({
 })
 
 const saidOf = (said: SaidFacts): ThreadComment => ({
+  id: said.id,
   author: faceOf(said.author),
   body: said.body,
   html: said.html,
@@ -218,14 +221,14 @@ const mergeOf = (facts: CardFacts): MergeState => {
      * answer yes about pull requests nobody stacked. The window merges one at a time
      * until the documented API grows a way to say otherwise.
      */
-    stack: Option.none()
+    stack: stackFrom(facts.stack)
   }
 }
 
 export const snapshotFrom = (
   reference: PullRequestRef,
   facts: CardFacts
-): PullRequestSnapshot => ({
+): PullRequestSnapshot => asLanded({
   reference,
   title: facts.title,
   description: { markdown: facts.markdown, html: facts.html },
@@ -246,10 +249,15 @@ export const snapshotFrom = (
    * fork was never this reader's to touch. What it costs is the pair of buttons on a
    * merged pull request, and the alternative is offering a press that fails.
    */
-  headRef: { mayDelete: false, mayRestore: false },
+  headRef: {
+    mayDelete: facts.mayDelete === true,
+    mayRestore: facts.mayRestore === true
+  },
   /*
-   * And no stack GitHub would offer to make out of this one. Their preview route is
-   * private, and this window reads the documented API.
+   * And no official stack GitHub would offer to make. Their preview route is
+   * private. A branch chain the documented search can see is already on
+   * `merge.stack`, so this strip stays empty rather than offering a press
+   * the API cannot honour.
    */
   proposal: Option.none(),
   viewer: {

@@ -1,4 +1,5 @@
 import { Effect, Fiber, Option } from "effect"
+import { type Doing, stateAfter } from "../domain/doable"
 import type { PullRequestState } from "../domain/PullRequest"
 import { keyOf, type PullRequestRef } from "../domain/PullRequestRef"
 import { recallLanded } from "./cache"
@@ -45,6 +46,22 @@ const landed = new Map<string, { readonly state: PullRequestState; readonly at: 
  */
 export const recordLanded = (reference: PullRequestRef, state: PullRequestState): void => {
   landed.set(keyOf(reference), { state, at: Date.now() })
+}
+
+/**
+ * Notes what a status write made true, from the verb rather than from a route.
+ *
+ * Both surfaces ask GitHub through the same app verbs. The extension used to
+ * write this down only inside its page-data adapter, so a close from the
+ * window was forgotten the moment the next search still said open.
+ */
+export const afterWrite = (reference: PullRequestRef, doing: Doing): void => {
+  Option.match(stateAfter(doing), {
+    onNone: () => undefined,
+    onSome: (state) => {
+      recordLanded(reference, state)
+    }
+  })
 }
 
 /**

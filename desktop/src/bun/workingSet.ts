@@ -287,3 +287,65 @@ export const readWorkingSet = Effect.fn("readWorkingSet")(function* (token: stri
 
   return [...byId.values()]
 })
+
+type SearchAnswer = {
+  readonly search: {
+    readonly issueCount: number
+    readonly pageInfo: { readonly hasNextPage: boolean; readonly endCursor: string | null }
+    readonly nodes: ReadonlyArray<Node | null>
+  }
+}
+
+const SEARCH = `
+  ${ROW}
+  query PullSearch($query: String!, $after: String) {
+    search(query: $query, type: ISSUE, first: 25, after: $after) {
+      issueCount
+      pageInfo { hasNextPage endCursor }
+      nodes { ...row }
+    }
+  }
+`
+
+/**
+ * One page of pull-request search, twenty-five at a time.
+ *
+ * The same row fragment the Working Set uses, so a search result can sit in the
+ * same Court a shelf row can. No involvement is known, so neither review flag
+ * is set — the Court is concluded from author, draft and queue alone.
+ */
+export const searchPullRequests = Effect.fn("searchPullRequests")(function* (
+  token: string,
+  query: string,
+  page: number
+) {
+  let after: string | null = null
+  let last = { rows: [] as ReadonlyArray<WorkingSetRow>, current: page, total: 1, count: 0 }
+
+  for (let at = 1; at <= page; at += 1) {
+    const vars: { readonly query: string; readonly after: string | null } = {
+      query: `${query} is:pr`,
+      after
+    }
+    const answer: SearchAnswer = yield* graphRead<SearchAnswer>(token, SEARCH, vars)
+    const rows = answer.search.nodes.flatMap((one) =>
+      one !== null && one.databaseId !== null
+        ? [rowFrom(one, { askedOfViewer: false, askedOfTeam: false })]
+        : []
+    )
+    const count = answer.search.issueCount
+    last = {
+      rows,
+      current: at,
+      total: Math.max(1, Math.ceil(count / 25)),
+      count
+    }
+    if (at === page) return last
+    if (!answer.search.pageInfo.hasNextPage || answer.search.pageInfo.endCursor === null) {
+      return { ...last, rows: [] }
+    }
+    after = answer.search.pageInfo.endCursor
+  }
+
+  return last
+})

@@ -228,12 +228,40 @@ describe("a card, built from what the main process read", () => {
     expect(mergeIn().channels).toEqual([])
   })
 
-  /*
-   * A stack is one of GitHub's private routes, and the window reads the documented
-   * API. None rather than an empty chain: the panel that draws it asks whether there
-   * is a stack, and an empty one is a stack of no layers, which no pull request is in.
-   */
-  it("knows of no stack, the route that answers that not being a documented one", () => {
+  it("has no stack when the search named only this pull request", () => {
     expect(mergeIn().stack).toEqual(Option.none())
+  })
+
+  it("draws a branch chain the documented search named", () => {
+    const merge = mergeIn({
+      stack: {
+        number: 14002,
+        floor: "trunk",
+        layers: [
+          {
+            owner: "cli",
+            repo: "cli",
+            number: 14002,
+            title: "below",
+            headBranch: "below",
+            state: "open",
+            seat: "below"
+          },
+          {
+            owner: "cli",
+            repo: "cli",
+            number: 14003,
+            title: "here",
+            headBranch: "here",
+            state: "open",
+            seat: "here"
+          }
+        ]
+      }
+    })
+
+    const stack = Option.getOrThrow(merge.stack)
+    expect(stack.number).toBe(14002)
+    expect(stack.layers.map((one) => one.seat)).toEqual(["below", "here"])
   })
 })

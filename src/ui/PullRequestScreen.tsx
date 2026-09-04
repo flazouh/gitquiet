@@ -177,7 +177,7 @@ const LiveWatch = ({
   const active = usePreparedActive(root)
 
   useEffect(() => {
-    if (!active || watch === undefined || channels === undefined || channels.length === 0) return
+    if (!active || watch === undefined || channels === undefined) return
     return watch(channels, again)
   }, [active, watch, channels?.join(" "), again])
 

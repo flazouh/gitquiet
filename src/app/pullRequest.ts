@@ -6,6 +6,7 @@ import type {
   PullRequestSnapshot
 } from "../domain/PullRequest"
 import type { PullRequestRef, RepoRef } from "../domain/PullRequestRef"
+import { afterWrite } from "../github/landed"
 import { GitHubGateway, type Review, type UpdateMethod } from "../ports/GitHubGateway"
 
 /**
@@ -230,6 +231,7 @@ export const mergePullRequest = Effect.fn("mergePullRequest")(function* (
   const gateway = yield* GitHubGateway
 
   yield* asStack ? gateway.mergeStack(reference, method) : gateway.merge(reference, method)
+  afterWrite(reference, "merge")
 })
 
 /**
@@ -269,6 +271,7 @@ export const mergeAsTheRepositoryDoes = Effect.fn("mergeAsTheRepositoryDoes")(fu
   yield* how.stacked
     ? gateway.mergeStack(reference, how.method.value)
     : gateway.merge(reference, how.method.value)
+  afterWrite(reference, "merge")
 })
 
 /**
@@ -354,6 +357,7 @@ export const closePullRequest = Effect.fn("closePullRequest")(function* (
   const gateway = yield* GitHubGateway
 
   yield* gateway.close(reference)
+  afterWrite(reference, "close")
 })
 
 /** Opens a closed one again, which is that undo. */
@@ -363,6 +367,7 @@ export const reopenPullRequest = Effect.fn("reopenPullRequest")(function* (
   const gateway = yield* GitHubGateway
 
   yield* gateway.reopen(reference)
+  afterWrite(reference, "reopen")
 })
 
 /** Takes it out of draft, so that everything about merging becomes possible. */
@@ -372,6 +377,7 @@ export const markReadyForReview = Effect.fn("markReadyForReview")(function* (
   const gateway = yield* GitHubGateway
 
   yield* gateway.markReady(reference)
+  afterWrite(reference, "markReady")
 })
 
 /** Puts it back into draft, undoing the above. */
@@ -379,6 +385,7 @@ export const convertToDraft = Effect.fn("convertToDraft")(function* (reference: 
   const gateway = yield* GitHubGateway
 
   yield* gateway.toDraft(reference)
+  afterWrite(reference, "toDraft")
 })
 
 /**

@@ -1,6 +1,6 @@
 import { Effect, Exit } from "effect"
 import { describe, expect, test } from "bun:test"
-import { demoCard, demoPatches, demoRows, demoWrite } from "./demo"
+import { demoCard, demoPatches, demoRows, demoSettleThread, demoWrite } from "./demo"
 
 /**
  * The invented GitHub, checked where it would be embarrassing to be wrong.
@@ -129,6 +129,15 @@ describe("a card of the demo", () => {
 })
 
 describe("a verb pressed in the demo", () => {
+  test("settles a thread, and the card agrees afterwards", async () => {
+    const card = { owner: "vercel", repo: "next.js", number: 71204 }
+    await run(demoSettleThread(card, "thread-open"))
+
+    expect((await run(demoCard(card))).threads.find((one) => one.id === "thread-open")?.isResolved).toBe(
+      true
+    )
+  })
+
   test("closes one, and the list agrees afterwards", async () => {
     const card = { owner: "withastro", repo: "astro", number: 12194 }
 

@@ -139,6 +139,70 @@ export type Card = {
   readonly number: number
 }
 
+export type IssueFacts = {
+  readonly id: string
+  readonly owner: string
+  readonly repo: string
+  readonly number: number
+  readonly title: string
+  readonly markdown: string
+  readonly html: string
+  readonly state: "open" | "closed"
+  readonly closing: "completed" | "discarded" | "duplicate" | null
+  readonly openedAt: string
+  readonly author: FaceFacts
+  readonly labels: ReadonlyArray<{
+    readonly name: string
+    readonly colour: string
+    readonly description: string | null
+  }>
+  readonly assignees: ReadonlyArray<FaceFacts>
+  readonly remarks: ReadonlyArray<RemarkFacts>
+  readonly reactions: ReadonlyArray<{
+    readonly kind: string
+    readonly count: number
+    readonly viewerReacted: boolean
+  }>
+  readonly allowed: {
+    readonly comment: boolean
+    readonly close: boolean
+    readonly reopen: boolean
+    readonly label: boolean
+    readonly assign: boolean
+  }
+  readonly viewer: FaceFacts | null
+}
+
+export type ListedIssueFacts = {
+  readonly id: string
+  readonly owner: string
+  readonly repo: string
+  readonly number: number
+  readonly title: string
+  readonly author: FaceFacts
+  readonly state: "open" | "closed"
+  readonly comments: number
+  readonly labels: ReadonlyArray<string>
+  readonly raisedAt: string
+}
+
+export type FoundIssueFacts = {
+  readonly rows: ReadonlyArray<ListedIssueFacts>
+  readonly current: number
+  readonly total: number
+  readonly count: number
+}
+
+export type RepositoryFacts = {
+  readonly owner: string
+  readonly repo: string
+  readonly nameWithOwner: string
+  readonly faceUrl: string | null
+  readonly ofAnOrganisation: boolean
+  readonly isPrivate: boolean
+  readonly isEmpty: boolean
+}
+
 /** Somebody, as GitHub names them. `null` where the account is gone. */
 export type FaceFacts = {
   readonly login: string
@@ -197,6 +261,8 @@ export type CommitDetailFacts = {
 }
 
 export type SaidFacts = {
+  /** The comment's node id, so a reply can be addressed to it. */
+  readonly id?: string
   readonly author: FaceFacts
   readonly body: string
   readonly html: string
@@ -298,6 +364,108 @@ export type CardFacts = {
   readonly checks: ReadonlyArray<CheckFacts>
   readonly reviews: ReadonlyArray<ReviewFacts>
   readonly merge: MergeFacts
+  /**
+   * The branch chain this pull request sits in, when the documented search can
+   * see two or more open layers. Not GitHub's official stack object: that has
+   * no public route, so the number here is the foundation's pull-request number.
+   *
+   * Absent on a card kept from an older build, and treated as none.
+   */
+  readonly stack?: StackFacts | null
+  /** Whether the reader may delete the head branch, when the card said. */
+  readonly mayDelete?: boolean
+  /** Whether the reader may restore the head branch, when the card said. */
+  readonly mayRestore?: boolean
+}
+
+/** One layer of a branch chain, as the wire can carry it. */
+export type StackLayerFacts = {
+  readonly owner: string
+  readonly repo: string
+  readonly number: number
+  readonly title: string
+  readonly headBranch: string
+  readonly state: "open" | "closed" | "merged" | "draft"
+  readonly seat: "below" | "here" | "above"
+}
+
+export type StackFacts = {
+  readonly number: number
+  readonly floor: string | null
+  readonly layers: ReadonlyArray<StackLayerFacts>
+}
+
+/** A repository's front page, as facts. */
+export type FrontFacts = {
+  readonly owner: string
+  readonly repo: string
+  readonly footing: "keeper" | "caller"
+  readonly branch: string
+  readonly head: string
+  readonly entries: ReadonlyArray<{
+    readonly name: string
+    readonly path: string
+    readonly kind: "directory" | "file" | "submodule"
+  }>
+  readonly welcome: {
+    readonly name: string
+    readonly path: string
+    readonly html: string
+    readonly timedOut: boolean
+  } | null
+  readonly about: {
+    readonly description: string | null
+    readonly stars: number | null
+    readonly forks: number | null
+    readonly topics: ReadonlyArray<string>
+    readonly starring: "starred" | "unstarred" | "barred"
+  }
+  readonly commits: number | null
+}
+
+export type StandingFacts = {
+  readonly hands: ReadonlyArray<{
+    readonly login: string
+    readonly called: string
+    readonly url: string
+    readonly face: string
+  }>
+  readonly handCount: number | null
+  readonly handsUrl: string | null
+  readonly tongues: ReadonlyArray<{
+    readonly name: string
+    readonly share: number
+    readonly colour: string
+    readonly url: string
+  }>
+  readonly shipped: { readonly name: string; readonly at: string; readonly url: string } | null
+  readonly shippedUrl: string | null
+  readonly landings: ReadonlyArray<{ readonly name: string; readonly state: string; readonly url: string }>
+  readonly landingsUrl: string | null
+  readonly leaning: number | null
+  readonly leaningFaces: ReadonlyArray<string>
+  readonly leaningUrl: string | null
+  readonly parcels: number | null
+  readonly parcelsUrl: string | null
+}
+
+export type SuggestingFacts = {
+  readonly people: ReadonlyArray<{ readonly login: string; readonly name: string }>
+  readonly numbered: ReadonlyArray<{ readonly number: number; readonly title: string; readonly state: "open" | "closed" }>
+}
+
+export type MarkFacts = {
+  readonly sha: string
+  readonly checks: { readonly state: "passing" | "failing" | "running"; readonly said: string } | null
+  readonly verified: boolean
+  readonly comments: number
+}
+
+export type UploadFacts = {
+  readonly name: string
+  readonly href: string
+  readonly width?: number
+  readonly height?: number
 }
 
 /**
@@ -386,8 +554,8 @@ export type Wire = {
        * GitHub's sentence for that is the one the reader gets.
        */
       howToMerge: {
-        params: { readonly owner: string; readonly repo: string }
-        response: Answered<ReadonlyArray<MergeWay>>
+        params: { readonly owner: string; readonly repo: string; readonly number: number }
+        response: Answered<{ readonly ways: ReadonlyArray<MergeWay>; readonly stacked: boolean }>
       }
       /**
        * The content of some files, for a card already on screen.
@@ -477,6 +645,362 @@ export type Wire = {
       sayOnThePullRequest: {
         params: Card & { readonly body: string }
         response: Answered<RemarkFacts>
+      }
+      /** Marks a review thread settled. */
+      settleThread: {
+        params: Card & { readonly threadId: string }
+        response: Answered<void>
+      }
+      /** Opens a settled thread again. */
+      unsettleThread: {
+        params: Card & { readonly threadId: string }
+        response: Answered<void>
+      }
+      /** Answers inside a thread, addressed to the comment being replied to. */
+      replyToComment: {
+        params: Card & { readonly commentId: string; readonly body: string }
+        response: Answered<SaidFacts>
+      }
+      /** A verdict on the pull request, against the commit that was read. */
+      submitReview: {
+        params: Card & {
+          readonly verdict: "approve" | "request-changes" | "comment"
+          readonly note: string
+          readonly headSha: string
+        }
+        response: Answered<void>
+      }
+      /** One issue, whole. */
+      issue: { params: Card; response: Answered<IssueFacts> }
+      /** Issues the reader is in, for one kind of involvement. */
+      involvedIssues: {
+        params: { readonly involvement: "assigned" | "authored" | "mentioned" }
+        response: Answered<ReadonlyArray<ListedIssueFacts>>
+      }
+      /** One page of issue search. */
+      issueSearch: {
+        params: { readonly query: string; readonly page: number }
+        response: Answered<FoundIssueFacts>
+      }
+      /** Closes an issue, saying why. */
+      settleIssue: {
+        params: Card & {
+          readonly id: string
+          readonly as: "completed" | "discarded" | "duplicate"
+          readonly of?: string
+        }
+        response: Answered<void>
+      }
+      reopenIssue: { params: Card & { readonly id: string }; response: Answered<void> }
+      sayOnIssue: { params: Card & { readonly body: string }; response: Answered<RemarkFacts> }
+      raiseIssue: {
+        params: { readonly owner: string; readonly repo: string; readonly title: string; readonly body: string }
+        response: Answered<{ readonly owner: string; readonly repo: string; readonly number: number }>
+      }
+      repositories: { params: void; response: Answered<ReadonlyArray<RepositoryFacts>> }
+      deleteBranch: { params: Card; response: Answered<void> }
+      searchPulls: {
+        params: { readonly query: string; readonly page: number }
+        response: Answered<{
+          readonly rows: ReadonlyArray<WorkingSetRow>
+          readonly current: number
+          readonly total: number
+          readonly count: number
+        }>
+      }
+      starRepo: {
+        params: { readonly owner: string; readonly repo: string; readonly to: "starred" | "unstarred" }
+        response: Answered<void>
+      }
+      treePaths: {
+        params: { readonly owner: string; readonly repo: string; readonly sha: string }
+        response: Answered<ReadonlyArray<string>>
+      }
+      fileAt: {
+        params: { readonly owner: string; readonly repo: string; readonly branch: string; readonly path: string }
+        response: Answered<{ readonly path: string; readonly lines: ReadonlyArray<string>; readonly rendered: string | null }>
+      }
+      rawFileAt: {
+        params: { readonly owner: string; readonly repo: string; readonly branch: string; readonly path: string }
+        response: Answered<string>
+      }
+      blameAt: {
+        params: { readonly owner: string; readonly repo: string; readonly branch: string; readonly path: string }
+        response: Answered<{
+          readonly ranges: ReadonlyArray<{ readonly start: number; readonly end: number; readonly commitOid: string }>
+          readonly commits: ReadonlyArray<{
+            readonly oid: string
+            readonly message: string
+            readonly authorAvatarUrl: string
+            readonly committerName: string
+            readonly committerEmail: string
+            readonly committedDate: string
+          }>
+          readonly lines: ReadonlyArray<string>
+        }>
+      }
+      branchesOf: {
+        params: { readonly owner: string; readonly repo: string }
+        response: Answered<ReadonlyArray<string>>
+      }
+      authorsOf: {
+        params: { readonly owner: string; readonly repo: string }
+        response: Answered<ReadonlyArray<FaceFacts>>
+      }
+      releases: {
+        params: { readonly owner: string; readonly repo: string }
+        response: Answered<ReadonlyArray<import("../../../src/domain/release").Version>>
+      }
+      builds: {
+        params: { readonly owner: string; readonly repo: string; readonly tag: string }
+        response: Answered<import("../../../src/domain/release").Attached>
+      }
+      commits: {
+        params: {
+          readonly owner: string
+          readonly repo: string
+          readonly branch: string | null
+          readonly search: string
+        }
+        response: Answered<{
+          readonly branch: string
+          readonly days: ReadonlyArray<{
+            readonly title: string
+            readonly commits: ReadonlyArray<{
+              readonly sha: string
+              readonly abbreviatedSha: string
+              readonly headline: string
+              readonly bodyHtml: string | null
+              readonly authors: ReadonlyArray<FaceFacts>
+              readonly committer: FaceFacts | null
+              readonly pullRequest: number | null
+              readonly createdAt: string
+            }>
+          }>
+          readonly older: string | null
+          readonly newer: string | null
+          readonly rest: string | null
+        }>
+      }
+      commitMarks: {
+        params: { readonly owner: string; readonly repo: string; readonly rest: string }
+        response: Answered<ReadonlyArray<MarkFacts>>
+      }
+      commitStat: {
+        params: { readonly owner: string; readonly repo: string; readonly sha: string }
+        response: Answered<{ readonly files: number; readonly added: number; readonly removed: number } | null>
+      }
+      whoTouched: {
+        params: { readonly owner: string; readonly repo: string; readonly sha: string }
+        response: Answered<{ readonly login: string; readonly face: string | null } | null>
+      }
+      notes: {
+        params: Card & { readonly check: CheckFacts }
+        response: Answered<
+          ReadonlyArray<{
+            readonly level: "failure" | "warning" | "notice"
+            readonly where: string
+            readonly message: string
+            readonly at: { readonly step: number; readonly line: number } | null
+          }>
+        >
+      }
+      logLines: {
+        params: Card & { readonly sha: string; readonly check: CheckFacts; readonly step: number }
+        response: Answered<
+          ReadonlyArray<{ readonly at: number; readonly text: string; readonly tone: string }>
+        >
+      }
+      tailLines: {
+        params: Card & { readonly sha: string; readonly check: CheckFacts; readonly keep: number }
+        response: Answered<
+          ReadonlyArray<{ readonly at: number; readonly text: string; readonly tone: string }>
+        >
+      }
+      jobSteps: {
+        params: Card & { readonly check: CheckFacts }
+        response: Answered<
+          ReadonlyArray<{
+            readonly number: number
+            readonly name: string
+            readonly state: CheckFacts["state"]
+            readonly seconds: number | null
+          }>
+        >
+      }
+      run: {
+        params: { readonly owner: string; readonly repo: string; readonly run: string }
+        response: Answered<{
+          readonly run: {
+            readonly workflow: string
+            readonly title: string
+            readonly number: string
+            readonly state: string
+            readonly seconds: number
+            readonly trigger: string
+            readonly actor: string
+            readonly branch: string
+            readonly pullRequest: string | null
+            readonly startedAt: string
+          }
+          readonly jobs: ReadonlyArray<{
+            readonly name: string
+            readonly state: string
+            readonly seconds: number
+            readonly url: string
+          }>
+          readonly notes: ReadonlyArray<{
+            readonly level: "failure" | "warning" | "notice"
+            readonly where: string
+            readonly message: string
+            readonly at: { readonly step: number; readonly line: number } | null
+          }>
+          readonly gathering: ReadonlyArray<{
+            readonly level: "failure" | "warning" | "notice"
+            readonly headline: string
+            readonly message: string
+            readonly where: ReadonlyArray<string>
+            readonly count: number
+            readonly at: { readonly step: number; readonly line: number } | null
+          }>
+          readonly presses: {
+            readonly mayRerun: boolean
+            readonly mayRerunFailed: boolean
+            readonly mayCancel: boolean
+          }
+        }>
+      }
+      rerunRun: {
+        params: {
+          readonly owner: string
+          readonly repo: string
+          readonly run: string
+          readonly which: "all" | "failed"
+        }
+        response: Answered<void>
+      }
+      cancelRun: {
+        params: { readonly owner: string; readonly repo: string; readonly run: string }
+        response: Answered<void>
+      }
+      strands: {
+        params: { readonly owner: string; readonly repo: string }
+        response: Answered<ReadonlyArray<import("../../../src/domain/strand").Strand>>
+      }
+      notices: {
+        params: { readonly query: string }
+        response: Answered<ReadonlyArray<import("../../../src/domain/notices").Notice>>
+      }
+      pressNotice: {
+        params: import("../../../src/domain/notices").Press
+        response: Answered<void>
+      }
+      person: {
+        params: { readonly login: string }
+        response: Answered<{
+          readonly login: string
+          readonly name: string | null
+          readonly bio: string | null
+          readonly faceUrl: string | null
+          readonly company: string | null
+          readonly location: string | null
+          readonly followers: string
+          readonly following: string
+          readonly site: string | null
+          readonly tally: { readonly repositories: string; readonly stars: string | null }
+        } | null>
+      }
+      personRepositories: {
+        params: { readonly login: string; readonly page: number }
+        response: Answered<{
+          readonly more: boolean
+          readonly rows: ReadonlyArray<{
+            readonly owner: string
+            readonly repo: string
+            readonly nameWithOwner: string
+            readonly description: string | null
+            readonly topics: ReadonlyArray<string>
+            readonly language: { readonly name: string; readonly colour: string } | null
+            readonly stars: number
+            readonly forks: number
+            readonly pushedAt: string | null
+            readonly isArchived: boolean
+            readonly isFork: boolean
+            readonly forkedFrom: string | null
+            readonly isPrivate: boolean
+          }>
+        }>
+      }
+      activity: {
+        params: { readonly login: string }
+        response: Answered<
+          ReadonlyArray<{
+            readonly kind: string
+            readonly at: string
+            readonly by: ReadonlyArray<{ readonly login: string; readonly faceUrl: string | null }>
+            readonly repo: { readonly owner: string; readonly repo: string }
+            readonly ref: string | null
+            readonly howMany: number | null
+            readonly howOften: number
+            readonly number: number | null
+            readonly title: string | null
+            readonly url: string
+          }>
+        >
+      }
+      treeCommits: {
+        params: { readonly owner: string; readonly repo: string; readonly sha: string; readonly folder?: string }
+        response: Answered<
+          ReadonlyArray<
+            readonly [
+              string,
+              {
+                readonly at: string
+                readonly said: string
+                readonly url: string
+                readonly oid: string
+                readonly who: { readonly login: string; readonly face: string | null } | null
+              }
+            ]
+          >
+        >
+      }
+      repoHome: {
+        params: { readonly owner: string; readonly repo: string; readonly branch: string | null }
+        response: Answered<FrontFacts>
+      }
+      standing: {
+        params: { readonly owner: string; readonly repo: string }
+        response: Answered<StandingFacts>
+      }
+      tabs: {
+        params: { readonly owner: string; readonly repo: string }
+        response: Answered<ReadonlyArray<{ readonly name: string; readonly href: string; readonly count?: number; readonly here: boolean }>>
+      }
+      suggesting: {
+        params: { readonly owner: string; readonly repo: string }
+        response: Answered<SuggestingFacts>
+      }
+      upload: {
+        params: {
+          readonly owner: string
+          readonly repo: string
+          readonly name: string
+          readonly type: string
+          readonly bytes: string
+          readonly width?: number
+          readonly height?: number
+        }
+        response: Answered<UploadFacts>
+      }
+      mergeStack: {
+        params: Card & { readonly method: MergeWay }
+        response: Answered<void>
+      }
+      makeStack: { params: Card; response: Answered<void> }
+      pullSize: {
+        params: Card
+        response: Answered<{ readonly added: number; readonly deleted: number }>
       }
     }
     messages: Record<string, never>

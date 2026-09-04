@@ -8,14 +8,44 @@ import { mainViewUrl, viteIsUp, waitForVite } from "./mainViewUrl"
 import { macMenu } from "./menu"
 import { nextPageZoom, type PageZoomHow } from "../shared/pageZoom"
 import { sayOnLines, sayOnThePullRequest } from "./say"
-import { waysToMerge, write } from "./write"
+import {
+  closeIssue,
+  commentOnIssue,
+  openIssue,
+  raiseIssue,
+  readInvolvedIssues,
+  readIssue,
+  searchIssues
+} from "./issue"
+import { readRepositories } from "./repos"
+import { replyToComment, settleThread, submitReview, unsettleThread } from "./thread"
+import { cancelRun, readRun, readStrands, rerunRun } from "./actions"
+import {
+  pressNotice,
+  readActivity,
+  readNotices,
+  readPerson,
+  readPersonRepositories
+} from "./people"
+import { readTreeCommits } from "./treeCommits"
+import { readNotes, readLog, readSteps, readTail } from "./checks"
+import { readBlameAt, readFileAt, readRawFileAt, readTreePaths } from "./files"
+import { readBranches, readBuilds, readReleases, starRepository } from "./catalog"
+import { readAuthors, readCommits, readCommitStat, readWhoTouched } from "./history"
+import { screenRequests } from "./screens"
+import { readChain } from "./stack"
+import { deleteHead, waysToMerge, write } from "./write"
 import {
   demoCard,
   demoCommit,
   demoPatches,
   demoRemark,
+  demoReply,
+  demoReview,
   demoRows,
   demoSayOnLines,
+  demoSettleThread,
+  demoUnsettleThread,
   demoViewer,
   demoWrite,
   inDemo
@@ -28,7 +58,7 @@ import { WAY_IN } from "./oauth"
 import { forgetToken, keepToken } from "./keychain"
 import { currentToken } from "./token"
 import { theUpdater, watchForUpdates } from "./updates"
-import { readWorkingSet } from "./workingSet"
+import { readWorkingSet, searchPullRequests } from "./workingSet"
 
 /**
  * The window, and the only process allowed to hold a token.
@@ -296,11 +326,20 @@ const rpc = defineElectrobunRPC<Wire, "bun">("bun", {
        * The demo answers all three, which is what the demo repository is: nothing
        * about it forbids a way in, so nothing is filtered out of the list.
        */
-      howToMerge: (where: { readonly owner: string; readonly repo: string }) =>
+      howToMerge: (where: { readonly owner: string; readonly repo: string; readonly number: number }) =>
         said(
           fromGitHubOrDemo(
-            () => Effect.succeed<ReadonlyArray<MergeWay>>(["MERGE", "SQUASH", "REBASE"]),
-            (token) => waysToMerge(token, where)
+            () =>
+              Effect.succeed({
+                ways: ["MERGE", "SQUASH", "REBASE"] as ReadonlyArray<MergeWay>,
+                stacked: where.number === 71204 || where.number === 71219 || where.number === 71230
+              }),
+            (token) =>
+              Effect.gen(function* () {
+                const ways = yield* waysToMerge(token, where)
+                const chain = yield* readChain(token, where.owner, where.repo, where.number)
+                return { ways, stacked: chain !== null }
+              })
           )
         ),
 
@@ -368,6 +407,365 @@ const rpc = defineElectrobunRPC<Wire, "bun">("bun", {
           )
         ),
 
+      settleThread: (asked: Card & { readonly threadId: string }) =>
+        said(
+          fromGitHubOrDemo(
+            () => demoSettleThread(asked, asked.threadId),
+            (token) => settleThread(token, asked.threadId)
+          )
+        ),
+
+      unsettleThread: (asked: Card & { readonly threadId: string }) =>
+        said(
+          fromGitHubOrDemo(
+            () => demoUnsettleThread(asked, asked.threadId),
+            (token) => unsettleThread(token, asked.threadId)
+          )
+        ),
+
+      replyToComment: (asked: Card & { readonly commentId: string; readonly body: string }) =>
+        said(
+          fromGitHubOrDemo(
+            () => demoReply(asked, asked.commentId, asked.body),
+            (token) => replyToComment(token, asked, asked.commentId, asked.body)
+          )
+        ),
+
+      submitReview: (
+        asked: Card & {
+          readonly verdict: "approve" | "request-changes" | "comment"
+          readonly note: string
+          readonly headSha: string
+        }
+      ) =>
+        said(
+          fromGitHubOrDemo(
+            () => demoReview(asked),
+            (token) => submitReview(token, asked, asked)
+          )
+        ),
+
+      issue: (card: Card) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.fail(new Error("The demo has pull requests, not issues.")),
+            (token) => readIssue(token, card)
+          )
+        ),
+
+      involvedIssues: ({ involvement }: { readonly involvement: "assigned" | "authored" | "mentioned" }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed([]),
+            (token) => readInvolvedIssues(token, involvement)
+          )
+        ),
+
+      issueSearch: ({ query, page }: { readonly query: string; readonly page: number }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed({ rows: [], current: page, total: 1, count: 0 }),
+            (token) => searchIssues(token, query, page)
+          )
+        ),
+
+      settleIssue: (
+        asked: Card & {
+          readonly id: string
+          readonly as: "completed" | "discarded" | "duplicate"
+          readonly of?: string
+        }
+      ) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.void,
+            (token) => closeIssue(token, asked.id, asked.as, asked.of)
+          )
+        ),
+
+      reopenIssue: (asked: Card & { readonly id: string }) =>
+        said(fromGitHubOrDemo(() => Effect.void, (token) => openIssue(token, asked.id))),
+
+      sayOnIssue: (asked: Card & { readonly body: string }) =>
+        said(
+          fromGitHubOrDemo(
+            () => demoRemark(asked, asked.body),
+            (token) => commentOnIssue(token, asked, asked.body)
+          )
+        ),
+
+      raiseIssue: (asked: { readonly owner: string; readonly repo: string; readonly title: string; readonly body: string }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed({ owner: asked.owner, repo: asked.repo, number: 1 }),
+            (token) => raiseIssue(token, asked, asked)
+          )
+        ),
+
+      repositories: () =>
+        said(
+          fromGitHubOrDemo(
+            () =>
+              Effect.map(demoRows(), (rows) =>
+                [...new Map(rows.map((row) => [`${row.owner}/${row.repo}`, row])).values()].map(
+                  (row) => ({
+                    owner: row.owner,
+                    repo: row.repo,
+                    nameWithOwner: `${row.owner}/${row.repo}`,
+                    faceUrl: row.authorFaceUrl,
+                    ofAnOrganisation: false,
+                    isPrivate: false,
+                    isEmpty: false
+                  })
+                )
+              ),
+            (token) => readRepositories(token)
+          )
+        ),
+
+      deleteBranch: (card: Card) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.void,
+            (token) => deleteHead(token, card)
+          )
+        ),
+
+      searchPulls: ({ query, page }: { readonly query: string; readonly page: number }) =>
+        said(
+          fromGitHubOrDemo(
+            () =>
+              Effect.map(demoRows(), (rows) => {
+                const words = query.toLowerCase().split(/\s+/).filter((word) => word.length > 0)
+                const found = rows.filter((row) => {
+                  const against = `${row.owner}/${row.repo} ${row.title}`.toLowerCase()
+                  return words.every((word) => against.includes(word))
+                })
+                return { rows: found, current: page, total: 1, count: found.length }
+              }),
+            (token) => searchPullRequests(token, query, page)
+          )
+        ),
+
+      starRepo: (asked: { readonly owner: string; readonly repo: string; readonly to: "starred" | "unstarred" }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.void,
+            (token) => starRepository(token, asked.owner, asked.repo, asked.to)
+          )
+        ),
+
+      treePaths: (asked: { readonly owner: string; readonly repo: string; readonly sha: string }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed([]),
+            (token) => readTreePaths(token, asked.owner, asked.repo, asked.sha)
+          )
+        ),
+
+      fileAt: (asked: {
+        readonly owner: string
+        readonly repo: string
+        readonly branch: string
+        readonly path: string
+      }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed({ path: asked.path, lines: [], rendered: null }),
+            (token) => readFileAt(token, asked.owner, asked.repo, asked.branch, asked.path)
+          )
+        ),
+
+      rawFileAt: (asked: {
+        readonly owner: string
+        readonly repo: string
+        readonly branch: string
+        readonly path: string
+      }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed(""),
+            (token) => readRawFileAt(token, asked.owner, asked.repo, asked.branch, asked.path)
+          )
+        ),
+
+      blameAt: (asked: {
+        readonly owner: string
+        readonly repo: string
+        readonly branch: string
+        readonly path: string
+      }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed({ ranges: [], commits: [], lines: [] }),
+            (token) => readBlameAt(token, asked.owner, asked.repo, asked.branch, asked.path)
+          )
+        ),
+
+      branchesOf: (asked: { readonly owner: string; readonly repo: string }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed(["main"]),
+            (token) => readBranches(token, asked.owner, asked.repo)
+          )
+        ),
+
+      authorsOf: (asked: { readonly owner: string; readonly repo: string }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed([]),
+            (token) => readAuthors(token, asked.owner, asked.repo)
+          )
+        ),
+
+      releases: (asked: { readonly owner: string; readonly repo: string }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed([]),
+            (token) => readReleases(token, asked.owner, asked.repo)
+          )
+        ),
+
+      builds: (asked: { readonly owner: string; readonly repo: string; readonly tag: string }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed({ builds: [], archives: [] }),
+            (token) => readBuilds(token, asked.owner, asked.repo, asked.tag)
+          )
+        ),
+
+      commits: (asked: {
+        readonly owner: string
+        readonly repo: string
+        readonly branch: string | null
+        readonly search: string
+      }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed({ branch: asked.branch ?? "main", days: [], older: null, newer: null, rest: null }),
+            (token) => readCommits(token, asked.owner, asked.repo, asked.branch ?? undefined, asked.search)
+          )
+        ),
+
+      commitStat: (asked: { readonly owner: string; readonly repo: string; readonly sha: string }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed(null),
+            (token) => readCommitStat(token, asked.owner, asked.repo, asked.sha)
+          )
+        ),
+
+      whoTouched: (asked: { readonly owner: string; readonly repo: string; readonly sha: string }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed(null),
+            (token) => readWhoTouched(token, asked.owner, asked.repo, asked.sha)
+          )
+        ),
+
+      notes: (asked: Card & { readonly check: import("../shared/wire").CheckFacts }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed([]),
+            (token) => readNotes(token, asked.owner, asked.repo, asked.check)
+          )
+        ),
+
+      logLines: (asked: Card & { readonly sha: string; readonly check: import("../shared/wire").CheckFacts; readonly step: number }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed([]),
+            (token) => readLog(token, asked.owner, asked.repo, asked.check, asked.step)
+          )
+        ),
+
+      tailLines: (asked: Card & { readonly sha: string; readonly check: import("../shared/wire").CheckFacts; readonly keep: number }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed([]),
+            (token) => readTail(token, asked.owner, asked.repo, asked.check, asked.keep)
+          )
+        ),
+
+      jobSteps: (asked: Card & { readonly check: import("../shared/wire").CheckFacts }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed([]),
+            (token) => readSteps(token, asked.owner, asked.repo, asked.check)
+          )
+        ),
+
+      run: (asked: { readonly owner: string; readonly repo: string; readonly run: string }) =>
+        said(
+          fromGitHubOrDemo(
+            () =>
+              Effect.fail(new Error("The demo has no workflow runs.")),
+            (token) => readRun(token, asked.owner, asked.repo, asked.run)
+          )
+        ),
+
+      rerunRun: (asked: {
+        readonly owner: string
+        readonly repo: string
+        readonly run: string
+        readonly which: "all" | "failed"
+      }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.void,
+            (token) => rerunRun(token, asked.owner, asked.repo, asked.run, asked.which)
+          )
+        ),
+
+      cancelRun: (asked: { readonly owner: string; readonly repo: string; readonly run: string }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.void,
+            (token) => cancelRun(token, asked.owner, asked.repo, asked.run)
+          )
+        ),
+
+      strands: (asked: { readonly owner: string; readonly repo: string }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed([]),
+            (token) => readStrands(token, asked.owner, asked.repo)
+          )
+        ),
+
+      notices: ({ query }: { readonly query: string }) =>
+        said(fromGitHubOrDemo(() => Effect.succeed([]), (token) => readNotices(token, query))),
+
+      pressNotice: (press: import("../../../src/domain/notices").Press) =>
+        said(fromGitHubOrDemo(() => Effect.void, (token) => pressNotice(token, press))),
+
+      person: ({ login }: { readonly login: string }) =>
+        said(fromGitHubOrDemo(() => Effect.succeed(null), (token) => readPerson(token, login))),
+
+      personRepositories: ({ login, page }: { readonly login: string; readonly page: number }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed({ rows: [], more: false }),
+            (token) => readPersonRepositories(token, login, page)
+          )
+        ),
+
+      activity: ({ login }: { readonly login: string }) =>
+        said(fromGitHubOrDemo(() => Effect.succeed([]), (token) => readActivity(token, login))),
+
+      treeCommits: (asked: {
+        readonly owner: string
+        readonly repo: string
+        readonly sha: string
+        readonly folder?: string
+      }) =>
+        said(
+          fromGitHubOrDemo(
+            () => Effect.succeed([]),
+            (token) => readTreeCommits(token, asked.owner, asked.repo, asked.sha, asked.folder)
+          )
+        ),
+
       /**
        * A link, opened where links belong.
        *
@@ -387,6 +785,8 @@ const rpc = defineElectrobunRPC<Wire, "bun">("bun", {
             yield* Effect.tryPromise(() => Bun.$`open ${where.href}`.quiet())
           })
         ),
+
+      ...screenRequests(said, fromGitHubOrDemo),
 
       write: (wanted: Card & { readonly asked: Asked }) =>
         said(

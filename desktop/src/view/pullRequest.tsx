@@ -1,28 +1,43 @@
 import { Effect, Option } from "effect"
 import { useCallback, useRef } from "react"
+import { uploadFile } from "../../../src/app/attaching"
 import {
   cancelAutoMerge,
   closePullRequest,
   convertToDraft,
   dequeuePullRequest,
   enqueuePullRequest,
+  loadCheckLog,
+  loadCheckNotes,
+  loadCheckSteps,
+  loadCheckTail,
   loadCommit,
   loadCommitDiffs,
   loadDiffs,
   loadPullRequest,
+  makeStack,
   markReadyForReview,
   mergePullRequest,
   postRemark,
   postReviewComment,
   rememberedPullRequest,
+  replyInThread,
+  settleThread,
+  submitReview,
+  unsettleThread,
   updatePullRequestBranch
 } from "../../../src/app/pullRequest"
-import type { NewComment, PullRequestSnapshot } from "../../../src/domain/PullRequest"
+import { loadTreePaths } from "../../../src/app/repoHome"
+import { loadWholeFile } from "../../../src/app/revealing"
+import { loadSuggesting } from "../../../src/app/suggesting"
+import type { Check, NewComment, PullRequestSnapshot } from "../../../src/domain/PullRequest"
+import type { Review } from "../../../src/ports/GitHubGateway"
 import { type PullRequestRef, toUrl } from "../../../src/domain/PullRequestRef"
 import type { GitHubGateway } from "../../../src/ports/GitHubGateway"
 import { PullRequestScreen } from "../../../src/ui/PullRequestScreen"
 import { gatewayFrom } from "./gateway"
 import { openOutside } from "./outside"
+import { pollUpdates } from "./poll"
 import { Supplied } from "./supplied"
 
 /**
@@ -33,8 +48,8 @@ import { Supplied } from "./supplied"
  * here: the extension's card is assembled from six of GitHub's private routes and
  * this one from the documented API, and the screen cannot tell.
  *
- * Check-dialog log reads are still unwired (private routes). Commits use the
- * documented REST commit endpoint.
+ * Commits use the documented REST commit endpoint. Check notes and logs use
+ * the documented Actions routes.
  */
 
 /**
@@ -123,6 +138,48 @@ export const PullRequest = ({ reference }: { readonly reference: PullRequestRef 
 
   /* And on the pull request itself, which is where most of what is said goes. */
   const remark = useCallback((body: string) => through(postRemark(reference, body)), [reference])
+  const settle = useCallback(
+    (threadId: string) => through(settleThread(reference, threadId)),
+    [reference]
+  )
+  const unsettle = useCallback(
+    (threadId: string) => through(unsettleThread(reference, threadId)),
+    [reference]
+  )
+  const reply = useCallback(
+    (commentId: string, body: string) => through(replyInThread(reference, commentId, body)),
+    [reference]
+  )
+  const judge = useCallback(
+    (review: Review) => through(submitReview(reference, review)),
+    [reference]
+  )
+  const suggest = useCallback(() => through(loadSuggesting(reference)), [reference])
+  const onUpload = useCallback((file: File) => through(uploadFile(reference, file)), [reference])
+  const stack = useCallback(() => through(makeStack(reference)), [reference])
+  const readNotes = useCallback(
+    (check: Check) => through(loadCheckNotes(reference, check)),
+    [reference]
+  )
+  const readLog = useCallback(
+    (check: Check, step: number) =>
+      through(loadCheckLog(reference, latest.current?.headSha ?? "", check, step)),
+    [reference]
+  )
+  const readTail = useCallback(
+    (check: Check, keep: number) =>
+      through(loadCheckTail(reference, latest.current?.headSha ?? "", check, keep)),
+    [reference]
+  )
+  const readSteps = useCallback(
+    (check: Check) => through(loadCheckSteps(reference, check)),
+    [reference]
+  )
+  const readWhole = useCallback(
+    (sha: string, path: string) => through(loadWholeFile(reference, sha, path)),
+    [reference]
+  )
+  const readPaths = useCallback((sha: string) => through(loadTreePaths(reference, sha)), [reference])
 
   return (
     <Supplied>
@@ -135,6 +192,19 @@ export const PullRequest = ({ reference }: { readonly reference: PullRequestRef 
         fetchCommitDiffs={readCommitDiffs}
         postComment={say}
         postRemark={remark}
+        onSettle={settle}
+        onUnsettle={unsettle}
+        onReply={reply}
+        onReview={judge}
+        suggest={suggest}
+        onUpload={onUpload}
+        makeStack={stack}
+        loadNotes={readNotes}
+        loadLog={readLog}
+        loadTail={readTail}
+        loadSteps={readSteps}
+        readWholeFile={readWhole}
+        readPaths={readPaths}
         actions={{
           // The card hands down the way this repository merges, having read it
           // off the state it drew the button from. Nothing here reads it again.
@@ -149,16 +219,13 @@ export const PullRequest = ({ reference }: { readonly reference: PullRequestRef 
           close: () => through(closePullRequest(reference)),
           markReady: () => through(markReadyForReview(reference)),
           toDraft: () => through(convertToDraft(reference))
-          /*
-           * Nothing else to wire. The screen puts every write through its own
-           * read — the card wears the state the verb leads to at once, and the
-           * read behind it either agrees or puts it back — so the two callbacks
-           * that used to ask for the whole pull request again are gone, along
-           * with the socket seam this window borrowed to reach them. That seam
-           * only ever fires where GitHub gave channels to listen on, and a card
-           * built in this window has none, so it never fired at all.
-           */
         }}
+        /*
+         * No signed page socket here. The card still has a watch seam, so this
+         * window polls and reads the pull request again when something may have
+         * changed.
+         */
+        watch={pollUpdates}
         /*
          * Stepping aside is this pull request in the reader's browser, because
          * there is no page behind this one to give back.

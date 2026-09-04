@@ -1,10 +1,10 @@
-import { Effect } from "effect"
+import { Effect, Option } from "effect"
 import { fromPatch } from "../../../src/domain/fromPatch"
 import type { CommitDetail, FetchedDiff, NewComment } from "../../../src/domain/PullRequest"
 import type { PullRequestRef, RepoRef } from "../../../src/domain/PullRequestRef"
 import { GatewayError } from "../../../src/ports/GitHubGateway"
 import type { Asked } from "../shared/wire"
-import { keepCard } from "./kept"
+import { dropCard, keepCard } from "./kept"
 import { ask } from "./rpc"
 import { commitDetailFrom, remarkOf, snapshotFrom, threadOf } from "./snapshot"
 
@@ -73,6 +73,8 @@ export const askToWrite = Effect.fn("askToWrite")(function* (
     console.error(`[working-set] GitHub refused to ${asked.doing}:`, answered.why)
     return yield* Effect.fail(refused(reference, asked.doing, answered.why))
   }
+
+  dropCard(reference)
 })
 
 /**
@@ -194,15 +196,100 @@ export const askForCommit = Effect.fn("askForCommit")(function* (reference: Repo
  * its repository does rather than posting `SQUASH` and repeating GitHub's
  * refusal back to the reader.
  */
+export const askToSettle = Effect.fn("askToSettle")(function* (
+  reference: PullRequestRef,
+  threadId: string
+) {
+  const answered = yield* Effect.tryPromise({
+    try: () => ask("settleThread", { ...reference, threadId }),
+    catch: (cause) => refused(reference, "settle", String(cause))
+  })
+
+  if (!answered.ok) return yield* Effect.fail(refused(reference, "settle", answered.why))
+})
+
+export const askToUnsettle = Effect.fn("askToUnsettle")(function* (
+  reference: PullRequestRef,
+  threadId: string
+) {
+  const answered = yield* Effect.tryPromise({
+    try: () => ask("unsettleThread", { ...reference, threadId }),
+    catch: (cause) => refused(reference, "unsettle", String(cause))
+  })
+
+  if (!answered.ok) return yield* Effect.fail(refused(reference, "unsettle", answered.why))
+})
+
+export const askToReply = Effect.fn("askToReply")(function* (
+  reference: PullRequestRef,
+  commentId: string,
+  body: string
+) {
+  const answered = yield* Effect.tryPromise({
+    try: () => ask("replyToComment", { ...reference, commentId, body }),
+    catch: (cause) => refused(reference, "reply", String(cause))
+  })
+
+  if (!answered.ok) return yield* Effect.fail(refused(reference, "reply", answered.why))
+
+  /*
+   * Their mutation hands back the one comment. The screen replaces the thread
+   * with whatever this returns, so the card is read again for the whole of it.
+   */
+  const card = yield* askForCard(reference)
+  const thread = card.threads.find((one) =>
+    one.comments.some((comment) => comment.id === commentId || comment.id === answered.it.id)
+  )
+
+  if (thread === undefined) {
+    return [
+      {
+        id: answered.it.id,
+        author: {
+          login: answered.it.author.login,
+          isAutomated: answered.it.author.isAutomated,
+          faceUrl: Option.fromNullishOr(answered.it.author.faceUrl)
+        },
+        body: answered.it.body,
+        html: answered.it.html,
+        createdAt: answered.it.createdAt
+      }
+    ]
+  }
+
+  return thread.comments
+})
+
+export const askToReview = Effect.fn("askToReview")(function* (
+  reference: PullRequestRef,
+  review: { readonly verdict: "approve" | "request-changes" | "comment"; readonly note: string; readonly headSha: string }
+) {
+  const answered = yield* Effect.tryPromise({
+    try: () => ask("submitReview", { ...reference, ...review }),
+    catch: (cause) => refused(reference, "review", String(cause))
+  })
+
+  if (!answered.ok) return yield* Effect.fail(refused(reference, "review", answered.why))
+})
+
 export const askHowToMerge = Effect.fn("askHowToMerge")(function* (
   reference: PullRequestRef
 ) {
   const answered = yield* Effect.tryPromise({
-    try: () => ask("howToMerge", { owner: reference.owner, repo: reference.repo }),
+    try: () => ask("howToMerge", { owner: reference.owner, repo: reference.repo, number: reference.number }),
     catch: (cause) => refused(reference, "howToMerge", String(cause))
   })
 
   if (!answered.ok) return yield* Effect.fail(refused(reference, "howToMerge", answered.why))
 
+  return answered.it
+})
+
+export const askForSize = Effect.fn("askForSize")(function* (reference: PullRequestRef) {
+  const answered = yield* Effect.tryPromise({
+    try: () => ask("pullSize", reference),
+    catch: (cause) => refused(reference, "size", String(cause))
+  })
+  if (!answered.ok) return yield* Effect.fail(refused(reference, "size", answered.why))
   return answered.it
 })

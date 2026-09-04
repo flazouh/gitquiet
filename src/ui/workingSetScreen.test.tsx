@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen, waitFor } from "@testing-library/react"
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Deferred, Effect, Option } from "effect"
 import { afterwards } from "../../tests/afterwards"
@@ -266,13 +266,7 @@ describe("the Working Set screen", () => {
     await waitFor(() => expect(screen.getByText(/as it is/)).toBeDefined())
   })
 
-  test("moves the row the moment a verb is confirmed, before GitHub has answered", async () => {
-    /*
-     * What this screen was for. Closing from a row used to mean pressing twice,
-     * waiting for GitHub, and then waiting again for the whole Working Set to be
-     * read from scratch — eight requests to be told the thing the domain already
-     * knew: a closed pull request is in Settled.
-     */
+  test("keeps the row where it is while GitHub is asked, and turns a circle there", async () => {
     const ask = held<void>()
 
     render(
@@ -291,8 +285,9 @@ describe("the Working Set screen", () => {
     await userEvent.click(screen.getByText("Close"))
     await userEvent.click(screen.getByText("Confirm"))
 
-    // GitHub has not answered and is not going to until this test says so.
-    await waitFor(() => expect(screen.getByRole("heading", { name: /Settled/i })).toBeDefined())
+    await waitFor(() => expect(screen.getByLabelText("Asking GitHub")).toBeDefined())
+    expect(screen.queryByRole("heading", { name: /Settled/i })).toBeNull()
+    expect(screen.getByRole("heading", { name: /Needs You/i })).toBeDefined()
   })
 
   test("keeps the row moved while GitHub's list is still behind the write", async () => {
@@ -373,7 +368,7 @@ describe("the Working Set screen", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: /Needs You/i })).toBeDefined())
   })
 
-  test("puts the row back where GitHub refused the verb", async () => {
+  test("moves the row once GitHub has answered, not before", async () => {
     const ask = held<void>()
 
     render(
@@ -390,12 +385,40 @@ describe("the Working Set screen", () => {
     await userEvent.click(screen.getByLabelText("What to do with #1"))
     await userEvent.click(screen.getByText("Close"))
     await userEvent.click(screen.getByText("Confirm"))
+    await waitFor(() => expect(screen.getByLabelText("Asking GitHub")).toBeDefined())
+
+    ask.settle(undefined as void)
 
     await waitFor(() => expect(screen.getByRole("heading", { name: /Settled/i })).toBeDefined())
+    expect(screen.queryByLabelText("Asking GitHub")).toBeNull()
+  })
 
-    ask.fail()
+  test("leaves the row where it was where GitHub refused the verb", async () => {
+    const ask = held<void>()
 
-    await waitFor(() => expect(screen.getByRole("heading", { name: /Needs You/i })).toBeDefined())
+    render(
+      <WorkingSetScreen
+        load={() => Effect.succeed(listOf("close me"))}
+        onOpen={() => {}}
+        onStepAside={() => {}}
+        ask={() => ask.read}
+      />
+    )
+
+    await waitFor(() => expect(screen.getByText("close me")).toBeDefined())
+
+    await userEvent.click(screen.getByLabelText("What to do with #1"))
+    await userEvent.click(screen.getByText("Close"))
+    await userEvent.click(screen.getByText("Confirm"))
+    await waitFor(() => expect(screen.getByLabelText("Asking GitHub")).toBeDefined())
+
+    await act(async () => {
+      ask.fail()
+    })
+
+    await waitFor(() => expect(screen.queryByLabelText("Asking GitHub")).toBeNull())
+    expect(screen.getByRole("heading", { name: /Needs You/i })).toBeDefined()
+    expect(screen.queryByRole("heading", { name: /Settled/i })).toBeNull()
   })
 
   /*

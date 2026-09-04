@@ -108,6 +108,15 @@ export const keptCard = (
  * remembered card draws its header, its checks, its conversation and its file tree
  * at once, and the diff arrives when GitHub answers.
  */
+/** Drops a card a write has just made stale. */
+export const dropCard = (
+  reference: PullRequestRef,
+  where: Somewhere | null = inThisWindow()
+): void => {
+  if (where === null) return
+  where.removeItem(keyOf(reference))
+}
+
 export const keepCard = (
   reference: PullRequestRef,
   facts: CardFacts,
