@@ -101,6 +101,27 @@ import { ask } from "./rpc"
 const keyOf = (reference: PullRequestRef): string =>
   `${reference.owner}/${reference.repo}#${reference.number}`
 
+/**
+ * The refusal every Discussions method of this port answers with.
+ *
+ * The rest of the window reaches GitHub through the documented API with a token. Discussions are
+ * read by scraping the page GitHub serves, and this window loads no page, so there is nothing
+ * here to read them off. A refusal names the page it was about, which is what `homeRef` is for.
+ *
+ * Written out rather than left off, because a method left off is a call on nothing. That is a
+ * defect and never reaches the screen's word for "this went wrong": the window sits there saying
+ * it is still reading.
+ */
+const noPageToRead = (what: string) => (reference: RepoRef) =>
+  Effect.fail(
+    new GatewayError({
+      reference,
+      route: what,
+      reason: "not-recorded",
+      detail: `The desktop app cannot ${what}. It reaches GitHub without loading a page.`
+    })
+  )
+
 const refused = (route: string, detail: string) =>
   new WorkingSetError({ route, reason: "rejected", detail })
 
@@ -505,15 +526,15 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
      * documented API with a token, and that API answers discussions through GraphQL
      * rather than through the routes this port's other reads use.
      */
-    discussions: (list) => missing("read discussions")(homeRef(list.home)),
+    discussions: (list) => noPageToRead("read discussions")(homeRef(list.home)),
     rememberedDiscussions: () => Effect.succeed(Option.none()),
-    discussion: (reference) => missing("read a discussion")(homeRef(reference.home)),
+    discussion: (reference) => noPageToRead("read a discussion")(homeRef(reference.home)),
     rememberedDiscussion: () => Effect.succeed(Option.none()),
     /*
      * And this one is refused twice over. Every press on a discussion is GitHub's own form sent
      * back, and a form only exists on a page somebody loaded. This window loads no page.
      */
-    pressDiscussion: (reference) => missing("write on a discussion")(homeRef(reference.home)),
+    pressDiscussion: (reference) => noPageToRead("write on a discussion")(homeRef(reference.home)),
     // An empty menu, which is what a window with no page to read one from has.
     discussionDoings: () => Effect.succeed([]),
 
