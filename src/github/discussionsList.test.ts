@@ -366,3 +366,33 @@ describe("an organisation's discussions", () => {
     expect(courts.filter((one) => one === "running")).toHaveLength(0)
   })
 })
+
+/*
+ * The row's address is read by the domain's own rule rather than by a second copy of it here.
+ * The copy this replaced had no guard against GitHub's own pages, so a heading pointing at
+ * `/settings/discussions/3` was read as a discussion owned by `settings`.
+ */
+describe("a row whose heading is not a discussion", () => {
+  const rowFor = (href: string) => `
+    <li class="js-navigation-item">
+      <h3><a href="${href}">Something</a></h3>
+      <a aria-label="A category (category)" href="/o/r/discussions/categories/c">A category</a>
+    </li>`
+
+  test("is left off the list, rather than read as one", () => {
+    for (const href of ["/settings/discussions/3", "/notifications/discussions/3"]) {
+      expect(discussionsOnPage(rowFor(href))).toHaveLength(0)
+    }
+  })
+
+  test("an ordinary row is still read", () => {
+    expect(discussionsOnPage(rowFor("/vercel/next.js/discussions/3"))).toHaveLength(1)
+  })
+
+  /* An organisation's, which is the other shape the same rule reads. */
+  test("an organisation's row is read as an organisation's", () => {
+    const [only] = discussionsOnPage(rowFor("/orgs/community/discussions/3"))
+
+    expect(only?.reference.home).toEqual({ kind: "organisation", org: "community" })
+  })
+})

@@ -31,7 +31,7 @@ import type {
   Reply
 } from "../domain/discussions"
 import { text } from "./outcome"
-import { emojiIn } from "./discussionsList"
+import { categoryAt, upvotesIn } from "./discussionParts"
 import {
   markingAnswer,
   reactingTo,
@@ -44,7 +44,6 @@ import {
 const parse = (html: string): Document => new DOMParser().parseFromString(html, "text/html")
 
 /** `…/discussions/categories/{slug}`, with whatever their filter appended left off. */
-const CATEGORY = /\/discussions\/categories\/([^/?#]+)/
 
 /**
  * `discussioncomment-18252316`, and `discussion-10735041` for the opening post.
@@ -59,10 +58,6 @@ const SAID_ID = /^(discussion|discussioncomment)-(\d+)$/
 /** The block their page puts one comment's replies in, named after the comment. */
 const CHILD_OF = /^child-comments-discussioncomment-(\d+)$/
 
-const countIn = (label: string): number => {
-  const found = Number(/^Upvote:\s*(\d+)$/.exec(label)?.[1])
-  return Number.isSafeInteger(found) && found >= 0 ? found : 0
-}
 
 /**
  * The faces on one thing, off their own buttons.
@@ -195,7 +190,7 @@ const saidIn = (page: Document, container: Element): Reply | null => {
     at: when?.getAttribute("datetime") ?? "",
     body: body?.innerHTML ?? "",
     hiddenAs: text(minimized).replace(/\s+/g, " "),
-    upvotes: countIn(upvote?.getAttribute("aria-label") ?? ""),
+    upvotes: upvotesIn(upvote?.getAttribute("aria-label") ?? ""),
     /*
      * Their own class for it, written on the one comment somebody marked. Read per comment
      * rather than off the answer link in the header, because the header's link is an anchor to
@@ -234,13 +229,7 @@ const under = (container: Element): string | null => {
  */
 const categoryIn = (page: Document): Category => {
   const link = page.querySelector('a[href*="/discussions/categories/"]')
-  const url = link?.getAttribute("href") ?? ""
-
-  return {
-    name: text(link),
-    slug: decodeURIComponent(CATEGORY.exec(url)?.[1] ?? ""),
-    emoji: emojiIn(link)
-  }
+  return categoryAt(link, link)
 }
 
 /**

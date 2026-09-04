@@ -21,8 +21,14 @@
  */
 
 import { Option } from "effect"
+import { discussionIn } from "../domain/discussions"
 import type {
-  Participant, Category, DiscussionRef, Emoji, ListedDiscussion } from "../domain/discussions"
+  Category,
+  DiscussionRef,
+  ListedDiscussion,
+  Participant
+} from "../domain/discussions"
+import { CATEGORY, categoryAt, emojiIn, upvotesIn } from "./discussionParts"
 import { text } from "./outcome"
 
 const parse = (html: string): Document => new DOMParser().parseFromString(html, "text/html")
@@ -35,13 +41,10 @@ const parse = (html: string): Document => new DOMParser().parseFromString(html, 
  * own product feedback, and its rows are otherwise identical to a repository's — which is why one
  * pattern reads both rather than two parsers reading one each.
  */
-const ROW = /^\/([^/]+)\/([^/]+)\/discussions\/(\d+)$/
 
 /** Their own name for the discussion, off the id the upvote button carries. */
 const UPVOTE_ID = /^discussion-upvote-button-Discussion-(.+)$/
 
-/** `…/discussions/categories/{slug}`, with whatever their filter appended left off. */
-const CATEGORY = /\/discussions\/categories\/([^/?#]+)/
 
 /**
  * The words their row prints after the category, which is the only place the state is spelled.
@@ -63,43 +66,6 @@ const numberIn = (label: string, pattern: RegExp): number => {
   return Number.isSafeInteger(found) && found >= 0 ? found : 0
 }
 
-/**
- * The picture a category wears, out of whichever of the two elements GitHub used for it.
- *
- * An ordinary emoji is a character inside a `g-emoji`. One of GitHub's own is an `<img>` with
- * the name in its `alt`, because `:shipit:` is a picture rather than a character. Reading only
- * the first drew `vercel/next.js`'s Show and tell with a blank where every other row has one.
- */
-export const emojiIn = (within: Element | null): Emoji => {
-  if (within === null) return { kind: "none" }
-
-  const said = text(within.querySelector("g-emoji"))
-  if (said !== "") return { kind: "text", text: said }
-
-  const image = within.querySelector("img[alt^=':'], img.discussions-emoji-box")
-  const url = image?.getAttribute("src") ?? ""
-  if (url === "") return { kind: "none" }
-
-  return { kind: "image", url, name: (image?.getAttribute("alt") ?? "").replace(/^:|:$/g, "") }
-}
-
-/**
- * The category the row was asked in.
- *
- * The emoji is read off their own box rather than mapped from the name. A maintainer chose it,
- * it is the one thing on their row that separates a Poll from a support question at a glance,
- * and there is no icon in the Octicon set that means "Turbopack error report".
- */
-const categoryIn = (row: Element): Category => {
-  const link = row.querySelector('a[aria-label$="(category)"][href]')
-  const url = link?.getAttribute("href") ?? ""
-
-  return {
-    name: text(link),
-    slug: decodeURIComponent(CATEGORY.exec(url)?.[1] ?? ""),
-    emoji: emojiIn(row.querySelector(".bg-discussions-row-emoji-box"))
-  }
-}
 
 /**
  * Everyone their avatar stack names, in the order they drew them.
@@ -120,25 +86,18 @@ const participantsIn = (row: Element): ReadonlyArray<Participant> => {
   })
 }
 
-const referenceIn = (url: string): DiscussionRef | null => {
-  const named = ROW.exec(url)
-  if (named === null) return null
+/**
+ * The discussion a row's heading links to, read by the domain's own rule.
+ *
+ * Not a second copy of that rule. This file had one, and it was missing the guard that refuses
+ * GitHub's own pages as owners, so a `/settings/discussions/3` in the markup would have been read
+ * as a discussion in a repository called `discussions` owned by `settings`.
+ */
+const referenceIn = (url: string): DiscussionRef | null =>
+  Option.getOrNull(discussionIn(new URL(url, "https://github.com").toString()))
 
-  const first = named[1] ?? ""
-  const second = named[2] ?? ""
-  const number = Number(named[3])
-  if (first === "" || second === "" || !Number.isSafeInteger(number)) return null
 
-  return {
-    home:
-      first === "orgs"
-        ? { kind: "organisation", org: second }
-        : { kind: "repository", owner: first, repo: second },
-    number
-  }
-}
-
-const discussionIn = (row: Element): ReadonlyArray<ListedDiscussion> => {
+const rowIn = (row: Element): ReadonlyArray<ListedDiscussion> => {
   const heading = row.querySelector("h3 a[href], h4 a[href]")
   const url = heading?.getAttribute("href") ?? ""
   const reference = referenceIn(url)
@@ -173,7 +132,10 @@ const discussionIn = (row: Element): ReadonlyArray<ListedDiscussion> => {
       id,
       title: text(heading),
       url,
-      category: categoryIn(row),
+      category: categoryAt(
+        row.querySelector('a[aria-label$="(category)"][href]'),
+        row.querySelector(".bg-discussions-row-emoji-box")
+      ),
       /*
        * Whether the category takes answers. Their page prints one of the two words on every row
        * of an answerable category and neither word on any other, so the absence of both is the
@@ -189,7 +151,7 @@ const discussionIn = (row: Element): ReadonlyArray<ListedDiscussion> => {
        */
       closed: CLOSED.test(row.textContent ?? ""),
       locked: row.querySelector(".octicon-lock") !== null,
-      upvotes: numberIn(upvote?.getAttribute("aria-label") ?? "", /^Upvote:\s*(\d+)$/),
+      upvotes: upvotesIn(upvote?.getAttribute("aria-label") ?? ""),
       comments: numberIn(count?.getAttribute("aria-label") ?? "", COMMENTS),
       /*
        * Their own `data-name`, which is the label's name without the colour swatch and the
@@ -215,7 +177,7 @@ const discussionIn = (row: Element): ReadonlyArray<ListedDiscussion> => {
  * is the wrong place for it.
  */
 export const discussionsOnPage = (html: string): ReadonlyArray<ListedDiscussion> =>
-  [...parse(html).querySelectorAll("li.js-navigation-item")].flatMap(discussionIn)
+  [...parse(html).querySelectorAll("li.js-navigation-item")].flatMap(rowIn)
 
 /**
  * Whether their page says there is another one after this.
