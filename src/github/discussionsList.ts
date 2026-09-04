@@ -25,7 +25,14 @@ import { text } from "./outcome"
 
 const parse = (html: string): Document => new DOMParser().parseFromString(html, "text/html")
 
-/** `/{owner}/{repo}/discussions/{number}`, which is the only address a row's heading links. */
+/**
+ * The address a row's heading links, in either of the two shapes GitHub uses.
+ *
+ * `/{owner}/{repo}/discussions/{number}` for a repository's, and
+ * `/orgs/{org}/discussions/{number}` for an organisation's. The second is where GitHub runs its
+ * own product feedback, and its rows are otherwise identical to a repository's — which is why one
+ * pattern reads both rather than two parsers reading one each.
+ */
 const ROW = /^\/([^/]+)\/([^/]+)\/discussions\/(\d+)$/
 
 /** Their own name for the discussion, off the id the upvote button carries. */
@@ -112,12 +119,18 @@ const referenceIn = (url: string): DiscussionRef | null => {
   const named = ROW.exec(url)
   if (named === null) return null
 
-  const owner = named[1] ?? ""
-  const repo = named[2] ?? ""
+  const first = named[1] ?? ""
+  const second = named[2] ?? ""
   const number = Number(named[3])
-  if (owner === "" || repo === "" || !Number.isSafeInteger(number)) return null
+  if (first === "" || second === "" || !Number.isSafeInteger(number)) return null
 
-  return { owner, repo, number }
+  return {
+    home:
+      first === "orgs"
+        ? { kind: "organisation", org: second }
+        : { kind: "repository", owner: first, repo: second },
+    number
+  }
 }
 
 const discussionIn = (row: Element): ReadonlyArray<ListedDiscussion> => {

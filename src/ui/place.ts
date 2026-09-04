@@ -691,12 +691,17 @@ export const RELEASES: Place = {
 };
 
 /**
- * A repository's Discussions tab at `/owner/repo/discussions`, and one category of it.
+ * A Discussions list, at `/owner/repo/discussions` and at `/orgs/{org}/discussions`.
  *
- * The same two content hooks every other repository tab uses, measured on 2026-09-03 against
- * `vercel/next.js`: the pjax container is present ten times, the Turbo frame is present, and
- * there is no `react-app` at all. This is the last large list on github.com still rendered by
- * Rails end to end, which is why the read is a scrape and why this screen costs one request.
+ * One place and not two, because they are one page in two layouts. An organisation's discussions
+ * are where GitHub runs its own product feedback and are the busiest Discussions surface there
+ * is, and every row, category and pager on them is a repository's — which the parsers prove by
+ * reading both with one code path.
+ *
+ * The layouts differ and only the layouts. Measured on 2026-09-03 and 2026-09-04: a repository's
+ * uses the pjax container and the Turbo frame every other repository tab uses, and an
+ * organisation's has neither and draws into Primer's own `container-xl` under `main`, below the
+ * organisation's header and nav. Both are listed, best first, and the proof below decides.
  *
  * Their own pager goes with the list. `discussionListIn` reads the page out of the address, so a
  * reader on page three is drawn page three rather than page one.
@@ -705,9 +710,13 @@ export const DISCUSSIONS: Place = {
   name: "discussions",
   owns: (path, search) =>
     Option.isSome(discussionListIn(`https://github.com${path}${search ?? ""}`)),
-  regions: ["#repo-content-pjax-container"],
+  regions: ["#repo-content-pjax-container", "main .container-xl.p-responsive.clearfix"],
   fallback: "turbo-frame#repo-content-turbo-frame",
-  stages: ["#repo-content-pjax-container", "turbo-frame#repo-content-turbo-frame"],
+  stages: [
+    "#repo-content-pjax-container",
+    "turbo-frame#repo-content-turbo-frame",
+    "main .container-xl.p-responsive.clearfix"
+  ],
   /*
    * The heading their own list is labelled by, which is written by this page and by nothing
    * else. Every other hook here is a content region shared with the Code tab, so the proof has
@@ -724,23 +733,28 @@ export const DISCUSSIONS: Place = {
 };
 
 /**
- * One discussion at `/owner/repo/discussions/N`.
+ * One discussion, at `/owner/repo/discussions/N` and at `/orgs/{org}/discussions/N`.
  *
- * The same two content hooks the list beside it uses, measured on 2026-09-03 against
- * `vercel/next.js` #70178: the pjax container is present nine times, the Turbo frame is present,
- * and there is no `react-app`.
+ * One place for the same reason the list beside it is one: two layouts, one page. A repository's
+ * uses the pjax container the rest of its tabs use; an organisation's has none and is reached by
+ * `#discussion_bucket`, which GitHub writes on both and on neither list. Measured on 2026-09-03
+ * and 2026-09-04, across all four recordings here.
  *
- * Its proof is the wrapper GitHub writes around the thread, which the list does not have. Read
- * the same day, `.js-discussion` is on `/discussions/70178` and absent from `/discussions`, and
- * `#discussions-list` is the other way round. So the two pages never blank each other while a
- * reader is pressing between them.
+ * Its proof is the wrapper GitHub writes around the thread, which no list has. Read the same
+ * days, `.js-discussion` is on a discussion and absent from a list, and `#discussions-list` is
+ * the other way round. So the two pages never blank each other while a reader presses between
+ * them.
  */
 export const DISCUSSION: Place = {
   name: "discussion",
   owns: (path) => Option.isSome(discussionIn(`https://github.com${path}`)),
-  regions: ["#repo-content-pjax-container"],
+  regions: ["#repo-content-pjax-container", "#discussion_bucket"],
   fallback: "turbo-frame#repo-content-turbo-frame",
-  stages: ["#repo-content-pjax-container", "turbo-frame#repo-content-turbo-frame"],
+  stages: [
+    "#repo-content-pjax-container",
+    "turbo-frame#repo-content-turbo-frame",
+    "#discussion_bucket"
+  ],
   soft: { holding: ":has(.js-discussion)" },
   // Nothing. The region is the thread and its header together.
   bands: [],

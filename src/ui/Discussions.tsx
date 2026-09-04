@@ -6,21 +6,36 @@ import {
   type Category,
   type Chip,
   type DiscussionList,
+  type Home,
   type Emoji,
   type ListedDiscussion,
   answeringOf,
   asWordsGo,
   asking,
   docketsOf,
+  homeName,
   listAddressOf,
   listRouteOf,
   raisingAddressOf,
   toggled,
   wordsIn
 } from "../domain/discussions"
+import type { Where } from "./Bar"
 import { COURT_ART, COURT_NAME, COURT_TONE } from "./courts"
 import { Section } from "./Section"
 import { ageOf, momentOf } from "./when"
+
+/**
+ * What the bar is standing on, for either kind of home.
+ *
+ * An organisation is a person to the bar, because that is what it is to GitHub: an account with
+ * a name, whose row the bar asks for by that name. A repository keeps its own row and its own
+ * tabs, exactly as it does on every other screen.
+ */
+export const whereFor = (home: Home): Where =>
+  home.kind === "repository"
+    ? { kind: "repository", owner: home.owner, repo: home.repo }
+    : { kind: "person", login: home.org }
 
 /**
  * What a row says about itself before its title is read.
@@ -131,7 +146,7 @@ const Row = ({ one }: { readonly one: ListedDiscussion }) => {
         <div className="mt-0.5 flex items-center gap-2 text-xs text-ink-muted">
           <a
             className="min-w-0 truncate text-ink-muted no-underline hover:underline"
-            href={listAddressOf(one.reference, Option.some(one.category.slug))}
+            href={listAddressOf(one.reference.home, Option.some(one.category.slug))}
           >
             {one.category.name}
           </a>
@@ -195,7 +210,7 @@ export const Categories = ({
               in, and what each of a repository's categories is for, is their page's to explain. */}
           <a
             className="rounded px-2 py-0.5 text-xs text-ink-muted no-underline hover:bg-hover"
-            href={raisingAddressOf(list.repo)}
+            href={raisingAddressOf(list.home)}
           >
             New discussion
           </a>
@@ -351,16 +366,16 @@ export const Pages = ({
  * Three of the product's four, and the missing one is Running. See `DISCUSSION_COURTS`.
  */
 export const Discussions = ({
-  repo,
+  home,
   discussions
 }: {
-  readonly repo: { readonly owner: string; readonly repo: string }
+  readonly home: Home
   readonly discussions: ReadonlyArray<ListedDiscussion>
 }) => {
   if (discussions.length === 0) {
     return (
       <p className="px-3 py-2 text-sm text-ink-muted">
-        {`Nothing is being discussed in ${repo.owner}/${repo.repo}.`}
+        {`Nothing is being discussed in ${homeName(home)}.`}
       </p>
     )
   }

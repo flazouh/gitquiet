@@ -20,16 +20,39 @@ import { asked, termsIn, toggling } from "./sieve"
 import type { Court } from "./workingSet"
 
 /**
- * A discussion's address, which is a repository and a number.
+ * Where discussions live, which GitHub gives two of.
  *
- * Its own type for the reason `IssueRef` is its own type rather than a `PullRequestRef`: the
- * three fields are the same three, the page is at `/discussions/` rather than `/issues/` or
- * `/pull/`, and sharing one type would put a link to a discussion one careless template literal
- * away from a link to whatever else carries that number.
+ * A repository's are at `/{owner}/{repo}/discussions` and an organisation's at
+ * `/orgs/{org}/discussions`, and the second is not a lesser version of the first: it is where
+ * GitHub runs its own product feedback, and it is the busiest Discussions surface there is.
+ *
+ * One type rather than two parallel sets of everything, because the two differ in exactly one
+ * thing: the path in front of the word `discussions`. Every row, every comment, every category
+ * and every press is the same on both, which the parsers prove by reading both with one code
+ * path.
+ */
+export type Home =
+  | { readonly kind: "repository"; readonly owner: string; readonly repo: string }
+  | { readonly kind: "organisation"; readonly org: string }
+
+/** The part of the address in front of `/discussions`. */
+export const homePath = (home: Home): string =>
+  home.kind === "repository" ? `/${home.owner}/${home.repo}` : `/orgs/${home.org}`
+
+/** What to call it on the screen: `owner/repo`, or an organisation's own name. */
+export const homeName = (home: Home): string =>
+  home.kind === "repository" ? `${home.owner}/${home.repo}` : home.org
+
+/**
+ * A discussion's address, which is where it lives and a number.
+ *
+ * Its own type for the reason `IssueRef` is its own type rather than a `PullRequestRef`: the page
+ * is at `/discussions/` rather than `/issues/` or `/pull/`, and sharing one type would put a link
+ * to a discussion one careless template literal away from a link to whatever else carries that
+ * number.
  */
 export type DiscussionRef = {
-  readonly owner: string
-  readonly repo: string
+  readonly home: Home
   readonly number: number
 }
 
@@ -200,19 +223,16 @@ export const courtOf = (one: Weighing): Court => {
  * choosing an issue template is sent to GitHub's own chooser rather than to this interface's
  * form.
  */
-export const raisingAddressOf = (repo: {
-  readonly owner: string
-  readonly repo: string
-}): string => `/${repo.owner}/${repo.repo}/discussions/new`
+export const raisingAddressOf = (home: Home): string => `${homePath(home)}/discussions/new`
 
-/** Where a repository's discussions are, and one category of them. */
+/** Where a home's discussions are, and one category of them. */
 export const listAddressOf = (
-  repo: { readonly owner: string; readonly repo: string },
+  home: Home,
   category: Option.Option<string> = Option.none()
 ): string =>
   Option.isSome(category)
-    ? `/${repo.owner}/${repo.repo}/discussions/categories/${encodeURIComponent(category.value)}`
-    : `/${repo.owner}/${repo.repo}/discussions`
+    ? `${homePath(home)}/discussions/categories/${encodeURIComponent(category.value)}`
+    : `${homePath(home)}/discussions`
 
 /**
  * A repository's discussion list — `/{owner}/{repo}/discussions`, and one category of it.
@@ -222,7 +242,7 @@ export const listAddressOf = (
  * `/discussions/categories/help` list the same rows, and their own sidebar links the second.
  */
 export type DiscussionList = {
-  readonly repo: { readonly owner: string; readonly repo: string }
+  readonly home: Home
   /** Whichever category the address named, or nothing for all of them. */
   readonly category: Option.Option<string>
   /**
@@ -261,19 +281,27 @@ const segmentsIn = (url: string): Option.Option<ReadonlyArray<string>> => {
 }
 
 /**
- * Whether the first two segments are a repository rather than one of GitHub's own pages.
+ * Where the segments in front of `discussions` say this list lives, or nothing.
  *
- * `/orgs/community/discussions` is the shape this refuses, and it is not a hypothetical: it is
- * where GitHub's own product feedback lives, so it is a page a reader of this extension opens.
- * An organisation's discussions are a different screen with a different spec, and reading
- * `orgs/community` as a repository would take over that page with a list of nothing.
+ * Two shapes, and the second is why this is a function rather than a pair of strings.
+ * `/orgs/community/discussions` is where GitHub runs its own product feedback, so `orgs` in the
+ * first segment is an organisation's page and never an owner called "orgs" — and every other
+ * reserved word there is one of GitHub's own pages and not an owner at all.
  */
-const isRepo = (owner: string | undefined, repo: string | undefined): owner is string =>
-  owner !== undefined &&
-  repo !== undefined &&
-  owner !== "" &&
-  repo !== "" &&
-  !NOT_AN_OWNER.has(owner.toLowerCase())
+const homeIn = (segments: ReadonlyArray<string>): Home | null => {
+  const [first, second] = segments
+
+  if (first === "orgs") {
+    return second === undefined || second === ""
+      ? null
+      : { kind: "organisation", org: second }
+  }
+
+  if (first === undefined || second === undefined || first === "" || second === "") return null
+  if (NOT_AN_OWNER.has(first.toLowerCase())) return null
+
+  return { kind: "repository", owner: first, repo: second }
+}
 
 /**
  * Reads a repository's discussion list out of an address, or nothing where the address is not
@@ -289,9 +317,9 @@ export const discussionListIn = (url: string): Option.Option<DiscussionList> => 
   if (Option.isNone(found)) return Option.none()
 
   const segments = found.value
-  const [owner, repo, third, fourth, fifth] = segments
-  if (!isRepo(owner, repo) || repo === undefined) return Option.none()
-  if (third !== "discussions") return Option.none()
+  const [, , third, fourth, fifth] = segments
+  const home = homeIn(segments)
+  if (home === null || third !== "discussions") return Option.none()
 
   const category =
     segments.length === 3
@@ -308,7 +336,7 @@ export const discussionListIn = (url: string): Option.Option<DiscussionList> => 
   const search = address === null ? new URLSearchParams() : address.searchParams
 
   return Option.some({
-    repo: { owner, repo },
+    home,
     category,
     query: search.get("discussions_q") ?? "",
     page: pageIn(search)
@@ -329,9 +357,9 @@ export const discussionIn = (url: string): Option.Option<DiscussionRef> => {
   const segments = found.value
   if (segments.length !== 4) return Option.none()
 
-  const [owner, repo, third, fourth] = segments
-  if (!isRepo(owner, repo) || repo === undefined) return Option.none()
-  if (third !== "discussions" || fourth === undefined) return Option.none()
+  const [, , third, fourth] = segments
+  const home = homeIn(segments)
+  if (home === null || third !== "discussions" || fourth === undefined) return Option.none()
 
   // Their own numbers, and nothing else: `Number("12abc")` is NaN and `Number("")` is 0, so both
   // fall out here rather than reaching a read as an address GitHub will answer 404 to.
@@ -339,12 +367,12 @@ export const discussionIn = (url: string): Option.Option<DiscussionRef> => {
   const number = Number(fourth)
   if (!Number.isSafeInteger(number) || number < 1) return Option.none()
 
-  return Option.some({ owner, repo, number })
+  return Option.some({ home, number })
 }
 
 /** Where one discussion is, which is the address this interface stands on. */
 export const addressOf = (reference: DiscussionRef): string =>
-  `/${reference.owner}/${reference.repo}/discussions/${reference.number}`
+  `${homePath(reference.home)}/discussions/${reference.number}`
 
 /**
  * The whole address of one page of a list: the repository, the category, the search and the
@@ -359,16 +387,16 @@ export const addressOf = (reference: DiscussionRef): string =>
  * this writes reads back as the list it was written from.
  */
 export const listRouteOf = (list: DiscussionList): string =>
-  `/${list.repo.owner}/${list.repo.repo}${listWithinRepo(list)}`
+  `${homePath(list.home)}${listWithinHome(list)}`
 
 /**
- * The same address with the repository taken off the front.
+ * The same address with the repository or organisation taken off the front.
  *
- * The half a read of one of GitHub's own repository pages takes, since that read is given the
- * repository separately. Its own function rather than a slice off {@link listRouteOf}, because
- * cutting a prefix back off a string that was just built is a way of being wrong later.
+ * The half a read of one of GitHub's own pages takes, since that read is given the home
+ * separately. Its own function rather than a slice off {@link listRouteOf}, because cutting a
+ * prefix back off a string that was just built is a way of being wrong later.
  */
-export const listWithinRepo = (list: DiscussionList): string => {
+export const listWithinHome = (list: DiscussionList): string => {
   const path = Option.isSome(list.category)
     ? `/discussions/categories/${encodeURIComponent(list.category.value)}`
     : "/discussions"
@@ -431,8 +459,17 @@ export type Reply = {
   readonly id: string
   readonly author: string
   readonly at: string
-  /** Their rendered markdown, as they served it. */
+  /** Their rendered markdown, as they served it. Empty on a comment GitHub is hiding. */
   readonly body: string
+  /**
+   * Their own sentence for a comment they have folded away, or nothing for an ordinary one.
+   *
+   * "This comment was marked as off-topic." and its handful of siblings. GitHub serves neither
+   * the author nor the words of one of these, so a read that ignored the state drew eight empty
+   * rows on `orgs/community#88425` — which is a thread of thirty comments where eight have been
+   * moderated.
+   */
+  readonly hiddenAs: string
   readonly upvotes: number
   /** The faces on it, in the order their page drew them. Empty where nobody has reacted. */
   readonly reactions: ReadonlyArray<Reaction>

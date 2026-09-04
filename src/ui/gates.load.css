@@ -192,25 +192,29 @@ html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet
 
 /* discussions: before ours is up. */
 html[data-gitquiet-page="discussions"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
-html[data-gitquiet-page="discussions"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
+html[data-gitquiet-page="discussions"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-page="discussions"]:not([data-gitquiet-revealed]) main .container-xl.p-responsive.clearfix > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
 
 /* discussions: for as long as ours is in charge. */
 html[data-gitquiet-taken] #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
-html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
+html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-taken] main .container-xl.p-responsive.clearfix > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
 
 /* discussion: before ours is up. */
 html[data-gitquiet-page="discussion"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
-html[data-gitquiet-page="discussion"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
+html[data-gitquiet-page="discussion"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-page="discussion"]:not([data-gitquiet-revealed]) #discussion_bucket > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
 
 /* discussion: for as long as ours is in charge. */
 html[data-gitquiet-taken] #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
-html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
+html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-taken] #discussion_bucket > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
 

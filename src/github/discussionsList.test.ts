@@ -37,7 +37,10 @@ describe("reading their list page", () => {
   test("reads the newest row's facts as their page prints them", () => {
     const first = rows[0]
 
-    expect(first?.reference).toEqual({ owner: "vercel", repo: "next.js", number: 98240 })
+    expect(first?.reference).toEqual({
+      home: { kind: "repository", owner: "vercel", repo: "next.js" },
+      number: 98240
+    })
     expect(first?.id).toBe("10745082")
     expect(first?.title).toBe(
       "Best pattern for sharing server-fetched data across multiple Client Components in App Router?"
@@ -301,5 +304,53 @@ describe("what a maintainer put on a row", () => {
 
   test("a row with none has none rather than a blank one", () => {
     expect(rows[0]?.labels).toEqual([])
+  })
+})
+
+/*
+ * `/orgs/community/discussions` as GitHub served it on 2026-09-04, which is where GitHub runs its
+ * own product feedback and is the busiest Discussions surface there is. Read by the same parser,
+ * unchanged: the two pages differ in the path in front of the word `discussions` and in the
+ * layout around the rows, and in nothing this file reads.
+ */
+const theirs = await Bun.file("tests/fixtures/orgDiscussionsList.html").text()
+
+describe("an organisation's discussions", () => {
+  const orgRows = discussionsOnPage(theirs)
+
+  test("reads every row, and knows it is an organisation's", () => {
+    expect(orgRows).toHaveLength(25)
+    expect(orgRows[0]?.reference.home).toEqual({ kind: "organisation", org: "community" })
+    expect(orgRows[0]?.url).toBe("/orgs/community/discussions/206513")
+  })
+
+  test("reads the same facts off it as off a repository's", () => {
+    const first = orgRows[0]
+
+    expect(first?.title).toBe('Account stuck in "Awaiting Benefits" since Aug 14')
+    expect(first?.author).toBe("Juanndz")
+    expect(first?.comments).toBe(2)
+    expect(first?.category.name).toBe("GitHub Education")
+    expect(first?.labels).toContain("Bug")
+  })
+
+  /* Twenty-three of them, which is what a forum this size looks like. */
+  test("names every category their sidebar carries", () => {
+    expect(categoriesOnPage(theirs)).toHaveLength(23)
+  })
+
+  test("says there is another page, off their own next link", () => {
+    expect(hasMoreAfter(theirs)).toBe(true)
+  })
+
+  /*
+   * The point of one code path. Their own forum is where the stale ones pile up worst, and the
+   * same rule files them.
+   */
+  test("files them by who owes the next move, as it files a repository's", () => {
+    const courts = orgRows.map(courtOf)
+
+    expect(courts.filter((one) => one === "needs-you").length).toBeGreaterThan(0)
+    expect(courts.filter((one) => one === "running")).toHaveLength(0)
   })
 })

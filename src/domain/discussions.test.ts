@@ -14,13 +14,17 @@ import {
   docketsOf,
   listAddressOf,
   listRouteOf,
+  type Home,
   type ListedDiscussion
 } from "./discussions"
 
 const at = (path: string): string => `https://github.com${path}`
 
+const nextjs: Home = { kind: "repository", owner: "vercel", repo: "next.js" }
+const community: Home = { kind: "organisation", org: "community" }
+
 const row = (over: Partial<ListedDiscussion> = {}): ListedDiscussion => ({
-  reference: { owner: "vercel", repo: "next.js", number: 70178 },
+  reference: { home: nextjs, number: 70178 },
   id: "D_kwDOBC3Cis4Abtsx",
   title: "High Memory Usage by next-server process.",
   url: "/vercel/next.js/discussions/70178",
@@ -128,7 +132,7 @@ describe("reading a discussion list out of an address", () => {
     const found = discussionListIn(at("/vercel/next.js/discussions"))
 
     expect(Option.isSome(found)).toBe(true)
-    expect(Option.getOrThrow(found).repo).toEqual({ owner: "vercel", repo: "next.js" })
+    expect(Option.getOrThrow(found).home).toEqual(nextjs)
     expect(Option.getOrThrow(found).category).toEqual(Option.none())
     expect(Option.getOrThrow(found).query).toBe("")
     expect(Option.getOrThrow(found).page).toBe(1)
@@ -167,16 +171,31 @@ describe("reading a discussion list out of an address", () => {
   })
 
   /*
-   * `/orgs/community/discussions` is where GitHub's own product feedback lives, so it is a page
-   * a reader of this extension opens. Read as a repository it would be `orgs/community`, and the
-   * screen would take the page over and list nothing.
+   * `/orgs/community/discussions` is where GitHub runs its own product feedback, and it is the
+   * busiest Discussions surface there is. An organisation is a home like a repository, and never
+   * an owner called "orgs".
    */
-  test("refuses an organisation's discussions, which are not a repository's", () => {
-    expect(discussionListIn(at("/orgs/community/discussions"))).toEqual(Option.none())
-    expect(discussionListIn(at("/ORGS/community/discussions"))).toEqual(Option.none())
-    expect(discussionListIn(at("/orgs/community/discussions/categories/discussions"))).toEqual(
-      Option.none()
+  test("reads an organisation's discussions as an organisation's", () => {
+    expect(Option.getOrThrow(discussionListIn(at("/orgs/community/discussions"))).home).toEqual(
+      community
     )
+    expect(
+      Option.getOrThrow(discussionListIn(at("/orgs/community/discussions/categories/discussions")))
+        .category
+    ).toEqual(Option.some("discussions"))
+    expect(discussionIn(at("/orgs/community/discussions/88425"))).toEqual(
+      Option.some({ home: community, number: 88425 })
+    )
+  })
+
+  test("refuses GitHub's own pages, which are not owners", () => {
+    for (const path of [
+      "/settings/discussions",
+      "/notifications/discussions",
+      "/orgs/discussions"
+    ]) {
+      expect(discussionListIn(at(path))).toEqual(Option.none())
+    }
   })
 
   test("refuses the neighbours that are not a list", () => {
@@ -203,14 +222,14 @@ describe("reading a discussion list out of an address", () => {
 describe("reading one discussion out of an address", () => {
   test("reads the repository and the number", () => {
     expect(discussionIn(at("/vercel/next.js/discussions/70178"))).toEqual(
-      Option.some({ owner: "vercel", repo: "next.js", number: 70178 })
+      Option.some({ home: nextjs, number: 70178 })
     )
   })
 
   test("keeps whatever the address carried beside it", () => {
     expect(
       discussionIn(at("/vercel/next.js/discussions/70178?sort=top#discussioncomment-11004713"))
-    ).toEqual(Option.some({ owner: "vercel", repo: "next.js", number: 70178 }))
+    ).toEqual(Option.some({ home: nextjs, number: 70178 }))
   })
 
   /*
@@ -228,8 +247,7 @@ describe("reading one discussion out of an address", () => {
     }
   })
 
-  test("refuses an organisation's discussion and the list above it", () => {
-    expect(discussionIn(at("/orgs/community/discussions/88425"))).toEqual(Option.none())
+  test("refuses the list above it", () => {
     expect(discussionIn(at("/vercel/next.js/discussions"))).toEqual(Option.none())
   })
 })
@@ -242,16 +260,18 @@ describe("writing the addresses back", () => {
   })
 
   test("a list's address is theirs, all of it or one category", () => {
-    const repo = { owner: "vercel", repo: "next.js" }
-
-    expect(listAddressOf(repo)).toBe("/vercel/next.js/discussions")
-    expect(listAddressOf(repo, Option.some("show-and-tell"))).toBe(
+    expect(listAddressOf(nextjs)).toBe("/vercel/next.js/discussions")
+    expect(listAddressOf(nextjs, Option.some("show-and-tell"))).toBe(
       "/vercel/next.js/discussions/categories/show-and-tell"
     )
+    expect(listAddressOf(community)).toBe("/orgs/community/discussions")
   })
 
   test("a category that needs escaping comes back escaped, and reads back the same", () => {
-    const written = listAddressOf({ owner: "acme", repo: "tools" }, Option.some("q&a"))
+    const written = listAddressOf(
+      { kind: "repository", owner: "acme", repo: "tools" },
+      Option.some("q&a")
+    )
 
     expect(written).toBe("/acme/tools/discussions/categories/q%26a")
     expect(Option.getOrThrow(discussionListIn(at(written))).category).toEqual(Option.some("q&a"))
@@ -275,9 +295,9 @@ describe("filing a page of rows into Courts", () => {
    * together and nothing else, so the order inside a pile is theirs.
    */
   test("keeps their order inside each pile", () => {
-    const first = row({ reference: { owner: "a", repo: "b", number: 3 }, comments: 9 })
-    const second = row({ reference: { owner: "a", repo: "b", number: 2 }, answered: true })
-    const third = row({ reference: { owner: "a", repo: "b", number: 1 }, comments: 4 })
+    const first = row({ reference: { home: { kind: "repository", owner: "a", repo: "b" }, number: 3 }, comments: 9 })
+    const second = row({ reference: { home: { kind: "repository", owner: "a", repo: "b" }, number: 2 }, answered: true })
+    const third = row({ reference: { home: { kind: "repository", owner: "a", repo: "b" }, number: 1 }, comments: 4 })
 
     const dockets = docketsOf([first, second, third])
 
@@ -302,7 +322,7 @@ describe("filing a page of rows into Courts", () => {
 
 describe("writing a whole page's address and reading it back", () => {
   const list = (over: Partial<Parameters<typeof listRouteOf>[0]> = {}) => ({
-    repo: { owner: "vercel", repo: "next.js" },
+    home: nextjs,
     category: Option.none<string>(),
     query: "",
     page: 1,

@@ -155,12 +155,14 @@ import type { Happening } from "../domain/activity"
 import { type CommitList, type History, routeFor } from "../domain/commitList"
 import {
   addressOf as discussionAddress,
+  homePath,
   listRouteOf,
-  type DiscussionPress,
-  listWithinRepo,
+  listWithinHome,
   type DiscussionList,
+  type DiscussionPress,
   type DiscussionRef,
-  type DiscussionSnapshot
+  type DiscussionSnapshot,
+  type Home
 } from "../domain/discussions"
 import type { IssueSnapshot, Settling } from "../domain/Issue"
 import type { InvolvedIssue, Involvement, IssueRef } from "../domain/issues"
@@ -1517,6 +1519,51 @@ const repoDocument = Effect.fn("repoDocument")(function* (reference: RepoRef, ro
 })
 
 /**
+ * A discussion home as the {@link RepoRef} a failure is named against.
+ *
+ * `GatewayError` names a repository, and an organisation's discussions have none. The pair here
+ * is the address rather than an owner and a name: `orgs/community` is what a failure report needs
+ * to say which page could not be read, and nothing draws it on a screen.
+ */
+const homeRef = (home: Home): RepoRef =>
+  home.kind === "repository"
+    ? { owner: home.owner, repo: home.repo }
+    : { owner: "orgs", repo: home.org }
+
+/**
+ * One of GitHub's discussion pages as the document they serve it as.
+ *
+ * `repoDocument` above with a home in place of a repository, because an organisation's
+ * discussions sit at `/orgs/{org}` and a repository's at `/{owner}/{repo}` and everything past
+ * that word is identical.
+ */
+const discussionDocument = Effect.fn("discussionDocument")(function* (home: Home, route: string) {
+  const url = `https://github.com${homePath(home)}${route}`
+  const reference = homeRef(home)
+
+  const response = yield* Effect.tryPromise({
+    try: () => fetch(url, { headers: { Accept: "text/html" }, credentials: "include" }),
+    catch: (cause) =>
+      new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+  })
+
+  if (!response.ok) {
+    return yield* new GatewayError({
+      reference,
+      route,
+      reason: "rejected",
+      detail: `HTTP ${response.status}`
+    })
+  }
+
+  return yield* Effect.tryPromise({
+    try: () => response.text(),
+    catch: (cause) =>
+      new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+  })
+})
+
+/**
  * One discussion, read as the document GitHub serves it as.
  *
  * At the top level rather than inside the layer, because two of the layer's methods want it: the
@@ -1525,12 +1572,12 @@ const repoDocument = Effect.fn("repoDocument")(function* (reference: RepoRef, ro
  */
 const readDiscussion = Effect.fn("readDiscussion")(function* (reference: DiscussionRef) {
   const route = discussionAddress(reference)
-  const document = yield* repoDocument(reference, `/discussions/${reference.number}`)
+  const document = yield* discussionDocument(reference.home, `/discussions/${reference.number}`)
 
   const found = discussionOnPage(reference, document)
   if (Option.isNone(found)) {
     return yield* new GatewayError({
-      reference,
+      reference: homeRef(reference.home),
       route,
       reason: "undecodable",
       detail: "the page GitHub served carries no discussion"
@@ -3353,7 +3400,7 @@ export const layer = Layer.succeed(GitHubGateway, {
        * the part after the repository, because that is what `repoDocument` appends.
        */
       const key = listRouteOf(list)
-      const document = yield* repoDocument(list.repo, listWithinRepo(list))
+      const document = yield* discussionDocument(list.home, listWithinHome(list))
 
       const found: FoundDiscussions = {
         rows: discussionsOnPage(document),
@@ -3398,6 +3445,7 @@ export const layer = Layer.succeed(GitHubGateway, {
       press: DiscussionPress
     ) {
       const route = discussionAddress(reference)
+      const reported = homeRef(reference.home)
 
       const posting: Posting | null =
         press.kind === "say"
@@ -3414,7 +3462,7 @@ export const layer = Layer.succeed(GitHubGateway, {
 
       if (posting === null) {
         return yield* new GatewayError({
-          reference,
+          reference: reported,
           route,
           reason: "rejected",
           detail: "GitHub rendered no form for that on this page, so there is nothing to send."
@@ -3432,12 +3480,17 @@ export const layer = Layer.succeed(GitHubGateway, {
             body: sendingOf(posting, said)
           }),
         catch: (cause) =>
-          new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+          new GatewayError({
+            reference: reported,
+            route,
+            reason: "unreachable",
+            detail: String(cause)
+          })
       })
 
       if (!response.ok) {
         return yield* new GatewayError({
-          reference,
+          reference: reported,
           route,
           reason: "rejected",
           detail: `HTTP ${response.status}`
@@ -4482,11 +4535,13 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     releases: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     builds: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     rememberedReleases: () => Effect.succeed(Option.none()),
-    discussions: (list: DiscussionList) => Effect.fail(nothingRecordedFor(list.repo)),
+    discussions: (list: DiscussionList) => Effect.fail(nothingRecordedFor(homeRef(list.home))),
     rememberedDiscussions: () => Effect.succeed(Option.none()),
-    discussion: (reference: DiscussionRef) => Effect.fail(nothingRecordedFor(reference)),
+    discussion: (reference: DiscussionRef) =>
+      Effect.fail(nothingRecordedFor(homeRef(reference.home))),
     rememberedDiscussion: () => Effect.succeed(Option.none()),
-    pressDiscussion: (reference: DiscussionRef) => Effect.fail(nothingRecordedFor(reference)),
+    pressDiscussion: (reference: DiscussionRef) =>
+      Effect.fail(nothingRecordedFor(homeRef(reference.home))),
     // An empty inbox, which is what a page nobody recorded looks like from here, and
     // nothing written to one: a press answered without a request would be this layer
     // telling a test that GitHub agreed to something nobody asked.
@@ -4635,11 +4690,13 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     releases: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     builds: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     rememberedReleases: () => Effect.succeed(Option.none()),
-    discussions: (list: DiscussionList) => Effect.fail(nothingRecordedFor(list.repo)),
+    discussions: (list: DiscussionList) => Effect.fail(nothingRecordedFor(homeRef(list.home))),
     rememberedDiscussions: () => Effect.succeed(Option.none()),
-    discussion: (reference: DiscussionRef) => Effect.fail(nothingRecordedFor(reference)),
+    discussion: (reference: DiscussionRef) =>
+      Effect.fail(nothingRecordedFor(homeRef(reference.home))),
     rememberedDiscussion: () => Effect.succeed(Option.none()),
-    pressDiscussion: (reference: DiscussionRef) => Effect.fail(nothingRecordedFor(reference)),
+    pressDiscussion: (reference: DiscussionRef) =>
+      Effect.fail(nothingRecordedFor(homeRef(reference.home))),
     // An empty inbox, which is what a page nobody recorded looks like from here, and
     // nothing written to one: a press answered without a request would be this layer
     // telling a test that GitHub agreed to something nobody asked.

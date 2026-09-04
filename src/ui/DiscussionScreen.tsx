@@ -1,8 +1,14 @@
 import { Effect, type Option } from "effect"
 import { useState } from "react"
-import type { DiscussionPress, DiscussionRef, DiscussionSnapshot } from "../domain/discussions"
+import {
+  homeName,
+  type DiscussionPress,
+  type DiscussionRef,
+  type DiscussionSnapshot
+} from "../domain/discussions"
 import type { Repository } from "../domain/repositories"
 import { Discussion } from "./Discussion"
+import { whereFor } from "./Discussions"
 import { DrawnAt } from "./drawnAt"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import { TheBar } from "./TheBar"
@@ -54,6 +60,7 @@ export const DiscussionScreen = ({
   at,
   signedIn = viewerOnPage
 }: DiscussionScreenProps) => {
+  const named = homeName(reference.home)
   const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
@@ -73,7 +80,7 @@ export const DiscussionScreen = ({
         <ReadFailed
           signedOut={!signedIn()}
           why={read.why}
-          what={`Discussion #${reference.number} of ${reference.owner}/${reference.repo}`}
+          what={`Discussion #${reference.number} of ${named}`}
           onStepAside={onStepAside}
           asideLabel="Show GitHub's page"
         />
@@ -96,10 +103,7 @@ export const DiscussionScreen = ({
     // nothing to start from.
     <div className="relative">
       <DrawnAt path={read.status === "loading" ? null : (at ?? null)} />
-      <TheBar
-        where={{ kind: "repository", owner: reference.owner, repo: reference.repo }}
-        recall={recallRepositories}
-      />
+      <TheBar where={whereFor(reference.home)} recall={recallRepositories} />
       {shown === undefined ? null : (
         <div className="t-panels flex flex-col pt-2 pb-2">
           <Discussion snapshot={shown} onPress={pressing} />
@@ -108,7 +112,7 @@ export const DiscussionScreen = ({
       {waiting ? (
         <Waiting
           what={READING}
-          detail={`${reference.owner}/${reference.repo} #${reference.number}`}
+          detail={`${named} #${reference.number}`}
           room="list"
           leaving={shown !== undefined}
         />

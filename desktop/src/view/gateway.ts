@@ -2,6 +2,7 @@ import { Effect, Layer, Option } from "effect"
 import type { PullRequestRef, RepoRef } from "../../../src/domain/PullRequestRef"
 import type { Check, MergeMethod, NewComment } from "../../../src/domain/PullRequest"
 import type { Branches } from "../../../src/domain/sittings"
+import type { Home } from "../../../src/domain/discussions"
 import { shelfOf } from "../../../src/domain/shelving"
 import type { InvolvedPullRequest, Shelf, Size, Standings } from "../../../src/domain/workingSet"
 import {
@@ -104,6 +105,17 @@ const involvedFrom = (row: WorkingSetRow): InvolvedPullRequest => ({
  * nothing with a route name — so without this the detail GitHub or the bridge
  * gave would be carried into a `WorkingSetError` and never shown to anybody.
  */
+/**
+ * A discussion home as the repository a refusal is named against.
+ *
+ * An organisation's discussions have no repository, and the pair here is their address rather
+ * than an owner and a name: nothing draws it, and a refusal has to say which page it was about.
+ */
+const named = (home: Home): RepoRef =>
+  home.kind === "repository"
+    ? { owner: home.owner, repo: home.repo }
+    : { owner: "orgs", repo: home.org }
+
 export const askForRows = Effect.fn("askForRows")(function* () {
   const answered = yield* Effect.tryPromise({
     try: () => ask("workingSet", undefined),
@@ -491,15 +503,15 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
      * documented API with a token, and that API answers discussions through GraphQL
      * rather than through the routes this port's other reads use.
      */
-    discussions: (list) => missing("read discussions")(list.repo),
+    discussions: (list) => missing("read discussions")(named(list.home)),
     rememberedDiscussions: () => Effect.succeed(Option.none()),
-    discussion: (reference) => missing("read a discussion")(reference),
+    discussion: (reference) => missing("read a discussion")(named(reference.home)),
     rememberedDiscussion: () => Effect.succeed(Option.none()),
     /*
      * And this one is refused twice over. Every press on a discussion is GitHub's own form sent
      * back, and a form only exists on a page somebody loaded. This window loads no page.
      */
-    pressDiscussion: (reference) => missing("write on a discussion")(reference),
+    pressDiscussion: (reference) => missing("write on a discussion")(named(reference.home)),
 
     /*
      * The inbox, a person's pages, the repository list and the activity feed.

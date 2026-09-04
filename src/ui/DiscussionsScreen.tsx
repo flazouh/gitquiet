@@ -1,8 +1,7 @@
 import type { Effect, Option } from "effect"
-import type { Category, DiscussionList, ListedDiscussion } from "../domain/discussions"
-import type { RepoRef } from "../domain/PullRequestRef"
+import { homeName, type Category, type DiscussionList, type ListedDiscussion } from "../domain/discussions"
 import type { Repository } from "../domain/repositories"
-import { Categories, Discussions, Pages } from "./Discussions"
+import { Categories, Discussions, Pages, whereFor } from "./Discussions"
 import { DrawnAt } from "./drawnAt"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import { TheBar } from "./TheBar"
@@ -62,7 +61,7 @@ export const DiscussionsScreen = ({
   at,
   signedIn = viewerOnPage
 }: DiscussionsScreenProps) => {
-  const repo: RepoRef = list.repo
+  const named = homeName(list.home)
   const live = useLive(load, preload, where)
   const { read } = live
   const waiting = useWaiting(read.status)
@@ -75,7 +74,7 @@ export const DiscussionsScreen = ({
         <ReadFailed
           signedOut={!signedIn()}
           why={read.why}
-          what={`The discussions of ${repo.owner}/${repo.repo}`}
+          what={`The discussions of ${named}`}
           onStepAside={onStepAside}
           asideLabel="Show GitHub's list"
         />
@@ -91,21 +90,18 @@ export const DiscussionsScreen = ({
     // nothing to start from.
     <div className="relative">
       <DrawnAt path={read.status === "loading" ? null : (at ?? null)} />
-      <TheBar
-        where={{ kind: "repository", owner: repo.owner, repo: repo.repo }}
-        recall={recallRepositories}
-      />
+      <TheBar where={whereFor(list.home)} recall={recallRepositories} />
       {shown === undefined ? null : (
         <div className="t-panels flex flex-col gap-3 pt-2 pb-2">
           <Categories list={list} categories={shown.categories} />
-          <Discussions repo={repo} discussions={shown.rows} />
+          <Discussions home={list.home} discussions={shown.rows} />
           <Pages list={list} more={shown.more} />
         </div>
       )}
       {waiting ? (
         <Waiting
           what={READING}
-          detail={`${repo.owner}/${repo.repo}`}
+          detail={named}
           room="list"
           leaving={shown !== undefined}
         />

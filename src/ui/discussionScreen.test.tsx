@@ -15,7 +15,9 @@ afterEach(cleanup)
 const answeredHtml = await Bun.file("tests/fixtures/discussionAnswered.html").text()
 const staleHtml = await Bun.file("tests/fixtures/discussionView.html").text()
 
-const at = (number: number) => ({ owner: "vercel", repo: "next.js", number })
+const nextjs = { kind: "repository", owner: "vercel", repo: "next.js" } as const
+
+const at = (number: number) => ({ home: nextjs, number })
 
 const answered = Option.getOrThrow(discussionOnPage(at(98177), answeredHtml))
 const stale = Option.getOrThrow(discussionOnPage(at(70178), staleHtml))

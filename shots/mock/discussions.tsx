@@ -21,7 +21,7 @@ import { alreadyKnown, nothingRemembered, settled, STORE, type View } from "../v
  */
 
 const LIST: DiscussionList = {
-  repo: { owner: "vercel", repo: "next.js" },
+  home: { kind: "repository", owner: "vercel", repo: "next.js" },
   category: Option.none(),
   query: "",
   page: 1

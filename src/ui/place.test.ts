@@ -68,6 +68,13 @@ const ADDRESSES: ReadonlyArray<readonly [string, Place]> = [
   ["/facebook/react/releases", RELEASES],
   ["/facebook/react/discussions/70178", DISCUSSION],
   ["/facebook/react/discussions", DISCUSSIONS],
+  /*
+   * An organisation's, which is where GitHub runs its own product feedback. One place serves
+   * both, because they are one page in two layouts.
+   */
+  ["/orgs/community/discussions", DISCUSSIONS],
+  ["/orgs/community/discussions/categories/discussions", DISCUSSIONS],
+  ["/orgs/community/discussions/88425", DISCUSSION],
   ["/facebook/react/discussions/categories/q-a", DISCUSSIONS],
   ["/facebook/react/discussions?discussions_q=is%3Aunanswered&page=2", DISCUSSIONS],
   ["/notifications", NOTIFICATIONS],
@@ -99,12 +106,13 @@ const THEIRS: Array<string> = [
   "/facebook/react/releases/latest",
   "/facebook/react/tags",
   /*
-   * The form for raising a discussion, and an organisation's discussions. The first is a press
-   * away from the list and the second is where GitHub's own product feedback lives, so a place
-   * that read `/discussions` as a prefix would claim both and gate a page it cannot draw.
+   * The form for raising a discussion, which is a press away from the list, and the page that
+   * lists an organisation's own repositories. Neither is a discussion, and a place that read
+   * `/discussions` as a prefix would claim both and gate a page it cannot draw.
    */
   "/facebook/react/discussions/new",
-  "/orgs/community/discussions",
+  "/orgs/community/discussions/new",
+  "/orgs/community/repositories",
   // Their own stars pages, which are somebody else's list under a reserved word.
   "/stars/flazouh",
   "/stars/flazouh/lists/tools",

@@ -89,13 +89,15 @@ html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has(section[data
 
 /* discussions: swapped in without a load. */
 html[data-gitquiet-gating] #repo-content-pjax-container:has(#discussions-list) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
-html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has(#discussions-list) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
+html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has(#discussions-list) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-gating] main .container-xl.p-responsive.clearfix:has(#discussions-list) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
 
 /* discussion: swapped in without a load. */
 html[data-gitquiet-gating] #repo-content-pjax-container:has(.js-discussion) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
-html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has(.js-discussion) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
+html[data-gitquiet-gating] turbo-frame#repo-content-turbo-frame:has(.js-discussion) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-gating] #discussion_bucket:has(.js-discussion) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
 

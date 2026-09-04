@@ -176,6 +176,14 @@ const saidIn = (page: Document, container: Element): Reply | null => {
    * child's.
    */
   const own = withoutReplies(container)
+
+  /*
+   * A comment GitHub has folded away carries their sentence for it and nothing else: no author,
+   * no words, no vote. Read first, because everything below reads as empty on one of these and
+   * the emptiness would look like a parse that had failed.
+   */
+  const minimized = own.querySelector(".minimized-comment summary h3")
+
   const who = authorOf(own)
   const when = own.querySelector("relative-time[datetime]")
   const body = own.querySelector(".js-comment-body")
@@ -186,6 +194,7 @@ const saidIn = (page: Document, container: Element): Reply | null => {
     author: text(who),
     at: when?.getAttribute("datetime") ?? "",
     body: body?.innerHTML ?? "",
+    hiddenAs: text(minimized).replace(/\s+/g, " "),
     upvotes: countIn(upvote?.getAttribute("aria-label") ?? ""),
     /*
      * Their own class for it, written on the one comment somebody marked. Read per comment

@@ -74,7 +74,7 @@ const open = (
       <DiscussionsScreen
         at={at}
         list={list}
-        where={openedNamed("discussions", list.repo)}
+        where={openedNamed("discussions", list.home)}
         load={read}
         preload={remembered}
         recallRepositories={recallRepositories}

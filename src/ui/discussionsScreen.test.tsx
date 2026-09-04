@@ -15,7 +15,7 @@ afterEach(cleanup)
 const real = await Bun.file("tests/fixtures/discussionsList.html").text()
 
 const list = (over: Partial<DiscussionList> = {}): DiscussionList => ({
-  repo: { owner: "vercel", repo: "next.js" },
+  home: { kind: "repository", owner: "vercel", repo: "next.js" },
   category: Option.none(),
   query: "",
   page: 1,

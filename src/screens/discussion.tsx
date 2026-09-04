@@ -88,7 +88,7 @@ const open = (
       <DiscussionScreen
         at={at}
         reference={reference}
-        where={openedNamed("discussion", reference)}
+        where={openedNamed("discussion", reference.home)}
         load={read}
         preload={remembered}
         onPress={press}

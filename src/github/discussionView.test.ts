@@ -24,7 +24,9 @@ const answered = await Bun.file("tests/fixtures/discussionAnswered.html").text()
 const stale = await Bun.file("tests/fixtures/discussionView.html").text()
 const shut = await Bun.file("tests/fixtures/discussionClosed.html").text()
 
-const at = (number: number) => ({ owner: "vercel", repo: "next.js", number })
+const nextjs = { kind: "repository", owner: "vercel", repo: "next.js" } as const
+
+const at = (number: number) => ({ home: nextjs, number })
 
 const read = (number: number, html: string): DiscussionSnapshot =>
   Option.getOrThrow(discussionOnPage(at(number), html))
@@ -348,5 +350,53 @@ describe("the faces on what people said", () => {
 
     expect(faced?.reactions[0]?.count).toBe(1)
     expect(faced?.upvotes).toBe(2)
+  })
+})
+
+/*
+ * `/orgs/community/discussions/88425` as GitHub served it on 2026-09-04: thirty comments on the
+ * most upvoted thing anybody has written about Discussions themselves. Read by the same parser as
+ * a repository's, unchanged.
+ */
+const orgHtml = await Bun.file("tests/fixtures/orgDiscussion.html").text()
+const orgOne = Option.getOrThrow(
+  discussionOnPage({ home: { kind: "organisation", org: "community" }, number: 88425 }, orgHtml)
+)
+
+describe("an organisation's discussion", () => {
+  test("reads it the same way, and knows where it lives", () => {
+    expect(orgOne.reference.home).toEqual({ kind: "organisation", org: "community" })
+    expect(orgOne.title).toBe("4 ways your discussions categories can be better optimized 🧼")
+    expect(orgOne.author).toBe("queenofcorgis")
+    expect(orgOne.id).toBe("6082648")
+  })
+
+  /* Thirty of them, with their replies filed under the comment they hang from. */
+  test("finds every comment on a thread far longer than a repository's", () => {
+    expect(orgOne.comments).toHaveLength(30)
+    expect(spokenOn(orgOne)).toBeGreaterThanOrEqual(30)
+    expect(orgOne.comments.every((said) => said.author !== "" || said.hiddenAs !== "")).toBe(true)
+  })
+
+  /*
+   * Eight of the thirty are folded away by a moderator. GitHub serves neither the author nor the
+   * words of one of these, so a read that ignored the state drew eight empty rows.
+   */
+  test("says why a comment GitHub folded away has nothing in it", () => {
+    const folded = orgOne.comments.filter((said) => said.hiddenAs !== "")
+
+    expect(folded).toHaveLength(8)
+    expect(folded[0]?.hiddenAs).toBe("This comment was marked as off-topic.")
+    expect(folded[0]?.body).toBe("")
+    expect(folded[0]?.author).toBe("")
+  })
+
+  test("an ordinary comment is not folded away", () => {
+    expect(nine.comments.every((said) => said.hiddenAs === "")).toBe(true)
+  })
+
+  test("weighs it by the same rule as a repository's", () => {
+    expect(orgOne.answerable).toBe(true)
+    expect(["stale", "unanswered", "answered"]).toContain(answeringOf(weighingOf(orgOne)))
   })
 })

@@ -18,7 +18,10 @@ import { alreadyKnown, nothingRemembered, settled, STORE, type View } from "../v
  * which is the nearest thing the page itself has to an answer.
  */
 
-const REFERENCE: DiscussionRef = { owner: "vercel", repo: "next.js", number: 70178 }
+const REFERENCE: DiscussionRef = {
+  home: { kind: "repository", owner: "vercel", repo: "next.js" },
+  number: 70178
+}
 
 const SHOWN: DiscussionSnapshot = Option.getOrThrow(discussionOnPage(REFERENCE, pageHtml))
 

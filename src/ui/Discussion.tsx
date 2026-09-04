@@ -181,6 +181,19 @@ const Said = ({
 }) => {
   const age = ageOf(said.at)
 
+  /*
+   * A comment a moderator folded away. GitHub serves their sentence for it and nothing else, so
+   * the sentence is what is drawn: an empty row with a name and no words would read as something
+   * this screen failed to load.
+   */
+  if (said.hiddenAs !== "") {
+    return (
+      <div className="px-3 py-2 text-xs text-ink-muted italic">
+        {said.hiddenAs} <a className="not-italic text-ink-accent no-underline hover:underline" href={`${where}#discussioncomment-${said.id}`}>Show on GitHub</a>
+      </div>
+    )
+  }
+
   return (
     <div className="px-3 py-2">
       <div className="flex items-baseline gap-2 text-xs text-ink-muted">
@@ -393,7 +406,7 @@ export const Discussion = ({
           <span className="tabular-nums">{`#${snapshot.reference.number}`}</span>
           <a
             className="text-ink-muted no-underline hover:underline"
-            href={listAddressOf(snapshot.reference, Option.some(snapshot.category.slug))}
+            href={listAddressOf(snapshot.reference.home, Option.some(snapshot.category.slug))}
           >
             {snapshot.category.name}
           </a>

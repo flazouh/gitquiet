@@ -583,7 +583,7 @@ export class GitHubGateway extends Context.Service<
      * decode and no persisted query on the page to borrow.
      *
      * One {@link DiscussionList} and not four arguments, because that type already is the four:
-     * the repository, the category their sidebar links rather than queries, the search carried
+     * where they live, the category their sidebar links rather than queries, the search carried
      * through untouched the way `issueSearch` carries theirs, and the page. `listRouteOf` turns
      * it into the address, and the store is keyed by the same string, so a category and a search
      * can never be handed each other's rows.
