@@ -3,6 +3,7 @@ import { afterEach, setDefaultTimeout } from "bun:test"
 import { forgetFlights } from "../src/github/flight"
 import { forgetDrawn } from "../src/ui/lastDrawn"
 import { forgetLanded } from "../src/ui/landing"
+import { forgetLanded as forgetOurWrites } from "../src/github/landed"
 import { forgetEverything } from "./storage"
 
 /**
@@ -106,6 +107,20 @@ afterEach(forgetFlights)
  * test began, and with a route asked again after a wait it had.
  */
 afterEach(forgetEverything)
+
+/**
+ * And nothing a test's own write is allowed to be worn by the test after it.
+ *
+ * `landed.ts` holds what this extension's writes made true for as long as GitHub
+ * might still disagree, in one map for the document — and a suite is one document
+ * for the whole file. A test that merges a pull request leaves that behind, and
+ * every listing decoded afterwards wears it, in whatever file runs next.
+ *
+ * It was two files clearing their own, which is the shape of guard that holds
+ * until somebody writes the third. The store behind it goes with `forgetEverything`
+ * above; this is the map in front of it, and the seed that fills it.
+ */
+afterEach(forgetOurWrites)
 
 /*
  * And the mark saying this document has watched the interface arrive.

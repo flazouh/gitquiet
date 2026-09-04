@@ -12,7 +12,14 @@ import type { PullRequestState } from "../domain/PullRequest"
 import type { PullRequestRef } from "../domain/PullRequestRef"
 import { asked, sieveOf, termsIn, undecided } from "../domain/sieve"
 import { stepping } from "../domain/stepping"
-import { type Piled, setAside, type Sitting, sifted, walkThrough } from "../domain/sittings"
+import {
+  type Piled,
+  setAside,
+  type Sitting,
+  sifted,
+  walkThrough,
+  walkThroughCourts
+} from "../domain/sittings"
 import type { CheckRollup, Court, InvolvedPullRequest, Size } from "../domain/workingSet"
 import type { Keys } from "../keys/commands"
 import { type ArtName, checkName, issueName, pullRequestName, useArt } from "./art"
@@ -48,6 +55,22 @@ const TINT: Record<Tint, string> = {
   bad: "bg-fail-muted text-fail",
   busy: "bg-attention-muted text-busy",
   good: "bg-pass-muted text-pass"
+}
+
+/**
+ * The chip a row wears when it is not in the Court over it, in the tints above.
+ *
+ * Drawn from `COURT_TONE`'s reasoning rather than its values, which name a
+ * heading's colour and not a chip's: Needs You is the one worth noticing, the two
+ * middle Courts differ in who owes the next step rather than in how much they
+ * matter, and Settled is over. Nothing here is a new colour to learn — the words
+ * are the same four the headings use.
+ */
+const COURT_TINT: Record<Court, Tint> = {
+  "needs-you": "busy",
+  waiting: "plain",
+  running: "plain",
+  settled: "plain"
 }
 
 /**
@@ -293,8 +316,12 @@ const columnsIn = (sittings: ReadonlyArray<Sitting>, within: Within | undefined)
   let repo = false
   let fits = EMPTY_FITS
 
-  for (const one of walkThrough(sittings)) {
+  for (const walked of walkThroughCourts(sittings)) {
+    const one = walked.one
     if (Option.isSome(one.why) || Option.isSome(one.reviewed)) standing = true
+    // A stacked pull request whose own Court is not the one over the pile has to
+    // say so on the row, and the track has to exist for it to say it in.
+    if (walked.court !== walked.heading) standing = true
     if (!isWithin(one.reference, within)) repo = true
     fits = fitsWithPullRequest(fits, one)
   }
@@ -398,6 +425,7 @@ const glyphTone = (state: PullRequestState, inQueue: boolean): string => {
 const Row = ({
   one,
   court,
+  heading,
   chosen,
   arriving,
   within,
@@ -407,6 +435,18 @@ const Row = ({
 }: {
   readonly one: InvolvedPullRequest
   readonly court: Court
+  /**
+   * The Court whose heading this row is drawn under, where that is not its own.
+   *
+   * The same on every row outside a stack, and the whole of the difference inside
+   * one: a pile sits where its foundation sits, so a pull request closed halfway
+   * up a stack goes on being drawn under Needs You. Correct for the pile — nothing
+   * above the foundation can land first — and a lie about the row, which said
+   * nothing at all about having been closed except a greyer glyph.
+   *
+   * Absent on the surfaces that draw rows without headings.
+   */
+  readonly heading?: Court
   readonly chosen: boolean
   readonly arriving: Arriving
   readonly within?: Within
@@ -558,7 +598,21 @@ const Row = ({
          */}
         {columns.standing ? (
           <span className="min-w-0 truncate">
-            {Option.match(one.why, {
+            {/*
+             * A row apart from the heading over it says which Court it is really
+             * in, and says it before anything else this column carries.
+             *
+             * Only ever a stack member, and nearly always one somebody has just
+             * closed or merged from its own row. Ahead of `why` deliberately: a
+             * settled pull request has no standing left to report, and "Merge
+             * conflicts" on a closed one is an answer to a question nobody is
+             * still asking.
+             */}
+            {heading !== undefined && court !== heading ? (
+              <span className={`rounded-full px-2 py-0.5 text-xs ${TINT[COURT_TINT[court]]}`}>
+                {COURT_NAME[court]}
+              </span>
+            ) : Option.match(one.why, {
               onNone: () =>
                 Option.match(one.reviewed, {
                   onNone: () => null,
@@ -960,6 +1014,7 @@ const flattenPile = (pile: Piled): ReadonlyArray<Piled> => [
 
 const Pile = ({
   pile,
+  heading,
   chosen,
   arriving,
   within,
@@ -967,6 +1022,8 @@ const Pile = ({
   asking
 }: {
   readonly pile: Piled
+  /** The Court this whole pile is filed under, which is its foundation's. */
+  readonly heading: Court
   readonly chosen: string | undefined
   readonly arriving: Arriving
   readonly within?: Within
@@ -980,6 +1037,7 @@ const Pile = ({
       <Row
         one={pile.one}
         court={pile.court}
+        heading={heading}
         chosen={chosen === addressOf(pile.one.reference)}
         arriving={arriving}
         within={within}
@@ -1009,6 +1067,7 @@ const Pile = ({
             key={addressOf(row.one.reference)}
             one={row.one}
             court={row.court}
+            heading={heading}
             chosen={chosen === addressOf(row.one.reference)}
             arriving={arriving}
             within={within}
@@ -1469,6 +1528,7 @@ export const WorkingSet = ({
                       <Pile
                         key={addressOf(pile.one.reference)}
                         pile={pile}
+                        heading={sitting.court}
                         chosen={chosen}
                         arriving={arriving}
                         within={within}

@@ -11,7 +11,7 @@ import {
   seeding
 } from "@/domain/issueDashboard"
 import type { Involvement } from "@/domain/issues"
-import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { reportError } from "@/observability/report"
 import type { View } from "@/domain/Settings"
 import { chosenView } from "@/app/settings"
 import { goWithin } from "@/ui/going"
@@ -183,7 +183,6 @@ export const start = (): void => {
   // late is a frame of their list on the screen.
   markPage(document, ISSUES)
 
-  initialiseErrorReporting("issues")
 
   const store = settings()
 

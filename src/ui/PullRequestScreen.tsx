@@ -343,7 +343,27 @@ export const PullRequestScreen = ({
     ) =>
       (...given: Given) =>
         meanwhile(
-          (loaded) => (doing === undefined ? loaded : asDone(loaded, doing)),
+          {
+            change: (loaded) => (doing === undefined ? loaded : asDone(loaded, doing)),
+            /*
+             * Worn until the card comes back saying the same thing, rather than
+             * until GitHub answers the write. The two are not the same moment:
+             * their page data lags a write by a second or two, so the read this
+             * sends out on success is the one most likely to still describe the
+             * pull request as it was — and taking the change off to make room
+             * for it is how a merged card went back to offering Merge.
+             *
+             * A verb that names no state — the queue's four, and deleting a
+             * branch — has nothing to wait for and nothing to wear, so it agrees
+             * with whatever arrives.
+             */
+            until: (loaded) =>
+              doing === undefined ||
+              Option.match(stateAfter(doing), {
+                onNone: () => true,
+                onSome: (state) => loaded.snapshot.state === state
+              })
+          },
           alsoOnRefusal(act(...given), again)
         )
 

@@ -12,7 +12,7 @@ import {
   type DiscussionRef
 } from "@/domain/discussions"
 import type { View } from "@/domain/Settings"
-import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { reportError } from "@/observability/report"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { DiscussionScreen } from "@/ui/DiscussionScreen"
@@ -120,8 +120,6 @@ export const start = (): void => {
   // on this. Synchronous and first: an attribute set a frame late is a frame of their page on the
   // screen.
   markPage(document, DISCUSSION)
-
-  initialiseErrorReporting("discussion")
 
   const store = settings()
 

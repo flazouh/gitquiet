@@ -2,7 +2,7 @@ import { Effect, UndefinedOr } from "effect"
 import { chosenSettings } from "@/app/settings"
 import { inSession, whatTheWallGets } from "@/app/signingOn"
 import { theirFormAgain, type Wall } from "@/github/signOn"
-import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { reportError } from "@/observability/report"
 import { standAScreen } from "@/shell/screen"
 import { settings } from "@/shell/supplied"
 import { handBack, markPage } from "@/ui/mount"
@@ -137,7 +137,6 @@ export const start = (): void => {
   // written per page and hang on this attribute.
   markPage(document, SIGN_ON)
 
-  initialiseErrorReporting("sign-on")
 
   const store = settings()
 

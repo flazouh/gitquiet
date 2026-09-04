@@ -5,7 +5,7 @@ import { forgetIntent, intendedPath } from "@/app/intent"
 import { chosenView } from "@/app/settings"
 import { discussionListIn, listRouteOf, type DiscussionList } from "@/domain/discussions"
 import type { View } from "@/domain/Settings"
-import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { reportError } from "@/observability/report"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { DiscussionsScreen, type Shown } from "@/ui/DiscussionsScreen"
@@ -95,8 +95,6 @@ export const start = (): void => {
   // on this. Synchronous and first: an attribute set a frame late is a frame of their list on the
   // screen.
   markPage(document, DISCUSSIONS)
-
-  initialiseErrorReporting("discussions")
 
   const store = settings()
 

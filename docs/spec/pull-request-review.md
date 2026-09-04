@@ -110,7 +110,7 @@ to GitHub's unlayered element rules regardless of specificity.
 
 Domain and data layers are written in Effect. Errors are typed rather than thrown, services are provided as Layers, and retry and resubscription policies are expressed as Schedules. No `any`, no `as`, no unsafe assertions — data arriving from GitHub is decoded with `Schema` at the boundary, which is also what turns an unannounced GitHub change into a precise, reportable decode failure instead of a crash deep in a component.
 
-Observability is `@effect/opentelemetry` exporting to Sentry. Because gateway calls and sync operations are written with `Effect.fn`, each carries a span without additional instrumentation.
+Observability is the reader's own console and nothing else: there is no reporting service and no endpoint. Gateway calls and sync operations are written with `Effect.fn`, so each carries a span name should tracing ever be wanted locally, but nothing exports one. See `src/observability/report.ts`.
 
 Pull requests already read are kept in `storage.local` rather than IndexedDB. It belongs to the extension rather than to `github.com`, so GitHub's own code cannot read or clear it; it is reachable from the service worker as well as from a content script on any GitHub page, which is what lets a pull request be warmed from the list someone is about to click through; and a pure cache of forty pages does not justify a schema or a migration story. What is kept is GitHub's payloads rather than the snapshot decoded from them, so a page written before a schema changed fails the decoder and counts as a miss instead of becoming a lie in the right shape.
 

@@ -4,7 +4,7 @@ import { cancelRun, loadRun, rememberedRun, rerunRun } from "@/app/run"
 import { chosenView, rememberView } from "@/app/settings"
 import { runAddressIn, type Pressing, type RunOpening, type RunRef } from "@/domain/run"
 import type { View } from "@/domain/Settings"
-import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { reportError } from "@/observability/report"
 import type { GitHubGateway } from "@/ports/GitHubGateway"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
@@ -106,7 +106,6 @@ const open = (
 export const start = (): void => {
   markPage(document, RUN)
 
-  initialiseErrorReporting("content-script")
 
   const store = settings()
 

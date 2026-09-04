@@ -4,7 +4,7 @@ import { forgetIntent, intendedPath } from "@/app/intent"
 import { type Listed, loadRepoList, rememberedRepoList } from "@/app/repoList"
 import type { PullRequestRef } from "@/domain/PullRequestRef"
 import { addressFor, type RepoList, repoListIn, seeding } from "@/domain/repoList"
-import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { reportError } from "@/observability/report"
 import type { View } from "@/domain/Settings"
 import { chosenView } from "@/app/settings"
 import { goTo as moveTheAddress, goWithin } from "@/ui/going"
@@ -235,7 +235,6 @@ export const start = (): void => {
   // late is a frame of their list on the screen.
   markPage(document, REPO_PULLS)
 
-  initialiseErrorReporting("repo-pulls")
 
   const store = settings()
 

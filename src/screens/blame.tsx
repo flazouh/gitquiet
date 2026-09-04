@@ -5,7 +5,7 @@ import { forgetIntent, intendedPath } from "@/app/intent"
 import { chosenView } from "@/app/settings"
 import { blameIn, type BlameAt } from "@/domain/blame"
 import type { View } from "@/domain/Settings"
-import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { reportError } from "@/observability/report"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { BlameScreen } from "@/ui/BlameScreen"
@@ -62,7 +62,6 @@ export const start = (): void => {
   // page and hang on this.
   markPage(document, BLAME)
 
-  initialiseErrorReporting("blame")
 
   const store = settings()
 

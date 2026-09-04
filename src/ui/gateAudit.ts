@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { reportError } from "../observability/sentry"
+import { reportError } from "../observability/report"
 import { ROOT_ID } from "./mount"
 import type { Place } from "./place"
 
@@ -194,9 +194,10 @@ const SETTLE = 2_500
  * understand would be a worse fault than the one it looks for.
  *
  * A leak goes two ways, and both respect that this extension collects nothing. `reportError`
- * reaches Sentry only in a build carrying a DSN, and none is shipped — so in the store it is
- * silent by design. The console line is the one a person actually reads, and it is on only
- * in a development build, where the page is the developer's own and no reader is watching it.
+ * writes to the console of the browser it happened in and nowhere else, which is the whole of
+ * this codebase's reporting. The warning below is the one a person actually reads, and it is
+ * on only in a development build, where the page is the developer's own and no reader is
+ * watching it.
  */
 const announce = (place: string, leaks: ReadonlyArray<Leak>): void => {
   if (!import.meta.env.DEV) return

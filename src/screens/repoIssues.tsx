@@ -4,7 +4,7 @@ import { forgetIntent, intendedPath } from "@/app/intent"
 import { type ListedIssues, loadIssueList, rememberedIssueList } from "@/app/issueList"
 import { drawingIssues } from "@/app/rows"
 import { type IssueList, issueListIn, queryFor, seeding } from "@/domain/issueList"
-import { initialiseErrorReporting, reportError } from "@/observability/sentry"
+import { reportError } from "@/observability/report"
 import type { View } from "@/domain/Settings"
 import { chosenView } from "@/app/settings"
 import { goWithin } from "@/ui/going"
@@ -172,7 +172,6 @@ export const start = (): void => {
   // late is a frame of their list on the screen.
   markPage(document, REPO_ISSUES)
 
-  initialiseErrorReporting("repo-issues")
 
   const store = settings()
 

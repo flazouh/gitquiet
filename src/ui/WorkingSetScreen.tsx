@@ -2,10 +2,10 @@ import type { Effect, Option } from "effect";
 import { type ReactNode, useMemo } from "react";
 import type { PullRequestRef } from "../domain/PullRequestRef";
 import type { Destination } from "../domain/Settings";
-import type { RowDoing } from "../domain/doable";
+import { LEADS_TO, type RowDoing } from "../domain/doable";
 import type { Repository } from "../domain/repositories";
 import { owedIn } from "../domain/finding";
-import { afterDoing, type Sitting } from "../domain/sittings";
+import { afterDoing, saysItIs, type Sitting } from "../domain/sittings";
 import { repositoriesAtWork, type RepositoryAtWork } from "../domain/rail";
 import type { Keys } from "../keys/commands";
 import { Rail } from "./Rail";
@@ -176,10 +176,22 @@ export const WorkingSetScreen = ({
              * it, and the read that follows either agrees or quietly puts it
              * back. What this replaced was a press, a second of a list that had
              * not moved, and then the whole thing arriving again.
+             *
+             * `until` is the half that keeps it there. This list is read off
+             * GitHub's search, whose index is behind a write by seconds to
+             * minutes, so the read that arrives just after a close is the one
+             * most likely to still call the pull request open — and it used to
+             * win, which put the row back under Your Move with the toast about
+             * having closed it still on the screen. Now the arrangement is worn
+             * until a read comes back agreeing about the state, which is the one
+             * fact the verb decided.
              */
             ask: (doing, reference) =>
               meanwhile(
-                (sittings) => afterDoing(sittings, doing, reference),
+                {
+                  change: (sittings) => afterDoing(sittings, doing, reference),
+                  until: (sittings) => saysItIs(sittings, reference, LEADS_TO[doing]),
+                },
                 ask(doing, reference),
               ),
           },

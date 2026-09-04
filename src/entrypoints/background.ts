@@ -18,7 +18,6 @@ import {
   type MermaidUnavailable,
   type MermaidWork
 } from "@/markdown/mermaidProtocol"
-import { initialiseErrorReporting } from "@/observability/sentry"
 import { browserSettings } from "@/settings/browserStore"
 
 const OFFSCREEN_PATH = "mermaid-offscreen.html"
@@ -97,7 +96,6 @@ const drawMermaidAwayFromThePage = (code: string): Effect.Effect<unknown> =>
  * document that has seconds to go. See `onTheWay.ts`.
  */
 export default defineBackground(() => {
-  initialiseErrorReporting("service-worker")
 
   browser.runtime.onMessage.addListener((message: unknown) => {
     if (isHighlightRequest(message)) {
