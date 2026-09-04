@@ -1,5 +1,4 @@
 import type { Effect, Option } from "effect"
-import { type Category, type ListedDiscussion } from "../domain/discussions"
 import { homeName, type DiscussionList } from "../domain/discussionRoutes"
 import type { Repository } from "../domain/repositories"
 import { Categories, Discussions, Pages, whereFor } from "./Discussions"
@@ -9,6 +8,7 @@ import { TheBar } from "./TheBar"
 import { useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
+import type { FoundDiscussions } from "../ports/GitHubGateway"
 
 /**
  * What this screen draws, which is one read.
@@ -18,11 +18,13 @@ import { Waiting } from "./Waiting"
  * page spends more than that on the same screen: a hovercard route per row, a vote form per row
  * and a menu route per row, none of which is asked for here.
  */
-export type Shown = {
-  readonly rows: ReadonlyArray<ListedDiscussion>
-  readonly categories: ReadonlyArray<Category>
-  readonly more: boolean
-}
+/*
+ * The port's own type, named again here for the screen to take.
+ *
+ * A second declaration of the same three fields drifts the day one of them changes, and it forced
+ * an identity map at the screen that fetches them. `Shown` stays as the word this screen uses.
+ */
+export type Shown = FoundDiscussions
 
 export type DiscussionsScreenProps = {
   /**

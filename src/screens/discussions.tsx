@@ -62,7 +62,6 @@ const open = (
   const remembered = () =>
     rememberedDiscussions(list).pipe(
       throughGitHub,
-      Effect.map(Option.map((found): Shown => found)),
       // Nothing kept, or a store that would not answer. Neither is worth reporting: the live read
       // is on its way and is the answer either way.
       Effect.catch(() => Effect.succeed(Option.none<Shown>()))
