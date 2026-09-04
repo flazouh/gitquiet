@@ -289,3 +289,50 @@ describe("a discussion that is a poll", () => {
     expect(screen.queryByText(/votes$/)).toBeNull()
   })
 })
+
+describe("the faces on what people said", () => {
+  test("draws the one face on this thread as a count, since GitHub offered no press", async () => {
+    show(stale)
+
+    const thread = await screen.findByRole("region", { name: "9 replies" })
+
+    expect(within(thread).getByText(/🚀\s*1/)).toBeTruthy()
+    expect(within(thread).queryByRole("button", { name: /React with/ })).toBeNull()
+  })
+
+  test("presses one where GitHub offered it, sending their name for the face", async () => {
+    const last = stale.comments[stale.comments.length - 1]!
+    const pressed: Array<DiscussionPress> = []
+
+    render(
+      <DiscussionScreen
+        reference={stale.reference}
+        load={() =>
+          Effect.succeed({
+            ...stale,
+            comments: [
+              {
+                ...last,
+                replies: [],
+                reactions: [{ ...last.reactions[0]!, mayPress: true }]
+              }
+            ]
+          })
+        }
+        onPress={(press) => {
+          pressed.push(press)
+          return Effect.succeed(stale)
+        }}
+        signedIn={() => true}
+        onStepAside={() => {}}
+      />
+    )
+
+    const thread = await screen.findByRole("region", { name: "1 reply" })
+    fireEvent.click(within(thread).getByRole("button", { name: "React with rocket" }))
+
+    expect(pressed).toEqual([
+      { kind: "react", on: "DiscussionComment", id: last.id, content: "rocket" }
+    ])
+  })
+})

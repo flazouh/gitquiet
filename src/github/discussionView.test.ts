@@ -309,3 +309,44 @@ describe("a discussion that is a poll", () => {
     expect(asked.body).toContain("dumbest decisions")
   })
 })
+
+describe("the faces on what people said", () => {
+  /*
+   * `vercel/next.js#70178` carries one, a rocket on the last comment. Signed out their button is
+   * disabled, so it is drawn as a count and never as a press.
+   */
+  test("reads the face, the name GitHub gives it, and the count", () => {
+    const faced = nine.comments.filter((said) => said.reactions.length > 0)
+
+    expect(faced).toHaveLength(1)
+    expect(faced[0]?.id).toBe("18276038")
+    expect(faced[0]?.reactions[0]).toEqual({
+      content: "rocket",
+      emoji: "🚀",
+      count: 1,
+      mine: false,
+      mayPress: false
+    })
+  })
+
+  /*
+   * Their page renders a button for every one of the eight, with a zero on the ones nobody has
+   * used. A row of eight zeroes under every comment is eight things to read and nothing to learn.
+   */
+  test("leaves out the seven nobody used", () => {
+    expect(nine.comments.every((said) => said.reactions.every((one) => one.count > 0))).toBe(true)
+    expect(nine.reactions).toEqual([])
+  })
+
+  /*
+   * The same comment carries one rocket and two upvotes. GitHub counts them apart because they
+   * mean different things: an upvote ranks the thread and a face is an opinion about one thing
+   * somebody said.
+   */
+  test("a face is not an upvote, and the two are counted apart", () => {
+    const faced = nine.comments.find((said) => said.reactions.length > 0)
+
+    expect(faced?.reactions[0]?.count).toBe(1)
+    expect(faced?.upvotes).toBe(2)
+  })
+})

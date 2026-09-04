@@ -6,6 +6,7 @@ import {
   type DiscussionPress,
   type DiscussionSnapshot,
   type Poll,
+  type Reaction,
   type Reply,
   addressOf,
   answerOf,
@@ -108,6 +109,56 @@ const Press = ({
 }
 
 /**
+ * The faces on one thing, each of them a press where GitHub offered one.
+ *
+ * Only the ones somebody has actually used. Their page keeps the other seven behind a menu, and
+ * a row of eight zeroes under every comment is eight things to read and nothing to learn.
+ *
+ * Drawn apart from the upvote beside it, because GitHub counts them apart: an upvote ranks a
+ * discussion and a face is an opinion about one thing somebody said.
+ */
+const Faces = ({
+  reactions,
+  on,
+  id,
+  onPress
+}: {
+  readonly reactions: ReadonlyArray<Reaction>
+  readonly on: "Discussion" | "DiscussionComment"
+  readonly id: string
+  readonly onPress?: Pressing
+}) => {
+  if (reactions.length === 0) return null
+
+  return (
+    <span className="flex flex-wrap items-center gap-1">
+      {reactions.map((one) =>
+        one.mayPress ? (
+          <Press
+            key={one.content}
+            said={one.mine ? `Take your ${one.content} back` : `React with ${one.content}`}
+            onPress={onPress}
+            press={{ kind: "react", on, id, content: one.content }}
+          >
+            <span className={one.mine ? "font-semibold text-ink" : undefined}>
+              {one.emoji} {one.count}
+            </span>
+          </Press>
+        ) : (
+          <span
+            key={one.content}
+            className="rounded px-1.5 py-0.5 text-xs text-ink-muted"
+            title={one.content}
+          >
+            {one.emoji} {one.count}
+          </span>
+        )
+      )}
+    </span>
+  )
+}
+
+/**
  * One thing somebody said: who, when, and what.
  *
  * The body is GitHub's own rendered markdown, drawn by {@link GitHubHtml} rather than parsed by
@@ -170,6 +221,14 @@ const Said = ({
       </div>
       <div className="mt-1 text-sm">
         <GitHubHtml html={said.body} />
+      </div>
+      <div className="mt-1">
+        <Faces
+          reactions={said.reactions}
+          on="DiscussionComment"
+          id={said.id}
+          onPress={onPress}
+        />
       </div>
     </div>
   )
@@ -365,6 +424,14 @@ export const Discussion = ({
           <Folded>
             <GitHubHtml html={snapshot.body} />
           </Folded>
+        </div>
+        <div className="px-3 pb-2">
+          <Faces
+            reactions={snapshot.reactions}
+            on="Discussion"
+            id={snapshot.id}
+            onPress={onPress}
+          />
         </div>
       </Section>
 

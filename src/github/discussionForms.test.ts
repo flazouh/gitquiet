@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test"
 import {
   markingAnswer,
   postingOf,
+  reactingTo,
+  reactionsWithin,
   replyingUnder,
   sayingOn,
   sendingOf,
@@ -170,5 +172,58 @@ describe("sending one back", () => {
     const body = new URLSearchParams(sendingOf(posting))
 
     expect(body.has("variables[body]")).toBe(false)
+  })
+})
+
+describe("putting one of the eight faces on something", () => {
+  /*
+   * Their own button, copied from `vercel/next.js#70178`. It is a `type="submit"` whose `name`
+   * and `value` are part of what the form sends, which is why both are added to the fields here
+   * exactly as a browser would.
+   */
+  const button = (content: string, extra = "") =>
+    `<button name="input[content]" value="THUMBS_UP react" data-reaction-label="${content}"
+             data-reaction-content="${content}" aria-pressed="false" type="submit" ${extra}
+             class="social-reaction-summary-item js-reaction-group-button">
+       <g-emoji alias="${content}">👍</g-emoji><span>1</span></button>`
+
+  const page = parse(`
+    <div class="js-comment-container" id="holder">
+      <div id="discussioncomment-11"></div>
+      ${theirs("/react-11", button("+1"))}
+    </div>`)
+
+  const within = page.getElementById("holder")
+
+  test("sends the button's own name and value beside the form's fields", () => {
+    const posting = reactingTo(within, "+1")
+
+    expect(posting?.action).toBe("/react-11")
+    expect(posting?.fields["input[content]"]).toBe("THUMBS_UP react")
+    expect(posting?.fields["authenticity_token"]).toBe("a-token")
+  })
+
+  test("is found by the name GitHub gives the face, not by the character", () => {
+    expect(reactingTo(within, "heart")).toBeNull()
+  })
+
+  test("is not offered to a reader who may not press it", () => {
+    const shut = parse(`
+      <div class="js-comment-container" id="holder">
+        ${theirs("/react", button("+1", 'disabled="disabled"'))}
+      </div>`)
+
+    expect(reactingTo(shut.getElementById("holder"), "+1")).toBeNull()
+  })
+
+  /* The opening post and a comment are both comment containers; the id says which. */
+  test("finds the faces on the question and on one comment alike", () => {
+    const both = parse(`
+      <div class="js-comment-container"><div id="discussion-7"></div></div>
+      <div class="js-comment-container"><div id="discussioncomment-11"></div></div>`)
+
+    expect(reactionsWithin(both, "Discussion", "7")).not.toBeNull()
+    expect(reactionsWithin(both, "DiscussionComment", "11")).not.toBeNull()
+    expect(reactionsWithin(both, "DiscussionComment", "7")).toBeNull()
   })
 })

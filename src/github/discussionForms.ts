@@ -208,3 +208,44 @@ export const votingIn = (page: Document, option: string): Posting | null => {
 
   return { action, fields: { authenticity_token: token, [field]: option }, bodyField: null }
 }
+
+/**
+ * The press that puts one of the eight faces on something, or takes it off again.
+ *
+ * Their own button, found by the name GitHub gives the face rather than by the character: the
+ * character is what a reader sees and `+1` is what the server is told. Every one of these is a
+ * `type="submit"` inside a form, and a submit button's own `name` and `value` are part of what a
+ * form sends — so both are added to the form's hidden fields here, exactly as a browser would.
+ *
+ * Refused while it is disabled, which is every reader who is not signed in.
+ */
+export const reactingTo = (within: Element | null, content: string): Posting | null => {
+  const button =
+    within?.querySelector(`.js-reaction-group-button[data-reaction-content="${content}"]`) ?? null
+  if (button === null || button.hasAttribute("disabled")) return null
+
+  const posting = postingOf(around(button))
+  const name = button.getAttribute("name") ?? ""
+  const value = button.getAttribute("value") ?? ""
+  if (posting === null || name === "" || value === "") return null
+
+  return { ...posting, fields: { ...posting.fields, [name]: value } }
+}
+
+/**
+ * Where the faces on one thing are: the discussion's own body, or one comment.
+ *
+ * The opening post is a comment container like the others, so both are asked for the same way and
+ * the caller says which by giving the id GitHub uses for it.
+ */
+export const reactionsWithin = (
+  page: Document,
+  kind: "Discussion" | "DiscussionComment",
+  id: string
+): Element | null => {
+  const target = page.getElementById(
+    kind === "Discussion" ? `discussion-${id}` : `discussioncomment-${id}`
+  )
+
+  return target?.closest(".js-comment-container") ?? null
+}

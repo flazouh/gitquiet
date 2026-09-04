@@ -434,6 +434,8 @@ export type Reply = {
   /** Their rendered markdown, as they served it. */
   readonly body: string
   readonly upvotes: number
+  /** The faces on it, in the order their page drew them. Empty where nobody has reacted. */
+  readonly reactions: ReadonlyArray<Reaction>
   /**
    * Whether GitHub offered this reader a press to mark it, or to take the mark off.
    *
@@ -452,6 +454,24 @@ export type Reply = {
    * that assumed the answer was always top-level would lose it on the day they do.
    */
   readonly isAnswer: boolean
+}
+
+/**
+ * One of the eight faces, and how many people put it there.
+ *
+ * Apart from an upvote, which GitHub keeps apart too: a discussion's upvote is a rank and a
+ * reaction is an opinion. Their own page draws them side by side and counts them separately.
+ */
+export type Reaction = {
+  /** GitHub's own name for it, which is what a press sends: `+1`, `heart`, `rocket`. */
+  readonly content: string
+  /** The character their page drew, so this interface draws the same one. */
+  readonly emoji: string
+  readonly count: number
+  /** Whether this reader is one of them. */
+  readonly mine: boolean
+  /** Whether GitHub offered this reader a press on it. */
+  readonly mayPress: boolean
 }
 
 /**
@@ -529,6 +549,8 @@ export type DiscussionSnapshot = {
   readonly askedAt: string
   /** Their rendered markdown for the opening post. */
   readonly body: string
+  /** The faces on the question itself. */
+  readonly reactions: ReadonlyArray<Reaction>
   readonly comments: ReadonlyArray<Comment>
   /** The Poll their body carries, where the discussion is one. */
   readonly poll: Option.Option<Poll>
@@ -693,6 +715,14 @@ export type DiscussionPress =
   | { readonly kind: "mark-answer"; readonly comment: string }
   /** Answer a Poll, by the option's own id. */
   | { readonly kind: "vote"; readonly option: string }
+  /** Put one of the eight faces on something, or take it off again. */
+  | {
+      readonly kind: "react"
+      readonly on: "Discussion" | "DiscussionComment"
+      readonly id: string
+      /** GitHub's own name for the face: `+1`, `heart`, `rocket`. */
+      readonly content: string
+    }
   /** Upvote the question, or something said about it. */
   | {
       readonly kind: "upvote"

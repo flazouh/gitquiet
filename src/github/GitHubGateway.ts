@@ -70,6 +70,8 @@ import {
 import { discussionOnPage, isKeptDiscussion } from "./discussionView"
 import {
   markingAnswer,
+  reactingTo,
+  reactionsWithin,
   replyingUnder,
   sayingOn,
   sendingOf,
@@ -3406,7 +3408,9 @@ export const layer = Layer.succeed(GitHubGateway, {
               ? markingAnswer(document, press.comment)
               : press.kind === "vote"
                 ? votingIn(document, press.option)
-                : upvoting(document, press.on, press.id)
+                : press.kind === "react"
+                  ? reactingTo(reactionsWithin(document, press.on, press.id), press.content)
+                  : upvoting(document, press.on, press.id)
 
       if (posting === null) {
         return yield* new GatewayError({

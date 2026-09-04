@@ -27,11 +27,19 @@ import type {
   DiscussionRef,
   DiscussionSnapshot,
   Poll,
+  Reaction,
   Reply
 } from "../domain/discussions"
 import { text } from "./outcome"
 import { emojiIn } from "./discussionsList"
-import { markingAnswer, replyingUnder, sayingOn, upvoting, votingIn } from "./discussionForms"
+import {
+  markingAnswer,
+  reactingTo,
+  replyingUnder,
+  sayingOn,
+  upvoting,
+  votingIn
+} from "./discussionForms"
 
 const parse = (html: string): Document => new DOMParser().parseFromString(html, "text/html")
 
@@ -55,6 +63,32 @@ const countIn = (label: string): number => {
   const found = Number(/^Upvote:\s*(\d+)$/.exec(label)?.[1])
   return Number.isSafeInteger(found) && found >= 0 ? found : 0
 }
+
+/**
+ * The faces on one thing, off their own buttons.
+ *
+ * The name GitHub gives the face is carried beside the character, because the character is what a
+ * reader sees and `+1` is what a press has to send. `aria-pressed` is their own word for whether
+ * this reader is one of the count.
+ */
+const reactionsIn = (own: Element): ReadonlyArray<Reaction> =>
+  [...own.querySelectorAll(".js-reaction-group-button[data-reaction-content]")].flatMap(
+    (button) => {
+      const content = button.getAttribute("data-reaction-content") ?? ""
+      const count = Number(text(button.querySelector("span")))
+      if (content === "" || !Number.isFinite(count) || count === 0) return []
+
+      return [
+        {
+          content,
+          emoji: text(button.querySelector("g-emoji")),
+          count,
+          mine: button.getAttribute("aria-pressed") === "true",
+          mayPress: reactingTo(own, content) !== null
+        }
+      ]
+    }
+  )
 
 /** What a comment container is: the opening post, or one of the things said about it. */
 type Named = {
@@ -159,6 +193,7 @@ const saidIn = (page: Document, container: Element): Reply | null => {
      * a permalink and this has to hold for a page where GitHub changes what may be marked.
      */
     isAnswer: own.querySelector(".timeline-chosen-answer") !== null,
+    reactions: reactionsIn(own),
     /*
      * What their page offered this reader, which is the presence of one of their own forms. Asked
      * of the whole page rather than of this container, because the finders take a document: they
@@ -317,6 +352,7 @@ export const discussionOnPage = (
     author: post.author,
     askedAt: post.at,
     body: post.body,
+    reactions: post.reactions,
     comments,
     poll: pollOnPage(page),
     allowed: {
