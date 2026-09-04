@@ -1,5 +1,5 @@
-import type { Effect, Option } from "effect";
-import { type ReactNode, useMemo } from "react";
+import { Effect, type Option } from "effect";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import type { PullRequestRef } from "../domain/PullRequestRef";
 import type { Destination } from "../domain/Settings";
 import { LEADS_TO, type RowDoing } from "../domain/doable";
@@ -47,8 +47,9 @@ export type WorkingSetScreenProps = {
    * How a row's menu asks GitHub for something, where this surface can write.
    *
    * The screen supplies what happens afterwards, since it is the thing holding
-   * the read: every verb here changes which Court a pull request belongs to, so
-   * the list asks GitHub again rather than editing the row it just changed.
+   * the read. The row stays where it is while GitHub is asked, and only then
+   * moves Court — a write that has not answered is not a fact the list may
+   * draw.
    */
   readonly ask?: (
     doing: RowDoing,
@@ -143,8 +144,26 @@ export const WorkingSetScreen = ({
   elsewhere,
 }: WorkingSetScreenProps) => {
   const live = useLive(load, preload, where);
-  const { read, meanwhile } = live;
+  const { read } = live;
   const waiting = useWaiting(read.status);
+  const [waitingOn, setWaitingOn] = useState<PullRequestRef | undefined>();
+  const [moved, setMoved] = useState<ReadonlyArray<Sitting> | undefined>();
+  const liveValue = read.status === "ready" ? read.value : undefined;
+  const lastWrite = useRef<{
+    readonly reference: PullRequestRef;
+    readonly state: (typeof LEADS_TO)[RowDoing];
+  }>();
+
+  useEffect(() => {
+    const write = lastWrite.current;
+    if (moved === undefined || liveValue === undefined || write === undefined) {
+      return;
+    }
+    if (saysItIs(liveValue, write.reference, write.state)) {
+      setMoved(undefined);
+      lastWrite.current = undefined;
+    }
+  }, [liveValue, moved]);
 
   /*
    * The Rail's repositories, out of the read that is already on the screen.
@@ -154,7 +173,9 @@ export const WorkingSetScreen = ({
    * work" is a fold over what has already arrived. Empty while the read is in flight —
    * navigation appears immediately and fills in, rather than waiting to appear.
    */
-  const sittings = read.status === "ready" ? read.value : EMPTY;
+  const sittings = moved ?? liveValue ?? EMPTY;
+  const sittingsRef = useRef(sittings);
+  sittingsRef.current = sittings;
   const atWork = useMemo(() => repositoriesAtWork(sittings), [sittings]);
   const needsYou =
     sittings.find((sitting) => sitting.court === "needs-you")?.count ?? 0;
@@ -167,35 +188,41 @@ export const WorkingSetScreen = ({
       ask === undefined
         ? undefined
         : {
+            waiting: waitingOn,
             /*
-             * The change is on the screen before GitHub has been asked.
+             * GitHub is asked first. The row stays in its Court and turns a
+             * circle until that answer lands. Only a yes moves it; a no leaves
+             * the list as it was.
              *
-             * Every verb a row offers moves the pull request to another Court,
-             * and working out which one is the domain's job rather than
-             * GitHub's — so the list is rearranged now, the ask goes out behind
-             * it, and the read that follows either agrees or quietly puts it
-             * back. What this replaced was a press, a second of a list that had
-             * not moved, and then the whole thing arriving again.
-             *
-             * `until` is the half that keeps it there. This list is read off
-             * GitHub's search, whose index is behind a write by seconds to
-             * minutes, so the read that arrives just after a close is the one
-             * most likely to still call the pull request open — and it used to
-             * win, which put the row back under Your Move with the toast about
-             * having closed it still on the screen. Now the arrangement is worn
-             * until a read comes back agreeing about the state, which is the one
-             * fact the verb decided.
+             * The move is kept here until a later read agrees about the state.
+             * Their search index is behind a write by seconds to minutes, so
+             * the read that follows a close is the one most likely to still
+             * call the pull request open.
              */
             ask: (doing, reference) =>
-              meanwhile(
-                {
-                  change: (sittings) => afterDoing(sittings, doing, reference),
-                  until: (sittings) => saysItIs(sittings, reference, LEADS_TO[doing]),
-                },
-                ask(doing, reference),
+              Effect.sync(() => {
+                setWaitingOn(reference);
+              }).pipe(
+                Effect.andThen(ask(doing, reference)),
+                Effect.tap(() =>
+                  Effect.sync(() => {
+                    lastWrite.current = {
+                      reference,
+                      state: LEADS_TO[doing],
+                    };
+                    setMoved(
+                      afterDoing(sittingsRef.current, doing, reference),
+                    );
+                  }),
+                ),
+                Effect.ensuring(
+                  Effect.sync(() => {
+                    setWaitingOn(undefined);
+                  }),
+                ),
               ),
           },
-    [ask, meanwhile],
+    [ask, waitingOn],
   );
 
   /*
@@ -245,7 +272,7 @@ export const WorkingSetScreen = ({
       <DrawnAt path={read.status === "loading" ? null : (at ?? null)} />
       {read.status === "ready" ? (
         <WorkingSet
-          sittings={read.value}
+          sittings={sittings}
           onOpen={onOpen}
           scope="working-set"
           keys={keys}

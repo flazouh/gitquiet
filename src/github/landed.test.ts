@@ -1,7 +1,15 @@
 import { describe, expect, test, afterEach } from "bun:test"
 import { Option } from "effect"
 import type { PullRequestRef } from "../domain/PullRequestRef"
-import { asLanded, forgetLanded, landedNow, landedState, recordLanded, seedLanded } from "./landed"
+import {
+  afterWrite,
+  asLanded,
+  forgetLanded,
+  landedNow,
+  landedState,
+  recordLanded,
+  seedLanded
+} from "./landed"
 
 const one: PullRequestRef = { owner: "flazouh", repo: "gitquiet", number: 7 }
 const other: PullRequestRef = { owner: "flazouh", repo: "gitquiet", number: 8 }
@@ -54,6 +62,18 @@ describe("what our own writes know that a read does not", () => {
     Date.now = () => clock() + 4 * 60_000
 
     expect(landedState(one)).toEqual(Option.some("merged"))
+  })
+
+  test("a status verb writes the state it leaves, so both surfaces share it", () => {
+    afterWrite(one, "close")
+
+    expect(landedState(one)).toEqual(Option.some("closed"))
+  })
+
+  test("a verb that leaves no state writes nothing", () => {
+    afterWrite(one, "enqueue")
+
+    expect(Option.isNone(landedState(one))).toBe(true)
   })
 })
 

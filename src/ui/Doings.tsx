@@ -1,7 +1,7 @@
 import * as Menu from "@radix-ui/react-dropdown-menu"
 import { Effect, Option } from "effect"
 import { useEffect, useRef, useState } from "react"
-import type { PullRequestRef } from "../domain/PullRequestRef"
+import { sameReference, type PullRequestRef } from "../domain/PullRequestRef"
 import { putsBack, type RowDoing, whatStateAllows } from "../domain/doable"
 import type { InvolvedPullRequest } from "../domain/workingSet"
 import { type Set, useArt } from "./art"
@@ -9,6 +9,7 @@ import { askAndSay } from "./askAndSay"
 import { FLOAT } from "./dress"
 import { Cap } from "./Cap"
 import { ROOT_ID } from "./mount"
+import { SpinnerIcon } from "./spinner"
 import { ARMED, COPY_LETTER, LETTER, LOOK, ORDER, WORD } from "./rowDoings"
 import { useKeying, useLetters } from "./useLetters"
 
@@ -24,14 +25,17 @@ export type Asking = {
   /**
    * Asks GitHub, and answers as GitHub did.
    *
-   * There used to be a second half to this — somebody to tell once a verb
-   * landed, so the list could read itself again. The screen supplying this one
-   * shows the change before asking and puts it back if the answer is no, so both
-   * answers this carries are the effect's own: failing is the refusal, and
-   * succeeding is the sentence that offers the way back. See `askAndSay`, which
-   * is where a surface turns either one into something the reader can read.
+   * The row stays in its Court until this succeeds. Failing is the refusal, and
+   * succeeding is the sentence that offers the way back. See `askAndSay`.
    */
   readonly ask: (doing: RowDoing, reference: PullRequestRef) => Effect.Effect<void, unknown>
+  /**
+   * The pull request GitHub is being asked about, while that ask is in flight.
+   *
+   * The row that matches this turns a circle and does not move. Absent when
+   * nothing is being asked.
+   */
+  readonly waiting?: PullRequestRef
 }
 
 /**
@@ -146,20 +150,18 @@ export const Doings = ({
 
   const can = whatStateAllows(one.state)
   const verbs = ORDER.filter((doing) => can.has(doing))
+  const waiting =
+    asking.waiting !== undefined && sameReference(asking.waiting, one.reference)
 
   /**
    * Asking GitHub, which is the last thing this menu does.
    *
-   * The menu goes now, not when GitHub answers. It used to stay up through the
-   * whole ask, wearing "Asking GitHub…", because the answer was the only thing
-   * that would move the row. The list moves on the press now — the pull request
-   * is in its new Court before this menu has finished closing — so holding a
-   * menu open over the top of the change it caused is asking the reader to watch
-   * a spinner instead of the result.
+   * The menu goes now, not when GitHub answers. The row stays in its Court and
+   * turns a circle there. Holding the menu open over that wait would cover the
+   * one place the wait is being shown.
    *
-   * Which leaves both answers with nowhere to land, and that is what the toasts
-   * are for: a refusal puts the row back and says why, and a verb that worked
-   * says what it did and offers the way back out of it.
+   * A refusal leaves the row where it was and says why. A verb that worked
+   * moves the row and offers the way back on the sentence that says it.
    */
   const go = (doing: RowDoing) => {
     setOpen(false)
@@ -245,6 +247,7 @@ export const Doings = ({
     >
       <Menu.Trigger
         aria-label={`What to do with #${one.reference.number}`}
+        disabled={waiting}
         /*
          * On the row always, quiet until it is wanted.
          *
@@ -263,7 +266,7 @@ export const Doings = ({
           chosen ? "opacity-100" : "opacity-60 group-hover:opacity-100"
         }`}
       >
-        <Kebab size={16} />
+        {waiting ? <SpinnerIcon size={16} aria-label="Asking GitHub" /> : <Kebab size={16} />}
       </Menu.Trigger>
       <Menu.Portal container={document.getElementById(ROOT_ID)}>
         <Menu.Content

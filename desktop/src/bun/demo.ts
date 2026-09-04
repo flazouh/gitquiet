@@ -15,6 +15,7 @@ import type {
   Viewer,
   WorkingSetRow
 } from "../shared/wire"
+import { chainOf } from "./stack"
 
 /**
  * A whole GitHub, invented, for the times the real one must not be on screen.
@@ -712,6 +713,7 @@ const commitsOf = (row: WorkingSetRow): ReadonlyArray<CommitFacts> => {
 }
 
 const said = (author: FaceFacts, body: string, minutes: number): SaidFacts => ({
+  id: `comment-${author.login}-${minutes}`,
   author,
   body,
   html: `<p>${body}</p>`,
@@ -898,7 +900,22 @@ const cardOf = (card: Card, row: WorkingSetRow): CardFacts => ({
   remarks: remarksOf(card),
   checks: checksOf(row),
   reviews: reviewsOf(row),
-  merge: mergeOf(row)
+  merge: mergeOf(row),
+  stack: chainOf(
+    card.owner,
+    card.repo,
+    card.number,
+    STARTING.filter((one) => one.owner === card.owner && one.repo === card.repo).map((one) => ({
+      number: one.number,
+      title: one.title,
+      headRefName: one.headBranch,
+      baseRefName: one.baseBranch,
+      isDraft: one.state === "draft",
+      state: one.state === "merged" ? "MERGED" : one.state === "closed" ? "CLOSED" : "OPEN"
+    }))
+  ),
+  mayDelete: row.state === "merged" || row.state === "closed",
+  mayRestore: false
 })
 
 /**
@@ -1084,3 +1101,102 @@ export const demoRemark = (card: Card, body: string): Effect.Effect<RemarkFacts,
     keep(card, { ...held, remarks: [...held.remarks, remark] })
     return remark
   })
+
+export const demoSettleThread = (card: Card, threadId: string): Effect.Effect<void, Error> =>
+  Effect.map(heldCard(card), (held) => {
+    keep(card, {
+      ...held,
+      threads: held.threads.map((thread) =>
+        thread.id === threadId ? { ...thread, isResolved: true } : thread
+      )
+    })
+  })
+
+export const demoUnsettleThread = (card: Card, threadId: string): Effect.Effect<void, Error> =>
+  Effect.map(heldCard(card), (held) => {
+    keep(card, {
+      ...held,
+      threads: held.threads.map((thread) =>
+        thread.id === threadId ? { ...thread, isResolved: false } : thread
+      )
+    })
+  })
+
+export const demoReply = (
+  card: Card,
+  commentId: string,
+  body: string
+): Effect.Effect<SaidFacts, Error> =>
+  Effect.map(heldCard(card), (held) => {
+    const reply: SaidFacts = { id: `reply-${Date.now()}`, ...said(PEOPLE.mira, body, 0) }
+    keep(card, {
+      ...held,
+      threads: held.threads.map((thread) =>
+        thread.comments.some((one) => one.id === commentId)
+          ? { ...thread, comments: [...thread.comments, reply] }
+          : thread
+      )
+    })
+    return reply
+  })
+
+export const demoReview = (card: Card): Effect.Effect<void, Error> =>
+  Effect.map(heldCard(card), (held) => {
+    keep(card, held)
+  })
+
+export const demoFront = (owner: string, repo: string, branch: string | null) =>
+  Effect.succeed({
+    owner,
+    repo,
+    footing: "keeper" as const,
+    branch: branch ?? "main",
+    head: "demo",
+    entries: [{ name: "README.md", path: "README.md", kind: "file" as const }],
+    welcome: { name: "README.md", path: "README.md", html: "<h1>Demo</h1>", timedOut: false },
+    about: {
+      description: "A recorded GitHub.",
+      stars: 1,
+      forks: 0,
+      topics: [],
+      starring: "unstarred" as const
+    },
+    commits: 3
+  })
+
+export const demoStanding = () =>
+  Effect.succeed({
+    hands: [],
+    handCount: null,
+    handsUrl: null,
+    tongues: [],
+    shipped: null,
+    shippedUrl: null,
+    landings: [],
+    landingsUrl: null,
+    leaning: null,
+    leaningFaces: [],
+    leaningUrl: null,
+    parcels: null,
+    parcelsUrl: null
+  })
+
+export const demoTabs = (owner: string, repo: string) =>
+  Effect.succeed([
+    { name: "Code", href: `https://github.com/${owner}/${repo}`, here: true },
+    { name: "Pull requests", href: `https://github.com/${owner}/${repo}/pulls`, here: false }
+  ])
+
+export const demoSuggesting = () =>
+  Effect.succeed({ people: [{ login: "mirahalden", name: "Mira Halden" }], numbered: [] })
+
+export const demoUpload = (owner: string, repo: string, name: string, width?: number, height?: number) =>
+  Effect.succeed({
+    name,
+    href: `https://github.com/${owner}/${repo}/releases/download/gitquiet-uploads/${name}`,
+    width,
+    height
+  })
+
+export const demoMakeStack = () =>
+  Effect.fail(new Error("GitHub's documented API cannot create an official stack. Their own page can."))

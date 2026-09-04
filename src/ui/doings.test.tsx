@@ -241,16 +241,8 @@ describe("what a row offers to do", () => {
 
   test("turns no circle, being the one control here that does not wait in place", async () => {
     /*
-     * Written down because the menu held the other half of this for a long time
-     * after it stopped being reachable: a step called `working`, a spinner in
-     * place of the verb's glyph, and an item saying "Asking GitHub…". The press
-     * closes the menu now. The list has already moved the pull request into its
-     * new Court, a toast carries whatever GitHub says, and there is no control
-     * left on the screen for a circle to turn on.
-     *
-     * Which is the other right answer to a wait, beside the one every button in
-     * `Says` gives: a control that gets out of the way owes the reader a sentence
-     * where they are looking, not a spinner where they are not.
+     * The menu used to stay open with "Asking GitHub…". The press closes it now.
+     * The circle turns on the row the screen supplies, not inside this menu.
      */
     listing("open", () => Effect.never)
     await openTheMenu()
@@ -282,10 +274,9 @@ describe("what a row offers to do", () => {
 
   test("says what landed, with the way back on the sentence that says it", async () => {
     /*
-     * The other half of a list that moves before GitHub has answered. A refusal
-     * puts the row back and says why; a verb that worked moved the row on and
-     * said nothing at all, so the reader who meant the item above it had to
-     * work out what they had done and then find the verb that undoes it.
+     * A verb that worked used to say nothing. The reader who meant the item
+     * above it had to work out what they had done. The toast names it and
+     * offers the way back.
      */
     const { asked } = listing("open")
     await openTheMenu()

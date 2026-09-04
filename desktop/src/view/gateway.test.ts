@@ -1,4 +1,11 @@
-import { describe, expect, test } from "bun:test"
+import { describe, expect, mock, test } from "bun:test"
+
+mock.module("./rpc", () => ({
+  ask: async (what: string) => {
+    if (what === "involvedIssues") return { ok: true, it: [] }
+    throw new Error(`this test did not expect ${what}`)
+  }
+}))
 import { Effect, Option } from "effect"
 import { loadWorkingSet, rememberedWorkingSet } from "../../../src/app/workingSet"
 import type { WorkingSetRow } from "../shared/wire"
@@ -97,6 +104,20 @@ describe("the working set the window builds out of the rows it was handed", () =
     expect(sittings.flatMap((sitting) => sitting.piles.map((pile) => pile.one.checks))).toEqual([
       Option.some(green)
     ])
+  })
+
+  test("wears a write of ours over a row GitHub still calls open", async () => {
+    const { forgetLanded, recordLanded } = await import("../../../src/github/landed")
+    const build = await gatewayFrom()
+    recordLanded({ owner: ROW.owner, repo: ROW.repo, number: ROW.number }, "closed")
+
+    const sittings = await Effect.runPromise(loadWorkingSet().pipe(Effect.provide(build([ROW]))))
+
+    expect(sittings.map((sitting) => sitting.court)).toEqual(["settled"])
+    expect(sittings.flatMap((sitting) => sitting.piles.map((pile) => pile.one.state))).toEqual([
+      "closed"
+    ])
+    forgetLanded()
   })
 
   test("keeps nothing at all when it was handed nothing, rather than an empty list", async () => {

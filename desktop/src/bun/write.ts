@@ -28,7 +28,7 @@ const NODE = `
 `
 
 /** The pull request's node id, which every mutation below is addressed by. */
-const nodeOf = Effect.fn("nodeOf")(function* (token: string, card: Card) {
+export const nodeOf = Effect.fn("nodeOf")(function* (token: string, card: Card) {
   const answer = yield* graphRead<{
     readonly repository: { readonly pullRequest: { readonly id: string } | null } | null
   }>(token, NODE, { owner: card.owner, repo: card.repo, number: card.number })
@@ -139,6 +139,39 @@ const mutation = (asked: Asked): { readonly query: string; readonly input: Recor
  * where somebody adding a ninth mutation will read it.
  */
 const idFieldOf = (asked: Asked): string => (asked.doing === "dequeue" ? "id" : "pullRequestId")
+
+const HEAD = `
+  query Head($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $number) { headRef { id } }
+    }
+  }
+`
+
+export const deleteHead = Effect.fn("deleteHead")(function* (token: string, card: Card) {
+  const answer = yield* graphRead<{
+    readonly repository: { readonly pullRequest: { readonly headRef: { readonly id: string } | null } | null } | null
+  }>(token, HEAD, { owner: card.owner, repo: card.repo, number: card.number })
+
+  const ref = answer.repository?.pullRequest?.headRef?.id
+  if (ref === undefined) {
+    return yield* Effect.fail(new Error("This pull request has no head branch left to delete."))
+  }
+
+  yield* graphRead<unknown>(
+    token,
+    `mutation Delete($input: DeleteRefInput!) { deleteRef(input: $input) { clientMutationId } }`,
+    { input: { refId: ref } }
+  )
+})
+
+export const readSize = Effect.fn("readSize")(function* (token: string, card: Card) {
+  const pull = yield* restRead<{ readonly additions: number; readonly deletions: number }>(
+    token,
+    `/repos/${card.owner}/${card.repo}/pulls/${card.number}`
+  )
+  return { added: pull.additions, deleted: pull.deletions }
+})
 
 export const write = Effect.fn("write")(function* (token: string, card: Card, asked: Asked) {
   const id = yield* nodeOf(token, card)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test"
 import type { CardFacts, WorkingSetRow } from "../shared/wire"
-import { keepCard, keepRows, keptCard, keptRows, type Somewhere } from "./kept"
+import { dropCard, keepCard, keepRows, keptCard, keptRows, type Somewhere } from "./kept"
 
 /** A `localStorage` with nothing around it, which is all these functions need. */
 const somewhere = (): Somewhere & { readonly held: Map<string, string> } => {
@@ -147,6 +147,16 @@ describe("what the window remembers", () => {
 
     expect(keptCard({ owner: "cli", repo: "cli", number: 1 }, held)).not.toBeNull()
     expect(keptCard({ owner: "cli", repo: "cli", number: 2 }, held)).toBeNull()
+  })
+
+  it("drops a card a write has made stale", () => {
+    const held = somewhere()
+    const where = { owner: "cli", repo: "cli", number: 1 } as const
+    keepCard(where, facts(), held)
+
+    dropCard(where, held)
+
+    expect(keptCard(where, held)).toBeNull()
   })
 
   it("ignores what an older build wrote", () => {

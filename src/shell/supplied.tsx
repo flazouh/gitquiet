@@ -98,6 +98,8 @@ export const liveUpdates = (
   channels: ReadonlyArray<string>,
   onFire: () => void,
 ): (() => void) => {
+  if (channels.length === 0) return () => {};
+
   const url = socketUrl(document);
   if (url === undefined) return () => {};
 

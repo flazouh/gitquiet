@@ -14,6 +14,7 @@ import type {
   ThreadFacts
 } from "../shared/wire"
 import { graphRead, restRead } from "./api"
+import { chainOf, type ChainNode } from "./stack"
 import { waysToMerge } from "./write"
 
 /**
@@ -79,6 +80,9 @@ const QUERY = `
         autoMergeRequest { mergeMethod }
         mergeQueue { url }
         mergeQueueEntry { position }
+        headRef { id }
+        isCrossRepository
+        headRepository { viewerPermission }
         files(first: 100) {
           nodes { path viewerViewedState }
         }
@@ -109,7 +113,7 @@ const QUERY = `
             originalLine
             originalStartLine
             diffSide
-            comments(first: 50) { nodes { ...said } }
+            comments(first: 50) { nodes { id ...said } }
           }
         }
         rollup: commits(last: 1) {
@@ -120,6 +124,7 @@ const QUERY = `
                   nodes {
                     __typename
                     ... on CheckRun {
+                      databaseId
                       name
                       status
                       conclusion
@@ -145,6 +150,9 @@ const QUERY = `
           }
         }
       }
+      openPulls: pullRequests(first: 100, states: OPEN) {
+        nodes { number title headRefName baseRefName isDraft state }
+      }
     }
   }
   ${FACE}
@@ -154,6 +162,7 @@ const QUERY = `
 type Actor = { readonly login: string; readonly __typename: string; readonly avatarUrl: string } | null
 
 type Said = {
+  readonly id?: string
   readonly body: string
   readonly bodyHTML: string
   readonly createdAt: string
@@ -163,6 +172,7 @@ type Said = {
 type Context =
   | {
       readonly __typename: "CheckRun"
+      readonly databaseId: number | null
       readonly name: string
       readonly status: string
       readonly conclusion: string | null
@@ -209,6 +219,9 @@ type Answer = {
       readonly viewerCanEnableAutoMerge: boolean
       readonly viewerCanDisableAutoMerge: boolean
       readonly isInMergeQueue: boolean
+      readonly headRef: { readonly id: string } | null
+      readonly isCrossRepository: boolean
+      readonly headRepository: { readonly viewerPermission: string | null } | null
       readonly viewerLatestReview: { readonly commit: { readonly oid: string } | null } | null
       readonly autoMergeRequest: { readonly mergeMethod: string | null } | null
       readonly mergeQueue: { readonly url: string | null } | null
@@ -254,6 +267,9 @@ type Answer = {
         } | null>
       }
     } | null
+    readonly openPulls: {
+      readonly nodes: ReadonlyArray<ChainNode | null>
+    }
   } | null
 }
 
@@ -283,6 +299,7 @@ const faceOf = (actor: Actor): FaceFacts => ({
 })
 
 const saidOf = (said: Said): SaidFacts => ({
+  id: said.id,
   author: faceOf(said.author),
   body: said.body,
   html: said.bodyHTML,
@@ -360,7 +377,10 @@ const seconds = (from: string | null, to: string | null): number => {
   return Number.isFinite(took) && took > 0 ? Math.round(took) : 0
 }
 
-const checkOf = (context: Context): CheckFacts | null => {
+const checkOf = (
+  context: Context,
+  where: { readonly owner: string; readonly repo: string }
+): CheckFacts | null => {
   if (context.__typename === "CheckRun") {
     const run = context as Extract<Context, { readonly __typename: "CheckRun" }>
     const state =
@@ -375,7 +395,10 @@ const checkOf = (context: Context): CheckFacts | null => {
       state,
       isRequired: run.isRequired,
       summary: run.title ?? run.summary ?? "",
-      url: run.detailsUrl ?? "",
+      url:
+        run.databaseId !== null
+          ? `https://github.com/${where.owner}/${where.repo}/actions/runs/0/job/${run.databaseId}`
+          : (run.detailsUrl ?? ""),
       durationSeconds: seconds(run.startedAt, run.completedAt)
     }
   }
@@ -540,7 +563,7 @@ export const readCard = Effect.fn("readCard")(function* (token: string, card: Ca
     ),
     remarks: real(pull.comments.nodes).map((one): RemarkFacts => ({ id: one.id, ...saidOf(one) })),
     checks: real(real(pull.rollup.nodes)[0]?.commit.statusCheckRollup?.contexts.nodes ?? [])
-      .map(checkOf)
+      .map((one) => checkOf(one, card))
       .filter((one): one is CheckFacts => one !== null),
     reviews: real(pull.latestOpinionatedReviews.nodes)
       .map((one): ReviewFacts | null => {
@@ -548,7 +571,19 @@ export const readCard = Effect.fn("readCard")(function* (token: string, card: Ca
         return decision === undefined ? null : { reviewer: faceOf(one.author), decision }
       })
       .filter((one): one is ReviewFacts => one !== null),
-    merge: mergeOf(pull, ways)
+    merge: mergeOf(pull, ways),
+    stack: chainOf(
+      card.owner,
+      card.repo,
+      card.number,
+      real(answer.repository?.openPulls.nodes ?? [])
+    ),
+    mayDelete:
+      pull.headRef !== null &&
+      (pull.headRepository?.viewerPermission === "ADMIN" ||
+        pull.headRepository?.viewerPermission === "MAINTAIN" ||
+        pull.headRepository?.viewerPermission === "WRITE"),
+    mayRestore: false
   } satisfies CardFacts
 })
 

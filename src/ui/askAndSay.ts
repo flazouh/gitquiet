@@ -31,11 +31,10 @@ const named = (reference: PullRequestRef): string =>
  * Asking GitHub for a verb, and saying either what happened or why it did not.
  *
  * The whole of what a surface owes the reader after a press, in one place because
- * both halves were being written out again at every control: the refusal, which
- * is the only thing an optimistic list can do with a no, and the way back, which
- * is what makes a single press honest. A verb with an opposite is offered it here;
- * a verb without one — merging — gets the sentence and nothing else, and is asked
- * about twice before it goes instead.
+ * both halves were being written out again at every control: the refusal, and the
+ * way back. A verb with an opposite is offered it here; a verb without one —
+ * merging — gets the sentence and nothing else, and is asked about twice before
+ * it goes instead.
  *
  * Undoing is asked for through this same function, so the undo of a close is a
  * reopen that reports itself and can be undone in turn. That is not a flourish:

@@ -13,16 +13,70 @@ import {
   WorkingSetError
 } from "../../../src/ports/GitHubGateway"
 import type { WorkingSetRow } from "../shared/wire"
+import { asLanded } from "../../../src/github/landed"
 import { preferredWay } from "../shared/merging"
 import {
   askForCard,
   askForCommit,
+  askForSize,
   askHowToMerge,
   askForPatches,
   askToRemark,
+  askToReply,
+  askToReview,
   askToSay,
+  askToSettle,
+  askToUnsettle,
   askToWrite
 } from "./card"
+import {
+  askForInvolvedIssues,
+  askForIssue,
+  askForIssueSearch,
+  askForRepositories,
+  askToDeleteBranch,
+  askToRaise,
+  askToReopenIssue,
+  askToSayOnIssue,
+  askToSettleIssue
+} from "./askIssue"
+import {
+  askForActivity,
+  askForAuthors,
+  askForBlameAt,
+  askForBranches,
+  askForBuilds,
+  askForCommitMarks,
+  askForCommits,
+  askForCommitStat,
+  askForFileAt,
+  askForRepoHome,
+  askForLog,
+  askForNotices,
+  askForNotes,
+  askForPerson,
+  askForPersonRepositories,
+  askForRawFileAt,
+  askForReleases,
+  askForRun,
+  askForSearch,
+  askForStanding,
+  askForSteps,
+  askForStrands,
+  askForSuggesting,
+  askForTabs,
+  askForTail,
+  askForTreeCommits,
+  askForTreePaths,
+  askForWhoTouched,
+  askToCancelRun,
+  askToMakeStack,
+  askToMergeStack,
+  askToPressNotice,
+  askToRerun,
+  askToStar,
+  askToUpload
+} from "./askRepo"
 import { keptCard } from "./kept"
 import { snapshotFrom } from "./snapshot"
 import { ask } from "./rpc"
@@ -58,7 +112,8 @@ const refused = (route: string, detail: string) =>
  * methods from the same rows gets them there by the route the app expects
  * instead of smuggling them in early.
  */
-const involvedFrom = (row: WorkingSetRow): InvolvedPullRequest => ({
+const involvedFrom = (row: WorkingSetRow): InvolvedPullRequest =>
+  asLanded({
   reference: { owner: row.owner, repo: row.repo, number: row.number },
   id: row.id,
   title: row.title,
@@ -94,7 +149,7 @@ const involvedFrom = (row: WorkingSetRow): InvolvedPullRequest => ({
   checks: Option.none(),
   reviewed: Option.none(),
   size: Option.none()
-})
+  })
 
 /**
  * Every pull request the reader is in, asked of the process holding the token.
@@ -169,25 +224,6 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
   const sizesIn = () =>
     new Map(rows.map((row) => [row.id, { added: row.added, deleted: row.deleted }]))
 
-  /**
-   * A route this window has not built, answering with its own name.
-   *
-   * Every method of the port is written out, and this is why: a method left off is a
-   * call on nothing, which is a defect rather than a failure, and a defect never
-   * reaches the screen's word for "this went wrong". The window sits there saying it
-   * is still reading. That cost eight seconds on one press before anything typechecked
-   * this file — see `rememberedRows`.
-   */
-  const missing = (what: string) => (reference: PullRequestRef | RepoRef) =>
-    Effect.fail(
-      new GatewayError({
-        reference,
-        route: what,
-        reason: "not-recorded",
-        detail: `The desktop app cannot ${what} yet. It has the list and the card.`
-      })
-    )
-
   return Layer.succeed(GitHubGateway, {
     workingSet: (shelf: Shelf) =>
       Effect.succeed(
@@ -230,8 +266,8 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
 
     sizeOf: (reference: PullRequestRef) => {
       const row = byKey.get(keyOf(reference))
-      if (row === undefined) return missing("size")(reference)
-      return Effect.succeed<Size>({ added: row.added, deleted: row.deleted })
+      if (row !== undefined) return Effect.succeed<Size>({ added: row.added, deleted: row.deleted })
+      return askForSize(reference)
     },
 
     /**
@@ -263,22 +299,14 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
     portrait: () => Effect.succeed(Option.none()),
     contributions: () => Effect.succeed(Option.none()),
 
-    // The repository list, which this window does not have yet.
-    search: () => Effect.fail(refused("search", "The desktop app has no repository list yet.")),
+    search: (query, page) =>
+      Effect.map(askForSearch(query, page), (found) => ({
+        rows: found.rows.map(involvedFrom),
+        pages: Option.some({ current: found.current, total: found.total, count: found.count })
+      })),
     rememberedSearch: () => Effect.succeed(Option.none()),
 
-    /*
-     * The issues owed to whoever is signed in, which this window is not given.
-     *
-     * Answered rather than left off, and answered with nothing rather than with a
-     * failure. Leaving the property undefined is the exact fault the test beside
-     * this file guards: the call is on nothing, which is a defect rather than a
-     * failure, and a defect never reaches the screen's word for "this went wrong" —
-     * the window simply stops reading and says it is still reading, forever. The
-     * Working Set treats an empty answer as a Court with no issues in it, which is
-     * this window as it stands.
-     */
-    involvedIssues: () => Effect.succeed([]),
+    involvedIssues: askForInvolvedIssues,
     rememberedInvolvedIssues: () => Effect.succeed(Option.none()),
 
     /*
@@ -321,10 +349,10 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
           : Option.some(snapshotFrom(reference, facts))
       }),
 
-    notes: missing("read check notes"),
-    log: missing("read a log"),
-    tail: missing("tail a log"),
-    steps: missing("read job steps"),
+    notes: askForNotes,
+    log: askForLog,
+    tail: askForTail,
+    steps: askForSteps,
     commit: (reference: RepoRef, sha: string) => askForCommit(reference, sha),
     // REST embeds every patch GitHub will send on the first read, so there is
     // nothing left to walk for. Withheld / binary files stay that way.
@@ -365,21 +393,11 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
        written for the same reason. */
     remark: (reference: PullRequestRef, body: string) => askToRemark(reference, body),
 
-    // A review is not offered on this card: it needs a verdict — approve, request
-    // changes, or merely comment — and a place to choose one, which is its own
-    // screen's worth of work. Left as an error that names itself.
-    review: missing("review"),
-
-    /*
-     * The conversation, read but not written back to.
-     *
-     * The card draws every thread on it and a reader can add one — see `comment`
-     * above. Settling one and replying to one are two more writes, and each of them
-     * is a route on the bridge that nobody has opened yet.
-     */
-    settle: missing("resolve a thread"),
-    unsettle: missing("reopen a thread"),
-    reply: missing("reply to a thread"),
+    review: (reference: PullRequestRef, review) => askToReview(reference, review),
+    settle: (reference: PullRequestRef, threadId: string) => askToSettle(reference, threadId),
+    unsettle: (reference: PullRequestRef, threadId: string) => askToUnsettle(reference, threadId),
+    reply: (reference: PullRequestRef, commentId: string, body: string) =>
+      askToReply(reference, commentId, body),
 
     /*
      * The same question the extension asks its merge box, answered from the only
@@ -393,23 +411,18 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
      * 422, and the reader gets their sentence about a branch being out of date.
      */
     howToMerge: (reference: PullRequestRef) =>
-      Effect.map(askHowToMerge(reference), (ways) => ({
-        method: Option.fromNullishOr(preferredWay(ways)),
-        stacked: false
+      Effect.map(askHowToMerge(reference), (found) => ({
+        method: Option.fromNullishOr(preferredWay(found.ways)),
+        stacked: found.stacked
       })),
 
     /*
-     * Stacks, which this window says it knows nothing about and then holds to.
-     *
-     * `snapshot.ts` hands the merge box `stack: Option.none()`, so the controls that
-     * would reach these are never drawn. They are here for the day it answers
-     * otherwise, and until then a call is a mistake rather than a reader's press.
+     * A branch chain the documented search can see. Official GitHub stacks still
+     * refuse the ordinary merge route; makeStack says so rather than pretending.
      */
-    mergeStack: missing("merge a stack"),
-    makeStack: missing("make a stack"),
-    // The same arrangement for the branch: `headRef.mayDelete` is false in every
-    // snapshot this window builds, so nothing offers this.
-    deleteBranch: missing("delete the branch"),
+    mergeStack: askToMergeStack,
+    makeStack: askToMakeStack,
+    deleteBranch: askToDeleteBranch,
 
     /*
      * A commit as it was last read.
@@ -429,27 +442,27 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
      * answering with a confident nothing — a file browser drawn from an empty tree
      * reads as a repository with no files in it.
      */
-    repoHome: missing("read repository home"),
+    repoHome: askForRepoHome,
     rememberedRepoHome: () => Effect.succeed(Option.none()),
-    standing: missing("read repository standing"),
-    star: missing("star a repository"),
-    tabs: missing("read repository tabs"),
+    standing: askForStanding,
+    star: askToStar,
+    tabs: askForTabs,
     rememberedTabs: () => Effect.succeed(Option.none()),
-    suggesting: missing("read suggestions"),
-    upload: missing("upload a file"),
-    treePaths: missing("read file tree"),
-    fileAt: missing("read a file"),
+    suggesting: askForSuggesting,
+    upload: askToUpload,
+    treePaths: askForTreePaths,
+    fileAt: askForFileAt,
     // Blame is a screen this window has not built. It is a page of GitHub's
     // code view, and this gateway reaches GitHub through the documented API
     // rather than through page routes, so there is nothing here to read it
     // with until that screen exists.
-    blameAt: missing("read a file's blame"),
-    rawFileAt: missing("read raw file"),
-    treeCommits: missing("read tree commits"),
-    whoTouched: missing("read commit author"),
-    branchesOf: missing("list branches"),
+    blameAt: askForBlameAt,
+    rawFileAt: askForRawFileAt,
+    treeCommits: askForTreeCommits,
+    whoTouched: askForWhoTouched,
+    branchesOf: askForBranches,
     rememberedBranchesOf: () => Effect.succeed(Option.none()),
-    authorsOf: missing("list authors"),
+    authorsOf: askForAuthors,
     rememberedAuthorsOf: () => Effect.succeed(Option.none()),
 
     /*
@@ -460,10 +473,10 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
      * and the sizes belong to its rows. The kept sizes are an empty map rather than a
      * failure, because the caller reads that map for a row it is already drawing.
      */
-    commits: (list) => missing("read commits")(list.repo),
+    commits: askForCommits,
     rememberedCommits: () => Effect.succeed(Option.none()),
-    commitMarks: missing("read commit marks"),
-    commitStat: missing("read commit size"),
+    commitMarks: askForCommitMarks,
+    commitStat: askForCommitStat,
     rememberedStats: () => Effect.succeed(new Map()),
 
     /*
@@ -472,16 +485,16 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
      * Named against the repository a run is in, that being the widest thing its own
      * reference carries and the only part of it a failure has a word for.
      */
-    run: (reference) => missing("read a run")(reference.repo),
-    rerunRun: (reference) => missing("re-run a run")(reference.repo),
-    cancelRun: (reference) => missing("cancel a run")(reference.repo),
+    run: askForRun,
+    rerunRun: askToRerun,
+    cancelRun: askToCancelRun,
     rememberedRun: () => Effect.succeed(Option.none()),
-    strands: missing("read workflow runs"),
+    strands: askForStrands,
     rememberedStrands: () => Effect.succeed(Option.none()),
 
     // The Releases tab, which is a screen this window has not built either.
-    releases: missing("read releases"),
-    builds: missing("read release files"),
+    releases: askForReleases,
+    builds: askForBuilds,
     rememberedReleases: () => Effect.succeed(Option.none()),
 
     /*
@@ -492,37 +505,24 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
      * browser. Refused rather than answered with nothing, because an empty inbox and
      * an empty feed are both things a reader would believe.
      */
-    notices: () =>
-      Effect.fail(refused("notices", "The desktop app has no notifications view yet.")),
+    notices: askForNotices,
     rememberedNotices: () => Effect.succeed(Option.none()),
-    pressNotice: () =>
-      Effect.fail(refused("pressNotice", "The desktop app has no notifications view yet.")),
-    personRepositories: () =>
-      Effect.fail(refused("personRepositories", "The desktop app has no profile view yet.")),
-    person: () => Effect.fail(refused("person", "The desktop app has no profile view yet.")),
+    pressNotice: askToPressNotice,
+    personRepositories: (login, page) => askForPersonRepositories(login, page),
+    person: (login) => askForPerson(login),
     rememberedPerson: () => Effect.succeed(Option.none()),
-    repositories: () =>
-      Effect.fail(refused("repositories", "The desktop app has no repository list yet.")),
+    repositories: askForRepositories,
     rememberedRepositories: () => Effect.succeed(Option.none()),
-    activity: () =>
-      Effect.fail(refused("activity", "The desktop app has no activity feed yet.")),
+    activity: (login) => askForActivity(login),
     rememberedActivity: () => Effect.succeed(Option.none()),
 
-    /*
-     * Issues, which the list has a Court for and this window has no rows in.
-     *
-     * `involvedIssues` above answers with none, so the Court stands empty and nothing
-     * in here opens an issue. Reading one, searching them and the three writes are
-     * all a screen that has not been built.
-     */
-    issue: missing("read an issue"),
+    issue: askForIssue,
     rememberedIssue: () => Effect.succeed(Option.none()),
-    issueSearch: () =>
-      Effect.fail(refused("issueSearch", "The desktop app has no issue search yet.")),
+    issueSearch: askForIssueSearch,
     rememberedIssueSearch: () => Effect.succeed(Option.none()),
-    settleIssue: missing("close an issue"),
-    reopenIssue: missing("reopen an issue"),
-    sayOnIssue: missing("comment on an issue"),
-    raise: missing("raise an issue")
+    settleIssue: askToSettleIssue,
+    reopenIssue: askToReopenIssue,
+    sayOnIssue: (reference, _id, body) => askToSayOnIssue(reference, body),
+    raise: askToRaise
   })
 }
