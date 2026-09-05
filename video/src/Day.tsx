@@ -96,14 +96,8 @@ const BoxScene: React.FC = () => (
         { at: 130, x: 1350, y: 330, w: 1100 },
       ]}
     />
-    <Callout
-      text="929 upvotes on GitHub's own board"
-      x={430}
-      y={660}
-      dx={260}
-      dy={-171}
-      at={279}
-    />
+    {/* A chip, not a pointer: the hairline is pale and GitHub's page is white. */}
+    <Callout text="929 upvotes on GitHub's own board" x={640} y={660} at={279} />
   </Dark>
 );
 
