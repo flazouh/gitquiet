@@ -20,11 +20,30 @@ const howMany = (said: string | null | undefined): number => {
 }
 
 /**
+ * A file GitHub printed as lines, read one line at a time.
+ *
+ * Their page prints such a file as a table, one row per line, and indents the markup
+ * between the cells. The body's own text therefore carries that indentation and those
+ * line breaks as if they were in the file, and every line came out indented and
+ * double-spaced. An empty line's cell holds a bare newline, which is not part of the
+ * line either.
+ *
+ * Nothing is trimmed off the file itself: a first line that starts with spaces starts
+ * with spaces, and three blank lines in a row stay three.
+ */
+const linesOf = (body: Element): string | null => {
+  const cells = [...body.querySelectorAll(".blob-code")]
+  if (cells.length === 0) return null
+
+  return cells.map((cell) => (cell.textContent ?? "").replace(/\n$/, "")).join("\n")
+}
+
+/**
  * One file, told apart from the next by their `.file` block.
  *
- * The content is read off `.Box-body`'s own text rather than off a narrower selector
- * per kind. A rendered README and a highlighted source file share no markup at all, and
- * anything reading them separately is two selectors to keep and one to forget.
+ * A file printed as lines is read by {@link linesOf}. A rendered one keeps its markup
+ * in `html`, and its `content` is the body's text, which is only the fallback for
+ * anything that has no line cells at all.
  */
 const fileFrom = (element: Element): GistFile | null => {
   const name = element.querySelector(".gist-blob-name")?.textContent?.trim()
@@ -35,10 +54,12 @@ const fileFrom = (element: Element): GistFile | null => {
   const classes = body?.getAttribute("class") ?? ""
   const language = /\btype-([a-z0-9+#-]+)/i.exec(classes)?.[1] ?? null
 
+  const lines = body === null ? null : linesOf(body)
+
   return {
     name,
     language,
-    content: (body?.textContent ?? "").replace(/\n{3,}/g, "\n\n").trim(),
+    content: lines ?? (body?.textContent ?? "").replace(/\n{3,}/g, "\n\n").trim(),
     // Their own word for it: a file GitHub turned into HTML carries `markdown-body`,
     // and one it printed as lines does not.
     rendered: prose !== null,

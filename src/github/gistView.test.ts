@@ -60,6 +60,18 @@ describe("one gist, read out of their page", () => {
     expect(files[1]?.raw).toBe("/octocat/aaa111/raw/abc/retry.py")
   })
 
+  test("reads a printed file line by line, exactly as written", () => {
+    // Their page prints a file as one table row per line, with the markup indented and
+    // an empty line's cell holding a bare newline. Reading the whole body's text reads
+    // that indentation and those breaks as if they were in the file: every line came
+    // out indented and double-spaced, and the first one did not because of a trim.
+    const files = seen()?.files ?? []
+
+    expect(files[1]?.content).toBe(
+      "def exponential_backoff(attempt):\n\n    return min(2 ** attempt, 60)"
+    )
+  })
+
   test("reads every count their head prints", () => {
     expect(seen()).toMatchObject({ revisions: 4, forks: 6, stars: 4, comments: 2 })
   })
