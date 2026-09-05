@@ -3,7 +3,8 @@ import type { GistRow, Kind, Order } from "../domain/gistList"
 import { sifted } from "../domain/gistList"
 import { exported } from "../domain/gistExport"
 import { everyLabelKnown, type KeptGists, labelsOf, nameOf } from "../domain/gistLabels"
-import { GistRowView } from "./GistRowView"
+import { CARD, CARD_HEAD } from "./dress"
+import { GistRowView, gistColumns } from "./GistRowView"
 import { TheBar } from "./TheBar"
 import { useSlashFocuses } from "./useSlashFocuses"
 
@@ -113,6 +114,12 @@ export const GistListScreen = ({
     link.click()
     URL.revokeObjectURL(at)
   }
+
+  /*
+   * Worked out from the whole list rather than from the rows the filter left, so that
+   * narrowing the list to three does not re-cut its columns while the reader is typing.
+   */
+  const columns = useMemo(() => gistColumns(rows), [rows])
 
   const toggle = (label: string): void =>
     setPicked((held) =>
@@ -233,33 +240,48 @@ export const GistListScreen = ({
           </div>
         ) : null}
 
-        <p className="text-xs text-ink-muted">
-          {shown.length === rows.length
-            ? `${rows.length} ${whose === "starred" ? "starred " : ""}gist${
-                rows.length === 1 ? "" : "s"
-              }`
-            : `${shown.length} of ${rows.length}`}
-          {whole ? null : " · some older pages could not be read, so this list is short"}
-        </p>
+        {/*
+          One card holding the whole list, the way a repository's pull requests and every
+          issue list here are drawn: rows on shared tracks, so the eye runs down a column.
+          It was a card per gist before, which is a page of forty boxes and no columns.
+        */}
+        <section
+          aria-label={whose === "own" ? "Your gists" : "Your starred gists"}
+          className={`shrink-0 overflow-hidden ${CARD}`}
+        >
+          <div className={CARD_HEAD}>
+            <span className="text-xs text-ink-muted">
+              {shown.length === rows.length
+                ? `${rows.length} ${whose === "starred" ? "starred " : ""}gist${
+                    rows.length === 1 ? "" : "s"
+                  }`
+                : `${shown.length} of ${rows.length}`}
+              {whole ? null : " · some older pages could not be read, so this list is short"}
+            </span>
+          </div>
 
-        {shown.length === 0 ? (
-          <p className="py-6 text-sm text-ink-muted">
-            Nothing here matches. The search reads titles, descriptions and the file
-            content GitHub&rsquo;s own search skips, so a gist missing from this is a gist
-            missing from the pages that were read.
-          </p>
-        ) : (
-          shown.map((row) => (
-            <GistRowView
-              key={row.id}
-              row={row}
-              labels={labelsOf(kept, row.id)}
-              name={nameOf(kept, row.id)}
-              known={known}
-              onChange={onChange}
-            />
-          ))
-        )}
+          {shown.length === 0 ? (
+            <p className="px-3 py-2 text-sm text-ink-muted">
+              Nothing here matches. The search reads titles, descriptions and the file
+              content GitHub&rsquo;s own search skips, so a gist missing from this is a gist
+              missing from the pages that were read.
+            </p>
+          ) : (
+            <div className="pb-1">
+              {shown.map((row) => (
+                <GistRowView
+                  key={row.id}
+                  row={row}
+                  columns={columns}
+                  labels={labelsOf(kept, row.id)}
+                  name={nameOf(kept, row.id)}
+                  known={known}
+                  onChange={onChange}
+                />
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </>
   )

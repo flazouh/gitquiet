@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { afterEach, describe, expect, test } from "bun:test"
 import type { GistRow } from "../domain/gistList"
 import type { KeptGists } from "../domain/gistLabels"
@@ -44,8 +44,16 @@ const showing = (
     />
   )
 
+/**
+ * The rows, top to bottom, by the name each one is read aloud as.
+ *
+ * Off the table rather than off every link on the page: the bar and the header carry
+ * links of their own, and a row is one link whose name is the gist's.
+ */
 const titles = (): ReadonlyArray<string> =>
-  screen.getAllByRole("link").map((link) => link.textContent ?? "").filter((text) => text.endsWith(".md") || text.endsWith(".py") || text.endsWith(".json"))
+  within(screen.getByRole("region", { name: /gists$/ }))
+    .getAllByRole("link")
+    .map((link) => (link.getAttribute("aria-label") ?? "").replace(/\. Secret$/, ""))
 
 describe("a reader's own gists", () => {
   test("draws every gist their page carries", () => {
@@ -173,9 +181,33 @@ describe("a reader's own gists", () => {
     // be able to see the word.
     showing()
 
-    const folds = screen.getAllByText("Preview")
+    const folds = screen.getAllByRole("button", { name: "Preview" })
     expect(folds.length).toBe(3)
-    expect(folds[0]?.closest("details")?.open).toBe(false)
+    expect(screen.queryByText("exponential backoff")).toBeNull()
+
+    fireEvent.click(folds[1]!)
+
+    expect(screen.getByText("exponential backoff").tagName).toBe("PRE")
+  })
+
+  test("draws the rows as one table, with a column only for a count somebody has", () => {
+    // The shape every other list here has: rows on shared tracks, so the eye runs down a
+    // column. A count that is zero on every row would be a column of nothing.
+    showing()
+
+    const rows = within(screen.getByRole("region", { name: "Your gists" })).getAllByRole("link")
+    expect(rows.length).toBe(3)
+    expect(new Set(rows.map((row) => row.style.gridTemplateColumns)).size).toBe(1)
+    expect(screen.getByText("9 stars")).toBeTruthy()
+    expect(screen.getByText("4 forks")).toBeTruthy()
+    expect(screen.queryByText(/comments?$/)).toBeNull()
+  })
+
+  test("names the owner only on a list that is not all one person's", () => {
+    // A reader's own list is theirs by definition; the starred list is everybody else's.
+    showing(new Map(), [row(), row({ id: "bbb222", owner: "hubot", title: "retry.py" })], true, "starred")
+
+    expect(screen.getByRole("img", { name: /hubot/ })).toBeTruthy()
   })
 
   test("offers a way to make one, which their header carries", () => {
