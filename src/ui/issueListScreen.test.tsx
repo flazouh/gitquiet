@@ -64,6 +64,26 @@ describe("a repository's issues", () => {
     expect(row.style.gridTemplateColumns).toContain("calc(1.75rem + 17ch)")
   })
 
+  test("counts the tail chip in the room it reserves", async () => {
+    // Two words and `+2`, which is what a row with four labels draws. Reserving
+    // for the words alone leaves the tail hanging off the same edge again.
+    onePage([issue(31, { labels: ["bug", "flaky", "needs triage", "blocked"] })])
+
+    const row = await screen.findByRole("link", { name: /Issue #31/ })
+
+    expect(row.style.gridTemplateColumns).toContain("calc(4.5rem + 10ch)")
+  })
+
+  test("reserves no more than a chip can grow to", async () => {
+    // The chip stops at `max-w-32` and ellipses the word inside it, so room kept
+    // past that point is width held for something nothing can draw.
+    onePage([issue(31, { labels: ["a-label-far-longer-than-any-chip-will-ever-be"] })])
+
+    const row = await screen.findByRole("link", { name: /Issue #31/ })
+
+    expect(row.style.gridTemplateColumns).toContain("calc(1.75rem + 18ch)")
+  })
+
   test("reserves nothing for labels on a list that has none", async () => {
     // The same reason every other column is measured rather than held open: a
     // width kept for a fact no row has is width taken from the titles.
