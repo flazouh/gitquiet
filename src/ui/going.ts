@@ -44,10 +44,15 @@ type World = Window & { gitquietOwnRows?: true }
  *
  * Exported because the shell holds reading ahead for the same span. That hold is
  * a bound rather than a proof: a slow arrival can still be reading past it, and
- * a guess resumed then is competing with the press again — but holding for the
- * repair's whole patience would cost every quick press its reading ahead, since
- * the strict arrival mark only the pull request screen publishes is what would
- * have to release the hold early.
+ * a guess resumed then is competing with the press again.
+ *
+ * Holding for the repair's whole patience is now available and was not when this
+ * span was chosen. The hold ends early on whichever comes first, this span or
+ * the strict arrival mark — and back then one screen published that mark, so a
+ * longer span would have cost every other screen its reading ahead for the
+ * length of the repair. Sixteen screens publish it now. Lengthening the span is
+ * a change to what competes with a slow read, so it belongs to a measurement of
+ * that, not to the wiring that made it possible.
  */
 export const ARRIVING = 1_500
 
@@ -64,11 +69,21 @@ export const ARRIVING = 1_500
  *
  * So a deadline that finds the arrival still moving — see `stillArriving`: the
  * gate up, or a standing screen with a read visibly in flight — waits another
- * {@link ARRIVING} instead of replacing, up to this many times. Five puts the
- * forced answer at nine seconds, deliberately past everyone else's give-ups:
- * the shell drops the gate at eight, and a screen whose read fails draws its
- * failure or steps aside well before that. By the last check a working arrival
- * has finished or given up on itself, and what is left really is not coming.
+ * {@link ARRIVING} instead of replacing, up to this many times.
+ *
+ * Five spends these checks at 1.5s through 7.5s, and the confirming deadline
+ * below puts the forced answer at 10.5s. That is deliberately past everyone
+ * else's give-ups: the shell drops the gate at eight, and a screen whose read
+ * fails draws its failure or steps aside well before that. By the last check a
+ * working arrival has finished or given up on itself, and what is left really
+ * is not coming.
+ *
+ * This is a count of checks and not a span, so an arrival that goes in and out
+ * of view stretches it: only a check that finds movement spends one, and each
+ * of those puts the confirmation back to the beginning. A read revalidating
+ * behind a wait mark that comes and goes reaches eleven deadlines, 16.5s. Still
+ * past every give-up, which is the whole of what the bound has to be, and the
+ * reason it is a count is that what it is counting is evidence rather than time.
  */
 const STILL_ARRIVING_CHECKS = 5
 
@@ -365,24 +380,6 @@ export const watchTheTrail = (target: Window, moved: () => void): Stop => {
 }
 
 /**
- * Sends the reader to one of our screens, and makes sure the address never gets
- * ahead of what is on the page.
- *
- * The repair is the point. Pushing an address is this file's business; drawing
- * the screen for it is another script's, and the two can come apart — a screen
- * that fails to load, a page GitHub has moved, a version of this extension where
- * the second press was not answered. What that left behind was the worst kind of
- * bug: an address naming a pull request, a list still on the screen, and a history
- * entry with nothing behind it, so the reader pressed Back and appeared to skip
- * the page they had been looking at.
- *
- * So the push is provisional. If no screen has arrived by {@link ARRIVING} — and
- * none is visibly still on its way, see {@link STILL_ARRIVING_CHECKS}, and the
- * verdict has held for a second deadline — the same address is loaded properly:
- * `replace`, not `assign`, so the entry this pushed is the one the document
- * lands on rather than a second one beside it. History says one true thing.
- */
-/**
  * The whole address, so that two of them can be compared.
  *
  * All three parts of it. A heading counts: a reader who presses the repository's
@@ -407,6 +404,24 @@ const addressOf = (target: Window): string =>
 export const addressIn = (link: HTMLAnchorElement): string =>
   `${link.pathname}${link.search}${link.hash}`
 
+/**
+ * Sends the reader to one of our screens, and makes sure the address never gets
+ * ahead of what is on the page.
+ *
+ * The repair is the point. Pushing an address is this file's business; drawing
+ * the screen for it is another script's, and the two can come apart — a screen
+ * that fails to load, a page GitHub has moved, a version of this extension where
+ * the second press was not answered. What that left behind was the worst kind of
+ * bug: an address naming a pull request, a list still on the screen, and a history
+ * entry with nothing behind it, so the reader pressed Back and appeared to skip
+ * the page they had been looking at.
+ *
+ * So the push is provisional. If no screen has arrived by {@link ARRIVING} — and
+ * none is visibly still on its way, see {@link STILL_ARRIVING_CHECKS}, and the
+ * verdict has held for a second deadline — the same address is loaded properly:
+ * `replace`, not `assign`, so the entry this pushed is the one the document
+ * lands on rather than a second one beside it. History says one true thing.
+ */
 export const goTo = (
   target: Window,
   path: string,

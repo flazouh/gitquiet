@@ -16,9 +16,17 @@ const SAME_TRAVERSAL_MS = 100
 
 /**
  * The one contract the rest of the extension reads off a wait: the page has not
- * been read yet. Written by `Waiting.tsx`, read here to know when a measurement
- * can finish, and read by the repair in `going.ts` to know a screen standing
- * with this inside it is working, not wedged.
+ * been read yet.
+ *
+ * Written by `Waiting.tsx`, read here to know when a measurement can finish, and
+ * read by `stillArriving` in `mount.ts`, through which the repair in `going.ts`
+ * asks whether a screen standing with this inside it is working rather than
+ * wedged.
+ *
+ * Named here rather than beside the other `data-gitquiet-*` names in `mount.ts`,
+ * which is where it belongs by ownership and cannot go by dependency: `mount.ts`
+ * already imports `finishNavigation` from this file, so the name moving there
+ * would make the two import each other for one string.
  */
 export const READING = "[data-gitquiet-loading]"
 
