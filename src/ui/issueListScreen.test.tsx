@@ -49,6 +49,31 @@ describe("a repository's issues", () => {
     ])
   })
 
+  /*
+   * An issue's labels stand across the tracks a pull request keeps its checks,
+   * its remarks and its diff in. On a list that is issues and nothing else none
+   * of those three facts exists, so all three tracks were nothing wide and the
+   * labels hung off the left edge of a cell sixteen pixels across: every row on
+   * every issue list read `er:task` where the label said `wayfinder:task`.
+   */
+  test("reserves room for the labels it draws", async () => {
+    onePage([issue(31, { labels: ["agent:claude-code"] })])
+
+    const row = await screen.findByRole("link", { name: /Issue #31/ })
+
+    expect(row.style.gridTemplateColumns).toContain("calc(1.75rem + 17ch)")
+  })
+
+  test("reserves nothing for labels on a list that has none", async () => {
+    // The same reason every other column is measured rather than held open: a
+    // width kept for a fact no row has is width taken from the titles.
+    onePage([issue(31)])
+
+    const row = await screen.findByRole("link", { name: /Issue #31/ })
+
+    expect(row.style.gridTemplateColumns).toContain("0rem 0rem 0rem")
+  })
+
   test("says the kind and the number, and claims no Court", async () => {
     // The Court is the whole of what Home concludes and this page concludes
     // nothing: one question was asked, about a repository.

@@ -171,6 +171,17 @@ type TrackFits = {
   readonly checks: TrackFit
   readonly comments: TrackFit
   readonly size: TrackFit
+  /**
+   * How much room an issue's labels need in the tracks they stand across.
+   *
+   * Not a column of its own. The labels span the tracks a pull request keeps its
+   * checks, its remarks and its diff in, and a span is only ever as wide as the
+   * tracks under it — so on a list that is issues and nothing else, where none of
+   * those three facts exists, all three were nothing wide and the labels hung off
+   * the left edge of a cell sixteen pixels across. Every row of every issue list
+   * read `er:task` where the label said `wayfinder:task`.
+   */
+  readonly labels: TrackFit
 }
 
 const EMPTY_FIT: TrackFit = { fixedRem: 0, characters: 0 }
@@ -180,7 +191,8 @@ const EMPTY_FITS: TrackFits = {
   standing: EMPTY_FIT,
   checks: EMPTY_FIT,
   comments: EMPTY_FIT,
-  size: EMPTY_FIT
+  size: EMPTY_FIT,
+  labels: EMPTY_FIT
 }
 
 // This estimate only chooses the widest candidate. CSS performs the actual sizing.
@@ -213,6 +225,30 @@ const sizeFit = (size: Option.Option<Size>): TrackFit =>
     })
   })
 
+/**
+ * The room the chips actually drawn need, which is the two words and the tail.
+ *
+ * A chip is its word, a colour dot, and the padding around both, which is where
+ * the rem comes from. The word is capped at the same place `max-w-32` caps the
+ * chip: past that the chip stops growing and the word inside it ellipses, so
+ * reserving more would be width held for something nothing can draw.
+ */
+const LABEL_CAP = 18
+
+const labelFit = (labels: ReadonlyArray<string>): TrackFit => {
+  if (labels.length === 0) return EMPTY_FIT
+
+  const named = labels.slice(0, NAMED)
+  const rest = labels.length - named.length
+
+  return {
+    fixedRem: named.length * 1.75 + (rest > 0 ? 1 : 0),
+    characters:
+      named.reduce((run, word) => run + Math.min(word.length, LABEL_CAP), 0) +
+      (rest > 0 ? `+${rest}`.length : 0)
+  }
+}
+
 const standingFit = (one: InvolvedPullRequest): TrackFit =>
   Option.match(one.why, {
     onSome: (reason) => ({ fixedRem: 1, characters: reasonRead(reason).words.length }),
@@ -233,7 +269,10 @@ const fitsWithPullRequest = (fits: TrackFits, one: InvolvedPullRequest): TrackFi
       ? EMPTY_FIT
       : { fixedRem: 1, characters: String(one.comments).length }
   ),
-  size: wider(fits.size, sizeFit(one.size))
+  size: wider(fits.size, sizeFit(one.size)),
+  // Carried rather than measured: a pull request row draws no labels, so it can
+  // only keep whatever room the issues in the same list already asked for.
+  labels: fits.labels
 })
 
 const fitsWithIssue = (fits: TrackFits, one: ListedIssue): TrackFits => ({
@@ -244,7 +283,8 @@ const fitsWithIssue = (fits: TrackFits, one: ListedIssue): TrackFits => ({
     one.comments === 0
       ? EMPTY_FIT
       : { fixedRem: 1, characters: String(one.comments).length }
-  )
+  ),
+  labels: wider(fits.labels, labelFit(one.labels))
 })
 
 /**
@@ -380,7 +420,16 @@ const tracksOf = (columns: Columns): string =>
     ...(columns.standing ? [fittedTrack(columns.fits.standing)] : []),
     fittedTrack(columns.fits.checks),
     fittedTrack(columns.fits.comments),
-    fittedTrack(columns.fits.size),
+    /*
+     * The diff's track, widened to whatever the labels standing across it need.
+     *
+     * The last of the three the labels span rather than the first, because both
+     * of the things that can stand here are pushed to the right end of the row:
+     * the diff is right-aligned in its own track and the labels hug the end of
+     * their span. Room added on this side lands where they both already are, so
+     * a pull request's row does not gain a gap in the middle of its facts.
+     */
+    fittedTrack(wider(columns.fits.size, columns.fits.labels)),
     TRACK.age
   ].join(" ")
 
@@ -823,7 +872,15 @@ export const IssueRow = ({
             <span
               key={word}
               title={word}
-              className="flex max-w-32 shrink-0 items-center gap-1.5 rounded-full bg-hover pr-2 pl-1.5 py-0.5 text-[11px] text-ink-muted"
+              /*
+               * Allowed to shrink, which is what keeps the word inside the row.
+               * The cell it sits in is pushed to the right end and hides what
+               * overflows, so a chip that refuses to give up width does not
+               * spill off the right edge where it would be seen: it spills off
+               * the left, and the reader gets the tail of a word with no way to
+               * tell it was cut.
+               */
+              className="flex min-w-0 max-w-32 items-center gap-1.5 rounded-full bg-hover pr-2 pl-1.5 py-0.5 text-[11px] text-ink-muted"
             >
               {/* The word's own colour, worked out from the word — see `labelTone.ts`. Two
                   labels on a row are told apart before either is read, which a shared grey
