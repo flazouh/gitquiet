@@ -35,48 +35,8 @@
 
 import type { Doing } from "../domain/discussions"
 import { text } from "./outcome"
+import { postingOf, type Posting } from "./theirForm"
 import type { DiscussionPress } from "@/domain/discussions"
-
-/** One of their forms, as much of it as sending it back needs. */
-export type Posting = {
-  /** Where it posts, as their markup gives it. */
-  readonly action: string
-  /** Every hidden field it carries, under their own names. */
-  readonly fields: Readonly<Record<string, string>>
-  /**
-   * The name of the field the reader's words go in, or nothing where the form takes none.
-   *
-   * Read off the form rather than assumed, because their name for it is theirs: a press that
-   * marks an answer sends no words at all, and the box at the foot of the page sends them under
-   * whatever `name` their textarea has today.
-   */
-  readonly bodyField: string | null
-}
-
-/**
- * One of their forms read whole, or nothing where it is not one that posts.
- *
- * A form with no action is not a form this can send. A form that GETs is a search box, and
- * sending one as a write would be a request that does nothing and reports success.
- */
-export const postingOf = (form: Element | null): Posting | null => {
-  const action = form?.getAttribute("action") ?? null
-  if (form === null || action === null || action === "") return null
-  if ((form.getAttribute("method") ?? "get").toLowerCase() !== "post") return null
-
-  const fields: Record<string, string> = {}
-  for (const input of [...form.querySelectorAll('input[type="hidden"][name]')]) {
-    const name = input.getAttribute("name") ?? ""
-    const value = input.getAttribute("value") ?? ""
-    // Their markup carries repeated blank-named hidden inputs beside the real ones. A name is
-    // what makes a field a field, so the nameless ones are left where they are.
-    if (name !== "") fields[name] = value
-  }
-
-  const box = form.querySelector("textarea[name]")
-
-  return { action, fields, bodyField: box?.getAttribute("name") ?? null }
-}
 
 /** The form the given control sits in, whichever ancestor that is. */
 const around = (node: Element | null): Element | null => node?.closest("form") ?? null
@@ -159,27 +119,6 @@ export const upvoting = (
   if (button === null || button.hasAttribute("disabled")) return null
 
   return postingOf(around(button))
-}
-
-/**
- * One of their forms as the body of a POST, with the reader's words put in it.
- *
- * Their own fields first and in their own order, because that is the order their page sends them
- * and there is no reason to be the one request that differs. The words go last, under the name
- * the form gave, and a form that takes no words takes none.
- *
- * Not `saying.ts`'s `asForm`, and named apart from it so nobody reads the two as one function.
- * That one is narrower on purpose: it insists on four named fields and posts the body under
- * `comment[body]`, because a pull request's box is one form whose shape is known and a missing
- * field there is worth failing over. This one is given whichever of four forms a press needs and
- * has to take their word for every part of it.
- */
-export const sendingOf = (posting: Posting, said?: string): string => {
-  const body = new URLSearchParams()
-  for (const [name, value] of Object.entries(posting.fields)) body.set(name, value)
-  if (posting.bodyField !== null && said !== undefined) body.set(posting.bodyField, said)
-
-  return body.toString()
 }
 
 /**

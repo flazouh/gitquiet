@@ -4,15 +4,14 @@ import {
   doingsIn,
   markingAnswer,
   menuRouteIn,
-  postingOf,
   reactingTo,
   reactionsWithin,
   replyingUnder,
   sayingOn,
   sending,
-  sendingOf,
   upvoting
 } from "./discussionForms"
+import { postingOf, sendingOf } from "./theirForm"
 
 const parse = (html: string): Document =>
   new DOMParser().parseFromString(`<html><body>${html}</body></html>`, "text/html")

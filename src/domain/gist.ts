@@ -97,6 +97,23 @@ export type GistFile = {
   readonly raw: string | null
 }
 
+/**
+ * One thing somebody said under a gist.
+ *
+ * The same shape a Remark on a pull request has, and drawn the same way: a gist has no
+ * lines to hang a thread on, so every comment on one is a remark about the whole thing.
+ */
+export type GistComment = {
+  /** Their own number for it, off `gistcomment-{id}`. */
+  readonly id: string
+  readonly author: { readonly login: string; readonly faceUrl: string | null }
+  /** The markdown as written, which their menu carries for copying. */
+  readonly body: string
+  /** GitHub's own rendering of {@link body}, so ours reads as theirs does. */
+  readonly html: string
+  readonly createdAt: string
+}
+
 /** One gist, everything their page says about it. */
 export type GistSeen = {
   readonly owner: string
@@ -109,7 +126,16 @@ export type GistSeen = {
   readonly revisions: number
   readonly forks: number
   readonly stars: number
+  /** How many their head counts, which is more than {@link said} where their page held some back. */
   readonly comments: number
+  /** What was said under it, oldest first, as far as their page carried it. */
+  readonly said: ReadonlyArray<GistComment>
+  /**
+   * Where the comments their page held back can be read from, or nothing where it holds
+   * them all. Their page prints the newest and a "Load earlier comments" control above
+   * them; this is that control's own address.
+   */
+  readonly earlierSaid: string | null
 }
 
 /**

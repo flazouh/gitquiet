@@ -1,4 +1,5 @@
 import type { GistFile, GistSeen } from "../domain/gist"
+import { commentsOn, earlierCommentsIn } from "./gistComments"
 
 /**
  * One gist, out of the markup GitHub already sent.
@@ -126,6 +127,8 @@ export const gistOnPage = (page: Document, owner: string, id: string): GistSeen 
     ),
     updatedAt: head.querySelector("relative-time")?.getAttribute("datetime") ?? "",
     files,
+    said: commentsOn(page),
+    earlierSaid: earlierCommentsIn(page),
     ...countsIn(head)
   }
 }

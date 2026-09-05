@@ -68,7 +68,8 @@ import {
   isKeptFound
 } from "./discussionsList"
 import { discussionOnPage, isKeptDiscussion } from "./discussionView"
-import { doingsIn, menuRouteIn, sending, sendingOf } from "./discussionForms"
+import { doingsIn, menuRouteIn, sending } from "./discussionForms"
+import { sendingOf } from "./theirForm"
 import { isKeptNotices, noticesOnPage } from "./notifications"
 import { asKept, personKept } from "./keptPerson"
 import { personOnPage } from "./person"

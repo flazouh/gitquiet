@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import { afterEach, describe, expect, test } from "bun:test"
 import type { GistSeen } from "../domain/gist"
 import type { KeptGists } from "../domain/gistLabels"
@@ -17,6 +17,8 @@ const gist = (over: Partial<GistSeen> = {}): GistSeen => ({
   forks: 6,
   stars: 4,
   comments: 2,
+  said: [],
+  earlierSaid: null,
   files: [
     {
       name: "deploy-notes.md",
@@ -38,9 +40,19 @@ const gist = (over: Partial<GistSeen> = {}): GistSeen => ({
   ...over
 })
 
-const showing = (over: Partial<GistSeen> = {}, kept: KeptGists = new Map()) =>
+const showing = (
+  over: Partial<GistSeen> = {},
+  kept: KeptGists = new Map(),
+  rest: Partial<Parameters<typeof GistScreen>[0]> = {}
+) =>
   render(
-    <GistScreen gist={gist(over)} kept={kept} onChange={() => {}} onStepAside={() => {}} />
+    <GistScreen
+      gist={gist(over)}
+      kept={kept}
+      onChange={() => {}}
+      onStepAside={() => {}}
+      {...rest}
+    />
   )
 
 describe("one gist", () => {
@@ -89,7 +101,11 @@ describe("one gist", () => {
   test("shows a Name over the filename, keeping the filename beside it", () => {
     showing({}, new Map([["aaa111", { labels: ["work"], name: "Staging runbook" }]]))
 
-    expect(screen.getByRole("heading", { name: "Staging runbook" })).toBeTruthy()
+    // The heading names the owner and the gist, the way the bar of every other screen
+    // here names where the reader is.
+    expect(screen.getByRole("heading", { name: "octocat / Staging runbook" })).toBeTruthy()
+    // Twice: beside the Name that replaced it, and on the file it is the name of.
+    expect(screen.getAllByText("deploy-notes.md").length).toBe(2)
     expect(screen.getByText("work")).toBeTruthy()
   })
 
@@ -98,6 +114,51 @@ describe("one gist", () => {
     fireEvent.click(screen.getByRole("button", { name: "Label / name…" }))
 
     expect(screen.getByLabelText(/Labels, separated by commas/)).toBeTruthy()
+  })
+
+  test("puts what anybody said beside the files, rather than under all of them", () => {
+    // Their own page keeps the conversation under every file, so on a gist of four it is
+    // a scroll away from anything. A pull request keeps it beside the code and so does this.
+    showing({
+      said: [
+        {
+          id: "4425115",
+          author: { login: "hubot", faceUrl: null },
+          body: "thanks !",
+          html: "<p>thanks !</p>",
+          createdAt: "2023-01-05T10:19:52Z"
+        }
+      ]
+    })
+
+    const talk = screen.getByRole("region", { name: "Conversation" })
+    expect(within(talk).getByText("thanks !")).toBeTruthy()
+    expect(within(talk).queryByText("retry.py")).toBeNull()
+  })
+
+  test("says nothing was said, rather than drawing an empty panel", () => {
+    showing()
+
+    expect(screen.getByText("nothing said yet")).toBeTruthy()
+  })
+
+  test("offers the older comments only where their page held some back", () => {
+    showing()
+    expect(screen.queryByRole("button", { name: "Load earlier comments" })).toBeNull()
+
+    cleanup()
+    showing({ earlierSaid: "/octocat/aaa111/load_comments?before_comment_id=1" }, new Map(), {
+      onEarlier: () => {}
+    })
+
+    expect(screen.getByRole("button", { name: "Load earlier comments" })).toBeTruthy()
+  })
+
+  test("offers no box to write in where GitHub drew none", () => {
+    // A reader who is not signed in, or an owner who turned comments off.
+    showing()
+
+    expect(screen.queryByRole("button", { name: /Say something/ })).toBeNull()
   })
 
   test("prints no count their page did not have", () => {

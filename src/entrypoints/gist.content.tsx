@@ -9,6 +9,9 @@ import { standAScreen, type Standing } from "@/shell/screen"
 import { gistViewIn, isGistEditing } from "@/domain/gist"
 import type { GistSeen } from "@/domain/gist"
 import { gistOnPage } from "@/github/gistView"
+import { commentsOn, earlierCommentsIn, sayingOn } from "@/github/gistComments"
+import { sendingOf } from "@/github/theirForm"
+import { faceOnPage, loginOnPage } from "@/ui/viewer"
 import { GistListScreen } from "@/ui/GistListScreen"
 import { GistScreen } from "@/ui/GistScreen"
 import { GIST_LIST, GIST_STARRED, GIST_VIEW } from "@/ui/gistPlace"
@@ -55,6 +58,17 @@ const readPage = (address: string): Effect.Effect<Document, unknown> =>
     return new DOMParser().parseFromString(source, "text/html")
   })
 
+/**
+ * Whoever GitHub says is here, for the box at the foot of a gist to be signed with.
+ *
+ * Off their own markup, which carries it on every page, so this costs no request and
+ * cannot itself fail.
+ */
+const viewerOnPage = (): { readonly login: string; readonly faceUrl?: string } | undefined => {
+  const login = loginOnPage()
+  return login === undefined ? undefined : { login, faceUrl: faceOnPage() }
+}
+
 export default defineContentScript({
   matches: ["*://gist.github.com/*"],
   runAt: "document_idle",
@@ -68,6 +82,16 @@ export default defineContentScript({
     /** What is on the page now, so a second arrival replaces rather than stacks. */
     let standing: Standing | null = null
     let stood: string | null = null
+
+    /**
+     * The gist on the screen, which changes without the page changing.
+     *
+     * Comments arrive after the first draw — the older ones come from a fetch, and one
+     * this reader writes comes from a re-read — and every one of those is the same gist
+     * said again rather than a different screen. See `drawGist`.
+     */
+    let seen: GistSeen | null = null
+    let readingEarlier = false
 
     const onChange = (
       id: string,
@@ -83,6 +107,7 @@ export default defineContentScript({
       standing?.close()
       standing = null
       stood = null
+      seen = null
       handBack(document)
     }
 
@@ -101,13 +126,109 @@ export default defineContentScript({
         )
       })
 
-    const drawGist = (gist: GistSeen): Standing =>
-      standAScreen({
+    /**
+     * The comments their page held back, oldest first, put in above the ones it drew.
+     *
+     * Their pager answers with a fragment of the same markup, carrying a pager of its own
+     * where there are older ones still. So one press reads one page, the way their own
+     * control does, and a gist with a hundred comments is not a hundred rows nobody asked
+     * for on arrival.
+     */
+    const readEarlier = (): void => {
+      const gist = seen
+      if (gist === null || gist.earlierSaid === null || readingEarlier) return
+
+      readingEarlier = true
+      standing?.redraw()
+
+      Effect.runFork(
+        readPage(gist.earlierSaid).pipe(
+          Effect.map((fragment) => {
+            seen = {
+              ...gist,
+              said: [...commentsOn(fragment), ...gist.said],
+              earlierSaid: earlierCommentsIn(fragment)
+            }
+          }),
+          Effect.catch((cause) => Effect.sync(() => reportError(cause))),
+          Effect.map(() => {
+            readingEarlier = false
+            standing?.redraw()
+          })
+        )
+      )
+    }
+
+    /**
+     * Says something under this gist, by sending back the form GitHub put on the page.
+     *
+     * Their gist page is Rails and their comment box is a form, so the write is that form
+     * with the reader's words in it. The token is signed for this render of this form and
+     * cannot be minted, which is why the form has to be read rather than a route guessed
+     * at — see `theirForm.ts`. Their own markup is still in the document behind this
+     * screen, which is what makes it readable at all.
+     *
+     * The page is read again afterwards rather than the answer parsed: what a Rails form
+     * post answers with is theirs to change, and one extra request buys not having to
+     * guess. A refusal is left to the box, which keeps the words and says what GitHub said.
+     */
+    const say = (owner: string, id: string) => (body: string) =>
+      Effect.gen(function* () {
+        const posting = sayingOn(document)
+        if (posting === null) {
+          return yield* Effect.fail(
+            new Error("GitHub drew no comment box on this page, so there is nothing to send.")
+          )
+        }
+
+        const answer = yield* Effect.tryPromise({
+          try: () =>
+            fetch(posting.action, {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              credentials: "include",
+              body: sendingOf(posting, body)
+            }),
+          catch: (cause) => new Error(String(cause))
+        })
+        if (!answer.ok) {
+          return yield* Effect.fail(new Error(`GitHub answered ${answer.status}.`))
+        }
+
+        const page = yield* readPage(`/${owner}/${id}`).pipe(
+          Effect.mapError((cause) => new Error(String(cause)))
+        )
+        const read = gistOnPage(page, owner, id)
+        if (read !== null) {
+          seen = read
+          standing?.redraw()
+        }
+      })
+
+    const drawGist = (gist: GistSeen): Standing => {
+      seen = gist
+
+      return standAScreen({
         place: GIST_VIEW,
         draw: () => (
-          <GistScreen gist={gist} kept={kept} onChange={onChange} onStepAside={stepAside} />
+          <GistScreen
+            gist={seen ?? gist}
+            kept={kept}
+            onChange={onChange}
+            viewer={viewerOnPage()}
+            reading={readingEarlier}
+            onEarlier={(seen ?? gist).earlierSaid === null ? undefined : readEarlier}
+            /*
+             * Offered only where GitHub drew a box. A reader who is not signed in gets
+             * "Sign in to comment" and no form, and an owner who turned comments off gets
+             * neither — in both cases a box here would be one that throws when it is used.
+             */
+            onSay={sayingOn(document) === null ? undefined : say(gist.owner, gist.id)}
+            onStepAside={stepAside}
+          />
         )
       })
+    }
 
     /**
      * Whichever screen this address is, or GitHub's own page where it is neither.
