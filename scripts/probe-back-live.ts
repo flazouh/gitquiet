@@ -174,13 +174,9 @@ while (performance.now() - began < WATCHING) {
  * so the landing address, which is the whole of the classification below, is
  * exactly the thing the breaking reading cannot say.
  */
-const landing = timeline[timeline.length - 1]?.sample.sameDocument === false
-  ? await (async () => {
-      await sleep(1_500)
-      return readTheDocument()
-    })()
-  : undefined
-if (landing !== undefined) {
+if (timeline[timeline.length - 1]?.sample.sameDocument === false) {
+  await sleep(1_500)
+  const landing = await readTheDocument()
   timeline.push({ ms: Math.round(performance.now() - began), sample: landing })
 }
 
