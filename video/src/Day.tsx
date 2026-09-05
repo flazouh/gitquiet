@@ -6,20 +6,13 @@ import {
   Audio,
   continueRender,
   delayRender,
-  Freeze,
-  interpolate,
-  OffthreadVideo,
-  Sequence,
   staticFile,
   useCurrentFrame,
 } from "remotion";
-import { SimulatedCursor } from "@/components/remocn/simulated-cursor";
 import { SoftBlurIn } from "@/components/remocn/soft-blur-in";
-import { CLAMP, fadeIn } from "@/lib/remocn/scene-motion";
+import { fadeIn } from "@/lib/remocn/scene-motion";
 import {
   GRADIENT,
-  INK,
-  MUTED,
   ON_GRADIENT,
   ON_GRADIENT_MUTED,
   PAGE,
@@ -29,21 +22,19 @@ import { Shot } from "@/Shot";
 import { bedWash } from "@/Wash";
 
 /**
- * The release video, cut four: a walkthrough.
+ * The release video, cut five: the hook.
  *
- * Direction is Alex's (gitquiet-notes, research/video-story.md): GitQuiet
- * exists because GitHub's interface is frustrating and slow, so open on that
- * problem in GitHub's own footage and numbers, then walk the product page by
- * page and show the value. No time budget.
+ * Direction is Alex's: straight to the biggest pains and out, nothing on
+ * settings or themes. Open on GitHub's own "Hide whitespace" box, the most
+ * upvoted complaint on their board, then the three things this fixes that
+ * the most people recognise: the box that forgets itself, the review thread
+ * that vanishes on push, and the list that says what needs you.
  *
- * The voice leads and the picture is cut to its sentence timestamps, which is
- * why every beat length below is odd. The read is written from recorded demo
- * speech rather than from copy (research/voice-over-spoken.md), so it points
- * at things, volunteers the cold number rather than defending the warm one,
- * and stops rather than closing.
- *
- * Every callout is a journaled pain shown solved; the map with receipts is in
- * research/video-story.md.
+ * The voice leads and the picture is cut to its clip timestamps, which is
+ * why every beat length below is odd. The read was written in a fresh
+ * context from the verified pain list (gitquiet-notes,
+ * research/voice-over-spoken.md); the picture claims only what each
+ * screenshot shows.
  */
 
 const FONT =
@@ -86,79 +77,40 @@ const Bed: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </AbsoluteFill>
 );
 
-const ProblemScene: React.FC = () => {
-  const video = (
-    <OffthreadVideo
-      src={staticFile("theirs.mp4")}
-      muted
-      style={{ width: 1064, height: 558 }}
+/**
+ * GitHub's own Files changed page, a real pull request, with the diff
+ * settings open on the box the voice is talking about. The camera opens on
+ * the whole page and lands on the popover as the box is named.
+ */
+const BoxScene: React.FC = () => (
+  <Dark>
+    <Shot
+      src="github-whitespace.png"
+      sourceWidth={2560}
+      width={1064}
+      height={580}
+      top={40}
+      enter={12}
+      views={[
+        { at: 60, x: 0, y: 0, w: 2560 },
+        { at: 130, x: 1350, y: 330, w: 1100 },
+      ]}
     />
-  );
-  return (
-    <Dark>
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: 50,
-          transform: "translateX(-50%)",
-          width: 1064,
-          height: 558,
-          overflow: "hidden",
-          borderRadius: 18,
-          border: "1px solid rgba(255,255,255,0.09)",
-          boxShadow: "0 30px 80px -30px rgba(0,0,0,0.8)",
-          background: "#0d0d0d",
-        }}
-      >
-        <Sequence durationInFrames={180}>{video}</Sequence>
-        <Sequence from={180}>
-          <Freeze frame={179}>{video}</Freeze>
-        </Sequence>
-      </div>
-      <Callout
-        text="Nothing here says it needs you"
-        x={700}
-        y={104}
-        dx={-274}
-        dy={52}
-        at={110}
-      />
-      <Callout
-        text="10+ seconds to reach the diff. Their changelog."
-        x={385}
-        y={660}
-        at={300}
-      />
-      <Callout
-        text="A 1 GB JavaScript heap. Their engineering blog."
-        x={890}
-        y={660}
-        at={400}
-      />
-    </Dark>
-  );
-};
+    <Callout
+      text="929 upvotes on GitHub's own board"
+      x={430}
+      y={660}
+      dx={260}
+      dy={-171}
+      at={279}
+    />
+  </Dark>
+);
 
 const TurnScene: React.FC = () => {
   const frame = useCurrentFrame();
   return (
     <Bed>
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          top: 236,
-          textAlign: "center",
-          fontSize: 28,
-          fontWeight: 550,
-          color: ON_GRADIENT_MUTED,
-          opacity: fadeIn(frame, 4, 10),
-        }}
-      >
-        Introducing
-      </div>
       <AbsoluteFill style={{ transform: "translateY(-6px)" }}>
         <SoftBlurIn
           text="GitQuiet"
@@ -186,12 +138,67 @@ const TurnScene: React.FC = () => {
   );
 };
 
+/**
+ * The same box on our side: one knob in the settings sheet, whose answer is
+ * kept. The camera lands on the knob's row as the voice says it stays.
+ */
+const SettingScene: React.FC = () => (
+  <Dark>
+    <Shot
+      src="settings.png"
+      sourceWidth={2560}
+      width={1064}
+      height={580}
+      top={40}
+      enter={8}
+      views={[
+        { at: 0, x: 230, y: 346, w: 2048 },
+        { at: 50, x: 560, y: 800, w: 1300 },
+      ]}
+    />
+    <Callout
+      text="Remembered across pull requests"
+      x={600}
+      y={660}
+      dx={321}
+      dy={-181}
+      at={75}
+    />
+  </Dark>
+);
+
+const ThreadsScene: React.FC = () => (
+  <Dark>
+    <Shot
+      src="pull-request.png"
+      sourceWidth={2560}
+      width={1064}
+      height={580}
+      top={40}
+      views={[
+        { at: 0, x: 0, y: 360, w: 1350 },
+        { at: 560, x: 0, y: 378, w: 1330 },
+      ]}
+    />
+    <Callout
+      text="Unresolved threads, above the diff"
+      x={740}
+      y={140}
+      dx={-300}
+      dy={60}
+      at={311}
+    />
+    <Callout text="Still there after a push" x={330} y={660} at={450} />
+    <Callout text="Real text, so find in page works" x={900} y={660} at={485} />
+  </Dark>
+);
+
 /** The group meanings are the README's own words. */
 const GROUP_LABELS: { text: string; y: number; at: number }[] = [
-  { text: "You can act on it now", y: 91, at: 84 },
-  { text: "Someone else has to act", y: 387, at: 102 },
-  { text: "A machine is still working", y: 525, at: 120 },
-  { text: "Finished", y: 635, at: 138 },
+  { text: "You can act on it now", y: 91, at: 272 },
+  { text: "Someone else has to act", y: 387, at: 290 },
+  { text: "A machine is still working", y: 525, at: 308 },
+  { text: "Finished", y: 635, at: 326 },
 ];
 
 const ListScene: React.FC = () => (
@@ -205,7 +212,7 @@ const ListScene: React.FC = () => (
       enter={12}
       views={[
         { at: 10, x: 0, y: 100, w: 2560 },
-        { at: 280, x: 0, y: 116, w: 2520 },
+        { at: 300, x: 0, y: 116, w: 2520 },
       ]}
     />
     {GROUP_LABELS.map((label) => (
@@ -219,274 +226,6 @@ const ListScene: React.FC = () => (
         at={label.at}
       />
     ))}
-    <SimulatedCursor
-      points={[
-        { x: 1180, y: 690, hold: 0 },
-        { x: 470, y: 141, hold: 96 },
-        { x: 472, y: 143, hold: 24, click: true },
-      ]}
-      size={28}
-      speed={0.62}
-    />
-  </Dark>
-);
-
-/**
- * The pull request the press opened, as GitQuiet drew it: the still is the
- * last frame of the same recording the race clips come from.
- */
-const PrOpenScene: React.FC = () => {
-  const frame = useCurrentFrame();
-  return (
-    <Dark>
-      <Shot
-        src="pull-request.png"
-        sourceWidth={2560}
-        width={1064}
-        height={580}
-        top={40}
-        enter={7}
-        views={[
-          { at: 0, x: 0, y: 0, w: 2560 },
-          { at: 260, x: 0, y: 24, w: 2500 },
-        ]}
-      />
-      {/* The address is the argument: nothing was migrated, nothing moved. */}
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          top: 648,
-          display: "flex",
-          justifyContent: "center",
-          opacity: fadeIn(frame, 56, 10),
-        }}
-      >
-        <span
-          style={{
-            fontSize: 26,
-            fontWeight: 500,
-            color: MUTED,
-            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-            padding: "10px 20px",
-            borderRadius: 10,
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          github.com<span style={{ color: INK }}>/oven-sh/bun/pull/18742</span>
-        </span>
-      </div>
-    </Dark>
-  );
-};
-
-const PageScene: React.FC = () => (
-  <Dark>
-    <Shot
-      src="pull-request.png"
-      sourceWidth={2560}
-      width={1064}
-      height={580}
-      top={40}
-      views={[
-        { at: 0, x: 0, y: 24, w: 2500 },
-        { at: 190, x: 0, y: 44, w: 2450 },
-      ]}
-    />
-    <Callout text="Checks" x={430} y={112} dx={-215} dy={4} at={44} />
-    <Callout text="Conversation" x={455} y={228} dx={-232} dy={-18} at={70} />
-    <Callout text="Files, and their diffs" x={800} y={548} dx={-70} dy={-190} at={96} />
-    <Callout text="3 of 7 seen" x={905} y={112} dx={112} dy={4} at={140} />
-  </Dark>
-);
-
-const PrConvoScene: React.FC = () => (
-  <Dark>
-    <Shot
-      src="pull-request.png"
-      sourceWidth={2560}
-      width={1064}
-      height={580}
-      top={40}
-      views={[
-        { at: 0, x: 0, y: 380, w: 1350 },
-        { at: 246, x: 0, y: 398, w: 1330 },
-      ]}
-    />
-    <Callout
-      text="Unresolved threads above the diff, and find works"
-      x={740}
-      y={140}
-      dx={-300}
-      dy={60}
-      at={22}
-    />
-  </Dark>
-);
-
-const VerdictScene: React.FC = () => (
-  <Dark>
-    <Shot
-      src="pull-request.png"
-      sourceWidth={2560}
-      width={1064}
-      height={580}
-      top={40}
-      views={[
-        { at: 0, x: 0, y: 856, w: 1350 },
-        { at: 120, x: 0, y: 868, w: 1326 },
-      ]}
-    />
-    <Callout
-      text="Your review, right there"
-      x={620}
-      y={560}
-      dx={-320}
-      dy={-40}
-      at={12}
-    />
-  </Dark>
-);
-
-const WhitespaceScene: React.FC = () => (
-  <Dark>
-    <Shot
-      src="pull-request.png"
-      sourceWidth={2560}
-      width={1064}
-      height={580}
-      top={40}
-      views={[
-        { at: 0, x: 1360, y: 380, w: 1180 },
-        { at: 250, x: 1360, y: 400, w: 1160 },
-      ]}
-    />
-    <Callout
-      text="Whitespace-only changes, folded by default"
-      x={640}
-      y={648}
-      at={40}
-    />
-  </Dark>
-);
-
-/**
- * The pull request wearing a colour pack, then another: Dracula, then Tokyo
- * Night, cross-faded at the midpoint. The code follows the pack, which is the
- * whole claim GitHub cannot make with light and dark.
- */
-const ThemesScene: React.FC = () => {
-  const frame = useCurrentFrame();
-  const swap = interpolate(frame, [128, 150], [0, 1], CLAMP);
-  return (
-    <Dark>
-      <div style={{ opacity: 1 - swap }}>
-        <Shot
-          src="pr-dracula.png"
-          sourceWidth={2560}
-          width={1120}
-          height={620}
-          top={30}
-          enter={8}
-          views={[
-            { at: 0, x: 0, y: 0, w: 2560 },
-            { at: 250, x: 0, y: 30, w: 2500 },
-          ]}
-        />
-      </div>
-      {swap > 0 ? (
-        <div style={{ opacity: swap }}>
-          <Shot
-            src="pr-tokyo.png"
-            sourceWidth={2560}
-            width={1120}
-            height={620}
-            top={30}
-            views={[
-              { at: 0, x: 0, y: 20, w: 2540 },
-              { at: 250, x: 0, y: 50, w: 2480 },
-            ]}
-          />
-        </div>
-      ) : null}
-      <Callout text="Thirty colour packs" x={640} y={660} at={24} />
-    </Dark>
-  );
-};
-
-const SplitScene: React.FC = () => (
-  <Dark>
-    <Shot
-      src="pr-split.png"
-      sourceWidth={2560}
-      width={1120}
-      height={620}
-      top={30}
-      enter={8}
-      views={[
-        { at: 0, x: 0, y: 0, w: 2560 },
-        { at: 120, x: 1360, y: 420, w: 1200 },
-        { at: 270, x: 1360, y: 440, w: 1180 },
-      ]}
-    />
-    <Callout
-      text="Side by side, remembered, no reload"
-      x={640}
-      y={648}
-      at={150}
-    />
-  </Dark>
-);
-
-const TreeScene: React.FC = () => (
-  <Dark>
-    <Shot
-      src="pull-request.png"
-      sourceWidth={2560}
-      width={1064}
-      height={580}
-      top={40}
-      views={[
-        { at: 0, x: 660, y: 340, w: 920 },
-        { at: 240, x: 660, y: 360, w: 900 },
-      ]}
-    />
-    <Callout
-      text="The tree stays, at any width"
-      x={640}
-      y={648}
-      at={30}
-    />
-  </Dark>
-);
-
-const ReviewScene: React.FC = () => (
-  <Dark>
-    <Shot
-      src="pull-request.png"
-      sourceWidth={2560}
-      width={1064}
-      height={580}
-      top={40}
-      views={[
-        { at: 0, x: 830, y: 200, w: 1720 },
-        { at: 420, x: 830, y: 220, w: 1700 },
-      ]}
-    />
-    <Callout
-      text="Review mode: j / k, x marks read"
-      x={640}
-      y={624}
-      at={60}
-    />
-    <Callout
-      text="It remembers what you have seen"
-      x={640}
-      y={672}
-      at={240}
-    />
   </Dark>
 );
 
@@ -510,7 +249,7 @@ const CtaScene: React.FC = () => {
           top: 418,
           display: "flex",
           justifyContent: "center",
-          opacity: fadeIn(frame, 150, 12),
+          opacity: fadeIn(frame, 280, 12),
         }}
       >
         <div
@@ -536,7 +275,7 @@ const CtaScene: React.FC = () => {
           fontSize: 25,
           fontWeight: 500,
           color: ON_GRADIENT_MUTED,
-          opacity: fadeIn(frame, 262, 12),
+          opacity: fadeIn(frame, 322, 12),
         }}
       >
         Chrome · Firefox · Safari
@@ -551,7 +290,7 @@ const CtaScene: React.FC = () => {
           fontSize: 25,
           fontWeight: 500,
           color: ON_GRADIENT,
-          opacity: fadeIn(frame, 300, 12),
+          opacity: fadeIn(frame, 393, 12),
         }}
       >
         gitquiet.com
@@ -561,24 +300,18 @@ const CtaScene: React.FC = () => {
 };
 
 /**
- * The whole film, in order, cut to the voice's sentence timestamps. `out` is
- * how a beat leaves: a wash between worlds, a fade within one, and hard cuts
- * on the press (the arrival is the claim) and at the end.
+ * The whole film, in order, cut to the voice's clip timestamps. `out` is how
+ * a beat leaves: a wash between worlds, a fade within one, and a hard cut at
+ * the end. A beat's frames are its own length plus its overlap, so the next
+ * beat begins exactly where the voice's next clip is about to start.
  */
 const BEATS: { scene: React.FC; frames: number; out: Out }[] = [
-  { scene: ProblemScene, frames: 546, out: "wash" },
-  { scene: TurnScene, frames: 150, out: "wash" },
-  { scene: ListScene, frames: 366, out: "cut" },
-  { scene: PrOpenScene, frames: 309, out: "fade" },
-  { scene: PageScene, frames: 253, out: "fade" },
-  { scene: PrConvoScene, frames: 353, out: "fade" },
-  { scene: WhitespaceScene, frames: 283, out: "fade" },
-  { scene: ThemesScene, frames: 259, out: "fade" },
-  { scene: SplitScene, frames: 277, out: "fade" },
-  { scene: TreeScene, frames: 251, out: "fade" },
-  { scene: ReviewScene, frames: 433, out: "fade" },
-  { scene: VerdictScene, frames: 199, out: "wash" },
-  { scene: CtaScene, frames: 421, out: "cut" },
+  { scene: BoxScene, frames: 378, out: "wash" },
+  { scene: TurnScene, frames: 121, out: "wash" },
+  { scene: SettingScene, frames: 143, out: "fade" },
+  { scene: ThreadsScene, frames: 606, out: "fade" },
+  { scene: ListScene, frames: 374, out: "wash" },
+  { scene: CtaScene, frames: 586, out: "cut" },
 ];
 
 export const DAY_DURATION_IN_FRAMES = BEATS.reduce(
