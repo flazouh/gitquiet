@@ -1,5 +1,5 @@
 import { Option } from "effect"
-import { gistListIn, gistViewIn, isGistStarred } from "../domain/gist"
+import { gistListIn, gistViewIn, isGistEditing, isGistStarred } from "../domain/gist"
 import type { Place } from "./place"
 
 /**
@@ -74,6 +74,19 @@ export const GIST_VIEW: Place = {
 }
 
 /**
+ * Their two editors: the form that makes a gist, and the one that changes one.
+ *
+ * One Place for both, because they are one screen: their own markup is the same form
+ * with the same fields, and which of the two it is shows in what their submit button
+ * says. See `GistEditScreen`.
+ */
+export const GIST_EDIT: Place = {
+  ...WHOLE_PAGE,
+  name: "gist-edit",
+  owns: (path, search) => isGistEditing(gistAddress(path, search))
+}
+
+/**
  * Which of the two a gist address is, or nothing where it is neither.
  *
  * The order matters and is the reason this is a function rather than a list walked by
@@ -84,6 +97,9 @@ export const GIST_VIEW: Place = {
  * agreeing.
  */
 export const gistPlaceOwning = (path: string, search: string = ""): Place | null => {
+  // Their editors first: `/{owner}/{id}/edit` is a third segment, which the view refuses,
+  // but `gist.github.com/` itself is the new-gist form and has no segments at all.
+  if (GIST_EDIT.owns(path, search)) return GIST_EDIT
   if (GIST_STARRED.owns(path, search)) return GIST_STARRED
   if (GIST_VIEW.owns(path, search)) return GIST_VIEW
   if (GIST_LIST.owns(path, search)) return GIST_LIST

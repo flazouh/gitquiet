@@ -1,0 +1,31 @@
+<!--
+  GitHub's own new-gist form, as `gist.github.com/` served it to a signed-in reader on
+  2026-09-06. The three fields that exist only here are theirs and are sent back
+  untouched: the two timestamps, and the honeypot, which is a text input wearing `hidden`
+  rather than one of type hidden.
+-->
+<html><body>
+<form data-turbo="false" class="js-blob-form" id="new_gist" aria-label="Create gist" action="/" accept-charset="UTF-8" method="post">
+  <input type="hidden" name="authenticity_token" value="a-new-token">
+  <div>
+    <div id="gists" class="js-gist-files">
+      <input type="text" class="form-control input-block input-contrast" name="gist[description]" value="" aria-label="Gist description" placeholder="Gist description…" autocomplete="off">
+      <div class="js-gist-file">
+        <blob-editor class="js-file file js-code-editor container-preview show-code mx-0">
+          <input type="hidden" name="gist[contents][][oid]" value="">
+          <input type="text" class="form-control js-gist-filename js-blob-filename" aria-label="Filename including extension…" name="gist[contents][][name]" value="" placeholder="Filename including extension…">
+          <input type="hidden" name="new_filename" class="js-new-filename-field" value="">
+          <input type="hidden" name="content_changed" class="js-blob-contents-changed" value="true">
+          <textarea class="form-control file-editor-textarea js-blob-contents js-code-textarea" rows="17" name="gist[contents][][value]" placeholder="Enter file contents here" aria-label="Enter file contents here" spellcheck="false"></textarea>
+        </blob-editor>
+      </div>
+      <input type="hidden" name="timestamp" value="1788646499328" autocomplete="off" class="form-control">
+      <input type="hidden" name="timestamp_secret" value="9d6dac77a37566c92778e60dbe3f7fdc67bfaf0bf13879cd60a11a7805c2a547" autocomplete="off" class="form-control">
+      <input type="text" name="required_field_6f7b" hidden="hidden" class="form-control">
+      <input type="radio" name="gist[public]" id="gist_public_0" value="0" checked="checked">
+      <input type="radio" name="gist[public]" id="gist_public_1" value="1">
+      <button type="submit" class="btn-primary btn">Create secret gist</button>
+    </div>
+  </div>
+</form>
+</body></html>

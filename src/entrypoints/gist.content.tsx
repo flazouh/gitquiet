@@ -12,9 +12,12 @@ import { gistOnPage } from "@/github/gistView"
 import { commentsOn, earlierCommentsIn, sayingOn } from "@/github/gistComments"
 import { sendingOf } from "@/github/theirForm"
 import { faceOnPage, loginOnPage } from "@/ui/viewer"
+import { gistFormOn, sendingGist } from "@/github/gistEditForm"
+import type { GistDraft } from "@/domain/gistEdit"
+import { GistEditScreen } from "@/ui/GistEditScreen"
 import { GistListScreen } from "@/ui/GistListScreen"
 import { GistScreen } from "@/ui/GistScreen"
-import { GIST_LIST, GIST_STARRED, GIST_VIEW } from "@/ui/gistPlace"
+import { GIST_EDIT, GIST_LIST, GIST_STARRED, GIST_VIEW } from "@/ui/gistPlace"
 import { Option } from "effect"
 import { handBack } from "@/ui/mount"
 import { whenAddressChanges } from "@/ui/navigation"
@@ -231,6 +234,61 @@ export default defineContentScript({
     }
 
     /**
+     * Their editor, as a screen of ours posting their own form.
+     *
+     * Their form is read out of the document rather than fetched, for the reason the
+     * comment box is: this content script is running in the page, their markup is still
+     * under this screen, and the token in it is signed for this render and cannot be
+     * minted. See `gistEditForm.ts`.
+     *
+     * A success is a page load — their route answers a redirect to the gist — so nothing
+     * here draws what happened. The address moving is what says it worked, and `show`
+     * takes it from there.
+     */
+    const drawEditor = (): Standing | null => {
+      const form = gistFormOn(document)
+      if (form === null) return null
+
+      const send = (draft: GistDraft) =>
+        Effect.gen(function* () {
+          const answer = yield* Effect.tryPromise({
+            try: () =>
+              fetch(form.action, {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                credentials: "include",
+                body: sendingGist(form, draft)
+              }),
+            catch: (cause) => new Error(String(cause))
+          })
+          if (!answer.ok) {
+            return yield* Effect.fail(new Error(`GitHub answered ${answer.status}.`))
+          }
+
+          /*
+           * Where their own form would have taken the reader: the gist as it now is.
+           * A whole load rather than a screen stood here, because what was posted is a
+           * new revision and every count, file and oid on the page behind this is a
+           * version old.
+           */
+          window.location.assign(answer.url)
+        })
+
+      return standAScreen({
+        place: GIST_EDIT,
+        draw: () => (
+          <GistEditScreen
+            draft={form.draft}
+            words={form.words}
+            onSave={send}
+            back={form.action === "/" ? "/" : form.action}
+            onStepAside={stepAside}
+          />
+        )
+      })
+    }
+
+    /**
      * Whichever screen this address is, or GitHub's own page where it is neither.
      *
      * A gist's own page keeps GitHub's for now — `plans/007` step 4 — which is why this
@@ -246,17 +304,30 @@ export default defineContentScript({
       const search = window.location.search
 
       /*
-       * Their editor, given room. Set before anything else decides what to draw, because
-       * this is the one page here that gets a stylesheet and no screen: it is a form
-       * GitHub already knows how to post, and the complaint about it is that it is too
-       * small rather than that it is wrong.
+       * Their editor, drawn as ours where their form can be read and given room where it
+       * cannot. The stylesheet is the fallback rather than the answer now: it is what a
+       * reader gets on a page whose form has stopped looking like this, which is the same
+       * bargain every screen here makes.
+       *
+       * Their form is read on arrival rather than watched for, because the editor pages
+       * are ordinary document loads: their `gist-pjax-container` swaps lists, not forms.
        */
       const editing = isGistEditing(`https://gist.github.com${path}${search}`)
-      document.documentElement.toggleAttribute(EDITING, editing)
       if (editing) {
-        stepAside()
+        if (stood === path) return
+
+        const drawn = drawEditor()
+        document.documentElement.toggleAttribute(EDITING, drawn === null)
+        if (drawn === null) {
+          stepAside()
+          return
+        }
+
+        stood = path
+        standing = drawn
         return
       }
+      document.documentElement.toggleAttribute(EDITING, false)
 
       const one = gistViewIn(`https://gist.github.com${path}${search}`)
       if (Option.isSome(one)) {

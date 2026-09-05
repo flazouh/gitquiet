@@ -1,0 +1,52 @@
+<!--
+  GitHub's own gist editor, as gist.github.com served it to a signed-in reader on
+  2026-09-06: `/flazouh/68a8fb7f334ede677748df77929e1b59/edit` with a second file added by
+  hand, so the reader here has two. Inline SVGs, their CodeMirror wrapper and the toolbars
+  are left out; nothing reads them. Every name, value and `disabled` is theirs.
+-->
+<html><body>
+<form data-turbo="false" class="js-blob-form" id="edit_gist_153325146" action="/octocat/aaa111" accept-charset="UTF-8" method="post">
+  <input type="hidden" name="_method" value="put" autocomplete="off">
+  <input type="hidden" name="authenticity_token" value="an-edit-token">
+  <div>
+    <div id="gists" class="js-gist-files">
+      <input type="text" class="form-control input-block input-contrast" name="gist[description]" value="Notes on rolling out staging" aria-label="Gist description" placeholder="Gist description…" autocomplete="off">
+      <div class="js-gist-file">
+        <div class="js-gist-file-delete d-none">
+          <input type="hidden" name="gist[contents][][name]" value="deploy-notes.md" disabled="">
+          <input type="hidden" name="gist[contents][][oid]" value="3768a50bff448a570930e554280271027f7cc8be" disabled="">
+          <input type="hidden" name="gist[contents][][value]" value="" disabled="">
+          <input type="hidden" name="gist[contents][][delete]" value="true" disabled="">
+        </div>
+        <blob-editor class="js-file file js-code-editor container-preview show-code mx-0">
+          <input type="hidden" name="gist[contents][][oid]" value="3768a50bff448a570930e554280271027f7cc8be">
+          <input type="text" class="form-control js-gist-filename js-blob-filename" aria-label="Filename including extension…" name="gist[contents][][name]" value="deploy-notes.md" placeholder="Filename including extension…">
+          <input type="hidden" name="new_filename" class="js-new-filename-field" value="deploy-notes.md">
+          <button type="button" class="Button Button--iconOnly Button--danger Button--small js-remove-gist-file d-none"></button>
+          <input type="hidden" name="content_changed" class="js-blob-contents-changed" value="true">
+          <textarea class="form-control file-editor-textarea js-blob-contents js-code-textarea" rows="17" name="gist[contents][][value]" placeholder="Enter file contents here" aria-label="Enter file contents here" spellcheck="false">## Deploying
+Run migrations before the deploy step</textarea>
+        </blob-editor>
+      </div>
+      <div class="js-gist-file">
+        <div class="js-gist-file-delete d-none">
+          <input type="hidden" name="gist[contents][][name]" value="retry.py" disabled="">
+          <input type="hidden" name="gist[contents][][oid]" value="abc123def456" disabled="">
+          <input type="hidden" name="gist[contents][][value]" value="" disabled="">
+          <input type="hidden" name="gist[contents][][delete]" value="true" disabled="">
+        </div>
+        <blob-editor class="js-file file js-code-editor container-preview show-code mx-0">
+          <input type="hidden" name="gist[contents][][oid]" value="abc123def456">
+          <input type="text" class="form-control js-gist-filename js-blob-filename" aria-label="Filename including extension…" name="gist[contents][][name]" value="retry.py" placeholder="Filename including extension…">
+          <input type="hidden" name="new_filename" class="js-new-filename-field" value="retry.py">
+          <input type="hidden" name="content_changed" class="js-blob-contents-changed" value="true">
+          <textarea class="form-control file-editor-textarea js-blob-contents js-code-textarea" rows="17" name="gist[contents][][value]" placeholder="Enter file contents here" aria-label="Enter file contents here" spellcheck="false">def exponential_backoff(attempt):
+    return min(2 ** attempt, 60)</textarea>
+        </blob-editor>
+      </div>
+      <button type="button" class="js-add-gist-file btn float-left">Add file</button>
+      <button type="submit" class="btn-primary btn">Update secret gist</button>
+    </div>
+  </div>
+</form>
+</body></html>

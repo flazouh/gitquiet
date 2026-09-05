@@ -13,13 +13,14 @@
  * Measured live, signed in, on 2026-09-02 in a 1256 by 888 window: `.CodeMirror` is 978
  * wide and 322 tall. A third of the height of the window it is in.
  *
- * A stylesheet rather than a screen, deliberately. These are forms, and GitHub already
- * knows how to post them — rebuilding one would mean owning gist creation, which is a
- * write this extension has no business inventing a second route for. Everything below
- * only changes how much of the window their own form is allowed to use.
+ * The fallback rather than the answer. `GistEditScreen` draws these two pages now, by
+ * posting GitHub's own form back with the reader's files in it — see `gistEditForm.ts`.
+ * What is left for this stylesheet is the page whose form could not be read, where the
+ * reader gets GitHub's own editor and at least gets room in it. That is the same bargain
+ * every screen here makes: come back empty rather than wrong, and hand the page over.
  *
- * Scoped to an attribute this extension sets, so nothing here speaks on a page it was
- * not asked to. See `isGistEditing`.
+ * Scoped to an attribute the content script sets only in that case, so nothing here
+ * speaks on a page it was not asked to. See `isGistEditing`.
  */
 
 [data-gitquiet-gist-editing] .gist-content,

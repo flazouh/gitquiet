@@ -49,8 +49,18 @@ describe("which gist screen owns an address", () => {
     expect(GIST_LIST.owns("/starred", "")).toBe(false)
   })
 
-  test("nothing at the root", () => {
-    expect(gistPlaceOwning("/", "")).toBeNull()
+  test("the root is their new-gist form, which is a screen now rather than nothing", () => {
+    // Their site has no other home: `gist.github.com/` is the form that makes a gist, and
+    // `/{owner}/{id}/edit` is the one that changes one. See `GistEditScreen`.
+    expect(gistPlaceOwning("/", "")?.name).toBe("gist-edit")
+    expect(gistPlaceOwning("/octocat/aaa111/edit", "")?.name).toBe("gist-edit")
+  })
+
+  test("their editor never reads as a list or a gist", () => {
+    // `/` has no segments at all, so the list parser must not read it as an owner, and
+    // `/edit` is a third segment, which the view parser already refuses.
+    expect(GIST_LIST.owns("/", "")).toBe(false)
+    expect(GIST_VIEW.owns("/octocat/aaa111/edit", "")).toBe(false)
   })
 
 
