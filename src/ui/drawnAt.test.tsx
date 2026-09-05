@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render } from "@testing-library/react"
 import { DrawnAt, useDrawnAt } from "./drawnAt"
 import { ScreenActivityProvider } from "./screenActivity"
+import { ROOT_ID } from "./mount"
 
 afterEach(cleanup)
 
@@ -123,5 +124,49 @@ describe("a screen that is mounted but does not have the page", () => {
     showing.rerender(active("/o/r/pull/1999"))
 
     expect(drawn()).toBe("/o/r/pull/1999")
+  })
+})
+
+/*
+ * The route the caches are keyed on, which a claim used to overwrite with its
+ * own shorter answer. A claim is a pathname; a route is a pathname and a
+ * search. See `markScreenRouteWhenWhole`.
+ */
+describe("what a claim says about the route", () => {
+  const standing = (route: string): HTMLElement => {
+    const root = document.createElement("div")
+    root.id = ROOT_ID
+    root.setAttribute("data-gitquiet-route", route)
+    document.body.append(root)
+    return root
+  }
+  const at = (path: string, search: string): void => {
+    const view = document.defaultView as unknown as { location: { pathname: string; search: string } }
+    view.location.pathname = path
+    view.location.search = search
+  }
+
+  afterEach(() => {
+    document.getElementById(ROOT_ID)?.remove()
+    at("/", "")
+  })
+
+  test("leaves a filtered list's route alone, search and all", () => {
+    const root = standing("/owner/repo/pulls?q=is%3Aopen")
+    at("/owner/repo/pulls", "?q=is%3Aopen")
+
+    render(<Screen at="/owner/repo/pulls" />)
+
+    expect(drawn()).toBe("/owner/repo/pulls")
+    expect(root.getAttribute("data-gitquiet-route")).toBe("/owner/repo/pulls?q=is%3Aopen")
+  })
+
+  test("moves the route where the claim is the whole address, as one pull request opening another", () => {
+    const root = standing("/owner/repo/pull/12")
+    at("/owner/repo/pull/13", "")
+
+    render(<Screen at="/owner/repo/pull/13" />)
+
+    expect(root.getAttribute("data-gitquiet-route")).toBe("/owner/repo/pull/13")
   })
 })

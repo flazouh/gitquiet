@@ -840,6 +840,36 @@ export const markScreenRoute = (target: Document, route: string): void => {
   if (screen !== null) finishNavigation(target, route, screen)
 }
 
+/**
+ * The same, said by a screen publishing the address it has drawn, and only where
+ * that address is the whole route.
+ *
+ * A claim is a pathname. {@link ROUTE} is a pathname and a search, because that
+ * is what {@link routeNow} builds and what every cache here is keyed on — so a
+ * claim written straight into the route is a truncation wherever the address
+ * carries a search, and the caches are then keyed on a page that does not exist.
+ *
+ * What that cost, measured on a repository's filtered list: the screen stood at
+ * `/owner/repo/pulls?q=is:open`, the claim rewrote its route to
+ * `/owner/repo/pulls`, and the finished list was remembered under the plain
+ * address. Opening the plain list next seeded the filtered one's rows into it —
+ * the reader's filter, on a page that never asked for one, restored from memory
+ * before the read could answer.
+ *
+ * So a claim that is the whole address updates the route, and a claim that is
+ * part of one leaves it to whoever built it from the whole. Nothing is lost by
+ * declining: a screen whose search changes is stood up again by its entry, and
+ * the route is set from the address there. The screens this is for are the ones
+ * that redraw in place under a bare address, which is a pull request opening
+ * another and an issue opening another.
+ */
+export const markScreenRouteWhenWhole = (target: Document, path: string): void => {
+  const view = target.defaultView
+  if (view !== null && view.location.search !== "" && view.location.pathname === path) return
+
+  markScreenRoute(target, path)
+}
+
 /** Puts an exact live history target on the current surface before traversal commits. */
 export const activatePreparedTraversal = (
   target: Document,
