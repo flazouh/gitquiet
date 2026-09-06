@@ -8,6 +8,7 @@ import { GistTalk } from "./GistTalk"
 import { GitHubHtml } from "./GitHubHtml"
 import { Section } from "./Section"
 import { TheBar } from "./TheBar"
+import { ageOf, momentOf } from "./when"
 
 /**
  * One gist — `gist.github.com/{owner}/{id}`.
@@ -147,9 +148,14 @@ export const GistScreen = ({
                 <Count many={gist.revisions} one="revision" href={`${at}/revisions`} />
                 <Count many={gist.forks} one="fork" href={`${at}/forks`} />
                 <Count many={gist.stars} one="star" href={`${at}/stargazers`} />
+                {/*
+                  Their own word for what this date is. Their head prints "Created" over
+                  it, and a bare date beside four counts reads as the day something last
+                  happened — which on a gist edited this morning is a year out.
+                */}
                 {gist.updatedAt === "" ? null : (
-                  <span className="text-xs text-ink-muted">
-                    {new Date(gist.updatedAt).toLocaleDateString()}
+                  <span className="text-xs text-ink-muted" title={momentOf(gist.updatedAt)}>
+                    Created {ageOf(gist.updatedAt)}
                   </span>
                 )}
               </div>

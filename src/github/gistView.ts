@@ -113,15 +113,18 @@ export const gistOnPage = (page: Document, owner: string, id: string): GistSeen 
     id,
     title,
     /*
-     * Their description, which is not on the head of every gist.
+     * Their description, which is not on the head at all.
      *
-     * Read off the muted span their `gist-snippet-meta` carries rather than off the
-     * first muted span anywhere in the head, because the head's other muted span is the
-     * "Last active" line and reading that as a description puts a date where the
-     * sentence goes.
+     * `[itemprop="about"]`, under the head rather than in it — read live on 2026-09-06,
+     * where a gist described "Isen" showed none here for as long as this asked the head
+     * for a `.gist-snippet-meta`. That is their *list* row's markup, and a gist page has
+     * never carried one; the fixture did, which is how a synthetic page kept a real
+     * selector wrong. Off the page rather than the head for the same reason.
+     *
+     * Their own word for the thing, and the only element on the page carrying it, so
+     * this cannot pick up the date line the way a hunt for the first muted span did.
      */
-    description:
-      head.querySelector(".gist-snippet-meta .color-fg-muted")?.textContent?.trim() || null,
+    description: page.querySelector('[itemprop="about"]')?.textContent?.trim() || null,
     secret: [...head.querySelectorAll(".Label")].some(
       (label) => label.textContent?.trim() === "Secret"
     ),

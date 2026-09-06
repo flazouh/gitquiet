@@ -161,6 +161,14 @@ describe("one gist", () => {
     expect(screen.queryByRole("button", { name: /Say something/ })).toBeNull()
   })
 
+  test("says what the date on their head actually is", () => {
+    // Their head prints "Created" over it. A bare date beside four counts reads as the
+    // day something last happened, which on a gist edited this morning is a year out.
+    showing()
+
+    expect(screen.getByText(/^Created /)).toBeTruthy()
+  })
+
   test("prints no count their page did not have", () => {
     // Their head omits a zero and so does this.
     showing({ forks: 0, stars: 0, comments: 0, revisions: 0 })

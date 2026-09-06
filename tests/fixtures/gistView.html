@@ -1,9 +1,9 @@
 <!--
-  Synthetic, not captured. The real gist page was fetched live on 2026-09-02 to
-  confirm the class names and structure below — `.gisthead`, `.file`,
-  `.gist-blob-name`, `.blob-wrapper`, `.markdown-body`, `<relative-time>` — and
-  then this was hand-written with placeholder content, for the reason
-  `gistList.html` gives: a real capture carries somebody's own files.
+  Hand-written with placeholder content, for the reason `gistList.html` gives: a real
+  capture carries somebody's own files. Every name and every nesting below is off a real
+  gist page, fetched live on 2026-09-06 — `.gisthead`, the `Created` note, the file rows
+  their table prints one per line, and the description, which is `[itemprop="about"]`
+  outside the head rather than anything inside it.
   See `docs/spec/gists.md`.
 -->
 <html>
@@ -16,8 +16,8 @@
       <strong class="css-truncate-target">deploy-notes.md</strong>
       <span title="Only those with the link can see this gist." class="Label">Secret</span>
     </h1>
-    <div class="color-fg-muted f6">
-      Last active
+    <div class="note m-0">
+      Created
       <relative-time tense="past" datetime="2026-08-27T00:09:42+02:00">August 27, 2026</relative-time>
     </div>
     <div class="gist-count-links">
@@ -27,12 +27,12 @@
       <a href="#comments">2 comments</a>
     </div>
   </div>
-  <div class="gist-snippet-meta">
-    <span class="f6 color-fg-muted">Notes on rolling out the staging environment</span>
-  </div>
 </div>
 
 <div id="gist-pjax-container">
+  <div itemprop="about">
+    Notes on rolling out the staging environment
+  </div>
   <div id="file-deploy-notes-md" class="file my-2">
     <div class="file-header">
       <div class="file-info">

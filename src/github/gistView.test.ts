@@ -21,9 +21,24 @@ describe("one gist, read out of their page", () => {
   })
 
   test("does not read the date as the description", () => {
-    // The head's other muted span is the "Last active" line, and a reader taking the
-    // first muted span anywhere puts a date where the sentence goes.
-    expect(seen()?.description).not.toContain("Last active")
+    // The head's own muted line is the date, and a reader taking the first muted span
+    // anywhere on the page puts a date where the sentence goes.
+    expect(seen()?.description).not.toContain("Created")
+  })
+
+  test("reads the description off the page rather than out of their head", () => {
+    // It is not in the head at all: their gist page carries it in `[itemprop="about"]`
+    // under it. Read live on 2026-09-06 — a gist described "Isen" showed no description
+    // here for as long as this looked in the head, because the selector was their list's.
+    const headless = html.replace(/<div class="gisthead[\s\S]*?<div id="gist-pjax-container">/, '<div class="gisthead"><h1><strong>x</strong></h1></div><div>')
+
+    expect(seen(headless)?.description).toBe("Notes on rolling out the staging environment")
+  })
+
+  test("says nothing about a gist their page describes with nothing", () => {
+    const undescribed = html.replace(/<div itemprop="about">[\s\S]*?<\/div>/, "")
+
+    expect(seen(undescribed)?.description).toBeNull()
   })
 
   test("reads every file, with the language they highlighted it as", () => {

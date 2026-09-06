@@ -46,7 +46,7 @@ export const gistColumns = (rows: ReadonlyArray<GistRow>): GistColumns => ({
 
 const TRACK = {
   face: "1rem",
-  secret: "3.25rem",
+  secret: "4.25rem",
   title: "minmax(160px,1fr)",
   description: "minmax(0,1.5fr)",
   count: "minmax(0,6rem)",
@@ -116,7 +116,11 @@ export const GistRowView = ({ row, columns, labels, name, known, onChange }: Gis
         */}
         <span>
           {row.secret ? (
-            <span className="rounded-full bg-attention-muted px-2 text-xs text-ink">Secret</span>
+            // Never wrapped: the pill is one word and a column narrow enough to break it
+            // reads as "Secre" over "t", which is what the first cut of this table did.
+            <span className="whitespace-nowrap rounded-full bg-attention-muted px-2 text-xs text-ink">
+              Secret
+            </span>
           ) : null}
         </span>
 

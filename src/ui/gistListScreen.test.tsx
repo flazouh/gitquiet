@@ -203,6 +203,15 @@ describe("a reader's own gists", () => {
     expect(screen.queryByText(/comments?$/)).toBeNull()
   })
 
+  test("never breaks the Secret pill across two lines", () => {
+    // Its column was narrow enough to read as "Secre" over "t", which is what the first
+    // cut of this table did on a real list.
+    showing(new Map(), [row({ secret: true })])
+
+    const table = screen.getByRole("region", { name: "Your gists" })
+    expect(within(table).getByText("Secret").className).toContain("whitespace-nowrap")
+  })
+
   test("names the owner only on a list that is not all one person's", () => {
     // A reader's own list is theirs by definition; the starred list is everybody else's.
     showing(new Map(), [row(), row({ id: "bbb222", owner: "hubot", title: "retry.py" })], true, "starred")
