@@ -283,6 +283,12 @@ The set a reader's own gist list is read from and organized over — every gist 
 reader owns, public and secret both.
 _Avoid_: my gists, personal gists
 
+**Draft**:
+A gist as it stands in the editor: its description, its visibility where GitHub still asks, and
+its files. Opened from the form GitHub put on the page and sent back as that same form, so a
+Draft is never a second idea of what a gist is — only the one their form is already holding.
+_Avoid_: edit, working copy, pending gist
+
 ## Not built
 
 Words removed from the vocabulary above because nothing answers to them yet. Kept

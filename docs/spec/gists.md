@@ -3,7 +3,9 @@
 Status: built, and since rebuilt as screens rather than as additions to GitHub's page — see
 `plans/007-give-the-gists-a-screen.md` for why that changed and what it cost. All four pain
 points in the research are answered, all three Open Questions are closed, and two more gaps
-found in a later sweep are answered as well. Verified live on a real account. The vocabulary
+found in a later sweep are answered as well. The editor is a screen too now, which reverses
+what this spec used to say about it — see "Their forms, sent back". Verified live on a real
+account. The vocabulary
 below is in `CONTEXT.md`. Evidence is in the notes repository's `research/gist-pain-points.md`,
 five sweeps across Hacker News, Reddit, GitHub Community discussions, and thirteen years of
 third-party tooling.
@@ -30,9 +32,10 @@ host permission this spec worried about paying for is paid: `*://gist.github.com
 `host_permissions` and a content script already matches it.
 
 What was left was the third reason, that GitHub's gist page is fine. It is fine. It is also not
-this interface, and a reader who has spent the day in this one can tell. So the gist pages are
-screens now, standing the way `/pulls` and `/notifications` do, and the one page that is still
-GitHub's is the editor — which gets room instead. See Implementation Decisions.
+this interface, and a reader who has spent the day in this one can tell. So every gist page is a
+screen now, standing the way `/pulls` and `/notifications` do — the list, one gist, and both of
+their editors. What they write, they write by posting GitHub's own forms. See Implementation
+Decisions.
 
 ## Slice 1: the secret/private warning
 
@@ -155,10 +158,9 @@ anybody else looking at the same gist. That is the honest limit of a client-only
 server gap, and it is said here so the difference from what GistPad or Cacher do (their own
 servers, their own sync) is not accidentally implied.
 
-Gist creation and editing are untouched. The editor-is-too-small complaint (Reddit, 23 points:
-"the display I would expect it to take the full width least and be much taller") is real and
-recorded in the notes repository's `research/gist-pain-points.md`, but it is a different surface — the create/edit flow
-rather than the list — and is not in this slice.
+Nothing here writes a Label or a Name to GitHub, which is the sentence above. Writing is not
+off the table generally: a comment and an edited gist both go back to GitHub through GitHub's
+own form. See "Their forms, sent back" below.
 
 ## Implementation Decisions
 
@@ -182,8 +184,7 @@ host-gated to `gist.github.com` rather than `github.com`:
 - `gistViewIn(url)` for `/{owner}/{gistId}` — one gist. A third segment is one of their own
   sub-pages, forks or revisions, and stays theirs.
 - `isGistStarred(url)` for `/starred`.
-- `isGistEditing(url)` for `/` and `/{owner}/{gistId}/edit` — the two forms, which get a
-  stylesheet and no screen.
+- `isGistEditing(url)` for `/` and `/{owner}/{gistId}/edit` — their two editors, one screen.
 
 ### Reading the list whole
 
@@ -196,16 +197,36 @@ sure they wrote.
 This is what answers "browsing through 20 pages of 3-line excerpts", and it is what makes every
 filter on the screen mean what it says.
 
-### Their editor gets room, not a screen
+### Their forms, sent back
 
-The two forms are forms, and GitHub already knows how to post them. Rebuilding one would mean
-owning gist creation, which is a write with no route this extension has any business inventing
-a second way to make. `src/ui/gistEditing.css` only changes how much of the window their own
-form may use: measured live in a 1256 by 888 window, their editor is 978 by 322 and becomes
-1222 by 577.
+Three surfaces here write to GitHub, and all three do it the same way: find the form GitHub
+already put on the page, keep every field it carries, put the reader's own value in it, and post
+it. The token cannot be minted — it is signed for this render of this form — and the extension is
+on the page, so the form is right there. `src/github/theirForm.ts` is that idea, shared with
+discussions, which had it first.
 
-The same reasoning keeps Edit, Delete, Star and Fork as links to GitHub's own pages on the gist
-screen. Every one of them is a write.
+**Writing a gist.** `src/ui/GistEditScreen.tsx` draws both of their editors and posts
+`form.js-blob-form`. Their fields go back untouched, including `_method=put` on the edit form and
+the new-gist form's honeypot and timestamps, which is why `gistEditForm.ts` never names one it
+does not have to. Each file sends `oid`, `name` and `value` in that order, empty `oid` for a file
+being added, because Rails starts a new entry when a key it already has comes round again. A file
+being removed is sent back with `delete` set, which is what their own Remove button does; one
+simply left out of the request is one GitHub keeps.
+
+This reverses what this spec said. The old reasoning was that rebuilding the editor means owning
+gist creation, and half of it still holds — which is why this posts their form rather than a
+route of its own. What it got wrong is that a stylesheet could answer the complaint. It made
+their editor 1222 by 577 in a 1256 by 888 window, which is more room in somebody else's editor.
+`src/ui/gistEditing.css` is still there, for a page whose form cannot be read.
+
+**Saying something.** `src/github/gistComments.ts` reads `form.js-new-comment-form` for the same
+reason, and reads what everybody said off the `.js-comment-container` rows their page already
+carries. Their "Load earlier comments" pager is a GET form, so one press reads one page the way
+theirs does. The page is read again after a write rather than their answer parsed: what a Rails
+form post answers with is theirs to change.
+
+**Still theirs.** Delete, Star and Fork are links to GitHub's own pages on the gist screen. Each
+is one press with nothing to draw on the way, so there is nothing here to add.
 
 ### Where a Label and a Name live
 
@@ -238,15 +259,19 @@ without a new revision, so a second search moments later costs nothing more.
 
 - **Bulk delete.** A real gap with real evidence — a whole webapp (`gist-cleaner`) exists for
   it, and at least five "delete all your gists" scripts are themselves published as gists. Not
-  built, for the reason the editor is not rebuilt: it is a write, and this extension does not
-  invent second routes for writes. The client-side half of the complaint is finding the junk,
-  and that is what search, Labels and the five orders are for.
+  built, and the reason is no longer that it is a write: the editor posts their form now, and so
+  does the comment box. It is that deleting thirty gists is thirty of their forms fetched and
+  posted from a list page that has none of them, which is a route invented in all but name — and
+  the cost of getting it wrong is somebody's gists. The client-side half of the complaint is
+  finding the junk, and that is what search, Labels and the five orders are for.
 - **Sort by creation date**, asked for in `isaacs/github#582`. Their row prints one date and
   which date it is depends on the sort their page was already serving, so honouring it would be
   a list that silently reorders itself into a lie.
-- **Image paste in the editor, pull requests on gists, org-owned gists.** All three need
-  GitHub's server. `#7923` at 2,086 upvotes is the largest number in the whole survey and is
-  still out of reach.
+- **Image paste in the editor.** Their own editor uploads through a policy route with a token of
+  its own, which is a second write mechanism to read and keep working. The screen leaves it out
+  and their editor is one press away, which is the same bargain every other write here makes.
+- **Pull requests on gists, org-owned gists.** Both need GitHub's server. `#7923` at 2,086
+  upvotes is the largest number in the whole survey and is still out of reach.
 
 ## Evidence
 
