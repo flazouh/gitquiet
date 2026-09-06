@@ -72,26 +72,28 @@ export const GistTalk = ({
       </div>
     ) : null}
 
-    {said.map((comment) => (
-      <div key={comment.id} className="border-b border-line-muted last:border-b-0">
-        <Comments
-          id={comment.id}
-          comments={[
-            {
-              id: comment.id,
-              author: {
-                login: comment.author.login,
-                isAutomated: false,
-                faceUrl: Option.fromNullishOr(comment.author.faceUrl)
-              },
-              body: comment.body,
-              html: comment.html,
-              createdAt: comment.createdAt
-            }
-          ]}
-        />
-      </div>
-    ))}
+    {/*
+      One list rather than one call per comment. `Comments` draws an `<article>` apiece,
+      which is what a flat conversation is — the rule between them is decoration, and a
+      wrapper per comment to hang it on would be a list component used a row at a time.
+    */}
+    {/* Two levels down, because `Comments` puts its articles in a wrapper of its own. */}
+    <div className="[&>div>article+article]:border-t [&>div>article+article]:border-line-muted">
+      <Comments
+        id={`gist-${said[0]?.id ?? "none"}`}
+        comments={said.map((comment) => ({
+          id: comment.id,
+          author: {
+            login: comment.author.login,
+            isAutomated: false,
+            faceUrl: Option.fromNullishOr(comment.author.faceUrl)
+          },
+          body: comment.body,
+          html: comment.html,
+          createdAt: comment.createdAt
+        }))}
+      />
+    </div>
 
     {/* Last, under everything said so far, because that is the order it is read in. */}
     {onSay === undefined ? null : (

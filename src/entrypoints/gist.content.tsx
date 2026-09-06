@@ -9,11 +9,8 @@ import { standAScreen, type Standing } from "@/shell/screen"
 import { gistViewIn, isGistEditing } from "@/domain/gist"
 import type { GistSeen } from "@/domain/gist"
 import { gistOnPage } from "@/github/gistView"
-import { commentsOn, earlierCommentsIn, sayingOn } from "@/github/gistComments"
-import { sendingOf } from "@/github/theirForm"
+import { canSay, gistEditing, sayOnGist, withEarlierSaid } from "@/app/gistWrites"
 import { faceOnPage, loginOnPage } from "@/ui/viewer"
-import { gistFormOn, sendingGist } from "@/github/gistEditForm"
-import type { GistDraft } from "@/domain/gistEdit"
 import { GistEditScreen } from "@/ui/GistEditScreen"
 import { GistListScreen } from "@/ui/GistListScreen"
 import { GistScreen } from "@/ui/GistScreen"
@@ -129,14 +126,7 @@ export default defineContentScript({
         )
       })
 
-    /**
-     * The comments their page held back, oldest first, put in above the ones it drew.
-     *
-     * Their pager answers with a fragment of the same markup, carrying a pager of its own
-     * where there are older ones still. So one press reads one page, the way their own
-     * control does, and a gist with a hundred comments is not a hundred rows nobody asked
-     * for on arrival.
-     */
+    /** One more page of the comments their page held back, and the screen said again. */
     const readEarlier = (): void => {
       const gist = seen
       if (gist === null || gist.earlierSaid === null || readingEarlier) return
@@ -145,13 +135,9 @@ export default defineContentScript({
       standing?.redraw()
 
       Effect.runFork(
-        readPage(gist.earlierSaid).pipe(
-          Effect.map((fragment) => {
-            seen = {
-              ...gist,
-              said: [...commentsOn(fragment), ...gist.said],
-              earlierSaid: earlierCommentsIn(fragment)
-            }
+        withEarlierSaid(gist, readPage).pipe(
+          Effect.map((read) => {
+            seen = read
           }),
           Effect.catch((cause) => Effect.sync(() => reportError(cause))),
           Effect.map(() => {
@@ -161,52 +147,6 @@ export default defineContentScript({
         )
       )
     }
-
-    /**
-     * Says something under this gist, by sending back the form GitHub put on the page.
-     *
-     * Their gist page is Rails and their comment box is a form, so the write is that form
-     * with the reader's words in it. The token is signed for this render of this form and
-     * cannot be minted, which is why the form has to be read rather than a route guessed
-     * at — see `theirForm.ts`. Their own markup is still in the document behind this
-     * screen, which is what makes it readable at all.
-     *
-     * The page is read again afterwards rather than the answer parsed: what a Rails form
-     * post answers with is theirs to change, and one extra request buys not having to
-     * guess. A refusal is left to the box, which keeps the words and says what GitHub said.
-     */
-    const say = (owner: string, id: string) => (body: string) =>
-      Effect.gen(function* () {
-        const posting = sayingOn(document)
-        if (posting === null) {
-          return yield* Effect.fail(
-            new Error("GitHub drew no comment box on this page, so there is nothing to send.")
-          )
-        }
-
-        const answer = yield* Effect.tryPromise({
-          try: () =>
-            fetch(posting.action, {
-              method: "POST",
-              headers: { "Content-Type": "application/x-www-form-urlencoded" },
-              credentials: "include",
-              body: sendingOf(posting, body)
-            }),
-          catch: (cause) => new Error(String(cause))
-        })
-        if (!answer.ok) {
-          return yield* Effect.fail(new Error(`GitHub answered ${answer.status}.`))
-        }
-
-        const page = yield* readPage(`/${owner}/${id}`).pipe(
-          Effect.mapError((cause) => new Error(String(cause)))
-        )
-        const read = gistOnPage(page, owner, id)
-        if (read !== null) {
-          seen = read
-          standing?.redraw()
-        }
-      })
 
     const drawGist = (gist: GistSeen): Standing => {
       seen = gist
@@ -226,7 +166,18 @@ export default defineContentScript({
              * "Sign in to comment" and no form, and an owner who turned comments off gets
              * neither — in both cases a box here would be one that throws when it is used.
              */
-            onSay={sayingOn(document) === null ? undefined : say(gist.owner, gist.id)}
+            onSay={
+              canSay(document)
+                ? (said) =>
+                    sayOnGist(document, gist, said, readPage).pipe(
+                      Effect.map((read) => {
+                        if (read === null) return
+                        seen = read
+                        standing?.redraw()
+                      })
+                    )
+                : undefined
+            }
             onStepAside={stepAside}
           />
         )
@@ -237,51 +188,31 @@ export default defineContentScript({
      * Their editor, as a screen of ours posting their own form.
      *
      * Their form is read out of the document rather than fetched, for the reason the
-     * comment box is: this content script is running in the page, their markup is still
-     * under this screen, and the token in it is signed for this render and cannot be
-     * minted. See `gistEditForm.ts`.
-     *
-     * A success is a page load — their route answers a redirect to the gist — so nothing
-     * here draws what happened. The address moving is what says it worked, and `show`
-     * takes it from there.
+     * comment box is: this content script is running in the page and their markup is
+     * still under this screen, so the token in it — signed for this render, and not
+     * something that can be minted — is right there. See `app/gistWrites.ts`.
      */
     const drawEditor = (): Standing | null => {
-      const form = gistFormOn(document)
-      if (form === null) return null
-
-      const send = (draft: GistDraft) =>
-        Effect.gen(function* () {
-          const answer = yield* Effect.tryPromise({
-            try: () =>
-              fetch(form.action, {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                credentials: "include",
-                body: sendingGist(form, draft)
-              }),
-            catch: (cause) => new Error(String(cause))
-          })
-          if (!answer.ok) {
-            return yield* Effect.fail(new Error(`GitHub answered ${answer.status}.`))
-          }
-
-          /*
-           * Where their own form would have taken the reader: the gist as it now is.
-           * A whole load rather than a screen stood here, because what was posted is a
-           * new revision and every count, file and oid on the page behind this is a
-           * version old.
-           */
-          window.location.assign(answer.url)
-        })
+      const editing = gistEditing(document)
+      if (editing === null) return null
 
       return standAScreen({
         place: GIST_EDIT,
         draw: () => (
           <GistEditScreen
-            draft={form.draft}
-            words={form.words}
-            onSave={send}
-            back={form.action === "/" ? "/" : form.action}
+            draft={editing.draft}
+            words={editing.words}
+            onSave={(draft) =>
+              editing.save(draft).pipe(Effect.map((where) => window.location.assign(where)))
+            }
+            /*
+             * Where Cancel goes. Their edit form posts to the gist, which is also where
+             * a reader who changed their mind wants to be — but their new-gist form posts
+             * to `/`, and a Cancel that reloads the form the reader is trying to leave is
+             * a button that does nothing. Theirs has no Cancel at all there; this one
+             * goes to the reader's own gists, which is the page they came from.
+             */
+            back={editing.action === "/" ? `/${loginOnPage() ?? ""}` : editing.action}
             onStepAside={stepAside}
           />
         )
