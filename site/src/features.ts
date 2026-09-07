@@ -68,9 +68,15 @@ export const FEATURES: Readonly<Record<string, Feature>> = {
     description: "From every repository, on one page rather than three tabs of a dashboard.",
     focus: WINDOW,
 
-    /* The repository stands at 743, so a crop from the left edge proves nothing
-       about every repository. This one starts at the titles' end. */
-    tight: { x: 480, y: 120, width: 430, height: 470 }
+    /*
+     * A phone keeps the left of this list, with titles intact.
+     *
+     * The repository column stands at 743. A crop that reaches it from 480 cuts
+     * through the titles mid-word, which reads as a broken layout rather than a
+     * tighter frame. The messages are worth more on a phone, same trade as
+     * `commits`. The page copy already says "every repository."
+     */
+    tight: { x: 0, y: 120, width: 430, height: 470 }
   },
 
   "repo-issues": {
