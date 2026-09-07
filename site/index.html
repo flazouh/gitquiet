@@ -27,6 +27,35 @@
       content="A faster, quieter GitHub. Every pull request you're in, one screen, sorted by next action. Not an AI reviewer. No extra login."
     />
     <meta name="twitter:image" content="https://gitquiet.com/og.png" />
+    <!--
+      First paint before the bundle runs: the bed colours, and the crawler <main>
+      clipped out of view. Indexes still read that copy in the HTML; readers no longer
+      see a bare shell flash before React replaces #page.
+    -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background:
+          radial-gradient(120% 120% at 12% 18%, #ff9ad1 0%, transparent 58%),
+          radial-gradient(110% 110% at 86% 12%, #ffc69d 0%, transparent 55%),
+          radial-gradient(120% 120% at 78% 82%, #a9c2ff 0%, transparent 60%),
+          radial-gradient(130% 130% at 22% 88%, #b79bff 0%, transparent 62%),
+          #ece0ff;
+        color: #1b1725;
+      }
+      #page > main {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+    </style>
   </head>
   <body>
     <div id="page">
