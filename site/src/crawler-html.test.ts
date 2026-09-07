@@ -158,3 +158,30 @@ describe("crawler-visible titles and metas", () => {
     }
   })
 })
+
+describe("first-paint shell", () => {
+  test("home and install hide the crawler main until React mounts", () => {
+    for (const file of ["../index.html", "../install.html"] as const) {
+      const source = html(file)
+      expect(source).toContain("#page > main")
+      expect(source).toContain("clip: rect(0, 0, 0, 0)")
+      expect(source).toContain("100dvh")
+      expect(source).toContain("#ff9ad1")
+    }
+  })
+
+  test("job and compare pages hide the crawler main on paper", () => {
+    const files = [
+      "../github-pr-inbox.html",
+      "../github-review-queue.html",
+      ...COMPARED.map((page) => `../compare/${page.slug}.html` as const)
+    ]
+    for (const file of files) {
+      const source = html(file)
+      expect(source).toContain("#page > main")
+      expect(source).toContain("clip: rect(0, 0, 0, 0)")
+      expect(source).toContain("100dvh")
+      expect(source).toContain("#fbf9f7")
+    }
+  })
+})
