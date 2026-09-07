@@ -165,6 +165,7 @@ describe("first-paint shell", () => {
       const source = html(file)
       expect(source).toContain("#page > main")
       expect(source).toContain("clip: rect(0, 0, 0, 0)")
+      expect(source).toContain("100dvh")
       expect(source).toContain("#ff9ad1")
     }
   })
@@ -179,6 +180,7 @@ describe("first-paint shell", () => {
       const source = html(file)
       expect(source).toContain("#page > main")
       expect(source).toContain("clip: rect(0, 0, 0, 0)")
+      expect(source).toContain("100dvh")
       expect(source).toContain("#fbf9f7")
     }
   })
