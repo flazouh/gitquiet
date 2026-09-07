@@ -1,6 +1,9 @@
 # Landing page copy
 
-Rewritten 2026-08-16.
+Rewritten 2026-09-07: dark, minimal, one demo video. No feature grid, no bed mesh on the page.
+
+Earlier rewrite 2026-08-16.
+
 
 ## The frame
 
@@ -64,19 +67,21 @@ other browsers are named.
 
 ---
 
-## 2. The Working Set
+## 2. Demo
 
-No copy. The live screen carries it, and the only words on it are the product's
-own group names:
-
-**Needs You** · **Waiting** · **Running** · **Settled**
+One custom player. The clip is the product. No feature captions underneath.
 
 ---
 
-## 3. Every screen
+## 3. Closing
 
-No header. The screens carry themselves, and the caption beside each one is the
-only copy:
+Same headline again, Add to Chrome, and the other browsers. No bed card.
+
+---
+
+## (retired) Every screen
+
+Removed 2026-09-07. Captions that used to sit beside live screens:
 
 1. **Sorted by what needs you**
    Every pull request you are in, from every repository, in one list.

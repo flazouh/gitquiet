@@ -28,9 +28,8 @@
     />
     <meta name="twitter:image" content="https://gitquiet.com/og.png" />
     <!--
-      First paint before the bundle runs: the bed colours, and the crawler <main>
-      clipped out of view. Indexes still read that copy in the HTML; readers no longer
-      see a bare shell flash before React replaces #page.
+      First paint before the bundle runs: dark paper, crawler <main> clipped out of
+      view. The bed lives inside the demo now, not behind the page.
     -->
     <style>
       html,
@@ -38,13 +37,9 @@
         margin: 0;
         min-height: 100%;
         min-height: 100dvh;
-        background:
-          radial-gradient(120% 120% at 12% 18%, #ff9ad1 0%, transparent 58%),
-          radial-gradient(110% 110% at 86% 12%, #ffc69d 0%, transparent 55%),
-          radial-gradient(120% 120% at 78% 82%, #a9c2ff 0%, transparent 60%),
-          radial-gradient(130% 130% at 22% 88%, #b79bff 0%, transparent 62%),
-          #ece0ff;
-        color: #1b1725;
+        background: #0c0b10;
+        color: #f4f2ef;
+        color-scheme: dark;
       }
       #page > main {
         position: absolute;

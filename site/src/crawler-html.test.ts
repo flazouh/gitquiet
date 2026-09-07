@@ -160,14 +160,21 @@ describe("crawler-visible titles and metas", () => {
 })
 
 describe("first-paint shell", () => {
-  test("home and install hide the crawler main until React mounts", () => {
-    for (const file of ["../index.html", "../install.html"] as const) {
-      const source = html(file)
-      expect(source).toContain("#page > main")
-      expect(source).toContain("clip: rect(0, 0, 0, 0)")
-      expect(source).toContain("100dvh")
-      expect(source).toContain("#ff9ad1")
-    }
+  test("home hides the crawler main on dark first paint", () => {
+    const source = html("../index.html")
+    expect(source).toContain("#page > main")
+    expect(source).toContain("clip: rect(0, 0, 0, 0)")
+    expect(source).toContain("100dvh")
+    expect(source).toContain("#0c0b10")
+    expect(source).not.toContain("#ff9ad1")
+  })
+
+  test("install hides the crawler main on the bed", () => {
+    const source = html("../install.html")
+    expect(source).toContain("#page > main")
+    expect(source).toContain("clip: rect(0, 0, 0, 0)")
+    expect(source).toContain("100dvh")
+    expect(source).toContain("#ff9ad1")
   })
 
   test("job and compare pages hide the crawler main on paper", () => {
