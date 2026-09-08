@@ -85,10 +85,23 @@ describe("what one document tells the next about its own writes", () => {
    * has no idea a press ever happened.
    */
   test("hands out what was written, to be kept", () => {
+    /*
+     * The clock is pinned, because this test read it twice.
+     *
+     * `recordLanded` stamps the write with `Date.now()` and the expectation below
+     * asked the same clock again a few microseconds later. Almost always the same
+     * millisecond, and on a slow runner not: continuous integration failed on
+     * `at: 1788823896525` against `1788823896524`, which is one tick and nothing
+     * about what this test is for. What is under test is that the write is handed
+     * out at all, so the stamp is a constant here rather than a race.
+     */
+    const at = clock()
+    Date.now = () => at
+
     recordLanded(one, "merged")
 
     expect(landedNow()).toEqual({
-      "flazouh/gitquiet#7": { state: "merged", at: clock() }
+      "flazouh/gitquiet#7": { state: "merged", at }
     })
   })
 
