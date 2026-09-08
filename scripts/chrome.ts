@@ -66,6 +66,31 @@ const CHROME = findChrome()
 const PORT = Number(process.env["GITQUIET_CDP_PORT"] ?? 9222)
 const PROFILE = process.env["GITQUIET_CDP_PROFILE"] ?? "/tmp/gitquiet-csp-profile"
 
+/**
+ * Whether to run without a window, which on a machine with no display is the
+ * only way to run at all.
+ *
+ * Chrome asked for a window where there is none does not fail: it starts, never
+ * opens its debugging port, and every probe here waits fifteen seconds and then
+ * reports that Chrome never opened it — which reads as a broken harness rather
+ * than as a missing display. So the display is checked rather than assumed.
+ *
+ * `--headless=new` and not the old one. The old headless was a different
+ * renderer that painted nothing and ran no animations, and a probe that measures
+ * an arrival would have measured a page of zeroes; the new one is the same
+ * renderer as a window, without the window.
+ *
+ * `GITQUIET_CDP_HEADLESS` overrides in both directions, for a machine that has a
+ * display and wants to watch, and for one that has a display and would rather not.
+ */
+const asked = process.env["GITQUIET_CDP_HEADLESS"]
+const HEADLESS =
+  asked === undefined
+    ? process.platform === "linux" &&
+      (process.env["DISPLAY"] ?? "") === "" &&
+      (process.env["WAYLAND_DISPLAY"] ?? "") === ""
+    : asked !== "0" && asked !== "false"
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export type Connection = {
@@ -154,6 +179,17 @@ export type Options = {
    * visit is signed out and the interface only ever reaches its failure screen.
    */
   readonly cookies?: ReadonlyArray<Record<string, unknown>>
+  /**
+   * A script to run in the page before anything else in the document does,
+   * including the content script.
+   *
+   * The arrival is the thing most worth measuring here and it is over before an
+   * `evaluate` can be sent: by the time the navigation has settled enough to
+   * talk to, the interface has already been put on the page. A recorder has to
+   * be installed ahead of the document rather than asked afterwards, which is
+   * what `Page.addScriptToEvaluateOnNewDocument` is for.
+   */
+  readonly before?: string
 }
 
 /** Launches Chrome with the built extension and opens `url` in a fresh profile. */
@@ -176,6 +212,7 @@ export const withExtension = async (
       "--no-first-run",
       "--no-default-browser-check",
       "--window-size=1440,900",
+      ...(HEADLESS ? ["--headless=new", "--disable-gpu"] : []),
       "about:blank"
     ],
     { stdout: "ignore", stderr: "ignore" }
@@ -262,6 +299,9 @@ export const withExtension = async (
   await tab.send("Runtime.enable")
 
   await tab.send("Page.enable")
+  if (options.before !== undefined) {
+    await tab.send("Page.addScriptToEvaluateOnNewDocument", { source: options.before })
+  }
   const loaded = tab.once("Page.loadEventFired")
   await tab.send("Page.navigate", { url })
   await loaded

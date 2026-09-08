@@ -116,7 +116,28 @@ const beneath = (within: string | undefined, selector: string): string | undefin
 export const loadSheet = (places: ReadonlyArray<Place>): string =>
   places
     .map((place) => {
-      const theirs = [...stagesOf(place).map(emptied), ...place.bands]
+      /*
+       * The surface leads, because the interface stands on it.
+       *
+       * Their regions still say what to hide once ours is up, and the region
+       * rules below are still the ones that do it. Before ours is up there is
+       * nothing to be careful about: every part of their page is a child of
+       * `body`, ours is not on the page yet, and the reader is looking at a page
+       * that is about to be replaced whole. One rule covers their header, their
+       * nav, their layout and their content together.
+       *
+       * It is what closes the second flash. Their bar used to stand until ours
+       * existed — `barSheet` keys on the slot rather than on the takeover, so
+       * that a page is never left with no bar at all — and a reader loading a
+       * pull request saw their header and their repository nav for the sixty
+       * milliseconds before ours was made. Under this rule they see the floor
+       * instead, and then one interface rather than two in succession.
+       *
+       * Safe for the same reason the region rules are: it is lifted by
+       * `reveal`, which every path calls — the takeover that lands, the one
+       * that gives up, and the failsafe behind both.
+       */
+      const theirs = [emptied("body"), ...stagesOf(place).map(emptied), ...place.bands]
       const standing = [
         ...stagesOf(place)
           .filter((stage) => !isTheSurface(stage))

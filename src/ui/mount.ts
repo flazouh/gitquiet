@@ -1,6 +1,7 @@
 import { Effect, type Fiber } from "effect"
 import { auditTakeover } from "./gateAudit"
 import { runWhenIdle } from "./idle"
+import { markLanded } from "./landing"
 import { type Stop, whenAddressChanges } from "./navigation"
 import { CONVERSATION, type Place } from "./place"
 import {
@@ -894,7 +895,63 @@ const hideTheirBands = (target: Document, place: Place): void => {
   }
 }
 
+/**
+ * Where the interface stands, on every page and whatever GitHub is rendering.
+ *
+ * The one element on a GitHub page that is nobody's to throw away. Everything
+ * below it is: their React does not re-render a region so much as replace it,
+ * and Turbo replaces a frame's children wholesale on a navigation — so an
+ * interface standing in one of their regions is an interface that leaves the
+ * document without being asked, and comes back a frame or two later.
+ *
+ * Measured rather than reasoned about. On a signed-out pull request, recorded by
+ * `scripts/probe-mount-arrival.ts`: the interface settled into their
+ * `PageLayoutContent` at 482ms, was off the page entirely at 1402ms when their
+ * React replaced that element, and was put back at 1439ms. Thirty-seven
+ * milliseconds of nothing, and then — because a re-inserted element restarts
+ * every CSS animation under it — the whole screen played its entrance a second
+ * time. That is the flash, and no guard on the animation can fix a gap where the
+ * interface is not in the document at all.
+ *
+ * Their regions are still named in `place.ts` and still matter. They prove that
+ * GitHub has rendered their version of this page, which is what the takeover
+ * waits for and what the soft gate keys on, and they say which of their content
+ * to hide. What they no longer decide is where ours goes.
+ */
+const surfaceOf = (target: Document): Element | null => target.body
+
+/**
+ * What a takeover never hides, wherever on the page it turns out to be.
+ *
+ * One entry, and it earns its place: GitHub says an organisation's single sign-on
+ * has expired in a banner above the content, and that is the one thing on any of
+ * these pages a reader needs more than the page itself. Everything the interface
+ * shows is read through a session that banner says has lapsed, so hiding it
+ * replaces the explanation with an interface that quietly knows nothing.
+ *
+ * It did not need saying while the interface stood inside one of their regions:
+ * the banner is outside every region in `place.ts`, so hiding a region's children
+ * left it alone by construction. Standing on the surface makes every part of their
+ * page a sibling of ours, which is the point — and it takes this with it unless
+ * something says otherwise. This is that something.
+ *
+ * A list rather than a field on `Place`, because it is not a fact about one page.
+ * The banner is about the reader's access to the whole site and GitHub puts it
+ * wherever the lapse is discovered.
+ */
+const KEPT = ['[data-testid="global-sso-banner"]']
+
 const hideTheirs = (slot: Element, root: Element): void => {
+  /*
+   * Looked up once, and only where something is actually about to be hidden.
+   *
+   * This runs from the takeover's observer, which fires on every change anywhere
+   * beneath `body`, so a document query per child per mutation would be a real
+   * cost on a busy page. After the takeover almost every child is hidden already
+   * and the query is never reached.
+   */
+  let kept: ReadonlyArray<Element> | undefined
+
   for (const child of slot.children) {
     // Never ours. A second takeover — a development reload, a script injected
     // twice — would otherwise hide the interface the first one rendered and
@@ -905,6 +962,9 @@ const hideTheirs = (slot: Element, root: Element): void => {
     // hover-card hosts are siblings of the root, and hiding a sibling by position
     // is exactly what this does.
     if (child.hasAttribute(OUTSIDE)) continue
+    if (child.hasAttribute(HIDDEN)) continue
+    kept ??= [...slot.ownerDocument.querySelectorAll(KEPT.join(","))]
+    if (kept.some((one) => child === one || child.contains(one))) continue
     hide(child)
   }
 }
@@ -1107,7 +1167,29 @@ export const takeOverSlot = (
         takeOffThePage(duplicate)
       }
     }
-    into.append(container)
+    /*
+     * A move rather than an arrival, said before the append that would replay it.
+     *
+     * An entrance belongs to the arrival and to nothing else, and a re-inserted
+     * element restarts every animation under it. `Shell` decides this with a
+     * seven-hundred-millisecond timer, which a move beats: on the recording that
+     * found this, the move landed eighty-five milliseconds into the entrance and
+     * the whole column entered twice. The one place that knows a move is a move
+     * is the line performing it. See `landing.ts`.
+     *
+     * Kept even though the surface below means their router can no longer cause
+     * one: a screen replacing another still settles into a page that already had
+     * an interface on it, and that is a move too.
+     */
+    if (container.isConnected) markLanded(target)
+
+    /*
+     * The surface, not the region. See {@link surfaceOf}: the region is what
+     * proves their page and what to hide, and standing in it is what put the
+     * interface at the mercy of their router.
+     */
+    const surface = surfaceOf(target) ?? into
+    surface.append(container)
     // In the same breath, so that no style recalculation can happen between the
     // interface arriving and the marks that say the boxes above it are not
     // GitHub's to hide. See {@link WITHIN}.
@@ -1119,6 +1201,10 @@ export const takeOverSlot = (
       finishNavigation(target, route, container)
     }
     hideTheirs(into, container)
+    // And the surface's own children, which is where their page now is relative
+    // to ours: their header, their layout and whatever else `body` holds are all
+    // siblings of the interface rather than boxes around it.
+    if (surface !== into) hideTheirs(surface, container)
     hideTheirBands(target, place)
     // Set before revealing, so that the rule keeping their conversation out of
     // sight is never off for an instant. The attribute hiding above says what
@@ -1198,19 +1284,21 @@ export const takeOverSlot = (
       return
     }
 
-    // Moving up, when the conversation region turns up late.
-    //
-    // The wait above is deliberately short, so on a slow page the interface
-    // goes into the whole repository content and is on the screen quickly.
-    // That is the right trade for a reader and the wrong place to stay: if
-    // GitHub does render a conversation after all, this is where the interface
-    // moves into it. React does not mind being re-parented — the same nodes,
-    // one level down — and nothing has to be drawn again.
-    const better = standing ?? findConversationSlot(target, place)
-    if (better !== null && container.parentElement !== better) {
-      settle(better)
-      return
-    }
+    /*
+     * Their region, when it turns up late.
+     *
+     * The wait before the takeover is deliberately short, so on a slow page the
+     * interface is on the screen before GitHub has finished deciding what their
+     * version of it looks like. When they do render it, its children are theirs
+     * to hide like any others — and that is now the whole of what happens here.
+     *
+     * It used to be a move: the interface stood in whichever region had been
+     * found, so a better one arriving meant re-parenting into it. That is what
+     * `surfaceOf` ended. Nothing is re-parented, so nothing is re-inserted, so
+     * no entrance replays and there is no frame with the interface off the page.
+     */
+    const region = standing ?? findConversationSlot(target, place)
+    if (region !== null && !region.contains(container)) hideTheirs(region, container)
 
     const parent = container.parentElement
     if (parent !== null) hideTheirs(parent, container)

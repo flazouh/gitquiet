@@ -114,14 +114,29 @@ describe("standing a screen on the page", () => {
     standing.close()
   })
 
-  test("draws into the page and takes the region", async () => {
+  test("stands on the surface, and takes the region without standing in it", async () => {
     history.replaceState(null, "", "/mine")
     theirPage()
 
     const page = standAScreen({ place: MINE, draw: () => <p>ours</p> })
-    await drawn("#region", "ours")
+    await drawn("#gitquiet-root", "ours")
 
-    expect(document.querySelector("#region")?.textContent).toContain("ours")
+    /*
+     * The two halves of a takeover, which used to be one act and are not.
+     *
+     * Where it stands is `body`, and only `body`: a region of theirs is a node
+     * their React replaces, and an interface inside one leaves the document
+     * when it does. Measured on a signed-out pull request before this changed —
+     * off the page for thirty-seven milliseconds, then back, entering a second
+     * time. See `surfaceOf` in `mount.ts`.
+     *
+     * What it takes is still their region, which is hidden rather than emptied,
+     * and still their bands. Neither of those questions moved.
+     */
+    expect(document.getElementById("gitquiet-root")?.parentElement).toBe(document.body)
+    // Their page is a sibling of ours now rather than a box around it, so what
+    // hides it is the surface's own children going: `main` holds their region.
+    expect(document.querySelector("main")?.hasAttribute("hidden")).toBe(true)
     expect(document.documentElement.getAttribute("data-gitquiet-shown")).toBe("test-screen")
     page.close()
   })
@@ -131,7 +146,7 @@ describe("standing a screen on the page", () => {
     theirPage()
 
     const page = standAScreen({ place: MINE, draw: () => <p>ours</p> })
-    await drawn("#region", "ours")
+    await drawn("#gitquiet-root", "ours")
     page.close()
     await until(() => document.getElementById("gitquiet-root") === null)
 
@@ -144,7 +159,7 @@ describe("standing a screen on the page", () => {
     theirPage()
 
     const first = standAScreen({ place: MINE, draw: () => <p>remembered screen</p> })
-    await drawn("#region", "remembered screen")
+    await drawn("#gitquiet-root", "remembered screen")
     first.close()
     await until(() => document.getElementById("gitquiet-root") === null)
     await new Promise((resolve) => setTimeout(resolve, 0))
@@ -168,7 +183,7 @@ describe("standing a screen on the page", () => {
         </>
       )
     })
-    await drawn("#region", "live first screen")
+    await drawn("#gitquiet-root", "live first screen")
 
     history.pushState(null, "", "/other")
     const second = standAScreen({
@@ -181,7 +196,7 @@ describe("standing a screen on the page", () => {
         </>
       )
     })
-    await drawn("#region", "second screen")
+    await drawn("#gitquiet-root", "second screen")
 
     history.replaceState(null, "", "/mine")
     const returned = standAScreen({
@@ -189,7 +204,7 @@ describe("standing a screen on the page", () => {
       route: "/mine",
       draw: () => <p>fresh replacement</p>
     })
-    await drawn("#region", "live first screen")
+    await drawn("#gitquiet-root", "live first screen")
 
     expect(returned.container).toBe(first.container)
     expect(returned.container.textContent).toContain("live first screen")
@@ -208,7 +223,7 @@ describe("standing a screen on the page", () => {
       route: "/other",
       draw: () => <p>fresh second replacement</p>
     })
-    await drawn("#region", "second screen")
+    await drawn("#gitquiet-root", "second screen")
 
     expect(forwarded.container).toBe(second.container)
     expect(forwarded.container.textContent).toContain("second screen")
@@ -232,7 +247,7 @@ describe("standing a screen on the page", () => {
         </>
       )
     })
-    await drawn("#region", "live first screen")
+    await drawn("#gitquiet-root", "live first screen")
 
     history.pushState(null, "", "/other")
     const second = standAScreen({
@@ -240,12 +255,12 @@ describe("standing a screen on the page", () => {
       route: "/other",
       draw: () => <p>second screen</p>
     })
-    await drawn("#region", "second screen")
+    await drawn("#gitquiet-root", "second screen")
     await until(() => hasPreparedScreen(document, "/mine", MINE))
 
     document.dispatchEvent(new CustomEvent(OWNED_TRAVERSAL, { detail: "/mine" }))
     history.replaceState(null, "", "/mine")
-    await drawn("#region", "live first screen")
+    await drawn("#gitquiet-root", "live first screen")
 
     expect(document.getElementById("gitquiet-root")?.textContent).toContain("live first screen")
     // Waited for rather than asserted at once: the resumed tree draws its region
@@ -271,7 +286,7 @@ describe("standing a screen on the page", () => {
         return <p>first screen</p>
       }
     })
-    await drawn("#region", "first screen")
+    await drawn("#gitquiet-root", "first screen")
 
     history.pushState(null, "", "/other")
     const second = standAScreen({
@@ -279,7 +294,7 @@ describe("standing a screen on the page", () => {
       route: "/other",
       draw: () => <p>second screen</p>
     })
-    await drawn("#region", "second screen")
+    await drawn("#gitquiet-root", "second screen")
     await settled()
 
     expect(draws).toBe(1)
@@ -321,7 +336,7 @@ describe("standing a screen on the page", () => {
         held = false
       }
     })
-    await drawn("#region", "ours")
+    await drawn("#gitquiet-root", "ours")
     page.close()
     await until(() => !held)
 
@@ -347,11 +362,11 @@ describe("standing a screen on the page", () => {
         </button>
       )
     })
-    await drawn("#region", "first")
+    await drawn("#gitquiet-root", "first")
     document.querySelector("button")?.dispatchEvent(new Event("click", { bubbles: true }))
-    await drawn("#region", "second")
+    await drawn("#gitquiet-root", "second")
 
-    expect(document.querySelector("#region")?.textContent).toContain("second")
+    expect(document.getElementById("gitquiet-root")?.textContent).toContain("second")
     page.close()
   })
 
@@ -376,9 +391,9 @@ describe("standing a screen on the page", () => {
 
     document.documentElement.appendChild(body)
     theirPage()
-    await drawn("#region", "ours")
+    await drawn("#gitquiet-root", "ours")
 
-    expect(document.querySelector("#region")?.textContent).toContain("ours")
+    expect(document.getElementById("gitquiet-root")?.textContent).toContain("ours")
     expect(mounted(page.container)).toBe(true)
     page.close()
   })
