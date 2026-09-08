@@ -14,6 +14,7 @@ import { diffChoices, treeChoices } from "../domain/choices"
 import { DEFAULTS } from "../domain/Settings"
 import { FileBrowser } from "./FileBrowser"
 import { ROOT_ID } from "./mount"
+import { ScreenActivityProvider } from "./screenActivity"
 import { SettingsMenu } from "./SettingsMenu"
 import { useKeys } from "./useKeys"
 
@@ -322,6 +323,43 @@ describe("reaching a Destination with two keys", () => {
 
     expect(going()).toBe("went to ; moved 0")
     expect(screen.getByText(/files moved/).textContent).toBe("files moved 1")
+  })
+
+  test("lets the screen on the page answer w and s after a list stays mounted", async () => {
+    const page = document.createElement("div")
+    page.id = ROOT_ID
+    document.body.append(page)
+    const leftover = document.createElement("div")
+    document.body.append(leftover)
+
+    const List = () => {
+      const [moved, setMoved] = useState(0)
+      useKeys(DEFAULT_KEYS, { nextFile: () => setMoved((held) => held + 1) })
+      return <p>{`list moved ${moved}`}</p>
+    }
+    const Files = () => {
+      const [moved, setMoved] = useState(0)
+      useKeys(DEFAULT_KEYS, { nextFile: () => setMoved((held) => held + 1) })
+      return <p>{`page moved ${moved}`}</p>
+    }
+
+    render(
+      <>
+        <ScreenActivityProvider active root={leftover}>
+          <List />
+        </ScreenActivityProvider>
+        <ScreenActivityProvider active root={page}>
+          <Files />
+        </ScreenActivityProvider>
+      </>
+    )
+
+    await userEvent.keyboard("s")
+
+    expect(screen.getByText(/list moved/).textContent).toBe("list moved 0")
+    expect(screen.getByText(/page moved/).textContent).toBe("page moved 1")
+    leftover.remove()
+    page.remove()
   })
 
   test("stays out of the way while someone is writing a sequence into a box", async () => {

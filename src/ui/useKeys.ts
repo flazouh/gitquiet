@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef } from "react"
 import { heldDown, type Command, type Keys } from "../keys/commands"
 import { commandFor, read, type Waiting } from "../keys/match"
 import { ROOT_ID } from "./mount"
+import { useScreenActivity, useScreenRoot } from "./screenActivity"
 
 /**
  * The part of the page that is ours.
@@ -77,6 +78,20 @@ const somethingIsUp = (within: ParentNode): boolean =>
 const scopeIn = (target: Document): ParentNode => target.getElementById(ROOT_ID) ?? target
 
 /**
+ * Whether this tree is the one the reader is looking at.
+ *
+ * A list the reader just left can stay mounted, and its listener was registered
+ * first. If it still answers `s` and `w`, the file browser on the page never
+ * sees them. A screen whose container is off the page, or is not the root now
+ * standing, has nothing to say about the keyboard.
+ */
+const ownsThePage = (host: Element | undefined, page: Document): boolean => {
+  if (host !== undefined && !host.isConnected) return false
+  const standing = page.getElementById(ROOT_ID)
+  return host === undefined || standing === null || standing === host
+}
+
+/**
  * The keyboard, for as long as the component asking is on screen.
  *
  * One listener, in the capture phase, on the document: GitHub's own shortcuts
@@ -108,6 +123,14 @@ export const useKeys = (
   const current = useRef(keys)
   current.current = keys
   const ours = useContext(Ours)
+  const active = useScreenActivity()
+  const screen = useScreenRoot()
+  // Read at the press, not at bind time: a prepared route becomes the page
+  // without this listener being taken off and put back.
+  const live = useRef(active)
+  live.current = active
+  const host = useRef(screen)
+  host.current = screen
 
   // The key a sequence was opened with, kept across presses rather than in
   // state: nothing on the screen changes while a chord is half typed, and a
@@ -119,7 +142,10 @@ export const useKeys = (
 
     const onKey = (event: KeyboardEvent) => {
       // A prepared route has a complete tree, but it cannot answer for the page
-      // until its root is connected. Its listeners stay inert in the meantime.
+      // until its root is connected. A list left mounted after the click is the
+      // other half: it is still connected, and it was registered first, so it
+      // used to take `w` and `s` and the file browser never saw them.
+      if (!live.current || !ownsThePage(host.current, target)) return
       if (ours !== null && !ours.isConnected) return
       // A press left unread is still a press the reader made, so a sequence half
       // typed before one is given up on rather than left open: several
