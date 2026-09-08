@@ -274,8 +274,8 @@ export const Nav = ({
 
 export const Footer = ({ dark = false }: { readonly dark?: boolean }) => (
   <footer
-    className={`flex flex-wrap items-center justify-between gap-6 border-t py-10 text-[14px] ${
-      dark ? "border-white/10 text-white/40" : "border-rule text-muted"
+    className={`flex flex-wrap items-center justify-between gap-6 py-10 text-[14px] ${
+      dark ? "text-white/40" : "border-t border-rule text-muted"
     }`}
   >
     <div className="flex items-center gap-2.5">

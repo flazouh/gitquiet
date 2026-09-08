@@ -71,7 +71,7 @@ export const Demo = () => {
 
   return (
     <div
-      className="group relative isolate overflow-hidden rounded-2xl bg-[#16141c] shadow-[0_24px_80px_-32px_rgba(0,0,0,0.85)] ring-1 ring-white/10"
+      className="group relative isolate overflow-hidden rounded-2xl bg-[#16141c]"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
