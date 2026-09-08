@@ -272,14 +272,14 @@ describe("slotting into GitHub's pull request page", () => {
     expect(theirsIn(page).hasAttribute("hidden")).toBe(true)
   })
 
-  test("hands back a container already mounted in the slot", () => {
+  test("hands back a container already standing on the page", () => {
     const page = githubPage()
 
     const takeover = takeOverSlot(page)
     takeover!.container.textContent = "our interface"
 
     expect(takeover!.container.id).toBe(ROOT_ID)
-    expect(slotOf(page).querySelector(`#${ROOT_ID}`)?.textContent).toBe("our interface")
+    expect(page.body.querySelector(`#${ROOT_ID}`)?.textContent).toBe("our interface")
   })
 
   test("hides whatever GitHub renders into the slot afterwards", async () => {
@@ -302,16 +302,19 @@ describe("slotting into GitHub's pull request page", () => {
     slotOf(page).append(page.createElement("div"))
     await Promise.resolve()
 
-    expect(slotOf(page).querySelector(`#${ROOT_ID}`)).not.toBeNull()
+    expect(page.body.querySelector(`#${ROOT_ID}`)).not.toBeNull()
   })
 
-  test("follows the region to its replacement when React swaps the whole thing out", async () => {
+  test("stays exactly where it is when React swaps their whole region out", async () => {
     const page = githubPage()
     takeOverSlot(page)
+    const stood = page.getElementById(ROOT_ID)!
     const wrapper = page.querySelector('[class*="PageLayoutWrapper"]')!
 
     // What GitHub's React actually does on a re-render: not update the region,
-    // replace it. Our container leaves the page attached to the discarded one.
+    // replace it. This used to take the interface off the page with the
+    // discarded copy and put it back a frame or two later — measured live at
+    // thirty-seven milliseconds of nothing, followed by the entrance again.
     slotOf(page).remove()
     const replacement = page.createElement("div")
     replacement.className = "prc-PageLayout-PageLayoutContent-BneH9"
@@ -319,7 +322,10 @@ describe("slotting into GitHub's pull request page", () => {
     wrapper.append(replacement)
     await Promise.resolve()
 
-    expect(replacement.querySelector(`#${ROOT_ID}`)).not.toBeNull()
+    // Never moved, never detached: their region was never where it stood.
+    expect(stood.isConnected).toBe(true)
+    expect(stood.parentElement).toBe(page.body)
+    // And the region they have now is hidden like the one they threw away.
     expect(replacement.querySelector(".js-updatable-content")?.hasAttribute("hidden")).toBe(true)
   })
 
@@ -368,7 +374,7 @@ describe("slotting into GitHub's page for one commit", () => {
 
     takeOverSlot(page, interfaceContainer(page, COMMIT), COMMIT)
 
-    expect(slotOf(page).querySelector(`#${ROOT_ID}`)).not.toBeNull()
+    expect(page.body.querySelector(`#${ROOT_ID}`)).not.toBeNull()
     expect(theirsIn(page).hasAttribute("hidden")).toBe(true)
   })
 
@@ -408,8 +414,11 @@ describe("arriving before GitHub has rendered", () => {
     late.className = "prc-PageLayout-PageLayoutContent-BneH9"
     page.querySelector("#repo-content-pjax-container")!.append(late)
 
+    // The wait is for their region. Where it stands when the wait is over is
+    // the surface, which is why the region is asserted by the resolve rather
+    // than by what it ends up containing.
     expect((await waiting)?.container.id).toBe(ROOT_ID)
-    expect(late.querySelector(`#${ROOT_ID}`)).not.toBeNull()
+    expect((await waiting)?.container.parentElement).toBe(page.body)
   })
 
   test("gives up rather than waiting forever on a page that has none", async () => {
@@ -429,7 +438,7 @@ describe("arriving before GitHub has rendered", () => {
     await Effect.runPromise(takeOverSlotWhenReady(page, early, 1000))
 
     expect(page.querySelectorAll(`#${ROOT_ID}`)).toHaveLength(1)
-    expect(slotOf(page).querySelector(`#${ROOT_ID}`)).toBe(early)
+    expect(page.body.querySelector(`#${ROOT_ID}`)).toBe(early)
     expect(early.textContent).toBe("our interface")
   })
 })
@@ -474,7 +483,7 @@ describe("arriving after the document has finished, which is what a soft navigat
   /** The list of pull requests, finished loading, with no conversation on it yet. */
   const aFinishedPage = (): Document => {
     const page = document.implementation.createHTMLDocument("github")
-    page.body.innerHTML = `<div id="repo-content-pjax-container">the list of pull requests</div>`
+    page.body.innerHTML = `<div id="repo-content-pjax-container"><div class="js-updatable-content">the list of pull requests</div></div>`
     return page
   }
 
@@ -489,14 +498,29 @@ describe("arriving after the document has finished, which is what a soft navigat
     page.body.innerHTML = `
       <div id="repo-content-pjax-container">
         <react-app app-name="pull-requests">
-          <div class="prc-PageLayout-PageLayoutContent-BneH9">GitHub's conversation</div>
+          <div class="prc-PageLayout-PageLayoutContent-BneH9">
+            <div class="js-updatable-content">GitHub's conversation</div>
+          </div>
         </react-app>
       </div>`
 
     const takeover = await waiting
 
+    /*
+     * Which region was taken, asked of what got hidden.
+     *
+     * It used to be asked of where the interface stood, and that question has
+     * one answer now — the surface — on every page and for every region. What
+     * still differs is the stage: taking the conversation hides the
+     * conversation's own children, and settling for the whole repository
+     * content would leave them alone.
+     */
     expect(takeover).not.toBeNull()
-    expect(takeover!.container.parentElement === slotOf(page)).toBe(true)
+    expect(takeover!.container.parentElement).toBe(page.body)
+    expect(page.querySelector(".js-updatable-content")?.parentElement?.className).toContain(
+      "PageLayoutContent"
+    )
+    expect(page.querySelector(".js-updatable-content")?.hasAttribute("hidden")).toBe(true)
   })
 
   test("still takes the whole content once the conversation is plainly not coming", async () => {
@@ -505,28 +529,33 @@ describe("arriving after the document has finished, which is what a soft navigat
     const takeover = await Effect.runPromise(takeOverSlotWhenReady(page, interfaceContainer(page), 400, 20))
 
     expect(takeover).not.toBeNull()
-    expect(takeover!.container.parentElement).toBe(
-      page.querySelector("#repo-content-pjax-container")
-    )
+    expect(takeover!.container.parentElement).toBe(page.body)
+    // The whole content was the stage, so its own child is what went.
+    expect(page.querySelector(".js-updatable-content")?.hasAttribute("hidden")).toBe(true)
   })
 
-  test("moves into the conversation region if GitHub renders one late", async () => {
-    // The short wait means a slow page is taken over at the whole repository
-    // content, which is quick but not where the interface belongs. When the
-    // conversation finally appears, the interface should go into it.
+  test("hides the conversation region if GitHub renders one late, and does not move", async () => {
+    // The short wait means a slow page is taken over before GitHub has decided
+    // what their version of it looks like. When the conversation finally
+    // appears it is hidden like the rest of their page — and the interface,
+    // which is standing on the surface, does not budge. Moving into it is what
+    // replayed the entrance.
     const page = aFinishedPage()
     const takeover = await Effect.runPromise(takeOverSlotWhenReady(page, interfaceContainer(page), 400, 20))
-    expect(takeover!.container.parentElement!.id).toBe("repo-content-pjax-container")
+    expect(takeover!.container.parentElement).toBe(page.body)
 
     page.querySelector("#repo-content-pjax-container")!.insertAdjacentHTML(
       "afterbegin",
       `<react-app app-name="pull-requests">
-         <div class="prc-PageLayout-PageLayoutContent-BneH9">GitHub's conversation</div>
+         <div class="prc-PageLayout-PageLayoutContent-BneH9">
+           <div class="late-conversation">GitHub's conversation</div>
+         </div>
        </react-app>`
     )
     await new Promise((wake) => setTimeout(wake, 20))
 
-    expect(takeover!.container.parentElement === slotOf(page)).toBe(true)
+    expect(takeover!.container.parentElement).toBe(page.body)
+    expect(page.querySelector(".late-conversation")?.hasAttribute("hidden")).toBe(true)
   })
 
   test("keeps watching from the body, which Turbo does not replace", async () => {
@@ -557,7 +586,7 @@ describe("arriving after the document has finished, which is what a soft navigat
     await new Promise((wake) => setTimeout(wake, 20))
 
     expect(takeover!.container.isConnected).toBe(true)
-    expect(takeover!.container.parentElement).toBe(page.querySelector("main"))
+    expect(takeover!.container.parentElement).toBe(page.body)
   })
 })
 
@@ -783,23 +812,24 @@ describe("handing the page from one interface to the next", () => {
    * Coming back to a list from a card, where this extension moved the address
    * itself and GitHub rendered nothing for it.
    *
-   * There is no region for the list on the page, so the list stands on the card's
-   * surface — the only place that is already ours. What that surface is, though, is
-   * a node in the region GitHub rendered for the card, and their router does
-   * eventually catch up with the address and re-render the page around it. The
-   * surface goes, and with it the list, unless the interface finds its way into the
-   * region they have now.
+   * There is no region for the list on the page, so the list stands where the card
+   * stood — which, since the interface took to the surface, is `body`. The whole of
+   * this case used to be that the borrowed surface was a node inside the region
+   * GitHub had rendered for the card, so their router catching up with the address
+   * took the list off the page along with it. It cannot: `body` is the one node on
+   * a GitHub page their router does not replace.
    */
-  test("moves off a borrowed surface into GitHub's own region when they render one", async () => {
+  test("keeps a borrowed surface when their router arrives late with a page of its own", async () => {
     const page = githubPage()
     const card = takeOverSlot(page, interfaceContainer(page, CONVERSATION), CONVERSATION)!
     const borrowed = card.container.parentElement!
+    expect(borrowed).toBe(page.body)
 
     const list = takeOverSlot(page, interfaceContainer(page, REPO_PULLS), REPO_PULLS, borrowed)!
     expect(list.container.isConnected).toBe(true)
 
-    // Their router, arriving late with a page of its own — the region the list was
-    // standing in replaced wholesale.
+    // Their router, arriving late with a page of its own — everything the list
+    // was standing beside replaced wholesale.
     page.body.innerHTML = `
       <div id="repo-content-pjax-container">
         <react-app app-name="pull-requests">
@@ -808,9 +838,9 @@ describe("handing the page from one interface to the next", () => {
       </div>`
     await new Promise((wake) => setTimeout(wake, 20))
 
-    expect(borrowed.isConnected).toBe(false)
+    expect(borrowed.isConnected).toBe(true)
     expect(list.container.isConnected).toBe(true)
-    expect<Element | null>(list.container.parentElement).toBe(findSlot(page, REPO_PULLS))
+    expect<Element | null>(list.container.parentElement).toBe(page.body)
     expect(page.documentElement.hasAttribute("data-gitquiet-taken")).toBe(true)
   })
 
@@ -992,7 +1022,15 @@ describe("pressing a pull request on a list drawn over a layout of the same shap
     const card = takeOverSlot(page, arriving, CONVERSATION)
 
     expect(card).not.toBeNull()
-    expect(card!.container.closest('react-app[app-name="pull-requests"]')).not.toBeNull()
+    // Taken, not stood in: what says the pull request's own region was the one
+    // chosen is that its children went, rather than where the card ended up.
+    expect(card!.container.parentElement).toBe(page.body)
+    expect(
+      page
+        .querySelector('react-app[app-name="pull-requests"] [class*="PageLayoutContent"]')
+        ?.hasAttribute("hidden")
+    ).toBe(false)
+    expect(page.documentElement.getAttribute("data-gitquiet-shown")).toBe("conversation")
   })
 })
 

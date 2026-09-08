@@ -266,16 +266,16 @@ describe("taking over the pull request dashboard", () => {
     );
   });
 
-  test("puts the interface in it and hides what GitHub drew", () => {
+  test("stands on the surface and hides what GitHub drew", () => {
     const page = dashboard();
     const container = interfaceContainer(page);
 
     const takeover = takeOverSlot(page, container, DASHBOARD);
 
     expect(takeover).not.toBeNull();
-    expect(container.parentElement?.getAttribute("data-testid")).toBe(
-      "pulls-dashboard-surface-layout",
-    );
+    // `body`, on this page as on every other. Their layout is still the region
+    // taken — what its children get is what says so.
+    expect(container.parentElement).toBe(page.body);
     expect(visible(page, "their filters")).toBe(false);
     expect(visible(page, "their rows")).toBe(false);
   });
@@ -915,7 +915,7 @@ describe("two interfaces in one document", () => {
     expect(interfaceContainer(page, DASHBOARD)).toBe(first);
   });
 
-  test("each interface ends up in its own region", () => {
+  test("the one that arrives stands on the surface, and the other is gone", () => {
     const page = bothPages();
     const list = interfaceContainer(page, DASHBOARD);
     takeOverSlot(page, list, DASHBOARD);
@@ -923,6 +923,14 @@ describe("two interfaces in one document", () => {
     const card = interfaceContainer(page, CONVERSATION);
     takeOverSlot(page, card, CONVERSATION);
 
-    expect(card.parentElement?.className).toContain("PageLayoutContent");
+    /*
+     * Two interfaces, one surface — which is the invariant every stylesheet here
+     * already relied on and the DOM now states plainly. They used to end up in a
+     * region each, two boxes apart in GitHub's layout, and the only thing keeping
+     * one of them off the screen was that its region was hidden.
+     */
+    expect(card.parentElement).toBe(page.body);
+    expect(list.isConnected).toBe(false);
+    expect(page.querySelectorAll(`#${ROOT_ID}`)).toHaveLength(1);
   });
 });
