@@ -60,6 +60,12 @@ describe("crawler-visible copy inside #page", () => {
     expect(h1In(html("../index.html"))).toBe("A faster, quieter GitHub.")
   })
 
+  test("home crawler copy links the two job pages", () => {
+    const source = html("../index.html")
+    expect(source).toContain("/github-pr-inbox")
+    expect(source).toContain("/github-review-queue")
+  })
+
   test("install has the live h1", () => {
     expect(h1In(html("../install.html"))).toBe("Install GitQuiet.")
   })
