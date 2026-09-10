@@ -77,3 +77,13 @@ Raw traces can contain private page details and stay under ignored `.tmp`:
 The corresponding configs and diagnostic outputs are under `.tmp/perf-observers`. Use the [recording guide](TRACING.md) to repeat the tests.
 
 Addy Osmani's requested `performance` skill was installed at `.agents/skills/performance`. Its measurement workflow informed the distinction between lab observations, field data, and unproven hypotheses.
+
+## Prepared-diff reuse follow-up
+
+Commit `a236f81` keeps an existing diff drawing when only file metadata changes. The renderer effect previously depended on an `Option` wrapper. A metadata refresh created another wrapper for identical patch text, which destroyed the prepared drawing and scheduled another draw. The effect now depends on the patch text itself.
+
+The regression test failed before the fix: a read-state update produced two renderer calls instead of one. It passes after the fix and also checks that changed patch content still redraws. The 64 related UI tests passed. Full gates passed 4,562 tests with zero failures, and the production build passed. The code-quality review found no remaining issue in this change.
+
+A separate clock-dependent test failed by one millisecond during full verification. Commit `04c1d3b` gives that test one fixed clock value. It changes no production behavior.
+
+The matched live comparison did not finish. Its first attempt hit a navigation timeout. During the retry, the Ego task space disappeared and extension cleanup failed. No completed comparison result exists in `.tmp/performance-patch-reuse`. The previously measured 330 to 387 ms delay is therefore not yet proved fixed by this change.
