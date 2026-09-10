@@ -87,3 +87,5 @@ The regression test failed before the fix: a read-state update produced two rend
 A separate clock-dependent test failed by one millisecond during full verification. Commit `04c1d3b` gives that test one fixed clock value. It changes no production behavior.
 
 The matched live comparison did not finish. Its first attempt hit a navigation timeout. During the retry, the Ego task space disappeared and extension cleanup failed. No completed comparison result exists in `.tmp/performance-patch-reuse`. The previously measured 330 to 387 ms delay is therefore not yet proved fixed by this change.
+
+After the interrupted comparison, the original development extension was restored and verified enabled. The store copy remained disabled. The cleanup task space closed successfully.
