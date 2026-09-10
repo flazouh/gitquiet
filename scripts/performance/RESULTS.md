@@ -89,3 +89,15 @@ A separate clock-dependent test failed by one millisecond during full verificati
 The matched live comparison did not finish. Its first attempt hit a navigation timeout. During the retry, the Ego task space disappeared and extension cleanup failed. No completed comparison result exists in `.tmp/performance-patch-reuse`. The previously measured 330 to 387 ms delay is therefore not yet proved fixed by this change.
 
 After the interrupted comparison, the original development extension was restored and verified enabled. The store copy remained disabled. The cleanup task space closed successfully.
+
+## Matched retry after prepared-diff reuse
+
+The retry completed all six small-PR recordings: three alternating pairs of `fdd1f28` and `a236f81`. The candidate build was copied to a frozen directory before recording. The config records each file-screen bundle hash as well as the shell hash, since this fix changes the file-screen bundle and leaves the shell unchanged.
+
+Across 15 switches per build, median pointerdown-to-diff-ready time was 104.1 ms before and 33.8 ms after. The worst switch was 369.7 ms before and 403.2 ms after. The candidate's second switch remained slow in all three runs: 376.1, 403.2, and 380.8 ms. The median improved in each pair, but this does not establish that the original slow-switch problem is fixed.
+
+Selection-phase main-thread totals were 871.4, 1,174.1, and 876.3 ms before, versus 935.0, 894.0, and 836.1 ms after. Their medians were 876.3 and 894.0 ms. Total CPU work did not consistently improve. Candidate selection phases still had 13 to 16 tasks above 16.7 ms and 25 to 28 above 8.3 ms.
+
+The blank-page control itself recorded a 107.4 ms long task and 77.4% dropped frame outcomes. These environment limits prevent a zero-drop claim. The data supports retaining the regression fix for unnecessary metadata redraws, but the remaining scheduled wait needs separate diagnosis.
+
+The result is saved at `.tmp/performance-patch-reuse-retry/summary.json`, with its trace dumps in the same directory. No build or test job overlapped recording. Automatic cleanup restored the development copy to enabled and left the store copy disabled; a separate inventory check verified both states.
