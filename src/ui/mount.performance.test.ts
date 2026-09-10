@@ -9,6 +9,28 @@ afterEach(() => {
 
 const turn = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
 
+test("opening and closing focus guards keeps the screen visible without traversing the page", async () => {
+  const page = document.implementation.createHTMLDocument("PR")
+  page.body.innerHTML = '<main><div class="PageLayoutContent"><section>native</section></div></main>'
+  const takeover = takeOverSlot(page)!
+  stop = () => { takeover.stepAside() }
+  await turn()
+  const one = spyOn(page, "querySelector")
+  const all = spyOn(page, "querySelectorAll")
+  const guards = [page.createElement("span"), page.createElement("span")]
+  for (const guard of guards) {
+    guard.setAttribute("data-radix-focus-guard", "")
+    page.body.append(guard)
+  }
+  await turn()
+  for (const guard of guards) guard.remove()
+  await turn()
+  expect(takeover.container.isConnected).toBe(true)
+  expect(takeover.container.hasAttribute("hidden")).toBe(false)
+  expect(one).not.toHaveBeenCalled()
+  expect(all).not.toHaveBeenCalled()
+})
+
 // Count browser-boundary traversals rather than asserting a machine's speed.
 test("drawing inside a mounted screen does not traverse GitHub's document", async () => {
   const page = document.implementation.createHTMLDocument("large PR")
@@ -57,11 +79,30 @@ test("a mixed batch still hides a new native sibling and keeps the new screen te
   const takeover = takeOverSlot(page)!
   stop = () => { takeover.stepAside() }
   const sibling = page.createElement("aside")
+  const guard = page.createElement("span")
+  guard.setAttribute("data-radix-focus-guard", "")
+  page.body.append(guard)
   takeover.container.textContent = "new file"
   takeover.container.parentElement!.append(sibling)
   await turn()
   expect(sibling.hasAttribute("hidden")).toBe(true)
   expect(takeover.container.textContent).toBe("new file")
+  expect(takeover.container.hasAttribute("hidden")).toBe(false)
+})
+
+test("a focus guard marker does not hide a real region inside a nonempty node", async () => {
+  const page = document.implementation.createHTMLDocument("PR")
+  page.body.innerHTML = '<div id="repo-content-pjax-container"></div>'
+  const takeover = takeOverSlot(page)!
+  stop = () => { takeover.stepAside() }
+  const guard = page.createElement("span")
+  guard.setAttribute("data-radix-focus-guard", "")
+  const region = page.createElement("div")
+  region.className = "PageLayoutContent"
+  guard.append(region)
+  page.body.append(guard)
+  await turn()
+  expect(takeover.container.parentElement).toBe(region)
   expect(takeover.container.hasAttribute("hidden")).toBe(false)
 })
 

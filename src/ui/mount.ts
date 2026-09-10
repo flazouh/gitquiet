@@ -1209,13 +1209,22 @@ export const takeOverSlot = (
     // arriving late, so keep watching it until we stand in that region.
     const parent = container.parentElement
     const inRegion = parent !== null && place.regions.some((selector) => parent.matches(selector))
-    if (container.isConnected && changes.every(({ target: node }) =>
-      container.contains(node) ||
-      (node instanceof Element && (
-        node.closest(`[${OUTSIDE}]`) !== null ||
-        (inRegion && node.closest(`[${HIDDEN}]`) !== null)
-      ))
-    )) return
+    if (container.isConnected && changes.every((change) => {
+      const node = change.target
+      // Radix adds empty keyboard-focus sentinels around body content. They
+      // cannot hold a page region, so opening a panel needs no recovery scan.
+      if (node === ground) {
+        const moved = [...change.addedNodes, ...change.removedNodes]
+        if (moved.length > 0 && moved.every((item) =>
+          item instanceof Element && item.matches("span[data-radix-focus-guard]") && item.childNodes.length === 0
+        )) return true
+      }
+      return container.contains(node) ||
+        (node instanceof Element && (
+          node.closest(`[${OUTSIDE}]`) !== null ||
+          (inRegion && node.closest(`[${HIDDEN}]`) !== null)
+        ))
+    })) return
 
     /*
      * A surface borrowed from the screen being replaced lives only as long as the
