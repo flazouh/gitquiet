@@ -85,10 +85,11 @@ describe("what one document tells the next about its own writes", () => {
    * has no idea a press ever happened.
    */
   test("hands out what was written, to be kept", () => {
+    Date.now = () => 1_000
     recordLanded(one, "merged")
 
     expect(landedNow()).toEqual({
-      "flazouh/gitquiet#7": { state: "merged", at: clock() }
+      "flazouh/gitquiet#7": { state: "merged", at: 1_000 }
     })
   })
 
