@@ -60,3 +60,7 @@ The final probe used pointer clicks and direct trigger-state reads. The earlier 
 A navigation timeout interrupted an earlier attempt. Reload did not recover that page. A fresh page in the same task space completed the matrix and live checks. The cause of that timeout was not established.
 
 A separate layout issue appeared at 1272 pixels: the large PR's file-settings button extended past the viewport. This performance change does not fix that layout issue. The transition test used 1600 pixels on both pages.
+
+## Full-extension traces
+
+See [the trace results](RESULTS.md) for the controlled startup, frame, and interaction measurements. See [the recording guide](TRACING.md) to repeat them. The observer improvements do not establish zero dropped frames or faster startup.
