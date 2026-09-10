@@ -1185,7 +1185,7 @@ export const takeOverSlot = (
   // fires again, so the interface is never put back, and the page stays blank
   // behind a rule that is still hiding GitHub's.
   const ground = target.body
-  const watcher = new MutationObserver(() => {
+  const watcher = new MutationObserver((changes) => {
     /*
      * Another interface is taking the document over, and this one is on the
      * screen only until it does. Tending it past that point would start a fight:
@@ -1197,6 +1197,11 @@ export const takeOverSlot = (
       watcher.disconnect()
       return
     }
+
+    // Rendering our screen cannot replace its native region. Leave that work
+    // alone, even when GitHub has hundreds of thousands of hidden diff nodes.
+    if (container.isConnected && changes.every((change) => container.contains(change.target)))
+      return
 
     /*
      * A surface borrowed from the screen being replaced lives only as long as the
