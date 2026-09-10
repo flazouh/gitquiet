@@ -5,7 +5,11 @@ export const protectOwnedLinks = (
   target: Document,
   owns: (link: HTMLAnchorElement) => boolean
 ): (() => void) => {
-  let roots: HTMLElement[] = []
+  let roots: readonly HTMLElement[] = []
+  const protect = (link: HTMLAnchorElement) => {
+    if (link.hasAttribute("href") && owns(link)) markOwnedRoute(link)
+    else link.removeAttribute(OWNED_ROUTE)
+  }
   const update = (changes: readonly MutationRecord[]) => {
     const current = [target.getElementById("gitquiet-root"), target.getElementById("gitquiet-bar")]
       .filter((root) => root !== null)
@@ -18,10 +22,6 @@ export const protectOwnedLinks = (
       for (const node of change.addedNodes) {
         if (node instanceof Element && roots.some((root) => root.contains(node))) added.add(node)
       }
-    }
-    const protect = (link: HTMLAnchorElement) => {
-      if (link.hasAttribute("href") && owns(link)) markOwnedRoute(link)
-      else link.removeAttribute(OWNED_ROUTE)
     }
     for (const node of added) {
       // Nested additions share a traversal, even if records arrive out of order.
