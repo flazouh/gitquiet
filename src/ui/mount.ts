@@ -67,6 +67,12 @@ const markWithin = (target: Document, root: Element): void => {
     above = above.parentElement
   ) {
     above.setAttribute(WITHIN, "")
+    // A late region can sit inside a sibling we hid while using the fallback.
+    // Once it holds our screen, that ancestor must be visible again.
+    if (above.hasAttribute(HIDDEN)) {
+      above.removeAttribute(HIDDEN)
+      above.removeAttribute("hidden")
+    }
   }
 }
 
@@ -1198,10 +1204,18 @@ export const takeOverSlot = (
       return
     }
 
-    // Rendering our screen cannot replace its native region. Leave that work
-    // alone, even when GitHub has hundreds of thousands of hidden diff nodes.
-    if (container.isConnected && changes.every((change) => container.contains(change.target)))
-      return
+    // A hidden diff can keep rendering without changing where our screen
+    // belongs. While using a fallback, however, it may contain the real region
+    // arriving late, so keep watching it until we stand in that region.
+    const parent = container.parentElement
+    const inRegion = parent !== null && place.regions.some((selector) => parent.matches(selector))
+    if (container.isConnected && changes.every(({ target: node }) =>
+      container.contains(node) ||
+      (node instanceof Element && (
+        node.closest(`[${OUTSIDE}]`) !== null ||
+        (inRegion && node.closest(`[${HIDDEN}]`) !== null)
+      ))
+    )) return
 
     /*
      * A surface borrowed from the screen being replaced lives only as long as the
@@ -1247,7 +1261,6 @@ export const takeOverSlot = (
       return
     }
 
-    const parent = container.parentElement
     if (parent !== null) hideTheirs(parent, container)
     /*
      * And the way down to us, if GitHub has put a box of their own in between.
