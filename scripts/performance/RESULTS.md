@@ -101,3 +101,17 @@ Selection-phase main-thread totals were 871.4, 1,174.1, and 876.3 ms before, ver
 The blank-page control itself recorded a 107.4 ms long task and 77.4% dropped frame outcomes. These environment limits prevent a zero-drop claim. The data supports retaining the regression fix for unnecessary metadata redraws, but the remaining scheduled wait needs separate diagnosis.
 
 The result is saved at `.tmp/performance-patch-reuse-retry/summary.json`, with its trace dumps in the same directory. No build or test job overlapped recording. Automatic cleanup restored the development copy to enabled and left the store copy disabled; a separate inventory check verified both states.
+
+### Remaining second-switch timer wait
+
+The saved candidate traces contain two 250 ms timers after each second selection. The table shows the later timer, relative to pointerdown. Events match by renderer PID, main-thread ID, and timer ID.
+
+| Candidate run | Timer installed | Timer fired | Callback duration | Diff ready |
+| --- | ---: | ---: | ---: | ---: |
+| 0 | 93.9 ms | 351.3 ms | 25.0 ms | 376.1 ms |
+| 1 | 136.5 ms | 386.6 ms | 16.9 ms | 403.2 ms |
+| 2 | 106.2 ms | 363.8 ms | 17.4 ms | 380.8 ms |
+
+The callback ends near diff readiness in every run. Timer events contain no install stack, so these events alone do not identify the caller. The 250 ms interval matches the `afterPaint` fallback in `src/app/idle.ts`. Both tree selection sync and diff drawing use that helper. Caller attribution remains a hypothesis until a stack or a build mark identifies it.
+
+Do not reduce the fallback based on these timings alone. The helper defers drawing so the selection can paint first, and Ego frame throttling can trigger its fallback. The next probe must identify the caller and separate its scheduling wait from drawing time.
