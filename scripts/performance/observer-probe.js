@@ -25,7 +25,7 @@ export const runObserverProbe = async (api, { nodes, updates = 40 }) => {
   page.querySelectorAll = function (...args) { queries++; return queryAll.apply(this, args) }
   const phases = []
   return (async () => {
-    for (const phase of ["screen", "hidden-native", "added-links"]) {
+    for (const phase of ["screen", "hidden-native", "added-links", "focus-guards"]) {
       const samples = []
       queries = 0
       linkChecks = 0
@@ -37,6 +37,12 @@ export const runObserverProbe = async (api, { nodes, updates = 40 }) => {
           const link = page.createElement("a")
           link.href = `/pull/${i}`
           root.append(link)
+        }
+        if (phase === "focus-guards") {
+          const guard = page.createElement("span")
+          guard.setAttribute("data-radix-focus-guard", "")
+          page.body.append(guard)
+          guard.remove()
         }
         await turn()
         samples.push(performance.now() - start)

@@ -1,7 +1,7 @@
 // Run with ego-browser nodejs after starting observer-server.ts.
 const fs = await import('node:fs/promises')
 const task = await taskSpace('GitQuiet performance optimization')
-const page = task.page('p1')
+const page = (await task.pages())[0] ?? await task.newPage()
 const results = []
 await (async () => {
   for (const [index, nodes] of [0, 1000, 100000, 250000, 500000].entries()) {
