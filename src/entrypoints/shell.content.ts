@@ -9,6 +9,7 @@ import {
 } from "@/app/screens";
 import { whenIdle } from "@/app/idle";
 import { claimShell } from "@/app/shellClaim";
+import { protectOwnedLinks } from "@/app/ownedLinks";
 import { titleAt } from "@/app/entitling";
 import { intendTo, intendedPath, prepareTo, whenPreparing } from "@/app/intent";
 import {
@@ -270,7 +271,7 @@ export default defineContentScript({
    * frame later is one frame of their page on the screen.
    */
   runAt: "document_start",
-  main() {
+  main(ctx) {
     if (!claimShell(document)) return;
 
 
@@ -892,16 +893,7 @@ export default defineContentScript({
       markOwnedRoute(link);
     });
 
-    const protectOwnedLinks = (): void => {
-      for (const link of document.querySelectorAll<HTMLAnchorElement>(
-        "#gitquiet-root a[href], #gitquiet-bar a[href]",
-      )) {
-        if (opening(link) !== null) markOwnedRoute(link);
-      }
-    };
-    const linksChanging = new MutationObserver(protectOwnedLinks);
-    linksChanging.observe(document.documentElement, { childList: true, subtree: true });
-    protectOwnedLinks();
+    ctx.onInvalidated(protectOwnedLinks(document, (link) => opening(link) !== null));
 
     // All three, because the gate has to be up before GitHub renders and no one
     // of them can be relied on to say so. A pointer fires all three in order; a
