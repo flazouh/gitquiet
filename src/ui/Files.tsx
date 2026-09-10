@@ -645,10 +645,11 @@ const FileDiffPaneView = ({
   // it is a fresh closure on every render of the screen above, and a redraw per
   // closure was every mounted file drawn again several times per click.
   const canPost = onPost !== undefined
+  // Metadata refreshes can recreate the Option while keeping the patch unchanged.
+  const source = Option.getOrNull(shown)
 
   useEffect(() => {
     const container = host.current
-    const source = Option.getOrNull(shown)
     if (engine === null || container === null || source === null || source === "" || prose !== undefined)
       return
 
@@ -694,7 +695,7 @@ const FileDiffPaneView = ({
     }
     // Every one of these is baked into the DOM the renderer writes, so a change
     // to any of them is a file drawn again from the patch.
-  }, [engine, shown, file.path, prose, drawnWith, canPost, reveal])
+  }, [engine, source, file.path, prose, drawnWith, canPost, reveal])
 
   useEffect(() => {
     handle.current?.showNotes(notes)
