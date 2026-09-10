@@ -110,3 +110,15 @@ test("a removed addition and changes after teardown stay untouched", async () =>
   expect(owns).not.toHaveBeenCalled()
   expect(link.hasAttribute(OWNED_ROUTE)).toBe(false)
 })
+
+test("a link moved into native content before delivery is not intercepted", async () => {
+  const page = pageWithLinks()
+  stop = protectOwnedLinks(page, owned)
+  await turn()
+  const link = page.createElement("a")
+  link.href = "/pull/native-move"
+  page.getElementById("gitquiet-root")!.append(link)
+  page.querySelector("main")!.append(link)
+  await turn()
+  expect(link.hasAttribute(OWNED_ROUTE)).toBe(false)
+})

@@ -16,7 +16,7 @@ export const protectOwnedLinks = (
       if (change.type === "attributes" && change.target instanceof HTMLAnchorElement)
         added.add(change.target)
       for (const node of change.addedNodes) {
-        if (node instanceof Element && node.isConnected) added.add(node)
+        if (node instanceof Element && roots.some((root) => root.contains(node))) added.add(node)
       }
     }
     const protect = (link: HTMLAnchorElement) => {
