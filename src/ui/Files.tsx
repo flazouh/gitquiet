@@ -301,10 +301,8 @@ export const FileTreePane = ({
 
     // Selection answers the press. Deferring it to a frame leaves the old row
     // highlighted until the 250 ms fallback when frame callbacks are delayed.
-    for (const held of model.getSelectedPaths()) {
-      if (held !== wanted) model.getItem(held)?.deselect()
-    }
-    row.select()
+    // One selection update avoids refreshing the viewport with no selected row.
+    model.selectOnlyPath(wanted)
     model.scrollToPath(wanted)
   }, [model, wanted])
 

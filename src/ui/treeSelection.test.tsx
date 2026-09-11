@@ -1,6 +1,7 @@
 import { afterEach, expect, mock, spyOn, test } from "bun:test"
 import { act, cleanup, render } from "@testing-library/react"
 import { Option } from "effect"
+import { FileTree as TreeModel } from "@pierre/trees"
 import { treeChoices } from "../domain/choices"
 import { DEFAULTS } from "../domain/Settings"
 import type { ChangedFile } from "../domain/PullRequest"
@@ -48,4 +49,26 @@ test("an empty tree has no selected row", () => {
   const view = render(<FileTreePane files={[]} selected={Option.none()} onSelect={(path) => reports.push(path)} choices={choices} />)
   expect(view.getByText("No files changed")).toBeDefined()
   expect(reports).toEqual([])
+})
+
+test("a file switch never publishes an empty selection to the tree", async () => {
+  const selections: ReadonlyArray<string>[] = []
+  const subscribe = TreeModel.prototype.subscribe
+  spyOn(TreeModel.prototype, "subscribe").mockImplementation(function (this: TreeModel, listener) {
+    return subscribe.call(this, () => {
+      selections.push([...this.getSelectedPaths()])
+      listener()
+    })
+  })
+  const pane = (path: string) => (
+    <FileTreePane files={files} selected={Option.some(path)} onSelect={() => {}} choices={choices} />
+  )
+  const view = render(pane("a.ts"))
+  selections.length = 0
+  await act(async () => { view.rerender(pane("b.ts")) })
+  expect(selectedPaths()).toEqual(["b.ts"])
+  expect(selections.length).toBeGreaterThan(0)
+  // One notification for selection and one for scrolling it into view.
+  expect(selections.length).toBeLessThanOrEqual(2)
+  expect(selections.every((paths) => paths.length === 1 && paths[0] === "b.ts")).toBe(true)
 })

@@ -1,0 +1,26 @@
+diff --git a/dist/render/FileTree.d.ts b/dist/render/FileTree.d.ts
+index 21af65bbdadbd2f4165ae821b6577d8f6624cfb1..49a3c193238997631725dce9e0bc29307dd68a2c 100644
+--- a/dist/render/FileTree.d.ts
++++ b/dist/render/FileTree.d.ts
+@@ -20,6 +20,7 @@ declare class FileTree implements FileTreeMutationHandle, FileTreeSearchSessionH
+   getItemHeight(): number;
+   getDensityFactor(): number;
+   subscribe(listener: FileTreeListener): () => void;
++  selectOnlyPath(path: string): void;
+   focusPath(path: string): void;
+   focusFirstItem(): void;
+   focusLastItem(): void;
+diff --git a/dist/render/FileTree.js b/dist/render/FileTree.js
+index 305714319d9d988bfc025ecaaca662562a3a0ff7..2249ccde31b460688f643c106d823fc03995e024 100644
+--- a/dist/render/FileTree.js
++++ b/dist/render/FileTree.js
+@@ -177,6 +177,9 @@ var FileTree = class {
+ 			listener();
+ 		});
+ 	}
++	selectOnlyPath(path) {
++		this.#controller.selectOnlyPath(path);
++	}
+ 	focusPath(path) {
+ 		this.#controller.focusPath(path);
+ 	}
