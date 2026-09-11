@@ -18,6 +18,7 @@ import { repoHomeIn } from "../domain/repoHome";
 import { runAddressIn } from "../domain/run";
 import { actionsIn } from "../domain/strand";
 import { THEIR_TABS } from "./theirTabs";
+import { HOME_READY } from "./homeGate";
 
 /**
  * Where on a GitHub page the interface goes, described per page.
@@ -788,8 +789,9 @@ export const HOME: Place = {
    * `:has(#dashboard.dashboard)` is the proof this is home's document, and it is a
    * *finding* claim: if GitHub renames the column, this matches nothing, the
    * takeover declines, and the reader has GitHub whole rather than a hybrid. It is
-   * also what keeps the press safe — these rules are switched on while the page
-   * being left is still on the screen, and `/feed` names its own column
+   * also what keeps the press safe. The shell mirrors that proof onto body for
+   * CSS, so stylesheet matching never needs body-wide ancestry checks. The rules
+   * are switched on while the page being left is still on the screen, and `/feed` names its own column
    * `#feed.dashboard`, so a reader pressing Home from the feed keeps the feed until
    * home's document is really there. Probed live on 2026-08-31: one match on `/`,
    * none on `/feed`.
@@ -799,6 +801,7 @@ export const HOME: Place = {
    * our container used to be inside it.
    */
   regions: ["body:has(#dashboard.dashboard)"],
+  stages: [`body[${HOME_READY}]`],
   /*
    * The surface without the proof. The fallback is only offered once parsing is
    * over, when the column never appeared at all — and the address already said this

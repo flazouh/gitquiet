@@ -190,3 +190,84 @@ The regression test failed before the fix with an empty intermediate selection a
 Both package manifests identify version 0.12.1. The source ZIP contains 694 files and is 2,505,059 bytes. Its dependency patch, package metadata, and lockfile match the checked files.
 
 Evidence is in `.tmp/performance-atomic-tree` and `.tmp/performance-atomic-tree-retry`. No build or test ran during recording. Test extension copies were removed, original extension states were restored, and task space 7 closed.
+
+
+## Remaining style cost after 0.12.1
+
+Release `v0.12.1` points to merged commit `30b5b17`. Its CI and every release job passed. Published extension ZIPs contain version 0.12.1 and the atomic selection method. The published source archive contains 693 files; its patch, package metadata, and lockfile match the source. Chrome and Firefox submission jobs passed. Firefox reported zero errors and 44 warnings. Store submission does not establish store approval.
+
+The latest atomic-selection trace still records substantial style work. In `large-0-after` from the retry, settings used 302.4 ms of `UpdateLayoutTree` time. Individual updates visited about 5,700 elements. Selection used 202.7 ms of style updates. CPU samples place expensive reads under the tree viewport refresh and Radix style reads. Sampled stacks identify where work is requested, not which stylesheet causes it. The local sampler groups Ego's own extension with GitQuiet; its combined extension total must not be presented as GitQuiet CPU.
+
+A follow-up browser probe used frozen candidate `585c1b4` on the same large PR URL. Exactly one GitQuiet copy was enabled. The document contained 118,477 elements. Each sample appended an empty span to the root, forced a computed-style read, removed the span, and forced another read. These synchronous samples exclude observer delivery and represent synthetic style work, not interaction latency or FPS. No build or test ran during measurement.
+
+| Temporary intervention | Baseline median per cycle | Intervention median per cycle |
+| --- | ---: | ---: |
+| Disable 56 GitHub stylesheet links, pair 1 | 32.6 ms | 33.8 ms |
+| Disable 56 GitHub stylesheet links, pair 2 | 31.9 ms | 32.6 ms |
+| Disable 56 GitHub stylesheet links, pair 3 | 33.7 ms | 33.8 ms |
+| Disable GitQuiet's linked stylesheet, pair 1 | 40.8 ms | 31.9 ms |
+| Disable GitQuiet's linked stylesheet, pair 2 | 37.4 ms | 31.8 ms |
+| Move root into shadow DOM with copied GitQuiet stylesheet, pair 1 | 33.5 ms | 20.8 ms |
+| Move root into shadow DOM with copied GitQuiet stylesheet, pair 2 | 52.8 ms | 26.6 ms |
+
+The first intervention did not improve the probe. The stylesheet inventory changed later as more native sheets loaded. These results do not isolate every native rule or extension-injected stylesheet. Disabling GitQuiet's sheet changes layout and removes styles users need. Moving the root changes style matching and custom-element connection state. Although root width remained 1,262 pixels in both isolation pairs, that does not establish equal rendering. The second baseline also slowed substantially. No intervention is ready to ship from this evidence.
+
+The next check should attribute style invalidation with a trace and establish a fixture that preserves the real rendering. A shadow-root migration must preserve portals, delegated events, native HTML styling, navigation queries, and screen recovery. Tests and an equivalent interaction comparison must precede any claim of a user-visible improvement.
+
+Raw probe results are in `.tmp/perf-observers/restyle-native-sheets.json`, `restyle-own-sheet.json`, and `restyle-shadow.json`. Styles and root placement were restored. The test copy was removed, the original development copy was enabled, and the store copy remained disabled. Task space 8 closed. No production code changed.
+
+
+## Home gate invalidation fix, browser comparison incomplete
+
+The invalidation trace identifies the generated home `body:has(#dashboard.dashboard)` rules in a body-subtree invalidation after an empty span is inserted into GitQuiet. Replacing only that CSS condition in a diagnostic build removed that invalidation in a fresh trace. Its sampled cycle took 1.53 ms versus 28.70 ms in the baseline trace. Separate repeated synthetic comparisons were mixed, so these isolated times establish a cause to investigate rather than an interaction speedup.
+
+Commit `45870ab` preserves the native region selector and replaces its CSS condition with `body[data-gitquiet-home]`. The shell maintains that marker from the dashboard's ID, class, and body membership. It removes the marker on body replacement or cleanup. Generated CSS retains the initial body cover and waits for the marker during soft navigation. The canary manifest keeps both the native proof and the marked stage.
+
+Four initial tests failed before implementation. A further descendant test failed before correcting the body-self case. The final focused run passed 128 tests. `bun run gates` passed 4,782 tests, lint, and both typechecks. `RELEASE_VERSION=0.12.2 bun run build` passed. Code-quality review found and fixed a canary weakness in the initial stage choice. No remaining code blocker was found. Browser validation remains required.
+
+The real candidate trace records no body-subtree invalidation in any of three synthetic cycles. The first cycle took 10.99 ms and included an existing style update for 2,572 elements. Later cycles took 0.94 and 0.81 ms and restyled 20 elements on insertion and 19 on removal. These are synthetic style checks, not frame-rate or end-to-end interaction results. That probe restored the original extension states and closed space 12.
+
+The full comparison then completed three small-PR recordings before its process exited with status 1 and no error message. A direct check of the same space returned `task space not found: 13`. Its disappearance is confirmed; its cause is not. No large-PR recordings completed. The saved runs are complete and were analysed after the process stopped.
+
+| Small-PR metric | First baseline | First candidate | Second candidate, unpaired |
+| --- | ---: | ---: | ---: |
+| Startup CPU | 1,082.1 ms | 1,287.1 ms | 1,052.1 ms |
+| Tree-scroll CPU | 74.6 ms | 101.8 ms | 85.9 ms |
+| Settings CPU | 521.3 ms | 600.8 ms | 514.7 ms |
+| Selection CPU | 448.6 ms | 393.3 ms | 372.5 ms |
+| Median file-switch readiness | 25.8 ms | 18.3 ms | 20.4 ms |
+
+The one complete pair improves selection work and readiness but worsens other CPU measures. The extra candidate run is not a second pair. These results do not justify a release. Repeat the interrupted comparison and check real home/feed navigation before shipping. Zero dropped frames remains unproven.
+
+Evidence: `.tmp/perf-observers/style-invalidation.trace.json`, `style-invalidation-no-body-has.trace.json`, `style-invalidation-home-gate.trace.json`, and `.tmp/performance-home-gate/summary.json`. Space 13 no longer exists, so its final extension cleanup could not be verified. Check the installed copies before restarting measurement. The earlier spaces restored their copies successfully.
+
+
+## Completed home-gate comparison and file-request correction
+
+After approval to replace the missing space, six short rounds completed three pairs on each PR. Each round used fresh extension storage for both builds and the same browser space. Build order alternated between pairs. The baseline was frozen `585c1b4`, which contains the production code released in 0.12.1. The candidate was frozen `45870ab`. Configs retain JavaScript and CSS hashes. These measurements predate the file-request correction below.
+
+| Metric, median | Small baseline | Small candidate | Large baseline | Large candidate |
+| --- | ---: | ---: | ---: | ---: |
+| Response-to-diff readiness | 2,055.0 ms | 1,984.2 ms | 2,830.2 ms | 2,544.1 ms |
+| Startup CPU | 1,066.0 ms | 1,119.5 ms | 1,753.4 ms | 1,699.6 ms |
+| Tree-scroll CPU | 76.3 ms | 68.9 ms | 1,212.8 ms | 1,450.0 ms |
+| Settings CPU | 471.9 ms | 379.5 ms | 1,351.1 ms | 1,008.3 ms |
+| Diff-scroll CPU | 21.1 ms | 23.2 ms | 161.4 ms | 152.6 ms |
+| Selection CPU, two matching pairs | 390.2 ms | 285.9 ms | 958.0 ms | 550.5 ms |
+| File-switch readiness, ten matching clicks | 21.2 ms | 11.0 ms | 45.8 ms | 26.4 ms |
+
+Settings CPU fell in all six pairs. Large-tree scrolling used more CPU in two pairs. It also delivered more frames in every pair: 56 to 83, 57 to 154, and 91 to 168. Tasks exceeding 16.7 ms fell from 15 to 14, 15 to 9, and 13 to 11. These frame reports come from the throttled browser environment and do not establish foreground FPS. Higher CPU time alone does not establish worse scrolling, but these results do not prove uniform improvement either.
+
+Small pair 0 and large pair 2 selected different file sequences between builds. Their selection phases are excluded from the selection medians above. Their earlier phases remain included. A retry that located the current Next button on every click still produced different small-PR sequences, so stale coordinates alone do not explain the difference. The large retry matched, but is not pooled into the table because its action method changed.
+
+A regression test then proved a separate selection defect: after a linked file opens and the reader chooses the next file, a metadata refresh reapplies the same link request. The visible file jumps back. Commit `65bbf76` applies each request object once. A new object remains a deliberate request, even for the same path; a missing requested file still opens when it arrives. Tests cover clearing, replacement, late data, and continued Next navigation. The initial regression failed on the old code and passed after the correction.
+
+The final browser check used `65bbf76` and the real large PR. Five named Next clicks opened these expected files in order: `packages/frontend/utils/fetch-internal-api.test.ts`, `packages/frontend/utils/fetch-internal-api.ts`, `packages/frontend/bun-test-preload.ts`, `packages/helpers/url.ts`, and `packages/providers/get-provider-info.ts`. This verifies continued navigation after the correction. It does not provide an updated performance comparison for that commit.
+
+Live home/feed checks passed with the home-gate candidate. Direct home navigation set the marker and showed GitQuiet. The feed had no home marker and remained visible. A dashboard-switch dialog intercepted the first Home click. After closing it, the native Home link opened the correct page. That link loaded a new document, so this flow does not claim a measured soft-navigation paint boundary; the DOM tests cover the soft gate's arrival and removal conditions.
+
+Final checks passed: 4,787 tests, lint, both typechecks, and the 0.12.2 candidate build. The whole-change quality review found no code blocker. The home-gate packages also passed archive checks before the file-request correction; final packages were rebuilt after that correction.
+
+The initial replacement space later disappeared as well. A subsequent inventory found the development extension enabled, the store copy disabled, and no test copy. The final browser check wrote its verified restored inventory to `.tmp/perf-observers/file-request-cleanup.json` and closed space 7. No build, test, or trace analysis ran alongside the recordings.
+
+Evidence is in `.tmp/performance-home-gate-{small,large}-pair-{0,1,2}`, `.tmp/perf-observers/home-gate-pairs.json`, `home-feed-qa.json`, `file-request-browser.json`, and the named-selection retry folders. Zero dropped frames remains unproven.

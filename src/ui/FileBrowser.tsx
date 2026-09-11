@@ -494,9 +494,17 @@ export const FileBrowser = ({
   //
   // The echo and not the setting: the reader asked for one file, not for a
   // different answer on every pull request from here on.
+  const appliedWanted = useRef<FileBrowserProps["wanted"]>(undefined);
   useEffect(() => {
-    if (wanted === undefined) return;
+    if (wanted === undefined) {
+      appliedWanted.current = undefined;
+      return;
+    }
+    if (wanted === appliedWanted.current) return;
     if (!files.some((file) => file.path === wanted.path)) return;
+    // A data refresh can rerun this effect after the reader moved to another
+    // file. Only a new request should move them back to the linked file.
+    appliedWanted.current = wanted;
 
     setAsked((held) =>
       split[held].some((one) => one.path === wanted.path) ? held : "all",
