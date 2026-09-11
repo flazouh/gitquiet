@@ -168,6 +168,25 @@ The worst file switch fell from 419.0 to 390.6 ms on the small PR and from 582.9
 
 Blank-page calibration delivered about 29 presented frames per second and reported 75.7% dropped outcomes even without the injected blocking task. Those readings cannot certify zero dropped frames on a foreground desktop. Task-budget overruns also remain in the application traces.
 
-A follow-up reading of `large-2-after` assigns about 366 ms of sampled time to the tree viewport refresh called from `deselectPath`. GitQuiet clears the old selection before selecting the new file, so the tree refreshes an intermediate empty selection. The controller already offers a single-selection operation internally. That is the next change to test.
+A follow-up reading of `large-2-after` assigns about 366 ms of sampled time to the tree viewport refresh called from `deselectPath`. GitQuiet clears the old selection before selecting the new file, so the tree refreshes an intermediate empty selection. The controller already offers a single-selection operation internally. The atomic selection comparison below tests that change.
 
 Raw evidence is in `.tmp/performance-release-0.12.0`. Extension restoration was verified, task space 6 closed, and no build or test ran during recording.
+
+
+## Atomic tree selection comparison
+
+Three large-PR pairs compared frozen commit `80692a9` with `585c1b4`. Each recording selected the same five files in the same order. The first run completed two pairs, then exited during the third baseline selection phase without a useful error message. That incomplete trace is excluded. A separate retry completed the missing pair with fresh extension storage.
+
+| Pair | Selection CPU before | Selection CPU after | Tasks above 16.7 ms before | Tasks above 16.7 ms after |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 766.1 ms | 672.6 ms | 13 | 12 |
+| 2 | 741.2 ms | 614.9 ms | 15 | 13 |
+| 3, fresh-storage retry | 1,110.8 ms | 840.3 ms | 21 | 16 |
+
+Median selection CPU fell from 766.1 to 672.6 ms. Median diff readiness increased from 99.8 to 104.0 ms; worst readiness fell from 443.6 to 314.7 ms. The patch reduces selection CPU in every pair. It does not establish faster median clicks or zero dropped frames. The retry uses different storage conditions, so the pairs remain visible above.
+
+The regression test failed before the fix with an empty intermediate selection and three notifications. It passes after the fix, with complete selection and at most two notifications. All 4,775 tests, lint, both typechecks, production builds, and Chrome and Firefox packaging passed. A fresh frozen install reproduced the patched runtime. The final whole-change code-quality review found no blocker.
+
+Both package manifests identify version 0.12.1. The source ZIP contains 694 files and is 2,505,059 bytes. Its dependency patch, package metadata, and lockfile match the checked files.
+
+Evidence is in `.tmp/performance-atomic-tree` and `.tmp/performance-atomic-tree-retry`. No build or test ran during recording. Test extension copies were removed, original extension states were restored, and task space 7 closed.
