@@ -291,9 +291,11 @@ dropped outcomes were 79.3 and 39.8 percent, and median over-budget tasks 15 and
 
 Total renderer main-thread time in the window was 2,227, 2,026 and 2,793 ms before,
 versus 2,684, 2,506 and 2,732 ms after. Those totals are close, and higher in two pairs.
-Busy samples per delivered frame tell the other half: 79.6 to 55.3, 59.7 to 22.7, and
-48.0 to 21.5. The candidate delivered two to three times as many frames at a lower cost
-each, which is why its total work is similar or higher.
+Non-idle CPU samples per delivered frame tell the other half: 176.8 to 143.0, 137.2 to
+61.4, and 116.1 to 61.2. Counting only samples outside the profiler's idle and program
+pseudo-frames gives 74.6 to 51.2, 57.4 to 21.5, and 44.4 to 20.3. Either way the
+candidate delivered two to three times as many frames at a lower cost each, which is why
+its total work is similar or higher.
 
 Attributed self time from `FunctionCall`, `Layout`, `Paint` and `UpdateLayoutTree`
 in the scroll window. Extension script is split by extension id, because two other
