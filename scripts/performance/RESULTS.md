@@ -295,20 +295,22 @@ Busy samples per delivered frame tell the other half: 79.6 to 55.3, 59.7 to 22.7
 48.0 to 21.5. The candidate delivered two to three times as many frames at a lower cost
 each, which is why its total work is similar or higher.
 
-Attributed self time from `FunctionCall`, `Layout`, `Paint`, `EventDispatch` and
-`UpdateLayoutTree` in the scroll window:
+Attributed self time from `FunctionCall`, `Layout`, `Paint` and `UpdateLayoutTree`
+in the scroll window. Extension script is split by extension id, because two other
+extensions were also loaded in this profile and one of them injects a script that runs
+during the scroll. Only the id the runner loaded is counted as GitQuiet.
 
-| Pair | Build | GitQuiet | GitHub | Browser layout or paint |
-| --- | --- | ---: | ---: | ---: |
-| 0 | before | 297 ms | 221 ms | 628 ms |
-| 0 | after | 322 ms | 233 ms | 680 ms |
-| 1 | before | 285 ms | 200 ms | 617 ms |
-| 1 | after | 310 ms | 202 ms | 646 ms |
-| 2 | before | 387 ms | 213 ms | 819 ms |
-| 2 | after | 327 ms | 205 ms | 729 ms |
+| Pair | Build | GitQuiet | Other extension | GitHub | Browser layout or paint |
+| --- | --- | ---: | ---: | ---: | ---: |
+| 0 | before | 195 ms | 102 ms | 221 ms | 590 ms |
+| 0 | after | 201 ms | 121 ms | 233 ms | 704 ms |
+| 1 | before | 193 ms | 92 ms | 200 ms | 564 ms |
+| 1 | after | 202 ms | 108 ms | 202 ms | 660 ms |
+| 2 | before | 273 ms | 115 ms | 213 ms | 778 ms |
+| 2 | after | 210 ms | 117 ms | 205 ms | 770 ms |
 
-Browser layout and paint dominate every run. GitQuiet's script time is 285 to 387 ms
-before and 310 to 327 ms after. The page's own long-animation-frame observer recorded no
+Browser layout and paint dominate every run. GitQuiet's own script time is 193 to 273 ms
+before and 201 to 210 ms after. The page's own long-animation-frame observer recorded no
 GitQuiet script inside any long frame after the 7 second mark; all of that script time
 belongs to GitHub's bundles. The remaining over-budget frames during tree scroll are
 GitHub's work plus browser layout and paint.
