@@ -190,3 +190,28 @@ The regression test failed before the fix with an empty intermediate selection a
 Both package manifests identify version 0.12.1. The source ZIP contains 694 files and is 2,505,059 bytes. Its dependency patch, package metadata, and lockfile match the checked files.
 
 Evidence is in `.tmp/performance-atomic-tree` and `.tmp/performance-atomic-tree-retry`. No build or test ran during recording. Test extension copies were removed, original extension states were restored, and task space 7 closed.
+
+
+## Remaining style cost after 0.12.1
+
+Release `v0.12.1` points to merged commit `30b5b17`. Its CI and every release job passed. Published extension ZIPs contain version 0.12.1 and the atomic selection method. The published source archive contains 693 files; its patch, package metadata, and lockfile match the source. Chrome and Firefox submission jobs passed. Firefox reported zero errors and 44 warnings. Store submission does not establish store approval.
+
+The latest atomic-selection trace still records substantial style work. In `large-0-after` from the retry, settings used 302.4 ms of `UpdateLayoutTree` time. Individual updates visited about 5,700 elements. Selection used 202.7 ms of style updates. CPU samples place expensive reads under the tree viewport refresh and Radix style reads. Sampled stacks identify where work is requested, not which stylesheet causes it. The local sampler groups Ego's own extension with GitQuiet; its combined extension total must not be presented as GitQuiet CPU.
+
+A follow-up browser probe used frozen candidate `585c1b4` on the same large PR URL. Exactly one GitQuiet copy was enabled. The document contained 118,477 elements. Each sample appended an empty span to the root, forced a computed-style read, removed the span, and forced another read. These synchronous samples exclude observer delivery and represent synthetic style work, not interaction latency or FPS. No build or test ran during measurement.
+
+| Temporary intervention | Baseline median per cycle | Intervention median per cycle |
+| --- | ---: | ---: |
+| Disable 56 GitHub stylesheet links, pair 1 | 32.6 ms | 33.8 ms |
+| Disable 56 GitHub stylesheet links, pair 2 | 31.9 ms | 32.6 ms |
+| Disable 56 GitHub stylesheet links, pair 3 | 33.7 ms | 33.8 ms |
+| Disable GitQuiet's linked stylesheet, pair 1 | 40.8 ms | 31.9 ms |
+| Disable GitQuiet's linked stylesheet, pair 2 | 37.4 ms | 31.8 ms |
+| Move root into shadow DOM with copied GitQuiet stylesheet, pair 1 | 33.5 ms | 20.8 ms |
+| Move root into shadow DOM with copied GitQuiet stylesheet, pair 2 | 52.8 ms | 26.6 ms |
+
+The first intervention did not improve the probe. The stylesheet inventory changed later as more native sheets loaded. These results do not isolate every native rule or extension-injected stylesheet. Disabling GitQuiet's sheet changes layout and removes styles users need. Moving the root changes style matching and custom-element connection state. Although root width remained 1,262 pixels in both isolation pairs, that does not establish equal rendering. The second baseline also slowed substantially. No intervention is ready to ship from this evidence.
+
+The next check should attribute style invalidation with a trace and establish a fixture that preserves the real rendering. A shadow-root migration must preserve portals, delegated events, native HTML styling, navigation queries, and screen recovery. Tests and an equivalent interaction comparison must precede any claim of a user-visible improvement.
+
+Raw probe results are in `.tmp/perf-observers/restyle-native-sheets.json`, `restyle-own-sheet.json`, and `restyle-shadow.json`. Styles and root placement were restored. The test copy was removed, the original development copy was enabled, and the store copy remained disabled. Task space 8 closed. No production code changed.
