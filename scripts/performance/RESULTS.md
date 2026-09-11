@@ -115,3 +115,23 @@ The saved candidate traces contain two 250 ms timers after each second selection
 The callback ends near diff readiness in every run. Timer events contain no install stack, so these events alone do not identify the caller. The 250 ms interval matches the `afterPaint` fallback in `src/app/idle.ts`. Both tree selection sync and diff drawing use that helper. Caller attribution remains a hypothesis until a stack or a build mark identifies it.
 
 Do not reduce the fallback based on these timings alone. The helper defers drawing so the selection can paint first, and Ego frame throttling can trigger its fallback. The next probe must identify the caller and separate its scheduling wait from drawing time.
+
+## Tree selection without a frame wait
+
+A diagnostic build marked tree selection and diff drawing separately. The tree callback waited about 250 ms after selection. The second diff was newly prepared in the background in that run; its render took about 8 ms. This separates the delayed tree highlight from diff drawing. The diagnostic marks were removed from source after the build.
+
+A regression test holds frame callbacks and changes external selection through the real tree component. Before the fix, the visible row remained `a.ts` after selection changed to `b.ts`. Removing the tree's `afterPaint` wrapper passes that test. Heavy diff rendering still uses `afterPaint`. Tests also cover rapid changes, repeated selection, a missing path, and an empty tree. The 66 related tests, typecheck, lint, and production build passed. Code-quality review found no remaining issue in this change.
+
+Three alternating small-PR pairs compared `a236f81` with the immediate tree selection change. A local probe variant added tree selection reads through the tree shadow root. It sampled with the existing 20 ms polling interval and mutation callback. The final baseline click ended recording before its delayed highlight arrived, so tree comparisons use only the first four clicks per run on both builds.
+
+| Metric | Before | After |
+| --- | ---: | ---: |
+| Median tree highlight time, first four clicks per run | 279.7 ms | 79.6 ms |
+| Tree highlight range, same clicks | 266.7 to 291.7 ms | 33.1 to 96.5 ms |
+| Median diff readiness, all 15 clicks | 10.4 ms | 27.5 ms |
+| Worst diff readiness | 359.9 ms | 346.2 ms |
+| Median selection-phase main-thread work | 493.7 ms | 432.2 ms |
+
+Selection CPU work fell in each pair: 512.4 to 396.5 ms, 493.7 to 464.8 ms, and 439.7 to 432.2 ms. Tasks above 16.7 ms fell from 9, 7, and 8 to 7 in each candidate run. The tree answers sooner, but moving its work forward increases typical diff readiness time. The slow second diff remains unresolved. These runs do not prove zero dropped frames or large-tree performance.
+
+Evidence stays in `.tmp/performance-tree-selection`, with the local probe at `.tmp/perf-observers/record-tree-selection.js`. Diagnostic marks are recorded in `.tmp/performance-draw-marks`. No build, test, or trace analysis ran during recording. Cleanup restored the original extension states and closed task space 3.
