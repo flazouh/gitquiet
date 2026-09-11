@@ -30,6 +30,8 @@ import type { Raised, Raising } from "../domain/raising"
 import type { Attached, Version } from "../domain/release"
 import type { Front, Opened, Standing, Starring, Touch, TouchWho } from "../domain/repoHome"
 import type { Blamed } from "../domain/blame"
+import type { Category, DiscussionPress, Doing, DiscussionSnapshot, ListedDiscussion } from "../domain/discussions"
+import type { DiscussionList, DiscussionRef } from "../domain/discussionRoutes"
 import type { Repository } from "../domain/repositories"
 import type { RunOpening, RunRef } from "../domain/run"
 import type { Strand } from "../domain/strand"
@@ -190,6 +192,25 @@ export type Found = {
 export type FoundIssues = {
   readonly rows: ReadonlyArray<ListedIssue>
   readonly pages: Option.Option<Pages>
+}
+
+/**
+ * One page of a repository's discussions: the rows, every category the repository has, and
+ * whether there is another page.
+ *
+ * The categories come back with the rows rather than from a read of their own, because they are
+ * on the same document: their sidebar names all nine of `vercel/next.js`'s where the first page
+ * of rows mentions five. A category nobody has posted in yet is still a category, and a filter
+ * built from the rows would leave four of them off it.
+ *
+ * `more` and not a {@link Pages} count. Their discussions list prints no total anywhere on the
+ * page and answers no route that does, so the only honest thing to say is whether they drew a
+ * next link.
+ */
+export type FoundDiscussions = {
+  readonly rows: ReadonlyArray<ListedDiscussion>
+  readonly categories: ReadonlyArray<Category>
+  readonly more: boolean
 }
 
 /**
@@ -545,6 +566,103 @@ export class GitHubGateway extends Context.Service<
     readonly rememberedReleases: (
       reference: RepoRef
     ) => Effect.Effect<Option.Option<ReadonlyArray<Version>>, GatewayError>
+
+    /**
+     * One page of a repository's discussions, out of the document GitHub serves it as.
+     *
+     * One request, and it is scraping rather than a choice: their discussions list is the last
+     * large page on github.com still rendered by Rails end to end. Measured on 2026-09-03,
+     * `vercel/next.js/discussions` is 547,066 bytes with two React partials in it, the marketing
+     * header and the keyboard-shortcuts dialog, and neither holds a row. There is no payload to
+     * decode and no persisted query on the page to borrow.
+     *
+     * One {@link DiscussionList} and not four arguments, because that type already is the four:
+     * where they live, the category their sidebar links rather than queries, the search carried
+     * through untouched the way `issueSearch` carries theirs, and the page. `listRouteOf` turns
+     * it into the address, and the store is keyed by the same string, so a category and a search
+     * can never be handed each other's rows.
+     */
+    readonly discussions: (list: DiscussionList) => Effect.Effect<FoundDiscussions, GatewayError>
+
+    /**
+     * The same page as it was last read, without asking GitHub.
+     *
+     * Worth what it is worth on the Actions and Releases tabs. What it is not is a way of
+     * skipping the read: a discussion answered a minute ago is a row that has to change colour,
+     * and the whole point of this screen is which rows are stuck.
+     */
+    readonly rememberedDiscussions: (
+      list: DiscussionList
+    ) => Effect.Effect<Option.Option<FoundDiscussions>, GatewayError>
+
+    /**
+     * One discussion, whole, out of the document GitHub serves it as.
+     *
+     * One request, where their own page is one and then a dozen more: measured on 2026-09-03,
+     * `vercel/next.js/discussions/70178` is 396,008 bytes carrying nine comments, and the menu
+     * beside each of those comments is a route of its own that is asked for when it is opened.
+     *
+     * Fails rather than answering with nothing where the document is not a discussion. A page
+     * this cannot read is a page the screen has to hand back to GitHub, and a snapshot with no
+     * title and no body would be drawn over the top of whatever they really sent.
+     */
+    readonly discussion: (
+      reference: DiscussionRef
+    ) => Effect.Effect<DiscussionSnapshot, GatewayError>
+
+    /**
+     * The discussion as it was the last time it was read, without asking GitHub.
+     *
+     * What the screen paints with while the live read is in the air. Worth less here than on a
+     * list and still worth having: the body and the first comments rarely change, and the fact
+     * that does change is the one this screen is about.
+     */
+    readonly rememberedDiscussion: (
+      reference: DiscussionRef
+    ) => Effect.Effect<Option.Option<DiscussionSnapshot>, GatewayError>
+
+    /**
+     * One of the four things a reader does to a discussion, and the discussion back.
+     *
+     * Every one of them goes the way a pull request's comment box goes: GitHub's own form is on
+     * the page, and this sends it back with whatever the reader typed added to it. Their page is
+     * Rails, so the token is signed for that render of that form and cannot be minted — which is
+     * a constraint of the platform and not a shortcut, since the extension is standing on the
+     * page the form was rendered into.
+     *
+     * Fails where the form is not there, which is what a reader who is not signed in gets, and
+     * what a locked discussion or an archived repository gets. The screen offers no control in
+     * those cases; this refusal is the second gate rather than the first.
+     *
+     * Answers with the discussion read again rather than with what the write returned. Their
+     * answer to one of these is a page or a fragment of one, and parsing a comment out of either
+     * would be a second scraper to keep. One read is cheaper than being wrong.
+     */
+    readonly pressDiscussion: (
+      reference: DiscussionRef,
+      press: DiscussionPress
+    ) => Effect.Effect<DiscussionSnapshot, GatewayError>
+
+    /**
+     * Everything else GitHub offers on one thing, in their own words.
+     *
+     * Close, lock, edit, delete, report and whatever they ship next are one menu behind one
+     * button, and none of it is in the page: their markup carries an `include-fragment` per
+     * comment whose `src` serves it, loaded when somebody opens it. This asks for that route.
+     *
+     * Asked for when a reader opens the menu rather than when the discussion is read, because
+     * that is when their own page asks and because a discussion with thirty comments would
+     * otherwise be thirty-one requests to draw.
+     *
+     * What comes back is a list of their sentences, and nothing else. This codebase learns none
+     * of their names for these actions, so it cannot be wrong about one and cannot go stale when
+     * the list changes.
+     */
+    readonly discussionDoings: (
+      reference: DiscussionRef,
+      on: "Discussion" | "DiscussionComment",
+      id: string
+    ) => Effect.Effect<ReadonlyArray<Doing>, GatewayError>
 
     /**
      * Every Notice in the reader's inbox, out of one fetch of their own page.

@@ -21,6 +21,7 @@ import {
   GitHubGateway,
   WorkingSetError,
   type Found,
+  type FoundDiscussions,
   type FoundIssues,
   type QueueMethod,
   type Review,
@@ -60,6 +61,14 @@ import type { Pressing, RunOpening, RunRef } from "../domain/run"
 import { isKeptRun, pressOn, runOnPage } from "./runPage"
 import { isKeptStrands, runsOnPage } from "./actionsList"
 import { buildsOnPage, isKeptVersions, versionsOnPage } from "./releasesList"
+import {
+  categoriesOnPage,
+  discussionsOnPage,
+  hasMoreAfter,
+  isKeptFound
+} from "./discussionsList"
+import { discussionOnPage, isKeptDiscussion } from "./discussionView"
+import { doingsIn, menuRouteIn, sending, sendingOf } from "./discussionForms"
 import { isKeptNotices, noticesOnPage } from "./notifications"
 import { asKept, personKept } from "./keptPerson"
 import { personOnPage } from "./person"
@@ -135,6 +144,17 @@ import { repositoriesFrom } from "./repositories"
 import { decodeSidebar, standingFrom } from "./standing"
 import type { Happening } from "../domain/activity"
 import { type CommitList, type History, routeFor } from "../domain/commitList"
+import type { DiscussionPress, DiscussionSnapshot } from "../domain/discussions"
+import {
+  addressOf as discussionAddress,
+  homePath,
+  homeRef,
+  listRouteOf,
+  listWithinHome,
+  type DiscussionList,
+  type DiscussionRef,
+  type Home
+} from "../domain/discussionRoutes"
 import type { IssueSnapshot, Settling } from "../domain/Issue"
 import type { InvolvedIssue, Involvement, IssueRef } from "../domain/issues"
 import type { Front, Starring } from "../domain/repoHome"
@@ -1493,6 +1513,86 @@ const repoDocument = Effect.fn("repoDocument")(function* (reference: RepoRef, ro
     catch: (cause) =>
       new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
   })
+})
+
+/**
+ * One of GitHub's discussion pages as the document they serve it as.
+ *
+ * `repoDocument` above with a home in place of a repository, because an organisation's
+ * discussions sit at `/orgs/{org}` and a repository's at `/{owner}/{repo}` and everything past
+ * that word is identical.
+ */
+const discussionDocument = Effect.fn("discussionDocument")(function* (home: Home, route: string) {
+  const url = `https://github.com${homePath(home)}${route}`
+  const reference = homeRef(home)
+
+  const response = yield* Effect.tryPromise({
+    try: () => fetch(url, { headers: { Accept: "text/html" }, credentials: "include" }),
+    catch: (cause) =>
+      new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+  })
+
+  if (!response.ok) {
+    return yield* new GatewayError({
+      reference,
+      route,
+      reason: "rejected",
+      detail: `HTTP ${response.status}`
+    })
+  }
+
+  return yield* Effect.tryPromise({
+    try: () => response.text(),
+    catch: (cause) =>
+      new GatewayError({ reference, route, reason: "unreachable", detail: String(cause) })
+  })
+})
+
+/**
+ * The menu GitHub serves for one thing, as the markup they answer with.
+ *
+ * Empty rather than a failure where the route is not on the page or GitHub declines to serve it.
+ * A reader who may do nothing to a comment is shown a menu of nothing, which is what their own
+ * page shows, and it is not a fault worth a failure screen.
+ */
+const menuHtml = Effect.fn("menuHtml")(function* (
+  on: "Discussion" | "DiscussionComment",
+  id: string
+) {
+  const route = menuRouteIn(document, on, id)
+  if (route === null) return ""
+
+  const html = yield* fragmentAt(route).pipe(
+    Effect.catch(() => Effect.succeed(Option.none<string>()))
+  )
+
+  return Option.getOrElse(html, () => "")
+})
+
+/**
+ * One discussion, read as the document GitHub serves it as.
+ *
+ * At the top level rather than inside the layer, because two of the layer's methods want it: the
+ * read itself, and every press, which answers with the discussion again once GitHub has taken
+ * the write.
+ */
+const readDiscussion = Effect.fn("readDiscussion")(function* (reference: DiscussionRef) {
+  const route = discussionAddress(reference)
+  const document = yield* discussionDocument(reference.home, `/discussions/${reference.number}`)
+
+  const found = discussionOnPage(reference, document)
+  if (Option.isNone(found)) {
+    return yield* new GatewayError({
+      reference: homeRef(reference.home),
+      route,
+      reason: "undecodable",
+      detail: "the page GitHub served carries no discussion"
+    })
+  }
+
+  yield* Effect.forkDetach(rememberRoute(route, found.value))
+
+  return found.value
 })
 
 /** A read of one of a person's addresses, or why it did not come. */
@@ -3301,6 +3401,147 @@ export const layer = Layer.succeed(GitHubGateway, {
     }),
 
     /**
+     * Their discussions list, read as the document they serve it as.
+     *
+     * One request for the rows, the categories and the paging together, because all three are in
+     * the one document. Their own page spends more than that on the same screen: the row's
+     * hovercard, the vote form and the category menu are each a route of their own, and none of
+     * them is asked here.
+     */
+    discussions: Effect.fn("GitHubGateway.discussions")(function* (list: DiscussionList) {
+      /*
+       * `listRouteOf` writes the address and the store's key alike, so a category and a search
+       * can never be handed each other's rows while their own read is in the air. The read takes
+       * the part after the repository, because that is what `repoDocument` appends.
+       */
+      const key = listRouteOf(list)
+      const document = yield* discussionDocument(list.home, listWithinHome(list))
+
+      const found: FoundDiscussions = {
+        rows: discussionsOnPage(document),
+        categories: categoriesOnPage(document),
+        more: hasMoreAfter(document)
+      }
+
+      yield* Effect.forkDetach(rememberRoute(key, found))
+
+      return found
+    }),
+
+    rememberedDiscussions: Effect.fn("GitHubGateway.rememberedDiscussions")(function* (
+      list: DiscussionList
+    ) {
+      const raw = yield* recallRoute(listRouteOf(list))
+      if (Option.isNone(raw)) return Option.none<FoundDiscussions>()
+
+      // Refused whole rather than half-read: an entry written before this shape had its
+      // categories would answer `undefined` there and empty the filter.
+      return isKeptFound(raw.value) ? Option.some(raw.value) : Option.none<FoundDiscussions>()
+    }),
+
+    /**
+     * One discussion, read as the document they serve it as.
+     *
+     * A failure and not an empty snapshot where the page cannot be read. The screen has a word
+     * for a read that did not come — it hands the document back to GitHub — and no word at all
+     * for a discussion with no title, which it would draw over the top of their page.
+     */
+    discussion: (reference: DiscussionRef) => readDiscussion(reference),
+
+    /**
+     * Everything else their menu offers on one thing, read from the route their own page names.
+     *
+     * Two requests where a press follows: one to read the menu, one to send the form in it. Their
+     * own page spends the first the moment somebody opens the menu, and the second is the press.
+     */
+    discussionDoings: Effect.fn("GitHubGateway.discussionDoings")(function* (
+      _reference: DiscussionRef,
+      on: "Discussion" | "DiscussionComment",
+      id: string
+    ) {
+      const html = yield* menuHtml(on, id)
+
+      return doingsIn(html)
+    }),
+
+    /**
+     * One of the presses, sent as the form GitHub put on the page for it.
+     *
+     * The document is this tab's own, which is the whole of why this works: the extension is
+     * standing on the page their form was rendered into, and the token in it is signed for
+     * exactly that render.
+     */
+    pressDiscussion: Effect.fn("GitHubGateway.pressDiscussion")(function* (
+      reference: DiscussionRef,
+      press: DiscussionPress
+    ) {
+      const route = discussionAddress(reference)
+      const reported = homeRef(reference.home)
+
+      /*
+       * A menu entry is the one press whose form is not on the page. Their markup names the
+       * route that serves it and the menu is read again here, so what is sent is the form behind
+       * the words the reader pressed rather than a route this codebase made up. Fetched before
+       * the choice below, which is why it is read out here and not inside it.
+       */
+      const menu = press.kind === "doing" ? yield* menuHtml(press.on, press.id) : null
+
+      const { posting, said } = sending(document, press, menu)
+
+      if (posting === null) {
+        return yield* new GatewayError({
+          reference: reported,
+          route,
+          reason: "rejected",
+          detail: "GitHub rendered no form for that on this page, so there is nothing to send."
+        })
+      }
+
+      const response = yield* Effect.tryPromise({
+        try: () =>
+          fetch(posting.action, {
+            method: "POST",
+            headers: { ...REQUIRED_HEADERS, "Content-Type": "application/x-www-form-urlencoded" },
+            credentials: "include",
+            body: sendingOf(posting, said)
+          }),
+        catch: (cause) =>
+          new GatewayError({
+            reference: reported,
+            route,
+            reason: "unreachable",
+            detail: String(cause)
+          })
+      })
+
+      if (!response.ok) {
+        return yield* new GatewayError({
+          reference: reported,
+          route,
+          reason: "rejected",
+          detail: `HTTP ${response.status}`
+        })
+      }
+
+      // What was kept is now what GitHub would no longer answer with, so it goes before the read
+      // that follows it, exactly as a write on an issue drops the issue it wrote to.
+      yield* forgetRoute(route)
+
+      return yield* readDiscussion(reference)
+    }),
+
+    rememberedDiscussion: Effect.fn("GitHubGateway.rememberedDiscussion")(function* (
+      reference: DiscussionRef
+    ) {
+      const raw = yield* recallRoute(discussionAddress(reference))
+      if (Option.isNone(raw)) return Option.none<DiscussionSnapshot>()
+
+      return isKeptDiscussion(raw.value)
+        ? Option.some(raw.value)
+        : Option.none<DiscussionSnapshot>()
+    }),
+
+    /**
      * Their inbox, read as the document they serve it as.
      *
      * One request, and the lightest read on this interface. Their `/notifications` is Rails
@@ -4320,6 +4561,15 @@ export const layerFromRecordings = (recordings: ReadonlyArray<Recording>) =>
     releases: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     builds: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     rememberedReleases: () => Effect.succeed(Option.none()),
+    discussions: (list: DiscussionList) => Effect.fail(nothingRecordedFor(homeRef(list.home))),
+    rememberedDiscussions: () => Effect.succeed(Option.none()),
+    discussion: (reference: DiscussionRef) =>
+      Effect.fail(nothingRecordedFor(homeRef(reference.home))),
+    rememberedDiscussion: () => Effect.succeed(Option.none()),
+    // An empty menu, which is what a reader who may do nothing is shown.
+    discussionDoings: () => Effect.succeed([]),
+    pressDiscussion: (reference: DiscussionRef) =>
+      Effect.fail(nothingRecordedFor(homeRef(reference.home))),
     // An empty inbox, which is what a page nobody recorded looks like from here, and
     // nothing written to one: a press answered without a request would be this layer
     // telling a test that GitHub agreed to something nobody asked.
@@ -4468,6 +4718,15 @@ export const layerFromSnapshots = (snapshots: ReadonlyArray<PullRequestSnapshot>
     releases: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     builds: (reference: RepoRef) => Effect.fail(nothingRecordedFor(reference)),
     rememberedReleases: () => Effect.succeed(Option.none()),
+    discussions: (list: DiscussionList) => Effect.fail(nothingRecordedFor(homeRef(list.home))),
+    rememberedDiscussions: () => Effect.succeed(Option.none()),
+    discussion: (reference: DiscussionRef) =>
+      Effect.fail(nothingRecordedFor(homeRef(reference.home))),
+    rememberedDiscussion: () => Effect.succeed(Option.none()),
+    // An empty menu, which is what a reader who may do nothing is shown.
+    discussionDoings: () => Effect.succeed([]),
+    pressDiscussion: (reference: DiscussionRef) =>
+      Effect.fail(nothingRecordedFor(homeRef(reference.home))),
     // An empty inbox, which is what a page nobody recorded looks like from here, and
     // nothing written to one: a press answered without a request would be this layer
     // telling a test that GitHub agreed to something nobody asked.

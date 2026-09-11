@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { INK, MUTED } from "@/ui/bed"
+import { INK, MUTED, PAPER } from "@/ui/bed"
 import { Mark, Wordmark } from "@/ui/Mark"
 import { Bed } from "./Bed"
 import { inShort, useStars } from "./stars"
@@ -68,8 +68,11 @@ const WORD = `items-center ${EDGE} px-3 py-2 text-[14px] font-semibold text-ink/
  * The word "GitHub" went: the cat says it, the count beside it says it again, and the
  * button sits a centimetre from a heading that names the site.
  */
-export const Source = () => {
+export const Source = ({ dark = false }: { readonly dark?: boolean }) => {
   const many = useStars()
+  const word = dark
+    ? WORD.replace("text-ink/70", "text-white/60").replace("hover:text-ink", "hover:text-white")
+    : WORD
 
   return (
     <a
@@ -79,7 +82,7 @@ export const Source = () => {
           ? "GitQuiet source on GitHub"
           : `GitQuiet source on GitHub, ${many} ${many === 1 ? "star" : "stars"}`
       }
-      className={`inline-flex ${WORD} gap-1.5`}
+      className={`inline-flex ${word} gap-1.5`}
     >
       <Octocat size={16} />
       {/*
@@ -111,34 +114,58 @@ export const Source = () => {
  * about three hundred pixels. The hero says the same thing directly under its button,
  * so a phone loses the shortcut rather than the route.
  */
-export const Aside = ({ at, children }: { readonly at: string; readonly children: ReactNode }) => (
-  <a href={at} className={`hidden sm:inline-flex ${WORD}`}>
-    {children}
-  </a>
-)
+export const Aside = ({
+  at,
+  children,
+  dark = false
+}: {
+  readonly at: string
+  readonly children: ReactNode
+  readonly dark?: boolean
+}) => {
+  const word = dark
+    ? WORD.replace("text-ink/70", "text-white/60").replace("hover:text-ink", "hover:text-white")
+    : WORD
+  return (
+    <a href={at} className={`hidden sm:inline-flex ${word}`}>
+      {children}
+    </a>
+  )
+}
 
 /** The filled button, wherever a page wants one press to be the obvious one. */
 export const Press = ({
   at,
   big = false,
+  light = false,
   children
 }: {
   readonly at: string
   readonly big?: boolean
+  /** Filled light plate for a dark page. */
+  readonly light?: boolean
   readonly children: ReactNode
 }) => (
   <a
     href={at}
-    className={`inline-flex items-center justify-center whitespace-nowrap ${EDGE} bg-ink font-semibold text-paper transition-[transform,background-color] duration-[var(--duration-press)] ease-out hover:bg-ink/85 active:scale-[var(--scale-press)] ${
-      big ? "px-7 py-3.5 text-[17px]" : "px-4 py-2 text-[14px] sm:px-5 sm:py-2.5 sm:text-[15px]"
-    }`}
+    className={`inline-flex items-center justify-center whitespace-nowrap ${EDGE} font-semibold transition-[transform,background-color] duration-[var(--duration-press)] ease-out active:scale-[var(--scale-press)] ${
+      light
+        ? "bg-white text-[#0c0b10] hover:bg-white/90"
+        : "bg-ink text-paper hover:bg-ink/85"
+    } ${big ? "px-7 py-3.5 text-[17px]" : "px-4 py-2 text-[14px] sm:px-5 sm:py-2.5 sm:text-[15px]"}`}
   >
     {children}
   </a>
 )
 
-export const AddToChrome = ({ big = false }: { readonly big?: boolean }) => (
-  <Press at={STORE_AT} big={big}>
+export const AddToChrome = ({
+  big = false,
+  light = false
+}: {
+  readonly big?: boolean
+  readonly light?: boolean
+}) => (
+  <Press at={STORE_AT} big={big} light={light}>
     Add to Chrome
   </Press>
 )
@@ -160,7 +187,7 @@ export const Quietly = ({ at, children }: { readonly at: string; readonly childr
 
   return (
     <a
-      className="underline decoration-ink/25 underline-offset-2 transition-colors duration-[var(--duration-press)] ease-out hover:decoration-ink/60"
+      className="underline decoration-current/30 underline-offset-2 transition-opacity duration-[var(--duration-press)] ease-out hover:decoration-current/70"
       href={at}
       target={away ? "_blank" : undefined}
       rel={away ? "noreferrer" : undefined}
@@ -222,37 +249,54 @@ export const Above = ({ children }: { readonly children: ReactNode }) => (
  * different presses in it: the landing page wants the store, and the page that
  * lists every store does not want one of them singled out.
  */
-export const Nav = ({ children }: { readonly children: ReactNode }) => (
-  <nav className="flex items-center justify-between py-7">
-    <a href="/" className="flex items-center gap-2.5" aria-label="GitQuiet">
-      <Mark size={30} color={INK} />
-      {/* On the narrowest phones the mark carries the name on its own, so the
-          install button keeps the width it needs. */}
-      <span className="hidden min-[360px]:inline">
-        <Wordmark size={20} color={INK} />
-      </span>
-    </a>
-    <div className="flex items-center gap-2">{children}</div>
-  </nav>
-)
+export const Nav = ({
+  children,
+  dark = false
+}: {
+  readonly children: ReactNode
+  readonly dark?: boolean
+}) => {
+  const mark = dark ? PAPER : INK
+  return (
+    <nav className="flex items-center justify-between py-7">
+      <a href="/" className="flex items-center gap-2.5" aria-label="GitQuiet">
+        <Mark size={30} color={mark} />
+        {/* On the narrowest phones the mark carries the name on its own, so the
+            install button keeps the width it needs. */}
+        <span className="hidden min-[360px]:inline">
+          <Wordmark size={20} color={mark} />
+        </span>
+      </a>
+      <div className="flex items-center gap-2">{children}</div>
+    </nav>
+  )
+}
 
-export const Footer = () => (
-  <footer className="flex flex-wrap items-center justify-between gap-6 border-t border-rule py-10 text-[14px] text-muted">
+export const Footer = ({ dark = false }: { readonly dark?: boolean }) => (
+  <footer
+    className={`flex flex-wrap items-center justify-between gap-6 py-10 text-[14px] ${
+      dark ? "text-white/40" : "border-t border-rule text-muted"
+    }`}
+  >
     <div className="flex items-center gap-2.5">
-      <Mark size={22} color={MUTED} />
+      <Mark size={22} color={dark ? "rgba(244,242,239,0.4)" : MUTED} />
       <span>gitquiet</span>
     </div>
 
     <div className="flex flex-wrap items-center gap-6">
       <a
         href={INSTALL_AT}
-        className="text-muted transition-colors duration-[var(--duration-press)] ease-out hover:text-ink"
+        className={`transition-colors duration-[var(--duration-press)] ease-out ${
+          dark ? "text-white/40 hover:text-white" : "text-muted hover:text-ink"
+        }`}
       >
         Every way to install
       </a>
       <a
         href={SOURCE_AT}
-        className="inline-flex items-center gap-2 text-muted transition-colors duration-[var(--duration-press)] ease-out hover:text-ink"
+        className={`inline-flex items-center gap-2 transition-colors duration-[var(--duration-press)] ease-out ${
+          dark ? "text-white/40 hover:text-white" : "text-muted hover:text-ink"
+        }`}
       >
         <Octocat size={15} />
         Source, under AGPL-3.0

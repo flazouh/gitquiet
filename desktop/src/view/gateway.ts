@@ -2,6 +2,7 @@ import { Effect, Layer, Option } from "effect"
 import type { PullRequestRef, RepoRef } from "../../../src/domain/PullRequestRef"
 import type { Check, MergeMethod, NewComment } from "../../../src/domain/PullRequest"
 import type { Branches } from "../../../src/domain/sittings"
+import { homeRef } from "../../../src/domain/discussionRoutes"
 import { shelfOf } from "../../../src/domain/shelving"
 import type { InvolvedPullRequest, Shelf, Size, Standings } from "../../../src/domain/workingSet"
 import {
@@ -99,6 +100,27 @@ import { ask } from "./rpc"
 
 const keyOf = (reference: PullRequestRef): string =>
   `${reference.owner}/${reference.repo}#${reference.number}`
+
+/**
+ * The refusal every Discussions method of this port answers with.
+ *
+ * The rest of the window reaches GitHub through the documented API with a token. Discussions are
+ * read by scraping the page GitHub serves, and this window loads no page, so there is nothing
+ * here to read them off. A refusal names the page it was about, which is what `homeRef` is for.
+ *
+ * Written out rather than left off, because a method left off is a call on nothing. That is a
+ * defect and never reaches the screen's word for "this went wrong": the window sits there saying
+ * it is still reading.
+ */
+const noPageToRead = (what: string) => (reference: RepoRef) =>
+  Effect.fail(
+    new GatewayError({
+      reference,
+      route: what,
+      reason: "not-recorded",
+      detail: `The desktop app cannot ${what}. It reaches GitHub without loading a page.`
+    })
+  )
 
 const refused = (route: string, detail: string) =>
   new WorkingSetError({ route, reason: "rejected", detail })
@@ -496,6 +518,25 @@ export const gatewayFrom = (rows: ReadonlyArray<WorkingSetRow>) => {
     releases: askForReleases,
     builds: askForBuilds,
     rememberedReleases: () => Effect.succeed(Option.none()),
+
+    /*
+     * The Discussions tab, and this one is refused for a second reason on top of the
+     * screen not being here. The extension reads it by scraping the document GitHub
+     * serves, and this window has no page to scrape: it reaches GitHub through the
+     * documented API with a token, and that API answers discussions through GraphQL
+     * rather than through the routes this port's other reads use.
+     */
+    discussions: (list) => noPageToRead("read discussions")(homeRef(list.home)),
+    rememberedDiscussions: () => Effect.succeed(Option.none()),
+    discussion: (reference) => noPageToRead("read a discussion")(homeRef(reference.home)),
+    rememberedDiscussion: () => Effect.succeed(Option.none()),
+    /*
+     * And this one is refused twice over. Every press on a discussion is GitHub's own form sent
+     * back, and a form only exists on a page somebody loaded. This window loads no page.
+     */
+    pressDiscussion: (reference) => noPageToRead("write on a discussion")(homeRef(reference.home)),
+    // An empty menu, which is what a window with no page to read one from has.
+    discussionDoings: () => Effect.succeed([]),
 
     /*
      * The inbox, a person's pages, the repository list and the activity feed.

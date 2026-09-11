@@ -113,6 +113,8 @@ const result = await build({
         run: here("../src/screens/run.tsx"),
         actions: here("../src/screens/actions.tsx"),
         releases: here("../src/screens/releases.tsx"),
+        discussions: here("../src/screens/discussions.tsx"),
+        discussion: here("../src/screens/discussion.tsx"),
         notifications: here("../src/screens/notifications.tsx"),
         "person-repos": here("../src/screens/personRepos.tsx"),
         profile: here("../src/screens/profile.tsx"),

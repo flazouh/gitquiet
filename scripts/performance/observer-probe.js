@@ -2,6 +2,7 @@
 export const runObserverProbe = async (api, { nodes, updates = 40 }) => {
   const page = document.implementation.createHTMLDocument("GitQuiet performance fixture")
   page.body.innerHTML = '<main><div class="PageLayoutContent"><section></section></div></main>'
+  const region = page.querySelector(".PageLayoutContent")
   const native = page.querySelector("section")
   native.innerHTML = '<span>native line</span>'.repeat(nodes)
   const marker = page.createElement("span")
@@ -61,9 +62,9 @@ export const runObserverProbe = async (api, { nodes, updates = 40 }) => {
     replacement.className = "PageLayoutContent"
     const sibling = page.createElement("p")
     replacement.append(sibling)
-    root.parentElement.replaceWith(replacement)
+    region.replaceWith(replacement)
     await turn()
-    if (root.parentElement !== replacement || !sibling.hasAttribute("hidden"))
+    if (!root.isConnected || root.closest("[hidden]") || !sibling.closest("[hidden]"))
       throw new Error("The screen did not recover after replacement")
     stopLinks()
     takeover.stepAside()

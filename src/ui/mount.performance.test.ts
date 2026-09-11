@@ -102,11 +102,12 @@ test("a focus guard marker does not hide a real region inside a nonempty node", 
   guard.append(region)
   page.body.append(guard)
   await turn()
-  expect(takeover.container.parentElement).toBe(region)
+  expect(takeover.container.parentElement).toBe(page.body)
+  expect(guard.hasAttribute("hidden")).toBe(true)
   expect(takeover.container.hasAttribute("hidden")).toBe(false)
 })
 
-test("a real region arriving inside a hidden fallback still receives the screen", async () => {
+test("a late region inside hidden native content stays hidden without a document scan", async () => {
   const page = document.implementation.createHTMLDocument("PR")
   page.body.innerHTML = '<div id="repo-content-pjax-container"><react-app app-name="pull-requests"></react-app></div>'
   const native = page.querySelector("react-app")!
@@ -116,23 +117,43 @@ test("a real region arriving inside a hidden fallback still receives the screen"
   expect(native.hasAttribute("hidden")).toBe(true)
   const region = page.createElement("div")
   region.className = "PageLayoutContent"
+  const one = spyOn(page, "querySelector")
+  const all = spyOn(page, "querySelectorAll")
   native.append(region)
   await turn()
-  expect(takeover.container.parentElement).toBe(region)
-  expect(native.hasAttribute("hidden")).toBe(false)
+  expect(takeover.container.parentElement).toBe(page.body)
+  expect(native.hasAttribute("hidden")).toBe(true)
+  expect(one).not.toHaveBeenCalled()
+  expect(all).not.toHaveBeenCalled()
 })
 
-test("removing a region in the same batch as a screen update still restores the screen", async () => {
+test("replacing a native region in the same batch as a screen update keeps the screen on body", async () => {
   const page = document.implementation.createHTMLDocument("PR")
   page.body.innerHTML = '<main><div class="PageLayoutContent"><section>native</section></div></main>'
   const takeover = takeOverSlot(page)!
   stop = () => { takeover.stepAside() }
-  const old = takeover.container.parentElement!
+  const old = page.querySelector(".PageLayoutContent")!
   takeover.container.textContent = "file stays open"
   const replacement = page.createElement("div")
   replacement.className = "PageLayoutContent"
   old.replaceWith(replacement)
   await turn()
-  expect(takeover.container.parentElement).toBe(replacement)
+  expect(takeover.container.parentElement).toBe(page.body)
+  expect(replacement.closest("[hidden]")).not.toBeNull()
   expect(takeover.container.textContent).toBe("file stays open")
+})
+
+
+test("a hidden wrapper around our screen is made visible", async () => {
+  const page = document.implementation.createHTMLDocument("PR")
+  page.body.innerHTML = '<main><div class="PageLayoutContent"></div></main>'
+  const takeover = takeOverSlot(page)!
+  stop = () => { takeover.stepAside() }
+  await turn()
+  const wrapper = page.querySelector("main")!
+  expect(wrapper.hasAttribute("hidden")).toBe(true)
+  wrapper.append(takeover.container)
+  await turn()
+  expect(takeover.container.isConnected).toBe(true)
+  expect(takeover.container.closest("[hidden]")).toBeNull()
 })

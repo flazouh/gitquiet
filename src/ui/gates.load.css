@@ -11,6 +11,7 @@
  */
 
 /* sign-on: before ours is up. */
+html[data-gitquiet-page="sign-on"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="sign-on"]:not([data-gitquiet-revealed]) main:has(div.org-sso) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
@@ -21,6 +22,7 @@ html[data-gitquiet-taken] main:has(div.org-sso) > *:not(#gitquiet-root):not([dat
 }
 
 /* conversation: before ours is up. */
+html[data-gitquiet-page="conversation"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="conversation"]:not([data-gitquiet-revealed]) react-app[app-name="pull-requests"] [class*="PageLayoutContent"] > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="conversation"]:not([data-gitquiet-revealed]) [class*="PageLayoutContent"] > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="conversation"]:not([data-gitquiet-revealed]) [class*="PullRequestHeader"],
@@ -39,6 +41,7 @@ html[data-gitquiet-taken] [data-component="Banner"][aria-label="Can Stack Banner
 }
 
 /* commit: before ours is up. */
+html[data-gitquiet-page="commit"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="commit"]:not([data-gitquiet-revealed]) react-app[app-name="pull-requests"] [class*="PageLayoutContent"] > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="commit"]:not([data-gitquiet-revealed]) [class*="PageLayoutContent"] > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="commit"]:not([data-gitquiet-revealed]) react-app[app-name="commits"] [class*="PageLayout-Header"] {
@@ -53,6 +56,7 @@ html[data-gitquiet-taken] react-app[app-name="commits"] [class*="PageLayout-Head
 }
 
 /* commits: before ours is up. */
+html[data-gitquiet-page="commits"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="commits"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="commits"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
@@ -65,6 +69,7 @@ html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet
 }
 
 /* dashboard: before ours is up. */
+html[data-gitquiet-page="dashboard"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="dashboard"]:not([data-gitquiet-revealed]) [data-testid="pulls-dashboard-surface-layout"] > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
@@ -75,6 +80,7 @@ html[data-gitquiet-taken] [data-testid="pulls-dashboard-surface-layout"] > *:not
 }
 
 /* repo-pulls: before ours is up. */
+html[data-gitquiet-page="repo-pulls"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="repo-pulls"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="repo-pulls"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
@@ -87,6 +93,7 @@ html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet
 }
 
 /* raise: before ours is up. */
+html[data-gitquiet-page="raise"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="raise"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="raise"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
@@ -99,6 +106,7 @@ html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet
 }
 
 /* repo-issues: before ours is up. */
+html[data-gitquiet-page="repo-issues"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="repo-issues"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="repo-issues"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
@@ -111,6 +119,7 @@ html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet
 }
 
 /* repo-home: before ours is up. */
+html[data-gitquiet-page="repo-home"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="repo-home"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="repo-home"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="repo-home"]:not([data-gitquiet-revealed]) [class*="RecentlyTouchedBranches-module__Flash"] {
@@ -125,6 +134,7 @@ html[data-gitquiet-taken] [class*="RecentlyTouchedBranches-module__Flash"] {
 }
 
 /* blame: before ours is up. */
+html[data-gitquiet-page="blame"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="blame"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="blame"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
@@ -137,6 +147,7 @@ html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet
 }
 
 /* issue: before ours is up. */
+html[data-gitquiet-page="issue"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="issue"]:not([data-gitquiet-revealed]) [data-testid="issue-viewer-container"] > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
@@ -147,6 +158,7 @@ html[data-gitquiet-taken] [data-testid="issue-viewer-container"] > *:not(#gitqui
 }
 
 /* issues: before ours is up. */
+html[data-gitquiet-page="issues"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="issues"]:not([data-gitquiet-revealed]) react-app[app-name="issues-react"] > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
@@ -157,6 +169,7 @@ html[data-gitquiet-taken] react-app[app-name="issues-react"] > *:not(#gitquiet-r
 }
 
 /* run: before ours is up. */
+html[data-gitquiet-page="run"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="run"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
@@ -167,6 +180,7 @@ html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet
 }
 
 /* actions: before ours is up. */
+html[data-gitquiet-page="actions"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="actions"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="actions"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
@@ -179,6 +193,7 @@ html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet
 }
 
 /* releases: before ours is up. */
+html[data-gitquiet-page="releases"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="releases"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="releases"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
@@ -190,7 +205,38 @@ html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet
   display: none;
 }
 
+/* discussions: before ours is up. */
+html[data-gitquiet-page="discussions"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-page="discussions"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-page="discussions"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-page="discussions"]:not([data-gitquiet-revealed]) main .container-xl.p-responsive.clearfix > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
+  display: none;
+}
+
+/* discussions: for as long as ours is in charge. */
+html[data-gitquiet-taken] #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-taken] main .container-xl.p-responsive.clearfix > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
+  display: none;
+}
+
+/* discussion: before ours is up. */
+html[data-gitquiet-page="discussion"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-page="discussion"]:not([data-gitquiet-revealed]) #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-page="discussion"]:not([data-gitquiet-revealed]) turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-page="discussion"]:not([data-gitquiet-revealed]) #discussion_bucket > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
+  display: none;
+}
+
+/* discussion: for as long as ours is in charge. */
+html[data-gitquiet-taken] #repo-content-pjax-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-taken] turbo-frame#repo-content-turbo-frame > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
+html[data-gitquiet-taken] #discussion_bucket > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
+  display: none;
+}
+
 /* notifications: before ours is up. */
+html[data-gitquiet-page="notifications"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="notifications"]:not([data-gitquiet-revealed]) div.js-notifications-container > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
@@ -201,6 +247,7 @@ html[data-gitquiet-taken] div.js-notifications-container > *:not(#gitquiet-root)
 }
 
 /* home: before ours is up. */
+html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) body:has(#dashboard.dashboard) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
@@ -208,6 +255,7 @@ html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) body:has(#dashboar
 /* home: for as long as ours is in charge. */
 
 /* profile: before ours is up. */
+html[data-gitquiet-page="profile"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="profile"]:not([data-gitquiet-revealed]) main div.container-xl:has(.h-card) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="profile"]:not([data-gitquiet-revealed]) main > div.position-sticky:has(.user-profile-sticky-bar) {
   display: none;
@@ -220,6 +268,7 @@ html[data-gitquiet-taken] main > div.position-sticky:has(.user-profile-sticky-ba
 }
 
 /* person-repos: before ours is up. */
+html[data-gitquiet-page="person-repos"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="person-repos"]:not([data-gitquiet-revealed]) main div.container-xl:has(.h-card) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="person-repos"]:not([data-gitquiet-revealed]) main > div.position-sticky:has(.user-profile-sticky-bar) {
   display: none;
@@ -232,6 +281,7 @@ html[data-gitquiet-taken] main > div.position-sticky:has(.user-profile-sticky-ba
 }
 
 /* person-stars: before ours is up. */
+html[data-gitquiet-page="person-stars"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="person-stars"]:not([data-gitquiet-revealed]) main div.container-xl:has(.h-card) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
 html[data-gitquiet-page="person-stars"]:not([data-gitquiet-revealed]) main > div.position-sticky:has(.user-profile-sticky-bar) {
   display: none;

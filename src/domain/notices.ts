@@ -1,5 +1,5 @@
 import { Option } from "effect"
-import { COURTS } from "./attention"
+import { COURTS_WITHOUT_RUNNING } from "./attention"
 import type { Participant } from "./PullRequest"
 import type { Court } from "./workingSet"
 
@@ -262,20 +262,6 @@ const readLast = (some: ReadonlyArray<Notice>): ReadonlyArray<Notice> =>
     one.unread === two.unread ? two.movedAt.localeCompare(one.movedAt) : one.unread ? -1 : 1
   )
 
-/**
- * The Courts an inbox has, which is three of the product's four.
- *
- * Taken out of the four rather than written again, so the order a reader learns on every other
- * screen is the order here and cannot drift from it.
- *
- * Running is the one left out, and it is left out because {@link courtOf} cannot return it on
- * any inbox, ever. Elsewhere an empty Court is drawn anyway — a reader finds Settled by where it
- * sits, and a heading that came and went with the day's rows would take that away — but that
- * argument is about a Court which is empty this morning and full this afternoon. A heading
- * nothing can ever reach teaches the reader instead that a heading may mean nothing, which is
- * the opposite of what filing by who acts next is for.
- */
-export const NOTICE_COURTS: ReadonlyArray<Court> = COURTS.filter((court) => court !== "running")
 
 /**
  * Every Notice in three piles, in the order a reader asks about them.
@@ -284,7 +270,7 @@ export const NOTICE_COURTS: ReadonlyArray<Court> = COURTS.filter((court) => cour
  * that does hold here: "Nothing." under a heading is worth more than a heading that moves.
  */
 export const docketsOf = (notices: ReadonlyArray<Notice>): ReadonlyArray<NoticeDocket> =>
-  NOTICE_COURTS.map((court) => {
+  COURTS_WITHOUT_RUNNING.map((court) => {
     const held = readLast(notices.filter((one) => courtOf(one) === court))
     return { court, notices: held, count: held.length }
   })

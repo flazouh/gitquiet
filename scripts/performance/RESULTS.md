@@ -135,3 +135,17 @@ Three alternating small-PR pairs compared `a236f81` with the immediate tree sele
 Selection CPU work fell in each pair: 512.4 to 396.5 ms, 493.7 to 464.8 ms, and 439.7 to 432.2 ms. Tasks above 16.7 ms fell from 9, 7, and 8 to 7 in each candidate run. The tree answers sooner, but moving its work forward increases typical diff readiness time. The slow second diff remains unresolved. These runs do not prove zero dropped frames or large-tree performance.
 
 Evidence stays in `.tmp/performance-tree-selection`, with the local probe at `.tmp/perf-observers/record-tree-selection.js`. Diagnostic marks are recorded in `.tmp/performance-draw-marks`. No build, test, or trace analysis ran during recording. Cleanup restored the original extension states and closed task space 3.
+
+## Integration with current main
+
+The release branch merged `origin/main` at `c2076da`. Main keeps the screen under `body` so GitHub cannot detach it by replacing a native region. That exposed a conflict in the observer optimization: its hidden-content check required the root's parent to match a native region. With the stable body surface, that condition never passed.
+
+Two regression tests failed before the integration fix: hidden diff updates and late content inside a hidden ancestor both triggered document queries. The guard now skips hidden ancestors that do not contain our screen. A hidden wrapper containing our screen still reaches recovery. The updated tests also keep the screen on body when native regions change. Four existing assertions now check hidden ancestors instead of requiring a redundant `hidden` attribute on each new descendant.
+
+The huge browser probe now replaces its retained native region rather than the root's parent, which is body on current main. It checks that our screen stays connected and visible while native content stays hidden. This check works with both the old placement and the stable surface.
+
+The merged code passed `bun run gates`: 4,774 tests, zero failures, plus lint and both typechecks. All 96 mount tests passed. The whole-change code-quality review found the integration defects above; both were fixed and the follow-up review passed.
+
+Candidate-only browser probes passed at 0, 1,000, 100,000, 250,000, and 500,000 hidden nodes. Each size ran 40 updates in each of four phases. Every phase recorded zero document queries. Each added-link phase checked exactly 40 links. Recovery and teardown passed at every size. At 500,000 nodes, median update times were 5.0 to 5.1 ms, including the timer used to await observer delivery. These checks establish bounded observer work, not frame smoothness.
+
+Results are in `.tmp/perf-observers-stable-surface/results.json`. The probe space closed and its local server stopped. The earlier full-extension recordings predate this merge; a release comparison must use the merged build and the actual `v0.12.0` baseline.

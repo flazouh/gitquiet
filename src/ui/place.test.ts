@@ -18,6 +18,8 @@ import {
   PLACES,
   PROFILE,
   RAISE,
+  DISCUSSION,
+  DISCUSSIONS,
   RELEASES,
   REPO_HOME,
   REPO_ISSUES,
@@ -64,6 +66,17 @@ const ADDRESSES: ReadonlyArray<readonly [string, Place]> = [
   ["/facebook/react/actions/runs/30866145080/job/1234", RUN],
   ["/facebook/react/actions", ACTIONS],
   ["/facebook/react/releases", RELEASES],
+  ["/facebook/react/discussions/70178", DISCUSSION],
+  ["/facebook/react/discussions", DISCUSSIONS],
+  /*
+   * An organisation's, which is where GitHub runs its own product feedback. One place serves
+   * both, because they are one page in two layouts.
+   */
+  ["/orgs/community/discussions", DISCUSSIONS],
+  ["/orgs/community/discussions/categories/discussions", DISCUSSIONS],
+  ["/orgs/community/discussions/88425", DISCUSSION],
+  ["/facebook/react/discussions/categories/q-a", DISCUSSIONS],
+  ["/facebook/react/discussions?discussions_q=is%3Aunanswered&page=2", DISCUSSIONS],
   ["/notifications", NOTIFICATIONS],
   ["/facebook/react", REPO_HOME],
   ["/facebook/react/tree/main/src", REPO_HOME],
@@ -92,6 +105,14 @@ const THEIRS: Array<string> = [
   "/facebook/react/releases/tag/v19.0.0",
   "/facebook/react/releases/latest",
   "/facebook/react/tags",
+  /*
+   * The form for raising a discussion, which is a press away from the list, and the page that
+   * lists an organisation's own repositories. Neither is a discussion, and a place that read
+   * `/discussions` as a prefix would claim both and gate a page it cannot draw.
+   */
+  "/facebook/react/discussions/new",
+  "/orgs/community/discussions/new",
+  "/orgs/community/repositories",
   // Their own stars pages, which are somebody else's list under a reserved word.
   "/stars/flazouh",
   "/stars/flazouh/lists/tools",
@@ -245,16 +266,16 @@ describe("taking over the pull request dashboard", () => {
     );
   });
 
-  test("puts the interface in it and hides what GitHub drew", () => {
+  test("stands on the surface and hides what GitHub drew", () => {
     const page = dashboard();
     const container = interfaceContainer(page);
 
     const takeover = takeOverSlot(page, container, DASHBOARD);
 
     expect(takeover).not.toBeNull();
-    expect(container.parentElement?.getAttribute("data-testid")).toBe(
-      "pulls-dashboard-surface-layout",
-    );
+    // `body`, on this page as on every other. Their layout is still the region
+    // taken — what its children get is what says so.
+    expect(container.parentElement).toBe(page.body);
     expect(visible(page, "their filters")).toBe(false);
     expect(visible(page, "their rows")).toBe(false);
   });
@@ -894,7 +915,7 @@ describe("two interfaces in one document", () => {
     expect(interfaceContainer(page, DASHBOARD)).toBe(first);
   });
 
-  test("each interface ends up in its own region", () => {
+  test("the one that arrives stands on the surface, and the other is gone", () => {
     const page = bothPages();
     const list = interfaceContainer(page, DASHBOARD);
     takeOverSlot(page, list, DASHBOARD);
@@ -902,6 +923,14 @@ describe("two interfaces in one document", () => {
     const card = interfaceContainer(page, CONVERSATION);
     takeOverSlot(page, card, CONVERSATION);
 
-    expect(card.parentElement?.className).toContain("PageLayoutContent");
+    /*
+     * Two interfaces, one surface — which is the invariant every stylesheet here
+     * already relied on and the DOM now states plainly. They used to end up in a
+     * region each, two boxes apart in GitHub's layout, and the only thing keeping
+     * one of them off the screen was that its region was hidden.
+     */
+    expect(card.parentElement).toBe(page.body);
+    expect(list.isConnected).toBe(false);
+    expect(page.querySelectorAll(`#${ROOT_ID}`)).toHaveLength(1);
   });
 });

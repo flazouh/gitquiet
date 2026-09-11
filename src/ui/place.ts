@@ -4,6 +4,7 @@ import { blameIn } from "../domain/blame";
 import { fromPathname as commitIn } from "../domain/CommitRef";
 import { commitListIn } from "../domain/commitList";
 import { compareIn } from "../domain/compare";
+import { discussionIn, discussionListIn } from "../domain/discussionRoutes";
 import { issueDashboardIn } from "../domain/issueDashboard";
 import { issueListIn } from "../domain/issueList";
 import { fromPathname as issueIn } from "../domain/issues";
@@ -690,6 +691,76 @@ export const RELEASES: Place = {
 };
 
 /**
+ * A Discussions list, at `/owner/repo/discussions` and at `/orgs/{org}/discussions`.
+ *
+ * One place and not two, because they are one page in two layouts. An organisation's discussions
+ * are where GitHub runs its own product feedback and are the busiest Discussions surface there
+ * is, and every row, category and pager on them is a repository's — which the parsers prove by
+ * reading both with one code path.
+ *
+ * The layouts differ and only the layouts. Measured on 2026-09-03 and 2026-09-04: a repository's
+ * uses the pjax container and the Turbo frame every other repository tab uses, and an
+ * organisation's has neither and draws into Primer's own `container-xl` under `main`, below the
+ * organisation's header and nav. Both are listed, best first, and the proof below decides.
+ *
+ * Their own pager goes with the list. `discussionListIn` reads the page out of the address, so a
+ * reader on page three is drawn page three rather than page one.
+ */
+export const DISCUSSIONS: Place = {
+  name: "discussions",
+  owns: (path, search) =>
+    Option.isSome(discussionListIn(`https://github.com${path}${search ?? ""}`)),
+  regions: ["#repo-content-pjax-container", "main .container-xl.p-responsive.clearfix"],
+  fallback: "turbo-frame#repo-content-turbo-frame",
+  stages: [
+    "#repo-content-pjax-container",
+    "turbo-frame#repo-content-turbo-frame",
+    "main .container-xl.p-responsive.clearfix"
+  ],
+  /*
+   * The heading their own list is labelled by, which is written by this page and by nothing
+   * else. Every other hook here is a content region shared with the Code tab, so the proof has
+   * to be the content itself.
+   *
+   * Measured rather than assumed, because the doubt was the neighbour: read on 2026-09-03,
+   * `#discussions-list` is on `/vercel/next.js/discussions` and is absent from
+   * `/vercel/next.js/discussions/70178`. So a reader pressing one discussion is never left
+   * looking at a page this rule has blanked.
+   */
+  soft: { holding: ":has(#discussions-list)" },
+  // Nothing. The region is the rows, their categories and their pager together.
+  bands: [],
+};
+
+/**
+ * One discussion, at `/owner/repo/discussions/N` and at `/orgs/{org}/discussions/N`.
+ *
+ * One place for the same reason the list beside it is one: two layouts, one page. A repository's
+ * uses the pjax container the rest of its tabs use; an organisation's has none and is reached by
+ * `#discussion_bucket`, which GitHub writes on both and on neither list. Measured on 2026-09-03
+ * and 2026-09-04, across all four recordings here.
+ *
+ * Its proof is the wrapper GitHub writes around the thread, which no list has. Read the same
+ * days, `.js-discussion` is on a discussion and absent from a list, and `#discussions-list` is
+ * the other way round. So the two pages never blank each other while a reader presses between
+ * them.
+ */
+export const DISCUSSION: Place = {
+  name: "discussion",
+  owns: (path) => Option.isSome(discussionIn(`https://github.com${path}`)),
+  regions: ["#repo-content-pjax-container", "#discussion_bucket"],
+  fallback: "turbo-frame#repo-content-turbo-frame",
+  stages: [
+    "#repo-content-pjax-container",
+    "turbo-frame#repo-content-turbo-frame",
+    "#discussion_bucket"
+  ],
+  soft: { holding: ":has(.js-discussion)" },
+  // Nothing. The region is the thread and its header together.
+  bands: [],
+};
+
+/**
  * The home dashboard at `/`, and at `/dashboard`, which is the same page.
  *
  * The odd one in a different way from a repository's list: this page is Rails-rendered
@@ -982,6 +1053,8 @@ export const PLACES: ReadonlyArray<Place> = [
   RUN,
   ACTIONS,
   RELEASES,
+  DISCUSSIONS,
+  DISCUSSION,
   NOTIFICATIONS,
   HOME,
   PROFILE,
@@ -1021,6 +1094,19 @@ const BY_ADDRESS: ReadonlyArray<Place> = [
    * claims one address and never a page beside it.
    */
   RELEASES,
+  /*
+   * Before a repository's front page, as everything else is. Its own neighbours are refused by
+   * the parser rather than by the order: `discussionListIn` takes three segments ending in
+   * `discussions` and five with `categories` fourth, so `/discussions/new` and one discussion's
+   * own page both fall through to whatever claims them next.
+   */
+  /*
+   * Before the list, as the issue is before its own list. Neither actually needs the order —
+   * `discussionListIn` takes three segments and five, and `discussionIn` takes four — but the
+   * pair is read together and a reader of this table should not have to check that twice.
+   */
+  DISCUSSION,
+  DISCUSSIONS,
   /*
    * Before a repository's front page, as everything else is, and the order does not otherwise
    * matter: `/notifications` is one address that no other place here claims.
