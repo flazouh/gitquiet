@@ -271,3 +271,49 @@ Final checks passed: 4,787 tests, lint, both typechecks, and the 0.12.2 candidat
 The initial replacement space later disappeared as well. A subsequent inventory found the development extension enabled, the store copy disabled, and no test copy. The final browser check wrote its verified restored inventory to `.tmp/perf-observers/file-request-cleanup.json` and closed space 7. No build, test, or trace analysis ran alongside the recordings.
 
 Evidence is in `.tmp/performance-home-gate-{small,large}-pair-{0,1,2}`, `.tmp/perf-observers/home-gate-pairs.json`, `home-feed-qa.json`, `file-request-browser.json`, and the named-selection retry folders. Zero dropped frames remains unproven.
+
+## Large-tree scroll: where the time actually goes
+
+The three large-PR pairs above were re-analysed for frame outcomes and for the scripts
+inside the scroll window. This does not add new recordings.
+
+| Pair | Build | Delivered FPS | Dropped % | Tasks over 16.7 ms | Median completion gap |
+| --- | --- | ---: | ---: | ---: | ---: |
+| 0 | before | 12.2 | 79.3 | 15 | 50.0 ms |
+| 0 | after | 17.9 | 78.9 | 14 | 41.7 ms |
+| 1 | before | 14.3 | 79.9 | 15 | 50.0 ms |
+| 1 | after | 48.8 | 39.8 | 9 | 25.0 ms |
+| 2 | before | 20.0 | 76.8 | 13 | 41.7 ms |
+| 2 | after | 51.9 | 36.4 | 11 | 25.0 ms |
+
+Median delivered FPS during the tree scroll was 14.3 before and 48.8 after. Median
+dropped outcomes were 79.3 and 39.8 percent, and median over-budget tasks 15 and 11.
+
+Total renderer main-thread time in the window was 2,227, 2,026 and 2,793 ms before,
+versus 2,684, 2,506 and 2,732 ms after. Those totals are close, and higher in two pairs.
+Busy samples per delivered frame tell the other half: 79.6 to 55.3, 59.7 to 22.7, and
+48.0 to 21.5. The candidate delivered two to three times as many frames at a lower cost
+each, which is why its total work is similar or higher.
+
+Attributed self time from `FunctionCall`, `Layout`, `Paint`, `EventDispatch` and
+`UpdateLayoutTree` in the scroll window:
+
+| Pair | Build | GitQuiet | GitHub | Browser layout or paint |
+| --- | --- | ---: | ---: | ---: |
+| 0 | before | 297 ms | 221 ms | 628 ms |
+| 0 | after | 322 ms | 233 ms | 680 ms |
+| 1 | before | 285 ms | 200 ms | 617 ms |
+| 1 | after | 310 ms | 202 ms | 646 ms |
+| 2 | before | 387 ms | 213 ms | 819 ms |
+| 2 | after | 327 ms | 205 ms | 729 ms |
+
+Browser layout and paint dominate every run. GitQuiet's script time is 285 to 387 ms
+before and 310 to 327 ms after. The page's own long-animation-frame observer recorded no
+GitQuiet script inside any long frame after the 7 second mark; all of that script time
+belongs to GitHub's bundles. The remaining over-budget frames during tree scroll are
+GitHub's work plus browser layout and paint.
+
+One measurement limit applies. The blank-page control in the same session recorded 62.9
+percent dropped outcomes while idle, so Ego's task space is throttled. Raw dropped counts
+cannot show native desktop zero-drop behaviour. The relative comparison is still useful,
+and the small PR matched the baseline while the large PR improved.
