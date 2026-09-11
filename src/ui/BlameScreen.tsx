@@ -125,7 +125,7 @@ export const BlameScreen = ({
 
   return (
     <>
-      <DrawnAt path={at ?? null} />
+      <DrawnAt path={read.status === "loading" ? null : (at ?? null)} />
       <TheBar where={{ kind: "repository", owner: repo.owner, repo: repo.repo }} recall={recallRepositories} />
       <section aria-label="Blame" className="min-w-0">
         <div className="flex items-center gap-2 border-b border-line px-3 py-2 text-sm text-ink-muted">

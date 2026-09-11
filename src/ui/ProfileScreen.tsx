@@ -293,6 +293,19 @@ export const ProfileScreen = ({
 
   return (
     <div className="relative">
+      {/*
+        Both reads, where every other screen asks one. The rule above is this
+        screen's: either read alone is a page worth having, so either alone is
+        the address drawn — the reader has the bar, the person, the tabs and one
+        of the two bands, with the other saying it is still coming.
+
+        Not `waiting`, which is the wait's own question and answers it later in
+        both directions: it is held back for the first moments of a read so a
+        wait too short to read is never drawn, and it stays up for one dissolve
+        after the answer lands. Claiming off it would say the address is drawn
+        while the read is still in flight, and withhold it for four hundred
+        milliseconds after the page became legible.
+      */}
       <DrawnAt
         path={list.status === "loading" && said.status === "loading" ? null : (at ?? null)}
       />

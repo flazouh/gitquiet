@@ -299,23 +299,11 @@ export const FileTreePane = ({
     const row = model.getItem(wanted)
     if (row === null || row.isSelected()) return
 
-    // On the frame after this one, not in a quiet moment. The tree is the
-    // reader's answer to "where am I", and it was arriving up to a quarter of a
-    // second after the diff beside it — on GitHub's page, whose own scripts keep
-    // the main thread busy, an idle callback that far out is one that waits for
-    // the timeout every time. A frame is late enough to stay out of the commit
-    // this press is being answered in, which is all the wait was ever for, and
-    // early enough that the highlight and the diff move together.
-    return afterPaint(() => {
-      const latest = model.getItem(wanted)
-      if (latest === null || latest.isSelected()) return
-      for (const held of model.getSelectedPaths()) {
-        if (held !== wanted) model.getItem(held)?.deselect()
-      }
-      latest.select()
-      // Selecting a row far down a long tree is only useful if it can be seen.
-      model.scrollToPath(wanted)
-    })
+    // Selection answers the press. Deferring it to a frame leaves the old row
+    // highlighted until the 250 ms fallback when frame callbacks are delayed.
+    // One selection update avoids refreshing the viewport with no selected row.
+    model.selectOnlyPath(wanted)
+    model.scrollToPath(wanted)
   }, [model, wanted])
 
   if (files.length === 0) {
@@ -645,10 +633,11 @@ const FileDiffPaneView = ({
   // it is a fresh closure on every render of the screen above, and a redraw per
   // closure was every mounted file drawn again several times per click.
   const canPost = onPost !== undefined
+  // Metadata refreshes can recreate the Option while keeping the patch unchanged.
+  const source = Option.getOrNull(shown)
 
   useEffect(() => {
     const container = host.current
-    const source = Option.getOrNull(shown)
     if (engine === null || container === null || source === null || source === "" || prose !== undefined)
       return
 
@@ -694,7 +683,7 @@ const FileDiffPaneView = ({
     }
     // Every one of these is baked into the DOM the renderer writes, so a change
     // to any of them is a file drawn again from the patch.
-  }, [engine, shown, file.path, prose, drawnWith, canPost, reveal])
+  }, [engine, source, file.path, prose, drawnWith, canPost, reveal])
 
   useEffect(() => {
     handle.current?.showNotes(notes)

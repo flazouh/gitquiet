@@ -169,6 +169,23 @@ describe("marking lines out to say something about them", () => {
 
     expect(asked).toHaveLength(1)
   })
+
+  test("refreshing file metadata keeps the prepared diff until its content changes", async () => {
+    const { rerender } = render(pane())
+    await drawn()
+
+    rerender(pane({ file: { ...file, readByViewer: true } }))
+    await new Promise((settle) => setTimeout(settle, 300))
+    expect(asked).toHaveLength(1)
+
+    const diff = Option.getOrThrow(file.diff)
+    rerender(pane({ file: { ...file, diff: Option.some({
+      ...diff,
+      lines: [...diff.lines, { kind: "added", text: "+ three", beforeLine: Option.none(), afterLine: Option.some(3) }]
+    }) } }))
+    await waitFor(() => expect(asked).toHaveLength(2))
+    expect(asked[1]?.patch).toContain("+ three")
+  })
 })
 
 /*
