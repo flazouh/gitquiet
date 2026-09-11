@@ -10,3 +10,6 @@ Use the existing home region selector for finding the screen. Give its CSS stage
 4. Compare the real candidate with the released behavior. Check style invalidation and home/feed rendering, then repeated small and large PR interactions. Do not ship from the synthetic diagnostic alone.
 
 The DOM expects unique IDs, as GitHub's markup does. A malformed document with duplicate dashboard IDs needs separate evidence before adding fallback scans. No timer is needed: mutation observers run before the next paint. Browser verification must confirm the gate before paint rather than relying on this scheduling rule alone.
+
+
+Status: implementation and local checks passed in `45870ab`. The candidate trace removed body-subtree invalidation. The full comparison stopped when space 13 disappeared; only one complete small-PR pair and one extra candidate recording remain. Live home/feed checks and the remaining comparisons are pending. No follow-up release is approved by this evidence. See `scripts/performance/RESULTS.md` for the measured results and cleanup uncertainty.

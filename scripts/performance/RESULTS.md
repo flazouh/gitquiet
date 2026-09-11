@@ -215,3 +215,28 @@ The first intervention did not improve the probe. The stylesheet inventory chang
 The next check should attribute style invalidation with a trace and establish a fixture that preserves the real rendering. A shadow-root migration must preserve portals, delegated events, native HTML styling, navigation queries, and screen recovery. Tests and an equivalent interaction comparison must precede any claim of a user-visible improvement.
 
 Raw probe results are in `.tmp/perf-observers/restyle-native-sheets.json`, `restyle-own-sheet.json`, and `restyle-shadow.json`. Styles and root placement were restored. The test copy was removed, the original development copy was enabled, and the store copy remained disabled. Task space 8 closed. No production code changed.
+
+
+## Home gate invalidation fix, browser comparison incomplete
+
+The invalidation trace identifies the generated home `body:has(#dashboard.dashboard)` rules in a body-subtree invalidation after an empty span is inserted into GitQuiet. Replacing only that CSS condition in a diagnostic build removed that invalidation in a fresh trace. Its sampled cycle took 1.53 ms versus 28.70 ms in the baseline trace. Separate repeated synthetic comparisons were mixed, so these isolated times establish a cause to investigate rather than an interaction speedup.
+
+Commit `45870ab` preserves the native region selector and replaces its CSS condition with `body[data-gitquiet-home]`. The shell maintains that marker from the dashboard's ID, class, and body membership. It removes the marker on body replacement or cleanup. Generated CSS retains the initial body cover and waits for the marker during soft navigation. The canary manifest keeps both the native proof and the marked stage.
+
+Four initial tests failed before implementation. A further descendant test failed before correcting the body-self case. The final focused run passed 128 tests. `bun run gates` passed 4,782 tests, lint, and both typechecks. `RELEASE_VERSION=0.12.2 bun run build` passed. Code-quality review found and fixed a canary weakness in the initial stage choice. No remaining code blocker was found. Browser validation remains required.
+
+The real candidate trace records no body-subtree invalidation in any of three synthetic cycles. The first cycle took 10.99 ms and included an existing style update for 2,572 elements. Later cycles took 0.94 and 0.81 ms and restyled 20 elements on insertion and 19 on removal. These are synthetic style checks, not frame-rate or end-to-end interaction results. That probe restored the original extension states and closed space 12.
+
+The full comparison then completed three small-PR recordings before its process exited with status 1 and no error message. A direct check of the same space returned `task space not found: 13`. Its disappearance is confirmed; its cause is not. No large-PR recordings completed. The saved runs are complete and were analysed after the process stopped.
+
+| Small-PR metric | First baseline | First candidate | Second candidate, unpaired |
+| --- | ---: | ---: | ---: |
+| Startup CPU | 1,082.1 ms | 1,287.1 ms | 1,052.1 ms |
+| Tree-scroll CPU | 74.6 ms | 101.8 ms | 85.9 ms |
+| Settings CPU | 521.3 ms | 600.8 ms | 514.7 ms |
+| Selection CPU | 448.6 ms | 393.3 ms | 372.5 ms |
+| Median file-switch readiness | 25.8 ms | 18.3 ms | 20.4 ms |
+
+The one complete pair improves selection work and readiness but worsens other CPU measures. The extra candidate run is not a second pair. These results do not justify a release. Repeat the interrupted comparison and check real home/feed navigation before shipping. Zero dropped frames remains unproven.
+
+Evidence: `.tmp/perf-observers/style-invalidation.trace.json`, `style-invalidation-no-body-has.trace.json`, `style-invalidation-home-gate.trace.json`, and `.tmp/performance-home-gate/summary.json`. Space 13 no longer exists, so its final extension cleanup could not be verified. Check the installed copies before restarting measurement. The earlier spaces restored their copies successfully.
