@@ -149,3 +149,25 @@ The merged code passed `bun run gates`: 4,774 tests, zero failures, plus lint an
 Candidate-only browser probes passed at 0, 1,000, 100,000, 250,000, and 500,000 hidden nodes. Each size ran 40 updates in each of four phases. Every phase recorded zero document queries. Each added-link phase checked exactly 40 links. Recovery and teardown passed at every size. At 500,000 nodes, median update times were 5.0 to 5.1 ms, including the timer used to await observer delivery. These checks establish bounded observer work, not frame smoothness.
 
 Results are in `.tmp/perf-observers-stable-surface/results.json`. The probe space closed and its local server stopped. The earlier full-extension recordings predate this merge; a release comparison must use the merged build and the actual `v0.12.0` baseline.
+
+## Comparison with the published 0.12.0 release
+
+Twelve recordings compared GitHub's published `gitquiet-0.12.0-chrome.zip` with merged commit `80692a9`, built with `RELEASE_VERSION=0.12.1`. Each PR had three alternating pairs. The config records the downloaded ZIP hash and every JavaScript file hash in both builds. The candidate version identifies a test build; no release was published by this measurement.
+
+| Metric, median | Small before | Small after | Large before | Large after |
+| --- | ---: | ---: | ---: | ---: |
+| Response-to-diff readiness | 1,371.1 ms | 1,247.4 ms | 2,068.0 ms | 1,663.3 ms |
+| Startup main-thread work | 1,257.5 ms | 1,232.4 ms | 1,617.3 ms | 1,384.7 ms |
+| Tree scrolling main-thread work | 117.0 ms | 120.8 ms | 1,603.0 ms | 1,444.7 ms |
+| Settings main-thread work | 936.2 ms | 758.1 ms | 2,305.8 ms | 1,527.9 ms |
+| Diff scrolling main-thread work | 32.2 ms | 30.8 ms | 317.5 ms | 296.0 ms |
+| File-switch readiness, 15 clicks per build | 91.1 ms | 31.8 ms | 253.4 ms | 108.8 ms |
+| Selection main-thread work | 585.6 ms | 486.8 ms | 1,998.4 ms | 1,791.4 ms |
+
+The worst file switch fell from 419.0 to 390.6 ms on the small PR and from 582.9 to 539.8 ms on the large PR. Slow switches remain. Improvements are not uniform: the first candidate small-PR startup took 2,584.8 ms after the response, versus 1,881.7 ms before. The first large-tree scrolling phase used 2,208.0 ms of main-thread time, versus 1,603.0 ms before. Later pairs lowered the median. No field data establishes how often these cases occur for users.
+
+Blank-page calibration delivered about 29 presented frames per second and reported 75.7% dropped outcomes even without the injected blocking task. Those readings cannot certify zero dropped frames on a foreground desktop. Task-budget overruns also remain in the application traces.
+
+A follow-up reading of `large-2-after` assigns about 366 ms of sampled time to the tree viewport refresh called from `deselectPath`. GitQuiet clears the old selection before selecting the new file, so the tree refreshes an intermediate empty selection. The controller already offers a single-selection operation internally. That is the next change to test.
+
+Raw evidence is in `.tmp/performance-release-0.12.0`. Extension restoration was verified, task space 6 closed, and no build or test ran during recording.
