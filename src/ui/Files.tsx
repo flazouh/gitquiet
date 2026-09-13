@@ -598,7 +598,21 @@ const FileDiffPaneView = ({
           },
     [reveal, file.path]
   )
-  const { names, shown: card, asked, unask, textNow } = useFollowing(following, across)
+  const { names, shown: card, asked, unask, textNow, askNow } = useFollowing(
+    following,
+    host,
+    across
+  )
+
+  /*
+   * `u`, for the name the pointer is on, as on every other screen that draws
+   * code.
+   *
+   * Every open file binds this, and that is safe rather than sloppy: the
+   * question is about the name under the pointer, and only the pane the pointer
+   * is in has one. The rest answer nothing and do nothing.
+   */
+  useKeys(useKeyboard(), { uses: askNow })
 
   /*
    * Which lines GitHub's diff for this file holds, or nothing until it lands.

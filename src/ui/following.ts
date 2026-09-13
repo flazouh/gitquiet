@@ -1,9 +1,10 @@
 import { Effect, Option } from "effect"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react"
 import type { Reading, Where, Writing } from "../ports/Ledger"
 import type { Bounds, DiffHandle, Modifiers, Name } from "../ports/Renderer"
 import { reaching } from "../ledger/reaching"
 import { useLedger } from "./ledger"
+import { showLine } from "./showLine"
 
 /**
  * Holding a key over code, and pressing what it underlines.
@@ -102,13 +103,14 @@ export type Follows = {
    */
   readonly textNow: () => string | null
   /**
-   * The Writing the pointer is on, for a panel that asks about it.
+   * Asks who depends on the name the pointer is on, from the keyboard.
    *
-   * Whatever the last answer was, whether or not it is drawn: a reader presses
-   * the key for Uses while looking at a name, and the name they are looking at
-   * is the one under the pointer.
+   * The same question a press on a Writing asks, for a hand already on the
+   * keyboard — and the only way to ask it about a name written in another file,
+   * where a press goes there instead. Does nothing where the pointer is on no
+   * name, rather than opening a panel that has to explain itself.
    */
-  readonly onNow: () => Writing | null
+  readonly askNow: () => void
 }
 
 /**
@@ -129,6 +131,27 @@ export type Peeked = {
 
 /** How many lines of a Writing a Peek shows. Enough to see what it is. */
 const PEEK = 12
+
+/**
+ * Whether the Name pressed is the Writing itself, rather than a use of it.
+ *
+ * Which decides what a press does, and is the whole of the rule: press a call
+ * and you are asking to be taken to the thing; press the thing and you are
+ * asking who depends on it. Every editor that offers both settles it this way,
+ * and a reader who has used one already knows it without being told.
+ *
+ * The two sides count columns differently and this is the only place it
+ * matters. A renderer's token starts at `lineCharStart`, which counts from
+ * nothing; a Writing's column comes off a syntax tree and is written for a
+ * reader, so it counts from one. Compared without the adjustment, no press is
+ * ever on a Writing and every press navigates — which is a feature with half of
+ * itself quietly missing rather than a bug anybody would notice.
+ */
+const isTheWriting = (name: Name, writing: Writing, where: string | undefined, path: string):
+  boolean =>
+  (where === undefined || where === path) &&
+  writing.line === name.line &&
+  writing.from === name.from + 1
 
 /** Nothing to follow, for a pane with no file of its own to ask about. */
 const NOWHERE: Following = {
@@ -152,7 +175,11 @@ export type Source = {
   readonly text: Effect.Effect<string, unknown>
 }
 
-export const useFollowing = (source: Source | null, across?: Across): Follows => {
+export const useFollowing = (
+  source: Source | null,
+  host: RefObject<HTMLElement | null>,
+  across?: Across
+): Follows => {
   const ledger = useLedger()
   /**
    * The text, once. A file is read at a commit and does not change underneath a
@@ -323,21 +350,35 @@ export const useFollowing = (source: Source | null, across?: Across): Follows =>
       }
 
       /*
-       * A press opens the list rather than moving the reader.
+       * Which of the two a press is, decided by where the press landed.
        *
-       * Which is the opposite of what an editor does with this gesture, and is
-       * the right way round here. In an editor you are writing the code and the
-       * question is "take me to it". Reading somebody's pull request the
-       * question is nearly always "what is this, and who else depends on it" —
-       * and being moved somewhere else mid-review is the thing this interface
-       * exists to stop happening.
+       * On a call, the question is "take me to it", and this is the gesture
+       * every editor answers that way. On the Writing itself there is nowhere to
+       * be taken — the reader is already looking at it — and the question that
+       * is left is the one they actually have: who depends on this. So the same
+       * press does both, and neither has to be learnt.
        *
-       * The list holds the Writing first and its Uses under it, so going there
-       * is the press after this one and is never the press itself.
+       * Going to it never leaves the review. In this file it is a scroll; in
+       * another it is the address changing and the pane drawing something else,
+       * which is what pressing a row of the tree does.
        */
+      const arrive = (writing: Writing, where?: string): void => {
+        clear()
+        if (where !== undefined && where !== source?.path) {
+          across?.open(where, writing.line)
+          return
+        }
+        showLine(host.current?.shadowRoot ?? null, writing.line)
+      }
+
       const show = (writing: Writing, where?: string): void => {
         clear()
         setAsked({ writing, ...(where === undefined ? {} : { where }) })
+      }
+
+      const answer = (writing: Writing, where?: string): void => {
+        if (isTheWriting(name, writing, where, source?.path ?? "")) show(writing, where)
+        else arrive(writing, where)
       }
 
       // The answer from the hover, where the hover asked. A press that has to
@@ -345,12 +386,12 @@ export const useFollowing = (source: Source | null, across?: Across): Follows =>
       // over an underlined name — the answer is what put the line there.
       const known = on.current?.name === name ? on.current.writing : null
       if (known !== null) {
-        show(known, on.current?.where)
+        answer(known, on.current?.where)
         return
       }
-      ask(name, show)
+      ask(name, answer)
     },
-    [ask, clear, linesOf]
+    [across, ask, clear, host, linesOf, source]
   )
 
   const drawnBy = useCallback((given: DiffHandle | null) => {
@@ -420,7 +461,13 @@ export const useFollowing = (source: Source | null, across?: Across): Follows =>
 
   const unpeek = useCallback(() => setPeeked(null), [])
   const unask = useCallback(() => setAsked(null), [])
-  const onNow = useCallback(() => on.current?.writing ?? null, [])
+  const askNow = useCallback(() => {
+    const here = on.current
+    if (here?.writing == null) return
+
+    clear()
+    setAsked({ writing: here.writing, ...(here.where === undefined ? {} : { where: here.where }) })
+  }, [clear])
   const textNow = useCallback(
     () => (text.current?.path === source?.path ? (text.current?.text ?? null) : null),
     [source]
@@ -434,6 +481,6 @@ export const useFollowing = (source: Source | null, across?: Across): Follows =>
     asked: source === null ? null : asked,
     unask,
     textNow,
-    onNow
+    askNow
   }
 }

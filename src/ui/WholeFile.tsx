@@ -128,7 +128,11 @@ export const WholeFile = ({
     () => (following ? { path, text: Effect.succeed(lines.join("\n")) } : null),
     [following, path, lines]
   )
-  const { names, shown, peeked, unpeek, asked, unask, onNow } = useFollowing(reading, across)
+  const { names, shown, peeked, unpeek, asked, unask, askNow } = useFollowing(
+    reading,
+    host,
+    across
+  )
 
   /*
    * The outline, on a key.
@@ -142,8 +146,6 @@ export const WholeFile = ({
   const keys = useKeyboard()
   const [outline, setOutline] = useState<ReadonlyArray<Writing> | null>(null)
   const [naming, setNaming] = useState(false)
-  /** The Writing the `u` key asked about, which the press answers for itself. */
-  const [asking, setAsking] = useState<{ writing: Writing; text: string } | null>(null)
   useEffect(() => {
     setOutline(null)
   }, [reading])
@@ -163,24 +165,7 @@ export const WholeFile = ({
   // Escape puts it away, which is what Escape means everywhere else here.
   useKeys(keys, {
     fileNames: () => setNaming(reading !== null),
-    /*
-     * Uses, of the name the pointer is on.
-     *
-     * Nothing where the pointer is on nothing, rather than a panel that opens
-     * empty and has to explain itself. The text comes from the same place the
-     * Ledger reads — resolved here rather than asked for again, because the
-     * panel shows the line each Use is on.
-     */
-    uses: () => {
-      const writing = onNow()
-      if (writing === null || reading === null) return
-      Effect.runFork(
-        reading.text.pipe(
-          Effect.map((text) => setAsking({ writing, text })),
-          Effect.catch(() => Effect.void)
-        )
-      )
-    },
+    uses: askNow,
     dismiss: unpeek
   })
 
@@ -292,26 +277,13 @@ export const WholeFile = ({
         the key over one. Both are the same question and the same panel; the
         press is the one a reader finds without being told.
       */}
-      {asked !== null ? (
+      {asked === null ? null : (
         <UsesPanel
           writing={asked.writing}
           where={asked.where}
           reading={{ path, text: lines.join("\n") }}
           onGo={(line) => showLine(host.current?.shadowRoot ?? null, line)}
           onClose={unask}
-          onOpen={across?.open}
-          across={
-            across?.repo === undefined || across.sha === undefined
-              ? undefined
-              : { repo: across.repo, sha: across.sha }
-          }
-        />
-      ) : asking === null ? null : (
-        <UsesPanel
-          writing={asking.writing}
-          reading={{ path, text: asking.text }}
-          onGo={(line) => showLine(host.current?.shadowRoot ?? null, line)}
-          onClose={() => setAsking(null)}
           onOpen={across?.open}
           across={
             across?.repo === undefined || across.sha === undefined
