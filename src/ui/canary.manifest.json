@@ -5,7 +5,8 @@
       "page": "home dashboard",
       "url": "https://github.com/",
       "regions": [
-        "body:has(#dashboard.dashboard)"
+        "body:has(#dashboard.dashboard)",
+        "body[data-gitquiet-home]"
       ],
       "bands": []
     },

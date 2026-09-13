@@ -203,6 +203,27 @@ describe("one issue, on the page GitHub keeps for it", () => {
     expect(handedBack).toBe(true)
   })
 
+  /*
+   * Two lines of this file's own source, on the screen above the card, for
+   * every reader whose issue failed to read.
+   *
+   * A `//` comment standing where the card's own element stood is a comment in
+   * an expression; wrapped in a fragment, the same two lines are text children
+   * and are drawn. Which is what happened here: the claim was added above the
+   * card, the card and the comment above it went inside a fragment together,
+   * and nothing failed — the heading is asserted by exact string, and the card
+   * either side of the stray text is untouched.
+   */
+  test("draws no line of its own source above the card", async () => {
+    render(
+      screenOf({ load: () => Effect.fail(new Error("500")), signedIn: () => true })
+    )
+
+    await waitFor(() => expect(screen.getByText("This issue could not be read")).toBeDefined())
+
+    expect(document.body.textContent).not.toContain("//")
+  })
+
   test("blames the session rather than GitHub when nobody is signed in", async () => {
     // Every route answers as though the page does not exist to a signed-out
     // reader, which looks exactly like a payload that changed shape.

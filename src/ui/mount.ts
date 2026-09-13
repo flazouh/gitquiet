@@ -68,6 +68,12 @@ const markWithin = (target: Document, root: Element): void => {
     above = above.parentElement
   ) {
     above.setAttribute(WITHIN, "")
+    // A late region can sit inside a sibling we hid while using the fallback.
+    // Once it holds our screen, that ancestor must be visible again.
+    if (above.hasAttribute(HIDDEN)) {
+      above.removeAttribute(HIDDEN)
+      above.removeAttribute("hidden")
+    }
   }
 }
 
@@ -841,6 +847,36 @@ export const markScreenRoute = (target: Document, route: string): void => {
   if (screen !== null) finishNavigation(target, route, screen)
 }
 
+/**
+ * The same, said by a screen publishing the address it has drawn, and only where
+ * that address is the whole route.
+ *
+ * A claim is a pathname. {@link ROUTE} is a pathname and a search, because that
+ * is what {@link routeNow} builds and what every cache here is keyed on — so a
+ * claim written straight into the route is a truncation wherever the address
+ * carries a search, and the caches are then keyed on a page that does not exist.
+ *
+ * What that cost, measured on a repository's filtered list: the screen stood at
+ * `/owner/repo/pulls?q=is:open`, the claim rewrote its route to
+ * `/owner/repo/pulls`, and the finished list was remembered under the plain
+ * address. Opening the plain list next seeded the filtered one's rows into it —
+ * the reader's filter, on a page that never asked for one, restored from memory
+ * before the read could answer.
+ *
+ * So a claim that is the whole address updates the route, and a claim that is
+ * part of one leaves it to whoever built it from the whole. Nothing is lost by
+ * declining: a screen whose search changes is stood up again by its entry, and
+ * the route is set from the address there. The screens this is for are the ones
+ * that redraw in place under a bare address, which is a pull request opening
+ * another and an issue opening another.
+ */
+export const markScreenRouteWhenWhole = (target: Document, path: string): void => {
+  const view = target.defaultView
+  if (view !== null && view.location.search !== "" && view.location.pathname === path) return
+
+  markScreenRoute(target, path)
+}
+
 /** Puts an exact live history target on the current surface before traversal commits. */
 export const activatePreparedTraversal = (
   target: Document,
@@ -1241,7 +1277,7 @@ export const takeOverSlot = (
   // fires again, so the interface is never put back, and the page stays blank
   // behind a rule that is still hiding GitHub's.
   const ground = target.body
-  const watcher = new MutationObserver(() => {
+  const watcher = new MutationObserver((changes) => {
     /*
      * Another interface is taking the document over, and this one is on the
      * screen only until it does. Tending it past that point would start a fight:
@@ -1253,6 +1289,27 @@ export const takeOverSlot = (
       watcher.disconnect()
       return
     }
+
+    // The screen stands on body. Updates inside hidden native content cannot
+    // move it, including a late region. A wrapper around our screen is different:
+    // keep that mutation so markWithin can make the wrapper visible.
+    const parent = container.parentElement
+    if (container.isConnected && changes.every((change) => {
+      const node = change.target
+      // Radix adds empty keyboard-focus sentinels around body content. They
+      // cannot hold a page region, so opening a panel needs no recovery scan.
+      if (node === ground) {
+        const moved = [...change.addedNodes, ...change.removedNodes]
+        if (moved.length > 0 && moved.every((item) =>
+          item instanceof Element && item.matches("span[data-radix-focus-guard]") && item.childNodes.length === 0
+        )) return true
+      }
+      if (container.contains(node)) return true
+      if (!(node instanceof Element)) return false
+      const hidden = node.closest(`[${HIDDEN}]`)
+      return node.closest(`[${OUTSIDE}]`) !== null ||
+        (hidden !== null && !hidden.contains(container))
+    })) return
 
     /*
      * A surface borrowed from the screen being replaced lives only as long as the
@@ -1300,7 +1357,6 @@ export const takeOverSlot = (
     const region = standing ?? findConversationSlot(target, place)
     if (region !== null && !region.contains(container)) hideTheirs(region, container)
 
-    const parent = container.parentElement
     if (parent !== null) hideTheirs(parent, container)
     /*
      * And the way down to us, if GitHub has put a box of their own in between.

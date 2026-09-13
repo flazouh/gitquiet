@@ -317,8 +317,8 @@ export const IssueScreen = ({
       <>
         {/* The failure screen is an answer too. See {@link DrawnAt}. */}
         <DrawnAt path={at ?? null} />
-        // Its own padding as a card, and nothing more: the frame either side of it
-        // is the shell's, the same one the panels stand in when the read works.
+        {/* Its own padding as a card, and nothing more: the frame either side of it
+            is the shell's, the same one the panels stand in when the read works. */}
         <div className="Box my-2 p-4">
           <h2 className="mb-1 text-base font-semibold">
             {out ? "You are signed out of GitHub" : "This issue could not be read"}

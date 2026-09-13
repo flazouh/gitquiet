@@ -261,7 +261,7 @@ describe("slotting into GitHub's pull request page", () => {
     page.querySelector('[class*="PageLayout-Header"]')!.append(again)
     await Promise.resolve()
 
-    expect(again.hasAttribute("hidden")).toBe(true)
+    expect(again.closest("[hidden]")).not.toBeNull()
   })
 
   test("hides GitHub's conversation rather than deleting it out from under React", () => {
@@ -291,7 +291,7 @@ describe("slotting into GitHub's pull request page", () => {
     slotOf(page).append(late)
     await Promise.resolve()
 
-    expect(late.hasAttribute("hidden")).toBe(true)
+    expect(late.closest("[hidden]")).not.toBeNull()
   })
 
   test("puts the interface back if a re-render takes it out", async () => {
@@ -326,7 +326,7 @@ describe("slotting into GitHub's pull request page", () => {
     expect(stood.isConnected).toBe(true)
     expect(stood.parentElement).toBe(page.body)
     // And the region they have now is hidden like the one they threw away.
-    expect(replacement.querySelector(".js-updatable-content")?.hasAttribute("hidden")).toBe(true)
+    expect(replacement.querySelector(".js-updatable-content")!.closest("[hidden]")).not.toBeNull()
   })
 
   test("gives the conversation back when it steps aside", async () => {
@@ -555,7 +555,7 @@ describe("arriving after the document has finished, which is what a soft navigat
     await new Promise((wake) => setTimeout(wake, 20))
 
     expect(takeover!.container.parentElement).toBe(page.body)
-    expect(page.querySelector(".late-conversation")?.hasAttribute("hidden")).toBe(true)
+    expect(page.querySelector(".late-conversation")!.closest("[hidden]")).not.toBeNull()
   })
 
   test("keeps watching from the body, which Turbo does not replace", async () => {

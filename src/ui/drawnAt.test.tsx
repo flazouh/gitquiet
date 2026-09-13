@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, render } from "@testing-library/react"
-import { useDrawnAt } from "./drawnAt"
+import { DrawnAt, useDrawnAt } from "./drawnAt"
+import { ScreenActivityProvider } from "./screenActivity"
+import { ROOT_ID } from "./mount"
 
 afterEach(cleanup)
 
@@ -78,5 +80,93 @@ describe("which address the screen has the page for", () => {
     leaving.unmount()
 
     expect(drawn()).toBe("/o/r/pull/2002")
+  })
+})
+
+/*
+ * The reason {@link DrawnAt} is a component and not the hook called in each
+ * screen. Until these, the line that asks was load-bearing and unasserted:
+ * deleting `useScreenActivity` left every test in the repository green.
+ */
+describe("a screen that is mounted but does not have the page", () => {
+  const inactive = (at: string | null) => (
+    <ScreenActivityProvider active={false}>
+      <DrawnAt path={at} />
+    </ScreenActivityProvider>
+  )
+  const active = (at: string | null) => (
+    <ScreenActivityProvider active>
+      <DrawnAt path={at} />
+    </ScreenActivityProvider>
+  )
+
+  test("claims nothing, however ready its own read is", () => {
+    render(inactive("/o/r/pull/1999"))
+
+    expect(drawn()).toBeNull()
+  })
+
+  test("gives up the claim when the page is taken from under it", () => {
+    // A live history entry, kept mounted off the page: it drew this address and
+    // then something else took the page. A mark left standing would hand the
+    // page to a screen that is not on it.
+    const showing = render(active("/o/r/pull/1999"))
+    expect(drawn()).toBe("/o/r/pull/1999")
+
+    showing.rerender(inactive("/o/r/pull/1999"))
+
+    expect(drawn()).toBeNull()
+  })
+
+  test("claims again when the page comes back to it", () => {
+    const showing = render(inactive("/o/r/pull/1999"))
+
+    showing.rerender(active("/o/r/pull/1999"))
+
+    expect(drawn()).toBe("/o/r/pull/1999")
+  })
+})
+
+/*
+ * The route the caches are keyed on, which a claim used to overwrite with its
+ * own shorter answer. A claim is a pathname; a route is a pathname and a
+ * search. See `markScreenRouteWhenWhole`.
+ */
+describe("what a claim says about the route", () => {
+  const standing = (route: string): HTMLElement => {
+    const root = document.createElement("div")
+    root.id = ROOT_ID
+    root.setAttribute("data-gitquiet-route", route)
+    document.body.append(root)
+    return root
+  }
+  const at = (path: string, search: string): void => {
+    const view = document.defaultView as unknown as { location: { pathname: string; search: string } }
+    view.location.pathname = path
+    view.location.search = search
+  }
+
+  afterEach(() => {
+    document.getElementById(ROOT_ID)?.remove()
+    at("/", "")
+  })
+
+  test("leaves a filtered list's route alone, search and all", () => {
+    const root = standing("/owner/repo/pulls?q=is%3Aopen")
+    at("/owner/repo/pulls", "?q=is%3Aopen")
+
+    render(<Screen at="/owner/repo/pulls" />)
+
+    expect(drawn()).toBe("/owner/repo/pulls")
+    expect(root.getAttribute("data-gitquiet-route")).toBe("/owner/repo/pulls?q=is%3Aopen")
+  })
+
+  test("moves the route where the claim is the whole address, as one pull request opening another", () => {
+    const root = standing("/owner/repo/pull/12")
+    at("/owner/repo/pull/13", "")
+
+    render(<Screen at="/owner/repo/pull/13" />)
+
+    expect(root.getAttribute("data-gitquiet-route")).toBe("/owner/repo/pull/13")
   })
 })

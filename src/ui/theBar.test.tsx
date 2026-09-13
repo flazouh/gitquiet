@@ -235,6 +235,30 @@ describe("the bar and where the reader has been", () => {
     theirUpdate.remove()
   })
 
+  test("lands the prepared bar as a direct child of the slot once the route owns the page", async () => {
+    const preparedRoot = interfaceContainer(document, RUN)
+
+    render(
+      <ScreenActivityProvider active root={preparedRoot}>
+        <TheBar
+          where={WHERE}
+          participant={SOMEONE}
+          repositories={KEPT}
+          preparedRoot={preparedRoot}
+        />
+      </ScreenActivityProvider>
+    )
+
+    expect(document.querySelector(`#${BAR_ID} > header`)).toBeNull()
+
+    document.body.append(preparedRoot)
+    act(() => theScreenActivityChanged(preparedRoot))
+
+    await waitFor(() => expect(document.querySelector(`#${BAR_ID} > header`)).not.toBeNull())
+    preparedRoot.remove()
+    act(() => theScreenMoved(document))
+  })
+
   test("prepares the exact route behind and ahead before a return press", async () => {
     havingBeen(
       [

@@ -105,9 +105,17 @@ export const TheBar = ({
     made.style.display = "contents";
     return made;
   });
-  const slot = preparedSlot ?? pageSlot;
   const oursToDraw = useOursToDraw();
   const preparing = preparedRoot !== undefined && !preparedRoot.isConnected;
+  /*
+   * The host is only for the build, while the route is still off the page.
+   *
+   * The radius and the glass are written on a header that is a direct child of
+   * the slot. A `display: contents` host is invisible to that selector, so a
+   * bar left inside it after the click lands square, flush to the corners.
+   * Once the route owns the page the portal goes into the slot itself.
+   */
+  const slot = preparedSlot !== null && preparing ? preparedSlot : pageSlot;
   const drawing = preparing || (oursToDraw && active);
   /*
    * The reader's own choices, read here so the way into them can stand in the strip.
@@ -349,18 +357,20 @@ export const TheBar = ({
       return;
     }
 
-    const activate = () => {
+    const land = () => {
       if (!preparedRoot.isConnected) return;
-      pageSlot.append(preparedSlot);
+      // The host must not stay in the slot: as the last child it would hide
+      // the header the portal just put there. See the slot choice above.
+      preparedSlot.remove();
       if (drawing) theBarStands(document);
     };
-    activate();
-    const stop = whenTheScreenMoves(document, activate);
+    land();
+    const stop = whenTheScreenMoves(document, land);
     return () => {
       stop();
       preparedSlot.remove();
     };
-  }, [drawing, pageSlot, preparedRoot, preparedSlot]);
+  }, [drawing, preparedRoot, preparedSlot]);
 
   useEffect(() => {
     if (

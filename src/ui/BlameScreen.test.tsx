@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import { Effect } from "effect"
 import type { Blamed, Commit } from "../domain/blame"
 import { BlameScreen } from "./BlameScreen"
@@ -77,5 +77,42 @@ describe("a file's blame", () => {
     showing(() => Effect.fail(new Error("nope")))
 
     expect(await screen.findByText(/The blame of README.md/)).toBeTruthy()
+  })
+})
+
+/*
+ * The claim, which this screen published from its first frame until the shell's
+ * reading ahead was measured against it. See `DrawnAt` in `drawnAt.tsx`: the
+ * mark says the screen has drawn the address, and the shell holds its guesses
+ * back until it does. Said while the blame is still being read, it releases
+ * that hold into the read the reader is waiting for.
+ */
+describe("which address this blame claims to have drawn", () => {
+  const drawn = () => document.documentElement.getAttribute("data-gitquiet-at")
+
+  afterEach(() => document.documentElement.removeAttribute("data-gitquiet-at"))
+
+  test("claims nothing while it is still reading", async () => {
+    showing(() => Effect.never as Effect.Effect<Blamed>, {
+      at: "/oven-sh/bun/blame/main/README.md"
+    })
+
+    await screen.findByText(/Reading this file's blame/)
+    expect(drawn()).toBeNull()
+  })
+
+  test("claims the pathname it stands for once the blame lands", async () => {
+    showing(() => Effect.succeed(blamed()), { at: "/oven-sh/bun/blame/main/README.md" })
+
+    await waitFor(() => expect(drawn()).toBe("/oven-sh/bun/blame/main/README.md"))
+  })
+
+  test("claims the address when the read fails, because the failure screen is the answer", async () => {
+    showing(() => Effect.fail(new Error("nope")), {
+      at: "/oven-sh/bun/blame/main/README.md"
+    })
+
+    await screen.findByText(/The blame of README.md/)
+    await waitFor(() => expect(drawn()).toBe("/oven-sh/bun/blame/main/README.md"))
   })
 })

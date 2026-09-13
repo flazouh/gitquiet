@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react"
-import { markScreenRoute, theScreenIsAt, theScreenLeft } from "./mount"
+import { markScreenRouteWhenWhole, theScreenIsAt, theScreenLeft } from "./mount"
 import { useScreenActivity } from "./screenActivity"
 
 /**
@@ -43,7 +43,7 @@ export const useDrawnAt = (path: string | null, target: Document = document): vo
     const owner = mine.current
     if (path === null || owner === undefined) return
 
-    markScreenRoute(target, path)
+    markScreenRouteWhenWhole(target, path)
     theScreenIsAt(target, path, owner)
     return () => theScreenLeft(target, owner)
   }, [path, target])

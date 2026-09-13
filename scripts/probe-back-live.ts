@@ -12,10 +12,13 @@
  * document the reader was about to get for free, and the load throws away every
  * live screen this document was holding for Back.
  *
- * The verdict is `sameDocumentAfterPress`. True is a press answered the way the
- * extension promises to answer it: the address moved, the screen arrived, and
- * the document the reader was on is still the document. False is the repair
- * misfiring on a press that was working.
+ * The verdict is `sameDocumentAfterPress`, and it has three outcomes rather
+ * than two. True, exit 0, is a press answered the way the extension promises to
+ * answer it: the address moved, the screen arrived, and the document the reader
+ * was on is still the document. False with the landing address the one that was
+ * pushed, exit 1, is the repair misfiring on a press that was working, which is
+ * the fault this exists to catch. False anywhere else, exit 2, is GitHub moving
+ * the session themselves and a run that measured nothing.
  *
  * Live and signed out on purpose. Signed-in profiles are warm in every way that
  * matters — GitHub's API answers faster, the service worker has caches — and
@@ -116,15 +119,16 @@ if (!pressed) {
 const began = performance.now()
 const timeline: Array<{ readonly ms: number; readonly sample: Sample }> = []
 
-while (performance.now() - began < WATCHING) {
-  /*
-   * Guarded twice, because the moment worth catching is the one that breaks the
-   * reading. While `location.replace` is tearing the document down there is a
-   * window with no `documentElement` to ask, and an evaluate sent into it either
-   * throws in the page or is rejected by the protocol. Both of those are the
-   * answer: the document went.
-   */
-  const sample = await session.evaluate<Sample>(`(() => {
+/*
+ * Guarded twice, because the moment worth catching is the one that breaks the
+ * reading. While `location.replace` is tearing the document down there is a
+ * window with no `documentElement` to ask, and an evaluate sent into it either
+ * throws in the page or is rejected by the protocol. Both of those are the
+ * answer: the document went.
+ */
+const readTheDocument = (): Promise<Sample> =>
+  session
+    .evaluate<Sample>(`(() => {
     try {
       return JSON.stringify({
         sameDocument: window.__probeBackLive === true,
@@ -151,12 +155,29 @@ while (performance.now() - began < WATCHING) {
       loading: false
     }))
 
+while (performance.now() - began < WATCHING) {
+  const sample = await readTheDocument()
+
   const last = timeline[timeline.length - 1]
   if (last === undefined || JSON.stringify(last.sample) !== JSON.stringify(sample)) {
     timeline.push({ ms: Math.round(performance.now() - began), sample })
   }
   if (!sample.sameDocument) break
   await sleep(150)
+}
+
+/*
+ * Where the replacement landed, asked once the new document has settled.
+ *
+ * The reading that catches a replacement is frequently taken mid-teardown, and
+ * a window with no `documentElement` answers a sentinel rather than an address —
+ * so the landing address, which is the whole of the classification below, is
+ * exactly the thing the breaking reading cannot say.
+ */
+if (timeline[timeline.length - 1]?.sample.sameDocument === false) {
+  await sleep(1_500)
+  const landing = await readTheDocument()
+  timeline.push({ ms: Math.round(performance.now() - began), sample: landing })
 }
 
 for (const { ms, sample } of timeline) {
@@ -172,16 +193,49 @@ const sameDocumentAfterPress =
   end !== undefined && end.sameDocument && end.path === PULLS
 
 console.log(`\nsameDocumentAfterPress: ${sameDocumentAfterPress}`)
+
+/*
+ * Which of the two replacements this was, which the verdict above cannot tell
+ * on its own and used to guess wrongly.
+ *
+ * The repair navigates to one address and one only: the address the press
+ * pushed. Anything else is GitHub moving the session themselves, and on an
+ * anonymous cold visit that is the sign-in wall — measured landing on `/login`
+ * eleven seconds after a press that had already been answered. Read as the
+ * repair firing, it accused this extension of a reload it had not made, over a
+ * press the timeline above shows working.
+ */
 if (!sameDocumentAfterPress && end !== undefined && !end.sameDocument) {
-  const before = timeline[timeline.length - 2]?.sample
-  console.log(
-    before === undefined
-      ? "The document was replaced before a first reading."
-      : `The repair fired while the document read shown=${before.shown ?? "—"} at=${
-          before.at ?? "—"
-        } gating=${before.gating} loading=${before.loading} — a screen still on its way.`
-  )
+  const before = timeline.findLast((one) => one.sample.sameDocument)?.sample
+
+  if (end.path === PULLS) {
+    console.log(
+      before === undefined
+        ? "The repair fired before a first reading."
+        : `The repair fired while the document read shown=${before.shown ?? "—"} at=${
+            before.at ?? "—"
+          } gating=${before.gating} loading=${before.loading} — a screen still on its way.`
+    )
+  } else {
+    // The press itself, which is answered or not before anybody navigates away.
+    const answered = timeline.some(
+      (one) => one.sample.sameDocument && one.sample.at === PULLS
+    )
+    console.log(
+      `Inconclusive: GitHub moved this session to ${end.path}, which the repair never navigates to.\n` +
+        (answered
+          ? `The press itself was answered — the screen claimed ${PULLS} before the move.`
+          : "The press had not been answered when the move happened, so nothing here is measured.")
+    )
+  }
 }
 
 session.stop()
-process.exit(sameDocumentAfterPress ? 0 : 1)
+/*
+ * Two failing exits rather than one. A repair that misfired is the fault this
+ * probe exists for; a session GitHub signed out from is a run that measured
+ * nothing, and a caller that cannot tell them apart learns to ignore both.
+ */
+process.exit(
+  sameDocumentAfterPress ? 0 : end !== undefined && end.path !== PULLS ? 2 : 1
+)

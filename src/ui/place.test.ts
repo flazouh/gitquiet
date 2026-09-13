@@ -1,3 +1,4 @@
+import { watchHomeGate } from "./homeGate";
 import { describe, expect, test } from "bun:test";
 import { findSlot, interfaceContainer, ROOT_ID, takeOverSlot } from "./mount";
 import {
@@ -492,22 +493,26 @@ const feed = (): Document => {
 describe("what the home place is allowed to match", () => {
   test("nothing at all on the feed, which shares the sidebar", () => {
     const page = feed();
+    const stop = watchHomeGate(page);
 
     for (const band of HOME.bands) expect(page.querySelector(band)).toBeNull();
     for (const stage of HOME.stages ?? HOME.regions)
-      expect(page.querySelector(stage)).toBeNull();
+      expect(page.querySelector(`${stage}${HOME.soft?.holding ?? ""}`)).toBeNull();
+    stop();
   });
 
   test("and every one of its own hooks on home itself", () => {
     // The other half of the same guard: a selector narrowed until it is false on the
     // feed is worthless if it went false on home as well.
     const page = home();
+    const stop = watchHomeGate(page);
 
     for (const band of HOME.bands)
       expect(page.querySelector(band)).not.toBeNull();
     for (const stage of HOME.stages ?? HOME.regions) {
-      expect(page.querySelector(stage)).not.toBeNull();
+      expect(page.querySelector(`${stage}${HOME.soft?.holding ?? ""}`)).not.toBeNull();
     }
+    stop();
   });
 });
 

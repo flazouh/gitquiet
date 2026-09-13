@@ -429,7 +429,16 @@ describe("an address moved to a screen that is still arriving", () => {
     while (deadlinePasses(page) > 0 && deadlines < 20) deadlines += 1
 
     expect(page.recorded.replaced).toEqual(["/owner/repo/pull/12"])
-    expect(deadlines).toBeLessThan(20)
+    /*
+     * Exactly, rather than under a loose ceiling. The ceiling was twenty and the
+     * real answer six, so the day the confirming deadline was added and moved the
+     * forced answer from nine seconds to ten and a half, nothing said so and the
+     * constant's own documentation went on claiming nine.
+     *
+     * Six deadlines: five spent on a marker that never comes down, at 1.5s
+     * through 7.5s, then one to confirm the verdict, which replaces at 10.5s.
+     */
+    expect(deadlines).toBe(6)
   })
 })
 

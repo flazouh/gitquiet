@@ -247,8 +247,7 @@ html[data-gitquiet-taken] div.js-notifications-container > *:not(#gitquiet-root)
 }
 
 /* home: before ours is up. */
-html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]),
-html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) body:has(#dashboard.dashboard) > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
+html[data-gitquiet-page="home"]:not([data-gitquiet-revealed]) body > *:not(#gitquiet-root):not([data-gitquiet-within]):not([data-gitquiet-outside]) {
   display: none;
 }
 

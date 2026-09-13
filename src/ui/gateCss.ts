@@ -36,7 +36,7 @@ const OURS = `:not(#${ROOT_ID}):not([${WITHIN}]):not([${OUTSIDE}])`
  * belongs to `hideTheirs`, which marks what stood there at the takeover and is re-run
  * by the takeover's own observer.
  */
-const isTheSurface = (stage: string): boolean => stage === "body" || stage.startsWith("body:")
+const isTheSurface = (stage: string): boolean => stage === "body" || stage.startsWith("body:") || stage.startsWith("body[")
 
 /**
  * Their children, rather than the region itself.
@@ -137,7 +137,7 @@ export const loadSheet = (places: ReadonlyArray<Place>): string =>
        * `reveal`, which every path calls — the takeover that lands, the one
        * that gives up, and the failsafe behind both.
        */
-      const theirs = [emptied("body"), ...stagesOf(place).map(emptied), ...place.bands]
+      const theirs = [emptied("body"), ...stagesOf(place).filter((stage) => !isTheSurface(stage)).map(emptied), ...place.bands]
       const standing = [
         ...stagesOf(place)
           .filter((stage) => !isTheSurface(stage))
