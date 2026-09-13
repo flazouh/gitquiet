@@ -17,7 +17,8 @@ const NOTHING: Ledger = {
   usesIn: () => Effect.succeed([]),
   writingsIn: () => Effect.succeed([]),
   warm: () => Effect.succeed({ ready: false }),
-  namesLike: () => Effect.succeed({ places: [], ready: false })
+  namesLike: () => Effect.succeed({ places: [], ready: false }),
+  usesAcross: () => Effect.succeed({ uses: [], ready: false })
 }
 
 /**

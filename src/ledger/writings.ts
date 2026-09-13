@@ -548,6 +548,78 @@ export const writingNamed = (
 }
 
 /**
+ * One mention of a name: where a word that could be a name appears.
+ *
+ * Not yet a Use. Whether it means a particular Writing is a question about
+ * scopes and imports; this is only where the word is, which is what a Ledger can
+ * afford to keep for every file in a repository.
+ */
+export type Mention = {
+  readonly name: string
+  readonly line: number
+  readonly from: number
+  readonly to: number
+}
+
+/** What one file says about the world outside it, for a Ledger to keep. */
+export type Told = {
+  /** What the file offers: its declarations and its classes' members. */
+  readonly writings: ReadonlyArray<Writing>
+  /** Every word in it that could be a name, with where it is. */
+  readonly mentions: ReadonlyArray<Mention>
+  /** Every name bound anywhere in it, locals and parameters included. */
+  readonly declares: ReadonlyArray<string>
+  /** What it borrowed, and from where. */
+  readonly borrows: ReadonlyArray<Borrowed>
+}
+
+/**
+ * Everything a Ledger keeps about one file, in one walk.
+ *
+ * Three questions asked together rather than three walks: a repository is read
+ * whole, and the difference between walking a file once and walking it four
+ * times is the difference between three seconds and twelve.
+ *
+ * What is deliberately *not* here is which mention means which Writing. That
+ * needs the scopes, which needs the file, and a Ledger that resolved every name
+ * in every file at reading time would be doing the work of every question
+ * nobody asked. The mentions are the candidates; `docs/spec/following.md` says
+ * what turns one into a Sure or a Likely.
+ */
+export const toldBy = (root: Syntax, source: string): Told => {
+  const mentions: Array<Mention> = []
+  const declares = new Set<string>()
+  const borrows: Array<Borrowed> = []
+
+  const walk = (node: Syntax): void => {
+    if (NAMES.has(node.type)) {
+      mentions.push({
+        name: node.text,
+        line: node.startPosition.row + 1,
+        from: node.startPosition.column + 1,
+        to: node.endPosition.column + 1
+      })
+    }
+
+    const { outer, inner } = bindings(node)
+    for (const bound of [...outer, ...inner]) {
+      declares.add(bound.name.text)
+      if (bound.from !== undefined) borrows.push(bound.from)
+    }
+
+    for (const child of childrenOf(node)) walk(child)
+  }
+  walk(root)
+
+  return {
+    writings: writingsIn(root, source),
+    mentions,
+    declares: [...declares],
+    borrows
+  }
+}
+
+/**
  * The Writings this file holds, in the order they are written.
  *
  * The outline, which is the cheapest proof the resolver works and the thing a

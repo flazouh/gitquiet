@@ -15,10 +15,13 @@
 import { Effect, Option } from "effect"
 import {
   LEDGER_ASK,
+  LEDGER_ACROSS,
   LEDGER_NAMES,
   LEDGER_WARM,
   isLedgerAnswer,
   type LedgerAsk,
+  type LedgerAcross,
+  type LedgerAcrossAsk,
   type LedgerNames,
   type LedgerPlaces,
   type LedgerWarm,
@@ -102,5 +105,22 @@ export const ledgerThrough = (post: Post): Ledger => ({
       catch: (cause) => new LedgerUnavailable({ cause })
     }).pipe(
       Effect.map((answer) => (answer ?? { places: [], ready: false }) as LedgerPlaces)
+    ),
+  usesAcross: (repo, sha, asked, most) =>
+    Effect.tryPromise({
+      try: () =>
+        post({
+          kind: LEDGER_ACROSS,
+          owner: repo.owner,
+          repo: repo.repo,
+          sha,
+          name: asked.name,
+          path: asked.path,
+          line: asked.line,
+          ...(most === undefined ? {} : { most })
+        } satisfies LedgerAcrossAsk),
+      catch: (cause) => new LedgerUnavailable({ cause })
+    }).pipe(
+      Effect.map((answer) => (answer ?? { uses: [], ready: false }) as LedgerAcross)
     )
 })

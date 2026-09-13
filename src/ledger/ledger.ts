@@ -10,7 +10,7 @@
  * against the real grammar under `bun test`.
  */
 
-import type { Writing } from "./writings"
+import type { Told, Writing } from "./writings"
 
 /** One Writing, and which file writes it. */
 export type Place = {
@@ -35,6 +35,8 @@ export const keyOf = (repo: { readonly owner: string; readonly repo: string }, s
 export type Kept = {
   /** {@link keyOf}, and never a bare sha. */
   readonly at: string
+  /** What each file was found to say, which is what every question is answered from. */
+  readonly files: ReadonlyMap<string, Told>
   /** Every Writing, by the name it is written under. */
   readonly names: ReadonlyMap<string, ReadonlyArray<Place>>
   /** How many files were read, and how many were passed over. */
@@ -67,43 +69,30 @@ export const worthReading = (path: string, text: string): boolean => {
 }
 
 /**
- * The Ledger, built from a repository's files.
+ * The Ledger, built from what each file was found to say.
  *
- * `outline` is the parsing, handed in: in the extension it is a grammar in the
- * offscreen document, in a test it is the same grammar under Bun, and on a
- * desktop build it could be something better. A file it answers nothing for —
- * a language nothing here speaks — costs a call and nothing else.
+ * Given the sayings rather than doing the parsing, and that is the change that
+ * makes a Ledger worth keeping: what a file says is filed under git's own name
+ * for its contents, so a file that did not change between two commits is read
+ * once for both. Who parses, and what was already known, is
+ * `src/ledger/keeping.ts` and the document that calls it.
  */
 export const kept = (
   at: string,
-  files: ReadonlyMap<string, string>,
-  outline: (path: string, text: string) => ReadonlyArray<Writing>
+  files: ReadonlyMap<string, Told>,
+  skipped: number
 ): Kept => {
   const names = new Map<string, Array<Place>>()
-  let read = 0
-  let skipped = 0
 
-  for (const [path, text] of files) {
-    if (!worthReading(path, text)) {
-      skipped += 1
-      continue
-    }
-
-    const written = outline(path, text)
-    if (written.length === 0) {
-      skipped += 1
-      continue
-    }
-    read += 1
-
-    for (const writing of written) {
-      const held = names.get(writing.name)
-      if (held === undefined) names.set(writing.name, [{ path, writing }])
-      else held.push({ path, writing })
+  for (const [path, told] of files) {
+    for (const writing of told.writings) {
+      const found = names.get(writing.name)
+      if (found === undefined) names.set(writing.name, [{ path, writing }])
+      else found.push({ path, writing })
     }
   }
 
-  return { at, names, read, skipped }
+  return { at, files, names, read: files.size, skipped }
 }
 
 /**

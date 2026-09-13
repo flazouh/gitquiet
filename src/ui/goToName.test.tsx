@@ -46,6 +46,7 @@ const staged = (over: { warmth?: Warmth; places?: ReadonlyArray<Place> } = {}) =
     writingNamed: () => Effect.succeed(Option.none()),
     usesIn: () => Effect.succeed([]),
     writingsIn: () => Effect.succeed([]),
+    usesAcross: () => Effect.succeed({ uses: [], ready: true }),
     warm: () =>
       Effect.sync(() => {
         warms += 1

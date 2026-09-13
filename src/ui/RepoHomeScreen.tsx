@@ -690,10 +690,12 @@ export const RepoHomeScreen = ({
         ? undefined
         : {
             paths: held,
+            repo,
+            sha: front?.head,
             read: (path) => shelf.ask(branch, path).pipe(Effect.map((file) => file.lines.join("\n"))),
             open: (path) => onRead?.(path)
           },
-    [held, paths.length, shelf, branch, onRead]
+    [held, paths.length, shelf, branch, onRead, repo, front?.head]
   )
 
   // The Material symbols, once per document. The rows reference them by id, and a

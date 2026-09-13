@@ -47,6 +47,14 @@ export type Shown = {
 export type Across = {
   readonly paths: ReadonlySet<string>
   /**
+   * Which repository this is, at which commit, for the questions only a Ledger
+   * can answer — every Use of a name, and every name the repository writes.
+   *
+   * Absent on a screen that knows its files but not what they are part of.
+   */
+  readonly repo?: { readonly owner: string; readonly repo: string }
+  readonly sha?: string
+  /**
    * Asks for the paths, where they are not read until something wants them.
    *
    * A repository's front page has read them for its tree before a reader can

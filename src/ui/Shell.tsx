@@ -413,11 +413,13 @@ export const Shell = ({
         ? undefined
         : {
             paths,
+            repo: snapshot.reference,
+            sha: snapshot.headSha,
             read: (path) => readWholeFile(snapshot.headSha, path),
             open: (path, line) => setWanted({ path, line }),
             reach: reachOut
           },
-    [paths, readPaths, readWholeFile, snapshot.headSha, reachOut]
+    [paths, readPaths, readWholeFile, snapshot.headSha, snapshot.reference, reachOut]
   )
 
   const onPost = useMemo(

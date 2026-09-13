@@ -262,3 +262,76 @@ that carries one and a public repository is reached either way.
 - **Likely.** Nothing here has ever guessed. Every answer is by scope or by a stated import, and
   the mark in the card is read from the answer rather than assumed — so the day a guess arrives,
   it already says so.
+
+## Outcome, third pass: the Ledger is kept
+
+Everything the list above called "still not built" is built. A repository is read once and then
+not again: the second visit is a list off disk, and the visit after a push is the files the push
+touched.
+
+Measured with `bun scripts/benchmark-ledger.ts`, which now stops the browser and opens a second
+one on the same profile — because nothing else can tell a Ledger that was kept from a Ledger that
+merely happened to still be in hand:
+
+| | Files | Parsed | Read whole |
+| --- | --- | --- | --- |
+| `honojs/hono`, first time | 386 | 383 | 3,665ms |
+| `honojs/hono`, a new browser, same profile | 386 | **0** | **190ms** |
+
+Nothing is fetched the second time. Three of the 386 were never parsed even the first time: two
+paths holding identical contents are one blob sha and one question, which is git's own idea and
+came for free with using its name.
+
+Uses across a repository, live: `retry` in `sindresorhus/ky` — five places in 3ms. `req` in
+`honojs/hono` — two, in 10ms, and the smallness of that number is the rule working rather than
+failing: nearly every file in hono binds its own `req`, and a file that binds its own name of that
+spelling holds a different thing with the same name.
+
+### How it is keyed, which is the whole of it
+
+**By what git calls a file's contents.** `sha1("blob " + length + "\0" + contents)`, checked
+against `git hash-object` — including a file with an accent and an emoji in it, because the header
+counts bytes and not characters, and a header written from the character count hashes to something
+git has never heard of.
+
+Two stores. **told**, keyed by blob sha: what one file says. **commits**, keyed by
+`{owner}/{repo}@{sha}`: which blob sha each path had. A commit is then a list of forty-character
+names, and answering it is looking those names up. A push changes four files, and the other four
+hundred already have sayings under the names they still have.
+
+What is let go of is decided on the manifests and never on the files: two repositories that hold
+the same file — a fork, a vendored copy, the same dependency — share its reading, and a sweep that
+deleted one repository's files would take the other's with it.
+
+### Uses across a repository, and what it costs to be honest about
+
+A Ledger keeps, per file, what it says: its Writings, every word in it that could be a name, every
+name it binds, and what it borrowed. Not which word means which Writing — that needs the scopes,
+which needs the file, and a Ledger that resolved every name in every file at reading time would be
+doing the work of every question nobody asked.
+
+So a Use is one of three things, and the reader is told which:
+
+- the file the Writing is in answers exactly, by `usesIn`, because that file is the one in front
+  of the reader and is parsed;
+- a file that states it borrowed this name from this file is **Sure**;
+- a file that merely holds the same word is **Likely**, and says so;
+- a file that binds its own name of that spelling is left out entirely.
+
+### What the benchmark caught this time
+
+**A measurement of a typo.** The first version asked every repository about `default` in
+`index.js` and was answered nothing three times over. It asks about a name the repository really
+writes now — the first one its own index offers — which is the only way a number in that column
+means anything.
+
+### What is left
+
+Nothing from this plan. Two things it never claimed, written down so they are not mistaken for
+oversights:
+
+- **Uses is per repository, not per dependency.** A name exported to `node_modules` and used by
+  another repository is outside what any of this reads.
+- **Likely is still never produced by Following itself.** Every Writing it points at is reached by
+  scope or by a stated import. Only Uses across a repository produces one, and only where a file
+  holds a word it never says it borrowed — which is exactly what "likely" means and is marked.

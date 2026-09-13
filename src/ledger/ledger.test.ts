@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, test } from "bun:test"
 import { Language, Parser } from "web-tree-sitter"
 import { everyPlace, kept, keyOf, placesFor, worthReading } from "./ledger"
 import type { Syntax } from "./syntax"
-import { writingsIn } from "./writings"
+import { toldBy, type Told } from "./writings"
 
 /**
  * The Ledger, over a handful of files, with the real grammar doing the reading.
@@ -12,7 +12,7 @@ import { writingsIn } from "./writings"
  * parsing — and none of that gets truer with a thousand files in it.
  */
 
-let outline: (path: string, text: string) => ReturnType<typeof writingsIn>
+let outline: (path: string, text: string) => Told
 
 beforeAll(async () => {
   await Parser.init({ locateFile: () => "node_modules/web-tree-sitter/web-tree-sitter.wasm" })
@@ -21,13 +21,15 @@ beforeAll(async () => {
   )
 
   outline = (path, text) => {
-    if (!path.endsWith(".ts")) return []
+    const nothing: Told = { writings: [], mentions: [], declares: [], borrows: [] }
+    if (!path.endsWith(".ts")) return nothing
+
     const parser = new Parser()
     parser.setLanguage(language)
     const tree = parser.parse(text)
-    if (tree === null) return []
+    if (tree === null) return nothing
 
-    const found = writingsIn(tree.rootNode as unknown as Syntax, text)
+    const found = toldBy(tree.rootNode as unknown as Syntax, text)
     tree.delete()
     parser.delete()
     return found
@@ -42,16 +44,37 @@ const FILES = new Map([
   ["dist/bundle.ts", "export const shape = () => 4\n"]
 ])
 
+/** What the document does: read what is worth reading, and file what it says. */
+const ledgerOf = (at: string) => {
+  const files = new Map<string, Told>()
+  let skipped = 0
+
+  for (const [path, text] of FILES) {
+    if (!worthReading(path, text)) {
+      skipped += 1
+      continue
+    }
+    const told = outline(path, text)
+    if (told.writings.length === 0) {
+      skipped += 1
+      continue
+    }
+    files.set(path, told)
+  }
+
+  return kept(at, files, skipped)
+}
+
 describe("what a repository writes down", () => {
   test("holds every name, with the file that writes it", () => {
-    const ledger = kept("owner/repo@abc123", FILES, outline)
+    const ledger = ledgerOf("owner/repo@abc123")
 
     expect(placesFor(ledger, "Held").map((place) => place.path)).toEqual(["src/one.ts"])
     expect(placesFor(ledger, "Held")[0]?.writing.kind).toBe("type")
   })
 
   test("holds a name written in two files as two places, not as one", () => {
-    const ledger = kept("owner/repo@abc123", FILES, outline)
+    const ledger = ledgerOf("owner/repo@abc123")
 
     // Which of them a reader meant is not a question this can answer, and
     // answering it anyway is how a Follow lands in the wrong file.
@@ -62,7 +85,7 @@ describe("what a repository writes down", () => {
   })
 
   test("passes over what nobody wrote and what nobody means", () => {
-    const ledger = kept("owner/repo@abc123", FILES, outline)
+    const ledger = ledgerOf("owner/repo@abc123")
     const where = everyPlace(ledger).map((place) => place.path)
 
     expect(where).not.toContain("node_modules/dep/index.ts")
@@ -71,7 +94,7 @@ describe("what a repository writes down", () => {
   })
 
   test("counts what it read and what it passed over, so a screen can say", () => {
-    const ledger = kept("owner/repo@abc123", FILES, outline)
+    const ledger = ledgerOf("owner/repo@abc123")
 
     expect(ledger.read).toBe(2)
     expect(ledger.skipped).toBe(3)
@@ -79,7 +102,7 @@ describe("what a repository writes down", () => {
   })
 
   test("answers nothing for a name the repository does not write", () => {
-    expect(placesFor(kept("owner/repo@abc123", FILES, outline), "missing")).toEqual([])
+    expect(placesFor(ledgerOf("owner/repo@abc123"), "missing")).toEqual([])
   })
 })
 

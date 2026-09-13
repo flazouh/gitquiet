@@ -9,6 +9,7 @@
 
 import type { Spot, Writing } from "../ports/Ledger"
 import type { Place } from "./ledger"
+import type { Found } from "./uses"
 import type { Borrowed, Use } from "./writings"
 
 export const LEDGER_ASK = "gitquiet/ledger-ask" as const
@@ -16,6 +17,8 @@ export const LEDGER_WARM = "gitquiet/ledger-warm" as const
 export const LEDGER_WARM_WORK = "gitquiet/ledger-warm-work" as const
 export const LEDGER_NAMES = "gitquiet/ledger-names" as const
 export const LEDGER_NAMES_WORK = "gitquiet/ledger-names-work" as const
+export const LEDGER_ACROSS = "gitquiet/ledger-across" as const
+export const LEDGER_ACROSS_WORK = "gitquiet/ledger-across-work" as const
 export const LEDGER_WORK = "gitquiet/ledger-work" as const
 export const LEDGER_ANSWER = "gitquiet/ledger-answer" as const
 
@@ -74,6 +77,10 @@ export type LedgerWarmth = {
   readonly ready: boolean
   readonly read?: number
   readonly skipped?: number
+  /** How many files had to be parsed, which on a second visit should be none. */
+  readonly parsed?: number
+  /** True where nothing was fetched, because this commit was already known. */
+  readonly kept?: boolean
   readonly why?: string
 }
 
@@ -89,6 +96,29 @@ export type LedgerNames = {
 
 export type LedgerNamesWork = Omit<LedgerNames, "kind"> & {
   readonly kind: typeof LEDGER_NAMES_WORK
+}
+
+/** Everywhere in a repository that means one Writing. */
+export type LedgerAcross = {
+  readonly kind?: undefined
+  readonly uses: ReadonlyArray<Found>
+  readonly ready: boolean
+}
+
+export type LedgerAcrossAsk = {
+  readonly kind: typeof LEDGER_ACROSS
+  readonly owner: string
+  readonly repo: string
+  readonly sha: string
+  /** The Writing being asked about: its name, its file, and the line it is on. */
+  readonly name: string
+  readonly path: string
+  readonly line: number
+  readonly most?: number
+}
+
+export type LedgerAcrossWork = Omit<LedgerAcrossAsk, "kind"> & {
+  readonly kind: typeof LEDGER_ACROSS_WORK
 }
 
 export type LedgerPlaces = {
@@ -120,3 +150,9 @@ export const isLedgerNames = (message: unknown): message is LedgerNames =>
 
 export const isLedgerNamesWork = (message: unknown): message is LedgerNamesWork =>
   kindIs(message, LEDGER_NAMES_WORK)
+
+export const isLedgerAcross = (message: unknown): message is LedgerAcrossAsk =>
+  kindIs(message, LEDGER_ACROSS)
+
+export const isLedgerAcrossWork = (message: unknown): message is LedgerAcrossWork =>
+  kindIs(message, LEDGER_ACROSS_WORK)
