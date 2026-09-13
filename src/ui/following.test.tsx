@@ -30,7 +30,16 @@ const held = (over: Partial<Modifiers> = {}): Modifiers => ({
   ...over
 })
 
+/** A use of the name: line 7, where the Writing below is on line 2. */
 const name: Name = { line: 7, from: 6, to: 11, text: "shape" }
+
+/**
+ * The Writing itself, as the renderer would report pressing it.
+ *
+ * One less than the Writing's own column, because a renderer counts a token's
+ * start from nothing and a Writing's column is written for a reader.
+ */
+const itself: Name = { line: 2, from: 6, to: 11, text: "shape" }
 
 const writing: Writing = {
   name: "shape",
@@ -473,7 +482,7 @@ describe("a name this file borrowed from another", () => {
     expect(screen.getByText(elsewhere.doc!)).toBeTruthy()
   })
 
-  test("opens the list, which says where it is written and offers to go there", async () => {
+  test("opens that file at that line when it is pressed", async () => {
     const { stage, opened } = crossing()
     await Effect.runPromise(settled())
 
@@ -482,13 +491,23 @@ describe("a name this file borrowed from another", () => {
     stage.request?.onName?.(name, held({ go: true }))
     await Effect.runPromise(settled())
 
-    // The press asks what this is and who uses it. Going to it is the press
-    // after, which is the row the panel puts first.
-    expect(await screen.findByText("written in src/whole.ts")).toBeTruthy()
-    expect(opened).toEqual([])
-
-    await userEvent.click(screen.getByText(elsewhere.signature))
+    // A borrowed name is never the Writing — the Writing is in the other file,
+    // and that is where the press goes.
     expect(opened).toEqual([{ path: "src/whole.ts", line: 2 }])
+  })
+
+  test("asks who depends on it from the keyboard, where there is nowhere to go", async () => {
+    const { stage } = crossing()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    await userEvent.keyboard("u")
+    await Effect.runPromise(settled())
+
+    // `u` is the same question for a hand already on the keyboard, and it is
+    // the only way to ask it about a name written somewhere else.
+    expect(await screen.findByText("written in src/whole.ts")).toBeTruthy()
   })
 
   test("does nothing where the repository has no such file", async () => {
@@ -660,9 +679,10 @@ describe("what a press on an underlined name does", () => {
     const stage = staged()
     await Effect.runPromise(settled())
 
-    stage.request?.onNameEnter?.(name, held({ go: true }))
+    // On the Writing itself, where there is nowhere to be taken.
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
     await Effect.runPromise(settled())
-    stage.request?.onName?.(name, held({ go: true }))
+    stage.request?.onName?.(itself, held({ go: true }))
     await Effect.runPromise(settled())
 
     // Reading somebody's pull request, the question is nearly always "what is
@@ -674,7 +694,36 @@ describe("what a press on an underlined name does", () => {
     expect(screen.getAllByText("written")).toHaveLength(2)
   })
 
-  test("offers where it is written as the first row, so going there is one more press", async () => {
+  test("offers where it is written as the first row, so a use of it is one more press", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    // Twice over, which is right: the row saying where it is written, and the
+    // line of the Use that is the writing itself.
+    expect(screen.getAllByText(writing.signature).length).toBeGreaterThan(1)
+  })
+
+  test("still peeks on Shift, whichever end the press is on", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(itself, held({ go: true, shift: true }))
+    await Effect.runPromise(settled())
+
+    expect(screen.queryByText("2 in this file")).toBeNull()
+    expect(stage.shown.at(-1)).toHaveLength(1)
+  })
+})
+
+describe("which of the two a press is", () => {
+  test("a press on a use asks to be taken to it, and opens no panel", async () => {
     const stage = staged()
     await Effect.runPromise(settled())
 
@@ -683,21 +732,37 @@ describe("what a press on an underlined name does", () => {
     stage.request?.onName?.(name, held({ go: true }))
     await Effect.runPromise(settled())
 
-    // Twice over, which is right: the row saying where it is written, and the
-    // line of the Use that is the writing itself.
-    expect(screen.getAllByText(writing.signature).length).toBeGreaterThan(1)
+    expect(screen.queryByText("2 in this file")).toBeNull()
   })
 
-  test("still peeks on Shift, which is the answer without a panel at all", async () => {
+  test("a press on the Writing itself asks who depends on it", async () => {
     const stage = staged()
     await Effect.runPromise(settled())
 
-    stage.request?.onNameEnter?.(name, held({ go: true }))
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
     await Effect.runPromise(settled())
-    stage.request?.onName?.(name, held({ go: true, shift: true }))
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    // There is nowhere to be taken: the reader is already looking at it.
+    expect(await screen.findByText("2 in this file")).toBeTruthy()
+  })
+
+  test("counts the two sides' columns as the two sides count them", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    // One column off the Writing is a different word to a reader, and must not
+    // be taken for the Writing. Without the adjustment between a renderer's
+    // count and a Writing's, no press is ever on a Writing and this feature has
+    // half of itself quietly missing.
+    const beside: Name = { ...itself, from: itself.from + 1 }
+    stage.request?.onNameEnter?.(beside, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(beside, held({ go: true }))
     await Effect.runPromise(settled())
 
     expect(screen.queryByText("2 in this file")).toBeNull()
-    expect(stage.shown.at(-1)).toHaveLength(1)
   })
+
 })

@@ -104,17 +104,27 @@ _Avoid_: ready, loaded, hydrated, indexed.
 ## Solution
 
 Holding Command — Control off a Mac — underlines the Name under the pointer where it has a
-Writing. A click while it is underlined opens what that name is and everywhere that means it: the
-line it is written on first, pressable, and its Uses under that. A click with Shift Peeks
-instead. Nothing in the interface moves, nothing is added to the gutter, and a reader who never
-holds the key is on the screen that exists today.
+Writing. A click with Shift Peeks. A click on its own does one of two things, and which one is
+decided by where the press landed:
 
-**The press opens the list rather than moving the reader**, which is the opposite of what an
-editor does with this gesture and is the right way round here. In an editor you are writing the
-code, and the question a press asks is "take me to it". Reading somebody's pull request the
-question is nearly always "what is this, and who else depends on it" — and being moved somewhere
-else mid-review is the thing this interface exists to stop happening. Going there is the press
-after, on the row the panel puts first.
+| Pressed on | Answers |
+| --- | --- |
+| A use of a name | Goes to where it is written — a scroll in this file, the pane redrawn for another |
+| The Writing itself | Opens who depends on it: its Uses in this file, then everywhere in the repository |
+
+Which is the same rule every editor that offers both settles on, and it needs no explaining
+because it is the only rule that could be meant. Pressing a call, there is somewhere to go.
+Pressing the thing itself, there is nowhere — the reader is already looking at it — and the only
+question left is the one they actually have.
+
+`u` asks the second question wherever the pointer is, which is how a reader asks who depends on a
+name they are looking at a *use* of, and the only way to ask it about a name written in a file
+this one merely imported from.
+
+The two sides count columns differently and `isTheWriting` in `src/ui/following.ts` is the one
+place it matters: a renderer's token starts from nothing and a Writing's column is written for a
+reader. Compared without the adjustment, no press is ever on a Writing and half of this table
+quietly never happens.
 
 The Name under the pointer, and not every Name on the screen, which is what this said before
 either was built. Three reasons, in the order they were found: it is what an editor does, so it
