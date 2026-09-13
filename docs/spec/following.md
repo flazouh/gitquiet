@@ -104,9 +104,17 @@ _Avoid_: ready, loaded, hydrated, indexed.
 ## Solution
 
 Holding Command — Control off a Mac — underlines the Name under the pointer where it has a
-Writing. A click while it is underlined Follows; a click with Shift Peeks instead. Nothing in
-the interface moves, nothing is added to the gutter, and a reader who never holds the key is on
-the screen that exists today.
+Writing. A click while it is underlined opens what that name is and everywhere that means it: the
+line it is written on first, pressable, and its Uses under that. A click with Shift Peeks
+instead. Nothing in the interface moves, nothing is added to the gutter, and a reader who never
+holds the key is on the screen that exists today.
+
+**The press opens the list rather than moving the reader**, which is the opposite of what an
+editor does with this gesture and is the right way round here. In an editor you are writing the
+code, and the question a press asks is "take me to it". Reading somebody's pull request the
+question is nearly always "what is this, and who else depends on it" — and being moved somewhere
+else mid-review is the thing this interface exists to stop happening. Going there is the press
+after, on the row the panel puts first.
 
 The Name under the pointer, and not every Name on the screen, which is what this said before
 either was built. Three reasons, in the order they were found: it is what an editor does, so it
@@ -133,7 +141,7 @@ Three ways in from the keyboard, in every profile that has keys at all:
 | `goToFile` | `t` | `t` | Any path in the repository, typed. Needs no Ledger. |
 | `goToName` | `T` | `T` | Any Writing in the repository, typed. Reads the repository once. |
 | `fileNames` | `o` | `o` | The Writings in this file, in the order they are written. |
-| `uses` | `u` | `u` | Everywhere in this file that means the name under the pointer. |
+| `uses` | `u` | `u` | The same panel a press opens, for a reader whose hand is on the keyboard. |
 
 The `off` profile gets none of them, which is what `off` means (`src/keys/commands.ts:174-184`).
 Every key is changeable under Settings, Keyboard, like the rest.

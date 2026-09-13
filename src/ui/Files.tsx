@@ -25,6 +25,7 @@ import { ProseDiff } from "./ProseDiff"
 import { useRenderer } from "./renderer"
 import { useFollowing, type Across } from "./following"
 import { FollowCard } from "./FollowCard"
+import { UsesPanel } from "./UsesPanel"
 import { usePaintedTheme } from "./Theme"
 import { RAIL_CSS } from "./railCss"
 import { rowMarks, shortCount, type RowMark } from "./rowMarks"
@@ -597,7 +598,7 @@ const FileDiffPaneView = ({
           },
     [reveal, file.path]
   )
-  const { names, shown: card } = useFollowing(following, host, across)
+  const { names, shown: card, asked, unask, textNow } = useFollowing(following, across)
 
   /*
    * Which lines GitHub's diff for this file holds, or nothing until it lands.
@@ -801,6 +802,28 @@ const FileDiffPaneView = ({
           to the viewport rather than to the file. */}
       {card === null ? null : (
         <FollowCard writing={card.writing} at={card.at} where={card.where} />
+      )}
+      {/*
+        What a press on an underlined name opens: the name, where it is written,
+        and everywhere in the repository that means it. A reader in a diff is
+        asking who depends on this rather than asking to be taken somewhere.
+      */}
+      {asked === null || following === null ? null : (
+        <UsesPanel
+          writing={asked.writing}
+          where={asked.where}
+          // The file the answer came out of, which the hook read once and kept.
+          // A diff holds the hunks; the Uses in it are the whole file's.
+          reading={{ path: file.path, text: textNow() ?? "" }}
+          onGo={(line) => showLine(host.current?.shadowRoot ?? null, line)}
+          onClose={unask}
+          onOpen={across?.open}
+          across={
+            across?.repo === undefined || across.sha === undefined
+              ? undefined
+              : { repo: across.repo, sha: across.sha }
+          }
+        />
       )}
       {/* The rows live in the renderer's shadow DOM, under the lines they are
           about. React fills them from out here, so a comment box is a component

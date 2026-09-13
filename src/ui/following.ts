@@ -1,10 +1,9 @@
 import { Effect, Option } from "effect"
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Reading, Where, Writing } from "../ports/Ledger"
 import type { Bounds, DiffHandle, Modifiers, Name } from "../ports/Renderer"
 import { reaching } from "../ledger/reaching"
 import { useLedger } from "./ledger"
-import { showLine } from "./showLine"
 
 /**
  * Holding a key over code, and pressing what it underlines.
@@ -87,6 +86,22 @@ export type Follows = {
   /** Puts a Peek away. The reader pressing Escape, or opening something else. */
   readonly unpeek: () => void
   /**
+   * The Writing a press asked about, for the panel that lists where it is used.
+   *
+   * A press on an underlined name asks "what is this, and who uses it" rather
+   * than moving the reader somewhere — see the note on {@link Following.onName}.
+   */
+  readonly asked: { readonly writing: Writing; readonly where?: string } | null
+  readonly unask: () => void
+  /**
+   * The file's whole text, if it has been read.
+   *
+   * Read once when the first name is asked about and kept, so the panel that
+   * lists Uses does not fetch a file the answer it is drawing already came out
+   * of. Null before anything has been asked, which is when nothing is drawn.
+   */
+  readonly textNow: () => string | null
+  /**
    * The Writing the pointer is on, for a panel that asks about it.
    *
    * Whatever the last answer was, whether or not it is drawn: a reader presses
@@ -137,11 +152,7 @@ export type Source = {
   readonly text: Effect.Effect<string, unknown>
 }
 
-export const useFollowing = (
-  source: Source | null,
-  host: RefObject<HTMLElement | null>,
-  across?: Across
-): Follows => {
+export const useFollowing = (source: Source | null, across?: Across): Follows => {
   const ledger = useLedger()
   /**
    * The text, once. A file is read at a commit and does not change underneath a
@@ -152,6 +163,7 @@ export const useFollowing = (
   const handle = useRef<DiffHandle | null>(null)
   const [shown, setShown] = useState<Shown | null>(null)
   const [peeked, setPeeked] = useState<Peeked | null>(null)
+  const [asked, setAsked] = useState<{ writing: Writing; where?: string } | null>(null)
   /**
    * The Name the pointer is on, and what was found for it.
    *
@@ -310,28 +322,35 @@ export const useFollowing = (
         return
       }
 
+      /*
+       * A press opens the list rather than moving the reader.
+       *
+       * Which is the opposite of what an editor does with this gesture, and is
+       * the right way round here. In an editor you are writing the code and the
+       * question is "take me to it". Reading somebody's pull request the
+       * question is nearly always "what is this, and who else depends on it" —
+       * and being moved somewhere else mid-review is the thing this interface
+       * exists to stop happening.
+       *
+       * The list holds the Writing first and its Uses under it, so going there
+       * is the press after this one and is never the press itself.
+       */
+      const show = (writing: Writing, where?: string): void => {
+        clear()
+        setAsked({ writing, ...(where === undefined ? {} : { where }) })
+      }
+
       // The answer from the hover, where the hover asked. A press that has to
       // ask again is a press that waits, and the reader has been holding the key
       // over an underlined name — the answer is what put the line there.
-      const arrive = (writing: Writing, where?: string): void => {
-        clear()
-        // Another file is the screen's to open — the address changes, and the
-        // pane draws something else. This one is a scroll.
-        if (where !== undefined && where !== source?.path) {
-          across?.open(where, writing.line)
-          return
-        }
-        showLine(host.current?.shadowRoot ?? null, writing.line)
-      }
-
       const known = on.current?.name === name ? on.current.writing : null
       if (known !== null) {
-        arrive(known, on.current?.where)
+        show(known, on.current?.where)
         return
       }
-      ask(name, arrive)
+      ask(name, show)
     },
-    [across, ask, clear, host, linesOf, source]
+    [ask, clear, linesOf]
   )
 
   const drawnBy = useCallback((given: DiffHandle | null) => {
@@ -400,13 +419,21 @@ export const useFollowing = (
   )
 
   const unpeek = useCallback(() => setPeeked(null), [])
+  const unask = useCallback(() => setAsked(null), [])
   const onNow = useCallback(() => on.current?.writing ?? null, [])
+  const textNow = useCallback(
+    () => (text.current?.path === source?.path ? (text.current?.text ?? null) : null),
+    [source]
+  )
 
   return {
     names,
     shown: source === null ? null : shown,
     peeked: source === null ? null : peeked,
     unpeek,
+    asked: source === null ? null : asked,
+    unask,
+    textNow,
     onNow
   }
 }

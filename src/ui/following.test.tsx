@@ -355,7 +355,7 @@ describe("the card beside the name", () => {
     expect(screen.queryByText("const shape = () => 1")).toBeNull()
   })
 
-  test("goes when the name is followed, because the reader is leaving", async () => {
+  test("goes when the name is pressed, because the panel has the screen now", async () => {
     const stage = staged()
     await Effect.runPromise(settled())
 
@@ -364,7 +364,9 @@ describe("the card beside the name", () => {
     stage.request?.onName?.(name, held({ go: true }))
     await Effect.runPromise(settled())
 
-    expect(screen.queryByText("const shape = () => 1")).toBeNull()
+    // `line 2` is the card's own way of saying where the Writing is. The panel
+    // that replaced it says the same thing differently, so this is the card.
+    expect(screen.queryByText("line 2")).toBeNull()
   })
 })
 
@@ -471,14 +473,21 @@ describe("a name this file borrowed from another", () => {
     expect(screen.getByText(elsewhere.doc!)).toBeTruthy()
   })
 
-  test("opens that file at that line when it is pressed", async () => {
+  test("opens the list, which says where it is written and offers to go there", async () => {
     const { stage, opened } = crossing()
     await Effect.runPromise(settled())
 
     stage.request?.onNameEnter?.(name, held({ go: true }))
     await Effect.runPromise(settled())
     stage.request?.onName?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
 
+    // The press asks what this is and who uses it. Going to it is the press
+    // after, which is the row the panel puts first.
+    expect(await screen.findByText("written in src/whole.ts")).toBeTruthy()
+    expect(opened).toEqual([])
+
+    await userEvent.click(screen.getByText(elsewhere.signature))
     expect(opened).toEqual([{ path: "src/whole.ts", line: 2 }])
   })
 
@@ -643,5 +652,52 @@ describe("uses across the repository", () => {
     await Effect.runPromise(settled())
 
     expect(screen.queryByText("Elsewhere in the repository")).toBeNull()
+  })
+})
+
+describe("what a press on an underlined name does", () => {
+  test("opens the list rather than taking the reader anywhere", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    // Reading somebody's pull request, the question is nearly always "what is
+    // this and who depends on it" rather than "take me there" — and being moved
+    // mid-review is the thing this interface exists to stop happening.
+    expect(await screen.findByText("2 in this file")).toBeTruthy()
+    // Twice: the row saying where it is written, and the mark on the Use that
+    // is the writing itself.
+    expect(screen.getAllByText("written")).toHaveLength(2)
+  })
+
+  test("offers where it is written as the first row, so going there is one more press", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    // Twice over, which is right: the row saying where it is written, and the
+    // line of the Use that is the writing itself.
+    expect(screen.getAllByText(writing.signature).length).toBeGreaterThan(1)
+  })
+
+  test("still peeks on Shift, which is the answer without a panel at all", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(name, held({ go: true, shift: true }))
+    await Effect.runPromise(settled())
+
+    expect(screen.queryByText("2 in this file")).toBeNull()
+    expect(stage.shown.at(-1)).toHaveLength(1)
   })
 })

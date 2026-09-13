@@ -26,25 +26,52 @@ import { useLedger } from "./ledger"
 export type UsesPanelProps = {
   readonly writing: Writing
   readonly reading: { readonly path: string; readonly text: string }
+  /**
+   * The file the Writing is in, where it is not the one being read.
+   *
+   * A name this file borrowed is written somewhere else, and this file's own
+   * mentions of it are then Uses like any other file's — so the exact in-file
+   * list is skipped and the repository answers for all of them, this one
+   * included. Resolving a Writing from another file against this file's text
+   * would match nothing at all, which would read as "used nowhere".
+   */
+  readonly where?: string
   /** Puts one on the screen. The pane scrolls; the address does not change. */
   readonly onGo: (line: number) => void
   readonly onClose: () => void
   /**
-   * Which repository to ask about the rest of them, and how to open one.
+   * Opens another file at a line, where the screen can.
    *
-   * Absent where the screen does not know its repository at a commit, and then
-   * this is the file's Uses and says so — rather than an empty list of the
-   * repository's, which a reader deciding whether a name is safe to change
-   * would read as an answer.
+   * Separate from {@link UsesPanelProps.across} on purpose: going to a file is
+   * not the same capability as asking a Ledger about a repository, and a screen
+   * that can do the first and not the second was a screen where the row saying
+   * where a name is written did nothing at all.
+   */
+  readonly onOpen?: (path: string, line: number) => void
+  /**
+   * Which repository to ask about the rest of the Uses, at which commit.
+   *
+   * Absent where the screen does not know, and then this is the file's Uses and
+   * says so — rather than an empty list of the repository's, which a reader
+   * deciding whether a name is safe to change would read as an answer.
    */
   readonly across?: {
     readonly repo: { readonly owner: string; readonly repo: string }
     readonly sha: string
-    readonly open: (path: string, line: number) => void
   }
 }
 
-export const UsesPanel = ({ writing, reading, onGo, onClose, across }: UsesPanelProps) => {
+export const UsesPanel = ({
+  writing,
+  reading,
+  onGo,
+  onOpen,
+  onClose,
+  across,
+  where
+}: UsesPanelProps) => {
+  /** Whether the Writing is in the file being read, which decides what can be exact. */
+  const here = where === undefined || where === reading.path
   const ledger = useLedger()
   const frame = useRef<HTMLDialogElement | null>(null)
   const [uses, setUses] = useState<ReadonlyArray<Use> | null>(null)
@@ -60,7 +87,7 @@ export const UsesPanel = ({ writing, reading, onGo, onClose, across }: UsesPanel
    * answered exactly a few lines up. Listing both would be the same lines twice,
    * once precisely and once by a rule that cannot see scopes.
    */
-  const beyond = (elsewhere?.uses ?? []).filter((use) => use.path !== reading.path)
+  const beyond = (elsewhere?.uses ?? []).filter((use) => !here || use.path !== reading.path)
 
   useEffect(() => {
     const box = frame.current
@@ -78,6 +105,11 @@ export const UsesPanel = ({ writing, reading, onGo, onClose, across }: UsesPanel
   }, [])
 
   useEffect(() => {
+    if (!here) {
+      setUses([])
+      return
+    }
+
     const asking = Effect.runFork(
       ledger.usesIn(reading, writing).pipe(
         Effect.map(setUses),
@@ -85,7 +117,7 @@ export const UsesPanel = ({ writing, reading, onGo, onClose, across }: UsesPanel
       )
     )
     return () => asking.interruptUnsafe()
-  }, [ledger, reading, writing])
+  }, [here, ledger, reading, writing])
 
   /*
    * The rest of the repository, where there is a Ledger that has read it.
@@ -102,7 +134,7 @@ export const UsesPanel = ({ writing, reading, onGo, onClose, across }: UsesPanel
         Effect.flatMap(() =>
           ledger.usesAcross(across.repo, across.sha, {
             name: writing.name,
-            path: reading.path,
+            path: where ?? reading.path,
             line: writing.line
           })
         ),
@@ -111,7 +143,7 @@ export const UsesPanel = ({ writing, reading, onGo, onClose, across }: UsesPanel
       )
     )
     return () => asking.interruptUnsafe()
-  }, [ledger, across, reading.path, writing])
+  }, [ledger, across, reading.path, where, writing])
 
   return (
     <dialog
@@ -128,11 +160,13 @@ export const UsesPanel = ({ writing, reading, onGo, onClose, across }: UsesPanel
           <code className="font-mono">{writing.name}</code>
         </h2>
         <span className="text-xs text-ink-muted">
-          {uses === null
-            ? "reading…"
-            : uses.length === 1
-              ? "written here, used nowhere else in this file"
-              : `${uses.length} in this file`}
+          {!here
+            ? `written in ${where}`
+            : uses === null
+              ? "reading…"
+              : uses.length === 1
+                ? "written here, used nowhere else in this file"
+                : `${uses.length} in this file`}
         </span>
         {across === undefined ? null : (
           <span className="ml-auto text-xs text-ink-muted">
@@ -144,6 +178,29 @@ export const UsesPanel = ({ writing, reading, onGo, onClose, across }: UsesPanel
           </span>
         )}
       </div>
+      {/*
+        Where it is written, first and pressable.
+        
+        The press that opened this panel deliberately did not move the reader —
+        but going there is the thing they may have wanted, and a panel that
+        listed every use of a name without offering the name itself would make
+        them close it and hold the key again.
+      */}
+      <button
+        type="button"
+        onClick={() => {
+          if (here) onGo(writing.line)
+          else if (where !== undefined) onOpen?.(where, writing.line)
+          frame.current?.close()
+        }}
+        className="flex w-full items-baseline gap-3 border-b border-line px-4 py-1.5 text-left font-mono text-xs hover:bg-hover"
+      >
+        <span className="w-10 shrink-0 text-right text-[0.6875rem] text-ink-muted">written</span>
+        <span className="min-w-0 flex-1 truncate">{writing.signature}</span>
+        <span className="shrink-0 text-[0.6875rem] text-ink-muted">
+          {here ? writing.line : `${where}:${writing.line}`}
+        </span>
+      </button>
       {uses === null || uses.length === 0 ? null : (
         <ul className="max-h-[50vh] overflow-y-auto py-1">
           {uses.map((use) => (
@@ -175,7 +232,7 @@ export const UsesPanel = ({ writing, reading, onGo, onClose, across }: UsesPanel
       {beyond.length === 0 ? null : (
         <>
           <p className="border-t border-line px-4 pb-1 pt-2 text-[0.6875rem] text-ink-muted">
-            Elsewhere in the repository
+            {here ? "Elsewhere in the repository" : "In the repository"}
           </p>
           <ul className="max-h-[30vh] overflow-y-auto pb-1">
             {beyond.map((use) => (
@@ -183,7 +240,8 @@ export const UsesPanel = ({ writing, reading, onGo, onClose, across }: UsesPanel
                 <button
                   type="button"
                   onClick={() => {
-                    across?.open(use.path, use.line)
+                    if (use.path === reading.path) onGo(use.line)
+                    else onOpen?.(use.path, use.line)
                     frame.current?.close()
                   }}
                   className="flex w-full items-baseline gap-3 px-4 py-1 text-left font-mono text-xs hover:bg-hover"
