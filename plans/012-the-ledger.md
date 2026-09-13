@@ -335,3 +335,57 @@ oversights:
 - **Likely is still never produced by Following itself.** Every Writing it points at is reached by
   scope or by a stated import. Only Uses across a repository produces one, and only where a file
   holds a word it never says it borrowed — which is exactly what "likely" means and is marked.
+
+## Outcome, fourth pass: a tier that knows what a thing is
+
+Everything above reads code the way a very good highlighter does — scopes, and the imports a file
+states. It cannot follow `thing.method()`, because knowing what `thing` is needs types. This adds
+a second tier that has them: TypeScript's own language service, the one the playground and every
+editor run, over the files the archive already brought.
+
+Measured under Bun on this repository — 795 files, 161,727 lines — with only the repository's own
+files in the program, which is a browser's situation:
+
+| | With `node_modules` | Repository only |
+| --- | --- | --- |
+| Building the program, once | 3,031ms | **975ms** |
+| Finding every reference | 56ms | **40ms**, 12ms again |
+| Following a method call to the method | — | **7ms**, resolved |
+| Held while warm | 411MB | **170MB** |
+
+And in the browser it runs in, through the offscreen document, over an archive:
+
+| | Files | Tier ready after the archive | A question |
+| --- | --- | --- | --- |
+| `sindresorhus/ky` | 54 | ~1.1s | 14ms |
+| `honojs/hono` | 386 | ~0.8s | 41ms |
+
+So exactness costs about a second of background work per repository and nothing per question. The
+tier below answers in the meantime and never waits for it.
+
+### What it is, and what it is not
+
+It is the compiler. `one.area()` resolves to `Shape.area` in another file, and an unrelated
+`area` in a third file is not offered at all — where the tier below marks that one Likely and is
+wrong about it.
+
+It is not a language server. There is no process and no filesystem; `node_modules` is not in an
+archive, so an import of a dependency resolves to nothing and its types are `any`. Every name the
+repository writes itself is unaffected, which is every name this navigates.
+
+And it is not `tsgo`. That package — which this repository already depends on for `bun run
+compile` — publishes native executables for seven platform pairs and no WASM, so an extension
+cannot run it. If Microsoft ever ships a WASM target this is the seam it would drop into: one
+module behind `src/ledger/exact.ts`.
+
+### What it costs
+
+4.4MB of compiler after tree-shaking, and 3.1MB of `lib.*.d.ts` without which every `string` and
+every `Promise` is a name the compiler has never heard of. The build is 18.5MB and becomes 26MB.
+Neither is in the content script: both are fetched by the offscreen document, and only where a
+reader has turned the knob on.
+
+It is off by default, which is the answer until there is a measurement to change it with. What
+would change it is memory: 170MB held per repository under Bun, unmeasured in a browser, and it
+grows with the repository. The cap that follows from that number is not written yet, and writing
+it before measuring would be choosing a number by feel.

@@ -373,6 +373,14 @@ export const DIFF_KNOBS = [
     "on",
     true,
   ),
+  toggle(
+    "exact",
+    "Exact answers about names",
+    "A compiler answers, not a reader of shapes",
+    "Following a name reads the code the way a highlighter does: scopes, and the imports a file states. That is exact inside a file and through an import, fast, and works in every language — but it cannot follow a method call to the method, because knowing what an object is needs types. Turn this on and TypeScript's own compiler answers instead, for TypeScript and JavaScript repositories: a method call resolves, and a name that merely shares a spelling stops being offered. It costs a second of reading per repository and a few hundred megabytes of memory while it is warm, so it is off until asked for.",
+    "off",
+    true,
+  ),
 ] as const
 
 /** The rail's knobs. */

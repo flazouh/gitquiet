@@ -43,5 +43,7 @@ node_modules
 # Built by scripts/build-wasm-probe.ts, not by hand: the Ledger's parser and
 # grammars, and plan 009's probe.
 public/ledger/
+public/exact.js
+public/exact/
 public/wasm-probe-worker.js
 public/wasm-probe/

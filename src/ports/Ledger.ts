@@ -98,7 +98,12 @@ export type Ledger = {
    * reading never needs it. What it answers with is how it went, so a screen can
    * say "nothing here parses" rather than leaving a box empty.
    */
-  readonly warm: (repo: Repo, sha: string) => Effect.Effect<Warmth, LedgerUnavailable>
+  readonly warm: (
+    repo: Repo,
+    sha: string,
+    /** Whether to build the exact tier behind the reading. See `src/ledger/exact.ts`. */
+    exact?: boolean
+  ) => Effect.Effect<Warmth, LedgerUnavailable>
   /** Every Writing in the repository whose name the typing names, best first. */
   readonly namesLike: (
     repo: Repo,
@@ -117,7 +122,13 @@ export type Ledger = {
   readonly usesAcross: (
     repo: Repo,
     sha: string,
-    asked: { readonly name: string; readonly path: string; readonly line: number },
+    asked: {
+      readonly name: string
+      readonly path: string
+      readonly line: number
+      /** Where the name starts, which the exact tier needs and the other does not. */
+      readonly column?: number
+    },
     most?: number
   ) => Effect.Effect<Across, LedgerUnavailable>
 }
@@ -137,6 +148,8 @@ export type Warmth = {
 export type Across = {
   readonly uses: ReadonlyArray<AcrossUse>
   readonly ready: boolean
+  /** True where a compiler answered, which is when every Use is Sure. */
+  readonly exact?: boolean
 }
 
 /** Writings across a repository, and whether there is a Ledger to have found them in. */

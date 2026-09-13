@@ -40,6 +40,8 @@ export const KNOB_ART: Readonly<Record<KnobKey, ArtName>> = {
   context: "unfold",
   expansion: "chevron-down",
   prose: "file",
+  // The tier that knows what a thing is, rather than what it looks like.
+  exact: "search",
 
   // The file list.
   density: "rows",

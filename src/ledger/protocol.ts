@@ -66,6 +66,14 @@ export type LedgerWarm = {
   readonly owner: string
   readonly repo: string
   readonly sha: string
+  /**
+   * Whether to build the exact tier behind this reading.
+   *
+   * Absent or false and the Ledger is what it has always been: fast, every
+   * language, and honest about what it is guessing. True and a compiler is
+   * fetched and a program built, after the answer rather than before it.
+   */
+  readonly exact?: boolean
 }
 
 export type LedgerWarmWork = Omit<LedgerWarm, "kind"> & {
@@ -103,6 +111,8 @@ export type LedgerAcross = {
   readonly kind?: undefined
   readonly uses: ReadonlyArray<Found>
   readonly ready: boolean
+  /** True where a compiler answered, which is when every Use is Sure. */
+  readonly exact?: boolean
 }
 
 export type LedgerAcrossAsk = {
@@ -114,6 +124,8 @@ export type LedgerAcrossAsk = {
   readonly name: string
   readonly path: string
   readonly line: number
+  /** The column the name starts at, which the exact tier needs and the other does not. */
+  readonly column?: number
   readonly most?: number
 }
 
