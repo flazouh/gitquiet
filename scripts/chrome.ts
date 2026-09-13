@@ -37,6 +37,14 @@ export const findChrome = (): string => {
     process.env["CHROME_PATH"],
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    // Linux, where a Chrome installed from Google's own package lands. The list
+    // held two Mac paths and a Puppeteer cache, so every live probe in this
+    // repository failed on a Linux machine with Chrome installed — with an
+    // error naming two folders that machine was never going to have.
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
     ...inPuppeteerCache()
   ].filter((path): path is string => path !== undefined)
 
@@ -206,7 +214,15 @@ export const withExtension = async (
       // Loaded by flag rather than by Extensions.loadUnpacked: that CDP domain
       // arrived after Chrome 128, and the Chrome for Testing sitting in a cache
       // is usually older than that. The flag has worked since extensions did.
-      `--disable-extensions-except=${extension}`,
+      //
+      // Without `--disable-extensions-except` beside it, which used to be here
+      // and was the quiet end of every probe on a current Chrome. Chrome 137 and
+      // later ignore `--load-extension`, so the extension arrives over the
+      // protocol instead — and on Chrome 153, measured, an extension loaded that
+      // way is still *excepted* by that flag: it installs, it reports an id, and
+      // none of its content scripts ever run. The isolated world never appears
+      // and the probe reports that the content script's world never appeared,
+      // which reads as a broken extension rather than as a flag.
       `--load-extension=${extension}`,
       "--enable-unsafe-extension-debugging",
       "--no-first-run",
