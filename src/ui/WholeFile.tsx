@@ -128,7 +128,7 @@ export const WholeFile = ({
     () => (following ? { path, text: Effect.succeed(lines.join("\n")) } : null),
     [following, path, lines]
   )
-  const { names, shown, peeked, unpeek, onNow } = useFollowing(reading, host, across)
+  const { names, shown, peeked, unpeek, asked, unask, onNow } = useFollowing(reading, across)
 
   /*
    * The outline, on a key.
@@ -142,7 +142,7 @@ export const WholeFile = ({
   const keys = useKeyboard()
   const [outline, setOutline] = useState<ReadonlyArray<Writing> | null>(null)
   const [naming, setNaming] = useState(false)
-  /** The Writing a reader asked to see the Uses of, and the file it is in. */
+  /** The Writing the `u` key asked about, which the press answers for itself. */
   const [asking, setAsking] = useState<{ writing: Writing; text: string } | null>(null)
   useEffect(() => {
     setOutline(null)
@@ -287,16 +287,36 @@ export const WholeFile = ({
       {shown === null ? null : (
         <FollowCard writing={shown.writing} at={shown.at} where={shown.where} />
       )}
-      {asking === null ? null : (
+      {/*
+        The list, however it was asked for: a press on an underlined name, or
+        the key over one. Both are the same question and the same panel; the
+        press is the one a reader finds without being told.
+      */}
+      {asked !== null ? (
+        <UsesPanel
+          writing={asked.writing}
+          where={asked.where}
+          reading={{ path, text: lines.join("\n") }}
+          onGo={(line) => showLine(host.current?.shadowRoot ?? null, line)}
+          onClose={unask}
+          onOpen={across?.open}
+          across={
+            across?.repo === undefined || across.sha === undefined
+              ? undefined
+              : { repo: across.repo, sha: across.sha }
+          }
+        />
+      ) : asking === null ? null : (
         <UsesPanel
           writing={asking.writing}
           reading={{ path, text: asking.text }}
           onGo={(line) => showLine(host.current?.shadowRoot ?? null, line)}
           onClose={() => setAsking(null)}
+          onOpen={across?.open}
           across={
             across?.repo === undefined || across.sha === undefined
               ? undefined
-              : { repo: across.repo, sha: across.sha, open: across.open }
+              : { repo: across.repo, sha: across.sha }
           }
         />
       )}
