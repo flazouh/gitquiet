@@ -1,5 +1,5 @@
 import { Effect, Option } from "effect"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import type {
   About,
   Front,
@@ -11,9 +11,13 @@ import type {
 } from "../domain/repoHome"
 import { leadFor } from "../domain/repoHome"
 import type { Repository } from "../domain/repositories"
+import { chordFor, type Chord } from "../keys/commands"
 import { mountSprite } from "./FileHeading"
 import { Branches, type LoadBranches } from "./Branches"
 import { ASIDE, CARD, PRESSABLE } from "./dress"
+import type { Across } from "./following"
+import { GoToFile } from "./GoToFile"
+import { GoToName } from "./GoToName"
 import { GitHubHtml } from "./GitHubHtml"
 import { Markdown } from "./Markdown"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
@@ -24,6 +28,8 @@ import { RepoTree } from "./RepoTree"
 import { Languages, Standing, useStanding } from "./Standing"
 import { Star } from "./Star"
 import { TheBar } from "./TheBar"
+import { useKeyboard } from "./useKeyboard"
+import { useKeys } from "./useKeys"
 import { type Load, useLive } from "./useLive"
 import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
@@ -140,6 +146,9 @@ const Files = ({
   reading,
   onOpen,
   onNear,
+  onPaths,
+  onFind,
+  finding,
   onBranch
 }: {
   readonly front: Front
@@ -150,6 +159,9 @@ const Files = ({
   readonly reading: string | null
   readonly onOpen: (path: string) => void
   readonly onNear?: (path: string) => void
+  readonly onPaths?: (paths: ReadonlyArray<string>) => void
+  readonly onFind?: () => void
+  readonly finding?: Chord | null
   readonly onBranch?: RepoHomeScreenProps["onBranch"]
 }) => (
   /*
@@ -206,6 +218,9 @@ const Files = ({
       reading={reading}
       onOpen={onOpen}
       onNear={onNear}
+      onPaths={onPaths}
+      onFind={onFind}
+      finding={finding}
     />
   </section>
 )
@@ -228,6 +243,9 @@ const Beside = ({
   reading,
   onOpen,
   onNear,
+  onPaths,
+  onFind,
+  finding,
   onBranch
 }: {
   readonly front: Front
@@ -239,6 +257,9 @@ const Beside = ({
   readonly reading: string | null
   readonly onOpen: (path: string) => void
   readonly onNear?: (path: string) => void
+  readonly onPaths?: (paths: ReadonlyArray<string>) => void
+  readonly onFind?: () => void
+  readonly finding?: Chord | null
   readonly onBranch?: RepoHomeScreenProps["onBranch"]
 }) => (
   <div className="flex min-w-0 flex-col gap-1 lg:sticky lg:top-3 lg:col-start-1 lg:row-start-2 lg:h-[calc(100vh-5.5rem)]">
@@ -252,6 +273,9 @@ const Beside = ({
       reading={reading}
       onOpen={onOpen}
       onNear={onNear}
+      onPaths={onPaths}
+      onFind={onFind}
+      finding={finding}
       onBranch={onBranch}
     />
   </div>
@@ -479,13 +503,15 @@ const Paper = ({
   reading,
   readingBranch,
   opened,
-  loadReadme
+  loadReadme,
+  across
 }: {
   readonly front: Front
   readonly reading: string | null
   readonly readingBranch?: string
   readonly opened: Read
   readonly loadReadme: RepoHomeScreenProps["loadReadme"]
+  readonly across?: Across
 }) =>
   reading === null ? (
     <Welcome front={front} loadReadme={loadReadme} />
@@ -497,6 +523,7 @@ const Paper = ({
       repo={front.repo}
       branch={readingBranch ?? front.branch}
       head={front.head}
+      across={across}
     />
   )
 
@@ -604,6 +631,36 @@ export const RepoHomeScreen = ({
   const front = read.status === "ready" ? read.value : undefined
   const opened = useOpened(reading, readingBranch ?? front?.branch, shelf)
 
+  /*
+   * Go to file.
+   *
+   * The paths are the tree's, said out loud as it reads them — see `onPaths` on
+   * `RepoTree`. So the command costs nothing when it is not used and is instant
+   * when it is: by the time a reader has pressed anything, the list a large
+   * repository needed six hundred kilobytes for is already in this component.
+   *
+   * Held here rather than inside the dialog, so that closing it and opening it
+   * again does not throw the list away.
+   */
+  const keys = useKeyboard()
+  const [paths, setPaths] = useState<ReadonlyArray<string>>([])
+  const [finding, setFinding] = useState(false)
+  const [naming, setNaming] = useState(false)
+  /*
+   * `search` as well as `goToFile`, because on this page they are the same act.
+   *
+   * That command means "the filter over whichever list is on screen", and the
+   * list on this screen used to have one — a field over the tree, which Go to
+   * File replaced. A key that did something here yesterday and does nothing
+   * today is worse than a key that was never bound, so the hands that learnt `f`
+   * and `/` on this page arrive where the filter went.
+   */
+  useKeys(keys, {
+    goToFile: () => setFinding(true),
+    search: () => setFinding(true),
+    goToName: () => setNaming(true)
+  })
+
   // The pointer resting on a row, on the branch the page is of. Held steady so
   // the tree, which reads its options once, is not rebuilt for a new function.
   const branch = front?.branch
@@ -612,6 +669,31 @@ export const RepoHomeScreen = ({
       if (branch !== undefined) shelf?.warm(branch, path)
     },
     [shelf, branch]
+  )
+
+  /*
+   * How a name borrowed from another file is followed to it.
+   *
+   * The three things this screen has that the pane does not: which paths the
+   * repository holds, how to read one at this commit, and what opening one
+   * means here — which is the address changing and the pane drawing something
+   * else, exactly as pressing a row of the tree does.
+   *
+   * Undefined until there are paths. A specifier resolved against an empty list
+   * resolves to nothing, and a Follow that quietly did nothing would be worse
+   * than one that never offered.
+   */
+  const held = useMemo(() => new Set(paths), [paths])
+  const across = useMemo(
+    (): Across | undefined =>
+      paths.length === 0 || shelf === undefined || branch === undefined
+        ? undefined
+        : {
+            paths: held,
+            read: (path) => shelf.ask(branch, path).pipe(Effect.map((file) => file.lines.join("\n"))),
+            open: (path) => onRead?.(path)
+          },
+    [held, paths.length, shelf, branch, onRead]
   )
 
   // The Material symbols, once per document. The rows reference them by id, and a
@@ -678,6 +760,7 @@ export const RepoHomeScreen = ({
                 readingBranch={readingBranch}
                 opened={opened}
                 loadReadme={loadReadme}
+                across={across}
               />
               <Beside
                 front={front}
@@ -689,6 +772,9 @@ export const RepoHomeScreen = ({
                 reading={reading}
                 onOpen={(path) => onRead?.(path)}
                 onNear={warm}
+                onPaths={setPaths}
+                onFind={() => setFinding(true)}
+                finding={chordFor(keys, "goToFile")}
                 onBranch={onBranch}
               />
             </>
@@ -704,6 +790,9 @@ export const RepoHomeScreen = ({
                 reading={reading}
                 onOpen={(path) => onRead?.(path)}
                 onNear={warm}
+                onPaths={setPaths}
+                onFind={() => setFinding(true)}
+                finding={chordFor(keys, "goToFile")}
                 onBranch={onBranch}
               />
               <Paper
@@ -712,11 +801,30 @@ export const RepoHomeScreen = ({
                 readingBranch={readingBranch}
                 opened={opened}
                 loadReadme={loadReadme}
+                across={across}
               />
             </>
           )}
         </div>
       )}
+      {naming && front !== undefined ? (
+        <GoToName
+          repo={repo}
+          sha={front.head}
+          // The file, at the line the name is written on. The address follows,
+          // exactly as pressing a row of the tree does.
+          onOpen={(place) => onRead?.(place.path)}
+          onClose={() => setNaming(false)}
+        />
+      ) : null}
+      {finding ? (
+        <GoToFile
+          paths={paths}
+          loading={paths.length === 0}
+          onOpen={(path) => onRead?.(path)}
+          onClose={() => setFinding(false)}
+        />
+      ) : null}
       {waiting ? (
         <Waiting
           what={WORKING}

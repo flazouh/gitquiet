@@ -1,9 +1,10 @@
 import { Effect, Option } from "effect"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { inReadingOrder, type Entry, type Kind, type Touch } from "../domain/repoHome"
+import type { Chord } from "../keys/commands"
 import { useArt } from "./art"
-import { HERE } from "./dress"
-import { Field } from "./Field"
+import { Cap } from "./Cap"
+import { FIELD, HERE } from "./dress"
 import { mountSprite } from "./FileHeading"
 import { materialIcon } from "./fileIcon"
 import { useSlice } from "./slice"
@@ -38,6 +39,25 @@ export type RepoTreeProps = {
   ) => Effect.Effect<ReadonlyMap<string, Touch>, unknown>
   /** A file was pressed. The pane beside the tree shows it. */
   readonly onOpen: (path: string) => void
+  /**
+   * Opens Go to File, which is where finding a file by name lives now.
+   *
+   * Absent where nothing can open one, and then the tree has no such control —
+   * rather than one that opens nothing, which is the offer this interface cannot
+   * keep and the reader is the last to find out about.
+   */
+  readonly onFind?: () => void
+  /** The chord that does the same, for the cap on it. Off the same table the key is on. */
+  readonly finding?: Chord | null
+  /**
+   * Every path, once it has landed, for whatever else on the page wants them.
+   *
+   * The tree is the one thing here that needs the whole list — six hundred
+   * kilobytes on a large repository — and Go to File needs exactly the same
+   * list. Said out loud rather than read twice: two components asking the same
+   * route is two answers that can differ and one download nobody needed.
+   */
+  readonly onPaths?: (paths: ReadonlyArray<string>) => void
   /** The pointer is resting on a file. Read it now, so the press costs nothing. */
   readonly onNear?: (path: string) => void
   /** The file that pane is showing, so the row for it is marked as chosen. */
@@ -101,7 +121,6 @@ export type ShownOf = {
   /** Every file path in the repository. Absent until it lands. */
   readonly whole?: ReadonlyArray<string>
   readonly opened: ReadonlySet<string>
-  readonly hunting: string
   /** Last commits for nested rows, keyed by path. Root rows already carry theirs. */
   readonly touches?: ReadonlyMap<string, Touch>
 }
@@ -154,38 +173,6 @@ const childrenOf = (
 }
 
 /**
- * Paths that match the hunt, plus every folder that holds one.
- *
- * Nothing when the field is empty, which means the opened set decides. Matching
- * is against the path, so a hunt for a folder name keeps the files under it.
- */
-const hitBy = (
-  hunting: string,
-  entries: ReadonlyArray<Entry>,
-  whole: ReadonlyArray<string> | undefined
-): ReadonlySet<string> | null => {
-  if (hunting === "") return null
-  const needle = hunting.toLowerCase()
-  const pool = whole ?? entries.map((entry) => entry.path)
-  const hit = new Set<string>()
-  const take = (path: string): void => {
-    hit.add(path)
-    for (let at = path.lastIndexOf("/"); at !== -1; at = path.lastIndexOf("/", at - 1)) {
-      hit.add(path.slice(0, at))
-    }
-  }
-  for (const path of pool) {
-    if (path.toLowerCase().includes(needle)) take(path)
-  }
-  if (whole === undefined) {
-    for (const entry of entries) {
-      if (entry.name.toLowerCase().includes(needle)) take(entry.path)
-    }
-  }
-  return hit
-}
-
-/**
  * The rows the list should draw, from the root, the opened folders, and the hunt.
  *
  * The root comes from `entries` at once. Nested rows come from `whole` when it
@@ -196,21 +183,16 @@ export const shownOf = ({
   entries,
   whole,
   opened,
-  hunting,
   touches: extra
 }: ShownOf): ReadonlyArray<Shown> => {
   const touches = new Map(touchesOn(entries))
   if (extra !== undefined) {
     for (const [path, touch] of extra) touches.set(path, touch)
   }
-  const hit = hitBy(hunting, entries, whole)
-
   const walk = (nodes: ReadonlyArray<Entry>, depth: number): Array<Shown> => {
     const rows: Array<Shown> = []
     for (const node of nodes) {
-      if (hit !== null && !hit.has(node.path)) continue
-      const open =
-        node.kind === "directory" && (hit !== null ? hit.has(node.path) : opened.has(node.path))
+      const open = node.kind === "directory" && opened.has(node.path)
       rows.push({
         path: node.path,
         name: node.name,
@@ -343,6 +325,9 @@ export const RepoTree = ({
   loadTouches,
   onOpen,
   onNear,
+  onPaths,
+  onFind,
+  finding = null,
   reading,
   now = new Date()
 }: RepoTreeProps) => {
@@ -350,8 +335,12 @@ export const RepoTree = ({
   const icons = settings.tree.icons
   const art = useArt()
   const Chevron = art["chevron-right"]
+  const Search = art["search"]
   const [whole, setWhole] = useState<ReadonlyArray<string> | undefined>(undefined)
-  const [hunting, setHunting] = useState("")
+  // Through a ref, because a parent writes this inline and a new function every
+  // render would read the whole list again on every render.
+  const told = useRef(onPaths)
+  told.current = onPaths
   const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set())
   const [extra, setExtra] = useState<ReadonlyMap<string, Touch>>(() => new Map())
   const asked = useRef(new Set<string>())
@@ -384,7 +373,9 @@ export const RepoTree = ({
     void Effect.runPromise(
       loadPaths(head).pipe(
         Effect.map((paths) => {
-          if (watching) setWhole(paths)
+          if (!watching) return
+          setWhole(paths)
+          told.current?.(paths)
         }),
         // The root is on the screen and is not wrong, only shallow. There is
         // nothing here worth an error message over.
@@ -398,8 +389,8 @@ export const RepoTree = ({
   }, [loadPaths, head])
 
   const rows = useMemo(
-    () => shownOf({ entries, whole, opened, hunting, touches: extra }),
-    [entries, whole, opened, hunting, extra]
+    () => shownOf({ entries, whole, opened, touches: extra }),
+    [entries, whole, opened, extra]
   )
 
   /*
@@ -475,9 +466,40 @@ export const RepoTree = ({
 
   return (
     <>
-      <div className="shrink-0 px-2 pb-2">
-        <Field value={hunting} onChange={setHunting} label="Find a file" art="search" room="tight" />
-      </div>
+      {onFind === undefined ? null : (
+        /*
+         * The way to a file by name, and no longer a filter over this tree.
+         *
+         * There were two of these: a field that narrowed the tree in place, and
+         * Go to File, which ranks every path in the repository and opens the one
+         * chosen. Two ways to do one thing, and the weaker one was the one with a
+         * box on the screen — it could only match a substring, it could only
+         * reach what this tree holds, and it left the reader to find the row
+         * afterwards.
+         *
+         * So the box stays and what it does changes. It stays because it is the
+         * only thing on the page that says this can be done at all: GitHub's own
+         * repository page has a Go to file control, a key with nothing to show
+         * for it is a key nobody presses, and `docs/spec/repo-home.md` is built
+         * on the argument that what a reader cannot see they do not have.
+         *
+         * A button dressed as a field rather than a field, because it is one: it
+         * takes no text, it opens the box that does. The cap comes off the same
+         * table the key does, so the letter on the face and the letter that works
+         * cannot drift apart.
+         */
+        <div className="shrink-0 px-2 pb-2">
+          <button
+            type="button"
+            onClick={onFind}
+            className={`${FIELD} flex h-7 w-full items-center gap-1.5 px-2 text-xs text-ink-muted hover:text-ink`}
+          >
+            <Search size={12} aria-hidden="true" className="shrink-0" />
+            <span className="flex-1 text-left">Go to file</span>
+            {finding === null ? null : <Cap chord={finding} />}
+          </button>
+        </div>
+      )}
       <div
         ref={frame}
         onScroll={onScroll}

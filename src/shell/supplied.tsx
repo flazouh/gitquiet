@@ -11,6 +11,8 @@ import { PaintedMarkdown } from "../ui/PaintedMarkdown";
 import { RegistryProvider } from "../ui/atoms";
 import { OCTICONS } from "../ui/octicons";
 import { PortraitsProvider } from "../ui/portraits";
+import { ledgerThrough } from "../ledger/client";
+import { LedgerProvider } from "../ui/ledger";
 import { RendererProvider } from "../ui/renderer";
 import { SettingsProvider } from "../ui/settings";
 import { ScreenActivityProvider } from "../ui/screenActivity";
@@ -26,6 +28,16 @@ const highlight = (code: string, language: string, theme: string) =>
 
 const mermaid = (code: string) =>
   loadMarkdownMermaid.pipe(Effect.flatMap((draw) => draw(code)));
+
+/**
+ * Where a name is written, asked of the one document that can compile a grammar.
+ *
+ * A message, because that is the only way from a content script to it. What is
+ * behind the message is `src/entrypoints/offscreen/ledger.ts`, and what decides
+ * anything is `src/ledger/writings.ts` — neither of which this file knows about,
+ * which is the point of the port.
+ */
+const ledger = ledgerThrough((message) => browser.runtime.sendMessage(message));
 
 /**
  * What a browser extension on github.com can answer, in one file.
@@ -148,6 +160,7 @@ export const Supplied = ({
         <ArtProvider here={OCTICONS}>
         <PortraitsProvider reads={onGitHub}>
           <RendererProvider load={loadDiffEngine}>
+          <LedgerProvider ledger={ledger}>
             <PaintedMarkdown highlight={highlight} mermaid={mermaid}>
             {/* Above the interface rather than inside a screen: a refusal outlives
                 the control that caused it — the menu closed on the press — and on
@@ -155,6 +168,7 @@ export const Supplied = ({
                 a page the reader is about to leave. */}
             {quiet ? children : <Toasts>{children}</Toasts>}
             </PaintedMarkdown>
+          </LedgerProvider>
           </RendererProvider>
         </PortraitsProvider>
         </ArtProvider>

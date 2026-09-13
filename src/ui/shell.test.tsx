@@ -650,7 +650,14 @@ const drawing = () => {
         }
       }
       hang(request.notes ?? [])
-      return { onThemeChange: () => {}, showNotes: hang, unpick: () => {}, destroy: () => {} }
+      return {
+        onThemeChange: () => {},
+        showNotes: hang,
+        unpick: () => {},
+        mark: () => {},
+        boundsOf: () => null,
+        destroy: () => {}
+      }
     }
   })
   return { asked, load }

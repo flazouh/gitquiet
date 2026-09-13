@@ -16,7 +16,17 @@
 import { Effect } from "effect"
 import type { DiffChoices } from "../domain/choices"
 import { syntaxOf } from "../domain/syntax"
-import { PAPER, type DiffHandle, type DiffRequest, type DiffSide, type Note, type Picked } from "../ports/Renderer"
+import {
+  PAPER,
+  type Bounds,
+  type DiffHandle,
+  type DiffRequest,
+  type DiffSide,
+  type Modifiers,
+  type Name,
+  type Note,
+  type Picked
+} from "../ports/Renderer"
 import { LOADERS } from "../syntax/loaders"
 import {
   CORE_CSS_ATTRIBUTE,
@@ -120,6 +130,56 @@ const picked = (range: { start: number; end: number; side?: DiffSide }): Picked 
   from: Math.min(range.start, range.end),
   to: Math.max(range.start, range.end)
 })
+
+/**
+ * One of their token events, as a Name.
+ *
+ * `side` is on the diff's events and not on a file's, and it is left off rather
+ * than guessed at: a file being read has one side, and a Name that claimed to be
+ * an addition in a file nothing was added to would be a lie the pane could act on.
+ */
+export const named = (token: {
+  lineNumber: number
+  lineCharStart: number
+  lineCharEnd: number
+  tokenText: string
+  side?: DiffSide
+}): Name => ({
+  line: token.lineNumber,
+  from: token.lineCharStart,
+  to: token.lineCharEnd,
+  text: token.tokenText,
+  ...(token.side === undefined ? {} : { side: token.side })
+})
+
+/**
+ * What was held down, with the two keys that mean the same thing folded into one.
+ *
+ * Command on a Mac and Control everywhere else, which is the platform's rule and
+ * not the interface's — so it is answered once, here, rather than in every pane
+ * that ever asks. `metaKey` is Command on a Mac and the Windows key elsewhere,
+ * where nothing is bound to it, so taking either is safe on both.
+ */
+export const held = (event: { metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean }):
+  Modifiers => ({
+  go: event.metaKey || event.ctrlKey,
+  shift: event.shiftKey,
+  alt: event.altKey
+})
+
+/**
+ * Whether a Name is the one an element was reported for.
+ *
+ * The engine marks the element it was last handed and no other, so a Name from
+ * somewhere else — a stale one, or one the pane worked out for itself — has to be
+ * told apart from the one under the pointer. Three fields rather than identity,
+ * because the pane may rebuild the object before handing it back.
+ */
+export const sameName = (one: Name, two: Name): boolean =>
+  one.line === two.line && one.from === two.from && one.side === two.side
+
+/** How a Name the reader can follow is drawn: the editors' underline, and their cursor. */
+const MARKED = "underline"
 
 /**
  * A host's shadow root, made only if it has not made its own.
@@ -257,6 +317,33 @@ export const renderDiff = (container: HTMLElement, request: DiffRequest): DiffHa
     // Which is what makes them ordinary elements on the page, reached by the
     // page's stylesheets, rather than something needing a stylesheet in here.
     renderAnnotation: (annotation) => request.fillNote?.(annotation.metadata),
+
+    /*
+     * The identifier under the pointer, which the renderer has always known.
+     *
+     * It tokenises every line to colour it, so it can say which run of
+     * characters a pointer is over without anything on this side reading the
+     * DOM back. What that is worth is in `docs/spec/following.md`: it is the
+     * whole of the hit-testing for following a name to where it is written.
+     *
+     * Off where nobody is listening. Their interaction manager binds pointer
+     * handlers per token when any of these is set, and a diff nobody is asking
+     * about should pay nothing for the asking.
+     */
+    ...(request.onName === undefined && request.onNameEnter === undefined
+      ? {}
+      : {
+          onTokenClick: (token, event) => request.onName?.(named(token), held(event)),
+          onTokenEnter: (token, event) => {
+            entered = { name: named(token), element: token.tokenElement }
+            request.onNameEnter?.(entered.name, held(event))
+          },
+          onTokenLeave: (token) => {
+            unmark()
+            entered = null
+            request.onNameLeave?.(named(token))
+          }
+        }),
     // Pierre marks a changed line with a bar in the margin and leaves the line
     // itself the colour of the page. GitHub fills the line, and filled lines
     // are how anyone who reads pull requests knows at a glance how much of a
@@ -265,6 +352,27 @@ export const renderDiff = (container: HTMLElement, request: DiffRequest): DiffHa
     diffIndicators: choices.marks,
     disableBackground: !choices.fill
   } as ConstructorParameters<typeof FileDiff<string>>[0])
+
+  /**
+   * The token the pointer is on, kept because marking one is the only thing
+   * here that needs an element and because nothing else can find it again.
+   */
+  let entered: { name: Name; element: HTMLElement } | null = null
+  let marked: HTMLElement | null = null
+
+  /*
+   * Inline styles rather than a class.
+   *
+   * The token is inside the renderer's shadow root, where a stylesheet on the
+   * page does not reach, and adding one in there means another copy of a rule
+   * per open file. Two properties on one element, put back on the way out.
+   */
+  const unmark = () => {
+    if (marked === null) return
+    marked.style.textDecoration = ""
+    marked.style.cursor = ""
+    marked = null
+  }
 
   const host = dressedContainer(request.theme, choices)
   container.replaceChildren(host)
@@ -285,7 +393,23 @@ export const renderDiff = (container: HTMLElement, request: DiffRequest): DiffHa
     unpick: () => {
       diff.setSelectedLines(null)
     },
+    boundsOf: (name) => {
+      if (entered === null || !sameName(entered.name, name)) return null
+
+      const box = entered.element.getBoundingClientRect()
+      return { top: box.top, left: box.left, bottom: box.bottom, right: box.right } satisfies Bounds
+    },
+    mark: (name) => {
+      unmark()
+      if (name === null || entered === null || !sameName(entered.name, name)) return
+
+      marked = entered.element
+      marked.style.textDecoration = MARKED
+      marked.style.cursor = "pointer"
+    },
     destroy: () => {
+      unmark()
+      entered = null
       diff.cleanUp()
     }
   }

@@ -30,7 +30,7 @@ describe("which rows the tree shows", () => {
   ]
 
   test("starts with the root, folders first, which is what the page already holds", () => {
-    const rows = shownOf({ entries: root, opened: new Set(), hunting: "" })
+    const rows = shownOf({ entries: root, opened: new Set() })
 
     expect(rows.map((one) => one.path)).toEqual(["src", "README.md"])
     expect(rows[0]?.kind).toBe("directory")
@@ -42,7 +42,6 @@ describe("which rows the tree shows", () => {
       entries: root,
       whole: ["src/ui/RepoTree.tsx", "src/domain/repoHome.ts", "README.md"],
       opened: new Set(["src"]),
-      hunting: ""
     })
 
     expect(rows.map((one) => `${one.depth}:${one.path}`)).toEqual([
@@ -58,7 +57,6 @@ describe("which rows the tree shows", () => {
       entries: root,
       whole: ["src/ui/RepoTree.tsx", "src/domain/repoHome.ts"],
       opened: new Set(["src", "src/ui"]),
-      hunting: ""
     })
 
     expect(rows.map((one) => one.path)).toEqual([
@@ -75,29 +73,35 @@ describe("which rows the tree shows", () => {
       entries: root,
       whole: ["src/ui/RepoTree.tsx"],
       opened: new Set(),
-      hunting: ""
     })
 
     expect(rows.map((one) => one.path)).toEqual(["src", "README.md"])
   })
 
-  test("narrows to matching files and the folders that hold them", () => {
+  /*
+   * The tree used to narrow itself to a typed substring, opening every folder
+   * that held a match. That is Go to File's job now — one way to find a file
+   * rather than two, and the one that went was the one that could only match a
+   * substring and only reach what this tree holds. What it leaves behind is the
+   * rule below: the tree shows what the reader opened, and nothing else opens it.
+   */
+  test("opens what the reader opened, and no folder they did not", () => {
     const rows = shownOf({
       entries: root,
       whole: ["src/ui/RepoTree.tsx", "src/domain/repoHome.ts", "README.md"],
-      opened: new Set(),
-      hunting: "RepoTree"
+      opened: new Set(["src"])
     })
 
-    expect(rows.map((one) => one.path)).toEqual(["src", "src/ui", "src/ui/RepoTree.tsx"])
-    expect(rows.filter((one) => one.kind === "directory").every((one) => one.open)).toBe(true)
+    expect(rows.map((one) => one.path)).toEqual(["src", "src/domain", "src/ui", "README.md"])
+    expect(rows.filter((one) => one.kind === "directory" && one.open).map((one) => one.path)).toEqual([
+      "src"
+    ])
   })
 
   test("carries the last commit on the row it belongs to", () => {
     const [readme] = shownOf({
       entries: [entry("README.md", { touched: Option.some(touch({ said: "Say what this is for" })) })],
       opened: new Set(),
-      hunting: ""
     })
 
     expect(Option.getOrNull(readme?.touched ?? Option.none())?.said).toBe("Say what this is for")
@@ -105,7 +109,7 @@ describe("which rows the tree shows", () => {
   })
 
   test("says nothing for a row the commit column has not reached", () => {
-    const [row] = shownOf({ entries: [entry("README.md")], opened: new Set(), hunting: "" })
+    const [row] = shownOf({ entries: [entry("README.md")], opened: new Set() })
     expect(Option.isNone(row?.touched ?? Option.none())).toBe(true)
   })
 
@@ -115,7 +119,6 @@ describe("which rows the tree shows", () => {
       entries: root,
       whole: ["src/ui/RepoTree.tsx"],
       opened: new Set(["src"]),
-      hunting: "",
       touches: new Map([["src/ui", nested]])
     })
     const ui = rows.find((one) => one.path === "src/ui")

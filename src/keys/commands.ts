@@ -15,6 +15,10 @@
  * vocabulary starts drifting, and the command is the Destination.
  */
 export type Command =
+  | "goToFile"
+  | "goToName"
+  | "fileNames"
+  | "uses"
   | "nextFile"
   | "previousFile"
   | "markFile"
@@ -97,6 +101,33 @@ export const SILENT: Keys = { profile: "off", bound: {} }
  * and a doubled leader is the one sequence a vim reader already types.
  */
 const STANDARD: Table = {
+  /*
+   * `t` for the file finder, which is GitHub's own letter for it and has been
+   * for a decade. A reader who has pressed `t` on github.com since before this
+   * existed presses it here and lands in the same kind of box, which is worth
+   * more than any letter this interface could have chosen for itself. It is also
+   * free: nothing else here wants it, in either profile.
+   */
+  goToFile: ["t"],
+  /*
+   * `o` for the outline, which is the letter every editor with a symbol list
+   * gives it, usually behind two modifiers this interface does not need: nothing
+   * else here wants a bare `o`, in either profile.
+   */
+  /*
+   * The capital, which is to say `t` with shift held. A file and a name in one
+   * are the same act at two sizes, so they are the same letter at two sizes —
+   * and the shift is what every editor with both puts between them.
+   */
+  goToName: ["T"],
+  fileNames: ["o"],
+  /*
+   * `u` for uses, which is free in both profiles and is the letter the act
+   * begins with. It answers about the name the pointer is on, so it is pressed
+   * with a hand already on the mouse — which is the one place in this keyboard
+   * where the right hand is the right hand to use.
+   */
+  uses: ["u"],
   nextFile: ["s"],
   previousFile: ["w"],
   /*
@@ -155,6 +186,15 @@ const STANDARD: Table = {
  * nothing about them reads wrongly to someone who lives in one.
  */
 const VIM: Table = {
+  // `t` is `till` in vim and waits for a character. Nothing here waits for a
+  // second key, and the habit it would cross is a motion inside a line rather
+  // than anything a reader does on a page of somebody else's code.
+  goToFile: ["t"],
+  // `o` opens a line below in vim and is a letter a reader only reaches for
+  // while editing. Nothing here edits.
+  goToName: ["T"],
+  fileNames: ["o"],
+  uses: ["u"],
   nextFile: ["j"],
   previousFile: ["k"],
   markFile: ["x"],
@@ -171,6 +211,10 @@ const VIM: Table = {
 }
 
 const NOTHING: Table = {
+  goToFile: [],
+  goToName: [],
+  fileNames: [],
+  uses: [],
   nextFile: [],
   previousFile: [],
   markFile: [],
@@ -200,6 +244,14 @@ export const KEYBOARD: ReadonlyArray<{
   readonly word: string
   readonly gist: string
 }> = [
+  { command: "goToFile", word: "Go to file", gist: "Any file in the repository, by typing its name" },
+  {
+    command: "goToName",
+    word: "Go to name",
+    gist: "Any name the repository writes down, by typing it"
+  },
+  { command: "fileNames", word: "Names in this file", gist: "What this file writes down, and where" },
+  { command: "uses", word: "Uses", gist: "Everywhere in this file that means the name under the pointer" },
   { command: "nextFile", word: "Next file", gist: "Down the rail to the file after this one" },
   {
     command: "previousFile",

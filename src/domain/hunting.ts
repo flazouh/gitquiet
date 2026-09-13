@@ -3,59 +3,54 @@
  *
  * A reader who wants to bring a file into a review knows roughly what it is
  * called and not where it lives, and `treePaths` answers with the lot: seven
- * thousand of them on `facebook/react`, measured in the gateway's own note. So
- * this is a filter over strings and deliberately nothing cleverer — no fuzzy
- * matching, no scoring of gaps between characters. Their own file finder is a
- * substring match too, and a reader who has typed four characters is still
- * typing rather than reading a ranked list.
+ * thousand of them on `facebook/react`, measured in the gateway's own note.
  *
- * What it does rank is where the hit landed, which is the one thing a plain
- * substring match gets wrong often enough to notice. See {@link hunted}.
+ * This file used to hold its own filter, and used to argue for it: a substring
+ * match, "deliberately nothing cleverer — no fuzzy matching, no scoring of gaps
+ * between characters", on the grounds that a reader four characters in is still
+ * typing rather than reading a ranked list. The reasoning was sound and the
+ * conclusion is no longer the one it leads to, because there is now a second
+ * place in this interface where a reader types part of a path — Go to File, on
+ * a repository's front page — and two answers to one question is the thing this
+ * codebase gives up more to avoid than it would ever gain by keeping a bespoke
+ * filter here.
+ *
+ * So the ranking is `domain/findingFile.ts` and this is where the hunt asks for
+ * it. Three things made that safe rather than a matter of taste, and all three
+ * were measured before the change:
+ *
+ * 1. Every path a substring match finds, a subsequence match finds too. A
+ *    substring is a subsequence with no gaps in it.
+ * 2. On the case this file's own argument was built from — `config`, in a
+ *    repository with both a `config.ts` and a `config/` folder — the two answer
+ *    with the same paths in the same order.
+ * 3. `hunting.test.ts` passed unchanged, including everything it says about
+ *    which of two paths comes first.
+ *
+ * What is new is that a reader gets an answer for `cfg`, which this file used to
+ * answer with nothing at all. Characters in a run still beat the same characters
+ * scattered, by a wide margin, so what was at the top of the list is still at
+ * the top of it.
  */
 
-/** How far through the path the last segment starts. */
-const nameStarts = (path: string): number => path.lastIndexOf("/") + 1
+import { findingFile } from "./findingFile"
 
 /**
  * The paths a reader's typing names, best first.
  *
- * Nothing at all for nothing typed. The alternative is answering the first
- * twenty of seven thousand paths, which is a list of whatever sorts first
- * rather than an answer to anything.
- *
- * Two rules order what is left, and both exist because of what a repository
- * with a `config` folder does to a search for `config`:
- *
- * 1. A hit in the file's own name comes before a hit only in a folder above it.
- *    Somebody typing `config` wants `src/config.ts` before the eleven files
- *    under `src/config/`.
- * 2. Among those, the shorter path comes first, which is the closer one to the
- *    root and the likelier one to be meant.
+ * Nothing at all for nothing typed, which is this hunt's own rule and not the
+ * ranking's: the hunt is a box a reader opens to name a file, and answering it
+ * with the first twenty of seven thousand paths is a list of whatever sorts
+ * first rather than an answer to anything. Go to File is a different box with a
+ * different reader — one who pressed a key to see the repository — and it shows
+ * the tree's first rows instead.
  */
 export const hunted = (
   paths: ReadonlyArray<string>,
   typed: string,
   most = 20
 ): ReadonlyArray<string> => {
-  const needle = typed.trim().toLowerCase()
-  if (needle === "") return []
+  if (typed.trim() === "") return []
 
-  const found: Array<{ readonly path: string; readonly inTheName: boolean }> = []
-
-  for (const path of paths) {
-    const at = path.toLowerCase().indexOf(needle)
-    if (at === -1) continue
-    found.push({ path, inTheName: at >= nameStarts(path) })
-  }
-
-  return found
-    .sort((one, two) => {
-      if (one.inTheName !== two.inTheName) return one.inTheName ? -1 : 1
-      if (one.path.length !== two.path.length) return one.path.length - two.path.length
-      // Named last so the answer is the same twice for the same repository,
-      // which a caller drawing a list has to be able to count on.
-      return one.path.localeCompare(two.path)
-    })
-    .slice(0, most)
-    .map((one) => one.path)
+  return findingFile(paths, typed, most).map((found) => found.path)
 }
