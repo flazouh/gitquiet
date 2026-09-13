@@ -83,10 +83,16 @@ export const ledgerThrough = (post: Post): Ledger => ({
     asked(post, reading, { of: "writingsIn" }).pipe(
       Effect.map((answer): ReadonlyArray<Writing> => answer.writings ?? [])
     ),
-  warm: (repo, sha) =>
+  warm: (repo, sha, exact) =>
     Effect.tryPromise({
       try: () =>
-        post({ kind: LEDGER_WARM, owner: repo.owner, repo: repo.repo, sha } satisfies LedgerWarm),
+        post({
+          kind: LEDGER_WARM,
+          owner: repo.owner,
+          repo: repo.repo,
+          sha,
+          ...(exact === undefined ? {} : { exact })
+        } satisfies LedgerWarm),
       catch: (cause) => new LedgerUnavailable({ cause })
     }).pipe(
       Effect.map((answer) => (answer ?? { ready: false }) as LedgerWarmth)
@@ -117,6 +123,7 @@ export const ledgerThrough = (post: Post): Ledger => ({
           name: asked.name,
           path: asked.path,
           line: asked.line,
+          ...(asked.column === undefined ? {} : { column: asked.column }),
           ...(most === undefined ? {} : { most })
         } satisfies LedgerAcrossAsk),
       catch: (cause) => new LedgerUnavailable({ cause })

@@ -167,6 +167,11 @@ export default defineConfig({
           // document rather than bundled into anything. See
           // `scripts/build-wasm-probe.ts` and `docs/spec/following.md`.
           "ledger/*",
+          // The exact tier: TypeScript's own compiler, and the standard library
+          // it needs. Fetched by the offscreen document only where a reader has
+          // asked for a compiler to answer. See `src/ledger/exact.ts`.
+          "exact.js",
+          "exact/*",
           // Plan 009's probe, which shares that document. `bun scripts/probe-wasm.ts`
           // is its only caller and the files are written by the same script.
           "wasm-probe-worker.js",

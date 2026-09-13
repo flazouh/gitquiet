@@ -41,6 +41,57 @@ await build({
 
 await mkdir(here("../public/wasm-probe"), { recursive: true })
 await mkdir(here("../public/ledger"), { recursive: true })
+await mkdir(here("../public/exact"), { recursive: true })
+
+/*
+ * The exact tier, built beside the extension and never into it.
+ *
+ * TypeScript's own language service is nine megabytes of JavaScript. It is what
+ * makes `thing.method()` answerable at all, and it is not something a reader who
+ * never asks for it should carry into a content script — which inlines every
+ * dynamic import into one file. So it is a chunk of its own, fetched by the
+ * offscreen document the first time a repository is read exactly.
+ */
+await build({
+  configFile: false,
+  publicDir: false,
+  build: {
+    outDir: here("../public"),
+    emptyOutDir: false,
+    target: "chrome120",
+    lib: {
+      entry: here("../src/ledger/exact.ts"),
+      formats: ["es"],
+      fileName: () => "exact.js"
+    },
+    rollupOptions: { output: { codeSplitting: false } }
+  },
+  logLevel: "warn"
+})
+
+/**
+ * The standard library the program is built against.
+ *
+ * Two and a half megabytes of `.d.ts`, and without them nothing resolves: every
+ * `string`, every `Promise`, every `Array` is a name the compiler has never
+ * heard of. Copied rather than bundled, because they are read as files by a host
+ * that answers from a map.
+ */
+const libs = new Bun.Glob("lib.*.d.ts")
+let libBytes = 0
+for (const name of libs.scanSync({ cwd: here("../node_modules/typescript-5/lib") })) {
+  const file = Bun.file(here(`../node_modules/typescript-5/lib/${name}`))
+  await Bun.write(here(`../public/exact/${name}`), file)
+  libBytes += file.size
+}
+/*
+ * And a list of them, because the document that reads them has no folder to
+ * look in. A `.d.ts` the program asks for and cannot find is every `string` and
+ * every `Promise` becoming a name the compiler has never heard of.
+ */
+const names = [...new Bun.Glob("lib.*.d.ts").scanSync({ cwd: here("../public/exact") })].sort()
+await Bun.write(here("../public/exact/libs.json"), JSON.stringify(names))
+console.log(`exact/lib.*.d.ts  ${names.length} files, ${libBytes} bytes`)
 
 /**
  * The runtime, the grammar and something real to parse.

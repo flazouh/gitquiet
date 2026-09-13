@@ -3,6 +3,7 @@ import { Effect } from "effect"
 import type { AcrossUse, Use, Writing } from "../ports/Ledger"
 import { FLOAT } from "./dress"
 import { useLedger } from "./ledger"
+import { useSettings } from "./useSettings"
 
 /**
  * Everywhere in this file that means the same Writing.
@@ -73,11 +74,16 @@ export const UsesPanel = ({
   /** Whether the Writing is in the file being read, which decides what can be exact. */
   const here = where === undefined || where === reading.path
   const ledger = useLedger()
+  // Whether the reader asked for a compiler to answer. Off, and this is the
+  // tier that reads shapes — fast, every language, honest about its guesses.
+  const { settings } = useSettings()
+  const exact = settings.diff.exact === "on"
   const frame = useRef<HTMLDialogElement | null>(null)
   const [uses, setUses] = useState<ReadonlyArray<Use> | null>(null)
   const [elsewhere, setElsewhere] = useState<{
     readonly uses: ReadonlyArray<AcrossUse>
     readonly ready: boolean
+    readonly exact?: boolean
   } | null>(null)
   const lines = reading.text.split("\n")
   /**
@@ -130,12 +136,13 @@ export const UsesPanel = ({
     if (across === undefined) return
 
     const asking = Effect.runFork(
-      ledger.warm(across.repo, across.sha).pipe(
+      ledger.warm(across.repo, across.sha, exact).pipe(
         Effect.flatMap(() =>
           ledger.usesAcross(across.repo, across.sha, {
             name: writing.name,
             path: where ?? reading.path,
-            line: writing.line
+            line: writing.line,
+            column: writing.from - 1
           })
         ),
         Effect.map(setElsewhere),
@@ -143,7 +150,7 @@ export const UsesPanel = ({
       )
     )
     return () => asking.interruptUnsafe()
-  }, [ledger, across, reading.path, where, writing])
+  }, [ledger, across, exact, reading.path, where, writing])
 
   return (
     <dialog
@@ -174,7 +181,7 @@ export const UsesPanel = ({
               ? "reading the repository…"
               : !elsewhere.ready
                 ? "the repository could not be read"
-                : `${beyond.length} elsewhere`}
+                : `${beyond.length} elsewhere${elsewhere.exact === true ? ", exactly" : ""}`}
           </span>
         )}
       </div>

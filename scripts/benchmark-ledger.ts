@@ -34,12 +34,13 @@ type Warmth = {
 
 const session = await withExtension(PAGE, EXTENSION)
 
-const warm = (at: (typeof REPOS)[number]) => `
+const warm = (at: (typeof REPOS)[number], exact = false) => `
   chrome.runtime.sendMessage({
     kind: "gitquiet/ledger-warm",
     owner: ${JSON.stringify(at.owner)},
     repo: ${JSON.stringify(at.repo)},
-    sha: ${JSON.stringify(at.sha)}
+    sha: ${JSON.stringify(at.sha)},
+    exact: ${exact}
   })
 `
 

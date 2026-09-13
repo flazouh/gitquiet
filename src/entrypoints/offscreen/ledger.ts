@@ -15,6 +15,7 @@ import { everyPlace, kept, keyOf, worthReading, type Kept } from "@/ledger/ledge
 import { heldIn, holdIn, holdingOf } from "@/ledger/holding"
 import { idbStore, noStore, type Store } from "@/ledger/store"
 import { usesAcross, type Asked } from "@/ledger/uses"
+import type { Exact } from "@/ledger/exact"
 import { parsed, ready, reader, type Shelf } from "@/ledger/parse"
 import { findingFile } from "@/domain/findingFile"
 import {
@@ -98,6 +99,104 @@ const ON_DISK = 20
 const holding = (at: string): Kept | undefined => heldIn(ledgers, at)
 const hold = (built: Kept): void => holdIn(ledgers, built.at, built, IN_MEMORY)
 
+/**
+ * The exact tier, where a reader has asked for one.
+ *
+ * One at a time, and lazily: it is nine megabytes of compiler and a second of
+ * work, and every question is answerable without it. What it adds is the
+ * questions types are needed for — `thing.method()`, and telling a method from
+ * an unrelated name that merely shares its spelling.
+ *
+ * Held beside the Ledger rather than inside it, because it is built after and
+ * may never be built at all. A question asked before it is ready is answered by
+ * the tier below, which is the whole point of having two.
+ */
+let exactness: { readonly at: string; readonly exact: Exact } | null = null
+let buildingExact: string | null = null
+
+/** The compiler, fetched once. Nine megabytes that most reading never needs. */
+let engine: Effect.Effect<typeof import("@/ledger/exact"), unknown> | undefined
+
+const exactEngine = (): Effect.Effect<typeof import("@/ledger/exact"), unknown> => {
+  const getURL = browser.runtime.getURL as (path: string) => string
+  engine ??= Effect.tryPromise({
+    try: () => import(/* @vite-ignore */ getURL("/exact.js")),
+    catch: (cause) => cause
+  }).pipe(Effect.cached, Effect.runSync)
+  return engine
+}
+
+/** The standard library, without which nothing in a program resolves. */
+let libs: Effect.Effect<ReadonlyMap<string, string>, unknown> | undefined
+
+const standardLibrary = (): Effect.Effect<ReadonlyMap<string, string>, unknown> => {
+  const getURL = browser.runtime.getURL as (path: string) => string
+  libs ??= Effect.gen(function* () {
+    const listed = yield* Effect.tryPromise({
+      try: () => fetch(getURL("/exact/libs.json")),
+      catch: (cause) => cause
+    })
+    const names = yield* Effect.tryPromise({
+      try: () => listed.json(),
+      catch: (cause) => cause
+    })
+
+    const held = new Map<string, string>()
+    yield* Effect.forEach(
+      names as ReadonlyArray<string>,
+      (name) =>
+        Effect.tryPromise({
+          try: () => fetch(getURL(`/exact/${name}`)),
+          catch: (cause) => cause
+        }).pipe(
+          Effect.flatMap((answer) =>
+            Effect.tryPromise({ try: () => answer.text(), catch: (cause) => cause })
+          ),
+          Effect.map((text) => held.set(`/${name}`, text))
+        ),
+      { concurrency: 8, discard: true }
+    )
+    return held as ReadonlyMap<string, string>
+  }).pipe(Effect.cached, Effect.runSync)
+  return libs
+}
+
+/**
+ * Builds the exact tier for a repository, in the background, once.
+ *
+ * Nothing waits for it. The warm that started it has already answered, the
+ * screens are already being answered by the tier below, and when this lands the
+ * answers quietly get better — a Likely becomes a Sure, and a method call starts
+ * resolving.
+ */
+const beExact = (at: string, files: ReadonlyMap<string, string>): Effect.Effect<void> =>
+  Effect.gen(function* () {
+    if (exactness?.at === at || buildingExact === at) return
+    buildingExact = at
+
+    const { exactly, readable } = yield* exactEngine()
+    const library = yield* standardLibrary()
+
+    const wanted = new Map<string, string>()
+    for (const [path, text] of files) if (readable(path)) wanted.set(`/${path}`, text)
+
+    exactness = { at, exact: exactly(wanted, library) }
+  }).pipe(
+    Effect.catch(() => Effect.void),
+    Effect.ensuring(
+      Effect.sync(() => {
+        buildingExact = null
+      })
+    )
+  )
+
+/** The archive again, for a repository whose Ledger came off disk without it. */
+const exactFrom = (work: LedgerWarmWork, at: string): Effect.Effect<void> =>
+  archive(work.owner, work.repo, work.sha).pipe(
+    Effect.flatMap((bytes) => beExact(at, filesIn(bytes))),
+    Effect.catch(() => Effect.void)
+  )
+
 /** What is being read now, so two asks do not read a repository twice. */
 let warming: { readonly at: string; readonly work: Effect.Effect<LedgerWarmth> } | null = null
 
@@ -173,6 +272,10 @@ const read = (work: LedgerWarmWork, at: string): Effect.Effect<LedgerWarmth> =>
       if (whollyKnown(manifest, known)) {
         const files = byPath(manifest, known)
         hold(kept(at, files, 0))
+        // The exact tier needs the files themselves, which a manifest does not
+        // carry. Answering off disk is the fast path and stays the fast path;
+        // a reader who asked for exactness pays one archive for it.
+        if (work.exact === true) yield* Effect.forkDetach(exactFrom(work, at))
         yield* store
           .keepManifest({ ...manifest, seen: Date.now() })
           .pipe(Effect.catch(() => Effect.void))
@@ -208,6 +311,10 @@ const read = (work: LedgerWarmWork, at: string): Effect.Effect<LedgerWarmth> =>
     }
 
     hold(kept(at, files, whole.size - files.size))
+
+    // After the answer, never before it. The tier below is already answering,
+    // and this is a second of work that makes those answers better.
+    if (work.exact === true) yield* Effect.forkDetach(beExact(at, whole))
 
     yield* store.keepTold(fresh).pipe(Effect.catch(() => Effect.void))
     yield* store
@@ -284,8 +391,33 @@ const named = (work: LedgerNamesWork): LedgerPlaces => {
 
 /** Everywhere in the repository that means one Writing. */
 const across = (work: LedgerAcrossWork): LedgerAcross => {
-  const ledger = holding(keyOf({ owner: work.owner, repo: work.repo }, work.sha))
+  const at = keyOf({ owner: work.owner, repo: work.repo }, work.sha)
+  const ledger = holding(at)
   if (ledger === undefined) return { uses: [], ready: false }
+
+  /*
+   * The exact tier where there is one, and it answers a different question:
+   * not "which files hold this word" but "which of them mean this thing". Every
+   * answer it gives is Sure, and the ones it leaves out are the ones the tier
+   * below would have offered as Likely and been wrong about.
+   */
+  const exact = exactness?.at === at ? exactness.exact : null
+  if (exact !== null) {
+    const found = exact.usesAt({ path: `/${work.path}`, line: work.line, column: work.column ?? 0 })
+    if (found.length > 0) {
+      return {
+        ready: true,
+        exact: true,
+        uses: found.slice(0, work.most ?? 200).map((one) => ({
+          path: one.path.replace(/^\//, ""),
+          line: one.line,
+          from: one.column + 1,
+          to: one.column + 1 + work.name.length,
+          sure: true
+        }))
+      }
+    }
+  }
 
   const asked: Asked = { name: work.name, path: work.path, line: work.line }
   return {
