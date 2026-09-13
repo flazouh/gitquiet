@@ -15,9 +15,18 @@
 
 import { Data, type Effect, type Option } from "effect"
 import type { Place } from "../ledger/ledger"
+import type { Found as AcrossUse } from "../ledger/uses"
 import type { Borrowed, Use, Writing } from "../ledger/writings"
 
 export type { Place } from "../ledger/ledger"
+/**
+ * One Use across a repository, renamed on the way through.
+ *
+ * `Found` is taken here by the two-kinds answer to where a Name is written, and
+ * a port with two of them is a port where a reader has to check which one a
+ * signature means.
+ */
+export type { Found as AcrossUse } from "../ledger/uses"
 export type { Borrowed, Found, Use, Writing, WritingKind } from "../ledger/writings"
 
 /**
@@ -97,6 +106,20 @@ export type Ledger = {
     query: string,
     most?: number
   ) => Effect.Effect<Places, LedgerUnavailable>
+  /**
+   * Everywhere in the repository that means one Writing.
+   *
+   * The question a file cannot answer about itself. Needs a Ledger, and says so
+   * rather than answering with the little it could see: an empty list and a
+   * list that has not been read are different things to a reader deciding
+   * whether a name is safe to change.
+   */
+  readonly usesAcross: (
+    repo: Repo,
+    sha: string,
+    asked: { readonly name: string; readonly path: string; readonly line: number },
+    most?: number
+  ) => Effect.Effect<Across, LedgerUnavailable>
 }
 
 /** Which repository, said the way every other port here says it. */
@@ -108,6 +131,12 @@ export type Warmth = {
   readonly read?: number
   readonly skipped?: number
   readonly why?: string
+}
+
+/** Uses across a repository, and whether there is a Ledger to have found them in. */
+export type Across = {
+  readonly uses: ReadonlyArray<AcrossUse>
+  readonly ready: boolean
 }
 
 /** Writings across a repository, and whether there is a Ledger to have found them in. */

@@ -1,12 +1,12 @@
 # Spec: Following
 
-Status: built. 009 answered the question it asked; 010, 011 and 012 are carried out. A name
-follows to where it is written — in its own file by scope, in a file it was imported from by what
-that file states — on a repository's front page and in a pull request's diff, with the card, the
-Peek, the outline, Uses, Go to File and Go to Name over a repository read whole out of its
-archive. What is not built is written at the end of `plans/012-the-ledger.md`: the index is kept
-in memory rather than on disk, Uses is this file's rather than the repository's, and no answer
-this feature gives has ever been a guess. The vocabulary below is this file's own until something answers
+Status: built, and kept. A name follows to where it is written — in its own file by scope, in a
+file it was imported from by what that file states — on a repository's front page and in a pull
+request's diff, with the card, the Peek, the outline, Uses across the repository, Go to File and
+Go to Name. The Ledger is kept between visits under git's own name for each file's contents, so a
+repository is read once: `honojs/hono` is 386 files and 3.7 seconds the first time and 190
+milliseconds in a new browser, with nothing fetched. Plans 009 to 012 are how it was carried out
+and what each got wrong. The vocabulary below is this file's own until something answers
 to it; it moves into `CONTEXT.md` when the first Writing is Followed on a real page.
 
 Covers no new address. Every screen that already draws code is in scope —
@@ -89,9 +89,10 @@ it; a reader who is not will stop trusting either.
 _Avoid_: search-based, fuzzy, heuristic, best guess.
 
 **Ledger**:
-Every Writing and Use a repository holds, kept a file at a time under that file's blob sha
-rather than under a commit. Two branches of one repository share every file they have not
-changed, and a new commit costs only the files it touched.
+What a repository's files say, kept a file at a time under that file's blob sha rather than under
+a commit. Two branches of one repository share every file they have not changed, and a new commit
+costs only the files it touched. Kept between visits, so a repository is read once rather than
+once a visit.
 _Avoid_: index, database, symbol table, cache.
 
 **Warm**:
@@ -119,10 +120,11 @@ line, the comment written above it where there is one, `path:line`, and whether 
 Likely. The card is the same hover card the interface already uses for a person
 (`@radix-ui/react-hover-card`, already a dependency).
 
-Uses open on `u`, about the name the pointer is on, with the line each one is written on so a
-call can be told from a declaration without going to look. This file's, not the repository's:
-Uses across a repository is a question for a Ledger kept per file rather than per repository, and
-`plans/012-the-ledger.md` says what that would take.
+Uses open on `u`, about the name the pointer is on. This file's first, with the line each one is
+written on so a call can be told from a declaration without going to look — and those are exact,
+because this file is parsed. Then the repository's, from the Ledger, each marked Sure or Likely:
+a file that states it borrowed this name from this file is Sure, a file that merely holds the same
+word is Likely, and a file that binds its own name of that spelling is not listed at all.
 
 Three ways in from the keyboard, in every profile that has keys at all:
 

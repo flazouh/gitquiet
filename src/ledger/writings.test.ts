@@ -1,7 +1,15 @@
 import { beforeAll, describe, expect, test } from "bun:test"
 import { Language, Parser } from "web-tree-sitter"
 import type { Syntax } from "./syntax"
-import { usesIn, writingAt, writingNamed, writingsIn, type Found, type Writing } from "./writings"
+import {
+  toldBy,
+  usesIn,
+  writingAt,
+  writingNamed,
+  writingsIn,
+  type Found,
+  type Writing
+} from "./writings"
 
 /**
  * The resolver, against the real TypeScript grammar.
@@ -262,5 +270,42 @@ describe("what another file asks of this one", () => {
 
   test("does not confuse a name with another one in the same file", () => {
     expect(writingNamed(other, OTHER, "unused")?.line).toBe(4)
+  })
+})
+
+describe("what a Ledger keeps about one file", () => {
+  test("holds every word that could be a name, with where it is", () => {
+    const told = toldBy(root, SOURCE)
+
+    const shapes = told.mentions.filter((one) => one.name === "shape")
+    // Six in the fixture: the outer one and its two mentions, the inner one and
+    // its two. Mentions and not Uses — which of them means which is a question
+    // about scopes, and this is only where the words are.
+    expect(shapes).toHaveLength(6)
+    expect(shapes[0]?.line).toBe(spotOf("shape", 1).row + 1)
+  })
+
+  test("holds every name bound anywhere, locals and parameters included", () => {
+    const told = toldBy(root, SOURCE)
+
+    // `writingsIn` leaves these out — an outline is what a file offers. A
+    // Ledger needs them for the opposite question: whether another file's
+    // `given` is this file's at all.
+    expect(told.declares).toContain("given")
+    expect(told.declares).toContain("inner")
+    expect(told.declares).toContain("shape")
+    expect(told.declares).toContain("elsewhere")
+  })
+
+  test("holds what the file borrowed, and from where", () => {
+    const told = toldBy(root, SOURCE)
+
+    expect(told.borrows).toContainEqual({ name: "two", specifier: "./whole" })
+    expect(told.borrows).toContainEqual({ name: "default", specifier: "./whole" })
+    expect(told.borrows).toContainEqual({ name: "elsewhere", specifier: "./elsewhere" })
+  })
+
+  test("holds the same outline `writingsIn` answers with, and not a second one", () => {
+    expect(toldBy(root, SOURCE).writings).toEqual(writingsIn(root, SOURCE))
   })
 })

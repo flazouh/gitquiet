@@ -9,22 +9,30 @@
 
 import { Effect } from "effect"
 import { filesIn, unzipped } from "@/ledger/archive"
-import { everyPlace, kept, keyOf, type Kept } from "@/ledger/ledger"
+import { blobSha } from "@/ledger/blob"
+import { byPath, manifestOf, stillToRead, whollyKnown, type Named } from "@/ledger/keeping"
+import { everyPlace, kept, keyOf, worthReading, type Kept } from "@/ledger/ledger"
+import { heldIn, holdIn, holdingOf } from "@/ledger/holding"
+import { idbStore, noStore, type Store } from "@/ledger/store"
+import { usesAcross, type Asked } from "@/ledger/uses"
 import { parsed, ready, reader, type Shelf } from "@/ledger/parse"
 import { findingFile } from "@/domain/findingFile"
 import {
+  isLedgerAcrossWork,
   isLedgerNamesWork,
   isLedgerWarmWork,
   isLedgerWork,
   LEDGER_ANSWER,
   type LedgerAnswer,
+  type LedgerAcross,
+  type LedgerAcrossWork,
   type LedgerNamesWork,
   type LedgerPlaces,
   type LedgerWarmth,
   type LedgerWarmWork,
   type LedgerWork
 } from "@/ledger/protocol"
-import { usesIn, writingAt, writingNamed, writingsIn } from "@/ledger/writings"
+import { toldBy, usesIn, writingAt, writingNamed, writingsIn, type Told } from "@/ledger/writings"
 
 const shelf = (): Shelf => {
   const getURL = browser.runtime.getURL as (path: string) => string
@@ -73,21 +81,34 @@ browser.runtime.onMessage.addListener((message: unknown) => {
 
 
 /**
- * The Ledger, once per commit, for as long as this document lives.
+ * The Ledgers this document is holding, newest read last.
  *
- * In memory and not on disk. A kept index belongs in IndexedDB — it is what
- * would make the second visit to a repository free — and that is not built:
- * this is the thing it would be built out of, and it is worth having working
- * before it is worth having saved. The document outlives every page a reader
- * opens, so a review spent moving between files pays for the read once.
- *
- * One commit at a time. A reader looking at two repositories at once is rarer
- * than a reader whose browser is holding two repositories' worth of names.
+ * More than one, because a reader moves between repositories and the one they
+ * came back to should not have to be read again. Three, which is a guess at how
+ * many a person has open at once and is cheap to be wrong about in one
+ * direction: what is let go of is on disk, and coming back to it is a list read
+ * rather than an archive fetched.
  */
-let ledger: Kept | null = null
+const ledgers = holdingOf<Kept>()
+
+/** How many Ledgers to hold in this document, and how many commits to keep on disk. */
+const IN_MEMORY = 3
+const ON_DISK = 20
+
+const holding = (at: string): Kept | undefined => heldIn(ledgers, at)
+const hold = (built: Kept): void => holdIn(ledgers, built.at, built, IN_MEMORY)
 
 /** What is being read now, so two asks do not read a repository twice. */
 let warming: { readonly at: string; readonly work: Effect.Effect<LedgerWarmth> } | null = null
+
+/**
+ * Where a Ledger is kept between visits.
+ *
+ * IndexedDB, unless this browser has none — in which case nothing is kept and
+ * every visit reads the repository, which is what this feature did before any
+ * of it was written and is slower rather than broken.
+ */
+const store: Store = typeof indexedDB === "undefined" ? noStore : idbStore
 
 /**
  * The archive, on the session this browser already has.
@@ -116,30 +137,108 @@ const archive = (owner: string, repo: string, sha: string): Effect.Effect<Uint8A
   return asked("include").pipe(Effect.catch(() => asked("omit")))
 }
 
+/** Every file of the archive worth reading, under git's name for its contents. */
+const namesFor = (files: ReadonlyMap<string, string>): Effect.Effect<ReadonlyArray<Named>, unknown> =>
+  Effect.forEach(
+    [...files].filter(([path, text]) => worthReading(path, text)),
+    ([path, text]) => blobSha(text).pipe(Effect.map((sha) => ({ path, sha, text }))),
+    { concurrency: 8 }
+  )
+
+/**
+ * A repository read, off disk where it can be and off the network where it
+ * cannot.
+ *
+ * Three ways this ends, cheapest first:
+ *
+ *   1. The commit is on disk whole. Nothing is fetched and nothing is parsed —
+ *      a list of forty-character names, and what each one says.
+ *   2. The commit is new but its files are not. A push touched four files; the
+ *      other four hundred already have sayings under the names they still have.
+ *   3. Nothing is known. The archive, once.
+ */
+const read = (work: LedgerWarmWork, at: string): Effect.Effect<LedgerWarmth> =>
+  Effect.gen(function* () {
+    const where = shelf()
+    yield* ready(where)
+    const outline = yield* reader(where, (root, text) => toldBy(root, text))
+
+    const manifest = yield* store.manifest(at).pipe(Effect.catch(() => Effect.succeed(null)))
+
+    if (manifest !== null) {
+      const known = yield* store
+        .told(manifest.files.map(([, sha]) => sha))
+        .pipe(Effect.catch(() => Effect.succeed(new Map<string, Told>())))
+
+      if (whollyKnown(manifest, known)) {
+        const files = byPath(manifest, known)
+        hold(kept(at, files, 0))
+        yield* store
+          .keepManifest({ ...manifest, seen: Date.now() })
+          .pipe(Effect.catch(() => Effect.void))
+        return { ready: true, read: files.size, skipped: 0, kept: true } satisfies LedgerWarmth
+      }
+    }
+
+    const bytes = yield* archive(work.owner, work.repo, work.sha)
+    const whole = filesIn(bytes)
+    const named = yield* namesFor(whole)
+
+    const already = yield* store
+      .told(named.map((one) => one.sha))
+      .pipe(Effect.catch(() => Effect.succeed(new Map<string, Told>())))
+
+    const toRead = stillToRead(named, new Set(already.keys()))
+    const fresh = new Map<string, Told>()
+    for (const file of toRead) {
+      const told = outline(file.path, file.text)
+      if (told !== null) fresh.set(file.sha, told)
+    }
+
+    const known = new Map([...already, ...fresh])
+    // Only the files something could be said about. A `.md` has no grammar
+    // here, and a commit's manifest that named it would be a commit that could
+    // never be answered off disk.
+    const held = named.filter((one) => known.has(one.sha))
+
+    const files = new Map<string, Told>()
+    for (const one of held) {
+      const told = known.get(one.sha)
+      if (told !== undefined) files.set(one.path, told)
+    }
+
+    hold(kept(at, files, whole.size - files.size))
+
+    yield* store.keepTold(fresh).pipe(Effect.catch(() => Effect.void))
+    yield* store
+      .keepManifest(manifestOf(at, held, Date.now()))
+      .pipe(Effect.catch(() => Effect.void))
+    yield* store.forgetBeyond(ON_DISK).pipe(Effect.catch(() => Effect.succeed(0)))
+
+    return {
+      ready: true,
+      read: files.size,
+      skipped: whole.size - files.size,
+      parsed: fresh.size
+    } satisfies LedgerWarmth
+  }).pipe(
+    Effect.catch((cause) => Effect.succeed({ ready: false, why: String(cause) } satisfies LedgerWarmth))
+  )
+
 const warm = (work: LedgerWarmWork): Effect.Effect<LedgerWarmth> =>
   Effect.gen(function* () {
     const at = keyOf({ owner: work.owner, repo: work.repo }, work.sha)
-    if (ledger?.at === at) {
-      return { ready: true, read: ledger.read, skipped: ledger.skipped }
+
+    const found = holding(at)
+    if (found !== undefined) {
+      return { ready: true, read: found.read, skipped: found.skipped, kept: true }
     }
     // Already on its way. The second asker waits on the first's read rather
     // than starting a second one, which on a large repository is ten megabytes
     // fetched twice.
     if (warming?.at === at) return yield* warming.work
 
-    const reading = Effect.gen(function* () {
-      const where = shelf()
-      yield* ready(where)
-      const outline = yield* reader(where, (root, text) => writingsIn(root, text))
-
-      const bytes = yield* archive(work.owner, work.repo, work.sha)
-      const files = filesIn(bytes)
-
-      const built = kept(at, files, (path, text) => outline(path, text) ?? [])
-      ledger = built
-      return { ready: true, read: built.read, skipped: built.skipped } satisfies LedgerWarmth
-    }).pipe(
-      Effect.catch((cause) => Effect.succeed({ ready: false, why: String(cause) } satisfies LedgerWarmth)),
+    const reading = read(work, at).pipe(
       Effect.ensuring(
         Effect.sync(() => {
           warming = null
@@ -161,8 +260,8 @@ const warm = (work: LedgerWarmWork): Effect.Effect<LedgerWarmth> =>
  * name into.
  */
 const named = (work: LedgerNamesWork): LedgerPlaces => {
-  const at = keyOf({ owner: work.owner, repo: work.repo }, work.sha)
-  if (ledger === null || ledger.at !== at) return { places: [], ready: false }
+  const ledger = holding(keyOf({ owner: work.owner, repo: work.repo }, work.sha))
+  if (ledger === undefined) return { places: [], ready: false }
 
   const places = everyPlace(ledger)
   if (work.query.trim() === "") {
@@ -183,8 +282,21 @@ const named = (work: LedgerNamesWork): LedgerPlaces => {
   }
 }
 
+/** Everywhere in the repository that means one Writing. */
+const across = (work: LedgerAcrossWork): LedgerAcross => {
+  const ledger = holding(keyOf({ owner: work.owner, repo: work.repo }, work.sha))
+  if (ledger === undefined) return { uses: [], ready: false }
+
+  const asked: Asked = { name: work.name, path: work.path, line: work.line }
+  return {
+    uses: usesAcross(ledger.files, asked, new Set(ledger.files.keys()), work.most ?? 200),
+    ready: true
+  }
+}
+
 browser.runtime.onMessage.addListener((message: unknown) => {
   if (isLedgerWarmWork(message)) return Effect.runPromise(warm(message))
   if (isLedgerNamesWork(message)) return Effect.runPromise(Effect.sync(() => named(message)))
+  if (isLedgerAcrossWork(message)) return Effect.runPromise(Effect.sync(() => across(message)))
   return undefined
 })

@@ -20,9 +20,11 @@ import {
 } from "@/markdown/mermaidProtocol"
 import { browserSettings } from "@/settings/browserStore"
 import {
+  isLedgerAcross,
   isLedgerAsk,
   isLedgerNames,
   isLedgerWarm,
+  LEDGER_ACROSS_WORK,
   LEDGER_NAMES_WORK,
   LEDGER_WARM_WORK,
   LEDGER_WORK,
@@ -223,6 +225,11 @@ export default defineBackground(() => {
     if (isLedgerNames(message)) {
       return Effect.runPromise(
         relay({ ...message, kind: LEDGER_NAMES_WORK }, { places: [], ready: false })
+      )
+    }
+    if (isLedgerAcross(message)) {
+      return Effect.runPromise(
+        relay({ ...message, kind: LEDGER_ACROSS_WORK }, { uses: [], ready: false })
       )
     }
     if (isWasmProbe(message)) {

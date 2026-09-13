@@ -120,6 +120,17 @@ const staged = (
         { line: 2, from: 7, to: 12 },
         { line: 4, from: 1, to: 6 }
       ]),
+    usesAcross: () =>
+      Effect.succeed({
+        ready: true,
+        uses: [
+          // The file being read answers for itself, exactly, a few lines up in
+          // the panel. This one must not be listed twice.
+          { path: "src/one.ts", line: 2, from: 7, to: 12, sure: true },
+          { path: "src/other.ts", line: 14, from: 3, to: 8, sure: true },
+          { path: "src/guessed.ts", line: 3, from: 1, to: 6, sure: false }
+        ]
+      }),
     warm: () => Effect.succeed({ ready: true, read: 0, skipped: 0 }),
     namesLike: () => Effect.succeed({ places: [], ready: true })
   }
@@ -571,5 +582,66 @@ describe("everywhere in this file that means the same name", () => {
     await userEvent.keyboard("u")
 
     expect(screen.queryByText("2 in this file")).toBeNull()
+  })
+})
+
+describe("uses across the repository", () => {
+  const withRepo = (): Across => ({
+    paths: new Set(["src/one.ts", "src/other.ts"]),
+    repo: { owner: "flowline-labs", repo: "flowline" },
+    sha: "abc123",
+    read: () => Effect.succeed(""),
+    open: () => {}
+  })
+
+  test("lists the rest of the repository under this file's own", async () => {
+    const stage = staged(writing, [], { across: withRepo() })
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    await userEvent.keyboard("u")
+    await Effect.runPromise(settled())
+
+    expect(await screen.findByText("Elsewhere in the repository")).toBeTruthy()
+    expect(screen.getByText("src/other.ts")).toBeTruthy()
+  })
+
+  test("says which of them is Sure and which is only Likely", async () => {
+    const stage = staged(writing, [], { across: withRepo() })
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    await userEvent.keyboard("u")
+    await Effect.runPromise(settled())
+
+    // A reader deciding whether a rename is safe needs to know which is which.
+    expect(screen.getByText("Likely")).toBeTruthy()
+    expect(screen.getAllByText("Sure").length).toBeGreaterThan(0)
+  })
+
+  test("does not list this file twice, once exactly and once by a rule", async () => {
+    const stage = staged(writing, [], { across: withRepo() })
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    await userEvent.keyboard("u")
+    await Effect.runPromise(settled())
+
+    expect(screen.queryByText("src/one.ts")).toBeNull()
+  })
+
+  test("asks nothing of a repository where the screen does not know one", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    await userEvent.keyboard("u")
+    await Effect.runPromise(settled())
+
+    expect(screen.queryByText("Elsewhere in the repository")).toBeNull()
   })
 })

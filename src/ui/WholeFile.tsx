@@ -293,6 +293,11 @@ export const WholeFile = ({
           reading={{ path, text: asking.text }}
           onGo={(line) => showLine(host.current?.shadowRoot ?? null, line)}
           onClose={() => setAsking(null)}
+          across={
+            across?.repo === undefined || across.sha === undefined
+              ? undefined
+              : { repo: across.repo, sha: across.sha, open: across.open }
+          }
         />
       )}
       {naming ? (
