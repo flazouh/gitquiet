@@ -1,0 +1,103 @@
+/**
+ * Builds what has to be built beside the extension rather than into it: the
+ * Ledger's parser and grammars, and plan 009's probe.
+ *
+ *     bun scripts/build-wasm-probe.ts    (and as part of `bun run build`)
+ *
+ * The grammars are files rather than imports. A content script inlines every
+ * dynamic import into one file — the finding that cost 10.6MB once already, see
+ * `src/diff/shiki.ts` — and a grammar is a megabyte and a half a reader who
+ * never holds Command must not download. So they are copied into `public/`,
+ * which WXT copies verbatim, and fetched by name at our own origin.
+ *
+ * The worker is bundled the way the diff renderer is — vite in library mode,
+ * into `public/`, which WXT copies verbatim — because a worker started from an
+ * extension URL needs one file at a path the manifest publishes, and
+ * `web-tree-sitter` is a bare import that has to be resolved before then.
+ */
+
+import { fileURLToPath } from "node:url"
+import { mkdir } from "node:fs/promises"
+import { build } from "vite"
+
+const here = (path: string) => fileURLToPath(new URL(path, import.meta.url))
+
+await build({
+  configFile: false,
+  publicDir: false,
+  build: {
+    outDir: here("../public"),
+    emptyOutDir: false,
+    target: "chrome120",
+    lib: {
+      entry: here("../src/wasm-probe/worker.ts"),
+      formats: ["es"],
+      fileName: () => "wasm-probe-worker.js"
+    },
+    rollupOptions: { output: { codeSplitting: false } }
+  },
+  logLevel: "warn"
+})
+
+await mkdir(here("../public/wasm-probe"), { recursive: true })
+await mkdir(here("../public/ledger"), { recursive: true })
+
+/**
+ * The runtime, the grammar and something real to parse.
+ *
+ * The sample is this repository's own `place.ts` rather than a snippet: the
+ * question is what a file somebody actually opens costs, and a ten-line example
+ * would answer a question nobody asked.
+ */
+/**
+ * The Ledger's own, which ship. One language, which is plan 011's whole scope.
+ *
+ * `@vscode/tree-sitter-wasm` rather than `tree-sitter-wasms`, and the difference
+ * is not taste. A grammar is a WebAssembly side module naming its imports in a
+ * `dylink` custom section; Emscripten renamed that section to `dylink.0` years
+ * ago, and the loader in web-tree-sitter 0.27 reads only the new name.
+ * `tree-sitter-wasms@0.1.13` still ships the old one, so every grammar in it
+ * fails to load with `need dylink section` — which reads as a policy refusing a
+ * module and is nothing of the kind. These are `dylink.0`, and 40% smaller
+ * besides: 1.41MB against 2.34MB for TypeScript.
+ */
+const LEDGER: ReadonlyArray<readonly [string, string]> = [
+  ["../node_modules/web-tree-sitter/web-tree-sitter.wasm", "web-tree-sitter.wasm"],
+  [
+    "../node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-typescript.wasm",
+    "tree-sitter-typescript.wasm"
+  ],
+  ["../node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-tsx.wasm", "tree-sitter-tsx.wasm"],
+  [
+    "../node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-javascript.wasm",
+    "tree-sitter-javascript.wasm"
+  ]
+]
+
+/**
+ * The probe's own, which is a file to parse and nothing else.
+ *
+ * It reads the runtime and the grammar out of `ledger/` rather than keeping
+ * copies: the probe shares the Ledger's document, and it should be compiling the
+ * same bytes the product compiles or it is not asking the product's question.
+ *
+ * The sample is this repository's own `place.ts` rather than a snippet, because
+ * the question is what a file somebody actually opens costs.
+ */
+const copies: ReadonlyArray<readonly [string, string]> = [
+  ["../src/ui/place.ts", "sample.txt"]
+]
+
+for (const [from, to] of copies) {
+  const file = Bun.file(here(from))
+  await Bun.write(here(`../public/wasm-probe/${to}`), file)
+  console.log(`wasm-probe/${to}  ${file.size} bytes`)
+}
+
+for (const [from, to] of LEDGER) {
+  const file = Bun.file(here(from))
+  await Bun.write(here(`../public/ledger/${to}`), file)
+  console.log(`ledger/${to}  ${file.size} bytes`)
+}
+
+console.log("built public/wasm-probe-worker.js")

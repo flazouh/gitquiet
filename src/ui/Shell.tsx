@@ -28,6 +28,8 @@ import type { Keys } from "../keys/commands"
 import { CommitView } from "./CommitView"
 import { BroughtIn } from "./BroughtIn"
 import { FileBrowser } from "./FileBrowser"
+import type { Across } from "./following"
+import { GoToName } from "./GoToName"
 import { Header } from "./Header"
 import { About } from "./About"
 import type { Answering } from "./ThreadView"
@@ -369,6 +371,55 @@ export const Shell = ({
     [readWholeFile, snapshot.baseSha, snapshot.headSha]
   )
 
+  /*
+   * Following across files, in a pull request.
+   *
+   * The three things `Across` wants are all already here for Brought In: every
+   * path at the head, how to read one, and what opening one means — which on
+   * this screen is `wanted`, the same mechanism a file named in a failing log
+   * is opened by.
+   *
+   * The paths are read once, when the first borrowed name is followed, and not
+   * on the chance that one will be. `keptReads` in the screen above makes the
+   * second ask free.
+   */
+  const [paths, setPaths] = useState<ReadonlySet<string>>(() => new Set())
+
+  /*
+   * Where the paths come from, and why they are read late.
+   *
+   * A repository's whole tree is one large answer — seven thousand paths on
+   * `facebook/react` — and most reviews never follow a name out of the diff. So
+   * the read happens on the first Follow that needs it and not before, and the
+   * screen above keeps the answer, so the second name costs nothing.
+   */
+  const reachOut = useCallback(() => {
+    if (readPaths === undefined) return
+    Effect.runFork(
+      readPaths(snapshot.headSha).pipe(
+        Effect.map((found) => setPaths(new Set(found))),
+        Effect.catch(() => Effect.void)
+      )
+    )
+  }, [readPaths, snapshot.headSha])
+
+  useEffect(() => {
+    setPaths(new Set())
+  }, [snapshot.headSha])
+
+  const across = useMemo(
+    (): Across | undefined =>
+      readPaths === undefined || readWholeFile === undefined
+        ? undefined
+        : {
+            paths,
+            read: (path) => readWholeFile(snapshot.headSha, path),
+            open: (path, line) => setWanted({ path, line }),
+            reach: reachOut
+          },
+    [paths, readPaths, readWholeFile, snapshot.headSha, reachOut]
+  )
+
   const onPost = useMemo(
     () =>
       postComment === undefined
@@ -570,6 +621,17 @@ export const Shell = ({
   const chosenKeys = useMemo(() => keysOf(settled), [settled])
   const keying = keys ?? chosenKeys
 
+  /*
+   * Go to name, on a pull request as well as on a repository's front page.
+   *
+   * The same key for the same act on both, which is the only way a key is worth
+   * learning. Where it lands differs because the screens differ: there it opens
+   * the file beside the tree, here it is `wanted` — the same mechanism a file
+   * named in a failing log is opened by.
+   */
+  const [namingRepo, setNamingRepo] = useState(false)
+  useKeys(keying, { goToName: () => setNamingRepo(true) })
+
   // Every dialog and menu of ours is drawn inside this, and the keyboard asks
   // it — rather than the page — what the reader has open.
   const [ours, setOurs] = useState<HTMLElement | null>(null)
@@ -603,6 +665,14 @@ export const Shell = ({
     <KeyboardScope value={ours}>
       <div ref={setOurs} data-gitquiet-landed={landed ? "" : undefined} className="flex flex-col pt-2">
         <PageKeys keys={keying} onDismiss={() => setReading(undefined)} />
+        {namingRepo ? (
+          <GoToName
+            repo={snapshot.reference}
+            sha={snapshot.headSha}
+            onOpen={(place) => setWanted({ path: place.path, line: place.writing.line })}
+            onClose={() => setNamingRepo(false)}
+          />
+        ) : null}
         {/* Above the header, where GitHub's banner about the same thing stands.
             It is drawn at all only where they offer a stack and nobody has made
             one, so every ordinary pull request and every layer of a real stack
@@ -693,6 +763,7 @@ export const Shell = ({
                   suggest={suggest}
                   onUpload={onUpload}
                   revealing={revealing}
+                  across={across}
                   onBringIn={
                     readPaths === undefined || readWholeFile === undefined
                       ? undefined

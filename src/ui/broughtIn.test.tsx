@@ -25,6 +25,8 @@ const handle: DiffHandle = {
   onThemeChange: () => {},
   showNotes: () => {},
   unpick: () => {},
+  mark: () => {},
+  boundsOf: () => null,
   destroy: () => {}
 }
 

@@ -6,6 +6,7 @@ import { FileAlso } from "./FileAlso"
 import { FileMark } from "./FileHeading"
 import { Markdown } from "./Markdown"
 import { type Way, Ways } from "./Ways"
+import type { Across } from "./following"
 import { WholeFile } from "./WholeFile"
 
 export type ReadingProps = {
@@ -23,6 +24,8 @@ export type ReadingProps = {
    * rather than a branch that will move.
    */
   readonly head?: string
+  /** How to reach the repository's other files, for a name borrowed from one. */
+  readonly across?: Across
 }
 
 /**
@@ -61,7 +64,8 @@ export const Reading = ({
   failed = false,
   repo,
   branch,
-  head
+  head,
+  across
 }: ReadingProps) => {
   const [way, setWay] = useState<"rendered" | "source">("rendered")
 
@@ -123,7 +127,7 @@ export const Reading = ({
             />
           </div>
         ) : (
-          <WholeFile path={opened.path} lines={opened.lines} />
+          <WholeFile path={opened.path} lines={opened.lines} across={across} />
         )}
       </div>
     </section>

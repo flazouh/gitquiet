@@ -30,6 +30,7 @@ import { chordFor, type Keys } from "../keys/commands";
 import { Cap } from "./Cap";
 import { draftsIn, dropDraft, saveDraft, type Draft } from "./drafts";
 import { FileDiffPane, FileTreePane, type FileDiffPaneProps } from "./Files";
+import type { Across } from "./following";
 import type { Revealer } from "../app/revealing";
 import { FileHeading } from "./FileHeading";
 import { Counts } from "./Counts";
@@ -99,6 +100,13 @@ export type FileBrowserProps = {
    * out between the hunks. See `src/app/revealing.ts`.
    */
   readonly revealing?: Revealer;
+  /**
+   * How to reach the repository's other files, for a name borrowed from one.
+   *
+   * Handed down to every diff pane. Absent where the screen does not know its
+   * repository's paths, and then a borrowed name has no underline.
+   */
+  readonly across?: Across;
   /**
    * Opens a file the pull request did not change, to read and to quote from.
    *
@@ -206,6 +214,7 @@ const WAYS = [
 
 type DrawingProps = {
   readonly file: ChangedFile;
+  readonly across?: Across;
   readonly open: boolean;
   readonly ask: (path: string) => Effect.Effect<Option.Option<FileDiff>>;
   readonly reading: boolean;
@@ -248,6 +257,7 @@ const Drawing = memo(
     suggest,
     onUpload,
     revealing,
+    across,
   }: DrawingProps) => {
     const heldDrafts = useMemo(() => draftsIn(drafts, file.path), [drafts, file.path]);
     const post = useMemo<FileDiffPaneProps["onPost"]>(
@@ -295,6 +305,7 @@ const Drawing = memo(
           suggest={suggest}
           onUpload={onUpload}
           revealing={revealing}
+          across={across}
         />
       </div>
     );
@@ -325,6 +336,7 @@ export const FileBrowser = ({
   suggest,
   onUpload,
   revealing,
+  across,
   onBringIn,
   review,
   onReading,
@@ -1164,6 +1176,7 @@ export const FileBrowser = ({
                     suggest={suggest}
                     onUpload={onUpload}
                     revealing={revealing}
+                    across={across}
                   />
                 ))}
           </div>

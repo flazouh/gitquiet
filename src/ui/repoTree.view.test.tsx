@@ -383,25 +383,15 @@ describe("what a folder's column costs", () => {
   })
 
   /*
-   * A hunt opens every folder holding a match. Asking each one for its own
-   * column is one request per folder revealed, on every keystroke — hundreds of
-   * them on a large repository, for a reader who is reading names.
+   * There was a test here about what a hunt costs: the field over this tree
+   * opened every folder holding a match, and asking each one for its own commit
+   * column was a request per folder revealed, on every keystroke. The rule it
+   * pinned was that a folder opened by a hunt asks for nothing.
+   *
+   * Both are gone with the hunt itself — finding a file by name is Go to File's
+   * now. A folder is opened by a reader pressing it, one at a time, and a column
+   * per press is the cost the test above says it is happy to pay.
    */
-  test("asks for nothing when a hunt is what opened the folders", async () => {
-    const asked: Array<string> = []
-    showing({
-      loadPaths: () => Effect.succeed(deep),
-      loadTouches: (_sha, folder) => Effect.sync(() => asked.push(folder)).pipe(
-        Effect.map(() => new Map<string, Touch>())
-      )
-    })
-
-    await userEvent.type(screen.getByLabelText("Find a file"), "repoHome")
-    // Three folders hold a match, and the hunt opens all three of them.
-    expect(await screen.findAllByRole("button", { name: "repoHome.ts" })).toHaveLength(3)
-
-    expect(asked).toEqual([])
-  })
 
   test("asks again for a folder whose column failed, when it is opened again", async () => {
     let attempts = 0

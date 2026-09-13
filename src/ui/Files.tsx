@@ -23,6 +23,8 @@ import { draftKey, type Draft } from "./drafts"
 import { Note } from "./Note"
 import { ProseDiff } from "./ProseDiff"
 import { useRenderer } from "./renderer"
+import { useFollowing, type Across } from "./following"
+import { FollowCard } from "./FollowCard"
 import { usePaintedTheme } from "./Theme"
 import { RAIL_CSS } from "./railCss"
 import { rowMarks, shortCount, type RowMark } from "./rowMarks"
@@ -351,6 +353,14 @@ export type FileDiffPaneProps = {
    * hunks alone. See `src/app/revealing.ts`.
    */
   readonly revealing?: Revealer
+  /**
+   * How to reach the repository's other files, for a name borrowed from one.
+   *
+   * Absent where nothing can, which is a screen that does not know its
+   * repository's paths. Then a borrowed name has no Writing, no underline, and
+   * the reader is where they were. See `Across` in `src/ui/following.ts`.
+   */
+  readonly across?: Across
   /** How the reader has asked for diffs to be drawn. */
   readonly choices: DiffChoices
   /**
@@ -442,7 +452,8 @@ const FileDiffPaneView = ({
   onPicked,
   suggest,
   onUpload,
-  revealing
+  revealing,
+  across
 }: FileDiffPaneProps) => {
   const host = useRef<HTMLDivElement | null>(null)
   const painted = usePaintedTheme()
@@ -575,6 +586,32 @@ const FileDiffPaneView = ({
   )
 
   /*
+   * Following, in the place `docs/spec/following.md` says it is worth the most.
+   *
+   * A diff holds the hunks and three lines either side, so the file the Ledger
+   * needs is the one `reveal` already knows how to fetch — the same request the
+   * renderer makes when a reader presses to see more, and the same cached
+   * answer. Nothing is fetched until a reader holds the key.
+   *
+   * The new half of the file, which is the side the line numbers on an addition
+   * and a context line belong to. A Name on a deleted line is a name in a file
+   * that no longer exists at this commit, and is left alone.
+   */
+  const source = useMemo(
+    () =>
+      reveal === undefined
+        ? null
+        : {
+            path: file.path,
+            text: Effect.tryPromise({ try: reveal, catch: (cause) => cause }).pipe(
+              Effect.map((halves) => halves.after)
+            )
+          },
+    [reveal, file.path]
+  )
+  const { names, shown: following } = useFollowing(source, host, across)
+
+  /*
    * Which lines GitHub's diff for this file holds, or nothing until it lands.
    *
    * Read off `whole`, which is what GitHub sent, rather than off the patch
@@ -676,6 +713,16 @@ const FileDiffPaneView = ({
         // open a box whose Comment button cannot come up, over a draft that can be
         // saved and never sent.
         onPick: canPost ? setPicked : undefined,
+        // Only the new half. A Name on a deleted line belongs to a file this
+        // commit does not have, and answering about it would be answering about
+        // a different file than the one on the screen.
+        onName: (name, held) => {
+          if (name.side !== "deletions") names.onName(name, held)
+        },
+        onNameEnter: (name, held) => {
+          if (name.side !== "deletions") names.onNameEnter(name, held)
+        },
+        onNameLeave: names.onNameLeave,
         // The way to fetch the rest of the file, so a reader can reveal what
         // GitHub left out between the hunks. The renderer calls it on a press
         // and not before, so a file nobody expands costs no request.
@@ -684,17 +731,19 @@ const FileDiffPaneView = ({
         fillNote: (key) => rows.current.get(key)
       })
       handle.current = live
+      names.drawnBy(live)
     }
 
     const wait = afterPaint(draw)
     return () => {
       wait()
       handle.current = null
+      names.drawnBy(null)
       live?.destroy()
     }
     // Every one of these is baked into the DOM the renderer writes, so a change
     // to any of them is a file drawn again from the patch.
-  }, [engine, shown, file.path, prose, drawnWith, canPost, reveal])
+  }, [engine, shown, file.path, prose, drawnWith, canPost, reveal, names])
 
   useEffect(() => {
     handle.current?.showNotes(notes)
@@ -758,6 +807,12 @@ const FileDiffPaneView = ({
   // said by the heading the browser sticks directly above this.
   return (
     <div className="min-w-0 flex-1">
+      {/* What a name under the pointer means, while the key is held. Drawn out
+          here rather than in the shadow root the code is in, because it belongs
+          to the viewport rather than to the file. */}
+      {following === null ? null : (
+        <FollowCard writing={following.writing} at={following.at} where={following.where} />
+      )}
       {/* The rows live in the renderer's shadow DOM, under the lines they are
           about. React fills them from out here, so a comment box is a component
           like any other and keeps what is typed into it. */}

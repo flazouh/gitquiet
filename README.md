@@ -93,8 +93,15 @@ key can be changed under Settings, Keyboard.
 The standard profile stays under the left hand, because the right one is on the
 pointer for the whole of a review. The vim profile keeps `j` and `k`.
 
+Holding Command — Control off a Mac — underlines the name under the pointer where
+this can say where it is written, and a click follows it. Shift with the click
+opens it under the line instead, without leaving the file. See
+[`docs/spec/following.md`](./docs/spec/following.md).
+
 | Key | Does |
 | --- | --- |
+| `t` `T` | go to a file, or to any name the repository writes |
+| `o` `u` | the names in this file, and the uses of the one under the pointer |
 | `s` `w` | next and previous file |
 | `x` | mark the file read |
 | `A` | open the row in a tab of its own |
