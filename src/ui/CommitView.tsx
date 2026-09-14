@@ -11,6 +11,7 @@ import { revealer } from "../app/revealing"
 import { GitHubHtml } from "./GitHubHtml"
 import { ageOf, momentOf } from "./when"
 import { Who } from "./Who"
+import { onward } from "@/observability/report"
 
 export type CommitViewProps = {
   readonly sha: string
@@ -126,7 +127,7 @@ export const CommitView = ({
     Effect.runFork(
       readPaths(sha).pipe(
         Effect.map((found) => setPaths(new Set(found))),
-        Effect.catch(() => Effect.void)
+        Effect.catch(onward)
       )
     )
   }, [readPaths, sha])

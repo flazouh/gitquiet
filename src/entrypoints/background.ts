@@ -19,6 +19,7 @@ import {
   type MermaidWork
 } from "@/markdown/mermaidProtocol"
 import { browserSettings } from "@/settings/browserStore"
+import { onward } from "@/observability/report"
 import {
   isLedgerAcross,
   isLedgerAsk,
@@ -245,7 +246,7 @@ export default defineBackground(() => {
         Effect.flatMap((view) =>
           view === "github" ? Effect.void : payloadsOnTheWay(wanted.value)
         ),
-        Effect.catch(() => Effect.void),
+        Effect.catch(onward),
         Effect.catchCause(() => Effect.void)
       )
     )

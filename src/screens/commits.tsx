@@ -12,7 +12,7 @@ import { chosenView } from "@/app/settings"
 import { type CommitList, commitListIn, type History, type Stat } from "@/domain/commitList"
 import type { Participant } from "@/domain/PullRequest"
 import type { View } from "@/domain/Settings"
-import { reportError } from "@/observability/report"
+import { onward, reportError } from "@/observability/report"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { HistoryScreen } from "@/ui/HistoryScreen"
@@ -107,7 +107,7 @@ const open = (
   const askSizes = (shas: ReadonlyArray<string>, tell: (sha: string, stat: Stat) => void) =>
     loadSizes(list, shas, tell).pipe(
       throughGitHub,
-      Effect.catch(() => Effect.void)
+      Effect.catch(onward)
     )
 
   /**

@@ -5,6 +5,7 @@ import type { Bounds, DiffHandle, Modifiers, Name } from "../ports/Renderer"
 import { reaching } from "../ledger/reaching"
 import { useLedger } from "./ledger"
 import { showLine } from "./showLine"
+import { onward } from "@/observability/report"
 
 /**
  * Holding a key over code, and pressing what it underlines.
@@ -345,7 +346,7 @@ export const useFollowing = (
                   }
                 })
               }),
-              Effect.catch(() => Effect.void)
+              Effect.catch(onward)
             )
         }
 
@@ -372,7 +373,7 @@ export const useFollowing = (
           }),
           // A file that would not come, or that says nothing under that name.
           // The reader is left where they were, with no underline.
-          Effect.catch(() => Effect.void)
+          Effect.catch(onward)
         )
       }
 
@@ -386,7 +387,7 @@ export const useFollowing = (
           ),
           // A Ledger that could not answer leaves the file as it is. There is
           // nothing to tell a reader who asked for nothing.
-          Effect.catch(() => Effect.void)
+          Effect.catch(onward)
         )
       )
     },
@@ -522,7 +523,7 @@ export const useFollowing = (
     if (source === null) return
 
     const opening = Effect.runFork(
-      ledger.ready(source.path).pipe(Effect.catch(() => Effect.void))
+      ledger.ready(source.path).pipe(Effect.catch(onward))
     )
     return () => opening.interruptUnsafe()
   }, [ledger, source])

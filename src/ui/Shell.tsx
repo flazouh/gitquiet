@@ -44,6 +44,7 @@ import { addressOf, type LookingAt, lookingAt } from "../domain/lookingAt"
 import { keysOf } from "../app/keyboard"
 import { useSettings } from "./useSettings"
 import { whenIdle } from "../app/idle"
+import { onward } from "@/observability/report"
 
 export type ShellProps = {
   readonly snapshot: PullRequestSnapshot
@@ -402,7 +403,7 @@ export const Shell = ({
     Effect.runFork(
       readPaths(snapshot.headSha).pipe(
         Effect.map((found) => setPaths(new Set(found))),
-        Effect.catch(() => Effect.void)
+        Effect.catch(onward)
       )
     )
   }, [readPaths, snapshot.headSha])

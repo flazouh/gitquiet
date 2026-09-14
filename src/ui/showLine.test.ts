@@ -44,6 +44,26 @@ describe("putting a line of a diff on the screen", () => {
   })
 })
 
+/**
+ * A `<diffs-container>` holding a shadow root, however it came by one.
+ *
+ * Which of the two it is depends on whether anything has registered the element
+ * — and in a suite, that is decided by whichever file ran first. Alone, nothing
+ * has, so the element is inert and has to be given a root. After any file that
+ * pulls in Pierre's bundle, the registry is real, the element upgrades the
+ * instant it is created and has attached one already, and asking again throws
+ * `NotSupportedError`. These tests attached unconditionally and so passed alone
+ * and failed in the suite, which is the least useful way for a test to fail.
+ *
+ * Taking whichever root is there is not a workaround: it is what `shadowFor`
+ * does in the engine, for the same reason, and it makes the test true on both
+ * platforms rather than on whichever one happened to run.
+ */
+const container = (): { readonly host: Element; readonly shadow: ShadowRoot } => {
+  const host = document.createElement("diffs-container")
+  return { host, shadow: host.shadowRoot ?? host.attachShadow({ mode: "open" }) }
+}
+
 describe("the root the renderer actually drew into", () => {
   test("is the shadow root of the container it made, not of the element it was given", () => {
     // `renderDiff` makes a `<diffs-container>`, attaches the shadow root to it,
@@ -51,9 +71,8 @@ describe("the root the renderer actually drew into", () => {
     // element has no shadow root at all — which is what every caller reached
     // for, and why a press on a name scrolled nowhere.
     const pane = document.createElement("div")
-    const drawn = document.createElement("diffs-container")
-    const shadow = drawn.attachShadow({ mode: "open" })
-    pane.append(drawn)
+    const { host, shadow } = container()
+    pane.append(host)
 
     expect(pane.shadowRoot).toBeNull()
     expect(drawnIn(pane)).toBe(shadow)
@@ -61,22 +80,20 @@ describe("the root the renderer actually drew into", () => {
 
   test("finds a line through it", () => {
     const pane = document.createElement("div")
-    const drawn = document.createElement("diffs-container")
-    const shadow = drawn.attachShadow({ mode: "open" })
+    const { host, shadow } = container()
     const row = document.createElement("div")
     row.setAttribute("data-line", "42")
     shadow.append(row)
-    pane.append(drawn)
+    pane.append(host)
 
     expect(showLine(pane, 42)).toBe(true)
     expect(showLine(pane, 43)).toBe(false)
   })
 
   test("takes an element that owns its own shadow root as it is", () => {
-    const drawn = document.createElement("diffs-container")
-    const shadow = drawn.attachShadow({ mode: "open" })
+    const { host, shadow } = container()
 
-    expect(drawnIn(drawn)).toBe(shadow)
+    expect(drawnIn(host)).toBe(shadow)
   })
 
   test("answers nothing for nothing, which is a pane that has not drawn yet", () => {
@@ -88,8 +105,7 @@ describe("the root the renderer actually drew into", () => {
 describe("how it arrives", () => {
   test("says instant rather than inheriting the page's smooth", () => {
     const pane = document.createElement("div")
-    const drawn = document.createElement("diffs-container")
-    const shadow = drawn.attachShadow({ mode: "open" })
+    const { host, shadow } = container()
     const row = document.createElement("div")
     row.setAttribute("data-line", "7")
 
@@ -98,7 +114,7 @@ describe("how it arrives", () => {
       asked.push(how)
     }
     shadow.append(row)
-    pane.append(drawn)
+    pane.append(host)
 
     showLine(pane, 7)
 

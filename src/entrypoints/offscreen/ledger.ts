@@ -55,6 +55,7 @@ import {
   type Writing
 } from "@/ledger/writings"
 import type { Repo, Spot } from "@/ports/Ledger"
+import { onward } from "@/observability/report"
 
 const shelf = (): Shelf => {
   const getURL = browser.runtime.getURL as (path: string) => string
@@ -275,7 +276,7 @@ const beExact = (at: string, files: ReadonlyMap<string, string>): Effect.Effect<
     const library = yield* standardLibrary()
     exactness = { at, exact: exactly(wanted, library) }
   }).pipe(
-    Effect.catch(() => Effect.void),
+    Effect.catch(onward),
     Effect.ensuring(
       Effect.sync(() => {
         buildingExact = null
@@ -287,7 +288,7 @@ const beExact = (at: string, files: ReadonlyMap<string, string>): Effect.Effect<
 const exactFrom = (work: LedgerWarmWork, at: string): Effect.Effect<void> =>
   archive(work.owner, work.repo, work.sha).pipe(
     Effect.flatMap((bytes) => beExact(at, filesIn(bytes))),
-    Effect.catch(() => Effect.void)
+    Effect.catch(onward)
   )
 
 /**
@@ -385,7 +386,7 @@ const read = (work: LedgerWarmWork, at: string): Effect.Effect<LedgerWarmth> =>
         if (work.exact === true) yield* Effect.forkDetach(exactFrom(work, at))
         yield* store
           .keepManifest({ ...manifest, seen: Date.now() })
-          .pipe(Effect.catch(() => Effect.void))
+          .pipe(Effect.catch(onward))
         return {
           ready: true,
           read: files.size,
@@ -431,10 +432,10 @@ const read = (work: LedgerWarmWork, at: string): Effect.Effect<LedgerWarmth> =>
     // and this is a second of work that makes those answers better.
     if (work.exact === true) yield* Effect.forkDetach(beExact(at, whole))
 
-    yield* store.keepTold(fresh).pipe(Effect.catch(() => Effect.void))
+    yield* store.keepTold(fresh).pipe(Effect.catch(onward))
     yield* store
       .keepManifest(manifestOf(at, held, Date.now()))
-      .pipe(Effect.catch(() => Effect.void))
+      .pipe(Effect.catch(onward))
     yield* store.forgetBeyond(ON_DISK).pipe(Effect.catch(() => Effect.succeed(0)))
 
     return {
