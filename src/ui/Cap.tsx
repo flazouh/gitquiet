@@ -1,18 +1,10 @@
-import type { Chord } from "../keys/commands"
+import { MODIFIERS, type Chord } from "../keys/commands"
 import { useArt } from "./art"
 
 /** `Escape` is what the browser calls it and `Esc` is what a key cap says. */
 const capOf = (key: string): string => (key === "Escape" ? "Esc" : key)
 
-/**
- * The modifiers, written as the keys they are.
- *
- * The symbols rather than the words, because they are what is printed on the key the
- * reader is about to hold down. `⌘` is the only one the tables ask for today; the rest
- * are here because a chord that gains a `⇧` should not need this file reopened.
- */
-const MODIFIERS = ["⌘", "⇧", "⌥", "⌃"] as const
-
+/** Command, drawn as the glyph Cap swaps for the platform's own mark. */
 const MOD = "⌘"
 
 /**

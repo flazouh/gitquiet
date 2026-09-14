@@ -52,7 +52,8 @@ export const About = ({
   onReview,
   suggest,
   onUpload,
-  remarks
+  remarks,
+  wide = false
 }: {
   readonly snapshot: PullRequestSnapshot
   /**
@@ -96,8 +97,19 @@ export const About = ({
    * it was put there, and the snapshot it came back beside is a page older.
    */
   readonly remarks?: ReadonlyArray<Remark>
+  /**
+   * Whether this column takes the width the files panel would have taken.
+   *
+   * Fixed at twenty-six rem beside the files; full flex width when the files
+   * pane is hidden, so hiding the right side does not leave an empty column.
+   */
+  readonly wide?: boolean
 }) => (
-  <div className="t-panels flex w-[26rem] shrink-0 flex-col gap-1.5">
+  <div
+    className={`t-panels flex flex-col gap-1.5 ${
+      wide ? "min-w-0 flex-1" : "w-[26rem] shrink-0"
+    }`}
+  >
     {/* Both absences go in as they are. Which face the card wears, and in what order
         the three are decided, is `faceOf`'s answer and not this file's.
 

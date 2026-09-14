@@ -42,6 +42,27 @@ describe("what a keypress asks for", () => {
     expect(commandFor({ key: "s", alt: true }, on())).toBeNull()
   })
 
+
+  test("toggles the details pane on Command-or-Control B", () => {
+    // The same chord Cap draws as ⌘B: meta on a Mac, ctrl elsewhere.
+    expect(commandFor({ key: "b", meta: true }, on())).toBe("toggleDetails")
+    expect(commandFor({ key: "b", ctrl: true }, on())).toBe("toggleDetails")
+    expect(commandFor({ key: "b", meta: true }, on("vim"))).toBe("toggleDetails")
+  })
+
+  test("toggles the files pane on the shifted pair", () => {
+    // Browser reports Shift+B as "B"; the table writes ⌘⇧b Cap's way.
+    expect(commandFor({ key: "B", meta: true, shift: true }, on())).toBe("toggleFiles")
+    expect(commandFor({ key: "B", ctrl: true, shift: true }, on())).toBe("toggleFiles")
+    expect(commandFor({ key: "b", meta: true, shift: true }, on())).toBe("toggleFiles")
+  })
+
+  test("does not let a shifted B steal the bare details chord", () => {
+    expect(commandFor({ key: "B", meta: true, shift: true }, on())).not.toBe("toggleDetails")
+    expect(commandFor({ key: "b", meta: true }, on())).not.toBe("toggleFiles")
+  })
+
+
   test("answers nothing at all when the reader has turned this off", () => {
     expect(commandFor({ key: "s" }, on("off"))).toBeNull()
     expect(commandFor({ key: "/" }, on("off"))).toBeNull()

@@ -636,7 +636,11 @@ export const Shell = ({
    * named in a failing log is opened by.
    */
   const [namingRepo, setNamingRepo] = useState(false)
-  useKeys(keying, { goToName: () => setNamingRepo(true) })
+  useKeys(keying, {
+    goToName: () => setNamingRepo(true),
+    toggleDetails: () => setDetailsOpen((was) => !was),
+    toggleFiles: () => setFilesOpen((was) => !was)
+  })
 
   // Every dialog and menu of ours is drawn inside this, and the keyboard asks
   // it — rather than the page — what the reader has open.
@@ -712,6 +716,7 @@ export const Shell = ({
           {preparedStage >= 3 && detailsOpen ? (
             <About
               snapshot={snapshot}
+              wide={!filesOpen}
               prepareThrough={Math.min(preparedStage - 2, 11)}
               actions={actions}
               onOpenCommit={loadCommit === undefined ? undefined : setReading}

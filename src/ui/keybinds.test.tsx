@@ -68,13 +68,24 @@ describe("changing a key", () => {
     expect(change("Next file").textContent).toBe("Press a key")
   })
 
-  test("leaves a press the browser has first claim on alone", async () => {
+  test("leaves Alt to the browser, which still has first claim on it", async () => {
+    // Command/Control with a letter is Cap's combo grammar now (`⌘b` for the
+    // panes). Alt is not part of any binding here and stays the browser's.
     const { written } = panel()
 
     await userEvent.click(change("Next file"))
-    await userEvent.keyboard("{Meta>}c{/Meta}")
+    await userEvent.keyboard("{Alt>}c{/Alt}")
 
     expect(written).toEqual([])
+  })
+
+  test("writes a Command chord Cap's way, which is how the pane toggles are bound", async () => {
+    const { written } = panel()
+
+    await userEvent.click(change("Details pane"))
+    await userEvent.keyboard("{Meta>}b{/Meta}")
+
+    expect(written.at(-1)?.bound).toEqual({ toggleDetails: "⌘b" })
   })
 
   test("takes Escape as the way out of asking rather than as a key", async () => {

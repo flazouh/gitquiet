@@ -288,3 +288,57 @@ describe("the way out to GitHub", () => {
     expect(marked[0]?.getAttribute("aria-label")).toBe("Open on GitHub")
   })
 })
+
+describe("the pane toggles outside the card", () => {
+  test("offers both sides when the page can toggle them", () => {
+    render(
+      <Header
+        snapshot={aSnapshot({ state: "open" })}
+        onToggleDetails={() => {}}
+        onToggleFiles={() => {}}
+      />
+    )
+
+    expect(screen.getByRole("button", { name: "Hide details" }).getAttribute("aria-pressed")).toBe(
+      "true"
+    )
+    expect(screen.getByRole("button", { name: "Hide files" }).getAttribute("aria-pressed")).toBe(
+      "true"
+    )
+  })
+
+  test("dims the mark when a pane is closed, without a border chip", () => {
+    render(
+      <Header
+        snapshot={aSnapshot({ state: "open" })}
+        detailsOpen={false}
+        filesOpen={false}
+        onToggleDetails={() => {}}
+        onToggleFiles={() => {}}
+      />
+    )
+
+    const details = screen.getByRole("button", { name: "Show details" })
+    const files = screen.getByRole("button", { name: "Show files" })
+    expect(details.getAttribute("aria-pressed")).toBe("false")
+    expect(files.getAttribute("aria-pressed")).toBe("false")
+    expect(details.className).toContain("opacity-40")
+    expect(files.className).toContain("opacity-40")
+    expect(details.className).not.toContain("border")
+    expect(files.className).not.toContain("border")
+  })
+
+  test("keeps the toggles outside the pull request card", () => {
+    render(
+      <Header
+        snapshot={aSnapshot({ state: "open" })}
+        onToggleDetails={() => {}}
+        onToggleFiles={() => {}}
+      />
+    )
+
+    const card = screen.getByRole("region", { name: "This pull request" })
+    expect(card.contains(screen.getByRole("button", { name: "Hide details" }))).toBe(false)
+    expect(card.contains(screen.getByRole("button", { name: "Hide files" }))).toBe(false)
+  })
+})
