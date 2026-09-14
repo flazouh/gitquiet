@@ -937,6 +937,9 @@ export const toCommit = Effect.fn("toCommit")(function* (raw: unknown) {
 
   const detail: CommitDetail = {
     sha: payload.commit.oid,
+    // Their own name for the parent, off the same payload the held-back files
+    // are keyed by. Null on a root commit, which is why this is optional.
+    ...(payload.commit.sha1 == null ? {} : { parentSha: payload.commit.sha1 }),
     abbreviatedSha: payload.commit.oid.slice(0, 7),
     headline,
     bodyHtml: Option.fromNullOr(payload.commit.bodyMessageHtml ?? null),

@@ -139,3 +139,32 @@ describe("a commit whose diffs GitHub holds most of back", () => {
     expect(held?.linesAdded).toBe(0)
   })
 })
+
+/**
+ * The commit a file's old half has to be read at.
+ *
+ * A commit page sends hunks and three lines either side, so revealing the rest
+ * means fetching the file twice: the new half at this commit, the old half at
+ * its parent. The screen had no parent to read and used this commit for both,
+ * which hands the renderer the same file twice — Pierre checks the patch
+ * against what it was given and throws `trailing context mismatch
+ * (additions=4, deletions=9)` out of the render, taking the pane from thirteen
+ * lines to none. Measured on p-limit@f3e7f9b, where a reader expanding index.js
+ * watched the diff go blank and Following stop with it.
+ */
+describe("the commit a diff is against", () => {
+  test("carries the parent, which is their own sha1", async () => {
+    const commit = await read(payload({ sha1: "aaaaaaaabbbbbbbbccccccccddddddddeeeeeeee" }))
+
+    expect(commit.parentSha).toBe("aaaaaaaabbbbbbbbccccccccddddddddeeeeeeee")
+  })
+
+  test("has none for a root commit, which has nothing to diff against", async () => {
+    // Every file in one is an addition, so no old half is ever asked for and
+    // the absence costs nothing. Sending this commit's own sha instead would
+    // be a guess that reads as a fact.
+    const commit = await read(payload({ sha1: null }))
+
+    expect(commit.parentSha).toBeUndefined()
+  })
+})

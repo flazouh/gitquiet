@@ -18,9 +18,14 @@ import { withExtension } from "./chrome"
  * Where the checking happens, and why it is a commit rather than a pull request.
  *
  * A pull request is the case this feature exists for, and it is the one case
- * this cannot reach: signed out, GitHub answers as if a pull request does not
- * exist, so the screen shows its sign-in card and no diff is ever drawn. A
- * commit is the same diff pane, the same renderer, the same token events and
+ * this cannot reach — but not because GitHub hides one. A public pull request
+ * is served to anybody who asks; what cannot be done signed out is *ours*. The
+ * gateway reads their internal `/_graphql` with the session cookie and a nonce
+ * minted per page, so a visit with no session reaches its sign-in card and no
+ * diff is ever drawn. An `gh` OAuth token does not help: that route does not
+ * take one, and anonymous GraphQL is rate limited to zero.
+ *
+ * A commit is the same diff pane, the same renderer, the same token events and
  * the same lazily-fetched file — drawn from a payload that answers to nobody.
  *
  * `--page` takes any address, so a reader with a session can point this at a
@@ -114,9 +119,18 @@ try {
        */
       const waitForPane = async () => {
         for (let tries = 0; tries < 40; tries++) {
-          const found = document.querySelector("diffs-container")
-          if (found && found.shadowRoot && found.shadowRoot.querySelector("[data-line] span")) {
-            return found.shadowRoot
+          for (const one of document.querySelectorAll("diffs-container")) {
+            const root = one.shadowRoot
+            if (!root) continue
+            // The pane holding the file this name is written in, rather than
+            // whichever container is first. A commit draws one per file, they
+            // are alike from outside, and the path is nowhere near them — so
+            // every run of this measured a declaration file while reporting a
+            // line number from another, and called the feature broken.
+            const row = root.querySelector('[data-line="' + ${WRITTEN} + '"]')
+            if (row && [...root.querySelectorAll("[data-line] span")].some((s) => (s.textContent || "").trim() === ${JSON.stringify(HOLD)})) {
+              return root
+            }
           }
           await new Promise((go) => setTimeout(go, 250))
         }
@@ -174,9 +188,18 @@ try {
        */
       const waitForPane = async () => {
         for (let tries = 0; tries < 40; tries++) {
-          const found = document.querySelector("diffs-container")
-          if (found && found.shadowRoot && found.shadowRoot.querySelector("[data-line] span")) {
-            return found.shadowRoot
+          for (const one of document.querySelectorAll("diffs-container")) {
+            const root = one.shadowRoot
+            if (!root) continue
+            // The pane holding the file this name is written in, rather than
+            // whichever container is first. A commit draws one per file, they
+            // are alike from outside, and the path is nowhere near them — so
+            // every run of this measured a declaration file while reporting a
+            // line number from another, and called the feature broken.
+            const row = root.querySelector('[data-line="' + ${WRITTEN} + '"]')
+            if (row && [...root.querySelectorAll("[data-line] span")].some((s) => (s.textContent || "").trim() === ${JSON.stringify(HOLD)})) {
+              return root
+            }
           }
           await new Promise((go) => setTimeout(go, 250))
         }
@@ -239,9 +262,18 @@ try {
        */
       const waitForPane = async () => {
         for (let tries = 0; tries < 40; tries++) {
-          const found = document.querySelector("diffs-container")
-          if (found && found.shadowRoot && found.shadowRoot.querySelector("[data-line] span")) {
-            return found.shadowRoot
+          for (const one of document.querySelectorAll("diffs-container")) {
+            const root = one.shadowRoot
+            if (!root) continue
+            // The pane holding the file this name is written in, rather than
+            // whichever container is first. A commit draws one per file, they
+            // are alike from outside, and the path is nowhere near them — so
+            // every run of this measured a declaration file while reporting a
+            // line number from another, and called the feature broken.
+            const row = root.querySelector('[data-line="' + ${WRITTEN} + '"]')
+            if (row && [...root.querySelectorAll("[data-line] span")].some((s) => (s.textContent || "").trim() === ${JSON.stringify(HOLD)})) {
+              return root
+            }
           }
           await new Promise((go) => setTimeout(go, 250))
         }

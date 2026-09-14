@@ -109,19 +109,6 @@ export const CommitView = ({
   const Back = art.back
   const [paths, setPaths] = useState<ReadonlySet<string>>(() => new Set())
 
-  /*
-   * Revealing the lines between the hunks, and Following a name out of them.
-   *
-   * Both halves at this commit: a commit names one tree for ever, so what is
-   * read can never have changed underneath. `base` and `head` are the same sha
-   * here because a commit's diff is against its own parent and the renderer
-   * only ever asks for the half it is drawing.
-   */
-  const revealing = useMemo(
-    () => (readWholeFile === undefined ? undefined : revealer(readWholeFile, { base: sha, head: sha })),
-    [readWholeFile, sha]
-  )
-
   const reachOut = useCallback(() => {
     if (readPaths === undefined) return
     Effect.runFork(
@@ -156,6 +143,32 @@ export const CommitView = ({
   const already = held?.(sha)
   const [reading, setReading] = useState<Reading>(
     already === undefined ? { step: "loading" } : { step: "ready", commit: already }
+  )
+
+  /*
+   * Revealing the lines between the hunks, and Following a name out of them.
+   *
+   * Two shas, not one. A commit names one tree for ever, so neither half can
+   * change underneath — but they are different trees. The new half is this
+   * commit; the old half is its parent, and reading both at this sha hands the
+   * renderer the same file twice. Pierre checks the patch against what it is
+   * given and refuses: `trailing context mismatch (additions=4, deletions=9)`,
+   * thrown out of the render, taking the pane from thirteen lines to none. A
+   * reader saw a diff turn blank on being expanded, and Following stopped with
+   * it, because there was nothing left to hold a name.
+   *
+   * A root commit has no parent and every file in it is an addition, so no old
+   * half is ever asked for and this sha stands in harmlessly.
+   */
+  const revealing = useMemo(
+    () =>
+      readWholeFile === undefined
+        ? undefined
+        : revealer(readWholeFile, {
+            base: reading.step === "ready" ? (reading.commit.parentSha ?? sha) : sha,
+            head: sha
+          }),
+    [readWholeFile, sha, reading]
   )
 
   useEffect(() => {
