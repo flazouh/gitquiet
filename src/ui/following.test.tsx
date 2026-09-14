@@ -967,3 +967,46 @@ describe("a press after the pointer has moved on", () => {
     expect(stage.marked.map(([one]) => one)).toEqual([null])
   })
 })
+
+/**
+ * The leave the renderer sends as the button goes down.
+ *
+ * `onTokenLeave` arrives before `onTokenClick` on a real pointer — the press
+ * itself is what takes the pointer off the name, as far as the renderer is
+ * concerned. Every test above calls enter and then press with nothing in
+ * between, which is a pointer no hand has ever made, and so every one of them
+ * passed while the gesture did nothing on a real screen.
+ *
+ * It was found and fixed once, for the press that opens the uses. The press
+ * with Shift kept asking without insisting and kept having its answer thrown
+ * away, and nothing here noticed for as long as the tests were polite.
+ */
+describe("a press that the pointer has already left", () => {
+  test("still peeks on Shift", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    // The renderer, reporting the pointer gone as the button goes down.
+    stage.request?.onNameLeave?.(name)
+    stage.request?.onName?.(name, held({ go: true, shift: true }))
+    await Effect.runPromise(settled())
+
+    const [rows] = stage.shown.slice(-1)
+    expect(rows?.map((note) => note.line)).toEqual([name.line])
+  })
+
+  test("still opens the uses on a press without Shift", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onNameLeave?.(itself)
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    expect(await screen.findByText("2 in this file")).toBeTruthy()
+  })
+})

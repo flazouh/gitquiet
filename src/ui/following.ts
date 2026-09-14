@@ -4,6 +4,7 @@ import type { Beyond, Reading, Where, Writing } from "../ports/Ledger"
 import type { Bounds, DiffHandle, Modifiers, Name } from "../ports/Renderer"
 import { reaching } from "../ledger/reaching"
 import { useLedger } from "./ledger"
+import { sameName } from "../diff/engine"
 import { showLine } from "./showLine"
 import { onward } from "@/observability/report"
 
@@ -436,9 +437,16 @@ export const useFollowing = (
             ...(where === undefined ? {} : { where })
           })
         }
-        const already = on.current?.name === name ? on.current.writing : null
+        const already =
+          on.current !== null && sameName(on.current.name, name) ? on.current.writing : null
         if (already !== null) peek(already, on.current?.where)
-        else ask(name, peek)
+        // Insisting, for the same reason the press below insists: the renderer
+        // reports a leave as the button goes down, so a Peek asked without this
+        // arrives after the pointer has officially gone and is dropped on the
+        // way back. Every Shift press did nothing at all, and the test covering
+        // it passed — it calls the handlers in order, and a real pointer puts a
+        // leave between them.
+        else ask(name, peek, true)
         return
       }
 
@@ -477,7 +485,12 @@ export const useFollowing = (
       // The answer from the hover, where the hover asked. A press that has to
       // ask again is a press that waits, and the reader has been holding the key
       // over an underlined name — the answer is what put the line there.
-      const known = on.current?.name === name ? on.current.writing : null
+      // Three fields rather than identity: the renderer builds a fresh Name for
+      // every event, so `===` between the hover's and the press's was never
+      // once true and this answer was never once reused. `sameName` is in the
+      // engine for exactly this, and says so.
+      const known =
+        on.current !== null && sameName(on.current.name, name) ? on.current.writing : null
       if (known !== null) {
         answer(known, on.current?.where)
         return

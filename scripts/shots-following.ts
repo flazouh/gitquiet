@@ -26,15 +26,69 @@ const PAGE =
 const WORD = argued("--word") ?? "kindOf"
 const WRITTEN = argued("--written") ?? "161"
 /**
- * A *use* of the same name, which is where Peek belongs.
+ * A line the same name is *used* on, which is a different picture.
  *
- * Peeking the place a name is written has nothing to show — the reader is
- * already looking at it. The first run of this photographed exactly that and
- * called the empty screen a Peek.
+ * Shift on the place a name is written has nothing to show — the reader is
+ * already looking at it. A Peek is a Writing drawn under a use of it, so the
+ * photograph has to be taken from a use.
  */
 const USED = argued("--used") ?? "198"
+/**
+ * The name to Peek, where it is not the same one the card was opened for.
+ *
+ * On a commit the hunk is a dozen lines and the name written in it is often
+ * used nowhere else inside them, so the Peek is taken from a different name
+ * that *is* a use — the call that hunk happens to contain.
+ */
+const PEEK_WORD = argued("--peek-word") ?? WORD
+/**
+ * The file to open before anything is photographed.
+ *
+ * The pane draws one file at a time, and which one is whatever the list has
+ * selected — on a commit, the first. Every picture taken before this existed
+ * was a picture of `index.d.ts` while the gesture was being made against
+ * `index.js` in a container the reader could not see. On a pull request the
+ * address does this; on a commit there is nothing to address, so the row is
+ * pressed the way a reader presses it.
+ */
+const OPEN = argued("--open")
 const EXTENSION = `${import.meta.dir}/../.output/chrome-mv3`
 const OUT = `${import.meta.dir}/../.output/shots-following`
+
+/**
+ * Puts an element on the screen, whatever is actually doing the scrolling.
+ *
+ * Three things had to be true at once and none of them was obvious. Every file
+ * of a commit is drawn at once and stacked, so the file being photographed is
+ * usually below the fold. `scrollIntoView` inside a shadow root moves the rows
+ * within their own box. And the document does not scroll here at all — an
+ * element inside it does — so `window.scrollBy` moves nothing. The first eight
+ * pictures taken were all of the file above the one the gesture was made
+ * against, which is a QA harness reporting on a screen nobody was looking at.
+ *
+ * So: walk up from the element, out through every shadow root, collecting
+ * whatever can scroll, and move each one until the element is in the middle of
+ * it. Outermost last, because moving a parent moves the child.
+ */
+const ON_SCREEN = `
+  const putOnScreen = async (el) => {
+    const sleep = (ms) => new Promise((go) => setTimeout(go, ms))
+    // The browser's own, repeatedly, rather than arithmetic on scrollTop.
+    // Which box actually scrolls differs by screen — the document on a file
+    // page, an element inside it on a commit — and a shadow root sits between
+    // the row and all of them. scrollIntoView knows all of that; the arithmetic
+    // did not, and answered with a coordinate 2,720 pixels below a window 813
+    // tall, which is a mouse press sent into nothing.
+    for (let tries = 0; tries < 6; tries++) {
+      el.scrollIntoView({ block: "center", behavior: "instant" })
+      await sleep(250)
+      const seen = el.getBoundingClientRect()
+      if (seen.top > 80 && seen.bottom < window.innerHeight - 80) return true
+    }
+    return false
+  }
+`
+
 
 /** Chrome's own numbering, which is a bitmask and not a list. */
 const META = 4
@@ -79,9 +133,55 @@ const mouse = async (type: string, x: number, y: number, modifiers: number) =>
     clickCount: type === "mouseMoved" ? 0 : 1
   })
 
+/**
+ * The file the pictures are of, reached the way a reader reaches it.
+ *
+ * `s` is Next, which is how somebody reads a commit — and it is the only way
+ * that works from out here. Pressing the row in the list did not: the tree is
+ * nested and `querySelectorAll` answers in document order, so the first thing
+ * whose text began "index.js" was a wrapper with no handler on it, clicked
+ * happily, selecting nothing. Eight sets of photographs were taken of the file
+ * that happened to be selected instead.
+ */
+if (OPEN !== undefined) {
+  const heading = () =>
+    session.evaluate<string>(
+      `(() => { const h = document.querySelector("[data-gq-file], h2, h3"); return (document.body.innerText.match(/^\\S+\\.(ts|js|tsx|jsx|md)$/m) || [""])[0] })()`
+    )
+
+  let opened = false
+  for (let tries = 0; tries < 8; tries++) {
+    const showing = await session.evaluate<boolean>(
+      `(() => document.body.innerText.includes(${JSON.stringify(OPEN)}))()`
+    )
+    const drawn = await session.evaluate<string | null>(`(() => {
+      for (const one of document.querySelectorAll("diffs-container")) {
+        const root = one.shadowRoot
+        if (!root) continue
+        const box = one.getBoundingClientRect()
+        if (box.height > 0 && box.width > 0) {
+          const head = one.closest("[class]")
+          return (head ? head.textContent || "" : "").slice(0, 80)
+        }
+      }
+      return null
+    })()`)
+    if (showing && drawn !== null && drawn.includes(OPEN)) {
+      opened = true
+      break
+    }
+    await key({ key: "s", code: "KeyS", text: "s" })
+    await sleep(1200)
+  }
+  await sleep(800)
+  await shot("0-opened")
+  console.log(`opened ${OPEN}: ${opened}`, await heading())
+}
+
 /** Where the name is on the screen, with the row scrolled to the middle first. */
 const spot = await session.evaluate<{ x: number; y: number } | null>(`(async () => {
   const sleep = (ms) => new Promise((go) => setTimeout(go, ms))
+  ${ON_SCREEN}
 
   const pane = async () => {
     for (let tries = 0; tries < 80; tries++) {
@@ -103,11 +203,16 @@ const spot = await session.evaluate<{ x: number; y: number } | null>(`(async () 
   // a reader moving a pointer takes anyway.
   await sleep(2500)
 
-  const token = [...shadow.querySelectorAll("[data-line] span")].find((one) => (one.textContent || "").trim() === ${JSON.stringify(WORD)})
+  // The one on the line that was asked for, not the first one in the file.
+  // A name is usually used before it is written, so "the first span with this
+  // text" is a use — and a press on a use goes somewhere, which is a different
+  // picture from the one being taken here.
+  const row = shadow.querySelector('[data-line="' + ${JSON.stringify(WRITTEN)} + '"]')
+  const token = row
+    ? [...row.querySelectorAll("span")].find((one) => (one.textContent || "").trim() === ${JSON.stringify(WORD)})
+    : undefined
   if (!token) return null
-  token.scrollIntoView({ block: "center", behavior: "instant" })
-  await sleep(400)
-
+  await putOnScreen(token)
   const at = token.getBoundingClientRect()
   return { x: Math.round(at.left + at.width / 2), y: Math.round(at.top + at.height / 2) }
 })()`)
@@ -119,6 +224,26 @@ if (spot === null) {
 }
 
 console.log(`the name is at ${spot.x},${spot.y}`)
+
+
+/** The same lookup, for any line the name appears on. */
+const spotFor = (line: string) =>
+  session.evaluate<{ x: number; y: number } | null>(`(async () => {
+    const sleep = (ms) => new Promise((go) => setTimeout(go, ms))
+    ${ON_SCREEN}
+    for (const one of document.querySelectorAll("diffs-container")) {
+      const root = one.shadowRoot
+      if (!root) continue
+      const row = root.querySelector('[data-line="' + ${JSON.stringify(line)} + '"]')
+      if (!row) continue
+      const token = [...row.querySelectorAll("span")].find((s) => (s.textContent || "").trim() === ${JSON.stringify(PEEK_WORD)})
+      if (!token) continue
+      await putOnScreen(token)
+      const at = token.getBoundingClientRect()
+      return { x: Math.round(at.left + at.width / 2), y: Math.round(at.top + at.height / 2) }
+    }
+    return null
+  })()`)
 
 // 1. The key held over a name, which underlines it and does nothing else.
 await session.tab.send("Input.dispatchKeyEvent", {
@@ -170,30 +295,35 @@ if (used === null) {
   await mouse("mousePressed", used.x, used.y, META | SHIFT)
   await mouse("mouseReleased", used.x, used.y, META | SHIFT)
   await sleep(2000)
+  // Shift and a press is also how a browser extends a text selection, so the
+  // first picture of this came back as half the file in blue with the Peek
+  // somewhere underneath. The selection is the browser's own; it is cleared for
+  // the photograph rather than pretended away.
+  const peeking = await session.evaluate<unknown>(`(() => {
+    window.getSelection()?.removeAllRanges()
+    const rows = [...document.querySelectorAll("div")].filter((one) => (one.textContent || "").includes("line "))
+    return rows.length
+  })()`)
+  console.log("  selection cleared,", peeking, "candidate rows")
+  await sleep(400)
   await shot("4-peek")
 }
 
-// 5. and 6. The letters, with the key let go of first.
+/*
+ * 5. The uses, reached by the letter rather than by the press.
+ *
+ * `u` is the one of the three letters that belongs to a diff: the outline and
+ * Go to File are bound on the file page and nowhere else, and photographing
+ * them here produced four identical pictures of a diff with nothing in it.
+ */
 await session.tab.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Meta", code: "MetaLeft" })
 await key({ key: "Escape", code: "Escape" })
-await sleep(600)
-await key({ key: "o", code: "KeyO", text: "o" })
-await sleep(1500)
-await shot("5-outline")
-
-await key({ key: "Escape", code: "Escape" })
-await sleep(600)
-await key({ key: "t", code: "KeyT", text: "t" })
-await sleep(1500)
-await shot("6-go-to-file")
-
-await key({ key: "Escape", code: "Escape" })
-await sleep(600)
-await mouse("mouseMoved", spot.x, spot.y, META)
-await sleep(300)
-await key({ key: "u", code: "KeyU", text: "u" }, META)
-await sleep(1500)
-await shot("7-uses-by-key")
+await sleep(800)
+await mouse("mouseMoved", spot.x, spot.y, 0)
+await sleep(400)
+await key({ key: "u", code: "KeyU", text: "u" })
+await sleep(1800)
+await shot("5-uses-by-key")
 
 console.log("problems:", JSON.stringify(session.problems().map((p) => p.split("\n")[0].slice(0, 120))))
 session.stop()
