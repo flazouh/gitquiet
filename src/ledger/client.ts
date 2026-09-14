@@ -18,6 +18,7 @@ import {
   LEDGER_ACROSS,
   LEDGER_BEYOND,
   LEDGER_NAMES,
+  LEDGER_READY,
   LEDGER_WARM,
   isLedgerAnswer,
   type LedgerAsk,
@@ -27,6 +28,7 @@ import {
   type LedgerFound,
   type LedgerNames,
   type LedgerPlaces,
+  type LedgerReady,
   type LedgerWarm,
   type LedgerWarmth,
   type Question
@@ -90,6 +92,11 @@ export const ledgerThrough = (post: Post): Ledger => ({
     asked(post, reading, { of: "writingsIn" }).pipe(
       Effect.map((answer): ReadonlyArray<Writing> => answer.writings ?? [])
     ),
+  ready: (path) =>
+    Effect.tryPromise({
+      try: () => post({ kind: LEDGER_READY, path } satisfies LedgerReady),
+      catch: (cause) => new LedgerUnavailable({ cause })
+    }).pipe(Effect.asVoid),
   warm: (repo, sha, exact) =>
     Effect.tryPromise({
       try: () =>

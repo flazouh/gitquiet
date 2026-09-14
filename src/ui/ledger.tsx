@@ -12,6 +12,7 @@ import { LedgerUnavailable, type Ledger } from "../ports/Ledger"
  * business, and this is where the shell says which.
  */
 const NOTHING: Ledger = {
+  ready: () => Effect.void,
   writingAt: () => Effect.succeed(Option.none()),
   writingNamed: () => Effect.succeed(Option.none()),
   usesIn: () => Effect.succeed([]),

@@ -265,13 +265,31 @@ export const useFollowing = (
   }, [across, source])
 
   const ask = useCallback(
-    (name: Name, then: (writing: Writing, where?: string) => void) => {
+    (
+      name: Name,
+      then: (writing: Writing, where?: string) => void,
+      /*
+       * Whether to answer even though the pointer has moved on.
+       *
+       * A hover must not: the answer arrives after the reader has gone, and an
+       * underline drawn then belongs to nothing. A press must: the reader
+       * pressed *that* name, and whether their pointer is still on it a
+       * moment later is not a question anybody asked.
+       *
+       * Written as one flag rather than two functions because it is one
+       * difference, and because it was the absence of it that made a press do
+       * nothing at all — the renderer reports a leave as the button goes down,
+       * so every press arrived with the pointer already gone and every answer
+       * was dropped on the way back.
+       */
+      insist = false
+    ) => {
       if (source === null) return
 
       const mine = (found: Where): Effect.Effect<void> => {
         if (found.at === "here") {
           return Effect.sync(() => {
-            if (on.current?.name !== name) return
+            if (!insist && on.current?.name !== name) return
             // The compiler answers with the file it found the name in, which may
             // not be the file being read — it follows an import on its own,
             // where the shapes answer `elsewhere` and leave the following to
@@ -298,13 +316,24 @@ export const useFollowing = (
             .beyond(across.repo, across.sha, found.borrowed.specifier, found.borrowed.name)
             .pipe(
               Effect.map((there) => {
-                if (there.path === undefined || on.current?.name !== name) return
+                if (there.path === undefined || (!insist && on.current?.name !== name)) return
 
                 // Beside the name, like every other answer. Asked of the
                 // renderer at the moment of drawing, because a rectangle goes
                 // stale the moment anything scrolls.
                 const at = handle.current?.boundsOf(name) ?? null
                 if (at === null) return
+
+                /*
+                 * And underlined, like every other answer.
+                 *
+                 * This branch drew a card and left the word plain, so a name
+                 * from another repository was the one kind of name a reader
+                 * could not see was followable — they had to press it to find
+                 * out. Likely, because the repository is proved and which
+                 * Writing inside it is a name match.
+                 */
+                handle.current?.mark(name, "likely")
 
                 setBeyond({
                   at,
@@ -337,7 +366,7 @@ export const useFollowing = (
               .pipe(Effect.map((writing) => ({ writing, text })))
           ),
           Effect.map(({ writing, text }) => {
-            if (Option.isNone(writing) || on.current?.name !== name) return
+            if (Option.isNone(writing) || (!insist && on.current?.name !== name)) return
             on.current = { name, writing: writing.value, where: path, text }
             then(writing.value, path)
           }),
@@ -431,7 +460,7 @@ export const useFollowing = (
           across?.open(where, writing.line)
           return
         }
-        showLine(host.current?.shadowRoot ?? null, writing.line)
+        showLine(host.current, writing.line)
       }
 
       const show = (writing: Writing, where?: string): void => {
@@ -452,7 +481,9 @@ export const useFollowing = (
         answer(known, on.current?.where)
         return
       }
-      ask(name, answer)
+      // Insisting: the reader pressed this name, and the renderer has already
+      // told us the pointer left it.
+      ask(name, answer, true)
     },
     [across, ask, clear, host, linesOf, source]
   )
@@ -476,6 +507,26 @@ export const useFollowing = (
    * shortcut being pressed, and `src/keys/commands.ts` says as much in
    * `HOLDING`.
    */
+  /*
+   * The door, opened before anybody walks through it.
+   *
+   * A reader holding Command over a name was waiting for a worker to wake, a
+   * document to open, a runtime to compile and a megabyte and a half of grammar
+   * to arrive — every time, the first time, while watching a word not underline.
+   * None of that is a question about a name, so none of it waits for the key.
+   *
+   * Nothing is parsed and nothing is asked. The rule that nothing is asked until
+   * the key is held is about questions, and this is not one.
+   */
+  useEffect(() => {
+    if (source === null) return
+
+    const opening = Effect.runFork(
+      ledger.ready(source.path).pipe(Effect.catch(() => Effect.void))
+    )
+    return () => opening.interruptUnsafe()
+  }, [ledger, source])
+
   useEffect(() => {
     if (source === null) return
 

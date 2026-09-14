@@ -42,6 +42,7 @@ const staged = (over: { warmth?: Warmth; places?: ReadonlyArray<Place> } = {}) =
   let warms = 0
 
   const ledger: Ledger = {
+    ready: () => Effect.void,
     writingAt: () => Effect.succeed(Option.none()),
     writingNamed: () => Effect.succeed(Option.none()),
     usesIn: () => Effect.succeed([]),

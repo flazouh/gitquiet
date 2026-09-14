@@ -775,7 +775,7 @@ const FileDiffPaneView = ({
     const since = Date.now()
     const look = () => {
       if (stop) return
-      if (showLine(host.current?.shadowRoot ?? null, atLine)) return
+      if (showLine(host.current, atLine)) return
       if (Date.now() - since > DRAWING) return
       beat = setTimeout(look, 100)
     }
@@ -844,7 +844,7 @@ const FileDiffPaneView = ({
           // The file the answer came out of, which the hook read once and kept.
           // A diff holds the hunks; the Uses in it are the whole file's.
           reading={{ path: file.path, text: textNow() ?? "" }}
-          onGo={(line) => showLine(host.current?.shadowRoot ?? null, line)}
+          onGo={(line) => showLine(host.current, line)}
           onClose={unask}
           onOpen={across?.open}
           across={

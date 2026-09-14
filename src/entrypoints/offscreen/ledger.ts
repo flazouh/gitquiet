@@ -23,11 +23,12 @@ import { heldIn, holdIn, holdingOf } from "@/ledger/holding"
 import { idbStore, noStore, type Store } from "@/ledger/store"
 import { usesAcross, type Asked } from "@/ledger/uses"
 import type { Exact } from "@/ledger/exact"
-import { parsed, ready, reader, type Shelf } from "@/ledger/parse"
+import { parsed, ready, readyFor, reader, type Shelf } from "@/ledger/parse"
 import { findingFile } from "@/domain/findingFile"
 import {
   isLedgerAcrossWork,
   isLedgerBeyondWork,
+  isLedgerReadyWork,
   isLedgerNamesWork,
   isLedgerWarmWork,
   isLedgerWork,
@@ -153,6 +154,16 @@ const answer = (work: LedgerWork): Effect.Effect<LedgerAnswer> =>
   )
 
 browser.runtime.onMessage.addListener((message: unknown) => {
+  if (isLedgerReadyWork(message)) {
+    // Nothing is parsed and nothing is answered: the runtime and the grammar
+    // this file would need, fetched and compiled before anybody asks.
+    return Effect.runPromise(
+      readyFor(shelf(), message.path).pipe(
+        Effect.as({ ready: true }),
+        Effect.catch(() => Effect.succeed({ ready: false }))
+      )
+    )
+  }
   if (!isLedgerWork(message)) return undefined
 
   return Effect.runPromise(answer(message))

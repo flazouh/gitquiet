@@ -58,6 +58,8 @@ type Stage = {
   readonly marked: Array<readonly [Name | null, string | undefined]>
   /** How many times the outline was asked for, which should be never until it is. */
   outlined: number
+  /** How many times the pane said it was ready to be asked, before any key. */
+  readied: number
   /** Every set of rows the pane has hung under the code, newest last. */
   readonly shown: Array<ReadonlyArray<{ key: string; line: number }>>
   request: DiffRequest | undefined
@@ -85,7 +87,14 @@ const staged = (
     }
   } = {}
 ) => {
-  const stage: Stage = { asked: [], marked: [], outlined: 0, shown: [], request: undefined }
+  const stage: Stage = {
+    asked: [],
+    marked: [],
+    outlined: 0,
+    readied: 0,
+    shown: [],
+    request: undefined
+  }
 
   const handle: DiffHandle = {
     onThemeChange: () => {},
@@ -115,6 +124,10 @@ const staged = (
    * where it is: the answer arrives about a name the reader has already left.
    */
   const ledger: Ledger = {
+    ready: () =>
+      Effect.sync(() => {
+        stage.readied += 1
+      }),
     writingAt: (_reading, at) =>
       Effect.sync(() => stage.asked.push(at)).pipe(
         Effect.flatMap(() =>
@@ -881,5 +894,73 @@ describe("a name borrowed from a package rather than a path", () => {
 
     expect(screen.queryByText(/Likely/)).toBeNull()
     expect(stage.marked).toEqual([])
+  })
+})
+
+describe("the waiting a reader used to do", () => {
+  test("opens the door when the file draws, not when the key goes down", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    // Nothing has been asked and no key has been held. What has happened is a
+    // worker waking, a document opening and a grammar arriving — which is what
+    // the reader was watching a word not underline through.
+    expect(stage.readied).toBeGreaterThan(0)
+    expect(stage.asked).toEqual([])
+  })
+})
+
+describe("a name from another repository, seen before it is pressed", () => {
+  test("underlines like every other answer does", async () => {
+    const stage = staged(null, [], {
+      where: { at: "elsewhere", borrowed: { name: "one", specifier: "@yourorg/thing" } },
+      beyond: { owner: "yourorg", repo: "thing", path: "src/one.ts", line: 4, name: "one" },
+      across: {
+        paths: new Set(["src/one.ts"]),
+        repo: { owner: "flowline-labs", repo: "flowline" },
+        sha: "abc123",
+        read: () => Effect.succeed(""),
+        open: () => {}
+      }
+    })
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    // It drew a card and left the word plain, which made a name from another
+    // repository the one kind a reader could not see was followable.
+    expect(stage.marked.at(-1)).toEqual([name, "likely"])
+  })
+})
+
+describe("a press after the pointer has moved on", () => {
+  test("still answers, because the reader pressed that name", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    // The renderer reports a leave as the button goes down, so this is what
+    // every press looked like: the answer came back about a name the pointer
+    // was no longer on, and a guard written for hovering threw it away. The
+    // press did nothing at all, and nothing said why.
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    stage.request?.onNameLeave?.(itself)
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    expect(await screen.findByText("2 in this file")).toBeTruthy()
+  })
+
+  test("a hover that arrives late still draws nothing", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    // The other half of the same rule, which must not be lost to fixing this:
+    // an underline drawn for a name the reader has left belongs to nothing.
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    stage.request?.onNameLeave?.(name)
+    await Effect.runPromise(settled())
+
+    expect(stage.marked.map(([one]) => one)).toEqual([null])
   })
 })
