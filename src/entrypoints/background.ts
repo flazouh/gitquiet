@@ -22,9 +22,11 @@ import { browserSettings } from "@/settings/browserStore"
 import {
   isLedgerAcross,
   isLedgerAsk,
+  isLedgerBeyond,
   isLedgerNames,
   isLedgerWarm,
   LEDGER_ACROSS_WORK,
+  LEDGER_BEYOND_WORK,
   LEDGER_NAMES_WORK,
   LEDGER_WARM_WORK,
   LEDGER_WORK,
@@ -230,6 +232,11 @@ export default defineBackground(() => {
     if (isLedgerAcross(message)) {
       return Effect.runPromise(
         relay({ ...message, kind: LEDGER_ACROSS_WORK }, { uses: [], ready: false })
+      )
+    }
+    if (isLedgerBeyond(message)) {
+      return Effect.runPromise(
+        relay({ ...message, kind: LEDGER_BEYOND_WORK }, { why: "no offscreen API" })
       )
     }
     if (isWasmProbe(message)) {

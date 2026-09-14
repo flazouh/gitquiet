@@ -71,6 +71,18 @@ const staged = (
     readonly where?: Where
     readonly named?: Writing
     readonly across?: Across
+    /** What another repository answers, for a name borrowed from a package. */
+    readonly beyond?: {
+      readonly owner?: string
+      readonly repo?: string
+      readonly ref?: string
+      readonly path?: string
+      readonly line?: number
+      readonly name?: string
+      readonly signature?: string
+      readonly here?: boolean
+      readonly why?: string
+    }
   } = {}
 ) => {
   const stage: Stage = { asked: [], marked: [], outlined: 0, shown: [], request: undefined }
@@ -129,6 +141,7 @@ const staged = (
         { line: 2, from: 7, to: 12 },
         { line: 4, from: 1, to: 6 }
       ]),
+    beyond: () => Effect.succeed(over.beyond ?? { why: "nothing there" }),
     usesAcross: () =>
       Effect.succeed({
         ready: true,
@@ -790,5 +803,78 @@ describe("which reading answered, where the reader can see it", () => {
     // nothing is added to the screen and the difference is visible anyway.
     expect(stage.marked.at(-1)).toEqual([name, "likely"])
     expect(screen.getByText("Sure")).toBeTruthy()
+  })
+})
+
+describe("a name borrowed from a package rather than a path", () => {
+  const fromPackage: Where = {
+    at: "elsewhere",
+    borrowed: { name: "one", specifier: "@yourorg/thing" }
+  }
+
+  const staging = (beyond: Record<string, unknown>) =>
+    staged(null, [], {
+      where: fromPackage,
+      beyond,
+      across: {
+        paths: new Set(["src/one.ts"]),
+        repo: { owner: "flowline-labs", repo: "flowline" },
+        sha: "abc123",
+        read: () => Effect.succeed(""),
+        open: () => {}
+      }
+    })
+
+  test("says which repository it is in, and offers the way there", async () => {
+    const stage = staging({
+      owner: "yourorg",
+      repo: "thing",
+      ref: "HEAD",
+      path: "src/one.ts",
+      line: 4,
+      name: "one",
+      signature: "export const one = () => 1"
+    })
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    // Leaving a repository is a larger thing than scrolling, so it is a press
+    // rather than a consequence of one — and it says where it is going first.
+    expect(await screen.findByText("yourorg/thing · src/one.ts:4")).toBeTruthy()
+    expect(screen.getByText("export const one = () => 1")).toBeTruthy()
+    expect(screen.getByText("Likely")).toBeTruthy()
+  })
+
+  test("says only the path where the package turned out to be this repository's own", async () => {
+    const stage = staging({
+      here: true,
+      owner: "flowline-labs",
+      repo: "flowline",
+      path: "packages/thing/index.ts",
+      line: 9,
+      name: "one",
+      signature: "export const one = () => 1"
+    })
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    // A monorepo's own package is not another repository, and saying so would
+    // be telling a reader they are leaving when they are not.
+    expect(await screen.findByText("packages/thing/index.ts:9")).toBeTruthy()
+  })
+
+  test("draws nothing where no repository answers to the package", async () => {
+    const stage = staging({ why: "no repository answers to that package" })
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    expect(screen.queryByText(/Likely/)).toBeNull()
+    expect(stage.marked).toEqual([])
   })
 })

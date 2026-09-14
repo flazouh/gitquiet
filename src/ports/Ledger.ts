@@ -128,6 +128,21 @@ export type Ledger = {
    * list that has not been read are different things to a reader deciding
    * whether a name is safe to change.
    */
+  /**
+   * Where a name borrowed from a package is written, in whichever repository
+   * that turns out to be.
+   *
+   * A bare specifier is not a path and resolves against a folder no archive
+   * carries. What it does resolve to is a repository, and what comes back is an
+   * address in one — following it is going to a page, which this extension
+   * already draws.
+   */
+  readonly beyond: (
+    repo: Repo,
+    sha: string,
+    specifier: string,
+    name: string
+  ) => Effect.Effect<Beyond, LedgerUnavailable>
   readonly usesAcross: (
     repo: Repo,
     sha: string,
@@ -150,6 +165,20 @@ export type Warmth = {
   readonly ready: boolean
   readonly read?: number
   readonly skipped?: number
+  readonly why?: string
+}
+
+/** Where a borrowed name turned out to be written, and in whose repository. */
+export type Beyond = {
+  readonly owner?: string
+  readonly repo?: string
+  readonly ref?: string
+  readonly path?: string
+  readonly line?: number
+  readonly name?: string
+  readonly signature?: string
+  /** True where the package turned out to be one this repository holds itself. */
+  readonly here?: boolean
   readonly why?: string
 }
 

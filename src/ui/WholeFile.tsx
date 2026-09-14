@@ -7,6 +7,7 @@ import type { DiffHandle } from "../ports/Renderer"
 import { type DiffEngine, type Note, type Picked, PAPER } from "../ports/Renderer"
 import { useFollowing, type Across, type Peeked } from "./following"
 import { FileNames } from "./FileNames"
+import { BeyondCard } from "./BeyondCard"
 import { FollowCard } from "./FollowCard"
 import { UsesPanel } from "./UsesPanel"
 import { useLedger } from "./ledger"
@@ -128,7 +129,7 @@ export const WholeFile = ({
     () => (following ? { path, text: Effect.succeed(lines.join("\n")) } : null),
     [following, path, lines]
   )
-  const { names, shown, peeked, unpeek, asked, unask, askNow } = useFollowing(
+  const { names, shown, peeked, unpeek, asked, unask, askNow, beyond, unbeyond } = useFollowing(
     reading,
     host,
     across
@@ -271,6 +272,19 @@ export const WholeFile = ({
       <div ref={host} style={{ [PAPER]: "var(--color-raised)" } as CSSProperties} />
       {shown === null ? null : (
         <FollowCard writing={shown.writing} at={shown.at} where={shown.where} />
+      )}
+      {/*
+        A name in another repository. A card and not a jump: leaving a repository
+        is a larger thing than scrolling, and should be a press rather than a
+        consequence of one.
+      */}
+      {beyond === null || shown !== null ? null : (
+        <BeyondCard
+          beyond={beyond.found}
+          at={beyond.at}
+          onGo={(address) => window.location.assign(address)}
+          onClose={unbeyond}
+        />
       )}
       {/*
         The list, however it was asked for: a press on an underlined name, or

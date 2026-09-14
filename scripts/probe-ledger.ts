@@ -64,6 +64,32 @@ try {
     })
   `)
 
+  /*
+   * A name borrowed from a package rather than from a path, which resolves
+   * against a folder no archive carries. Where it resolves is a repository.
+   */
+  const beyond = await session.evaluateInExtension<{
+    owner?: string
+    repo?: string
+    path?: string
+    line?: number
+    why?: string
+  }>(`
+    chrome.runtime.sendMessage({
+      kind: "gitquiet/ledger-warm",
+      owner: "sindresorhus",
+      repo: "p-limit",
+      sha: "main"
+    }).then(() => chrome.runtime.sendMessage({
+      kind: "gitquiet/ledger-beyond",
+      owner: "sindresorhus",
+      repo: "p-limit",
+      sha: "main",
+      specifier: "yocto-queue",
+      name: "Queue"
+    }))
+  `)
+
   const plain = await session.evaluateInExtension<{ why?: string }>(`
     chrome.runtime.sendMessage({
       kind: "gitquiet/ledger-ask",
@@ -119,6 +145,7 @@ try {
         outline: outline.writings?.map((one) => one.name) ?? null,
         borrowedFrom: borrowed.borrowed ?? null,
         andWrittenAt: named.writing ?? null,
+        beyondTheRepository: beyond,
         aFileNothingParses: plain.why ?? null,
         warmth,
         warmedInMs: warmedIn,

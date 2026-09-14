@@ -1,6 +1,6 @@
 import { Effect, Option } from "effect"
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react"
-import type { Reading, Where, Writing } from "../ports/Ledger"
+import type { Beyond, Reading, Where, Writing } from "../ports/Ledger"
 import type { Bounds, DiffHandle, Modifiers, Name } from "../ports/Renderer"
 import { reaching } from "../ledger/reaching"
 import { useLedger } from "./ledger"
@@ -86,6 +86,9 @@ export type Follows = {
   readonly peeked: Peeked | null
   /** Puts a Peek away. The reader pressing Escape, or opening something else. */
   readonly unpeek: () => void
+  /** A name written in another repository, where it is, and where to draw it. */
+  readonly beyond: { readonly found: Beyond; readonly at: Bounds } | null
+  readonly unbeyond: () => void
   /**
    * The Writing a press asked about, for the panel that lists where it is used.
    *
@@ -192,6 +195,16 @@ export const useFollowing = (
   const [peeked, setPeeked] = useState<Peeked | null>(null)
   const [asked, setAsked] = useState<{ writing: Writing; where?: string } | null>(null)
   /**
+   * A name that turned out to be written in another repository.
+   *
+   * Kept apart from the rest because following it is a different act: not a
+   * scroll and not the pane redrawn, but a page — which this extension already
+   * draws, so it stays inside the interface either way.
+   */
+  const [beyond, setBeyond] = useState<{ readonly found: Beyond; readonly at: Bounds } | null>(
+    null
+  )
+  /**
    * The Name the pointer is on, and what was found for it.
    *
    * The answer arrives after the pointer may have moved on, so what it is about
@@ -218,6 +231,7 @@ export const useFollowing = (
   const clear = useCallback(() => {
     handle.current?.mark(null)
     setShown(null)
+    setBeyond(null)
   }, [])
 
   /**
@@ -270,6 +284,42 @@ export const useFollowing = (
 
         // Borrowed. Which file, out of the ones the repository has?
         if (across === undefined) return Effect.void
+
+        /*
+         * A bare specifier is not a path. It names a package, which resolves
+         * against a folder no archive carries — so where it resolves is a
+         * repository, and that is a question for the Ledger rather than for a
+         * list of paths. See `src/ledger/packages.ts`.
+         */
+        if (!found.borrowed.specifier.startsWith(".")) {
+          if (across.repo === undefined || across.sha === undefined) return Effect.void
+
+          return ledger
+            .beyond(across.repo, across.sha, found.borrowed.specifier, found.borrowed.name)
+            .pipe(
+              Effect.map((there) => {
+                if (there.path === undefined || on.current?.name !== name) return
+
+                // Beside the name, like every other answer. Asked of the
+                // renderer at the moment of drawing, because a rectangle goes
+                // stale the moment anything scrolls.
+                const at = handle.current?.boundsOf(name) ?? null
+                if (at === null) return
+
+                setBeyond({
+                  at,
+                  found: {
+                    ...there,
+                    path: there.path,
+                    line: there.line ?? 1,
+                    name: there.name ?? found.borrowed.name
+                  }
+                })
+              }),
+              Effect.catch(() => Effect.void)
+            )
+        }
+
         if (across.paths.size === 0) {
           // Nothing to resolve against yet. Ask for the tree, so the next press
           // has one — rather than reading it on every review that never follows
@@ -474,6 +524,7 @@ export const useFollowing = (
 
   const unpeek = useCallback(() => setPeeked(null), [])
   const unask = useCallback(() => setAsked(null), [])
+  const unbeyond = useCallback(() => setBeyond(null), [])
   const askNow = useCallback(() => {
     const here = on.current
     if (here?.writing == null) return
@@ -493,6 +544,8 @@ export const useFollowing = (
     unpeek,
     asked: source === null ? null : asked,
     unask,
+    beyond: source === null ? null : beyond,
+    unbeyond,
     textNow,
     askNow
   }

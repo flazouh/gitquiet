@@ -389,3 +389,39 @@ It is off by default, which is the answer until there is a measurement to change
 would change it is memory: 170MB held per repository under Bun, unmeasured in a browser, and it
 grows with the repository. The cap that follows from that number is not written yet, and writing
 it before measuring would be choosing a number by feel.
+
+## Outcome, fifth pass: out of the repository
+
+`import { one } from "@yourorg/thing"` is not a path. It resolves against a folder no archive
+carries, and every tier above answered it with nothing. What it does resolve to is a repository,
+and this extension already draws repositories — so following it is going to a page.
+
+Three ways, cheapest first, and the first two cost no request at all:
+
+1. **A package this repository holds itself.** Read off the `package.json` files already in the
+   archive rather than off the `workspaces` globs, because the files are the answer those globs
+   were written to produce. Most monorepos, and the reason a specifier that looks foreign so often
+   is not.
+2. **A repository named for the scope and the package.** `@yourorg/thing` is `yourorg/thing` far
+   more often than not, and `@effect/platform` is `effect/effect` — both are offered, in that
+   order.
+3. **This owner's own, for a package with no scope.**
+
+Every guess is checked against that repository's own `package.json` before it is believed. A guess
+that is wrong costs one small file and is never shown to a reader.
+
+Live, from `sindresorhus/p-limit`:
+
+    "yocto-queue"  →  sindresorhus/yocto-queue · index.js:15
+                      export default class Queue {
+
+No registry was asked. The npm registry knows the answer for every package and is somebody else's
+server; a list of what a private repository depends on is on the wrong side of what this extension
+sends anywhere. What the guess-and-check cannot reach, it says nothing about.
+
+### Why it is a card and not a jump
+
+Leaving a repository is a larger thing than scrolling, and should be a press rather than a
+consequence of one. The card says where it is going — the repository, the file, the line — before
+it goes anywhere, and it says **Likely**: the repository is proved by its own `package.json`, and
+which Writing inside it is a name match.

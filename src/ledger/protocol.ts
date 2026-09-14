@@ -19,6 +19,8 @@ export const LEDGER_NAMES = "gitquiet/ledger-names" as const
 export const LEDGER_NAMES_WORK = "gitquiet/ledger-names-work" as const
 export const LEDGER_ACROSS = "gitquiet/ledger-across" as const
 export const LEDGER_ACROSS_WORK = "gitquiet/ledger-across-work" as const
+export const LEDGER_BEYOND = "gitquiet/ledger-beyond" as const
+export const LEDGER_BEYOND_WORK = "gitquiet/ledger-beyond-work" as const
 export const LEDGER_WORK = "gitquiet/ledger-work" as const
 export const LEDGER_ANSWER = "gitquiet/ledger-answer" as const
 
@@ -137,6 +139,44 @@ export type LedgerAcrossWork = Omit<LedgerAcrossAsk, "kind"> & {
   readonly kind: typeof LEDGER_ACROSS_WORK
 }
 
+/**
+ * A name borrowed from a package rather than from a path.
+ *
+ * `import { one } from "@yourorg/thing"` — which is not a path, and resolves
+ * against a folder an archive does not carry. Where it does resolve is a
+ * repository, and `src/ledger/packages.ts` is how one is guessed at and checked.
+ */
+export type LedgerBeyond = {
+  readonly kind: typeof LEDGER_BEYOND
+  /** The repository doing the importing, for a guess about whose package this is. */
+  readonly owner: string
+  readonly repo: string
+  readonly sha: string
+  /** As written: `@yourorg/thing`, `thing/deep`. */
+  readonly specifier: string
+  /** The name that file borrowed under it. */
+  readonly name: string
+}
+
+export type LedgerBeyondWork = Omit<LedgerBeyond, "kind"> & {
+  readonly kind: typeof LEDGER_BEYOND_WORK
+}
+
+/** Where a borrowed name turned out to be written, and in whose repository. */
+export type LedgerFound = {
+  readonly owner?: string
+  readonly repo?: string
+  /** The branch or commit the answer is at, for an address that means it. */
+  readonly ref?: string
+  readonly path?: string
+  readonly line?: number
+  readonly name?: string
+  readonly signature?: string
+  /** True where the package turned out to be one this repository holds itself. */
+  readonly here?: boolean
+  readonly why?: string
+}
+
 export type LedgerPlaces = {
   readonly places: ReadonlyArray<Place>
   /** False where nothing has been read for this commit yet. */
@@ -172,3 +212,9 @@ export const isLedgerAcross = (message: unknown): message is LedgerAcrossAsk =>
 
 export const isLedgerAcrossWork = (message: unknown): message is LedgerAcrossWork =>
   kindIs(message, LEDGER_ACROSS_WORK)
+
+export const isLedgerBeyond = (message: unknown): message is LedgerBeyond =>
+  kindIs(message, LEDGER_BEYOND)
+
+export const isLedgerBeyondWork = (message: unknown): message is LedgerBeyondWork =>
+  kindIs(message, LEDGER_BEYOND_WORK)
