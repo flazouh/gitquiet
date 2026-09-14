@@ -1,6 +1,7 @@
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { paintFloor } from "../src/ui/applyTheme"
+import { markLanded } from "../src/ui/landing"
 import { ROOT_ID } from "../src/ui/mount"
 import { tokensOf } from "../src/domain/theme"
 import { Supplied } from "./Supplied"
@@ -79,6 +80,18 @@ if (view === undefined) {
   stage.style.height = `${view.height}px`
   stage.style.overflow = "hidden"
   stage.dataset.view = view.name
+
+  /*
+   * Own the page the way the extension does once a screen is up.
+   *
+   * Without `data-gitquiet-taken`, `quiet.css` never paints the floor and
+   * `widths.css` never applies the gutter — the stage looked like a floating
+   * card with wrong margins. Without `data-gitquiet-arrived`, entrance
+   * animations can leave panels at their backwards fill (opacity 0) if a
+   * remount interrupts the clock `Shell` would otherwise set.
+   */
+  document.documentElement.setAttribute("data-gitquiet-taken", "")
+  markLanded(document)
 
   createRoot(stage).render(
     <StrictMode>

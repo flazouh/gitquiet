@@ -232,6 +232,10 @@ export const Shell = ({
   // Review Mode changes the file browser's box, not the browser itself. Its
   // file, scroll position, warmed diffs, and drafts therefore stay in place.
   const [reviewing, setReviewing] = useState(false)
+  // Whether the details column and the files panel are up. Toggled from the
+  // PR header's second line (sidebar marks at the extremes).
+  const [detailsOpen, setDetailsOpen] = useState(true)
+  const [filesOpen, setFilesOpen] = useState(true)
 
   // A sha names something that cannot change, so every commit is read once and
   // kept: opening one a second time, or after a pointer warmed it on the way
@@ -616,7 +620,14 @@ export const Shell = ({
           />
         ) : null}
         {preparedStage >= 2 ? (
-          <Header snapshot={snapshot} onUseGitHub={onUseGitHub} />
+          <Header
+            snapshot={snapshot}
+            onUseGitHub={onUseGitHub}
+            detailsOpen={detailsOpen}
+            onToggleDetails={() => setDetailsOpen((was) => !was)}
+            filesOpen={filesOpen}
+            onToggleFiles={() => setFilesOpen((was) => !was)}
+          />
         ) : null}
         {/* Six pixels between panels, not twelve. Every gap here is width that
             could have been code, and the borders already do the separating —
@@ -626,7 +637,7 @@ export const Shell = ({
             as tall as what the author wrote and the reviewers said, which is
             nobody's business but its own. */}
         <div className="flex items-start gap-1.5 pb-2">
-          {preparedStage >= 3 ? (
+          {preparedStage >= 3 && detailsOpen ? (
             <About
               snapshot={snapshot}
               prepareThrough={Math.min(preparedStage - 2, 11)}
@@ -660,7 +671,7 @@ export const Shell = ({
               viewport on its own sticky, and it says how tall it is through
               `--gitquiet-bar-h` — see `TheBar.tsx`. Zero where there is no bar,
               which is the desktop window and a test. */}
-          {preparedStage >= 14 ? (
+          {preparedStage >= 14 && filesOpen ? (
             <div
               data-gitquiet-activation="files-panel"
               className="sticky top-[calc(var(--gitquiet-bar-h,0px)+0.5rem)] flex h-[calc(100vh-var(--gitquiet-bar-h,0px)-1rem)] min-h-[40rem] min-w-0 flex-1"
