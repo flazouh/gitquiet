@@ -55,7 +55,7 @@ const writing: Writing = {
 /** What the pane handed the renderer, and what the renderer was told afterwards. */
 type Stage = {
   readonly asked: Array<{ row: number; column: number }>
-  readonly marked: Array<Name | null>
+  readonly marked: Array<readonly [Name | null, string | undefined]>
   /** How many times the outline was asked for, which should be never until it is. */
   outlined: number
   /** Every set of rows the pane has hung under the code, newest last. */
@@ -81,8 +81,8 @@ const staged = (
       stage.shown.push(notes.map((note) => ({ key: note.key, line: note.line })))
     },
     unpick: () => {},
-    mark: (given) => {
-      stage.marked.push(given)
+    mark: (given, how) => {
+      stage.marked.push([given, how])
     },
     boundsOf: () => ({ top: 100, left: 40, bottom: 116, right: 90 }),
     destroy: () => {}
@@ -198,7 +198,7 @@ describe("holding a key over a name", () => {
     // One-based on the way in, zero-based on the way out: the Ledger and the
     // renderer both count from nothing, and only a reader counts from one.
     expect(stage.asked).toEqual([{ row: 6, column: 6 }])
-    expect(stage.marked).toEqual([name])
+    expect(stage.marked.map(([one]) => one)).toEqual([name])
   })
 
   test("marks nothing where the name has no Writing, which is most names", async () => {
@@ -220,7 +220,7 @@ describe("holding a key over a name", () => {
     await Effect.runPromise(settled())
     stage.request?.onNameLeave?.(name)
 
-    expect(stage.marked).toEqual([name, null])
+    expect(stage.marked.map(([one]) => one)).toEqual([name, null])
   })
 
   test("does not mark a name the pointer has already left", async () => {
@@ -233,7 +233,7 @@ describe("holding a key over a name", () => {
 
     // The answer came back about a name nobody is on any more. An underline
     // drawn now would belong to nothing.
-    expect(stage.marked).toEqual([null])
+    expect(stage.marked.map(([one]) => one)).toEqual([null])
   })
 
   test("presses without the key do nothing at all", async () => {
@@ -262,7 +262,7 @@ describe("reaching for the key with the pointer already on a name", () => {
     press("Meta")
     await Effect.runPromise(settled())
 
-    expect(stage.marked).toEqual([name])
+    expect(stage.marked.map(([one]) => one)).toEqual([name])
   })
 
   test("answers Control as well, for the readers who are not on a Mac", async () => {
@@ -273,7 +273,7 @@ describe("reaching for the key with the pointer already on a name", () => {
     press("Control")
     await Effect.runPromise(settled())
 
-    expect(stage.marked).toEqual([name])
+    expect(stage.marked.map(([one]) => one)).toEqual([name])
   })
 
   test("lets go when the key comes up, without asking anything again", async () => {
@@ -285,7 +285,7 @@ describe("reaching for the key with the pointer already on a name", () => {
     await Effect.runPromise(settled())
     release("Meta")
 
-    expect(stage.marked).toEqual([name, null])
+    expect(stage.marked.map(([one]) => one)).toEqual([name, null])
     expect(stage.asked).toHaveLength(1)
   })
 
@@ -310,7 +310,7 @@ describe("reaching for the key with the pointer already on a name", () => {
     await Effect.runPromise(settled())
 
     expect(stage.asked).toHaveLength(1)
-    expect(stage.marked).toEqual([name, null, name])
+    expect(stage.marked.map(([one]) => one)).toEqual([name, null, name])
   })
 })
 
@@ -765,4 +765,30 @@ describe("which of the two a press is", () => {
     expect(screen.queryByText("2 in this file")).toBeNull()
   })
 
+})
+
+describe("which reading answered, where the reader can see it", () => {
+  test("underlines solid and says so where a compiler answered", async () => {
+    const stage = staged({ ...writing, exact: true })
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    expect(stage.marked.at(-1)).toEqual([name, "sure"])
+    expect(screen.getByText("Types")).toBeTruthy()
+  })
+
+  test("underlines dotted where a reading of shapes answered", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    // The same underline the reader was getting either way, drawn differently:
+    // nothing is added to the screen and the difference is visible anyway.
+    expect(stage.marked.at(-1)).toEqual([name, "likely"])
+    expect(screen.getByText("Sure")).toBeTruthy()
+  })
 })

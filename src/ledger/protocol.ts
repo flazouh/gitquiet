@@ -34,6 +34,10 @@ export type LedgerAsk = {
   readonly path: string
   readonly text: string
   readonly key?: string
+  /** Which repository at which commit, for the tier that keeps a program per one. */
+  readonly owner?: string
+  readonly repo?: string
+  readonly sha?: string
   readonly question: Question
 }
 

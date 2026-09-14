@@ -33,7 +33,16 @@ import {
   type LedgerWarmWork,
   type LedgerWork
 } from "@/ledger/protocol"
-import { toldBy, usesIn, writingAt, writingNamed, writingsIn, type Told } from "@/ledger/writings"
+import {
+  toldBy,
+  usesIn,
+  writingAt,
+  writingNamed,
+  writingsIn,
+  type Told,
+  type Writing
+} from "@/ledger/writings"
+import type { Spot } from "@/ports/Ledger"
 
 const shelf = (): Shelf => {
   const getURL = browser.runtime.getURL as (path: string) => string
@@ -43,10 +52,68 @@ const shelf = (): Shelf => {
   }
 }
 
+/**
+ * The compiler's answer to where a name is written, where there is one.
+ *
+ * Tried before the shapes, and falling through to them where it has nothing:
+ * the tier is built after the reading and may not be ready, the file may be in
+ * a language it does not compile, and a name in a dependency resolves to
+ * nothing because an archive carries no `node_modules`.
+ *
+ * What it adds is the question the shapes cannot answer at all — a method call,
+ * whose meaning is the type of the thing it is called on.
+ */
+const exactWriting = (work: LedgerWork, at: Spot): Writing | null => {
+  if (work.owner === undefined || work.repo === undefined || work.sha === undefined) return null
+
+  const key = keyOf({ owner: work.owner, repo: work.repo }, work.sha)
+  const exact = exactness?.at === key ? exactness.exact : null
+  if (exact === null) return null
+
+  const found = exact.definitionAt({
+    path: `/${work.path}`,
+    line: at.row + 1,
+    column: at.column
+  })
+  if (found === null) return null
+
+  const path = found.path.replace(/^\//, "")
+  return {
+    name: found.name,
+    kind: kindOfExact(found.kind),
+    line: found.line,
+    from: found.column + 1,
+    to: found.column + 1 + found.name.length,
+    signature: found.signature,
+    doc: null,
+    sure: true,
+    exact: true,
+    ...(path === work.path ? {} : { path })
+  }
+}
+
+/** The compiler's word for what a thing is, in this codebase's own words. */
+const kindOfExact = (kind: string): Writing["kind"] => {
+  if (kind === "method" || kind === "property" || kind === "getter" || kind === "setter") {
+    return "member"
+  }
+  if (kind === "class") return "class"
+  if (kind === "interface" || kind === "type" || kind === "enum") return "type"
+  if (kind === "function" || kind === "local function") return "function"
+  if (kind === "parameter") return "parameter"
+  if (kind === "alias") return "import"
+  return "value"
+}
+
 const answer = (work: LedgerWork): Effect.Effect<LedgerAnswer> =>
   parsed(shelf(), work.path, work.text, (root): LedgerAnswer => {
     const question = work.question
     if (question.of === "writingAt") {
+      // The compiler first, where there is one: it answers questions the shapes
+      // cannot, and answers the rest of them better.
+      const exact = exactWriting(work, question.at)
+      if (exact !== null) return { kind: LEDGER_ANSWER, writing: exact }
+
       const answer = writingAt(root, work.text, question.at)
       if (answer === null) return { kind: LEDGER_ANSWER, writing: null }
       return answer.at === "here"

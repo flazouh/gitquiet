@@ -82,6 +82,13 @@ A Writing reached by proof: the Name resolved inside its own scope, or through a
 file states. Nothing else is Sure.
 _Avoid_: precise, exact, semantic.
 
+**Types**:
+A Writing reached by a compiler rather than by a reading of shapes, which is the only way to
+reach one through a method call. Shown in the card as its own word rather than folded into Sure,
+because it is a different kind of answer and a reader deciding whether to trust a rename needs to
+know which they have. The underline says it too: solid for a compiler, dotted for the shapes.
+_Avoid_: exact, precise, semantic, LSP.
+
 **Likely**:
 A Writing reached by matching a name and a kind and nothing more. Offered, marked, and never
 dressed as Sure. A reader who is told which of the two they have can decide whether to trust

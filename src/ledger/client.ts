@@ -48,6 +48,10 @@ const asked = (post: Post, reading: Reading, question: Question) =>
         path: reading.path,
         text: reading.text,
         ...(reading.key === undefined ? {} : { key: reading.key }),
+        ...(reading.repo === undefined
+          ? {}
+          : { owner: reading.repo.owner, repo: reading.repo.repo }),
+        ...(reading.sha === undefined ? {} : { sha: reading.sha }),
         question
       } satisfies LedgerAsk),
     catch: (cause) => new LedgerUnavailable({ cause })
