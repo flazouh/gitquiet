@@ -626,6 +626,19 @@ describe("what the bar keeps of GitHub's", () => {
     expect(report.getAttribute("target")).toBe("_blank")
   })
 
+  test("opens the bug report in a new tab on press", async () => {
+    const opened: Array<string> = []
+    const original = window.open
+    window.open = ((url?: string | URL) => {
+      opened.push(String(url))
+      return null
+    }) as typeof window.open
+    render(<Bar where={{ kind: "home" }} />)
+    await userEvent.click(screen.getByRole("link", { name: "Report a problem on GitQuiet" }))
+    window.open = original
+    expect(opened).toEqual(["https://github.com/flazouh/gitquiet/issues"])
+  })
+
   test("the Participant, with the same three rows the Rail offers", async () => {
     // The way back to GitHub was a fourth row here, a hundred pixels from the
     // button in this same bar that does it. Two ways to one place, one of them

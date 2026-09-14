@@ -831,6 +831,12 @@ export const Bar = ({
           aria-label={
             unread ? "Notifications, something is waiting" : "Notifications"
           }
+          onClick={(event) => {
+            // Full document load. Soft-nav left no region to stand in (and claiming
+            // the press let the duplicate-navigation guard cancel a later assign).
+            event.preventDefault()
+            window.location.assign("/notifications")
+          }}
           className="relative grid size-7 place-items-center rounded-md text-ink-muted no-underline hover:bg-hover hover:text-ink"
         >
           {/*
@@ -891,6 +897,16 @@ export const Bar = ({
           rel="noreferrer"
           aria-label="Report a problem on GitQuiet"
           title="Report a problem on GitQuiet"
+          onClick={(event) => {
+            // Open ourselves: same-origin + Turbo (and some synthetic clicks) ignore
+            // target=_blank and replace this tab with the issues board.
+            event.preventDefault()
+            window.open(
+              "https://github.com/flazouh/gitquiet/issues",
+              "_blank",
+              "noopener,noreferrer"
+            )
+          }}
           className="grid size-7 place-items-center rounded-md text-ink-muted no-underline hover:bg-hover hover:text-ink"
         >
           <Bug size={16} />

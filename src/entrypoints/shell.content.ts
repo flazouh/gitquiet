@@ -857,7 +857,13 @@ export default defineContentScript({
           Option.isSome(elsewhereThan(window.location.pathname, address.pathname)))
           ? page
           : null;
-      return what === null ? null : { link, what, destination: address };
+      if (what === null) return null;
+      // No soft region (notifications, a commit): claiming the press cancelled the
+      // click, and a later location.assign was then killed by the duplicate-
+      // navigation guard as "GitHub answering the same owned route". Leave these
+      // to a real document load — the bar forces one where Turbo would soft-nav.
+      if (placeFor(what, address.pathname).soft === undefined) return null;
+      return { link, what, destination: address };
     };
 
     const pressed = (event: Event): void => {
@@ -868,20 +874,7 @@ export default defineContentScript({
 
       const route = opening(event.target);
       if (route === null) return;
-      const { link, what, destination } = route;
-
-      /*
-       * A place with no soft path (notifications, a commit) only arrives as a
-       * document load — there is no region on this page to stand in. Cancelling
-       * the click and pushState-ing left the previous screen gone, GitHub gated
-       * off, and our bar with nowhere to stay: the "top bar disappeared" fault.
-       * Owned-route already cancelled the click, so the browser cannot carry it:
-       * assign the full address and let document_start remount on the new page.
-       */
-      if (placeFor(what, link.pathname).soft === undefined) {
-        if (event.type === "click") window.location.assign(destination.href);
-        return;
-      }
+      const { link, what } = route;
 
       /*
        * The one rule, asked of every event of every press, and kept in one place
@@ -908,12 +901,6 @@ export default defineContentScript({
       const route = opening(link, new URL(href, window.location.origin));
       if (route === null) return;
       const { pathname, search, hash } = route.destination;
-      // Same rule as `pressed`: no soft region means a real document load.
-      // The owned-route guard cancelled the click, so assign rather than return.
-      if (placeFor(route.what, pathname).soft === undefined) {
-        if (kind === "click") window.location.assign(route.destination.href);
-        return;
-      }
       if (kind === "click") {
         open(route.what, pathname, { push: `${pathname}${search}${hash}` });
         return;
