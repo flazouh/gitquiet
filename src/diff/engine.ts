@@ -150,7 +150,10 @@ export const named = (token: {
   from: token.lineCharStart,
   to: token.lineCharEnd,
   text: token.tokenText,
-  ...(token.side === undefined ? {} : { side: sideOf(token) })
+  ...(() => {
+    const side = sideOf(token)
+    return side === undefined ? {} : { side }
+  })()
 })
 
 /**
@@ -168,14 +171,26 @@ export const named = (token: {
  * both lines of the file as it is now — which is the file every question here
  * is asked against.
  */
-const sideOf = (token: { side?: DiffSide; tokenElement?: HTMLElement }): DiffSide => {
+const sideOf = (token: {
+  side?: DiffSide
+  tokenElement?: HTMLElement
+}): DiffSide | undefined => {
   // The attribute this reads, rather than the row it usually sits on: a row
   // carries both, and looking for the wrong one answers null and falls back to
   // the column — which is the thing being corrected.
   const kind = token.tokenElement?.closest("[data-line-type]")?.getAttribute("data-line-type")
-  if (kind === "change-deletion") return "deletions"
-  if (kind === null || kind === undefined) return token.side ?? "additions"
-  return "additions"
+
+  // Not a diff at all. A whole file has no halves, and a side invented here is
+  // a guess that reads downstream as a fact — so the column is passed through,
+  // and where there was none there is none.
+  if (kind === null || kind === undefined) return token.side
+
+  // A diff, where the row is the authority and the column is not consulted at
+  // all. A token can arrive from one of these carrying no column, and that used
+  // to come out with no side — which reads as "not a deletion" and asks the new
+  // half of a file about a line belonging to the old one. A pull request is
+  // mostly deletions and context, so that is not a rare shape there.
+  return kind === "change-deletion" ? "deletions" : "additions"
 }
 
 /**

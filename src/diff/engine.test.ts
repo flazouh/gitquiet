@@ -146,3 +146,58 @@ describe("which half of the file a line belongs to", () => {
     expect(named(token(null, "deletions")).side).toBe("deletions")
   })
 })
+
+/**
+ * Which half of the file a token belongs to.
+ *
+ * A pull request draws far more deletions than a commit usually does, and a
+ * name on a deleted line is a name in a file that no longer exists at this
+ * commit — asking about it looks up the new half for an old line number and
+ * answers about whatever happens to be there now.
+ */
+describe("the half of a file a name is in", () => {
+  const rowOf = (kind: string | null): HTMLElement => {
+    const row = document.createElement("div")
+    if (kind !== null) row.setAttribute("data-line-type", kind)
+    const token = document.createElement("span")
+    row.append(token)
+    return token
+  }
+
+  const name = (kind: string | null, side?: "additions" | "deletions") =>
+    named({
+      lineNumber: 12,
+      lineCharStart: 0,
+      lineCharEnd: 4,
+      tokenText: "each",
+      ...(side === undefined ? {} : { side }),
+      tokenElement: rowOf(kind)
+    })
+
+  test("reads a deleted line as the old half, whatever column drew it", () => {
+    expect(name("change-deletion", "additions").side).toBe("deletions")
+  })
+
+  test("reads a context line as the new half, which is the file as it is now", () => {
+    // Drawn in both columns, so it arrives as whichever the renderer was
+    // laying out — and most lines in most diffs are these.
+    expect(name("context", "deletions").side).toBe("additions")
+    expect(name("context-expanded", "deletions").side).toBe("additions")
+  })
+
+  test("answers for a token that arrived with no column at all", () => {
+    // This used to come out with no side, which reads downstream as "not a
+    // deletion" and asks the new half about an old line.
+    expect(name("change-deletion").side).toBe("deletions")
+  })
+
+  test("passes the column through where the row says nothing", () => {
+    expect(name(null, "deletions").side).toBe("deletions")
+  })
+
+  test("still has no side at all in a file that is not a diff", () => {
+    // A whole file has no halves. A side invented here would read downstream as
+    // a fact about a diff that does not exist.
+    expect("side" in name(null)).toBe(false)
+  })
+})
