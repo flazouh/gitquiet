@@ -819,6 +819,10 @@ export default defineContentScript({
       if (!(target instanceof Element)) return null;
       const link = target.closest("a");
       if (link === null) return null;
+      // A new tab is the browser's to open. Claiming it as ours cancelled the
+      // default and soft-navigated the same tab — which is how the bug report
+      // link (target=_blank) landed on issues without a new tab.
+      if (link.target === "_blank" || link.target === "_new") return null;
       const address = destination ?? linkAddress(link);
       if (address.hostname !== window.location.hostname) return null;
 
@@ -864,17 +868,18 @@ export default defineContentScript({
 
       const route = opening(event.target);
       if (route === null) return;
-      const { link, what } = route;
+      const { link, what, destination } = route;
 
       /*
        * A place with no soft path (notifications, a commit) only arrives as a
        * document load — there is no region on this page to stand in. Cancelling
        * the click and pushState-ing left the previous screen gone, GitHub gated
        * off, and our bar with nowhere to stay: the "top bar disappeared" fault.
-       * Let the browser carry those; document_start remounts on the new page.
+       * Owned-route already cancelled the click, so the browser cannot carry it:
+       * assign the full address and let document_start remount on the new page.
        */
       if (placeFor(what, link.pathname).soft === undefined) {
-        if (event.type !== "click") open(what, link.pathname);
+        if (event.type === "click") window.location.assign(destination.href);
         return;
       }
 
@@ -904,7 +909,11 @@ export default defineContentScript({
       if (route === null) return;
       const { pathname, search, hash } = route.destination;
       // Same rule as `pressed`: no soft region means a real document load.
-      if (placeFor(route.what, pathname).soft === undefined) return;
+      // The owned-route guard cancelled the click, so assign rather than return.
+      if (placeFor(route.what, pathname).soft === undefined) {
+        if (kind === "click") window.location.assign(route.destination.href);
+        return;
+      }
       if (kind === "click") {
         open(route.what, pathname, { push: `${pathname}${search}${hash}` });
         return;

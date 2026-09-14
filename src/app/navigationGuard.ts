@@ -159,6 +159,8 @@ export const guardOwnedRoute = (event: MouseEvent): void => {
     event.type === "pointerdown" &&
     link.closest("#gitquiet-root, #gitquiet-bar") !== null &&
     link.hostname === window.location.hostname &&
+    link.target !== "_blank" &&
+    link.target !== "_new" &&
     event.button === 0 &&
     !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
   ) {
