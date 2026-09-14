@@ -303,13 +303,21 @@ const Feedback = () => {
         </div>
       </Above>
 
-      <main id="board" className={`${HELD} pb-16`}>
+      {/*
+        A `div`, not `<main>`: `feedback.html` clips `#page > main` for the crawler
+        first paint, and that rule still matches a React `<main>` after mount — which
+        hid the board and the rate-limit error while Nav/Footer stayed visible.
+      */}
+      <div id="board" role="main" className={`${HELD} pb-16`}>
         {load.kind === "loading" ? (
           <p className="m-0 text-[15px] text-muted">Reading issues…</p>
         ) : null}
 
         {load.kind === "error" ? (
-          <p className="m-0 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[15px] text-ink/70">
+          <p
+            className="m-0 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[15px] text-ink/70"
+            role="alert"
+          >
             <span>{load.says}</span>
             <button type="button" className={WORD} onClick={retry}>
               Retry
@@ -326,7 +334,7 @@ const Feedback = () => {
             . This board is a quieter read.
           </p>
         </section>
-      </main>
+      </div>
 
       <div className={HELD}>
         <Footer />
