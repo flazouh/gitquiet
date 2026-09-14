@@ -516,17 +516,29 @@ export const useFollowing = (
    * to arrive — every time, the first time, while watching a word not underline.
    * None of that is a question about a name, so none of it waits for the key.
    *
-   * Nothing is parsed and nothing is asked. The rule that nothing is asked until
-   * the key is held is about questions, and this is not one.
+   * The file is fetched here too, which is the other half of the same wait.
+   * Opening the door and then standing in it while a file is read off the
+   * network still leaves a reader watching a word not underline: measured on an
+   * 86-file pull request, letting the screen stand for three full seconds
+   * before reaching for the key still cost 544ms, because none of that time had
+   * been spent on the one thing the first question actually needs. It is the
+   * same file the pane will fetch if the reader expands a hunk, and it is kept,
+   * so the cost is one request for a file somebody is already looking at.
+   *
+   * Nothing is asked. The rule that nothing is asked until the key is held is
+   * about questions — about a name, about who uses it — and neither of these is
+   * one.
    */
   useEffect(() => {
     if (source === null) return
 
-    const opening = Effect.runFork(
-      ledger.ready(source.path).pipe(Effect.catch(onward))
-    )
-    return () => opening.interruptUnsafe()
-  }, [ledger, source])
+    const opening = Effect.runFork(ledger.ready(source.path).pipe(Effect.catch(onward)))
+    const reading = Effect.runFork(asking().pipe(Effect.catch(onward)))
+    return () => {
+      opening.interruptUnsafe()
+      reading.interruptUnsafe()
+    }
+  }, [asking, ledger, source])
 
   useEffect(() => {
     if (source === null) return

@@ -47,6 +47,17 @@ const HOLD = argued("--hold") ?? "pLimit"
 const PRESS = argued("--press") ?? "validateConcurrency"
 /** The line that name is written on, for checking the press arrived. */
 const WRITTEN = Number(argued("--written") ?? 128)
+/**
+ * How long to let the screen stand before reaching for the key.
+ *
+ * The pane opens the Ledger's door as soon as it draws — a worker to wake, a
+ * document to open, a runtime to compile, a megabyte and a half of grammar —
+ * none of which is a question about a name and none of which should wait for
+ * one. A probe that holds the key the instant a row appears is a reader faster
+ * than any reader, and measures the door rather than the answer. Zero keeps
+ * that measurement; a second or two is what a hand actually takes.
+ */
+const SETTLE = Number(argued("--settle") ?? 0)
 const EXTENSION = `${import.meta.dir}/../.output/chrome-mv3`
 const OUT = `${import.meta.dir}/../.output/qa`
 
@@ -138,6 +149,7 @@ try {
       }
       const shadow = await waitForPane()
       if (!shadow) return { word: null, underlineMs: null, decoration: null }
+      await new Promise((go) => setTimeout(go, ${SETTLE}))
       const spans = [...shadow.querySelectorAll("[data-line] span")]
       const token = spans.find((one) => (one.textContent || "").trim() === ${JSON.stringify(HOLD)})
       if (!token) return { word: null, underlineMs: null, decoration: null }
