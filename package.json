@@ -11,7 +11,7 @@
     "dev": "bun scripts/dev.ts",
     "dev:wxt": "wxt",
     "dev:ego": "ego-browser nodejs < scripts/ego-dev.js",
-    "build": "bun scripts/build-tree-icons.ts && bun scripts/build-wasm-probe.ts && bun scripts/build-diff-engine.ts && bun scripts/build-markdown-mermaid.ts && bun scripts/build-gates.ts && bun scripts/build-canary-manifest.ts && bun scripts/build-screens.ts && wxt build",
+    "build": "bun scripts/build-tree-icons.ts && bun scripts/build-ledger.ts && bun scripts/build-diff-engine.ts && bun scripts/build-markdown-mermaid.ts && bun scripts/build-gates.ts && bun scripts/build-canary-manifest.ts && bun scripts/build-screens.ts && wxt build",
     "build:gates": "bun scripts/build-gates.ts",
     "build:screens": "bun scripts/build-screens.ts",
     "build:diff-engine": "bun scripts/build-diff-engine.ts",

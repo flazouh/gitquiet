@@ -252,12 +252,16 @@ const beExact = (at: string, files: ReadonlyMap<string, string>): Effect.Effect<
     if (exactness?.at === at || buildingExact === at) return
     buildingExact = at
 
-    const { exactly, readable } = yield* exactEngine()
-    const library = yield* standardLibrary()
+    const { exactly, readable, MOST_FILES } = yield* exactEngine()
 
     const wanted = new Map<string, string>()
     for (const [path, text] of files) if (readable(path)) wanted.set(`/${path}`, text)
 
+    // Past the cap, the tier below answers — which it was doing anyway while
+    // this was being built. See `MOST_FILES` for the measurements behind it.
+    if (wanted.size > MOST_FILES) return
+
+    const library = yield* standardLibrary()
     exactness = { at, exact: exactly(wanted, library) }
   }).pipe(
     Effect.catch(() => Effect.void),
@@ -371,7 +375,13 @@ const read = (work: LedgerWarmWork, at: string): Effect.Effect<LedgerWarmth> =>
         yield* store
           .keepManifest({ ...manifest, seen: Date.now() })
           .pipe(Effect.catch(() => Effect.void))
-        return { ready: true, read: files.size, skipped: 0, kept: true } satisfies LedgerWarmth
+        return {
+          ready: true,
+          read: files.size,
+          skipped: 0,
+          kept: true,
+          exactReady: exactness?.at === at
+        } satisfies LedgerWarmth
       }
     }
 
@@ -420,7 +430,8 @@ const read = (work: LedgerWarmWork, at: string): Effect.Effect<LedgerWarmth> =>
       ready: true,
       read: files.size,
       skipped: whole.size - files.size,
-      parsed: fresh.size
+      parsed: fresh.size,
+      exactReady: exactness?.at === at
     } satisfies LedgerWarmth
   }).pipe(
     Effect.catch((cause) => Effect.succeed({ ready: false, why: String(cause) } satisfies LedgerWarmth))
@@ -432,7 +443,26 @@ const warm = (work: LedgerWarmWork): Effect.Effect<LedgerWarmth> =>
 
     const found = holding(at)
     if (found !== undefined) {
-      return { ready: true, read: found.read, skipped: found.skipped, kept: true }
+      /*
+       * Held, and that is the whole answer unless a compiler is wanted and
+       * there is not one.
+       *
+       * A reader turns the knob on while looking at a repository this has
+       * already read. Answering "held" and stopping there is what this did, and
+       * what it meant was that the setting did nothing at all until the Ledger
+       * happened to be let go of — which a measurement caught by finding the
+       * same memory held with the compiler on as with it off.
+       */
+      if (work.exact === true && exactness?.at !== at) {
+        yield* Effect.forkDetach(exactFrom(work, at))
+      }
+      return {
+        ready: true,
+        read: found.read,
+        skipped: found.skipped,
+        kept: true,
+        exactReady: exactness?.at === at
+      }
     }
     // Already on its way. The second asker waits on the first's read rather
     // than starting a second one, which on a large repository is ten megabytes

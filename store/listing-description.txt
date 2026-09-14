@@ -5,6 +5,8 @@ GitHub splits a pull request by record type: Conversation, Commits, Checks, File
 WHAT YOU GET
 • Working set - every pull request you are in, across repositories, in four groups: Needs You, Waiting, Running, Settled
 • Pull request review - unresolved threads, failing checks and commits pushed since you last looked, all above the diff
+• Follow a name - hold Command over a name in any diff or file and it underlines; click a call to go to where it is written, click the definition to see everywhere that depends on it
+• Reach any file or name - one key for any file in the repository, one for any name it writes down
 • Keyboard driven - walk threads, checks and files one key at a time
 • Issues, Actions, commits and repository home follow the same grouping
 • Runs inside GitHub's own interface, with Primer tokens and Octicons

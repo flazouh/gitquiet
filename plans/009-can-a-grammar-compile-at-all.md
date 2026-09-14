@@ -1,6 +1,7 @@
 # 009 — Whether a grammar can compile at all
 
 - **Status**: DONE for Chrome, and the answer is **yes**. Firefox is unanswered — see below.
+  The probe itself is retired; what replaced it is in "What is left behind".
 - **Severity**: HIGH — it is a gate, not a feature. A no here changes what 011 and 012 are.
 - **Category**: Feasibility
 - **Spec**: `docs/spec/following.md`, "The parsing cannot happen where the interface is"
@@ -203,30 +204,16 @@ the hazard `chrome.ts` documents at `PORT`. `scripts/probe-wasm.ts` stops its Ch
 
 ### What is left behind
 
-Kept, not thrown away, because 011 is the same machinery with a resolver on top:
+Nothing of the probe. It was kept after answering on the grounds that it was a canary — the
+answer rests on Chrome's policy for extension pages and on a manifest line of ours, and either
+could change under a feature with no other way of noticing.
 
-| File | What it is |
-| --- | --- |
-| `src/wasm-probe/attempt.ts` | The question, asked once, runnable in a window or a worker |
-| `src/wasm-probe/protocol.ts` | The two words the three parties use |
-| `src/wasm-probe/worker.ts` | The worker half |
-| `src/entrypoints/wasm-probe.html`, `wasm-probe/main.ts` | The offscreen document |
-| `scripts/build-wasm-probe.ts` | Builds the worker, copies the runtime, the grammar and the sample |
-| `scripts/probe-wasm.ts` | The live run above |
-| `src/entrypoints/background.ts` | A relay, in one marked block |
+The Ledger is that canary now, and a better one. It compiles the same runtime and the same
+grammars at the same origin on every repository a reader opens, and a policy that stopped
+allowing it would stop Following rather than fail a check nobody runs. So the probe was 468kB in
+every install doing nothing that the product does not already do louder, and it is gone:
+`src/wasm-probe/`, the listener in the offscreen document, the relay in the worker, the manifest
+entries, and `scripts/probe-wasm.ts`.
 
-The manifest's CSP line stays, because 011 needs it and because it is the answer's most useful
-artifact.
-
-What a release carries today, said exactly, because "it is only a probe" is how 1.6MB ends up
-in a store build. The runtime, the grammar and the sample are gitignored and are written only
-by `scripts/build-wasm-probe.ts`, which `bun run build` does not run — so a clean checkout
-builds without them. The offscreen page is an entrypoint, and WXT builds every entrypoint, so
-`wasm-probe.html` and an 82kB chunk *are* in the output, as is the relay block in
-`background.ts`. Neither does anything: the document loads, finds no grammar where it expects
-one, and answers a message nobody sends.
-
-So whoever takes 011 decides one of two things, and should decide it before the first release
-after this lands: fold the probe into the code-intelligence chunk it was the skeleton for, or
-move the page out of `src/entrypoints/` into something `scripts/build-wasm-probe.ts` writes,
-which takes it out of every build that does not ask for it.
+What stays is this file. The measurements below are the reason the rest of the feature is shaped
+the way it is, and they do not need the code that took them.

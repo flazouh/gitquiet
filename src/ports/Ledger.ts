@@ -165,6 +165,8 @@ export type Warmth = {
   readonly ready: boolean
   readonly read?: number
   readonly skipped?: number
+  /** Whether a compiler is ready for this repository, where one was asked for. */
+  readonly exactReady?: boolean
   readonly why?: string
 }
 

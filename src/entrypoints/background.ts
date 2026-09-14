@@ -32,11 +32,6 @@ import {
   LEDGER_WORK,
   type LedgerWork
 } from "@/ledger/protocol"
-import {
-  isWasmProbe,
-  WASM_PROBE_WORK,
-  type WasmProbeWork
-} from "@/wasm-probe/protocol"
 
 /**
  * The one document this extension works in away from the page, and the one
@@ -153,33 +148,6 @@ const askTheLedger = (ask: { readonly path: string; readonly text: string; reado
     )
   )
 
-/*
- * Plan 009's probe, and the only thing in this file that is not the product.
- *
- * It asks one question — can WebAssembly be compiled at our own origin, on a
- * page github.com serves — and `scripts/probe-wasm.ts` is the only caller. It
- * shares the document above rather than opening one of its own, which is the
- * finding it came back with.
- */
-
-const askTheProbe: Effect.Effect<unknown> = Effect.gen(function* () {
-  if (!(yield* ensureOffscreen)) {
-    return { kind: "gitquiet/wasm-probe-answer", attempts: [], notes: ["no offscreen API"] }
-  }
-
-  return yield* Effect.promise(() =>
-    browser.runtime.sendMessage({ kind: WASM_PROBE_WORK } satisfies WasmProbeWork)
-  )
-}).pipe(
-  Effect.catch((cause) =>
-    Effect.succeed({
-      kind: "gitquiet/wasm-probe-answer",
-      attempts: [],
-      notes: [`the offscreen document never opened: ${String(cause)}`]
-    })
-  )
-)
-
 /**
  * The worker, which reads a pull request before there is a page to read it on.
  *
@@ -238,9 +206,6 @@ export default defineBackground(() => {
       return Effect.runPromise(
         relay({ ...message, kind: LEDGER_BEYOND_WORK }, { why: "no offscreen API" })
       )
-    }
-    if (isWasmProbe(message)) {
-      return Effect.runPromise(askTheProbe)
     }
     return undefined
   })

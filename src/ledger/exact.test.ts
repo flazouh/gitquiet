@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
-import { exactly, readable, type Exact } from "./exact"
+import { exactly, MOST_FILES, readable, type Exact } from "./exact"
 
 /**
  * The exact tier, against a small repository of its own.
@@ -103,5 +103,14 @@ describe("which files it can say anything about", () => {
     expect(readable("src/one.mjs")).toBe(true)
     expect(readable("README.md")).toBe(false)
     expect(readable("src/one.py")).toBe(false)
+  })
+})
+
+describe("how much is worth building a program over", () => {
+  test("stops where a document would be holding a quarter of a gigabyte", () => {
+    // Measured rather than chosen: about 29MB for the compiler however small the
+    // repository, and about a tenth of a megabyte per file after it. The
+    // comment on `MOST_FILES` carries the table.
+    expect(MOST_FILES).toBe(1_000)
   })
 })

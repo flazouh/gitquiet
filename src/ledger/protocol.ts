@@ -95,6 +95,15 @@ export type LedgerWarmth = {
   readonly parsed?: number
   /** True where nothing was fetched, because this commit was already known. */
   readonly kept?: boolean
+  /**
+   * Whether a compiler is ready for this repository.
+   *
+   * Asked for rather than assumed: the tier is built after the answer, so a
+   * warm that returns saying it was wanted is not a warm that has one. A screen
+   * that wants to say "these answers are exact now" reads this, and so does
+   * anything measuring what one costs.
+   */
+  readonly exactReady?: boolean
   readonly why?: string
 }
 
