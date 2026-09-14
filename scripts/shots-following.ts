@@ -319,8 +319,12 @@ if (used === null) {
 await session.tab.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Meta", code: "MetaLeft" })
 await key({ key: "Escape", code: "Escape" })
 await sleep(800)
-await mouse("mouseMoved", spot.x, spot.y, 0)
-await sleep(400)
+// Found again rather than reused: the Peek added a row to the file, so every
+// line below it has moved, and the coordinate from before the Peek now points
+// at whatever slid into its place.
+const again = (await spotFor(WRITTEN)) ?? spot
+await mouse("mouseMoved", again.x, again.y, 0)
+await sleep(600)
 await key({ key: "u", code: "KeyU", text: "u" })
 await sleep(1800)
 await shot("5-uses-by-key")

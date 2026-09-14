@@ -602,13 +602,34 @@ export const useFollowing = (
   const unpeek = useCallback(() => setPeeked(null), [])
   const unask = useCallback(() => setAsked(null), [])
   const unbeyond = useCallback(() => setBeyond(null), [])
+  /**
+   * The uses of whatever the pointer is on, asked for by the letter.
+   *
+   * It used to answer only where the Writing was already in hand, which it only
+   * ever is while the key is held — so the letter worked for a reader already
+   * holding Command and did nothing at all for everybody else, silently, which
+   * is not what it is for. The letter is the way to ask *without* holding
+   * anything: a reader reads a line, wonders about a name, and presses `u`.
+   *
+   * Insisting, for the reason every press here insists: this is a key, the
+   * pointer is not being tracked through it, and an answer thrown away because
+   * the renderer reported a leave is an answer nobody asked it to throw away.
+   */
   const askNow = useCallback(() => {
     const here = on.current
-    if (here?.writing == null) return
+    if (here === null) return
 
-    clear()
-    setAsked({ writing: here.writing, ...(here.where === undefined ? {} : { where: here.where }) })
-  }, [clear])
+    const show = (writing: Writing, where?: string): void => {
+      clear()
+      setAsked({ writing, ...(where === undefined ? {} : { where }) })
+    }
+
+    if (here.writing !== null) {
+      show(here.writing, here.where)
+      return
+    }
+    ask(here.name, show, true)
+  }, [ask, clear])
   const textNow = useCallback(
     () => (text.current?.path === source?.path ? (text.current?.text ?? null) : null),
     [source]

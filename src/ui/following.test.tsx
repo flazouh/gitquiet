@@ -1010,3 +1010,37 @@ describe("a press that the pointer has already left", () => {
     expect(await screen.findByText("2 in this file")).toBeTruthy()
   })
 })
+
+/**
+ * The letter, pressed by a reader holding nothing.
+ *
+ * `u` is the uses of whatever the pointer is on, and the whole point of it is
+ * that it asks without the key. It used to answer only where the Writing was
+ * already in hand — which it only ever is while Command is held — so it worked
+ * for a reader who did not need it and did nothing for one who did.
+ */
+describe("asking by the letter rather than by the key", () => {
+  test("answers for a name the pointer is merely on", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    // No key: a pointer resting on a name, which is all a reader has done.
+    stage.request?.onNameEnter?.(itself, held({ go: false }))
+    await Effect.runPromise(settled())
+    await userEvent.keyboard("u")
+    await Effect.runPromise(settled())
+
+    expect(await screen.findByText("2 in this file")).toBeTruthy()
+  })
+
+  test("still says nothing where the pointer is on nothing", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameLeave?.(itself)
+    await userEvent.keyboard("u")
+    await Effect.runPromise(settled())
+
+    expect(screen.queryByText("2 in this file")).toBeNull()
+  })
+})
