@@ -21,4 +21,3 @@
 
 import "./mermaid"
 import "./ledger"
-import "./probe"

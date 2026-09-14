@@ -1,8 +1,8 @@
 /**
  * Builds what has to be built beside the extension rather than into it: the
- * Ledger's parser and grammars, and plan 009's probe.
+ * Ledger's parser and its grammars, and the compiler behind the exact tier.
  *
- *     bun scripts/build-wasm-probe.ts    (and as part of `bun run build`)
+ *     bun scripts/build-ledger.ts    (and as part of `bun run build`)
  *
  * The grammars are files rather than imports. A content script inlines every
  * dynamic import into one file — the finding that cost 10.6MB once already, see
@@ -10,10 +10,10 @@
  * never holds Command must not download. So they are copied into `public/`,
  * which WXT copies verbatim, and fetched by name at our own origin.
  *
- * The worker is bundled the way the diff renderer is — vite in library mode,
- * into `public/`, which WXT copies verbatim — because a worker started from an
- * extension URL needs one file at a path the manifest publishes, and
- * `web-tree-sitter` is a bare import that has to be resolved before then.
+ * The compiler is bundled the way the diff renderer is — vite in library mode,
+ * into `public/` — because the document that uses it imports it from an
+ * extension URL, and `typescript-5` is a bare import that has to be resolved
+ * before then.
  */
 
 import { fileURLToPath } from "node:url"
@@ -22,24 +22,6 @@ import { build } from "vite"
 
 const here = (path: string) => fileURLToPath(new URL(path, import.meta.url))
 
-await build({
-  configFile: false,
-  publicDir: false,
-  build: {
-    outDir: here("../public"),
-    emptyOutDir: false,
-    target: "chrome120",
-    lib: {
-      entry: here("../src/wasm-probe/worker.ts"),
-      formats: ["es"],
-      fileName: () => "wasm-probe-worker.js"
-    },
-    rollupOptions: { output: { codeSplitting: false } }
-  },
-  logLevel: "warn"
-})
-
-await mkdir(here("../public/wasm-probe"), { recursive: true })
 await mkdir(here("../public/ledger"), { recursive: true })
 await mkdir(here("../public/exact"), { recursive: true })
 
@@ -125,30 +107,9 @@ const LEDGER: ReadonlyArray<readonly [string, string]> = [
   ]
 ]
 
-/**
- * The probe's own, which is a file to parse and nothing else.
- *
- * It reads the runtime and the grammar out of `ledger/` rather than keeping
- * copies: the probe shares the Ledger's document, and it should be compiling the
- * same bytes the product compiles or it is not asking the product's question.
- *
- * The sample is this repository's own `place.ts` rather than a snippet, because
- * the question is what a file somebody actually opens costs.
- */
-const copies: ReadonlyArray<readonly [string, string]> = [
-  ["../src/ui/place.ts", "sample.txt"]
-]
-
-for (const [from, to] of copies) {
-  const file = Bun.file(here(from))
-  await Bun.write(here(`../public/wasm-probe/${to}`), file)
-  console.log(`wasm-probe/${to}  ${file.size} bytes`)
-}
-
 for (const [from, to] of LEDGER) {
   const file = Bun.file(here(from))
   await Bun.write(here(`../public/ledger/${to}`), file)
   console.log(`ledger/${to}  ${file.size} bytes`)
 }
 
-console.log("built public/wasm-probe-worker.js")

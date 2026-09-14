@@ -54,6 +54,31 @@ export type Exact = {
 /** Which files this can say anything about. */
 export const readable = (path: string): boolean => /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(path)
 
+/**
+ * How many files are worth building a program over.
+ *
+ * Measured in the document this runs in, after a question rather than before —
+ * the service builds nothing until it is asked something, so a compiler that had
+ * not been asked anything looked exactly like no compiler at all:
+ *
+ * | Repository | Files | The Ledger | And a compiler |
+ * | --- | --- | --- | --- |
+ * | `sindresorhus/p-limit` | 5 | 2MB | 31MB |
+ * | `sindresorhus/ky` | 84 | 32MB | 47MB |
+ * | `honojs/hono` | 386 | 53MB | 91MB |
+ *
+ * Which is about 29MB for the compiler and its library however small the
+ * repository, and about a tenth of a megabyte per file after that. A thousand
+ * files is therefore something like a quarter of a gigabyte held in a document
+ * a reader never sees and cannot close, and that is where this stops.
+ *
+ * Above it the tier below answers, as it does for a repository written in a
+ * language nothing here compiles. A reader loses the method calls and keeps
+ * everything else, which is the same bargain and a better one than a browser
+ * tab that will not let go of a gigabyte.
+ */
+export const MOST_FILES = 1_000
+
 /** A line and a column as an offset into the text, which is what the service wants. */
 const offsetOf = (text: string, line: number, column: number): number => {
   let at = 0

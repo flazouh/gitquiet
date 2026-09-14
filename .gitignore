@@ -45,5 +45,3 @@ node_modules
 public/ledger/
 public/exact.js
 public/exact/
-public/wasm-probe-worker.js
-public/wasm-probe/
