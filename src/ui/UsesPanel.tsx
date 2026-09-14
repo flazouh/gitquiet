@@ -95,6 +95,10 @@ export const UsesPanel = ({
    */
   const beyond = (elsewhere?.uses ?? []).filter((use) => !here || use.path !== reading.path)
 
+  /** The uses worth a row, which is every one that is not the writing itself. */
+  const elsewhereInFile =
+    uses === null ? null : uses.filter((use) => use.line !== writing.line || use.from !== writing.from)
+
   useEffect(() => {
     const box = frame.current
     if (box === null) return
@@ -202,15 +206,33 @@ export const UsesPanel = ({
         }}
         className="flex w-full items-baseline gap-3 border-b border-line px-4 py-1.5 text-left font-mono text-xs hover:bg-hover"
       >
-        <span className="w-10 shrink-0 text-right text-[0.6875rem] text-ink-muted">written</span>
+        {/*
+          Wide enough for the word, and told not to break it. At `w-10` this
+          column fits a four-figure line number and not the word "written",
+          which wrapped to "writte" and a lone "n" on the row this feature
+          exists to show.
+        */}
+        <span className="w-14 shrink-0 whitespace-nowrap text-right text-[0.6875rem] text-ink-muted">
+          written
+        </span>
         <span className="min-w-0 flex-1 truncate">{writing.signature}</span>
         <span className="shrink-0 text-[0.6875rem] text-ink-muted">
           {here ? writing.line : `${where}:${writing.line}`}
         </span>
       </button>
-      {uses === null || uses.length === 0 ? null : (
+      {/*
+        The uses, minus the writing itself, which has its own row above.
+
+        `usesIn` answers with every occurrence of the name and the declaration
+        is one of them, so listing them all drew the same line twice: a card
+        headed "used nowhere else in this file" with two identical rows under
+        it. Matched on the column as well as the line, because a name can be
+        used on the line it is written on — `const f = () => f()` — and that
+        use is a real one.
+      */}
+      {elsewhereInFile === null || elsewhereInFile.length === 0 ? null : (
         <ul className="max-h-[50vh] overflow-y-auto py-1">
-          {uses.map((use) => (
+          {elsewhereInFile.map((use) => (
             <li key={`${use.line}:${use.from}`}>
               <button
                 type="button"
@@ -220,7 +242,7 @@ export const UsesPanel = ({
                 }}
                 className="flex w-full items-baseline gap-3 px-4 py-1 text-left font-mono text-xs hover:bg-hover"
               >
-                <span className="w-10 shrink-0 text-right text-[0.6875rem] text-ink-muted">
+                <span className="w-14 shrink-0 text-right text-[0.6875rem] text-ink-muted">
                   {use.line}
                 </span>
                 {/* The line itself, so a reader can tell a call from a
@@ -228,9 +250,7 @@ export const UsesPanel = ({
                 <span className="min-w-0 flex-1 truncate">
                   {(lines[use.line - 1] ?? "").trim()}
                 </span>
-                {use.line === writing.line ? (
-                  <span className="shrink-0 text-[0.6875rem] text-ink-muted">written</span>
-                ) : null}
+
               </button>
             </li>
           ))}

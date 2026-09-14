@@ -715,9 +715,12 @@ describe("what a press on an underlined name does", () => {
     // this and who depends on it" rather than "take me there" — and being moved
     // mid-review is the thing this interface exists to stop happening.
     expect(await screen.findByText("2 in this file")).toBeTruthy()
-    // Twice: the row saying where it is written, and the mark on the Use that
-    // is the writing itself.
-    expect(screen.getAllByText("written")).toHaveLength(2)
+    // Once. `usesIn` answers with every occurrence and the declaration is one
+    // of them, so the card used to draw it twice — its own row at the top and
+    // again in the list below, the same line under a heading that could say
+    // "used nowhere else in this file". Filmed on a live commit, which is the
+    // only place it looked as wrong as it was.
+    expect(screen.getAllByText("written")).toHaveLength(1)
   })
 
   test("offers where it is written as the first row, so a use of it is one more press", async () => {
@@ -729,14 +732,14 @@ describe("what a press on an underlined name does", () => {
     stage.request?.onName?.(itself, held({ go: true }))
     await Effect.runPromise(settled())
 
-    // Twice over, which is right: the row saying where it is written, and the
-    // line of the Use that is the writing itself.
+    // Once, and at the top: the row saying where the name is written. The Use
+    // that *is* the writing is not listed again below it — a card offering the
+    // same line twice reads as two answers to one question.
     //
-    // `findAllByText` and not `getAllByText`: the second of those arrives with
-    // the Uses, which is an effect away, and asking synchronously found one row
-    // on a loaded continuous-integration runner and two on this machine. A test
-    // that passes because the computer was fast enough is not a passing test.
-    await waitFor(() => expect(screen.getAllByText(writing.signature).length).toBeGreaterThan(1))
+    // `waitFor` all the same: the Uses arrive an effect later and decide
+    // whether anything is filtered out, so asserting synchronously asserts
+    // against a card that has not finished being wrong yet.
+    await waitFor(() => expect(screen.getAllByText(writing.signature)).toHaveLength(1))
   })
 
   test("still peeks on Shift, whichever end the press is on", async () => {
