@@ -155,7 +155,13 @@ export const Theme = ({
        * `data-gitquiet-taken`, so leaving a page we own hands the colour back
        * without this having to be undone.
        */
-      if (scope !== "document") paintFloor(document, tokensOf(pack, scheme))
+      /*
+       * The floor used to skip `scope === "document"` (desktop + shots), which left
+       * `--gitquiet-floor` stuck at whatever painted it first while tokens moved —
+       * light surfaces on a dark floor when the OS answered light. Always keep them
+       * together; on GitHub `taken` still gates whether the rule paints anything.
+       */
+      paintFloor(document, tokensOf(pack, scheme))
     },
     [scope, element]
   )

@@ -18,6 +18,8 @@ import { SettingsProvider } from "../src/ui/settings"
 import { Theme } from "../src/ui/Theme"
 import { Toasts } from "../src/ui/Toasts"
 import { AroundProvider } from "../src/ui/around"
+import { DEFAULTS } from "../src/domain/Settings"
+import { SETTINGS } from "../src/ui/keeping"
 
 /**
  * What the stage can answer, where `shell/supplied.tsx` answers for a page on
@@ -154,6 +156,22 @@ const nobody = {
   count: () => Effect.succeed(Option.none())
 }
 
+
+/**
+ * The stage has no operating-system theme and no GitHub page to match.
+ *
+ * Defaults alone are `appearance: "system"` and `pack: "match"`. On a light
+ * machine that paints light tokens onto the dark floor `main.tsx` set first —
+ * white cards on grey, which is what the hand-driven shots looked like. Force
+ * dark Gitquiet so interactive viewing matches store captures.
+ */
+const STAGE_CHOSEN: Record<string, unknown> = {
+  [SETTINGS]: {
+    ...DEFAULTS,
+    theme: { ...DEFAULTS.theme, appearance: "dark", pack: "gitquiet", art: "gitquiet" }
+  }
+}
+
 export const Supplied = ({
   chosen = {},
   element,
@@ -173,7 +191,7 @@ export const Supplied = ({
   readonly element?: HTMLElement | undefined
   readonly children: ReactNode
 }) => {
-  const store: Store = settingsStore(inMemory(chosen))
+  const store: Store = settingsStore(inMemory({ ...STAGE_CHOSEN, ...chosen }))
 
   return (
     /*

@@ -72,7 +72,9 @@ const momentIn = (snapshot: PullRequestSnapshot): Option.Option<string> => {
 }
 
 const Branch = ({ name }: { readonly name: string }) => (
-  <span className={`${CHIP} font-mono text-xs text-ink`}>{name}</span>
+  <span className={`${CHIP} min-w-0 max-w-[10rem] truncate font-mono text-xs text-ink`} title={name}>
+    {name}
+  </span>
 )
 
 /**
@@ -184,7 +186,11 @@ const Action = ({
  */
 export const Header = ({
   snapshot,
-  onUseGitHub
+  onUseGitHub,
+  detailsOpen = true,
+  onToggleDetails,
+  filesOpen = true,
+  onToggleFiles
 }: {
   readonly snapshot: PullRequestSnapshot
   /**
@@ -192,12 +198,23 @@ export const Header = ({
    * Absent in a test, and in any other place that has no page to hand back.
    */
   readonly onUseGitHub?: () => void
+  /**
+   * Whether the left details column (merge, conversation, …) is up.
+   * Toggled from this card's second line.
+   */
+  readonly detailsOpen?: boolean
+  readonly onToggleDetails?: () => void
+  /** Whether the files panel (tree + diff) is up. */
+  readonly filesOpen?: boolean
+  readonly onToggleFiles?: () => void
 }) => {
   const art = useArt()
   const YourMove = art["needs-you"]
   const Tick = art.tick
   const Copy = art.copy
   const External = art["external"]
+  const SidebarLeft = art.narrow
+  const SidebarRight = art.widen
   const inQueue = Option.exists(
     Option.flatMap(snapshot.merge, (said) => said.queue),
     (queue) => queue.waiting
@@ -304,13 +321,31 @@ export const Header = ({
         ) : null}
       </div>
 
-      <div className="flex items-center gap-2 rounded-md bg-inset px-2.5 py-1.5 text-xs text-ink-muted">
-        {/* The face leads the line, at the gap the login is set in rather than
+      <div className="flex min-w-0 items-center gap-2 rounded-md bg-inset px-2.5 py-1.5 text-xs text-ink-muted">
+        {/* Left sidebar toggle at the extreme left of this row.
+            Open = filled chip. Closed = outline only. */}
+        {onToggleDetails !== undefined ? (
+          <button
+            type="button"
+            aria-label={detailsOpen ? "Hide details" : "Show details"}
+            title={detailsOpen ? "Hide details" : "Show details"}
+            aria-pressed={detailsOpen}
+            onClick={onToggleDetails}
+            className={`grid size-7 shrink-0 place-items-center rounded-md ${
+              detailsOpen
+                ? "bg-hover text-ink"
+                : "border border-edge text-ink-muted hover:bg-hover hover:text-ink"
+            }`}
+          >
+            <SidebarLeft size={14} />
+          </button>
+        ) : null}
+        {/* The face leads the facts, at the gap the login is set in rather than
             the line's own, so the two read as one person and not as a picture
             beside a name. */}
-        <span className="flex shrink-0 items-center gap-1.5">
+        <span className="flex min-w-0 shrink items-center gap-1.5">
           <Who login={snapshot.author.login} src={Option.getOrUndefined(snapshot.author.faceUrl)} />
-          <span className="font-semibold text-ink">{snapshot.author.login}</span>
+          <span className="truncate font-semibold text-ink">{snapshot.author.login}</span>
         </span>
         {/* No "wants to merge" between the face and the branches. The arrow
             below already says which way the work is going, and the words were
@@ -319,10 +354,29 @@ export const Header = ({
         <YourMove size={12} className="shrink-0" />
         <Branch name={snapshot.baseBranch} />
         {Option.isSome(stack) ? <Layer stack={stack.value} /> : null}
-        <span className="ml-auto shrink-0 tabular-nums">
-          {`${snapshot.files.length} ${snapshot.files.length === 1 ? "file" : "files"}`}{" "}
-          <span className="text-pass">+{size.added}</span>{" "}
-          <span className="text-fail">−{size.deleted}</span>
+        <span className="ml-auto flex shrink-0 items-center gap-1.5">
+          <span className="tabular-nums">
+            {`${snapshot.files.length} ${snapshot.files.length === 1 ? "file" : "files"}`}{" "}
+            <span className="text-pass">+{size.added}</span>{" "}
+            <span className="text-fail">−{size.deleted}</span>
+          </span>
+          {/* Right sidebar toggle at the extreme right of this row. */}
+          {onToggleFiles !== undefined ? (
+            <button
+              type="button"
+              aria-label={filesOpen ? "Hide files" : "Show files"}
+              title={filesOpen ? "Hide files" : "Show files"}
+              aria-pressed={filesOpen}
+              onClick={onToggleFiles}
+              className={`grid size-7 shrink-0 place-items-center rounded-md ${
+                filesOpen
+                  ? "bg-hover text-ink"
+                  : "border border-edge text-ink-muted hover:bg-hover hover:text-ink"
+              }`}
+            >
+              <SidebarRight size={14} />
+            </button>
+          ) : null}
         </span>
       </div>
     </section>
