@@ -289,7 +289,7 @@ describe("the way out to GitHub", () => {
   })
 })
 
-describe("the pane toggles outside the card", () => {
+describe("the pane toggles on the card second row", () => {
   test("offers both sides when the page can toggle them", () => {
     render(
       <Header
@@ -328,7 +328,7 @@ describe("the pane toggles outside the card", () => {
     expect(files.className).not.toContain("border")
   })
 
-  test("keeps the toggles outside the pull request card", () => {
+  test("keeps the toggles on the card, outside the facts well", () => {
     render(
       <Header
         snapshot={aSnapshot({ state: "open" })}
@@ -338,7 +338,12 @@ describe("the pane toggles outside the card", () => {
     )
 
     const card = screen.getByRole("region", { name: "This pull request" })
-    expect(card.contains(screen.getByRole("button", { name: "Hide details" }))).toBe(false)
-    expect(card.contains(screen.getByRole("button", { name: "Hide files" }))).toBe(false)
+    const well = screen.getByLabelText("Pull request facts")
+    const details = screen.getByRole("button", { name: "Hide details" })
+    const files = screen.getByRole("button", { name: "Hide files" })
+    expect(card.contains(details)).toBe(true)
+    expect(card.contains(files)).toBe(true)
+    expect(well.contains(details)).toBe(false)
+    expect(well.contains(files)).toBe(false)
   })
 })

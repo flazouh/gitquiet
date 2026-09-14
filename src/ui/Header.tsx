@@ -239,28 +239,14 @@ export const Header = ({
   const [copied, setCopied] = useState(false)
 
   return (
-    // Sidebar toggles sit outside the card (extreme left / right), not inside
-    // the facts well. The card itself is still a region rather than a `header`,
-    // because the bar above it is already one — two banners on a page leave a
-    // reader asking for the banner with two answers.
-    <div className="t-panel-fade mb-1.5 flex shrink-0 items-center gap-1.5">
-      {onToggleDetails !== undefined ? (
-        <button
-          type="button"
-          aria-label={detailsOpen ? "Hide details" : "Show details"}
-          title={detailsOpen ? "Hide details" : "Show details"}
-          aria-pressed={detailsOpen}
-          onClick={onToggleDetails}
-          className={paneToggleClass(detailsOpen)}
-        >
-          <SidebarLeft size={14} />
-        </button>
-      ) : null}
-
-      <section
-        aria-label="This pull request"
-        className={`min-w-0 flex-1 p-1 ${CARD}`}
-      >
+    // A region rather than a `header`, because the bar above it is already one —
+    // two banners on a page leave a reader asking for the banner with two answers.
+    // Pane toggles live on the second row of this card, flanking the facts well,
+    // not inside that well and not outside the card entirely.
+    <section
+      aria-label="This pull request"
+      className={`t-panel-fade mb-1.5 shrink-0 p-1 ${CARD}`}
+    >
         {/* No padding of its own: the card's own inset is what holds both rows
             off its border, so the badge's fill starts where the well's fill
             starts rather than eight pixels inside it. */}
@@ -342,41 +328,58 @@ export const Header = ({
           ) : null}
         </div>
 
-        <div className="flex min-w-0 items-center gap-2 rounded-md bg-inset px-2.5 py-1.5 text-xs text-ink-muted">
-          {/* The face leads the facts, at the gap the login is set in rather than
-              the line's own, so the two read as one person and not as a picture
-              beside a name. */}
-          <span className="flex min-w-0 shrink items-center gap-1.5">
-            <Who login={snapshot.author.login} src={Option.getOrUndefined(snapshot.author.faceUrl)} />
-            <span className="truncate font-semibold text-ink">{snapshot.author.login}</span>
-          </span>
-          {/* No "wants to merge" between the face and the branches. The arrow
-              below already says which way the work is going, and the words were
-              fourteen characters of prose in a line whose job is facts. */}
-          <Branch name={snapshot.headBranch} />
-          <YourMove size={12} className="shrink-0" />
-          <Branch name={snapshot.baseBranch} />
-          {Option.isSome(stack) ? <Layer stack={stack.value} /> : null}
-          <span className="ml-auto shrink-0 tabular-nums">
-            {`${snapshot.files.length} ${snapshot.files.length === 1 ? "file" : "files"}`}{" "}
-            <span className="text-pass">+{size.added}</span>{" "}
-            <span className="text-fail">−{size.deleted}</span>
-          </span>
-        </div>
-      </section>
+        <div className="flex min-w-0 items-center gap-1.5">
+          {onToggleDetails !== undefined ? (
+            <button
+              type="button"
+              aria-label={detailsOpen ? "Hide details" : "Show details"}
+              title={detailsOpen ? "Hide details" : "Show details"}
+              aria-pressed={detailsOpen}
+              onClick={onToggleDetails}
+              className={paneToggleClass(detailsOpen)}
+            >
+              <SidebarLeft size={14} />
+            </button>
+          ) : null}
 
-      {onToggleFiles !== undefined ? (
-        <button
-          type="button"
-          aria-label={filesOpen ? "Hide files" : "Show files"}
-          title={filesOpen ? "Hide files" : "Show files"}
-          aria-pressed={filesOpen}
-          onClick={onToggleFiles}
-          className={paneToggleClass(filesOpen)}
-        >
-          <SidebarRight size={14} />
-        </button>
-      ) : null}
-    </div>
+          <div
+            aria-label="Pull request facts"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-md bg-inset px-2.5 py-1.5 text-xs text-ink-muted"
+          >
+            {/* The face leads the facts, at the gap the login is set in rather than
+                the line's own, so the two read as one person and not as a picture
+                beside a name. */}
+            <span className="flex min-w-0 shrink items-center gap-1.5">
+              <Who login={snapshot.author.login} src={Option.getOrUndefined(snapshot.author.faceUrl)} />
+              <span className="truncate font-semibold text-ink">{snapshot.author.login}</span>
+            </span>
+            {/* No "wants to merge" between the face and the branches. The arrow
+                below already says which way the work is going, and the words were
+                fourteen characters of prose in a line whose job is facts. */}
+            <Branch name={snapshot.headBranch} />
+            <YourMove size={12} className="shrink-0" />
+            <Branch name={snapshot.baseBranch} />
+            {Option.isSome(stack) ? <Layer stack={stack.value} /> : null}
+            <span className="ml-auto shrink-0 tabular-nums">
+              {`${snapshot.files.length} ${snapshot.files.length === 1 ? "file" : "files"}`}{" "}
+              <span className="text-pass">+{size.added}</span>{" "}
+              <span className="text-fail">−{size.deleted}</span>
+            </span>
+          </div>
+
+          {onToggleFiles !== undefined ? (
+            <button
+              type="button"
+              aria-label={filesOpen ? "Hide files" : "Show files"}
+              title={filesOpen ? "Hide files" : "Show files"}
+              aria-pressed={filesOpen}
+              onClick={onToggleFiles}
+              className={paneToggleClass(filesOpen)}
+            >
+              <SidebarRight size={14} />
+            </button>
+          ) : null}
+        </div>
+    </section>
   )
 }
