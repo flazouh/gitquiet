@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import { aComment, aThread, anchoredAt, person } from "../../tests/snapshots"
 import { revealer } from "../app/revealing"
+import { LedgerProvider, noLedger } from "./ledger"
 import type { DiffHandle, DiffRequest } from "../ports/Renderer"
 import type { ChangedFile } from "../domain/PullRequest"
 import { diffChoices } from "../domain/choices"
@@ -25,9 +26,14 @@ import { Theme } from "./Theme"
  */
 const asked: Array<DiffRequest> = []
 
+/** Every set of rows the pane has handed the renderer, newest last. */
+const noted: Array<ReadonlyArray<{ key: string; line: number }>> = []
+
 const handle: DiffHandle = {
   onThemeChange: () => {},
-  showNotes: () => {},
+  showNotes: (notes) => {
+    noted.push(notes.map((note) => ({ key: note.key, line: note.line })))
+  },
   unpick: () => {},
   mark: () => {},
   boundsOf: () => null,
@@ -44,6 +50,7 @@ const stub: LoadEngine = Effect.succeed({
 afterEach(() => {
   cleanup()
   asked.length = 0
+  noted.length = 0
   document.documentElement.removeAttribute("data-color-mode")
   for (const found of document.querySelectorAll(`#${ROOT_ID}`)) found.remove()
 })
@@ -496,5 +503,85 @@ describe("revealing the lines GitHub left out between the hunks", () => {
     )
 
     expect((await drawn()).reveal).toBeUndefined()
+  })
+})
+
+/**
+ * Shift over a name in a diff, which is the gesture with the most to lose.
+ *
+ * A Peek is a Writing drawn under the Name that asked for it, and a diff is
+ * where a reader most wants one: the question in a review is nearly always
+ * "what does this do" rather than "take me there", and being moved mid-review
+ * is the thing this interface exists to stop happening.
+ *
+ * It did nothing here for as long as it existed. `useFollowing` worked out the
+ * Writing, sliced its lines and handed back a Peek; the file page drew it and
+ * this pane never asked for it — every part of the gesture except the part a
+ * reader can see. Nothing failed, so nothing said so.
+ */
+describe("a Peek in a diff", () => {
+  const writing = {
+    name: "two",
+    kind: "value" as const,
+    line: 2,
+    from: 6,
+    to: 9,
+    signature: "const two = 2",
+    doc: null,
+    how: "sure" as const
+  }
+
+  const ledger = {
+    ...noLedger,
+    ready: () => Effect.void,
+    writingAt: () => Effect.succeed(Option.some({ at: "here" as const, writing })),
+    usesIn: () => Effect.succeed([])
+  }
+
+  const reading = (props: Partial<React.ComponentProps<typeof FileDiffPane>> = {}) => (
+    <LedgerProvider ledger={ledger}>
+      <RendererProvider load={stub}>
+        <FileDiffPane
+          file={file}
+          ask={() => Effect.succeed(Option.none())}
+          choices={CHOICES}
+          revealing={revealer(() => Effect.succeed("const one = 1\nconst two = 2\nconst three = 3\n"), {
+            base: "before",
+            head: "after"
+          })}
+          {...props}
+        />
+      </RendererProvider>
+    </LedgerProvider>
+  )
+
+  test("hangs the Writing's lines under the line that asked", async () => {
+    render(reading())
+    const request = await drawn()
+
+    // A use of the name, three lines below where it is written.
+    const use = { line: 5, from: 10, to: 13, text: "two" }
+    request.onNameEnter?.(use, { go: true, shift: false, alt: false })
+    request.onName?.(use, { go: true, shift: true, alt: false })
+
+    await waitFor(() => {
+      expect(noted.at(-1)?.some((note) => note.key === "peeking")).toBe(true)
+    })
+    expect(noted.at(-1)?.find((note) => note.key === "peeking")?.line).toBe(use.line)
+  })
+
+  test("draws what it found into the row the renderer asked it to fill", async () => {
+    render(reading())
+    const request = await drawn()
+
+    const use = { line: 5, from: 10, to: 13, text: "two" }
+    request.onNameEnter?.(use, { go: true, shift: false, alt: false })
+    request.onName?.(use, { go: true, shift: true, alt: false })
+
+    await waitFor(() => {
+      const filled = request.fillNote?.("peeking")
+      expect(filled?.textContent).toContain("const two = 2")
+    })
+    expect(request.fillNote?.("peeking")?.textContent).toContain("line 2")
   })
 })

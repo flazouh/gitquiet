@@ -24,6 +24,7 @@ import { Note } from "./Note"
 import { ProseDiff } from "./ProseDiff"
 import { useRenderer } from "./renderer"
 import { useFollowing, type Across } from "./following"
+import { Peek } from "./Peek"
 import { BeyondCard } from "./BeyondCard"
 import { FollowCard } from "./FollowCard"
 import { UsesPanel } from "./UsesPanel"
@@ -425,6 +426,16 @@ const PATIENCE = 150
 /** The row for lines being written about now, which is not a draft yet. */
 const WRITING = "writing"
 
+/**
+ * The row a Peek is drawn in.
+ *
+ * The same mechanism a review thread is drawn in, which is what the spec said
+ * it would be: a row the renderer hangs under a line, filled by us. Adding one
+ * does not redraw the file, which is the whole point — a Peek that redrew the
+ * diff would move the reader, and not moving the reader is what a Peek is for.
+ */
+const PEEKING = "peeking"
+
 const FileDiffPaneView = ({
   file,
   ask,
@@ -607,7 +618,9 @@ const FileDiffPaneView = ({
     textNow,
     askNow,
     beyond,
-    unbeyond
+    unbeyond,
+    peeked,
+    unpeek
   } = useFollowing(following, host, across)
 
   /*
@@ -618,7 +631,7 @@ const FileDiffPaneView = ({
    * question is about the name under the pointer, and only the pane the pointer
    * is in has one. The rest answer nothing and do nothing.
    */
-  useKeys(useKeyboard(), { uses: askNow })
+  useKeys(useKeyboard(), { uses: askNow, dismiss: unpeek })
 
   /*
    * Which lines GitHub's diff for this file holds, or nothing until it lands.
@@ -651,14 +664,29 @@ const FileDiffPaneView = ({
       side: draft.side,
       line: draft.to
     }))
-    if (picked === null) return [...said, ...written]
+    // A Peek hangs under the line the reader asked from, alongside whatever
+    // else is already hanging there. Shift over a name in a diff used to work
+    // out where it was written, build the rows, and hand them to a pane that
+    // never asked for them — every part of the gesture except the part a reader
+    // can see.
+    const looking =
+      peeked === null
+        ? []
+        : [{ key: PEEKING, side: "additions" as const, line: peeked.under }]
+
+    if (picked === null) return [...said, ...written, ...looking]
 
     // Marking lines that already carry a draft opens that draft rather than a
     // second box beneath it.
     const at = draftKey({ path: file.path, ...picked })
-    if (written.some((note) => note.key === at)) return [...said, ...written]
-    return [...said, ...written, { key: WRITING, side: picked.side, line: picked.to }]
-  }, [hung, drafts, picked, file.path])
+    if (written.some((note) => note.key === at)) return [...said, ...written, ...looking]
+    return [
+      ...said,
+      ...written,
+      ...looking,
+      { key: WRITING, side: picked.side, line: picked.to }
+    ]
+  }, [hung, drafts, picked, file.path, peeked])
 
   // One element per note, made here and kept: the renderer asks for a row's
   // contents while it is drawing, which is no time to be creating React roots,
@@ -871,6 +899,11 @@ const FileDiffPaneView = ({
         const node = rows.current.get(note.key)
         if (node === undefined) return null
         if (note.key.startsWith("thread:")) return null
+
+        if (note.key === PEEKING) {
+          if (peeked === null) return null
+          return createPortal(<Peek peeked={peeked} />, node, note.key)
+        }
 
         if (note.key === WRITING) {
           if (picked === null) return null
