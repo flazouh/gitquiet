@@ -5,13 +5,13 @@ import { fromPathname, type CommitRef } from "@/domain/CommitRef"
 import type { CommitDetail } from "@/domain/PullRequest"
 import { reportError } from "@/observability/report"
 import type { View } from "@/domain/Settings"
-import { chosenView, rememberView } from "@/app/settings"
+import { chosenSettings, rememberView } from "@/app/settings"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { CommitScreen } from "@/ui/CommitScreen"
-import { handBack, markPage, reveal, ungate } from "@/ui/mount"
+import { markPage } from "@/ui/mount"
 import { COMMIT } from "@/ui/place"
-import { offerOurPage } from "@/ui/theirTabs"
+import { aScreen, handOverToGitHub, leaveTheirPages, theSpotWas, withdrawTheWayBack } from "@/shell/handOver"
 import { whenLocationChanges } from "@/ui/navigation"
 import "@/ui/styles.css"
 
@@ -88,9 +88,10 @@ export const start = (): void => {
 
 
   const store = settings()
+  /** This screen, so the way back it puts up is not taken down by another. */
+  const me = aScreen("commit")
 
   let close = (): void => {}
-  let unoffer = (): void => {}
   let view: View = "ours"
 
   /**
@@ -104,34 +105,31 @@ export const start = (): void => {
   function handOver(): void {
     close()
     close = () => {}
-    reveal(document)
-    ungate(document)
-    unoffer()
-    unoffer = offerOurPage(document, takeBack)
+    handOverToGitHub(store, document, me, takeBack)
   }
+
 
   /** Pressed on GitHub's page: ours from here on, starting with this one. */
   function takeBack(): void {
     view = "ours"
-    void rememberView(store, "ours")
+    rememberView(store, "ours")
     show(window.location.pathname)
   }
 
   function useGitHub(): void {
     view = "github"
-    void rememberView(store, "github")
+    rememberView(store, "github")
     handOver()
   }
 
   function show(path: string): void {
     close()
     close = () => {}
-    unoffer()
-    unoffer = () => {}
+    withdrawTheWayBack(me)
 
     const reference = fromPathname(path)
     if (Option.isNone(reference)) {
-      handBack(document)
+      leaveTheirPages(document, me)
       return
     }
 
@@ -148,9 +146,10 @@ export const start = (): void => {
   whenLocationChanges(window, (path) => show(path))
 
   Effect.runFork(
-    chosenView(store).pipe(
+    chosenSettings(store).pipe(
       Effect.map((chosen) => {
-        view = chosen
+        view = chosen.page.view
+        theSpotWas(chosen.wayBack)
         show(window.location.pathname)
       })
     )

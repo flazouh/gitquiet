@@ -2,14 +2,22 @@ import { Effect, Fiber, Option } from "effect"
 import { rememberedRepositories } from "@/app/destinations"
 import { forgetIntent, intendedPath } from "@/app/intent"
 import { loadNotices, pressNotice, rememberedNotices } from "@/app/notices"
-import { chosenView } from "@/app/settings"
+import { chosenSettings } from "@/app/settings"
+import {
+  aScreen,
+  handOverToGitHub,
+  leaveTheirPages,
+  takeTheWayBack,
+  theSpotWas,
+  withdrawTheWayBack
+} from "@/shell/handOver"
 import type { Notice, Press } from "@/domain/notices"
 import { noticesIn } from "@/domain/notices"
 import type { View } from "@/domain/Settings"
 import { reportError } from "@/observability/report"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
-import { handBack, markPage, reveal, ungate } from "@/ui/mount"
+import { markPage, reveal } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { NoticesScreen } from "@/ui/NoticesScreen"
 import { NOTIFICATIONS } from "@/ui/place"
@@ -112,6 +120,8 @@ export const start = (): void => {
 
 
   const store = settings()
+  /** This screen, so the way back it puts up is not taken down by another. */
+  const me = aScreen("notifications")
 
   let close = (): void => {}
   let on: string | undefined
@@ -127,7 +137,7 @@ export const start = (): void => {
       close()
       close = () => {}
       on = undefined
-      handBack(document)
+      leaveTheirPages(document, me)
       return
     }
 
@@ -144,24 +154,35 @@ export const start = (): void => {
     close = () => {}
     on = undefined
 
-    // Their inbox, because that is what was asked for last time.
+    // Their inbox, because that is what was asked for last time — with the way back
+    // on it, because a page that hands over and offers nothing is a door that only
+    // opens one way.
     if (view === "github") {
-      reveal(document)
-      ungate(document)
+      handOverToGitHub(store, document, me, takeBack)
       return
     }
+
+    withdrawTheWayBack(me)
 
     close = open(query, new URL(url, window.location.origin).pathname)
     on = query
   }
 
   // The whole address and not the path, because which inbox this is lives in the query.
+  /** Pressed on GitHub's page: ours from here on, starting with this one. */
+  function takeBack(): void {
+    view = "ours"
+    takeTheWayBack(store, document, me)
+    show(window.location.href)
+  }
+
   whenLocationChanges(window, () => show(window.location.href))
 
   Effect.runFork(
-    chosenView(store).pipe(
+    chosenSettings(store).pipe(
       Effect.map((chosen) => {
-        view = chosen
+        view = chosen.page.view
+        theSpotWas(chosen.wayBack)
 
         /*
          * What the address says, or, while GitHub is still fetching and the address still names

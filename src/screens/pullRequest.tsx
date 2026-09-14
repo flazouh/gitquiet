@@ -45,12 +45,11 @@ import type { Size } from "@/domain/workingSet"
 import type { GitHubGateway, Review } from "@/ports/GitHubGateway"
 import { reportError } from "@/observability/report"
 import type { View } from "@/domain/Settings"
-import { chosenView, rememberView } from "@/app/settings"
+import { chosenSettings, rememberView } from "@/app/settings"
 import { prepareAScreen, standAScreen, type Standing } from "@/shell/screen"
 import { liveUpdates, settings, throughGitHub } from "@/shell/supplied"
 import { type Loaded, PullRequestScreen } from "@/ui/PullRequestScreen"
 import {
-  handBack,
   hasPreparedScreen,
   markPage,
   rememberPreparedScreen,
@@ -59,7 +58,7 @@ import {
 } from "@/ui/mount"
 import { CONVERSATION } from "@/ui/place"
 import { whenLocationChanges } from "@/ui/navigation"
-import { offerOurPage } from "@/ui/theirTabs"
+import { aScreen, handOverToGitHub, leaveTheirPages, theSpotWas, withdrawTheWayBack } from "@/shell/handOver"
 import "@/ui/styles.css"
 
 /**
@@ -463,10 +462,10 @@ export const start = (): void => {
 
 
   const store = settings()
+  /** This screen, so the way back it puts up is not taken down by another. */
+  const me = aScreen("pull-request")
 
   let close = (): void => {}
-  /** Takes the way back off GitHub's tab row, when one is on it. */
-  let unoffer = (): void => {}
   /** The pull request drawn ahead of the address, if this is one. */
   let promised: string | null = null
   let abandoning: ReturnType<typeof setTimeout> | undefined
@@ -496,23 +495,20 @@ export const start = (): void => {
     close = () => {}
     clearTimeout(abandoning)
     promised = null
-    reveal(document)
-    ungate(document)
-    unoffer()
-    unoffer = offerOurPage(document, takeBack)
+    handOverToGitHub(store, document, me, takeBack)
   }
 
   /** Pressed on GitHub's page: ours from here on, starting with this one. */
   function takeBack(): void {
     view = "ours"
-    void rememberView(store, "ours")
+    rememberView(store, "ours")
     show(window.location.pathname)
   }
 
   /** Pressed in our header: theirs from here on, starting with this one. */
   function useGitHub(): void {
     view = "github"
-    void rememberView(store, "github")
+    rememberView(store, "github")
     handOver()
   }
   handToGitHub = useGitHub
@@ -522,8 +518,7 @@ export const start = (): void => {
     preparing = null
     close()
     close = () => {}
-    unoffer()
-    unoffer = () => {}
+    withdrawTheWayBack(me)
     clearTimeout(abandoning)
     promised = null
 
@@ -539,7 +534,7 @@ export const start = (): void => {
     // other gate is holding back for us.
     const reference = fromPathname(path)
     if (Option.isNone(reference)) {
-      handBack(document)
+      leaveTheirPages(document, me)
       return
     }
 
@@ -585,9 +580,10 @@ export const start = (): void => {
   // GitHub's page is not charged four requests for an interface they have
   // already turned off.
   Effect.runFork(
-    chosenView(store).pipe(
+    chosenSettings(store).pipe(
       Effect.map((chosen) => {
-        view = chosen
+        view = chosen.page.view
+        theSpotWas(chosen.wayBack)
         // What the address says, or — while GitHub is still fetching and the
         // address still names the page being left — what the reader pressed.
         const here = window.location.pathname

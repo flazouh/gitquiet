@@ -260,6 +260,33 @@ export default defineBackground(() => {
     return true
   })
 
+  /**
+   * Opens a tab, and ignores a refusal where the ignoring can be read.
+   *
+   * Run rather than voided. A tab that will not open means the reader does not get
+   * the page they asked for, which is nothing to report to a worker nobody is looking
+   * at — but the ignoring is the decision, and `void` said nothing about whether it
+   * had even been attempted.
+   */
+  const openTab = (url: string): void => {
+    Effect.runFork(
+      Effect.tryPromise({
+        try: () => browser.tabs.create({ url }),
+        catch: (cause) => cause
+      }).pipe(Effect.ignore)
+    )
+  }
+
+  /*
+   * A new tab the page asked for — bug report, and anything else that must not
+   * be a popup or a same-tab Turbo walk of github.com.
+   */
+  browser.runtime.onMessage.addListener((message: unknown) => {
+    if (!isOpenTab(message)) return undefined
+    openTab(message.url)
+    return undefined
+  })
+
   /*
    * The onboarding, once, on the install.
    *
@@ -268,20 +295,10 @@ export default defineBackground(() => {
    * something updated in the background is the behaviour that gets an extension
    * uninstalled.
    */
-  /*
-   * A new tab the page asked for — bug report, and anything else that must not
-   * be a popup or a same-tab Turbo walk of github.com.
-   */
-  browser.runtime.onMessage.addListener((message: unknown) => {
-    if (!isOpenTab(message)) return undefined
-    void browser.tabs.create({ url: message.url })
-    return undefined
-  })
-
   browser.runtime.onInstalled.addListener((details) => {
     const at = welcomeFor(details.reason, { development: import.meta.env.DEV })
     if (at === null) return
 
-    void browser.tabs.create({ url: at })
+    openTab(at)
   })
 })

@@ -6,9 +6,17 @@ import { drawingIssues } from "@/app/rows"
 import { type IssueList, issueListIn, queryFor, seeding } from "@/domain/issueList"
 import { reportError } from "@/observability/report"
 import type { View } from "@/domain/Settings"
-import { chosenView } from "@/app/settings"
+import { chosenSettings } from "@/app/settings"
+import {
+  aScreen,
+  handOverToGitHub,
+  leaveTheirPages,
+  takeTheWayBack,
+  theSpotWas,
+  withdrawTheWayBack
+} from "@/shell/handOver"
 import { goWithin } from "@/ui/going"
-import { handBack, markPage, reveal, ungate } from "@/ui/mount"
+import { markPage, reveal } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { REPO_ISSUES } from "@/ui/place"
 import { standAScreen } from "@/shell/screen"
@@ -174,6 +182,8 @@ export const start = (): void => {
 
 
   const store = settings()
+  /** This screen, so the way back it puts up is not taken down by another. */
+  const me = aScreen("repo-issues")
 
   let close = (): void => {}
   let view: View = "ours"
@@ -211,16 +221,19 @@ export const start = (): void => {
      * cannot read a URL, so handing it back is the first thing this does.
      */
     if (Option.isNone(list)) {
-      handBack(document)
+      leaveTheirPages(document, me)
       return
     }
 
-    // Their list, because that is what was asked for last time.
+    // Their list, because that is what was asked for last time — with the way back
+    // on it, because a page that hands over and offers nothing is a door that only
+    // opens one way.
     if (view === "github") {
-      reveal(document)
-      ungate(document)
+      handOverToGitHub(store, document, me, takeBack)
       return
     }
+
+    withdrawTheWayBack(me)
 
     close = open(list.value, press, new URL(url).pathname)
     standingFor = url
@@ -228,12 +241,20 @@ export const start = (): void => {
 
   // The whole address, not the path: which page of which search this is lives
   // in the query, and a reader pressing Next changes nothing else.
+  /** Pressed on GitHub's page: ours from here on, starting with this one. */
+  function takeBack(): void {
+    view = "ours"
+    takeTheWayBack(store, document, me)
+    show(window.location.href)
+  }
+
   whenLocationChanges(window, () => show(window.location.href))
 
   Effect.runFork(
-    chosenView(store).pipe(
+    chosenSettings(store).pipe(
       Effect.map((chosen) => {
-        view = chosen
+        view = chosen.page.view
+        theSpotWas(chosen.wayBack)
 
         /*
          * What the address says, or — while GitHub is still fetching and the

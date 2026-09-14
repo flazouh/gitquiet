@@ -10,23 +10,21 @@ import { fromPathname, type IssueRef } from "@/domain/issues"
 import type { GitHubGateway } from "@/ports/GitHubGateway"
 import { reportError } from "@/observability/report"
 import type { View } from "@/domain/Settings"
-import { chosenView, rememberView } from "@/app/settings"
+import { chosenSettings, rememberView } from "@/app/settings"
 import { prepareAScreen, standAScreen, type Standing } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { IssueScreen } from "@/ui/IssueScreen"
 import { issueNamed } from "@/ui/lastDrawn"
 import {
-  handBack,
   hasPreparedScreen,
   markPage,
   rememberPreparedScreen,
-  reveal,
-  ungate
+  reveal
 } from "@/ui/mount"
 import { ISSUE } from "@/ui/place"
 import { markPreparedTraversal, preparedArrival } from "@/ui/preparedNavigation"
 import { whenLocationChanges } from "@/ui/navigation"
-import { offerOurPage } from "@/ui/theirTabs"
+import { aScreen, handOverToGitHub, leaveTheirPages, theSpotWas, withdrawTheWayBack } from "@/shell/handOver"
 import "@/ui/styles.css"
 
 /**
@@ -219,12 +217,12 @@ export const start = (): void => {
 
 
   const store = settings()
+  /** This screen, so the way back it puts up is not taken down by another. */
+  const me = aScreen("issue")
   const arriving = preparedArrival()
 
   let close = (): void => {}
   let shown: string | null = null
-  /** Takes the way back off GitHub's tab row, when one is on it. */
-  let unoffer = (): void => {}
   let view: View = "ours"
 
   // Declared rather than assigned, because the three call each other in a ring.
@@ -237,23 +235,21 @@ export const start = (): void => {
     close()
     close = () => {}
     shown = null
-    reveal(document)
-    ungate(document)
-    unoffer()
-    unoffer = offerOurPage(document, takeBack)
+    handOverToGitHub(store, document, me, takeBack)
   }
+
 
   /** Pressed on GitHub's page: ours from here on, starting with this one. */
   function takeBack(): void {
     view = "ours"
-    void rememberView(store, "ours")
+    rememberView(store, "ours")
     show(window.location.pathname)
   }
 
   /** Pressed in our header: theirs from here on, starting with this one. */
   function useGitHub(): void {
     view = "github"
-    void rememberView(store, "github")
+    rememberView(store, "github")
     handOver()
   }
   handToGitHub = useGitHub
@@ -264,12 +260,11 @@ export const start = (): void => {
     close()
     close = () => {}
     shown = null
-    unoffer()
-    unoffer = () => {}
+    withdrawTheWayBack(me)
 
     const reference = fromPathname(path)
     if (Option.isNone(reference)) {
-      handBack(document)
+      leaveTheirPages(document, me)
       return
     }
 
@@ -292,9 +287,10 @@ export const start = (): void => {
   // Nothing is drawn until the choice is known, so that a reader who wants
   // GitHub's page is not charged a request for an interface they turned off.
   Effect.runFork(
-    chosenView(store).pipe(
+    chosenSettings(store).pipe(
       Effect.map((chosen) => {
-        view = chosen
+        view = chosen.page.view
+        theSpotWas(chosen.wayBack)
 
         const here = window.location.pathname
         const promise = intendedPath(window)

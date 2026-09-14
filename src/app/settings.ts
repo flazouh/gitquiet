@@ -1,5 +1,5 @@
 import { Duration, Effect } from "effect"
-import { DEFAULTS, type Settings, type View } from "../domain/Settings"
+import { DEFAULTS, type Settings, type Spot, type View } from "../domain/Settings"
 import type { Store } from "../ports/Settings"
 
 /**
@@ -35,12 +35,45 @@ export const forgetful = (from: Settings = DEFAULTS): Store => {
  * that may have been open since before the reader changed something in another
  * tab, and writing the whole settings object from a stale copy would quietly
  * undo it.
+ *
+ * Runs itself, so that a caller has nothing to drop. Every caller is a press:
+ * the control in our header that gives the page to GitHub, and the one on their
+ * tab row that takes it back. A press has no runtime to hand an Effect to, so
+ * while this returned one, all eight call sites read `void rememberView(store,
+ * ...)` — the write built and dropped unrun. The page changed hands and storage
+ * never moved, so the choice lasted as long as that document and the next load
+ * took the page straight back.
+ *
+ * The one write in this file reached from a press rather than from inside an
+ * Effect, and the only one spelled this way.
  */
-export const rememberView = (store: Store, view: View): Effect.Effect<void> =>
-  Effect.gen(function* () {
-    const held = yield* store.read
-    yield* store.write({ ...held, page: { ...held.page, view } })
-  })
+export const rememberView = (store: Store, view: View): void => {
+  Effect.runFork(
+    Effect.gen(function* () {
+      const held = yield* store.read
+      yield* store.write({ ...held, page: { ...held.page, view } })
+    })
+  )
+}
+
+/**
+ * Writes down where the reader left the way back, leaving every other choice as it was.
+ *
+ * Read then write, and runs itself, for the two reasons {@link rememberView} does. The
+ * caller is the end of a drag, which has nothing to run an Effect with either.
+ *
+ * Once a drag ends rather than once a frame: the widget follows the pointer from its
+ * own state, so storage is told where it came to rest and not about the two hundred
+ * places it passed through on the way.
+ */
+export const rememberSpot = (store: Store, wayBack: Spot): void => {
+  Effect.runFork(
+    Effect.gen(function* () {
+      const held = yield* store.read
+      yield* store.write({ ...held, wayBack })
+    })
+  )
+}
 
 /**
  * How long the page waits to be told which interface the reader chose.

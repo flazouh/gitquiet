@@ -14,7 +14,15 @@ import {
   rememberedRepoHome,
   starRepo
 } from "@/app/repoHome"
-import { chosenView } from "@/app/settings"
+import { chosenSettings } from "@/app/settings"
+import {
+  aScreen,
+  handOverToGitHub,
+  leaveTheirPages,
+  takeTheWayBack,
+  theSpotWas,
+  withdrawTheWayBack
+} from "@/shell/handOver"
 import { type Shelf, shelfOf } from "@/app/shelf"
 import type { RepoRef } from "@/domain/PullRequestRef"
 import type { Front, RepoHome, Touch } from "@/domain/repoHome"
@@ -25,7 +33,7 @@ import { reportError } from "@/observability/report"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { lastDrawn, repoNamed } from "@/ui/lastDrawn"
-import { handBack, markPage, reveal, ungate } from "@/ui/mount"
+import { markPage, reveal } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { REPO_HOME } from "@/ui/place"
 import { RepoHomeScreen } from "@/ui/RepoHomeScreen"
@@ -378,6 +386,8 @@ export const start = (): void => {
 
 
   const store = settings()
+  /** This screen, so the way back it puts up is not taken down by another. */
+  const me = aScreen("repo-home")
 
   let up: Open | undefined
   let on: RepoHome | undefined
@@ -450,7 +460,7 @@ export const start = (): void => {
       up?.close()
       up = undefined
       on = undefined
-      handBack(document)
+      leaveTheirPages(document, me)
       if (Option.isSome(address) && address.value.branch !== null) waitForDocument(url)
       else stopWaiting()
       return
@@ -474,11 +484,15 @@ export const start = (): void => {
     up = undefined
     on = undefined
 
+    // Their page, because that is what was asked for last time — with the way back
+    // on it, because a page that hands over and offers nothing is a door that only
+    // opens one way.
     if (view === "github") {
-      reveal(document)
-      ungate(document)
+      handOverToGitHub(store, document, me, takeBack)
       return
     }
+
+    withdrawTheWayBack(me)
 
     const repo = home.repo
     up = open(
@@ -534,6 +548,13 @@ export const start = (): void => {
     on = home
   }
 
+  /** Pressed on GitHub's page: ours from here on, starting with this one. */
+  function takeBack(): void {
+    view = "ours"
+    takeTheWayBack(store, document, me)
+    show(window.location.href)
+  }
+
   whenLocationChanges(window, (path) => {
     if (path === handledPath) {
       handledPath = undefined
@@ -544,9 +565,10 @@ export const start = (): void => {
   })
 
   Effect.runFork(
-    chosenView(store).pipe(
+    chosenSettings(store).pipe(
       Effect.map((chosen) => {
-        view = chosen
+        view = chosen.page.view
+        theSpotWas(chosen.wayBack)
 
         const arrive = () => {
           const here = window.location.href

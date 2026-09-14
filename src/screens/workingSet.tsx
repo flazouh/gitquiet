@@ -4,7 +4,7 @@ import {
   loadActivity,
   loadRepositories,
   rememberedActivity,
-  rememberedRepositories,
+  rememberedRepositories
 } from "@/app/destinations";
 import { drawingIssues } from "@/app/rows";
 import { loadWorkingSet, rememberedWorkingSet } from "@/app/workingSet";
@@ -13,11 +13,19 @@ import type { RowDoing } from "@/domain/doable";
 import type { Sitting } from "@/domain/sittings";
 import { reportError } from "@/observability/report";
 import type { View } from "@/domain/Settings";
-import { chosenView } from "@/app/settings";
+import { chosenSettings } from "@/app/settings";
+import {
+  aScreen,
+  handOverToGitHub,
+  leaveTheirPages,
+  takeTheWayBack,
+  theSpotWas,
+  withdrawTheWayBack
+} from "@/shell/handOver";
 import { isHome, showsWorkingSet } from "@/domain/pages";
 import { answerPressesIn, drawingOurOwnRows, goTo } from "@/ui/going";
 import { THE_WORKING_SET } from "@/ui/lastDrawn";
-import { handBack, markPage, markScreenRoute, reveal, ungate } from "@/ui/mount";
+import { markPage, markScreenRoute, reveal } from "@/ui/mount";
 import { whenLocationChanges } from "@/ui/navigation";
 import { DASHBOARD, HOME, type Place } from "@/ui/place";
 import { ROW_WRITES } from "@/app/rowWrites";
@@ -301,6 +309,8 @@ export const start = (): void => {
 
 
   const store = settings();
+  /** This screen, so the way back it puts up is not taken down by another. */
+  const me = aScreen("working-set");
 
   let up: ReturnType<typeof open> | null = null;
   let view: View = "ours";
@@ -354,17 +364,20 @@ export const start = (): void => {
      * is holding back for the card that is being injected.
      */
     if (place === null) {
-      handBack(document);
+      leaveTheirPages(document, me);
       return;
     }
 
     // Their list, because that is what was asked for last time. Nothing is
-    // read, nothing is drawn, and the gate comes off at once.
+    // read, nothing is drawn, and the gate comes off at once — with the way
+    // back on it, because a page that hands over and offers nothing is a door
+    // that only opens one way.
     if (view === "github") {
-      reveal(document);
-      ungate(document);
+      handOverToGitHub(store, document, me, takeBack);
       return;
     }
+
+    withdrawTheWayBack(me);
 
     // Ahead of the gate `open` puts up, since the rules it switches on are the ones
     // written for this page — and on a move between the two, the name on the document
@@ -375,14 +388,22 @@ export const start = (): void => {
     markScreenRoute(document, path);
   };
 
+  /** Pressed on GitHub's page: ours from here on, starting with this one. */
+  function takeBack(): void {
+    view = "ours";
+    takeTheWayBack(store, document, me);
+    show(window.location.pathname);
+  }
+
   whenLocationChanges(window, show);
 
   // Nothing is drawn until the choice is known, so a reader who wants GitHub's
   // page is not charged eight requests for an interface they turned off.
   Effect.runFork(
-    chosenView(store).pipe(
+    chosenSettings(store).pipe(
       Effect.map((chosen) => {
-        view = chosen;
+        view = chosen.page.view;
+        theSpotWas(chosen.wayBack);
 
         // What the address says, or — while GitHub is still fetching and the
         // address still names the page being left — what the reader pressed.

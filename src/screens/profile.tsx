@@ -2,7 +2,15 @@ import { Effect, Option } from "effect"
 import { forgetIntent, intendedPath } from "@/app/intent"
 import { theirWholeList } from "@/app/personRepos"
 import { theirAnswering } from "@/app/profile"
-import { chosenView } from "@/app/settings"
+import { chosenSettings } from "@/app/settings"
+import {
+  aScreen,
+  handOverToGitHub,
+  leaveTheirPages,
+  takeTheWayBack,
+  theSpotWas,
+  withdrawTheWayBack
+} from "@/shell/handOver"
 import type { Answering } from "@/domain/answering"
 import { type PersonPage, profileIn } from "@/domain/person"
 import type { View } from "@/domain/Settings"
@@ -10,7 +18,7 @@ import { reportError } from "@/observability/report"
 import { held, standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { theirColumn } from "./theirColumn"
-import { handBack, markPage, reveal, ungate } from "@/ui/mount"
+import { markPage, reveal } from "@/ui/mount"
 import { whenAddressChanges } from "@/ui/navigation"
 import { PROFILE } from "@/ui/place"
 import { type Owned, ProfileScreen } from "@/ui/ProfileScreen"
@@ -103,6 +111,8 @@ export const start = (): void => {
 
 
   const store = settings()
+  /** This screen, so the way back it puts up is not taken down by another. */
+  const me = aScreen("profile")
 
   let close = (): void => {}
   let on: string | undefined
@@ -117,7 +127,7 @@ export const start = (): void => {
       close()
       close = () => {}
       on = undefined
-      handBack(document)
+      leaveTheirPages(document, me)
       return
     }
 
@@ -127,12 +137,15 @@ export const start = (): void => {
     close = () => {}
     on = undefined
 
-    // Their page, because that is what was asked for last time.
+    // Their page, because that is what was asked for last time — with the way back
+    // on it, because a page that hands over and offers nothing is a door that only
+    // opens one way.
     if (view === "github") {
-      reveal(document)
-      ungate(document)
+      handOverToGitHub(store, document, me, takeBack)
       return
     }
+
+    withdrawTheWayBack(me)
 
     close = open(page.value, new URL(url, window.location.origin).pathname)
     on = page.value.login
@@ -142,12 +155,20 @@ export const start = (): void => {
    * The address and not the path, as on their repositories tab: all three of a person's
    * pages are one path and differ in the query alone. See `whenAddressChanges`.
    */
+  /** Pressed on GitHub's page: ours from here on, starting with this one. */
+  function takeBack(): void {
+    view = "ours"
+    takeTheWayBack(store, document, me)
+    show(window.location.href)
+  }
+
   whenAddressChanges(window, () => show(window.location.href))
 
   Effect.runFork(
-    chosenView(store).pipe(
+    chosenSettings(store).pipe(
       Effect.map((chosen) => {
-        view = chosen
+        view = chosen.page.view
+        theSpotWas(chosen.wayBack)
 
         const here = window.location.href
         const promise = intendedPath(window)
