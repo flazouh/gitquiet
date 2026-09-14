@@ -35,12 +35,26 @@ export const forgetful = (from: Settings = DEFAULTS): Store => {
  * that may have been open since before the reader changed something in another
  * tab, and writing the whole settings object from a stale copy would quietly
  * undo it.
+ *
+ * Runs itself rather than handing back an Effect for the caller to run. Every
+ * caller is a press: the control in our header that gives the page to GitHub,
+ * and the one on their tab row that takes it back. A press has nothing to run an Effect with, so all eight call
+ * sites wrote `void rememberView(store, ...)` — which builds the write and drops
+ * it unrun. The page changed hands, the choice was never stored, and the next
+ * load took it straight back: the switch worked once and never persisted.
+ *
+ * So this gives a caller nothing to drop. It is the one write in here reached
+ * from a press rather than from inside an Effect, and it is spelled the way a
+ * press can call it.
  */
-export const rememberView = (store: Store, view: View): Effect.Effect<void> =>
-  Effect.gen(function* () {
-    const held = yield* store.read
-    yield* store.write({ ...held, page: { ...held.page, view } })
-  })
+export const rememberView = (store: Store, view: View): void => {
+  Effect.runFork(
+    Effect.gen(function* () {
+      const held = yield* store.read
+      yield* store.write({ ...held, page: { ...held.page, view } })
+    })
+  )
+}
 
 /**
  * How long the page waits to be told which interface the reader chose.

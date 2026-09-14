@@ -40,6 +40,9 @@ const fake = (): WatchedKeyValue & {
 
 const ran = <A>(effect: Effect.Effect<A>): Promise<A> => Effect.runPromise(effect)
 
+/** Long enough for a write nobody awaited to have reached the store. */
+const settled = (): Promise<void> => new Promise((done) => setTimeout(done, 0))
+
 describe("where settings are kept", () => {
   it("answers with the defaults before anything is chosen", async () => {
     expect(await ran(settingsStore(fake()).read)).toEqual(DEFAULTS)
@@ -106,10 +109,24 @@ describe("where settings are kept", () => {
   })
 })
 
+/*
+ * Called the way the four screens call it: a press, and then nothing. A DOM event
+ * handler has no runtime to hand an Effect to and no promise to await, so these
+ * tests hand it neither.
+ *
+ * They used to run it by hand — `await ran(rememberView(store, "github"))` — and
+ * passed the whole time the product was broken. `rememberView` returned an Effect
+ * and all eight call sites read `void rememberView(store, ...)`, which builds the
+ * write and drops it unrun: the page changed hands and storage never moved, so
+ * pressing "Show GitHub's own page" held for as long as that document lived and
+ * the next load took the page back. Nothing about it was flaky. It never stored
+ * anything.
+ */
 describe("remembering whose page to open", () => {
   it("keeps the choice for the next pull request", async () => {
     const store = settingsStore(fake())
-    await ran(rememberView(store, "github"))
+    rememberView(store, "github")
+    await settled()
 
     expect((await ran(store.read)).page.view).toBe("github")
   })
@@ -118,24 +135,29 @@ describe("remembering whose page to open", () => {
     const store = settingsStore(fake())
     await ran(store.write({ ...DEFAULTS, diff: { ...DEFAULTS.diff, layout: "split" } }))
 
-    await ran(rememberView(store, "github"))
+    rememberView(store, "github")
+    await settled()
 
     expect((await ran(store.read)).diff.layout).toBe("split")
   })
 
   it("comes back, without having to be reinstalled to do it", async () => {
     const store = settingsStore(fake())
-    await ran(rememberView(store, "github"))
-    await ran(rememberView(store, "ours"))
+    rememberView(store, "github")
+    await settled()
+    rememberView(store, "ours")
+    await settled()
 
     expect((await ran(store.read)).page.view).toBe("ours")
   })
+
 })
 
 describe("which interface a page should put up", () => {
   it("is what the reader chose", async () => {
     const store = settingsStore(fake())
-    await ran(rememberView(store, "github"))
+    rememberView(store, "github")
+    await settled()
 
     expect(await ran(chosenView(store))).toBe("github")
   })

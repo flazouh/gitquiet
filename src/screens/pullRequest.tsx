@@ -505,14 +505,14 @@ export const start = (): void => {
   /** Pressed on GitHub's page: ours from here on, starting with this one. */
   function takeBack(): void {
     view = "ours"
-    void rememberView(store, "ours")
+    rememberView(store, "ours")
     show(window.location.pathname)
   }
 
   /** Pressed in our header: theirs from here on, starting with this one. */
   function useGitHub(): void {
     view = "github"
-    void rememberView(store, "github")
+    rememberView(store, "github")
     handOver()
   }
   handToGitHub = useGitHub
