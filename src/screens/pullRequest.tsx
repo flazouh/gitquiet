@@ -44,8 +44,8 @@ import { fromPathname, pathOf, type PullRequestRef, type RepoRef } from "@/domai
 import type { Size } from "@/domain/workingSet"
 import type { GitHubGateway, Review } from "@/ports/GitHubGateway"
 import { reportError } from "@/observability/report"
-import type { View } from "@/domain/Settings"
-import { chosenView, rememberView } from "@/app/settings"
+import { DEFAULT_SPOT, type Spot, type View } from "@/domain/Settings"
+import { chosenSettings, rememberSpot, rememberView } from "@/app/settings"
 import { prepareAScreen, standAScreen, type Standing } from "@/shell/screen"
 import { liveUpdates, settings, throughGitHub } from "@/shell/supplied"
 import { type Loaded, PullRequestScreen } from "@/ui/PullRequestScreen"
@@ -59,7 +59,7 @@ import {
 } from "@/ui/mount"
 import { CONVERSATION } from "@/ui/place"
 import { whenLocationChanges } from "@/ui/navigation"
-import { offerOurPage } from "@/ui/theirTabs"
+import { offerOurPage } from "@/ui/wayBack"
 import "@/ui/styles.css"
 
 /**
@@ -475,6 +475,8 @@ export const start = (): void => {
    * does before the first of these functions is called.
    */
   let view: View = "ours"
+  /** Where the reader left the way back, so it comes back where they put it. */
+  let spot: Spot = DEFAULT_SPOT
 
   // Declared rather than assigned, because the three of them call each other
   // in a ring — showing a page can hand it over, handing it over leaves the
@@ -499,7 +501,18 @@ export const start = (): void => {
     reveal(document)
     ungate(document)
     unoffer()
-    unoffer = offerOurPage(document, takeBack)
+    unoffer = offerOurPage(document, takeBack, spot, keepSpot)
+  }
+
+  /**
+   * Where they dropped it, kept for this page and for every page after it.
+   *
+   * Both halves: the local copy so the widget comes back in the same place when this
+   * screen hands over again without a reload, and storage so it does after one.
+   */
+  function keepSpot(where: Spot): void {
+    spot = where
+    rememberSpot(store, where)
   }
 
   /** Pressed on GitHub's page: ours from here on, starting with this one. */
@@ -585,9 +598,10 @@ export const start = (): void => {
   // GitHub's page is not charged four requests for an interface they have
   // already turned off.
   Effect.runFork(
-    chosenView(store).pipe(
+    chosenSettings(store).pipe(
       Effect.map((chosen) => {
-        view = chosen
+        view = chosen.page.view
+        spot = chosen.wayBack
         // What the address says, or — while GitHub is still fetching and the
         // address still names the page being left — what the reader pressed.
         const here = window.location.pathname

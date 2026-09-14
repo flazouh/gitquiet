@@ -692,6 +692,46 @@ export type Settings = {
    * written there.
    */
   readonly turned: ReadonlyArray<string>
+  /**
+   * Where the reader left the way back, as two fractions of the room it can travel in.
+   *
+   * Not a knob, and it could not be one: a knob is a choice between answers this file
+   * knows the whole of, and every point on the screen is an answer here. Fractions
+   * rather than pixels because this is synced: a reader who put it in the bottom right
+   * of a laptop means the bottom right of the monitor too, and 1180 pixels from the
+   * left is the middle of one screen and off the edge of the other.
+   *
+   * Zero is the left or the top edge, one is the right or the bottom. What the
+   * fractions are measured against, and the margin kept at either end, belong to
+   * `src/ui/wayBack.ts`, which is the only thing that draws it.
+   */
+  readonly wayBack: Spot
+}
+
+/** A place on the screen, as fractions of the travel available on each axis. */
+export type Spot = {
+  readonly x: number
+  readonly y: number
+}
+
+/** Bottom right, where a page's own content is least often the thing underneath. */
+export const DEFAULT_SPOT: Spot = { x: 1, y: 1 }
+
+/** A stored number held to the range a fraction can be, and the default when it is not one. */
+const fraction = (value: unknown, fallback: number): number =>
+  typeof value === "number" && Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : fallback
+
+/**
+ * A remembered place, read defensively.
+ *
+ * Each axis on its own, because a stored object that has lost one of the two is a
+ * widget put back in a corner the reader never chose rather than one that keeps the
+ * half of their answer that survived.
+ */
+export const readSpot = (stored: unknown): Spot => {
+  const held =
+    typeof stored === "object" && stored !== null ? (stored as Record<string, unknown>) : {}
+  return { x: fraction(held["x"], DEFAULT_SPOT.x), y: fraction(held["y"], DEFAULT_SPOT.y) }
 }
 
 /** Whether a stored value is an address this interface could actually draw. */
@@ -750,6 +790,7 @@ export const DEFAULTS: Settings = {
   pinned: [],
   putAway: [],
   turned: [],
+  wayBack: DEFAULT_SPOT,
 }
 
 const readGroup = <Knobs extends ReadonlyArray<Knob<string, string>>>(
@@ -832,5 +873,6 @@ export const readSettings = (stored: unknown): Settings => {
     turned: Array.isArray(held["turned"])
       ? [...new Set(held["turned"].filter(isTurned))]
       : [],
+    wayBack: readSpot(held["wayBack"]),
   }
 }
