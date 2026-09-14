@@ -213,6 +213,7 @@ const spot = await session.evaluate<{ x: number; y: number } | null>(`(async () 
     : undefined
   if (!token) return null
   await putOnScreen(token)
+  window.__gqToken = token
   const at = token.getBoundingClientRect()
   return { x: Math.round(at.left + at.width / 2), y: Math.round(at.top + at.height / 2) }
 })()`)
@@ -253,7 +254,30 @@ await session.tab.send("Input.dispatchKeyEvent", {
   modifiers: META
 })
 await mouse("mouseMoved", spot.x, spot.y, META)
-await sleep(1500)
+
+/*
+ * Waited for rather than slept through.
+ *
+ * The first question of a visit is the slowest — a worker to wake, a document
+ * to open, a grammar to arrive — and on a large repository it has taken over
+ * two seconds. A fixed second and a half photographed a name that had not
+ * underlined yet and then pressed it, which asks a Ledger that cannot answer
+ * yet and gets the correct answer of nothing. The picture was of a working
+ * feature doing nothing, which is the worst kind of picture to publish.
+ */
+const underlinedIn = await session.evaluate<number | null>(`(async () => {
+  const sleep = (ms) => new Promise((go) => setTimeout(go, ms))
+  const token = window.__gqToken
+  if (!token) return null
+  const started = performance.now()
+  for (let waited = 0; waited < 20000; waited += 50) {
+    if ((token.style.textDecoration || "") !== "") return Math.round(performance.now() - started)
+    await sleep(50)
+  }
+  return null
+})()`)
+console.log(`  underlined after ${underlinedIn}ms`)
+await sleep(400)
 await shot("1-underline")
 
 // 2. The press, which on a Writing opens its uses rather than moving anybody.
