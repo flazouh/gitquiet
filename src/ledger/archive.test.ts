@@ -3,18 +3,50 @@ import { Effect } from "effect"
 import { filesIn, unzipped } from "./archive"
 
 /**
- * Against a tar this machine's own `tar` wrote, rather than one built to suit
- * the reader below. The format is somebody else's, and the whole risk here is
- * believing something about it that is not true.
+ * What this machine's `tar` calls the format GitHub serves.
+ *
+ * `git archive` writes GNU-format tars and codeload serves what it wrote, so GNU is
+ * what the reader below is parsing. GNU tar spells that format `gnu` and macOS's
+ * bsdtar spells it `gnutar`, and neither accepts the other's word, so the one this
+ * machine takes is found by asking it.
+ */
+const gnuFormat = async (): Promise<string> => {
+  for (const spelling of ["gnu", "gnutar"]) {
+    const asked = await Bun.$`tar --format=${spelling} -cf /dev/null --files-from /dev/null`
+      .quiet()
+      .nothrow()
+    if (asked.exitCode === 0) return spelling
+  }
+  throw new Error("this machine's tar writes neither GNU format spelling")
+}
+
+/**
+ * Against a tar this machine's own `tar` wrote, rather than one built to suit the
+ * reader below. The format is somebody else's, and the whole risk here is believing
+ * something about it that is not true.
+ *
+ * The format is named rather than left to the default, which is the one thing about
+ * the machine this does not want. Left to itself macOS's bsdtar writes a pax extended
+ * header in front of every single entry, and the reader below drops a file that
+ * follows a pax header on purpose — it cannot trust the truncated name in the header
+ * after it. So on a Mac this fixture held nothing at all and the same test on Linux
+ * held everything, which is a test that measures the machine rather than the parser.
+ *
+ * `COPYFILE_DISABLE` is the other half: without it that tar puts an AppleDouble `._`
+ * file beside every entry, and those came through the reader as files of the
+ * repository.
  */
 const made = async (): Promise<Uint8Array> => {
   const root = `/tmp/gitquiet-archive-${Date.now()}`
   const long = "long".repeat(40)
+  const format = await gnuFormat()
   await Bun.$`mkdir -p ${root}/gitquiet-abc123/src/ui`.quiet()
   await Bun.write(`${root}/gitquiet-abc123/README.md`, "# A repository\n")
   await Bun.write(`${root}/gitquiet-abc123/src/ui/place.ts`, "export const place = 1\n")
   await Bun.write(`${root}/gitquiet-abc123/src/ui/${long}.ts`, "export const long = 2\n")
-  await Bun.$`tar -czf ${root}/out.tar.gz -C ${root} gitquiet-abc123`.quiet()
+  await Bun.$`tar --format=${format} -czf ${root}/out.tar.gz -C ${root} gitquiet-abc123`
+    .env({ ...process.env, COPYFILE_DISABLE: "1" })
+    .quiet()
 
   return await Effect.runPromise(unzipped(Bun.file(`${root}/out.tar.gz`).stream()))
 }
