@@ -298,14 +298,23 @@ describe("whose way back it is", () => {
   })
 
   test("belongs to whoever put it up last", () => {
-    // A hand-over replaces what is up, owner and all, so the screen that has just
-    // planted one can take it down and the screen it replaced cannot.
+    /*
+     * A hand-over replaces what is up, owner and all, so the screen that has just
+     * planted one can take it down and the screen it replaced cannot.
+     *
+     * Both halves, because the second is what says the widget can still be reached at
+     * all. Filed under an owner nobody holds it would pass the first half and never
+     * come down again, which is the leak this check is one mistake away from.
+     */
     gatedPage()
 
     handOver(forgetful())
     handOver(forgetful(), DEFAULT_SPOT, () => {}, stale)
-    withdrawTheWayBack(screen)
 
+    withdrawTheWayBack(screen)
     expect(widget()).not.toBeNull()
+
+    withdrawTheWayBack(stale)
+    expect(widget()).toBeNull()
   })
 })

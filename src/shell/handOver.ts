@@ -48,34 +48,35 @@ import { offerOurPage } from "@/ui/wayBack"
 let dropped: Spot | null = null
 
 /**
- * How to take the way back off the page, while one is on it.
+ * The way back that is up, and whose it is.
  *
  * `null` says there is nothing up. One widget to a document, so one of these: a screen
  * that hands over twice replaces its own, and a screen arriving where another left one
  * takes that one down rather than standing a second beside it.
- */
-let withdraw: (() => void) | null = null
-
-/**
- * Which screen the way back belongs to, while one is up.
  *
- * Compared by identity rather than by name: two screens standing on the same place —
- * the working set does, on `/pulls` and on the dashboard — are still two screens, and
- * the question here is which of them planted this widget.
+ * Both halves in one value because they are one fact. Held apart, every path that
+ * changed the widget had to remember to change the name with it, and a path that
+ * forgot would leave the next screen unable to take down what is on the screen.
  */
-let owner: Owner | null = null
+let up: { readonly who: Owner; readonly withdraw: () => void } | null = null
 
 /**
  * Who a screen is, for as long as its document lives.
  *
  * Taken once, at the top of `start`, and held in a `const`. That is the whole of what a
  * screen has to remember: everything else it used to carry — the withdraw, the spot —
- * is here, and this is the name those answers are filed under.
+ * is here, and this is what those answers are filed under.
+ *
+ * A symbol rather than a name, because the name is for reading and nothing compares it.
+ * Two symbols made from one string are still two symbols, so the only question that can
+ * be asked of this is whether it is the same screen — which is the only question worth
+ * asking. A plain `{ screen: string }` invites `owner.screen === who.screen`, and that
+ * comparison is the bug this exists to stop, written the long way round.
  */
-export type Owner = { readonly screen: string }
+export type Owner = symbol
 
-/** Names a screen, once, where it starts. */
-export const aScreen = (screen: string): Owner => ({ screen })
+/** Names a screen, once, where it starts. The name is only ever read by a person. */
+export const aScreen = (screen: string): Owner => Symbol(screen)
 
 /**
  * Says where the reader left the widget, as far as the screen's stored settings know.
@@ -96,9 +97,8 @@ export const forgetTheSpot = (): void => {
 
 /** Takes it off, whoever put it there. Every caller below has asked who first. */
 const takeItOff = (): void => {
-  withdraw?.()
-  withdraw = null
-  owner = null
+  up?.withdraw()
+  up = null
 }
 
 /**
@@ -109,7 +109,7 @@ const takeItOff = (): void => {
  * most of those calls are about somebody else's widget.
  */
 export const withdrawTheWayBack = (who: Owner): void => {
-  if (owner !== who) return
+  if (up?.who !== who) return
   takeItOff()
 }
 
@@ -126,16 +126,24 @@ export const handOverToGitHub = (
   who: Owner,
   takeBack: () => void
 ): void => {
+  /*
+   * Before the new one is made, and that order is load-bearing. Each widget installs a
+   * `MutationObserver` that puts its own holder back whenever it leaves the tree, so an
+   * old one still watching would see the new holder land, find itself disconnected, and
+   * re-append: two elements answering to one id.
+   */
   takeItOff()
 
   reveal(target)
   ungate(target)
 
-  owner = who
-  withdraw = offerOurPage(target, takeBack, dropped ?? undefined, (where) => {
-    dropped = where
-    rememberSpot(store, where)
-  })
+  up = {
+    who,
+    withdraw: offerOurPage(target, takeBack, dropped ?? undefined, (where) => {
+      dropped = where
+      rememberSpot(store, where)
+    })
+  }
 }
 
 /**
