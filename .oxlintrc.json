@@ -73,6 +73,25 @@
             "selector": "AwaitExpression",
             "message": "No await. Effect.gen and yield* instead."
           },
+          /*
+           * `void` on anything but a runner, which is how the one switch in this
+           * product came to do nothing for four months.
+           *
+           * An Effect does not start until somebody runs it, so calling a function
+           * that hands one back and discarding the result builds the work and drops
+           * it. `void rememberView(store, "github")` read like a deliberate "I do not
+           * need the result" and was in fact "never save the reader's choice": the
+           * page changed hands, storage never moved, and the next load took it back.
+           *
+           * The two callee names below are the whole of what may be voided, because
+           * they are the two that have already run something. Anything else voided
+           * here is either an Effect being thrown away or a promise nobody is
+           * watching, and neither should be silent.
+           */
+          {
+            "selector": "UnaryExpression[operator='void'] > CallExpression[callee.object.name!='Effect']",
+            "message": "No voiding a call. An Effect does not run until something runs it, so this builds the work and drops it: Effect.runFork or Effect.runPromise, or have the function run itself and hand back nothing."
+          },
           {
             "selector": ":function[async=true]",
             "message": "No async functions. Effect.gen instead."
