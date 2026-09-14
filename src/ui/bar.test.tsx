@@ -627,16 +627,22 @@ describe("what the bar keeps of GitHub's", () => {
   })
 
   test("opens the bug report in a new tab on press", async () => {
-    const opened: Array<string> = []
-    const original = window.open
-    window.open = ((url?: string | URL) => {
-      opened.push(String(url))
-      return null
-    }) as typeof window.open
+    const asked: Array<unknown> = []
+    const prior = (globalThis as unknown as { browser?: unknown }).browser
+    ;(globalThis as unknown as { browser: unknown }).browser = {
+      runtime: {
+        sendMessage: (message: unknown) => {
+          asked.push(message)
+          return Promise.resolve()
+        }
+      }
+    }
     render(<Bar where={{ kind: "home" }} />)
     await userEvent.click(screen.getByRole("link", { name: "Report a problem on GitQuiet" }))
-    window.open = original
-    expect(opened).toEqual(["https://github.com/flazouh/gitquiet/issues"])
+    ;(globalThis as unknown as { browser?: unknown }).browser = prior
+    expect(asked).toEqual([
+      { kind: "gitquiet/open-tab", url: "https://github.com/flazouh/gitquiet/issues" }
+    ])
   })
 
   test("the Participant, with the same three rows the Rail offers", async () => {

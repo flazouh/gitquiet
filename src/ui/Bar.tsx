@@ -12,6 +12,7 @@ import { participantRows } from "./participant";
 import { tabMark } from "./tabMarks";
 import type { Tab } from "./theirNav";
 import { isViewer } from "./viewer";
+import { openTab } from "../app/openTab";
 
 /**
  * The strip across the top, ours instead of theirs.
@@ -898,14 +899,10 @@ export const Bar = ({
           aria-label="Report a problem on GitQuiet"
           title="Report a problem on GitQuiet"
           onClick={(event) => {
-            // Open ourselves: same-origin + Turbo (and some synthetic clicks) ignore
-            // target=_blank and replace this tab with the issues board.
+            // Background tabs.create — not window.open (popup-blocked) and not a
+            // same-tab Turbo walk of target=_blank on github.com.
             event.preventDefault()
-            window.open(
-              "https://github.com/flazouh/gitquiet/issues",
-              "_blank",
-              "noopener,noreferrer"
-            )
+            openTab("https://github.com/flazouh/gitquiet/issues")
           }}
           className="grid size-7 place-items-center rounded-md text-ink-muted no-underline hover:bg-hover hover:text-ink"
         >
