@@ -38,6 +38,20 @@ const OUTSIDE = "data-gitquiet-outside"
 /** How wide and tall the mark's own button is. */
 const SIZE = 34
 
+/** The grip, and the air between it and the mark. */
+const GRIP_H = 16
+const GAP = 4
+
+/**
+ * The whole widget, grip included.
+ *
+ * The grip is inside this box rather than floating above it, and that is the whole of
+ * why the box is taller than the mark. Outside it, the pointer left the widget on its
+ * way from the mark up to the grip, the grip went out of sight on that `pointerleave`,
+ * and the handle could never be reached by the hand that had just been shown it.
+ */
+const TALL = SIZE + GRIP_H + GAP
+
 /** How far the widget stays off the edge of the window at either end of its travel. */
 const EDGE = 16
 
@@ -91,7 +105,7 @@ const LIT = "var(--button-primary-bgColor-hover, #1a7f37)"
  */
 const travel = (view: Window): { readonly across: number; readonly down: number } => ({
   across: Math.max(0, view.innerWidth - SIZE - EDGE * 2),
-  down: Math.max(0, view.innerHeight - SIZE - EDGE * 2)
+  down: Math.max(0, view.innerHeight - TALL - EDGE * 2)
 })
 
 const pixelsOf = (spot: Spot, view: Window): { readonly left: number; readonly top: number } => {
@@ -127,9 +141,13 @@ const holderStyle = (lifted: boolean, at: Spot, view: Window): string => {
     "z-index: 2147483000",
     "display: block",
     "width: " + SIZE + "px",
-    "height: " + SIZE + "px",
+    "height: " + TALL + "px",
     "margin: 0",
     "padding: 0",
+    // The box is taller than the mark so that the grip is inside it, and the part of
+    // it the grip is not filling is a piece of somebody's page. Nothing here catches a
+    // press: the two buttons take their own back below.
+    "pointer-events: none",
     // Off while it is being dragged, so a pointer that outruns the element does not
     // land on the page underneath and start selecting text.
     lifted ? "user-select: none" : "user-select: auto",
@@ -139,6 +157,10 @@ const holderStyle = (lifted: boolean, at: Spot, view: Window): string => {
 
 const markStyle = (lit: boolean): string =>
   [
+    "position: absolute",
+    "bottom: 0",
+    "left: 0",
+    "pointer-events: auto",
     "display: inline-flex",
     "align-items: center",
     "justify-content: center",
@@ -161,16 +183,16 @@ const gripStyle = (shown: boolean): string =>
     "position: absolute",
     // Above the mark rather than beside it. Beside it, the widget grows sideways on
     // hover, and against the right edge of the window that growth has nowhere to go.
-    "bottom: " + SIZE + "px",
+    "top: 0",
     "left: 50%",
     "transform: translateX(-50%)",
     "display: flex",
     "align-items: center",
     "justify-content: center",
     "width: 26px",
-    "height: 16px",
+    "height: " + GRIP_H + "px",
     "padding: 0",
-    "margin: 0 0 4px 0",
+    "margin: 0",
     "border: 1px solid var(--borderColor-default, rgba(31, 35, 40, 0.15))",
     "border-radius: 5px",
     "background: var(--bgColor-default, #ffffff)",
@@ -241,25 +263,50 @@ export const offerOurPage = (
   }
 
   /*
-   * Shown while the pointer is over the widget, while the grip has the keyboard, and
-   * for as long as a drag lasts. The drag is the one that needs saying: a pointer
-   * dragged far enough leaves the widget behind for a frame, and a grip that vanished
-   * mid-drag would look like the thing being dragged had been dropped.
+   * Shown while the pointer is on either button, while the grip has the keyboard, and
+   * for as long as a drag lasts.
+   *
+   * Counted over the two buttons rather than watched on the holder around them, because
+   * the holder catches nothing: its box is bigger than either button and the rest of it
+   * is somebody's page, which a widget that is only offering a way back has no business
+   * swallowing presses from.
+   *
+   * The wait before it goes is the other half of that. Crossing the four pixels between
+   * the mark and the grip, the pointer is on neither for a frame; hidden on that frame
+   * the grip also stops taking presses, so the hand that was just shown a handle arrives
+   * to find nothing there. The drag needs it too — a pointer dragged faster than the
+   * widget follows leaves it behind, and a grip that vanished mid-drag would read as the
+   * thing being dragged having been dropped.
    */
-  let over = false
+  const REST_AFTER = 150
+  const inside = new Set<Element>()
   let held = false
+  let fading: ReturnType<typeof setTimeout> | undefined
+
   const showGrip = (): void => {
-    grip.setAttribute("style", gripStyle(over || held || target.activeElement === grip))
+    grip.setAttribute(
+      "style",
+      gripStyle(inside.size > 0 || held || target.activeElement === grip)
+    )
   }
 
-  holder.addEventListener("pointerenter", () => {
-    over = true
+  const enter = (button: Element): void => {
+    clearTimeout(fading)
+    inside.add(button)
     showGrip()
-  })
-  holder.addEventListener("pointerleave", () => {
-    over = false
-    showGrip()
-  })
+  }
+
+  const leave = (button: Element): void => {
+    inside.delete(button)
+    clearTimeout(fading)
+    fading = setTimeout(showGrip, REST_AFTER)
+  }
+
+  for (const button of [mark, grip]) {
+    button.addEventListener("pointerenter", () => enter(button))
+    button.addEventListener("pointerleave", () => leave(button))
+  }
+
   grip.addEventListener("focus", showGrip)
   grip.addEventListener("blur", showGrip)
 
@@ -378,6 +425,7 @@ export const offerOurPage = (
   watcher.observe(target.documentElement, { childList: true, subtree: true })
 
   return () => {
+    clearTimeout(fading)
     watcher.disconnect()
     view.removeEventListener("resize", place)
     view.removeEventListener("pointermove", move)
