@@ -113,7 +113,15 @@ export type DiffHandle = {
    * Here rather than on the request because marking must not redraw the file,
    * which is the same reason {@link DiffHandle.showNotes} is here.
    */
-  readonly mark: (name: Name | null) => void
+  /**
+   * Marks one Name as somewhere the reader can go, or nothing to let go of it.
+   *
+   * `how` is what the mark is drawn like, and it says which of two readings
+   * answered: `sure` where a compiler did, `likely` where the shapes did. A
+   * reader who can see the difference without asking can decide how far to
+   * trust what they are about to follow.
+   */
+  readonly mark: (name: Name | null, how?: "sure" | "likely") => void
   /**
    * Where a Name is on the screen, for a card to be put beside it.
    *

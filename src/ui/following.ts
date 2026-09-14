@@ -208,7 +208,9 @@ export const useFollowing = (
 
   /** The underline and the card go together, and go away together. */
   const draw = useCallback((name: Name, writing: Writing, where?: string) => {
-    handle.current?.mark(name)
+    // Solid where a compiler answered, dotted where the shapes did. The reader
+    // sees which reading they are about to follow without being told.
+    handle.current?.mark(name, writing.exact === true ? "sure" : "likely")
     const at = handle.current?.boundsOf(name) ?? null
     setShown(at === null ? null : { writing, at, ...(where === undefined ? {} : { where }) })
   }, [])
@@ -230,17 +232,23 @@ export const useFollowing = (
   const asking = useCallback((): Effect.Effect<Reading, unknown> => {
     if (source === null) return Effect.fail("nothing to read")
 
+    /** Which repository, for the tier that keeps a compiler per one. */
+    const within =
+      across?.repo === undefined || across.sha === undefined
+        ? {}
+        : { repo: across.repo, sha: across.sha }
+
     const held = text.current
     if (held !== null && held.path === source.path) {
-      return Effect.succeed({ path: source.path, text: held.text })
+      return Effect.succeed({ path: source.path, text: held.text, ...within })
     }
     return source.text.pipe(
       Effect.map((whole) => {
         text.current = { path: source.path, text: whole }
-        return { path: source.path, text: whole }
+        return { path: source.path, text: whole, ...within }
       })
     )
-  }, [source])
+  }, [across, source])
 
   const ask = useCallback(
     (name: Name, then: (writing: Writing, where?: string) => void) => {
@@ -250,8 +258,13 @@ export const useFollowing = (
         if (found.at === "here") {
           return Effect.sync(() => {
             if (on.current?.name !== name) return
-            on.current = { name, writing: found.writing }
-            then(found.writing)
+            // The compiler answers with the file it found the name in, which may
+            // not be the file being read — it follows an import on its own,
+            // where the shapes answer `elsewhere` and leave the following to
+            // whoever knows the repository.
+            const where = found.writing.path
+            on.current = { name, writing: found.writing, ...(where === undefined ? {} : { where }) }
+            then(found.writing, where)
           })
         }
 

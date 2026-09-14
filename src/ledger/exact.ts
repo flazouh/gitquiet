@@ -28,10 +28,22 @@ import ts from "typescript-5"
 /** Where something is, in the words the rest of the Ledger uses. */
 export type Spot = { readonly path: string; readonly line: number; readonly column: number }
 
+/** Where a name is written, and enough about it to draw a card. */
+export type Written = {
+  readonly path: string
+  readonly line: number
+  readonly column: number
+  readonly name: string
+  /** What the compiler calls it: `method`, `function`, `class`, `property`. */
+  readonly kind: string
+  /** The line it is written on, for the card. */
+  readonly signature: string
+}
+
 /** One exact answer about a name. */
 export type Exact = {
   /** Where the name at a spot is written, whatever it takes to know. */
-  readonly definitionAt: (at: Spot) => Spot | null
+  readonly definitionAt: (at: Spot) => Written | null
   /** Everywhere that means it, across the whole repository. */
   readonly usesAt: (at: Spot) => ReadonlyArray<Spot>
   /** How many files the program holds, for a screen that wants to say. */
@@ -137,7 +149,17 @@ export const exactly = (
       if (into === null) return null
 
       const where = spotOf(into, first.textSpan.start)
-      return { path: first.fileName, line: where.line, column: where.column }
+      return {
+        path: first.fileName,
+        line: where.line,
+        column: where.column,
+        // The compiler's own words for what it found. It knows the name of the
+        // thing it resolved to, which is not always the name that was clicked:
+        // an alias, a default export, a re-export.
+        name: first.name,
+        kind: String(first.kind),
+        signature: (into.split("\n")[where.line - 1] ?? "").trim()
+      }
     },
 
     usesAt: (at) => {

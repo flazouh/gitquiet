@@ -40,6 +40,16 @@ export type Writing = {
    * resolved by scope, and what cannot be is answered with nothing at all.
    */
   readonly sure: true
+  /**
+   * The file it is written in, where that is not the file that was asked.
+   *
+   * Only the exact tier fills this: it can follow a name into another file on
+   * its own, where this one answers `elsewhere` and leaves the following to
+   * whoever knows the repository.
+   */
+  readonly path?: string
+  /** True where a compiler resolved it, rather than a reading of shapes. */
+  readonly exact?: boolean
 }
 
 /**

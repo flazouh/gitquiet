@@ -57,13 +57,14 @@ export const FollowCard = ({ writing, at, where }: FollowCardProps) => {
           {where === undefined ? `line ${writing.line}` : `${where}:${writing.line}`}
         </span>
         {/*
-          Sure and Likely, in the reader's sight and not in a tooltip. A Writing
-          reached by proof and one reached by matching a name are different
-          answers, and a reader who is not told which they have will stop
-          trusting both. See `docs/spec/following.md`.
+          How the answer was reached, in the reader's sight and not in a tooltip.
+          A name resolved by a compiler, one proved by scope, and one matched by
+          spelling are three different answers, and a reader who is not told
+          which they have will stop trusting all three.
+          See `docs/spec/following.md`.
         */}
         <span className={writing.sure ? "text-ink-muted" : "text-busy"}>
-          {writing.sure ? "Sure" : "Likely"}
+          {writing.exact === true ? "Types" : writing.sure ? "Sure" : "Likely"}
         </span>
       </p>
     </div>,

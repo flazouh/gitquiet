@@ -42,6 +42,15 @@ export type Reading = {
   readonly path: string
   readonly text: string
   /**
+   * Which repository this file is part of, at which commit.
+   *
+   * Only the exact tier needs it, and only to find the program it built for
+   * that repository. Absent, and the answer comes from reading the file's own
+   * shapes — which is what every answer was before the tier existed.
+   */
+  readonly repo?: Repo
+  readonly sha?: string
+  /**
    * What this text is, for keeping a parse under.
    *
    * A blob sha where the caller knows one, which is most of them: git already

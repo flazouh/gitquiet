@@ -178,8 +178,18 @@ export const held = (event: { metaKey: boolean; ctrlKey: boolean; shiftKey: bool
 export const sameName = (one: Name, two: Name): boolean =>
   one.line === two.line && one.from === two.from && one.side === two.side
 
-/** How a Name the reader can follow is drawn: the editors' underline, and their cursor. */
-const MARKED = "underline"
+/**
+ * How a Name the reader can follow is drawn, and how the two readings differ.
+ *
+ * Solid where a compiler answered and dotted where a reading of shapes did,
+ * which is a difference a reader can see without being told and without
+ * anything being added to the screen. It is the underline they were getting
+ * either way.
+ */
+const MARKED: Readonly<Record<"sure" | "likely", string>> = {
+  sure: "underline",
+  likely: "underline dotted"
+}
 
 /**
  * A host's shadow root, made only if it has not made its own.
@@ -399,12 +409,12 @@ export const renderDiff = (container: HTMLElement, request: DiffRequest): DiffHa
       const box = entered.element.getBoundingClientRect()
       return { top: box.top, left: box.left, bottom: box.bottom, right: box.right } satisfies Bounds
     },
-    mark: (name) => {
+    mark: (name, how = "sure") => {
       unmark()
       if (name === null || entered === null || !sameName(entered.name, name)) return
 
       marked = entered.element
-      marked.style.textDecoration = MARKED
+      marked.style.textDecoration = MARKED[how]
       marked.style.cursor = "pointer"
     },
     destroy: () => {
