@@ -867,6 +867,18 @@ export default defineContentScript({
       const { link, what } = route;
 
       /*
+       * A place with no soft path (notifications, a commit) only arrives as a
+       * document load — there is no region on this page to stand in. Cancelling
+       * the click and pushState-ing left the previous screen gone, GitHub gated
+       * off, and our bar with nowhere to stay: the "top bar disappeared" fault.
+       * Let the browser carry those; document_start remounts on the new page.
+       */
+      if (placeFor(what, link.pathname).soft === undefined) {
+        if (event.type !== "click") open(what, link.pathname);
+        return;
+      }
+
+      /*
        * The one rule, asked of every event of every press, and kept in one place
        * so that no caller here can keep half of it. See `answerPress`.
        *
@@ -891,6 +903,8 @@ export default defineContentScript({
       const route = opening(link, new URL(href, window.location.origin));
       if (route === null) return;
       const { pathname, search, hash } = route.destination;
+      // Same rule as `pressed`: no soft region means a real document load.
+      if (placeFor(route.what, pathname).soft === undefined) return;
       if (kind === "click") {
         open(route.what, pathname, { push: `${pathname}${search}${hash}` });
         return;

@@ -294,6 +294,8 @@ export type ArtName =
    * both sets because it belongs to GitHub rather than to a drawing style.
    */
   | "github"
+  /** Filing a problem with this product, not an issue in the repository being read. */
+  | "bug"
   /**
    * Taking a file away with you, for the one row on the releases screen that is the
    * reason a reader came to that page at all.

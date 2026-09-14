@@ -333,7 +333,8 @@ export const Bar = ({
   // The tray says which state it is in, so the two are named rather than one
   // glyph with something drawn over it.
   const Inbox = unread ? art["notifications-unread"] : art.notifications;
-  const TheirMark = art.github;
+  const Leave = art["sign-out"];
+  const Bug = art.bug;
   const More = art.more;
   const [opened, setOpened] = useState<
     "account" | "repositories" | "tabs" | "behind" | undefined
@@ -878,29 +879,32 @@ export const Bar = ({
 
         {/*
          * The way out, in the strip rather than on the screen below it, and last
-         * in the row.
+         * in the row. Sign-out rather than GitHub's mark: the press leaves this
+         * interface; the destination is already in the name.
          *
-         * It was a control on the pull request card, which put the exit on one
-         * of the four screens this extension draws and left the other three
-         * with it buried in a menu. The bar is the one thing on every page, so
-         * the way back to GitHub is in the same corner throughout — and a
-         * reader who wants their page does not have to work out which part of
-         * ours is offering it this time. The far corner is where a reader looks
-         * for the control that leaves, and it is the one spot nothing else in
-         * this row can push along when a login runs long.
-         *
-         * Wordless like the inbox beside it. The mark says where it goes; the
-         * name is on it for a pointer and for a screen reader.
+         * The bug report sits just before it — filing a problem with GitQuiet,
+         * not an issue in the repository being read.
          */}
+        <a
+          href="https://github.com/flazouh/gitquiet/issues"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Report a problem on GitQuiet"
+          title="Report a problem on GitQuiet"
+          className="grid size-7 place-items-center rounded-md text-ink-muted no-underline hover:bg-hover hover:text-ink"
+        >
+          <Bug size={16} />
+        </a>
+
         {onStepAside === undefined ? null : (
           <button
             type="button"
             onClick={onStepAside}
-            aria-label="Show GitHub's own page"
-            title="Show GitHub's own page"
+            aria-label="Leave GitQuiet"
+            title="Leave GitQuiet"
             className="grid size-7 place-items-center rounded-md text-ink-muted hover:bg-hover hover:text-ink"
           >
-            <TheirMark size={16} />
+            <Leave size={16} />
           </button>
         )}
 
