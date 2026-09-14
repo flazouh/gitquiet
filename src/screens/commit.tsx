@@ -4,14 +4,14 @@ import { loadCommit, loadCommitDiffs, rememberedCommit } from "@/app/pullRequest
 import { fromPathname, type CommitRef } from "@/domain/CommitRef"
 import type { CommitDetail } from "@/domain/PullRequest"
 import { reportError } from "@/observability/report"
-import { DEFAULT_SPOT, type Spot, type View } from "@/domain/Settings"
+import type { View } from "@/domain/Settings"
 import { chosenSettings, rememberView } from "@/app/settings"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { CommitScreen } from "@/ui/CommitScreen"
-import { handBack, markPage } from "@/ui/mount"
+import { markPage } from "@/ui/mount"
 import { COMMIT } from "@/ui/place"
-import { handOverToGitHub } from "@/shell/handOver"
+import { handOverToGitHub, leaveTheirPages, theSpotWas, withdrawTheWayBack } from "@/shell/handOver"
 import { whenLocationChanges } from "@/ui/navigation"
 import "@/ui/styles.css"
 
@@ -90,10 +90,7 @@ export const start = (): void => {
   const store = settings()
 
   let close = (): void => {}
-  let unoffer = (): void => {}
   let view: View = "ours"
-  /** Where the reader left the way back, so it comes back where they put it. */
-  let spot: Spot = DEFAULT_SPOT
 
   /**
    * Leaves GitHub to it, putting one control beside the action in their own
@@ -106,8 +103,7 @@ export const start = (): void => {
   function handOver(): void {
     close()
     close = () => {}
-    unoffer()
-    unoffer = handOverToGitHub(store, document, spot, takeBack)
+    handOverToGitHub(store, document, takeBack)
   }
 
 
@@ -127,12 +123,11 @@ export const start = (): void => {
   function show(path: string): void {
     close()
     close = () => {}
-    unoffer()
-    unoffer = () => {}
+    withdrawTheWayBack()
 
     const reference = fromPathname(path)
     if (Option.isNone(reference)) {
-      handBack(document)
+      leaveTheirPages(document)
       return
     }
 
@@ -152,7 +147,7 @@ export const start = (): void => {
     chosenSettings(store).pipe(
       Effect.map((chosen) => {
         view = chosen.page.view
-        spot = chosen.wayBack
+        theSpotWas(chosen.wayBack)
         show(window.location.pathname)
       })
     )

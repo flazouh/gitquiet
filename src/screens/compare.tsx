@@ -1,14 +1,20 @@
 import { Effect, Option } from "effect"
-import { chosenSettings, rememberView } from "@/app/settings"
-import { handOverToGitHub } from "@/shell/handOver"
+import { chosenSettings } from "@/app/settings"
+import {
+  handOverToGitHub,
+  leaveTheirPages,
+  takeTheWayBack,
+  theSpotWas,
+  withdrawTheWayBack
+} from "@/shell/handOver"
 import { compareIn, fileListRoute, type Changed, type Comparing } from "@/domain/compare"
 import { changedInCompare } from "@/github/compare"
-import { DEFAULT_SPOT, type Spot, type View } from "@/domain/Settings"
+import type { View } from "@/domain/Settings"
 import { reportError } from "@/observability/report"
 import { standAScreen, type Standing } from "@/shell/screen"
 import { settings } from "@/shell/supplied"
 import { CompareScreen } from "@/ui/CompareScreen"
-import { gate, handBack, markPage } from "@/ui/mount"
+import { markPage } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { COMPARE } from "@/ui/place"
 import "@/ui/styles.css"
@@ -44,10 +50,6 @@ export const start = (): void => {
 
   const store = settings()
   let view: View = "ours"
-  /** Takes the way back off the page, where one of ours is on it. */
-  let unoffer = (): void => {}
-  /** Where the reader left the way back, so it comes back where they put it. */
-  let spot: Spot = DEFAULT_SPOT
   let standing: Standing | null = null
   let stood: string | null = null
 
@@ -55,7 +57,7 @@ export const start = (): void => {
     standing?.close()
     standing = null
     stood = null
-    handBack(document)
+    leaveTheirPages(document)
   }
 
   const show = (path: string): void => {
@@ -69,13 +71,11 @@ export const start = (): void => {
     // on it, because a page that hands over and offers nothing is a door that only
     // opens one way.
     if (view === "github") {
-      unoffer()
-      unoffer = handOverToGitHub(store, document, spot, takeBack)
+      handOverToGitHub(store, document, takeBack)
       return
     }
 
-    unoffer()
-    unoffer = () => {}
+    withdrawTheWayBack()
 
     if (stood === path) return
     standing?.close()
@@ -121,10 +121,7 @@ export const start = (): void => {
   /** Pressed on GitHub's page: ours from here on, starting with this one. */
   function takeBack(): void {
     view = "ours"
-    rememberView(store, "ours")
-    unoffer()
-    unoffer = () => {}
-    gate(document)
+    takeTheWayBack(store, document)
     /*
      * Cleared, unlike the other screens, because this one asks which path it is
      * standing for after the hand-over rather than before it. Left holding this
@@ -143,7 +140,7 @@ export const start = (): void => {
     chosenSettings(store).pipe(
       Effect.map((chosen) => {
         view = chosen.page.view
-        spot = chosen.wayBack
+        theSpotWas(chosen.wayBack)
         show(window.location.pathname)
       })
     )

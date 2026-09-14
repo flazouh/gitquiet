@@ -24,7 +24,7 @@ import {
   settleThread,
   submitReview,
   unsettleThread,
-  updatePullRequestBranch
+  updatePullRequestBranch,
 } from "@/app/pullRequest"
 import { loadWholeFile } from "@/app/revealing"
 import { keptReads } from "@/app/kept"
@@ -44,22 +44,21 @@ import { fromPathname, pathOf, type PullRequestRef, type RepoRef } from "@/domai
 import type { Size } from "@/domain/workingSet"
 import type { GitHubGateway, Review } from "@/ports/GitHubGateway"
 import { reportError } from "@/observability/report"
-import { DEFAULT_SPOT, type Spot, type View } from "@/domain/Settings"
+import type { View } from "@/domain/Settings"
 import { chosenSettings, rememberView } from "@/app/settings"
 import { prepareAScreen, standAScreen, type Standing } from "@/shell/screen"
 import { liveUpdates, settings, throughGitHub } from "@/shell/supplied"
 import { type Loaded, PullRequestScreen } from "@/ui/PullRequestScreen"
 import {
-  handBack,
   hasPreparedScreen,
   markPage,
   rememberPreparedScreen,
   reveal,
-  ungate
+  ungate,
 } from "@/ui/mount"
 import { CONVERSATION } from "@/ui/place"
 import { whenLocationChanges } from "@/ui/navigation"
-import { handOverToGitHub } from "@/shell/handOver"
+import { handOverToGitHub, leaveTheirPages, theSpotWas, withdrawTheWayBack } from "@/shell/handOver"
 import "@/ui/styles.css"
 
 /**
@@ -465,8 +464,6 @@ export const start = (): void => {
   const store = settings()
 
   let close = (): void => {}
-  /** Takes the way back off GitHub's tab row, when one is on it. */
-  let unoffer = (): void => {}
   /** The pull request drawn ahead of the address, if this is one. */
   let promised: string | null = null
   let abandoning: ReturnType<typeof setTimeout> | undefined
@@ -475,8 +472,6 @@ export const start = (): void => {
    * does before the first of these functions is called.
    */
   let view: View = "ours"
-  /** Where the reader left the way back, so it comes back where they put it. */
-  let spot: Spot = DEFAULT_SPOT
 
   // Declared rather than assigned, because the three of them call each other
   // in a ring — showing a page can hand it over, handing it over leaves the
@@ -498,8 +493,7 @@ export const start = (): void => {
     close = () => {}
     clearTimeout(abandoning)
     promised = null
-    unoffer()
-    unoffer = handOverToGitHub(store, document, spot, takeBack)
+    handOverToGitHub(store, document, takeBack)
   }
 
   /** Pressed on GitHub's page: ours from here on, starting with this one. */
@@ -522,8 +516,7 @@ export const start = (): void => {
     preparing = null
     close()
     close = () => {}
-    unoffer()
-    unoffer = () => {}
+    withdrawTheWayBack()
     clearTimeout(abandoning)
     promised = null
 
@@ -539,7 +532,7 @@ export const start = (): void => {
     // other gate is holding back for us.
     const reference = fromPathname(path)
     if (Option.isNone(reference)) {
-      handBack(document)
+      leaveTheirPages(document)
       return
     }
 
@@ -588,7 +581,7 @@ export const start = (): void => {
     chosenSettings(store).pipe(
       Effect.map((chosen) => {
         view = chosen.page.view
-        spot = chosen.wayBack
+        theSpotWas(chosen.wayBack)
         // What the address says, or — while GitHub is still fetching and the
         // address still names the page being left — what the reader pressed.
         const here = window.location.pathname

@@ -129,7 +129,7 @@ const spotOf = (left: number, top: number, view: Window): Spot => {
  * was no longer being held and wiped `left` and `top` on its way past, which dropped
  * the widget back into the corner of the page the moment it was let go.
  */
-const holderStyle = (lifted: boolean, at: Spot, view: Window): string => {
+const holderStyle = (at: Spot, view: Window): string => {
   const where = pixelsOf(at, view)
   return [
     "position: fixed",
@@ -147,11 +147,7 @@ const holderStyle = (lifted: boolean, at: Spot, view: Window): string => {
     // The box is taller than the mark so that the grip is inside it, and the part of
     // it the grip is not filling is a piece of somebody's page. Nothing here catches a
     // press: the two buttons take their own back below.
-    "pointer-events: none",
-    // Off while it is being dragged, so a pointer that outruns the element does not
-    // land on the page underneath and start selecting text.
-    lifted ? "user-select: none" : "user-select: auto",
-    "touch-action: none"
+    "pointer-events: none"
   ].join("; ")
 }
 
@@ -200,6 +196,11 @@ const gripStyle = (shown: boolean): string =>
     "box-shadow: var(--shadow-resting-small, 0 1px 0 rgba(31, 35, 40, 0.04))",
     "cursor: grab",
     "appearance: none",
+    // The element a finger actually drags. On the holder, which is where this was, it
+    // declared nothing: that box takes no pointer at all, so the browser never asks it
+    // what a touch there should do. Here it is the difference between moving the widget
+    // and scrolling the page under it.
+    "touch-action: none",
     // Kept in the tree rather than removed, so a reader who reached it with the
     // keyboard can move the widget without ever showing it, and so that the hover
     // is a fade rather than a thing appearing out of nowhere.
@@ -259,7 +260,7 @@ export const offerOurPage = (
   holder.append(grip, mark)
 
   const place = (): void => {
-    holder.setAttribute("style", holderStyle(from !== null, at, view))
+    holder.setAttribute("style", holderStyle(at, view))
   }
 
   /*

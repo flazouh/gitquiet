@@ -3,16 +3,16 @@ import { forgetIntent, intendedPath } from "@/app/intent"
 import { cancelRun, loadRun, rememberedRun, rerunRun } from "@/app/run"
 import { chosenSettings, rememberView } from "@/app/settings"
 import { runAddressIn, type Pressing, type RunOpening, type RunRef } from "@/domain/run"
-import { DEFAULT_SPOT, type Spot, type View } from "@/domain/Settings"
+import type { View } from "@/domain/Settings"
 import { reportError } from "@/observability/report"
 import type { GitHubGateway } from "@/ports/GitHubGateway"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
-import { handBack, markPage, reveal } from "@/ui/mount"
+import { markPage, reveal } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { RUN } from "@/ui/place"
 import { RunScreen } from "@/ui/RunScreen"
-import { handOverToGitHub } from "@/shell/handOver"
+import { handOverToGitHub, leaveTheirPages, theSpotWas, withdrawTheWayBack } from "@/shell/handOver"
 import { openedNamed } from "@/ui/lastDrawn"
 import "@/ui/styles.css"
 
@@ -110,18 +110,14 @@ export const start = (): void => {
   const store = settings()
 
   let close = (): void => {}
-  let unoffer = (): void => {}
   let view: View = "ours"
-  /** Where the reader left the way back, so it comes back where they put it. */
-  let spot: Spot = DEFAULT_SPOT
 
   // Declared rather than assigned, because the three call each other in a ring.
 
   function handOver(): void {
     close()
     close = () => {}
-    unoffer()
-    unoffer = handOverToGitHub(store, document, spot, takeBack)
+    handOverToGitHub(store, document, takeBack)
   }
 
   function takeBack(): void {
@@ -139,12 +135,11 @@ export const start = (): void => {
   function show(url: string): void {
     close()
     close = () => {}
-    unoffer()
-    unoffer = () => {}
+    withdrawTheWayBack()
 
     const reference = runAddressIn(url)
     if (Option.isNone(reference)) {
-      handBack(document)
+      leaveTheirPages(document)
       return
     }
 
@@ -164,7 +159,7 @@ export const start = (): void => {
     chosenSettings(store).pipe(
       Effect.map((chosen) => {
         view = chosen.page.view
-        spot = chosen.wayBack
+        theSpotWas(chosen.wayBack)
 
         const here = window.location.href
         const promise = intendedPath(window)

@@ -1,15 +1,21 @@
 import { Effect, Option } from "effect"
 import { forgetIntent, intendedPath } from "@/app/intent"
 import { type TheirList, theirWholeList } from "@/app/personRepos"
-import { chosenSettings, rememberView } from "@/app/settings"
-import { handOverToGitHub } from "@/shell/handOver"
+import { chosenSettings } from "@/app/settings"
+import {
+  handOverToGitHub,
+  leaveTheirPages,
+  takeTheWayBack,
+  theSpotWas,
+  withdrawTheWayBack
+} from "@/shell/handOver"
 import { type PersonPage, personReposIn } from "@/domain/person"
-import { DEFAULT_SPOT, type Spot, type View } from "@/domain/Settings"
+import type { View } from "@/domain/Settings"
 import { reportError } from "@/observability/report"
 import { held, standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { theirColumn } from "./theirColumn"
-import { gate, handBack, markPage, reveal } from "@/ui/mount"
+import { markPage, reveal } from "@/ui/mount"
 import { whenAddressChanges } from "@/ui/navigation"
 import { PERSON_REPOS } from "@/ui/place"
 import { PersonReposScreen, type Shown } from "@/ui/PersonReposScreen"
@@ -89,10 +95,6 @@ export const start = (): void => {
   let close = (): void => {}
   let on: string | undefined
   let view: View = "ours"
-  /** Takes the way back off the page, where one of ours is on it. */
-  let unoffer = (): void => {}
-  /** Where the reader left the way back, so it comes back where they put it. */
-  let spot: Spot = DEFAULT_SPOT
 
   const show = (url: string): void => {
     const page = personReposIn(url)
@@ -105,7 +107,7 @@ export const start = (): void => {
       close()
       close = () => {}
       on = undefined
-      handBack(document)
+      leaveTheirPages(document)
       return
     }
 
@@ -126,13 +128,11 @@ export const start = (): void => {
     // on it, because a page that hands over and offers nothing is a door that only
     // opens one way.
     if (view === "github") {
-      unoffer()
-      unoffer = handOverToGitHub(store, document, spot, takeBack)
+      handOverToGitHub(store, document, takeBack)
       return
     }
 
-    unoffer()
-    unoffer = () => {}
+    withdrawTheWayBack()
 
     close = open(page.value, new URL(url, window.location.origin).pathname)
     on = address
@@ -147,10 +147,7 @@ export const start = (): void => {
   /** Pressed on GitHub's page: ours from here on, starting with this one. */
   function takeBack(): void {
     view = "ours"
-    rememberView(store, "ours")
-    unoffer()
-    unoffer = () => {}
-    gate(document)
+    takeTheWayBack(store, document)
     show(window.location.href)
   }
 
@@ -160,7 +157,7 @@ export const start = (): void => {
     chosenSettings(store).pipe(
       Effect.map((chosen) => {
         view = chosen.page.view
-        spot = chosen.wayBack
+        theSpotWas(chosen.wayBack)
 
         /*
          * What the address says, or, while GitHub is still fetching and the address still
