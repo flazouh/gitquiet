@@ -10,6 +10,7 @@
  * against the real grammar under `bun test`.
  */
 
+import type { Held } from "./packages"
 import type { Told, Writing } from "./writings"
 
 /** One Writing, and which file writes it. */
@@ -35,6 +36,8 @@ export const keyOf = (repo: { readonly owner: string; readonly repo: string }, s
 export type Kept = {
   /** {@link keyOf}, and never a bare sha. */
   readonly at: string
+  /** The packages this repository holds itself, by the name others import them as. */
+  readonly packages: ReadonlyMap<string, Held>
   /** What each file was found to say, which is what every question is answered from. */
   readonly files: ReadonlyMap<string, Told>
   /** Every Writing, by the name it is written under. */
@@ -80,7 +83,8 @@ export const worthReading = (path: string, text: string): boolean => {
 export const kept = (
   at: string,
   files: ReadonlyMap<string, Told>,
-  skipped: number
+  skipped: number,
+  packages: ReadonlyMap<string, Held> = new Map()
 ): Kept => {
   const names = new Map<string, Array<Place>>()
 
@@ -92,7 +96,7 @@ export const kept = (
     }
   }
 
-  return { at, files, names, read: files.size, skipped }
+  return { at, files, names, read: files.size, skipped, packages }
 }
 
 /**

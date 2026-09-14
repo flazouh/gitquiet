@@ -11,7 +11,14 @@ import { Effect } from "effect"
 import { filesIn, unzipped } from "@/ledger/archive"
 import { blobSha } from "@/ledger/blob"
 import { byPath, manifestOf, stillToRead, whollyKnown, type Named } from "@/ledger/keeping"
-import { everyPlace, kept, keyOf, worthReading, type Kept } from "@/ledger/ledger"
+import { everyPlace, kept, keyOf, placesFor, worthReading, type Kept } from "@/ledger/ledger"
+import {
+  heldIn as packagesIn,
+  mightBe,
+  nameOf,
+  withinPackage,
+  type Held
+} from "@/ledger/packages"
 import { heldIn, holdIn, holdingOf } from "@/ledger/holding"
 import { idbStore, noStore, type Store } from "@/ledger/store"
 import { usesAcross, type Asked } from "@/ledger/uses"
@@ -20,6 +27,7 @@ import { parsed, ready, reader, type Shelf } from "@/ledger/parse"
 import { findingFile } from "@/domain/findingFile"
 import {
   isLedgerAcrossWork,
+  isLedgerBeyondWork,
   isLedgerNamesWork,
   isLedgerWarmWork,
   isLedgerWork,
@@ -27,6 +35,9 @@ import {
   type LedgerAnswer,
   type LedgerAcross,
   type LedgerAcrossWork,
+  type LedgerBeyondWork,
+  type LedgerFound,
+  LEDGER_WARM_WORK,
   type LedgerNamesWork,
   type LedgerPlaces,
   type LedgerWarmth,
@@ -42,7 +53,7 @@ import {
   type Told,
   type Writing
 } from "@/ledger/writings"
-import type { Spot } from "@/ports/Ledger"
+import type { Repo, Spot } from "@/ports/Ledger"
 
 const shelf = (): Shelf => {
   const getURL = browser.runtime.getURL as (path: string) => string
@@ -264,6 +275,16 @@ const exactFrom = (work: LedgerWarmWork, at: string): Effect.Effect<void> =>
     Effect.catch(() => Effect.void)
   )
 
+/**
+ * What each repository is made of, kept apart from its Ledger.
+ *
+ * A Ledger can come back off disk without ever seeing a `package.json` — that
+ * is not a file anything here parses, so nothing was kept about it. This is the
+ * small thing that has to survive anyway, because a bare specifier cannot be
+ * resolved without it.
+ */
+const holdingPackages = new Map<string, ReadonlyMap<string, Held>>()
+
 /** What is being read now, so two asks do not read a repository twice. */
 let warming: { readonly at: string; readonly work: Effect.Effect<LedgerWarmth> } | null = null
 
@@ -338,7 +359,11 @@ const read = (work: LedgerWarmWork, at: string): Effect.Effect<LedgerWarmth> =>
 
       if (whollyKnown(manifest, known)) {
         const files = byPath(manifest, known)
-        hold(kept(at, files, 0))
+        // A Ledger off disk knows what the files say and not what the
+        // repository is made of: a `package.json` is not a file this parses, so
+        // nothing kept it. Reading them again is one archive, and only a reader
+        // who follows a bare specifier ever pays for it — see `packagesFor`.
+        hold(kept(at, files, 0, holdingPackages.get(at) ?? new Map()))
         // The exact tier needs the files themselves, which a manifest does not
         // carry. Answering off disk is the fast path and stays the fast path;
         // a reader who asked for exactness pays one archive for it.
@@ -377,7 +402,9 @@ const read = (work: LedgerWarmWork, at: string): Effect.Effect<LedgerWarmth> =>
       if (told !== undefined) files.set(one.path, told)
     }
 
-    hold(kept(at, files, whole.size - files.size))
+    const packages = packagesIn(whole)
+    holdingPackages.set(at, packages)
+    hold(kept(at, files, whole.size - files.size, packages))
 
     // After the answer, never before it. The tier below is already answering,
     // and this is a second of work that makes those answers better.
@@ -493,8 +520,114 @@ const across = (work: LedgerAcrossWork): LedgerAcross => {
   }
 }
 
+/**
+ * One small file from any repository, without reading the whole of it.
+ *
+ * `package.json` and nothing else: this is how a guess about which repository a
+ * package is gets checked before an archive is fetched on the strength of it.
+ * The raw route answers the text and redirects to a host that allows any origin
+ * to read it, which is the same arrangement `GitHubGateway.rawFileAt` relies on.
+ */
+const smallFile = (repo: Repo, ref: string, path: string): Effect.Effect<string, unknown> =>
+  Effect.tryPromise({
+    try: () => fetch(`https://github.com/${repo.owner}/${repo.repo}/raw/${ref}/${path}`),
+    catch: (cause) => cause
+  }).pipe(
+    Effect.flatMap((answer) =>
+      answer.ok
+        ? Effect.tryPromise({ try: () => answer.text(), catch: (cause) => cause })
+        : Effect.fail(`HTTP ${answer.status} for ${path}`)
+    )
+  )
+
+/**
+ * Where a name borrowed from a package is written.
+ *
+ * Three ways, and the first costs nothing: a package this repository holds
+ * itself is a path in the archive already read. Past that it is a guess about
+ * which repository the package is, checked against that repository's own
+ * `package.json` before anything is followed into it — a guess that is wrong
+ * costs one small file and is never shown to a reader.
+ *
+ * What comes back is an address rather than a Writing, because the file it names
+ * is in another repository and this extension already draws those: following it
+ * is going to a page, which is the same thing pressing a row of a tree does.
+ */
+const beyond = (work: LedgerBeyondWork): Effect.Effect<LedgerFound> =>
+  Effect.gen(function* () {
+    const from: Repo = { owner: work.owner, repo: work.repo }
+    const at = keyOf(from, work.sha)
+    const ledger = holding(at)
+
+    // Its own, which is most monorepos and costs no request at all.
+    const own = ledger?.packages.get(packageOf(work.specifier))
+    if (own !== undefined) {
+      const within = withinPackage(work.specifier)
+      const path = within === null ? own.entry : `${own.at === "" ? "" : `${own.at}/`}${within}`
+      if (path !== null) {
+        const found = ledger === undefined ? [] : placesFor(ledger, work.name)
+        const here = found.find((one) => one.path === path) ?? found[0]
+        return {
+          here: true,
+          owner: work.owner,
+          repo: work.repo,
+          ref: work.sha,
+          path: here?.path ?? path,
+          line: here?.writing.line ?? 1,
+          name: work.name,
+          signature: here?.writing.signature ?? ""
+        }
+      }
+    }
+
+    // Somebody else's, and each guess is checked before it is believed.
+    for (const guess of mightBe(work.specifier, from)) {
+      const said = yield* smallFile(guess, "HEAD", "package.json").pipe(
+        Effect.catch(() => Effect.succeed(null))
+      )
+      if (said === null) continue
+      if (nameOf(said) !== packageOf(work.specifier)) continue
+
+      // The guess held. Reading that repository is one archive, and it is kept
+      // exactly as this one is — so the second name followed into it is free.
+      const theirs = keyOf(guess, "HEAD")
+      yield* warm({
+        kind: LEDGER_WARM_WORK,
+        owner: guess.owner,
+        repo: guess.repo,
+        sha: "HEAD"
+      })
+
+      const found = placesFor(holding(theirs) ?? emptyLedger(theirs), work.name)
+      const first = found[0]
+      if (first === undefined) continue
+
+      return {
+        owner: guess.owner,
+        repo: guess.repo,
+        ref: "HEAD",
+        path: first.path,
+        line: first.writing.line,
+        name: work.name,
+        signature: first.writing.signature
+      }
+    }
+
+    return { why: "no repository answers to that package" }
+  }).pipe(Effect.catch((cause) => Effect.succeed({ why: String(cause) })))
+
+/** The package a specifier names, with any path inside it taken off. */
+const packageOf = (specifier: string): string => {
+  const parts = specifier.split("/")
+  return specifier.startsWith("@") ? parts.slice(0, 2).join("/") : (parts[0] ?? specifier)
+}
+
+const emptyLedger = (at: string): Kept =>
+  kept(at, new Map(), 0, new Map())
+
 browser.runtime.onMessage.addListener((message: unknown) => {
   if (isLedgerWarmWork(message)) return Effect.runPromise(warm(message))
+  if (isLedgerBeyondWork(message)) return Effect.runPromise(beyond(message))
   if (isLedgerNamesWork(message)) return Effect.runPromise(Effect.sync(() => named(message)))
   if (isLedgerAcrossWork(message)) return Effect.runPromise(Effect.sync(() => across(message)))
   return undefined

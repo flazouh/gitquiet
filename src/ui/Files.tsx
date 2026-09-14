@@ -24,6 +24,7 @@ import { Note } from "./Note"
 import { ProseDiff } from "./ProseDiff"
 import { useRenderer } from "./renderer"
 import { useFollowing, type Across } from "./following"
+import { BeyondCard } from "./BeyondCard"
 import { FollowCard } from "./FollowCard"
 import { UsesPanel } from "./UsesPanel"
 import { usePaintedTheme } from "./Theme"
@@ -598,11 +599,16 @@ const FileDiffPaneView = ({
           },
     [reveal, file.path]
   )
-  const { names, shown: card, asked, unask, textNow, askNow } = useFollowing(
-    following,
-    host,
-    across
-  )
+  const {
+    names,
+    shown: card,
+    asked,
+    unask,
+    textNow,
+    askNow,
+    beyond,
+    unbeyond
+  } = useFollowing(following, host, across)
 
   /*
    * `u`, for the name the pointer is on, as on every other screen that draws
@@ -816,6 +822,15 @@ const FileDiffPaneView = ({
           to the viewport rather than to the file. */}
       {card === null ? null : (
         <FollowCard writing={card.writing} at={card.at} where={card.where} />
+      )}
+      {/* A name in another repository, which is a page rather than a scroll. */}
+      {beyond === null || card !== null ? null : (
+        <BeyondCard
+          beyond={beyond.found}
+          at={beyond.at}
+          onGo={(address) => window.location.assign(address)}
+          onClose={unbeyond}
+        />
       )}
       {/*
         What a press on an underlined name opens: the name, where it is written,

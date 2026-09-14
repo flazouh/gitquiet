@@ -102,6 +102,15 @@ costs only the files it touched. Kept between visits, so a repository is read on
 once a visit.
 _Avoid_: index, database, symbol table, cache.
 
+**Beyond**:
+A Name borrowed from a package rather than from a path. `@yourorg/thing` is not a path and
+resolves against a folder no archive carries; where it resolves is a repository, guessed from the
+specifier and checked against that repository's own `package.json` before anything is followed
+into it. Answered as an address rather than as a Writing, because the file is in another
+repository and this extension already draws those. Always Likely: the repository is proved and
+which Writing inside it is a name match.
+_Avoid_: cross-repo, external, dependency.
+
 **Warm**:
 A Ledger already built for the commit on the screen. A cold Ledger is not an error and not a
 spinner: Following is drawn only once it can be answered, and until then the code reads
@@ -170,8 +179,9 @@ Every key is changeable under Settings, Keyboard, like the rest.
 - **No type inference.** A Name whose meaning depends on a value's type at a call site is a
   question a type checker answers, and there is no type checker here. Those Names get a Likely
   Writing or none.
-- **No cross-repository Following.** A Name written in a dependency is written in a repository
-  this reader may not have open, and the Ledger is per repository.
+- **No following into a dependency's published code.** A package whose repository cannot be
+  guessed and checked is one this cannot reach — and reaching it would mean asking a registry,
+  which means telling somebody else what a private repository depends on.
 - **No Ledger for a repository passed through.** Opening one file on a stranger's repository
   builds nothing. The Ledger starts when a reader opens a second file, or any pull request, in
   the same repository.
