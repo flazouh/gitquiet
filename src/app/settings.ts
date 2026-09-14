@@ -1,5 +1,5 @@
 import { Duration, Effect } from "effect"
-import { DEFAULTS, type Settings, type View } from "../domain/Settings"
+import { DEFAULTS, type Settings, type Spot, type View } from "../domain/Settings"
 import type { Store } from "../ports/Settings"
 
 /**
@@ -52,6 +52,25 @@ export const rememberView = (store: Store, view: View): void => {
     Effect.gen(function* () {
       const held = yield* store.read
       yield* store.write({ ...held, page: { ...held.page, view } })
+    })
+  )
+}
+
+/**
+ * Writes down where the reader left the way back, leaving every other choice as it was.
+ *
+ * Read then write, and runs itself, for the two reasons {@link rememberView} does. The
+ * caller is the end of a drag, which has nothing to run an Effect with either.
+ *
+ * Once a drag ends rather than once a frame: the widget follows the pointer from its
+ * own state, so storage is told where it came to rest and not about the two hundred
+ * places it passed through on the way.
+ */
+export const rememberSpot = (store: Store, wayBack: Spot): void => {
+  Effect.runFork(
+    Effect.gen(function* () {
+      const held = yield* store.read
+      yield* store.write({ ...held, wayBack })
     })
   )
 }

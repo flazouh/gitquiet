@@ -1,9 +1,9 @@
 import { Effect, Fiber, Option } from "effect"
 import { forgetIntent, intendedPath } from "@/app/intent"
 import { cancelRun, loadRun, rememberedRun, rerunRun } from "@/app/run"
-import { chosenView, rememberView } from "@/app/settings"
+import { chosenSettings, rememberSpot, rememberView } from "@/app/settings"
 import { runAddressIn, type Pressing, type RunOpening, type RunRef } from "@/domain/run"
-import type { View } from "@/domain/Settings"
+import { DEFAULT_SPOT, type Spot, type View } from "@/domain/Settings"
 import { reportError } from "@/observability/report"
 import type { GitHubGateway } from "@/ports/GitHubGateway"
 import { standAScreen } from "@/shell/screen"
@@ -12,7 +12,7 @@ import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { RUN } from "@/ui/place"
 import { RunScreen } from "@/ui/RunScreen"
-import { offerOurPage } from "@/ui/theirTabs"
+import { offerOurPage } from "@/ui/wayBack"
 import { openedNamed } from "@/ui/lastDrawn"
 import "@/ui/styles.css"
 
@@ -112,6 +112,8 @@ export const start = (): void => {
   let close = (): void => {}
   let unoffer = (): void => {}
   let view: View = "ours"
+  /** Where the reader left the way back, so it comes back where they put it. */
+  let spot: Spot = DEFAULT_SPOT
 
   // Declared rather than assigned, because the three call each other in a ring.
 
@@ -121,7 +123,18 @@ export const start = (): void => {
     reveal(document)
     ungate(document)
     unoffer()
-    unoffer = offerOurPage(document, takeBack)
+    unoffer = offerOurPage(document, takeBack, spot, keepSpot)
+  }
+
+  /**
+   * Where they dropped it, kept for this page and for every page after it.
+   *
+   * Both halves: the local copy so the widget comes back in the same place when this
+   * screen hands over again without a reload, and storage so it does after one.
+   */
+  function keepSpot(where: Spot): void {
+    spot = where
+    rememberSpot(store, where)
   }
 
   function takeBack(): void {
@@ -161,9 +174,10 @@ export const start = (): void => {
   // Nothing is drawn until the choice is known, so a reader who wants GitHub's page is
   // not charged a request for an interface they turned off.
   Effect.runFork(
-    chosenView(store).pipe(
+    chosenSettings(store).pipe(
       Effect.map((chosen) => {
-        view = chosen
+        view = chosen.page.view
+        spot = chosen.wayBack
 
         const here = window.location.href
         const promise = intendedPath(window)

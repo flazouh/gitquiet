@@ -4,14 +4,14 @@ import { loadCommit, loadCommitDiffs, rememberedCommit } from "@/app/pullRequest
 import { fromPathname, type CommitRef } from "@/domain/CommitRef"
 import type { CommitDetail } from "@/domain/PullRequest"
 import { reportError } from "@/observability/report"
-import type { View } from "@/domain/Settings"
-import { chosenView, rememberView } from "@/app/settings"
+import { DEFAULT_SPOT, type Spot, type View } from "@/domain/Settings"
+import { chosenSettings, rememberSpot, rememberView } from "@/app/settings"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { CommitScreen } from "@/ui/CommitScreen"
 import { handBack, markPage, reveal, ungate } from "@/ui/mount"
 import { COMMIT } from "@/ui/place"
-import { offerOurPage } from "@/ui/theirTabs"
+import { offerOurPage } from "@/ui/wayBack"
 import { whenLocationChanges } from "@/ui/navigation"
 import "@/ui/styles.css"
 
@@ -92,6 +92,8 @@ export const start = (): void => {
   let close = (): void => {}
   let unoffer = (): void => {}
   let view: View = "ours"
+  /** Where the reader left the way back, so it comes back where they put it. */
+  let spot: Spot = DEFAULT_SPOT
 
   /**
    * Leaves GitHub to it, putting one control beside the action in their own
@@ -107,7 +109,19 @@ export const start = (): void => {
     reveal(document)
     ungate(document)
     unoffer()
-    unoffer = offerOurPage(document, takeBack)
+    unoffer = offerOurPage(document, takeBack, spot, keepSpot)
+  }
+
+
+  /**
+   * Where they dropped it, kept for this page and for every page after it.
+   *
+   * Both halves: the local copy so the widget comes back in the same place when this
+   * screen hands over again without a reload, and storage so it does after one.
+   */
+  function keepSpot(where: Spot): void {
+    spot = where
+    rememberSpot(store, where)
   }
 
   /** Pressed on GitHub's page: ours from here on, starting with this one. */
@@ -148,9 +162,10 @@ export const start = (): void => {
   whenLocationChanges(window, (path) => show(path))
 
   Effect.runFork(
-    chosenView(store).pipe(
+    chosenSettings(store).pipe(
       Effect.map((chosen) => {
-        view = chosen
+        view = chosen.page.view
+        spot = chosen.wayBack
         show(window.location.pathname)
       })
     )

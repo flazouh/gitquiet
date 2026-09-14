@@ -9,8 +9,8 @@ import { issueDrawn } from "@/app/rows"
 import { fromPathname, type IssueRef } from "@/domain/issues"
 import type { GitHubGateway } from "@/ports/GitHubGateway"
 import { reportError } from "@/observability/report"
-import type { View } from "@/domain/Settings"
-import { chosenView, rememberView } from "@/app/settings"
+import { DEFAULT_SPOT, type Spot, type View } from "@/domain/Settings"
+import { chosenSettings, rememberSpot, rememberView } from "@/app/settings"
 import { prepareAScreen, standAScreen, type Standing } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { IssueScreen } from "@/ui/IssueScreen"
@@ -26,7 +26,7 @@ import {
 import { ISSUE } from "@/ui/place"
 import { markPreparedTraversal, preparedArrival } from "@/ui/preparedNavigation"
 import { whenLocationChanges } from "@/ui/navigation"
-import { offerOurPage } from "@/ui/theirTabs"
+import { offerOurPage } from "@/ui/wayBack"
 import "@/ui/styles.css"
 
 /**
@@ -226,6 +226,8 @@ export const start = (): void => {
   /** Takes the way back off GitHub's tab row, when one is on it. */
   let unoffer = (): void => {}
   let view: View = "ours"
+  /** Where the reader left the way back, so it comes back where they put it. */
+  let spot: Spot = DEFAULT_SPOT
 
   // Declared rather than assigned, because the three call each other in a ring.
 
@@ -240,7 +242,19 @@ export const start = (): void => {
     reveal(document)
     ungate(document)
     unoffer()
-    unoffer = offerOurPage(document, takeBack)
+    unoffer = offerOurPage(document, takeBack, spot, keepSpot)
+  }
+
+
+  /**
+   * Where they dropped it, kept for this page and for every page after it.
+   *
+   * Both halves: the local copy so the widget comes back in the same place when this
+   * screen hands over again without a reload, and storage so it does after one.
+   */
+  function keepSpot(where: Spot): void {
+    spot = where
+    rememberSpot(store, where)
   }
 
   /** Pressed on GitHub's page: ours from here on, starting with this one. */
@@ -292,9 +306,10 @@ export const start = (): void => {
   // Nothing is drawn until the choice is known, so that a reader who wants
   // GitHub's page is not charged a request for an interface they turned off.
   Effect.runFork(
-    chosenView(store).pipe(
+    chosenSettings(store).pipe(
       Effect.map((chosen) => {
-        view = chosen
+        view = chosen.page.view
+        spot = chosen.wayBack
 
         const here = window.location.pathname
         const promise = intendedPath(window)
