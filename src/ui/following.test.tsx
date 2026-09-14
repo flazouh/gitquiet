@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import type { Ledger, Where, Writing } from "../ports/Ledger"
@@ -718,7 +718,12 @@ describe("what a press on an underlined name does", () => {
 
     // Twice over, which is right: the row saying where it is written, and the
     // line of the Use that is the writing itself.
-    expect(screen.getAllByText(writing.signature).length).toBeGreaterThan(1)
+    //
+    // `findAllByText` and not `getAllByText`: the second of those arrives with
+    // the Uses, which is an effect away, and asking synchronously found one row
+    // on a loaded continuous-integration runner and two on this machine. A test
+    // that passes because the computer was fast enough is not a passing test.
+    await waitFor(() => expect(screen.getAllByText(writing.signature).length).toBeGreaterThan(1))
   })
 
   test("still peeks on Shift, whichever end the press is on", async () => {
