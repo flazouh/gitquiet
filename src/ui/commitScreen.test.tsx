@@ -121,7 +121,7 @@ describe("a commit on the page GitHub keeps for it", () => {
     expect(screen.queryByText("All changes")).toBeNull()
   })
 
-  test("keeps the way out to GitHub's own page, when there is one to go back to", async () => {
+  test("keeps Leave GitQuiet in the bar, when there is a page to go back to", async () => {
     // In the bar rather than in this panel's corner, where it was a labelled
     // button of its own. The same control was in four places under three names,
     // so a reader who wanted their page had to work out which screen they were
@@ -129,7 +129,7 @@ describe("a commit on the page GitHub keeps for it", () => {
     let handed = 0
     render(screenOf({ onUseGitHub: () => void (handed += 1) }))
 
-    const away = await screen.findByRole("button", { name: "Show GitHub's own page" })
+    const away = await screen.findByRole("button", { name: "Leave GitQuiet" })
     await userEvent.click(away)
 
     expect(handed).toBe(1)
@@ -139,7 +139,7 @@ describe("a commit on the page GitHub keeps for it", () => {
     render(screenOf())
 
     await waitFor(() => expect(screen.getByText(commit.headline)).toBeDefined())
-    expect(screen.queryByRole("button", { name: "Show GitHub's own page" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Leave GitQuiet" })).toBeNull()
   })
 
   test("has the display settings the rest of the interface has", async () => {
