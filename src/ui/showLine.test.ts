@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { showLine } from "./showLine"
+import { showLine, drawnIn } from "./showLine"
 
 /**
  * A diff as the renderer leaves it: rows in a shadow root, each carrying the
@@ -41,5 +41,70 @@ describe("putting a line of a diff on the screen", () => {
 
   test("says so where nothing has been drawn at all", () => {
     expect(showLine(null, 42)).toBe(false)
+  })
+})
+
+describe("the root the renderer actually drew into", () => {
+  test("is the shadow root of the container it made, not of the element it was given", () => {
+    // `renderDiff` makes a `<diffs-container>`, attaches the shadow root to it,
+    // and puts it inside what it was handed. A pane holding a ref to the outer
+    // element has no shadow root at all — which is what every caller reached
+    // for, and why a press on a name scrolled nowhere.
+    const pane = document.createElement("div")
+    const drawn = document.createElement("diffs-container")
+    const shadow = drawn.attachShadow({ mode: "open" })
+    pane.append(drawn)
+
+    expect(pane.shadowRoot).toBeNull()
+    expect(drawnIn(pane)).toBe(shadow)
+  })
+
+  test("finds a line through it", () => {
+    const pane = document.createElement("div")
+    const drawn = document.createElement("diffs-container")
+    const shadow = drawn.attachShadow({ mode: "open" })
+    const row = document.createElement("div")
+    row.setAttribute("data-line", "42")
+    shadow.append(row)
+    pane.append(drawn)
+
+    expect(showLine(pane, 42)).toBe(true)
+    expect(showLine(pane, 43)).toBe(false)
+  })
+
+  test("takes an element that owns its own shadow root as it is", () => {
+    const drawn = document.createElement("diffs-container")
+    const shadow = drawn.attachShadow({ mode: "open" })
+
+    expect(drawnIn(drawn)).toBe(shadow)
+  })
+
+  test("answers nothing for nothing, which is a pane that has not drawn yet", () => {
+    expect(drawnIn(null)).toBeNull()
+    expect(showLine(null, 1)).toBe(false)
+  })
+})
+
+describe("how it arrives", () => {
+  test("says instant rather than inheriting the page's smooth", () => {
+    const pane = document.createElement("div")
+    const drawn = document.createElement("diffs-container")
+    const shadow = drawn.attachShadow({ mode: "open" })
+    const row = document.createElement("div")
+    row.setAttribute("data-line", "7")
+
+    const asked: Array<unknown> = []
+    row.scrollIntoView = (how?: unknown) => {
+      asked.push(how)
+    }
+    shadow.append(row)
+    pane.append(drawn)
+
+    showLine(pane, 7)
+
+    // GitHub sets `scroll-behavior: smooth`, and an animation that never runs
+    // is a scroll that never lands: the same call arrives at 2041 as instant
+    // and at 0 without it, measured on a live page.
+    expect(asked).toEqual([{ block: "center", behavior: "instant" }])
   })
 })

@@ -296,7 +296,7 @@ export const WholeFile = ({
           writing={asked.writing}
           where={asked.where}
           reading={{ path, text: lines.join("\n") }}
-          onGo={(line) => showLine(host.current?.shadowRoot ?? null, line)}
+          onGo={(line) => showLine(host.current, line)}
           onClose={unask}
           onOpen={across?.open}
           across={
@@ -310,7 +310,7 @@ export const WholeFile = ({
         <FileNames
           writings={outline ?? []}
           loading={outline === null}
-          onOpen={(writing) => showLine(host.current?.shadowRoot ?? null, writing.line)}
+          onOpen={(writing) => showLine(host.current, writing.line)}
           onClose={() => setNaming(false)}
         />
       ) : null}

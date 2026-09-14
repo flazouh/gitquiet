@@ -13,6 +13,8 @@ import type { Found } from "./uses"
 import type { Borrowed, Use } from "./writings"
 
 export const LEDGER_ASK = "gitquiet/ledger-ask" as const
+export const LEDGER_READY = "gitquiet/ledger-ready" as const
+export const LEDGER_READY_WORK = "gitquiet/ledger-ready-work" as const
 export const LEDGER_WARM = "gitquiet/ledger-warm" as const
 export const LEDGER_WARM_WORK = "gitquiet/ledger-warm-work" as const
 export const LEDGER_NAMES = "gitquiet/ledger-names" as const
@@ -30,6 +32,26 @@ export type Question =
   | { readonly of: "writingNamed"; readonly name: string }
   | { readonly of: "usesIn"; readonly writing: Writing }
   | { readonly of: "writingsIn" }
+
+/**
+ * Get ready to be asked about a file, without asking anything about it.
+ *
+ * A reader who holds Command waits, once, for a worker to wake, a document to
+ * open, a runtime to compile and a megabyte and a half of grammar to arrive.
+ * None of that is a question about a name and none of it needs the key to be
+ * down: a pane that has drawn a file already knows what language it is in.
+ *
+ * Nothing is parsed and nothing is answered. It is a door opened before anybody
+ * walks through it.
+ */
+export type LedgerReady = {
+  readonly kind: typeof LEDGER_READY
+  readonly path: string
+}
+
+export type LedgerReadyWork = Omit<LedgerReady, "kind"> & {
+  readonly kind: typeof LEDGER_READY_WORK
+}
 
 export type LedgerAsk = {
   readonly kind: typeof LEDGER_ASK
@@ -197,6 +219,12 @@ const kindIs = (message: unknown, kind: string): boolean =>
 
 export const isLedgerAsk = (message: unknown): message is LedgerAsk =>
   kindIs(message, LEDGER_ASK)
+
+export const isLedgerReady = (message: unknown): message is LedgerReady =>
+  kindIs(message, LEDGER_READY)
+
+export const isLedgerReadyWork = (message: unknown): message is LedgerReadyWork =>
+  kindIs(message, LEDGER_READY_WORK)
 
 export const isLedgerWork = (message: unknown): message is LedgerWork =>
   kindIs(message, LEDGER_WORK)

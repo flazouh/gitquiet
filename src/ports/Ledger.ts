@@ -107,6 +107,15 @@ export type Ledger = {
    * reading never needs it. What it answers with is how it went, so a screen can
    * say "nothing here parses" rather than leaving a box empty.
    */
+  /**
+   * Gets ready to be asked about a file, without asking anything about it.
+   *
+   * A reader holding Command waits, once, for a worker to wake, a document to
+   * open, a runtime to compile and a grammar to arrive — none of which is a
+   * question about a name. A pane that has drawn a file says this instead, and
+   * the wait happens while nobody is waiting.
+   */
+  readonly ready: (path: string) => Effect.Effect<void, LedgerUnavailable>
   readonly warm: (
     repo: Repo,
     sha: string,

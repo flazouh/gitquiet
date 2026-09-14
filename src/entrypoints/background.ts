@@ -23,11 +23,13 @@ import {
   isLedgerAcross,
   isLedgerAsk,
   isLedgerBeyond,
+  isLedgerReady,
   isLedgerNames,
   isLedgerWarm,
   LEDGER_ACROSS_WORK,
   LEDGER_BEYOND_WORK,
   LEDGER_NAMES_WORK,
+  LEDGER_READY_WORK,
   LEDGER_WARM_WORK,
   LEDGER_WORK,
   type LedgerWork
@@ -183,6 +185,11 @@ export default defineBackground(() => {
     }
     if (isMermaidRequest(message)) {
       return Effect.runPromise(drawMermaidAwayFromThePage(message.code))
+    }
+    if (isLedgerReady(message)) {
+      return Effect.runPromise(
+        relay({ ...message, kind: LEDGER_READY_WORK }, { ready: false })
+      )
     }
     if (isLedgerAsk(message)) {
       return Effect.runPromise(askTheLedger(message))
