@@ -19,12 +19,36 @@ import {
   type MermaidWork
 } from "@/markdown/mermaidProtocol"
 import { browserSettings } from "@/settings/browserStore"
+import {
+  isLedgerAcross,
+  isLedgerAsk,
+  isLedgerBeyond,
+  isLedgerNames,
+  isLedgerWarm,
+  LEDGER_ACROSS_WORK,
+  LEDGER_BEYOND_WORK,
+  LEDGER_NAMES_WORK,
+  LEDGER_WARM_WORK,
+  LEDGER_WORK,
+  type LedgerWork
+} from "@/ledger/protocol"
 
-const OFFSCREEN_PATH = "mermaid-offscreen.html"
+/**
+ * The one document this extension works in away from the page, and the one
+ * function that opens it.
+ *
+ * One, because Chrome allows one: a second `createDocument` is refused with
+ * "Only a single offscreen document may be created", measured in plan 009. It
+ * used to be Mermaid's alone and named after it. Three jobs live there now —
+ * diagrams, the Ledger's parsing, and plan 009's probe — so it is named after
+ * the place rather than after whichever of them asked first, and every reason
+ * any of them needs is given when it opens. See `src/entrypoints/offscreen/`.
+ */
+const OFFSCREEN_PATH = "offscreen.html"
 
 let creatingOffscreen: PromiseLike<void> | null = null
 
-const ensureMermaidDocument: Effect.Effect<boolean, unknown> = Effect.gen(function* () {
+const ensureOffscreen: Effect.Effect<boolean, unknown> = Effect.gen(function* () {
   if (!("offscreen" in browser) || browser.offscreen?.createDocument === undefined) return false
 
   const url = (browser.runtime.getURL as (path: string) => string)(OFFSCREEN_PATH)
@@ -40,8 +64,10 @@ const ensureMermaidDocument: Effect.Effect<boolean, unknown> = Effect.gen(functi
 
   creatingOffscreen ??= browser.offscreen.createDocument({
     url: OFFSCREEN_PATH,
-    reasons: ["DOM_PARSER"],
-    justification: "Lay out Mermaid diagrams without blocking GitHub navigation."
+    // Both, because the document does both: Mermaid measures text in a real
+    // document, and the Ledger parses in a worker at our own origin.
+    reasons: ["DOM_PARSER", "WORKERS"],
+    justification: "Lay out diagrams and parse code away from the page it is read on."
   })
   const opening = creatingOffscreen
 
@@ -63,7 +89,7 @@ const unavailable = (): MermaidUnavailable => ({ kind: MERMAID_UNAVAILABLE })
 
 const drawMermaidAwayFromThePage = (code: string): Effect.Effect<unknown> =>
   Effect.gen(function* () {
-    if (!(yield* ensureMermaidDocument)) return unavailable()
+    if (!(yield* ensureOffscreen)) return unavailable()
 
     const answer: unknown = yield* Effect.promise(() =>
       browser.runtime.sendMessage({
@@ -73,6 +99,54 @@ const drawMermaidAwayFromThePage = (code: string): Effect.Effect<unknown> =>
     )
     return isMermaidAnswer(answer) ? answer : unavailable()
   }).pipe(Effect.orElseSucceed(unavailable))
+
+/**
+ * A question about a file, put to the document that can parse one.
+ *
+ * The relay is a hop and not a decision: what a Name means is
+ * `src/ledger/writings.ts`'s to say, and where it may be worked out is the
+ * offscreen document's. This is the wire between them, and the only thing it
+ * knows is that the two ends use different words for the same question — see
+ * `src/ledger/protocol.ts` for why they have to.
+ *
+ * A failure here is answered rather than raised. The screen asking has a way of
+ * drawing nothing, and that is what it does for a language nothing parses, a
+ * document that would not open and a browser without the API alike.
+ */
+/**
+ * One question, to the document that can answer it, with a way to say it could
+ * not be asked.
+ *
+ * Every Ledger message is the same three steps — open the document, send the
+ * question under the word the document listens for, answer with something the
+ * screen can read either way. Written once rather than three times, because the
+ * third of them was where the first two's differences would have shown up.
+ */
+const relay = <A>(work: { readonly kind: string }, instead: A): Effect.Effect<unknown> =>
+  Effect.gen(function* () {
+    if (!(yield* ensureOffscreen)) return instead
+
+    return yield* Effect.promise(() => browser.runtime.sendMessage(work))
+  }).pipe(Effect.catch(() => Effect.succeed(instead)))
+
+const askTheLedger = (ask: { readonly path: string; readonly text: string; readonly key?: string; readonly question: unknown }): Effect.Effect<unknown> =>
+  Effect.gen(function* () {
+    if (!(yield* ensureOffscreen)) return { kind: "gitquiet/ledger-answer", why: "no offscreen API" }
+
+    return yield* Effect.promise(() =>
+      browser.runtime.sendMessage({
+        kind: LEDGER_WORK,
+        path: ask.path,
+        text: ask.text,
+        ...(ask.key === undefined ? {} : { key: ask.key }),
+        question: ask.question
+      } as LedgerWork)
+    )
+  }).pipe(
+    Effect.catch((cause) =>
+      Effect.succeed({ kind: "gitquiet/ledger-answer", why: String(cause) })
+    )
+  )
 
 /**
  * The worker, which reads a pull request before there is a page to read it on.
@@ -109,6 +183,29 @@ export default defineBackground(() => {
     }
     if (isMermaidRequest(message)) {
       return Effect.runPromise(drawMermaidAwayFromThePage(message.code))
+    }
+    if (isLedgerAsk(message)) {
+      return Effect.runPromise(askTheLedger(message))
+    }
+    if (isLedgerWarm(message)) {
+      return Effect.runPromise(
+        relay({ ...message, kind: LEDGER_WARM_WORK }, { ready: false, why: "no offscreen API" })
+      )
+    }
+    if (isLedgerNames(message)) {
+      return Effect.runPromise(
+        relay({ ...message, kind: LEDGER_NAMES_WORK }, { places: [], ready: false })
+      )
+    }
+    if (isLedgerAcross(message)) {
+      return Effect.runPromise(
+        relay({ ...message, kind: LEDGER_ACROSS_WORK }, { uses: [], ready: false })
+      )
+    }
+    if (isLedgerBeyond(message)) {
+      return Effect.runPromise(
+        relay({ ...message, kind: LEDGER_BEYOND_WORK }, { why: "no offscreen API" })
+      )
     }
     return undefined
   })

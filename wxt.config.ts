@@ -108,7 +108,20 @@ export default defineConfig({
     host_permissions: [
       "*://github.com/*",
       "*://gist.github.com/*",
-      "https://alive.github.com/*"
+      "https://alive.github.com/*",
+      /*
+       * Where an archive actually comes from.
+       *
+       * `github.com/{owner}/{repo}/archive/{sha}.tar.gz` is the address, and it
+       * answers with a redirect to `codeload.github.com` carrying a signed
+       * token. Without this the first hop is allowed and the second is refused,
+       * which arrives as `TypeError: Failed to fetch` and says nothing about a
+       * redirect — measured, while building the Ledger.
+       *
+       * One request for a repository, against one per file followed. See
+       * `src/ledger/archive.ts` and `docs/spec/following.md`.
+       */
+      "https://codeload.github.com/*"
     ],
     // Display settings are kept in `storage.sync`, so a reader who chose
     // side-by-side diffs on one machine has them on the next. Without this the
@@ -149,11 +162,42 @@ export default defineConfig({
           "diff-engine.js",
           "markdown-mermaid.js",
           "markdown-mermaid-local.js",
-          "screens/*"
+          "screens/*",
+          // The Ledger's runtime and its grammars, fetched by the offscreen
+          // document rather than bundled into anything. See
+          // `scripts/build-wasm-probe.ts` and `docs/spec/following.md`.
+          "ledger/*",
+          // The exact tier: TypeScript's own compiler, and the standard library
+          // it needs. Fetched by the offscreen document only where a reader has
+          // asked for a compiler to answer. See `src/ledger/exact.ts`.
+          "exact.js",
+          "exact/*",
+          // Plan 009's probe, which shares that document. `bun scripts/probe-wasm.ts`
+          // is its only caller and the files are written by the same script.
+          "wasm-probe-worker.js",
+          "wasm-probe/*"
         ],
         matches: ["*://github.com/*"]
       }
-    ]
+    ],
+    /*
+     * What our own pages may do, which until now was Chrome's default because
+     * nothing here needed more than it.
+     *
+     * `'wasm-unsafe-eval'` is the line that lets an extension page compile
+     * WebAssembly at all. Without it Chrome refuses one on a page of ours, which
+     * is a different refusal from the one `src/diff/shiki.ts` describes — that one
+     * is github.com's policy reaching into a content script, and this one is our
+     * own policy declining by default. Plan 009 is about telling the two apart and
+     * then living at our own origin, which is the only place a grammar can be
+     * compiled.
+     *
+     * It does not loosen a page github.com serves. A content script stays held to
+     * their policy whatever this says.
+     */
+    content_security_policy: {
+      extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+    }
   }),
   /*
    * Firefox asks for the sources next to the package, because a reviewer has to

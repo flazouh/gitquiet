@@ -28,6 +28,32 @@ export type Picked = {
 }
 
 /**
+ * The identifier under the pointer, with the line and columns that bound it.
+ *
+ * What the renderer already knows and has never been asked for: it tokenises
+ * every line to colour it, so the run of characters under a pointer is a thing
+ * it can name exactly, rather than something this side would have to find again
+ * by reading the DOM back and counting.
+ *
+ * `from` and `to` rather than the renderer's own `lineCharStart` and
+ * `lineCharEnd`, because {@link Picked} above already says `from` and `to` and
+ * two words for one idea in one file is how a vocabulary rots. Both are
+ * character offsets into the line, and `to` is past the last character.
+ *
+ * Nothing here says what the identifier *means*. Whether it has a Writing is
+ * `src/ports/Ledger.ts`'s question and not a renderer's — see
+ * `docs/spec/following.md`.
+ */
+export type Name = {
+  readonly line: number
+  readonly from: number
+  readonly to: number
+  readonly text: string
+  /** Which half of a diff the line is in, and absent in a file that is not one. */
+  readonly side?: DiffSide
+}
+
+/**
  * A row hung under a line of the diff: a comment box, a thread, an answer.
  *
  * The key is what the row is, not where it is — move a note to another line and
@@ -39,6 +65,36 @@ export type Note = {
   readonly line: number
 }
 
+/**
+ * What the reader was holding down, out of the mouse event and no more of it.
+ *
+ * The event itself does not come over. It belongs to the renderer's own
+ * document, it carries a path back into the renderer's DOM, and a pane that took
+ * one would be a pane that could reach in and change what it was handed.
+ */
+export type Modifiers = {
+  /** Command on a Mac, Control everywhere else: the key that means "go there". */
+  readonly go: boolean
+  readonly shift: boolean
+  readonly alt: boolean
+}
+
+/**
+ * Where something the renderer drew is, in the viewport's own coordinates.
+ *
+ * A rectangle rather than the element it came from. A pane that was handed the
+ * element could reach into the renderer's document and change what it drew;
+ * what it needs is somewhere to put a card, and that is four numbers. They go
+ * stale the moment anything scrolls, which is why they are asked for at the
+ * moment of drawing rather than kept.
+ */
+export type Bounds = {
+  readonly top: number
+  readonly left: number
+  readonly bottom: number
+  readonly right: number
+}
+
 export type DiffHandle = {
   /** Renders again after the theme flips, since the colours are baked into the DOM. */
   readonly onThemeChange: (theme: "light" | "dark") => void
@@ -46,6 +102,34 @@ export type DiffHandle = {
   readonly showNotes: (notes: ReadonlyArray<Note>) => void
   /** Lets go of the marked lines, without waiting for a click elsewhere. */
   readonly unpick: () => void
+  /**
+   * Marks one Name as somewhere the reader can go, or nothing to let go of it.
+   *
+   * Only the Name the pointer is on may be marked, which is both what an editor
+   * does and the only thing a renderer can do without being asked to draw again:
+   * the element is the one it just reported entering. A Name from anywhere else
+   * is declined rather than drawn in the wrong place.
+   *
+   * Here rather than on the request because marking must not redraw the file,
+   * which is the same reason {@link DiffHandle.showNotes} is here.
+   */
+  /**
+   * Marks one Name as somewhere the reader can go, or nothing to let go of it.
+   *
+   * `how` is what the mark is drawn like, and it says which of two readings
+   * answered: `sure` where a compiler did, `likely` where the shapes did. A
+   * reader who can see the difference without asking can decide how far to
+   * trust what they are about to follow.
+   */
+  readonly mark: (name: Name | null, how?: "sure" | "likely") => void
+  /**
+   * Where a Name is on the screen, for a card to be put beside it.
+   *
+   * Only the Name the pointer is on, for the same reason {@link DiffHandle.mark}
+   * marks only that one: it is the one the renderer just reported, and it is the
+   * only one whose element this side can be sure of.
+   */
+  readonly boundsOf: (name: Name) => Bounds | null
   readonly destroy: () => void
 }
 
@@ -90,6 +174,19 @@ export type DiffRequest = {
   readonly choices: DiffChoices
   /** Lines were dragged out, or the gutter's plus was clicked. Null on letting go. */
   readonly onPick?: (picked: Picked | null) => void
+  /**
+   * An identifier was clicked, and what the reader was holding while they did.
+   *
+   * The modifiers come over rather than a decision about them, because what
+   * Command means over code is the interface's to say and differs between a
+   * Mac, a diff and a file being read. A renderer that knew would have to be
+   * told again on the next platform.
+   */
+  readonly onName?: (name: Name, held: Modifiers) => void
+  /** The pointer entered an identifier, and what was held as it did. */
+  readonly onNameEnter?: (name: Name, held: Modifiers) => void
+  /** The pointer left the identifier it was on. */
+  readonly onNameLeave?: (name: Name) => void
   /** The rows to hang under the code, in the order they should be created. */
   readonly notes?: ReadonlyArray<Note>
   /** Fills one row. Called per key; the element it returns is kept and reused. */

@@ -420,3 +420,120 @@ describe("which address this page claims to have drawn", () => {
     )
   })
 })
+
+/**
+ * Reaching a file by typing its name, which is the one thing on this page that
+ * needs no request of its own: the tree has already read every path for its own
+ * folders, and this is a second reader of that same list.
+ */
+describe("go to file", () => {
+  const paths = [
+    "README.md",
+    "src/ui/place.ts",
+    "src/ui/RepoTree.tsx",
+    "src/domain/findingFile.ts"
+  ]
+
+  const withPaths = (over: Partial<Parameters<typeof RepoHomeScreen>[0]> = {}) =>
+    showing(() => Effect.succeed(front("keeper")), {
+      loadPaths: () => Effect.succeed(paths),
+      ...over
+    })
+
+  test("opens on the letter GitHub gives it, and lists the repository", async () => {
+    withPaths()
+    await screen.findByText("Flowline")
+
+    await userEvent.keyboard("t")
+
+    const box = await screen.findByRole("textbox", { name: "Go to file" })
+    expect(box).toBeTruthy()
+    expect(await screen.findByText(/findingFile/)).toBeTruthy()
+  })
+
+  test("ranks what was typed, and opens what Enter lands on", async () => {
+    const opened: Array<string> = []
+    withPaths({ onRead: (path) => opened.push(path ?? "") })
+    await screen.findByText("Flowline")
+
+    await userEvent.keyboard("t")
+    await screen.findByRole("textbox", { name: "Go to file" })
+    await userEvent.keyboard("place")
+    await userEvent.keyboard("{Enter}")
+
+    expect(opened).toEqual(["src/ui/place.ts"])
+  })
+
+  test("does not answer the letter while the reader is typing in it", async () => {
+    withPaths()
+    await screen.findByText("Flowline")
+
+    await userEvent.keyboard("t")
+    const box = await screen.findByRole("textbox", { name: "Go to file" })
+    await userEvent.keyboard("tt")
+
+    expect((box as HTMLInputElement).value).toBe("tt")
+    expect(screen.getAllByRole("textbox", { name: "Go to file" })).toHaveLength(1)
+  })
+
+  test("leaves on Escape without opening anything", async () => {
+    const opened: Array<string> = []
+    withPaths({ onRead: (path) => opened.push(path ?? "") })
+    await screen.findByText("Flowline")
+
+    await userEvent.keyboard("t")
+    await screen.findByRole("textbox", { name: "Go to file" })
+    await userEvent.keyboard("{Escape}")
+
+    await waitFor(() => expect(screen.queryByRole("textbox", { name: "Go to file" })).toBeNull())
+    expect(opened).toEqual([])
+  })
+
+  test("says it is still reading rather than saying there is no such file", async () => {
+    showing(() => Effect.succeed(front("keeper")), { loadPaths: () => Effect.never })
+    await screen.findByText("Flowline")
+
+    await userEvent.keyboard("t")
+
+    expect(await screen.findByText(/Reading the repository/)).toBeTruthy()
+  })
+})
+
+/**
+ * The tree used to carry a field that narrowed it to a typed substring. Go to
+ * File does that job now, over every path rather than over the rows this tree
+ * holds, so the field is a way in to it rather than a second way of doing it.
+ */
+describe("the way to a file that is on the screen", () => {
+  const paths = ["README.md", "src/ui/place.ts", "src/domain/findingFile.ts"]
+
+  const withPaths = () =>
+    showing(() => Effect.succeed(front("keeper")), { loadPaths: () => Effect.succeed(paths) })
+
+  test("is a control a reader can see, wearing the key that does the same", async () => {
+    withPaths()
+    await screen.findByText("Flowline")
+
+    const control = await screen.findByRole("button", { name: /Go to file/ })
+    expect(within(control).getByText("t")).toBeTruthy()
+
+    await userEvent.click(control)
+    expect(await screen.findByRole("textbox", { name: "Go to file" })).toBeTruthy()
+  })
+
+  test("answers the keys the filter used to answer, which readers' hands know", async () => {
+    withPaths()
+    await screen.findByText("Flowline")
+
+    await userEvent.keyboard("/")
+
+    expect(await screen.findByRole("textbox", { name: "Go to file" })).toBeTruthy()
+  })
+
+  test("does not narrow the tree in place any more", async () => {
+    withPaths()
+    await screen.findByText("Flowline")
+
+    expect(screen.queryByLabelText("Find a file")).toBeNull()
+  })
+})

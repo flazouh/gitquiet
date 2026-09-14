@@ -316,6 +316,22 @@ const SAMPLES: Record<string, (choice: string) => ReactNode> = {
       <div className="px-1 text-ink">const port = 3000</div>
     </div>
   ),
+  /**
+   * The two tiers, told apart by the one thing that tells them apart: a method
+   * call, which shapes cannot follow and types can.
+   */
+  exact: (choice) =>
+    choice === "on" ? (
+      <div className="rounded bg-canvas px-1.5 py-1 font-mono text-[9px] leading-relaxed">
+        <div className="text-ink">one.area()</div>
+        <div className="text-ink-accent">→ Shape.area, in shape.ts</div>
+      </div>
+    ) : (
+      <div className="rounded bg-canvas px-1.5 py-1 font-mono text-[9px] leading-relaxed">
+        <div className="text-ink">one.area()</div>
+        <div className="text-ink-muted">→ nothing to follow</div>
+      </div>
+    ),
   prose: (choice) =>
     choice === "on" ? (
       <div className="rounded bg-canvas px-1.5 py-1">
