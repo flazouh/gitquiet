@@ -5,13 +5,13 @@ import { fromPathname, type CommitRef } from "@/domain/CommitRef"
 import type { CommitDetail } from "@/domain/PullRequest"
 import { reportError } from "@/observability/report"
 import { DEFAULT_SPOT, type Spot, type View } from "@/domain/Settings"
-import { chosenSettings, rememberSpot, rememberView } from "@/app/settings"
+import { chosenSettings, rememberView } from "@/app/settings"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { CommitScreen } from "@/ui/CommitScreen"
-import { handBack, markPage, reveal, ungate } from "@/ui/mount"
+import { handBack, markPage } from "@/ui/mount"
 import { COMMIT } from "@/ui/place"
-import { offerOurPage } from "@/ui/wayBack"
+import { handOverToGitHub } from "@/shell/handOver"
 import { whenLocationChanges } from "@/ui/navigation"
 import "@/ui/styles.css"
 
@@ -106,23 +106,10 @@ export const start = (): void => {
   function handOver(): void {
     close()
     close = () => {}
-    reveal(document)
-    ungate(document)
     unoffer()
-    unoffer = offerOurPage(document, takeBack, spot, keepSpot)
+    unoffer = handOverToGitHub(store, document, spot, takeBack)
   }
 
-
-  /**
-   * Where they dropped it, kept for this page and for every page after it.
-   *
-   * Both halves: the local copy so the widget comes back in the same place when this
-   * screen hands over again without a reload, and storage so it does after one.
-   */
-  function keepSpot(where: Spot): void {
-    spot = where
-    rememberSpot(store, where)
-  }
 
   /** Pressed on GitHub's page: ours from here on, starting with this one. */
   function takeBack(): void {
