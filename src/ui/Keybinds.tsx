@@ -36,16 +36,29 @@ export type KeybindsProps = {
 /**
  * The key a press amounts to, or nothing when it is not the reader's to give.
  *
- * The same rule the matcher itself keeps: anything held with Command, Control or
- * Alt belongs to the browser and to the operating system, and a modifier held on
- * its own is not a key being typed. Shift is not one of those — it is how a
- * reader reaches half the board, and `A` arrives as `A`.
+ * Bare letters stay as the matcher has always taken them. Command/Control held
+ * with a letter is written Cap's way (`⌘b`, `⌘⇧b`), which is how the pane
+ * toggles are bound; Alt on its own still belongs to the browser. A modifier
+ * held with no letter is not a key being typed.
  *
  * Escape is the way out of the recording rather than a key to record. Every
  * dialog, menu and bubble on this page is listening for it, so a command bound
  * to it would be a command that fires behind whatever the reader was closing.
  */
 const chordIn = (event: React.KeyboardEvent): Chord | null => {
+  if (event.key === "Escape") return null
+  if (event.key === "Shift" || event.key === "Control" || event.key === "Alt" || event.key === "Meta") {
+    return null
+  }
+
+  const mod = event.metaKey || event.ctrlKey
+  if (mod) {
+    if (event.altKey || event.key.length !== 1) return null
+    const letter = event.shiftKey ? event.key.toLowerCase() : event.key
+    const chord = `⌘${event.shiftKey ? "⇧" : ""}${letter}`
+    return isChord(chord) ? chord : null
+  }
+
   const press = {
     key: event.key,
     ctrl: event.ctrlKey,
@@ -53,7 +66,7 @@ const chordIn = (event: React.KeyboardEvent): Chord | null => {
     alt: event.altKey,
     shift: event.shiftKey
   }
-  if (theirs(press) || event.key === "Escape") return null
+  if (theirs(press)) return null
   return isChord(event.key) ? event.key : null
 }
 

@@ -184,6 +184,13 @@ const Action = ({
  * size) in a recessed well underneath, rounded to the card's own corner so a
  * square fill never sits in a round frame.
  */
+
+/** Open = filled chip. Closed = dim ink, no border outline. */
+const paneToggleClass = (open: boolean): string =>
+  `grid size-7 shrink-0 place-items-center rounded-md ${
+    open ? "bg-hover text-ink" : "text-ink-muted opacity-40 hover:bg-hover hover:text-ink hover:opacity-100"
+  }`
+
 export const Header = ({
   snapshot,
   onUseGitHub,
@@ -232,135 +239,134 @@ export const Header = ({
   const [copied, setCopied] = useState(false)
 
   return (
-    // A region rather than a `header`, because the bar above it is already one:
-    // a `header` scoped to the body is a banner, and two banners on a page leave
-    // a reader asking for the banner with two answers and no way to tell them
-    // apart. The bar is the page's, and this one heads the pull request.
+    // A region rather than a `header`, because the bar above it is already one —
+    // two banners on a page leave a reader asking for the banner with two answers.
+    // Pane toggles live on the second row of this card, flanking the facts well,
+    // not inside that well and not outside the card entirely.
     <section
       aria-label="This pull request"
       className={`t-panel-fade mb-1.5 shrink-0 p-1 ${CARD}`}
     >
-      {/* No padding of its own: the card's own inset is what holds both rows
-          off its border, so the badge's fill starts where the well's fill
-          starts rather than eight pixels inside it. */}
-      <div className="mb-1 flex items-center gap-2.5">
-        {/* The age is inside the badge rather than beside it: where a pull
-            request stands and when it got there are one fact, and anyone
-            arriving at it is asking both at once. Titled with the verb and the
-            whole timestamp, because "4d ago" is a rounding and the exact
-            moment is what an argument about a regression needs. Same corner
-            and same padding as the well beneath it, so the two fills the card
-            holds are cut to one shape rather than a pill above a rectangle. */}
-        <span
-          aria-label={age === undefined ? word : `${word} ${age}`}
-          title={Option.getOrUndefined(
-            Option.map(moment, (at) => `${STATE_VERB[snapshot.state]} ${momentOf(at)}`)
-          )}
-          className={`flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold ${BADGE_TONE[badge]}`}
-        >
-          <Art size={12} />
-          {word}
-          {age === undefined ? null : (
-            <span className="font-normal opacity-80 tabular-nums">{age}</span>
-          )}
-        </span>
-
-        {/* The number and the name, in one box, reading as one heading.
-
-            Before the title and outside anything that truncates. It rode at the
-            end of the heading, inside the same `truncate`, so on a long title
-            the one fact that names this pull request — the fact a reader says
-            out loud and pastes into a message — was the first character to be
-            cut: "#2…". Leading the line also puts it in the same place on every
-            pull request, which is what makes it findable without reading.
-
-            The box is what makes it a heading rather than a third object on the
-            row. On the row's own gap the number sat as far from the title as
-            the badge sat from the number, so the line read as three things; at
-            this gap it reads as "#1737 feat(engine): …", which is how it is
-            said. No fill and muted ink for the same reason: a chip at the
-            title's size made the second heaviest thing on the card a number,
-            and `dress.ts` spends a file taking boxes off this interface. */}
-        <div className="flex min-w-0 flex-1 items-center gap-1.5">
-          <span className="shrink-0 font-mono text-base font-semibold tabular-nums text-ink-muted">
-            {`#${snapshot.reference.number}`}
+        {/* No padding of its own: the card's own inset is what holds both rows
+            off its border, so the badge's fill starts where the well's fill
+            starts rather than eight pixels inside it. */}
+        <div className="mb-1 flex items-center gap-2.5">
+          {/* The age is inside the badge rather than beside it: where a pull
+              request stands and when it got there are one fact, and anyone
+              arriving at it is asking both at once. Titled with the verb and the
+              whole timestamp, because "4d ago" is a rounding and the exact
+              moment is what an argument about a regression needs. Same corner
+              and same padding as the well beneath it, so the two fills the card
+              holds are cut to one shape rather than a pill above a rectangle. */}
+          <span
+            aria-label={age === undefined ? word : `${word} ${age}`}
+            title={Option.getOrUndefined(
+              Option.map(moment, (at) => `${STATE_VERB[snapshot.state]} ${momentOf(at)}`)
+            )}
+            className={`flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold ${BADGE_TONE[badge]}`}
+          >
+            <Art size={12} />
+            {word}
+            {age === undefined ? null : (
+              <span className="font-normal opacity-80 tabular-nums">{age}</span>
+            )}
           </span>
 
-          <h1 className="min-w-0 truncate text-base font-semibold">{snapshot.title}</h1>
+          {/* The number and the name, in one box, reading as one heading.
+
+              Before the title and outside anything that truncates. It rode at the
+              end of the heading, inside the same `truncate`, so on a long title
+              the one fact that names this pull request — the fact a reader says
+              out loud and pastes into a message — was the first character to be
+              cut: "#2…". Leading the line also puts it in the same place on every
+              pull request, which is what makes it findable without reading.
+
+              The box is what makes it a heading rather than a third object on the
+              row. On the row's own gap the number sat as far from the title as
+              the badge sat from the number, so the line read as three things; at
+              this gap it reads as "#1737 feat(engine): …", which is how it is
+              said. No fill and muted ink for the same reason: a chip at the
+              title's size made the second heaviest thing on the card a number,
+              and `dress.ts` spends a file taking boxes off this interface. */}
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="shrink-0 font-mono text-base font-semibold tabular-nums text-ink-muted">
+              {`#${snapshot.reference.number}`}
+            </span>
+
+            <h1 className="min-w-0 truncate text-base font-semibold">{snapshot.title}</h1>
+          </div>
+
+          <Action
+            label={copied ? "Link copied" : "Copy link"}
+            onClick={() => {
+              Effect.runFork(
+                Effect.tryPromise(() => navigator.clipboard.writeText(url)).pipe(
+                  // Refused by a browser that will not give a page the clipboard,
+                  // and there is nothing to say about it: the name on the button
+                  // stays "Copy link", which is the truth.
+                  Effect.match({ onSuccess: () => setCopied(true), onFailure: () => {} })
+                )
+              )
+            }}
+          >
+            {copied ? <Tick size={14} /> : <Copy size={14} />}
+          </Action>
+
+          {/* Nothing at all where the bar is offering the way out.
+              There were two GitHub controls here. One was a link to
+              `toUrl(reference)`, which on the extension is the address already
+              being stood on: following it reloaded the same URL and this
+              interface took the page over again, so it could not do what it said.
+              The other handed the page back, and that one now lives at the right
+              of the strip, where it is in the same corner on all four screens
+              instead of on this one. What is left is for a window that is not
+              GitHub's page: there the link goes somewhere. */}
+          {onUseGitHub === undefined ? (
+            <Action label="Open on GitHub" href={url} outward>
+              <External size={14} />
+            </Action>
+          ) : null}
         </div>
 
-        <Action
-          label={copied ? "Link copied" : "Copy link"}
-          onClick={() => {
-            Effect.runFork(
-              Effect.tryPromise(() => navigator.clipboard.writeText(url)).pipe(
-                // Refused by a browser that will not give a page the clipboard,
-                // and there is nothing to say about it: the name on the button
-                // stays "Copy link", which is the truth.
-                Effect.match({ onSuccess: () => setCopied(true), onFailure: () => {} })
-              )
-            )
-          }}
-        >
-          {copied ? <Tick size={14} /> : <Copy size={14} />}
-        </Action>
+        <div className="flex min-w-0 items-center gap-1.5">
+          {onToggleDetails !== undefined ? (
+            <button
+              type="button"
+              aria-label={detailsOpen ? "Hide details" : "Show details"}
+              title={detailsOpen ? "Hide details" : "Show details"}
+              aria-pressed={detailsOpen}
+              onClick={onToggleDetails}
+              className={paneToggleClass(detailsOpen)}
+            >
+              <SidebarLeft size={14} />
+            </button>
+          ) : null}
 
-        {/* Nothing at all where the bar is offering the way out.
-            There were two GitHub controls here. One was a link to
-            `toUrl(reference)`, which on the extension is the address already
-            being stood on: following it reloaded the same URL and this
-            interface took the page over again, so it could not do what it said.
-            The other handed the page back, and that one now lives at the right
-            of the strip, where it is in the same corner on all four screens
-            instead of on this one. What is left is for a window that is not
-            GitHub's page: there the link goes somewhere. */}
-        {onUseGitHub === undefined ? (
-          <Action label="Open on GitHub" href={url} outward>
-            <External size={14} />
-          </Action>
-        ) : null}
-      </div>
-
-      <div className="flex min-w-0 items-center gap-2 rounded-md bg-inset px-2.5 py-1.5 text-xs text-ink-muted">
-        {/* Left sidebar toggle at the extreme left of this row.
-            Open = filled chip. Closed = outline only. */}
-        {onToggleDetails !== undefined ? (
-          <button
-            type="button"
-            aria-label={detailsOpen ? "Hide details" : "Show details"}
-            title={detailsOpen ? "Hide details" : "Show details"}
-            aria-pressed={detailsOpen}
-            onClick={onToggleDetails}
-            className={`grid size-7 shrink-0 place-items-center rounded-md ${
-              detailsOpen
-                ? "bg-hover text-ink"
-                : "border border-edge text-ink-muted hover:bg-hover hover:text-ink"
-            }`}
+          <div
+            aria-label="Pull request facts"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-md bg-inset px-2.5 py-1.5 text-xs text-ink-muted"
           >
-            <SidebarLeft size={14} />
-          </button>
-        ) : null}
-        {/* The face leads the facts, at the gap the login is set in rather than
-            the line's own, so the two read as one person and not as a picture
-            beside a name. */}
-        <span className="flex min-w-0 shrink items-center gap-1.5">
-          <Who login={snapshot.author.login} src={Option.getOrUndefined(snapshot.author.faceUrl)} />
-          <span className="truncate font-semibold text-ink">{snapshot.author.login}</span>
-        </span>
-        {/* No "wants to merge" between the face and the branches. The arrow
-            below already says which way the work is going, and the words were
-            fourteen characters of prose in a line whose job is facts. */}
-        <Branch name={snapshot.headBranch} />
-        <YourMove size={12} className="shrink-0" />
-        <Branch name={snapshot.baseBranch} />
-        {Option.isSome(stack) ? <Layer stack={stack.value} /> : null}
-        <span className="ml-auto flex shrink-0 items-center gap-1.5">
-          <span className="tabular-nums">
-            {`${snapshot.files.length} ${snapshot.files.length === 1 ? "file" : "files"}`}{" "}
-            <span className="text-pass">+{size.added}</span>{" "}
-            <span className="text-fail">−{size.deleted}</span>
-          </span>
-          {/* Right sidebar toggle at the extreme right of this row. */}
+            {/* The face leads the facts, at the gap the login is set in rather than
+                the line's own, so the two read as one person and not as a picture
+                beside a name. */}
+            <span className="flex min-w-0 shrink items-center gap-1.5">
+              <Who login={snapshot.author.login} src={Option.getOrUndefined(snapshot.author.faceUrl)} />
+              <span className="truncate font-semibold text-ink">{snapshot.author.login}</span>
+            </span>
+            {/* No "wants to merge" between the face and the branches. The arrow
+                below already says which way the work is going, and the words were
+                fourteen characters of prose in a line whose job is facts. */}
+            <Branch name={snapshot.headBranch} />
+            <YourMove size={12} className="shrink-0" />
+            <Branch name={snapshot.baseBranch} />
+            {Option.isSome(stack) ? <Layer stack={stack.value} /> : null}
+            <span className="ml-auto shrink-0 tabular-nums">
+              {`${snapshot.files.length} ${snapshot.files.length === 1 ? "file" : "files"}`}{" "}
+              <span className="text-pass">+{size.added}</span>{" "}
+              <span className="text-fail">−{size.deleted}</span>
+            </span>
+          </div>
+
           {onToggleFiles !== undefined ? (
             <button
               type="button"
@@ -368,17 +374,12 @@ export const Header = ({
               title={filesOpen ? "Hide files" : "Show files"}
               aria-pressed={filesOpen}
               onClick={onToggleFiles}
-              className={`grid size-7 shrink-0 place-items-center rounded-md ${
-                filesOpen
-                  ? "bg-hover text-ink"
-                  : "border border-edge text-ink-muted hover:bg-hover hover:text-ink"
-              }`}
+              className={paneToggleClass(filesOpen)}
             >
               <SidebarRight size={14} />
             </button>
           ) : null}
-        </span>
-      </div>
+        </div>
     </section>
   )
 }

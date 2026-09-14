@@ -8,6 +8,7 @@ import {
   BoldIcon,
   BookIcon,
   BriefcaseIcon,
+  BugIcon,
   CheckCircleFillIcon,
   CheckIcon,
   ChevronDownIcon,
@@ -161,6 +162,7 @@ export const OCTICONS: Set = {
    */
   command: CommandKeyIcon,
   github: MarkGithubIcon,
+  bug: BugIcon,
   code: CodeIcon,
   // A run rather than a robot: Actions is a thing that runs, and their own tab is a play.
   actions: PlayIcon,

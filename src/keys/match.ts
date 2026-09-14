@@ -1,4 +1,11 @@
-import { bindings, type Chord, type Command, type Keys } from "./commands"
+import {
+  bindings,
+  isCombo,
+  keyOfCombo,
+  type Chord,
+  type Command,
+  type Keys
+} from "./commands"
 
 /** A keypress, reduced to the part a binding is allowed to care about. */
 export type Press = {
@@ -75,16 +82,56 @@ const answering = (
 }
 
 /**
+ * Whether a Cap-style combo chord (`⌘b`, `⌘⇧b`) is exactly this press.
+ *
+ * `⌘` is Command on a Mac and Control elsewhere — the same rule the palette's
+ * ⌘K listener keeps. Shift in the chord demands shift on the press; a chord
+ * without it refuses a shifted press, so `⌘b` and `⌘⇧b` stay two answers.
+ * The letter is compared without case when shift is held, because the browser
+ * reports `B` for Shift+B and the table writes the letter Cap shows.
+ */
+const comboMatches = (chord: Chord, press: Press): boolean => {
+  if (!isCombo(chord) || chord.includes(" ")) return false
+
+  const wantMod = chord.includes("⌘")
+  const wantShift = chord.includes("⇧")
+  const wantAlt = chord.includes("⌥")
+  const wantCtrl = chord.includes("⌃")
+  const key = keyOfCombo(chord)
+  if (key.length === 0) return false
+
+  const modHeld = press.meta === true || press.ctrl === true
+  if (wantMod !== modHeld) return false
+  if (wantCtrl && press.ctrl !== true) return false
+  if (wantAlt !== (press.alt === true)) return false
+  if (wantShift !== (press.shift === true)) return false
+
+  return wantShift
+    ? press.key.toLowerCase() === key.toLowerCase()
+    : press.key === key
+}
+
+/**
  * The command a keypress asks for on its own, or nothing.
  *
- * Anything held with Command, Control or Alt is left alone without even
- * looking: those belong to the browser and to the operating system, and a
- * single-letter shortcut that also fires on Cmd+J is a shortcut that breaks
- * jumping to a tab. Shift is not treated that way — `?` is a shifted key and
- * arrives as `?`, so the key itself already says whether shift was down.
+ * Anything held with Command, Control or Alt is left alone unless a combo
+ * chord in the table asked for that hold — `⌘b` is ours, `⌘s` is still the
+ * browser's. A single-letter shortcut that also fired on Cmd+J would break
+ * jumping to a tab; the combo grammar is the deliberate exception. Shift is
+ * not treated as "theirs" on its own — `?` is a shifted key and arrives as
+ * `?`, so the key itself already says whether shift was down.
  */
-export const commandFor = (press: Press, keys: Keys): Command | null =>
-  theirs(press) ? null : answering(keys, (chord) => chord === press.key, () => true)
+export const commandFor = (press: Press, keys: Keys): Command | null => {
+  if (holding(press.key)) return null
+  if (theirs(press)) {
+    return answering(keys, (chord) => comboMatches(chord, press), () => true)
+  }
+  return answering(
+    keys,
+    (chord) => !isCombo(chord) && !chord.includes(" ") && chord === press.key,
+    () => true
+  )
+}
 
 /**
  * What a keypress asks for, read against whatever key was pressed before it.
@@ -102,9 +149,17 @@ export const read = (
   answered: (command: Command) => boolean,
   now: number = Date.now()
 ): Reading => {
-  // Neither answers nor cancels: a press this layer has no claim on should not
-  // cost a reader the sequence they are in the middle of typing.
-  if (theirs(press) || holding(press.key)) return { command: null, waiting }
+  // A modifier held on its own is not a key being typed.
+  if (holding(press.key)) return { command: null, waiting }
+
+  // Combo chords (`⌘b`) answer on their own and never continue a sequence.
+  // A Command/Control/Alt press that matches nothing of ours is left alone
+  // without cancelling a half-typed `g …` — same bargain as before for keys
+  // that belong to the browser.
+  if (theirs(press)) {
+    const command = answering(keys, (chord) => comboMatches(chord, press), answered)
+    return { command, waiting: command === null ? waiting : null }
+  }
 
   if (waiting !== null && now - waiting.at <= PATIENCE) {
     const wanted = `${waiting.leader} ${press.key}`

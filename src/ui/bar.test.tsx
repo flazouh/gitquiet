@@ -589,7 +589,7 @@ describe("what the bar keeps of GitHub's", () => {
     let handedBack = 0
     render(<Bar where={{ kind: "home" }} onStepAside={() => (handedBack += 1)} />)
 
-    await userEvent.click(screen.getByRole("button", { name: "Show GitHub's own page" }))
+    await userEvent.click(screen.getByRole("button", { name: "Leave GitQuiet" }))
 
     expect(handedBack).toBe(1)
   })
@@ -607,7 +607,7 @@ describe("what the bar keeps of GitHub's", () => {
 
     const controls = screen.getByRole("banner").querySelectorAll("a, button")
     const last = controls[controls.length - 1]
-    expect(last?.getAttribute("aria-label")).toBe("Show GitHub's own page")
+    expect(last?.getAttribute("aria-label")).toBe("Leave GitQuiet")
   })
 
   test("offers no way out where nothing is holding a page to go back to", () => {
@@ -615,7 +615,34 @@ describe("what the bar keeps of GitHub's", () => {
     // and a button that presses into nothing is the mistake this bar undoes.
     render(<Bar where={{ kind: "home" }} />)
 
-    expect(screen.queryByRole("button", { name: "Show GitHub's own page" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Leave GitQuiet" })).toBeNull()
+  })
+
+  test("offers a bug report that opens the GitQuiet issues board", () => {
+    render(<Bar where={{ kind: "home" }} />)
+
+    const report = screen.getByRole("link", { name: "Report a problem on GitQuiet" })
+    expect(report.getAttribute("href")).toBe("https://github.com/flazouh/gitquiet/issues")
+    expect(report.getAttribute("target")).toBe("_blank")
+  })
+
+  test("opens the bug report in a new tab on press", async () => {
+    const asked: Array<unknown> = []
+    const prior = (globalThis as unknown as { browser?: unknown }).browser
+    ;(globalThis as unknown as { browser: unknown }).browser = {
+      runtime: {
+        sendMessage: (message: unknown) => {
+          asked.push(message)
+          return Promise.resolve()
+        }
+      }
+    }
+    render(<Bar where={{ kind: "home" }} />)
+    await userEvent.click(screen.getByRole("link", { name: "Report a problem on GitQuiet" }))
+    ;(globalThis as unknown as { browser?: unknown }).browser = prior
+    expect(asked).toEqual([
+      { kind: "gitquiet/open-tab", url: "https://github.com/flazouh/gitquiet/issues" }
+    ])
   })
 
   test("the Participant, with the same three rows the Rail offers", async () => {
@@ -715,7 +742,7 @@ describe("the way back and the way forward", () => {
     render(<Bar where={REPOSITORY} onBack={() => undefined} onStepAside={() => undefined} />)
 
     const back = screen.getByRole("button", { name: "Back" })
-    const out = screen.getByRole("button", { name: "Show GitHub's own page" })
+    const out = screen.getByRole("button", { name: "Leave GitQuiet" })
 
     expect(back).not.toBe(out)
     expect(back.compareDocumentPosition(out) & Node.DOCUMENT_POSITION_FOLLOWING).toBeGreaterThan(0)
@@ -931,7 +958,7 @@ describe("the bar, in a window rather than in a tab", () => {
     const tray = screen.getByRole("button", { name: "Signed in as flazouh" })
     expect(tray).toBeDefined()
     expect(
-      tray.compareDocumentPosition(screen.getByRole("button", { name: "Show GitHub's own page" })) &
+      tray.compareDocumentPosition(screen.getByRole("button", { name: "Leave GitQuiet" })) &
         Node.DOCUMENT_POSITION_PRECEDING
     ).toBeGreaterThan(0)
   })

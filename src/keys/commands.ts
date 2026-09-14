@@ -26,6 +26,8 @@ export type Command =
   | "openAside"
   | "search"
   | "dismiss"
+  | "toggleDetails"
+  | "toggleFiles"
   | "workingSet"
   | "repositories"
   | "activity"
@@ -166,6 +168,14 @@ const STANDARD: Table = {
    */
   search: ["f", "/"],
   dismiss: ["Escape"],
+  /*
+   * ⌘B and ⌘⇧B, which is how every editor toggles its primary and secondary
+   * sidebars. Written Cap's way (`⌘` for Command-or-Control, `⇧` for shift), so
+   * the sheet and the matcher read one spelling. Details is the left column and
+   * the bare chord; files is the right panel and the shifted one.
+   */
+  toggleDetails: ["⌘b"],
+  toggleFiles: ["⌘⇧b"],
   workingSet: ["g d"],
   repositories: ["g r"],
   activity: ["g f"],
@@ -204,6 +214,9 @@ const VIM: Table = {
   openAside: ["O"],
   search: ["/"],
   dismiss: ["Escape"],
+  // Same chords as standard: the platform's Mod key is not a vim motion.
+  toggleDetails: ["⌘b"],
+  toggleFiles: ["⌘⇧b"],
   workingSet: ["g d"],
   repositories: ["g r"],
   activity: ["g f"],
@@ -222,6 +235,8 @@ const NOTHING: Table = {
   openAside: [],
   search: [],
   dismiss: [],
+  toggleDetails: [],
+  toggleFiles: [],
   workingSet: [],
   repositories: [],
   activity: [],
@@ -263,6 +278,16 @@ export const KEYBOARD: ReadonlyArray<{
   { command: "openAside", word: "Open aside", gist: "The row the walk is on, in the side panel" },
   { command: "search", word: "Search", gist: "The filter over whichever list is on screen" },
   { command: "dismiss", word: "Close", gist: "The way out of whatever is open" },
+  {
+    command: "toggleDetails",
+    word: "Details pane",
+    gist: "The left column of merge, conversation and checks, and back"
+  },
+  {
+    command: "toggleFiles",
+    word: "Files pane",
+    gist: "The tree and the diff on the right, and back"
+  },
   { command: "workingSet", word: "Working set", gist: "Everything waiting on you" },
   { command: "repositories", word: "Repositories", gist: "The repositories you keep" },
   { command: "activity", word: "Activity", gist: "The feed" },
@@ -273,17 +298,49 @@ export const KEYBOARD: ReadonlyArray<{
 const HOLDING: ReadonlySet<string> = new Set(["Shift", "Control", "Alt", "Meta"])
 
 /**
+ * The modifiers Cap draws, in the order a chord writes them.
+ *
+ * Shared with the matcher so a binding of `⌘⇧b` is one spelling from the table
+ * to the press that answers it. `⌘` means Command on a Mac and Control elsewhere.
+ */
+export const MODIFIERS = ["⌘", "⇧", "⌥", "⌃"] as const
+
+/**
+ * Whether a single press of a chord is a held-modifier combination (`⌘b`).
+ *
+ * Bare letters and sequences stay as they were; this is only the Cap grammar
+ * for keys held at the same moment.
+ */
+export const isCombo = (press: string): boolean =>
+  MODIFIERS.some((mod) => press.startsWith(mod))
+
+/** The key at the end of a combo press, after every modifier glyph. */
+export const keyOfCombo = (press: string): string => {
+  let rest = press
+  while (rest.length > 0 && MODIFIERS.some((mod) => rest.startsWith(mod))) {
+    const mod = MODIFIERS.find((one) => rest.startsWith(one)) ?? ""
+    rest = rest.slice(mod.length)
+  }
+  return rest
+}
+
+/**
  * Whether a chord is one a reader could have meant.
  *
  * A press this layer never reads is a binding that would look set and do
- * nothing, which is worse than a command with no key at all. Modifiers are the
- * browser's and the operating system's — see `theirs` in `match.ts` — and a
- * modifier held on its own is not a key being typed.
+ * nothing, which is worse than a command with no key at all. A modifier held
+ * on its own is not a key being typed; Cap-style combos (`⌘b`) are, and count
+ * once their letter is present.
  */
 export const isChord = (chord: Chord): boolean =>
   chord.length > 0 &&
   chord.length <= 16 &&
-  chord.split(" ").every((press) => press.length > 0 && !HOLDING.has(press))
+  chord.split(" ").every((press) => {
+    if (press.length === 0 || HOLDING.has(press)) return false
+    if (!isCombo(press)) return true
+    const key = keyOfCombo(press)
+    return key.length > 0 && key.length <= 16 && !HOLDING.has(key) && !key.includes(" ")
+  })
 
 /**
  * The profile's chords with the reader's own written over them.

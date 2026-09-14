@@ -819,6 +819,10 @@ export default defineContentScript({
       if (!(target instanceof Element)) return null;
       const link = target.closest("a");
       if (link === null) return null;
+      // A new tab is the browser's to open. Claiming it as ours cancelled the
+      // default and soft-navigated the same tab — which is how the bug report
+      // link (target=_blank) landed on issues without a new tab.
+      if (link.target === "_blank" || link.target === "_new") return null;
       const address = destination ?? linkAddress(link);
       if (address.hostname !== window.location.hostname) return null;
 
@@ -853,7 +857,13 @@ export default defineContentScript({
           Option.isSome(elsewhereThan(window.location.pathname, address.pathname)))
           ? page
           : null;
-      return what === null ? null : { link, what, destination: address };
+      if (what === null) return null;
+      // No soft region (notifications, a commit): claiming the press cancelled the
+      // click, and a later location.assign was then killed by the duplicate-
+      // navigation guard as "GitHub answering the same owned route". Leave these
+      // to a real document load — the bar forces one where Turbo would soft-nav.
+      if (placeFor(what, address.pathname).soft === undefined) return null;
+      return { link, what, destination: address };
     };
 
     const pressed = (event: Event): void => {

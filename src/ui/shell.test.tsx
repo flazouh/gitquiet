@@ -266,6 +266,53 @@ describe("the header, which says which pull request this is", () => {
   })
 })
 
+describe("the panes beside each other", () => {
+  test("lets the details column take the full width when the files pane is hidden", async () => {
+    // About is fixed at twenty-six rem beside the files. Hiding the files used
+    // to leave that width and an empty flex gap — the left part never grew.
+    showing(aPullRequest())
+    await awaitPage()
+
+    const column = () => section("Merge").closest(".t-panels")
+    expect(column()?.className).toContain("w-[26rem]")
+    expect(column()?.className).not.toContain("flex-1")
+    expect(document.querySelector('[data-gitquiet-activation="files-panel"]')).not.toBeNull()
+
+    await userEvent.click(screen.getByRole("button", { name: "Hide files" }))
+
+    expect(document.querySelector('[data-gitquiet-activation="files-panel"]')).toBeNull()
+    expect(column()?.className).toContain("flex-1")
+    expect(column()?.className).not.toContain("w-[26rem]")
+    expect(section("Merge")).toBeDefined()
+  })
+
+  test("lets the files panel take the row when the details pane is hidden", async () => {
+    showing(aPullRequest())
+    await awaitPage()
+
+    await userEvent.click(screen.getByRole("button", { name: "Hide details" }))
+
+    expect(screen.queryByRole("region", { name: "Merge" })).toBeNull()
+    expect(document.querySelector('[data-gitquiet-activation="files-panel"]')).not.toBeNull()
+  })
+
+  test("answers ⌘B and ⌘⇧B for the two pane toggles", async () => {
+    showing(aPullRequest())
+    await awaitPage()
+
+    await userEvent.keyboard("{Meta>}b{/Meta}")
+    expect(screen.queryByRole("region", { name: "Merge" })).toBeNull()
+    expect(document.querySelector('[data-gitquiet-activation="files-panel"]')).not.toBeNull()
+
+    await userEvent.keyboard("{Meta>}b{/Meta}")
+    expect(section("Merge")).toBeDefined()
+
+    await userEvent.keyboard("{Meta>}{Shift>}b{/Shift}{/Meta}")
+    expect(document.querySelector('[data-gitquiet-activation="files-panel"]')).toBeNull()
+    expect(section("Merge").closest(".t-panels")?.className).toContain("flex-1")
+  })
+})
+
 describe("the keyboard", () => {
   const sheet = () => screen.queryByRole("dialog", { name: "Keyboard shortcuts" })
 

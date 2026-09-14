@@ -4,6 +4,7 @@ import { chosenView } from "@/app/settings"
 import { welcomeFor } from "@/app/welcoming"
 import { goingTo, payloadsOnTheWay } from "@/github/onTheWay"
 import { answering, askedAbout } from "@/github/throughTheWorker"
+import { isOpenTab } from "@/app/openTab"
 import { highlight } from "@/markdown/highlighter"
 import {
   HIGHLIGHT_ANSWER,
@@ -267,6 +268,16 @@ export default defineBackground(() => {
    * something updated in the background is the behaviour that gets an extension
    * uninstalled.
    */
+  /*
+   * A new tab the page asked for — bug report, and anything else that must not
+   * be a popup or a same-tab Turbo walk of github.com.
+   */
+  browser.runtime.onMessage.addListener((message: unknown) => {
+    if (!isOpenTab(message)) return undefined
+    void browser.tabs.create({ url: message.url })
+    return undefined
+  })
+
   browser.runtime.onInstalled.addListener((details) => {
     const at = welcomeFor(details.reason, { development: import.meta.env.DEV })
     if (at === null) return

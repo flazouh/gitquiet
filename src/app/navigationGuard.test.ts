@@ -34,6 +34,27 @@ describe("the page-world guard for an owned route", () => {
     expect(writes).toBe(1)
   })
 
+  test("leaves a new-tab bar link for the browser", async () => {
+    const bar = document.createElement("div")
+    bar.id = "gitquiet-bar"
+    bar.innerHTML =
+      '<a href="https://github.com/flazouh/gitquiet/issues" target="_blank">Report</a>'
+    document.body.append(bar)
+    const link = bar.querySelector("a") as HTMLAnchorElement
+    const offered: Array<string> = []
+    link.addEventListener("pointerdown", guardOwnedRoute)
+    const stop = whenOwnedRouteIsOffered(document, (kind, route) =>
+      offered.push(`${kind}:${route}`)
+    )
+
+    link.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, button: 0 }))
+    await Promise.resolve()
+
+    expect(offered).toEqual([])
+    stop()
+    bar.remove()
+  })
+
   test("offers an extension link through the shared document", async () => {
     const root = document.createElement("div")
     root.id = "gitquiet-root"

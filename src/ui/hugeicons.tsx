@@ -13,6 +13,7 @@ import {
   BoldIcon,
   Book02Icon,
   BotIcon,
+  Bug01Icon,
   Briefcase01Icon,
   Cancel01Icon,
   CancelCircleIcon,
@@ -242,6 +243,7 @@ export const HUGEICONS: Set = {
   // Their mark, and the one glyph in this set that is not a style decision:
   // the button wearing it goes to GitHub, so it wears GitHub's own shape.
   github: from(GithubIcon),
+  bug: from(Bug01Icon),
   code: from(CodeIcon),
   actions: from(PlayIcon),
   // A board rather than Octicons' table, which is the shape a Project is in now.
