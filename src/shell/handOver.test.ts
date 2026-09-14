@@ -5,6 +5,7 @@ import { forgetful } from "@/app/settings"
 import type { Store } from "@/ports/Settings"
 import { WAY_BACK_ID } from "@/ui/wayBack"
 import {
+  aScreen,
   forgetTheSpot,
   handOverToGitHub,
   leaveTheirPages,
@@ -44,13 +45,20 @@ const drag = (to: readonly [number, number]): void => {
   window.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }))
 }
 
+/** The screen under test, where a test does not care which screen it is. */
+const screen = aScreen("a-screen")
+
+/** Another one, still listening, standing for a page the reader is not on. */
+const stale = aScreen("another-screen")
+
 const handOver = (
   store: Store,
   spot: Spot = DEFAULT_SPOT,
-  takeBack: () => void = () => {}
+  takeBack: () => void = () => {},
+  who = screen
 ): void => {
   theSpotWas(spot)
-  handOverToGitHub(store, document, takeBack)
+  handOverToGitHub(store, document, who, takeBack)
 }
 
 /*
@@ -91,7 +99,7 @@ describe("handing a page to GitHub", () => {
     gatedPage()
 
     handOver(forgetful())
-    withdrawTheWayBack()
+    withdrawTheWayBack(screen)
 
     expect(widget()).toBeNull()
   })
@@ -159,7 +167,7 @@ describe("where the widget is put back", () => {
     handOver(store, { x: 0, y: 0 })
     drag([300, 200])
     const moved = leftOf()
-    withdrawTheWayBack()
+    withdrawTheWayBack(screen)
 
     handOver(store, { x: 0, y: 0 })
 
@@ -173,7 +181,7 @@ describe("where the widget is put back", () => {
 
     handOver(store, { x: 0, y: 0 })
     drag([300, 200])
-    withdrawTheWayBack()
+    withdrawTheWayBack(screen)
     forgetTheSpot()
 
     handOver(store, { x: 0, y: 0 })
@@ -195,7 +203,7 @@ describe("leaving a page this screen does not manage", () => {
     gatedPage()
 
     handOver(forgetful())
-    leaveTheirPages(document)
+    leaveTheirPages(document, screen)
 
     expect(widget()).toBeNull()
   })
@@ -204,7 +212,7 @@ describe("leaving a page this screen does not manage", () => {
     gatedPage()
 
     handOver(forgetful())
-    leaveTheirPages(document)
+    leaveTheirPages(document, screen)
 
     expect(document.documentElement.hasAttribute(REVEALED)).toBe(true)
   })
@@ -212,7 +220,7 @@ describe("leaving a page this screen does not manage", () => {
   test("is safe on a page that never handed anything over", () => {
     gatedPage()
 
-    expect(() => leaveTheirPages(document)).not.toThrow()
+    expect(() => leaveTheirPages(document, screen)).not.toThrow()
   })
 })
 
@@ -222,7 +230,7 @@ describe("taking the way back", () => {
     gatedPage()
 
     handOver(store)
-    takeTheWayBack(store, document)
+    takeTheWayBack(store, document, screen)
     await settled()
 
     const held: Settings = await ran(store.read)
@@ -233,7 +241,7 @@ describe("taking the way back", () => {
     gatedPage()
 
     handOver(forgetful())
-    takeTheWayBack(forgetful(), document)
+    takeTheWayBack(forgetful(), document, screen)
 
     expect(widget()).toBeNull()
   })
@@ -242,9 +250,62 @@ describe("taking the way back", () => {
     gatedPage()
 
     handOver(forgetful())
-    takeTheWayBack(forgetful(), document)
+    takeTheWayBack(forgetful(), document, screen)
 
     expect(document.documentElement.hasAttribute(GATING)).toBe(true)
     expect(document.documentElement.hasAttribute(REVEALED)).toBe(false)
+  })
+})
+
+describe("whose way back it is", () => {
+  /*
+   * Screens are not one to a document. A screen starts once and then watches the
+   * address for as long as the document lives, and nothing stops it, so half a dozen
+   * of them answer every soft navigation in the order they started. Each one runs its
+   * own `show`, and most of those runs are about a page that screen does not manage.
+   *
+   * So a withdraw that took down whatever was up would let the wrong screen remove the
+   * mark the right one has just planted: the reader is on GitHub's page, the widget is
+   * gone, and nothing puts it back before a reload. The same stranding the widget was
+   * written to prevent, reached from the other side.
+   */
+  test("survives a screen that is somewhere else calling its own withdraw", () => {
+    gatedPage()
+
+    handOver(forgetful())
+    withdrawTheWayBack(stale)
+
+    expect(widget()).not.toBeNull()
+  })
+
+  test("survives that screen leaving pages it does not manage", () => {
+    gatedPage()
+
+    handOver(forgetful())
+    leaveTheirPages(document, stale)
+
+    expect(widget()).not.toBeNull()
+  })
+
+  test("still comes down for the screen that put it up", () => {
+    gatedPage()
+
+    handOver(forgetful())
+    withdrawTheWayBack(stale)
+    withdrawTheWayBack(screen)
+
+    expect(widget()).toBeNull()
+  })
+
+  test("belongs to whoever put it up last", () => {
+    // A hand-over replaces what is up, owner and all, so the screen that has just
+    // planted one can take it down and the screen it replaced cannot.
+    gatedPage()
+
+    handOver(forgetful())
+    handOver(forgetful(), DEFAULT_SPOT, () => {}, stale)
+    withdrawTheWayBack(screen)
+
+    expect(widget()).not.toBeNull()
   })
 })

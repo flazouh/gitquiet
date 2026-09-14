@@ -24,7 +24,7 @@ import {
   settleThread,
   submitReview,
   unsettleThread,
-  updatePullRequestBranch,
+  updatePullRequestBranch
 } from "@/app/pullRequest"
 import { loadWholeFile } from "@/app/revealing"
 import { keptReads } from "@/app/kept"
@@ -54,11 +54,11 @@ import {
   markPage,
   rememberPreparedScreen,
   reveal,
-  ungate,
+  ungate
 } from "@/ui/mount"
 import { CONVERSATION } from "@/ui/place"
 import { whenLocationChanges } from "@/ui/navigation"
-import { handOverToGitHub, leaveTheirPages, theSpotWas, withdrawTheWayBack } from "@/shell/handOver"
+import { aScreen, handOverToGitHub, leaveTheirPages, theSpotWas, withdrawTheWayBack } from "@/shell/handOver"
 import "@/ui/styles.css"
 
 /**
@@ -462,6 +462,8 @@ export const start = (): void => {
 
 
   const store = settings()
+  /** This screen, so the way back it puts up is not taken down by another. */
+  const me = aScreen("pull-request")
 
   let close = (): void => {}
   /** The pull request drawn ahead of the address, if this is one. */
@@ -493,7 +495,7 @@ export const start = (): void => {
     close = () => {}
     clearTimeout(abandoning)
     promised = null
-    handOverToGitHub(store, document, takeBack)
+    handOverToGitHub(store, document, me, takeBack)
   }
 
   /** Pressed on GitHub's page: ours from here on, starting with this one. */
@@ -516,7 +518,7 @@ export const start = (): void => {
     preparing = null
     close()
     close = () => {}
-    withdrawTheWayBack()
+    withdrawTheWayBack(me)
     clearTimeout(abandoning)
     promised = null
 
@@ -532,7 +534,7 @@ export const start = (): void => {
     // other gate is holding back for us.
     const reference = fromPathname(path)
     if (Option.isNone(reference)) {
-      leaveTheirPages(document)
+      leaveTheirPages(document, me)
       return
     }
 

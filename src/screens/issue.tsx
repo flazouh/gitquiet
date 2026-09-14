@@ -19,12 +19,12 @@ import {
   hasPreparedScreen,
   markPage,
   rememberPreparedScreen,
-  reveal,
+  reveal
 } from "@/ui/mount"
 import { ISSUE } from "@/ui/place"
 import { markPreparedTraversal, preparedArrival } from "@/ui/preparedNavigation"
 import { whenLocationChanges } from "@/ui/navigation"
-import { handOverToGitHub, leaveTheirPages, theSpotWas, withdrawTheWayBack } from "@/shell/handOver"
+import { aScreen, handOverToGitHub, leaveTheirPages, theSpotWas, withdrawTheWayBack } from "@/shell/handOver"
 import "@/ui/styles.css"
 
 /**
@@ -217,6 +217,8 @@ export const start = (): void => {
 
 
   const store = settings()
+  /** This screen, so the way back it puts up is not taken down by another. */
+  const me = aScreen("issue")
   const arriving = preparedArrival()
 
   let close = (): void => {}
@@ -233,7 +235,7 @@ export const start = (): void => {
     close()
     close = () => {}
     shown = null
-    handOverToGitHub(store, document, takeBack)
+    handOverToGitHub(store, document, me, takeBack)
   }
 
 
@@ -258,11 +260,11 @@ export const start = (): void => {
     close()
     close = () => {}
     shown = null
-    withdrawTheWayBack()
+    withdrawTheWayBack(me)
 
     const reference = fromPathname(path)
     if (Option.isNone(reference)) {
-      leaveTheirPages(document)
+      leaveTheirPages(document, me)
       return
     }
 

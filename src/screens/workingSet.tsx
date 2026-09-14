@@ -4,7 +4,7 @@ import {
   loadActivity,
   loadRepositories,
   rememberedActivity,
-  rememberedRepositories,
+  rememberedRepositories
 } from "@/app/destinations";
 import { drawingIssues } from "@/app/rows";
 import { loadWorkingSet, rememberedWorkingSet } from "@/app/workingSet";
@@ -15,6 +15,7 @@ import { reportError } from "@/observability/report";
 import type { View } from "@/domain/Settings";
 import { chosenSettings } from "@/app/settings";
 import {
+  aScreen,
   handOverToGitHub,
   leaveTheirPages,
   takeTheWayBack,
@@ -308,6 +309,8 @@ export const start = (): void => {
 
 
   const store = settings();
+  /** This screen, so the way back it puts up is not taken down by another. */
+  const me = aScreen("working-set");
 
   let up: ReturnType<typeof open> | null = null;
   let view: View = "ours";
@@ -361,7 +364,7 @@ export const start = (): void => {
      * is holding back for the card that is being injected.
      */
     if (place === null) {
-      leaveTheirPages(document);
+      leaveTheirPages(document, me);
       return;
     }
 
@@ -370,11 +373,11 @@ export const start = (): void => {
     // back on it, because a page that hands over and offers nothing is a door
     // that only opens one way.
     if (view === "github") {
-      handOverToGitHub(store, document, takeBack);
+      handOverToGitHub(store, document, me, takeBack);
       return;
     }
 
-    withdrawTheWayBack();
+    withdrawTheWayBack(me);
 
     // Ahead of the gate `open` puts up, since the rules it switches on are the ones
     // written for this page — and on a move between the two, the name on the document
@@ -388,7 +391,7 @@ export const start = (): void => {
   /** Pressed on GitHub's page: ours from here on, starting with this one. */
   function takeBack(): void {
     view = "ours";
-    takeTheWayBack(store, document);
+    takeTheWayBack(store, document, me);
     show(window.location.pathname);
   }
 

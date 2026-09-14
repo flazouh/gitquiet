@@ -11,7 +11,7 @@ import { settings, throughGitHub } from "@/shell/supplied"
 import { CommitScreen } from "@/ui/CommitScreen"
 import { markPage } from "@/ui/mount"
 import { COMMIT } from "@/ui/place"
-import { handOverToGitHub, leaveTheirPages, theSpotWas, withdrawTheWayBack } from "@/shell/handOver"
+import { aScreen, handOverToGitHub, leaveTheirPages, theSpotWas, withdrawTheWayBack } from "@/shell/handOver"
 import { whenLocationChanges } from "@/ui/navigation"
 import "@/ui/styles.css"
 
@@ -88,6 +88,8 @@ export const start = (): void => {
 
 
   const store = settings()
+  /** This screen, so the way back it puts up is not taken down by another. */
+  const me = aScreen("commit")
 
   let close = (): void => {}
   let view: View = "ours"
@@ -103,7 +105,7 @@ export const start = (): void => {
   function handOver(): void {
     close()
     close = () => {}
-    handOverToGitHub(store, document, takeBack)
+    handOverToGitHub(store, document, me, takeBack)
   }
 
 
@@ -123,11 +125,11 @@ export const start = (): void => {
   function show(path: string): void {
     close()
     close = () => {}
-    withdrawTheWayBack()
+    withdrawTheWayBack(me)
 
     const reference = fromPathname(path)
     if (Option.isNone(reference)) {
-      leaveTheirPages(document)
+      leaveTheirPages(document, me)
       return
     }
 

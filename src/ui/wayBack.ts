@@ -147,7 +147,12 @@ const holderStyle = (at: Spot, view: Window): string => {
     // The box is taller than the mark so that the grip is inside it, and the part of
     // it the grip is not filling is a piece of somebody's page. Nothing here catches a
     // press: the two buttons take their own back below.
-    "pointer-events: none"
+    "pointer-events: none",
+    // On the holder rather than on the grip, because this is resolved over the element
+    // a touch lands on and every one of its ancestors: declared here it covers both
+    // buttons, and a finger dragging either moves the widget instead of scrolling the
+    // page under it.
+    "touch-action: none"
   ].join("; ")
 }
 
@@ -196,11 +201,6 @@ const gripStyle = (shown: boolean): string =>
     "box-shadow: var(--shadow-resting-small, 0 1px 0 rgba(31, 35, 40, 0.04))",
     "cursor: grab",
     "appearance: none",
-    // The element a finger actually drags. On the holder, which is where this was, it
-    // declared nothing: that box takes no pointer at all, so the browser never asks it
-    // what a touch there should do. Here it is the difference between moving the widget
-    // and scrolling the page under it.
-    "touch-action: none",
     // Kept in the tree rather than removed, so a reader who reached it with the
     // keyboard can move the widget without ever showing it, and so that the hover
     // is a fade rather than a thing appearing out of nowhere.

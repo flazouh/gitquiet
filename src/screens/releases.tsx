@@ -4,6 +4,7 @@ import { forgetIntent, intendedPath } from "@/app/intent"
 import { loadBuilds, loadReleases, rememberedReleases } from "@/app/releases"
 import { chosenSettings } from "@/app/settings"
 import {
+  aScreen,
   handOverToGitHub,
   leaveTheirPages,
   takeTheWayBack,
@@ -145,6 +146,8 @@ export const start = (): void => {
 
 
   const store = settings()
+  /** This screen, so the way back it puts up is not taken down by another. */
+  const me = aScreen("releases")
 
   let close = (): void => {}
   let on: string | undefined
@@ -162,7 +165,7 @@ export const start = (): void => {
       close()
       close = () => {}
       on = undefined
-      leaveTheirPages(document)
+      leaveTheirPages(document, me)
       return
     }
 
@@ -179,11 +182,11 @@ export const start = (): void => {
     // on it, because a page that hands over and offers nothing is a door that only
     // opens one way.
     if (view === "github") {
-      handOverToGitHub(store, document, takeBack)
+      handOverToGitHub(store, document, me, takeBack)
       return
     }
 
-    withdrawTheWayBack()
+    withdrawTheWayBack(me)
 
     close = open(repo.value, new URL(url, window.location.origin).pathname)
     on = address
@@ -192,7 +195,7 @@ export const start = (): void => {
   /** Pressed on GitHub's page: ours from here on, starting with this one. */
   function takeBack(): void {
     view = "ours"
-    takeTheWayBack(store, document)
+    takeTheWayBack(store, document, me)
     show(window.location.href)
   }
 

@@ -18,6 +18,13 @@
  * not on the other, which left a green mark standing over a page its screen no longer
  * manages, wired to a button that does nothing. There is one widget on a document, so
  * the way to take it off is held here rather than copied out.
+ *
+ * Held with the name of whoever put it up, because screens are not one to a document.
+ * A screen starts once and then watches the address for as long as the document lives,
+ * so half a dozen of them answer every soft navigation, in the order they started. A
+ * withdraw that took down whatever was up would let a screen that has nothing to do
+ * with this page remove the mark the screen that does has just planted — which is the
+ * same reader stranded on GitHub's page, arrived at from the other side.
  */
 
 import { rememberView, rememberSpot } from "@/app/settings"
@@ -50,6 +57,27 @@ let dropped: Spot | null = null
 let withdraw: (() => void) | null = null
 
 /**
+ * Which screen the way back belongs to, while one is up.
+ *
+ * Compared by identity rather than by name: two screens standing on the same place —
+ * the working set does, on `/pulls` and on the dashboard — are still two screens, and
+ * the question here is which of them planted this widget.
+ */
+let owner: Owner | null = null
+
+/**
+ * Who a screen is, for as long as its document lives.
+ *
+ * Taken once, at the top of `start`, and held in a `const`. That is the whole of what a
+ * screen has to remember: everything else it used to carry — the withdraw, the spot —
+ * is here, and this is the name those answers are filed under.
+ */
+export type Owner = { readonly screen: string }
+
+/** Names a screen, once, where it starts. */
+export const aScreen = (screen: string): Owner => ({ screen })
+
+/**
  * Says where the reader left the widget, as far as the screen's stored settings know.
  *
  * Used until they move it; after that the answer above is the better one, and this is
@@ -63,13 +91,26 @@ export const theSpotWas = (spot: Spot): void => {
 /** Forgets it, for a test that must not inherit where the last one left the widget. */
 export const forgetTheSpot = (): void => {
   dropped = null
-  withdrawTheWayBack()
+  takeItOff()
 }
 
-/** Takes the way back off the page, whoever put it there, if one is up. */
-export const withdrawTheWayBack = (): void => {
+/** Takes it off, whoever put it there. Every caller below has asked who first. */
+const takeItOff = (): void => {
   withdraw?.()
   withdraw = null
+  owner = null
+}
+
+/**
+ * Takes the way back off the page, where this screen is the one that put it there.
+ *
+ * Does nothing for anybody else's, which is the point: a screen calls this on its way
+ * past a page it does not manage, and on a document where several screens are listening
+ * most of those calls are about somebody else's widget.
+ */
+export const withdrawTheWayBack = (who: Owner): void => {
+  if (owner !== who) return
+  takeItOff()
 }
 
 /**
@@ -82,13 +123,15 @@ export const withdrawTheWayBack = (): void => {
 export const handOverToGitHub = (
   store: Store,
   target: Document,
+  who: Owner,
   takeBack: () => void
 ): void => {
-  withdrawTheWayBack()
+  takeItOff()
 
   reveal(target)
   ungate(target)
 
+  owner = who
   withdraw = offerOurPage(target, takeBack, dropped ?? undefined, (where) => {
     dropped = where
     rememberSpot(store, where)
@@ -102,9 +145,9 @@ export const handOverToGitHub = (
  * three a screen does in that order before it draws. What it draws afterwards differs
  * everywhere, which is why that half stays with the screen.
  */
-export const takeTheWayBack = (store: Store, target: Document): void => {
+export const takeTheWayBack = (store: Store, target: Document, who: Owner): void => {
   rememberView(store, "ours")
-  withdrawTheWayBack()
+  withdrawTheWayBack(who)
   gate(target)
 }
 
@@ -117,7 +160,7 @@ export const takeTheWayBack = (store: Store, target: Document): void => {
  * here, so left up it is a mark over somebody else's page whose press runs a screen
  * that will turn straight around and leave again.
  */
-export const leaveTheirPages = (target: Document): void => {
-  withdrawTheWayBack()
+export const leaveTheirPages = (target: Document, who: Owner): void => {
+  withdrawTheWayBack(who)
   handBack(target)
 }

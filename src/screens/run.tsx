@@ -12,7 +12,7 @@ import { markPage, reveal } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { RUN } from "@/ui/place"
 import { RunScreen } from "@/ui/RunScreen"
-import { handOverToGitHub, leaveTheirPages, theSpotWas, withdrawTheWayBack } from "@/shell/handOver"
+import { aScreen, handOverToGitHub, leaveTheirPages, theSpotWas, withdrawTheWayBack } from "@/shell/handOver"
 import { openedNamed } from "@/ui/lastDrawn"
 import "@/ui/styles.css"
 
@@ -108,6 +108,8 @@ export const start = (): void => {
 
 
   const store = settings()
+  /** This screen, so the way back it puts up is not taken down by another. */
+  const me = aScreen("run")
 
   let close = (): void => {}
   let view: View = "ours"
@@ -117,7 +119,7 @@ export const start = (): void => {
   function handOver(): void {
     close()
     close = () => {}
-    handOverToGitHub(store, document, takeBack)
+    handOverToGitHub(store, document, me, takeBack)
   }
 
   function takeBack(): void {
@@ -135,11 +137,11 @@ export const start = (): void => {
   function show(url: string): void {
     close()
     close = () => {}
-    withdrawTheWayBack()
+    withdrawTheWayBack(me)
 
     const reference = runAddressIn(url)
     if (Option.isNone(reference)) {
-      leaveTheirPages(document)
+      leaveTheirPages(document, me)
       return
     }
 
