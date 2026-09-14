@@ -40,8 +40,14 @@ const fake = (): WatchedKeyValue & {
 
 const ran = <A>(effect: Effect.Effect<A>): Promise<A> => Effect.runPromise(effect)
 
-/** Long enough for a write nobody awaited to have reached the store. */
-const settled = (): Promise<void> => new Promise((done) => setTimeout(done, 0))
+/**
+ * Long enough for a write nobody awaited to have reached the store.
+ *
+ * A wait rather than an await, because a press has nothing to await either:
+ * `rememberView` runs its own write and hands back nothing. Ten milliseconds
+ * against a fake that resolves at once is room to spare.
+ */
+const settled = (): Promise<void> => new Promise((done) => setTimeout(done, 10))
 
 describe("where settings are kept", () => {
   it("answers with the defaults before anything is chosen", async () => {
