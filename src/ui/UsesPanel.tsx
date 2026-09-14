@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { Effect } from "effect"
 import type { AcrossUse, Use, Writing } from "../ports/Ledger"
 import { FLOAT } from "./dress"
+import type { Bounds } from "../ports/Renderer"
 import { useLedger } from "./ledger"
 import { useSettings } from "./useSettings"
 
@@ -60,7 +61,26 @@ export type UsesPanelProps = {
     readonly repo: { readonly owner: string; readonly repo: string }
     readonly sha: string
   }
+  /**
+   * Where the Name is on the screen, so this opens beside it.
+   *
+   * A reader pressed a word in the middle of a line they were reading. A panel
+   * that answers from the centre of the window makes them find it, read it, and
+   * then find their way back to the line — three moves for one question, and
+   * the question was "what else touches this", asked while their eye was on the
+   * word. Beside the word, the word is still there.
+   *
+   * Null where nothing can say, and then it opens in the middle as it used to.
+   */
+  readonly at?: Bounds | null
 }
+
+/** How far off the word the panel sits, in pixels. Enough to clear the underline. */
+const CLEAR = 8
+/** Its own width, which `w-[44rem]` is, needed to keep it inside the window. */
+const WIDE = 704
+/** Less room than this below the word and it opens above instead. */
+const ENOUGH = 260
 
 export const UsesPanel = ({
   writing,
@@ -69,7 +89,8 @@ export const UsesPanel = ({
   onOpen,
   onClose,
   across,
-  where
+  where,
+  at = null
 }: UsesPanelProps) => {
   /** Whether the Writing is in the file being read, which decides what can be exact. */
   const here = where === undefined || where === reading.path
@@ -103,16 +124,29 @@ export const UsesPanel = ({
     const box = frame.current
     if (box === null) return
 
-    box.showModal()
+    // `show`, not `showModal`: a modal dims the file behind it and takes the
+    // whole window, which is the opposite of answering beside a word. The
+    // dismissals a modal gave for free are below.
+    if (at === null) box.showModal()
+    else box.show()
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return
       event.preventDefault()
       event.stopPropagation()
       box.close()
     }
+    // A press anywhere else puts it away, which the backdrop used to do.
+    const onPress = (event: MouseEvent) => {
+      if (event.target instanceof Node && box.contains(event.target)) return
+      box.close()
+    }
     document.addEventListener("keydown", onKey, true)
-    return () => document.removeEventListener("keydown", onKey, true)
-  }, [])
+    if (at !== null) document.addEventListener("mousedown", onPress, true)
+    return () => {
+      document.removeEventListener("keydown", onKey, true)
+      document.removeEventListener("mousedown", onPress, true)
+    }
+  }, [at])
 
   useEffect(() => {
     if (!here) {
@@ -156,6 +190,30 @@ export const UsesPanel = ({
     return () => asking.interruptUnsafe()
   }, [ledger, across, exact, reading.path, where, writing])
 
+  /*
+   * Below the word, and above it where there is no room below.
+   *
+   * Measured against the viewport and not the pane, because the pane scrolls
+   * and the viewport is what a reader can see. The left edge is pulled back
+   * from the word by a little so the panel reads as hanging off it rather than
+   * starting at it, and clamped so it never leaves the window — a panel with
+   * half its rows off the right-hand side is a panel that answered nobody.
+   */
+  const beside =
+    at === null
+      ? undefined
+      : (() => {
+          const under = window.innerHeight - at.bottom
+          const over = at.top
+          const up = under < ENOUGH && over > under
+          return {
+            left: Math.max(8, Math.min(at.left - 12, window.innerWidth - WIDE - 8)),
+            ...(up
+              ? { bottom: window.innerHeight - at.top + CLEAR, maxHeight: over - CLEAR - 8 }
+              : { top: at.bottom + CLEAR, maxHeight: under - CLEAR - 8 })
+          }
+        })()
+
   return (
     <dialog
       ref={frame}
@@ -164,7 +222,12 @@ export const UsesPanel = ({
         if (event.target === event.currentTarget) frame.current?.close()
       }}
       aria-label={`Uses of ${writing.name}`}
-      className={`t-modal mt-[12vh] w-[44rem] max-w-[calc(100vw-var(--sheet-away,4rem))] overflow-hidden p-0 text-ink backdrop:bg-black/50 ${FLOAT}`}
+      className={
+        at === null
+          ? `t-modal mt-[12vh] w-[44rem] max-w-[calc(100vw-var(--sheet-away,4rem))] overflow-hidden p-0 text-ink backdrop:bg-black/50 ${FLOAT}`
+          : `fixed z-50 m-0 w-[44rem] max-w-[calc(100vw-1rem)] overflow-hidden p-0 text-ink ${FLOAT}`
+      }
+      style={beside}
     >
       <div className="flex items-baseline gap-2 bg-surface px-4 py-2.5">
         <h2 className="text-sm font-semibold">

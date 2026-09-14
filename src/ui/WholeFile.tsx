@@ -295,6 +295,7 @@ export const WholeFile = ({
         <UsesPanel
           writing={asked.writing}
           where={asked.where}
+          at={asked.at}
           reading={{ path, text: lines.join("\n") }}
           onGo={(line) => showLine(host.current, line)}
           onClose={unask}

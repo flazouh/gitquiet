@@ -97,7 +97,18 @@ export type Follows = {
    * A press on an underlined name asks "what is this, and who uses it" rather
    * than moving the reader somewhere — see the note on {@link Following.onName}.
    */
-  readonly asked: { readonly writing: Writing; readonly where?: string } | null
+  readonly asked: {
+    readonly writing: Writing
+    readonly where?: string
+    /**
+     * Where the Name is on the screen, so the panel can open beside it.
+     *
+     * Null where nothing can say — a question asked of a pane that has not
+     * drawn — and the panel falls back to the middle of the window, which is
+     * where it used to always be.
+     */
+    readonly at: Bounds | null
+  } | null
   readonly unask: () => void
   /**
    * The file's whole text, if it has been read.
@@ -195,7 +206,11 @@ export const useFollowing = (
   const handle = useRef<DiffHandle | null>(null)
   const [shown, setShown] = useState<Shown | null>(null)
   const [peeked, setPeeked] = useState<Peeked | null>(null)
-  const [asked, setAsked] = useState<{ writing: Writing; where?: string } | null>(null)
+  const [asked, setAsked] = useState<{
+    writing: Writing
+    where?: string
+    at: Bounds | null
+  } | null>(null)
   /**
    * A name that turned out to be written in another repository.
    *
@@ -473,8 +488,11 @@ export const useFollowing = (
       }
 
       const show = (writing: Writing, where?: string): void => {
+        // Read before `clear`, which takes the underline off and with it the
+        // element the bounds are read from.
+        const at = handle.current?.boundsOf(name) ?? null
         clear()
-        setAsked({ writing, ...(where === undefined ? {} : { where }) })
+        setAsked({ writing, ...(where === undefined ? {} : { where }), at })
       }
 
       const answer = (writing: Writing, where?: string): void => {
@@ -620,8 +638,9 @@ export const useFollowing = (
     if (here === null) return
 
     const show = (writing: Writing, where?: string): void => {
+      const at = handle.current?.boundsOf(here.name) ?? null
       clear()
-      setAsked({ writing, ...(where === undefined ? {} : { where }) })
+      setAsked({ writing, ...(where === undefined ? {} : { where }), at })
     }
 
     if (here.writing !== null) {

@@ -1044,3 +1044,28 @@ describe("asking by the letter rather than by the key", () => {
     expect(screen.queryByText("2 in this file")).toBeNull()
   })
 })
+
+/**
+ * Where the panel opens.
+ *
+ * A reader pressed a word in the middle of a line they were reading. Answering
+ * from the centre of the window makes them find the answer, read it, and then
+ * find their way back to the line — three moves for one question that was asked
+ * with their eye already on the word.
+ */
+describe("the uses answered beside the word that asked", () => {
+  test("carries where the Name is, so the panel can open there", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    // The bounds the stage's renderer reports for any Name.
+    const panel = await screen.findByLabelText(`Uses of ${writing.name}`)
+    expect(panel.style.top).not.toBe("")
+    expect(panel.style.left).not.toBe("")
+  })
+})

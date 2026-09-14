@@ -869,6 +869,7 @@ const FileDiffPaneView = ({
         <UsesPanel
           writing={asked.writing}
           where={asked.where}
+          at={asked.at}
           // The file the answer came out of, which the hook read once and kept.
           // A diff holds the hunks; the Uses in it are the whole file's.
           reading={{ path: file.path, text: textNow() ?? "" }}
