@@ -282,6 +282,17 @@ export default defineBackground(() => {
     const at = welcomeFor(details.reason, { development: import.meta.env.DEV })
     if (at === null) return
 
-    void browser.tabs.create({ url: at })
+    /*
+     * Run rather than voided, and the failure ignored where it can be seen. A tab
+     * that will not open means the reader does not get the welcome page, which is
+     * nothing to report to a worker nobody is looking at — but the ignoring is the
+     * decision, and `void` said nothing about whether it had even been attempted.
+     */
+    Effect.runFork(
+      Effect.tryPromise({
+        try: () => browser.tabs.create({ url: at }),
+        catch: (cause) => cause
+      }).pipe(Effect.ignore)
+    )
   })
 })
