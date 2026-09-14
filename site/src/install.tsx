@@ -1,6 +1,7 @@
 import "@fontsource-variable/inter"
 import type { ReactNode } from "react"
 import { mount } from "./mount"
+import { QuoteCard } from "./QuoteCard"
 import {
   Above,
   AddToChrome,
@@ -55,7 +56,7 @@ const Way = ({
   readonly children: ReactNode
   readonly after: ReactNode
 }) => (
-  <section className="quote-card gap-5">
+  <QuoteCard className="gap-5">
     <div>
       <h2 className="m-0 text-[22px] font-semibold tracking-[-0.02em]">{name}</h2>
       <p className="m-0 mt-2 text-[15px] leading-relaxed text-muted">{runs}</p>
@@ -68,7 +69,7 @@ const Way = ({
     <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-3">{children}</div>
 
     <p className="m-0 text-[13px] leading-relaxed text-muted">{after}</p>
-  </section>
+  </QuoteCard>
 )
 
 /**

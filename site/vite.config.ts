@@ -74,6 +74,12 @@ export default defineConfig({
         install: fileURLToPath(new URL("./install.html", import.meta.url)),
 
         /*
+         * `/feedback`, the public Issues kanban. Same multi-page entry pattern as
+         * `/install`: `site/serve.ts` maps `/feedback` to this HTML.
+         */
+        feedback: fileURLToPath(new URL("./feedback.html", import.meta.url)),
+
+        /*
          * `/github-pr-inbox`, a job page for github pr inbox, not a fifth compare.
          *
          * Same reason it is a file rather than a router: `site/serve.ts` maps
