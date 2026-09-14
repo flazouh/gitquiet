@@ -36,6 +36,9 @@ const unhover = (element: Element): void => {
   element.dispatchEvent(new PointerEvent("pointerleave", { bubbles: false }))
 }
 
+/** Longer than the grace the grip waits out before it fades. */
+const rested = (): Promise<void> => new Promise((wake) => setTimeout(wake, 220))
+
 /**
  * A drag, in the three events one is made of.
  *
@@ -152,15 +155,44 @@ describe("the grip", () => {
     expect(shown(gripIn(page))).toBe(false)
   })
 
-  test("appears on hover and goes again when the pointer leaves", () => {
+  test("appears when the pointer is on the mark, and goes when it leaves", async () => {
     const page = githubPage()
 
     offer(page)
-    hover(widgetIn(page)!)
+    hover(markIn(page))
     expect(shown(gripIn(page))).toBe(true)
 
-    unhover(widgetIn(page)!)
+    unhover(markIn(page))
+    await rested()
     expect(shown(gripIn(page))).toBe(false)
+  })
+
+  test("stays up while the pointer crosses the gap from the mark to it", async () => {
+    // The four pixels between the two are four pixels the pointer is on neither. Hidden
+    // on that frame the grip stops taking presses as well, so the hand that was just
+    // shown a handle reaches for it and finds nothing. Measured in Chrome before the
+    // wait was there: hovering the widget never revealed a grip that could be grabbed.
+    const page = githubPage()
+
+    offer(page)
+    hover(markIn(page))
+    unhover(markIn(page))
+    hover(gripIn(page))
+    await rested()
+
+    expect(shown(gripIn(page))).toBe(true)
+  })
+
+  test("does not swallow presses on the page above the mark", async () => {
+    // The box is taller than the mark so the grip can live inside it. The part the grip
+    // is not filling is somebody's page, and a way back has no business catching a press
+    // meant for what is underneath it.
+    const page = githubPage()
+
+    offer(page)
+
+    expect((widgetIn(page) as HTMLElement).style.pointerEvents).toBe("none")
+    expect((markIn(page) as HTMLElement).style.pointerEvents).toBe("auto")
   })
 
   test("stays in the tree while it is out of sight, so the keyboard can still reach it", () => {
@@ -179,11 +211,11 @@ describe("the grip", () => {
     const page = githubPage()
 
     offer(page)
-    hover(widgetIn(page)!)
+    hover(markIn(page))
     gripIn(page).dispatchEvent(
       new PointerEvent("pointerdown", { clientX: 100, clientY: 100, bubbles: true })
     )
-    unhover(widgetIn(page)!)
+    unhover(markIn(page))
 
     expect(shown(gripIn(page))).toBe(true)
   })
