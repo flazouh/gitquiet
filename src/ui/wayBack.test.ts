@@ -72,8 +72,17 @@ const offer = (
   return close
 }
 
+/*
+ * The live document is one document for the whole suite, so what these tests put on it
+ * has to come off again. Left there, the body one of these wrote is the body every file
+ * that runs after this one starts from, and a query bound to it finds a page of GitHub's
+ * where its own fixture should be. Measured: nineteen tests in five other files failed
+ * on a `repo-content-pjax-container` this file had left behind.
+ */
 afterEach(() => {
   for (const close of opened.splice(0)) close()
+  document.getElementById(WAY_BACK_ID)?.remove()
+  document.body.innerHTML = ""
 })
 
 describe("the way back, on a page this interface has been turned off on", () => {

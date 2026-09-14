@@ -12,12 +12,13 @@ import { fromPathname, type PullRequestRef } from "@/domain/PullRequestRef";
 import type { RowDoing } from "@/domain/doable";
 import type { Sitting } from "@/domain/sittings";
 import { reportError } from "@/observability/report";
-import type { View } from "@/domain/Settings";
-import { chosenView } from "@/app/settings";
+import { DEFAULT_SPOT, type Spot, type View } from "@/domain/Settings";
+import { chosenSettings, rememberView } from "@/app/settings";
+import { handOverToGitHub } from "@/shell/handOver";
 import { isHome, showsWorkingSet } from "@/domain/pages";
 import { answerPressesIn, drawingOurOwnRows, goTo } from "@/ui/going";
 import { THE_WORKING_SET } from "@/ui/lastDrawn";
-import { handBack, markPage, markScreenRoute, reveal, ungate } from "@/ui/mount";
+import { gate, handBack, markPage, markScreenRoute, reveal } from "@/ui/mount";
 import { whenLocationChanges } from "@/ui/navigation";
 import { DASHBOARD, HOME, type Place } from "@/ui/place";
 import { ROW_WRITES } from "@/app/rowWrites";
@@ -314,6 +315,10 @@ export const start = (): void => {
    * region GitHub has just thrown away, under rules written for the page being left.
    */
   let standing: Place | null = null;
+  /** Takes the way back off the page, where one of ours is on it. */
+  let unoffer = (): void => {};
+  /** Where the reader left the way back, so it comes back where they put it. */
+  let spot: Spot = DEFAULT_SPOT;
 
   const show = (path: string): void => {
     const place = showsWorkingSet(path) ? placeAt(path) : null;
@@ -359,12 +364,17 @@ export const start = (): void => {
     }
 
     // Their list, because that is what was asked for last time. Nothing is
-    // read, nothing is drawn, and the gate comes off at once.
+    // read, nothing is drawn, and the gate comes off at once — with the way
+    // back on it, because a page that hands over and offers nothing is a door
+    // that only opens one way.
     if (view === "github") {
-      reveal(document);
-      ungate(document);
+      unoffer();
+      unoffer = handOverToGitHub(store, document, spot, takeBack);
       return;
     }
+
+    unoffer();
+    unoffer = () => {};
 
     // Ahead of the gate `open` puts up, since the rules it switches on are the ones
     // written for this page — and on a move between the two, the name on the document
@@ -375,14 +385,25 @@ export const start = (): void => {
     markScreenRoute(document, path);
   };
 
+  /** Pressed on GitHub's page: ours from here on, starting with this one. */
+  function takeBack(): void {
+    view = "ours";
+    rememberView(store, "ours");
+    unoffer();
+    unoffer = () => {};
+    gate(document);
+    show(window.location.pathname);
+  }
+
   whenLocationChanges(window, show);
 
   // Nothing is drawn until the choice is known, so a reader who wants GitHub's
   // page is not charged eight requests for an interface they turned off.
   Effect.runFork(
-    chosenView(store).pipe(
+    chosenSettings(store).pipe(
       Effect.map((chosen) => {
-        view = chosen;
+        view = chosen.page.view;
+        spot = chosen.wayBack;
 
         // What the address says, or — while GitHub is still fetching and the
         // address still names the page being left — what the reader pressed.

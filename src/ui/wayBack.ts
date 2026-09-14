@@ -424,6 +424,12 @@ export const offerOurPage = (
   const watcher = new MutationObserver(stand)
   watcher.observe(target.documentElement, { childList: true, subtree: true })
 
+  /*
+   * Withdrawn more than once, and that is on purpose rather than tolerated. Two
+   * callers each have their own reason to take the way back off — the press that
+   * asked for the interface, and the screen about to stand where the widget was —
+   * and neither can know whether the other went first.
+   */
   return () => {
     clearTimeout(fading)
     watcher.disconnect()
