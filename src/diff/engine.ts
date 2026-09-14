@@ -144,13 +144,39 @@ export const named = (token: {
   lineCharEnd: number
   tokenText: string
   side?: DiffSide
+  tokenElement?: HTMLElement
 }): Name => ({
   line: token.lineNumber,
   from: token.lineCharStart,
   to: token.lineCharEnd,
   text: token.tokenText,
-  ...(token.side === undefined ? {} : { side: token.side })
+  ...(token.side === undefined ? {} : { side: sideOf(token) })
 })
+
+/**
+ * Which half of the file a line belongs to, which is not the same question as
+ * which column it is drawn in.
+ *
+ * The token event answers with a column — additions or deletions — and a
+ * *context* line is drawn in both, so it arrives as whichever the renderer
+ * happened to be laying out. A pane that reads that as "this line is a
+ * deletion" stops answering about every unchanged line in the diff, which is
+ * most of the lines in most diffs, and says nothing while it does.
+ *
+ * So the line says what it is. `data-line-type` is the renderer's own, this is
+ * the only file allowed to know that, and `context` and `change-addition` are
+ * both lines of the file as it is now — which is the file every question here
+ * is asked against.
+ */
+const sideOf = (token: { side?: DiffSide; tokenElement?: HTMLElement }): DiffSide => {
+  // The attribute this reads, rather than the row it usually sits on: a row
+  // carries both, and looking for the wrong one answers null and falls back to
+  // the column — which is the thing being corrected.
+  const kind = token.tokenElement?.closest("[data-line-type]")?.getAttribute("data-line-type")
+  if (kind === "change-deletion") return "deletions"
+  if (kind === null || kind === undefined) return token.side ?? "additions"
+  return "additions"
+}
 
 /**
  * What was held down, with the two keys that mean the same thing folded into one.

@@ -14,7 +14,34 @@
 import { mkdir, rm } from "node:fs/promises"
 import { withExtension } from "./chrome"
 
-const PAGE = "https://github.com/sindresorhus/p-limit/blob/main/index.js"
+/**
+ * Where the checking happens, and why it is a commit rather than a pull request.
+ *
+ * A pull request is the case this feature exists for, and it is the one case
+ * this cannot reach: signed out, GitHub answers as if a pull request does not
+ * exist, so the screen shows its sign-in card and no diff is ever drawn. A
+ * commit is the same diff pane, the same renderer, the same token events and
+ * the same lazily-fetched file — drawn from a payload that answers to nobody.
+ *
+ * `--page` takes any address, so a reader with a session can point this at a
+ * real pull request:
+ *
+ *     bun scripts/qa-following.ts --page https://github.com/owner/repo/pull/1/files
+ */
+const argued = (flag: string): string | undefined => {
+  const at = Bun.argv.indexOf(flag)
+  return at === -1 ? undefined : Bun.argv[at + 1]
+}
+
+const PAGE =
+  argued("--page") ??
+  "https://github.com/sindresorhus/p-limit/blob/main/index.js"
+
+/** The name to hold the key over, and the one to press. */
+const HOLD = argued("--hold") ?? "pLimit"
+const PRESS = argued("--press") ?? "validateConcurrency"
+/** The line that name is written on, for checking the press arrived. */
+const WRITTEN = Number(argued("--written") ?? 128)
 const EXTENSION = `${import.meta.dir}/../.output/chrome-mv3`
 const OUT = `${import.meta.dir}/../.output/qa`
 
@@ -78,9 +105,27 @@ try {
     decoration: string | null
   }>(`
     (async () => {
-      const shadow = document.querySelector("diffs-container").shadowRoot
+      /*
+       * Found again here rather than trusted from a check a moment ago.
+       *
+       * The pane redraws — a file arriving, a knob moving — and the element
+       * this held a moment ago is not the one on the screen now. Trusting the
+       * earlier check crashed the run rather than reporting anything.
+       */
+      const waitForPane = async () => {
+        for (let tries = 0; tries < 40; tries++) {
+          const found = document.querySelector("diffs-container")
+          if (found && found.shadowRoot && found.shadowRoot.querySelector("[data-line] span")) {
+            return found.shadowRoot
+          }
+          await new Promise((go) => setTimeout(go, 250))
+        }
+        return null
+      }
+      const shadow = await waitForPane()
+      if (!shadow) return { word: null, underlineMs: null, decoration: null }
       const spans = [...shadow.querySelectorAll("[data-line] span")]
-      const token = spans.find((one) => (one.textContent || "").trim() === "pLimit")
+      const token = spans.find((one) => (one.textContent || "").trim() === ${JSON.stringify(HOLD)})
       if (!token) return { word: null, underlineMs: null, decoration: null }
 
       const at = token.getBoundingClientRect()
@@ -95,7 +140,7 @@ try {
       token.dispatchEvent(new PointerEvent("pointerover", where))
       token.dispatchEvent(new PointerEvent("pointermove", where))
 
-      for (let waited = 0; waited < 6000; waited += 50) {
+      for (let waited = 0; waited < 14000; waited += 50) {
         if ((token.style.textDecoration || "") !== "") {
           return {
             word: token.textContent,
@@ -120,9 +165,27 @@ try {
    */
   const again = await session.evaluate<{ word: string | null; underlineMs: number | null }>(`
     (async () => {
-      const shadow = document.querySelector("diffs-container").shadowRoot
+      /*
+       * Found again here rather than trusted from a check a moment ago.
+       *
+       * The pane redraws — a file arriving, a knob moving — and the element
+       * this held a moment ago is not the one on the screen now. Trusting the
+       * earlier check crashed the run rather than reporting anything.
+       */
+      const waitForPane = async () => {
+        for (let tries = 0; tries < 40; tries++) {
+          const found = document.querySelector("diffs-container")
+          if (found && found.shadowRoot && found.shadowRoot.querySelector("[data-line] span")) {
+            return found.shadowRoot
+          }
+          await new Promise((go) => setTimeout(go, 250))
+        }
+        return null
+      }
+      const shadow = await waitForPane()
+      if (!shadow) return { word: null, underlineMs: null, decoration: null }
       const spans = [...shadow.querySelectorAll("[data-line] span")]
-      const token = spans.find((one) => (one.textContent || "").trim() === "Queue")
+      const token = spans.find((one) => (one.textContent || "").trim() === ${JSON.stringify(HOLD)})
       if (!token) return { word: null, underlineMs: null }
 
       const at = token.getBoundingClientRect()
@@ -167,13 +230,31 @@ try {
     scrollerTag?: string
   }>(`
     (async () => {
-      const shadow = document.querySelector("diffs-container").shadowRoot
+      /*
+       * Found again here rather than trusted from a check a moment ago.
+       *
+       * The pane redraws — a file arriving, a knob moving — and the element
+       * this held a moment ago is not the one on the screen now. Trusting the
+       * earlier check crashed the run rather than reporting anything.
+       */
+      const waitForPane = async () => {
+        for (let tries = 0; tries < 40; tries++) {
+          const found = document.querySelector("diffs-container")
+          if (found && found.shadowRoot && found.shadowRoot.querySelector("[data-line] span")) {
+            return found.shadowRoot
+          }
+          await new Promise((go) => setTimeout(go, 250))
+        }
+        return null
+      }
+      const shadow = await waitForPane()
+      if (!shadow) return { word: null, underlineMs: null, decoration: null }
       const spans = [...shadow.querySelectorAll("[data-line] span")]
       // A use of the name rather than where it is written: a press on a use is
       // the one that goes somewhere.
       // A name written far below where it is used, so a Follow has somewhere to
       // go and a reader watching the film can see it arrive.
-      const token = spans.find((one) => (one.textContent || "").trim() === "validateConcurrency")
+      const token = spans.find((one) => (one.textContent || "").trim() === ${JSON.stringify(PRESS)})
       if (!token) return { word: null, from: 0, to: 0, moved: false, definitionInView: false }
 
       /*
@@ -221,8 +302,8 @@ try {
 
       await new Promise((go) => setTimeout(go, 1800))
 
-      // Where validateConcurrency is written: line 128 of this file.
-      const definition = shadow.querySelector('[data-line="128"]')
+      // Where the pressed name is written.
+      const definition = shadow.querySelector('[data-line="' + ${WRITTEN} + '"]')
       const box = definition && definition.getBoundingClientRect()
       return {
         word: token.textContent,
@@ -252,7 +333,9 @@ try {
   filming = false
   await rolling
 
-  console.log(JSON.stringify({ held, again, pressed, frames }, null, 2))
+  console.log(
+    JSON.stringify({ held, again, pressed, frames, problems: session.problems().slice(0, 4) }, null, 2)
+  )
 } finally {
   session.stop()
 }
