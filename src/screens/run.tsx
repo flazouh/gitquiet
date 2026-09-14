@@ -1,18 +1,18 @@
 import { Effect, Fiber, Option } from "effect"
 import { forgetIntent, intendedPath } from "@/app/intent"
 import { cancelRun, loadRun, rememberedRun, rerunRun } from "@/app/run"
-import { chosenSettings, rememberSpot, rememberView } from "@/app/settings"
+import { chosenSettings, rememberView } from "@/app/settings"
 import { runAddressIn, type Pressing, type RunOpening, type RunRef } from "@/domain/run"
 import { DEFAULT_SPOT, type Spot, type View } from "@/domain/Settings"
 import { reportError } from "@/observability/report"
 import type { GitHubGateway } from "@/ports/GitHubGateway"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
-import { handBack, markPage, reveal, ungate } from "@/ui/mount"
+import { handBack, markPage, reveal } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { RUN } from "@/ui/place"
 import { RunScreen } from "@/ui/RunScreen"
-import { offerOurPage } from "@/ui/wayBack"
+import { handOverToGitHub } from "@/shell/handOver"
 import { openedNamed } from "@/ui/lastDrawn"
 import "@/ui/styles.css"
 
@@ -120,21 +120,8 @@ export const start = (): void => {
   function handOver(): void {
     close()
     close = () => {}
-    reveal(document)
-    ungate(document)
     unoffer()
-    unoffer = offerOurPage(document, takeBack, spot, keepSpot)
-  }
-
-  /**
-   * Where they dropped it, kept for this page and for every page after it.
-   *
-   * Both halves: the local copy so the widget comes back in the same place when this
-   * screen hands over again without a reload, and storage so it does after one.
-   */
-  function keepSpot(where: Spot): void {
-    spot = where
-    rememberSpot(store, where)
+    unoffer = handOverToGitHub(store, document, spot, takeBack)
   }
 
   function takeBack(): void {

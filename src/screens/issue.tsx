@@ -10,7 +10,7 @@ import { fromPathname, type IssueRef } from "@/domain/issues"
 import type { GitHubGateway } from "@/ports/GitHubGateway"
 import { reportError } from "@/observability/report"
 import { DEFAULT_SPOT, type Spot, type View } from "@/domain/Settings"
-import { chosenSettings, rememberSpot, rememberView } from "@/app/settings"
+import { chosenSettings, rememberView } from "@/app/settings"
 import { prepareAScreen, standAScreen, type Standing } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { IssueScreen } from "@/ui/IssueScreen"
@@ -20,13 +20,12 @@ import {
   hasPreparedScreen,
   markPage,
   rememberPreparedScreen,
-  reveal,
-  ungate
+  reveal
 } from "@/ui/mount"
 import { ISSUE } from "@/ui/place"
 import { markPreparedTraversal, preparedArrival } from "@/ui/preparedNavigation"
 import { whenLocationChanges } from "@/ui/navigation"
-import { offerOurPage } from "@/ui/wayBack"
+import { handOverToGitHub } from "@/shell/handOver"
 import "@/ui/styles.css"
 
 /**
@@ -239,23 +238,10 @@ export const start = (): void => {
     close()
     close = () => {}
     shown = null
-    reveal(document)
-    ungate(document)
     unoffer()
-    unoffer = offerOurPage(document, takeBack, spot, keepSpot)
+    unoffer = handOverToGitHub(store, document, spot, takeBack)
   }
 
-
-  /**
-   * Where they dropped it, kept for this page and for every page after it.
-   *
-   * Both halves: the local copy so the widget comes back in the same place when this
-   * screen hands over again without a reload, and storage so it does after one.
-   */
-  function keepSpot(where: Spot): void {
-    spot = where
-    rememberSpot(store, where)
-  }
 
   /** Pressed on GitHub's page: ours from here on, starting with this one. */
   function takeBack(): void {

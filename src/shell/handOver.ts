@@ -20,13 +20,33 @@ import { reveal, ungate } from "@/ui/mount"
 import { offerOurPage } from "@/ui/wayBack"
 
 /**
+ * Where the reader last dropped the widget, for as long as this document lives.
+ *
+ * Here rather than in each screen, because there is one widget on a page and where it
+ * sits is a fact about the page rather than about whichever screen put it there. Each
+ * screen reads the stored place once, when it starts, and a screen holding that copy
+ * alone re-plants the widget where it was an hour ago: drag it, walk to another
+ * repository without a reload, and it jumps back to the corner you moved it out of.
+ *
+ * Storage is written as well and is what survives a reload. This is only what carries
+ * the answer from one hand-over to the next, ahead of a read that has not come back.
+ */
+let dropped: Spot | null = null
+
+/** Forgets it, for a test that must not inherit where the last one left the widget. */
+export const forgetTheSpot = (): void => {
+  dropped = null
+}
+
+/**
  * Lets GitHub's own page through and stands the way back in front of it.
  *
  * `takeBack` is what the screen does when the mark is pressed, which is its own
  * business: every screen re-enters differently, and the one thing they share is that
  * the choice has to be written down before the page is taken. `spot` is where the
- * reader last left the widget, and where it is dropped is written down from here so
- * that no screen has to remember to.
+ * reader left the widget as far as the screen knows, which is used until they move it;
+ * after that the answer above is the better one and this is the only place that has to
+ * know the difference.
  *
  * Hands back the way to withdraw it, which a screen calls before it hands over again
  * and when it leaves the page for somewhere this extension has nothing to say about.
@@ -40,5 +60,8 @@ export const handOverToGitHub = (
   reveal(target)
   ungate(target)
 
-  return offerOurPage(target, takeBack, spot, (where) => rememberSpot(store, where))
+  return offerOurPage(target, takeBack, dropped ?? spot, (where) => {
+    dropped = where
+    rememberSpot(store, where)
+  })
 }

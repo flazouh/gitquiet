@@ -4,16 +4,17 @@ import { loadDiscussion, rememberedDiscussion } from "@/app/discussion"
 import { discussionDoings } from "@/app/discussionDoings"
 import { pressDiscussion } from "@/app/discussionPress"
 import { forgetIntent, intendedPath } from "@/app/intent"
-import { chosenView } from "@/app/settings"
+import { chosenSettings, rememberView } from "@/app/settings"
+import { handOverToGitHub } from "@/shell/handOver"
 import { type DiscussionPress } from "@/domain/discussions"
 import { addressOf, discussionIn, type DiscussionRef } from "@/domain/discussionRoutes"
-import type { View } from "@/domain/Settings"
+import { DEFAULT_SPOT, type Spot, type View } from "@/domain/Settings"
 import { reportError } from "@/observability/report"
 import { standAScreen } from "@/shell/screen"
 import { settings, throughGitHub } from "@/shell/supplied"
 import { DiscussionScreen } from "@/ui/DiscussionScreen"
 import { openedNamed } from "@/ui/lastDrawn"
-import { handBack, markPage, reveal, ungate } from "@/ui/mount"
+import { gate, handBack, markPage, reveal } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { DISCUSSION } from "@/ui/place"
 import "@/ui/styles.css"
@@ -122,6 +123,10 @@ export const start = (): void => {
   let close = (): void => {}
   let on: string | undefined
   let view: View = "ours"
+  /** Takes the way back off the page, where one of ours is on it. */
+  let unoffer = (): void => {}
+  /** Where the reader left the way back, so it comes back where they put it. */
+  let spot: Spot = DEFAULT_SPOT
 
   const show = (url: string): void => {
     const reference = discussionIn(url)
@@ -148,23 +153,39 @@ export const start = (): void => {
     close = () => {}
     on = undefined
 
-    // Their page, because that is what was asked for last time.
+    // Their page, because that is what was asked for last time — with the way back
+    // on it, because a page that hands over and offers nothing is a door that only
+    // opens one way.
     if (view === "github") {
-      reveal(document)
-      ungate(document)
+      unoffer()
+      unoffer = handOverToGitHub(store, document, spot, takeBack)
       return
     }
+
+    unoffer()
+    unoffer = () => {}
 
     close = open(reference.value, new URL(url, window.location.origin).pathname)
     on = named
   }
 
+  /** Pressed on GitHub's page: ours from here on, starting with this one. */
+  function takeBack(): void {
+    view = "ours"
+    rememberView(store, "ours")
+    unoffer()
+    unoffer = () => {}
+    gate(document)
+    show(window.location.href)
+  }
+
   whenLocationChanges(window, () => show(window.location.href))
 
   Effect.runFork(
-    chosenView(store).pipe(
+    chosenSettings(store).pipe(
       Effect.map((chosen) => {
-        view = chosen
+        view = chosen.page.view
+        spot = chosen.wayBack
 
         /*
          * What the address says, or, while GitHub is still fetching and the address still names

@@ -2,6 +2,7 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator"
 import { afterEach, setDefaultTimeout } from "bun:test"
 import { forgetFlights } from "../src/github/flight"
 import { forgetDrawn } from "../src/ui/lastDrawn"
+import { forgetTheSpot } from "../src/shell/handOver"
 import { forgetLanded } from "../src/ui/landing"
 import { forgetLanded as forgetOurWrites } from "../src/github/landed"
 import { forgetEverything } from "./storage"
@@ -142,3 +143,11 @@ afterEach(() => forgetLanded(document))
  * would paint the first one's answer before its own intercept was ever asked.
  */
 afterEach(forgetDrawn)
+
+/*
+ * Where the reader last dropped the way back, which outlives any one hand-over on
+ * purpose: one widget stands on a document and where it sits belongs to the document
+ * rather than to whichever screen put it there. A test file is not a document, so it
+ * must not inherit where the file before it left the thing.
+ */
+afterEach(forgetTheSpot)

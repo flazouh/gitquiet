@@ -1,13 +1,14 @@
 import { Effect, Option } from "effect"
-import { chosenView } from "@/app/settings"
+import { chosenSettings, rememberView } from "@/app/settings"
+import { handOverToGitHub } from "@/shell/handOver"
 import { compareIn, fileListRoute, type Changed, type Comparing } from "@/domain/compare"
 import { changedInCompare } from "@/github/compare"
-import type { View } from "@/domain/Settings"
+import { DEFAULT_SPOT, type Spot, type View } from "@/domain/Settings"
 import { reportError } from "@/observability/report"
 import { standAScreen, type Standing } from "@/shell/screen"
 import { settings } from "@/shell/supplied"
 import { CompareScreen } from "@/ui/CompareScreen"
-import { handBack, markPage, reveal, ungate } from "@/ui/mount"
+import { gate, handBack, markPage } from "@/ui/mount"
 import { whenLocationChanges } from "@/ui/navigation"
 import { COMPARE } from "@/ui/place"
 import "@/ui/styles.css"
@@ -43,6 +44,10 @@ export const start = (): void => {
 
   const store = settings()
   let view: View = "ours"
+  /** Takes the way back off the page, where one of ours is on it. */
+  let unoffer = (): void => {}
+  /** Where the reader left the way back, so it comes back where they put it. */
+  let spot: Spot = DEFAULT_SPOT
   let standing: Standing | null = null
   let stood: string | null = null
 
@@ -60,12 +65,17 @@ export const start = (): void => {
       return
     }
 
-    // Their page, because that is what was asked for last time.
+    // Their page, because that is what was asked for last time — with the way back
+    // on it, because a page that hands over and offers nothing is a door that only
+    // opens one way.
     if (view === "github") {
-      reveal(document)
-      ungate(document)
+      unoffer()
+      unoffer = handOverToGitHub(store, document, spot, takeBack)
       return
     }
+
+    unoffer()
+    unoffer = () => {}
 
     if (stood === path) return
     standing?.close()
@@ -108,14 +118,32 @@ export const start = (): void => {
     )
   }
 
+  /** Pressed on GitHub's page: ours from here on, starting with this one. */
+  function takeBack(): void {
+    view = "ours"
+    rememberView(store, "ours")
+    unoffer()
+    unoffer = () => {}
+    gate(document)
+    /*
+     * Cleared, unlike the other screens, because this one asks which path it is
+     * standing for after the hand-over rather than before it. Left holding this
+     * path, the press asking for the interface back is answered by a screen that
+     * decides it is already showing what was asked for.
+     */
+    stood = null
+    show(window.location.pathname)
+  }
+
   whenLocationChanges(window, show)
 
   // Nothing is drawn until the choice is known, so a reader who wants GitHub's page is
   // not charged a fragment for an interface they turned off.
   Effect.runFork(
-    chosenView(store).pipe(
+    chosenSettings(store).pipe(
       Effect.map((chosen) => {
-        view = chosen
+        view = chosen.page.view
+        spot = chosen.wayBack
         show(window.location.pathname)
       })
     )
