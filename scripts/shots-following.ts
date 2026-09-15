@@ -90,6 +90,28 @@ const ON_SCREEN = `
 `
 
 
+/**
+ * The token on a line, taken from the half of the file that has it.
+ *
+ * A diff numbers both halves, so a line number matches twice: the line as it
+ * was and the line as it is. `querySelector` answers with the first, which is
+ * the deletion — and a name added by the change is not in the code it replaced.
+ * The commit that photographs this has `const limitedFunction` on the new line
+ * 120 and `return (...arguments_)` on the old one, and the probe read the old
+ * one and reported that the name was never drawn.
+ */
+const TOKEN_IN = `
+  const tokenIn = (root, line, word) => {
+    for (const row of root.querySelectorAll('[data-line="' + line + '"]')) {
+      const token = [...row.querySelectorAll("span")].find(
+        (one) => (one.textContent || "").trim() === word
+      )
+      if (token) return token
+    }
+    return null
+  }
+`
+
 /** Chrome's own numbering, which is a bitmask and not a list. */
 const META = 4
 const SHIFT = 8
@@ -136,52 +158,65 @@ const mouse = async (type: string, x: number, y: number, modifiers: number) =>
 /**
  * The file the pictures are of, reached the way a reader reaches it.
  *
- * `s` is Next, which is how somebody reads a commit — and it is the only way
- * that works from out here. Pressing the row in the list did not: the tree is
- * nested and `querySelectorAll` answers in document order, so the first thing
- * whose text began "index.js" was a wrapper with no handler on it, clicked
- * happily, selecting nothing. Eight sets of photographs were taken of the file
- * that happened to be selected instead.
+ * `s` is Next, which is how somebody reads a commit: the screen draws one file
+ * at a time and the key moves to the following one. Pressed until the line this
+ * probe photographs is on the screen — see the note in the block itself for why
+ * the name of the file is the wrong thing to look for.
  */
 if (OPEN !== undefined) {
-  const heading = () =>
-    session.evaluate<string>(
-      `(() => { const h = document.querySelector("[data-gq-file], h2, h3"); return (document.body.innerText.match(/^\\S+\\.(ts|js|tsx|jsx|md)$/m) || [""])[0] })()`
-    )
-
-  let opened = false
-  for (let tries = 0; tries < 8; tries++) {
-    const showing = await session.evaluate<boolean>(
-      `(() => document.body.innerText.includes(${JSON.stringify(OPEN)}))()`
-    )
-    const drawn = await session.evaluate<string | null>(`(() => {
+  /*
+   * Shown, rather than named.
+   *
+   * The check used to read the text around the drawing and look for the file's
+   * name in it, which the list on the left has for every file whether it is
+   * drawn or not — so it answered "no" for eight presses and gave up, and the
+   * heading it printed was of a file nobody asked for. What is actually wanted
+   * is narrower and exact: the line this probe photographs, with the word on
+   * it, inside a container that is on the screen.
+   *
+   * It matters more here than it looks. A press is sent at a coordinate, and a
+   * token in a file the screen is not showing has a coordinate like any other —
+   * so the whole gesture was made against empty space, underlined nothing, and
+   * read as a feature that does not work in a diff.
+   */
+  const drawnHere = () =>
+    session.evaluate<boolean>(`(() => {
       for (const one of document.querySelectorAll("diffs-container")) {
         const root = one.shadowRoot
         if (!root) continue
         const box = one.getBoundingClientRect()
-        if (box.height > 0 && box.width > 0) {
-          const head = one.closest("[class]")
-          return (head ? head.textContent || "" : "").slice(0, 80)
+        if (box.height <= 0 || box.width <= 0 || box.bottom < 0 || box.top > window.innerHeight) continue
+        for (const row of root.querySelectorAll('[data-line="' + ${JSON.stringify(WRITTEN)} + '"]')) {
+          const has = [...row.querySelectorAll("span")].some(
+            (one) => (one.textContent || "").trim() === ${JSON.stringify(WORD)}
+          )
+          if (has) return true
         }
       }
-      return null
+      return false
     })()`)
-    if (showing && drawn !== null && drawn.includes(OPEN)) {
-      opened = true
-      break
-    }
+
+  let opened = await drawnHere()
+  for (let tries = 0; tries < 12 && !opened; tries++) {
+    // `s` is Next, which is how somebody reads a commit — and it is the only
+    // way that works from out here. Pressing the row in the list did not: the
+    // tree is nested and `querySelectorAll` answers in document order, so the
+    // first thing whose text began "index.js" was a wrapper with no handler on
+    // it, clicked happily, selecting nothing.
     await key({ key: "s", code: "KeyS", text: "s" })
     await sleep(1200)
+    opened = await drawnHere()
   }
   await sleep(800)
   await shot("0-opened")
-  console.log(`opened ${OPEN}: ${opened}`, await heading())
+  console.log(`opened ${OPEN}: ${opened}`)
 }
 
 /** Where the name is on the screen, with the row scrolled to the middle first. */
 const spot = await session.evaluate<{ x: number; y: number } | null>(`(async () => {
   const sleep = (ms) => new Promise((go) => setTimeout(go, ms))
   ${ON_SCREEN}
+  ${TOKEN_IN}
 
   const pane = async () => {
     for (let tries = 0; tries < 80; tries++) {
@@ -207,10 +242,7 @@ const spot = await session.evaluate<{ x: number; y: number } | null>(`(async () 
   // A name is usually used before it is written, so "the first span with this
   // text" is a use — and a press on a use goes somewhere, which is a different
   // picture from the one being taken here.
-  const row = shadow.querySelector('[data-line="' + ${JSON.stringify(WRITTEN)} + '"]')
-  const token = row
-    ? [...row.querySelectorAll("span")].find((one) => (one.textContent || "").trim() === ${JSON.stringify(WORD)})
-    : undefined
+  const token = tokenIn(shadow, ${JSON.stringify(WRITTEN)}, ${JSON.stringify(WORD)})
   if (!token) return null
   await putOnScreen(token)
   window.__gqToken = token
@@ -232,12 +264,11 @@ const spotFor = (line: string) =>
   session.evaluate<{ x: number; y: number } | null>(`(async () => {
     const sleep = (ms) => new Promise((go) => setTimeout(go, ms))
     ${ON_SCREEN}
+    ${TOKEN_IN}
     for (const one of document.querySelectorAll("diffs-container")) {
       const root = one.shadowRoot
       if (!root) continue
-      const row = root.querySelector('[data-line="' + ${JSON.stringify(line)} + '"]')
-      if (!row) continue
-      const token = [...row.querySelectorAll("span")].find((s) => (s.textContent || "").trim() === ${JSON.stringify(PEEK_WORD)})
+      const token = tokenIn(root, ${JSON.stringify(line)}, ${JSON.stringify(PEEK_WORD)})
       if (!token) continue
       await putOnScreen(token)
       const at = token.getBoundingClientRect()
@@ -296,12 +327,11 @@ await sleep(800)
 
 const used = await session.evaluate<{ x: number; y: number } | null>(`(async () => {
   const sleep = (ms) => new Promise((go) => setTimeout(go, ms))
+  ${TOKEN_IN}
   for (const one of document.querySelectorAll("diffs-container")) {
     const root = one.shadowRoot
     if (!root) continue
-    const row = root.querySelector('[data-line="' + ${JSON.stringify(USED)} + '"]')
-    if (!row) continue
-    const token = [...row.querySelectorAll("span")].find((s) => (s.textContent || "").trim() === ${JSON.stringify(WORD)})
+    const token = tokenIn(root, ${JSON.stringify(USED)}, ${JSON.stringify(WORD)})
     if (!token) continue
     token.scrollIntoView({ block: "center", behavior: "instant" })
     await sleep(400)
