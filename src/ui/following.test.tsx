@@ -1211,9 +1211,45 @@ describe("the uses answered beside the name rather than inside the file", () => 
     expect(panel.querySelector('[aria-label="Close"]')).toBeNull()
 
     document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }))
-    await waitFor(() =>
-      expect(screen.queryByLabelText(`Uses of ${writing.name}`)).toBeNull()
-    )
+    // Asked of this panel rather than of the label. The popup lives in
+    // `document.body` now, so a panel another test left behind answers to the
+    // same name — and a query that finds two throws rather than answering,
+    // which inside `waitFor` reads as the panel never closing.
+    await waitFor(() => expect(panel.isConnected).toBe(false))
+  })
+
+  test("closes when the page scrolls, since it is placed against the viewport", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    const panel = await screen.findByLabelText(`Uses of ${writing.name}`)
+    // The rectangle was measured once and the popup is fixed to the viewport, so
+    // a scrolled page slides the code out from under it and leaves it pointing
+    // at a line that has moved.
+    window.dispatchEvent(new Event("scroll"))
+    await waitFor(() => expect(panel.isConnected).toBe(false))
+  })
+
+  test("stays open when the scroll is the list's own", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    const panel = await screen.findByLabelText(`Uses of ${writing.name}`)
+    // The list scrolls and the preview scrolls, and neither is the reader
+    // leaving — so the scroll is asked where it started, as the press is.
+    const list = panel.querySelector("ul")
+    list?.dispatchEvent(new Event("scroll", { bubbles: false }))
+    expect(panel.isConnected).toBe(true)
   })
 
   test("stays open for a press inside it, preview included", async () => {
@@ -1234,7 +1270,7 @@ describe("the uses answered beside the name rather than inside the file", () => 
     stage.into.at(-1)?.append(token)
     token.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }))
 
-    expect(screen.queryByLabelText(`Uses of ${writing.name}`)).toBe(panel)
+    expect(panel.isConnected).toBe(true)
   })
 
   test("shows the code behind whichever row the pointer is on", async () => {

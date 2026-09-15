@@ -270,8 +270,25 @@ export const UsesPanel = ({
       onClose()
     }
 
+    /*
+     * And a scroll of the page counts as leaving.
+     *
+     * The rectangle this is placed at was measured once and the popup is fixed
+     * to the viewport, so a scrolled page slides the code out from under it and
+     * leaves it pointing at a line that has moved. `FollowCard` and
+     * `BeyondCard` are cleared on a scroll for the same reason; this is the
+     * same rule for a panel that can be scrolled inside.
+     *
+     * Which is why the path is asked about here too: the list scrolls, the
+     * preview scrolls, and neither is the reader leaving. Only a scroll that
+     * did not start inside this popup is.
+     */
     document.addEventListener("pointerdown", away, true)
-    return () => document.removeEventListener("pointerdown", away, true)
+    window.addEventListener("scroll", away, true)
+    return () => {
+      document.removeEventListener("pointerdown", away, true)
+      window.removeEventListener("scroll", away, true)
+    }
   }, [onClose])
 
   /*
@@ -637,7 +654,11 @@ export const UsesPanel = ({
     <div
       ref={frame}
       aria-label={`Uses of ${step.writing.name}`}
-      className={`fixed z-50 overflow-hidden rounded-lg border border-line bg-raised text-ink ${FLOAT}`}
+      // `FLOAT` is the named style for something standing over the page, and it
+      // brings the corner, the absence of a line and the shadow with it. The
+      // `border-y` this used to carry was a row's: a row is a band across the
+      // file and wants an edge top and bottom, and a popup wants neither.
+      className={`fixed z-50 overflow-hidden text-ink ${FLOAT}`}
       style={placed}
     >
       {/* The head: what was asked about, and how many answers there are. */}
@@ -668,17 +689,20 @@ export const UsesPanel = ({
             </span>
           ))}
         </h2>
-        <span className="text-xs text-ink-muted">
+        {/* Truncated rather than wrapped: the head is one line, and a count
+            that pushes the popup taller has spent a line of the answer on
+            saying how long the answer is. */}
+        <span className="min-w-0 truncate text-xs text-ink-muted">
           {!here
             ? `written in ${step.where}`
             : uses === null
               ? "reading…"
               : uses.length === 1
-                ? "written here, used nowhere else in this file"
+                ? "used nowhere else in this file"
                 : `${uses.length} in this file`}
         </span>
         {across === undefined ? null : (
-          <span className="text-xs text-ink-muted">
+          <span className="ml-auto shrink-0 text-xs text-ink-muted">
             {elsewhere === null
               ? "reading the repository…"
               : !elsewhere.ready
@@ -695,7 +719,7 @@ export const UsesPanel = ({
       */}
       <div className="flex" ref={body} style={{ height: tall }}>
         <div
-          className="min-w-[14rem] shrink-0 overflow-auto bg-raised"
+          className="min-w-[10.5rem] shrink-0 overflow-auto bg-raised"
           style={{ width: `${ratio * 100}%` }}
         >
           {Option.isNone(patch) ? (
@@ -723,7 +747,7 @@ export const UsesPanel = ({
           className="w-1 shrink-0 cursor-col-resize bg-line hover:bg-accent"
         />
         <ul
-          className="min-w-[9rem] flex-1 overflow-y-auto py-1"
+          className="min-w-[7rem] flex-1 overflow-y-auto py-1"
           onKeyDown={(event) => {
             const step =
               event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0
@@ -738,6 +762,22 @@ export const UsesPanel = ({
             listed.current[next]?.focus()
           }}
         >
+          {/*
+            Nothing, said rather than drawn as an empty box.
+
+            Reachable now that the declaration is not a row of its own: a name
+            written here, used nowhere else here, and either no repository to
+            ask or nothing found in it leaves the list with no rows at all. The
+            head says the counts; this says what they mean, so the panel is
+            never a blank rectangle beside a word.
+          */}
+          {rows.length > 0 ? null : (
+            <li className="px-3 py-2 text-xs text-ink-muted">
+              {uses === null || (across !== undefined && elsewhere === null)
+                ? "reading…"
+                : "nothing else means this name"}
+            </li>
+          )}
           {rows.map((row, index) => (
             <li key={`${row.kind}:${row.path ?? ""}:${row.line}`}>
               {/*
