@@ -4,6 +4,7 @@ import { runWhenIdle } from "./idle"
 import { markLanded } from "./landing"
 import { type Stop, whenAddressChanges } from "./navigation"
 import { CONVERSATION, type Place } from "./place"
+import { keepTheirStylesOff, letTheirStylesBack, ourTree, theStage } from "./theHost"
 import {
   clearPreparedTraversal,
   markPreparedTraversal,
@@ -59,7 +60,7 @@ export const WITHIN = "data-gitquiet-within"
  * that the gates would stop hiding.
  */
 const markWithin = (target: Document, root: Element): void => {
-  for (const marked of target.querySelectorAll(`[${WITHIN}]`)) {
+  for (const marked of oursIn(target).querySelectorAll(`[${WITHIN}]`)) {
     if (!marked.contains(root)) marked.removeAttribute(WITHIN)
   }
   for (
@@ -77,50 +78,41 @@ const markWithin = (target: Document, root: Element): void => {
   }
 }
 
-const firstOf = (
-  target: Document,
-  selectors: ReadonlyArray<string>,
-  within?: string
-): Element | null => {
-  for (const selector of selectors) {
-    // Every match rather than the first, because a page in the middle of a
-    // handover carries two of these: the outgoing page's and, once GitHub has
-    // rendered it, this one's.
-    for (const found of target.querySelectorAll(selector)) {
-      if (within === undefined || found.closest(within) !== null) return found
-    }
-  }
-  return null
-}
+/**
+ * Where a screen stands, which is ours and is always there.
+ *
+ * It used to be one of *their* boxes, found by a list of selectors written
+ * against GitHub's layout and tried in turn — `react-app[app-name] [class*=
+ * "PageLayoutContent"]`, then the loose form of it, then a fallback further up.
+ * Every one of those names markup GitHub hashes per deploy, so the search could
+ * come back empty on a Tuesday and the interface would have nowhere to stand;
+ * `gateAudit.ts` existed to notice when it had.
+ *
+ * The stage is a `div` in a shadow root of our own. It cannot fail to be found,
+ * it cannot be renamed out from under us, and nothing above it can restyle what
+ * is inside it. `place.regions`, `place.fallback` and `place.soft` are no longer
+ * consulted by either of these — they are on their way out of `Place` with the
+ * bands.
+ */
+export const findConversationSlot = (target: Document, _place: Place = CONVERSATION): Element =>
+  theStage(target)
+
+export const findSlot = (target: Document, _place: Place = CONVERSATION): Element =>
+  theStage(target)
 
 /**
- * Which ancestor a region has to be inside before it is this page's to take, or
- * nothing where anything matching will do.
+ * Our own tree, which is where everything of ours is looked for.
  *
- * Asked only while another interface is being handed the page over, which is the
- * one moment the question has a wrong answer. Their dashboard is built out of the
- * same Primer layout as their pull request, so a card injected on a press finds a
- * `PageLayoutContent` immediately — the dashboard's, inside the element the
- * Working Set hid on its way in. Standing there swept the list off the screen and
- * mounted the card somewhere `display: none`.
- *
- * `soft.within` already names the ancestor that exists on their version of this
- * page and nowhere else; it is what keeps the gate's stylesheet from blanking the
- * page being left, and this is the same question asked by the search rather than
- * by a rule. Absent on an ordinary arrival, where the loose selectors are what
- * makes this survive GitHub renaming a layout.
+ * Their document until the host has been stood up, because the first ask happens
+ * before there is a shadow root to ask — and a lookup must not build one, or a
+ * page this extension only passes through would get an empty host and the gate
+ * rule would hide a page nobody is drawing.
  */
-const ownRegion = (target: Document, place: Place): string | undefined =>
-  target.querySelector(`[${LEAVING}]`) === null ? undefined : place.soft?.within
+const oursIn = (target: Document): ParentNode => ourTree(target) ?? target
 
-/** The region itself, and nothing else — the only acceptable answer mid-parse. */
-export const findConversationSlot = (
-  target: Document,
-  place: Place = CONVERSATION
-): Element | null => firstOf(target, place.regions, ownRegion(target, place))
-
-export const findSlot = (target: Document, place: Place = CONVERSATION): Element | null =>
-  firstOf(target, [...place.regions, place.fallback], ownRegion(target, place))
+/** The container on the page, wherever it is standing. */
+const rootIn = (target: Document): HTMLElement | null =>
+  oursIn(target).querySelector<HTMLElement>(`#${ROOT_ID}`)
 
 /** Marks what GitHub rendered into the slot, so it can be hidden again if it comes back. */
 const HIDDEN = "data-gitquiet-hidden"
@@ -400,7 +392,7 @@ export const oursToDraw = (page: Document): boolean => {
   // other than the one this screen was started against.
   if (ours === null || ours.ownerDocument !== page) return true
 
-  const standing = page.getElementById(ROOT_ID)
+  const standing = rootIn(page)
   return standing === null || standing === ours
 }
 
@@ -472,7 +464,7 @@ const GATING = "data-gitquiet-gating"
  *
  * So the sheet says which page each rule is for and this says which page this is.
  */
-const PAGE = "data-gitquiet-page"
+export const PAGE = "data-gitquiet-page"
 
 /**
  * Says so, from the address, before anything has been displayed.
@@ -484,6 +476,22 @@ const PAGE = "data-gitquiet-page"
  */
 export const markPage = (target: Document, place: Place): void => {
   target.documentElement.setAttribute(PAGE, place.name)
+
+  /*
+   * And their stylesheets go quiet.
+   *
+   * Every box those sheets style is hidden by the rule this attribute turns on,
+   * so they are dressing nothing — and they are not free. Seventy-one of them on
+   * a pull request, sixty-odd carrying `:has()` rules whose subject is `body` or
+   * `main`, and Chrome re-runs that work on any change anywhere beneath. Measured
+   * on a live pull request: one element appended into our tree cost 9.485ms of
+   * style recalculation with them on and 0.036ms with them off.
+   *
+   * Reversible in one property, and {@link unmarkPage} puts them back, so a page
+   * handed over to GitHub is dressed exactly as they wrote it. See
+   * `docs/plan/restyle-scope.md`.
+   */
+  keepTheirStylesOff(target)
 }
 
 /**
@@ -495,6 +503,8 @@ export const markPage = (target: Document, place: Place): void => {
  */
 export const unmarkPage = (target: Document): void => {
   target.documentElement.removeAttribute(PAGE)
+  // Their page is theirs again, and it cannot be shown undressed.
+  letTheirStylesBack(target)
 }
 
 export const reveal = (target: Document): void => {
@@ -756,7 +766,7 @@ export const interfaceContainer = (
   place: Place = CONVERSATION,
   exactRoute?: string
 ): HTMLElement => {
-  const already = target.getElementById(ROOT_ID)
+  const already = rootIn(target)
   if (already !== null) {
     // Ours: the same script running twice against one document. Or taken up
     // again — a reader who pressed a pull request and came back before the card
@@ -814,7 +824,7 @@ export const interfaceContainer = (
  * region in it is the right place to wait for.
  */
 export const ourSurface = (target: Document): Element | null =>
-  target.querySelector(`[${LEAVING}]`)?.parentElement ?? null
+  oursIn(target).querySelector(`[${LEAVING}]`)?.parentElement ?? null
 
 /**
  * The screen on the page, whichever of ours it is.
@@ -824,7 +834,7 @@ export const ourSurface = (target: Document): Element | null =>
  * that the screen it asked for has actually arrived.
  */
 export const theScreenOnThePage = (target: Document): Element | null =>
-  target.getElementById(ROOT_ID)
+  rootIn(target)
 
 /** Whether the screen already on the page draws this exact route. */
 export const theScreenHasRoute = (target: Document, route: string): boolean =>
@@ -915,7 +925,7 @@ export const activatePreparedTraversal = (
  * card that is coming arriving into a page that has already moved on.
  */
 export const holdTheSurface = (target: Document): void => {
-  const standing = target.getElementById(ROOT_ID)
+  const standing = rootIn(target)
   if (standing !== null) markAsLeaving(standing)
 }
 
@@ -949,12 +959,16 @@ const hideTheirBands = (target: Document, place: Place): void => {
  * time. That is the flash, and no guard on the animation can fix a gap where the
  * interface is not in the document at all.
  *
- * Their regions are still named in `place.ts` and still matter. They prove that
- * GitHub has rendered their version of this page, which is what the takeover
- * waits for and what the soft gate keys on, and they say which of their content
- * to hide. What they no longer decide is where ours goes.
+ * The stage is that stable surface now, and it is ours. `body` was the nearest
+ * thing to one in their document, and it was never actually stable for us: the
+ * rule that hides their page names every child of `body` that is not the host, so
+ * a root standing there is a root the gate hides — measured on the first run of
+ * this migration as an interface that mounted correctly, reported no fault, and
+ * could not be seen.
+ *
+ * Their regions decide nothing any more, here or in `findSlot`.
  */
-const surfaceOf = (target: Document): Element | null => target.body
+const surfaceOf = (target: Document): Element | null => theStage(target)
 
 /**
  * What a takeover never hides, wherever on the page it turns out to be.
@@ -1158,7 +1172,7 @@ export const takeOverSlot = (
     // afterwards would name a container that has just been told once already.
     // See `marked`.
     const missed = marked !== null && marked !== container && !marked.isConnected ? marked : null
-    for (const leaving of target.querySelectorAll(`[${LEAVING}]`))
+    for (const leaving of oursIn(target).querySelectorAll(`[${LEAVING}]`))
       takeOffThePage(leaving, true)
     if (missed !== null) takeOffThePage(missed, true)
     marked = null
@@ -1188,16 +1202,16 @@ export const takeOverSlot = (
      * The mark is how a watcher is told to stand down, and the sweep above never has to set it
      * because a marked container is what that sweep is looking for.
      */
-    let stray = target.getElementById(ROOT_ID)
+    let stray = rootIn(target)
     while (stray !== null && stray !== container) {
       stray.setAttribute(LEAVING, "")
       takeOffThePage(stray)
-      stray = target.getElementById(ROOT_ID)
+      stray = rootIn(target)
     }
     // Only a reused container can be the first result while another duplicate
     // follows it. The normal route stays on the constant-time id lookup above.
     if (stray === container) {
-      for (const duplicate of target.querySelectorAll(`#${ROOT_ID}`)) {
+      for (const duplicate of oursIn(target).querySelectorAll(`#${ROOT_ID}`)) {
         if (duplicate === container) continue
         duplicate.setAttribute(LEAVING, "")
         takeOffThePage(duplicate)
@@ -1333,9 +1347,9 @@ export const takeOverSlot = (
       const view = target.defaultView
       const stillHere =
         view === null || place.owns(view.location.pathname, view.location.search)
-      const temporary = isOurContainer(container) && stillHere
-        ? (target.querySelector("main") ?? target.body)
-        : null
+      // The stage, which is always there — so there is nothing temporary about it
+      // any more, and nothing of theirs to look for first.
+      const temporary = isOurContainer(container) && stillHere ? theStage(target) : null
       const fresh = standing ?? findSlot(target, place) ?? temporary
       if (fresh !== null) settle(fresh)
       return

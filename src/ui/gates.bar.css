@@ -10,7 +10,7 @@
  * if this file is out of date.
  */
 
-/* Their bar, wherever ours is standing. */
+/* Their bar. Ours is inside the host now, so this is the only one left to hide. */
 html[data-gitquiet-bar-standing] header.GlobalNav {
   display: none;
 }
