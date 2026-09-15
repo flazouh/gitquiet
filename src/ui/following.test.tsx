@@ -100,6 +100,23 @@ const staged = (
     onThemeChange: () => {},
     showNotes: (notes) => {
       stage.shown.push(notes.map((note) => ({ key: note.key, line: note.line })))
+      /*
+       * And put them on the screen, which is what the renderer does with them.
+       *
+       * A row is a key here and an element the pane hands back through
+       * `fillNote`; the real renderer asks for that element and inserts it
+       * under the line. A stub that only remembered the keys left every row
+       * the pane drew in a node attached to nothing, so a test could see a
+       * Peek's key and never its words — and when the Uses moved into a row of
+       * their own, eleven tests went looking for a panel that was, correctly,
+       * not in the document.
+       */
+      for (const note of notes) {
+        const filled = stage.request?.fillNote?.(note.key)
+        if (filled !== undefined && filled !== null && !filled.isConnected) {
+          document.body.append(filled)
+        }
+      }
     },
     unpick: () => {},
     mark: (given, how) => {
@@ -732,14 +749,23 @@ describe("what a press on an underlined name does", () => {
     stage.request?.onName?.(itself, held({ go: true }))
     await Effect.runPromise(settled())
 
-    // Once, and at the top: the row saying where the name is written. The Use
-    // that *is* the writing is not listed again below it — a card offering the
-    // same line twice reads as two answers to one question.
+    // One row, and at the top: where the name is written. The Use that *is* the
+    // writing is not listed again below it — a list offering the same line
+    // twice reads as two answers to one question.
+    //
+    // Counted among the rows rather than among everything on the screen: the
+    // preview beside the list shows the code around whichever row is showing,
+    // and the first row is the writing, so its line is on the screen twice on
+    // purpose. Once as the row, once as the code the row is pointing at.
     //
     // `waitFor` all the same: the Uses arrive an effect later and decide
-    // whether anything is filtered out, so asserting synchronously asserts
-    // against a card that has not finished being wrong yet.
-    await waitFor(() => expect(screen.getAllByText(writing.signature)).toHaveLength(1))
+    // whether anything is filtered out.
+    await waitFor(() => {
+      const listed = screen
+        .getAllByRole("button")
+        .filter((row) => (row.textContent ?? "").includes(writing.signature))
+      expect(listed).toHaveLength(1)
+    })
   })
 
   test("still peeks on Shift, whichever end the press is on", async () => {
@@ -1053,8 +1079,8 @@ describe("asking by the letter rather than by the key", () => {
  * find their way back to the line — three moves for one question that was asked
  * with their eye already on the word.
  */
-describe("the uses answered beside the word that asked", () => {
-  test("carries where the Name is, so the panel can open there", async () => {
+describe("the uses answered in the file rather than over it", () => {
+  test("hangs the list under the line that asked, like a Peek", async () => {
     const stage = staged()
     await Effect.runPromise(settled())
 
@@ -1063,9 +1089,25 @@ describe("the uses answered beside the word that asked", () => {
     stage.request?.onName?.(itself, held({ go: true }))
     await Effect.runPromise(settled())
 
-    // The bounds the stage's renderer reports for any Name.
+    // A row, at the line pressed — not a panel at a screen coordinate. The
+    // file opens apart and the answer sits in the gap, which is how an editor
+    // answers this and the reason the lines around the name stay readable.
+    const [drawn] = stage.shown.slice(-1)
+    expect(drawn?.some((note) => note.line === itself.line)).toBe(true)
+    expect(await screen.findByLabelText(`Uses of ${writing.name}`)).toBeTruthy()
+  })
+
+  test("shows the code behind whichever row the pointer is on", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    // The first row is where the name is written, so the preview opens on it.
     const panel = await screen.findByLabelText(`Uses of ${writing.name}`)
-    expect(panel.style.top).not.toBe("")
-    expect(panel.style.left).not.toBe("")
+    expect(panel.querySelector("table")?.textContent).toContain(writing.signature)
   })
 })

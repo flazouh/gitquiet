@@ -101,13 +101,15 @@ export type Follows = {
     readonly writing: Writing
     readonly where?: string
     /**
-     * Where the Name is on the screen, so the panel can open beside it.
+     * The line the panel hangs under, which is the line that asked.
      *
-     * Null where nothing can say — a question asked of a pane that has not
-     * drawn — and the panel falls back to the middle of the window, which is
-     * where it used to always be.
+     * Not a screen coordinate. This opens the file apart and sits in the gap,
+     * the way an editor answers this question — so what it needs is a line
+     * number, and the renderer puts the row there and moves the code below it
+     * down. A panel floating over the code hides the code the reader was
+     * reading, and the lines around a name are most of what a name means.
      */
-    readonly at: Bounds | null
+    readonly under: number
   } | null
   readonly unask: () => void
   /**
@@ -209,7 +211,7 @@ export const useFollowing = (
   const [asked, setAsked] = useState<{
     writing: Writing
     where?: string
-    at: Bounds | null
+    under: number
   } | null>(null)
   /**
    * A name that turned out to be written in another repository.
@@ -488,11 +490,8 @@ export const useFollowing = (
       }
 
       const show = (writing: Writing, where?: string): void => {
-        // Read before `clear`, which takes the underline off and with it the
-        // element the bounds are read from.
-        const at = handle.current?.boundsOf(name) ?? null
         clear()
-        setAsked({ writing, ...(where === undefined ? {} : { where }), at })
+        setAsked({ writing, ...(where === undefined ? {} : { where }), under: name.line })
       }
 
       const answer = (writing: Writing, where?: string): void => {
@@ -638,9 +637,8 @@ export const useFollowing = (
     if (here === null) return
 
     const show = (writing: Writing, where?: string): void => {
-      const at = handle.current?.boundsOf(here.name) ?? null
       clear()
-      setAsked({ writing, ...(where === undefined ? {} : { where }), at })
+      setAsked({ writing, ...(where === undefined ? {} : { where }), under: here.name.line })
     }
 
     if (here.writing !== null) {

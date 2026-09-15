@@ -9,6 +9,7 @@ import { useFollowing, type Across, type Peeked } from "./following"
 import { FileNames } from "./FileNames"
 import { BeyondCard } from "./BeyondCard"
 import { FollowCard } from "./FollowCard"
+import { createPortal } from "react-dom"
 import { UsesPanel } from "./UsesPanel"
 import { useLedger } from "./ledger"
 import { useRenderer } from "./renderer"
@@ -58,6 +59,17 @@ const NO_NOTES: ReadonlyArray<Note> = []
 
 /** The one row this component hangs itself, told apart from a caller's by its key. */
 const PEEK_KEY = "gitquiet/peek"
+
+/**
+ * The row the uses are listed in.
+ *
+ * Kept as one element for the life of the pane and filled by React from out
+ * here, the way the diff pane fills its comment boxes: the renderer asks for a
+ * row's contents while it is drawing, which is no time to be creating React
+ * roots, and a row rebuilt on every render is a list that loses which of its
+ * rows the reader was on between moves of the pointer.
+ */
+const USES_KEY = "gitquiet/uses"
 
 /**
  * The Peek as a node: where it is written, and the lines it is written on.
@@ -147,6 +159,13 @@ export const WholeFile = ({
   const keys = useKeyboard()
   const [outline, setOutline] = useState<ReadonlyArray<Writing> | null>(null)
   const [naming, setNaming] = useState(false)
+  /** The one element the uses list is drawn into, made once and kept. */
+  const usesRow = useRef<HTMLElement | null>(null)
+  if (usesRow.current === null && typeof document !== "undefined") {
+    const made = document.createElement("div")
+    made.className = "sticky left-0 w-[min(46rem,100%)] whitespace-normal font-sans text-sm"
+    usesRow.current = made
+  }
   useEffect(() => {
     setOutline(null)
   }, [reading])
@@ -156,12 +175,27 @@ export const WholeFile = ({
    * one draws the file, and the whole point of a Peek is that it does not.
    */
   useEffect(() => {
-    drawn.current?.showNotes(
-      peeked === null
-        ? notes
-        : [...notes, { key: PEEK_KEY, side: "additions" as const, line: peeked.under }]
-    )
-  }, [peeked, notes])
+    drawn.current?.showNotes([
+      ...notes,
+      ...(peeked === null
+        ? []
+        : [{ key: PEEK_KEY, side: "additions" as const, line: peeked.under }]),
+      ...(asked === null
+        ? []
+        : [{ key: USES_KEY, side: "additions" as const, line: asked.under }])
+    ])
+  }, [peeked, asked, notes])
+
+  /*
+   * The line the answer hangs under, put on the screen. See the note in
+   * `Files.tsx`: the row is added below a line that may be below the fold, and
+   * an answer a reader has to go looking for is half an answer.
+   */
+  useEffect(() => {
+    if (asked === null) return
+    const soon = requestAnimationFrame(() => showLine(host.current, asked.under))
+    return () => cancelAnimationFrame(soon)
+  }, [asked])
 
   // Escape puts it away, which is what Escape means everywhere else here.
   useKeys(keys, {
@@ -230,7 +264,12 @@ export const WholeFile = ({
       // for: there is no before and after in a file nothing happened to.
       choices: { ...choices, layout: "unified" },
       notes,
-      fillNote: (key) => (key === PEEK_KEY ? peekRow(peeking.current) : fill.current?.(key)),
+      fillNote: (key) =>
+        key === PEEK_KEY
+          ? peekRow(peeking.current)
+          : key === USES_KEY
+            ? usesRow.current
+            : fill.current?.(key),
       onPick,
       onName: names.onName,
       onNameEnter: names.onNameEnter,
@@ -291,22 +330,25 @@ export const WholeFile = ({
         the key over one. Both are the same question and the same panel; the
         press is the one a reader finds without being told.
       */}
-      {asked === null ? null : (
-        <UsesPanel
-          writing={asked.writing}
-          where={asked.where}
-          at={asked.at}
-          reading={{ path, text: lines.join("\n") }}
-          onGo={(line) => showLine(host.current, line)}
-          onClose={unask}
-          onOpen={across?.open}
-          across={
-            across?.repo === undefined || across.sha === undefined
-              ? undefined
-              : { repo: across.repo, sha: across.sha }
-          }
-        />
-      )}
+      {asked === null || usesRow.current === null
+        ? null
+        : createPortal(
+            <UsesPanel
+              writing={asked.writing}
+              where={asked.where}
+              reading={{ path, text: lines.join("\n") }}
+              onGo={(line) => showLine(host.current, line)}
+              onClose={unask}
+              onOpen={across?.open}
+              across={
+                across?.repo === undefined || across.sha === undefined
+                  ? undefined
+                  : { repo: across.repo, sha: across.sha }
+              }
+        />,
+            usesRow.current,
+            USES_KEY
+          )}
       {naming ? (
         <FileNames
           writings={outline ?? []}

@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { Effect } from "effect"
 import type { AcrossUse, Use, Writing } from "../ports/Ledger"
 import { FLOAT } from "./dress"
-import type { Bounds } from "../ports/Renderer"
 import { useLedger } from "./ledger"
 import { useSettings } from "./useSettings"
 
@@ -61,26 +60,25 @@ export type UsesPanelProps = {
     readonly repo: { readonly owner: string; readonly repo: string }
     readonly sha: string
   }
-  /**
-   * Where the Name is on the screen, so this opens beside it.
-   *
-   * A reader pressed a word in the middle of a line they were reading. A panel
-   * that answers from the centre of the window makes them find it, read it, and
-   * then find their way back to the line — three moves for one question, and
-   * the question was "what else touches this", asked while their eye was on the
-   * word. Beside the word, the word is still there.
-   *
-   * Null where nothing can say, and then it opens in the middle as it used to.
-   */
-  readonly at?: Bounds | null
 }
 
-/** How far off the word the panel sits, in pixels. Enough to clear the underline. */
-const CLEAR = 8
-/** Its own width, which `w-[44rem]` is, needed to keep it inside the window. */
-const WIDE = 704
-/** Less room than this below the word and it opens above instead. */
-const ENOUGH = 260
+/** How many lines of context the preview shows either side of a row. */
+const AROUND = 8
+
+/**
+ * One line of the answer: where the name is written, a use of it in this file,
+ * or a use somewhere else in the repository.
+ */
+type Row = {
+  readonly kind: "written" | "use" | "beyond"
+  readonly line: number
+  /** What the row reads as: the signature, the line of code, or the path. */
+  readonly said: string
+  /** The file it is in, where that is not the file being read. */
+  readonly path?: string
+  /** Whether the repository stated this use or merely holds the word. */
+  readonly sure?: boolean
+}
 
 export const UsesPanel = ({
   writing,
@@ -89,8 +87,7 @@ export const UsesPanel = ({
   onOpen,
   onClose,
   across,
-  where,
-  at = null
+  where
 }: UsesPanelProps) => {
   /** Whether the Writing is in the file being read, which decides what can be exact. */
   const here = where === undefined || where === reading.path
@@ -99,7 +96,8 @@ export const UsesPanel = ({
   // tier that reads shapes — fast, every language, honest about its guesses.
   const { settings } = useSettings()
   const exact = settings.diff.exact === "on"
-  const frame = useRef<HTMLDialogElement | null>(null)
+  /** Which row the preview is showing, as an index into the rows below. */
+  const [picked, setPicked] = useState(0)
   const [uses, setUses] = useState<ReadonlyArray<Use> | null>(null)
   const [elsewhere, setElsewhere] = useState<{
     readonly uses: ReadonlyArray<AcrossUse>
@@ -120,33 +118,23 @@ export const UsesPanel = ({
   const elsewhereInFile =
     uses === null ? null : uses.filter((use) => use.line !== writing.line || use.from !== writing.from)
 
+  /*
+   * Escape puts it away, which is what Escape means everywhere else here.
+   *
+   * On the document and in the capture phase: this row lives inside the
+   * renderer's shadow root, and a key pressed over it is reported against
+   * whatever the event was retargeted to.
+   */
   useEffect(() => {
-    const box = frame.current
-    if (box === null) return
-
-    // `show`, not `showModal`: a modal dims the file behind it and takes the
-    // whole window, which is the opposite of answering beside a word. The
-    // dismissals a modal gave for free are below.
-    if (at === null) box.showModal()
-    else box.show()
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return
       event.preventDefault()
       event.stopPropagation()
-      box.close()
-    }
-    // A press anywhere else puts it away, which the backdrop used to do.
-    const onPress = (event: MouseEvent) => {
-      if (event.target instanceof Node && box.contains(event.target)) return
-      box.close()
+      onClose()
     }
     document.addEventListener("keydown", onKey, true)
-    if (at !== null) document.addEventListener("mousedown", onPress, true)
-    return () => {
-      document.removeEventListener("keydown", onKey, true)
-      document.removeEventListener("mousedown", onPress, true)
-    }
-  }, [at])
+    return () => document.removeEventListener("keydown", onKey, true)
+  }, [onClose])
 
   useEffect(() => {
     if (!here) {
@@ -190,46 +178,58 @@ export const UsesPanel = ({
     return () => asking.interruptUnsafe()
   }, [ledger, across, exact, reading.path, where, writing])
 
-  /*
-   * Below the word, and above it where there is no room below.
+  /**
+   * The rows, in the order an editor lists them: where it is written, then
+   * every use in this file, then the rest of the repository.
    *
-   * Measured against the viewport and not the pane, because the pane scrolls
-   * and the viewport is what a reader can see. The left edge is pulled back
-   * from the word by a little so the panel reads as hanging off it rather than
-   * starting at it, and clamped so it never leaves the window — a panel with
-   * half its rows off the right-hand side is a panel that answered nobody.
+   * One list rather than three, because the preview beside it shows one row at
+   * a time and "which row is showing" has to mean something across all of them.
    */
-  const beside =
-    at === null
-      ? undefined
-      : (() => {
-          const under = window.innerHeight - at.bottom
-          const over = at.top
-          const up = under < ENOUGH && over > under
-          return {
-            left: Math.max(8, Math.min(at.left - 12, window.innerWidth - WIDE - 8)),
-            ...(up
-              ? { bottom: window.innerHeight - at.top + CLEAR, maxHeight: over - CLEAR - 8 }
-              : { top: at.bottom + CLEAR, maxHeight: under - CLEAR - 8 })
-          }
-        })()
+  const rows: ReadonlyArray<Row> = [
+    { kind: "written", line: writing.line, said: writing.signature, path: where },
+    ...(elsewhereInFile ?? []).map((use) => ({
+      kind: "use" as const,
+      line: use.line,
+      said: (lines[use.line - 1] ?? "").trim()
+    })),
+    ...beyond.map((use) => ({
+      kind: "beyond" as const,
+      line: use.line,
+      said: use.path,
+      path: use.path,
+      sure: use.sure
+    }))
+  ]
+
+  const showing = rows[Math.min(picked, rows.length - 1)] ?? rows[0]
+
+  /**
+   * The lines behind whichever row is showing.
+   *
+   * Only for this file: a use in another file is a file this pane has not read,
+   * and inventing a preview of it would be inventing code. Those rows say where
+   * they are and open when pressed, which is what the tree in an editor does
+   * with a file it has not loaded either.
+   */
+  const preview =
+    showing === undefined || showing.path !== undefined
+      ? null
+      : lines.slice(Math.max(0, showing.line - 1 - AROUND), showing.line - 1 + AROUND + 1)
+  const previewFrom = showing === undefined ? 1 : Math.max(1, showing.line - AROUND)
+
+  const goTo = (row: Row): void => {
+    if (row.path !== undefined && row.path !== reading.path) onOpen?.(row.path, row.line)
+    else onGo(row.line)
+    onClose()
+  }
 
   return (
-    <dialog
-      ref={frame}
-      onClose={onClose}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) frame.current?.close()
-      }}
+    <div
       aria-label={`Uses of ${writing.name}`}
-      className={
-        at === null
-          ? `t-modal mt-[12vh] w-[44rem] max-w-[calc(100vw-var(--sheet-away,4rem))] overflow-hidden p-0 text-ink backdrop:bg-black/50 ${FLOAT}`
-          : `fixed z-50 m-0 w-[44rem] max-w-[calc(100vw-1rem)] overflow-hidden p-0 text-ink ${FLOAT}`
-      }
-      style={beside}
+      className={`overflow-hidden border-y border-line bg-raised text-ink ${FLOAT}`}
     >
-      <div className="flex items-baseline gap-2 bg-surface px-4 py-2.5">
+      {/* The head: what was asked about, and how many answers there are. */}
+      <div className="flex items-baseline gap-2 border-b border-line bg-surface px-3 py-2">
         <h2 className="text-sm font-semibold">
           <code className="font-mono">{writing.name}</code>
         </h2>
@@ -243,7 +243,7 @@ export const UsesPanel = ({
                 : `${uses.length} in this file`}
         </span>
         {across === undefined ? null : (
-          <span className="ml-auto text-xs text-ink-muted">
+          <span className="text-xs text-ink-muted">
             {elsewhere === null
               ? "reading the repository…"
               : !elsewhere.ready
@@ -251,110 +251,103 @@ export const UsesPanel = ({
                 : `${beyond.length} elsewhere${elsewhere.exact === true ? ", exactly" : ""}`}
           </span>
         )}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="ml-auto shrink-0 rounded px-1.5 text-xs text-ink-muted hover:bg-hover"
+        >
+          Esc
+        </button>
       </div>
-      {/*
-        Where it is written, first and pressable.
-        
-        The press that opened this panel deliberately did not move the reader —
-        but going there is the thing they may have wanted, and a panel that
-        listed every use of a name without offering the name itself would make
-        them close it and hold the key again.
-      */}
-      <button
-        type="button"
-        onClick={() => {
-          if (here) onGo(writing.line)
-          else if (where !== undefined) onOpen?.(where, writing.line)
-          frame.current?.close()
-        }}
-        className="flex w-full items-baseline gap-3 border-b border-line px-4 py-1.5 text-left font-mono text-xs hover:bg-hover"
-      >
-        {/*
-          Wide enough for the word, and told not to break it. At `w-10` this
-          column fits a four-figure line number and not the word "written",
-          which wrapped to "writte" and a lone "n" on the row this feature
-          exists to show.
-        */}
-        <span className="w-14 shrink-0 whitespace-nowrap text-right text-[0.6875rem] text-ink-muted">
-          written
-        </span>
-        <span className="min-w-0 flex-1 truncate">{writing.signature}</span>
-        <span className="shrink-0 text-[0.6875rem] text-ink-muted">
-          {here ? writing.line : `${where}:${writing.line}`}
-        </span>
-      </button>
-      {/*
-        The uses, minus the writing itself, which has its own row above.
 
-        `usesIn` answers with every occurrence of the name and the declaration
-        is one of them, so listing them all drew the same line twice: a card
-        headed "used nowhere else in this file" with two identical rows under
-        it. Matched on the column as well as the line, because a name can be
-        used on the line it is written on — `const f = () => f()` — and that
-        use is a real one.
+      {/*
+        The body, split the way an editor splits it: the code on the left, the
+        list on the right. Seven parts to three, which is theirs — the code is
+        the answer and the list is the way through it.
       */}
-      {elsewhereInFile === null || elsewhereInFile.length === 0 ? null : (
-        <ul className="max-h-[50vh] overflow-y-auto py-1">
-          {elsewhereInFile.map((use) => (
-            <li key={`${use.line}:${use.from}`}>
+      <div className="flex h-[22rem]">
+        <div className="min-w-[14rem] flex-[7] overflow-auto border-r border-line bg-raised">
+          {preview === null ? (
+            <p className="px-3 py-2 font-mono text-xs text-ink-muted">
+              {showing?.path === undefined
+                ? "nothing to show"
+                : `${showing.path} — press to open it`}
+            </p>
+          ) : (
+            <table className="w-full border-collapse font-mono text-xs leading-relaxed">
+              <tbody>
+                {preview.map((said, index) => {
+                  const line = previewFrom + index
+                  return (
+                    <tr key={line} className={line === showing?.line ? "bg-hover" : undefined}>
+                      {/*
+                        Told not to break. A three-figure line number in a
+                        column this narrow wrapped to one digit a row, so the
+                        preview of lines 120 to 136 was numbered 1, 2, 0, 1, 2,
+                        1 down the side of it.
+                      */}
+                      <td className="w-12 select-none whitespace-nowrap pr-3 text-right align-top text-[0.6875rem] text-ink-muted">
+                        {line}
+                      </td>
+                      <td className="whitespace-pre pr-3 align-top">{said}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <ul className="min-w-[9rem] flex-[3] overflow-y-auto py-1">
+          {rows.map((row, index) => (
+            <li key={`${row.kind}:${row.path ?? ""}:${row.line}`}>
+              {/*
+                Grouped, the way an editor's reference tree groups: this file
+                first, then the rest of the repository under a heading of its
+                own. A flat list of twenty rows where three of them are in the
+                file being read and seventeen are not is a list that answers a
+                different question than the one asked.
+              */}
+              {row.kind !== "beyond" || rows[index - 1]?.kind === "beyond" ? null : (
+                <p className="border-t border-line px-3 pb-1 pt-2 text-[0.6875rem] text-ink-muted">
+                  {here ? "Elsewhere in the repository" : "In the repository"}
+                </p>
+              )}
               <button
                 type="button"
-                onClick={() => {
-                  onGo(use.line)
-                  frame.current?.close()
-                }}
-                className="flex w-full items-baseline gap-3 px-4 py-1 text-left font-mono text-xs hover:bg-hover"
+                // Showing on hover as well as on focus: a reader running the
+                // pointer down the list is reading the code beside it, which is
+                // the whole reason the code is there.
+                onMouseEnter={() => setPicked(index)}
+                onFocus={() => setPicked(index)}
+                onClick={() => goTo(row)}
+                className={`flex w-full items-baseline gap-2 px-3 py-1 text-left font-mono text-xs hover:bg-hover ${
+                  index === picked ? "bg-hover" : ""
+                }`}
               >
-                <span className="w-14 shrink-0 text-right text-[0.6875rem] text-ink-muted">
-                  {use.line}
+                <span className="w-12 shrink-0 whitespace-nowrap text-right text-[0.6875rem] text-ink-muted">
+                  {row.kind === "written" ? "written" : row.line}
                 </span>
-                {/* The line itself, so a reader can tell a call from a
-                    declaration without going to look. */}
-                <span className="min-w-0 flex-1 truncate">
-                  {(lines[use.line - 1] ?? "").trim()}
-                </span>
-
+                <span className="min-w-0 flex-1 truncate">{row.said}</span>
+                {row.kind !== "beyond" ? null : (
+                  /* Sure and Likely, where a reader can see them. A file that
+                     states it borrowed this name is one thing; a file that
+                     merely holds the word is another, and a reader deciding
+                     whether a rename is safe needs to know which. */
+                  <span
+                    className={`shrink-0 text-[0.6875rem] ${
+                      row.sure === true ? "text-ink-muted" : "text-busy"
+                    }`}
+                  >
+                    {row.sure === true ? "Sure" : "Likely"}
+                  </span>
+                )}
               </button>
             </li>
           ))}
         </ul>
-      )}
-      {beyond.length === 0 ? null : (
-        <>
-          <p className="border-t border-line px-4 pb-1 pt-2 text-[0.6875rem] text-ink-muted">
-            {here ? "Elsewhere in the repository" : "In the repository"}
-          </p>
-          <ul className="max-h-[30vh] overflow-y-auto pb-1">
-            {beyond.map((use) => (
-              <li key={`${use.path}:${use.line}:${use.from}`}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (use.path === reading.path) onGo(use.line)
-                    else onOpen?.(use.path, use.line)
-                    frame.current?.close()
-                  }}
-                  className="flex w-full items-baseline gap-3 px-4 py-1 text-left font-mono text-xs hover:bg-hover"
-                >
-                  <span className="min-w-0 flex-1 truncate">{use.path}</span>
-                  <span className="shrink-0 text-[0.6875rem] text-ink-muted">{use.line}</span>
-                  {/* Sure and Likely, where a reader can see them. A file that
-                      states it borrowed this name is one thing; a file that
-                      merely holds the word is another, and a reader deciding
-                      whether a rename is safe needs to know which. */}
-                  <span
-                    className={`w-10 shrink-0 text-right text-[0.6875rem] ${
-                      use.sure ? "text-ink-muted" : "text-busy"
-                    }`}
-                  >
-                    {use.sure ? "Sure" : "Likely"}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </dialog>
+      </div>
+    </div>
   )
 }
