@@ -353,5 +353,5 @@ await key({ key: "u", code: "KeyU", text: "u" })
 await sleep(1800)
 await shot("5-uses-by-key")
 
-console.log("problems:", JSON.stringify(session.problems().map((p) => p.split("\n")[0].slice(0, 120))))
+console.log("problems:", JSON.stringify(session.problems().map((p) => (p.split("\n")[0] ?? "").slice(0, 120))))
 session.stop()

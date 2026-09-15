@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import { aComment, aThread, anchoredAt, person } from "../../tests/snapshots"
 import { revealer } from "../app/revealing"
+import type { Ledger, Writing } from "../ports/Ledger"
 import { LedgerProvider, noLedger } from "./ledger"
 import type { DiffHandle, DiffRequest } from "../ports/Renderer"
 import type { ChangedFile } from "../domain/PullRequest"
@@ -520,7 +521,7 @@ describe("revealing the lines GitHub left out between the hunks", () => {
  * reader can see. Nothing failed, so nothing said so.
  */
 describe("a Peek in a diff", () => {
-  const writing = {
+  const writing: Writing = {
     name: "two",
     kind: "value" as const,
     line: 2,
@@ -528,10 +529,10 @@ describe("a Peek in a diff", () => {
     to: 9,
     signature: "const two = 2",
     doc: null,
-    how: "sure" as const
+    sure: true
   }
 
-  const ledger = {
+  const ledger: Ledger = {
     ...noLedger,
     ready: () => Effect.void,
     writingAt: () => Effect.succeed(Option.some({ at: "here" as const, writing })),

@@ -268,7 +268,7 @@ export const WholeFile = ({
         key === PEEK_KEY
           ? peekRow(peeking.current)
           : key === USES_KEY
-            ? usesRow.current
+            ? (usesRow.current ?? undefined)
             : fill.current?.(key),
       onPick,
       onName: names.onName,

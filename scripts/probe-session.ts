@@ -28,5 +28,5 @@ const seen = await session.evaluate<unknown>(`(() => {
   }
 })()`)
 
-console.log(JSON.stringify({ seen, problems: session.problems().map((p) => p.split("\n")[0].slice(0, 140)) }, null, 2))
+console.log(JSON.stringify({ seen, problems: session.problems().map((p) => (p.split("\n")[0] ?? "").slice(0, 140)) }, null, 2))
 session.stop()

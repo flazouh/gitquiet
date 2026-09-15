@@ -63,6 +63,15 @@ type Stage = {
   /** Every set of rows the pane has hung under the code, newest last. */
   readonly shown: Array<ReadonlyArray<{ key: string; line: number }>>
   request: DiffRequest | undefined
+  /**
+   * Every request the renderer was handed, in order.
+   *
+   * The file is one; the preview beside the uses is another, drawn by the same
+   * renderer because there is no second renderer for code here. `request` stays
+   * the file's, so the tests reaching for the token handlers keep reaching for
+   * the ones the file reported.
+   */
+  readonly drew: Array<DiffRequest>
 }
 
 const staged = (
@@ -93,7 +102,17 @@ const staged = (
     outlined: 0,
     readied: 0,
     shown: [],
-    request: undefined
+    request: undefined,
+    /**
+     * Every request the renderer was handed, in order.
+     *
+     * The file is one. The preview beside the uses is another — it is drawn by
+     * the same renderer, because there is no second renderer for code here and
+     * there should not be one. `request` stays the file's, so the tests that
+     * reach for the token handlers keep reaching for the ones the file
+     * reported.
+     */
+    drew: [] as Array<DiffRequest>
   }
 
   const handle: DiffHandle = {
@@ -128,7 +147,8 @@ const staged = (
 
   const renderer: LoadEngine = Effect.succeed({
     renderDiff: (_container: HTMLElement, request: DiffRequest) => {
-      stage.request = request
+      stage.drew.push(request)
+      stage.request ??= request
       return handle
     }
   })
@@ -1106,9 +1126,15 @@ describe("the uses answered in the file rather than over it", () => {
     stage.request?.onName?.(itself, held({ go: true }))
     await Effect.runPromise(settled())
 
-    // The first row is where the name is written, so the preview opens on it.
-    const panel = await screen.findByLabelText(`Uses of ${writing.name}`)
-    expect(panel.querySelector("table")?.textContent).toContain(writing.signature)
+    // Handed to the renderer as a patch of all context, numbered from the line
+    // it starts on rather than from one — a preview of lines 120 to 136 that
+    // counts 1 to 17 is beside code plainly not at the top of anything.
+    await screen.findByLabelText(`Uses of ${writing.name}`)
+    await waitFor(() => expect(stage.drew.length).toBeGreaterThan(1))
+
+    const drawn = stage.drew.at(-1)
+    expect(drawn?.patch).toContain(writing.signature)
+    expect(drawn?.patch).toContain("@@ -1,")
   })
 })
 
@@ -1157,8 +1183,8 @@ describe("the uses, from the keyboard", () => {
     await Effect.runPromise(settled())
     const panel = await open(stage)
 
-    const rows = [...panel.querySelectorAll("li button")]
-    await waitFor(() => expect(document.activeElement).toBe(rows[0]))
+    const rows = [...panel.querySelectorAll<HTMLElement>("li button")]
+    await waitFor(() => expect(document.activeElement).toBe(rows[0] ?? null))
   })
 
   test("moves down the rows on the arrow, and stops at the end", async () => {
@@ -1166,21 +1192,21 @@ describe("the uses, from the keyboard", () => {
     await Effect.runPromise(settled())
     const panel = await open(stage)
 
-    const rows = [...panel.querySelectorAll("li button")]
+    const rows = [...panel.querySelectorAll<HTMLElement>("li button")]
     expect(rows.length).toBeGreaterThan(1)
 
     await userEvent.keyboard("{ArrowDown}")
-    await waitFor(() => expect(document.activeElement).toBe(rows[1]))
+    await waitFor(() => expect(document.activeElement).toBe(rows[1] ?? null))
 
     // Past the end is the end, not a wrap: a list that loops loses a reader
     // who was holding the key to get to the bottom of it.
     for (let press = 0; press < rows.length + 2; press++) {
       await userEvent.keyboard("{ArrowDown}")
     }
-    expect(document.activeElement).toBe(rows[rows.length - 1])
+    expect(document.activeElement).toBe(rows[rows.length - 1] ?? null)
 
     await userEvent.keyboard("{ArrowUp}")
-    expect(document.activeElement).toBe(rows[rows.length - 2])
+    expect(document.activeElement).toBe(rows[rows.length - 2] ?? null)
   })
 
   test("keeps one row in the tab order, so Tab leaves rather than walks", async () => {
@@ -1188,7 +1214,7 @@ describe("the uses, from the keyboard", () => {
     await Effect.runPromise(settled())
     const panel = await open(stage)
 
-    const rows = [...panel.querySelectorAll("li button")]
+    const rows = [...panel.querySelectorAll<HTMLElement>("li button")]
     await waitFor(() =>
       expect(rows.filter((row) => row.getAttribute("tabindex") === "0")).toHaveLength(1)
     )

@@ -1,8 +1,16 @@
-import { useEffect, useRef, useState, type ReactNode } from "react"
-import { Effect } from "effect"
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
+import { Effect, Option } from "effect"
 import type { AcrossUse, Use, Writing } from "../ports/Ledger"
 import { FLOAT } from "./dress"
+import { partOfFile } from "../domain/wholeFile"
+import { diffChoices } from "../domain/choices"
+import type { DiffEngine } from "../ports/Renderer"
+import { PAPER } from "../ports/Renderer"
+import { onward } from "@/observability/report"
 import { useLedger } from "./ledger"
+import { useRenderer } from "./renderer"
+import { drawnIn } from "./showLine"
+import { usePaintedTheme } from "./Theme"
 import { useSettings } from "./useSettings"
 
 /**
@@ -83,28 +91,6 @@ const SHORTEST = 160
 const TALLEST = 640
 
 /**
- * A line of code with the name itself picked out of it.
- *
- * The row already says which line, and a whole line lit up says "somewhere on
- * here". An editor marks the name, because on a line that mentions a thing
- * three times, which of the three is the one being asked about is the entire
- * question. The columns are one-based, as everything a reader is shown here is.
- */
-const marked = (said: string, from: number, to: number): ReactNode => {
-  const start = Math.max(0, from - 1)
-  const end = Math.max(start, to - 1)
-  if (end <= start || start >= said.length) return said
-
-  return (
-    <>
-      {said.slice(0, start)}
-      <mark className="rounded-[2px] bg-accent/25 text-ink">{said.slice(start, end)}</mark>
-      {said.slice(end)}
-    </>
-  )
-}
-
-/**
  * One line of the answer: where the name is written, a use of it in this file,
  * or a use somewhere else in the repository.
  */
@@ -144,6 +130,13 @@ export const UsesPanel = ({
   const [ratio, setRatio] = useState(LAYOUT.ratio)
   const [tall, setTall] = useState(LAYOUT.tall)
   const body = useRef<HTMLDivElement | null>(null)
+  /** Where the preview is drawn, by the renderer that drew the file above it. */
+  const shownIn = useRef<HTMLDivElement | null>(null)
+  const load = useRenderer()
+  const painted = usePaintedTheme()
+  const [engine, setEngine] = useState<DiffEngine | null>(null)
+  /** Drawn the way the file above it is drawn, which is what the reader chose. */
+  const choices = useMemo(() => diffChoices(settings.diff), [settings.diff])
   /** The rows, so the arrow keys can move between them. */
   const listed = useRef<Array<HTMLButtonElement | null>>([])
   const [uses, setUses] = useState<ReadonlyArray<Use> | null>(null)
@@ -304,11 +297,15 @@ export const UsesPanel = ({
    * they are and open when pressed, which is what the tree in an editor does
    * with a file it has not loaded either.
    */
-  const preview =
-    showing === undefined || showing.path !== undefined
-      ? null
-      : lines.slice(Math.max(0, showing.line - 1 - AROUND), showing.line - 1 + AROUND + 1)
   const previewFrom = showing === undefined ? 1 : Math.max(1, showing.line - AROUND)
+  const patch =
+    showing === undefined || showing.path !== undefined
+      ? Option.none<string>()
+      : partOfFile(
+          reading.path,
+          lines.slice(previewFrom - 1, showing.line - 1 + AROUND + 1),
+          previewFrom
+        )
 
   /**
    * A drag, started on a four-pixel strip and finished wherever it likes.
@@ -347,6 +344,87 @@ export const UsesPanel = ({
     LAYOUT.tall = Math.min(Math.max(at.clientY - box.top, SHORTEST), TALLEST)
     setTall(LAYOUT.tall)
   })
+
+  useEffect(() => {
+    const loading = Effect.runFork(load.pipe(Effect.match({ onSuccess: setEngine, onFailure: onward })))
+    return () => loading.interruptUnsafe()
+  }, [load])
+
+  /*
+   * The preview, drawn by the renderer rather than printed as text.
+   *
+   * There is no second renderer for code here and there should not be one — the
+   * one this extension ships knows the reader's theme, their font, their
+   * colours and how a line number is drawn, and seventeen lines printed beside
+   * a file it drew would agree with none of it. A run of lines is a patch of
+   * all context, so that is what it is handed. See `src/domain/wholeFile.ts`,
+   * which makes the same argument one size up.
+   *
+   * Then the name itself is marked, by hand, in the row that was drawn. The
+   * renderer's own `mark` cannot: it marks the Name it last reported, which is
+   * the one under the pointer in the file above, and this is a different
+   * element in a different drawing. Walking the spans to find the column is
+   * three lines and does not ask the renderer for anything it does not offer.
+   */
+  useEffect(() => {
+    const container = shownIn.current
+    const source = Option.getOrNull(patch)
+    if (engine === null || container === null || source === null || showing === undefined) return
+
+    const live = engine.renderDiff(container, {
+      patch: source,
+      path: reading.path,
+      theme: painted.scheme,
+      pack: painted.pack,
+      // Unified, whatever the reader chose: there is no before and after in a
+      // run of lines nothing has happened to.
+      choices: { ...choices, layout: "unified" },
+      notes: []
+    })
+
+    const marking = requestAnimationFrame(() => {
+      /*
+       * The separator the renderer draws above a hunk that does not start at
+       * line one, taken away.
+       *
+       * It reads "119 unmodified lines" and it is an offer to see them. This
+       * preview is seventeen lines handed over as a whole file and there is
+       * nothing behind it to reveal, so the offer cannot be kept — and an offer
+       * this interface cannot keep is the thing it takes most care not to make.
+       * The same argument as the gutter's plus in `engine.ts`, one panel down.
+       */
+      for (const row of drawnIn(container)?.querySelectorAll("div") ?? []) {
+        if (!(row instanceof HTMLElement)) continue
+        // Exactly the separator and nothing containing it: the first try
+        // matched any box whose text mentioned those words, which included the
+        // one holding the gutter, and the preview lost its line numbers.
+        if (/^\d+ unmodified lines?$/.test((row.textContent ?? "").trim())) {
+          row.style.display = "none"
+        }
+      }
+
+      if (showing.from === undefined) return
+      const row = drawnIn(container)?.querySelector(`[data-line="${showing.line}"]`)
+      if (!(row instanceof HTMLElement)) return
+
+      let at = 1
+      for (const span of row.querySelectorAll("span")) {
+        if (span.childElementCount > 0) continue
+        const wide = (span.textContent ?? "").length
+        if (at <= showing.from && showing.from < at + wide) {
+          span.style.backgroundColor = "color-mix(in srgb, currentColor 22%, transparent)"
+          span.style.borderRadius = "2px"
+          break
+        }
+        at += wide
+      }
+    })
+
+    return () => {
+      cancelAnimationFrame(marking)
+      live.destroy()
+    }
+  }, [engine, patch, reading.path, painted.scheme, painted.pack, choices, showing])
 
   const goTo = (row: Row): void => {
     if (row.path !== undefined && row.path !== reading.path) onOpen?.(row.path, row.line)
@@ -402,38 +480,17 @@ export const UsesPanel = ({
           className="min-w-[14rem] shrink-0 overflow-auto bg-raised"
           style={{ width: `${ratio * 100}%` }}
         >
-          {preview === null ? (
+          {Option.isNone(patch) ? (
             <p className="px-3 py-2 font-mono text-xs text-ink-muted">
-              {showing?.path === undefined
-                ? "nothing to show"
-                : `${showing.path} — press to open it`}
+              {showing?.path === undefined ? "nothing to show" : `${showing.path} — press to open it`}
             </p>
           ) : (
-            <table className="w-full border-collapse font-mono text-xs leading-relaxed">
-              <tbody>
-                {preview.map((said, index) => {
-                  const line = previewFrom + index
-                  return (
-                    <tr key={line} className={line === showing?.line ? "bg-hover" : undefined}>
-                      {/*
-                        Told not to break. A three-figure line number in a
-                        column this narrow wrapped to one digit a row, so the
-                        preview of lines 120 to 136 was numbered 1, 2, 0, 1, 2,
-                        1 down the side of it.
-                      */}
-                      <td className="w-12 select-none whitespace-nowrap pr-3 text-right align-top text-[0.6875rem] text-ink-muted">
-                        {line}
-                      </td>
-                      <td className="whitespace-pre pr-3 align-top">
-                        {line === showing?.line && showing.from !== undefined
-                          ? marked(said, showing.from, showing.to ?? showing.from)
-                          : said}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            /*
+             * The renderer paints its own background, so it is told which one —
+             * the same note as `WholeFile`. Here the preview is a panel inside a
+             * file, so it prints on the raised surface the panel is drawn on.
+             */
+            <div ref={shownIn} style={{ [PAPER]: "var(--color-raised)" } as CSSProperties} />
           )}
         </div>
 
