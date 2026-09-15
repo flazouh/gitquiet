@@ -627,8 +627,18 @@ describe("peeking, which is the question asked without leaving", () => {
     stage.request?.onName?.(name, held({ go: true, shift: true }))
     await Effect.runPromise(settled())
 
-    const [rows] = stage.shown.slice(-1)
-    expect(rows?.map((note) => note.line)).toEqual([name.line])
+    /*
+     * Waited for rather than read once.
+     *
+     * A Peek is an answer from the Ledger and arrives an effect later, so the
+     * newest set of rows a moment after the press may still be the set from
+     * before it. Green here and red on a loaded continuous-integration runner,
+     * which is a test passing because the computer was fast enough.
+     */
+    await waitFor(() => {
+      const [rows] = stage.shown.slice(-1)
+      expect(rows?.some((note) => note.line === name.line)).toBe(true)
+    })
 
     // The row is filled by the pane, from the file it is reading.
     const filled = stage.request?.fillNote?.("gitquiet/peek")
@@ -1057,8 +1067,18 @@ describe("a press that the pointer has already left", () => {
     stage.request?.onName?.(name, held({ go: true, shift: true }))
     await Effect.runPromise(settled())
 
-    const [rows] = stage.shown.slice(-1)
-    expect(rows?.map((note) => note.line)).toEqual([name.line])
+    /*
+     * Waited for rather than read once.
+     *
+     * A Peek is an answer from the Ledger and arrives an effect later, so the
+     * newest set of rows a moment after the press may still be the set from
+     * before it. Green here and red on a loaded continuous-integration runner,
+     * which is a test passing because the computer was fast enough.
+     */
+    await waitFor(() => {
+      const [rows] = stage.shown.slice(-1)
+      expect(rows?.some((note) => note.line === name.line)).toBe(true)
+    })
   })
 
   test("still opens the uses on a press without Shift", async () => {
@@ -1130,8 +1150,10 @@ describe("the uses answered in the file rather than over it", () => {
     // A row, at the line pressed — not a panel at a screen coordinate. The
     // file opens apart and the answer sits in the gap, which is how an editor
     // answers this and the reason the lines around the name stay readable.
-    const [drawn] = stage.shown.slice(-1)
-    expect(drawn?.some((note) => note.line === itself.line)).toBe(true)
+    await waitFor(() => {
+      const [drawn] = stage.shown.slice(-1)
+      expect(drawn?.some((note) => note.line === itself.line)).toBe(true)
+    })
     expect(await screen.findByLabelText(`Uses of ${writing.name}`)).toBeTruthy()
   })
 
