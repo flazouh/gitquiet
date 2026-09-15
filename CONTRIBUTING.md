@@ -21,14 +21,22 @@ To load the extension by hand instead: `bun run build`, then open
 
 ## The gates
 
-One command decides whether a change can land, and it holds the four gates:
+One command decides whether a change can land, and it holds the five gates:
 
 ```sh
-bun run gates   # oxlint over src, tsc for the extension, tsc for the app, then the whole suite
+bun run gates   # oxlint, tsc for the extension, tsc for the app, the window's bundle, then the suite
 ```
 
 The list lives in `package.json`, so the git hooks and
 `.github/workflows/ci.yml` run that script rather than their own copy of it.
+
+The window's bundle is read rather than built. `bin/electrobun` is a compiled
+Bun executable, which reads no `tsconfig.json`, so the bundler inside it follows
+none of the `paths` that `tsc` follows — and an aliased import in a file the
+desktop window reaches passes both typechecks and fails the macOS job of a
+release, an hour after the tag is written. `scripts/check-window-imports.ts`
+walks out from the window's two entrypoints and says which file to write
+relative. The alias stays as it is everywhere the window does not go.
 
 Two typechecks, because there are two programs. The extension's `tsconfig.json`
 reads `src`, `tests`, `scripts` and `shots`; the app has its own under

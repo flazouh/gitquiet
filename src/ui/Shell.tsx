@@ -44,7 +44,7 @@ import { addressOf, type LookingAt, lookingAt } from "../domain/lookingAt"
 import { keysOf } from "../app/keyboard"
 import { useSettings } from "./useSettings"
 import { whenIdle } from "../app/idle"
-import { onward } from "@/observability/report"
+import { onward } from "../observability/report"
 
 export type ShellProps = {
   readonly snapshot: PullRequestSnapshot
