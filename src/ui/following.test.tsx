@@ -21,7 +21,24 @@ import { DEFAULTS } from "../domain/Settings"
  * when it leaves, and that a press goes to the line the Ledger named.
  */
 
-afterEach(cleanup)
+/**
+ * What the stage put on the page, taken off again.
+ *
+ * The rows a pane hands back through `fillNote` are appended here the way the
+ * renderer appends them, and `cleanup` does not know about them — it removes
+ * what `render` mounted and nothing else. Left behind, they outlive the file:
+ * every test process shares one document, and a preview of some code sitting in
+ * `document.body` for the rest of the run is a `getByText` somewhere else
+ * finding two matches and throwing. Which is what happened, to a markdown test
+ * about a coloured fence, on continuous integration only, because the order
+ * differs there.
+ */
+const left: Array<HTMLElement> = []
+
+afterEach(() => {
+  cleanup()
+  for (const node of left.splice(0)) node.remove()
+})
 
 const held = (over: Partial<Modifiers> = {}): Modifiers => ({
   go: false,
@@ -134,6 +151,7 @@ const staged = (
         const filled = stage.request?.fillNote?.(note.key)
         if (filled !== undefined && filled !== null && !filled.isConnected) {
           document.body.append(filled)
+          left.push(filled)
         }
       }
     },
