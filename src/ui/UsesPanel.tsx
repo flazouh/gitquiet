@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { Effect } from "effect"
 import type { AcrossUse, Use, Writing } from "../ports/Ledger"
 import { FLOAT } from "./dress"
@@ -83,12 +83,37 @@ const SHORTEST = 160
 const TALLEST = 640
 
 /**
+ * A line of code with the name itself picked out of it.
+ *
+ * The row already says which line, and a whole line lit up says "somewhere on
+ * here". An editor marks the name, because on a line that mentions a thing
+ * three times, which of the three is the one being asked about is the entire
+ * question. The columns are one-based, as everything a reader is shown here is.
+ */
+const marked = (said: string, from: number, to: number): ReactNode => {
+  const start = Math.max(0, from - 1)
+  const end = Math.max(start, to - 1)
+  if (end <= start || start >= said.length) return said
+
+  return (
+    <>
+      {said.slice(0, start)}
+      <mark className="rounded-[2px] bg-accent/25 text-ink">{said.slice(start, end)}</mark>
+      {said.slice(end)}
+    </>
+  )
+}
+
+/**
  * One line of the answer: where the name is written, a use of it in this file,
  * or a use somewhere else in the repository.
  */
 type Row = {
   readonly kind: "written" | "use" | "beyond"
   readonly line: number
+  /** The columns the name itself occupies, one-based, for marking it. */
+  readonly from?: number
+  readonly to?: number
   /** What the row reads as: the signature, the line of code, or the path. */
   readonly said: string
   /** The file it is in, where that is not the file being read. */
@@ -119,6 +144,8 @@ export const UsesPanel = ({
   const [ratio, setRatio] = useState(LAYOUT.ratio)
   const [tall, setTall] = useState(LAYOUT.tall)
   const body = useRef<HTMLDivElement | null>(null)
+  /** The rows, so the arrow keys can move between them. */
+  const listed = useRef<Array<HTMLButtonElement | null>>([])
   const [uses, setUses] = useState<ReadonlyArray<Use> | null>(null)
   const [elsewhere, setElsewhere] = useState<{
     readonly uses: ReadonlyArray<AcrossUse>
@@ -156,6 +183,42 @@ export const UsesPanel = ({
     document.addEventListener("keydown", onKey, true)
     return () => document.removeEventListener("keydown", onKey, true)
   }, [onClose])
+
+  /*
+   * The first row takes the focus, which is what opens this to a keyboard.
+   *
+   * Without it the answer appeared and the focus stayed wherever the reader had
+   * left it — the list could be tabbed into eventually, from somewhere else on
+   * a page that is mostly a file, and the arrow keys did nothing at all. A
+   * panel a reader can open and cannot move through is a panel for one kind of
+   * reader.
+   */
+  useEffect(() => {
+    /*
+     * Waited for, because the row is not on the page when this first renders.
+     *
+     * The panel is drawn into an element the renderer has not been handed yet:
+     * React fills the row, an effect tells the renderer about it, and the
+     * renderer puts it under the line. Focusing in between focuses a node
+     * attached to nothing, which does nothing and reports nothing — the panel
+     * simply opened with the focus still wherever the reader had left it.
+     */
+    let frame = 0
+    let tries = 0
+    const reach = () => {
+      const first = listed.current[0]
+      if (first?.isConnected === true) {
+        first.focus()
+        return
+      }
+      // Bounded: a row that never arrives is a row nobody can focus, and a
+      // loop asking for ever costs a frame a frame for the life of the pane.
+      if (tries++ > 30) return
+      frame = requestAnimationFrame(reach)
+    }
+    frame = requestAnimationFrame(reach)
+    return () => cancelAnimationFrame(frame)
+  }, [])
 
   useEffect(() => {
     if (!here) {
@@ -207,10 +270,19 @@ export const UsesPanel = ({
    * a time and "which row is showing" has to mean something across all of them.
    */
   const rows: ReadonlyArray<Row> = [
-    { kind: "written", line: writing.line, said: writing.signature, path: where },
+    {
+      kind: "written",
+      line: writing.line,
+      from: writing.from,
+      to: writing.to,
+      said: writing.signature,
+      path: where
+    },
     ...(elsewhereInFile ?? []).map((use) => ({
       kind: "use" as const,
       line: use.line,
+      from: use.from,
+      to: use.to,
       said: (lines[use.line - 1] ?? "").trim()
     })),
     ...beyond.map((use) => ({
@@ -352,7 +424,11 @@ export const UsesPanel = ({
                       <td className="w-12 select-none whitespace-nowrap pr-3 text-right align-top text-[0.6875rem] text-ink-muted">
                         {line}
                       </td>
-                      <td className="whitespace-pre pr-3 align-top">{said}</td>
+                      <td className="whitespace-pre pr-3 align-top">
+                        {line === showing?.line && showing.from !== undefined
+                          ? marked(said, showing.from, showing.to ?? showing.from)
+                          : said}
+                      </td>
                     </tr>
                   )
                 })}
@@ -371,7 +447,22 @@ export const UsesPanel = ({
           onPointerDown={dragSash}
           className="w-1 shrink-0 cursor-col-resize bg-line hover:bg-accent"
         />
-        <ul className="min-w-[9rem] flex-1 overflow-y-auto py-1">
+        <ul
+          className="min-w-[9rem] flex-1 overflow-y-auto py-1"
+          onKeyDown={(event) => {
+            const step =
+              event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0
+            if (step === 0) return
+            // Theirs and not the page's: an arrow key inside a list of results
+            // is the list's, and the file behind it scrolling as well would
+            // take the row out from under the reader.
+            event.preventDefault()
+            event.stopPropagation()
+            const next = Math.min(Math.max(picked + step, 0), rows.length - 1)
+            setPicked(next)
+            listed.current[next]?.focus()
+          }}
+        >
           {rows.map((row, index) => (
             <li key={`${row.kind}:${row.path ?? ""}:${row.line}`}>
               {/*
@@ -388,6 +479,12 @@ export const UsesPanel = ({
               )}
               <button
                 type="button"
+                ref={(node) => {
+                  listed.current[index] = node
+                }}
+                // Only the row the preview is showing is in the tab order, so
+                // Tab leaves this list rather than walking every use in it.
+                tabIndex={index === picked ? 0 : -1}
                 // Showing on hover as well as on focus: a reader running the
                 // pointer down the list is reading the code beside it, which is
                 // the whole reason the code is there.

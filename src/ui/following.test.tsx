@@ -1135,3 +1135,62 @@ describe("how wide the code is, and how tall", () => {
     expect(panel.querySelector('[aria-label="How tall this is"]')).toBeTruthy()
   })
 })
+
+/**
+ * Moving through the answer without a pointer.
+ *
+ * The list was pointer-only: the preview followed the pointer and nothing else
+ * moved it, so a reader who opened this from the keyboard — which is how `u`
+ * opens it — got an answer they could look at and not move through.
+ */
+describe("the uses, from the keyboard", () => {
+  const open = async (stage: ReturnType<typeof staged>) => {
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    return screen.findByLabelText(`Uses of ${writing.name}`)
+  }
+
+  test("puts the focus on the first row, so the arrows have somewhere to start", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+    const panel = await open(stage)
+
+    const rows = [...panel.querySelectorAll("li button")]
+    await waitFor(() => expect(document.activeElement).toBe(rows[0]))
+  })
+
+  test("moves down the rows on the arrow, and stops at the end", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+    const panel = await open(stage)
+
+    const rows = [...panel.querySelectorAll("li button")]
+    expect(rows.length).toBeGreaterThan(1)
+
+    await userEvent.keyboard("{ArrowDown}")
+    await waitFor(() => expect(document.activeElement).toBe(rows[1]))
+
+    // Past the end is the end, not a wrap: a list that loops loses a reader
+    // who was holding the key to get to the bottom of it.
+    for (let press = 0; press < rows.length + 2; press++) {
+      await userEvent.keyboard("{ArrowDown}")
+    }
+    expect(document.activeElement).toBe(rows[rows.length - 1])
+
+    await userEvent.keyboard("{ArrowUp}")
+    expect(document.activeElement).toBe(rows[rows.length - 2])
+  })
+
+  test("keeps one row in the tab order, so Tab leaves rather than walks", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+    const panel = await open(stage)
+
+    const rows = [...panel.querySelectorAll("li button")]
+    await waitFor(() =>
+      expect(rows.filter((row) => row.getAttribute("tabindex") === "0")).toHaveLength(1)
+    )
+  })
+})
