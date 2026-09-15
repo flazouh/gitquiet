@@ -1,14 +1,17 @@
 import { Effect, Option } from "effect"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import type { DiffFetcher } from "../domain/library"
 import type { CommitDetail } from "../domain/PullRequest"
 import type { Keys } from "../keys/commands"
 import type { DiffChoices, TreeChoices } from "../domain/choices"
 import { useArt } from "./art"
 import { FileBrowser, type FileBrowserProps } from "./FileBrowser"
+import type { Across } from "./following"
+import { revealer } from "../app/revealing"
 import { GitHubHtml } from "./GitHubHtml"
 import { ageOf, momentOf } from "./when"
 import { Who } from "./Who"
+import { onward } from "@/observability/report"
 
 export type CommitViewProps = {
   readonly sha: string
@@ -41,6 +44,18 @@ export type CommitViewProps = {
    * back for, which is a test and a commit small enough to have come whole.
    */
   readonly fetchDiffs?: DiffFetcher
+  /**
+   * One whole file at this commit, and every path at it.
+   *
+   * What Following needs, and what the renderer needs to reveal the lines
+   * between the hunks. A commit had neither, which made it the one screen
+   * drawing a diff where holding Command did nothing — not refused, not
+   * explained, just a word that would not underline.
+   */
+  readonly readWholeFile?: (sha: string, path: string) => Effect.Effect<string, unknown>
+  readonly readPaths?: (sha: string) => Effect.Effect<ReadonlyArray<string>, unknown>
+  /** Whose commit this is, for an address into the same repository. */
+  readonly repo?: { readonly owner: string; readonly repo: string }
   readonly diff: DiffChoices
   readonly tree: TreeChoices
   /**
@@ -80,6 +95,9 @@ export const CommitView = ({
   preload,
   onClose,
   fetchDiffs = NOTHING_HELD_BACK,
+  readWholeFile,
+  readPaths,
+  repo,
   apart = false,
   diff,
   tree,
@@ -89,6 +107,35 @@ export const CommitView = ({
 }: CommitViewProps) => {
   const art = useArt()
   const Back = art.back
+  const [paths, setPaths] = useState<ReadonlySet<string>>(() => new Set())
+
+  const reachOut = useCallback(() => {
+    if (readPaths === undefined) return
+    Effect.runFork(
+      readPaths(sha).pipe(
+        Effect.map((found) => setPaths(new Set(found))),
+        Effect.catch(onward)
+      )
+    )
+  }, [readPaths, sha])
+
+  const across = useMemo(
+    (): Across | undefined =>
+      readWholeFile === undefined
+        ? undefined
+        : {
+            paths,
+            read: (path: string) => readWholeFile(sha, path),
+            // A commit is one page of one repository: another file of it is a
+            // page of its own, which this extension draws.
+            open: (path: string, line: number) => {
+              if (repo === undefined) return
+              window.location.assign(`/${repo.owner}/${repo.repo}/blob/${sha}/${path}#L${line}`)
+            },
+            reach: reachOut
+          },
+    [paths, readWholeFile, sha, reachOut, repo]
+  )
 
   // Straight to the commit when it is already in hand. Going through loading
   // first would put a spinner between a click and a thing that was sitting in
@@ -96,6 +143,32 @@ export const CommitView = ({
   const already = held?.(sha)
   const [reading, setReading] = useState<Reading>(
     already === undefined ? { step: "loading" } : { step: "ready", commit: already }
+  )
+
+  /*
+   * Revealing the lines between the hunks, and Following a name out of them.
+   *
+   * Two shas, not one. A commit names one tree for ever, so neither half can
+   * change underneath — but they are different trees. The new half is this
+   * commit; the old half is its parent, and reading both at this sha hands the
+   * renderer the same file twice. Pierre checks the patch against what it is
+   * given and refuses: `trailing context mismatch (additions=4, deletions=9)`,
+   * thrown out of the render, taking the pane from thirteen lines to none. A
+   * reader saw a diff turn blank on being expanded, and Following stopped with
+   * it, because there was nothing left to hold a name.
+   *
+   * A root commit has no parent and every file in it is an addition, so no old
+   * half is ever asked for and this sha stands in harmlessly.
+   */
+  const revealing = useMemo(
+    () =>
+      readWholeFile === undefined
+        ? undefined
+        : revealer(readWholeFile, {
+            base: reading.step === "ready" ? (reading.commit.parentSha ?? sha) : sha,
+            head: sha
+          }),
+    [readWholeFile, sha, reading]
   )
 
   useEffect(() => {
@@ -216,6 +289,8 @@ export const CommitView = ({
         proseAsDocument={proseAsDocument}
         keys={keys}
         display={display}
+        revealing={revealing}
+        across={across}
       />
     ) : (
       <div className="flex flex-1 items-center justify-center text-xs text-ink-muted">

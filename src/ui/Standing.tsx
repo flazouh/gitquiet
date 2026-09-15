@@ -2,6 +2,7 @@ import { Effect, Option } from "effect"
 import { type ReactNode, useEffect, useState } from "react"
 import type { Hand, Standing as Stands } from "../domain/repoHome"
 import { ASIDE, CARD } from "./dress"
+import { onward } from "@/observability/report"
 export type StandingProps = {
   /** Nothing until `/owner/repo/_sidebar` lands. Nothing ever, where it fails. */
   readonly stands: Stands | undefined
@@ -156,7 +157,7 @@ export const useStanding = (load?: () => Effect.Effect<Stands, unknown>): Stands
         // A card that could not be read is a card that is not drawn. Nothing
         // else on this page depends on it, and there is nothing here worth
         // spending an error message on.
-        Effect.catch(() => Effect.void)
+        Effect.catch(onward)
       )
     )
 

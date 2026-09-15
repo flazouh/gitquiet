@@ -144,13 +144,54 @@ export const named = (token: {
   lineCharEnd: number
   tokenText: string
   side?: DiffSide
+  tokenElement?: HTMLElement
 }): Name => ({
   line: token.lineNumber,
   from: token.lineCharStart,
   to: token.lineCharEnd,
   text: token.tokenText,
-  ...(token.side === undefined ? {} : { side: token.side })
+  ...(() => {
+    const side = sideOf(token)
+    return side === undefined ? {} : { side }
+  })()
 })
+
+/**
+ * Which half of the file a line belongs to, which is not the same question as
+ * which column it is drawn in.
+ *
+ * The token event answers with a column — additions or deletions — and a
+ * *context* line is drawn in both, so it arrives as whichever the renderer
+ * happened to be laying out. A pane that reads that as "this line is a
+ * deletion" stops answering about every unchanged line in the diff, which is
+ * most of the lines in most diffs, and says nothing while it does.
+ *
+ * So the line says what it is. `data-line-type` is the renderer's own, this is
+ * the only file allowed to know that, and `context` and `change-addition` are
+ * both lines of the file as it is now — which is the file every question here
+ * is asked against.
+ */
+const sideOf = (token: {
+  side?: DiffSide
+  tokenElement?: HTMLElement
+}): DiffSide | undefined => {
+  // The attribute this reads, rather than the row it usually sits on: a row
+  // carries both, and looking for the wrong one answers null and falls back to
+  // the column — which is the thing being corrected.
+  const kind = token.tokenElement?.closest("[data-line-type]")?.getAttribute("data-line-type")
+
+  // Not a diff at all. A whole file has no halves, and a side invented here is
+  // a guess that reads downstream as a fact — so the column is passed through,
+  // and where there was none there is none.
+  if (kind === null || kind === undefined) return token.side
+
+  // A diff, where the row is the authority and the column is not consulted at
+  // all. A token can arrive from one of these carrying no column, and that used
+  // to come out with no side — which reads as "not a deletion" and asks the new
+  // half of a file about a line belonging to the old one. A pull request is
+  // mostly deletions and context, so that is not a rare shape there.
+  return kind === "change-deletion" ? "deletions" : "additions"
+}
 
 /**
  * What was held down, with the two keys that mean the same thing folded into one.

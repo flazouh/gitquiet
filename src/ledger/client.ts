@@ -12,12 +12,13 @@
  * one. That is the whole of the error handling, and it is deliberate.
  */
 
-import { Effect, Option } from "effect"
+import { Effect, Option, Schedule } from "effect"
 import {
   LEDGER_ASK,
   LEDGER_ACROSS,
   LEDGER_BEYOND,
   LEDGER_NAMES,
+  LEDGER_READY,
   LEDGER_WARM,
   isLedgerAnswer,
   type LedgerAsk,
@@ -27,6 +28,7 @@ import {
   type LedgerFound,
   type LedgerNames,
   type LedgerPlaces,
+  type LedgerReady,
   type LedgerWarm,
   type LedgerWarmth,
   type Question
@@ -42,6 +44,26 @@ import type { Where } from "../ports/Ledger"
 
 /** Whatever carries a message to the worker. Named so a test can be one. */
 export type Post = (message: unknown) => PromiseLike<unknown>
+
+/**
+ * How many times a question is put again before it is given up on.
+ *
+ * The worker this talks to is a service worker, and a service worker sleeps.
+ * Waking one is Chrome's job and usually finishes before the message lands,
+ * but the two race: a `sendMessage` sent into a worker that is still starting
+ * comes back "Could not establish connection. Receiving end does not exist",
+ * which is not an answer about a Name, it is the question arriving too early.
+ *
+ * Measured: one of these in five filmed runs on a live pull request, and none
+ * in eight after. A rate like that is exactly the kind a reader hits on the one
+ * morning they are showing somebody, so it is worth three attempts and 150ms
+ * rather than a shrug.
+ *
+ * Only the sending is retried. A worker that answered with something this does
+ * not recognise answered, and asking it again gets the same answer more slowly.
+ */
+const WAKING = 2
+const WAKING_WAIT = "50 millis"
 
 const asked = (post: Post, reading: Reading, question: Question) =>
   Effect.tryPromise({
@@ -59,6 +81,7 @@ const asked = (post: Post, reading: Reading, question: Question) =>
       } satisfies LedgerAsk),
     catch: (cause) => new LedgerUnavailable({ cause })
   }).pipe(
+    Effect.retry({ times: WAKING, schedule: Schedule.spaced(WAKING_WAIT) }),
     Effect.flatMap((answer) =>
       isLedgerAnswer(answer)
         ? Effect.succeed(answer)
@@ -90,6 +113,11 @@ export const ledgerThrough = (post: Post): Ledger => ({
     asked(post, reading, { of: "writingsIn" }).pipe(
       Effect.map((answer): ReadonlyArray<Writing> => answer.writings ?? [])
     ),
+  ready: (path) =>
+    Effect.tryPromise({
+      try: () => post({ kind: LEDGER_READY, path } satisfies LedgerReady),
+      catch: (cause) => new LedgerUnavailable({ cause })
+    }).pipe(Effect.asVoid),
   warm: (repo, sha, exact) =>
     Effect.tryPromise({
       try: () =>

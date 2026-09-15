@@ -21,7 +21,24 @@ import { DEFAULTS } from "../domain/Settings"
  * when it leaves, and that a press goes to the line the Ledger named.
  */
 
-afterEach(cleanup)
+/**
+ * What the stage put on the page, taken off again.
+ *
+ * The rows a pane hands back through `fillNote` are appended here the way the
+ * renderer appends them, and `cleanup` does not know about them — it removes
+ * what `render` mounted and nothing else. Left behind, they outlive the file:
+ * every test process shares one document, and a preview of some code sitting in
+ * `document.body` for the rest of the run is a `getByText` somewhere else
+ * finding two matches and throwing. Which is what happened, to a markdown test
+ * about a coloured fence, on continuous integration only, because the order
+ * differs there.
+ */
+const left: Array<HTMLElement> = []
+
+afterEach(() => {
+  cleanup()
+  for (const node of left.splice(0)) node.remove()
+})
 
 const held = (over: Partial<Modifiers> = {}): Modifiers => ({
   go: false,
@@ -58,9 +75,20 @@ type Stage = {
   readonly marked: Array<readonly [Name | null, string | undefined]>
   /** How many times the outline was asked for, which should be never until it is. */
   outlined: number
+  /** How many times the pane said it was ready to be asked, before any key. */
+  readied: number
   /** Every set of rows the pane has hung under the code, newest last. */
   readonly shown: Array<ReadonlyArray<{ key: string; line: number }>>
   request: DiffRequest | undefined
+  /**
+   * Every request the renderer was handed, in order.
+   *
+   * The file is one; the preview beside the uses is another, drawn by the same
+   * renderer because there is no second renderer for code here. `request` stays
+   * the file's, so the tests reaching for the token handlers keep reaching for
+   * the ones the file reported.
+   */
+  readonly drew: Array<DiffRequest>
 }
 
 const staged = (
@@ -85,12 +113,47 @@ const staged = (
     }
   } = {}
 ) => {
-  const stage: Stage = { asked: [], marked: [], outlined: 0, shown: [], request: undefined }
+  const stage: Stage = {
+    asked: [],
+    marked: [],
+    outlined: 0,
+    readied: 0,
+    shown: [],
+    request: undefined,
+    /**
+     * Every request the renderer was handed, in order.
+     *
+     * The file is one. The preview beside the uses is another — it is drawn by
+     * the same renderer, because there is no second renderer for code here and
+     * there should not be one. `request` stays the file's, so the tests that
+     * reach for the token handlers keep reaching for the ones the file
+     * reported.
+     */
+    drew: [] as Array<DiffRequest>
+  }
 
   const handle: DiffHandle = {
     onThemeChange: () => {},
     showNotes: (notes) => {
       stage.shown.push(notes.map((note) => ({ key: note.key, line: note.line })))
+      /*
+       * And put them on the screen, which is what the renderer does with them.
+       *
+       * A row is a key here and an element the pane hands back through
+       * `fillNote`; the real renderer asks for that element and inserts it
+       * under the line. A stub that only remembered the keys left every row
+       * the pane drew in a node attached to nothing, so a test could see a
+       * Peek's key and never its words — and when the Uses moved into a row of
+       * their own, eleven tests went looking for a panel that was, correctly,
+       * not in the document.
+       */
+      for (const note of notes) {
+        const filled = stage.request?.fillNote?.(note.key)
+        if (filled !== undefined && filled !== null && !filled.isConnected) {
+          document.body.append(filled)
+          left.push(filled)
+        }
+      }
     },
     unpick: () => {},
     mark: (given, how) => {
@@ -102,7 +165,8 @@ const staged = (
 
   const renderer: LoadEngine = Effect.succeed({
     renderDiff: (_container: HTMLElement, request: DiffRequest) => {
-      stage.request = request
+      stage.drew.push(request)
+      stage.request ??= request
       return handle
     }
   })
@@ -115,6 +179,10 @@ const staged = (
    * where it is: the answer arrives about a name the reader has already left.
    */
   const ledger: Ledger = {
+    ready: () =>
+      Effect.sync(() => {
+        stage.readied += 1
+      }),
     writingAt: (_reading, at) =>
       Effect.sync(() => stage.asked.push(at)).pipe(
         Effect.flatMap(() =>
@@ -559,8 +627,18 @@ describe("peeking, which is the question asked without leaving", () => {
     stage.request?.onName?.(name, held({ go: true, shift: true }))
     await Effect.runPromise(settled())
 
-    const [rows] = stage.shown.slice(-1)
-    expect(rows?.map((note) => note.line)).toEqual([name.line])
+    /*
+     * Waited for rather than read once.
+     *
+     * A Peek is an answer from the Ledger and arrives an effect later, so the
+     * newest set of rows a moment after the press may still be the set from
+     * before it. Green here and red on a loaded continuous-integration runner,
+     * which is a test passing because the computer was fast enough.
+     */
+    await waitFor(() => {
+      const [rows] = stage.shown.slice(-1)
+      expect(rows?.some((note) => note.line === name.line)).toBe(true)
+    })
 
     // The row is filled by the pane, from the file it is reading.
     const filled = stage.request?.fillNote?.("gitquiet/peek")
@@ -702,9 +780,12 @@ describe("what a press on an underlined name does", () => {
     // this and who depends on it" rather than "take me there" — and being moved
     // mid-review is the thing this interface exists to stop happening.
     expect(await screen.findByText("2 in this file")).toBeTruthy()
-    // Twice: the row saying where it is written, and the mark on the Use that
-    // is the writing itself.
-    expect(screen.getAllByText("written")).toHaveLength(2)
+    // Once. `usesIn` answers with every occurrence and the declaration is one
+    // of them, so the card used to draw it twice — its own row at the top and
+    // again in the list below, the same line under a heading that could say
+    // "used nowhere else in this file". Filmed on a live commit, which is the
+    // only place it looked as wrong as it was.
+    expect(screen.getAllByText("written")).toHaveLength(1)
   })
 
   test("offers where it is written as the first row, so a use of it is one more press", async () => {
@@ -716,14 +797,23 @@ describe("what a press on an underlined name does", () => {
     stage.request?.onName?.(itself, held({ go: true }))
     await Effect.runPromise(settled())
 
-    // Twice over, which is right: the row saying where it is written, and the
-    // line of the Use that is the writing itself.
+    // One row, and at the top: where the name is written. The Use that *is* the
+    // writing is not listed again below it — a list offering the same line
+    // twice reads as two answers to one question.
     //
-    // `findAllByText` and not `getAllByText`: the second of those arrives with
-    // the Uses, which is an effect away, and asking synchronously found one row
-    // on a loaded continuous-integration runner and two on this machine. A test
-    // that passes because the computer was fast enough is not a passing test.
-    await waitFor(() => expect(screen.getAllByText(writing.signature).length).toBeGreaterThan(1))
+    // Counted among the rows rather than among everything on the screen: the
+    // preview beside the list shows the code around whichever row is showing,
+    // and the first row is the writing, so its line is on the screen twice on
+    // purpose. Once as the row, once as the code the row is pointing at.
+    //
+    // `waitFor` all the same: the Uses arrive an effect later and decide
+    // whether anything is filtered out.
+    await waitFor(() => {
+      const listed = screen
+        .getAllByRole("button")
+        .filter((row) => (row.textContent ?? "").includes(writing.signature))
+      expect(listed).toHaveLength(1)
+    })
   })
 
   test("still peeks on Shift, whichever end the press is on", async () => {
@@ -881,5 +971,292 @@ describe("a name borrowed from a package rather than a path", () => {
 
     expect(screen.queryByText(/Likely/)).toBeNull()
     expect(stage.marked).toEqual([])
+  })
+})
+
+describe("the waiting a reader used to do", () => {
+  test("opens the door when the file draws, not when the key goes down", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    // Nothing has been asked and no key has been held. What has happened is a
+    // worker waking, a document opening and a grammar arriving — which is what
+    // the reader was watching a word not underline through.
+    expect(stage.readied).toBeGreaterThan(0)
+    expect(stage.asked).toEqual([])
+  })
+})
+
+describe("a name from another repository, seen before it is pressed", () => {
+  test("underlines like every other answer does", async () => {
+    const stage = staged(null, [], {
+      where: { at: "elsewhere", borrowed: { name: "one", specifier: "@yourorg/thing" } },
+      beyond: { owner: "yourorg", repo: "thing", path: "src/one.ts", line: 4, name: "one" },
+      across: {
+        paths: new Set(["src/one.ts"]),
+        repo: { owner: "flowline-labs", repo: "flowline" },
+        sha: "abc123",
+        read: () => Effect.succeed(""),
+        open: () => {}
+      }
+    })
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    // It drew a card and left the word plain, which made a name from another
+    // repository the one kind a reader could not see was followable.
+    expect(stage.marked.at(-1)).toEqual([name, "likely"])
+  })
+})
+
+describe("a press after the pointer has moved on", () => {
+  test("still answers, because the reader pressed that name", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    // The renderer reports a leave as the button goes down, so this is what
+    // every press looked like: the answer came back about a name the pointer
+    // was no longer on, and a guard written for hovering threw it away. The
+    // press did nothing at all, and nothing said why.
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    stage.request?.onNameLeave?.(itself)
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    expect(await screen.findByText("2 in this file")).toBeTruthy()
+  })
+
+  test("a hover that arrives late still draws nothing", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    // The other half of the same rule, which must not be lost to fixing this:
+    // an underline drawn for a name the reader has left belongs to nothing.
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    stage.request?.onNameLeave?.(name)
+    await Effect.runPromise(settled())
+
+    expect(stage.marked.map(([one]) => one)).toEqual([null])
+  })
+})
+
+/**
+ * The leave the renderer sends as the button goes down.
+ *
+ * `onTokenLeave` arrives before `onTokenClick` on a real pointer — the press
+ * itself is what takes the pointer off the name, as far as the renderer is
+ * concerned. Every test above calls enter and then press with nothing in
+ * between, which is a pointer no hand has ever made, and so every one of them
+ * passed while the gesture did nothing on a real screen.
+ *
+ * It was found and fixed once, for the press that opens the uses. The press
+ * with Shift kept asking without insisting and kept having its answer thrown
+ * away, and nothing here noticed for as long as the tests were polite.
+ */
+describe("a press that the pointer has already left", () => {
+  test("still peeks on Shift", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    // The renderer, reporting the pointer gone as the button goes down.
+    stage.request?.onNameLeave?.(name)
+    stage.request?.onName?.(name, held({ go: true, shift: true }))
+    await Effect.runPromise(settled())
+
+    /*
+     * Waited for rather than read once.
+     *
+     * A Peek is an answer from the Ledger and arrives an effect later, so the
+     * newest set of rows a moment after the press may still be the set from
+     * before it. Green here and red on a loaded continuous-integration runner,
+     * which is a test passing because the computer was fast enough.
+     */
+    await waitFor(() => {
+      const [rows] = stage.shown.slice(-1)
+      expect(rows?.some((note) => note.line === name.line)).toBe(true)
+    })
+  })
+
+  test("still opens the uses on a press without Shift", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onNameLeave?.(itself)
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    expect(await screen.findByText("2 in this file")).toBeTruthy()
+  })
+})
+
+/**
+ * The letter, pressed by a reader holding nothing.
+ *
+ * `u` is the uses of whatever the pointer is on, and the whole point of it is
+ * that it asks without the key. It used to answer only where the Writing was
+ * already in hand — which it only ever is while Command is held — so it worked
+ * for a reader who did not need it and did nothing for one who did.
+ */
+describe("asking by the letter rather than by the key", () => {
+  test("answers for a name the pointer is merely on", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    // No key: a pointer resting on a name, which is all a reader has done.
+    stage.request?.onNameEnter?.(itself, held({ go: false }))
+    await Effect.runPromise(settled())
+    await userEvent.keyboard("u")
+    await Effect.runPromise(settled())
+
+    expect(await screen.findByText("2 in this file")).toBeTruthy()
+  })
+
+  test("still says nothing where the pointer is on nothing", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameLeave?.(itself)
+    await userEvent.keyboard("u")
+    await Effect.runPromise(settled())
+
+    expect(screen.queryByText("2 in this file")).toBeNull()
+  })
+})
+
+/**
+ * Where the panel opens.
+ *
+ * A reader pressed a word in the middle of a line they were reading. Answering
+ * from the centre of the window makes them find the answer, read it, and then
+ * find their way back to the line — three moves for one question that was asked
+ * with their eye already on the word.
+ */
+describe("the uses answered in the file rather than over it", () => {
+  test("hangs the list under the line that asked, like a Peek", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    // A row, at the line pressed — not a panel at a screen coordinate. The
+    // file opens apart and the answer sits in the gap, which is how an editor
+    // answers this and the reason the lines around the name stay readable.
+    await waitFor(() => {
+      const [drawn] = stage.shown.slice(-1)
+      expect(drawn?.some((note) => note.line === itself.line)).toBe(true)
+    })
+    expect(await screen.findByLabelText(`Uses of ${writing.name}`)).toBeTruthy()
+  })
+
+  test("shows the code behind whichever row the pointer is on", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    // Handed to the renderer as a patch of all context, numbered from the line
+    // it starts on rather than from one — a preview of lines 120 to 136 that
+    // counts 1 to 17 is beside code plainly not at the top of anything.
+    await screen.findByLabelText(`Uses of ${writing.name}`)
+    await waitFor(() => expect(stage.drew.length).toBeGreaterThan(1))
+
+    const drawn = stage.drew.at(-1)
+    expect(drawn?.patch).toContain(writing.signature)
+    expect(drawn?.patch).toContain("@@ -1,")
+  })
+})
+
+/**
+ * The split, dragged, and remembered.
+ *
+ * VS Code keeps this on the widget — seven parts to three until somebody drags
+ * it otherwise, and then whatever they dragged it to for the rest of the visit.
+ * A reader who widens the list to read a long path does not want it narrow
+ * again at the next name.
+ */
+describe("how wide the code is, and how tall", () => {
+  test("offers a sash between the code and the list", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    const panel = await screen.findByLabelText(`Uses of ${writing.name}`)
+    expect(panel.querySelector('[aria-label="How wide the code is"]')).toBeTruthy()
+    expect(panel.querySelector('[aria-label="How tall this is"]')).toBeTruthy()
+  })
+})
+
+/**
+ * Moving through the answer without a pointer.
+ *
+ * The list was pointer-only: the preview followed the pointer and nothing else
+ * moved it, so a reader who opened this from the keyboard — which is how `u`
+ * opens it — got an answer they could look at and not move through.
+ */
+describe("the uses, from the keyboard", () => {
+  const open = async (stage: ReturnType<typeof staged>) => {
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    return screen.findByLabelText(`Uses of ${writing.name}`)
+  }
+
+  test("puts the focus on the first row, so the arrows have somewhere to start", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+    const panel = await open(stage)
+
+    const rows = [...panel.querySelectorAll<HTMLElement>("li button")]
+    await waitFor(() => expect(document.activeElement).toBe(rows[0] ?? null))
+  })
+
+  test("moves down the rows on the arrow, and stops at the end", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+    const panel = await open(stage)
+
+    const rows = [...panel.querySelectorAll<HTMLElement>("li button")]
+    expect(rows.length).toBeGreaterThan(1)
+
+    await userEvent.keyboard("{ArrowDown}")
+    await waitFor(() => expect(document.activeElement).toBe(rows[1] ?? null))
+
+    // Past the end is the end, not a wrap: a list that loops loses a reader
+    // who was holding the key to get to the bottom of it.
+    for (let press = 0; press < rows.length + 2; press++) {
+      await userEvent.keyboard("{ArrowDown}")
+    }
+    expect(document.activeElement).toBe(rows[rows.length - 1] ?? null)
+
+    await userEvent.keyboard("{ArrowUp}")
+    expect(document.activeElement).toBe(rows[rows.length - 2] ?? null)
+  })
+
+  test("keeps one row in the tab order, so Tab leaves rather than walks", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+    const panel = await open(stage)
+
+    const rows = [...panel.querySelectorAll<HTMLElement>("li button")]
+    await waitFor(() =>
+      expect(rows.filter((row) => row.getAttribute("tabindex") === "0")).toHaveLength(1)
+    )
   })
 })

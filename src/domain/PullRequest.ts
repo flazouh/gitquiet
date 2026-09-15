@@ -68,6 +68,21 @@ export type Commit = {
  */
 export type CommitDetail = {
   readonly sha: string
+  /**
+   * The commit this one is a diff against, which is what its patch's context
+   * lines belong to.
+   *
+   * Needed to read the old half of a changed file: a commit page shows hunks
+   * and three lines either side, and revealing the rest means fetching both
+   * halves — the new one at this commit, the old one at its parent. Reading
+   * both at this sha hands the renderer the same file twice, and Pierre checks:
+   * `trailing context mismatch (additions=4, deletions=9)`, thrown out of the
+   * render and taking the whole pane with it.
+   *
+   * Absent on a root commit, which has nothing to diff against and whose files
+   * are all additions — so no old half is ever asked for there.
+   */
+  readonly parentSha?: string
   readonly abbreviatedSha: string
   readonly headline: string
   /** GitHub's rendering of the rest of the message, when there is any. */

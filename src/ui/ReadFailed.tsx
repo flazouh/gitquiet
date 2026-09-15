@@ -36,15 +36,18 @@ export type ReadFailedProps = {
    * thing it is asked is whether an organisation is waiting to be signed on to.
    */
   readonly why?: unknown
-  /**
-   * What GitHub answers as, to a reader with no session.
+  /*
+   * There was an `asIf` here, naming what GitHub answers as to a reader with no
+   * session: "this pull request does not exist", "there are no pull requests".
+   * It is gone because it was not reliably true. That sentence holds for a
+   * private pull request and is false for a public one — measured: a public one
+   * is served in full to an anonymous request, title and diff and all.
    *
-   * The one sentence here that cannot be built from {@link what}: a list is
-   * answered as if it were empty and one pull request is answered as if it were not
-   * there, and both read as a payload that changed shape. The frame around it is the
-   * same on every screen and stays here.
+   * What cannot be done without a session is ours. This interface reads their
+   * internal `/_graphql` with the session cookie and a nonce minted per page,
+   * and that route answers nobody else. A reader told the wrong reason looks in
+   * the wrong place, so the sentence now says the thing that is true either way.
    */
-  readonly asIf?: string
   /** What GitHub's own thing behind this is called, which a conversation is not. */
   readonly theirs?: string
   /** Restores GitHub's own page, which is still there behind this. */
@@ -56,7 +59,6 @@ export const ReadFailed = ({
   signedOut,
   what,
   why,
-  asIf = "there are no pull requests",
   theirs = "page",
   onStepAside,
   asideLabel
@@ -135,7 +137,7 @@ export const ReadFailed = ({
       </h2>
       <p className="mb-3 max-w-prose text-sm text-ink-muted">
         {signedOut
-          ? `GitHub answers as if ${asIf} while nobody is signed in. Sign in and open it again.`
+          ? `${what} is read through routes that only answer to a session, so nothing is shown. Sign in and open it again.`
           : `${what} could not be read, so nothing is shown rather than part of it. GitHub's own ${theirs} is still here.`}
       </p>
       {signedOut ? (

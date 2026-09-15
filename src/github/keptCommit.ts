@@ -22,6 +22,14 @@ import type { ChangedFile, ChangeType, CommitDetail } from "../domain/PullReques
 
 export type KeptCommit = {
   readonly sha: string
+  /**
+   * Kept because a commit read back from the store has to reveal a file the
+   * same way one read from the page does. Without it the old half of every
+   * changed file would be fetched at this commit rather than at its parent,
+   * and the pane would blank on being expanded — for cached commits only,
+   * which is the worst of the two to find.
+   */
+  readonly parentSha?: string
   readonly abbreviatedSha: string
   readonly headline: string
   readonly bodyHtml: string | null
@@ -40,6 +48,7 @@ export type KeptCommit = {
 
 export const keptCommitFrom = (detail: CommitDetail): KeptCommit => ({
   sha: detail.sha,
+  ...(detail.parentSha === undefined ? {} : { parentSha: detail.parentSha }),
   abbreviatedSha: detail.abbreviatedSha,
   headline: detail.headline,
   bodyHtml: Option.getOrNull(detail.bodyHtml),
@@ -95,6 +104,8 @@ export const commitFromKept = (value: unknown): Option.Option<CommitDetail> => {
 
   return Option.some({
     sha: kept.sha,
+    // Absent on anything kept before this was carried, and on a root commit.
+    ...(typeof kept.parentSha === "string" ? { parentSha: kept.parentSha } : {}),
     abbreviatedSha: kept.abbreviatedSha,
     headline: kept.headline,
     bodyHtml: Option.fromNullishOr(kept.bodyHtml),

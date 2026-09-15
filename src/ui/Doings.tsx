@@ -12,6 +12,7 @@ import { ROOT_ID } from "./mount"
 import { SpinnerIcon } from "./spinner"
 import { ARMED, COPY_LETTER, LETTER, LOOK, ORDER, WORD } from "./rowDoings"
 import { useKeying, useLetters } from "./useLetters"
+import { onward } from "@/observability/report"
 
 /**
  * What a row may ask GitHub for, and who to tell once it happened.
@@ -214,7 +215,7 @@ export const Doings = ({
         // A clipboard the platform would not open is not worth a sentence: the
         // reader can see the item did not change, and the address is on the row
         // behind the menu either way.
-        Effect.catch(() => Effect.void)
+        Effect.catch(onward)
       )
     )
   }

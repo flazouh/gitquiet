@@ -14,7 +14,7 @@
  */
 
 import { Effect } from "effect"
-import { Language, Parser } from "web-tree-sitter"
+import { Language, Parser, type Tree } from "web-tree-sitter"
 import type { Syntax } from "./syntax"
 
 /**
@@ -159,13 +159,72 @@ export const ready = (shelf: Shelf): Effect.Effect<void, unknown> =>
   })
 
 /**
- * One file, parsed, or nothing where nothing here speaks its language.
+ * The trees this document is holding, and the one reason it holds any.
  *
- * The tree is not kept. A tree is a handle into WebAssembly memory that has to
- * be deleted by hand, and a cache of them is a leak with a good reason — 011
- * asks one question at a time about a file that is on the screen, and parsing
- * a few hundred lines was measured at four to six milliseconds. 012 is where
- * keeping one starts to pay, and it will key them by blob sha.
+ * A reader holding Command over a file asks about a name, then another, then
+ * another — and each of those used to parse the whole file again. Four
+ * milliseconds is nothing once and is the difference between an underline that
+ * follows the pointer and one that lags behind it.
+ *
+ * Three, which is a file being read and the two either side of it in a review.
+ * Every tree is WebAssembly memory that has to be given back by hand, so what is
+ * let go of is deleted rather than dropped: a cache that forgot to would leak a
+ * file per hover for the life of a document that outlives every page.
+ */
+const HOLDING = 3
+
+type Held = { readonly tree: Tree; readonly parser: Parser }
+
+const trees = new Map<string, Held>()
+
+/**
+ * A name for a file's contents that costs nothing to work out.
+ *
+ * Not the blob sha: that is a hash of every byte through SubtleCrypto and a
+ * promise, and this is asked on a pointer move. FNV-1a over the text with its
+ * length beside it is wrong about two files roughly never, and being wrong
+ * costs a stale answer about a file the reader is looking at — which they would
+ * see. Being slow costs the underline.
+ */
+const nameOf = (path: string, text: string): string => {
+  let hash = 2_166_136_261
+  for (let at = 0; at < text.length; at++) {
+    hash ^= text.charCodeAt(at)
+    hash = Math.imul(hash, 16_777_619)
+  }
+  return `${path}:${text.length}:${hash >>> 0}`
+}
+
+const letGo = (key: string): void => {
+  const held = trees.get(key)
+  if (held === undefined) return
+
+  held.tree.delete()
+  held.parser.delete()
+  trees.delete(key)
+}
+
+/**
+ * The runtime and one grammar, loaded before anything is asked.
+ *
+ * A reader holds Command and waits, once, for a service worker to wake, a
+ * document to open, a runtime to compile and a megabyte and a half of grammar to
+ * arrive. None of that is a question about a name, and none of it has to happen
+ * while they are waiting: a pane that has drawn a file knows which language it
+ * is in and can have all of it ready before the key goes down.
+ */
+export const readyFor = (shelf: Shelf, path: string): Effect.Effect<void, unknown> =>
+  Effect.gen(function* () {
+    const file = grammarFor(path)
+    if (file === null) return
+
+    yield* runtime(shelf)
+    const language = yield* grammar(shelf, file)
+    held.set(file, language)
+  })
+
+/**
+ * One file, parsed, or nothing where nothing here speaks its language.
  */
 export const parsed = <A>(
   shelf: Shelf,
@@ -177,29 +236,32 @@ export const parsed = <A>(
     const file = grammarFor(path)
     if (file === null) return null
 
+    const key = nameOf(path, text)
+    const already = trees.get(key)
+    if (already !== undefined) {
+      // Newest last, so the delete below takes the one asked for longest ago.
+      trees.delete(key)
+      trees.set(key, already)
+      return read(already.tree.rootNode as unknown as Syntax)
+    }
+
     yield* runtime(shelf)
     const language = yield* grammar(shelf, file)
 
-    return yield* Effect.acquireUseRelease(
-      Effect.sync(() => {
-        const parser = new Parser()
-        parser.setLanguage(language)
-        return parser
-      }),
-      (parser) =>
-        Effect.gen(function* () {
-          const tree = yield* Effect.sync(() => parser.parse(text))
-          if (tree === null) return null
+    const parser = new Parser()
+    parser.setLanguage(language)
+    const tree = parser.parse(text)
+    if (tree === null) {
+      parser.delete()
+      return null
+    }
 
-          return yield* Effect.acquireUseRelease(
-            Effect.succeed(tree),
-            (held) => Effect.sync(() => read(held.rootNode as unknown as Syntax)),
-            (held) => Effect.sync(() => held.delete())
-          )
-        }),
-      // Every parser and every tree is deleted, failure or not. This is
-      // WebAssembly memory: what is not given back is gone for the life of the
-      // document, and the document outlives every page a reader opens.
-      (parser) => Effect.sync(() => parser.delete())
-    )
+    trees.set(key, { tree, parser })
+    while (trees.size > HOLDING) {
+      const oldest = trees.keys().next().value
+      if (oldest === undefined || oldest === key) break
+      letGo(oldest)
+    }
+
+    return read(tree.rootNode as unknown as Syntax)
   })

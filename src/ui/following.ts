@@ -4,7 +4,9 @@ import type { Beyond, Reading, Where, Writing } from "../ports/Ledger"
 import type { Bounds, DiffHandle, Modifiers, Name } from "../ports/Renderer"
 import { reaching } from "../ledger/reaching"
 import { useLedger } from "./ledger"
+import { sameName } from "../diff/engine"
 import { showLine } from "./showLine"
+import { onward } from "@/observability/report"
 
 /**
  * Holding a key over code, and pressing what it underlines.
@@ -95,7 +97,20 @@ export type Follows = {
    * A press on an underlined name asks "what is this, and who uses it" rather
    * than moving the reader somewhere — see the note on {@link Following.onName}.
    */
-  readonly asked: { readonly writing: Writing; readonly where?: string } | null
+  readonly asked: {
+    readonly writing: Writing
+    readonly where?: string
+    /**
+     * The line the panel hangs under, which is the line that asked.
+     *
+     * Not a screen coordinate. This opens the file apart and sits in the gap,
+     * the way an editor answers this question — so what it needs is a line
+     * number, and the renderer puts the row there and moves the code below it
+     * down. A panel floating over the code hides the code the reader was
+     * reading, and the lines around a name are most of what a name means.
+     */
+    readonly under: number
+  } | null
   readonly unask: () => void
   /**
    * The file's whole text, if it has been read.
@@ -193,7 +208,11 @@ export const useFollowing = (
   const handle = useRef<DiffHandle | null>(null)
   const [shown, setShown] = useState<Shown | null>(null)
   const [peeked, setPeeked] = useState<Peeked | null>(null)
-  const [asked, setAsked] = useState<{ writing: Writing; where?: string } | null>(null)
+  const [asked, setAsked] = useState<{
+    writing: Writing
+    where?: string
+    under: number
+  } | null>(null)
   /**
    * A name that turned out to be written in another repository.
    *
@@ -265,13 +284,31 @@ export const useFollowing = (
   }, [across, source])
 
   const ask = useCallback(
-    (name: Name, then: (writing: Writing, where?: string) => void) => {
+    (
+      name: Name,
+      then: (writing: Writing, where?: string) => void,
+      /*
+       * Whether to answer even though the pointer has moved on.
+       *
+       * A hover must not: the answer arrives after the reader has gone, and an
+       * underline drawn then belongs to nothing. A press must: the reader
+       * pressed *that* name, and whether their pointer is still on it a
+       * moment later is not a question anybody asked.
+       *
+       * Written as one flag rather than two functions because it is one
+       * difference, and because it was the absence of it that made a press do
+       * nothing at all — the renderer reports a leave as the button goes down,
+       * so every press arrived with the pointer already gone and every answer
+       * was dropped on the way back.
+       */
+      insist = false
+    ) => {
       if (source === null) return
 
       const mine = (found: Where): Effect.Effect<void> => {
         if (found.at === "here") {
           return Effect.sync(() => {
-            if (on.current?.name !== name) return
+            if (!insist && on.current?.name !== name) return
             // The compiler answers with the file it found the name in, which may
             // not be the file being read — it follows an import on its own,
             // where the shapes answer `elsewhere` and leave the following to
@@ -298,13 +335,24 @@ export const useFollowing = (
             .beyond(across.repo, across.sha, found.borrowed.specifier, found.borrowed.name)
             .pipe(
               Effect.map((there) => {
-                if (there.path === undefined || on.current?.name !== name) return
+                if (there.path === undefined || (!insist && on.current?.name !== name)) return
 
                 // Beside the name, like every other answer. Asked of the
                 // renderer at the moment of drawing, because a rectangle goes
                 // stale the moment anything scrolls.
                 const at = handle.current?.boundsOf(name) ?? null
                 if (at === null) return
+
+                /*
+                 * And underlined, like every other answer.
+                 *
+                 * This branch drew a card and left the word plain, so a name
+                 * from another repository was the one kind of name a reader
+                 * could not see was followable — they had to press it to find
+                 * out. Likely, because the repository is proved and which
+                 * Writing inside it is a name match.
+                 */
+                handle.current?.mark(name, "likely")
 
                 setBeyond({
                   at,
@@ -316,7 +364,7 @@ export const useFollowing = (
                   }
                 })
               }),
-              Effect.catch(() => Effect.void)
+              Effect.catch(onward)
             )
         }
 
@@ -337,13 +385,13 @@ export const useFollowing = (
               .pipe(Effect.map((writing) => ({ writing, text })))
           ),
           Effect.map(({ writing, text }) => {
-            if (Option.isNone(writing) || on.current?.name !== name) return
+            if (Option.isNone(writing) || (!insist && on.current?.name !== name)) return
             on.current = { name, writing: writing.value, where: path, text }
             then(writing.value, path)
           }),
           // A file that would not come, or that says nothing under that name.
           // The reader is left where they were, with no underline.
-          Effect.catch(() => Effect.void)
+          Effect.catch(onward)
         )
       }
 
@@ -357,7 +405,7 @@ export const useFollowing = (
           ),
           // A Ledger that could not answer leaves the file as it is. There is
           // nothing to tell a reader who asked for nothing.
-          Effect.catch(() => Effect.void)
+          Effect.catch(onward)
         )
       )
     },
@@ -406,9 +454,16 @@ export const useFollowing = (
             ...(where === undefined ? {} : { where })
           })
         }
-        const already = on.current?.name === name ? on.current.writing : null
+        const already =
+          on.current !== null && sameName(on.current.name, name) ? on.current.writing : null
         if (already !== null) peek(already, on.current?.where)
-        else ask(name, peek)
+        // Insisting, for the same reason the press below insists: the renderer
+        // reports a leave as the button goes down, so a Peek asked without this
+        // arrives after the pointer has officially gone and is dropped on the
+        // way back. Every Shift press did nothing at all, and the test covering
+        // it passed — it calls the handlers in order, and a real pointer puts a
+        // leave between them.
+        else ask(name, peek, true)
         return
       }
 
@@ -431,12 +486,12 @@ export const useFollowing = (
           across?.open(where, writing.line)
           return
         }
-        showLine(host.current?.shadowRoot ?? null, writing.line)
+        showLine(host.current, writing.line)
       }
 
       const show = (writing: Writing, where?: string): void => {
         clear()
-        setAsked({ writing, ...(where === undefined ? {} : { where }) })
+        setAsked({ writing, ...(where === undefined ? {} : { where }), under: name.line })
       }
 
       const answer = (writing: Writing, where?: string): void => {
@@ -447,12 +502,19 @@ export const useFollowing = (
       // The answer from the hover, where the hover asked. A press that has to
       // ask again is a press that waits, and the reader has been holding the key
       // over an underlined name — the answer is what put the line there.
-      const known = on.current?.name === name ? on.current.writing : null
+      // Three fields rather than identity: the renderer builds a fresh Name for
+      // every event, so `===` between the hover's and the press's was never
+      // once true and this answer was never once reused. `sameName` is in the
+      // engine for exactly this, and says so.
+      const known =
+        on.current !== null && sameName(on.current.name, name) ? on.current.writing : null
       if (known !== null) {
         answer(known, on.current?.where)
         return
       }
-      ask(name, answer)
+      // Insisting: the reader pressed this name, and the renderer has already
+      // told us the pointer left it.
+      ask(name, answer, true)
     },
     [across, ask, clear, host, linesOf, source]
   )
@@ -476,6 +538,38 @@ export const useFollowing = (
    * shortcut being pressed, and `src/keys/commands.ts` says as much in
    * `HOLDING`.
    */
+  /*
+   * The door, opened before anybody walks through it.
+   *
+   * A reader holding Command over a name was waiting for a worker to wake, a
+   * document to open, a runtime to compile and a megabyte and a half of grammar
+   * to arrive — every time, the first time, while watching a word not underline.
+   * None of that is a question about a name, so none of it waits for the key.
+   *
+   * The file is fetched here too, which is the other half of the same wait.
+   * Opening the door and then standing in it while a file is read off the
+   * network still leaves a reader watching a word not underline: measured on an
+   * 86-file pull request, letting the screen stand for three full seconds
+   * before reaching for the key still cost 544ms, because none of that time had
+   * been spent on the one thing the first question actually needs. It is the
+   * same file the pane will fetch if the reader expands a hunk, and it is kept,
+   * so the cost is one request for a file somebody is already looking at.
+   *
+   * Nothing is asked. The rule that nothing is asked until the key is held is
+   * about questions — about a name, about who uses it — and neither of these is
+   * one.
+   */
+  useEffect(() => {
+    if (source === null) return
+
+    const opening = Effect.runFork(ledger.ready(source.path).pipe(Effect.catch(onward)))
+    const reading = Effect.runFork(asking().pipe(Effect.catch(onward)))
+    return () => {
+      opening.interruptUnsafe()
+      reading.interruptUnsafe()
+    }
+  }, [asking, ledger, source])
+
   useEffect(() => {
     if (source === null) return
 
@@ -525,13 +619,34 @@ export const useFollowing = (
   const unpeek = useCallback(() => setPeeked(null), [])
   const unask = useCallback(() => setAsked(null), [])
   const unbeyond = useCallback(() => setBeyond(null), [])
+  /**
+   * The uses of whatever the pointer is on, asked for by the letter.
+   *
+   * It used to answer only where the Writing was already in hand, which it only
+   * ever is while the key is held — so the letter worked for a reader already
+   * holding Command and did nothing at all for everybody else, silently, which
+   * is not what it is for. The letter is the way to ask *without* holding
+   * anything: a reader reads a line, wonders about a name, and presses `u`.
+   *
+   * Insisting, for the reason every press here insists: this is a key, the
+   * pointer is not being tracked through it, and an answer thrown away because
+   * the renderer reported a leave is an answer nobody asked it to throw away.
+   */
   const askNow = useCallback(() => {
     const here = on.current
-    if (here?.writing == null) return
+    if (here === null) return
 
-    clear()
-    setAsked({ writing: here.writing, ...(here.where === undefined ? {} : { where: here.where }) })
-  }, [clear])
+    const show = (writing: Writing, where?: string): void => {
+      clear()
+      setAsked({ writing, ...(where === undefined ? {} : { where }), under: here.name.line })
+    }
+
+    if (here.writing !== null) {
+      show(here.writing, here.where)
+      return
+    }
+    ask(here.name, show, true)
+  }, [ask, clear])
   const textNow = useCallback(
     () => (text.current?.path === source?.path ? (text.current?.text ?? null) : null),
     [source]

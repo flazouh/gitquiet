@@ -23,11 +23,12 @@ import { heldIn, holdIn, holdingOf } from "@/ledger/holding"
 import { idbStore, noStore, type Store } from "@/ledger/store"
 import { usesAcross, type Asked } from "@/ledger/uses"
 import type { Exact } from "@/ledger/exact"
-import { parsed, ready, reader, type Shelf } from "@/ledger/parse"
+import { parsed, ready, readyFor, reader, type Shelf } from "@/ledger/parse"
 import { findingFile } from "@/domain/findingFile"
 import {
   isLedgerAcrossWork,
   isLedgerBeyondWork,
+  isLedgerReadyWork,
   isLedgerNamesWork,
   isLedgerWarmWork,
   isLedgerWork,
@@ -54,6 +55,7 @@ import {
   type Writing
 } from "@/ledger/writings"
 import type { Repo, Spot } from "@/ports/Ledger"
+import { onward } from "@/observability/report"
 
 const shelf = (): Shelf => {
   const getURL = browser.runtime.getURL as (path: string) => string
@@ -153,6 +155,16 @@ const answer = (work: LedgerWork): Effect.Effect<LedgerAnswer> =>
   )
 
 browser.runtime.onMessage.addListener((message: unknown) => {
+  if (isLedgerReadyWork(message)) {
+    // Nothing is parsed and nothing is answered: the runtime and the grammar
+    // this file would need, fetched and compiled before anybody asks.
+    return Effect.runPromise(
+      readyFor(shelf(), message.path).pipe(
+        Effect.as({ ready: true }),
+        Effect.catch(() => Effect.succeed({ ready: false }))
+      )
+    )
+  }
   if (!isLedgerWork(message)) return undefined
 
   return Effect.runPromise(answer(message))
@@ -264,7 +276,7 @@ const beExact = (at: string, files: ReadonlyMap<string, string>): Effect.Effect<
     const library = yield* standardLibrary()
     exactness = { at, exact: exactly(wanted, library) }
   }).pipe(
-    Effect.catch(() => Effect.void),
+    Effect.catch(onward),
     Effect.ensuring(
       Effect.sync(() => {
         buildingExact = null
@@ -276,7 +288,7 @@ const beExact = (at: string, files: ReadonlyMap<string, string>): Effect.Effect<
 const exactFrom = (work: LedgerWarmWork, at: string): Effect.Effect<void> =>
   archive(work.owner, work.repo, work.sha).pipe(
     Effect.flatMap((bytes) => beExact(at, filesIn(bytes))),
-    Effect.catch(() => Effect.void)
+    Effect.catch(onward)
   )
 
 /**
@@ -374,7 +386,7 @@ const read = (work: LedgerWarmWork, at: string): Effect.Effect<LedgerWarmth> =>
         if (work.exact === true) yield* Effect.forkDetach(exactFrom(work, at))
         yield* store
           .keepManifest({ ...manifest, seen: Date.now() })
-          .pipe(Effect.catch(() => Effect.void))
+          .pipe(Effect.catch(onward))
         return {
           ready: true,
           read: files.size,
@@ -420,10 +432,10 @@ const read = (work: LedgerWarmWork, at: string): Effect.Effect<LedgerWarmth> =>
     // and this is a second of work that makes those answers better.
     if (work.exact === true) yield* Effect.forkDetach(beExact(at, whole))
 
-    yield* store.keepTold(fresh).pipe(Effect.catch(() => Effect.void))
+    yield* store.keepTold(fresh).pipe(Effect.catch(onward))
     yield* store
       .keepManifest(manifestOf(at, held, Date.now()))
-      .pipe(Effect.catch(() => Effect.void))
+      .pipe(Effect.catch(onward))
     yield* store.forgetBeyond(ON_DISK).pipe(Effect.catch(() => Effect.succeed(0)))
 
     return {

@@ -43,7 +43,7 @@ import type { Check, MergeMethod, NewComment, UpdateWay } from "@/domain/PullReq
 import { fromPathname, pathOf, type PullRequestRef, type RepoRef } from "@/domain/PullRequestRef"
 import type { Size } from "@/domain/workingSet"
 import type { GitHubGateway, Review } from "@/ports/GitHubGateway"
-import { reportError } from "@/observability/report"
+import { onward, reportError } from "@/observability/report"
 import type { View } from "@/domain/Settings"
 import { chosenSettings, rememberView } from "@/app/settings"
 import { prepareAScreen, standAScreen, type Standing } from "@/shell/screen"
@@ -343,7 +343,7 @@ const open = (
   const countLayers = (
     references: ReadonlyArray<PullRequestRef>,
     tell: (number: number, size: Size) => void
-  ) => layerSizes(references, tell).pipe(throughGitHub, Effect.catch(() => Effect.void))
+  ) => layerSizes(references, tell).pipe(throughGitHub, Effect.catch(onward))
 
   const screen = {
     place: CONVERSATION,

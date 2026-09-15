@@ -30,6 +30,16 @@ export type CommitScreenProps = {
    * nothing at all.
    */
   readonly fetchDiffs?: DiffFetcher
+  /**
+   * One whole file at a commit, and every path at one.
+   *
+   * The renderer reveals the lines between the hunks with the first; Following
+   * asks both, because where a name is written is a question about a file and a
+   * repository rather than about a change. Absent, and a commit is drawn exactly
+   * as it was — with nothing underlining.
+   */
+  readonly readWholeFile?: (sha: string, path: string) => Effect.Effect<string, unknown>
+  readonly readPaths?: (sha: string) => Effect.Effect<ReadonlyArray<string>, unknown>
   /** Hands the page back to GitHub, and remembers that this is what was wanted. */
   readonly onUseGitHub?: () => void
   /** Whose keys move between the files of this commit. */
@@ -60,6 +70,8 @@ export const CommitScreen = ({
   load,
   preload,
   fetchDiffs,
+  readWholeFile,
+  readPaths,
   onUseGitHub,
   keys
 }: CommitScreenProps) => {
@@ -179,6 +191,9 @@ export const CommitScreen = ({
             load={load}
             preload={preload}
             fetchDiffs={fetchDiffs}
+            readWholeFile={readWholeFile}
+            readPaths={readPaths}
+            repo={{ owner: reference.owner, repo: reference.repo }}
             apart
             diff={diff}
             tree={tree}

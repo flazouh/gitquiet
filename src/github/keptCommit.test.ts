@@ -98,3 +98,34 @@ describe("a commit kept for the way back to it", () => {
     expect(Option.isNone(commitFromKept({ sha: "9f2c1d4", files: [{}] }))).toBe(true)
   })
 })
+
+/**
+ * The parent, kept.
+ *
+ * A commit read back from the store reveals a file the same way one read from
+ * the page does, so it needs the same second sha. Without it the old half of
+ * every changed file is fetched at this commit rather than at its parent and
+ * the pane blanks on being expanded — for cached commits only, which is the
+ * harder of the two to notice and the harder to reproduce.
+ */
+describe("the parent a kept commit is a diff against", () => {
+  test("survives the round trip", () => {
+    const read = commitFromKept(
+      keptCommitFrom({ ...detail, parentSha: "aaaabbbbccccddddeeeeffff0000111122223333" })
+    )
+
+    expect(Option.getOrNull(read)?.parentSha).toBe("aaaabbbbccccddddeeeeffff0000111122223333")
+  })
+
+  test("is absent where it never arrived, rather than guessed at", () => {
+    expect(Option.getOrNull(commitFromKept(keptCommitFrom(detail)))?.parentSha).toBeUndefined()
+  })
+
+  test("is absent where what was kept predates it", () => {
+    // Anything written by a build before this was carried. It reads back as a
+    // commit that cannot reveal its old half, not as one that fails to read.
+    const older = { ...keptCommitFrom(detail), parentSha: undefined }
+
+    expect(Option.getOrNull(commitFromKept(older))?.parentSha).toBeUndefined()
+  })
+})

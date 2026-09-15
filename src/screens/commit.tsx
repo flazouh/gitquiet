@@ -1,6 +1,8 @@
 import { Effect, Option } from "effect"
 import { rememberedRepositories } from "@/app/destinations"
 import { loadCommit, loadCommitDiffs, rememberedCommit } from "@/app/pullRequest"
+import { loadTreePaths } from "@/app/repoHome"
+import { loadWholeFile } from "@/app/revealing"
 import { fromPathname, type CommitRef } from "@/domain/CommitRef"
 import type { CommitDetail } from "@/domain/PullRequest"
 import { reportError } from "@/observability/report"
@@ -53,6 +55,23 @@ const open = (reference: CommitRef, onUseGitHub: () => void): (() => void) => {
   const fetchDiffs = (paths: ReadonlyArray<string>) =>
     loadCommitDiffs(reference, reference.sha, paths).pipe(throughGitHub)
 
+  /*
+   * The whole of a file at this commit, which two things want.
+   *
+   * The renderer asks when a reader presses to see the lines between the hunks.
+   * Following asks because a diff holds the hunks and three lines either side,
+   * and where a name is written is a question about the file rather than about
+   * the change. One reader, kept, so the second of them costs nothing.
+   *
+   * This was absent, and what that meant was that a commit was the one screen
+   * drawing a diff where holding Command did nothing at all — not refused, not
+   * explained, just a word that would not underline.
+   */
+  const readWholeFile = (sha: string, path: string) =>
+    loadWholeFile(reference, sha, path).pipe(throughGitHub)
+
+  const readPaths = (sha: string) => loadTreePaths(reference, sha).pipe(throughGitHub)
+
   return standAScreen({
     place: COMMIT,
     draw: () => (
@@ -62,6 +81,8 @@ const open = (reference: CommitRef, onUseGitHub: () => void): (() => void) => {
         preload={recall}
         recallRepositories={recallRepositories}
         fetchDiffs={fetchDiffs}
+        readWholeFile={readWholeFile}
+        readPaths={readPaths}
         onUseGitHub={onUseGitHub}
       />
     )

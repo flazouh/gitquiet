@@ -3,6 +3,7 @@ import { Effect } from "effect"
 import type { Place, WritingKind } from "../ports/Ledger"
 import { FIELD, SHEET } from "./dress"
 import { useLedger } from "./ledger"
+import { onward } from "@/observability/report"
 
 /**
  * Any name the repository writes down, by typing it.
@@ -86,7 +87,7 @@ export const GoToName = ({ repo, sha, onOpen, onClose }: GoToNameProps) => {
           setFound(answer.places)
           setAt(0)
         }),
-        Effect.catch(() => Effect.void)
+        Effect.catch(onward)
       )
     )
     return () => asking.interruptUnsafe()

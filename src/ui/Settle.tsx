@@ -10,6 +10,7 @@ import { Cap } from "./Cap"
 import { FIELD, FLOAT, PRESSABLE } from "./dress"
 import { ROOT_ID } from "./mount"
 import { useKeying, useLetters } from "./useLetters"
+import { onward } from "@/observability/report"
 
 export type SettleProps = {
   readonly state: IssueState
@@ -108,7 +109,7 @@ export const Settle = ({ state, where, allowed, onSettle, onReopen }: SettleProp
     // whatever it is handed, and what it is handed is the screen's own picture of the issue.
     Effect.runFork(
       asked.pipe(
-        Effect.catch(() => Effect.void),
+        Effect.catch(onward),
         Effect.map(() => setAsking(false))
       )
     )

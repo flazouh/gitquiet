@@ -11,6 +11,7 @@ import { useSlice } from "./slice"
 import { useSettings } from "./useSettings"
 import { Who } from "./Who"
 import { ageOf, freshnessOf, momentOf } from "./when"
+import { onward } from "@/observability/report"
 
 export type RepoTreeProps = {
   readonly entries: ReadonlyArray<Entry>
@@ -379,7 +380,7 @@ export const RepoTree = ({
         }),
         // The root is on the screen and is not wrong, only shallow. There is
         // nothing here worth an error message over.
-        Effect.catch(() => Effect.void)
+        Effect.catch(onward)
       )
     )
 

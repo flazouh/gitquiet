@@ -501,7 +501,6 @@ export const PullRequestScreen = ({
           signedOut={!signedIn()}
           what="This pull request"
           why={read.why}
-          asIf="this pull request does not exist"
           theirs="conversation"
           onStepAside={onStepAside}
           asideLabel="Show GitHub's conversation"

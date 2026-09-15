@@ -107,6 +107,15 @@ export type Ledger = {
    * reading never needs it. What it answers with is how it went, so a screen can
    * say "nothing here parses" rather than leaving a box empty.
    */
+  /**
+   * Gets ready to be asked about a file, without asking anything about it.
+   *
+   * A reader holding Command waits, once, for a worker to wake, a document to
+   * open, a runtime to compile and a grammar to arrive — none of which is a
+   * question about a name. A pane that has drawn a file says this instead, and
+   * the wait happens while nobody is waiting.
+   */
+  readonly ready: (path: string) => Effect.Effect<void, LedgerUnavailable>
   readonly warm: (
     repo: Repo,
     sha: string,
@@ -209,4 +218,21 @@ export type Places = {
  */
 export class LedgerUnavailable extends Data.TaggedError("LedgerUnavailable")<{
   readonly cause: unknown
-}> {}
+}> {
+  /**
+   * The cause, in the name, so a console line says what went wrong.
+   *
+   * One of these arrived during a filmed run on a live pull request and the
+   * console had only "LedgerUnavailable" and a stack through the Effect
+   * runtime — which narrows a message that failed to send, a document that
+   * would not open and a worker that answered with nothing down to no fewer
+   * than three. The whole point of reporting a swallowed failure is being able
+   * to tell them apart afterwards.
+   */
+  override get message(): string {
+    const cause = this.cause
+    if (typeof cause === "string") return cause
+    if (cause instanceof Error) return cause.message
+    return String(cause)
+  }
+}

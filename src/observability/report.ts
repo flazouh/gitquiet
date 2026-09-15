@@ -1,3 +1,5 @@
+import { Effect } from "effect"
+
 /**
  * Where a swallowed failure goes, which is the reader's own console and nowhere else.
  *
@@ -24,3 +26,32 @@ export const reportError = (error: unknown): void => {
   // the failure is survivable. Throwing would turn a handled case into an unhandled one.
   console.error("[gitquiet]", error)
 }
+
+/**
+ * A failure the caller has decided to survive, said out loud on its way past.
+ *
+ * `Effect.catch(onward)` is the shape this replaces, and it was the
+ * wrong one everywhere it appeared. It reads as "this is allowed to fail",
+ * which is usually true, but what it compiles to is "nobody will ever learn
+ * that it did". Following spent a day unfindable behind exactly that: a name
+ * that would not underline in a diff, a resolver that never answered, and not
+ * one line anywhere saying which of the two it was.
+ *
+ * So the decision to carry on is kept and the silence is not. Same control
+ * flow, same value, one line in the console naming the cause — which, per the
+ * note above, is the only trace this extension keeps anywhere.
+ */
+export const onward = (cause: unknown): Effect.Effect<void> =>
+  Effect.sync(() => reportError(cause))
+
+/**
+ * The same, where carrying on means answering with something rather than
+ * nothing: an empty list, a `null`, an `Option.none`.
+ */
+export const onwardWith =
+  <A,>(value: A) =>
+  (cause: unknown): Effect.Effect<A> =>
+    Effect.sync(() => {
+      reportError(cause)
+      return value
+    })
