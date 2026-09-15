@@ -1111,3 +1111,27 @@ describe("the uses answered in the file rather than over it", () => {
     expect(panel.querySelector("table")?.textContent).toContain(writing.signature)
   })
 })
+
+/**
+ * The split, dragged, and remembered.
+ *
+ * VS Code keeps this on the widget — seven parts to three until somebody drags
+ * it otherwise, and then whatever they dragged it to for the rest of the visit.
+ * A reader who widens the list to read a long path does not want it narrow
+ * again at the next name.
+ */
+describe("how wide the code is, and how tall", () => {
+  test("offers a sash between the code and the list", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    const panel = await screen.findByLabelText(`Uses of ${writing.name}`)
+    expect(panel.querySelector('[aria-label="How wide the code is"]')).toBeTruthy()
+    expect(panel.querySelector('[aria-label="How tall this is"]')).toBeTruthy()
+  })
+})

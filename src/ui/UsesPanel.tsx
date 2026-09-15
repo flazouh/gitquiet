@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Effect } from "effect"
 import type { AcrossUse, Use, Writing } from "../ports/Ledger"
 import { FLOAT } from "./dress"
@@ -66,6 +66,23 @@ export type UsesPanelProps = {
 const AROUND = 8
 
 /**
+ * How the panel was last left, kept for the next time it opens.
+ *
+ * On the module rather than in settings: the settings here are knobs with named
+ * choices, and a ratio is neither. This is the same scope VS Code gives it —
+ * a `layoutData` object on the widget, seven parts to three and eighteen lines
+ * tall until somebody drags it otherwise — and like theirs it is remembered for
+ * the rest of the visit rather than for ever. A reader who makes the list wider
+ * to read a long path does not want it narrow again at the next name.
+ */
+const LAYOUT = { ratio: 0.7, tall: 352 }
+/** Neither half may be dragged smaller than this, in pixels. */
+const LEAST = { preview: 224, listed: 144 }
+/** The panel itself, which is a reader's window and not a reader's file. */
+const SHORTEST = 160
+const TALLEST = 640
+
+/**
  * One line of the answer: where the name is written, a use of it in this file,
  * or a use somewhere else in the repository.
  */
@@ -98,6 +115,10 @@ export const UsesPanel = ({
   const exact = settings.diff.exact === "on"
   /** Which row the preview is showing, as an index into the rows below. */
   const [picked, setPicked] = useState(0)
+  /** The split, and the height, as the reader last left them. */
+  const [ratio, setRatio] = useState(LAYOUT.ratio)
+  const [tall, setTall] = useState(LAYOUT.tall)
+  const body = useRef<HTMLDivElement | null>(null)
   const [uses, setUses] = useState<ReadonlyArray<Use> | null>(null)
   const [elsewhere, setElsewhere] = useState<{
     readonly uses: ReadonlyArray<AcrossUse>
@@ -217,6 +238,44 @@ export const UsesPanel = ({
       : lines.slice(Math.max(0, showing.line - 1 - AROUND), showing.line - 1 + AROUND + 1)
   const previewFrom = showing === undefined ? 1 : Math.max(1, showing.line - AROUND)
 
+  /**
+   * A drag, started on a four-pixel strip and finished wherever it likes.
+   *
+   * Pointer capture rather than listeners on the document: the pointer leaves
+   * the strip on the first move of any drag worth making, and a drag that stops
+   * when the pointer leaves the thing that started it is a drag nobody can
+   * finish.
+   */
+  const dragging =
+    (onMove: (at: PointerEvent) => void) =>
+    (event: React.PointerEvent<HTMLDivElement>): void => {
+      const strip = event.currentTarget
+      strip.setPointerCapture(event.pointerId)
+      strip.onpointermove = onMove
+      strip.onpointerup = () => {
+        strip.releasePointerCapture(event.pointerId)
+        strip.onpointermove = null
+        strip.onpointerup = null
+      }
+    }
+
+  /** The split between the code and the list, kept for the next name. */
+  const dragSash = dragging((at) => {
+    const box = body.current?.getBoundingClientRect()
+    if (box === undefined) return
+    const wide = Math.min(Math.max(at.clientX - box.left, LEAST.preview), box.width - LEAST.listed)
+    LAYOUT.ratio = wide / box.width
+    setRatio(LAYOUT.ratio)
+  })
+
+  /** How much of the file this covers, which is a question this cannot see. */
+  const dragEdge = dragging((at) => {
+    const box = body.current?.getBoundingClientRect()
+    if (box === undefined) return
+    LAYOUT.tall = Math.min(Math.max(at.clientY - box.top, SHORTEST), TALLEST)
+    setTall(LAYOUT.tall)
+  })
+
   const goTo = (row: Row): void => {
     if (row.path !== undefined && row.path !== reading.path) onOpen?.(row.path, row.line)
     else onGo(row.line)
@@ -266,8 +325,11 @@ export const UsesPanel = ({
         list on the right. Seven parts to three, which is theirs — the code is
         the answer and the list is the way through it.
       */}
-      <div className="flex h-[22rem]">
-        <div className="min-w-[14rem] flex-[7] overflow-auto border-r border-line bg-raised">
+      <div className="flex" ref={body} style={{ height: tall }}>
+        <div
+          className="min-w-[14rem] shrink-0 overflow-auto bg-raised"
+          style={{ width: `${ratio * 100}%` }}
+        >
           {preview === null ? (
             <p className="px-3 py-2 font-mono text-xs text-ink-muted">
               {showing?.path === undefined
@@ -299,7 +361,17 @@ export const UsesPanel = ({
           )}
         </div>
 
-        <ul className="min-w-[9rem] flex-[3] overflow-y-auto py-1">
+        {/* The sash. Four pixels wide, the whole height of the body, and it
+            lights up under the pointer so a reader can find it without being
+            told it is there. */}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="How wide the code is"
+          onPointerDown={dragSash}
+          className="w-1 shrink-0 cursor-col-resize bg-line hover:bg-accent"
+        />
+        <ul className="min-w-[9rem] flex-1 overflow-y-auto py-1">
           {rows.map((row, index) => (
             <li key={`${row.kind}:${row.path ?? ""}:${row.line}`}>
               {/*
@@ -348,6 +420,16 @@ export const UsesPanel = ({
           ))}
         </ul>
       </div>
+
+      {/* The bottom edge, for a reader who wants more of the file or less of
+          this. Eighteen lines is a guess about a question this cannot see. */}
+      <div
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="How tall this is"
+        onPointerDown={dragEdge}
+        className="h-1 cursor-row-resize bg-line hover:bg-accent"
+      />
     </div>
   )
 }
