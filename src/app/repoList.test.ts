@@ -297,3 +297,62 @@ describe("reading one page of a repository's pull requests", () => {
     expect(listed.sittings[0]?.piles).toHaveLength(2)
   })
 })
+
+/**
+ * The dashboard search is eventually consistent, and gitquiet used to believe it.
+ *
+ * `/pulls?q=repo:owner/name` answers a question it cannot yet serve with an
+ * ordinary two-hundred and no rows — so a repository full of open pull requests
+ * came back empty, and the list drew "Nothing needs you" over the top of it. The
+ * first page is asked again while it is empty; a later page is not, because a
+ * later page coming back empty is the end of the list.
+ */
+describe("an empty first page, which GitHub is as likely not to be ready as to mean", () => {
+  const answersInTurn = (...pages: ReadonlyArray<Response>) => {
+    let at = 0
+    return (url: string): Response => {
+      if (url.includes("/pulls?q=") && url.includes("page=1")) {
+        const answer = pages[Math.min(at, pages.length - 1)]
+        at += 1
+        return answer!.clone()
+      }
+      if (url.includes("/pulls/inbox/queries")) return aShelf([])
+      if (url.includes("/pulls/inbox/deferred")) return noStandings()
+      if (url.includes("/page_data/diffstat")) return aDiffstat(120, 8)
+      return new Response("unexpected", { status: 404 })
+    }
+  }
+
+  test("asks again, and fills from the answer that finally has rows", async () => {
+    const empty = searchAnswer([], { currentPage: 1, totalPages: 1, totalCount: 0 })
+    const full = searchAnswer([aRow()], { currentPage: 1, totalPages: 1, totalCount: 1 })
+    const asked = intercept(answersInTurn(empty, full))
+
+    const listed = await read()
+
+    expect(listed.sittings).toHaveLength(1)
+    expect(asked.filter((url) => url.includes("/pulls?q=") && url.includes("page=1")).length).toBeGreaterThanOrEqual(2)
+  })
+
+  test("gives up after a bounded number of asks and lets an empty list be empty", async () => {
+    // A repository that really has no open pull requests answers empty every time,
+    // and the list must not ask for ever — three reads and half a second, then the
+    // empty is the answer.
+    const empty = searchAnswer([], { currentPage: 1, totalPages: 1, totalCount: 0 })
+    const asked = intercept(answersInTurn(empty))
+
+    const listed = await read()
+
+    expect(listed.sittings).toHaveLength(0)
+    const firstPageAsks = asked.filter((url) => url.includes("/pulls?q=") && url.includes("page=1")).length
+    expect(firstPageAsks).toBe(3)
+  })
+
+  test("does not ask twice when the first page has rows", async () => {
+    const asked = intercept(oneStranger)
+
+    await read()
+
+    expect(asked.filter((url) => url.includes("/pulls?q=") && url.includes("page=1"))).toHaveLength(1)
+  })
+})

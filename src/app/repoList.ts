@@ -9,7 +9,7 @@ import {
   withSizes,
   withStandings
 } from "../domain/workingSet"
-import { GitHubGateway, type Pages } from "../ports/GitHubGateway"
+import { type Found, GitHubGateway, type Pages, WorkingSetError } from "../ports/GitHubGateway"
 import { sizesOf } from "./sizes"
 
 /**
@@ -24,9 +24,49 @@ const BRANCHES_AT_ONCE = 8
 const SEARCH_PAGES_AT_ONCE = 4
 const MAX_SEARCH_PAGES = 40
 
+/**
+ * How many times an empty first page is asked again, and how long between.
+ *
+ * GitHub's dashboard search — `/pulls?q=repo:owner/name is:pr is:open`, the route
+ * behind this list — is eventually consistent, and answers a question it cannot
+ * yet serve with an ordinary two-hundred and no rows. A repository with ten open
+ * pull requests comes back with none, its own `totalCount` sometimes still on the
+ * page beside the empty `results` and sometimes zeroed with them. The list drew
+ * that as "Nothing needs you", which is what a reader saw the morning they went
+ * into a pull request and pressed Back onto a list that was full a second before.
+ * Proved by serving one such answer to the built extension: the list emptied, and
+ * the next plain reload filled it again.
+ *
+ * So an empty first page is asked again, a few hundred milliseconds later, a
+ * bounded number of times. The wait is short because the reader is watching an
+ * empty list until it answers, and the count is small because a repository that
+ * genuinely has no open pull requests pays this on every visit — three reads and
+ * half a second where there is nothing to find. Only the first page: a later page
+ * coming back empty is the end of the list, not a glitch.
+ *
+ * This does not remove the empty state, it makes it mean something. A list still
+ * empty after the last ask is a list GitHub keeps calling empty, and a reader can
+ * still reload past a transient this did not outlast.
+ */
+const SETTLE_EMPTY_SEARCH = 2
+const EMPTY_SEARCH_WAIT = "300 millis"
+
 const allPages = Effect.fn("repoList.allPages")(function* (list: RepoList) {
   const gateway = yield* GitHubGateway
-  const first = yield* gateway.search(queryFor(list), 1)
+
+  // The first page, asked again while it comes back empty. See the note above the
+  // constants: an empty answer here is as often GitHub not ready as it is a
+  // repository with nothing in it, and the two are told apart by asking once more.
+  const firstPage = (left: number): Effect.Effect<Found, WorkingSetError> =>
+    gateway.search(queryFor(list), 1).pipe(
+      Effect.flatMap((found) =>
+        found.rows.length > 0 || left === 0
+          ? Effect.succeed(found)
+          : Effect.sleep(EMPTY_SEARCH_WAIT).pipe(Effect.flatMap(() => firstPage(left - 1)))
+      )
+    )
+
+  const first = yield* firstPage(SETTLE_EMPTY_SEARCH)
   const total = Option.match(first.pages, {
     onNone: () => 1,
     onSome: (pages) => pages.total
