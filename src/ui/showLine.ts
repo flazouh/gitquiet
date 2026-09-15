@@ -1,3 +1,5 @@
+import type { Bounds } from "../ports/Renderer"
+
 /**
  * Puts one line of a drawn diff on the screen, and says whether it found it.
  *
@@ -32,6 +34,24 @@ export const showLine = (host: ParentNode | null, line: number): boolean => {
    */
   row.scrollIntoView({ block: "center", behavior: "instant" })
   return true
+}
+
+/**
+ * Where a line of a drawn diff is on the screen, for something to be put beside it.
+ *
+ * The answer behind `boundsOf`, which is the renderer's and is better: it knows
+ * the token, and a card beside the word is closer than a card beside the line.
+ * But it answers only about the token it last reported entering, and a press
+ * lets go of that token on the way down — so a panel that opens on a press
+ * needs somewhere to be when the renderer has already forgotten. A line is
+ * still drawn, and `data-line` is the same attribute `showLine` above trusts.
+ */
+export const lineBounds = (host: ParentNode | null, line: number): Bounds | null => {
+  const row = drawnIn(host)?.querySelector(`[data-line="${line}"]`) ?? null
+  if (!(row instanceof HTMLElement)) return null
+
+  const box = row.getBoundingClientRect()
+  return { top: box.top, left: box.left, bottom: box.bottom, right: box.right }
 }
 
 /**

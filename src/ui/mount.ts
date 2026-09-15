@@ -906,8 +906,6 @@ export const activatePreparedTraversal = (
   arriving.setAttribute(ROUTE, route)
   target.documentElement.setAttribute(TAKEN, "")
   target.documentElement.setAttribute(SHOWN, place.name)
-  hideTheirs(slot, arriving)
-  hideTheirBands(target, place)
   reveal(target)
   ungate(target)
   finishNavigation(target, route, arriving)
@@ -928,17 +926,7 @@ export const holdTheSurface = (target: Document): void => {
   if (standing !== null) markAsLeaving(standing)
 }
 
-const hide = (element: Element): void => {
-  if (element.hasAttribute(HIDDEN)) return
-  element.setAttribute(HIDDEN, "")
-  element.setAttribute("hidden", "")
-}
 
-const hideTheirBands = (target: Document, place: Place): void => {
-  for (const selector of place.bands) {
-    for (const band of target.querySelectorAll(selector)) hide(band)
-  }
-}
 
 /**
  * Where the interface stands, on every page and whatever GitHub is rendering.
@@ -969,54 +957,7 @@ const hideTheirBands = (target: Document, place: Place): void => {
  */
 const surfaceOf = (target: Document): Element | null => theStage(target)
 
-/**
- * What a takeover never hides, wherever on the page it turns out to be.
- *
- * One entry, and it earns its place: GitHub says an organisation's single sign-on
- * has expired in a banner above the content, and that is the one thing on any of
- * these pages a reader needs more than the page itself. Everything the interface
- * shows is read through a session that banner says has lapsed, so hiding it
- * replaces the explanation with an interface that quietly knows nothing.
- *
- * It did not need saying while the interface stood inside one of their regions:
- * the banner is outside every region in `place.ts`, so hiding a region's children
- * left it alone by construction. Standing on the surface makes every part of their
- * page a sibling of ours, which is the point — and it takes this with it unless
- * something says otherwise. This is that something.
- *
- * A list rather than a field on `Place`, because it is not a fact about one page.
- * The banner is about the reader's access to the whole site and GitHub puts it
- * wherever the lapse is discovered.
- */
-const KEPT = ['[data-testid="global-sso-banner"]']
 
-const hideTheirs = (slot: Element, root: Element): void => {
-  /*
-   * Looked up once, and only where something is actually about to be hidden.
-   *
-   * This runs from the takeover's observer, which fires on every change anywhere
-   * beneath `body`, so a document query per child per mutation would be a real
-   * cost on a busy page. After the takeover almost every child is hidden already
-   * and the query is never reached.
-   */
-  let kept: ReadonlyArray<Element> | undefined
-
-  for (const child of slot.children) {
-    // Never ours. A second takeover — a development reload, a script injected
-    // twice — would otherwise hide the interface the first one rendered and
-    // leave the page apparently empty while the DOM insists it is all there.
-    if (child === root || child.id === ROOT_ID) continue
-    // Nor the furniture of ours that lives beside the root rather than in it. On a
-    // region of GitHub's this never matches; on `body` itself the bar and the
-    // hover-card hosts are siblings of the root, and hiding a sibling by position
-    // is exactly what this does.
-    if (child.hasAttribute(OUTSIDE)) continue
-    if (child.hasAttribute(HIDDEN)) continue
-    kept ??= [...slot.ownerDocument.querySelectorAll(KEPT.join(","))]
-    if (kept.some((one) => child === one || child.contains(one))) continue
-    hide(child)
-  }
-}
 
 /**
  * How long to wait for GitHub to render the region before giving up on it.
@@ -1249,12 +1190,9 @@ export const takeOverSlot = (
       container.setAttribute(ROUTE, route)
       finishNavigation(target, route, container)
     }
-    hideTheirs(into, container)
     // And the surface's own children, which is where their page now is relative
     // to ours: their header, their layout and whatever else `body` holds are all
     // siblings of the interface rather than boxes around it.
-    if (surface !== into) hideTheirs(surface, container)
-    hideTheirBands(target, place)
     // Set before revealing, so that the rule keeping their conversation out of
     // sight is never off for an instant. The attribute hiding above says what
     // to do about the children that are there now; this says what to do about
@@ -1366,10 +1304,6 @@ export const takeOverSlot = (
      * `surfaceOf` ended. Nothing is re-parented, so nothing is re-inserted, so
      * no entrance replays and there is no frame with the interface off the page.
      */
-    const region = standing ?? findConversationSlot(target, place)
-    if (region !== null && !region.contains(container)) hideTheirs(region, container)
-
-    if (parent !== null) hideTheirs(parent, container)
     /*
      * And the way down to us, if GitHub has put a box of their own in between.
      *
@@ -1381,7 +1315,6 @@ export const takeOverSlot = (
      * answers by settling again.
      */
     if (parent !== null && !parent.hasAttribute(WITHIN)) markWithin(target, container)
-    hideTheirBands(target, place)
   })
   watcher.observe(ground, { childList: true, subtree: true })
 
