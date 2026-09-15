@@ -353,5 +353,59 @@ await key({ key: "u", code: "KeyU", text: "u" })
 await sleep(1800)
 await shot("5-uses-by-key")
 
+/*
+ * 6. A step along the trail.
+ *
+ * The preview is a drawing of its own, so a name inside it is followable: the
+ * panel pushes a step and the head names the way back. Found in the last
+ * container on the page, which is the preview — the file's own came first.
+ */
+const stepped = await session.evaluate<string | false>(`(async () => {
+  const sleep = (ms) => new Promise((go) => setTimeout(go, ms))
+  const all = [...document.querySelectorAll("diffs-container")]
+  const preview = all[all.length - 1]
+  const root = preview && preview.shadowRoot
+  if (!root) return false
+  const token = [...root.querySelectorAll("[data-line] span")].find((one) => (one.textContent || "").trim() === ${JSON.stringify(argued("--step") ?? "limitedFunction")})
+  if (!token) return false
+
+  /*
+   * Dispatched on the token rather than sent as a mouse event at a coordinate.
+   *
+   * A CDP press hit-tests for real, and through a shadow root inside a drawing
+   * inside a row inside another drawing it finds something other than the token
+   * whose middle the coordinate is. Noted in the header of this file; this is
+   * the second place it bites.
+   */
+  const at = token.getBoundingClientRect()
+  const where = {
+    bubbles: true, composed: true, cancelable: true,
+    clientX: at.left + at.width / 2, clientY: at.top + at.height / 2,
+    metaKey: true, pointerId: 1, isPrimary: true, pointerType: "mouse"
+  }
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Meta", bubbles: true }))
+  token.dispatchEvent(new PointerEvent("pointerover", where))
+  token.dispatchEvent(new PointerEvent("pointermove", where))
+  await sleep(700)
+  token.dispatchEvent(new PointerEvent("pointerdown", where))
+  token.dispatchEvent(new PointerEvent("pointerup", where))
+  token.dispatchEvent(new MouseEvent("click", where))
+  await sleep(1500)
+  const panel = document.querySelector("[aria-label^='Uses of']")
+  return JSON.stringify({
+    tokens: root.querySelectorAll("[data-line] span").length,
+    head: (panel ? panel.querySelector("h2") : null)?.textContent ?? null,
+    containers: all.length
+  })
+})()`)
+
+if (stepped === false) {
+  console.log("  6-trail skipped: no name to follow in the preview")
+} else {
+  console.log("  after the step:", stepped)
+  await sleep(1200)
+  await shot("6-trail")
+}
+
 console.log("problems:", JSON.stringify(session.problems().map((p) => (p.split("\n")[0] ?? "").slice(0, 120))))
 session.stop()

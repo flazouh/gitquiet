@@ -89,6 +89,8 @@ type Stage = {
    * the ones the file reported.
    */
   readonly drew: Array<DiffRequest>
+  /** The element each of those was drawn into, in the same order. */
+  readonly into: Array<HTMLElement>
 }
 
 const staged = (
@@ -99,6 +101,14 @@ const staged = (
     readonly where?: Where
     readonly named?: Writing
     readonly across?: Across
+    /**
+     * A different Writing from the second question onward.
+     *
+     * For the trail: a panel refuses a step onto the name it is already showing
+     * — pressing it would add a row saying the reader is where they are — so a
+     * stage that answers with one Writing for ever cannot walk anywhere.
+     */
+    readonly then?: Writing
     /** What another repository answers, for a name borrowed from a package. */
     readonly beyond?: {
       readonly owner?: string
@@ -129,7 +139,8 @@ const staged = (
      * reach for the token handlers keep reaching for the ones the file
      * reported.
      */
-    drew: [] as Array<DiffRequest>
+    drew: [] as Array<DiffRequest>,
+    into: [] as Array<HTMLElement>
   }
 
   const handle: DiffHandle = {
@@ -164,8 +175,9 @@ const staged = (
   }
 
   const renderer: LoadEngine = Effect.succeed({
-    renderDiff: (_container: HTMLElement, request: DiffRequest) => {
+    renderDiff: (container: HTMLElement, request: DiffRequest) => {
       stage.drew.push(request)
+      stage.into.push(container)
       stage.request ??= request
       return handle
     }
@@ -191,7 +203,9 @@ const staged = (
               new Promise<Option.Option<Where>>((go) =>
                 setTimeout(() => {
                   if (over.where !== undefined) return go(Option.some(over.where))
-                  go(found === null ? Option.none() : Option.some({ at: "here", writing: found }))
+                  const answer =
+                    over.then !== undefined && stage.asked.length > 1 ? over.then : found
+                  go(answer === null ? Option.none() : Option.some({ at: "here", writing: answer }))
                 }, 0)
               )
           )
@@ -1258,5 +1272,116 @@ describe("the uses, from the keyboard", () => {
     await waitFor(() =>
       expect(rows.filter((row) => row.getAttribute("tabindex") === "0")).toHaveLength(1)
     )
+  })
+})
+
+/**
+ * Walking a call chain without leaving the panel.
+ *
+ * A Peek says what a name is. The question after it is nearly always what
+ * *that* calls, and the one after that the same again — which used to mean
+ * closing the panel, finding the name in the file, holding the key and pressing
+ * it, three times over, with the thread of the question carried in the reader's
+ * head between each.
+ */
+describe("the trail through a call chain", () => {
+  /** A second name to walk on to, which is what the preview would resolve. */
+  const further: Writing = { ...writing, name: "further", line: 40, from: 6, to: 13 }
+
+  const open = async (stage: ReturnType<typeof staged>) => {
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    return screen.findByLabelText(`Uses of ${writing.name}`)
+  }
+
+  test("starts at the name that was asked about, with nowhere behind it", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+    const panel = await open(stage)
+
+    // One name in the head and no way back, because there is nowhere to go.
+    expect(panel.querySelector("h2")?.textContent).toBe(writing.name)
+    expect(panel.querySelector("h2 button")).toBeNull()
+  })
+
+  test("takes a step when a name in the preview is followed", async () => {
+    const stage = staged(writing, [], { then: further })
+    await Effect.runPromise(settled())
+    const panel = await open(stage)
+
+    // The preview is a drawing of its own, and it reports its own tokens.
+    await waitFor(() => expect(stage.drew.length).toBeGreaterThan(1))
+    const inPreview = stage.drew.at(-1)
+    inPreview?.onName?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    await waitFor(() => expect(panel.querySelector("h2 button")).not.toBeNull())
+    expect(panel.querySelector("h2")?.textContent).toContain("›")
+  })
+
+  test("goes back a name on Escape before it closes at all", async () => {
+    const stage = staged(writing, [], { then: further })
+    await Effect.runPromise(settled())
+    const panel = await open(stage)
+
+    await waitFor(() => expect(stage.drew.length).toBeGreaterThan(1))
+    stage.drew.at(-1)?.onName?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    await waitFor(() => expect(panel.querySelector("h2 button")).not.toBeNull())
+
+    await userEvent.keyboard("{Escape}")
+    await Effect.runPromise(settled())
+
+    // Back to the name it started on, and still open.
+    await waitFor(() => expect(panel.querySelector("h2 button")).toBeNull())
+    // Still open, and back at the name it started on.
+    expect(panel.querySelector("h2")?.textContent).toBe(writing.name)
+  })
+
+  /**
+   * A press in the preview is the preview's, and the file's renderer never
+   * hears it.
+   *
+   * The panel is slotted into the drawing above it, so everything that happens
+   * inside it goes on up through that drawing's own element — where the file's
+   * renderer is listening for presses on its lines and for a pointer to carry
+   * its gutter plus to. `drawnBy` in `engine.ts` turns away the names; these
+   * are the rest, which arrive as lines and have no name in them to refuse.
+   */
+  test("keeps a press in the preview from reaching the file behind it", async () => {
+    const stage = staged(writing, [], { then: further })
+    await Effect.runPromise(settled())
+    const panel = await open(stage)
+
+    await waitFor(() => expect(stage.into.length).toBeGreaterThan(1))
+    const shown = stage.into.at(-1)
+
+    const heard: Array<string> = []
+    const listen = (event: Event) => heard.push(event.type)
+    for (const kind of ["pointerdown", "pointermove", "click"]) {
+      document.body.addEventListener(kind, listen)
+    }
+
+    // Dispatched on a child of the container, which is where the preview's own
+    // drawing is: the seal sits on the container and lets what is under it
+    // finish first.
+    const token = document.createElement("span")
+    shown?.append(token)
+    token.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }))
+    token.dispatchEvent(new PointerEvent("pointermove", { bubbles: true }))
+    token.dispatchEvent(new MouseEvent("click", { bubbles: true }))
+
+    expect(heard).toEqual([])
+
+    // And the panel around it is not sealed: only the drawing is. A press on
+    // the head still reaches the page, which is how everything else here works.
+    panel.dispatchEvent(new MouseEvent("click", { bubbles: true }))
+    expect(heard).toEqual(["click"])
+
+    for (const kind of ["pointerdown", "pointermove", "click"]) {
+      document.body.removeEventListener(kind, listen)
+    }
   })
 })
