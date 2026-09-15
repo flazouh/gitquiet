@@ -1,5 +1,5 @@
 import { describe, expect, it, test } from "bun:test"
-import { held, named, sameName, SURFACES, shadowFor } from "./engine"
+import { drawnBy, held, named, sameName, SURFACES, shadowFor } from "./engine"
 
 /**
  * The one line in the engine that behaves differently on the two platforms.
@@ -199,5 +199,59 @@ describe("the half of a file a name is in", () => {
     // A whole file has no halves. A side invented here would read downstream as
     // a fact about a diff that does not exist.
     expect("side" in name(null)).toBe(false)
+  })
+})
+
+/**
+ * Whose token a token is.
+ *
+ * The uses panel draws a preview of the code inside a row of the file the
+ * reader is on, and a drawing inside a drawing is two renderers over one press:
+ * their interaction manager reads the event's composed path, which runs through
+ * the preview's shadow root and out into the file's, so the file was told about
+ * a name it never drew. It followed it — throwing the panel away and opening a
+ * new one on the name the panel was already open on, a trail that went round in
+ * a ring.
+ */
+describe("which drawing a token was drawn by", () => {
+  /** A host with a drawing in it, and the token it drew. */
+  const drawing = (): { readonly host: HTMLElement; readonly token: HTMLElement } => {
+    const host = document.createElement("diffs-container")
+    const token = document.createElement("span")
+    shadowFor(host).append(token)
+    return { host, token }
+  }
+
+  it("takes a token from its own shadow root", () => {
+    const file = drawing()
+
+    expect(drawnBy(file.host, { tokenElement: file.token })).toBe(true)
+  })
+
+  it("refuses one from a drawing hung inside a row of it", () => {
+    const file = drawing()
+    const preview = drawing()
+    // Where the panel puts it: a row of the file, which is the host's own
+    // children rather than the shadow root the renderer slots them into.
+    file.host.append(preview.host)
+
+    expect(drawnBy(file.host, { tokenElement: preview.token })).toBe(false)
+    expect(drawnBy(preview.host, { tokenElement: preview.token })).toBe(true)
+  })
+
+  it("refuses one from a drawing that is nowhere near it", () => {
+    const file = drawing()
+    const other = drawing()
+
+    expect(drawnBy(file.host, { tokenElement: other.token })).toBe(false)
+  })
+
+  it("takes one that arrives without an element at all", () => {
+    // An element is the only thing that can say a token belongs to somebody
+    // else, so a token with none is this drawing's — refusing it would stop
+    // following a name the day their event stops carrying one.
+    const file = drawing()
+
+    expect(drawnBy(file.host, {})).toBe(true)
   })
 })

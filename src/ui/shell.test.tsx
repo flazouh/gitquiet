@@ -29,6 +29,26 @@ afterEach(() => {
   window.history.replaceState(null, "", window.location.pathname)
 })
 
+/**
+ * The address the page is drawn at, which is the one it is drawn for.
+ *
+ * A pull request exists at its own address and nowhere else, and what this page
+ * writes into the address is now written only while the address is still that
+ * one — so a test that mounts it at `/` is testing the page somewhere it can
+ * never be. See `onReading` in `Shell.tsx`, and the test below for what the
+ * guard is there to stop.
+ */
+const standAt = (reference: PullRequestSnapshot["reference"]): void => {
+  // The path only: a test that named a file in the fragment before mounting is
+  // saying what the reader arrived on, and that is not this helper's to take.
+  window.history.replaceState(
+    null,
+    "",
+    `/${reference.owner}/${reference.repo}/pull/${reference.number}` +
+      `${window.location.search}${window.location.hash}`
+  )
+}
+
 const showing = (
   snapshot: PullRequestSnapshot,
   fetchDiffs: (paths: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<FetchedDiff>> = () =>
@@ -36,6 +56,7 @@ const showing = (
 ) => {
   const layers = layerFromSnapshots([snapshot])
   const reference = snapshot.reference
+  standAt(reference)
 
   return render(
     <PullRequestScreen
@@ -57,6 +78,7 @@ const showing = (
  * as the reader has it while that read is still out.
  */
 const staging = (first: PullRequestSnapshot, then: PullRequestSnapshot) => {
+  standAt(first.reference)
   let release = (): void => {}
   const held = new Promise<void>((done) => {
     release = () => done()
@@ -193,6 +215,35 @@ describe("the address, which says which file is being read", () => {
     await waitFor(() => expect(fragment()).toBe("#README.md"))
 
     expect(window.history.length).toBe(before)
+  })
+
+  test("writes nothing once the reader has gone somewhere else", async () => {
+    /*
+     * Back, pressed from inside a pull request.
+     *
+     * The traversal commits before this tree comes down, so the file that was
+     * open is still announced once more — a frame after the address has stopped
+     * being this page's. It used to be written wherever the reader had landed,
+     * and `replaceState` rewrites the entry rather than adding one, so the list
+     * a reader went back to kept a fragment naming a file of the pull request
+     * they had left, for as long as that entry lived.
+     */
+    showing(aPullRequest())
+    await awaitPage()
+    await waitFor(() => expect(fragment()).toBe("#src/spin.ts"))
+
+    window.history.replaceState(null, "", "/acme/widgets/pulls")
+
+    await userEvent.click(within(section("Files")).getByRole("button", { name: /Next file/ }))
+
+    expect(window.location.pathname).toBe("/acme/widgets/pulls")
+    expect(fragment()).toBe("")
+
+    // And back on its own address the same press writes, so what kept still
+    // above is the guard rather than a rail that never moved.
+    window.history.replaceState(null, "", "/acme/widgets/pull/7")
+    await userEvent.click(within(section("Files")).getByRole("button", { name: /Previous/ }))
+    await waitFor(() => expect(fragment()).toBe("#src/spin.ts"))
   })
 
   test("opens the file the address named on the way in", async () => {

@@ -6,7 +6,7 @@ import { partOfFile } from "../domain/wholeFile"
 import { diffChoices } from "../domain/choices"
 import type { DiffEngine } from "../ports/Renderer"
 import { PAPER } from "../ports/Renderer"
-import { onward } from "@/observability/report"
+import { onward } from "../observability/report"
 import { useLedger } from "./ledger"
 import { useRenderer } from "./renderer"
 import { drawnIn } from "./showLine"
@@ -94,6 +94,9 @@ const TALLEST = 640
  * One line of the answer: where the name is written, a use of it in this file,
  * or a use somewhere else in the repository.
  */
+/** One name on the trail: a Writing, and the file it is written in. */
+type Step = { readonly writing: Writing; readonly where?: string }
+
 type Row = {
   readonly kind: "written" | "use" | "beyond"
   readonly line: number
@@ -117,8 +120,24 @@ export const UsesPanel = ({
   across,
   where
 }: UsesPanelProps) => {
+  /**
+   * How far the reader has walked from the name they started on.
+   *
+   * A Peek shows what a name is. The question a reviewer asks next is almost
+   * always what *that* calls, and the one after that the same again — which
+   * until now meant closing this, finding the name in the file, holding the
+   * key and pressing it, three times, with the thread of the question carried
+   * in the reader's head between each.
+   *
+   * So the panel keeps a trail. Following a name inside the preview pushes a
+   * step; Escape takes one back and only closes at the root. The root itself is
+   * the props, which is why this is a list of what came after rather than a
+   * list including it.
+   */
+  const [trail, setTrail] = useState<ReadonlyArray<Step>>([])
+  const step: Step = trail.at(-1) ?? { writing, where }
   /** Whether the Writing is in the file being read, which decides what can be exact. */
-  const here = where === undefined || where === reading.path
+  const here = step.where === undefined || step.where === reading.path
   const ledger = useLedger()
   // Whether the reader asked for a compiler to answer. Off, and this is the
   // tier that reads shapes — fast, every language, honest about its guesses.
@@ -157,7 +176,7 @@ export const UsesPanel = ({
 
   /** The uses worth a row, which is every one that is not the writing itself. */
   const elsewhereInFile =
-    uses === null ? null : uses.filter((use) => use.line !== writing.line || use.from !== writing.from)
+    uses === null ? null : uses.filter((use) => use.line !== step.writing.line || use.from !== step.writing.from)
 
   /*
    * Escape puts it away, which is what Escape means everywhere else here.
@@ -171,7 +190,17 @@ export const UsesPanel = ({
       if (event.key !== "Escape") return
       event.preventDefault()
       event.stopPropagation()
-      onClose()
+      // Back one name before out altogether. A reader three deep in a call
+      // chain who wanted the step before it should not have to open the panel
+      // again and walk the whole way down.
+      setTrail((walked) => {
+        if (walked.length === 0) {
+          onClose()
+          return walked
+        }
+        setPicked(0)
+        return walked.slice(0, -1)
+      })
     }
     document.addEventListener("keydown", onKey, true)
     return () => document.removeEventListener("keydown", onKey, true)
@@ -220,13 +249,13 @@ export const UsesPanel = ({
     }
 
     const asking = Effect.runFork(
-      ledger.usesIn(reading, writing).pipe(
+      ledger.usesIn(reading, step.writing).pipe(
         Effect.map(setUses),
         Effect.catch(() => Effect.sync(() => setUses([])))
       )
     )
     return () => asking.interruptUnsafe()
-  }, [here, ledger, reading, writing])
+  }, [here, ledger, reading, step.writing])
 
   /*
    * The rest of the repository, where there is a Ledger that has read it.
@@ -242,10 +271,10 @@ export const UsesPanel = ({
       ledger.warm(across.repo, across.sha, exact).pipe(
         Effect.flatMap(() =>
           ledger.usesAcross(across.repo, across.sha, {
-            name: writing.name,
-            path: where ?? reading.path,
-            line: writing.line,
-            column: writing.from - 1
+            name: step.writing.name,
+            path: step.where ?? reading.path,
+            line: step.writing.line,
+            column: step.writing.from - 1
           })
         ),
         Effect.map(setElsewhere),
@@ -253,7 +282,7 @@ export const UsesPanel = ({
       )
     )
     return () => asking.interruptUnsafe()
-  }, [ledger, across, exact, reading.path, where, writing])
+  }, [ledger, across, exact, reading.path, step.where, step.writing])
 
   /**
    * The rows, in the order an editor lists them: where it is written, then
@@ -265,11 +294,11 @@ export const UsesPanel = ({
   const rows: ReadonlyArray<Row> = [
     {
       kind: "written",
-      line: writing.line,
-      from: writing.from,
-      to: writing.to,
-      said: writing.signature,
-      path: where
+      line: step.writing.line,
+      from: step.writing.from,
+      to: step.writing.to,
+      said: step.writing.signature,
+      path: step.where
     },
     ...(elsewhereInFile ?? []).map((use) => ({
       kind: "use" as const,
@@ -366,9 +395,23 @@ export const UsesPanel = ({
    * element in a different drawing. Walking the spans to find the column is
    * three lines and does not ask the renderer for anything it does not offer.
    */
+  /*
+   * The values the drawing depends on, rather than the objects carrying them.
+   *
+   * `patch` and `showing` are built fresh on every render, so an effect keyed on
+   * them redrew the preview every time anything in the panel changed — the uses
+   * arriving, the repository answering, the pointer moving down the list. Three
+   * or four destroys and rebuilds per opening, each one throwing away the
+   * element a reader might be pointing at: a token pressed a moment after the
+   * panel opened was pressed on a drawing that no longer existed, which is why
+   * following a name inside the preview did nothing.
+   */
+  const source = Option.getOrNull(patch)
+  const onLine = showing?.line
+  const onColumn = showing?.from
+
   useEffect(() => {
     const container = shownIn.current
-    const source = Option.getOrNull(patch)
     if (engine === null || container === null || source === null || showing === undefined) return
 
     const live = engine.renderDiff(container, {
@@ -379,8 +422,68 @@ export const UsesPanel = ({
       // Unified, whatever the reader chose: there is no before and after in a
       // run of lines nothing has happened to.
       choices: { ...choices, layout: "unified" },
-      notes: []
+      notes: [],
+      /*
+       * Names in the preview are followable, which is the whole of the call
+       * tree. The preview is a real drawing by the real renderer, so it reports
+       * tokens like any other — it only ever needed somewhere to report them.
+       *
+       * Asked of the file this preview is of, which is the file being read: a
+       * step onto another file would need that file fetched, and the row for it
+       * says where it is and opens when pressed, which is the honest answer
+       * until it is.
+       */
+      onNameEnter: (name, held) => {
+        if (!held.go) return
+        live.mark(name, "sure")
+      },
+      onNameLeave: () => live.mark(null),
+      onName: (name, held) => {
+        if (!held.go || held.shift) return
+        Effect.runFork(
+          ledger.writingAt(reading, { row: name.line - 1, column: name.from }).pipe(
+            Effect.map((found) => {
+              if (Option.isNone(found) || found.value.at !== "here") return
+              // The name already being looked at is not a step: pressing it
+              // would add a row saying the reader is where they are.
+              const to = found.value.writing
+              if (to.line === step.writing.line && to.from === step.writing.from) return
+              setTrail((walked) => [...walked, { writing: to }])
+              setPicked(0)
+            }),
+            Effect.catch(onward)
+          )
+        )
+      }
     })
+
+    /*
+     * And the press stops here.
+     *
+     * A row hung under a line is slotted into the drawing above it, so an event
+     * inside this preview goes on up through that drawing's own `<pre>` — where
+     * the file's renderer is listening. `drawnBy` in `engine.ts` turns away the
+     * *names* that arrive that way, but a line is not a name: the file also
+     * hears the press as a line pressed, and on a pull request the reader can
+     * comment on it answers by marking that line and opening the composer on
+     * it. The moving pointer is worse, because their manager carries the file's
+     * gutter plus to whatever line it last saw — which, over this preview, is
+     * one of the preview's, and the plus that adds a comment to the file is
+     * drawn inside a panel it cannot add anything to.
+     *
+     * Bubbling rather than capturing: the preview's own renderer listens on its
+     * own `<pre>` below this, so it has already been told by the time the event
+     * reaches here. It is only the drawing above that hears nothing.
+     *
+     * The file keeps whatever line it had highlighted while the pointer is in
+     * here, which is the line this panel hangs under and the line the reader
+     * came from. A pointer that left the file entirely would clear it; there is
+     * no such thing to leave, and a held highlight is a truer answer than one
+     * that follows the pointer into a drawing the file does not own.
+     */
+    const stop = (event: Event) => event.stopPropagation()
+    const SEALED = ["pointerdown", "pointermove", "click"] as const
+    for (const kind of SEALED) container.addEventListener(kind, stop)
 
     const marking = requestAnimationFrame(() => {
       /*
@@ -422,9 +525,13 @@ export const UsesPanel = ({
 
     return () => {
       cancelAnimationFrame(marking)
+      for (const kind of SEALED) container.removeEventListener(kind, stop)
       live.destroy()
     }
-  }, [engine, patch, reading.path, painted.scheme, painted.pack, choices, showing])
+    // `showing` is read inside and not depended on: the line and the column are
+    // what the drawing and the mark are made of, and they are depended on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engine, source, onLine, onColumn, reading.path, painted.scheme, painted.pack, choices])
 
   const goTo = (row: Row): void => {
     if (row.path !== undefined && row.path !== reading.path) onOpen?.(row.path, row.line)
@@ -434,17 +541,40 @@ export const UsesPanel = ({
 
   return (
     <div
-      aria-label={`Uses of ${writing.name}`}
+      aria-label={`Uses of ${step.writing.name}`}
       className={`overflow-hidden border-y border-line bg-raised text-ink ${FLOAT}`}
     >
       {/* The head: what was asked about, and how many answers there are. */}
       <div className="flex items-baseline gap-2 border-b border-line bg-surface px-3 py-2">
-        <h2 className="text-sm font-semibold">
-          <code className="font-mono">{writing.name}</code>
+        <h2 className="flex min-w-0 items-baseline gap-1 text-sm font-semibold">
+          {/*
+            The way back, named. A trail of one is the name itself and needs no
+            chevron; past that every step before this one is pressable, because
+            a reader who walked down four names wants the second, not the first.
+          */}
+          {[{ writing, where }, ...trail].map((was, deep) => (
+            <span key={`${was.where ?? ""}:${was.writing.line}`} className="flex min-w-0 items-baseline gap-1">
+              {deep === 0 ? null : <span className="text-ink-muted">›</span>}
+              {deep === trail.length ? (
+                <code className="truncate font-mono">{was.writing.name}</code>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTrail((walked) => walked.slice(0, deep))
+                    setPicked(0)
+                  }}
+                  className="truncate rounded px-0.5 font-mono font-normal text-ink-muted hover:bg-hover hover:text-ink"
+                >
+                  {was.writing.name}
+                </button>
+              )}
+            </span>
+          ))}
         </h2>
         <span className="text-xs text-ink-muted">
           {!here
-            ? `written in ${where}`
+            ? `written in ${step.where}`
             : uses === null
               ? "reading…"
               : uses.length === 1

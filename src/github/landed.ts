@@ -3,7 +3,7 @@ import { type Doing, stateAfter } from "../domain/doable"
 import type { PullRequestState } from "../domain/PullRequest"
 import { keyOf, type PullRequestRef } from "../domain/PullRequestRef"
 import { recallLanded } from "./cache"
-import { onward } from "@/observability/report"
+import { onward } from "../observability/report"
 
 /**
  * What this extension's own writes have just made true, held for as long as

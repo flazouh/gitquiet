@@ -6,7 +6,7 @@ import { reaching } from "../ledger/reaching"
 import { useLedger } from "./ledger"
 import { sameName } from "../diff/engine"
 import { showLine } from "./showLine"
-import { onward } from "@/observability/report"
+import { onward } from "../observability/report"
 
 /**
  * Holding a key over code, and pressing what it underlines.

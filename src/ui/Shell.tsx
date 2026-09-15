@@ -44,7 +44,7 @@ import { addressOf, type LookingAt, lookingAt } from "../domain/lookingAt"
 import { keysOf } from "../app/keyboard"
 import { useSettings } from "./useSettings"
 import { whenIdle } from "../app/idle"
-import { onward } from "@/observability/report"
+import { onward } from "../observability/report"
 
 export type ShellProps = {
   readonly snapshot: PullRequestSnapshot
@@ -539,16 +539,45 @@ export const Shell = ({
    * the same component inside this page, and a fragment naming one of those
    * would be read back on arrival as a file of the pull request.
    */
-  const onReading = useCallback((at: LookingAt) => {
-    const fragment = addressOf(at)
-    if (fragment === "" || fragment === window.location.hash) return
+  /**
+   * This pull request's own address, which is the only one this may write to.
+   *
+   * The write below is made from an effect a frame after the file or the marks
+   * changed, and a reader pressing Back is gone before that frame: the traversal
+   * commits, the address belongs to the list again, and the screen for the list
+   * is standing up while this tree is still coming down. What went out then was
+   * this pull request's file written onto the list's own entry —
+   * `/owner/repo/pulls#packages/mobile/app.json` — and `replaceState` rewrites
+   * the entry rather than adding one, so the address stayed wrong for as long as
+   * that entry lived, through every later Back.
+   *
+   * Nothing noticed, either. The watcher a screen follows the address on reads
+   * the pathname alone, and the pathname is the one part of it this does not
+   * touch: an address that says a reader is looking at a file of a pull request
+   * they have left, on a page that has no such file, and no screen the wiser.
+   *
+   * `repoHome.tsx` guards its own push the same way, for the same reason.
+   */
+  const mine = `/${snapshot.reference.owner}/${snapshot.reference.repo}/pull/${snapshot.reference.number}`
 
-    window.history.replaceState(
-      window.history.state,
-      "",
-      `${window.location.pathname}${window.location.search}${fragment}`
-    )
-  }, [])
+  const onReading = useCallback(
+    (at: LookingAt) => {
+      const fragment = addressOf(at)
+      if (fragment === "" || fragment === window.location.hash) return
+
+      // The pull request's own pages and nothing else: `/pull/7` and
+      // `/pull/7/files` are both this one, `/pull/70` is not.
+      const here = window.location.pathname
+      if (here !== mine && !here.startsWith(`${mine}/`)) return
+
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${window.location.pathname}${window.location.search}${fragment}`
+      )
+    },
+    [mine]
+  )
   const reach = useMemo(
     () => ({
       paths: snapshot.files.map((file) => file.path),

@@ -11,7 +11,7 @@ import { revealer } from "../app/revealing"
 import { GitHubHtml } from "./GitHubHtml"
 import { ageOf, momentOf } from "./when"
 import { Who } from "./Who"
-import { onward } from "@/observability/report"
+import { onward } from "../observability/report"
 
 export type CommitViewProps = {
   readonly sha: string

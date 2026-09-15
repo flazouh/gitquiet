@@ -12,7 +12,7 @@ import { ROOT_ID } from "./mount"
 import { SpinnerIcon } from "./spinner"
 import { ARMED, COPY_LETTER, LETTER, LOOK, ORDER, WORD } from "./rowDoings"
 import { useKeying, useLetters } from "./useLetters"
-import { onward } from "@/observability/report"
+import { onward } from "../observability/report"
 
 /**
  * What a row may ask GitHub for, and who to tell once it happened.

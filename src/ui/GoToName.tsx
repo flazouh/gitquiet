@@ -3,7 +3,7 @@ import { Effect } from "effect"
 import type { Place, WritingKind } from "../ports/Ledger"
 import { FIELD, SHEET } from "./dress"
 import { useLedger } from "./ledger"
-import { onward } from "@/observability/report"
+import { onward } from "../observability/report"
 
 /**
  * Any name the repository writes down, by typing it.

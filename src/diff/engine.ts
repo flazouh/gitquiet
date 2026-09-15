@@ -220,6 +220,32 @@ export const sameName = (one: Name, two: Name): boolean =>
   one.line === two.line && one.from === two.from && one.side === two.side
 
 /**
+ * Whether a token the renderer reported is one this drawing drew.
+ *
+ * Their interaction manager resolves a pointer target by walking the event's
+ * composed path, and a composed path runs through every shadow root it crossed
+ * — including the root of a drawing hung inside a row of this one. So a press
+ * on a name in the uses panel's preview is reported to the preview *and* to the
+ * file the panel is open over, which read the preview's element and the
+ * preview's line number as a line of its own and followed a name that is not
+ * there. The head read `limitedFunction › limitedFunction` and the trail was a
+ * ring.
+ *
+ * A drawing draws into its host's shadow root and a nested one draws into its
+ * own, so the root the element is in is the whole of the question. A token
+ * arriving without an element is taken as this drawing's: an element is the
+ * only thing that can say it belongs to another, and refusing what cannot be
+ * placed would stop following a name at all the day their event stops carrying
+ * one.
+ */
+export const drawnBy = (host: HTMLElement, token: { tokenElement?: HTMLElement }): boolean => {
+  if (token.tokenElement === undefined) return true
+
+  const root = token.tokenElement.getRootNode()
+  return root === host.shadowRoot || root === host
+}
+
+/**
  * How a Name the reader can follow is drawn, and how the two readings differ.
  *
  * Solid where a compiler answered and dotted where a reading of shapes did,
@@ -296,6 +322,13 @@ export const renderDiff = (container: HTMLElement, request: DiffRequest): DiffHa
   if (parsed === undefined) throw new Error(`Nothing to render in the patch for ${request.path}`)
 
   const choices = request.choices
+
+  // Made before the drawing rather than after it: the token handlers below ask
+  // whether a token is in this host's shadow root, and they are written where
+  // the drawing is configured.
+  const host = dressedContainer(request.theme, choices)
+  const ours = (token: { tokenElement?: HTMLElement }): boolean => drawnBy(host, token)
+
   const diff = new FileDiff<string>({
     diffStyle: choices.layout,
     overflow: choices.overflow,
@@ -381,11 +414,28 @@ export const renderDiff = (container: HTMLElement, request: DiffRequest): DiffHa
      * handlers per token when any of these is set, and a diff nobody is asking
      * about should pay nothing for the asking.
      */
+    /*
+     * And only the tokens of this drawing.
+     *
+     * A row hung under a line can hold anything the caller likes, including
+     * another drawing — the uses panel puts a preview of the code in one. That
+     * preview is inside this drawing's host, so its tokens arrive here too, and
+     * a press on one was answered twice: once by the panel, which took a step
+     * along its trail, and once by the file behind it, which threw the panel
+     * away and opened a new one on the same name. The head read
+     * `limitedFunction › limitedFunction` and the trail was a ring.
+     *
+     * A token drawn by somebody else is not a token of this file.
+     */
     ...(request.onName === undefined && request.onNameEnter === undefined
       ? {}
       : {
-          onTokenClick: (token, event) => request.onName?.(named(token), held(event)),
+          onTokenClick: (token, event) => {
+            if (!ours(token)) return
+            request.onName?.(named(token), held(event))
+          },
           onTokenEnter: (token, event) => {
+            if (!ours(token)) return
             entered = { name: named(token), element: token.tokenElement }
             request.onNameEnter?.(entered.name, held(event))
           },
@@ -425,7 +475,6 @@ export const renderDiff = (container: HTMLElement, request: DiffRequest): DiffHa
     marked = null
   }
 
-  const host = dressedContainer(request.theme, choices)
   container.replaceChildren(host)
   diff.render({
     fileDiff: parsed,
