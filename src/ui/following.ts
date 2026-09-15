@@ -5,7 +5,7 @@ import type { Bounds, DiffHandle, Modifiers, Name } from "../ports/Renderer"
 import { reaching } from "../ledger/reaching"
 import { useLedger } from "./ledger"
 import { sameName } from "../diff/engine"
-import { showLine } from "./showLine"
+import { lineBounds, showLine } from "./showLine"
 import { onward } from "../observability/report"
 
 /**
@@ -100,16 +100,20 @@ export type Follows = {
   readonly asked: {
     readonly writing: Writing
     readonly where?: string
-    /**
-     * The line the panel hangs under, which is the line that asked.
-     *
-     * Not a screen coordinate. This opens the file apart and sits in the gap,
-     * the way an editor answers this question — so what it needs is a line
-     * number, and the renderer puts the row there and moves the code below it
-     * down. A panel floating over the code hides the code the reader was
-     * reading, and the lines around a name are most of what a name means.
-     */
+    /** The line that asked, for anything that wants to put it on the screen. */
     readonly under: number
+    /**
+     * Where the name is, for the panel to open beside it.
+     *
+     * It used to be the line alone, and the panel was a row the renderer hung
+     * under it — the file opened apart and the answer sat in the gap. That put
+     * the answer inside the drawing it was about, which is where it went wrong:
+     * a press in the panel bubbled out into the file's own renderer, which
+     * followed it too and re-opened the panel on a new root, so a name in the
+     * preview could not be followed at all. A rectangle and a popup over the
+     * code has no such parent to escape into.
+     */
+    readonly at: Bounds
   } | null
   readonly unask: () => void
   /**
@@ -212,6 +216,7 @@ export const useFollowing = (
     writing: Writing
     where?: string
     under: number
+    at: Bounds
   } | null>(null)
   /**
    * A name that turned out to be written in another repository.
@@ -236,6 +241,15 @@ export const useFollowing = (
     readonly where?: string
     /** The other file's own text, kept so a Peek into it costs no second read. */
     readonly text?: string
+    /**
+     * Where the word was when the key was held over it.
+     *
+     * Kept because `boundsOf` only answers about the token the renderer last
+     * reported entering, and the press that opens the panel arrives after it
+     * has reported the leave. Measured once, on the hover that drew the
+     * underline, rather than on every token a pointer crosses.
+     */
+    readonly at?: Bounds
   } | null>(null)
 
   /** The underline and the card go together, and go away together. */
@@ -245,6 +259,9 @@ export const useFollowing = (
     handle.current?.mark(name, writing.exact === true ? "sure" : "likely")
     const at = handle.current?.boundsOf(name) ?? null
     setShown(at === null ? null : { writing, at, ...(where === undefined ? {} : { where }) })
+    // Kept for the press that may follow, which cannot measure it again.
+    const here = on.current
+    if (at !== null && here !== null && sameName(here.name, name)) on.current = { ...here, at }
   }, [])
 
   const clear = useCallback(() => {
@@ -440,6 +457,28 @@ export const useFollowing = (
     [source]
   )
 
+  /**
+   * Where to open the panel, from whatever still knows where the word is.
+   *
+   * Three answers, best first. The renderer's is best because it knows the
+   * token; it is also the one most likely to be gone, since a press lets go of
+   * the token on the way down. The hover that drew the underline measured the
+   * same rectangle a moment earlier. And a line is drawn whether or not any
+   * token is still reported, so the last answer is always an answer — the panel
+   * opens beside the right line even when nothing can say which word.
+   */
+  const anchorOf = useCallback(
+    (name: Name): Bounds | null => {
+      const held = on.current
+      return (
+        handle.current?.boundsOf(name) ??
+        (held !== null && sameName(held.name, name) ? held.at : undefined) ??
+        lineBounds(host.current, name.line)
+      )
+    },
+    [host]
+  )
+
   const onName = useCallback(
     (name: Name, held: Modifiers) => {
       if (!held.go) return
@@ -490,8 +529,12 @@ export const useFollowing = (
       }
 
       const show = (writing: Writing, where?: string): void => {
+        // Measured before the mark is let go, because letting go of it is what
+        // takes the token the rectangle is being asked about.
+        const at = anchorOf(name)
         clear()
-        setAsked({ writing, ...(where === undefined ? {} : { where }), under: name.line })
+        if (at === null) return
+        setAsked({ writing, ...(where === undefined ? {} : { where }), under: name.line, at })
       }
 
       const answer = (writing: Writing, where?: string): void => {
@@ -516,7 +559,7 @@ export const useFollowing = (
       // told us the pointer left it.
       ask(name, answer, true)
     },
-    [across, ask, clear, host, linesOf, source]
+    [across, anchorOf, ask, clear, host, linesOf, source]
   )
 
   const drawnBy = useCallback((given: DiffHandle | null) => {
@@ -637,8 +680,10 @@ export const useFollowing = (
     if (here === null) return
 
     const show = (writing: Writing, where?: string): void => {
+      const at = anchorOf(here.name)
       clear()
-      setAsked({ writing, ...(where === undefined ? {} : { where }), under: here.name.line })
+      if (at === null) return
+      setAsked({ writing, ...(where === undefined ? {} : { where }), under: here.name.line, at })
     }
 
     if (here.writing !== null) {
@@ -646,7 +691,7 @@ export const useFollowing = (
       return
     }
     ask(here.name, show, true)
-  }, [ask, clear])
+  }, [anchorOf, ask, clear])
   const textNow = useCallback(
     () => (text.current?.path === source?.path ? (text.current?.text ?? null) : null),
     [source]

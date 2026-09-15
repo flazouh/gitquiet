@@ -53,16 +53,5 @@ describe("which gist screen owns an address", () => {
     expect(gistPlaceOwning("/", "")).toBeNull()
   })
 
-  /**
-   * Both stand on the body, which is what makes them the kind of screen `plans/006`
-   * calls full-replacement. Asserted rather than assumed: naming one of GitHub's regions
-   * here would leave their header above ours, which is the other kind of screen and not
-   * what a page of the reader's own things is.
-   */
-  test("both take the whole page rather than a region of GitHub's", () => {
-    for (const place of [GIST_LIST, GIST_VIEW]) {
-      expect(place.regions).toEqual([])
-      expect(place.fallback).toBe("body")
-    }
-  })
+
 })

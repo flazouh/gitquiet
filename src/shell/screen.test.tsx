@@ -13,11 +13,7 @@ import { TheBar } from "../ui/TheBar"
  */
 const MINE: Place = {
   name: "test-screen",
-  owns: (path) => path === "/mine",
-  regions: ["#region"],
-  fallback: "body",
-  stages: ["#region"],
-  bands: []
+  owns: (path) => path === "/mine"
 }
 
 const OTHER: Place = {
@@ -310,10 +306,7 @@ describe("standing a screen on the page", () => {
     holdTheSurface(document)
 
     const nowhere: Place = {
-      ...MINE,
-      regions: ["#missing-region"],
-      fallback: "#missing-region",
-      stages: ["#missing-region"]
+      ...MINE
     }
     const returned = standAScreen({ place: nowhere, draw: () => <p>returned screen</p> })
     await drawn("main", "returned screen")

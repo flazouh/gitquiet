@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
+import { createPortal } from "react-dom"
 import { Effect, Option } from "effect"
 import type { AcrossUse, Use, Writing } from "../ports/Ledger"
 import { FLOAT } from "./dress"
 import { partOfFile } from "../domain/wholeFile"
 import { diffChoices } from "../domain/choices"
-import type { DiffEngine } from "../ports/Renderer"
+import type { Bounds, DiffEngine } from "../ports/Renderer"
 import { PAPER } from "../ports/Renderer"
 import { onward } from "../observability/report"
 import { useLedger } from "./ledger"
@@ -35,6 +36,22 @@ import { useSettings } from "./useSettings"
 export type UsesPanelProps = {
   readonly writing: Writing
   readonly reading: { readonly path: string; readonly text: string }
+  /**
+   * Where the name is on the screen, for this to open beside it.
+   *
+   * This used to be a row the renderer hung under the line, and the line number
+   * was all it needed. That put the answer inside the drawing it was about,
+   * which is where it came apart: a press in the preview bubbled out into the
+   * file's own renderer, which followed it too and re-opened this on a new
+   * root, so a name in the preview could not be followed at all. A popup over
+   * the code has no such parent to escape into.
+   */
+  readonly at: Bounds
+  /**
+   * The line the reader asked from, which decides whether where it is written
+   * is worth a row. See {@link UsesPanelProps.writing} and the note on `rows`.
+   */
+  readonly under: number
   /**
    * The file the Writing is in, where it is not the one being read.
    *
@@ -83,12 +100,29 @@ const AROUND = 8
  * the rest of the visit rather than for ever. A reader who makes the list wider
  * to read a long path does not want it narrow again at the next name.
  */
-const LAYOUT = { ratio: 0.7, tall: 352 }
+const LAYOUT = { ratio: 0.64, tall: 208 }
 /** Neither half may be dragged smaller than this, in pixels. */
-const LEAST = { preview: 224, listed: 144 }
+const LEAST = { preview: 168, listed: 112 }
 /** The panel itself, which is a reader's window and not a reader's file. */
-const SHORTEST = 160
-const TALLEST = 640
+const SHORTEST = 120
+const TALLEST = 440
+
+/**
+ * How wide the popup is, in pixels, and how far above the word it sits.
+ *
+ * A number rather than a class because it is also what the clamping is done
+ * against: a popup anchored to a word near the right edge has to be pulled back
+ * onto the screen, and that arithmetic needs the width.
+ *
+ * Narrower than the row this replaced, which was as wide as the file. A popup
+ * covers the code it is about, so every column of it is a column of the
+ * reader's file spent — the row could afford to be wide because it pushed the
+ * file down rather than sitting on it.
+ */
+const WIDE = 560
+const CLEAR = 8
+/** Above the word unless the word is nearer the top of the window than this. */
+const ROOM = 280
 
 /**
  * One line of the answer: where the name is written, a use of it in this file,
@@ -114,6 +148,8 @@ type Row = {
 export const UsesPanel = ({
   writing,
   reading,
+  at,
+  under,
   onGo,
   onOpen,
   onClose,
@@ -149,6 +185,8 @@ export const UsesPanel = ({
   const [ratio, setRatio] = useState(LAYOUT.ratio)
   const [tall, setTall] = useState(LAYOUT.tall)
   const body = useRef<HTMLDivElement | null>(null)
+  /** The popup, for a press to be asked whether it landed inside it. */
+  const frame = useRef<HTMLDivElement | null>(null)
   /** Where the preview is drawn, by the renderer that drew the file above it. */
   const shownIn = useRef<HTMLDivElement | null>(null)
   const load = useRenderer()
@@ -204,6 +242,36 @@ export const UsesPanel = ({
     }
     document.addEventListener("keydown", onKey, true)
     return () => document.removeEventListener("keydown", onKey, true)
+  }, [onClose])
+
+  /*
+   * A press anywhere else puts it away, which is what a popup means.
+   *
+   * The row this replaced needed a button to close it, because a row has no
+   * outside — it is part of the file, and pressing the file is reading the
+   * file. A popup sits over the code and the code around it is the way out, so
+   * the button is gone and this is what took its place.
+   *
+   * `composedPath` rather than `contains`: the preview inside this is drawn by
+   * the renderer into a shadow root of its own, so a press on a line of it
+   * reports a target that is retargeted to the host and belongs to no node this
+   * could ask about. The composed path holds every node the event really
+   * crossed, this popup among them.
+   *
+   * On pointerdown rather than click, and in the capture phase. A press that
+   * starts outside has already left; waiting for the click let the same press
+   * land on the file underneath first — marking a line, or opening a composer
+   * on it — and then closed this afterwards.
+   */
+  useEffect(() => {
+    const away = (event: Event) => {
+      const popup = frame.current
+      if (popup === null || event.composedPath().includes(popup)) return
+      onClose()
+    }
+
+    document.addEventListener("pointerdown", away, true)
+    return () => document.removeEventListener("pointerdown", away, true)
   }, [onClose])
 
   /*
@@ -291,15 +359,35 @@ export const UsesPanel = ({
    * One list rather than three, because the preview beside it shows one row at
    * a time and "which row is showing" has to mean something across all of them.
    */
+  /**
+   * Whether where it is written is worth a row.
+   *
+   * It is not, when the reader is looking at it. A press on a Writing is a
+   * reader with their eye on the declaration asking who depends on it — and the
+   * first thing the panel did was offer them the line they had just pressed,
+   * with the preview opened on the body they could already see. The question
+   * was "who uses this" and the answer led with "here it is".
+   *
+   * It is worth a row in the two cases where it is news: where the Writing is
+   * in another file, which is then the only way to reach it, and on a step
+   * along the trail, where the reader followed a name precisely to find out
+   * what it is.
+   */
+  const written = trail.length > 0 || !here || step.writing.line !== under
+
   const rows: ReadonlyArray<Row> = [
-    {
-      kind: "written",
-      line: step.writing.line,
-      from: step.writing.from,
-      to: step.writing.to,
-      said: step.writing.signature,
-      path: step.where
-    },
+    ...(written
+      ? [
+          {
+            kind: "written" as const,
+            line: step.writing.line,
+            from: step.writing.from,
+            to: step.writing.to,
+            said: step.writing.signature,
+            path: step.where
+          }
+        ]
+      : []),
     ...(elsewhereInFile ?? []).map((use) => ({
       kind: "use" as const,
       line: use.line,
@@ -458,32 +546,21 @@ export const UsesPanel = ({
     })
 
     /*
-     * And the press stops here.
+     * Nothing is sealed in here any more, and that is the point of the move.
      *
-     * A row hung under a line is slotted into the drawing above it, so an event
-     * inside this preview goes on up through that drawing's own `<pre>` — where
-     * the file's renderer is listening. `drawnBy` in `engine.ts` turns away the
-     * *names* that arrive that way, but a line is not a name: the file also
-     * hears the press as a line pressed, and on a pull request the reader can
-     * comment on it answers by marking that line and opening the composer on
-     * it. The moving pointer is worse, because their manager carries the file's
-     * gutter plus to whatever line it last saw — which, over this preview, is
-     * one of the preview's, and the plus that adds a comment to the file is
-     * drawn inside a panel it cannot add anything to.
+     * While this was a row hung under a line, it was slotted into the drawing
+     * above it — so every press and every pointer move inside the preview went
+     * on up through that drawing's own `<pre>`, where the file's renderer was
+     * listening. It heard a press in here as a press on one of its own lines:
+     * on a pull request it marked that line and opened the composer on it, and
+     * it carried the gutter's plus to whatever line it last saw, which over
+     * this preview was one of the preview's. Three events had to be stopped by
+     * hand to hold it back, and stopping them was also what stopped a name in
+     * the preview from being followed.
      *
-     * Bubbling rather than capturing: the preview's own renderer listens on its
-     * own `<pre>` below this, so it has already been told by the time the event
-     * reaches here. It is only the drawing above that hears nothing.
-     *
-     * The file keeps whatever line it had highlighted while the pointer is in
-     * here, which is the line this panel hangs under and the line the reader
-     * came from. A pointer that left the file entirely would clear it; there is
-     * no such thing to leave, and a held highlight is a truer answer than one
-     * that follows the pointer into a drawing the file does not own.
+     * A popup is in `document.body`, under nothing. There is no drawing above
+     * it to hear anything, so there is nothing to stop.
      */
-    const stop = (event: Event) => event.stopPropagation()
-    const SEALED = ["pointerdown", "pointermove", "click"] as const
-    for (const kind of SEALED) container.addEventListener(kind, stop)
 
     const marking = requestAnimationFrame(() => {
       /*
@@ -525,7 +602,6 @@ export const UsesPanel = ({
 
     return () => {
       cancelAnimationFrame(marking)
-      for (const kind of SEALED) container.removeEventListener(kind, stop)
       live.destroy()
     }
     // `showing` is read inside and not depended on: the line and the column are
@@ -539,10 +615,30 @@ export const UsesPanel = ({
     onClose()
   }
 
-  return (
+  /*
+   * Above the word unless there is no room, and then below it.
+   *
+   * Measured against the viewport rather than the pane, for the reason
+   * `FollowCard` gives: the pane scrolls, the viewport is what a reader can
+   * see, and a popup off the top of it is a popup that is not there. Clamped on
+   * the left too, because a name near the right edge would otherwise open most
+   * of this off the side of the window.
+   */
+  const above = at.top > ROOM
+  const placed: CSSProperties = {
+    width: WIDE,
+    left: Math.max(8, Math.min(at.left, window.innerWidth - WIDE - 8)),
+    ...(above
+      ? { bottom: window.innerHeight - at.top + CLEAR }
+      : { top: at.bottom + CLEAR })
+  }
+
+  return createPortal(
     <div
+      ref={frame}
       aria-label={`Uses of ${step.writing.name}`}
-      className={`overflow-hidden border-y border-line bg-raised text-ink ${FLOAT}`}
+      className={`fixed z-50 overflow-hidden rounded-lg border border-line bg-raised text-ink ${FLOAT}`}
+      style={placed}
     >
       {/* The head: what was asked about, and how many answers there are. */}
       <div className="flex items-baseline gap-2 border-b border-line bg-surface px-3 py-2">
@@ -590,14 +686,6 @@ export const UsesPanel = ({
                 : `${beyond.length} elsewhere${elsewhere.exact === true ? ", exactly" : ""}`}
           </span>
         )}
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="ml-auto shrink-0 rounded px-1.5 text-xs text-ink-muted hover:bg-hover"
-        >
-          Esc
-        </button>
       </div>
 
       {/*
@@ -714,6 +802,7 @@ export const UsesPanel = ({
         onPointerDown={dragEdge}
         className="h-1 cursor-row-resize bg-line hover:bg-accent"
       />
-    </div>
+    </div>,
+    document.body
   )
 }

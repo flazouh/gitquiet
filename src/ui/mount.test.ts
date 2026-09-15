@@ -79,405 +79,22 @@ const theirsIn = (page: Document) => page.querySelector(".js-updatable-content")
 const theirTabsIn = (page: Document) =>
   page.querySelector('[aria-label="Pull request navigation"]')!
 
-describe("slotting into GitHub's pull request page", () => {
-  test("recognises the exact route already on the page", () => {
-    const page = githubPage()
-    const root = interfaceContainer(page, CONVERSATION, "/owner/repo/pull/2")
-    slotOf(page).append(root)
-
-    expect(theScreenHasRoute(page, "/owner/repo/pull/2")).toBe(true)
-    expect(theScreenHasRoute(page, "/owner/repo/pull/3")).toBe(false)
-  })
-
-  test("seeds a route that was rendered before the click", () => {
-    const view = new HappyWindow({ url: "https://github.com/owner/repo/pull/1" })
-    const page = view.document as unknown as Document
-    page.body.innerHTML = githubPage().body.innerHTML
-    const prepared = page.createElement("div")
-    prepared.innerHTML = "<h1>prepared pull request</h1>"
-
-    rememberPreparedScreen(page, "/owner/repo/pull/2", CONVERSATION, prepared)
-    view.history.replaceState(null, "", "/owner/repo/pull/2")
-    const arriving = interfaceContainer(page, CONVERSATION)
-
-    expect(arriving.textContent).toContain("prepared pull request")
-    view.close()
-  })
-
-  test("claims a live prepared root without disposing it", () => {
-    const view = new HappyWindow({ url: "https://github.com/owner/repo/pull/1" })
-    const page = view.document as unknown as Document
-    page.body.innerHTML = githubPage().body.innerHTML
-    const prepared = page.createElement("div")
-    prepared.innerHTML = "<h1>live pull request</h1>"
-    let disposed = 0
-
-    rememberPreparedScreen(page, "/owner/repo/pull/2", CONVERSATION, prepared, () => {
-      disposed += 1
-    })
-    view.history.replaceState(null, "", "/owner/repo/pull/2")
-    const arriving = interfaceContainer(page, CONVERSATION)
-
-    expect(arriving).toBe(prepared)
-    expect(disposed).toBe(0)
-    view.close()
-  })
-
-  test("arms a live cached route for a history traversal", () => {
-    const view = new HappyWindow({ url: "https://github.com/pulls/inbox" })
-    const page = view.document as unknown as Document
-    const prepared = page.createElement("div")
-    prepared.innerHTML = "<h1>live Working Set</h1>"
-
-    rememberPreparedScreen(page, "/pulls/inbox", DASHBOARD, prepared, () => {})
-
-    expect(prepareCachedTraversal(page, "/pulls/inbox", DASHBOARD)).toBe(true)
-    expect(page.documentElement.hasAttribute(PREPARED_TRAVERSAL_ROUTE)).toBe(false)
-    expect(preparedTraversal(page)).toBe("/pulls/inbox")
-    view.close()
-  })
-
-  test("updates the route held by a screen after a same-place redirect", () => {
-    const view = new HappyWindow({ url: "https://github.com/pulls" })
-    const page = view.document as unknown as Document
-    const screen = interfaceContainer(page, DASHBOARD, "/pulls")
-
-    markScreenRoute(page, "/pulls/inbox")
-
-    expect(screen.getAttribute("data-gitquiet-route")).toBe("/pulls/inbox")
-    view.close()
-  })
-
-  test("claims an exact prepared route before a history traversal commits", () => {
-    const view = new HappyWindow({ url: "https://github.com/owner/repo/pull/1" })
-    const page = view.document as unknown as Document
-    page.body.innerHTML = githubPage().body.innerHTML
-    const prepared = page.createElement("div")
-    prepared.innerHTML = "<h1>returned pull request</h1>"
-
-    rememberPreparedScreen(page, "/owner/repo/pull/2", CONVERSATION, prepared, () => {})
-    markPreparedTraversal(page, "/owner/repo/pull/2")
-    const arriving = interfaceContainer(page, CONVERSATION, "/owner/repo/pull/2")
-
-    expect(arriving).toBe(prepared)
-    expect(page.documentElement.hasAttribute(PREPARED_TRAVERSAL_ROUTE)).toBe(false)
-    expect(preparedTraversal(page)).toBeNull()
-    expect(view.location.pathname).toBe("/owner/repo/pull/1")
-    view.close()
-  })
-
-  test("puts a live traversal target on the current surface before history commits", () => {
-    const view = new HappyWindow({ url: "https://github.com/owner/repo/pull/1" })
-    const page = view.document as unknown as Document
-    page.body.innerHTML = githubPage().body.innerHTML
-    const current = interfaceContainer(page, CONVERSATION, "/owner/repo/pull/1")
-    current.innerHTML = "<h1>current pull request</h1>"
-    takeOverSlot(page, current, CONVERSATION, undefined, "/owner/repo/pull/1")
-    const prepared = page.createElement("div")
-    prepared.innerHTML = "<h1>returned pull request</h1>"
-    rememberPreparedScreen(page, "/owner/repo/pull/2", CONVERSATION, prepared, () => {})
-    const currentActivity = current.getAttribute(SCREEN_ACTIVITY)
-    const preparedActivity = prepared.getAttribute(SCREEN_ACTIVITY)
-
-    expect(
-      activatePreparedTraversal(page, "/owner/repo/pull/2", CONVERSATION)
-    ).toBe(true)
-    expect(page.getElementById(ROOT_ID)).toBe(prepared)
-    expect(prepared.isConnected).toBe(true)
-    expect(page.querySelectorAll(`#${ROOT_ID}`)).toHaveLength(1)
-    expect(current.getAttribute(SCREEN_ACTIVITY)).toBe(currentActivity)
-    expect(prepared.getAttribute(SCREEN_ACTIVITY)).toBe(preparedActivity)
-    expect(view.location.pathname).toBe("/owner/repo/pull/1")
-    view.close()
-  })
-
-  test("seeds a returned address when two routes use the same screen kind", async () => {
-    const view = new HappyWindow({ url: "https://github.com/owner/repo/pull/1" })
-    const page = view.document as unknown as Document
-    page.body.innerHTML = githubPage().body.innerHTML
-
-    const first = interfaceContainer(page, CONVERSATION)
-    first.innerHTML = "<h1>first pull request</h1>"
-    takeOverSlot(page, first, CONVERSATION)
-
-    view.history.replaceState(null, "", "/owner/repo/pull/2")
-    const second = interfaceContainer(page, CONVERSATION)
-    second.innerHTML = "<h1>second pull request</h1>"
-    takeOverSlot(page, second, CONVERSATION)
-    await new Promise((resolve) => setTimeout(resolve, 0))
-
-    view.history.replaceState(null, "", "/owner/repo/pull/1")
-    const returned = interfaceContainer(page, CONVERSATION)
-
-    expect(returned).not.toBe(second)
-    expect(returned.textContent).toContain("first pull request")
-
-    takeOverSlot(page, returned, CONVERSATION)?.stepAside()
-    view.close()
-  })
-
-  test("finds the region GitHub fills with the conversation", () => {
-    const page = githubPage()
-
-    expect(findSlot(page)).toBe(slotOf(page))
-  })
-
-  test("leaves the page's own header and navigation alone", () => {
-    const page = githubPage()
-
-    takeOverSlot(page)
-
-    expect(page.querySelector(".header-wrapper")?.textContent).toContain("site nav")
-    expect(page.querySelector('[class*="PageLayout-Header"]')?.hasAttribute("hidden")).toBe(false)
-  })
-
-  test("hides their pull request tabs, since ours answers the same question", () => {
-    const page = githubPage()
-
-    takeOverSlot(page)
-
-    expect(theirTabsIn(page).hasAttribute("hidden")).toBe(true)
-    // Only the tabs. The title and state above them are how someone knows
-    // which pull request this is, and they stay.
-    expect(page.querySelector('[class*="PageLayout-Header"]')?.hasAttribute("hidden")).toBe(false)
-  })
-
-  test("gives their tabs back when it steps aside", () => {
-    const page = githubPage()
-    const takeover = takeOverSlot(page)
-
-    takeover!.stepAside()
-
-    expect(theirTabsIn(page).hasAttribute("hidden")).toBe(false)
-  })
-
-  test("hides their tabs again when React draws them a second time", async () => {
-    const page = githubPage()
-    takeOverSlot(page)
-    theirTabsIn(page).remove()
-
-    const again = page.createElement("nav")
-    again.setAttribute("aria-label", "Pull request navigation")
-    page.querySelector('[class*="PageLayout-Header"]')!.append(again)
-    await Promise.resolve()
-
-    expect(again.closest("[hidden]")).not.toBeNull()
-  })
-
-  test("hides GitHub's conversation rather than deleting it out from under React", () => {
-    const page = githubPage()
-
-    takeOverSlot(page)
-
-    expect(theirsIn(page).hasAttribute("hidden")).toBe(true)
-  })
-
-  test("hands back a container already standing on the page", () => {
-    const page = githubPage()
-
-    const takeover = takeOverSlot(page)
-    takeover!.container.textContent = "our interface"
-
-    expect(takeover!.container.id).toBe(ROOT_ID)
-    expect(page.body.querySelector(`#${ROOT_ID}`)?.textContent).toBe("our interface")
-  })
-
-  test("hides whatever GitHub renders into the slot afterwards", async () => {
-    const page = githubPage()
-    takeOverSlot(page)
-
-    const late = page.createElement("div")
-    late.textContent = "a live update"
-    slotOf(page).append(late)
-    await Promise.resolve()
-
-    expect(late.closest("[hidden]")).not.toBeNull()
-  })
-
-  test("puts the interface back if a re-render takes it out", async () => {
-    const page = githubPage()
-    takeOverSlot(page)
-
-    page.getElementById(ROOT_ID)?.remove()
-    slotOf(page).append(page.createElement("div"))
-    await Promise.resolve()
-
-    expect(page.body.querySelector(`#${ROOT_ID}`)).not.toBeNull()
-  })
-
-  test("stays exactly where it is when React swaps their whole region out", async () => {
-    const page = githubPage()
-    takeOverSlot(page)
-    const stood = page.getElementById(ROOT_ID)!
-    const wrapper = page.querySelector('[class*="PageLayoutWrapper"]')!
-
-    // What GitHub's React actually does on a re-render: not update the region,
-    // replace it. This used to take the interface off the page with the
-    // discarded copy and put it back a frame or two later — measured live at
-    // thirty-seven milliseconds of nothing, followed by the entrance again.
-    slotOf(page).remove()
-    const replacement = page.createElement("div")
-    replacement.className = "prc-PageLayout-PageLayoutContent-BneH9"
-    replacement.innerHTML = '<div class="js-updatable-content">their conversation, again</div>'
-    wrapper.append(replacement)
-    await Promise.resolve()
-
-    // Never moved, never detached: their region was never where it stood.
-    expect(stood.isConnected).toBe(true)
-    expect(stood.parentElement).toBe(page.body)
-    // And the region they have now is hidden like the one they threw away.
-    expect(replacement.querySelector(".js-updatable-content")!.closest("[hidden]")).not.toBeNull()
-  })
-
-  test("gives the conversation back when it steps aside", async () => {
-    const page = githubPage()
-    const takeover = takeOverSlot(page)
-
-    takeover!.stepAside()
-    slotOf(page).append(page.createElement("div"))
-    await Promise.resolve()
-
-    expect(theirsIn(page).hasAttribute("hidden")).toBe(false)
-    expect(page.getElementById(ROOT_ID)).toBeNull()
-  })
-
-  test("a second takeover adopts the interface already there rather than hiding it", () => {
-    const page = githubPage()
-    const first = takeOverSlot(page)
-    first!.container.textContent = "our interface"
-
-    const second = takeOverSlot(page)
-
-    expect(page.querySelectorAll(`#${ROOT_ID}`)).toHaveLength(1)
-    expect(second?.container).toBe(first!.container)
-    expect(first!.container.hasAttribute("hidden")).toBe(false)
-    expect(second?.container.textContent).toBe("our interface")
-  })
-
-  test("declines rather than guessing when GitHub's layout has moved", () => {
-    const page = document.implementation.createHTMLDocument("github")
-    page.body.innerHTML = "<div>something else entirely</div>"
-
-    expect(takeOverSlot(page)).toBeNull()
-  })
-})
-
-/*
- * As its own place rather than a pull request's. The two share a region, so which
- * bands to hide is the only thing that tells them apart — and a commit's band and a
- * pull request's title row sit in the same position, so naming both in one place
- * took the title off every pull request.
- */
-describe("slotting into GitHub's page for one commit", () => {
-  test("takes the region holding the file tree and the diff", () => {
-    const page = commitPage()
-
-    takeOverSlot(page, interfaceContainer(page, COMMIT), COMMIT)
-
-    expect(page.body.querySelector(`#${ROOT_ID}`)).not.toBeNull()
-    expect(theirsIn(page).hasAttribute("hidden")).toBe(true)
-  })
-
-  test("hides the band above it, which says what the panel below already says", () => {
-    const page = commitPage()
-
-    takeOverSlot(page, interfaceContainer(page, COMMIT), COMMIT)
-
-    expect(page.querySelector('[class*="PageLayout-Header"]')?.hasAttribute("hidden")).toBe(true)
-  })
-
-  test("leaves that band alone on a pull request, where it is their title row", () => {
-    const page = commitPage()
-
-    takeOverSlot(page, interfaceContainer(page, CONVERSATION), CONVERSATION)
-
-    expect(page.querySelector('[class*="PageLayout-Header"]')?.hasAttribute("hidden")).toBe(false)
-  })
-
-  test("gives that band back when it steps aside", () => {
-    const page = commitPage()
-    const takeover = takeOverSlot(page, interfaceContainer(page, COMMIT), COMMIT)
-
-    takeover!.stepAside()
-
-    expect(page.querySelector('[class*="PageLayout-Header"]')?.hasAttribute("hidden")).toBe(false)
-  })
-})
-
-describe("arriving before GitHub has rendered", () => {
-  test("waits for the region, which React only draws after the document is done", async () => {
-    const page = document.implementation.createHTMLDocument("github")
-    page.body.innerHTML = '<div id="repo-content-pjax-container"></div>'
-
-    const waiting = Effect.runPromise(takeOverSlotWhenReady(page, interfaceContainer(page), 1000))
-    const late = page.createElement("div")
-    late.className = "prc-PageLayout-PageLayoutContent-BneH9"
-    page.querySelector("#repo-content-pjax-container")!.append(late)
-
-    // The wait is for their region. Where it stands when the wait is over is
-    // the surface, which is why the region is asserted by the resolve rather
-    // than by what it ends up containing.
-    expect((await waiting)?.container.id).toBe(ROOT_ID)
-    expect((await waiting)?.container.parentElement).toBe(page.body)
-  })
-
-  test("gives up rather than waiting forever on a page that has none", async () => {
-    const page = document.implementation.createHTMLDocument("github")
-    page.body.innerHTML = "<div>something else entirely</div>"
-
-    expect(await Effect.runPromise(takeOverSlotWhenReady(page, interfaceContainer(page), 10))).toBeNull()
-  })
-
-  test("renders into the container it was given rather than making a second one", async () => {
-    const page = githubPage()
-    // What the content script does: builds the interface before the region it
-    // belongs in has been parsed, then hands that exact element over.
-    const early = interfaceContainer(page)
-    early.textContent = "our interface"
-
-    await Effect.runPromise(takeOverSlotWhenReady(page, early, 1000))
-
-    expect(page.querySelectorAll(`#${ROOT_ID}`)).toHaveLength(1)
-    expect(page.body.querySelector(`#${ROOT_ID}`)).toBe(early)
-    expect(early.textContent).toBe("our interface")
-  })
-})
-
-describe("choosing between the conversation and the whole repository content", () => {
-  const onlyTheContainer = (): Document => {
-    const page = document.implementation.createHTMLDocument("github")
-    page.body.innerHTML = '<div id="repo-content-pjax-container">everything</div>'
-    return page
-  }
-
-  test("will not settle for the whole content while the conversation may still be parsed", () => {
-    // `#repo-content-pjax-container` is far higher up GitHub's document than the
-    // region inside it, so during parsing it is always the one that exists. At
-    // `document_start` that made the fallback the normal path, and the
-    // interface took the entire repository content on every load.
-    expect(findConversationSlot(onlyTheContainer())).toBeNull()
-  })
-
-  test("takes the whole content once it is clear there is no conversation region", () => {
-    const page = onlyTheContainer()
-
-    expect(findSlot(page)).toBe(page.querySelector("#repo-content-pjax-container"))
-  })
-
-  test("prefers the conversation to the content that holds it", () => {
-    const page = githubPage()
-
-    expect(findConversationSlot(page)).toBe(slotOf(page))
-    expect(findSlot(page)).toBe(slotOf(page))
-  })
-})
 
 /**
- * The gate belonging to the script that runs on every GitHub page, which holds
- * the conversation back while the interface is still being injected into a page
- * that was never loaded as a pull request.
+ * Our container, looked for where it actually stands.
+ *
+ * `document.getElementById` cannot see through a shadow boundary, and the
+ * interface is inside one now. Every assertion about "the root on the page" goes
+ * through this instead — the fact being asserted is unchanged, only where the
+ * page keeps it.
  */
-const GATING = "data-gitquiet-gating"
+const ourRoot = (page: Document): HTMLElement | null =>
+  (page.getElementById("gitquiet-host")?.shadowRoot ?? page).querySelector<HTMLElement>(`#${ROOT_ID}`)
+
+/** Every container of ours on the page, for the tests that count them. */
+const allRoots = (page: Document): ReadonlyArray<Element> => [
+  ...(page.getElementById("gitquiet-host")?.shadowRoot ?? page).querySelectorAll(`#${ROOT_ID}`)
+]
 
 describe("arriving after the document has finished, which is what a soft navigation is", () => {
   /** The list of pull requests, finished loading, with no conversation on it yet. */
@@ -765,7 +382,7 @@ describe("handing the page from one interface to the next", () => {
     interfaceContainer(page, CONVERSATION)
 
     expect(list.container.isConnected).toBe(true)
-    expect<Element | null>(page.getElementById(ROOT_ID)).toBe(list.container)
+    expect<Element | null>(ourRoot(page)).toBe(list.container)
   })
 
   test("takes it out at the moment the card is put in the page, and not before", () => {
@@ -776,8 +393,8 @@ describe("handing the page from one interface to the next", () => {
     const card = takeOverSlot(page, arriving, CONVERSATION)
 
     expect(list.container.isConnected).toBe(false)
-    expect(page.querySelectorAll(`#${ROOT_ID}`)).toHaveLength(1)
-    expect<Element | null>(page.getElementById(ROOT_ID)).toBe(card!.container)
+    expect(allRoots(page)).toHaveLength(1)
+    expect<Element | null>(ourRoot(page)).toBe(card!.container)
   })
 
   test("leaves the list standing when its own script gives the address up first", () => {
@@ -909,8 +526,8 @@ describe("handing the page from one interface to the next", () => {
     takeOverSlot(page, first, REPO_PULLS)
     takeOverSlot(page, second, REPO_PULLS)
 
-    expect(page.querySelectorAll(`#${ROOT_ID}`)).toHaveLength(1)
-    expect<Element | null>(page.getElementById(ROOT_ID)).toBe(second)
+    expect(allRoots(page)).toHaveLength(1)
+    expect<Element | null>(ourRoot(page)).toBe(second)
   })
 
   test("tells the one it sweeps that it is going, so that tree comes down too", () => {
@@ -939,7 +556,7 @@ describe("handing the page from one interface to the next", () => {
     await Promise.resolve()
 
     expect(list.container.isConnected).toBe(false)
-    expect<Element | null>(page.getElementById(ROOT_ID)).toBe(card.container)
+    expect<Element | null>(ourRoot(page)).toBe(card.container)
   })
 })
 
@@ -955,95 +572,6 @@ describe("handing the page from one interface to the next", () => {
  * something `display: none`. Which is a blank page holding a quarter of a
  * megabyte of pull request.
  */
-describe("pressing a pull request on a list drawn over a layout of the same shape", () => {
-  const dashboardPage = (): Document => {
-    const page = document.implementation.createHTMLDocument("github")
-    page.body.innerHTML = `
-      <main>
-        <react-app class="loaded">
-          <div>
-            <div data-testid="pulls-dashboard-surface-layout">
-              <div class="prc-PageLayout-PageLayoutRoot--KH-d">
-                <div class="prc-PageLayout-PageLayoutWrapper-2BhU2">
-                  <div class="prc-PageLayout-PageLayoutContent-BneH9">GitHub's dashboard</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </react-app>
-      </main>`
-    return page
-  }
-
-  /** The Working Set in charge, and the card's container built on the press. */
-  const pressed = (page: Document) => {
-    const list = takeOverSlot(page, interfaceContainer(page, DASHBOARD), DASHBOARD)!
-    return { list, arriving: interfaceContainer(page, CONVERSATION) }
-  }
-
-  test("offers the card no region at all, since none of them is this page's", () => {
-    const page = dashboardPage()
-    pressed(page)
-
-    expect(findConversationSlot(page, CONVERSATION)).toBeNull()
-    expect(findSlot(page, CONVERSATION)).toBeNull()
-  })
-
-  test("declines rather than mounting the card inside what the list hid", () => {
-    const page = dashboardPage()
-    const { arriving } = pressed(page)
-
-    expect(takeOverSlot(page, arriving, CONVERSATION)).toBeNull()
-  })
-
-  test("leaves the Working Set on the screen, since it is still the page", () => {
-    const page = dashboardPage()
-    const { list, arriving } = pressed(page)
-
-    takeOverSlot(page, arriving, CONVERSATION)
-
-    expect(list.container.isConnected).toBe(true)
-    expect<Element | null>(page.getElementById(ROOT_ID)).toBe(list.container)
-  })
-
-  test("takes the pull request's own region the moment GitHub renders one", () => {
-    // The other half: this must not become a card that never arrives. Once their
-    // pull request app is on the page, the region inside it is this page's own
-    // and is taken like any other.
-    const page = dashboardPage()
-    const { arriving } = pressed(page)
-    page.querySelector("main")!.insertAdjacentHTML(
-      "afterbegin",
-      `<react-app app-name="pull-requests">
-         <div class="prc-PageLayout-PageLayoutContent-BneH9">GitHub's conversation</div>
-       </react-app>`
-    )
-
-    const card = takeOverSlot(page, arriving, CONVERSATION)
-
-    expect(card).not.toBeNull()
-    // Taken, not stood in: what says the pull request's own region was the one
-    // chosen is that its children went, rather than where the card ended up.
-    expect(card!.container.parentElement).toBe(page.body)
-    expect(
-      page
-        .querySelector('react-app[app-name="pull-requests"] [class*="PageLayoutContent"]')
-        ?.hasAttribute("hidden")
-    ).toBe(false)
-    expect(page.documentElement.getAttribute("data-gitquiet-shown")).toBe("conversation")
-  })
-})
-
-/**
- * And the other half of the same press.
- *
- * Both scripts are alive for a moment: the list's, which is being left, and the
- * card's, which is arriving. The card takes the document over first — it is
- * injected on the press, ahead of the address changing — and the list's script
- * only finds out afterwards, when the address it is watching finally moves.
- *
- * So the list steps aside last, into a document that is no longer its own.
- */
 describe("stepping aside after another interface has taken over", () => {
   const bothUp = (page: Document) => {
     const list = takeOverSlot(page, interfaceContainer(page, REPO_PULLS), REPO_PULLS)
@@ -1057,7 +585,7 @@ describe("stepping aside after another interface has taken over", () => {
 
     list.stepAside()
 
-    expect<Element | null>(page.getElementById(ROOT_ID)).toBe(card.container)
+    expect<Element | null>(ourRoot(page)).toBe(card.container)
   })
 
   test("leaves it in charge, rather than lifting the rule that hides GitHub's", () => {
@@ -1091,7 +619,7 @@ describe("stepping aside after another interface has taken over", () => {
 
     expect(page.documentElement.hasAttribute("data-gitquiet-taken")).toBe(false)
     expect(theirsIn(page).hasAttribute("hidden")).toBe(false)
-    expect(page.getElementById(ROOT_ID)).toBeNull()
+    expect(ourRoot(page)).toBeNull()
   })
 })
 

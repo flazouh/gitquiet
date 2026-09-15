@@ -5,10 +5,12 @@ import { filesIn, unzipped } from "./archive"
 /**
  * What this machine's `tar` calls the format GitHub serves.
  *
- * `git archive` writes GNU-format tars and codeload serves what it wrote, so GNU is
- * what the reader below is parsing. GNU tar spells that format `gnu` and macOS's
- * bsdtar spells it `gnutar`, and neither accepts the other's word, so the one this
- * machine takes is found by asking it.
+ * One of the three the reader has to handle, and not the one codeload actually
+ * serves. Read off a real archive: `github.com/OpenRouterTeam/openrouter-web` at
+ * `2b00592` is `ustar\000` — POSIX, which splits a long path across two fields —
+ * and this fixture was GNU-only, which is why the splitting went unnoticed. GNU
+ * tar spells the format `gnu` and macOS's bsdtar spells it `gnutar`, and neither
+ * accepts the other's word, so the one this machine takes is found by asking it.
  */
 const gnuFormat = async (): Promise<string> => {
   for (const spelling of ["gnu", "gnutar"]) {
@@ -27,10 +29,10 @@ const gnuFormat = async (): Promise<string> => {
  *
  * The format is named rather than left to the default, which is the one thing about
  * the machine this does not want. Left to itself macOS's bsdtar writes a pax extended
- * header in front of every single entry, and the reader below drops a file that
- * follows a pax header on purpose — it cannot trust the truncated name in the header
- * after it. So on a Mac this fixture held nothing at all and the same test on Linux
- * held everything, which is a test that measures the machine rather than the parser.
+ * header in front of every single entry, so on a Mac this fixture measured a
+ * different path through the reader than the same test on Linux — a test that
+ * measures the machine rather than the parser. Every format is now asked for by
+ * name, below, and each one is a case the reader has to answer.
  *
  * `COPYFILE_DISABLE` is the other half: without it that tar puts an AppleDouble `._`
  * file beside every entry, and those came through the reader as files of the
@@ -92,5 +94,87 @@ describe("a repository out of its archive", () => {
 
     expect(files.size).toBeGreaterThanOrEqual(2)
     expect([...files.keys()].every((path) => path.trim() !== "")).toBe(true)
+  })
+})
+
+/**
+ * The same three files, in whichever format is asked for, wrapped the way
+ * codeload wraps them.
+ *
+ * The folder is the real shape and not a short stand-in: `{repo}-{sha}` with a
+ * forty-character sha is 56 characters, and a header's name field is a hundred.
+ * A repository whose own paths are longer than 44 characters — which is most of
+ * a monorepo — cannot be written in that field at all, and which of the three
+ * mechanisms a tar reaches for then is the whole of what is being tested.
+ */
+const wrapped = async (format: string): Promise<Uint8Array> => {
+  const root = `/tmp/gitquiet-archive-${format}-${Date.now()}`
+  const folder = "openrouter-web-2b005925ea970da33cc5020898aa1ba3c50bfd63"
+  const deep = "services/cfw-intern-api/src/routes/vault"
+  await Bun.$`mkdir -p ${root}/${folder}/${deep}`.quiet()
+  await Bun.write(`${root}/${folder}/README.md`, "# short\n")
+  await Bun.write(`${root}/${folder}/${deep}/index.ts`, "export const listSecrets = 1\n")
+  await Bun.$`tar --format=${format} -czf ${root}/out.tar.gz -C ${root} ${folder}`
+    .env({ ...process.env, COPYFILE_DISABLE: "1" })
+    .quiet()
+
+  return await Effect.runPromise(unzipped(Bun.file(`${root}/out.tar.gz`).stream()))
+}
+
+/**
+ * A path too long for one field, in every format that has a way of saying so.
+ *
+ * This is not an edge of the format, it is the ordinary case for a monorepo —
+ * and it was the whole of a bug worth a note. Read off the archive codeload
+ * really serves for `openrouter-web`: 31,767 of its 36,613 files need one of
+ * these mechanisms, and reading only the hundred-byte name field filed every
+ * one of them under a path the repository does not have. Thousands collapsed
+ * onto the same key, so the map held 30,679 files where the archive had 36,613.
+ *
+ * What the reader saw was a name used nowhere. Uses in the open file were
+ * exact, because the pane hands over that file's own text, and everything the
+ * repository should have answered came back empty — `listSecrets` in
+ * `routes/vault/handlers.ts` is called twice in `routes/vault/index.ts`, and
+ * the panel said "0 elsewhere" rather than saying it could not tell.
+ */
+describe("a path too long for a tar header", () => {
+  test("puts back together what ustar splits across two fields", async () => {
+    const files = filesIn(await wrapped("ustar"))
+
+    expect(files.get("services/cfw-intern-api/src/routes/vault/index.ts")).toBe(
+      "export const listSecrets = 1\n"
+    )
+    // And not under the tail on its own, which is what reading the name field
+    // alone produced — a path the repository does not have, and one that every
+    // other `index.ts` in the archive would have overwritten.
+    expect(files.has("index.ts")).toBe(false)
+  })
+
+  test("reads the path a GNU long-name header states", async () => {
+    const files = filesIn(await wrapped(await gnuFormat()))
+
+    expect(files.get("services/cfw-intern-api/src/routes/vault/index.ts")).toBe(
+      "export const listSecrets = 1\n"
+    )
+  })
+
+  test("reads the path a pax header states", async () => {
+    const files = filesIn(await wrapped("pax"))
+
+    expect(files.get("services/cfw-intern-api/src/routes/vault/index.ts")).toBe(
+      "export const listSecrets = 1\n"
+    )
+    // The short file too: pax writes a header in front of every entry, and a
+    // reader that skipped the entry behind one skipped the whole archive.
+    expect(files.get("README.md")).toBe("# short\n")
+  })
+
+  test("does not carry a long name on to the entry after the one it names", async () => {
+    const files = filesIn(await wrapped("pax"))
+
+    // A long name in front of a directory belongs to that directory. Carried
+    // on, the next file would be filed under the folder's own path.
+    expect(files.has("services/cfw-intern-api/src/routes/vault")).toBe(false)
+    expect(files.has("services/cfw-intern-api/src/routes")).toBe(false)
   })
 })
