@@ -107,3 +107,43 @@ describe("the reported error is worded to group across a rename", () => {
     expect(error.message).not.toContain("Account")
   })
 })
+
+describe("a band that coarsens to a wildcard is not a leak hunt against the whole page", () => {
+  /**
+   * GitHub's pull-request tab row, named only by its label — the real band that
+   * cried leak on every pull request. It coarsens to `*`, and `*` is the whole
+   * document, so once the tabs themselves are gone the old code took the first
+   * visible element it could find and called it a region of theirs left showing.
+   */
+  const TABS: Place = {
+    name: "conversation",
+    owns: () => true,
+    regions: ['[class*="PageLayoutContent"]'],
+    fallback: "#repo-content-pjax-container",
+    bands: ['[aria-label="Pull request navigation"]']
+  }
+
+  const pageWithoutTabs = (): Document => {
+    const page = document.implementation.createHTMLDocument("github")
+    page.body.innerHTML = `
+      <header class="AppHeader">their header</header>
+      <div id="gitquiet-root"><div>ours</div></div>
+      <div id="gitquiet-bar" data-gitquiet-bar>our bar, in their header slot</div>
+      <main>their conversation, replaced</main>`
+    return page
+  }
+
+  test("says nothing when the labelled band's own element is simply gone", () => {
+    // The tabs are not on the page, so the band does not match; its coarse form
+    // is `*`, which must not be turned loose on every element there is.
+    expect(leaksIn(pageWithoutTabs(), TABS, shown)).toHaveLength(0)
+  })
+
+  test("never reports our own bar, which stands in their header rather than in our root", () => {
+    // Even a band whose coarse form did match the page must not name `#gitquiet-bar`:
+    // it is ours, mounted beside the root instead of inside it.
+    const WIDE: Place = { ...TABS, bands: ['[aria-label="Pull request navigation"] .missing'] }
+    const leaks = leaksIn(pageWithoutTabs(), WIDE, shown)
+    expect(leaks.every((leak) => !leak.found.includes("gitquiet-bar"))).toBe(true)
+  })
+})

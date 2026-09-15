@@ -1,5 +1,6 @@
 import { Effect } from "effect"
 import { reportError } from "../observability/report"
+import { BAR_ID, BAR_MARK } from "./barSlot"
 import { ROOT_ID } from "./mount"
 import type { Place } from "./place"
 
@@ -125,10 +126,32 @@ const paints = (element: Element): boolean => {
 const HIDDEN = "data-gitquiet-hidden"
 const LEAVING = "data-gitquiet-leaving"
 
-/** Ours, or standing inside ours: never a leak. */
+/**
+ * Ours, or standing inside ours: never a leak.
+ *
+ * The bar as well as the root. `#gitquiet-bar` is mounted into GitHub's own
+ * header slot rather than inside `#gitquiet-root`, so `root.contains` does not
+ * reach it — and an over-broad coarse form (see {@link leaksIn}) that swept the
+ * page would otherwise report our own bar as a region of theirs left showing.
+ */
 const isOurs = (element: Element, root: Element | null): boolean =>
   element.id === ROOT_ID ||
+  element.id === BAR_ID ||
+  element.hasAttribute(BAR_MARK) ||
+  element.closest(`#${BAR_ID}, [${BAR_MARK}]`) !== null ||
   (root !== null && (element === root || root.contains(element) || element.contains(root)))
+
+/**
+ * Whether a coarse selector has any element left to name, or would match the page.
+ *
+ * Coarsening drops the parts of a band GitHub is free to change, and what remains
+ * is the structural family the region still belongs to. Where nothing remains —
+ * an attribute-only band whose one attribute was the changeable kind — every
+ * compound is `*`, and `*` is not a family: it is the whole document. A leak
+ * hunt against it finds the first visible element and is always wrong.
+ */
+const isUnanchored = (coarse: string): boolean =>
+  coarse.split(/\s*[>+~]\s*|\s+/).some((compound) => compound === "*")
 
 /**
  * Every band this place still means to hide but no longer matches, while its coarse
@@ -154,6 +177,20 @@ export const leaksIn = (
     // No structure was dropped, so there is no coarser thing to have leaked: the
     // element is simply gone, which is not a fault.
     if (coarse === narrow) continue
+
+    /*
+     * And no anchor left to coarsen towards.
+     *
+     * A band named only by a natural attribute — `[aria-label="Pull request
+     * navigation"]`, GitHub's tab row — coarsens to nothing, which is `*`. A `*`
+     * matches every element on the page, so the moment that band's own element
+     * is gone the search below took the first visible thing it found and called
+     * it a leak: on a pull request that was our own bar, reported on every
+     * single load. An attribute-only band has no structural family standing in
+     * for it, so its absence is the element gone, not a region of theirs left
+     * showing — the same as the line above, one step coarser.
+     */
+    if (isUnanchored(coarse)) continue
 
     for (const candidate of target.querySelectorAll(coarse)) {
       if (isOurs(candidate, root)) continue
