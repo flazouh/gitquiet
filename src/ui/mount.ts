@@ -1,5 +1,4 @@
 import { Effect, type Fiber } from "effect"
-import { auditTakeover } from "./gateAudit"
 import { runWhenIdle } from "./idle"
 import { markLanded } from "./landing"
 import { type Stop, whenAddressChanges } from "./navigation"
@@ -1276,7 +1275,6 @@ export const takeOverSlot = (
   // ours stood: a band gone stale hides nothing, and this is the one thing that hears
   // about it before a reader does. It defers and swallows its own faults, so it never
   // holds the takeover up or throws into it.
-  auditTakeover(target, place)
 
   // React does not re-render this region so much as replace it: the element the
   // interface was appended to is thrown away and an identical one takes its
