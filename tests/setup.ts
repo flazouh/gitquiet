@@ -3,6 +3,7 @@ import { afterEach, setDefaultTimeout } from "bun:test"
 import { forgetFlights } from "../src/github/flight"
 import { forgetDrawn } from "../src/ui/lastDrawn"
 import { forgetTheSpot } from "../src/shell/handOver"
+import { forgetTheHost } from "../src/ui/theHost"
 import { forgetLanded } from "../src/ui/landing"
 import { forgetLanded as forgetOurWrites } from "../src/github/landed"
 import { forgetEverything } from "./storage"
@@ -151,3 +152,16 @@ afterEach(forgetDrawn)
  * must not inherit where the file before it left the thing.
  */
 afterEach(forgetTheSpot)
+
+/*
+ * And the host the interface stands in, which is one element and one entry in a map
+ * keyed by the document.
+ *
+ * A file that stands the interface up leaves a shadow root in `body` with its last
+ * screen still in it, and the file after it in the same worker inherits both. Every
+ * lookup for our tree finds that one first: a menu portalled into it renders where
+ * `screen` cannot see it, and the test reads as a menu that never opened. It showed
+ * up only on CI, because `--parallel` shards by core count and which files share a
+ * worker is a fact about the machine.
+ */
+afterEach(() => forgetTheHost(document))

@@ -87,6 +87,29 @@
   min-width: 0;
 }
 
+/**
+ * The same typographic baseline for our furniture out in their document.
+ *
+ * `#gitquiet-root` above declares the font and the size; everything outside it —
+ * the bar, the hover cards, anything Radix portals — used to need no such
+ * declaration, because it stood in `body` and inherited whatever GitHub's
+ * stylesheet put there. Then we started turning their stylesheets off, and
+ * `body` was left with no font at all: the bar rendered in Times New Roman at
+ * the browser's own sixteen pixels, against an interface set in Inter at
+ * fourteen. Measured on a pull request — `font-family: Times`, `font-size: 16px`
+ * on the bar — which is also why its padding looked wrong, every row inside it
+ * being a seventh taller than it was drawn to be.
+ *
+ * Inheritance is not a thing to rely on once you have taken the page it comes
+ * from. Through `:where` so it costs nothing: a `text-sm` on the bar itself
+ * still wins, and so does every utility inside it.
+ */
+:where([data-gitquiet-outside]) {
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+}
+
 #gitquiet-root *,
 #gitquiet-root *::before,
 #gitquiet-root *::after,

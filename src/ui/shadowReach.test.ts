@@ -97,6 +97,32 @@ describe("no rule reaches our root from the document element", () => {
   })
 })
 
+describe("nothing of ours inherits from a page we have undressed", () => {
+  test("our furniture in their document declares its own typography", () => {
+    /*
+     * The bar and the hover cards stand in `body`, and used to take their font
+     * from whatever GitHub's stylesheet put there. Then we started turning their
+     * stylesheets off for the recalculation saving, and `body` was left with no
+     * font at all: the bar came out in Times New Roman at sixteen pixels beside
+     * an interface set in Inter at fourteen, which is also why its padding read
+     * as wrong — every row in it a seventh taller than it was drawn to be.
+     *
+     * Whatever the root declares for itself, the furniture outside it has to
+     * declare too. There is nothing left to inherit from.
+     */
+    const primer = readFileSync(join(uiDir, "primer.css"), "utf8")
+    const declaredFor = (selector: string): ReadonlyArray<string> => {
+      const at = primer.indexOf(`\n${selector} {`)
+      if (at === -1) return []
+      const block = primer.slice(at, primer.indexOf("}", at))
+      return ["font-family", "font-size", "color"].filter((one) => block.includes(`${one}:`))
+    }
+
+    expect(declaredFor("#gitquiet-root")).not.toEqual([])
+    expect(declaredFor(":where([data-gitquiet-outside])")).toEqual(declaredFor("#gitquiet-root"))
+  })
+})
+
 describe("everything of ours in their document is marked as ours", () => {
   test("the glass filter is spared by the gate rule", () => {
     /*
