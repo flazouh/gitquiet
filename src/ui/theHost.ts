@@ -170,6 +170,27 @@ export const dressShadow = (shadow: ShadowRoot, built: CSSStyleSheet): void => {
 }
 
 /**
+ * Whether our own stylesheet is actually in force in the tree the interface stands in.
+ *
+ * The one question that has to be answered before theirs can be turned off, and it
+ * was not asked. `markPage` disabled their sheets synchronously at
+ * `document_start`; ours is fetched and adopted after, and on a failure the
+ * report-and-carry-on path adopted nothing at all. Between those two moments —
+ * and for ever, if the fetch never lands — the page had no stylesheets of any
+ * kind: their page undressed, our interface undressed, everything in Times New
+ * Roman. A reader hit exactly that on a repository list.
+ *
+ * So the saving is taken only once ours is demonstrably on, and given back the
+ * moment it is not. An interface that is slow to dress is a cost; a page with no
+ * styles at all is a broken site.
+ */
+export const oursInForce = (target: Document): boolean => {
+  if (sheet === null) return false
+  const shadow = ourTree(target)
+  return shadow !== null && shadow.adoptedStyleSheets.includes(sheet)
+}
+
+/**
  * Their stylesheets, off while we own the page and back on when we hand it over.
  *
  * The measured share of the cost: 9.485ms a mutation with them on, 0.036ms with
@@ -215,10 +236,26 @@ let watching: MutationObserver | null = null
  * sheet is put back on.
  */
 export const keepTheirStylesOff = (target: Document): void => {
+  // Never before ours is on. See {@link oursInForce}: turning theirs off while
+  // ours is still coming is how a page ends up with no styles at all.
+  if (!oursInForce(target)) {
+    letTheirStylesBack(target)
+    return
+  }
+
   theirStyles(target, false)
   if (watching !== null) return
 
-  watching = new MutationObserver(() => void theirStyles(target, false))
+  watching = new MutationObserver(() => {
+    // Asked again every time, because ours can stop being in force — a host
+    // replaced, a sheet that never arrived — and the answer has to be able to
+    // change back.
+    if (!oursInForce(target)) {
+      letTheirStylesBack(target)
+      return
+    }
+    theirStyles(target, false)
+  })
   watching.observe(target.documentElement, { childList: true, subtree: true })
 }
 
