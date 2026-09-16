@@ -7,7 +7,7 @@ import { partOfFile } from "../domain/wholeFile"
 import { diffChoices } from "../domain/choices"
 import type { Bounds, DiffEngine } from "../ports/Renderer"
 import { PAPER } from "../ports/Renderer"
-import { onward } from "../observability/report"
+import { onward, onwardWith } from "../observability/report"
 import { useLedger } from "./ledger"
 import { useRenderer } from "./renderer"
 import { drawnIn } from "./showLine"
@@ -86,6 +86,29 @@ export type UsesPanelProps = {
     readonly sha: string
   }
 }
+
+/**
+ * What the Ledger came back with about the rest of the repository.
+ *
+ * Named rather than written inline at the `useState`, because it is also what
+ * is answered with when the asking fails — and an answer given in two places
+ * has to be one shape in both.
+ */
+type Elsewhere = {
+  readonly uses: ReadonlyArray<AcrossUse>
+  readonly ready: boolean
+  readonly exact?: boolean
+}
+
+/**
+ * What is shown where the Ledger could not answer: nothing, and not ready.
+ *
+ * `ready: false` rather than an empty list of Uses, because the two read very
+ * differently to somebody deciding whether a name is safe to change. An empty
+ * list that says it is ready is the claim that nobody depends on this. This is
+ * the admission that nobody asked successfully.
+ */
+const UNANSWERED: Elsewhere = { uses: [], ready: false }
 
 /** How many lines of context the preview shows either side of a row. */
 const AROUND = 8
@@ -197,11 +220,7 @@ export const UsesPanel = ({
   /** The rows, so the arrow keys can move between them. */
   const listed = useRef<Array<HTMLButtonElement | null>>([])
   const [uses, setUses] = useState<ReadonlyArray<Use> | null>(null)
-  const [elsewhere, setElsewhere] = useState<{
-    readonly uses: ReadonlyArray<AcrossUse>
-    readonly ready: boolean
-    readonly exact?: boolean
-  } | null>(null)
+  const [elsewhere, setElsewhere] = useState<Elsewhere | null>(null)
   const lines = reading.text.split("\n")
   /**
    * The repository's Uses, minus the ones in the file already listed above.
@@ -335,8 +354,8 @@ export const UsesPanel = ({
 
     const asking = Effect.runFork(
       ledger.usesIn(reading, step.writing).pipe(
-        Effect.map(setUses),
-        Effect.catch(() => Effect.sync(() => setUses([])))
+        Effect.catch(onwardWith<ReadonlyArray<Use>>([])),
+        Effect.map(setUses)
       )
     )
     return () => asking.interruptUnsafe()
@@ -362,8 +381,8 @@ export const UsesPanel = ({
             column: step.writing.from - 1
           })
         ),
-        Effect.map(setElsewhere),
-        Effect.catch(() => Effect.sync(() => setElsewhere({ uses: [], ready: false })))
+        Effect.catch(onwardWith(UNANSWERED)),
+        Effect.map(setElsewhere)
       )
     )
     return () => asking.interruptUnsafe()

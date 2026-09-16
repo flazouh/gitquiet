@@ -13,7 +13,7 @@
  *     bun run build && GITQUIET_CDP_PROFILE=... bun scripts/shots-following.ts
  */
 import { mkdir, rm } from "node:fs/promises"
-import { withExtension } from "./chrome"
+import { PANES, withExtension } from "./chrome"
 
 const argued = (flag: string): string | undefined => {
   const at = Bun.argv.indexOf(flag)
@@ -181,10 +181,12 @@ if (OPEN !== undefined) {
    */
   const drawnHere = () =>
     session.evaluate<boolean>(`(() => {
-      for (const one of document.querySelectorAll("diffs-container")) {
-        const root = one.shadowRoot
-        if (!root) continue
-        const box = one.getBoundingClientRect()
+      ${PANES}
+      for (const root of panes()) {
+        // The shadow root's host, rather than the element a document query
+        // would have handed back: a root knows what it is attached to, and
+        // that is the thing with a rectangle.
+        const box = root.host.getBoundingClientRect()
         if (box.height <= 0 || box.width <= 0 || box.bottom < 0 || box.top > window.innerHeight) continue
         for (const row of root.querySelectorAll('[data-line="' + ${JSON.stringify(WRITTEN)} + '"]')) {
           const has = [...row.querySelectorAll("span")].some(
@@ -214,15 +216,14 @@ if (OPEN !== undefined) {
 
 /** Where the name is on the screen, with the row scrolled to the middle first. */
 const spot = await session.evaluate<{ x: number; y: number } | null>(`(async () => {
+  ${PANES}
   const sleep = (ms) => new Promise((go) => setTimeout(go, ms))
   ${ON_SCREEN}
   ${TOKEN_IN}
 
   const pane = async () => {
     for (let tries = 0; tries < 80; tries++) {
-      for (const one of document.querySelectorAll("diffs-container")) {
-        const root = one.shadowRoot
-        if (!root) continue
+      for (const root of panes()) {
         const row = root.querySelector('[data-line="' + ${JSON.stringify(WRITTEN)} + '"]')
         if (row && [...root.querySelectorAll("[data-line] span")].some((s) => (s.textContent || "").trim() === ${JSON.stringify(WORD)})) return root
       }
@@ -262,12 +263,11 @@ console.log(`the name is at ${spot.x},${spot.y}`)
 /** The same lookup, for any line the name appears on. */
 const spotFor = (line: string) =>
   session.evaluate<{ x: number; y: number } | null>(`(async () => {
+    ${PANES}
     const sleep = (ms) => new Promise((go) => setTimeout(go, ms))
     ${ON_SCREEN}
     ${TOKEN_IN}
-    for (const one of document.querySelectorAll("diffs-container")) {
-      const root = one.shadowRoot
-      if (!root) continue
+    for (const root of panes()) {
       const token = tokenIn(root, ${JSON.stringify(line)}, ${JSON.stringify(PEEK_WORD)})
       if (!token) continue
       await putOnScreen(token)
@@ -326,11 +326,10 @@ await key({ key: "Escape", code: "Escape" })
 await sleep(800)
 
 const used = await session.evaluate<{ x: number; y: number } | null>(`(async () => {
+  ${PANES}
   const sleep = (ms) => new Promise((go) => setTimeout(go, ms))
   ${TOKEN_IN}
-  for (const one of document.querySelectorAll("diffs-container")) {
-    const root = one.shadowRoot
-    if (!root) continue
+  for (const root of panes()) {
     const token = tokenIn(root, ${JSON.stringify(USED)}, ${JSON.stringify(WORD)})
     if (!token) continue
     token.scrollIntoView({ block: "center", behavior: "instant" })
@@ -391,8 +390,9 @@ await shot("5-uses-by-key")
  * container on the page, which is the preview — the file's own came first.
  */
 const stepped = await session.evaluate<string | false>(`(async () => {
+  ${PANES}
   const sleep = (ms) => new Promise((go) => setTimeout(go, ms))
-  const all = [...document.querySelectorAll("diffs-container")]
+  const all = panes()
   const preview = all[all.length - 1]
   const root = preview && preview.shadowRoot
   if (!root) return false

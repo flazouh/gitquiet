@@ -1,5 +1,5 @@
 import { describe, expect, it, test } from "bun:test"
-import { drawnBy, held, named, sameName, SURFACES, shadowFor } from "./engine"
+import { drawnBy, held, named, nameIn, sameName, SURFACES, shadowFor } from "./engine"
 
 /**
  * The one line in the engine that behaves differently on the two platforms.
@@ -253,5 +253,109 @@ describe("which drawing a token was drawn by", () => {
     const file = drawing()
 
     expect(drawnBy(file.host, {})).toBe(true)
+  })
+})
+
+/**
+ * The name under the pointer, out of a token that holds more than one.
+ *
+ * A token is drawn by colour, not by name: `Effect.succeed` is one token for
+ * `" Effect."` and another for `"succeed"`, and an argument list is a single
+ * token from the bracket to the bracket. Measured over this repository, 48.7%
+ * of the names a reader can see are inside a token that is not just that name,
+ * and every one of them resolved at the token's start — a space, a bracket —
+ * which answers nothing. Half the file could not be followed.
+ *
+ * The element is stood in for with a rectangle and a length, which is all the
+ * measuring needs: code is drawn monospaced, so a character is the width over
+ * the count.
+ */
+describe("the name under the pointer", () => {
+  /** A token, with an element whose box makes each character ten wide. */
+  const token = (text: string, at: number, left = 0) => ({
+    lineCharStart: at,
+    lineCharEnd: at + text.length,
+    tokenText: text,
+    tokenElement: {
+      getBoundingClientRect: () => ({ left, width: text.length * 10 }),
+      // `sideOf` asks the element which half of a diff it is in. A file being
+      // read has one side and answers nothing, which is this.
+      closest: () => null
+    } as unknown as HTMLElement
+  })
+
+  /** The middle of the `nth` character of a token drawn from `left`. */
+  const over = (nth: number, left = 0) => left + nth * 10 + 5
+
+  test("is the whole token where the token is exactly one name", () => {
+    expect(nameIn(token("succeed", 12), over(3))).toEqual({
+      text: "succeed",
+      from: 12,
+      to: 19
+    })
+  })
+
+  test("is the object of a member expression, which is drawn with its own dot", () => {
+    // `  Effect.succeed(...)` — Shiki draws "  Effect." as one token.
+    const found = nameIn(token("  Effect.", 0), over(4))
+    expect(found.text).toBe("Effect")
+    expect(found).toEqual({ text: "Effect", from: 2, to: 8 })
+  })
+
+  test("is one argument out of a whole argument list", () => {
+    // `f(store, document, me)` — everything from the bracket is one token.
+    const list = token("(store, document, me)", 1)
+    expect(nameIn(list, over(1 + 1)).text).toBe("store")
+    expect(nameIn(list, over(1 + 8)).text).toBe("document")
+    expect(nameIn(list, over(1 + 18)).text).toBe("me")
+  })
+
+  test("counts columns from where the token starts, not from the line", () => {
+    // `document` sits eight characters into a token that starts at column 1.
+    expect(nameIn(token("(store, document, me)", 1), over(1 + 8))).toEqual({
+      text: "document",
+      from: 9,
+      to: 17
+    })
+  })
+
+  test("is one name out of an import clause, which is drawn whole", () => {
+    const clause = token(" { Effect, Option } ", 6)
+    expect(nameIn(clause, over(3)).text).toBe("Effect")
+    expect(nameIn(clause, over(12)).text).toBe("Option")
+  })
+
+  test("is the token itself where the pointer is on nothing wordy", () => {
+    // The dot after the name is not a name, and inventing one from the
+    // character beside it would follow something the reader did not point at.
+    expect(nameIn(token("  Effect.", 0), over(8))).toEqual({
+      text: "  Effect.",
+      from: 0,
+      to: 9
+    })
+  })
+
+  test("is the token itself where there is no pointer to ask about", () => {
+    // A press that arrives without coordinates, which is what the leave
+    // handler has — and the answer it had before any of this.
+    expect(nameIn(token("  Effect.", 0))).toEqual({ text: "  Effect.", from: 0, to: 9 })
+  })
+
+  test("is the token itself where the pointer is outside it", () => {
+    expect(nameIn(token("  Effect.", 0), -50).text).toBe("  Effect.")
+    expect(nameIn(token("  Effect.", 0), 9999).text).toBe("  Effect.")
+  })
+
+  test("reads the token's own place on the screen, not the line's", () => {
+    // A token drawn 400px in: the arithmetic is against its own left edge.
+    const found = nameIn(token("(store, document)", 1, 400), over(8, 400))
+    expect(found.text).toBe("document")
+  })
+
+  test("hands a Name the narrowed columns, which is what a press is judged by", () => {
+    // `isTheWriting` compares a Writing's column to `from + 1`, so a Name
+    // reported at the token's start makes every press a navigation.
+    const one = named({ ...token("  Effect.", 0), lineNumber: 4 }, over(4))
+    expect(one).toEqual({ line: 4, from: 2, to: 8, text: "Effect" })
   })
 })

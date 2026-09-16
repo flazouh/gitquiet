@@ -108,7 +108,29 @@ const OPENS: ReadonlySet<string> = new Set([
   "class",
   "for_statement",
   "for_in_statement",
-  "catch_clause"
+  "catch_clause",
+  /*
+   * A declaration with no body is still a scope.
+   *
+   * These are what a `.d.ts` is made of, and what an interface, an overload and
+   * an abstract method are made of everywhere else — and not one of them was
+   * here. A node that opens no scope leaks what it binds into the nearest one
+   * that does, which is usually the file, so every `<T>` in a file collapsed
+   * onto the first `<T>` and so did every parameter sharing a name.
+   *
+   * Found in `p-limit`'s own `index.d.ts`: pressing `Arguments` on line 133
+   * answered with an `Arguments` on line 53, declared by a different signature
+   * entirely. A press on a name is then a press on somebody else's name, which
+   * is worse than no answer — the reader is taken somewhere and told it is the
+   * place. A body is where the code is, not where the scope is.
+   */
+  "function_signature",
+  "method_signature",
+  "abstract_method_signature",
+  "call_signature",
+  "construct_signature",
+  "index_signature",
+  "abstract_class_declaration"
 ])
 
 /** The node types that are a name being read rather than a word inside something else. */
@@ -163,7 +185,13 @@ const kindOf = (declaring: string): WritingKind => {
     return "function"
   }
   if (declaring === "arrow_function" || declaring === "function_expression") return "function"
-  if (declaring === "class_declaration" || declaring === "class") return "class"
+  if (
+    declaring === "class_declaration" ||
+    declaring === "class" ||
+    declaring === "abstract_class_declaration"
+  ) {
+    return "class"
+  }
   if (
     declaring === "type_alias_declaration" ||
     declaring === "interface_declaration" ||
@@ -173,7 +201,17 @@ const kindOf = (declaring: string): WritingKind => {
   }
   if (declaring === "required_parameter" || declaring === "optional_parameter") return "parameter"
   if (declaring === "import_statement") return "import"
-  if (declaring === "method_definition" || declaring === "public_field_definition") return "member"
+  if (
+    declaring === "method_definition" ||
+    declaring === "public_field_definition" ||
+    // A member with no body is a member. These are an interface's, and an
+    // abstract class's, and they are what a reader presses in a `.d.ts`.
+    declaring === "method_signature" ||
+    declaring === "abstract_method_signature" ||
+    declaring === "property_signature"
+  ) {
+    return "member"
+  }
   return "value"
 }
 
@@ -202,7 +240,12 @@ const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyA
   switch (node.type) {
     case "function_declaration":
     case "generator_function_declaration":
-    case "class_declaration": {
+    case "class_declaration":
+    // A declaration with no body writes its name down exactly as one with a
+    // body does. Neither was bound before, so neither could be followed: the
+    // functions a `.d.ts` offers were invisible to the outline and to a press.
+    case "function_signature":
+    case "abstract_class_declaration": {
       const name = node.childForFieldName("name")
       if (name !== null) outer.push({ name, kind })
       break
@@ -246,6 +289,26 @@ const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyA
       // binds into is the one this node is sitting in.
       for (const parameter of childrenOf(node)) {
         for (const name of boundBy(parameter)) outer.push({ name, kind: "parameter" })
+      }
+      break
+    }
+    case "type_parameters": {
+      // Outer, for the same reason `formal_parameters` is: a generic's list is
+      // written inside the function or class it belongs to, and that node is
+      // the scope. `<T, U extends T>` binds two, and the `extends` is a use of
+      // the first rather than a binding of its own — which the `name` field
+      // settles, because it is the name and not the constraint.
+      //
+      // Without this a generic was not a name at all. `<Secret,>(one: Secret)`
+      // resolved all three mentions to whatever `Secret` the file declared
+      // outside, so pressing a type parameter walked to an unrelated type, and
+      // that type's Uses counted every generic in the file that happened to
+      // share its spelling — a count of a word rather than of a name, which is
+      // the one thing this module exists to avoid.
+      for (const parameter of childrenOf(node)) {
+        if (parameter.type !== "type_parameter") continue
+        const name = parameter.childForFieldName("name")
+        if (name !== null) outer.push({ name, kind: "parameter" })
       }
       break
     }

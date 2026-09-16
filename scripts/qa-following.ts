@@ -12,7 +12,7 @@
  * Writes `.output/qa/following.mp4` and the frames beside it.
  */
 import { mkdir, rm } from "node:fs/promises"
-import { withExtension } from "./chrome"
+import { PANES, withExtension } from "./chrome"
 
 /**
  * Where the checking happens, and why it is a commit rather than a pull request.
@@ -98,8 +98,8 @@ try {
   for (let tries = 0; tries < 30; tries++) {
     const ready = await session.evaluate<boolean>(`
       (() => {
-        const host = document.querySelector("diffs-container")
-        return !!(host && host.shadowRoot && host.shadowRoot.querySelector("[data-line] span"))
+        ${PANES}
+        return panes().some((root) => root.querySelector("[data-line] span"))
       })()
     `)
     if (ready) break
@@ -121,6 +121,7 @@ try {
     decoration: string | null
   }>(`
     (async () => {
+      ${PANES}
       /*
        * Found again here rather than trusted from a check a moment ago.
        *
@@ -130,9 +131,7 @@ try {
        */
       const waitForPane = async () => {
         for (let tries = 0; tries < 40; tries++) {
-          for (const one of document.querySelectorAll("diffs-container")) {
-            const root = one.shadowRoot
-            if (!root) continue
+          for (const root of panes()) {
             // The pane holding the file this name is written in, rather than
             // whichever container is first. A commit draws one per file, they
             // are alike from outside, and the path is nowhere near them — so
@@ -191,6 +190,7 @@ try {
    */
   const again = await session.evaluate<{ word: string | null; underlineMs: number | null }>(`
     (async () => {
+      ${PANES}
       /*
        * Found again here rather than trusted from a check a moment ago.
        *
@@ -200,9 +200,7 @@ try {
        */
       const waitForPane = async () => {
         for (let tries = 0; tries < 40; tries++) {
-          for (const one of document.querySelectorAll("diffs-container")) {
-            const root = one.shadowRoot
-            if (!root) continue
+          for (const root of panes()) {
             // The pane holding the file this name is written in, rather than
             // whichever container is first. A commit draws one per file, they
             // are alike from outside, and the path is nowhere near them — so
@@ -265,6 +263,7 @@ try {
     scrollerTag?: string
   }>(`
     (async () => {
+      ${PANES}
       /*
        * Found again here rather than trusted from a check a moment ago.
        *
@@ -274,9 +273,7 @@ try {
        */
       const waitForPane = async () => {
         for (let tries = 0; tries < 40; tries++) {
-          for (const one of document.querySelectorAll("diffs-container")) {
-            const root = one.shadowRoot
-            if (!root) continue
+          for (const root of panes()) {
             // The pane holding the file this name is written in, rather than
             // whichever container is first. A commit draws one per file, they
             // are alike from outside, and the path is nowhere near them — so

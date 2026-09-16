@@ -379,3 +379,40 @@ export const withExtension = async (
     }
   }
 }
+
+/**
+ * The renderer's panes, wherever the interface happens to be standing.
+ *
+ * A snippet to inline in an `evaluate`, rather than a function here, because it
+ * has to run in the page and every probe already inlines its helpers this way.
+ *
+ * It exists because `document.querySelector("diffs-container")` stopped
+ * reaching one. The interface stands in a shadow root on a host of its own, and
+ * a query on the document crosses no shadow boundary — so every probe that
+ * looked for a pane that way found none and reported that the name was never
+ * drawn, on pages that were drawing it perfectly well. A harness that answers
+ * "broken" when it means "I cannot see" costs more than no harness, and it cost
+ * this one an afternoon.
+ *
+ * Not walked into the pane's own root: it holds a span per token, and sweeping
+ * it on a poll is slow enough to be the thing a probe times out on. There is no
+ * pane inside a pane.
+ *
+ *     const seen = await session.evaluate(`
+ *       (() => { ${PANES} return panes().length })()
+ *     `)
+ */
+export const PANES = `
+  const panes = () => {
+    const found = []
+    const walk = (node) => {
+      for (const el of node.querySelectorAll("*")) {
+        if (!el.shadowRoot) continue
+        if (el.tagName.toLowerCase() === "diffs-container") found.push(el.shadowRoot)
+        else walk(el.shadowRoot)
+      }
+    }
+    walk(document)
+    return found
+  }
+`

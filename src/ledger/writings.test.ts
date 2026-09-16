@@ -309,3 +309,216 @@ describe("what a Ledger keeps about one file", () => {
     expect(toldBy(root, SOURCE).writings).toEqual(writingsIn(root, SOURCE))
   })
 })
+
+/**
+ * Following a type, which is the half of a TypeScript file the tests had not
+ * been asked about.
+ *
+ * Every case here is a `type_identifier` rather than an `identifier`, and the
+ * fixture writes one in each shape a reader actually presses: an annotation, a
+ * return, a member, a type argument, a union, an `extends`. The suite before
+ * this asserted one thing about types — that a type alias is called a type —
+ * and nothing at all about resolving a use of one or listing its Uses, which is
+ * the whole of what a reader does with it.
+ */
+describe("a type followed the way a value is", () => {
+  let types: Syntax
+  let TYPES: string
+  let typeLines: ReadonlyArray<string>
+
+  beforeAll(async () => {
+    TYPES = await Bun.file("fixtures/code/types.ts").text()
+    typeLines = TYPES.split("\n")
+    const language = await Language.load(
+      "node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-typescript.wasm"
+    )
+    const parser = new Parser()
+    parser.setLanguage(language)
+    types = parser.parse(TYPES)!.rootNode as unknown as Syntax
+  })
+
+  /** The spot of the `nth` whole-word occurrence, as the renderer reports it. */
+  const spot = (word: string, nth = 1): { row: number; column: number } => {
+    let seen = 0
+    for (const [row, line] of typeLines.entries()) {
+      let column = line.indexOf(word)
+      while (column !== -1) {
+        const before = line[column - 1] ?? " "
+        const after = line[column + word.length] ?? " "
+        if (!/[\w$]/.test(before) && !/[\w$]/.test(after)) {
+          seen += 1
+          if (seen === nth) return { row, column }
+        }
+        column = line.indexOf(word, column + 1)
+      }
+    }
+    throw new Error(`${word} #${nth} is not in the types fixture`)
+  }
+
+  const there = (word: string, nth = 1): Writing | null => {
+    const answer = writingAt(types, TYPES, spot(word, nth))
+    return answer === null || answer.at !== "here" ? null : answer.writing
+  }
+
+  /** Where the type is declared, which every use below must resolve back to. */
+  const declaredAt = (word: string) => ({
+    line: spot(word, 1).row + 1,
+    from: spot(word, 1).column + 1
+  })
+
+  test("resolves a type alias and an interface to themselves", () => {
+    expect(there("Secret")?.kind).toBe("type")
+    expect(there("Vault")?.kind).toBe("type")
+    expect(there("Locked")?.kind).toBe("type")
+  })
+
+  test.each([
+    ["a member's annotation", "Secret", 2],
+    ["a return", "Secret", 3],
+    ["a type argument", "Secret", 4],
+    ["a union", "Secret", 5]
+  ])("follows %s back to the type it names", (_what, word, nth) => {
+    const found = there(word, nth)
+    expect(found).not.toBeNull()
+    expect({ line: found?.line, from: found?.from }).toEqual(declaredAt(word))
+  })
+
+  test("follows a parameter's annotation and an `extends` back to the interface", () => {
+    // `Vault` #2 is the `extends`, #3 the parameter `take` takes.
+    for (const nth of [2, 3]) {
+      const found = there("Vault", nth)
+      expect({ line: found?.line, from: found?.from }).toEqual(declaredAt("Vault"))
+    }
+  })
+
+  test("lists every use of a type and nothing that merely spells it the same", () => {
+    const writing = there("Secret")
+    expect(writing).not.toBeNull()
+
+    const uses = usesIn(types, TYPES, writing as Writing)
+    // The declaration and the four real uses. Not the three on the generic's
+    // line, which are a different thing with the same name.
+    expect(uses).toHaveLength(5)
+    expect(uses.map((use) => use.line)).not.toContain(spot("hides", 1).row + 1)
+  })
+
+  test("takes a generic parameter as the thing it is, not as the type it shadows", () => {
+    // `export const hides = <Secret,>(one: Secret): Secret => one` — all three
+    // are the generic's, and resolving them to the file's own `Secret` was the
+    // count of a word rather than of a name.
+    const generic = spot("hides", 1).row + 1
+    for (const nth of [6, 7, 8]) {
+      const found = there("Secret", nth)
+      expect(found?.kind).toBe("parameter")
+      expect(found?.line).toBe(generic)
+    }
+  })
+
+  test("keeps a generic out of the outline, as it keeps any parameter out", () => {
+    const named = writingsIn(types, TYPES).map((writing) => writing.name)
+
+    expect(named).toContain("Secret")
+    expect(named).toContain("Locked")
+    // Once: the type, and not the generic that shadows it.
+    expect(named.filter((name) => name === "Secret")).toHaveLength(1)
+  })
+
+  test("holds every type it mentions, for a Ledger asked about another file", () => {
+    const told = toldBy(types, TYPES)
+
+    expect(told.mentions.filter((one) => one.name === "Secret").length).toBeGreaterThan(1)
+    expect(told.declares).toContain("Secret")
+    expect(told.declares).toContain("Vault")
+  })
+})
+
+/**
+ * A declaration with no body, which is a scope like any other.
+ *
+ * What a `.d.ts` is made of, and what an interface, an overload and an abstract
+ * method are made of everywhere else. None of these node types opened a scope,
+ * so what they bound leaked into the file — and a name found in the file is the
+ * *first* one of that spelling, not the one the reader is looking at. Pressing
+ * `Arguments` on line 133 of `p-limit`'s own `index.d.ts` answered with an
+ * `Arguments` on line 53, which is a press on somebody else's name.
+ */
+describe("a signature with no body", () => {
+  let types: Syntax
+  let TYPES: string
+  let typeLines: ReadonlyArray<string>
+
+  beforeAll(async () => {
+    TYPES = await Bun.file("fixtures/code/types.ts").text()
+    typeLines = TYPES.split("\n")
+    const language = await Language.load(
+      "node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-typescript.wasm"
+    )
+    const parser = new Parser()
+    parser.setLanguage(language)
+    types = parser.parse(TYPES)!.rootNode as unknown as Syntax
+  })
+
+  const spot = (word: string, nth = 1): { row: number; column: number } => {
+    let seen = 0
+    for (const [row, line] of typeLines.entries()) {
+      let column = line.indexOf(word)
+      while (column !== -1) {
+        const before = line[column - 1] ?? " "
+        const after = line[column + word.length] ?? " "
+        if (!/[\w$]/.test(before) && !/[\w$]/.test(after)) {
+          seen += 1
+          if (seen === nth) return { row, column }
+        }
+        column = line.indexOf(word, column + 1)
+      }
+    }
+    throw new Error(`${word} #${nth} is not in the types fixture`)
+  }
+
+  const there = (word: string, nth = 1): Writing | null => {
+    const answer = writingAt(types, TYPES, spot(word, nth))
+    return answer === null || answer.at !== "here" ? null : answer.writing
+  }
+
+  test("writes its name down, so the name can be followed at all", () => {
+    expect(there("unbodied")?.kind).toBe("function")
+    expect(there("unbodied")?.line).toBe(spot("unbodied", 1).row + 1)
+  })
+
+  test("offers that name to the outline, as a bodied one does", () => {
+    const named = writingsIn(types, TYPES).map((writing) => writing.name)
+    expect(named).toContain("unbodied")
+    expect(named).toContain("alsoUnbodied")
+    expect(named).toContain("Signatures")
+  })
+
+  test("keeps its own generic, rather than the first of that name in the file", () => {
+    // Two signatures, each with a `Held` of its own. Before, both resolved to
+    // the first — so pressing the second took the reader to the other one.
+    const first = spot("unbodied", 1).row + 1
+    const second = spot("alsoUnbodied", 1).row + 1
+
+    // Three of them to a signature: the generic, the parameter's type, and
+    // the return. The first three are the first signature's, the next three
+    // the second's — and before this every one of the six answered with the
+    // first.
+    for (const nth of [1, 2, 3]) expect(there("Held", nth)?.line).toBe(first)
+    for (const nth of [4, 5, 6]) expect(there("Held", nth)?.line).toBe(second)
+  })
+
+  test("keeps its own parameters, which used to leak into the file", () => {
+    // `kept` is written by three signatures here — two functions and an
+    // interface method — and each one belongs to the signature that takes it.
+    const places = [1, 2, 3].map((nth) => there("kept", nth)?.line)
+    expect(places.every((line) => line !== undefined)).toBe(true)
+    expect(new Set(places).size).toBe(3)
+  })
+
+  test("does not offer its members as names of the file", () => {
+    // An interface's method is reached through the interface, never as a bare
+    // name — the same reason a class body is not a scope.
+    const named = writingsIn(types, TYPES).map((writing) => writing.name)
+    expect(named).not.toContain("first")
+    expect(named).not.toContain("second")
+  })
+})
