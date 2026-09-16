@@ -109,9 +109,19 @@ export const findSlot = (target: Document, _place: Place = CONVERSATION): Elemen
  */
 const oursIn = (target: Document): ParentNode => ourTree(target) ?? target
 
-/** The container on the page, wherever it is standing. */
+/**
+ * The container on the page, wherever it is standing.
+ *
+ * Our own tree first, which is where it belongs, and their document after —
+ * because "wherever" is meant literally. A container can be put straight into
+ * `body` by a caller that never asked for a stage, and before this migration
+ * `getElementById` found it there without being asked twice. Looking only in the
+ * shadow root made such a container invisible to everything here: the screen was
+ * on the page, nothing could see it, and the bar it had drawn never came down.
+ */
 const rootIn = (target: Document): HTMLElement | null =>
-  oursIn(target).querySelector<HTMLElement>(`#${ROOT_ID}`)
+  oursIn(target).querySelector<HTMLElement>(`#${ROOT_ID}`) ??
+  target.querySelector<HTMLElement>(`#${ROOT_ID}`)
 
 /** Marks what GitHub rendered into the slot, so it can be hidden again if it comes back. */
 const HIDDEN = "data-gitquiet-hidden"
@@ -332,6 +342,24 @@ const takeOffThePage = (element: Element, rememberLive = false): void => {
  * moving. See {@link oursToDraw}.
  */
 let ours: Element | null = null
+
+/**
+ * Forgets which container this bundle owns, and which one was last marked.
+ *
+ * Module state, and in a browser that is exactly right: every screen is built as
+ * its own bundle, so these are that screen's own and live as long as the page
+ * does. A test file is one bundle standing many pages in one document, and
+ * without a way to forget, the second test inherits the first one's container —
+ * `isOurContainer` then says no to a container this bundle really did just make,
+ * the takeover declines to settle, and the screen renders into a tree nothing is
+ * looking at. It surfaced when the interface moved into a shadow root of its own:
+ * the old lookups went through `document`, which could not see the stale element
+ * either, and so had been hiding the coupling rather than avoiding it.
+ */
+export const forgetOurContainer = (): void => {
+  ours = null
+  marked = null
+}
 
 /** Whether this bundle still owns this container. */
 const isOurContainer = (container: Element): boolean => container === ours

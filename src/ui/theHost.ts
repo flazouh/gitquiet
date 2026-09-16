@@ -81,12 +81,30 @@ export const theSheetIfReady = (): CSSStyleSheet | null => sheet
  * id, so anything else of ours that has to sit in their document is covered by
  * the same word.
  */
+/**
+ * The host this document has had, whether or not it is still in the page.
+ *
+ * Kept because the host is a child of `body`, and `body`'s children are not ours:
+ * GitHub replaces them wholesale on a soft navigation, and a test does the same
+ * when it stands a fresh page. Looking the host up by id and building a new one
+ * when the lookup fails is the obvious thing and it is wrong — a new host is a
+ * new shadow root, a new stage, a new bar slot, and every React portal still
+ * pointing into the old one. Measured on the resumption test: eight hosts built
+ * in one file, the bar portalled into the shadow root of the second and asserted
+ * against the eighth, which is a bar the reader would simply not have.
+ *
+ * So the host is remembered and put back. The shadow root survives with it, and
+ * with the shadow root everything standing in it.
+ */
+const hosts = new WeakMap<Document, HTMLElement>()
+
 export const theHost = (target: Document): { host: HTMLElement; shadow: ShadowRoot } => {
-  const had = target.getElementById(HOST_ID)
+  const had = target.getElementById(HOST_ID) ?? hosts.get(target) ?? null
   const host = had ?? target.createElement("div")
   if (had === null) {
     host.id = HOST_ID
     host.setAttribute(OUTSIDE, "")
+    hosts.set(target, host)
   }
 
   const shadow = host.shadowRoot ?? host.attachShadow({ mode: "open" })

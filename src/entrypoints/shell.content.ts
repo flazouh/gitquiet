@@ -10,7 +10,6 @@ import {
 import { whenIdle } from "@/app/idle";
 import { claimShell } from "@/app/shellClaim";
 import { protectOwnedLinks } from "@/app/ownedLinks";
-import { watchHomeGate } from "@/ui/homeGate";
 import { titleAt } from "@/app/entitling";
 import { intendTo, intendedPath, prepareTo, whenPreparing } from "@/app/intent";
 import {
@@ -278,7 +277,6 @@ export default defineContentScript({
   runAt: "document_start",
   main(ctx) {
     if (!claimShell(document)) return;
-    ctx.onInvalidated(watchHomeGate(document));
 
 
     // Everything below is in aid of an interface that a reader can turn off,

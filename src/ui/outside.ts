@@ -14,7 +14,6 @@
  */
 
 import { OUTSIDE, ROOT_ID } from "./mount"
-import { ourTree, theHost } from "./theHost"
 
 /**
  * The mark. Read by `primer.css`, `quiet.css` and {@link Theme}. Defined in `mount.ts`
@@ -33,16 +32,13 @@ export const OVER_ID = "gitquiet-over";
  * has no idea whether it is the first to ask, and two hosts would mean one of them unpainted.
  */
 export const outsideHost = (page: Document, id: string): HTMLElement => {
-  const had = ourTree(page)?.getElementById(id) ?? null;
+  const had = page.getElementById(id);
   if (had !== null) return had;
 
   const host = page.createElement("div");
   host.id = id;
   host.setAttribute(OUTSIDE, "");
-  // Inside our own root, where the adopted sheet dresses it and the gate cannot
-  // sweep it: an overlay appended to `body` is a box that is not the host, and
-  // the one rule that hides their page would hide this with it.
-  theHost(page).shadow.appendChild(host);
+  page.body.appendChild(host);
   // Dressed from the root at birth, because a host made during a render happens after the theme
   // has already painted: the first hover card of a session would otherwise be white and every one
   // after it dark. {@link Theme} repaints all of these whenever the scheme changes.

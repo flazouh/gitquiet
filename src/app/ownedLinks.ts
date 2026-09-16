@@ -1,4 +1,5 @@
 import { markOwnedRoute, OWNED_ROUTE } from "./navigationGuard"
+import { ourTree } from "../ui/theHost"
 
 /** Protects added links without walking GitHub's hidden page on each update. */
 export const protectOwnedLinks = (
@@ -11,7 +12,11 @@ export const protectOwnedLinks = (
     else link.removeAttribute(OWNED_ROUTE)
   }
   const update = (changes: readonly MutationRecord[]) => {
-    const current = [target.getElementById("gitquiet-root"), target.getElementById("gitquiet-bar")]
+    const ours = ourTree(target) ?? target
+    const current = [
+      ours.querySelector<HTMLElement>("#gitquiet-root"),
+      ours.querySelector<HTMLElement>("#gitquiet-bar")
+    ]
       .filter((root) => root !== null)
     const added = new Set<Element>(current.filter((root) => !roots.includes(root)))
     roots = current

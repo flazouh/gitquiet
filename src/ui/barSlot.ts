@@ -1,5 +1,4 @@
 import { OUTSIDE } from "./outside"
-import { ourTree, theHost } from "./theHost"
 
 /** Where our bar stands. Named here because `theirNav` has to rule it out when reading theirs. */
 export const BAR_ID = "gitquiet-bar"
@@ -44,18 +43,17 @@ export const BAR_AT = `:is(#${BAR_ID}, [${BAR_MARK}])`
 /**
  * The element our bar is rendered into, made once per document.
  *
- * The first thing in our own shadow root, above the stage every screen stands on.
+ * The first child of `body`, above everything of theirs, rather than inside the element their
+ * own bar lives in. Their header sits inside a `react-partial` that hydrates and re-renders,
+ * and a node of ours inside it is a node their React can drop between two frames — a bar that
+ * vanishes on a soft navigation and comes back on a reload is the kind of fault nobody can
+ * reproduce on purpose.
  *
- * It used to be the first child of `body`. That was already a step away from their
- * header — a node of ours inside their `react-partial` is one their React can drop
- * between two frames — but it still left the bar in their document, wearing their
- * stylesheets and standing outside the host. The rule that hides their page names
- * everything in `body` that is not the host, so a bar in `body` was a bar the gate
- * swept away: measured, on the first prototype of the host, as an interface that
- * drew perfectly with no bar on it at all.
- *
- * Inside the host it is ours in every sense — gated with the rest of the interface,
- * dressed by the adopted sheet, and untouched by anything of theirs.
+ * In `body` rather than inside the host, which is where the screens stand. The rule that hides
+ * their page spares anything marked {@link OUTSIDE}, and this is marked — so the bar is exempt
+ * where a plain box of theirs is not. A prototype of the host hid the bar and read as proof it
+ * had to move inside; the rule it was tested against had no exemption in it, and the real one
+ * always did.
  *
  * Their bar is not removed, only hidden, and hidden by there being somewhere for ours to stand
  * rather than by the takeover having started: {@link BAR_ON_PAGE} is written when this element
@@ -63,16 +61,13 @@ export const BAR_AT = `:is(#${BAR_ID}, [${BAR_MARK}])`
  * are taking over" would do for as long as the takeover took.
  */
 export const theBarSlot = (page: Document, within?: HTMLElement | undefined): HTMLElement => {
-  const held: ParentNode = within ?? theHost(page).shadow
+  const held: ParentNode = within ?? page.body
   // Said of the document whichever call makes it true, including the one that
   // finds a slot already standing: the rules that hide GitHub's bar read this
   // rather than the element, and a second interface arriving must not leave the
   // page with both bars. See {@link BAR_ON_PAGE}.
   if (within === undefined) page.documentElement.setAttribute(BAR_ON_PAGE, "")
-  const standing =
-    within === undefined
-      ? (ourTree(page)?.getElementById(BAR_ID) ?? null)
-      : firstBarIn(within)
+  const standing = within === undefined ? page.getElementById(BAR_ID) : firstBarIn(within)
   if (standing !== null) return standing
 
   const slot = page.createElement("div")
@@ -178,11 +173,25 @@ export const keepTheBarSlot = (
    * and watching for a replacement that cannot come would be a callback on every render
    * of the tree above it.
    */
-  const held = within ?? page.body
-  const watch = new MutationObserver(() => {
+  const held: ParentNode = within ?? page.body
+  const putBack = (): void => {
     if (slot.isConnected) return
     held.insertBefore(slot, held.firstChild)
-  })
+  }
+
+  /*
+   * At once, and not only on the next change.
+   *
+   * A screen kept live for a traversal comes back with the slot it drew into
+   * already off the page — whatever took the outgoing screen down took the slot
+   * with it, and this keeper is only set up again when the screen resumes. An
+   * observer answers changes that come after it, so a slot that was detached
+   * before it started would never be put back: the resumed screen portalled its
+   * bar into a node nothing was looking at, and the page came back with no bar.
+   */
+  putBack()
+
+  const watch = new MutationObserver(putBack)
 
   watch.observe(held, { childList: true })
   return () => watch.disconnect()

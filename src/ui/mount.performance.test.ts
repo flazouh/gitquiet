@@ -1,6 +1,20 @@
 import { afterEach, expect, mock, spyOn, test } from "bun:test"
 import { interfaceContainer, takeOverSlot } from "./mount"
 
+/**
+ * What the takeover costs a page it is standing on.
+ *
+ * This used to be eight tests about hiding: their siblings swept element by
+ * element on every mutation, a late region of theirs caught and hidden, a
+ * wrapper of theirs made visible again when our screen turned up inside it.
+ * None of that happens any more — their page is hidden by one CSS rule that
+ * names nothing, and the interface stands in a shadow root of its own.
+ *
+ * The property those tests were protecting outlived the machinery, and is now
+ * stronger: the observer that keeps our container standing must never traverse
+ * GitHub's document, however busy their page is. Counted at the browser boundary
+ * rather than timed, because a clock on a test runner measures the runner.
+ */
 let stop = () => {}
 afterEach(() => {
   mock.restore()
@@ -9,151 +23,73 @@ afterEach(() => {
 
 const turn = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
 
-test("opening and closing focus guards keeps the screen visible without traversing the page", async () => {
+/** Their page, as busy as the ones this is about. */
+const theirPage = (): Document => {
   const page = document.implementation.createHTMLDocument("PR")
-  page.body.innerHTML = '<main><div class="PageLayoutContent"><section>native</section></div></main>'
+  page.body.innerHTML =
+    '<main><div class="PageLayoutContent"><section>native diff</section></div></main>'
+  return page
+}
+
+test("their page churning does not traverse the document", async () => {
+  const page = theirPage()
   const takeover = takeOverSlot(page)!
-  stop = () => { takeover.stepAside() }
+  stop = () => takeover.stepAside()
   await turn()
+
+  // Held before the spies go on, so the test's own reach for it is not counted
+  // as the takeover's.
+  const theirs = page.querySelector("main")
   const one = spyOn(page, "querySelector")
   const all = spyOn(page, "querySelectorAll")
-  const guards = [page.createElement("span"), page.createElement("span")]
-  for (const guard of guards) {
-    guard.setAttribute("data-radix-focus-guard", "")
-    page.body.append(guard)
-  }
+
+  // Everything their React does to a page for the life of it: nodes in, nodes
+  // out, a region replaced wholesale.
+  const added = [page.createElement("span"), page.createElement("div")]
+  for (const node of added) page.body.append(node)
   await turn()
-  for (const guard of guards) guard.remove()
+  for (const node of added) node.remove()
   await turn()
+  theirs?.replaceChildren(page.createElement("section"))
+  await turn()
+
+  expect(one).not.toHaveBeenCalled()
+  expect(all).not.toHaveBeenCalled()
+})
+
+test("and leaves our screen standing through all of it", async () => {
+  const page = theirPage()
+  const takeover = takeOverSlot(page, interfaceContainer(page))!
+  stop = () => takeover.stepAside()
+  await turn()
+
+  page.body.append(page.createElement("div"))
+  page.querySelector("main")?.replaceChildren(page.createElement("section"))
+  await turn()
+
   expect(takeover.container.isConnected).toBe(true)
   expect(takeover.container.hasAttribute("hidden")).toBe(false)
-  expect(one).not.toHaveBeenCalled()
-  expect(all).not.toHaveBeenCalled()
 })
 
-// Count browser-boundary traversals rather than asserting a machine's speed.
-test("drawing inside a mounted screen does not traverse GitHub's document", async () => {
-  const page = document.implementation.createHTMLDocument("large PR")
-  page.body.innerHTML = '<main><div class="PageLayoutContent"><section>native diff</section></div></main>'
-  const root = interfaceContainer(page)
-  const takeover = takeOverSlot(page, root)
-  expect(takeover).not.toBeNull()
-  stop = () => { takeover?.stepAside() }
+test("drawing inside our own screen does not traverse their document either", async () => {
+  const page = theirPage()
+  const takeover = takeOverSlot(page, interfaceContainer(page))!
+  stop = () => takeover.stepAside()
   await turn()
+
   const one = spyOn(page, "querySelector")
   const all = spyOn(page, "querySelectorAll")
-  for (let i = 0; i < 4; i++) {
-    root.textContent = `file ${i}`
-    await turn()
+
+  // A screen redrawing: a thousand nodes in and out of our own container.
+  for (let at = 0; at < 200; at++) {
+    const row = page.createElement("div")
+    row.textContent = `row ${at}`
+    takeover.container.append(row)
   }
-  expect(root.isConnected).toBe(true)
-  expect(root.textContent).toBe("file 3")
-  expect(root.hasAttribute("hidden")).toBe(false)
+  await turn()
+  takeover.container.replaceChildren()
+  await turn()
+
   expect(one).not.toHaveBeenCalled()
   expect(all).not.toHaveBeenCalled()
-})
-
-test("updates below a hidden native diff do not traverse a settled page", async () => {
-  const page = document.implementation.createHTMLDocument("large PR")
-  page.body.innerHTML = '<main><div class="PageLayoutContent"><section>native diff</section></div></main>'
-  const native = page.querySelector("section")!
-  const takeover = takeOverSlot(page)
-  expect(takeover).not.toBeNull()
-  stop = () => { takeover?.stepAside() }
-  await turn()
-  const one = spyOn(page, "querySelector")
-  const all = spyOn(page, "querySelectorAll")
-  for (let i = 0; i < 4; i++) {
-    native.replaceChildren(page.createElement("span"))
-    await turn()
-  }
-  expect(native.hasAttribute("hidden")).toBe(true)
-  expect(takeover?.container.isConnected).toBe(true)
-  expect(one).not.toHaveBeenCalled()
-  expect(all).not.toHaveBeenCalled()
-})
-
-test("a mixed batch still hides a new native sibling and keeps the new screen text", async () => {
-  const page = document.implementation.createHTMLDocument("PR")
-  page.body.innerHTML = '<div class="PageLayoutContent"><section>native</section></div>'
-  const takeover = takeOverSlot(page)!
-  stop = () => { takeover.stepAside() }
-  const sibling = page.createElement("aside")
-  const guard = page.createElement("span")
-  guard.setAttribute("data-radix-focus-guard", "")
-  page.body.append(guard)
-  takeover.container.textContent = "new file"
-  takeover.container.parentElement!.append(sibling)
-  await turn()
-  expect(sibling.hasAttribute("hidden")).toBe(true)
-  expect(takeover.container.textContent).toBe("new file")
-  expect(takeover.container.hasAttribute("hidden")).toBe(false)
-})
-
-test("a focus guard marker does not hide a real region inside a nonempty node", async () => {
-  const page = document.implementation.createHTMLDocument("PR")
-  page.body.innerHTML = '<div id="repo-content-pjax-container"></div>'
-  const takeover = takeOverSlot(page)!
-  stop = () => { takeover.stepAside() }
-  const guard = page.createElement("span")
-  guard.setAttribute("data-radix-focus-guard", "")
-  const region = page.createElement("div")
-  region.className = "PageLayoutContent"
-  guard.append(region)
-  page.body.append(guard)
-  await turn()
-  expect(takeover.container.parentElement).toBe(page.body)
-  expect(guard.hasAttribute("hidden")).toBe(true)
-  expect(takeover.container.hasAttribute("hidden")).toBe(false)
-})
-
-test("a late region inside hidden native content stays hidden without a document scan", async () => {
-  const page = document.implementation.createHTMLDocument("PR")
-  page.body.innerHTML = '<div id="repo-content-pjax-container"><react-app app-name="pull-requests"></react-app></div>'
-  const native = page.querySelector("react-app")!
-  const takeover = takeOverSlot(page)!
-  stop = () => { takeover.stepAside() }
-  await turn()
-  expect(native.hasAttribute("hidden")).toBe(true)
-  const region = page.createElement("div")
-  region.className = "PageLayoutContent"
-  const one = spyOn(page, "querySelector")
-  const all = spyOn(page, "querySelectorAll")
-  native.append(region)
-  await turn()
-  expect(takeover.container.parentElement).toBe(page.body)
-  expect(native.hasAttribute("hidden")).toBe(true)
-  expect(one).not.toHaveBeenCalled()
-  expect(all).not.toHaveBeenCalled()
-})
-
-test("replacing a native region in the same batch as a screen update keeps the screen on body", async () => {
-  const page = document.implementation.createHTMLDocument("PR")
-  page.body.innerHTML = '<main><div class="PageLayoutContent"><section>native</section></div></main>'
-  const takeover = takeOverSlot(page)!
-  stop = () => { takeover.stepAside() }
-  const old = page.querySelector(".PageLayoutContent")!
-  takeover.container.textContent = "file stays open"
-  const replacement = page.createElement("div")
-  replacement.className = "PageLayoutContent"
-  old.replaceWith(replacement)
-  await turn()
-  expect(takeover.container.parentElement).toBe(page.body)
-  expect(replacement.closest("[hidden]")).not.toBeNull()
-  expect(takeover.container.textContent).toBe("file stays open")
-})
-
-
-test("a hidden wrapper around our screen is made visible", async () => {
-  const page = document.implementation.createHTMLDocument("PR")
-  page.body.innerHTML = '<main><div class="PageLayoutContent"></div></main>'
-  const takeover = takeOverSlot(page)!
-  stop = () => { takeover.stepAside() }
-  await turn()
-  const wrapper = page.querySelector("main")!
-  expect(wrapper.hasAttribute("hidden")).toBe(true)
-  wrapper.append(takeover.container)
-  await turn()
-  expect(takeover.container.isConnected).toBe(true)
-  expect(takeover.container.closest("[hidden]")).toBeNull()
 })

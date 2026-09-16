@@ -32,10 +32,16 @@ describe("the generated gate stylesheets", () => {
     expect(barSheet()).not.toContain("data-gitquiet-gating")
   })
 
-  test("name every page an interface stands on", () => {
-    // A place missing from the list is a page whose gate is never written, which is
-    // GitHub's own version of it on the screen for as long as the takeover takes.
+  test("hide their page on any page of ours, without naming one of them", () => {
+    /*
+     * It used to be a rule per place, and this asserted that none had been left
+     * out — a place missing from the list was a page whose gate was never written.
+     * There is one rule now and it is keyed on the mark being there at all, so
+     * there is no list to fall off: a place added tomorrow is gated by the same
+     * line, and the sheet names no page and no markup of GitHub's.
+     */
     const sheet = readFileSync("src/ui/gates.load.css", "utf8")
-    for (const place of PLACES) expect(sheet).toContain(`data-gitquiet-page="${place.name}"`)
+    expect(sheet).toContain("html[data-gitquiet-page] body >")
+    for (const place of PLACES) expect(sheet).not.toContain(`data-gitquiet-page="${place.name}"`)
   })
 })
