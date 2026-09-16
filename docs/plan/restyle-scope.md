@@ -52,34 +52,46 @@ rules in `gates.*.css`, and the `WITHIN` chain that exists only because our root
 stands inside their layout. None of it can rot, because none of it reads their
 markup. The only things left pointing at GitHub are the URL and the JSON.
 
-## Proved, and the part that is not
+## What shipped, and what the prototype got wrong
 
-A prototype moved the live React tree into a shadow root on the real page, adopted
-our sheet into it (`:root` rewritten to `:host` for the variables), disabled their
-sheets and hid the rest of the document with the rule above. It drew correctly —
-the file tree, the diff, the merge card, the checks, the fonts — at 0.022 ms a
-mutation. The screenshot is the whole page and it is ours.
+All of it shipped. The screens stand on a stage in a shadow root of our own, one
+rule hides their page, their stylesheets go off while we hold it, and `bands`,
+`regions`, `stages`, `fallback`, `gateAudit.ts`, `coarsen` and the canary are
+gone. Measured on the same live pull request afterwards: **0.018 ms** a mutation
+against 9.485 ms before, with sixty-nine of their stylesheets disabled and no
+faults reported.
 
-One thing broke, and it is the honest warning: **the bar disappeared.** It mounts
-into GitHub's own header slot rather than into our root, so a rule that hides
-everything that is not our host hides it too. The bar has to move inside the host
-before any of this can ship.
+The prototype was right about the shape and wrong about the bar, and the wrong
+half cost more than the right half saved.
 
-The rest of the hazards, none of them measured yet:
+**The bar never had to move.** The prototype hid it and read that as proof it
+belonged inside the host. The rule it was tested against was written by hand and
+said `body > *:not(#gq-host)`; the real generated rule has always said
+`:not([data-gitquiet-outside])` as well, and the bar has always carried that
+mark. Moving it in — with the overlay hosts — broke a hundred tests and bought
+nothing. Both are back in `body`.
 
-- React portals that go to `document.body` land outside the shadow root and lose
-  every style. They have to portal to the shadow root instead.
-- GitHub adds stylesheets on a soft navigation, so disabling once is not enough —
-  the sheets have to be caught as they arrive, and put back on the way out.
-- Tailwind's preflight is written against `html` and `body`, which a shadow root
-  does not have. It needs `:host` equivalents.
-- `<diffs-container>` already attaches its own shadow root inside ours. Nested is
-  fine in principle; it has not been tried under this arrangement.
-- Whatever of theirs we deliberately keep — anything marked `OUTSIDE` — needs a
-  home that the one rule does not sweep away.
+**Three faults only running it could find:**
 
-## The cheap half
+- `document.body` does not exist at `document_start`. Reaching for it threw out
+  of the first render and left a page the gate had already emptied with nothing
+  in it. The host waits on `documentElement` and moves when there is a body.
+- The host was rebuilt every time anything replaced `body`'s children, which
+  their Turbo does on every soft navigation — a new shadow root, a new stage, a
+  new bar slot, and every React portal still pointing into the old one. Eight
+  hosts in one test file. It is remembered per document and put back.
+- `rootIn` looked only inside the shadow root, so a container appended straight
+  into `body` by a caller that never asked for a stage became invisible: the
+  screen was on the page with nothing able to see it, and the bar it drew never
+  came down. It asks our tree first and the document after.
 
-If the shape above is too much at once, the ordering is obvious from the table:
-disabling their stylesheets is 97% of the win and is reversible with one property.
-It can be done where the interface stands today, before anything moves.
+**The hazards that did not bite:** Tailwind's preflight needed nothing beyond
+rewriting `:root` to `:host` on the sheet text; `<diffs-container>`'s own shadow
+roots nest inside ours without complaint; and the portals never had to move,
+because the elements they portal into never left `body`.
+
+## The cheap half, for the record
+
+Disabling their stylesheets was 97% of the win and is reversible with one
+property. It could have been done where the interface stood before anything
+moved — worth remembering the next time a change this size is weighed.
