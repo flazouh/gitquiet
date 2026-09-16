@@ -19,7 +19,7 @@
 
 import { type Cause, Effect } from "effect"
 import { onwardWith } from "@/observability/report"
-import { dressShadow, theHost, theSheet } from "@/ui/theHost"
+import { dressShadow, keepTheirStylesOff, theHost, theSheet } from "@/ui/theHost"
 
 /** What every screen module exports: take the page, and optionally build one route ahead. */
 export type Screen = {
@@ -204,7 +204,18 @@ const dressed = (at: string): Effect.Effect<void> =>
     yield* linked(at)
 
     const built = yield* theSheet(url).pipe(Effect.catch(onwardWith(null)))
-    if (built !== null) dressShadow(theHost(document).shadow, built)
+    if (built === null) return
+
+    dressShadow(theHost(document).shadow, built)
+
+    /*
+     * And only now are their sheets worth turning off.
+     *
+     * The saving is real and it is not worth a page with no styles on it at all.
+     * `markPage` asks for this at `document_start`, before ours has been fetched,
+     * and the ask is refused until this line has run — see `oursInForce`.
+     */
+    keepTheirStylesOff(document)
   })
 
 const held = new Map<Wanted, Screen>()
