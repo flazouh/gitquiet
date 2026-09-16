@@ -1,5 +1,5 @@
 import { Option } from "effect";
-import { AUTH_CLASS, THE_WALL_BOX } from "../github/signOn";
+import { AUTH_CLASS } from "../github/signOn";
 import { blameIn } from "../domain/blame";
 import { fromPathname as commitIn } from "../domain/CommitRef";
 import { commitListIn } from "../domain/commitList";
@@ -17,8 +17,6 @@ import { releasesIn } from "../domain/release";
 import { repoHomeIn } from "../domain/repoHome";
 import { runAddressIn } from "../domain/run";
 import { actionsIn } from "../domain/strand";
-import { THEIR_TABS } from "./theirTabs";
-import { HOME_READY } from "./homeGate";
 
 /**
  * Where on a GitHub page the interface goes, described per page.
@@ -84,58 +82,19 @@ export type Place = {
    */
   readonly loadedWhen?: string;
   /**
-   * The regions worth taking, best first. Only these are accepted while the
-   * document is still parsing, because anything further up the tree is parsed
-   * earlier and would always win.
-   */
-  readonly regions: ReadonlyArray<string>;
-  /**
-   * Where to go when none of {@link regions} ever appears: a worse place that is
-   * still the right part of the page. Offered only once parsing is over, when
-   * the absence of a region means something.
-   */
-  readonly fallback: string;
-  /**
-   * Bands elsewhere on the page that this interface replaces, hidden alongside
-   * the region's own children. Empty where the region is the whole of it.
-   */
-  readonly bands: ReadonlyArray<string>;
-  /**
-   * Everywhere their content may be while ours is arriving, for the rules that
-   * hide it. Defaults to {@link regions}.
+   * Whether GitHub reaches this page without loading a document.
    *
-   * Not the same question as where to stand, which is why it is its own field. A
-   * repository's list is rendered into `#repo-content-pjax-container` most of the
-   * time and straight into its Turbo frame the rest of it, and a rule that knew
-   * only the first left their list on the screen for a measured 587 milliseconds
-   * while ours was on its way. Where to stand can be a preference; what to hide
-   * cannot afford to be.
-   */
-  readonly stages?: ReadonlyArray<string>;
-  /**
-   * How to hide their page when GitHub swaps it in without loading a document,
-   * or nothing where that never happens to this page.
+   * It used to be a bag of their selectors: an ancestor that exists only on their
+   * version of the page, and a suffix for the stages, both there to keep a gate
+   * from blanking the page a reader was still reading. Nothing gates on their
+   * markup now — one rule hides everything in `body` that is not the host — so all
+   * that is left of it is the fact it was really asking: can a press on this page
+   * be claimed, or does it need a real document load?
    *
-   * These rules ship with the script that runs on every GitHub page, because on
-   * that path the interface's own stylesheet has not been delivered yet — that
-   * delivery is a message to a worker which may be asleep, and how long it takes
-   * is how long their page is on the screen.
+   * A press claimed on a page that cannot soft-navigate cancelled the click and
+   * went nowhere, so the answer still matters. `shell.content.ts` is the reader.
    */
-  readonly soft?: {
-    /**
-     * An ancestor that exists only on their version of this page.
-     *
-     * The gate is switched on at the press, while the page being left is still the
-     * page on the screen. Waiting for something only the destination has is what
-     * keeps a rule from blanking the page a reader is still reading.
-     */
-    readonly within?: string;
-    /**
-     * Added to each stage for the same reason, where an ancestor cannot say it:
-     * `:has(.js-issue-row)` is a region that really holds their rows now.
-     */
-    readonly holding?: string;
-  };
+  readonly soft?: boolean;
 };
 
 /**
@@ -153,10 +112,6 @@ export type Place = {
 export const CONVERSATION: Place = {
   name: "conversation",
   owns: (path) => Option.isSome(pullRequestIn(path)),
-  regions: [
-    'react-app[app-name="pull-requests"] [class*="PageLayoutContent"]',
-    '[class*="PageLayoutContent"]',
-  ],
   /*
    * The whole repository content, which is much further up the document and
    * therefore parsed long before the region it contains. That is why it is a
@@ -164,23 +119,18 @@ export const CONVERSATION: Place = {
    * always this one, and the interface would take the entire repository content
    * on every single load while the code claimed to be replacing a conversation.
    */
-  fallback: "#repo-content-pjax-container",
   /*
    * The region as GitHub names it, either way round. The whole repository content
    * is deliberately not here: it is somewhere ours may have to stand when their
    * conversation never appears, and hiding everything inside it on the way past
    * would take the repository's own page down with it.
    */
-  stages: [
-    'react-app[app-name="pull-requests"] [class*="PageLayoutContent"]',
-    '[class*="PageLayoutContent"]',
-  ],
   /*
    * Their pull request app, which exists on no other page — so this may be
    * switched on the moment a pull request is pressed, while the list is still on
    * the screen, without blanking the list on the way out.
    */
-  soft: { within: 'react-app[app-name="pull-requests"]' },
+  soft: true,
   /*
    * Their header: title, state, branch chips, the corner buttons, and the
    * Conversation / Commits / Checks / Files changed row beneath them.
@@ -189,24 +139,6 @@ export const CONVERSATION: Place = {
    * four, and two headers one above the other make the reader work out which
    * page they are on before they can do anything.
    */
-  bands: [
-    '[class*="PullRequestHeader"]',
-    THEIR_TABS,
-    /*
-     * Their banner offering to stack this pull request with the ones below it.
-     *
-     * A sibling of the header rather than a part of it, which is why the band above
-     * leaves it standing: it lives in `PageLayout-Header` and it was the last piece
-     * of GitHub's own page left over ours. Named by the label they give it, since
-     * every class on it carries a per-deploy hash.
-     *
-     * Ours says the same thing above the header card and says which pull requests,
-     * in what order, onto what branch. See `Proposed`. Two banners about one chain,
-     * one of them a button that opens a dialog to answer what the other has already
-     * drawn, is worse than either alone.
-     */
-    '[data-component="Banner"][aria-label="Can Stack Banner"]',
-  ],
 };
 
 /**
@@ -227,7 +159,6 @@ export const COMMIT: Place = {
    * Where GitHub says the message, the parent and how many files changed above the
    * diff — all of which the panel below repeats.
    */
-  bands: ['react-app[app-name="commits"] [class*="PageLayout-Header"]'],
   /*
    * Nothing: their own navigation between commits loads a page every time, so this
    * page is never swapped in under a reader.
@@ -249,23 +180,19 @@ export const COMMIT: Place = {
 export const ISSUE: Place = {
   name: "issue",
   owns: (path) => Option.isSome(issueIn(path)),
-  regions: ['[data-testid="issue-viewer-container"]'],
   /*
    * The Turbo frame the region lives in. Further up the tree and therefore
    * parsed earlier, which is why it is a fallback rather than a second region:
    * offered during parsing it would win every time, and the interface would
    * take the whole repository content on every load.
    */
-  fallback: "turbo-frame#repo-content-turbo-frame",
-  stages: ['[data-testid="issue-viewer-container"]'],
   /*
    * Their issue app, which exists on no other page — so this may be switched on
    * the moment an issue is pressed, while the list is still on the screen,
    * without blanking the list on the way out.
    */
-  soft: { within: 'react-app[app-name="issues-react"]' },
+  soft: true,
   // Nothing. The region is the title, the body and the conversation together.
-  bands: [],
 };
 
 /**
@@ -286,23 +213,13 @@ export const ISSUE: Place = {
 export const RAISE: Place = {
   name: "raise",
   owns: (path) => Option.isSome(raisingIn(`https://github.com${path}`)),
-  regions: [
-    "#repo-content-pjax-container",
-    "turbo-frame#repo-content-turbo-frame",
-  ],
-  fallback: "turbo-frame#repo-content-turbo-frame",
-  stages: [
-    "#repo-content-pjax-container",
-    "turbo-frame#repo-content-turbo-frame",
-  ],
   /*
    * Their issue app, as on the issue and the list: it exists on no other page, so
    * this may be switched on the moment the form is pressed for, while whatever the
    * reader is reading is still on the screen.
    */
-  soft: { within: 'react-app[app-name="issues-react"]' },
+  soft: true,
   // Nothing. The region is the title box, the description box and the button.
-  bands: [],
 };
 
 /**
@@ -319,20 +236,13 @@ export const RAISE: Place = {
 export const REPO_ISSUES: Place = {
   name: "repo-issues",
   owns: (path) => Option.isSome(issueListIn(`https://github.com${path}`)),
-  regions: ["#repo-content-pjax-container"],
-  fallback: "turbo-frame#repo-content-turbo-frame",
-  stages: [
-    "#repo-content-pjax-container",
-    "turbo-frame#repo-content-turbo-frame",
-  ],
   /*
    * Their issue app, and not a row inside it. `within` rather than `holding`
    * because the marker is an ancestor of the stages here rather than something
    * the stages contain — the app element wraps the repository content.
    */
-  soft: { within: 'react-app[app-name="issues-react"]' },
+  soft: true,
   // Nothing. The region is the toolbar, the rows and the pager together.
-  bands: [],
 };
 
 /**
@@ -352,18 +262,14 @@ export const REPO_ISSUES: Place = {
 export const ISSUES: Place = {
   name: "issues",
   owns: (path) => Option.isSome(issueDashboardIn(`https://github.com${path}`)),
-  regions: ['react-app[app-name="issues-react"]'],
-  fallback: "main",
-  stages: ['react-app[app-name="issues-react"]'],
   /*
    * Their issue app again, which is the marker all three issue pages share.
    * Harmless that they share it: every gate rule is written against the page
    * this document was marked as, so a rule for one of the three never fires on
    * another.
    */
-  soft: { within: 'react-app[app-name="issues-react"]' },
+  soft: true,
   // Nothing. The region is the tabs, the rows and the pager together.
-  bands: [],
 };
 
 /**
@@ -381,7 +287,6 @@ export const ISSUES: Place = {
 export const DASHBOARD: Place = {
   name: "dashboard",
   owns: (path) => showsWorkingSet(path),
-  regions: ['[data-testid="pulls-dashboard-surface-layout"]'],
   /*
    * The app element that region sits in. Above the SSO banner GitHub sometimes
    * puts at the top of it, which is why it is not the region itself: taking this
@@ -389,20 +294,17 @@ export const DASHBOARD: Place = {
    * is the one thing on this page a reader may need more than their pull
    * requests.
    */
-  fallback: 'react-app[app-name="dashboard-surface"]',
   /*
    * The region alone. Their app element is where ours stands when the region never
    * arrives, and it holds the single sign-on banner as well — which is the one
    * thing on this page a reader may need more than their pull requests.
    */
-  stages: ['[data-testid="pulls-dashboard-surface-layout"]'],
   /*
    * Nothing to wait for: this region exists on their dashboard and nowhere else, so
    * its presence is already the proof the other pages need a marker for.
    */
-  soft: {},
+  soft: true,
   // Nothing. The region is GitHub's entire list, pane and all.
-  bands: [],
 };
 
 /**
@@ -421,13 +323,11 @@ export const DASHBOARD: Place = {
 export const REPO_PULLS: Place = {
   name: "repo-pulls",
   owns: (path) => /^\/[^/]+\/[^/]+\/pulls\/?$/.test(path),
-  regions: ["#repo-content-pjax-container"],
   /*
    * The Turbo frame that region lives in, which is the same box to the pixel. Worth
    * having as a fallback rather than nothing because the two ids belong to different
    * eras of GitHub's own navigation, and they have not always both been present.
    */
-  fallback: "turbo-frame#repo-content-turbo-frame",
   /*
    * Both, unlike the other two places, and this is the one that taught the lesson.
    * Turbo renders the list into the container most of the time and straight into
@@ -435,10 +335,6 @@ export const REPO_PULLS: Place = {
    * whenever it picked the frame, and their list was on the screen for 587
    * milliseconds while ours was being fetched.
    */
-  stages: [
-    "#repo-content-pjax-container",
-    "turbo-frame#repo-content-turbo-frame",
-  ],
   /*
    * Their rows, because nothing else here says which page this is. Every hook on
    * this page is a content region that exists on all of a repository's tabs — so
@@ -446,9 +342,8 @@ export const REPO_PULLS: Place = {
    * pull requests puts in it. Until then a reader pressing the tab goes on looking
    * at the page they were on, rather than at an empty frame.
    */
-  soft: { holding: ":has(.js-issue-row)" },
+  soft: true,
   // Nothing. The region is the toolbar, the rows and the pager together.
-  bands: [],
 };
 
 /**
@@ -467,21 +362,14 @@ export const REPO_PULLS: Place = {
 export const COMMITS: Place = {
   name: "commits",
   owns: (path) => Option.isSome(commitListIn(`https://github.com${path}`)),
-  regions: ["#repo-content-pjax-container"],
-  fallback: "turbo-frame#repo-content-turbo-frame",
-  stages: [
-    "#repo-content-pjax-container",
-    "turbo-frame#repo-content-turbo-frame",
-  ],
   /*
    * Their rows, for the reason a repository's list needs the same thing: every
    * hook on this page is a content region that exists on all of a repository's
    * tabs, so the proof of which tab this is has to be the content. A commit row
    * carries their own test id, which is what a list of commits puts there.
    */
-  soft: { holding: ':has([data-testid="commit-row-item"])' },
+  soft: true,
   // Nothing. The region is the branch picker, the rows and the pager together.
-  bands: [],
 };
 
 /**
@@ -501,19 +389,13 @@ export const COMMITS: Place = {
 export const REPO_HOME: Place = {
   name: "repo-home",
   owns: (path) => Option.isSome(repoHomeIn(`https://github.com${path}`)),
-  regions: ["#repo-content-pjax-container"],
-  fallback: "turbo-frame#repo-content-turbo-frame",
-  stages: [
-    "#repo-content-pjax-container",
-    "turbo-frame#repo-content-turbo-frame",
-  ],
   /*
    * Their code view app, which is the marker the whole of `/owner/repo`,
    * `/tree/...` and `/blob/...` share. Harmless that they share it: every gate
    * rule is written against the page this document was marked as, and only a
    * repository's root is ever marked `repo-home`.
    */
-  soft: { within: 'react-app[app-name="code-view"]' },
+  soft: true,
   /*
    * One, and the region takes everything else: the tab row, the file list and the
    * README are all inside it.
@@ -537,7 +419,6 @@ export const REPO_HOME: Place = {
    * stops at `Flash` because the box and the icon inside it carry the same module's
    * name, and a fragment cut shorter would take the one row three times over.
    */
-  bands: ['[class*="RecentlyTouchedBranches-module__Flash"]'],
 };
 
 /**
@@ -568,24 +449,13 @@ export const REPO_HOME: Place = {
 export const COMPARE: Place = {
   name: "compare",
   owns: (path) => Option.isSome(compareIn(`https://github.com${path}`)),
-  regions: [],
-  fallback: "body",
-  stages: ["body"],
-  bands: []
 };
 
 export const BLAME: Place = {
   name: "blame",
   owns: (path) => Option.isSome(blameIn(`https://github.com${path}`)),
-  regions: ["#repo-content-pjax-container"],
-  fallback: "turbo-frame#repo-content-turbo-frame",
-  stages: [
-    "#repo-content-pjax-container",
-    "turbo-frame#repo-content-turbo-frame",
-  ],
-  soft: { within: 'react-app[app-name="code-view"]' },
+  soft: true,
   // Nothing. The region takes GitHub's whole answer to "who wrote this".
-  bands: [],
 };
 
 /**
@@ -605,22 +475,18 @@ export const BLAME: Place = {
 export const RUN: Place = {
   name: "run",
   owns: (path) => Option.isSome(runAddressIn(`https://github.com${path}`)),
-  regions: ["turbo-frame#repo-content-turbo-frame"],
   /*
    * One step out, and the same box to the pixel on the measured page. Worth having
    * because the frame and `main` belong to different eras of their own navigation.
    */
-  fallback: "main",
-  stages: ["turbo-frame#repo-content-turbo-frame"],
   /*
    * Their own `<run-summary>` element, which is an ancestor of the frame and exists on
    * a run and nowhere else: probed against `/owner/repo/actions`, where it is absent
    * and a pjax container is present. So this may be switched on the moment a run is
    * pressed, while the list is still on the screen, without blanking the list.
    */
-  soft: { within: "run-summary" },
+  soft: true,
   // Nothing. The region is the summary, the job graph and the notes together.
-  bands: [],
 };
 
 /**
@@ -640,12 +506,6 @@ export const RUN: Place = {
 export const ACTIONS: Place = {
   name: "actions",
   owns: (path) => Option.isSome(actionsIn(`https://github.com${path}`)),
-  regions: ["#repo-content-pjax-container"],
-  fallback: "turbo-frame#repo-content-turbo-frame",
-  stages: [
-    "#repo-content-pjax-container",
-    "turbo-frame#repo-content-turbo-frame",
-  ],
   /*
    * Their own row ids, which are `check_suite_<id>` and are written by the run list and by
    * nothing else on a repository. Every other hook on this page is a content region shared
@@ -653,9 +513,8 @@ export const ACTIONS: Place = {
    * reader pressing the tab goes on looking at the page they were on rather than at an empty
    * frame.
    */
-  soft: { holding: ':has([id^="check_suite_"])' },
+  soft: true,
   // Nothing. The region is the rows and their pager together.
-  bands: [],
 };
 
 /**
@@ -673,9 +532,6 @@ export const ACTIONS: Place = {
 export const RELEASES: Place = {
   name: "releases",
   owns: (path) => Option.isSome(releasesIn(`https://github.com${path}`)),
-  regions: ["#repo-content-pjax-container"],
-  fallback: "turbo-frame#repo-content-turbo-frame",
-  stages: ["#repo-content-pjax-container", "turbo-frame#repo-content-turbo-frame"],
   /*
    * Their own section wrapper for one Version, which is written by this list and by nothing
    * else. Every other hook on the page is a content region shared with the Code tab, so the
@@ -686,9 +542,8 @@ export const RELEASES: Place = {
    * on `/releases/tag/v0.2.1` and on `/tags`. So a reader pressing one Version, or their "View
    * all tags", is never left looking at a page this rule has blanked.
    */
-  soft: { holding: ":has(section[data-release-anchor])" },
+  soft: true,
   // Nothing. The region is the Versions and their pager together.
-  bands: [],
 };
 
 /**
@@ -711,13 +566,6 @@ export const DISCUSSIONS: Place = {
   name: "discussions",
   owns: (path, search) =>
     Option.isSome(discussionListIn(`https://github.com${path}${search ?? ""}`)),
-  regions: ["#repo-content-pjax-container", "main .container-xl.p-responsive.clearfix"],
-  fallback: "turbo-frame#repo-content-turbo-frame",
-  stages: [
-    "#repo-content-pjax-container",
-    "turbo-frame#repo-content-turbo-frame",
-    "main .container-xl.p-responsive.clearfix"
-  ],
   /*
    * The heading their own list is labelled by, which is written by this page and by nothing
    * else. Every other hook here is a content region shared with the Code tab, so the proof has
@@ -728,9 +576,8 @@ export const DISCUSSIONS: Place = {
    * `/vercel/next.js/discussions/70178`. So a reader pressing one discussion is never left
    * looking at a page this rule has blanked.
    */
-  soft: { holding: ":has(#discussions-list)" },
+  soft: true,
   // Nothing. The region is the rows, their categories and their pager together.
-  bands: [],
 };
 
 /**
@@ -749,16 +596,8 @@ export const DISCUSSIONS: Place = {
 export const DISCUSSION: Place = {
   name: "discussion",
   owns: (path) => Option.isSome(discussionIn(`https://github.com${path}`)),
-  regions: ["#repo-content-pjax-container", "#discussion_bucket"],
-  fallback: "turbo-frame#repo-content-turbo-frame",
-  stages: [
-    "#repo-content-pjax-container",
-    "turbo-frame#repo-content-turbo-frame",
-    "#discussion_bucket"
-  ],
-  soft: { holding: ":has(.js-discussion)" },
+  soft: true,
   // Nothing. The region is the thread and its header together.
-  bands: [],
 };
 
 /**
@@ -800,14 +639,11 @@ export const HOME: Place = {
    * refereeing: GitHub keeps `main` at `display: none` until a partial loads, and
    * our container used to be inside it.
    */
-  regions: ["body:has(#dashboard.dashboard)"],
-  stages: [`body[${HOME_READY}]`],
   /*
    * The surface without the proof. The fallback is only offered once parsing is
    * over, when the column never appeared at all — and the address already said this
    * is home, so the right thing is still our screen on the whole document.
    */
-  fallback: "body",
   /*
    * Nothing to wait for, and no steady-state rule: `gateCss` writes only the
    * pre-reveal flash cover for a stage that is the surface itself, because `body`
@@ -815,9 +651,8 @@ export const HOME: Place = {
    * state is `hideTheirs`, which marks what stood there at the takeover and leaves
    * everything carrying the outside mark alone.
    */
-  soft: {},
+  soft: true,
   /* None left. Everything this page ever named is a child of the surface now. */
-  bands: [],
 };
 
 /**
@@ -846,7 +681,6 @@ export const NOTIFICATIONS: Place = {
    * Measured 1512 by 1313 at top 64, the same box as `main` to the pixel bar the header.
    * A `js-` class rather than a Primer one, so it carries no per-deploy hash.
    */
-  regions: ["div.js-notifications-container"],
   /*
    * `main`, as on `ISSUES`, and for the same reason: this is a top-level page and there is no
    * pjax container or Turbo frame inside it to fall back to. The id `main` carries here,
@@ -854,8 +688,6 @@ export const NOTIFICATIONS: Place = {
    * pages too, so it is deliberately not named — a rule written against it would not be
    * written against this page.
    */
-  fallback: "main",
-  stages: ["div.js-notifications-container"],
   /*
    * Nothing, as on `COMMIT`. Measured rather than assumed: a sentinel written onto `window`
    * on `/pulls` was gone by the time their own notifications link had settled on
@@ -864,7 +696,6 @@ export const NOTIFICATIONS: Place = {
    */
   soft: undefined,
   // Nothing. The region is their pane, the rows and the pager together.
-  bands: [],
 };
 
 /**
@@ -904,10 +735,6 @@ export const NOTIFICATIONS: Place = {
  * of `main`, outside the region, and left alone it would slide over ours.
  */
 const PERSON = {
-  regions: ["main div.container-xl:has(.h-card)"],
-  fallback: "main",
-  stages: ["main div.container-xl:has(.h-card)"],
-  bands: ["main > div.position-sticky:has(.user-profile-sticky-bar)"],
 } as const;
 
 /**
@@ -931,7 +758,7 @@ export const PROFILE: Place = {
   ...PERSON,
   name: "profile",
   owns: (path, search) => Option.isSome(profileIn(`https://github.com${path}${search ?? ""}`)),
-  soft: { holding: ':has(include-fragment[src*="tab=contributions"])' },
+  soft: true,
 };
 
 /**
@@ -945,7 +772,7 @@ export const PERSON_REPOS: Place = {
   ...PERSON,
   name: "person-repos",
   owns: (path, search) => Option.isSome(personReposIn(`https://github.com${path}${search ?? ""}`)),
-  soft: { holding: ':has(#user-repositories-list)' },
+  soft: true,
 };
 
 /**
@@ -958,7 +785,7 @@ export const PERSON_STARS: Place = {
   ...PERSON,
   name: "person-stars",
   owns: (path, search) => Option.isSome(personStarsIn(`https://github.com${path}${search ?? ""}`)),
-  soft: { holding: ":has(turbo-frame#user-starred-repos)" },
+  soft: true,
 };
 
 /**
@@ -982,8 +809,6 @@ export const PERSON_STARS: Place = {
  * `place.test.ts` that exists to catch a rule that answers nothing. `found` says
  * the real thing once, and both readers of `owns` were taught to ask it.
  */
-/** Their wall's own region: the `main` that holds the box, and only that one. */
-const THE_WALL = `main:has(${THE_WALL_BOX})`;
 
 export const SIGN_ON: Place = {
   name: "sign-on",
@@ -1014,13 +839,11 @@ export const SIGN_ON: Place = {
    * come apart: it is a whole document GitHub served instead of another one, not a
    * region swapped into a page that is already up.
    */
-  regions: [THE_WALL],
   /*
    * The same selector. There is nothing worse to fall back to and nothing worth
    * falling back for: their wall is one box on an otherwise empty page, so a
    * takeover that cannot find it has not found the wall.
    */
-  fallback: THE_WALL,
   /*
    * No `soft` rules, and none possible: the wall is a server's answer to a request
    * for another page, so it arrives as a document every time and is never swapped
@@ -1029,7 +852,6 @@ export const SIGN_ON: Place = {
    * No `bands` either. The region is their heading and their form together, and
    * there is nothing else on the page.
    */
-  bands: []
 }
 
 /**

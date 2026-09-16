@@ -436,17 +436,6 @@ const WRITING = "writing"
  */
 const PEEKING = "peeking"
 
-/**
- * The row the uses are listed in.
- *
- * The same mechanism again, and for the same reason. An editor answers "who
- * uses this" by opening the file apart and putting the answer in the gap, not
- * by floating a panel over the code — the lines around a name are most of what
- * a name means, and a panel that covers them has taken away half the answer to
- * show the other half.
- */
-const USING = "using"
-
 const FileDiffPaneView = ({
   file,
   ask,
@@ -645,21 +634,6 @@ const FileDiffPaneView = ({
   useKeys(useKeyboard(), { uses: askNow, dismiss: unpeek })
 
   /*
-   * The line the answer hangs under, put on the screen.
-   *
-   * The row is added below a line that may be anywhere, including below the
-   * fold — a reader pressing a name near the bottom of a long file got an
-   * answer they had to go looking for. An editor reveals its peek; so does
-   * this. One frame late, because the row is not in the document until the
-   * renderer has been told about it.
-   */
-  useEffect(() => {
-    if (asked === null) return
-    const soon = requestAnimationFrame(() => showLine(host.current, asked.under))
-    return () => cancelAnimationFrame(soon)
-  }, [asked])
-
-  /*
    * Which lines GitHub's diff for this file holds, or nothing until it lands.
    *
    * Read off `whole`, which is what GitHub sent, rather than off the patch
@@ -700,23 +674,14 @@ const FileDiffPaneView = ({
         ? []
         : [{ key: PEEKING, side: "additions" as const, line: peeked.under }]
 
-    const listing =
-      asked === null ? [] : [{ key: USING, side: "additions" as const, line: asked.under }]
-
-    if (picked === null) return [...said, ...written, ...looking, ...listing]
+    if (picked === null) return [...said, ...written, ...looking]
 
     // Marking lines that already carry a draft opens that draft rather than a
     // second box beneath it.
     const at = draftKey({ path: file.path, ...picked })
-    if (written.some((note) => note.key === at)) return [...said, ...written, ...looking, ...listing]
-    return [
-      ...said,
-      ...written,
-      ...looking,
-      ...listing,
-      { key: WRITING, side: picked.side, line: picked.to }
-    ]
-  }, [hung, drafts, picked, file.path, peeked, asked])
+    if (written.some((note) => note.key === at)) return [...said, ...written, ...looking]
+    return [...said, ...written, ...looking, { key: WRITING, side: picked.side, line: picked.to }]
+  }, [hung, drafts, picked, file.path, peeked])
 
   // One element per note, made here and kept: the renderer asks for a row's
   // contents while it is drawing, which is no time to be creating React roots,
@@ -731,12 +696,8 @@ const FileDiffPaneView = ({
     // file and a comment box a screen and a half to the right is a comment box
     // nobody finds. Font and wrapping named again: the renderer's host sets
     // both to what code needs, and these rows inherit from it.
-    // The uses row is not a note anybody writes: it is the panel, and it wants
-    // the width of the pane and none of a comment box's padding.
     made.className =
-      key === USING
-        ? "ghpro-note sticky left-0 w-[min(46rem,100%)] whitespace-normal font-sans text-sm text-ink"
-        : "ghpro-note sticky left-0 w-[min(46rem,100%)] whitespace-normal border-y border-line bg-surface px-3 py-2 font-sans text-sm text-ink"
+      "ghpro-note sticky left-0 w-[min(46rem,100%)] whitespace-normal border-y border-line bg-surface px-3 py-2 font-sans text-sm text-ink"
     rows.current.set(key, made)
     return made
   }
@@ -899,27 +860,25 @@ const FileDiffPaneView = ({
         and everywhere in the repository that means it. A reader in a diff is
         asking who depends on this rather than asking to be taken somewhere.
       */}
-      {asked === null || following === null || rows.current.get(USING) === undefined
-        ? null
-        : createPortal(
-            <UsesPanel
-              writing={asked.writing}
-              where={asked.where}
-              // The file the answer came out of, which the hook read once and kept.
-              // A diff holds the hunks; the Uses in it are the whole file's.
-              reading={{ path: file.path, text: textNow() ?? "" }}
-              onGo={(line) => showLine(host.current, line)}
-              onClose={unask}
-              onOpen={across?.open}
-              across={
-                across?.repo === undefined || across.sha === undefined
-                  ? undefined
-                  : { repo: across.repo, sha: across.sha }
-              }
-            />,
-            rows.current.get(USING)!,
-            USING
-          )}
+      {asked === null || following === null ? null : (
+        <UsesPanel
+          writing={asked.writing}
+          where={asked.where}
+          at={asked.at}
+          under={asked.under}
+          // The file the answer came out of, which the hook read once and kept.
+          // A diff holds the hunks; the Uses in it are the whole file's.
+          reading={{ path: file.path, text: textNow() ?? "" }}
+          onGo={(line) => showLine(host.current, line)}
+          onClose={unask}
+          onOpen={across?.open}
+          across={
+            across?.repo === undefined || across.sha === undefined
+              ? undefined
+              : { repo: across.repo, sha: across.sha }
+          }
+        />
+      )}
       {/* The rows live in the renderer's shadow DOM, under the lines they are
           about. React fills them from out here, so a comment box is a component
           like any other and keeps what is typed into it. */}

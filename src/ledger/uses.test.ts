@@ -111,3 +111,44 @@ describe("everywhere in a repository that means one Writing", () => {
     expect(usesAcross(many, asked, PATHS, 12)).toHaveLength(12)
   })
 })
+
+/**
+ * A borrowed name is not a name of the file's own.
+ *
+ * The case that made a real repository answer "0 elsewhere". An import binds
+ * the name, so an imported name sits in `declares` beside every local — and the
+ * veto below read that as the file writing its own thing of the same spelling
+ * and dropped the file. Every importer whose specifier could not be resolved
+ * disappeared, which is the one answer this feature must never give: a
+ * confident nobody where the truth is "I could not tell".
+ */
+describe("a file that says where it got the name", () => {
+  test("is offered as Likely where the specifier cannot be resolved", () => {
+    const files = new Map([
+      [
+        "src/two.ts",
+        told({
+          mentions: [mention("shape", 4)],
+          // Through a workspace alias, which is not a path and resolves to
+          // nothing here — and is how most of a monorepo imports anything.
+          borrows: [{ name: "shape", specifier: "@org/one" }],
+          // Bound by the import itself, which is what the veto tripped over.
+          declares: ["shape"]
+        })
+      ]
+    ])
+
+    const [found] = usesAcross(files, asked, PATHS)
+    expect(found?.path).toBe("src/two.ts")
+    expect(found?.sure).toBe(false)
+  })
+
+  test("is still left out where it binds the name and borrowed nothing", () => {
+    // The rule the veto is there for, which this must not have weakened.
+    const files = new Map([
+      ["src/four.ts", told({ mentions: [mention("shape", 3)], declares: ["shape"] })]
+    ])
+
+    expect(usesAcross(files, asked, PATHS)).toEqual([])
+  })
+})

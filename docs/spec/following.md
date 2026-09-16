@@ -74,8 +74,9 @@ _Avoid_: go to definition, jump, navigate, drill in.
 **Peek**:
 A Writing drawn as a row under the Name that asked for it, without leaving the file. What a
 reader wants most of the time, because the question is usually "what does this do" and not
-"take me there".
-_Avoid_: inline preview, popup, hover definition, quick look.
+"take me there". A row, and it stays one: a Peek is a few lines of code with nothing in it to
+press, so it has nothing to lose by living in the file — unlike the Uses panel, which does.
+_Avoid_: inline preview, hover definition, quick look.
 
 **Sure**:
 A Writing reached by proof: the Name resolved inside its own scope, or through an import this
@@ -158,7 +159,24 @@ Uses open on `u`, about the name the pointer is on. This file's first, with the 
 written on so a call can be told from a declaration without going to look — and those are exact,
 because this file is parsed. Then the repository's, from the Ledger, each marked Sure or Likely:
 a file that states it borrowed this name from this file is Sure, a file that merely holds the same
-word is Likely, and a file that binds its own name of that spelling is not listed at all.
+word is Likely, and a file that binds its own name of that spelling is not listed at all. A name
+the file says it borrowed is not one of its own, however the specifier resolves — an import binds
+the name, and reading that binding as the file's own writing dropped every importer whose
+specifier could not be reached, which turned "I cannot tell" into "nobody depends on this".
+
+They open as a compact popup beside the name, and close on a press anywhere else. Not as a row in
+the file, which is how this was first built and what it read like it should be: the answer then
+sat inside the drawing it was about, so a press in the preview bubbled out into the file's own
+renderer, which followed it too and re-opened the panel on a new root. Following a name inside the
+preview — the thing the preview is for — was the one thing it could not do. The popup is small on
+purpose: it covers the code it is about, so every column of it is a column of the reader's file
+spent, where the row could afford the width of the pane because it pushed the file down instead.
+
+What the panel does not offer is the line the reader pressed. A press on a Writing is a reader
+with their eye on the declaration asking who depends on it, and leading the answer with the
+declaration answers a question nobody asked. Where it is written earns a row in the two cases
+where it is news: when the Writing is in another file, which is then the only way to reach it, and
+on a step along the trail, where a reader followed a name precisely to find out what it is.
 
 Three ways in from the keyboard, in every profile that has keys at all:
 

@@ -49,13 +49,19 @@ export const BAR_AT = `:is(#${BAR_ID}, [${BAR_MARK}])`
  * vanishes on a soft navigation and comes back on a reload is the kind of fault nobody can
  * reproduce on purpose.
  *
+ * In `body` rather than inside the host, which is where the screens stand. The rule that hides
+ * their page spares anything marked {@link OUTSIDE}, and this is marked — so the bar is exempt
+ * where a plain box of theirs is not. A prototype of the host hid the bar and read as proof it
+ * had to move inside; the rule it was tested against had no exemption in it, and the real one
+ * always did.
+ *
  * Their bar is not removed, only hidden, and hidden by there being somewhere for ours to stand
  * rather than by the takeover having started: {@link BAR_ON_PAGE} is written when this element
  * is. That way the page can never be left with no bar at all, which is what a rule keyed on "we
  * are taking over" would do for as long as the takeover took.
  */
 export const theBarSlot = (page: Document, within?: HTMLElement | undefined): HTMLElement => {
-  const held = within ?? page.body
+  const held: ParentNode = within ?? page.body
   // Said of the document whichever call makes it true, including the one that
   // finds a slot already standing: the rules that hide GitHub's bar read this
   // rather than the element, and a second interface arriving must not leave the
@@ -167,11 +173,25 @@ export const keepTheBarSlot = (
    * and watching for a replacement that cannot come would be a callback on every render
    * of the tree above it.
    */
-  const held = within ?? page.body
-  const watch = new MutationObserver(() => {
+  const held: ParentNode = within ?? page.body
+  const putBack = (): void => {
     if (slot.isConnected) return
     held.insertBefore(slot, held.firstChild)
-  })
+  }
+
+  /*
+   * At once, and not only on the next change.
+   *
+   * A screen kept live for a traversal comes back with the slot it drew into
+   * already off the page — whatever took the outgoing screen down took the slot
+   * with it, and this keeper is only set up again when the screen resumes. An
+   * observer answers changes that come after it, so a slot that was detached
+   * before it started would never be put back: the resumed screen portalled its
+   * bar into a node nothing was looking at, and the page came back with no bar.
+   */
+  putBack()
+
+  const watch = new MutationObserver(putBack)
 
   watch.observe(held, { childList: true })
   return () => watch.disconnect()

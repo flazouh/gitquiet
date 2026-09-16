@@ -18,6 +18,8 @@
  */
 
 import { type Cause, Effect } from "effect"
+import { onwardWith } from "@/observability/report"
+import { dressShadow, theHost, theSheet } from "@/ui/theHost"
 
 /** What every screen module exports: take the page, and optionally build one route ahead. */
 export type Screen = {
@@ -156,7 +158,7 @@ export const preloadScreen = (what: Wanted): boolean => {
  * stylesheet still in flight is one frame of unstyled interface, which is worse
  * than the frame of nothing it replaced.
  */
-const dressed = (at: string): Effect.Effect<void> =>
+const linked = (at: string): Effect.Effect<void> =>
   Effect.callback<void>((resume) => {
     const ready = () => resume(Effect.void)
     const url = urlOf(at)
@@ -181,6 +183,28 @@ const dressed = (at: string): Effect.Effect<void> =>
     link.addEventListener("load", () => ready())
     link.addEventListener("error", () => ready())
     where.append(link)
+  })
+
+/**
+ * The same sheet, twice: into their document and into our shadow root.
+ *
+ * A `<link>` in the document styles nothing inside a shadow root — that is the
+ * whole point of the boundary — so the interface would paint unstyled without the
+ * second half. The link stays because it is what dresses the screens that run as
+ * documents of their own, and because anything of ours still standing in `body`
+ * reads it.
+ *
+ * A sheet that will not build is reported and stepped past, on the same reasoning
+ * the link's own failure is: an unstyled interface is still an interface, and the
+ * screen's failsafe hands the page back if it comes to worse than that.
+ */
+const dressed = (at: string): Effect.Effect<void> =>
+  Effect.gen(function* () {
+    const url = urlOf(at)
+    yield* linked(at)
+
+    const built = yield* theSheet(url).pipe(Effect.catch(onwardWith(null)))
+    if (built !== null) dressShadow(theHost(document).shadow, built)
   })
 
 const held = new Map<Wanted, Screen>()

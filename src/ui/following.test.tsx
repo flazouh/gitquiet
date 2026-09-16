@@ -794,40 +794,49 @@ describe("what a press on an underlined name does", () => {
     // this and who depends on it" rather than "take me there" — and being moved
     // mid-review is the thing this interface exists to stop happening.
     expect(await screen.findByText("2 in this file")).toBeTruthy()
-    // Once. `usesIn` answers with every occurrence and the declaration is one
-    // of them, so the card used to draw it twice — its own row at the top and
-    // again in the list below, the same line under a heading that could say
-    // "used nowhere else in this file". Filmed on a live commit, which is the
-    // only place it looked as wrong as it was.
-    expect(screen.getAllByText("written")).toHaveLength(1)
   })
 
-  test("offers where it is written as the first row, so a use of it is one more press", async () => {
+  test("does not offer the line the reader pressed, which is the one they are on", async () => {
     const stage = staged()
     await Effect.runPromise(settled())
 
+    // On the Writing itself: the reader's eye is on the declaration, and the
+    // question they asked with that press is who depends on it.
     stage.request?.onNameEnter?.(itself, held({ go: true }))
     await Effect.runPromise(settled())
     stage.request?.onName?.(itself, held({ go: true }))
     await Effect.runPromise(settled())
 
-    // One row, and at the top: where the name is written. The Use that *is* the
-    // writing is not listed again below it — a list offering the same line
-    // twice reads as two answers to one question.
-    //
-    // Counted among the rows rather than among everything on the screen: the
-    // preview beside the list shows the code around whichever row is showing,
-    // and the first row is the writing, so its line is on the screen twice on
-    // purpose. Once as the row, once as the code the row is pointing at.
-    //
-    // `waitFor` all the same: the Uses arrive an effect later and decide
-    // whether anything is filtered out.
-    await waitFor(() => {
-      const listed = screen
-        .getAllByRole("button")
-        .filter((row) => (row.textContent ?? "").includes(writing.signature))
-      expect(listed).toHaveLength(1)
-    })
+    // So the answer does not lead with the declaration. It used to: a row at
+    // the top holding the signature, and the preview opened on the body — the
+    // reader was shown the thing they were already looking at, and the uses
+    // they asked for were underneath it.
+    await screen.findByLabelText(`Uses of ${writing.name}`)
+    await waitFor(() => expect(screen.queryByText("2 in this file")).not.toBeNull())
+    expect(screen.queryByText("written")).toBeNull()
+    expect(
+      screen.getAllByRole("button").filter((row) => (row.textContent ?? "").includes(writing.signature))
+    ).toHaveLength(0)
+  })
+
+  test("still offers it where it is news, which is a use asking about a declaration", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    // `u` over a use, seven lines away from where the name is written. Here the
+    // declaration is not what the reader is looking at, and the row that names
+    // it is the only way to reach it.
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    await userEvent.keyboard("u")
+    await Effect.runPromise(settled())
+
+    await screen.findByLabelText(`Uses of ${writing.name}`)
+    // Once, not twice. `usesIn` answers with every occurrence and the
+    // declaration is one of them, so this used to draw it as its own row and
+    // again in the list below — the same line twice, under a heading that could
+    // say "used nowhere else in this file".
+    await waitFor(() => expect(screen.getAllByText("written")).toHaveLength(1))
   })
 
   test("still peeks on Shift, whichever end the press is on", async () => {
@@ -1149,10 +1158,17 @@ describe("asking by the letter rather than by the key", () => {
  * A reader pressed a word in the middle of a line they were reading. Answering
  * from the centre of the window makes them find the answer, read it, and then
  * find their way back to the line — three moves for one question that was asked
- * with their eye already on the word.
+ * with their eye already on the word. So it opens beside the word.
+ *
+ * It used to open *in* the file, as a row the renderer hung under the line, and
+ * that read better than it worked. The panel was then a part of the drawing it
+ * was about: a press inside it bubbled out into the file's own renderer, which
+ * followed the press too and re-opened the panel on a new root — so the one
+ * thing the preview was for, following a name without leaving, was the one
+ * thing it could not do.
  */
-describe("the uses answered in the file rather than over it", () => {
-  test("hangs the list under the line that asked, like a Peek", async () => {
+describe("the uses answered beside the name rather than inside the file", () => {
+  test("opens a popup at the name, and hangs no row in the file", async () => {
     const stage = staged()
     await Effect.runPromise(settled())
 
@@ -1161,14 +1177,100 @@ describe("the uses answered in the file rather than over it", () => {
     stage.request?.onName?.(itself, held({ go: true }))
     await Effect.runPromise(settled())
 
-    // A row, at the line pressed — not a panel at a screen coordinate. The
-    // file opens apart and the answer sits in the gap, which is how an editor
-    // answers this and the reason the lines around the name stay readable.
-    await waitFor(() => {
-      const [drawn] = stage.shown.slice(-1)
-      expect(drawn?.some((note) => note.line === itself.line)).toBe(true)
-    })
-    expect(await screen.findByLabelText(`Uses of ${writing.name}`)).toBeTruthy()
+    const panel = await screen.findByLabelText(`Uses of ${writing.name}`)
+    // Placed against the viewport, which is what a reader can see, and not in
+    // the flow of the file.
+    expect(panel.className).toContain("fixed")
+
+    // And the renderer is never told about a row for it, in any set it was
+    // handed. A Peek still hangs one — that is a different act and stays where
+    // it was — so this asks about the uses row rather than about rows at all.
+    const rows = stage.shown.flat().map((note) => note.key)
+    expect(rows.filter((key) => key.includes("uses") || key === "using")).toEqual([])
+  })
+
+  /*
+   * The way out of a popup is the code around it.
+   *
+   * The row this replaced had a button reading `Esc`, because a row has no
+   * outside: it is part of the file, and pressing the file is reading the file.
+   * A popup sits over the code, so pressing the code is unmistakably leaving —
+   * and a button spending a corner of a small panel on something the reader
+   * would do anyway is a corner not spent on the answer.
+   */
+  test("closes on a press outside it, and offers no button for it", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    const panel = await screen.findByLabelText(`Uses of ${writing.name}`)
+    expect(panel.querySelector('[aria-label="Close"]')).toBeNull()
+
+    document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }))
+    // Asked of this panel rather than of the label. The popup lives in
+    // `document.body` now, so a panel another test left behind answers to the
+    // same name — and a query that finds two throws rather than answering,
+    // which inside `waitFor` reads as the panel never closing.
+    await waitFor(() => expect(panel.isConnected).toBe(false))
+  })
+
+  test("closes when the page scrolls, since it is placed against the viewport", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    const panel = await screen.findByLabelText(`Uses of ${writing.name}`)
+    // The rectangle was measured once and the popup is fixed to the viewport, so
+    // a scrolled page slides the code out from under it and leaves it pointing
+    // at a line that has moved.
+    window.dispatchEvent(new Event("scroll"))
+    await waitFor(() => expect(panel.isConnected).toBe(false))
+  })
+
+  test("stays open when the scroll is the list's own", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    const panel = await screen.findByLabelText(`Uses of ${writing.name}`)
+    // The list scrolls and the preview scrolls, and neither is the reader
+    // leaving — so the scroll is asked where it started, as the press is.
+    const list = panel.querySelector("ul")
+    list?.dispatchEvent(new Event("scroll", { bubbles: false }))
+    expect(panel.isConnected).toBe(true)
+  })
+
+  test("stays open for a press inside it, preview included", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(itself, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    const panel = await screen.findByLabelText(`Uses of ${writing.name}`)
+    // From inside the preview, which the renderer draws into a shadow root of
+    // its own — so the press is asked about by the path it really crossed
+    // rather than by a target that has been retargeted to the host.
+    await waitFor(() => expect(stage.into.length).toBeGreaterThan(1))
+    const token = document.createElement("span")
+    stage.into.at(-1)?.append(token)
+    token.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }))
+
+    expect(panel.isConnected).toBe(true)
   })
 
   test("shows the code behind whichever row the pointer is on", async () => {
@@ -1224,10 +1326,15 @@ describe("how wide the code is, and how tall", () => {
  * opens it — got an answer they could look at and not move through.
  */
 describe("the uses, from the keyboard", () => {
+  /*
+   * Opened the way this block is about: `u`, over a use rather than over the
+   * declaration. That is also the case with rows to move through — a press on
+   * the declaration leaves it out, because the reader is looking at it.
+   */
   const open = async (stage: ReturnType<typeof staged>) => {
-    stage.request?.onNameEnter?.(itself, held({ go: true }))
+    stage.request?.onNameEnter?.(name, held({ go: true }))
     await Effect.runPromise(settled())
-    stage.request?.onName?.(itself, held({ go: true }))
+    await userEvent.keyboard("u")
     await Effect.runPromise(settled())
     return screen.findByLabelText(`Uses of ${writing.name}`)
   }
@@ -1341,47 +1448,28 @@ describe("the trail through a call chain", () => {
   })
 
   /**
-   * A press in the preview is the preview's, and the file's renderer never
-   * hears it.
+   * There is no file behind it any more, which is the whole of the fix.
    *
-   * The panel is slotted into the drawing above it, so everything that happens
-   * inside it goes on up through that drawing's own element — where the file's
-   * renderer is listening for presses on its lines and for a pointer to carry
-   * its gutter plus to. `drawnBy` in `engine.ts` turns away the names; these
-   * are the rest, which arrive as lines and have no name in them to refuse.
+   * While the panel was a row, it was slotted into the drawing above it, so
+   * every press and pointer move inside the preview went on up through that
+   * drawing's own element — where the file's renderer was listening for presses
+   * on its lines and for a pointer to carry its gutter plus to. Three kinds of
+   * event had to be stopped by hand, and stopping them was also what stopped a
+   * name in the preview from being followed.
+   *
+   * A popup is in `document.body`, under nothing. So this asserts the opposite
+   * of what it used to: events are free to go where they like, because there is
+   * nothing above them to mishear them.
    */
-  test("keeps a press in the preview from reaching the file behind it", async () => {
+  test("sits under nothing, so the preview has no file to reach into", async () => {
     const stage = staged(writing, [], { then: further })
     await Effect.runPromise(settled())
     const panel = await open(stage)
 
-    await waitFor(() => expect(stage.into.length).toBeGreaterThan(1))
-    const shown = stage.into.at(-1)
-
-    const heard: Array<string> = []
-    const listen = (event: Event) => heard.push(event.type)
-    for (const kind of ["pointerdown", "pointermove", "click"]) {
-      document.body.addEventListener(kind, listen)
-    }
-
-    // Dispatched on a child of the container, which is where the preview's own
-    // drawing is: the seal sits on the container and lets what is under it
-    // finish first.
-    const token = document.createElement("span")
-    shown?.append(token)
-    token.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }))
-    token.dispatchEvent(new PointerEvent("pointermove", { bubbles: true }))
-    token.dispatchEvent(new MouseEvent("click", { bubbles: true }))
-
-    expect(heard).toEqual([])
-
-    // And the panel around it is not sealed: only the drawing is. A press on
-    // the head still reaches the page, which is how everything else here works.
-    panel.dispatchEvent(new MouseEvent("click", { bubbles: true }))
-    expect(heard).toEqual(["click"])
-
-    for (const kind of ["pointerdown", "pointermove", "click"]) {
-      document.body.removeEventListener(kind, listen)
-    }
+    // Not inside the element the file was drawn into, which is the first the
+    // renderer was handed. The preview beside the list is a later one.
+    const file = stage.into[0]
+    expect(file?.contains(panel)).toBe(false)
+    expect(document.body.contains(panel)).toBe(true)
   })
 })
