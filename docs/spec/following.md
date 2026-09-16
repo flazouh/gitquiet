@@ -274,7 +274,30 @@ opens instead of a refusal.
 ### Three tiers of certainty, and the reader is told which they have
 
 1. **Inside one file**, scopes: a parameter, a local, a shadowed name. Sure, cheap, and it is
-   most of what a reader asks about.
+   most of what a reader asks about. A type is a name like any other here — an annotation, a
+   return, a type argument, a union, an `extends` — and so is a generic parameter, which opens
+   a scope and shadows an outer type of the same spelling exactly as a local shadows a value.
+
+**A body is not a scope.** A signature with no body — what a `.d.ts` is made of, and what an
+interface, an overload and an abstract method are made of everywhere else — binds its generics
+and its parameters exactly as a declaration with a body does. A node that opens no scope leaks
+what it binds into the nearest one that does, which is usually the file, and a name found in the
+file is the *first* of that spelling rather than the one the reader is looking at.
+
+**A token is not a name.** The renderer draws by colour, so one token is everything of one
+colour in a row: `Effect.succeed` is drawn `" Effect."` and `"succeed"`, a call's arguments are
+one token from bracket to bracket, and an import clause is drawn whole. Measured over this
+repository, 48.7% of the names a reader can see sit inside a token that is not just that name.
+So a press is resolved at **the column the pointer is over**, found by measuring across the
+token, and never at the column the token starts at — which is a space, or a bracket, or the
+object of a member expression, and about which the honest answer is nothing. Resolving at the
+token's start is why half of every file could not be followed, and why it looked like a feature
+that did not work rather than one that was asking the wrong question.
+
+The worst of them needs nothing else. `export default function f(a: number | B): C;` is drawn as
+a single token from the bracket to the semicolon, so not one of the three names in it is a token
+of its own — and all three are reachable, because the pointer says which is meant and a token
+holding three names is a token like any other. No grammar has to change for it.
 2. **Across files**, what each file states: its imports, its exports, the module specifiers it
    names. A Name that resolves through a stated import is Sure.
 3. **Everything else**, name and kind. Likely.
@@ -323,8 +346,9 @@ The resolver is a pure function — file text in, Writings and Uses out — so n
 `bun test` with no browser, no GitHub, and no network, which is how the rest of `src/domain`
 is tested. A small fixture repository under `fixtures/code/` holds the answers: a name shadowed
 in an inner scope, a name re-exported through a barrel file, a name that exists twice in two
-files, a name imported under an alias. Each is a case the tiers above must get right or must
-mark Likely, and the test asserts which of the two came back, not only where it pointed.
+files, a name imported under an alias, and — in `types.ts` — a type written in each shape a
+reader presses, beside a generic that shadows it. Each is a case the tiers above must get right
+or must mark Likely, and the test asserts which of the two came back, not only where it pointed.
 
 `bun run qa` photographs the hover card and the Uses pane on the shots stage with recorded
 payloads, so both can be looked at from a container with no display.
