@@ -259,6 +259,28 @@ export const keepTheirStylesOff = (target: Document): void => {
   watching.observe(target.documentElement, { childList: true, subtree: true })
 }
 
+/**
+ * The host off a document, and forgotten, for a suite that is many documents in one.
+ *
+ * The host is module state twice over: an element in `body` and an entry in
+ * {@link hosts} keyed by the document. A test file leaves both behind, and the
+ * file that runs next in the same worker inherits a shadow root with the last
+ * file's screen still standing in it. Everything that looks for our tree then
+ * finds that one first — `rootIn` answers with a root nobody rendered, and a menu
+ * portalled into it lands where `screen` cannot see it, so the test reads as a
+ * menu that never opened.
+ *
+ * It surfaced as a CI-only failure, which is the signature of the fault rather
+ * than a detail of it: `bun test --parallel` shards by core count, so which files
+ * share a worker differs between a runner and a developer's machine, and the same
+ * commit was green here and red there.
+ */
+export const forgetTheHost = (page: Document): void => {
+  page.getElementById(HOST_ID)?.remove()
+  hosts.delete(page)
+  letTheirStylesBack(page)
+}
+
 /** Their sheets back on, and the watch let go. */
 export const letTheirStylesBack = (target: Document): void => {
   watching?.disconnect()

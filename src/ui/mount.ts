@@ -118,8 +118,18 @@ const oursIn = (target: Document): ParentNode => ourTree(target) ?? target
  * `getElementById` found it there without being asked twice. Looking only in the
  * shadow root made such a container invisible to everything here: the screen was
  * on the page, nothing could see it, and the bar it had drawn never came down.
+ *
+ * Exported because this is the only way to ask, and the components were asking
+ * the other way. `document.getElementById(ROOT_ID)` was right for as long as the
+ * root was a child of `body`; the shadow root ended that and the call sites were
+ * left behind, each one silently answering null. Radix reads a null `container`
+ * as "portal to `body`", so every dropdown in the interface rendered into their
+ * document, where the gate rule hides anything unmarked — a menu that opened,
+ * drew, and could not be seen. The theme's fallback target and the motion
+ * durations went the same way. There is nothing to find in `document` any more,
+ * so nothing may look there.
  */
-const rootIn = (target: Document): HTMLElement | null =>
+export const rootIn = (target: Document): HTMLElement | null =>
   oursIn(target).querySelector<HTMLElement>(`#${ROOT_ID}`) ??
   target.querySelector<HTMLElement>(`#${ROOT_ID}`)
 

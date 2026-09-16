@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode
 } from "react"
-import { ROOT_ID } from "./mount"
+import { rootIn } from "./mount"
 import {
   paintFloor,
   paintTheme,
@@ -63,7 +63,7 @@ export type ThemeScope = "root" | "document"
 
 const targetOf = (scope: ThemeScope): HTMLElement | null => {
   if (scope === "document") return document.documentElement
-  return document.getElementById(ROOT_ID)
+  return rootIn(document)
 }
 
 /**

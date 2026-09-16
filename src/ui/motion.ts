@@ -8,6 +8,22 @@
  * tunes the first one.
  */
 export const millisOf = (name: string, fallback: number): number => {
+  /*
+   * `document` on purpose, and not our tree.
+   *
+   * This is one half of a seam whose other half is `tests/paced.ts`, which
+   * plants a `#gitquiet-root` in `document.body` and writes the durations a test
+   * needs onto it. Reading through `rootIn` instead makes the two halves
+   * disagree the moment a screen stands a root inside the shadow root: the
+   * planted durations are ignored, a dissolve paced to never finish finishes at
+   * once, and React throws the element away and mounts a second one — which is a
+   * transition with nothing to transition from. It cost two CI runs to find,
+   * being a fault that depends on what else is in the worker.
+   *
+   * Moving the clock into the shadow root is worth doing — the CSS owns these
+   * numbers and the sheet is in there now — but it is a change to both halves and
+   * it is not this one.
+   */
   const root = document.getElementById("gitquiet-root")
   if (root === null) return fallback
 

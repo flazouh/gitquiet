@@ -86,10 +86,17 @@
  * that adds its own is a screen that disagrees with the bar the moment either number changes,
  * which is what `WorkingSetScreen` did until this rule took the inset off it.
  *
- * It cannot reach anything of GitHub's: they have no element with this id, and the takeover
- * attribute means it says nothing at all on a page this extension left alone.
+ * It cannot reach anything of GitHub's: they have no element with this id, which is the whole
+ * of what keeps it off their page.
+ *
+ * It was `html[data-gitquiet-taken] #gitquiet-root` until the interface moved into a shadow
+ * root, and `html` is the document's element — a shadow tree has none, so the rule matched
+ * nothing and every screen lost its gutter, flush to the edge of the window with the bar above
+ * it still inset. The takeover attribute was never load-bearing here, as the line above already
+ * says: their page has no element with this id to reach. So it goes, and the id stands on its
+ * own in both trees.
  */
-html[data-gitquiet-taken] #gitquiet-root {
+#gitquiet-root {
   padding-inline: var(--gitquiet-gutter);
 }
 

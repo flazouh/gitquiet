@@ -15,6 +15,8 @@
  * floats over a page the reader is still scrolling.
  */
 
+import { OUTSIDE } from "./mount"
+
 /** The name the stylesheet asks for. See `glass.css`. */
 export const REFRACTION_ID = "gitquiet-refraction"
 
@@ -52,6 +54,17 @@ export const keepRefraction = (page: Document): void => {
 
   const host = page.createElement("div")
   host.id = HOST_ID
+  /*
+   * Marked, because the gate rule hides every child of `body` that is not.
+   *
+   * The paragraph above says a filter in a hidden subtree is one Chrome declines
+   * to run, and that the failure is a bar with no backdrop at all. The gate rule
+   * this interface now hides their page with put `display: none` on exactly this
+   * host — our own definition, swept up with theirs — so the effect this whole
+   * file exists for was off in production and nothing said so. The mark is what
+   * tells that rule ours from theirs.
+   */
+  host.setAttribute(OUTSIDE, "")
   host.setAttribute("aria-hidden", "true")
   host.style.position = "absolute"
   host.style.width = "0"

@@ -19,6 +19,7 @@ import {
   withinPackage,
   type Held
 } from "@/ledger/packages"
+import { within } from "@/ledger/reaching"
 import { heldIn, holdIn, holdingOf } from "@/ledger/holding"
 import { idbStore, noStore, type Store } from "@/ledger/store"
 import { usesAcross, type Asked } from "@/ledger/uses"
@@ -604,8 +605,24 @@ const beyond = (work: LedgerBeyondWork): Effect.Effect<LedgerFound> =>
     // Its own, which is most monorepos and costs no request at all.
     const own = ledger?.packages.get(packageOf(work.specifier))
     if (own !== undefined) {
-      const within = withinPackage(work.specifier)
-      const path = within === null ? own.entry : `${own.at === "" ? "" : `${own.at}/`}${within}`
+      const deeper = withinPackage(work.specifier)
+      const named =
+        deeper === null ? own.entry : `${own.at === "" ? "" : `${own.at}/`}${deeper}`
+      /*
+       * And checked against the files the repository really has.
+       *
+       * A deep import names a path inside the package and not a file:
+       * `@org/type-utils/result-monad` is `packages/type-utils/result-monad`,
+       * with no ending on it and nothing of that name on disk. It was handed on
+       * as written, matched no file, and the answer fell through to the first
+       * Writing of that name anywhere in the repository — a different thing
+       * with the same spelling, offered to the reader as the place it is
+       * written. Which is the one mistake this whole feature exists to prevent.
+       */
+      const path =
+        named === null || ledger === undefined
+          ? named
+          : within(named, new Set(ledger.files.keys())) ?? named
       if (path !== null) {
         const found = ledger === undefined ? [] : placesFor(ledger, work.name)
         const here = found.find((one) => one.path === path) ?? found[0]

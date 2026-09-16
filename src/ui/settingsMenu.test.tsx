@@ -2,20 +2,28 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { DEFAULTS, type Settings } from "../domain/Settings"
-import { ROOT_ID } from "./mount"
+import { OUTSIDE, ROOT_ID } from "./mount"
 import { SettingsMenu } from "./SettingsMenu"
 
 afterEach(cleanup)
 
 /**
- * Everything this button opens has to open inside our own root.
+ * Everything this button opens has to open somewhere painted.
  *
- * The colours are inline custom properties on `#gitquiet-root` and not on
- * `<html>`, because the rest of the document is GitHub's page and our names on
- * their root would repaint their chrome. So anything Radix portals to
- * `document.body` is drawn with the stylesheet's defaults, which are the light
- * pack — white panel, near-black text, on a dark page. `outside.ts` was written
- * for that failure, having been paid for once by the bar.
+ * The colours are inline custom properties rather than rules on `<html>`, because
+ * the rest of the document is GitHub's page and our names on their root would
+ * repaint their chrome. So anything Radix portals to a plain `document.body` is
+ * drawn with the stylesheet's defaults, which are the light pack — white panel,
+ * near-black text, on a dark page. `outside.ts` was written for that failure,
+ * having been paid for once by the bar.
+ *
+ * It used to say "inside `#gitquiet-root`", and that was one painted place rather
+ * than the property. The interface has since moved into a shadow root, where the
+ * root is out of reach of a lookup on `document`, and an overlay has to escape
+ * whatever its row is clipped by — which is the one thing a panel standing inside
+ * the root cannot do. So this asks what it always meant to ask: that the panel
+ * stands in a host of ours, which is a host `outside.ts` has painted and the gate
+ * rule spares.
  */
 describe("the panel of knobs", () => {
   const ourRoot = (): HTMLElement => {
@@ -43,7 +51,10 @@ describe("the panel of knobs", () => {
 
     const panel = await opened(root)
 
-    expect(root.contains(panel)).toBe(true)
+    // `closest` rather than a named id: what has to be true is that the panel is
+    // inside something of ours, and the mark is what says so — to the theme that
+    // paints it and to the gate rule that would otherwise hide it.
+    expect(panel.closest(`[${OUTSIDE}]`)).not.toBeNull()
   })
 
   /**

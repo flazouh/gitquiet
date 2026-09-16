@@ -67,11 +67,29 @@ export const couldBe = (from: string, specifier: string): ReadonlyArray<string> 
 
   const folder = from.slice(0, Math.max(0, from.lastIndexOf("/")))
   const asked = plainly(`${folder}/${specifier}`)
-  if (asked === null || asked === "") return []
+  if (asked === null) return []
 
-  // A specifier that already names its ending is taken as written. TypeScript's
-  // own `.js`-means-`.ts` rule is the one exception worth keeping, because
-  // every ES-module TypeScript repository is written that way.
+  return endingsFor(asked)
+}
+
+/**
+ * The files a path inside the repository could be, before anything is checked.
+ *
+ * Split out from {@link couldBe} because a relative specifier is not the only
+ * way to arrive at a path with no ending on it. A package this repository holds
+ * itself resolves to a folder and a path inside it — `@org/type-utils` at
+ * `packages/type-utils`, imported as `@org/type-utils/result-monad`, means
+ * `packages/type-utils/result-monad` and whatever that file is really called.
+ * That path was being handed on with no ending at all, so it matched no file in
+ * the repository and the answer fell through to the first Writing of that name
+ * anywhere — a different thing with the same spelling, offered as the place.
+ */
+export const endingsFor = (asked: string): ReadonlyArray<string> => {
+  if (asked === "") return []
+
+  // A path that already names its ending is taken as written. TypeScript's own
+  // `.js`-means-`.ts` rule is the one exception worth keeping, because every
+  // ES-module TypeScript repository is written that way.
   if (asked.endsWith(".ts") || asked.endsWith(".tsx")) return [asked]
   if (asked.endsWith(".js")) {
     return [`${asked.slice(0, -3)}.ts`, `${asked.slice(0, -3)}.tsx`, asked]
@@ -92,3 +110,15 @@ export const reaching = (
   specifier: string,
   paths: ReadonlySet<string>
 ): string | null => couldBe(from, specifier).find((path) => paths.has(path)) ?? null
+
+/**
+ * The file a path inside the repository names, out of the paths that exist.
+ *
+ * {@link reaching} for a path that is already a path — arrived at through a
+ * package's own folder rather than through a specifier relative to a file.
+ * Nothing where the repository holds no such file, so a path built from a
+ * package's layout is checked before it is believed, like every other answer
+ * here.
+ */
+export const within = (path: string, paths: ReadonlySet<string>): string | null =>
+  endingsFor(plainly(path) ?? "").find((one) => paths.has(one)) ?? null
