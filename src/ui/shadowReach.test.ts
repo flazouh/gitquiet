@@ -43,7 +43,11 @@ describe("nothing looks for our own elements in their document", () => {
     // The lookup that broke every dropdown. `rootIn` asks the shadow root first
     // and their document after, which is the only way that answers on both.
     const guilty = [...sourcesIn(uiDir, ".ts"), ...sourcesIn(uiDir, ".tsx")]
-      .filter(([name]) => name !== "mount.ts")
+      // `mount.ts` defines the helper. `motion.ts` reads the stylesheet's clock
+      // through `document` deliberately, because the test seam that writes those
+      // durations plants its root there — see the comment on `millisOf`, and the
+      // two CI runs it cost to establish that the two halves have to agree.
+      .filter(([name]) => name !== "mount.ts" && name !== "motion.ts")
       .filter(([, text]) =>
         /document\.getElementById\(\s*(ROOT_ID|["'`]gitquiet-root)/.test(text) ||
         /document\.querySelector\w*\(\s*["'`]#gitquiet-root/.test(text)
