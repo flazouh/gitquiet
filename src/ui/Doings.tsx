@@ -8,7 +8,7 @@ import { type Set, useArt } from "./art"
 import { askAndSay } from "./askAndSay"
 import { FLOAT } from "./dress"
 import { Cap } from "./Cap"
-import { rootIn } from "./mount"
+import { OVER_ID, outsideHost } from "./outside"
 import { SpinnerIcon } from "./spinner"
 import { ARMED, COPY_LETTER, LETTER, LOOK, ORDER, WORD } from "./rowDoings"
 import { useKeying, useLetters } from "./useLetters"
@@ -269,7 +269,7 @@ export const Doings = ({
       >
         {waiting ? <SpinnerIcon size={16} aria-label="Asking GitHub" /> : <Kebab size={16} />}
       </Menu.Trigger>
-      <Menu.Portal container={rootIn(document)}>
+      <Menu.Portal container={outsideHost(document, OVER_ID)}>
         <Menu.Content
           align="end"
           sideOffset={4}

@@ -6,7 +6,7 @@ import type { ArtName } from "./art"
 import { useArt } from "./art"
 import { ASK, ASK_GROUP, ASK_MORE, ASK_NO, ASK_OUT, ASK_YES, FLOAT } from "./dress"
 import { LOOK } from "./rowDoings"
-import { rootIn } from "./mount"
+import { OVER_ID, outsideHost } from "./outside"
 import { Says } from "./says"
 
 export type MergeActions = {
@@ -378,7 +378,7 @@ const Caret = ({
   const art = useArt()
   const Down = art["chevron-down"]
   const Tick = art.tick
-  const inOurs = typeof document === "undefined" ? null : rootIn(document)
+  const inOurs = typeof document === "undefined" ? null : outsideHost(document, OVER_ID)
 
   return (
     <Menu.Root>
@@ -470,7 +470,7 @@ export const Overflow = ({
 }) => {
   const art = useArt()
   const More = art.more
-  const inOurs = typeof document === "undefined" ? null : rootIn(document)
+  const inOurs = typeof document === "undefined" ? null : outsideHost(document, OVER_ID)
   const offered = verbs.filter((doing) => actions?.[doing] !== undefined)
   if (offered.length === 0) return null
 

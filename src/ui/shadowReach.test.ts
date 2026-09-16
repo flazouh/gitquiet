@@ -17,7 +17,9 @@ import { keepRefraction } from "./refraction"
  * - `document.getElementById("gitquiet-root")` returns null now. Radix reads a
  *   null portal `container` as "put it in `body`", so every dropdown in the
  *   interface rendered into their document, where the gate rule hid it. The
- *   reader saw a menu that would not open.
+ *   reader saw a menu that would not open. The answer is the host every other
+ *   overlay already used — see below; the root was never the right target for a
+ *   thing that has to escape whatever clips it.
  * - A selector led by `html` matches nothing inside a shadow tree, because a
  *   shadow tree has no document element. That was the whole weight of the margin
  *   reset, so every paragraph and heading in the interface wore the browser's
@@ -94,6 +96,39 @@ describe("no rule reaches our root from the document element", () => {
     }
 
     expect(guilty).toEqual([])
+  })
+})
+
+describe("every overlay goes to the one host built for overlays", () => {
+  test("no menu portals into the screen root", () => {
+    /*
+     * The hover cards, the settings dialog and the toasts all portal to
+     * `outsideHost(document, OVER_ID)`: a child of `body` that carries the
+     * outside mark, so the gate rule spares it, and the theme tokens, so it is
+     * painted. The dropdown menus were the only overlays not using it — they
+     * named `#gitquiet-root` instead, which was a child of `body` too until the
+     * interface moved into a shadow root and the lookup started answering null.
+     *
+     * Radix then put them in `body` unmarked, where the gate rule hid them. A
+     * menu that opens and cannot be seen.
+     *
+     * The root is the wrong target regardless: an overlay exists to escape
+     * whatever its row is clipped by, which is the one thing standing inside the
+     * root cannot do.
+     */
+    const guilty = [...sourcesIn(uiDir, ".tsx")]
+      .filter(([, text]) => /container=\{[^}]*\bROOT_ID\b|container=\{[^}]*\brootIn\(/.test(text))
+      .map(([name]) => name)
+
+    expect(guilty).toEqual([])
+  })
+
+  test("and the host they do use is one their page cannot hide", () => {
+    const page = document.implementation.createHTMLDocument("github")
+    const host = outsideHost(page, "gitquiet-over")
+
+    expect(host.parentElement).toBe(page.body)
+    expect(host.hasAttribute(OUTSIDE)).toBe(true)
   })
 })
 
