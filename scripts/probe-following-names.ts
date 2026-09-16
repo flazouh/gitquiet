@@ -49,28 +49,32 @@ const PAGE =
  * Every function in a `.d.ts` is such a name: the signature is here and the
  * body is in the `.js` beside it, which is why none is used as a control.
  *
- * Line 89 is avoided for a different reason worth writing down. Shiki draws
- * `export default function pLimit(concurrency: number | Options): LimitFunction;`
- * as one token from the `(` to the end of the line, so no name in it is a token
- * of its own and none of them can be hovered at all — types and values alike.
- * That is a grammar's doing rather than this extension's, and it is the one
- * shape found where a reader genuinely cannot click a type.
+ * Line 89 is here on purpose, and is the case this exists for. The grammar
+ * draws it as a single token from the bracket to the semicolon, so not one of
+ * the three names in it is a token of its own. It was written off once as a
+ * grammar's doing and something this extension could not answer, which was
+ * wrong: nothing about it needs the grammar changed, because the pointer says
+ * which name is meant and a token holding three is a token like any other.
  */
 const TRIES = [
   { word: "LimitFunction", line: 1, wants: "panel", what: "a type at its declaration" },
   { word: "Options", line: 91, wants: "panel", what: "a second type at its declaration" },
   { word: "LimitFunction", line: 136, wants: "go", what: "a use of a type, which goes to it" },
-  /*
-   * A generic on a signature with no body, which is two bugs at once.
-   *
-   * It is inside a lumped token, so before the pointer decided which name a
-   * token meant it could not be hovered at all. And its signature opened no
-   * scope, so once it could be hovered it answered with a different generic of
-   * the same spelling eighty lines up — `Arguments` on line 133 resolving to
-   * the `Arguments` on line 53.
-   */
   { word: "Arguments", line: 133, wants: "panel", what: "a generic on a bodiless signature" },
-  { word: "ReturnType", line: 133, wants: "panel", what: "a second generic beside it" }
+  { word: "ReturnType", line: 133, wants: "panel", what: "a second generic beside it" },
+  /*
+   * Line 89 is the worst token on the page.
+   *
+   *     export default function pLimit(concurrency: number | Options): LimitFunction;
+   *
+   * The grammar draws everything from the bracket to the semicolon as a single
+   * token, so neither name in it is a token of its own — and neither is the
+   * parameter. If the pointer decides which name a token means, these are
+   * reachable like any other; if it does not, no reader can touch them.
+   */
+  { word: "Options", line: 89, wants: "go", what: "a type inside the worst-lumped token" },
+  { word: "LimitFunction", line: 89, wants: "go", what: "a return type in the same token" },
+  { word: "concurrency", line: 89, wants: "panel", what: "a parameter in the same token" }
 ] as const
 
 /** One name only, for telling a name that fails from an order that does. */

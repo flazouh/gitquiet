@@ -293,6 +293,11 @@ token, and never at the column the token starts at — which is a space, or a br
 object of a member expression, and about which the honest answer is nothing. Resolving at the
 token's start is why half of every file could not be followed, and why it looked like a feature
 that did not work rather than one that was asking the wrong question.
+
+The worst of them needs nothing else. `export default function f(a: number | B): C;` is drawn as
+a single token from the bracket to the semicolon, so not one of the three names in it is a token
+of its own — and all three are reachable, because the pointer says which is meant and a token
+holding three names is a token like any other. No grammar has to change for it.
 2. **Across files**, what each file states: its imports, its exports, the module specifiers it
    names. A Name that resolves through a stated import is Sure.
 3. **Everything else**, name and kind. Likely.

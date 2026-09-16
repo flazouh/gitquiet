@@ -352,6 +352,29 @@ describe("the name under the pointer", () => {
     expect(found.text).toBe("document")
   })
 
+  test("is any of the three names in a token that holds a whole signature", () => {
+    // `export default function pLimit(concurrency: number | Options): LimitFunction;`
+    // is drawn as one token from the bracket to the semicolon. Not one of the
+    // three names in it is a token of its own, and for a while this was written
+    // off as needing the grammar changed. It does not: a token holding three
+    // names is a token like any other once the pointer says which is meant.
+    //
+    //          1         2         3         4
+    // 0123456789012345678901234567890123456789012345
+    // concurrency: number | Options): LimitFunction;
+    const lump = token("concurrency: number | Options): LimitFunction;", 30)
+    expect(nameIn(lump, over(2)).text).toBe("concurrency")
+    expect(nameIn(lump, over(15)).text).toBe("number")
+    expect(nameIn(lump, over(25)).text).toBe("Options")
+    expect(nameIn(lump, over(36)).text).toBe("LimitFunction")
+  })
+
+  test("counts a lumped signature's columns from the line, not from the token", () => {
+    // `Options` is 22 characters into a token that starts at column 30.
+    const lump = token("concurrency: number | Options): LimitFunction;", 30)
+    expect(nameIn(lump, over(25))).toEqual({ text: "Options", from: 52, to: 59 })
+  })
+
   test("hands a Name the narrowed columns, which is what a press is judged by", () => {
     // `isTheWriting` compares a Writing's column to `from + 1`, so a Name
     // reported at the token's start makes every press a navigation.
