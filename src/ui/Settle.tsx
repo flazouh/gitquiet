@@ -8,7 +8,7 @@ import type { IssueState } from "../domain/issues"
 import { type ArtName, useArt } from "./art"
 import { Cap } from "./Cap"
 import { FIELD, FLOAT, PRESSABLE } from "./dress"
-import { ROOT_ID } from "./mount"
+import { rootIn } from "./mount"
 import { useKeying, useLetters } from "./useLetters"
 import { onward } from "@/observability/report"
 
@@ -175,7 +175,7 @@ export const Settle = ({ state, where, allowed, onSettle, onReopen }: SettleProp
           Close issue
           <Chevron size={12} />
         </Menu.Trigger>
-        <Menu.Portal container={document.getElementById(ROOT_ID)}>
+        <Menu.Portal container={rootIn(document)}>
           <Menu.Content
             align="end"
             sideOffset={4}

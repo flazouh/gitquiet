@@ -151,8 +151,28 @@
  * back, and `.markdown-body p` — GitHub's own sixteen pixels between the
  * paragraphs of a README we insert whole — never hears this at all.
  */
+:where(#gitquiet-root) :is(p, h1, h2, h3, h4, h5, h6, ul, ol, dl, dd, figure, blockquote, pre) {
+  margin: 0;
+}
+
+/*
+ * The same reset for our furniture out in their document, where the weight above
+ * is still needed and `html` still matches.
+ *
+ * These were one rule until the interface moved into a shadow root, and the
+ * `html` in front of it — the whole of its weight — quietly stopped matching
+ * anything: `html` is the document's element and a shadow tree has none. So the
+ * reset was off for every screen, and every paragraph and heading this interface
+ * writes carried the browser's own margin. It showed as slack between the rows of
+ * a panel, most of a line of it, on a layout built to sit tight.
+ *
+ * Split rather than made to match both, because the two halves want different
+ * weights for different reasons. Nothing of GitHub's reaches inside the shadow
+ * root, so one class-lighter selector wins there uncontested; out here theirs is
+ * still on the page and this has to outweigh `p { margin-bottom: 10px }`.
+ */
 html
-  :where(#gitquiet-root, [data-gitquiet-outside])
+  :where([data-gitquiet-outside])
   :is(p, h1, h2, h3, h4, h5, h6, ul, ol, dl, dd, figure, blockquote, pre) {
   margin: 0;
 }

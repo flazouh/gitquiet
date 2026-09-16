@@ -1,3 +1,5 @@
+import { rootIn } from "./mount"
+
 /**
  * How long the stylesheet says a piece of motion takes.
  *
@@ -8,7 +10,7 @@
  * tunes the first one.
  */
 export const millisOf = (name: string, fallback: number): number => {
-  const root = document.getElementById("gitquiet-root")
+  const root = rootIn(document)
   if (root === null) return fallback
 
   const said = /^\s*([\d.]+)(ms|s)\s*$/.exec(getComputedStyle(root).getPropertyValue(name))

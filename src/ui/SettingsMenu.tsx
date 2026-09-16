@@ -9,7 +9,7 @@ import {
   type Settings
 } from "../domain/Settings"
 import { KNOB_ART } from "./knobArt"
-import { ROOT_ID } from "./mount"
+import { rootIn } from "./mount"
 import { FIELD, FLOAT } from "./dress"
 import { Slide } from "./Slide"
 
@@ -28,7 +28,7 @@ import { Slide } from "./Slide"
  * be a reference to an element no longer in the document.
  */
 const inOurs = (): HTMLElement | null =>
-  typeof document === "undefined" ? null : document.getElementById(ROOT_ID)
+  typeof document === "undefined" ? null : rootIn(document)
 
 export type SettingsMenuProps = {
   readonly settings: Settings
