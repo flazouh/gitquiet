@@ -332,6 +332,23 @@ const SAMPLES: Record<string, (choice: string) => ReactNode> = {
         <div className="text-ink-muted">→ nothing to follow</div>
       </div>
     ),
+  /**
+   * The one kind of name the tiers below a registry cannot reach: a package
+   * nobody named after its owner. The two samples differ by whether `react` is
+   * a place or a word.
+   */
+  registry: (choice) =>
+    choice === "on" ? (
+      <div className="rounded bg-canvas px-1.5 py-1 font-mono text-[9px] leading-relaxed">
+        <div className="text-ink">from &quot;react&quot;</div>
+        <div className="text-ink-accent">→ facebook/react</div>
+      </div>
+    ) : (
+      <div className="rounded bg-canvas px-1.5 py-1 font-mono text-[9px] leading-relaxed">
+        <div className="text-ink">from &quot;react&quot;</div>
+        <div className="text-ink-muted">→ nothing to follow</div>
+      </div>
+    ),
   prose: (choice) =>
     choice === "on" ? (
       <div className="rounded bg-canvas px-1.5 py-1">

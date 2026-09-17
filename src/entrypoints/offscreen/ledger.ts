@@ -20,6 +20,7 @@ import {
   type Held
 } from "@/ledger/packages"
 import { inPackage, within } from "@/ledger/reaching"
+import { asking, publishedAt } from "@/ledger/registry"
 import { heldIn, holdIn, holdingOf } from "@/ledger/holding"
 import { idbStore, noStore, type Store } from "@/ledger/store"
 import { usesAcross, type Asked } from "@/ledger/uses"
@@ -676,6 +677,73 @@ const beyond = (work: LedgerBeyondWork): Effect.Effect<LedgerFound> =>
         line: first.writing.line,
         name: work.name,
         signature: first.writing.signature
+      }
+    }
+
+    /*
+     * And last, the registry — where the reader has said it may be asked.
+     *
+     * The tiers above cost nothing and reach a package this repository holds,
+     * and one whose name says which repository it is. What neither reaches is a
+     * package nobody named after its owner: `react` is not `yourorg/react`, and
+     * no guess made from the name will ever say `facebook/react`.
+     *
+     * A registry knows, because a package says where it was written when it is
+     * published — and says which folder of that repository it sits in, so
+     * `scheduler` leads to `packages/scheduler` rather than to the root of
+     * `react`. The cost is a request carrying the name of a package this
+     * repository depends on, which is why it is the reader's to turn on and is
+     * off until they do. `docs/spec/following.md` has the rest of that.
+     */
+    if (work.registry === true) {
+      const said = yield* Effect.tryPromise({
+        try: () => fetch(asking(packageOf(work.specifier))),
+        catch: (cause) => cause
+      }).pipe(
+        Effect.flatMap((answer) =>
+          answer.ok
+            ? Effect.tryPromise({ try: () => answer.text(), catch: (cause) => cause })
+            : Effect.fail(`HTTP ${answer.status} from the registry`)
+        ),
+        Effect.catch(() => Effect.succeed(null))
+      )
+
+      const published = said === null ? null : publishedAt(said)
+      if (published !== null) {
+        const theirs = keyOf(published.repo, "HEAD")
+        yield* warm({
+          kind: LEDGER_WARM_WORK,
+          owner: published.repo.owner,
+          repo: published.repo.repo,
+          sha: "HEAD"
+        })
+
+        /*
+         * Inside the folder the package named, where it named one.
+         *
+         * A repository of forty packages holds forty Writings of some names,
+         * and the one that matters is the one in this package. Taking the
+         * first anywhere would be answering about `react` when the question
+         * was about `scheduler`.
+         */
+        const found = placesFor(holding(theirs) ?? emptyLedger(theirs), work.name)
+        const inside = published.directory
+        const first =
+          inside === undefined
+            ? found[0]
+            : found.find((one) => one.path.startsWith(`${inside}/`)) ?? found[0]
+
+        if (first !== undefined) {
+          return {
+            owner: published.repo.owner,
+            repo: published.repo.repo,
+            ref: "HEAD",
+            path: first.path,
+            line: first.writing.line,
+            name: work.name,
+            signature: first.writing.signature
+          }
+        }
       }
     }
 

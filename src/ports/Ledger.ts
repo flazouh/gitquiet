@@ -150,7 +150,15 @@ export type Ledger = {
     repo: Repo,
     sha: string,
     specifier: string,
-    name: string
+    name: string,
+    /**
+     * Whether a package nothing here holds may be asked about elsewhere.
+     *
+     * The reader's, and off unless they turned it on: asking means telling a
+     * registry the name of a package this repository depends on. See the
+     * `registry` knob, and `docs/spec/following.md` on what leaves the browser.
+     */
+    registry?: boolean
   ) => Effect.Effect<Beyond, LedgerUnavailable>
   readonly usesAcross: (
     repo: Repo,

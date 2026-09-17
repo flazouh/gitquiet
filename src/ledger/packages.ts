@@ -19,9 +19,10 @@
  *   3. A repository of the same owner as this one, for a package with no scope.
  *
  * What is not here is the npm registry. It knows the answer for every package
- * and it is somebody else's server; `docs/spec/following.md` says what this
- * extension will and will not send elsewhere, and a list of a private
- * repository's dependencies is on the wrong side of it.
+ * and it is somebody else's server, so asking is nobody's default: it is the
+ * `registry` knob, it is off until a reader turns it on, and `src/ledger/
+ * registry.ts` is where it lives. Everything in this file costs nothing and
+ * leaves the browser only to read a repository the reader could open anyway.
  */
 
 import { Effect } from "effect"

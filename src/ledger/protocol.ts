@@ -187,6 +187,8 @@ export type LedgerBeyond = {
   readonly specifier: string
   /** The name that file borrowed under it. */
   readonly name: string
+  /** Whether a registry may be asked about a package nothing here holds. */
+  readonly registry?: boolean
 }
 
 export type LedgerBeyondWork = Omit<LedgerBeyond, "kind"> & {
