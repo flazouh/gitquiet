@@ -103,6 +103,29 @@ describe("no rule reaches our root from the document element", () => {
   })
 })
 
+describe("the root is sized the way everything inside it is", () => {
+  test("the root itself carries border-box, not only its descendants", () => {
+    /*
+     * `#gitquiet-root *` is every descendant and not the element. The root kept
+     * the browser's `content-box`, and the root is the one element here carrying
+     * both `width: 100%` and a horizontal padding — so the padding was added to
+     * the width instead of taken out of it and the interface laid itself out
+     * sixty-four pixels wider than the window. A horizontal scrollbar under the
+     * page and the code column running off the right edge. Measured with the
+     * built extension on a pull request: a root of 1488px in a viewport of 1440.
+     *
+     * It could not happen while the root stood in GitHub's document, because
+     * their stylesheet resets `box-sizing` on everything and that reached the
+     * root along with the rest. Inside a shadow root it reaches nothing.
+     */
+    const primer = readFileSync(join(uiDir, "primer.css"), "utf8")
+    const at = primer.indexOf("box-sizing: border-box")
+    const selector = primer.slice(primer.lastIndexOf("}", at) + 1, primer.indexOf("{", at))
+
+    expect(selector).toContain(`#${ROOT_ID},`)
+  })
+})
+
 describe("every overlay goes to the one host built for overlays", () => {
   test("no menu portals into the screen root", () => {
     /*

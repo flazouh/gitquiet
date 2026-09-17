@@ -110,6 +110,23 @@
   font-size: var(--text-base);
 }
 
+/*
+ * The root itself is in this list, and was not.
+ *
+ * `#gitquiet-root *` is every descendant and not the element, so the root kept
+ * the browser's `content-box` — and the root is the one element here carrying
+ * both `width: 100%` and a horizontal padding. Content-box adds the padding to
+ * the width instead of taking it out of it, so the interface laid itself out
+ * sixty-four pixels wider than the window: a horizontal scrollbar under the
+ * page and the code column running off the right edge, measured at a root of
+ * 1488px in a viewport of 1440.
+ *
+ * It never showed while the root stood in GitHub's document, because their
+ * stylesheet resets `box-sizing` on everything and that reached the root along
+ * with the rest. Inside a shadow root it reaches nothing, and this rule was
+ * written when it did not have to.
+ */
+#gitquiet-root,
 #gitquiet-root *,
 #gitquiet-root *::before,
 #gitquiet-root *::after,
