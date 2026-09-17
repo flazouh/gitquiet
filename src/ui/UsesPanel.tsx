@@ -3,6 +3,7 @@ import { createPortal } from "react-dom"
 import { Effect, Option } from "effect"
 import type { AcrossUse, Use, Writing } from "../ports/Ledger"
 import { FLOAT } from "./dress"
+import { OVER_ID, outsideHost } from "./outside"
 import { partOfFile } from "../domain/wholeFile"
 import { diffChoices } from "../domain/choices"
 import type { Bounds, DiffEngine } from "../ports/Renderer"
@@ -13,6 +14,7 @@ import { useRenderer } from "./renderer"
 import { drawnIn } from "./showLine"
 import { usePaintedTheme } from "./Theme"
 import { useSettings } from "./useSettings"
+import { SpinnerIcon } from "./spinner"
 
 /**
  * Everywhere in this file that means the same Writing.
@@ -229,7 +231,30 @@ export const UsesPanel = ({
    * answered exactly a few lines up. Listing both would be the same lines twice,
    * once precisely and once by a rule that cannot see scopes.
    */
-  const beyond = (elsewhere?.uses ?? []).filter((use) => !here || use.path !== reading.path)
+  const across_ = (elsewhere?.uses ?? []).filter((use) => !here || use.path !== reading.path)
+
+  /**
+   * And only the proven ones, where there are any.
+   *
+   * A file that states it borrowed this name is an answer. A file that merely
+   * holds the word is a maybe, and a maybe costs more than it gives once there
+   * are answers beside it: a reader asking whether a rename is safe follows a
+   * row, and a row that leads to a different thing of the same spelling has
+   * taken them somewhere and told them it is the place.
+   *
+   * Kept where there is nothing else, because then the maybe is the whole of
+   * what is known and the difference it makes is between a list and none. Those
+   * are the rows drawn quietly — see the note on the row below.
+   *
+   * Barrels are why this is affordable now. A name re-exported through one used
+   * to arrive unproven for every file that imported it, which on a repository
+   * with a barrel in front of each folder was most of the list; `uses.ts`
+   * follows the chain, so what is left unproven is what really cannot be shown
+   * to be the same thing — a dynamic import, a plain `.js` file, a specifier
+   * nothing here can resolve.
+   */
+  const proven = across_.filter((use) => use.sure === true)
+  const beyond = proven.length > 0 ? proven : across_
 
   /** The uses worth a row, which is every one that is not the writing itself. */
   const elsewhereInFile =
@@ -722,11 +747,22 @@ export const UsesPanel = ({
         </span>
         {across === undefined ? null : (
           <span className="ml-auto shrink-0 text-xs text-ink-muted">
-            {elsewhere === null
-              ? "reading the repository…"
-              : !elsewhere.ready
-                ? "the repository could not be read"
-                : `${beyond.length} elsewhere${elsewhere.exact === true ? ", exactly" : ""}`}
+            {elsewhere === null ? (
+              /*
+               * A turning circle rather than a sentence.
+               *
+               * There is nothing to stream here — the repository is read once
+               * and every Use arrives together — so the honest state while it
+               * reads is that nothing is known yet, and the shortest way to say
+               * that is not a sentence. `reading the repository…` was four
+               * words in a panel whose only other text is two counts.
+               */
+              <SpinnerIcon size={12} aria-label="Reading the repository" />
+            ) : !elsewhere.ready ? (
+              "the repository could not be read"
+            ) : (
+              `${beyond.length} elsewhere`
+            )}
           </span>
         )}
       </div>
@@ -766,7 +802,11 @@ export const UsesPanel = ({
           className="w-1 shrink-0 cursor-col-resize bg-line hover:bg-accent"
         />
         <ul
-          className="min-w-[7rem] flex-1 overflow-y-auto py-1"
+          // `list-none` by name, which is how a component that wants no markers
+          // asks for it here: `primer.css` resets the indent and deliberately
+          // leaves `list-style` alone, because several lists in this interface
+          // do want theirs. This one is rows to press, not prose.
+          className="min-w-[7rem] flex-1 list-none overflow-y-auto py-1"
           onKeyDown={(event) => {
             const step =
               event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0
@@ -825,27 +865,31 @@ export const UsesPanel = ({
                 onMouseEnter={() => setPicked(index)}
                 onFocus={() => setPicked(index)}
                 onClick={() => goTo(row)}
+                /*
+                 * Dimmed where the answer is not proven, and worded nowhere.
+                 *
+                 * This carried a word on every row of the repository's half —
+                 * `Sure` on the ones that are, `Likely` on the ones that are
+                 * not, the second in the colour that means attention. So the
+                 * rows a reader can least rely on were the loudest thing in the
+                 * list, and the ordinary case spent a word saying it was
+                 * ordinary.
+                 *
+                 * An editor's list of references carries no such labels, and a
+                 * reader scanning for a line of code should not be reading
+                 * badges. The distinction is worth keeping — a rename is only
+                 * as safe as the list is complete — so it is kept as less ink
+                 * rather than as more text: an unproven row is quieter, and
+                 * nothing else about it changes.
+                 */
                 className={`flex w-full items-baseline gap-2 px-3 py-1 text-left font-mono text-xs hover:bg-hover ${
                   index === picked ? "bg-hover" : ""
-                }`}
+                } ${row.kind === "beyond" && row.sure !== true ? "opacity-60" : ""}`}
               >
                 <span className="w-12 shrink-0 whitespace-nowrap text-right text-[0.6875rem] text-ink-muted">
                   {row.kind === "written" ? "written" : row.line}
                 </span>
                 <span className="min-w-0 flex-1 truncate">{row.said}</span>
-                {row.kind !== "beyond" ? null : (
-                  /* Sure and Likely, where a reader can see them. A file that
-                     states it borrowed this name is one thing; a file that
-                     merely holds the word is another, and a reader deciding
-                     whether a rename is safe needs to know which. */
-                  <span
-                    className={`shrink-0 text-[0.6875rem] ${
-                      row.sure === true ? "text-ink-muted" : "text-busy"
-                    }`}
-                  >
-                    {row.sure === true ? "Sure" : "Likely"}
-                  </span>
-                )}
               </button>
             </li>
           ))}
@@ -862,6 +906,22 @@ export const UsesPanel = ({
         className="h-1 cursor-row-resize bg-line hover:bg-accent"
       />
     </div>,
-    document.body
+    /*
+     * Beside the page rather than inside it, and marked as ours.
+     *
+     * `document.body` was right while the interface stood in their document
+     * and is not now. The gate hides every child of `body` that is not the
+     * host and does not carry the outside mark — `gateCss.ts` says exactly
+     * that — so a panel portalled to a bare `body` opened, held its answer,
+     * and was drawn at no size at all. Measured on a live pull request: the
+     * name underlines, the press lands, `[aria-label^="Uses of "]` is in the
+     * document, and its rectangle is `0×0`. Which to a reader is a click that
+     * did nothing, and is the fault this was reported as.
+     *
+     * `outsideHost` is where the hover cards, the settings dialog, the toasts
+     * and the menus already go: a child of `body` carrying the mark, so the
+     * gate spares it, and carrying the theme tokens, so it is painted.
+     */
+    outsideHost(document, OVER_ID)
   )
 }

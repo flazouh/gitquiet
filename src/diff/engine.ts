@@ -310,10 +310,11 @@ export const drawnBy = (host: HTMLElement, token: { tokenElement?: HTMLElement }
 /**
  * How a Name the reader can follow is drawn, and how the two readings differ.
  *
- * Solid where a compiler answered and dotted where a reading of shapes did,
- * which is a difference a reader can see without being told and without
- * anything being added to the screen. It is the underline they were getting
- * either way.
+ * Solid where the answer was arrived at by proof — resolved in its own scope,
+ * or through an import the file states — and dotted where it is a name match
+ * and nothing more. Sure and Likely, which are the two words the spec has for
+ * it, and a difference a reader can see without being told and without
+ * anything being added to the screen.
  */
 const MARKED: Readonly<Record<"sure" | "likely", string>> = {
   sure: "underline",

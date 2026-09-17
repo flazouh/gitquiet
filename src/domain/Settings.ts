@@ -377,7 +377,7 @@ export const DIFF_KNOBS = [
     "exact",
     "Follow methods too",
     "Read the types, so a method call leads somewhere",
-    "Following a name reads the code the way a highlighter does — scopes, and the imports a file states. That is exact inside a file and through an import, it is fast, and it works in every language. What it cannot do is follow `one.area()` to `area`, because knowing what `one` is needs types. Turn this on and TypeScript reads the repository instead, for TypeScript and JavaScript: a method call leads somewhere, and a name in another file that merely shares a spelling stops being offered as a maybe. The underline says which you are getting — solid where the types answered, dotted where the shapes did. It costs about a second of reading per repository, once, and a few hundred megabytes while it is held, which is why it is off until asked for.",
+    "Following a name reads the code the way a highlighter does — scopes, and the imports a file states. That is exact inside a file and through an import, it is fast, and it works in every language. What it cannot do is follow `one.area()` to `area`, because knowing what `one` is needs types. Turn this on and TypeScript reads the repository instead, for TypeScript and JavaScript: a method call leads somewhere, and a name in another file that merely shares a spelling stops being offered as a maybe. It costs about a second of reading per repository, once, and a few hundred megabytes while it is held, which is why it is off until asked for.",
     "off",
     true,
   ),

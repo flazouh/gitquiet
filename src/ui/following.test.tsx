@@ -6,6 +6,7 @@ import type { Ledger, Where, Writing } from "../ports/Ledger"
 import type { DiffHandle, DiffRequest, Modifiers, Name } from "../ports/Renderer"
 import type { Across } from "./following"
 import { LedgerProvider } from "./ledger"
+import { OUTSIDE } from "./mount"
 import { RendererProvider, type LoadEngine } from "./renderer"
 import { SettingsProvider } from "./settings"
 import type { Store } from "../ports/Settings"
@@ -101,6 +102,14 @@ const staged = (
     readonly where?: Where
     readonly named?: Writing
     readonly across?: Across
+    /** What the repository answers, for a panel with nothing proven in it. */
+    readonly uses?: ReadonlyArray<{
+      readonly path: string
+      readonly line: number
+      readonly from: number
+      readonly to: number
+      readonly sure: boolean
+    }>
     /**
      * A different Writing from the second question onward.
      *
@@ -227,7 +236,7 @@ const staged = (
     usesAcross: () =>
       Effect.succeed({
         ready: true,
-        uses: [
+        uses: over.uses ?? [
           // The file being read answers for itself, exactly, a few lines up in
           // the panel. This one must not be listed twice.
           { path: "src/one.ts", line: 2, from: 7, to: 12, sure: true },
@@ -740,7 +749,19 @@ describe("uses across the repository", () => {
     expect(screen.getByText("src/other.ts")).toBeTruthy()
   })
 
-  test("says which of them is Sure and which is only Likely", async () => {
+  /**
+   * Which of them is proven, in less ink rather than in more words.
+   *
+   * This asserted the words `Sure` and `Likely`, one on every row of the
+   * repository's half — the ordinary case spending a word to say it was
+   * ordinary, and the uncertain one drawn in the colour that means attention,
+   * so the rows a reader can least rely on were the loudest in the list. An
+   * editor's list of references carries no such labels.
+   *
+   * The distinction stays, because a rename is only as safe as the list is
+   * complete. It is a row that is quieter, and nothing that is read.
+   */
+  test("leaves the unproven ones out where there are proven ones", async () => {
     const stage = staged(writing, [], { across: withRepo() })
     await Effect.runPromise(settled())
 
@@ -749,9 +770,33 @@ describe("uses across the repository", () => {
     await userEvent.keyboard("u")
     await Effect.runPromise(settled())
 
-    // A reader deciding whether a rename is safe needs to know which is which.
-    expect(screen.getByText("Likely")).toBeTruthy()
-    expect(screen.getAllByText("Sure").length).toBeGreaterThan(0)
+    // A file that states it borrowed the name is an answer; a file that merely
+    // holds the word is a maybe, and a maybe costs more than it gives once
+    // there are answers beside it — a row that leads to a different thing of
+    // the same spelling has taken the reader somewhere and called it the place.
+    expect(screen.getByText("src/other.ts")).toBeTruthy()
+    expect(screen.queryByText("src/guessed.ts")).toBeNull()
+  })
+
+  test("shows them, quietly, where they are the whole of what is known", async () => {
+    const stage = staged(writing, [], {
+      across: withRepo(),
+      uses: [{ path: "src/guessed.ts", line: 3, from: 1, to: 6, sure: false }]
+    })
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    await userEvent.keyboard("u")
+    await Effect.runPromise(settled())
+
+    // The difference between a list and none, so it is shown — and drawn in
+    // less ink rather than labelled, because a badge on a row is a word to read.
+    const row = screen.getByText("src/guessed.ts").closest("button")
+    expect(row).toBeTruthy()
+    expect(row?.className).toContain("opacity-60")
+    expect(screen.queryByText("Likely")).toBeNull()
+    expect(screen.queryByText("Sure")).toBeNull()
   })
 
   test("does not list this file twice, once exactly and once by a rule", async () => {
@@ -910,16 +955,23 @@ describe("which reading answered, where the reader can see it", () => {
     expect(screen.getByText("Types")).toBeTruthy()
   })
 
-  test("underlines dotted where a reading of shapes answered", async () => {
+  /**
+   * And solid where the shapes answered, because that is Sure too.
+   *
+   * This asserted dotted, and the card beside it asserted "Sure" — the two
+   * halves of one screen disagreeing about the same answer. A Name resolved in
+   * its own scope, or through an import the file states, is Sure by the spec
+   * and says so on the card; the underline called it a guess. With the compiler
+   * off, which is its default, that was every underline in the file.
+   */
+  test("underlines solid where a reading of shapes answered, which is Sure", async () => {
     const stage = staged()
     await Effect.runPromise(settled())
 
     stage.request?.onNameEnter?.(name, held({ go: true }))
     await Effect.runPromise(settled())
 
-    // The same underline the reader was getting either way, drawn differently:
-    // nothing is added to the screen and the difference is visible anyway.
-    expect(stage.marked.at(-1)).toEqual([name, "likely"])
+    expect(stage.marked.at(-1)).toEqual([name, "sure"])
     expect(screen.getByText("Sure")).toBeTruthy()
   })
 })
@@ -1471,5 +1523,29 @@ describe("the trail through a call chain", () => {
     const file = stage.into[0]
     expect(file?.contains(panel)).toBe(false)
     expect(document.body.contains(panel)).toBe(true)
+  })
+
+  /**
+   * And beside their page rather than inside it, which is what keeps it drawn.
+   *
+   * The gate hides every child of `body` that is neither the host nor marked as
+   * ours — `gateCss.ts` writes exactly that selector. A panel portalled to a
+   * bare `body` is therefore a panel the gate hides: measured on a live pull
+   * request, the name underlined, the press landed, the panel was in the
+   * document, and its rectangle was `0×0`. To the reader that is a click that
+   * did nothing, and it is what this was reported as.
+   *
+   * So the panel goes where the hover cards, the dialog, the toasts and the
+   * menus already go, and the mark is the whole of what the gate looks for.
+   */
+  test("carries the mark the gate spares, so their page cannot hide it", async () => {
+    const stage = staged(writing, [], { then: further })
+    await Effect.runPromise(settled())
+    const panel = await open(stage)
+
+    const host = panel.closest(`[${OUTSIDE}]`)
+    expect(host).not.toBeNull()
+    // A child of `body`, because that is the only place the gate's rule looks.
+    expect(host?.parentElement).toBe(document.body)
   })
 })

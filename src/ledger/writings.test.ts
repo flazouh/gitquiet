@@ -522,3 +522,44 @@ describe("a signature with no body", () => {
     expect(named).not.toContain("second")
   })
 })
+
+/**
+ * What a file passes on from somewhere else.
+ *
+ * `export { one } from "./two"` is a borrow and not a Writing: nothing here can
+ * refer to `one`, this file does not write it, and the outline must not offer
+ * it. It says only that a name arrives here from there — which is exactly what
+ * a barrel is, and it was recorded nowhere, so a barrel said it borrowed
+ * nothing and every file importing through one got a guess.
+ */
+describe("a name a file passes on", () => {
+  let types: Syntax
+  let TYPES: string
+
+  beforeAll(async () => {
+    TYPES = await Bun.file("fixtures/code/types.ts").text()
+    const language = await Language.load(
+      "node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-typescript.wasm"
+    )
+    const parser = new Parser()
+    parser.setLanguage(language)
+    types = parser.parse(TYPES)!.rootNode as unknown as Syntax
+  })
+
+  test("is recorded as a borrow, under the name the other file writes", () => {
+    const told = toldBy(types, TYPES)
+    expect(told.borrows).toContainEqual({ name: "alsoUnbodied", specifier: "./whole" })
+  })
+
+  test("takes a whole-module re-export as every name that file writes", () => {
+    expect(toldBy(types, TYPES).borrows).toContainEqual({ name: "*", specifier: "./whole" })
+  })
+
+  test("does not bind it, so the outline never offers a name passed through", () => {
+    // The alias is what this file offers to others; it is not a name this file
+    // writes and nothing in it can refer to one.
+    const named = writingsIn(types, TYPES).map((one) => one.name)
+    expect(named).not.toContain("passedAlong")
+    expect(toldBy(types, TYPES).declares).not.toContain("passedAlong")
+  })
+})

@@ -87,7 +87,9 @@ _Avoid_: precise, exact, semantic.
 A Writing reached by a compiler rather than by a reading of shapes, which is the only way to
 reach one through a method call. Shown in the card as its own word rather than folded into Sure,
 because it is a different kind of answer and a reader deciding whether to trust a rename needs to
-know which they have. The underline says it too: solid for a compiler, dotted for the shapes.
+know which they have. The underline does not draw this line — it draws the one between proof and
+a guess: solid for Sure and for Types, dotted for Likely. Two styles cannot carry three words, and
+the one a reader needs before they follow is whether the answer was arrived at or matched.
 _Avoid_: exact, precise, semantic, LSP.
 
 **Likely**:

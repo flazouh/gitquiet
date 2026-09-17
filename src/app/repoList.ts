@@ -9,7 +9,13 @@ import {
   withSizes,
   withStandings
 } from "../domain/workingSet"
-import { type Found, GitHubGateway, type Pages, WorkingSetError } from "../ports/GitHubGateway"
+import {
+  type Found,
+  GitHubGateway,
+  type Pages,
+  type RememberedRows,
+  WorkingSetError
+} from "../ports/GitHubGateway"
 import { sizesOf } from "./sizes"
 
 /**
@@ -51,7 +57,24 @@ const MAX_SEARCH_PAGES = 40
 const SETTLE_EMPTY_SEARCH = 2
 const EMPTY_SEARCH_WAIT = "300 millis"
 
-const allPages = Effect.fn("repoList.allPages")(function* (list: RepoList) {
+const allPages = Effect.fn("repoList.allPages")(function* (
+  list: RepoList,
+  /**
+   * The first page, the moment it lands, rather than when the last one does.
+   *
+   * Everything below used to be awaited before a single row reached the screen,
+   * and `MAX_SEARCH_PAGES` is forty at four at a time — ten rounds of a second
+   * each on a repository with a thousand open pull requests. Measured as ten
+   * seconds of "Reading this repository's pull requests…" on `openrouter-web`,
+   * with the first twenty-five rows sitting in hand for nine of them.
+   *
+   * The staging below this exists precisely so a page arrives in a round trip
+   * instead of four, and the paging was in front of all of it. So the first
+   * page is handed over the moment it is read, and the rest of the list fills
+   * in behind it the way the Courts and the sizes already do.
+   */
+  afterFirst: (found: Found) => Effect.Effect<void> = () => Effect.void
+) {
   const gateway = yield* GitHubGateway
 
   // The first page, asked again while it comes back empty. See the note above the
@@ -67,6 +90,8 @@ const allPages = Effect.fn("repoList.allPages")(function* (list: RepoList) {
     )
 
   const first = yield* firstPage(SETTLE_EMPTY_SEARCH)
+  yield* afterFirst(first)
+
   const total = Option.match(first.pages, {
     onNone: () => 1,
     onSome: (pages) => pages.total
@@ -210,7 +235,37 @@ export const loadRepoList = Effect.fn("loadRepoList")(function* (
     { startImmediately: true }
   )
 
-  const found = yield* allPages(list)
+  /**
+   * The rows as a list, with what the store remembers standing in for what is
+   * still coming.
+   *
+   * Taken out of `sofar` below so the first page can be drawn with it before
+   * the rest of the pages are read: the two draws want the same shape and the
+   * same remembered stacks, and a first page drawn by a second rule would be a
+   * first page that looked different from the list it becomes.
+   */
+  const listedAs = (
+    rows: ReadonlyArray<InvolvedPullRequest>,
+    pages: Found["pages"],
+    kept: RememberedRows
+  ): Listed => ({
+    sittings: sittingsIn(withSizes(rows, kept.sizes), (one) =>
+      Option.fromNullishOr(kept.branches.get(keyOf(one.reference)))
+    ),
+    pages
+  })
+
+  const found = yield* allPages(list, (first) =>
+    /*
+     * Drawn the moment the first page lands, and never at the cost of the read.
+     * A store that will not answer is not a reason to hold the list back — the
+     * pages behind this one are on their way and are the answer either way.
+     */
+    gateway.rememberedRows(first.rows).pipe(
+      Effect.map((kept) => partly(listedAs(first.rows, first.pages, kept))),
+      Effect.catch(() => Effect.void)
+    )
+  )
 
   /*
    * What the store already knows about these rows, before the reads that find it
