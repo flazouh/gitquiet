@@ -218,6 +218,23 @@
 }
 
 /*
+ * And the same for our furniture out in their document.
+ *
+ * The margin reset below was split in two when the interface moved into a shadow
+ * root; this one was left whole and scoped to the root, so anything of ours
+ * standing outside it kept the browser's forty pixels. The Uses panel is drawn
+ * there — it is a popup, and a popup has to be outside the gate to be drawn at
+ * all — and it showed as a list indented most of an inch with the markers on,
+ * against a layout built to sit tight.
+ *
+ * `html` for the same weight the margin rule needs out here: GitHub's own
+ * stylesheet is still on the page, and this has to outweigh it.
+ */
+html :where([data-gitquiet-outside]) :is(ul, ol, menu) {
+  padding: 0;
+}
+
+/*
  * The same reset for our furniture out in their document, where the weight above
  * is still needed and `html` still matches.
  *

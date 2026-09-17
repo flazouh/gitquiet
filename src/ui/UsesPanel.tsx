@@ -767,7 +767,11 @@ export const UsesPanel = ({
           className="w-1 shrink-0 cursor-col-resize bg-line hover:bg-accent"
         />
         <ul
-          className="min-w-[7rem] flex-1 overflow-y-auto py-1"
+          // `list-none` by name, which is how a component that wants no markers
+          // asks for it here: `primer.css` resets the indent and deliberately
+          // leaves `list-style` alone, because several lists in this interface
+          // do want theirs. This one is rows to press, not prose.
+          className="min-w-[7rem] flex-1 list-none overflow-y-auto py-1"
           onKeyDown={(event) => {
             const step =
               event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0
