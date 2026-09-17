@@ -108,7 +108,9 @@ const LEDGER: ReadonlyArray<readonly [string, string]> = [
   [
     "../node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-python.wasm",
     "tree-sitter-python.wasm"
-  ]
+  ],
+  ["../node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-go.wasm", "tree-sitter-go.wasm"],
+  ["../node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-rust.wasm", "tree-sitter-rust.wasm"]
 ]
 
 for (const [from, to] of LEDGER) {

@@ -32,9 +32,15 @@ import type { Syntax } from "./syntax"
  * files, of which fifteen were passed over for being JavaScript.
  *
  * The node types the resolver reads are the same in all three: these grammars
- * share their core, and `lexical_declaration` is what a `const` is in each.
+ * share their core, and `lexical_declaration` is what a `const` is in each. No
+ * other language here shares it, which is what `src/ledger/dialects.ts` is for.
+ *
+ * Exported so a test can hold this list against that one. They are chosen by the
+ * same extension and are chosen apart, so they can drift — and a file with a
+ * grammar and no vocabulary answers nothing, for a reason nobody would find by
+ * reading either list alone.
  */
-const GRAMMARS: Readonly<Record<string, string>> = {
+export const GRAMMARS: Readonly<Record<string, string>> = {
   ts: "tree-sitter-typescript.wasm",
   mts: "tree-sitter-typescript.wasm",
   cts: "tree-sitter-typescript.wasm",
@@ -44,7 +50,9 @@ const GRAMMARS: Readonly<Record<string, string>> = {
   cjs: "tree-sitter-javascript.wasm",
   jsx: "tree-sitter-javascript.wasm",
   py: "tree-sitter-python.wasm",
-  pyi: "tree-sitter-python.wasm"
+  pyi: "tree-sitter-python.wasm",
+  go: "tree-sitter-go.wasm",
+  rs: "tree-sitter-rust.wasm"
 }
 
 /** Where the grammars and the runtime are, handed in rather than worked out. */

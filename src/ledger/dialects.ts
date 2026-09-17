@@ -13,7 +13,9 @@
  */
 
 import type { Dialect } from "./writings"
+import { GO } from "./dialects/go"
 import { PYTHON } from "./dialects/python"
+import { RUST } from "./dialects/rust"
 import { TYPESCRIPT } from "./dialects/typescript"
 
 /** The vocabularies, by the extensions people write them in. */
@@ -27,7 +29,9 @@ const DIALECTS: Readonly<Record<string, Dialect>> = {
   cjs: TYPESCRIPT,
   jsx: TYPESCRIPT,
   py: PYTHON,
-  pyi: PYTHON
+  pyi: PYTHON,
+  go: GO,
+  rs: RUST
 }
 
 /**
