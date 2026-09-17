@@ -271,10 +271,48 @@ describe("reading one page of a repository's pull requests", () => {
       loadRepoList(list, (stage) => stages.push(stage)).pipe(Effect.provide(layer))
     )
 
-    // Four: the page, the shelves, the check rollups, then the sizes. The stacks
-    // are the fifth and they are the returned value rather than a stage.
-    expect(stages).toHaveLength(4)
+    // Five: the first page, then the whole page, the shelves, the check rollups
+    // and the sizes. The stacks are the sixth and they are the returned value
+    // rather than a stage.
+    expect(stages).toHaveLength(5)
     for (const stage of stages) expect(stage.sittings[0]?.piles).toHaveLength(2)
+  })
+
+  /**
+   * The first page, before the rest of them are read.
+   *
+   * Every stage used to wait on the paging: forty pages at four at a time, ten
+   * rounds of a second each on a repository with a thousand open pull requests,
+   * and the first twenty-five rows sitting in hand for nine of them. Measured as
+   * ten seconds of "Reading this repository's pull requests…".
+   *
+   * The staging exists so a page arrives in a round trip instead of four, and
+   * the paging was in front of all of it.
+   */
+  test("draws the first page before the pages behind it are asked for", async () => {
+    const asked: Array<string> = []
+    intercept((url) => {
+      if (url.includes("/pulls?q=")) {
+        asked.push(url)
+        // Two pages, so there is a second read to be in front of.
+        return searchAnswer([aRow()], {
+          currentPage: asked.length,
+          totalPages: 2,
+          totalCount: 2
+        })
+      }
+      if (url.includes("merge_box")) return new Response("nope", { status: 500 })
+      return oneStranger(url)
+    })
+
+    /** How many pages had been asked for by the time each stage arrived. */
+    const whenDrawn: Array<number> = []
+    await Effect.runPromise(
+      loadRepoList(list, () => whenDrawn.push(asked.length)).pipe(Effect.provide(layer))
+    )
+
+    expect(asked.length).toBeGreaterThan(1)
+    expect(whenDrawn[0]).toBe(1)
   })
 
   test("asks for branches where two pull requests could be stacked", async () => {
