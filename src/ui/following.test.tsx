@@ -6,6 +6,7 @@ import type { Ledger, Where, Writing } from "../ports/Ledger"
 import type { DiffHandle, DiffRequest, Modifiers, Name } from "../ports/Renderer"
 import type { Across } from "./following"
 import { LedgerProvider } from "./ledger"
+import { OUTSIDE } from "./mount"
 import { RendererProvider, type LoadEngine } from "./renderer"
 import { SettingsProvider } from "./settings"
 import type { Store } from "../ports/Settings"
@@ -1471,5 +1472,29 @@ describe("the trail through a call chain", () => {
     const file = stage.into[0]
     expect(file?.contains(panel)).toBe(false)
     expect(document.body.contains(panel)).toBe(true)
+  })
+
+  /**
+   * And beside their page rather than inside it, which is what keeps it drawn.
+   *
+   * The gate hides every child of `body` that is neither the host nor marked as
+   * ours — `gateCss.ts` writes exactly that selector. A panel portalled to a
+   * bare `body` is therefore a panel the gate hides: measured on a live pull
+   * request, the name underlined, the press landed, the panel was in the
+   * document, and its rectangle was `0×0`. To the reader that is a click that
+   * did nothing, and it is what this was reported as.
+   *
+   * So the panel goes where the hover cards, the dialog, the toasts and the
+   * menus already go, and the mark is the whole of what the gate looks for.
+   */
+  test("carries the mark the gate spares, so their page cannot hide it", async () => {
+    const stage = staged(writing, [], { then: further })
+    await Effect.runPromise(settled())
+    const panel = await open(stage)
+
+    const host = panel.closest(`[${OUTSIDE}]`)
+    expect(host).not.toBeNull()
+    // A child of `body`, because that is the only place the gate's rule looks.
+    expect(host?.parentElement).toBe(document.body)
   })
 })

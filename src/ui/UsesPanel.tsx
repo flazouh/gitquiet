@@ -3,6 +3,7 @@ import { createPortal } from "react-dom"
 import { Effect, Option } from "effect"
 import type { AcrossUse, Use, Writing } from "../ports/Ledger"
 import { FLOAT } from "./dress"
+import { OVER_ID, outsideHost } from "./outside"
 import { partOfFile } from "../domain/wholeFile"
 import { diffChoices } from "../domain/choices"
 import type { Bounds, DiffEngine } from "../ports/Renderer"
@@ -862,6 +863,22 @@ export const UsesPanel = ({
         className="h-1 cursor-row-resize bg-line hover:bg-accent"
       />
     </div>,
-    document.body
+    /*
+     * Beside the page rather than inside it, and marked as ours.
+     *
+     * `document.body` was right while the interface stood in their document
+     * and is not now. The gate hides every child of `body` that is not the
+     * host and does not carry the outside mark — `gateCss.ts` says exactly
+     * that — so a panel portalled to a bare `body` opened, held its answer,
+     * and was drawn at no size at all. Measured on a live pull request: the
+     * name underlines, the press lands, `[aria-label^="Uses of "]` is in the
+     * document, and its rectangle is `0×0`. Which to a reader is a click that
+     * did nothing, and is the fault this was reported as.
+     *
+     * `outsideHost` is where the hover cards, the settings dialog, the toasts
+     * and the menus already go: a child of `body` carrying the mark, so the
+     * gate spares it, and carrying the theme tokens, so it is painted.
+     */
+    outsideHost(document, OVER_ID)
   )
 }
