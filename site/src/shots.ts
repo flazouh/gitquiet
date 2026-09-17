@@ -88,6 +88,12 @@ export const SHOTS: ReadonlyArray<Shot> = [
     "height": 800
   },
   {
+    "name": "profile",
+    "caption": "A person's recent answers and active repositories, with the limits of the public record shown beside them",
+    "width": 1280,
+    "height": 800
+  },
+  {
     "name": "person-repos",
     "caption": "Somebody's repositories in four groups they never had to tag, with what they write and what still moves said above the list",
     "width": 1280,
@@ -96,6 +102,30 @@ export const SHOTS: ReadonlyArray<Shot> = [
   {
     "name": "raise",
     "caption": "Raising an issue in two boxes rather than eight controls, none of which can be filled in until the issue exists",
+    "width": 1280,
+    "height": 800
+  },
+  {
+    "name": "sign-on",
+    "caption": "An organisation sign-on wall that keeps the requested page visible and leaves the identity check to its provider",
+    "width": 1280,
+    "height": 800
+  },
+  {
+    "name": "pull-request-dracula",
+    "caption": "The same pull request in a colour pack, the code and the interface following it together",
+    "width": 1280,
+    "height": 800
+  },
+  {
+    "name": "pull-request-tokyo",
+    "caption": "One of thirty packs, because a reviewer reads this page all day",
+    "width": 1280,
+    "height": 800
+  },
+  {
+    "name": "pull-request-split",
+    "caption": "Side by side when a block was rewritten, chosen and remembered without a reload",
     "width": 1280,
     "height": 800
   }
