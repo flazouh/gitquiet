@@ -42,7 +42,9 @@ const GRAMMARS: Readonly<Record<string, string>> = {
   js: "tree-sitter-javascript.wasm",
   mjs: "tree-sitter-javascript.wasm",
   cjs: "tree-sitter-javascript.wasm",
-  jsx: "tree-sitter-javascript.wasm"
+  jsx: "tree-sitter-javascript.wasm",
+  py: "tree-sitter-python.wasm",
+  pyi: "tree-sitter-python.wasm"
 }
 
 /** Where the grammars and the runtime are, handed in rather than worked out. */

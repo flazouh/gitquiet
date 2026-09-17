@@ -104,6 +104,10 @@ const LEDGER: ReadonlyArray<readonly [string, string]> = [
   [
     "../node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-javascript.wasm",
     "tree-sitter-javascript.wasm"
+  ],
+  [
+    "../node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-python.wasm",
+    "tree-sitter-python.wasm"
   ]
 ]
 

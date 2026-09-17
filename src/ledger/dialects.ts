@@ -13,6 +13,7 @@
  */
 
 import type { Dialect } from "./writings"
+import { PYTHON } from "./dialects/python"
 import { TYPESCRIPT } from "./dialects/typescript"
 
 /** The vocabularies, by the extensions people write them in. */
@@ -24,7 +25,9 @@ const DIALECTS: Readonly<Record<string, Dialect>> = {
   js: TYPESCRIPT,
   mjs: TYPESCRIPT,
   cjs: TYPESCRIPT,
-  jsx: TYPESCRIPT
+  jsx: TYPESCRIPT,
+  py: PYTHON,
+  pyi: PYTHON
 }
 
 /**

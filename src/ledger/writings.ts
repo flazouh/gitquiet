@@ -115,6 +115,24 @@ export type Dialect = {
   }
   /** What a statement passes on from somewhere else, which is a re-export. */
   readonly passedOn: (statement: Syntax) => Iterable<Borrowed>
+  /**
+   * The node types whose insides are the author's business.
+   *
+   * Where the file stops offering and starts working, which the outline stops
+   * at. A `statement_block` in TypeScript and a `block` in Python, and the two
+   * are not the same word — which is the whole reason this is asked for rather
+   * than known.
+   */
+  readonly bodies: ReadonlySet<string>
+  /**
+   * The members a class offers, given the class, or nothing where this is not
+   * one.
+   *
+   * Asked of the class rather than of its body because a body is not always a
+   * node type of its own: Python writes a class's with the same `block` it
+   * writes an `if`'s, and only the class around it says which one this is.
+   */
+  readonly membersOf: (node: Syntax) => ReadonlyArray<Bound> | null
 }
 
 /** A name, the node that wrote it, and what kind of writing that was. */
@@ -488,21 +506,19 @@ export const writingsIn = (
       }
     }
 
-    if (node.type === "class_body") {
-      for (const member of childrenOf(node)) {
-        const name = member.childForFieldName("name")
-        if (name === null) continue
-        if (member.type !== "method_definition" && member.type !== "public_field_definition") {
-          continue
-        }
-        found.push(docked(written(name, "member", lines), name, root, lines))
+    // A class offers its members and nothing else of what is inside it, so it
+    // is answered here whole and never walked into.
+    const members = dialect.membersOf(node)
+    if (members !== null) {
+      for (const member of members) {
+        found.push(docked(written(member.name, member.kind, lines), member.name, root, lines))
       }
       return
     }
 
     // Anything with a body of its own is where the file stops offering and
     // starts working. Its insides are the author's business.
-    const deeper = inside || node.type === "statement_block"
+    const deeper = inside || dialect.bodies.has(node.type)
     for (const child of childrenOf(node)) walk(child, deeper)
   }
 

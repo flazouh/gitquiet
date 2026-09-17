@@ -360,4 +360,41 @@ const stringOf = (node: Syntax | null): string | null => {
  * Named for what it reads rather than for one of the three, because a `.js` file
  * is read by this exactly as a `.ts` file is.
  */
-export const TYPESCRIPT: Dialect = { opens: OPENS, names: NAMES, bindings, passedOn }
+/** Where the file stops offering and starts working. */
+const BODIES: ReadonlySet<string> = new Set(["statement_block"])
+
+/**
+ * The members a class offers, or nothing where this is not a class.
+ *
+ * A member with no body is a member: an interface's and an abstract class's are
+ * what a reader presses in a `.d.ts`, and they are written as signatures.
+ */
+const membersOf = (node: Syntax): ReadonlyArray<Bound> | null => {
+  if (
+    node.type !== "class_declaration" &&
+    node.type !== "class" &&
+    node.type !== "abstract_class_declaration"
+  ) {
+    return null
+  }
+  const body = node.childForFieldName("body")
+  if (body === null) return null
+
+  const members: Array<Bound> = []
+  for (const member of childrenOf(body)) {
+    const name = member.childForFieldName("name")
+    if (name === null) continue
+    if (member.type !== "method_definition" && member.type !== "public_field_definition") continue
+    members.push({ name, kind: "member" })
+  }
+  return members
+}
+
+export const TYPESCRIPT: Dialect = {
+  opens: OPENS,
+  names: NAMES,
+  bindings,
+  passedOn,
+  bodies: BODIES,
+  membersOf
+}
