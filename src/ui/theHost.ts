@@ -198,15 +198,28 @@ export const oursInForce = (target: Document): boolean => {
  * while every box they style is hidden, and `disabled` is one property and
  * reversible, so nothing of theirs is destroyed by this.
  *
- * Ours are left alone by their href: the extension serves them from its own
- * origin, and nothing of GitHub's is published from there.
+ * Ours are left alone twice over: by the mark their owner carries, which is the
+ * answer, and by the scheme their address begins with, which is the fallback for
+ * a sheet of ours nobody marked.
+ *
+ * The scheme was `chrome-extension://` alone, and this extension ships to three
+ * browsers. On Firefox our own stylesheet is served from `moz-extension://` and
+ * on Safari from `safari-web-extension://`, so on both of them the first thing
+ * this function did on taking a page was switch our own sheet off. Everything of
+ * ours living in their document went with it — the bar as raw HTML, its controls
+ * in the platform's own borders, its rows stacked down the left edge with no
+ * `flex` reaching them. The screens looked right throughout, being dressed by a
+ * constructed sheet inside the shadow root that no `disabled` flag here touches,
+ * which is what made it read as a bug in the bar.
  */
+const OUR_SCHEMES = ["chrome-extension://", "moz-extension://", "safari-web-extension://"]
 export const theirStyles = (target: Document, on: boolean): number => {
   let touched = 0
   for (const sheet of target.styleSheets) {
     const owner = sheet.ownerNode
     if (owner instanceof Element && owner.hasAttribute(OUTSIDE)) continue
-    if ((sheet.href ?? "").startsWith("chrome-extension://")) continue
+    const href = sheet.href ?? ""
+    if (OUR_SCHEMES.some((scheme) => href.startsWith(scheme))) continue
 
     // `disabled` is readable and writable on a cross-origin sheet; it is
     // `cssRules` that refuses, and nothing here asks for those.

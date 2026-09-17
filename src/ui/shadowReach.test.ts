@@ -103,6 +103,56 @@ describe("no rule reaches our root from the document element", () => {
   })
 })
 
+describe("nothing assumes which browser this is", () => {
+  test("no source names one extension scheme on its own", () => {
+    /*
+     * `theirStyles` turns every stylesheet in the document off while we hold the
+     * page, and it knew ours by `chrome-extension://`. This extension ships to
+     * Chrome, Firefox and Safari, and on the latter two our own sheet is served
+     * from `moz-extension://` and `safari-web-extension://` — so on two of the
+     * three, taking a page began by switching our own stylesheet off.
+     *
+     * Everything of ours in their document went with it: the bar as raw HTML, its
+     * controls in the platform's borders, its rows stacked down the left edge
+     * with no `flex` reaching them. The screens looked right the whole time,
+     * dressed by a constructed sheet inside the shadow root that no `disabled`
+     * flag out here can touch — which is what made it read as a bug in the bar
+     * rather than as a stylesheet nobody could see being switched off.
+     *
+     * A file may name every scheme together; naming one alone is the fault.
+     */
+    const guilty: string[] = []
+    for (const [name, whole] of [...sourcesIn(uiDir, ".ts"), ...sourcesIn(uiDir, ".tsx")]) {
+      /*
+       * Block comments stripped first: the paragraph explaining this fault names
+       * all three schemes, and a scan that counted prose would be satisfied by the
+       * explanation of the bug it exists to catch.
+       *
+       * Block comments only. A line-comment stripper takes the `//` in
+       * `chrome-extension://` for the start of one and eats the scheme it was
+       * looking for, so the scan passes by finding nothing anywhere — which it
+       * did, on the first version of this.
+       */
+      const text = whole.replace(/\/\*[\s\S]*?\*\//g, "")
+      if (!text.includes("chrome-extension://")) continue
+      if (text.includes("moz-extension://") && text.includes("safari-web-extension://")) continue
+      guilty.push(name)
+    }
+
+    expect(guilty).toEqual([])
+  })
+
+  test("and our own stylesheet says it is ours rather than spelling it", () => {
+    // The answer the scheme list is only the fallback for. `screens.ts` puts the
+    // mark on the link when it injects it, so whose sheet it is never has to be
+    // read out of an address.
+    const screens = readFileSync(join(uiDir, "..", "app", "screens.ts"), "utf8")
+    const injection = screens.slice(screens.indexOf("const linked"))
+
+    expect(injection).toContain("link.setAttribute(OUTSIDE")
+  })
+})
+
 describe("the root is sized the way everything inside it is", () => {
   test("the root itself carries border-box, not only its descendants", () => {
     /*

@@ -19,6 +19,7 @@
 
 import { type Cause, Effect } from "effect"
 import { onwardWith } from "@/observability/report"
+import { OUTSIDE } from "@/ui/mount"
 import { dressShadow, keepTheirStylesOff, theHost, theSheet } from "@/ui/theHost"
 
 /** What every screen module exports: take the page, and optionally build one route ahead. */
@@ -167,6 +168,24 @@ const linked = (at: string): Effect.Effect<void> =>
     const link = document.createElement("link")
     link.rel = "stylesheet"
     link.href = url
+    /*
+     * Marked as ours, because `theirStyles` has to be able to tell.
+     *
+     * It turns every stylesheet in the document off while we hold the page, and
+     * it knew ours by the scheme its address begins with — which is
+     * `chrome-extension://` on Chrome and `moz-extension://` on Firefox and
+     * `safari-web-extension://` on Safari. So on two of the three browsers this
+     * extension ships to, the first thing it did on taking a page was switch off
+     * its own stylesheet: the bar came out as raw HTML, its controls wearing the
+     * platform's own borders, its rows stacked down the left edge because no
+     * `flex` ever reached them. The screens were unharmed, being dressed by a
+     * constructed sheet inside the shadow root rather than by this link, which is
+     * what made it look like a bar problem.
+     *
+     * The mark says whose it is outright, so nothing has to be inferred from a
+     * URL. `theirStyles` reads it first for exactly that reason.
+     */
+    link.setAttribute(OUTSIDE, "")
     /*
      * Wherever there is to put it. This runs at `document_start`, where there is no
      * `document.head` yet — the parser has produced the root element and nothing
