@@ -1,3 +1,5 @@
+import { HOST_ID } from "./theHost"
+
 /**
  * How long the stylesheet says a piece of motion takes.
  *
@@ -9,22 +11,27 @@
  */
 export const millisOf = (name: string, fallback: number): number => {
   /*
-   * `document` on purpose, and not our tree.
+   * Read off the host, which is the one element that always carries the scale.
    *
-   * This is one half of a seam whose other half is `tests/paced.ts`, which
-   * plants a `#gitquiet-root` in `document.body` and writes the durations a test
-   * needs onto it. Reading through `rootIn` instead makes the two halves
-   * disagree the moment a screen stands a root inside the shadow root: the
-   * planted durations are ignored, a dissolve paced to never finish finishes at
-   * once, and React throws the element away and mounts a second one — which is a
-   * transition with nothing to transition from. It cost two CI runs to find,
-   * being a fault that depends on what else is in the worker.
+   * The durations are declared on `#gitquiet-root, [data-gitquiet-outside]`, and
+   * the host carries the outside mark — so it has every one of them, and there is
+   * exactly one host in a document. That last part is the whole reason it is the
+   * host and not the root: a suite is one document, and a test that plants
+   * durations while a screen stands its own root is two roots and a coin toss
+   * about which one a lookup answers with.
    *
-   * Moving the clock into the shadow root is worth doing — the CSS owns these
-   * numbers and the sheet is in there now — but it is a change to both halves and
-   * it is not this one.
+   * It was `document.getElementById("gitquiet-root")`, which found nothing at all
+   * once the interface moved into a shadow root: every duration in the interface
+   * had quietly fallen back to the number written beside it in JavaScript, and the
+   * stylesheet had stopped owning the timing it is meant to own. Nothing looked
+   * broken, because the fallbacks are production's numbers — they are simply no
+   * longer the ones in `motion.css`, and retuning that file moved nothing.
+   *
+   * `tests/paced.ts` writes onto the same element, because a seam with two ends
+   * has to have both of them in the same place. It did not, and the disagreement
+   * cost two CI runs.
    */
-  const root = document.getElementById("gitquiet-root")
+  const root = document.getElementById(HOST_ID)
   if (root === null) return fallback
 
   const said = /^\s*([\d.]+)(ms|s)\s*$/.exec(getComputedStyle(root).getPropertyValue(name))

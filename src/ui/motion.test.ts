@@ -1,4 +1,6 @@
-import { describe, expect, test } from "bun:test"
+import { afterEach, describe, expect, test } from "bun:test"
+import { millisOf } from "./motion"
+import { forgetTheHost, theHost } from "./theHost"
 
 const sheet = await Bun.file(new URL("./motion.css", import.meta.url)).text()
 
@@ -154,5 +156,55 @@ describe("the entrance runs once, on arrival", () => {
     expect(covered).toContain(".t-panels > *")
     expect(covered).toContain(".t-panel-fade")
     expect(covered).toContain("animation: none")
+  })
+})
+
+/**
+ * The clock itself, which had no test and had stopped working.
+ *
+ * `millisOf` read the durations off `#gitquiet-root` through `document`, and once
+ * the interface moved into a shadow root that lookup found nothing: every timer in
+ * the interface fell back to the number written beside it in JavaScript and the
+ * stylesheet stopped owning the timing it is meant to own. Nothing looked broken,
+ * because the fallbacks are production's numbers — and one of them was not. The
+ * wait's leave timer is 400ms in JavaScript against a `--wait-reveal-dur` of 250ms
+ * in the stylesheet, so the element was held on the page 150ms after the
+ * transition taking it off had finished. That is the drift this seam exists to
+ * catch, and it went uncaught because nothing here asked.
+ */
+describe("what the stylesheet says a piece of motion takes", () => {
+  afterEach(() => forgetTheHost(document))
+
+  test("reads the duration off the host", () => {
+    const { host } = theHost(document)
+    host.style.setProperty("--duration-quick", "250ms")
+
+    expect(millisOf("--duration-quick", 999)).toBe(250)
+  })
+
+  test("takes seconds as a browser writes them, which is not how the file writes them", () => {
+    /*
+     * `motion.css` says `150ms`; Chrome hands back `.15s`, normalised, with no
+     * leading zero. A parser that only knew the spelling in the file would match
+     * nothing at all and fall back on every reading — silently, and for ever,
+     * which is the exact shape of the fault above. Measured on a pull request:
+     * `--duration-quick` reads `.15s`, `--wait-reveal-dur` reads `.25s`.
+     */
+    const { host } = theHost(document)
+    host.style.setProperty("--duration-quick", ".15s")
+
+    expect(millisOf("--duration-quick", 999)).toBe(150)
+  })
+
+  test("falls back where the stylesheet says nothing", () => {
+    theHost(document)
+
+    expect(millisOf("--nothing-says-this", 42)).toBe(42)
+  })
+
+  test("and where there is no interface on the page at all", () => {
+    // A content script on a page this extension never took. There is no host, and
+    // a fallback is the only honest answer.
+    expect(millisOf("--duration-quick", 42)).toBe(42)
   })
 })
