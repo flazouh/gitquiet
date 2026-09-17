@@ -172,8 +172,22 @@ describe("the address the filter box moves this page to", () => {
     expect(moved("is:closed", "is:merged")).toEqual(Option.none())
   })
 
-  test("stays put while the box narrows by anything but a state", () => {
-    expect(moved("", "author:me is:failing flaky")).toEqual(Option.none())
+  test("stays put for a word and for this interface's own vocabulary", () => {
+    // A word is the reader's to narrow — a half-typed `fla` fetching nothing
+    // would empty a list it was asked to widen — and `is:failing` is a term
+    // GitHub's search has never heard of.
+    expect(moved("", "flaky")).toEqual(Option.none())
+    expect(moved("", "is:failing")).toEqual(Option.none())
+  })
+
+  test("goes for an author, and takes the sieve's own terms along", () => {
+    // The author is the part GitHub answers, and answering it there is what
+    // stops a capped fetch hiding rows beyond the cap. `is:failing` rides
+    // along so the box on the far side still says it; `queryFor` holds it back
+    // from the search, and `flaky` stays behind because words do.
+    expect(moved("", "author:me is:failing flaky")).toEqual(
+      Option.some("/octo-org/octo-repo/pulls?q=author%3Ame+is%3Afailing")
+    )
   })
 
   test("goes back to the default list when the box no longer names a state", () => {
@@ -325,5 +339,52 @@ describe("what the filter box says when the address carried a search", () => {
     for (const term of seeded(query).split(" ").filter((one) => one.length > 0)) {
       expect(carried).toContain(term)
     }
+  })
+})
+
+/**
+ * An author is a question for GitHub, not for the sieve.
+ *
+ * The sieve can narrow fetched rows to one author, and doing so is wrong for a
+ * reason that is not speed: the fetch is capped, so rows beyond the cap were
+ * never on the page to be narrowed. Measured on a repository of 2,788 open pull
+ * requests — the cap is a thousand, the reader has four of their own, and
+ * `author:me` in the box found two. The other two were older than the thousand,
+ * and the list said so by not saying anything.
+ */
+describe("asking GitHub for an author rather than sieving one out", () => {
+  const list: RepoList = {
+    repo: { owner: "flowline-labs", repo: "flowline" },
+    query: "",
+    page: 1
+  }
+
+  test("moves the address when the box names an author the rows lack", () => {
+    expect(addressFor(list, "author:me")).toEqual(
+      Option.some("/flowline-labs/flowline/pulls?q=author%3Ame")
+    )
+  })
+
+  test("moves it back when the author is taken out again", () => {
+    // Widening is the same question: rows fetched for one author cannot answer
+    // about everybody either.
+    const narrowed: RepoList = { ...list, query: "author:me" }
+    expect(addressFor(narrowed, "")).toEqual(Option.some("/flowline-labs/flowline/pulls"))
+  })
+
+  test("stays where it is when the author already matches", () => {
+    const narrowed: RepoList = { ...list, query: "author:me" }
+    expect(addressFor(narrowed, "author:me")).toEqual(Option.none())
+  })
+
+  test("leaves a word alone, which is still the reader's to narrow", () => {
+    // A half-typed word fetching nothing would empty a list it was asked to
+    // widen. Words keep narrowing on the reader's side.
+    expect(addressFor(list, "fla")).toEqual(Option.none())
+  })
+
+  test("leaves this interface's own vocabulary alone, which GitHub cannot read", () => {
+    expect(addressFor(list, "is:failing")).toEqual(Option.none())
+    expect(addressFor(list, "review:approved")).toEqual(Option.none())
   })
 })

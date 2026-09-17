@@ -255,6 +255,34 @@ export const loadRepoList = Effect.fn("loadRepoList")(function* (
     pages
   })
 
+  /**
+   * Which shelf each row was on when this reader last looked.
+   *
+   * A row's court comes from its shelf — `courtOfOne` reads it — and the shelf
+   * is a separate read that lands after the rows do. So a row drawn before it
+   * lands is a row filed under the wrong heading, and the moment the shelves
+   * arrive every one of them moves. A list that regroups itself under a reader
+   * who has started reading it is worse than a list that took another moment.
+   *
+   * `rememberedRepoList` never had this problem: it reads the remembered
+   * shelves and files the rows before it hands any of them over. This is that,
+   * for the live read — the same store, the same call, a few milliseconds, and
+   * the rows land in the courts they will still be in when the live shelves
+   * confirm them.
+   *
+   * Empty on a reader's first visit to a repository, and then the rows are
+   * filed once the shelves arrive. Nothing can be done about that one, and
+   * nobody is watching a list they have never seen before get rearranged.
+   */
+  const asRemembered = yield* Effect.all(
+    SHELVES.map((shelf) => gateway.rememberedShelf(shelf))
+  ).pipe(
+    Effect.map((shelves) =>
+      shelves.flatMap(Option.getOrElse((): ReadonlyArray<InvolvedPullRequest> => []))
+    ),
+    Effect.orElseSucceed((): ReadonlyArray<InvolvedPullRequest> => [])
+  )
+
   const found = yield* allPages(list, (first) =>
     /*
      * Drawn the moment the first page lands, and never at the cost of the read.
@@ -262,7 +290,9 @@ export const loadRepoList = Effect.fn("loadRepoList")(function* (
      * pages behind this one are on their way and are the answer either way.
      */
     gateway.rememberedRows(first.rows).pipe(
-      Effect.map((kept) => partly(listedAs(first.rows, first.pages, kept))),
+      Effect.map((kept) =>
+        partly(listedAs(onTheirShelves(first.rows, asRemembered), first.pages, kept))
+      ),
       Effect.catch(() => Effect.void)
     )
   )
@@ -289,7 +319,7 @@ export const loadRepoList = Effect.fn("loadRepoList")(function* (
   // The kept sizes go on the rows themselves rather than into `sofar`, so that a
   // live size arriving later replaces one rather than being replaced by it.
   const measuredAsKept = withSizes(found.rows, kept.sizes)
-  partly(sofar(measuredAsKept))
+  partly(sofar(onTheirShelves(measuredAsKept, asRemembered)))
 
   const shelves = yield* Fiber.join(shelving)
   const rows = onTheirShelves(measuredAsKept, shelves.flat())
