@@ -727,7 +727,7 @@ export const UsesPanel = ({
               ? "reading the repository…"
               : !elsewhere.ready
                 ? "the repository could not be read"
-                : `${beyond.length} elsewhere${elsewhere.exact === true ? ", exactly" : ""}`}
+                : `${beyond.length} elsewhere`}
           </span>
         )}
       </div>
@@ -830,27 +830,31 @@ export const UsesPanel = ({
                 onMouseEnter={() => setPicked(index)}
                 onFocus={() => setPicked(index)}
                 onClick={() => goTo(row)}
+                /*
+                 * Dimmed where the answer is not proven, and worded nowhere.
+                 *
+                 * This carried a word on every row of the repository's half —
+                 * `Sure` on the ones that are, `Likely` on the ones that are
+                 * not, the second in the colour that means attention. So the
+                 * rows a reader can least rely on were the loudest thing in the
+                 * list, and the ordinary case spent a word saying it was
+                 * ordinary.
+                 *
+                 * An editor's list of references carries no such labels, and a
+                 * reader scanning for a line of code should not be reading
+                 * badges. The distinction is worth keeping — a rename is only
+                 * as safe as the list is complete — so it is kept as less ink
+                 * rather than as more text: an unproven row is quieter, and
+                 * nothing else about it changes.
+                 */
                 className={`flex w-full items-baseline gap-2 px-3 py-1 text-left font-mono text-xs hover:bg-hover ${
                   index === picked ? "bg-hover" : ""
-                }`}
+                } ${row.kind === "beyond" && row.sure !== true ? "opacity-60" : ""}`}
               >
                 <span className="w-12 shrink-0 whitespace-nowrap text-right text-[0.6875rem] text-ink-muted">
                   {row.kind === "written" ? "written" : row.line}
                 </span>
                 <span className="min-w-0 flex-1 truncate">{row.said}</span>
-                {row.kind !== "beyond" ? null : (
-                  /* Sure and Likely, where a reader can see them. A file that
-                     states it borrowed this name is one thing; a file that
-                     merely holds the word is another, and a reader deciding
-                     whether a rename is safe needs to know which. */
-                  <span
-                    className={`shrink-0 text-[0.6875rem] ${
-                      row.sure === true ? "text-ink-muted" : "text-busy"
-                    }`}
-                  >
-                    {row.sure === true ? "Sure" : "Likely"}
-                  </span>
-                )}
               </button>
             </li>
           ))}

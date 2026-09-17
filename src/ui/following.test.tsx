@@ -741,7 +741,19 @@ describe("uses across the repository", () => {
     expect(screen.getByText("src/other.ts")).toBeTruthy()
   })
 
-  test("says which of them is Sure and which is only Likely", async () => {
+  /**
+   * Which of them is proven, in less ink rather than in more words.
+   *
+   * This asserted the words `Sure` and `Likely`, one on every row of the
+   * repository's half — the ordinary case spending a word to say it was
+   * ordinary, and the uncertain one drawn in the colour that means attention,
+   * so the rows a reader can least rely on were the loudest in the list. An
+   * editor's list of references carries no such labels.
+   *
+   * The distinction stays, because a rename is only as safe as the list is
+   * complete. It is a row that is quieter, and nothing that is read.
+   */
+  test("draws an unproven use more quietly, and says nothing on any of them", async () => {
     const stage = staged(writing, [], { across: withRepo() })
     await Effect.runPromise(settled())
 
@@ -750,9 +762,13 @@ describe("uses across the repository", () => {
     await userEvent.keyboard("u")
     await Effect.runPromise(settled())
 
-    // A reader deciding whether a rename is safe needs to know which is which.
-    expect(screen.getByText("Likely")).toBeTruthy()
-    expect(screen.getAllByText("Sure").length).toBeGreaterThan(0)
+    expect(screen.queryByText("Likely")).toBeNull()
+    expect(screen.queryByText("Sure")).toBeNull()
+
+    // The row for the file that merely holds the word, dimmed; the one that
+    // states it borrowed the name, not.
+    expect(screen.getByText("src/guessed.ts").closest("button")?.className).toContain("opacity-60")
+    expect(screen.getByText("src/other.ts").closest("button")?.className).not.toContain("opacity-60")
   })
 
   test("does not list this file twice, once exactly and once by a rule", async () => {
