@@ -207,8 +207,9 @@ export const useFollowing = (
   /*
    * Whether a package nothing here holds may be asked about elsewhere.
    *
-   * The reader's, and off unless they turned it on: asking a registry means
-   * telling somebody else the name of a package this repository depends on.
+   * The reader's, and theirs to turn off: asking a registry means telling
+   * somebody else the name of a package this repository depends on. It is asked
+   * last of all, so a package this repository holds never reaches it.
    */
   const { settings } = useSettings()
   /** As a fact rather than as the settings, so the ask below depends on it. */

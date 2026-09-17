@@ -19,10 +19,10 @@
  *   3. A repository of the same owner as this one, for a package with no scope.
  *
  * What is not here is the npm registry. It knows the answer for every package
- * and it is somebody else's server, so asking is nobody's default: it is the
- * `registry` knob, it is off until a reader turns it on, and `src/ledger/
- * registry.ts` is where it lives. Everything in this file costs nothing and
- * leaves the browser only to read a repository the reader could open anyway.
+ * and it is somebody else's server, so it is asked last and never first: the
+ * `registry` knob, which a reader can turn off, and `src/ledger/registry.ts` is
+ * where it lives. Everything in this file is tried before it and costs nothing,
+ * so a package this repository holds is never asked about anywhere.
  */
 
 import { Effect } from "effect"

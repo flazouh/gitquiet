@@ -205,7 +205,11 @@ Every key is changeable under Settings, Keyboard, like the rest.
   folder of that repository it sits in, so `scheduler` leads to `packages/scheduler` rather than
   to the root. Asking carries the name of a package this repository depends on to somebody
   else's server, which for a private repository is a thing a reader may not want said. So it is
-  the `registry` knob, off until it is turned on, and nothing is sent until it is.
+  the `registry` knob, and turning it off stops anything being asked at all. It is on, because
+  the tiers above it answer first and for nothing: a package this repository holds never reaches
+  it, and neither does one whose name proved to be its repository. What reaches it is a package
+  the free readings gave up on, which for most repositories is `react` and `zod` and nothing
+  private at all.
 - **No Ledger for a repository passed through.** Opening one file on a stranger's repository
   builds nothing. The Ledger starts when a reader opens a second file, or any pull request, in
   the same repository.

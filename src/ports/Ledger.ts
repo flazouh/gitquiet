@@ -154,9 +154,10 @@ export type Ledger = {
     /**
      * Whether a package nothing here holds may be asked about elsewhere.
      *
-     * The reader's, and off unless they turned it on: asking means telling a
-     * registry the name of a package this repository depends on. See the
-     * `registry` knob, and `docs/spec/following.md` on what leaves the browser.
+     * The reader's, and theirs to turn off: asking means telling a registry the
+     * name of a package this repository depends on. Asked last, so a package
+     * this repository holds never reaches it. See the `registry` knob, and
+     * `docs/spec/following.md` on what leaves the browser.
      */
     registry?: boolean
   ) => Effect.Effect<Beyond, LedgerUnavailable>

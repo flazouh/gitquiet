@@ -16,9 +16,12 @@
  *
  * Asking costs a request to somebody else's server carrying the name of a
  * package this repository depends on, which is why `docs/spec/following.md`
- * ruled it out and why it is a setting rather than a default. This module is
- * the parsing half, and it is pure: what a manifest means, with nothing
- * fetched, so every shape below is a test rather than a hope.
+ * once ruled it out and why it is still a knob a reader can turn off. It is
+ * asked last and never first, so a package this repository holds — the case
+ * that carries a private name — is answered before this is reached at all.
+ *
+ * This module is the parsing half, and it is pure: what a manifest means, with
+ * nothing fetched, so every shape below is a test rather than a hope.
  */
 
 import { Effect } from "effect"
