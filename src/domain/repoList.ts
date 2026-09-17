@@ -194,14 +194,48 @@ const fetched = (named: ReadonlySet<PullRequestState>): ReadonlySet<PullRequestS
  * one goes back to the default list.
  */
 export const addressFor = (list: RepoList, box: string): Option.Option<string> => {
-  const had = statesAsked(readerTerms(list.query))
+  const mine = readerTerms(list.query)
+  const had = statesAsked(mine)
   const asking = sieveOf(box).states
 
-  const answered =
+  const states =
     asking.size === 0
       ? fetched(had).has("open")
       : [...asking].every((state) => fetched(had).has(state))
-  if (answered) return Option.none()
+
+  /*
+   * And an author is a new question too, in either direction.
+   *
+   * The sieve can narrow fetched rows to one author, and doing so is wrong for
+   * a reason that has nothing to do with speed: the fetch is capped, so rows
+   * beyond the cap were never on this page to be narrowed. Measured on a
+   * repository of 2,788 open pull requests — the cap is a thousand, the reader
+   * has four of their own, and `author:me` in the box found two of them. The
+   * other two were older than the thousand, and the list said so by not saying
+   * anything.
+   *
+   * A silent half-answer about a reader's own work is worse than a slow one,
+   * and GitHub answers this term exactly: `queryFor` already sends it, as the
+   * `author:@me` their search reads. It only needed a new address to be sent
+   * from.
+   *
+   * Both directions, because widening is the same question: rows fetched for
+   * one author cannot answer about everybody either.
+   */
+  const authorsIn = (terms: ReadonlyArray<string>): ReadonlySet<string> =>
+    new Set(
+      terms.filter((term) => term.toLowerCase().startsWith("author:")).map((term) => term.toLowerCase())
+    )
+
+  // The term rather than the login it resolves to: `author:me` is the viewer's
+  // name and this does not know it, the address carries the term as written,
+  // and what is being asked is whether the term changed.
+  const wanted = authorsIn(termsIn(box))
+  const fetchedFor = authorsIn(mine)
+  const authors =
+    wanted.size === fetchedFor.size && [...wanted].every((who) => fetchedFor.has(who))
+
+  if (states && authors) return Option.none()
 
   const kept = readerTerms(list.query).filter((term) => !understood(term))
   const terms = [...kept, ...termsIn(box).filter(understood)]
