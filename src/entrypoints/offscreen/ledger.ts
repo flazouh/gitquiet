@@ -19,7 +19,7 @@ import {
   withinPackage,
   type Held
 } from "@/ledger/packages"
-import { within } from "@/ledger/reaching"
+import { inPackage, within } from "@/ledger/reaching"
 import { heldIn, holdIn, holdingOf } from "@/ledger/holding"
 import { idbStore, noStore, type Store } from "@/ledger/store"
 import { usesAcross, type Asked } from "@/ledger/uses"
@@ -605,24 +605,31 @@ const beyond = (work: LedgerBeyondWork): Effect.Effect<LedgerFound> =>
     // Its own, which is most monorepos and costs no request at all.
     const own = ledger?.packages.get(packageOf(work.specifier))
     if (own !== undefined) {
-      const deeper = withinPackage(work.specifier)
-      const named =
-        deeper === null ? own.entry : `${own.at === "" ? "" : `${own.at}/`}${deeper}`
       /*
-       * And checked against the files the repository really has.
+       * Where that file really is, checked against what the repository holds.
        *
-       * A deep import names a path inside the package and not a file:
-       * `@org/type-utils/result-monad` is `packages/type-utils/result-monad`,
-       * with no ending on it and nothing of that name on disk. It was handed on
-       * as written, matched no file, and the answer fell through to the first
-       * Writing of that name anywhere in the repository — a different thing
-       * with the same spelling, offered to the reader as the place it is
-       * written. Which is the one mistake this whole feature exists to prevent.
+       * A deep import names a path inside the package and not a file, and a
+       * package's manifest answers about what it ships rather than what the
+       * repository wrote. `@org/type-utils/result-monad` is
+       * `packages/type-utils/result-monad`, with no ending on it; `@org/shared`
+       * says its `./schemas` is `./dist/schemas/index.js`, and nothing in
+       * `dist` is in the repository at all.
+       *
+       * Both were handed on as written, matched no file, and the answer fell
+       * through to the first Writing of that name anywhere in the repository —
+       * a different thing with the same spelling, offered to the reader as the
+       * place it is written. Which is the one mistake this feature exists to
+       * prevent, and it was being made silently.
        */
+      const deeper = withinPackage(work.specifier)
+      const paths = ledger === undefined ? null : new Set(ledger.files.keys())
+      const found = paths === null
+        ? null
+        : inPackage(own.at, deeper, own.entry)
+            .map((one) => within(one, paths))
+            .find((one) => one !== null) ?? null
       const path =
-        named === null || ledger === undefined
-          ? named
-          : within(named, new Set(ledger.files.keys())) ?? named
+        found ?? (deeper === null ? own.entry : `${own.at === "" ? "" : `${own.at}/`}${deeper}`)
       if (path !== null) {
         const found = ledger === undefined ? [] : placesFor(ledger, work.name)
         const here = found.find((one) => one.path === path) ?? found[0]

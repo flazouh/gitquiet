@@ -178,6 +178,28 @@
   margin: 0;
 }
 
+/**
+ * And the indent a list is born with, which is the other half of the same loss.
+ *
+ * A browser gives `ul` and `ol` forty pixels of `padding-left`. Tailwind's
+ * preflight takes it off, and this interface does not import the preflight — it
+ * never had to, because the root stood in GitHub's document and GitHub's
+ * stylesheet reset it. Inside a shadow root nothing of theirs reaches us at all,
+ * disabled or not, so every list this interface draws without a horizontal
+ * padding class of its own wears the browser's indent: the keybinds list, the
+ * file lists behind the palette, the panel of what a pull request brought in.
+ * Measured at `padding-left: 40px` on a bare `ul` in our own tree.
+ *
+ * Padding only. `list-style` is left where it is: several components ask for
+ * `list-none` by name, so taking the markers off globally would be a change to
+ * how lists look rather than to how much room they take, and that is not what
+ * this is fixing. `.markdown ul` keeps its `2em` either way, being a class
+ * against an element and heavier than this.
+ */
+:where(#gitquiet-root) :is(ul, ol, menu) {
+  padding: 0;
+}
+
 /*
  * The same reset for our furniture out in their document, where the weight above
  * is still needed and `html` still matches.

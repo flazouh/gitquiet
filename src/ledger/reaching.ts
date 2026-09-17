@@ -122,3 +122,48 @@ export const reaching = (
  */
 export const within = (path: string, paths: ReadonlySet<string>): string | null =>
   endingsFor(plainly(path) ?? "").find((one) => paths.has(one)) ?? null
+
+/**
+ * Where a package's build output is written, and where its source is kept.
+ *
+ * A judgement about convention rather than a rule about anything, which is why
+ * it is a short list and not a clever one: these are the folder names a
+ * TypeScript package actually uses, and a name that is not here costs the
+ * reader what they had before.
+ */
+const BUILT: ReadonlyArray<string> = ["dist", "build", "out", "lib", "esm", "cjs"]
+const SOURCE = "src"
+
+/**
+ * Where a file of a package this repository holds might really be.
+ *
+ * A package's own `package.json` answers about what it *ships*, and a
+ * repository holds what it *wrote*. Those are the same path in a package with
+ * no build step and different paths in every package with one — measured on a
+ * real monorepo, where `@org/shared` says its `./schemas` is
+ * `./dist/schemas/index.js` and the file a reader wants is
+ * `packages/shared/src/schemas/index.ts`. Following the manifest alone reached
+ * one of seven imports; nothing in `dist` is in the repository at all.
+ *
+ * So both readings are offered, best first, and the caller checks each against
+ * the files the repository really has. A deep import names a path inside the
+ * package, which is either directly in its folder or under its source root; an
+ * entry names a built file, whose source is the same path with the build folder
+ * read as the source one.
+ */
+export const inPackage = (
+  at: string,
+  deeper: string | null,
+  entry: string | null
+): ReadonlyArray<string> => {
+  const folder = at === "" ? "" : `${at}/`
+
+  if (deeper !== null) return [`${folder}${deeper}`, `${folder}${SOURCE}/${deeper}`]
+  if (entry === null) return []
+
+  const asSource = BUILT.reduce(
+    (path, built) => path.replace(`/${built}/`, `/${SOURCE}/`),
+    entry
+  )
+  return asSource === entry ? [entry] : [entry, asSource]
+}
