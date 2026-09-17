@@ -14,6 +14,7 @@ import { useRenderer } from "./renderer"
 import { drawnIn } from "./showLine"
 import { usePaintedTheme } from "./Theme"
 import { useSettings } from "./useSettings"
+import { SpinnerIcon } from "./spinner"
 
 /**
  * Everywhere in this file that means the same Writing.
@@ -230,7 +231,30 @@ export const UsesPanel = ({
    * answered exactly a few lines up. Listing both would be the same lines twice,
    * once precisely and once by a rule that cannot see scopes.
    */
-  const beyond = (elsewhere?.uses ?? []).filter((use) => !here || use.path !== reading.path)
+  const across_ = (elsewhere?.uses ?? []).filter((use) => !here || use.path !== reading.path)
+
+  /**
+   * And only the proven ones, where there are any.
+   *
+   * A file that states it borrowed this name is an answer. A file that merely
+   * holds the word is a maybe, and a maybe costs more than it gives once there
+   * are answers beside it: a reader asking whether a rename is safe follows a
+   * row, and a row that leads to a different thing of the same spelling has
+   * taken them somewhere and told them it is the place.
+   *
+   * Kept where there is nothing else, because then the maybe is the whole of
+   * what is known and the difference it makes is between a list and none. Those
+   * are the rows drawn quietly — see the note on the row below.
+   *
+   * Barrels are why this is affordable now. A name re-exported through one used
+   * to arrive unproven for every file that imported it, which on a repository
+   * with a barrel in front of each folder was most of the list; `uses.ts`
+   * follows the chain, so what is left unproven is what really cannot be shown
+   * to be the same thing — a dynamic import, a plain `.js` file, a specifier
+   * nothing here can resolve.
+   */
+  const proven = across_.filter((use) => use.sure === true)
+  const beyond = proven.length > 0 ? proven : across_
 
   /** The uses worth a row, which is every one that is not the writing itself. */
   const elsewhereInFile =
@@ -723,11 +747,22 @@ export const UsesPanel = ({
         </span>
         {across === undefined ? null : (
           <span className="ml-auto shrink-0 text-xs text-ink-muted">
-            {elsewhere === null
-              ? "reading the repository…"
-              : !elsewhere.ready
-                ? "the repository could not be read"
-                : `${beyond.length} elsewhere`}
+            {elsewhere === null ? (
+              /*
+               * A turning circle rather than a sentence.
+               *
+               * There is nothing to stream here — the repository is read once
+               * and every Use arrives together — so the honest state while it
+               * reads is that nothing is known yet, and the shortest way to say
+               * that is not a sentence. `reading the repository…` was four
+               * words in a panel whose only other text is two counts.
+               */
+              <SpinnerIcon size={12} aria-label="Reading the repository" />
+            ) : !elsewhere.ready ? (
+              "the repository could not be read"
+            ) : (
+              `${beyond.length} elsewhere`
+            )}
           </span>
         )}
       </div>

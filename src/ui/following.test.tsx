@@ -102,6 +102,14 @@ const staged = (
     readonly where?: Where
     readonly named?: Writing
     readonly across?: Across
+    /** What the repository answers, for a panel with nothing proven in it. */
+    readonly uses?: ReadonlyArray<{
+      readonly path: string
+      readonly line: number
+      readonly from: number
+      readonly to: number
+      readonly sure: boolean
+    }>
     /**
      * A different Writing from the second question onward.
      *
@@ -228,7 +236,7 @@ const staged = (
     usesAcross: () =>
       Effect.succeed({
         ready: true,
-        uses: [
+        uses: over.uses ?? [
           // The file being read answers for itself, exactly, a few lines up in
           // the panel. This one must not be listed twice.
           { path: "src/one.ts", line: 2, from: 7, to: 12, sure: true },
@@ -753,7 +761,7 @@ describe("uses across the repository", () => {
    * The distinction stays, because a rename is only as safe as the list is
    * complete. It is a row that is quieter, and nothing that is read.
    */
-  test("draws an unproven use more quietly, and says nothing on any of them", async () => {
+  test("leaves the unproven ones out where there are proven ones", async () => {
     const stage = staged(writing, [], { across: withRepo() })
     await Effect.runPromise(settled())
 
@@ -762,13 +770,33 @@ describe("uses across the repository", () => {
     await userEvent.keyboard("u")
     await Effect.runPromise(settled())
 
+    // A file that states it borrowed the name is an answer; a file that merely
+    // holds the word is a maybe, and a maybe costs more than it gives once
+    // there are answers beside it — a row that leads to a different thing of
+    // the same spelling has taken the reader somewhere and called it the place.
+    expect(screen.getByText("src/other.ts")).toBeTruthy()
+    expect(screen.queryByText("src/guessed.ts")).toBeNull()
+  })
+
+  test("shows them, quietly, where they are the whole of what is known", async () => {
+    const stage = staged(writing, [], {
+      across: withRepo(),
+      uses: [{ path: "src/guessed.ts", line: 3, from: 1, to: 6, sure: false }]
+    })
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    await userEvent.keyboard("u")
+    await Effect.runPromise(settled())
+
+    // The difference between a list and none, so it is shown — and drawn in
+    // less ink rather than labelled, because a badge on a row is a word to read.
+    const row = screen.getByText("src/guessed.ts").closest("button")
+    expect(row).toBeTruthy()
+    expect(row?.className).toContain("opacity-60")
     expect(screen.queryByText("Likely")).toBeNull()
     expect(screen.queryByText("Sure")).toBeNull()
-
-    // The row for the file that merely holds the word, dimmed; the one that
-    // states it borrowed the name, not.
-    expect(screen.getByText("src/guessed.ts").closest("button")?.className).toContain("opacity-60")
-    expect(screen.getByText("src/other.ts").closest("button")?.className).not.toContain("opacity-60")
   })
 
   test("does not list this file twice, once exactly and once by a rule", async () => {
