@@ -10,6 +10,7 @@
 import { Effect } from "effect"
 import { filesIn, unzipped } from "@/ledger/archive"
 import { blobSha } from "@/ledger/blob"
+import { dialectFor } from "@/ledger/dialects"
 import { byPath, manifestOf, stillToRead, whollyKnown, type Named } from "@/ledger/keeping"
 import { everyPlace, kept, keyOf, placesFor, worthReading, type Kept } from "@/ledger/ledger"
 import {
@@ -123,25 +124,32 @@ const kindOfExact = (kind: string): Writing["kind"] => {
 const answer = (work: LedgerWork): Effect.Effect<LedgerAnswer> =>
   parsed(shelf(), work.path, work.text, (root): LedgerAnswer => {
     const question = work.question
+    // A grammar with no vocabulary parses a file nobody can ask about. It is the
+    // same answer as no grammar, said where the difference could arise.
+    const dialect = dialectFor(work.path)
+    if (dialect === null) return { kind: LEDGER_ANSWER, why: "no grammar for this file" }
     if (question.of === "writingAt") {
       // The compiler first, where there is one: it answers questions the shapes
       // cannot, and answers the rest of them better.
       const exact = exactWriting(work, question.at)
       if (exact !== null) return { kind: LEDGER_ANSWER, writing: exact }
 
-      const answer = writingAt(root, work.text, question.at)
+      const answer = writingAt(root, work.text, question.at, dialect)
       if (answer === null) return { kind: LEDGER_ANSWER, writing: null }
       return answer.at === "here"
         ? { kind: LEDGER_ANSWER, writing: answer.writing }
         : { kind: LEDGER_ANSWER, writing: null, borrowed: answer.borrowed }
     }
     if (question.of === "writingNamed") {
-      return { kind: LEDGER_ANSWER, writing: writingNamed(root, work.text, question.name) }
+      return {
+        kind: LEDGER_ANSWER,
+        writing: writingNamed(root, work.text, question.name, dialect)
+      }
     }
     if (question.of === "usesIn") {
-      return { kind: LEDGER_ANSWER, uses: usesIn(root, work.text, question.writing) }
+      return { kind: LEDGER_ANSWER, uses: usesIn(root, work.text, question.writing, dialect) }
     }
-    return { kind: LEDGER_ANSWER, writings: writingsIn(root, work.text) }
+    return { kind: LEDGER_ANSWER, writings: writingsIn(root, work.text, dialect) }
   }).pipe(
     Effect.map(
       (found) =>
@@ -366,7 +374,12 @@ const read = (work: LedgerWarmWork, at: string): Effect.Effect<LedgerWarmth> =>
   Effect.gen(function* () {
     const where = shelf()
     yield* ready(where)
-    const outline = yield* reader(where, (root, text) => toldBy(root, text))
+    const outline = yield* reader(where, (root, text, path) => {
+      // A grammar without a vocabulary reads nothing here, the same as no
+      // grammar at all — see `src/ledger/dialects.ts`.
+      const dialect = dialectFor(path)
+      return dialect === null ? null : toldBy(root, text, dialect)
+    })
 
     const manifest = yield* store.manifest(at).pipe(Effect.catch(() => Effect.succeed(null)))
 

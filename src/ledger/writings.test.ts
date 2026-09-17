@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, test } from "bun:test"
 import { Language, Parser } from "web-tree-sitter"
 import type { Syntax } from "./syntax"
+import { TYPESCRIPT } from "./dialects/typescript"
 import {
   toldBy,
   usesIn,
@@ -65,7 +66,7 @@ const spotOf = (word: string, nth = 1): { row: number; column: number } => {
   throw new Error(`${word} #${nth} is not in the fixture`)
 }
 
-const asked = (word: string, nth = 1): Found | null => writingAt(root, SOURCE, spotOf(word, nth))
+const asked = (word: string, nth = 1): Found | null => writingAt(root, SOURCE, spotOf(word, nth), TYPESCRIPT)
 
 /** The Writing, where the answer is one. A borrowed name is not, and answers null. */
 const at = (word: string, nth = 1): Writing | null => {
@@ -170,7 +171,7 @@ describe("a Name resolved inside its own file", () => {
   })
 
   test("says nothing where the pointer is not on a name at all", () => {
-    expect(writingAt(root, SOURCE, { row: 9999, column: 0 })).toBeNull()
+    expect(writingAt(root, SOURCE, { row: 9999, column: 0 }, TYPESCRIPT)).toBeNull()
   })
 
   test("carries the comment written above it, and only where one is", () => {
@@ -186,7 +187,7 @@ describe("a Name resolved inside its own file", () => {
 describe("everywhere a Writing is used", () => {
   test("counts the name and not the word", () => {
     const outer = at("shape", 1)!
-    const uses = usesIn(root, SOURCE, outer)
+    const uses = usesIn(root, SOURCE, outer, TYPESCRIPT)
 
     // The declaration, the mention inside its own body, and the call at the end.
     // Not the three inside `said`, which are a different `shape` entirely.
@@ -201,12 +202,12 @@ describe("everywhere a Writing is used", () => {
   test("counts the shadowed one separately, which is the same rule from the other side", () => {
     const inner = at("shape", 3)!
 
-    expect(usesIn(root, SOURCE, inner)).toHaveLength(3)
+    expect(usesIn(root, SOURCE, inner, TYPESCRIPT)).toHaveLength(3)
   })
 })
 
 describe("the outline", () => {
-  const outline = (): ReadonlyArray<Writing> => writingsIn(root, SOURCE)
+  const outline = (): ReadonlyArray<Writing> => writingsIn(root, SOURCE, TYPESCRIPT)
 
   test("is what the file offers, in the order it is written", () => {
     const names = outline().map((one) => one.name)
@@ -252,7 +253,7 @@ describe("what another file asks of this one", () => {
   })
 
   test("gives up the Writing of the name it was asked about", () => {
-    const found = writingNamed(other, OTHER, "two")
+    const found = writingNamed(other, OTHER, "two", TYPESCRIPT)
 
     expect(found?.kind).toBe("function")
     expect(found?.line).toBe(2)
@@ -260,22 +261,22 @@ describe("what another file asks of this one", () => {
   })
 
   test("answers nothing for a name it does not write", () => {
-    expect(writingNamed(other, OTHER, "missing")).toBeNull()
+    expect(writingNamed(other, OTHER, "missing", TYPESCRIPT)).toBeNull()
   })
 
   test("takes `default` to mean the first thing the file offers", () => {
     // The name every importer uses for an export that has none of its own.
-    expect(writingNamed(other, OTHER, "default")?.name).toBe("two")
+    expect(writingNamed(other, OTHER, "default", TYPESCRIPT)?.name).toBe("two")
   })
 
   test("does not confuse a name with another one in the same file", () => {
-    expect(writingNamed(other, OTHER, "unused")?.line).toBe(4)
+    expect(writingNamed(other, OTHER, "unused", TYPESCRIPT)?.line).toBe(4)
   })
 })
 
 describe("what a Ledger keeps about one file", () => {
   test("holds every word that could be a name, with where it is", () => {
-    const told = toldBy(root, SOURCE)
+    const told = toldBy(root, SOURCE, TYPESCRIPT)
 
     const shapes = told.mentions.filter((one) => one.name === "shape")
     // Six in the fixture: the outer one and its two mentions, the inner one and
@@ -286,7 +287,7 @@ describe("what a Ledger keeps about one file", () => {
   })
 
   test("holds every name bound anywhere, locals and parameters included", () => {
-    const told = toldBy(root, SOURCE)
+    const told = toldBy(root, SOURCE, TYPESCRIPT)
 
     // `writingsIn` leaves these out — an outline is what a file offers. A
     // Ledger needs them for the opposite question: whether another file's
@@ -298,7 +299,7 @@ describe("what a Ledger keeps about one file", () => {
   })
 
   test("holds what the file borrowed, and from where", () => {
-    const told = toldBy(root, SOURCE)
+    const told = toldBy(root, SOURCE, TYPESCRIPT)
 
     expect(told.borrows).toContainEqual({ name: "two", specifier: "./whole" })
     expect(told.borrows).toContainEqual({ name: "default", specifier: "./whole" })
@@ -306,7 +307,7 @@ describe("what a Ledger keeps about one file", () => {
   })
 
   test("holds the same outline `writingsIn` answers with, and not a second one", () => {
-    expect(toldBy(root, SOURCE).writings).toEqual(writingsIn(root, SOURCE))
+    expect(toldBy(root, SOURCE, TYPESCRIPT).writings).toEqual(writingsIn(root, SOURCE, TYPESCRIPT))
   })
 })
 
@@ -356,7 +357,7 @@ describe("a type followed the way a value is", () => {
   }
 
   const there = (word: string, nth = 1): Writing | null => {
-    const answer = writingAt(types, TYPES, spot(word, nth))
+    const answer = writingAt(types, TYPES, spot(word, nth), TYPESCRIPT)
     return answer === null || answer.at !== "here" ? null : answer.writing
   }
 
@@ -395,7 +396,7 @@ describe("a type followed the way a value is", () => {
     const writing = there("Secret")
     expect(writing).not.toBeNull()
 
-    const uses = usesIn(types, TYPES, writing as Writing)
+    const uses = usesIn(types, TYPES, writing as Writing, TYPESCRIPT)
     // The declaration and the four real uses. Not the three on the generic's
     // line, which are a different thing with the same name.
     expect(uses).toHaveLength(5)
@@ -415,7 +416,7 @@ describe("a type followed the way a value is", () => {
   })
 
   test("keeps a generic out of the outline, as it keeps any parameter out", () => {
-    const named = writingsIn(types, TYPES).map((writing) => writing.name)
+    const named = writingsIn(types, TYPES, TYPESCRIPT).map((writing) => writing.name)
 
     expect(named).toContain("Secret")
     expect(named).toContain("Locked")
@@ -424,7 +425,7 @@ describe("a type followed the way a value is", () => {
   })
 
   test("holds every type it mentions, for a Ledger asked about another file", () => {
-    const told = toldBy(types, TYPES)
+    const told = toldBy(types, TYPES, TYPESCRIPT)
 
     expect(told.mentions.filter((one) => one.name === "Secret").length).toBeGreaterThan(1)
     expect(told.declares).toContain("Secret")
@@ -476,7 +477,7 @@ describe("a signature with no body", () => {
   }
 
   const there = (word: string, nth = 1): Writing | null => {
-    const answer = writingAt(types, TYPES, spot(word, nth))
+    const answer = writingAt(types, TYPES, spot(word, nth), TYPESCRIPT)
     return answer === null || answer.at !== "here" ? null : answer.writing
   }
 
@@ -486,7 +487,7 @@ describe("a signature with no body", () => {
   })
 
   test("offers that name to the outline, as a bodied one does", () => {
-    const named = writingsIn(types, TYPES).map((writing) => writing.name)
+    const named = writingsIn(types, TYPES, TYPESCRIPT).map((writing) => writing.name)
     expect(named).toContain("unbodied")
     expect(named).toContain("alsoUnbodied")
     expect(named).toContain("Signatures")
@@ -517,7 +518,7 @@ describe("a signature with no body", () => {
   test("does not offer its members as names of the file", () => {
     // An interface's method is reached through the interface, never as a bare
     // name — the same reason a class body is not a scope.
-    const named = writingsIn(types, TYPES).map((writing) => writing.name)
+    const named = writingsIn(types, TYPES, TYPESCRIPT).map((writing) => writing.name)
     expect(named).not.toContain("first")
     expect(named).not.toContain("second")
   })
@@ -547,19 +548,19 @@ describe("a name a file passes on", () => {
   })
 
   test("is recorded as a borrow, under the name the other file writes", () => {
-    const told = toldBy(types, TYPES)
+    const told = toldBy(types, TYPES, TYPESCRIPT)
     expect(told.borrows).toContainEqual({ name: "alsoUnbodied", specifier: "./whole" })
   })
 
   test("takes a whole-module re-export as every name that file writes", () => {
-    expect(toldBy(types, TYPES).borrows).toContainEqual({ name: "*", specifier: "./whole" })
+    expect(toldBy(types, TYPES, TYPESCRIPT).borrows).toContainEqual({ name: "*", specifier: "./whole" })
   })
 
   test("does not bind it, so the outline never offers a name passed through", () => {
     // The alias is what this file offers to others; it is not a name this file
     // writes and nothing in it can refer to one.
-    const named = writingsIn(types, TYPES).map((one) => one.name)
+    const named = writingsIn(types, TYPES, TYPESCRIPT).map((one) => one.name)
     expect(named).not.toContain("passedAlong")
-    expect(toldBy(types, TYPES).declares).not.toContain("passedAlong")
+    expect(toldBy(types, TYPES, TYPESCRIPT).declares).not.toContain("passedAlong")
   })
 })

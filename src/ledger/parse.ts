@@ -110,7 +110,8 @@ const grammar = (shelf: Shelf, file: string): Effect.Effect<Language, unknown> =
  */
 export const reader = <A>(
   shelf: Shelf,
-  read: (root: Syntax, text: string) => A
+  /** The path as well, because what the node types mean depends on it. */
+  read: (root: Syntax, text: string, path: string) => A
 ): Effect.Effect<(path: string, text: string) => A | null, unknown> =>
   Effect.gen(function* () {
     yield* runtime(shelf)
@@ -131,7 +132,7 @@ export const reader = <A>(
         return null
       }
 
-      const found = read(tree.rootNode as unknown as Syntax, text)
+      const found = read(tree.rootNode as unknown as Syntax, text, path)
       tree.delete()
       parser.delete()
       return found

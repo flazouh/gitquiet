@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, test } from "bun:test"
 import { Language, Parser } from "web-tree-sitter"
 import { everyPlace, kept, keyOf, placesFor, worthReading } from "./ledger"
 import type { Syntax } from "./syntax"
+import { TYPESCRIPT } from "./dialects/typescript"
 import { toldBy, type Told } from "./writings"
 
 /**
@@ -29,7 +30,7 @@ beforeAll(async () => {
     const tree = parser.parse(text)
     if (tree === null) return nothing
 
-    const found = toldBy(tree.rootNode as unknown as Syntax, text)
+    const found = toldBy(tree.rootNode as unknown as Syntax, text, TYPESCRIPT)
     tree.delete()
     parser.delete()
     return found
