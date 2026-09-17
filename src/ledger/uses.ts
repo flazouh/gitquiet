@@ -47,11 +47,63 @@ export type Asked = {
  *   - a file that binds its own name of that spelling: not this Writing at all;
  *   - anything else that holds the word: Likely.
  */
+/**
+ * How many files a name is followed back through before it is called a guess.
+ *
+ * Barrels nest — a folder's `index.ts` re-exported by the package's, re-exported
+ * by the repository's — and each one is a hop. Four covers every layout anybody
+ * writes on purpose, and the bound is what keeps a cycle of two barrels
+ * re-exporting each other from being a question with no end.
+ */
+const THROUGH = 4
+
+/**
+ * Whether a file's borrow leads back to where the name is written, through
+ * however many files pass it on.
+ *
+ * One hop was the whole of this, and one hop is not how a repository is laid
+ * out. `ui/index.ts` re-exports a name from `ui/select-field.tsx`, and the
+ * twenty files that import it import it from `../ui` — which resolves to the
+ * barrel, which is not where the name is written, so every one of them was
+ * offered as **Likely**. A list of guesses where the repository had stated the
+ * answer twice over, once in the barrel and once in each importer.
+ *
+ * `seen` rather than depth alone, because two barrels may name each other and
+ * the walk has to end either way.
+ */
+const reaches = (
+  path: string,
+  told: Told,
+  asked: Asked,
+  paths: ReadonlySet<string>,
+  files: ReadonlyMap<string, Told>,
+  left: number,
+  seen: Set<string>
+): boolean => {
+  for (const from of told.borrows) {
+    // A whole-module borrow carries every name that file writes, so it is
+    // followed for any name asked about. A named one is only itself.
+    if (from.name !== asked.name && from.name !== "*" && from.name !== "default") continue
+
+    const to = reaching(path, from.specifier, paths)
+    if (to === null) continue
+    if (to === asked.path) return true
+
+    if (left === 0 || seen.has(to)) continue
+    const next = files.get(to)
+    if (next === undefined) continue
+    seen.add(to)
+    if (reaches(to, next, asked, paths, files, left - 1, seen)) return true
+  }
+  return false
+}
+
 const sureness = (
   path: string,
   told: Told,
   asked: Asked,
-  paths: ReadonlySet<string>
+  paths: ReadonlySet<string>,
+  files: ReadonlyMap<string, Told>
 ): "sure" | "likely" | "no" => {
   if (path === asked.path) return "sure"
 
@@ -59,9 +111,8 @@ const sureness = (
   let borrowed = false
   for (const from of told.borrows) {
     if (from.name === asked.name) borrowed = true
-    else if (from.name !== "*" && from.name !== "default") continue
-    if (reaching(path, from.specifier, paths) === asked.path) return "sure"
   }
+  if (reaches(path, told, asked, paths, files, THROUGH, new Set([path]))) return "sure"
 
   /*
    * Its own. Two things with one spelling are two things, and offering one for
@@ -109,7 +160,7 @@ export const usesAcross = (
     }
     if (mentions.length === 0) continue
 
-    const how = sureness(path, told, asked, paths)
+    const how = sureness(path, told, asked, paths, files)
     if (how === "no") continue
 
     for (const mention of mentions) {

@@ -152,3 +152,121 @@ describe("a file that says where it got the name", () => {
     expect(usesAcross(files, asked, PATHS)).toEqual([])
   })
 })
+
+/**
+ * A name followed back through the files that pass it on.
+ *
+ * A repository puts a barrel in front of a folder and imports through it, which
+ * is most repositories. One hop cannot see that: `ui/index.ts` re-exports a name
+ * from `ui/select-field.tsx`, the twenty files that use it import it from
+ * `../ui`, and `../ui` resolves to the barrel — which is not where the name is
+ * written. Every one of them came back **Likely**, a guess about an answer the
+ * repository had stated twice: once in the barrel, once in each importer.
+ */
+describe("a name passed on through a barrel", () => {
+  const paths = new Set([
+    "ui/select-field.tsx",
+    "ui/index.ts",
+    "pages/one.tsx",
+    "outer/index.ts",
+    "pages/deep.tsx"
+  ])
+  const where: Asked = { name: "Option", path: "ui/select-field.tsx", line: 1 }
+
+  test("is sure about the barrel that re-exports it", () => {
+    const files = new Map([
+      ["ui/select-field.tsx", told({ mentions: [mention("Option", 1)] })],
+      [
+        "ui/index.ts",
+        told({
+          mentions: [mention("Option", 1)],
+          borrows: [{ name: "Option", specifier: "./select-field" }]
+        })
+      ]
+    ])
+    expect(usesAcross(files, where, paths).find((one) => one.path === "ui/index.ts")?.sure).toBe(
+      true
+    )
+  })
+
+  test("is sure about a file importing through that barrel", () => {
+    const files = new Map([
+      ["ui/select-field.tsx", told({ mentions: [mention("Option", 1)] })],
+      ["ui/index.ts", told({ borrows: [{ name: "Option", specifier: "./select-field" }] })],
+      [
+        "pages/one.tsx",
+        told({
+          mentions: [mention("Option", 2)],
+          borrows: [{ name: "Option", specifier: "../ui" }]
+        })
+      ]
+    ])
+    expect(usesAcross(files, where, paths).find((one) => one.path === "pages/one.tsx")?.sure).toBe(
+      true
+    )
+  })
+
+  test("follows a barrel in front of a barrel, which is how folders nest", () => {
+    const files = new Map([
+      ["ui/select-field.tsx", told({ mentions: [mention("Option", 1)] })],
+      ["ui/index.ts", told({ borrows: [{ name: "Option", specifier: "./select-field" }] })],
+      // A whole-module re-export carries every name the file writes.
+      ["outer/index.ts", told({ borrows: [{ name: "*", specifier: "../ui" }] })],
+      [
+        "pages/deep.tsx",
+        told({
+          mentions: [mention("Option", 2)],
+          borrows: [{ name: "Option", specifier: "../outer" }]
+        })
+      ]
+    ])
+    expect(usesAcross(files, where, paths).find((one) => one.path === "pages/deep.tsx")?.sure).toBe(
+      true
+    )
+  })
+
+  test("is still only Likely where the file merely holds the word", () => {
+    // Nothing states a borrow, so nothing proves the two spellings are one
+    // thing. The mark is what the answer is for.
+    const files = new Map([
+      ["ui/select-field.tsx", told({ mentions: [mention("Option", 1)] })],
+      ["pages/one.tsx", told({ mentions: [mention("Option", 2)] })]
+    ])
+    expect(usesAcross(files, where, paths).find((one) => one.path === "pages/one.tsx")?.sure).toBe(
+      false
+    )
+  })
+
+  test("is not fooled into Sure by a chain that ends somewhere else", () => {
+    const files = new Map([
+      ["ui/select-field.tsx", told({ mentions: [mention("Option", 1)] })],
+      // The barrel passes on a name of that spelling from a different file.
+      ["ui/index.ts", told({ borrows: [{ name: "Option", specifier: "./other" }] })],
+      [
+        "pages/one.tsx",
+        told({
+          mentions: [mention("Option", 2)],
+          borrows: [{ name: "Option", specifier: "../ui" }]
+        })
+      ]
+    ])
+    const found = usesAcross(files, where, new Set([...paths, "ui/other.ts"]))
+    expect(found.find((one) => one.path === "pages/one.tsx")?.sure).toBe(false)
+  })
+
+  test("ends where two barrels name each other", () => {
+    // Not a hang and not a stack overflow: the walk remembers where it has been
+    // and the depth is bounded besides.
+    const files = new Map([
+      ["ui/select-field.tsx", told({ mentions: [mention("Option", 1)] })],
+      ["ui/index.ts", told({ borrows: [{ name: "*", specifier: "../outer" }] })],
+      [
+        "outer/index.ts",
+        told({ mentions: [mention("Option", 3)], borrows: [{ name: "*", specifier: "../ui" }] })
+      ]
+    ])
+    expect(usesAcross(files, where, paths).find((one) => one.path === "outer/index.ts")?.sure).toBe(
+      false
+    )
+  })
+})

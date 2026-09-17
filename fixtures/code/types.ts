@@ -55,3 +55,7 @@ export interface Signatures {
   first<Held>(kept: Held): Held
   second(kept: string): void
 }
+
+/** What this file passes on from beside it, which is a borrow and not a Writing. */
+export { alsoUnbodied as passedAlong } from "./whole"
+export * from "./whole"

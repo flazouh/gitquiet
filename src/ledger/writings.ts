@@ -366,6 +366,50 @@ const imported = function* (
   // loop above is how that is said rather than a case of its own.
 }
 
+/**
+ * What a file passes on from somewhere else: `export { one } from "./two"`.
+ *
+ * A borrow like any other, and it was not recorded at all — which is what broke
+ * a barrel. `index.ts` re-exporting a name from the file beside it said it
+ * borrowed nothing, so it was a file that merely held the word and was offered
+ * as **Likely**; and every file importing that name *through* the barrel
+ * resolved its specifier to `index.ts`, which is not where the name is written,
+ * and was Likely too. A repository that puts a barrel in front of a folder —
+ * which is most of them — had a list of guesses where it should have had a list
+ * of facts.
+ *
+ * Not a binding, which is why this is its own walk rather than a case in
+ * {@link bindings}. `export { one } from "./two"` does not put `one` in this
+ * file's scope: nothing here can refer to it, the file does not write it, and
+ * the outline must not offer it. It says only that a name arrives here from
+ * there, which is exactly what a Borrowed is.
+ */
+const passedOn = function* (statement: Syntax): Generator<Borrowed> {
+  if (statement.type !== "export_statement") return
+
+  // The source is what tells a re-export from an ordinary `export { one }`,
+  // which passes nothing on and is somebody else's question.
+  const specifier = stringOf(statement.childForFieldName("source"))
+  if (specifier === null) return
+
+  let named = false
+  for (const clause of childrenOf(statement)) {
+    if (clause.type !== "export_clause") continue
+    named = true
+    for (const one of childrenOf(clause)) {
+      if (one.type !== "export_specifier") continue
+      // The name as the *other* file writes it: `export { Two as Three }` is
+      // this file offering `Three` and that file writing `Two`.
+      const was = one.childForFieldName("name")
+      if (was !== null) yield { name: was.text, specifier }
+    }
+  }
+
+  // `export * from "./star"`, which passes on everything that file writes —
+  // the same `*` an `import *` records, and read the same way by `sureness`.
+  if (!named) yield { name: "*", specifier }
+}
+
 /** A string literal's text, without its quotes. */
 const stringOf = (node: Syntax | null): string | null => {
   if (node === null || node.type !== "string") return null
@@ -679,6 +723,10 @@ export const toldBy = (root: Syntax, source: string): Told => {
       declares.add(bound.name.text)
       if (bound.from !== undefined) borrows.push(bound.from)
     }
+
+    // A re-export borrows without binding, so it is walked for on its own and
+    // adds to `borrows` and to nothing else. See {@link passedOn}.
+    for (const from of passedOn(node)) borrows.push(from)
 
     for (const child of childrenOf(node)) walk(child)
   }
