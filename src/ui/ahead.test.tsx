@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen, waitFor } from "@testing-library/react"
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import type { ChangedFile } from "../domain/PullRequest"
@@ -10,6 +10,42 @@ import { DEFAULT_KEYS } from "../keys/commands"
 
 afterEach(cleanup)
 
+const idled = globalThis.requestIdleCallback
+const unidled = globalThis.cancelIdleCallback
+const framed = window.requestAnimationFrame
+
+afterEach(() => {
+  globalThis.requestIdleCallback = idled
+  globalThis.cancelIdleCallback = unidled
+  window.requestAnimationFrame = framed
+})
+
+const holdIdleTime = () => {
+  const waiting = new Map<number, () => void>()
+  let asked = 0
+
+  window.requestIdleCallback = ((run: IdleRequestCallback) => {
+    asked += 1
+    waiting.set(asked, () => run({ didTimeout: false, timeRemaining: () => 0 }))
+    return asked
+  }) as typeof globalThis.requestIdleCallback
+  window.cancelIdleCallback = ((handle: number) => {
+    waiting.delete(handle)
+  }) as typeof globalThis.cancelIdleCallback
+
+  return {
+    pending: () => waiting.size,
+    runIdle: () =>
+      act(() => {
+        const due = [...waiting.values()]
+        waiting.clear()
+        for (const run of due) run()
+      })
+  }
+}
+
+const diff = { isBinary: false, isTruncated: false, lines: [] }
+
 const file = (path: string): ChangedFile => ({
   path,
   digest: `${path}-digest`,
@@ -17,7 +53,7 @@ const file = (path: string): ChangedFile => ({
   linesAdded: 2,
   linesDeleted: 1,
   readByViewer: false,
-  diff: Option.some({ isBinary: false, isTruncated: false, lines: [] })
+  diff: Option.some(diff)
 })
 
 const browsing = (...paths: ReadonlyArray<string>) =>
@@ -40,41 +76,44 @@ const shown = (path: string): boolean => drawingOf(path)?.getAttribute("aria-hid
 const open = () => screen.getByLabelText("Open file").textContent
 
 describe("the file after the one being read", () => {
-  test("is drawn before anyone asks for it", async () => {
-    // Opening a file costs a parse, a highlight and a few thousand elements —
-    // a third of a second on a real pull request, spent inside the keypress
-    // that asked for it. Spent while the reader is reading instead, the same
-    // work is free.
-    browsing("src/one.ts", "src/two.ts")
+  test("is asked for before anyone opens it, but not drawn", async () => {
+    const asked: string[] = []
+    const paths = ["src/one.ts", "src/two.ts"]
+    const view = render(
+      <FileBrowser
+        prepareThrough={3}
+        files={paths.map(file)}
+        fetchDiffs={(wanted) =>
+          Effect.sync(() => {
+            asked.push(...wanted)
+            return wanted.map((path) => ({
+              path,
+              diff
+            }))
+          })
+        }
+        diff={diffChoices(DEFAULTS.diff)}
+        tree={treeChoices(DEFAULTS.tree)}
+        keys={DEFAULT_KEYS}
+      />
+    )
 
-    await waitFor(() => expect(drawingOf("src/two.ts")).not.toBeNull())
-    expect(shown("src/two.ts")).toBe(false)
-    // Held at opacity zero with its layout kept, not `contentVisibility:
-    // hidden`: waking a deferred layout on the switch was itself a dropped
-    // frame, measured on the zero-frame-drops branch this style landed from.
-    expect(drawingOf("src/two.ts")?.style.opacity).toBe("0")
-    expect(drawingOf("src/two.ts")?.style.contentVisibility).toBe("")
-    expect(drawingOf("src/two.ts")?.hidden).toBe(false)
+    await waitFor(() => expect(asked).toContain("src/two.ts"))
+    expect(drawingOf("src/two.ts")).toBeNull()
     expect(shown("src/one.ts")).toBe(true)
+    view.unmount()
   })
 
-  test("is that same drawing when it is asked for, not a second one", async () => {
+  test("is drawn when it is asked for, after the press is answered", async () => {
     browsing("src/one.ts", "src/two.ts")
-    await waitFor(() => expect(drawingOf("src/two.ts")).not.toBeNull())
-    const already = drawingOf("src/two.ts")
-
     await userEvent.keyboard("s")
 
-    expect(drawingOf("src/two.ts")).toBe(already)
-    expect(shown("src/two.ts")).toBe(true)
-    expect(drawingOf("src/two.ts")?.style.contentVisibility).toBe("")
-    expect(drawingOf("src/two.ts")?.hidden).toBe(false)
+    await waitFor(() => expect(shown("src/two.ts")).toBe(true))
     expect(open()).toContain("two.ts")
   })
 
   test("leaves the file behind it drawn, since going back is half of a review", async () => {
     browsing("src/one.ts", "src/two.ts")
-    await waitFor(() => expect(drawingOf("src/two.ts")).not.toBeNull())
     const first = drawingOf("src/one.ts")
 
     await userEvent.keyboard("s")
@@ -83,22 +122,27 @@ describe("the file after the one being read", () => {
     expect(shown("src/one.ts")).toBe(false)
   })
 
-  test("keeps only what is within reach, so a long review does not fill the tab", async () => {
-    // Two hundred files drawn at once is a tab that has to be closed. One
-    // either side is what a keypress can reach, and is therefore all that is
-    // worth holding.
+  test("keeps only what has been read, so a long review does not fill the tab", async () => {
     browsing("a.ts", "b.ts", "c.ts", "d.ts", "e.ts")
 
     await userEvent.keyboard("ss")
-    // The neighbours arrive one quiet moment at a time, and the cut back to
-    // what a key reaches is the last of those moments — so the settled set is
-    // what to wait for, not the first arrival.
-    await waitFor(() => {
-      expect(drawingOf("d.ts")).not.toBeNull()
-      expect(document.querySelectorAll("[data-file]")).toHaveLength(3)
-    })
 
+    await waitFor(() => expect(shown("c.ts")).toBe(true))
     expect(drawingOf("a.ts")).toBeNull()
-    expect(shown("c.ts")).toBe(true)
+    expect(drawingOf("e.ts")).toBeNull()
+    expect(document.querySelectorAll("[data-file]")).toHaveLength(3)
   })
+})
+
+test("draws a neighbouring file only when it becomes the one being read", async () => {
+  const idle = holdIdleTime()
+  window.requestAnimationFrame = () => 1
+  browsing("src/one.ts", "src/two.ts")
+
+  // The neighbour's patch may be fetched ahead of the reader, but drawing it
+  // costs a syntax highlight on the page. That is work a reader has not asked
+  // for, and the trace of a real pull request showed it as a 121ms task.
+  idle.runIdle()
+  expect(drawingOf("src/two.ts")).toBeNull()
+  expect(shown("src/one.ts")).toBe(true)
 })

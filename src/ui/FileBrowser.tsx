@@ -669,49 +669,22 @@ export const FileBrowser = ({
   }, [chosen, here, walk]);
 
   /*
-   * Drawing a file the reader has not asked for yet, once they have stopped
-   * asking for things.
+   * A file stays drawn once it has been read, so going back is instant.
    *
-   * Opening a file costs a parse, a highlight and a few thousand elements — a
-   * third of a second on a pull request of any size, and every millisecond of it
-   * inside the keypress that asked for the file, where it is felt as the page
-   * going away for a moment. The work does not get smaller by being moved, it
-   * gets invisible: done while the reader is reading, `s` has nothing left to do
-   * but show what is already there.
+   * Opening a file costs a parse, a highlight and a few thousand elements. That
+   * used to be spent on the neighbours too, while the reader was reading: the
+   * trace of a real pull request caught it as a 121ms task with no input behind
+   * it. Fetching ahead remains, so a file's patch is in memory before `s` asks
+   * for it; drawing it is what waits for the press, and is then drawn after the
+   * current file paints rather than inside the click's own commit.
    */
   useEffect(() => {
     if (here === undefined) return;
-
-    /*
-     * One file per quiet moment, not both neighbours in one commit.
-     *
-     * Together they were a single task of two parses, two highlights and a few
-     * thousand elements each, and the idle deadline made sure it ran within the
-     * second — which is exactly when the reader who clicked a file is scrolling
-     * the one they got. Next goes first, since `s` is the press being dodged;
-     * the last stage cuts the set back to what a key can reach, which mounts
-     * nothing and costs nothing.
-     */
-    const reach = withinReach([previous?.path, here, next?.path]);
-    return eachIdle(
-      [
-        ...withinReach([next?.path, previous?.path])
-          .filter((path) => path !== here)
-          .map(
-            (path) => () =>
-              setDrawn((held) => (held.includes(path) ? held : [...held, path])),
-          ),
-        () =>
-          setDrawn((held) =>
-            held.length === reach.length &&
-            reach.every((path) => held.includes(path))
-              ? held
-              : reach,
-          ),
-      ],
-      REACHING,
-    );
-  }, [here, previous?.path, next?.path]);
+    setDrawn((held) => {
+      if (held.includes(here)) return held;
+      return [...held, here];
+    });
+  }, [here]);
 
   // A file that has since been dropped from the pull request cannot be drawn.
   const showing = useMemo(

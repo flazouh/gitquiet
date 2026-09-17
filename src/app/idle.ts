@@ -22,14 +22,15 @@ const BY = 2_000
  * before the next frame, which is the whole thing this avoids.
  */
 export const whenIdle = (act: () => void, by: number = BY): (() => void) => {
-  const later = globalThis.requestIdleCallback
+  const view = typeof document === "undefined" ? null : document.defaultView
+  const later = view?.requestIdleCallback ?? globalThis.requestIdleCallback
   if (later === undefined) {
     const soon = setTimeout(act, 200)
     return () => clearTimeout(soon)
   }
 
-  const asked = later(() => act(), { timeout: by })
-  return () => globalThis.cancelIdleCallback?.(asked)
+  const asked = later.call(view, () => act(), { timeout: by })
+  return () => (view?.cancelIdleCallback ?? globalThis.cancelIdleCallback)?.call(view, asked)
 }
 
 /**
