@@ -314,9 +314,41 @@ holding three names is a token like any other. No grammar has to change for it.
    names. A Name that resolves through a stated import is Sure.
 3. **Everything else**, name and kind. Likely.
 
-A fourth tier — running the TypeScript compiler over the repository in a worker — is real and
-is not this. It is seconds of work and a great deal of memory for an answer the three tiers
+A fourth tier — running the TypeScript compiler over the repository in a worker — is real, is
+TypeScript and JavaScript only, and is not this. It is seconds of work and a great deal of memory for an answer the three tiers
 above already give for most Names, and it would be a setting a reader turns on, not a default.
+
+### A language is a vocabulary, not a resolver
+
+The walk is one piece of code and knows no language. What it asks a **Dialect** for is four
+things, every one of them a fact about a grammar rather than about following: which node types
+open a scope, which are a name being read, what a node binds into the scope around it and into
+the scope it opens, and what a statement passes on from somewhere else. `src/ledger/writings.ts`
+is the walk; `src/ledger/dialects/` holds one file per language, and `src/ledger/dialects.ts`
+picks one by extension exactly as `parse.ts` picks a grammar.
+
+Five languages read today — TypeScript, JavaScript, Python, Go and Rust — and the three grammars
+TypeScript, TSX and JavaScript need share one vocabulary, because they differ in what they accept
+and not in what they call a `lexical_declaration`.
+
+What each of the other three is worth saying:
+
+| | Its own rule |
+| --- | --- |
+| Python | A block is not a scope: names bind at the function. A `for` and an `except ... as` bind outward, so a loop variable is readable after its loop. A comprehension is a scope, and is the one place a Python name is hidden. |
+| Go | Four declarations wrap their names in a `_spec` node, so one keyword declares a list. A method is written outside its type, and its name is a `field_identifier`. A receiver is a parameter list with one parameter in it. |
+| Rust | Binds through a pattern in four places — a `for`, an `if let`, a `match` arm and a closure — each holding what it binds to itself. `impl` is a scope, and is where a type's methods actually live. |
+
+A `field_identifier` is a Name in none of them, for the reason `property_identifier` is not one in
+TypeScript: a field is reached through the thing that holds it, never written bare.
+
+The two lists are chosen apart on purpose. A grammar with no vocabulary parses a file nobody can
+ask a question about, which is a thing worth being able to say — and a test holds one list against
+the other, because a reader pressing a name and being told nothing, with nothing in the console to
+say why, is the one failure neither list would explain alone.
+
+What a language costs to add is that file and its tests. What it does not cost is anything in the
+walk, which is the whole reason the four questions are asked rather than known.
 
 ### Following is a port
 

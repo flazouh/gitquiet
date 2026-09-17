@@ -20,16 +20,23 @@ import type { Syntax } from "./syntax"
 /**
  * The languages with a grammar here, by the extensions people write them in.
  *
- * Three grammars for six extensions. TypeScript and TSX are separate grammars
+ * Six grammars for eleven extensions. TypeScript and TSX are separate grammars
  * and not one with a flag — `<T>x` is a type assertion in one and an unclosed
  * element in the other, and a file parsed by the wrong one is a file full of
- * errors. JavaScript is its own, and reads `.jsx` as well.
+ * errors. JavaScript is its own, and reads `.jsx` as well. Python, Go and Rust
+ * are one grammar each and one vocabulary each, and nothing about them is
+ * shared with the three above.
  *
  * It started at one, deliberately: the resolver was going to be written twice
  * before it was written well, and doing that across three languages at once
  * means finding out which third is wrong three times over. It is written now,
  * and what these cost is a `.wasm` each — measured on a repository of sixteen
  * files, of which fifteen were passed over for being JavaScript.
+ *
+ * The three added after it cost 1.8MB of `.wasm` between them and are fetched by
+ * the offscreen document, never by the content script. A grammar is compiled the
+ * first time a file wants it and not before, so a repository of TypeScript pays
+ * for none of them.
  *
  * The node types the resolver reads are the same in all three: these grammars
  * share their core, and `lexical_declaration` is what a `const` is in each. No
