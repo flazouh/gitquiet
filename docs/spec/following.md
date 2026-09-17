@@ -197,9 +197,19 @@ Every key is changeable under Settings, Keyboard, like the rest.
 - **No type inference.** A Name whose meaning depends on a value's type at a call site is a
   question a type checker answers, and there is no type checker here. Those Names get a Likely
   Writing or none.
-- **No following into a dependency's published code.** A package whose repository cannot be
-  guessed and checked is one this cannot reach — and reaching it would mean asking a registry,
-  which means telling somebody else what a private repository depends on.
+- **Following into a dependency's published code is the reader's to allow.** A package this
+  repository holds is free, and so is one whose name says which repository it is —
+  `@effect/platform` is `effect/effect`. What no guess reaches is a package nobody named after
+  its owner: `react` is not yours, and the name alone will never say it is `react/react`. Only a
+  registry knows, because a package says where it was written when it is published — and which
+  folder of that repository it sits in, so `scheduler` leads to `packages/scheduler` rather than
+  to the root. Asking carries the name of a package this repository depends on to somebody
+  else's server, which for a private repository is a thing a reader may not want said. So it is
+  the `registry` knob, and turning it off stops anything being asked at all. It is on, because
+  the tiers above it answer first and for nothing: a package this repository holds never reaches
+  it, and neither does one whose name proved to be its repository. What reaches it is a package
+  the free readings gave up on, which for most repositories is `react` and `zod` and nothing
+  private at all.
 - **No Ledger for a repository passed through.** Opening one file on a stranger's repository
   builds nothing. The Ledger starts when a reader opens a second file, or any pull request, in
   the same repository.

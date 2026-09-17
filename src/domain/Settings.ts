@@ -381,6 +381,14 @@ export const DIFF_KNOBS = [
     "off",
     true,
   ),
+  toggle(
+    "registry",
+    "Follow into published packages",
+    "Ask npm where a package was written",
+    "A package this repository holds is followed without asking anybody, and so is one whose name says which repository it is — `@effect/platform` is `effect/effect`. What no guess reaches is a package nobody named after its owner: `react` is not yours, `zod` is not yours, and the name alone will never say that `react` is `react/react`. So npm is asked where a package was published from, which is the one thing it knows that nothing here does — including which folder inside a repository it sits in, so `scheduler` leads to `packages/scheduler` and not to the root of `react`. Only where the free readings have already given up: a package in this repository never reaches it. Turn it off and nothing is ever asked, which is what you want if a name like `@yourorg/unreleased-thing` is itself worth keeping quiet.",
+    "on",
+    true,
+  ),
 ] as const
 
 /** The rail's knobs. */

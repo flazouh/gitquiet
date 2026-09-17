@@ -4,6 +4,7 @@ import type { Beyond, Reading, Where, Writing } from "../ports/Ledger"
 import type { Bounds, DiffHandle, Modifiers, Name } from "../ports/Renderer"
 import { reaching } from "../ledger/reaching"
 import { useLedger } from "./ledger"
+import { useSettings } from "./useSettings"
 import { sameName } from "../diff/engine"
 import { lineBounds, showLine } from "./showLine"
 import { onward } from "../observability/report"
@@ -203,6 +204,16 @@ export const useFollowing = (
   across?: Across
 ): Follows => {
   const ledger = useLedger()
+  /*
+   * Whether a package nothing here holds may be asked about elsewhere.
+   *
+   * The reader's, and theirs to turn off: asking a registry means telling
+   * somebody else the name of a package this repository depends on. It is asked
+   * last of all, so a package this repository holds never reaches it.
+   */
+  const { settings } = useSettings()
+  /** As a fact rather than as the settings, so the ask below depends on it. */
+  const askRegistry = settings.diff.registry === "on"
   /**
    * The text, once. A file is read at a commit and does not change underneath a
    * reader, so the first ask is the only one — which is what makes Following in
@@ -349,7 +360,13 @@ export const useFollowing = (
           if (across.repo === undefined || across.sha === undefined) return Effect.void
 
           return ledger
-            .beyond(across.repo, across.sha, found.borrowed.specifier, found.borrowed.name)
+            .beyond(
+              across.repo,
+              across.sha,
+              found.borrowed.specifier,
+              found.borrowed.name,
+              askRegistry
+            )
             .pipe(
               Effect.map((there) => {
                 if (there.path === undefined || (!insist && on.current?.name !== name)) return
@@ -426,7 +443,7 @@ export const useFollowing = (
         )
       )
     },
-    [across, asking, ledger, source]
+    [across, asking, askRegistry, ledger, source]
   )
 
   const onNameEnter = useCallback(

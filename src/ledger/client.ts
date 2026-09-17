@@ -147,7 +147,7 @@ export const ledgerThrough = (post: Post): Ledger => ({
     }).pipe(
       Effect.map((answer) => (answer ?? { places: [], ready: false }) as LedgerPlaces)
     ),
-  beyond: (repo, sha, specifier, name) =>
+  beyond: (repo, sha, specifier, name, registry) =>
     Effect.tryPromise({
       try: () =>
         post({
@@ -156,7 +156,8 @@ export const ledgerThrough = (post: Post): Ledger => ({
           repo: repo.repo,
           sha,
           specifier,
-          name
+          name,
+          ...(registry === undefined ? {} : { registry })
         } satisfies LedgerBeyond),
       catch: (cause) => new LedgerUnavailable({ cause })
     }).pipe(Effect.map((answer) => (answer ?? { why: "nothing answered" }) as LedgerFound)),
