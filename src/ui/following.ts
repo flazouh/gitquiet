@@ -265,9 +265,22 @@ export const useFollowing = (
 
   /** The underline and the card go together, and go away together. */
   const draw = useCallback((name: Name, writing: Writing, where?: string) => {
-    // Solid where a compiler answered, dotted where the shapes did. The reader
-    // sees which reading they are about to follow without being told.
-    handle.current?.mark(name, writing.exact === true ? "sure" : "likely")
+    /*
+     * Solid, because everything that reaches here is Sure.
+     *
+     * This drew dotted unless a compiler had answered, which read the line as
+     * "types or guesswork" when the spec's two words are Sure and Likely — and
+     * a Name resolved inside its own scope, or through an import this file
+     * states, is Sure by both of them. `Writing.sure` says as much and was
+     * ignored. With the compiler off, which is its default, that meant every
+     * underline in the file was drawn as a guess about an answer arrived at by
+     * proof.
+     *
+     * Dotted is kept for the one reading that really is a guess: a package
+     * whose repository was guessed and whose Writing is a name match. That is
+     * marked where it is drawn, further down.
+     */
+    handle.current?.mark(name, "sure")
     const at = handle.current?.boundsOf(name) ?? null
     setShown(at === null ? null : { writing, at, ...(where === undefined ? {} : { where }) })
     // Kept for the press that may follow, which cannot measure it again.

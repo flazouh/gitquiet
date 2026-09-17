@@ -911,16 +911,23 @@ describe("which reading answered, where the reader can see it", () => {
     expect(screen.getByText("Types")).toBeTruthy()
   })
 
-  test("underlines dotted where a reading of shapes answered", async () => {
+  /**
+   * And solid where the shapes answered, because that is Sure too.
+   *
+   * This asserted dotted, and the card beside it asserted "Sure" — the two
+   * halves of one screen disagreeing about the same answer. A Name resolved in
+   * its own scope, or through an import the file states, is Sure by the spec
+   * and says so on the card; the underline called it a guess. With the compiler
+   * off, which is its default, that was every underline in the file.
+   */
+  test("underlines solid where a reading of shapes answered, which is Sure", async () => {
     const stage = staged()
     await Effect.runPromise(settled())
 
     stage.request?.onNameEnter?.(name, held({ go: true }))
     await Effect.runPromise(settled())
 
-    // The same underline the reader was getting either way, drawn differently:
-    // nothing is added to the screen and the difference is visible anyway.
-    expect(stage.marked.at(-1)).toEqual([name, "likely"])
+    expect(stage.marked.at(-1)).toEqual([name, "sure"])
     expect(screen.getByText("Sure")).toBeTruthy()
   })
 })
