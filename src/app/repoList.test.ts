@@ -172,6 +172,48 @@ describe("reading one page of a repository's pull requests", () => {
     expect(listed.pages).toEqual(Option.some({ current: 1, total: 80, count: 1989 }))
   })
 
+  test("says the list is cut when GitHub reports the cap as the whole of it", async () => {
+    /*
+     * The answer above is the one GitHub does not give. Its search serves no
+     * result past the thousandth, so it never reports more than forty pages —
+     * `totalPages: 80` is a fixture being more generous than the service, and it
+     * is the reason this went unseen. The count beside it is the repository's
+     * own and is not capped, which is the only thing here that knows there is
+     * more.
+     *
+     * Measured on `OpenRouterTeam/openrouter-web`: 2,795 open pull requests, and
+     * the screen settled on "1000 pull requests" as though a thousand were all
+     * of them.
+     */
+    intercept((url) => {
+      if (url.includes("/pulls?q=")) {
+        return searchAnswer([aRow()], { currentPage: 1, totalPages: 40, totalCount: 2795 })
+      }
+      if (url.includes("merge_box")) return new Response("nope", { status: 500 })
+      return oneStranger(url)
+    })
+
+    const listed = await read()
+
+    expect(listed.pages).toEqual(Option.some({ current: 1, total: 40, count: 2795 }))
+  })
+
+  test("says nothing about paging when the last page held the last row", async () => {
+    // The other side of the rule above: forty pages that between them hold every
+    // row there is leaves nothing for the screen to say about a cut.
+    intercept((url) => {
+      if (url.includes("/pulls?q=")) {
+        return searchAnswer([aRow()], { currentPage: 1, totalPages: 40, totalCount: 40 })
+      }
+      if (url.includes("merge_box")) return new Response("nope", { status: 500 })
+      return oneStranger(url)
+    })
+
+    const listed = await read()
+
+    expect(listed.pages).toEqual(Option.none())
+  })
+
   test("refuses to show a repository whose list would not load", async () => {
     // Nothing rather than an empty list: a repository with two hundred open pull
     // requests and one whose search failed would otherwise be the same picture, and
