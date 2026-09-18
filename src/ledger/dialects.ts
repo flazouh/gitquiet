@@ -14,6 +14,7 @@
 
 import type { Dialect } from "./writings"
 import { GO } from "./dialects/go"
+import { JAVA } from "./dialects/java"
 import { PYTHON } from "./dialects/python"
 import { RUST } from "./dialects/rust"
 import { TYPESCRIPT } from "./dialects/typescript"
@@ -31,7 +32,8 @@ const DIALECTS: Readonly<Record<string, Dialect>> = {
   py: PYTHON,
   pyi: PYTHON,
   go: GO,
-  rs: RUST
+  rs: RUST,
+  java: JAVA
 }
 
 /**

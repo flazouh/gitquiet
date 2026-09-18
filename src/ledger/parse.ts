@@ -20,7 +20,7 @@ import type { Syntax } from "./syntax"
 /**
  * The languages with a grammar here, by the extensions people write them in.
  *
- * Six grammars for eleven extensions. TypeScript and TSX are separate grammars
+ * Seven grammars for twelve extensions. TypeScript and TSX are separate grammars
  * and not one with a flag — `<T>x` is a type assertion in one and an unclosed
  * element in the other, and a file parsed by the wrong one is a file full of
  * errors. JavaScript is its own, and reads `.jsx` as well. Python, Go and Rust
@@ -59,7 +59,8 @@ export const GRAMMARS: Readonly<Record<string, string>> = {
   py: "tree-sitter-python.wasm",
   pyi: "tree-sitter-python.wasm",
   go: "tree-sitter-go.wasm",
-  rs: "tree-sitter-rust.wasm"
+  rs: "tree-sitter-rust.wasm",
+  java: "tree-sitter-java.wasm"
 }
 
 /** Where the grammars and the runtime are, handed in rather than worked out. */

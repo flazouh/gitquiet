@@ -575,13 +575,17 @@ describe("what reading a big file costs", () => {
    * and 27KB in 297ms: four times the work for twice the file.
    *
    * With the comments gathered once, the same 27KB is 3ms and 392KB — which is
-   * the largest file `worthReading` will take — is 41ms. The budget below is
-   * fifty times that, because this runs under `bun test --parallel` with a worker
-   * per core and a tight one would be a test about the machine. Anything
-   * quadratic blows through it by orders of magnitude rather than by a little.
+   * the largest file `worthReading` will take — is 41ms.
+   *
+   * The file here is 109KB, which the fixed reading does in about 12ms and the
+   * quadratic one would take some 4.8 seconds over. The budget sits between them
+   * with a hundred times the headroom on one side and three times the margin on
+   * the other, because this runs under `bun test --parallel` with a worker per
+   * core: a tight budget would be a test about the machine, and a bigger file
+   * would be this test slowing every other one down.
    */
   test("grows with the file, not with the file times what is in it", async () => {
-    const big = SOURCE.repeat(256)
+    const big = SOURCE.repeat(128)
     const language = await Language.load(
       "node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-typescript.wasm"
     )
@@ -597,7 +601,7 @@ describe("what reading a big file costs", () => {
     tree.delete()
     parser.delete()
 
-    expect(writings.length).toBeGreaterThan(2_000)
-    expect(took).toBeLessThan(2_000)
+    expect(writings.length).toBeGreaterThan(1_000)
+    expect(took).toBeLessThan(1_500)
   })
 })

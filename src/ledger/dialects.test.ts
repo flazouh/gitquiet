@@ -3,6 +3,7 @@ import { dialectFor } from "./dialects"
 import { GRAMMARS } from "./parse"
 import { GO } from "./dialects/go"
 import { PYTHON } from "./dialects/python"
+import { JAVA } from "./dialects/java"
 import { RUST } from "./dialects/rust"
 import { TYPESCRIPT } from "./dialects/typescript"
 
@@ -23,17 +24,18 @@ describe("the vocabulary for a path", () => {
     }
   })
 
-  test("reads Python, Go and Rust", () => {
+  test("reads Python, Go, Rust and Java", () => {
     expect(dialectFor("a.py")).toBe(PYTHON)
     expect(dialectFor("a.pyi")).toBe(PYTHON)
     expect(dialectFor("a.go")).toBe(GO)
     expect(dialectFor("a.rs")).toBe(RUST)
+    expect(dialectFor("Box.java")).toBe(JAVA)
   })
 
   test("answers nothing for a language nothing here reads", () => {
     expect(dialectFor("README.md")).toBeNull()
-    expect(dialectFor("a.java")).toBeNull()
     expect(dialectFor("a.rb")).toBeNull()
+    expect(dialectFor("a.cpp")).toBeNull()
   })
 
   test("reads the last dot of the last segment", () => {
