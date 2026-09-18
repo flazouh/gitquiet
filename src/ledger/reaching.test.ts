@@ -171,3 +171,73 @@ describe("a file of a package this repository holds", () => {
     expect(deep).toBe("packages/shared/src/schemas/index.ts")
   })
 })
+
+describe("a Python module name, as a path", () => {
+  const paths = new Set([
+    "pkg/__init__.py",
+    "pkg/local.py",
+    "pkg/deep/__init__.py",
+    "pkg/deep/thing.py",
+    "other/mod.py",
+    "top.py",
+    "src/laid/out.py"
+  ])
+
+  test("one dot is the package the file is in", () => {
+    expect(reaching("pkg/mod.py", ".local", paths)).toBe("pkg/local.py")
+  })
+
+  test("a dot and no name is the package's own __init__", () => {
+    expect(reaching("pkg/mod.py", ".", paths)).toBe("pkg/__init__.py")
+  })
+
+  test("a folder with an __init__ is a module too", () => {
+    expect(reaching("pkg/mod.py", ".deep", paths)).toBe("pkg/deep/__init__.py")
+  })
+
+  test("dots join with dots, not with slashes", () => {
+    expect(reaching("pkg/mod.py", ".deep.thing", paths)).toBe("pkg/deep/thing.py")
+  })
+
+  test("two dots climb one package, not one folder", () => {
+    expect(reaching("pkg/deep/mod.py", "..local", paths)).toBe("pkg/local.py")
+  })
+
+  test("a name with no dot is tried at the root and under src", () => {
+    expect(reaching("pkg/mod.py", "top", paths)).toBe("top.py")
+    expect(reaching("pkg/mod.py", "laid.out", paths)).toBe("src/laid/out.py")
+  })
+
+  test("a module the repository does not hold reaches nothing", () => {
+    // `math` is the standard library's, which is not a file here.
+    expect(reaching("pkg/mod.py", "math", paths)).toBeNull()
+  })
+
+  test("climbing past the top reaches nothing", () => {
+    expect(reaching("mod.py", "...local", paths)).toBeNull()
+  })
+})
+
+describe("a Rust path, as a file", () => {
+  const paths = new Set(["src/a/b.rs", "src/only/mod.rs", "src/lib.rs"])
+
+  test("crate:: reads from the crate root", () => {
+    expect(reaching("src/main.rs", "crate::a::b", paths)).toBe("src/a/b.rs")
+  })
+
+  test("a module written as a folder is found by its mod.rs", () => {
+    expect(reaching("src/main.rs", "crate::only", paths)).toBe("src/only/mod.rs")
+  })
+
+  test("another crate is outside the repository", () => {
+    expect(reaching("src/main.rs", "std::io", paths)).toBeNull()
+    expect(reaching("src/main.rs", "serde::Deserialize", paths)).toBeNull()
+  })
+
+  test("self and super are not guessed at", () => {
+    // Which file a `self::` means depends on the `mod` items a file writes, and
+    // guessing between the two it could be is offering a reader a file at random.
+    expect(reaching("src/a/b.rs", "self::thing", paths)).toBeNull()
+    expect(reaching("src/a/b.rs", "super::thing", paths)).toBeNull()
+  })
+})

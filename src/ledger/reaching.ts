@@ -63,6 +63,10 @@ const plainly = (path: string): string | null => {
  * judgement, and a judgement with a test on it is one somebody can argue with.
  */
 export const couldBe = (from: string, specifier: string): ReadonlyArray<string> => {
+  const extension = from.slice(from.lastIndexOf(".") + 1).toLowerCase()
+  if (extension === "py" || extension === "pyi") return couldBePython(from, specifier)
+  if (extension === "rs") return couldBeRust(specifier)
+
   if (!specifier.startsWith(".")) return []
 
   const folder = from.slice(0, Math.max(0, from.lastIndexOf("/")))
@@ -70,6 +74,80 @@ export const couldBe = (from: string, specifier: string): ReadonlyArray<string> 
   if (asked === null) return []
 
   return endingsFor(asked)
+}
+
+/**
+ * What a Python module name could be, as a path.
+ *
+ * Python names a module and not a file, and the two differ in three ways that
+ * each cost a candidate. A module is `thing.py` or the folder `thing/` with an
+ * `__init__.py` in it. Its parts are separated by dots rather than by slashes.
+ * And a leading dot means relative, counted in packages rather than in folders:
+ * one dot is the package this file is in, two is the one above it, and there is
+ * no `./` that means the same as no dot at all.
+ *
+ * `from . import one` is a specifier of one dot and no name, which means the
+ * package's own `__init__.py` — a real answer, and the one a barrel is written
+ * as in this language.
+ *
+ * An absolute name is tried at the repository's root and under `src/`, which are
+ * where a package is laid out when it is not installed. Everything here is
+ * checked against the paths the repository really holds, so a name that is also
+ * a module of the standard library reaches nothing rather than reaching the
+ * wrong thing.
+ */
+const couldBePython = (from: string, specifier: string): ReadonlyArray<string> => {
+  const dots = specifier.length - specifier.replace(/^\.+/, "").length
+  const rest = specifier.slice(dots)
+  const parts = rest === "" ? [] : rest.split(".")
+
+  if (dots === 0) {
+    const asked = parts.join("/")
+    if (asked === "") return []
+    return [...pythonEndings(asked), ...pythonEndings(`src/${asked}`)]
+  }
+
+  // One dot is this file's own package, which is its folder. Every dot after the
+  // first climbs one package further up.
+  const folder = from.slice(0, Math.max(0, from.lastIndexOf("/")))
+  const up = folder === "" ? [] : folder.split("/")
+  if (dots - 1 > up.length) return []
+  const base = up.slice(0, up.length - (dots - 1))
+
+  const asked = [...base, ...parts].join("/")
+  if (asked === "") return []
+  if (parts.length === 0) return [`${asked}/__init__.py`, `${asked}/__init__.pyi`]
+  return pythonEndings(asked)
+}
+
+/** A Python module path as the two files it could be, best first. */
+const pythonEndings = (asked: string): ReadonlyArray<string> => [
+  `${asked}.py`,
+  `${asked}/__init__.py`,
+  `${asked}.pyi`,
+  `${asked}/__init__.pyi`
+]
+
+/**
+ * What a Rust path could be, as a file.
+ *
+ * `crate::a::b` and nothing else. A crate's root is `src/`, a module is `a.rs`
+ * or `a/mod.rs`, and those two are the whole of what is worth guessing.
+ *
+ * `self::` and `super::` are not here. Both are relative to the module a file
+ * declares rather than to the file itself — `src/x/y.rs` declaring `mod a` puts
+ * `a` at `src/x/y/a.rs`, and the same file reached as `src/x/y/mod.rs` puts it
+ * at `src/x/y/a.rs` too. Reading `mod` items is what tells those apart, and
+ * guessing between them would be offering a reader a file at random.
+ *
+ * `std::`, and any other crate, is outside the repository, which is the same
+ * answer every dependency gets everywhere else here.
+ */
+const couldBeRust = (specifier: string): ReadonlyArray<string> => {
+  const parts = specifier.split("::").filter((part) => part !== "")
+  if (parts[0] !== "crate" || parts.length < 2) return []
+  const asked = parts.slice(1).join("/")
+  return [`src/${asked}.rs`, `src/${asked}/mod.rs`]
 }
 
 /**
