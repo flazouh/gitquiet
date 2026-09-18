@@ -20,7 +20,7 @@
  */
 
 import type { Borrowed, Bound, Dialect, Offering, WritingKind } from "../writings"
-import { childrenOf, type Syntax } from "../syntax"
+import { childrenOf, kindFrom, textOf, type Syntax } from "../syntax"
 
 /**
  * The node types that open a scope.
@@ -59,21 +59,18 @@ const OPENS: ReadonlySet<string> = new Set([
 const NAMES: ReadonlySet<string> = new Set(["identifier", "type_identifier"])
 
 /** What a declaring node's kind is called, for the card and the outline. */
-const kindOf = (declaring: string): WritingKind => {
-  if (
-    declaring === "function_declaration" ||
-    declaring === "method_declaration" ||
-    declaring === "func_literal"
-  ) {
-    return "function"
-  }
-  if (declaring === "type_spec" || declaring === "type_alias") return "type"
-  if (declaring === "parameter_declaration" || declaring === "variadic_parameter_declaration") {
-    return "parameter"
-  }
-  if (declaring === "import_spec") return "import"
-  return "value"
+const KINDS: Readonly<Record<string, WritingKind>> = {
+  function_declaration: "function",
+  method_declaration: "function",
+  func_literal: "function",
+  type_spec: "type",
+  type_alias: "type",
+  parameter_declaration: "parameter",
+  variadic_parameter_declaration: "parameter",
+  import_spec: "import"
 }
+
+const kindOf = kindFrom(KINDS)
 
 /**
  * The names in a target, which Go writes as a list even when there is one.
@@ -97,14 +94,9 @@ const namesIn = function* (list: Syntax | null): Generator<Syntax> {
 }
 
 /** The path an import names, without its quotes. */
-const pathOf = (node: Syntax | null): string | null => {
-  if (node === null) return null
-  if (node.type !== "interpreted_string_literal" && node.type !== "raw_string_literal") return null
-  for (const child of childrenOf(node)) {
-    if (child.type.endsWith("_content")) return child.text
-  }
-  return null
-}
+const STRINGS: ReadonlySet<string> = new Set(["interpreted_string_literal", "raw_string_literal"])
+
+const pathOf = (node: Syntax | null): string | null => textOf(node, STRINGS)
 
 /**
  * What a `_spec` declares, for the four declarations that hold one.
@@ -148,7 +140,7 @@ const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyA
     case "const_declaration":
     case "var_declaration":
     case "type_declaration": {
-      for (const spec of childrenOf(node)) yield_(outer, specNames(spec))
+      for (const spec of childrenOf(node)) outer.push(...specNames(spec))
       break
     }
     case "short_var_declaration": {
@@ -195,10 +187,10 @@ const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyA
     case "import_declaration": {
       for (const spec of childrenOf(node)) {
         if (spec.type === "import_spec_list") {
-          for (const one of childrenOf(spec)) yield_(outer, importedBy(one))
+          for (const one of childrenOf(spec)) outer.push(...importedBy(one))
           continue
         }
-        yield_(outer, importedBy(spec))
+        outer.push(...importedBy(spec))
       }
       break
     }
@@ -236,11 +228,6 @@ const importedBy = function* (spec: Syntax): Generator<Bound> {
   }
   // No node holds the implied name, so nothing can be pressed on it and nothing
   // is bound. What the file borrowed is still said, by `passedOn`.
-}
-
-/** Pushes a generator's items onto an array, which Go's grouped specs need twice. */
-const yield_ = (into: Array<Bound>, from: Iterable<Bound>): void => {
-  for (const one of from) into.push(one)
 }
 
 /** What a value says about the kind of the name it is given to. */

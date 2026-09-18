@@ -12,6 +12,7 @@
  * underline on, which is exactly what a `.md` file gets and always did.
  */
 
+import { extensionOf } from "./syntax"
 import type { Dialect } from "./writings"
 import { CPP } from "./dialects/cpp"
 import { CSHARP } from "./dialects/csharp"
@@ -58,8 +59,6 @@ const DIALECTS: Readonly<Record<string, Dialect>> = {
  * `Component.test.tsx` is `tsx` rather than `test.tsx`.
  */
 export const dialectFor = (path: string): Dialect | null => {
-  const name = path.slice(path.lastIndexOf("/") + 1)
-  const dot = name.lastIndexOf(".")
-  if (dot <= 0) return null
-  return DIALECTS[name.slice(dot + 1).toLowerCase()] ?? null
+  const extension = extensionOf(path)
+  return extension === null ? null : (DIALECTS[extension] ?? null)
 }

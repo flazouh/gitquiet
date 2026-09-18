@@ -16,8 +16,8 @@
  * is the same field said the long way.
  */
 
-import type { Borrowed, Bound, Dialect, Offering, WritingKind } from "../writings"
-import { childrenOf, type Syntax } from "../syntax"
+import type { Bound, Dialect, Offering, WritingKind } from "../writings"
+import { childrenOf, kindFrom, lastNameIn, pathBefore, type Syntax } from "../syntax"
 
 /**
  * The node types that open a scope.
@@ -57,28 +57,23 @@ const OPENS: ReadonlySet<string> = new Set([
 const NAMES: ReadonlySet<string> = new Set(["identifier", "type_identifier"])
 
 /** What a declaring node's kind is called, for the card and the outline. */
-const kindOf = (declaring: string): WritingKind => {
-  if (declaring === "class_declaration" || declaring === "record_declaration") return "class"
-  if (
-    declaring === "interface_declaration" ||
-    declaring === "enum_declaration" ||
-    declaring === "annotation_type_declaration"
-  ) {
-    return "type"
-  }
-  if (
-    declaring === "method_declaration" ||
-    declaring === "constructor_declaration" ||
-    declaring === "compact_constructor_declaration" ||
-    declaring === "field_declaration" ||
-    declaring === "enum_constant"
-  ) {
-    return "member"
-  }
-  if (declaring === "formal_parameter" || declaring === "type_parameter") return "parameter"
-  if (declaring === "import_declaration") return "import"
-  return "value"
+const KINDS: Readonly<Record<string, WritingKind>> = {
+  class_declaration: "class",
+  record_declaration: "class",
+  interface_declaration: "type",
+  enum_declaration: "type",
+  annotation_type_declaration: "type",
+  method_declaration: "member",
+  constructor_declaration: "member",
+  compact_constructor_declaration: "member",
+  field_declaration: "member",
+  enum_constant: "member",
+  formal_parameter: "parameter",
+  type_parameter: "parameter",
+  import_declaration: "import"
 }
+
+const kindOf = kindFrom(KINDS)
 
 /**
  * The names a declarator list writes down.
@@ -95,14 +90,9 @@ const declared = function* (node: Syntax): Generator<Syntax> {
 }
 
 /** The last segment of a dotted name, which is the name an import binds. */
-const lastOf = (path: Syntax): Syntax | null => {
-  if (path.type === "identifier") return path
-  if (path.type === "scoped_identifier") {
-    const name = path.childForFieldName("name")
-    return name === null ? null : lastOf(name)
-  }
-  return null
-}
+const DOTTED: ReadonlySet<string> = new Set(["scoped_identifier"])
+
+const lastOf = (path: Syntax): Syntax | null => lastNameIn(path, "identifier", DOTTED)
 
 /** What a node binds, into the scope it sits in and into the scope it opens. */
 const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyArray<Bound> } => {
@@ -187,13 +177,12 @@ const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyA
         const name = lastOf(child)
         if (name === null) continue
         const whole = child.text
-        const dot = whole.lastIndexOf(".")
         outer.push({
           name,
           kind: "import",
           from: {
             name: name.text,
-            specifier: dot === -1 ? whole : whole.slice(0, dot)
+            specifier: pathBefore(whole, ".")
           }
         })
       }
@@ -204,16 +193,6 @@ const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyA
   }
 
   return { outer, inner }
-}
-
-/**
- * What a file passes on from somewhere else, which for Java is nothing.
- *
- * There is no re-export. A name arrives through an `import`, which is a binding
- * and is recorded as one.
- */
-const passedOn = function* (_statement: Syntax): Generator<Borrowed> {
-  // Nothing, said as a generator so the shape matches every other Dialect.
 }
 
 /** Where the file stops offering and starts working. */
@@ -297,7 +276,6 @@ export const JAVA: Dialect = {
   opens: OPENS,
   names: NAMES,
   bindings,
-  passedOn,
   comments: COMMENTS,
   offering
 }

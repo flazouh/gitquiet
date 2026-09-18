@@ -113,8 +113,14 @@ export type Dialect = {
     readonly outer: ReadonlyArray<Bound>
     readonly inner: ReadonlyArray<Bound>
   }
-  /** What a statement passes on from somewhere else, which is a re-export. */
-  readonly passedOn: (statement: Syntax) => Iterable<Borrowed>
+  /**
+   * What a statement passes on from somewhere else, which is a re-export.
+   *
+   * Absent where the language has none. Five of the ten carried an empty
+   * generator to satisfy the shape, which is five files saying nothing in a way
+   * that reads like they say something.
+   */
+  readonly passedOn?: (statement: Syntax) => Iterable<Borrowed>
   /**
    * The node types that are a comment.
    *
@@ -152,7 +158,6 @@ export type Bound = {
   /** Where it came from, on an import and nowhere else. */
   readonly from?: Borrowed
 }
-
 
 /**
  * What one scope declares, gathered by walking it and stopping at the scopes
@@ -369,7 +374,6 @@ const docked = (
   return { ...writing, doc: clean(comment.text) }
 }
 
-
 /** A comment as prose: the fences, the stars and the slashes taken off. */
 const clean = (comment: string): string =>
   comment
@@ -516,7 +520,9 @@ export const toldBy = (root: Syntax, source: string, dialect: Dialect): Told => 
 
     // A re-export borrows without binding, so it is walked for on its own and
     // adds to `borrows` and to nothing else. See {@link passedOn}.
-    for (const from of dialect.passedOn(node)) borrows.push(from)
+    if (dialect.passedOn !== undefined) {
+      for (const from of dialect.passedOn(node)) borrows.push(from)
+    }
 
     for (const child of childrenOf(node)) walk(child)
   }

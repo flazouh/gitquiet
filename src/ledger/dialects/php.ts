@@ -16,8 +16,8 @@
  * their names are bound and a bare `risky()` resolves.
  */
 
-import type { Borrowed, Bound, Dialect, Offering, WritingKind } from "../writings"
-import { childrenOf, type Syntax } from "../syntax"
+import type { Bound, Dialect, Offering, WritingKind } from "../writings"
+import { childrenOf, kindFrom, lastNameIn, pathBefore, type Syntax } from "../syntax"
 
 /**
  * The node types that open a scope.
@@ -49,27 +49,21 @@ const OPENS: ReadonlySet<string> = new Set([
 const NAMES: ReadonlySet<string> = new Set(["name"])
 
 /** What a declaring node's kind is called, for the card and the outline. */
-const kindOf = (declaring: string): WritingKind => {
-  if (
-    declaring === "function_definition" ||
-    declaring === "anonymous_function" ||
-    declaring === "anonymous_function_creation_expression" ||
-    declaring === "arrow_function"
-  ) {
-    return "function"
-  }
-  if (declaring === "class_declaration") return "class"
-  if (
-    declaring === "interface_declaration" ||
-    declaring === "trait_declaration" ||
-    declaring === "enum_declaration"
-  ) {
-    return "type"
-  }
-  if (declaring === "method_declaration" || declaring === "property_declaration") return "member"
-  if (declaring === "namespace_use_clause") return "import"
-  return "value"
+const KINDS: Readonly<Record<string, WritingKind>> = {
+  function_definition: "function",
+  anonymous_function: "function",
+  anonymous_function_creation_expression: "function",
+  arrow_function: "function",
+  class_declaration: "class",
+  interface_declaration: "type",
+  trait_declaration: "type",
+  enum_declaration: "type",
+  method_declaration: "member",
+  property_declaration: "member",
+  namespace_use_clause: "import"
 }
+
+const kindOf = kindFrom(KINDS)
 
 /**
  * The `name` inside a node, which for a variable is the half without the dollar.
@@ -93,15 +87,9 @@ const nameIn = (node: Syntax | null): Syntax | null => {
 }
 
 /** The last segment of a qualified name, which is what a `use` binds. */
-const lastOf = (node: Syntax): Syntax | null => {
-  if (node.type === "name") return node
-  if (node.type !== "qualified_name") return null
-  let last: Syntax | null = null
-  for (const child of childrenOf(node)) {
-    if (child.type === "name") last = child
-  }
-  return last
-}
+const DOTTED: ReadonlySet<string> = new Set(["qualified_name", "namespace_name"])
+
+const lastOf = (node: Syntax): Syntax | null => lastNameIn(node, "name", DOTTED)
 
 /** What a node binds, into the scope it sits in and into the scope it opens. */
 const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyArray<Bound> } => {
@@ -224,13 +212,12 @@ const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyA
         const name = alias ?? was
         if (name === null) continue
         const whole = under === "" ? path.text : `${under}\\${path.text}`
-        const slash = whole.lastIndexOf("\\")
         outer.push({
           name,
           kind: "import",
           from: {
             name: was === null ? name.text : was.text,
-            specifier: slash === -1 ? whole : whole.slice(0, slash)
+            specifier: pathBefore(whole, "\\")
           }
         })
       }
@@ -241,19 +228,6 @@ const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyA
   }
 
   return { outer, inner }
-}
-
-/**
- * What a file passes on from somewhere else, which for PHP is nothing.
- *
- * There is no re-export. A name arrives through `use`, which is a binding and is
- * recorded as one. `require` and `include` name a file and bind nothing at all —
- * whatever the file defined is simply there afterwards — and neither is recorded
- * here, because a path built at runtime out of a constant is not a path this can
- * check against anything.
- */
-const passedOn = function* (_statement: Syntax): Generator<Borrowed> {
-  // Nothing, said as a generator so the shape matches every other Dialect.
 }
 
 /** Where the file stops offering and starts working. */
@@ -319,7 +293,6 @@ export const PHP: Dialect = {
   opens: OPENS,
   names: NAMES,
   bindings,
-  passedOn,
   comments: COMMENTS,
   offering
 }

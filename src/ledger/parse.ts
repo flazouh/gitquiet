@@ -15,6 +15,7 @@
 
 import { Effect } from "effect"
 import { Language, Parser, type Tree } from "web-tree-sitter"
+import { extensionOf } from "./syntax"
 import type { Syntax } from "./syntax"
 
 /**
@@ -91,14 +92,8 @@ export type Shelf = {
 
 /** The grammar a path is written in, or nothing, which is most paths. */
 export const grammarFor = (path: string): string | null => {
-  const name = path.slice(path.lastIndexOf("/") + 1)
-  const dot = name.lastIndexOf(".")
-  if (dot <= 0) return null
-
-  // `.d.ts` is TypeScript and its last extension is `ts`, so the plain rule
-  // already holds. A name with no dot but for a leading one — `.gitignore` — is
-  // not an extension, which is what the `<= 0` above says.
-  return GRAMMARS[name.slice(dot + 1).toLowerCase()] ?? null
+  const extension = extensionOf(path)
+  return extension === null ? null : (GRAMMARS[extension] ?? null)
 }
 
 let started: Effect.Effect<void, unknown> | undefined

@@ -23,7 +23,7 @@
  */
 
 import type { Borrowed, Bound, Dialect, Offering, WritingKind } from "../writings"
-import { childrenOf, type Syntax } from "../syntax"
+import { childrenOf, kindFrom, namesUnder, textOf, type Syntax } from "../syntax"
 
 /**
  * The node types that open a scope.
@@ -54,14 +54,16 @@ const OPENS: ReadonlySet<string> = new Set([
 const NAMES: ReadonlySet<string> = new Set(["identifier", "constant"])
 
 /** What a declaring node's kind is called, for the card and the outline. */
-const kindOf = (declaring: string): WritingKind => {
-  if (declaring === "method" || declaring === "singleton_method" || declaring === "lambda") {
-    return "function"
-  }
-  if (declaring === "class" || declaring === "singleton_class") return "class"
-  if (declaring === "module") return "type"
-  return "value"
+const KINDS: Readonly<Record<string, WritingKind>> = {
+  method: "function",
+  singleton_method: "function",
+  lambda: "function",
+  class: "class",
+  singleton_class: "class",
+  module: "type"
 }
+
+const kindOf = kindFrom(KINDS)
 
 /**
  * A binding target's names, which is one or a list of them.
@@ -71,20 +73,10 @@ const kindOf = (declaring: string): WritingKind => {
  * `@size = n`, `self.size = n` — binds nothing: both write through something
  * rather than writing a name down.
  */
-const boundBy = function* (target: Syntax | null): Generator<Syntax> {
-  if (target === null) return
-  if (target.type === "identifier" || target.type === "constant") {
-    yield target
-    return
-  }
-  if (
-    target.type === "left_assignment_list" ||
-    target.type === "rest_assignment" ||
-    target.type === "destructured_left_assignment"
-  ) {
-    for (const child of childrenOf(target)) yield* boundBy(child)
-  }
-}
+const boundBy = namesUnder(
+  new Set(["identifier", "constant"]),
+  new Set(["left_assignment_list", "rest_assignment", "destructured_left_assignment"])
+)
 
 /** The names a parameter list writes down, whatever shape each parameter is. */
 const parameterNames = function* (list: Syntax): Generator<Syntax> {
@@ -104,13 +96,9 @@ const parameterNames = function* (list: Syntax): Generator<Syntax> {
 }
 
 /** The text a string literal holds, without its quotes. */
-const stringOf = (node: Syntax): string | null => {
-  if (node.type !== "string") return null
-  for (const child of childrenOf(node)) {
-    if (child.type === "string_content") return child.text
-  }
-  return null
-}
+const STRINGS: ReadonlySet<string> = new Set(["string"])
+
+const stringOf = (node: Syntax): string | null => textOf(node, STRINGS)
 
 /** What a node binds, into the scope it sits in and into the scope it opens. */
 const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyArray<Bound> } => {

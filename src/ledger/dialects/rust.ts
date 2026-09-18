@@ -20,8 +20,8 @@
  * later without the vocabulary changing.
  */
 
-import type { Borrowed, Bound, Dialect, Offering, WritingKind } from "../writings"
-import { childrenOf, type Syntax } from "../syntax"
+import type { Bound, Dialect, Offering, WritingKind } from "../writings"
+import { childrenOf, kindFrom, namesUnder, type Syntax } from "../syntax"
 
 /**
  * The node types that open a scope.
@@ -65,27 +65,21 @@ const OPENS: ReadonlySet<string> = new Set([
 const NAMES: ReadonlySet<string> = new Set(["identifier", "type_identifier"])
 
 /** What a declaring node's kind is called, for the card and the outline. */
-const kindOf = (declaring: string): WritingKind => {
-  if (
-    declaring === "function_item" ||
-    declaring === "function_signature_item" ||
-    declaring === "closure_expression"
-  ) {
-    return "function"
-  }
-  if (
-    declaring === "struct_item" ||
-    declaring === "enum_item" ||
-    declaring === "trait_item" ||
-    declaring === "union_item" ||
-    declaring === "type_item"
-  ) {
-    return "type"
-  }
-  if (declaring === "parameter" || declaring === "type_parameter") return "parameter"
-  if (declaring === "use_declaration") return "import"
-  return "value"
+const KINDS: Readonly<Record<string, WritingKind>> = {
+  function_item: "function",
+  function_signature_item: "function",
+  closure_expression: "function",
+  struct_item: "type",
+  enum_item: "type",
+  trait_item: "type",
+  union_item: "type",
+  type_item: "type",
+  parameter: "parameter",
+  type_parameter: "parameter",
+  use_declaration: "import"
 }
+
+const kindOf = kindFrom(KINDS)
 
 /**
  * A pattern's names, which is one identifier or a nest of them.
@@ -99,27 +93,21 @@ const kindOf = (declaring: string): WritingKind => {
  * here. Which is why a tuple struct pattern is walked for its own children
  * rather than taken whole.
  */
-const boundBy = function* (pattern: Syntax | null): Generator<Syntax> {
-  if (pattern === null) return
-  if (pattern.type === "identifier") {
-    yield pattern
-    return
-  }
-  if (
-    pattern.type === "tuple_pattern" ||
-    pattern.type === "tuple_struct_pattern" ||
-    pattern.type === "struct_pattern" ||
-    pattern.type === "slice_pattern" ||
-    pattern.type === "ref_pattern" ||
-    pattern.type === "mut_pattern" ||
-    pattern.type === "or_pattern" ||
-    pattern.type === "reference_pattern" ||
-    pattern.type === "field_pattern" ||
-    pattern.type === "captured_pattern"
-  ) {
-    for (const child of childrenOf(pattern)) yield* boundBy(child)
-  }
-}
+const boundBy = namesUnder(
+  new Set(["identifier"]),
+  new Set([
+    "tuple_pattern",
+    "tuple_struct_pattern",
+    "struct_pattern",
+    "slice_pattern",
+    "ref_pattern",
+    "mut_pattern",
+    "or_pattern",
+    "reference_pattern",
+    "field_pattern",
+    "captured_pattern"
+  ])
+)
 
 /**
  * What one `use` tree brings into the file, and where each name came from.
@@ -288,7 +276,7 @@ const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyA
     case "use_declaration": {
       const argument = node.childForFieldName("argument")
       // Under nothing: the argument is the whole path, and `used` splits it.
-      if (argument !== null) yield_(outer, used(argument, ""))
+      if (argument !== null) outer.push(...used(argument, ""))
       break
     }
     default:
@@ -296,23 +284,6 @@ const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyA
   }
 
   return { outer, inner }
-}
-
-/** Pushes a generator's items onto an array. */
-const yield_ = (into: Array<Bound>, from: Iterable<Bound>): void => {
-  for (const one of from) into.push(one)
-}
-
-/**
- * What a file passes on from somewhere else, which for Rust is nothing here.
- *
- * `pub use a::b` is a re-export and is a real thing to record. It is not
- * recorded yet, because a Rust path resolves against a crate rather than against
- * the tree of files an archive holds, and a Borrowed nothing can follow is a
- * Borrowed that only makes a card say less.
- */
-const passedOn = function* (_statement: Syntax): Generator<Borrowed> {
-  // Nothing, said as a generator so the shape matches every other Dialect.
 }
 
 /** Where the file stops offering and starts working. */
@@ -325,7 +296,19 @@ const BODIES: ReadonlySet<string> = new Set(["block", "closure_expression"])
  * or an `impl`. An `impl` is where a type's methods actually live in Rust, so
  * this is the only way the outline offers them at all.
  */
+/** The node types that hold members, checked before any field is asked for. */
+const HOLDS_MEMBERS: ReadonlySet<string> = new Set([
+  "struct_item",
+  "union_item",
+  "enum_item",
+  "impl_item",
+  "trait_item"
+])
+
 const membersFor = (node: Syntax): ReadonlyArray<Bound> | null => {
+  // The type first: this is asked of every node in the file, and a field lookup
+  // is a call across the WebAssembly boundary.
+  if (!HOLDS_MEMBERS.has(node.type)) return null
   const body = node.childForFieldName("body")
   if (body === null) return null
 
@@ -390,7 +373,6 @@ export const RUST: Dialect = {
   opens: OPENS,
   names: NAMES,
   bindings,
-  passedOn,
   comments: COMMENTS,
   offering
 }

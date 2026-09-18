@@ -19,8 +19,8 @@
  * `Limit` in the file's outline.
  */
 
-import type { Borrowed, Bound, Dialect, Offering, WritingKind } from "../writings"
-import { childrenOf, type Syntax } from "../syntax"
+import type { Bound, Dialect, Offering, WritingKind } from "../writings"
+import { childrenOf, kindFrom, lastNameIn, pathBefore, type Syntax } from "../syntax"
 
 /** The node types that open a scope. */
 const OPENS: ReadonlySet<string> = new Set([
@@ -59,37 +59,27 @@ const OPENS: ReadonlySet<string> = new Set([
 const NAMES: ReadonlySet<string> = new Set(["identifier"])
 
 /** What a declaring node's kind is called, for the card and the outline. */
-const kindOf = (declaring: string): WritingKind => {
-  if (
-    declaring === "class_declaration" ||
-    declaring === "record_declaration" ||
-    declaring === "record_struct_declaration" ||
-    declaring === "struct_declaration"
-  ) {
-    return "class"
-  }
-  if (
-    declaring === "interface_declaration" ||
-    declaring === "enum_declaration" ||
-    declaring === "delegate_declaration"
-  ) {
-    return "type"
-  }
-  if (
-    declaring === "method_declaration" ||
-    declaring === "constructor_declaration" ||
-    declaring === "property_declaration" ||
-    declaring === "field_declaration" ||
-    declaring === "event_field_declaration" ||
-    declaring === "enum_member_declaration" ||
-    declaring === "indexer_declaration"
-  ) {
-    return "member"
-  }
-  if (declaring === "parameter" || declaring === "type_parameter") return "parameter"
-  if (declaring === "using_directive") return "import"
-  return "value"
+const KINDS: Readonly<Record<string, WritingKind>> = {
+  class_declaration: "class",
+  record_declaration: "class",
+  record_struct_declaration: "class",
+  struct_declaration: "class",
+  interface_declaration: "type",
+  enum_declaration: "type",
+  delegate_declaration: "type",
+  method_declaration: "member",
+  constructor_declaration: "member",
+  property_declaration: "member",
+  field_declaration: "member",
+  event_field_declaration: "member",
+  enum_member_declaration: "member",
+  indexer_declaration: "member",
+  parameter: "parameter",
+  type_parameter: "parameter",
+  using_directive: "import"
 }
+
+const kindOf = kindFrom(KINDS)
 
 /**
  * The names a declaration writes down, reached through the declarator that holds
@@ -121,12 +111,9 @@ const firstName = (node: Syntax | null): Syntax | null => {
 }
 
 /** The last segment of a dotted name, which is what a `using` alias stands for. */
-const lastOf = (node: Syntax): Syntax | null => {
-  if (node.type === "identifier") return node
-  if (node.type !== "qualified_name") return null
-  const name = node.childForFieldName("name")
-  return name === null ? null : lastOf(name)
-}
+const DOTTED: ReadonlySet<string> = new Set(["qualified_name"])
+
+const lastOf = (node: Syntax): Syntax | null => lastNameIn(node, "identifier", DOTTED)
 
 /** What a node binds, into the scope it sits in and into the scope it opens. */
 const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyArray<Bound> } => {
@@ -227,13 +214,12 @@ const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyA
       if (alias === null || path === null) break
       const was = lastOf(path)
       const whole = path.text
-      const dot = whole.lastIndexOf(".")
       outer.push({
         name: alias,
         kind: "import",
         from: {
           name: was === null ? whole : was.text,
-          specifier: dot === -1 ? whole : whole.slice(0, dot)
+          specifier: pathBefore(whole, ".")
         }
       })
       break
@@ -243,16 +229,6 @@ const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyA
   }
 
   return { outer, inner }
-}
-
-/**
- * What a file passes on from somewhere else, which for C# is nothing.
- *
- * There is no re-export, and a plain `using` opens a namespace rather than
- * naming a thing in it — so there is no name to say arrived from where.
- */
-const passedOn = function* (_statement: Syntax): Generator<Borrowed> {
-  // Nothing, said as a generator so the shape matches every other Dialect.
 }
 
 /**
@@ -332,7 +308,6 @@ export const CSHARP: Dialect = {
   opens: OPENS,
   names: NAMES,
   bindings,
-  passedOn,
   comments: COMMENTS,
   offering
 }

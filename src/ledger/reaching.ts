@@ -12,6 +12,8 @@
  * and `docs/spec/following.md` says so in as many words.
  */
 
+import { extensionOf } from "./syntax"
+
 /**
  * What a specifier may end in, tried in this order.
  *
@@ -63,7 +65,7 @@ const plainly = (path: string): string | null => {
  * judgement, and a judgement with a test on it is one somebody can argue with.
  */
 export const couldBe = (from: string, specifier: string): ReadonlyArray<string> => {
-  const extension = from.slice(from.lastIndexOf(".") + 1).toLowerCase()
+  const extension = extensionOf(from)
   if (extension === "py" || extension === "pyi") return couldBePython(from, specifier)
   if (extension === "rs") return couldBeRust(specifier)
 

@@ -21,7 +21,7 @@
  */
 
 import type { Borrowed, Bound, Dialect, Offering, WritingKind } from "../writings"
-import { childrenOf, type Syntax } from "../syntax"
+import { childrenOf, kindFrom, textOf, type Syntax } from "../syntax"
 
 /** The node types that open a scope. */
 const OPENS: ReadonlySet<string> = new Set([
@@ -53,22 +53,20 @@ const OPENS: ReadonlySet<string> = new Set([
 const NAMES: ReadonlySet<string> = new Set(["identifier", "type_identifier"])
 
 /** What a declaring node's kind is called, for the card and the outline. */
-const kindOf = (declaring: string): WritingKind => {
-  if (declaring === "function_definition" || declaring === "lambda_expression") return "function"
-  if (declaring === "class_specifier" || declaring === "struct_specifier") return "class"
-  if (
-    declaring === "union_specifier" ||
-    declaring === "enum_specifier" ||
-    declaring === "alias_declaration" ||
-    declaring === "type_definition"
-  ) {
-    return "type"
-  }
-  if (declaring === "parameter_declaration" || declaring === "type_parameter_declaration") {
-    return "parameter"
-  }
-  return "value"
+const KINDS: Readonly<Record<string, WritingKind>> = {
+  function_definition: "function",
+  lambda_expression: "function",
+  class_specifier: "class",
+  struct_specifier: "class",
+  union_specifier: "type",
+  enum_specifier: "type",
+  alias_declaration: "type",
+  type_definition: "type",
+  parameter_declaration: "parameter",
+  type_parameter_declaration: "parameter"
 }
+
+const kindOf = kindFrom(KINDS)
 
 /**
  * The name at the bottom of a declarator, whatever is stacked on top of it.
@@ -134,12 +132,12 @@ const declared = function* (node: Syntax, kind: WritingKind): Generator<Bound> {
 }
 
 /** The text an include names, without its quotes or angle brackets. */
+const STRINGS: ReadonlySet<string> = new Set(["string_literal"])
+
 const includedPath = (node: Syntax): string | null => {
   for (const child of childrenOf(node)) {
-    if (child.type !== "string_literal") continue
-    for (const part of childrenOf(child)) {
-      if (part.type === "string_content") return part.text
-    }
+    const said = textOf(child, STRINGS)
+    if (said !== null) return said
   }
   return null
 }

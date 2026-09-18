@@ -28,8 +28,8 @@
  * to an overload, and reads the same way to a reader going top to bottom.
  */
 
-import type { Borrowed, Bound, Dialect, Offering, WritingKind } from "../writings"
-import { childrenOf, type Syntax } from "../syntax"
+import type { Bound, Dialect, Offering, WritingKind } from "../writings"
+import { childrenOf, kindFrom, namesUnder, type Syntax } from "../syntax"
 
 /**
  * The node types that open a scope.
@@ -61,13 +61,17 @@ const OPENS: ReadonlySet<string> = new Set([
 const NAMES: ReadonlySet<string> = new Set(["identifier"])
 
 /** What a declaring node's kind is called, for the card and the outline. */
-const kindOf = (declaring: string): WritingKind => {
-  if (declaring === "function_definition" || declaring === "lambda") return "function"
-  if (declaring === "class_definition") return "class"
-  if (declaring === "parameters" || declaring === "lambda_parameters") return "parameter"
-  if (declaring === "import_statement" || declaring === "import_from_statement") return "import"
-  return "value"
+const KINDS: Readonly<Record<string, WritingKind>> = {
+  function_definition: "function",
+  lambda: "function",
+  class_definition: "class",
+  parameters: "parameter",
+  lambda_parameters: "parameter",
+  import_statement: "import",
+  import_from_statement: "import"
 }
+
+const kindOf = kindFrom(KINDS)
 
 /**
  * A binding target's names, which is one identifier or a nest of them.
@@ -82,22 +86,16 @@ const kindOf = (declaring: string): WritingKind => {
  * down, and treating it as a binding would put `d` in the scope a second time
  * and answer every later `d` with the line that happened to store into it.
  */
-const boundBy = function* (target: Syntax | null): Generator<Syntax> {
-  if (target === null) return
-  if (target.type === "identifier") {
-    yield target
-    return
-  }
-  if (
-    target.type === "pattern_list" ||
-    target.type === "tuple_pattern" ||
-    target.type === "list_pattern" ||
-    target.type === "list_splat_pattern" ||
-    target.type === "dictionary_splat_pattern"
-  ) {
-    for (const child of childrenOf(target)) yield* boundBy(child)
-  }
-}
+const boundBy = namesUnder(
+  new Set(["identifier"]),
+  new Set([
+    "pattern_list",
+    "tuple_pattern",
+    "list_pattern",
+    "list_splat_pattern",
+    "dictionary_splat_pattern"
+  ])
+)
 
 /**
  * A parameter's name, whatever shape the parameter is written in.
@@ -286,18 +284,6 @@ const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyA
 }
 
 /**
- * What a file passes on from somewhere else, which in Python is nothing.
- *
- * There is no `export { one } from "./two"`. A module re-exports by importing a
- * name and letting it sit in its own namespace, which this already records as
- * an import and as a Borrowed — so a barrel is followed here by the ordinary
- * road rather than by a second one.
- */
-const passedOn = function* (_statement: Syntax): Generator<Borrowed> {
-  // Nothing, said as a generator so the shape matches every other Dialect.
-}
-
-/**
  * Where the file stops offering and starts working.
  *
  * One node type does every body in Python: a function's, a class's, an `if`'s
@@ -371,7 +357,6 @@ export const PYTHON: Dialect = {
   opens: OPENS,
   names: NAMES,
   bindings,
-  passedOn,
   comments: COMMENTS,
   offering
 }

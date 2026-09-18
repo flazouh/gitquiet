@@ -14,8 +14,8 @@
  * language, gets its own file beside this one.
  */
 
-import type { Borrowed, Dialect, Offering, WritingKind } from "../writings"
-import { childrenOf, type Syntax } from "../syntax"
+import type { Borrowed, Bound, Dialect, Offering, WritingKind } from "../writings"
+import { childrenOf, kindFrom, namesUnder, textOf, type Syntax } from "../syntax"
 
 /**
  * The node types that open a scope.
@@ -84,79 +84,59 @@ const NAMES: ReadonlySet<string> = new Set([
  * and both are patterns rather than identifiers. Recursive because a pattern
  * holds patterns: destructuring nests as deeply as anyone cares to write it.
  */
-const boundBy = function* (pattern: Syntax | null): Generator<Syntax> {
-  if (pattern === null) return
-  if (pattern.type === "identifier" || pattern.type === "shorthand_property_identifier_pattern") {
-    yield pattern
-    return
-  }
-  if (
-    pattern.type === "object_pattern" ||
-    pattern.type === "array_pattern" ||
-    pattern.type === "rest_pattern" ||
-    pattern.type === "assignment_pattern" ||
-    pattern.type === "pair_pattern" ||
-    pattern.type === "required_parameter" ||
-    pattern.type === "optional_parameter"
-  ) {
-    // `pair_pattern` is `{ a: b }`, where `b` is the binding and `a` is the key
-    // being read off the object. The value field is the one that binds.
-    const value = pattern.type === "pair_pattern" ? pattern.childForFieldName("value") : null
-    if (value !== null) {
-      yield* boundBy(value)
-      return
-    }
-    const named = pattern.type.endsWith("_parameter") ? pattern.childForFieldName("pattern") : null
-    if (named !== null) {
-      yield* boundBy(named)
-      return
-    }
-    for (const child of childrenOf(pattern)) yield* boundBy(child)
-  }
+const boundBy = namesUnder(
+  new Set(["identifier", "shorthand_property_identifier_pattern"]),
+  new Set([
+    "object_pattern",
+    "array_pattern",
+    "rest_pattern",
+    "assignment_pattern",
+    "pair_pattern",
+    "required_parameter",
+    "optional_parameter"
+  ]),
+  // `{ a: b }` binds `b` and reads `a` off the object, so the value field is the
+  // one that binds. A parameter holds its name under `pattern`, beside its type.
+  (node) =>
+    node.type === "pair_pattern"
+      ? node.childForFieldName("value")
+      : node.type.endsWith("_parameter")
+        ? node.childForFieldName("pattern")
+        : null
+)
+
+/**
+ * What a declaring node's kind is called, for the card and the outline.
+ *
+ * A signature with no body is a member like any other: an interface's and an
+ * abstract class's are written that way, and they are what a reader presses in
+ * a `.d.ts`.
+ */
+const KINDS: Readonly<Record<string, WritingKind>> = {
+  function_declaration: "function",
+  function_expression: "function",
+  function_signature: "function",
+  function: "function",
+  generator_function: "function",
+  generator_function_declaration: "function",
+  arrow_function: "function",
+  class_declaration: "class",
+  class: "class",
+  abstract_class_declaration: "class",
+  type_alias_declaration: "type",
+  interface_declaration: "type",
+  enum_declaration: "type",
+  required_parameter: "parameter",
+  optional_parameter: "parameter",
+  import_statement: "import",
+  method_definition: "member",
+  public_field_definition: "member",
+  method_signature: "member",
+  abstract_method_signature: "member",
+  property_signature: "member"
 }
 
-/** What a declaring node's kind is called, for the card and the outline. */
-const kindOf = (declaring: string): WritingKind => {
-  if (declaring.startsWith("function") || declaring.startsWith("generator_function")) {
-    return "function"
-  }
-  if (declaring === "arrow_function" || declaring === "function_expression") return "function"
-  if (
-    declaring === "class_declaration" ||
-    declaring === "class" ||
-    declaring === "abstract_class_declaration"
-  ) {
-    return "class"
-  }
-  if (
-    declaring === "type_alias_declaration" ||
-    declaring === "interface_declaration" ||
-    declaring === "enum_declaration"
-  ) {
-    return "type"
-  }
-  if (declaring === "required_parameter" || declaring === "optional_parameter") return "parameter"
-  if (declaring === "import_statement") return "import"
-  if (
-    declaring === "method_definition" ||
-    declaring === "public_field_definition" ||
-    // A member with no body is a member. These are an interface's, and an
-    // abstract class's, and they are what a reader presses in a `.d.ts`.
-    declaring === "method_signature" ||
-    declaring === "abstract_method_signature" ||
-    declaring === "property_signature"
-  ) {
-    return "member"
-  }
-  return "value"
-}
-
-type Bound = {
-  readonly name: Syntax
-  readonly kind: WritingKind
-  /** Where it came from, on an import and nowhere else. */
-  readonly from?: Borrowed
-}
+const kindOf = kindFrom(KINDS)
 
 /**
  * What a node binds into the scope it is written in.
@@ -346,20 +326,10 @@ const passedOn = function* (statement: Syntax): Generator<Borrowed> {
 }
 
 /** A string literal's text, without its quotes. */
-const stringOf = (node: Syntax | null): string | null => {
-  if (node === null || node.type !== "string") return null
-  for (const child of childrenOf(node)) {
-    if (child.type === "string_fragment") return child.text
-  }
-  return null
-}
+const STRINGS: ReadonlySet<string> = new Set(["string"])
 
-/**
- * The three grammars, as one vocabulary.
- *
- * Named for what it reads rather than for one of the three, because a `.js` file
- * is read by this exactly as a `.ts` file is.
- */
+const stringOf = (node: Syntax | null): string | null => textOf(node, STRINGS)
+
 /** Where the file stops offering and starts working. */
 const BODIES: ReadonlySet<string> = new Set(["statement_block"])
 
@@ -409,6 +379,12 @@ const offering = (node: Syntax): Offering | null => {
   return members === null ? null : { at: "members", members }
 }
 
+/**
+ * The three grammars, as one vocabulary.
+ *
+ * Named for what it reads rather than for one of the three, because a `.js` file
+ * is read by this exactly as a `.ts` file is.
+ */
 export const TYPESCRIPT: Dialect = {
   opens: OPENS,
   names: NAMES,
