@@ -59,7 +59,10 @@ const underlined = (word: string) =>
       ${PANES}
       for (const root of panes()) {
         for (const one of root.querySelectorAll("[data-line] span")) {
-          if ((one.textContent || "").trim() !== ${JSON.stringify(word)}) continue
+          // Contains rather than equals: marking a name inside a wider run
+          // splits the run, so the underline lands on a node whose text is the
+          // name while the node searched for still reads the whole token.
+          if (!(one.textContent || "").includes(${JSON.stringify(word)})) continue
           if ((one.style.textDecoration || "") !== "") return true
           for (const inner of one.querySelectorAll("span")) {
             if ((inner.style.textDecoration || "") !== "") return true
@@ -94,12 +97,30 @@ try {
   const spot = await session.evaluate<Spot | null>(`
     (async () => {
       ${PANES}
+      /*
+       * Where the name sits inside the token, which is not always the whole of it.
+       *
+       * The renderer colours runs, not names: \`export { alsoUnbodied as
+       * passedAlong } from "./whole"\` is drawn with the brace glued on, so the
+       * token reads \`passedAlong }\`. Asking for an exact match found nothing and
+       * reported "no name was drawn" about a name plainly on the screen — which
+       * is the same mistake, made by a probe, that \`nameIn\` exists to stop the
+       * interface making. So the token is searched for the word on a boundary
+       * and the pointer is aimed at the word's own characters.
+       */
+      const edge = "[^A-Za-z0-9_$]"
+      const inside = (text) => {
+        ${WORD === undefined
+          ? `return { at: 0, word: text.trim() }`
+          : `const found = text.search(new RegExp("(^|" + edge + ")" + ${JSON.stringify(WORD)} + "(" + edge + "|$)"))
+             if (found === -1) return null
+             return { at: text.indexOf(${JSON.stringify(WORD)}, found), word: ${JSON.stringify(WORD)} }`}
+      }
       const bring = () => {
         for (const root of panes()) {
           for (const one of root.querySelectorAll("[data-line] span")) {
             if (one.children.length > 0) continue
-            const word = (one.textContent || "").trim()
-            ${WORD === undefined ? `if (false) continue` : `if (word !== ${JSON.stringify(WORD)}) continue`}
+            if (inside(one.textContent || "") === null) continue
             const row = one.closest("[data-line]")
             if (row) row.scrollIntoView({ block: "center", behavior: "instant" })
             return true
@@ -114,13 +135,19 @@ try {
       for (const root of panes()) {
         for (const one of root.querySelectorAll("[data-line] span")) {
           if (one.children.length > 0) continue
-          const word = (one.textContent || "").trim()
+          const text = one.textContent || ""
+          const held = inside(text)
+          if (held === null) continue
+          const word = held.word
           ${WORD === undefined
             ? `if (!/^[A-Za-z_$][A-Za-z0-9_$]{3,}$/.test(word) || KEYWORD.has(word)) continue`
-            : `if (word !== ${JSON.stringify(WORD)}) continue`}
+            : `if (false) continue`}
           const box = one.getBoundingClientRect()
           if (box.width <= 0 || box.top < 80 || box.bottom > innerHeight - 40) continue
-          const x = Math.round(box.left + box.width / 2)
+          // The middle of the word's own characters, not of the run it was
+          // drawn in — a token can hold punctuation on either side.
+          const wide = box.width / Math.max(1, text.length)
+          const x = Math.round(box.left + (held.at + word.length / 2) * wide)
           const y = Math.round(box.top + box.height / 2)
           // The deepest element at that point, shadow roots and all, which is
           // what Chrome's own input will arrive at.
