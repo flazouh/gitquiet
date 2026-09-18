@@ -76,6 +76,16 @@ describe("the four places Rust binds through a pattern", () => {
     expect(pressed("let _ = doubled(LIMIT)", "doubled")).toBe(lineWith("let doubled = |z: i32|"))
   })
 
+  test("a const generic binds, and so does a bounded type parameter", () => {
+    // `const N: usize` is a `const_parameter` and was missed entirely, and
+    // `T: Clone` is a `type_parameter` with a `trait_bounds` child rather than
+    // the `constrained_type_parameter` the code used to look for — which is not
+    // a node type in this grammar at all.
+    const told = toldBy(root, SOURCE, RUST)
+    expect(told.declares).toContain("SIDES")
+    expect(told.declares).toContain("T")
+  })
+
   test("a generic parameter is the function's own name for a type", () => {
     expect(pressed("fn generic<T: Clone>(item: T)", "T", 20)).toBe(
       lineWith("fn generic<T: Clone>")

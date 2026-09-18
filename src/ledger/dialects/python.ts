@@ -28,7 +28,7 @@
  * to an overload, and reads the same way to a reader going top to bottom.
  */
 
-import type { Borrowed, Bound, Dialect, WritingKind } from "../writings"
+import type { Borrowed, Bound, Dialect, Offering, WritingKind } from "../writings"
 import { childrenOf, type Syntax } from "../syntax"
 
 /**
@@ -111,15 +111,6 @@ const parameterName = (parameter: Syntax): Syntax | null => {
   if (parameter.type === "identifier") return parameter
   for (const child of childrenOf(parameter)) {
     if (child.type === "identifier") return child
-  }
-  return null
-}
-
-/** A string literal's text, without its quotes. */
-const stringOf = (node: Syntax | null): string | null => {
-  if (node === null || node.type !== "string") return null
-  for (const child of childrenOf(node)) {
-    if (child.type === "string_content") return child.text
   }
   return null
 }
@@ -333,7 +324,7 @@ const BODIES: ReadonlySet<string> = new Set([
  * in an outline. An assignment nested any deeper is inside an `if` or a loop and
  * is the author's business, so only the body's own children are read.
  */
-const membersOf = (node: Syntax): ReadonlyArray<Bound> | null => {
+const membersFor = (node: Syntax): ReadonlyArray<Bound> | null => {
   if (node.type !== "class_definition") return null
   const body = node.childForFieldName("body")
   if (body === null) return null
@@ -357,14 +348,31 @@ const membersOf = (node: Syntax): ReadonlyArray<Bound> | null => {
 }
 
 /** Python, as one vocabulary. */
+/**
+ * The node types that are a comment.
+ *
+ * One node type. A docstring is a string rather than a comment and is not one of these.
+ */
+const COMMENTS: ReadonlySet<string> = new Set(["comment"])
+
+/**
+ * What a node offers the outline: its members, nothing, or no answer.
+ *
+ * A body answers `working`, which ends the walk there and is what keeps a local
+ * out of the outline. See {@link Dialect.offering}.
+ */
+const offering = (node: Syntax): Offering | null => {
+  if (BODIES.has(node.type)) return { at: "working" }
+  const members = membersFor(node)
+  return members === null ? null : { at: "members", members }
+}
+
 export const PYTHON: Dialect = {
   opens: OPENS,
   names: NAMES,
   bindings,
   passedOn,
-  bodies: BODIES,
-  membersOf
+  comments: COMMENTS,
+  offering
 }
 
-/** Only for the tests, which check the pieces as well as the whole. */
-export const forTesting = { stringOf }

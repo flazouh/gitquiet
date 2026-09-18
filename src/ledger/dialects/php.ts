@@ -16,7 +16,7 @@
  * their names are bound and a bare `risky()` resolves.
  */
 
-import type { Borrowed, Bound, Dialect, WritingKind } from "../writings"
+import type { Borrowed, Bound, Dialect, Offering, WritingKind } from "../writings"
 import { childrenOf, type Syntax } from "../syntax"
 
 /**
@@ -187,20 +187,43 @@ const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyA
       break
     }
     case "namespace_use_declaration": {
-      for (const clause of childrenOf(node)) {
-        if (clause.type !== "namespace_use_clause" && clause.type !== "namespace_use_group_clause") {
+      // `use App\\Other\\{Alpha, Beta}` nests its clauses one level down, under a
+      // `namespace_use_group`, with the prefix written beside it as a sibling.
+      // There is no `namespace_use_group_clause` in this grammar, so looking for
+      // one left every name in a group unbound.
+      const group = childrenOf(node)
+      const clauses: Array<{ readonly clause: Syntax; readonly under: string }> = []
+      let prefix = ""
+      for (const child of group) {
+        if (child.type === "namespace_name" || child.type === "qualified_name") {
+          prefix = child.text
           continue
         }
+        if (child.type === "namespace_use_group") {
+          for (const one of childrenOf(child)) {
+            if (one.type === "namespace_use_clause") clauses.push({ clause: one, under: prefix })
+          }
+          continue
+        }
+        if (child.type === "namespace_use_clause") clauses.push({ clause: child, under: "" })
+      }
+
+      for (const { clause, under } of clauses) {
+        // A clause inside a group is a bare `name` and is its own path: there is
+        // no qualified name under it, and requiring one skipped every member.
         let path: Syntax | null = null
         let alias: Syntax | null = null
         for (const child of childrenOf(clause)) {
           if (child.type === "qualified_name" || child.type === "namespace_name") path = child
-          else if (child.type === "name") alias = child
+          else if (child.type !== "name") continue
+          else if (path === null) path = child
+          else alias = child
         }
-        const was = path === null ? null : lastOf(path)
+        if (path === null) continue
+        const was = lastOf(path)
         const name = alias ?? was
-        if (name === null || path === null) continue
-        const whole = path.text
+        if (name === null) continue
+        const whole = under === "" ? path.text : `${under}\\${path.text}`
         const slash = whole.lastIndexOf("\\")
         outer.push({
           name,
@@ -237,7 +260,7 @@ const passedOn = function* (_statement: Syntax): Generator<Borrowed> {
 const BODIES: ReadonlySet<string> = new Set(["compound_statement", "arrow_function"])
 
 /** The members a class, interface, trait or enum offers. */
-const membersOf = (node: Syntax): ReadonlyArray<Bound> | null => {
+const membersFor = (node: Syntax): ReadonlyArray<Bound> | null => {
   if (
     node.type !== "class_declaration" &&
     node.type !== "interface_declaration" &&
@@ -273,11 +296,30 @@ const membersOf = (node: Syntax): ReadonlyArray<Bound> | null => {
 }
 
 /** PHP, as one vocabulary. */
+/**
+ * The node types that are a comment.
+ *
+ * One node type, for all three spellings this language has.
+ */
+const COMMENTS: ReadonlySet<string> = new Set(["comment"])
+
+/**
+ * What a node offers the outline: its members, nothing, or no answer.
+ *
+ * A body answers `working`, which ends the walk there and is what keeps a local
+ * out of the outline. See {@link Dialect.offering}.
+ */
+const offering = (node: Syntax): Offering | null => {
+  if (BODIES.has(node.type)) return { at: "working" }
+  const members = membersFor(node)
+  return members === null ? null : { at: "members", members }
+}
+
 export const PHP: Dialect = {
   opens: OPENS,
   names: NAMES,
   bindings,
   passedOn,
-  bodies: BODIES,
-  membersOf
+  comments: COMMENTS,
+  offering
 }

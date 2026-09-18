@@ -8,6 +8,10 @@ require_relative 'local/helper'
 
 LIMIT = 10
 
+if LIMIT > 1
+  leaked = 1
+end
+
 module Shapes
   class Box < Base
     attr_reader :size

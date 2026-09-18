@@ -47,6 +47,11 @@ fn generic<T: Clone>(item: T) -> T {
     item
 }
 
+fn sided<const SIDES: usize, T: Clone>(item: T) -> usize {
+    let _ = item;
+    SIDES
+}
+
 fn maybe() -> Option<i32> {
     None
 }

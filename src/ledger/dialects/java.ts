@@ -16,7 +16,7 @@
  * is the same field said the long way.
  */
 
-import type { Borrowed, Bound, Dialect, WritingKind } from "../writings"
+import type { Borrowed, Bound, Dialect, Offering, WritingKind } from "../writings"
 import { childrenOf, type Syntax } from "../syntax"
 
 /**
@@ -231,7 +231,7 @@ const BODIES: ReadonlySet<string> = new Set([
  * type is offered too, by its own name, because a reader looking at an outline
  * wants to see that it is there.
  */
-const membersOf = (node: Syntax): ReadonlyArray<Bound> | null => {
+const membersFor = (node: Syntax): ReadonlyArray<Bound> | null => {
   if (
     node.type !== "class_declaration" &&
     node.type !== "interface_declaration" &&
@@ -274,11 +274,30 @@ const membersOf = (node: Syntax): ReadonlyArray<Bound> | null => {
 }
 
 /** Java, as one vocabulary. */
+/**
+ * The node types that are a comment.
+ *
+ * Two, where most grammars have one. There is no `comment` node in this grammar, so asking for one found nothing and every Javadoc was lost.
+ */
+const COMMENTS: ReadonlySet<string> = new Set(["line_comment", "block_comment"])
+
+/**
+ * What a node offers the outline: its members, nothing, or no answer.
+ *
+ * A body answers `working`, which ends the walk there and is what keeps a local
+ * out of the outline. See {@link Dialect.offering}.
+ */
+const offering = (node: Syntax): Offering | null => {
+  if (BODIES.has(node.type)) return { at: "working" }
+  const members = membersFor(node)
+  return members === null ? null : { at: "members", members }
+}
+
 export const JAVA: Dialect = {
   opens: OPENS,
   names: NAMES,
   bindings,
   passedOn,
-  bodies: BODIES,
-  membersOf
+  comments: COMMENTS,
+  offering
 }

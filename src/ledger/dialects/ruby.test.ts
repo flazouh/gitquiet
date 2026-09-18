@@ -116,6 +116,13 @@ describe("the outline of a Ruby file", () => {
     expect(names).not.toContain("i")
   })
 
+  test("does not offer a name written inside an `if` at the top level", () => {
+    // Every body in Ruby is a `body_statement`, a method's and a class's alike,
+    // so no set of node types can say where the file stops offering. A branch
+    // body can, and without it `leaked` reached the outline.
+    expect(outline().map((writing) => writing.name)).not.toContain("leaked")
+  })
+
   test("names a lambda a function, by what it was given", () => {
     const doubled = outline().find((writing) => writing.name === "doubled")
     expect(doubled?.kind).toBe("function")

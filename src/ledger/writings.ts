@@ -116,24 +116,34 @@ export type Dialect = {
   /** What a statement passes on from somewhere else, which is a re-export. */
   readonly passedOn: (statement: Syntax) => Iterable<Borrowed>
   /**
-   * The node types whose insides are the author's business.
+   * The node types that are a comment.
    *
-   * Where the file stops offering and starts working, which the outline stops
-   * at. A `statement_block` in TypeScript and a `block` in Python, and the two
-   * are not the same word — which is the whole reason this is asked for rather
-   * than known.
+   * `comment` in most grammars, and not in all of them: Rust writes
+   * `line_comment`, `block_comment` and `doc_comment`, and Java writes the first
+   * two. Asked for rather than known, because a walk that knew would be a walk
+   * that silently found no documentation in two of the ten languages.
    */
-  readonly bodies: ReadonlySet<string>
+  readonly comments: ReadonlySet<string>
   /**
-   * The members a class offers, given the class, or nothing where this is not
-   * one.
+   * What a node offers the outline, and whether to look inside it.
    *
-   * Asked of the class rather than of its body because a body is not always a
-   * node type of its own: Python writes a class's with the same `block` it
-   * writes an `if`'s, and only the class around it says which one this is.
+   * Three answers, because the outline has three cases and not two. A class
+   * offers its members and is not walked into. A body offers nothing and is not
+   * walked into either — that is where the file stops offering and starts
+   * working. Anything else answers nothing and the walk carries on.
+   *
+   * Asked of the node rather than read off its type because a body is not always
+   * a node type of its own. Every body in Ruby is a `body_statement`, a method's
+   * and a class's alike, so no set of node types can tell them apart and only the
+   * thing around it can.
    */
-  readonly membersOf: (node: Syntax) => ReadonlyArray<Bound> | null
+  readonly offering: (node: Syntax) => Offering | null
 }
+
+/** What a node offers the outline. See {@link Dialect.offering}. */
+export type Offering =
+  | { readonly at: "members"; readonly members: ReadonlyArray<Bound> }
+  | { readonly at: "working" }
 
 /** A name, the node that wrote it, and what kind of writing that was. */
 export type Bound = {
@@ -242,7 +252,7 @@ export const writingAt = (
   source: string,
   at: Spot,
   dialect: Dialect
-): Found | null => found(root, source, at, new Map(), dialect)
+): Found | null => found(root, source, at, new Map(), dialect, commentsBy(root, dialect))
 
 /**
  * The same, with the scopes it worked out kept, for a caller asking many times.
@@ -252,7 +262,14 @@ export const writingAt = (
  * Which is why shadowing needs no rule of its own here: the inner scope is
  * simply the one asked first.
  */
-const found = (root: Syntax, source: string, at: Spot, memo: Memo, dialect: Dialect): Found | null => {
+const found = (
+  root: Syntax,
+  source: string,
+  at: Spot,
+  memo: Memo,
+  dialect: Dialect,
+  comments: ReadonlyMap<number, Syntax>
+): Found | null => {
   const path = pathTo(root, at)
   const name = path.at(-1)
   if (name === undefined || !dialect.names.has(name.type)) return null
@@ -274,11 +291,23 @@ const found = (root: Syntax, source: string, at: Spot, memo: Memo, dialect: Dial
     }
     return {
       at: "here",
-      writing: docked(written(bound.name, bound.kind, lines), bound.name, commentsBy(root), lines)
+      writing: docked(written(bound.name, bound.kind, lines), bound.name, comments, lines)
     }
   }
   return null
 }
+
+/**
+ * The row a comment's text ends on, which is not always where the node ends.
+ *
+ * Rust's `line_comment` takes the newline that ends it into its own text, so a
+ * `///` written directly above a function has an end row equal to the function's
+ * own — and looking one row up for it found nothing, which is why Rust had no
+ * documentation on any card. Counting the row the text ends on rather than the
+ * row the node ends on answers both shapes with one rule.
+ */
+const endRowOf = (node: Syntax): number =>
+  node.text.endsWith("\n") ? node.endPosition.row - 1 : node.endPosition.row
 
 /**
  * Every comment in a file, by the row it ends on.
@@ -296,11 +325,11 @@ const found = (root: Syntax, source: string, at: Spot, memo: Memo, dialect: Dial
  * is further up. The first comment to end on a row wins, which is what walking
  * in tree order used to give.
  */
-const commentsBy = (root: Syntax): ReadonlyMap<number, Syntax> => {
+const commentsBy = (root: Syntax, dialect: Dialect): ReadonlyMap<number, Syntax> => {
   const byRow = new Map<number, Syntax>()
   const walk = (node: Syntax): void => {
-    if (node.type === "comment") {
-      const row = node.endPosition.row
+    if (dialect.comments.has(node.type)) {
+      const row = endRowOf(node)
       if (!byRow.has(row)) byRow.set(row, node)
     }
     for (const child of childrenOf(node)) walk(child)
@@ -333,7 +362,7 @@ const docked = (
   const comment = above ?? higher
   if (comment === undefined) return writing
 
-  for (let row = comment.endPosition.row + 1; row < wanted; row++) {
+  for (let row = endRowOf(comment) + 1; row < wanted; row++) {
     if ((lines[row] ?? "").trim() !== "") return writing
   }
 
@@ -347,7 +376,9 @@ const clean = (comment: string): string =>
     .replace(/^\/\*\*?/, "")
     .replace(/\*\/$/, "")
     .split("\n")
-    .map((line) => line.replace(/^\s*(\/\/\/?|\*)?\s?/, "").trimEnd())
+    // `#` as well as `//`: Python, Ruby and PHP all write a comment that way,
+    // and a card that kept the marker showed the reader "# What it is for."
+    .map((line) => line.replace(/^\s*(\/\/\/?|#+|\*)?\s?/, "").trimEnd())
     .join("\n")
     .trim()
 
@@ -370,10 +401,14 @@ export const usesIn = (
   // the file's scope again, which is the same answer worked out as many times as
   // the word appears.
   const memo: Memo = new Map()
+  // And one comment index, for the same reason. Built per answer, this walked
+  // the whole tree once for every use of the name — which is the cost the note
+  // on `commentsBy` says was taken out of `writingsIn`, left in the hot path.
+  const comments = commentsBy(root, dialect)
 
   const walk = (node: Syntax): void => {
     if (dialect.names.has(node.type) && node.text === writing.name) {
-      const here = found(root, source, node.startPosition, memo, dialect)
+      const here = found(root, source, node.startPosition, memo, dialect, comments)
       if (
         here !== null &&
         here.at === "here" &&
@@ -513,37 +548,39 @@ export const writingsIn = (
   const lines = source.split("\n")
   const found: Array<Writing> = []
   // Once for the file, not once for each thing in it. See {@link commentsBy}.
-  const comments = commentsBy(root)
+  const comments = commentsBy(root, dialect)
 
-  const walk = (node: Syntax, inside: boolean): void => {
-    if (!inside) {
-      const { outer } = dialect.bindings(node)
-      for (const bound of outer) {
-        // What a file borrowed and what its functions were handed are both
-        // bindings and neither is something the file offers. A parameter
-        // belongs to the one function that takes it, and a reader looking for
-        // the shape of a file is not looking for an argument list.
-        if (bound.kind === "import" || bound.kind === "parameter") continue
-        found.push(docked(written(bound.name, bound.kind, lines), bound.name, comments, lines))
-      }
+  // No `inside` flag any more: the walk stops at a body rather than carrying on
+  // through it offering nothing, so anything it reaches is something the file
+  // offers. That also settles a nested class — its members used to be offered
+  // out of a function body while the class itself was hidden, because the
+  // members were read before the flag was consulted.
+  const walk = (node: Syntax): void => {
+    const { outer } = dialect.bindings(node)
+    for (const bound of outer) {
+      // What a file borrowed and what its functions were handed are both
+      // bindings and neither is something the file offers. A parameter belongs
+      // to the one function that takes it, and a reader looking for the shape of
+      // a file is not looking for an argument list.
+      if (bound.kind === "import" || bound.kind === "parameter") continue
+      found.push(docked(written(bound.name, bound.kind, lines), bound.name, comments, lines))
     }
 
-    // A class offers its members and nothing else of what is inside it, so it
-    // is answered here whole and never walked into.
-    const members = dialect.membersOf(node)
-    if (members !== null) {
-      for (const member of members) {
-        found.push(docked(written(member.name, member.kind, lines), member.name, comments, lines))
+    // A class offers its members and nothing else of what is inside it; a body
+    // offers nothing at all. Neither is walked into.
+    const offering = dialect.offering(node)
+    if (offering !== null) {
+      if (offering.at === "members") {
+        for (const member of offering.members) {
+          found.push(docked(written(member.name, member.kind, lines), member.name, comments, lines))
+        }
       }
       return
     }
 
-    // Anything with a body of its own is where the file stops offering and
-    // starts working. Its insides are the author's business.
-    const deeper = inside || dialect.bodies.has(node.type)
-    for (const child of childrenOf(node)) walk(child, deeper)
+    for (const child of childrenOf(node)) walk(child)
   }
 
-  walk(root, false)
+  walk(root)
   return found.sort((one, two) => one.line - two.line || one.from - two.from)
 }

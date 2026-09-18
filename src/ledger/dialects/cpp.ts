@@ -20,7 +20,7 @@
  * a line that is not the answer.
  */
 
-import type { Borrowed, Bound, Dialect, WritingKind } from "../writings"
+import type { Borrowed, Bound, Dialect, Offering, WritingKind } from "../writings"
 import { childrenOf, type Syntax } from "../syntax"
 
 /** The node types that open a scope. */
@@ -252,7 +252,7 @@ const passedOn = function* (statement: Syntax): Generator<Borrowed> {
 const BODIES: ReadonlySet<string> = new Set(["compound_statement", "lambda_expression"])
 
 /** The members a class, struct, union or enum offers. */
-const membersOf = (node: Syntax): ReadonlyArray<Bound> | null => {
+const membersFor = (node: Syntax): ReadonlyArray<Bound> | null => {
   if (
     node.type !== "class_specifier" &&
     node.type !== "struct_specifier" &&
@@ -284,11 +284,30 @@ const membersOf = (node: Syntax): ReadonlyArray<Bound> | null => {
 }
 
 /** C++, as one vocabulary. */
+/**
+ * The node types that are a comment.
+ *
+ * One node type, for a line comment and a block comment alike.
+ */
+const COMMENTS: ReadonlySet<string> = new Set(["comment"])
+
+/**
+ * What a node offers the outline: its members, nothing, or no answer.
+ *
+ * A body answers `working`, which ends the walk there and is what keeps a local
+ * out of the outline. See {@link Dialect.offering}.
+ */
+const offering = (node: Syntax): Offering | null => {
+  if (BODIES.has(node.type)) return { at: "working" }
+  const members = membersFor(node)
+  return members === null ? null : { at: "members", members }
+}
+
 export const CPP: Dialect = {
   opens: OPENS,
   names: NAMES,
   bindings,
   passedOn,
-  bodies: BODIES,
-  membersOf
+  comments: COMMENTS,
+  offering
 }

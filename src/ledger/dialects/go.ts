@@ -19,7 +19,7 @@
  * TypeScript's `property_identifier` already follows.
  */
 
-import type { Borrowed, Bound, Dialect, WritingKind } from "../writings"
+import type { Borrowed, Bound, Dialect, Offering, WritingKind } from "../writings"
 import { childrenOf, type Syntax } from "../syntax"
 
 /**
@@ -272,7 +272,7 @@ const BODIES: ReadonlySet<string> = new Set(["block", "func_literal"])
  * and cannot be: Go writes them outside the type, as their own declarations, and
  * the outline offers each where it is written.
  */
-const membersOf = (node: Syntax): ReadonlyArray<Bound> | null => {
+const membersFor = (node: Syntax): ReadonlyArray<Bound> | null => {
   if (node.type !== "type_spec") return null
   const type = node.childForFieldName("type")
   if (type === null) return null
@@ -297,11 +297,30 @@ const membersOf = (node: Syntax): ReadonlyArray<Bound> | null => {
 }
 
 /** Go, as one vocabulary. */
+/**
+ * The node types that are a comment.
+ *
+ * One node type, for a line comment and a block comment alike.
+ */
+const COMMENTS: ReadonlySet<string> = new Set(["comment"])
+
+/**
+ * What a node offers the outline: its members, nothing, or no answer.
+ *
+ * A body answers `working`, which ends the walk there and is what keeps a local
+ * out of the outline. See {@link Dialect.offering}.
+ */
+const offering = (node: Syntax): Offering | null => {
+  if (BODIES.has(node.type)) return { at: "working" }
+  const members = membersFor(node)
+  return members === null ? null : { at: "members", members }
+}
+
 export const GO: Dialect = {
   opens: OPENS,
   names: NAMES,
   bindings,
   passedOn,
-  bodies: BODIES,
-  membersOf
+  comments: COMMENTS,
+  offering
 }

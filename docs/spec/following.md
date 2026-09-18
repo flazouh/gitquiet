@@ -345,6 +345,25 @@ What each turned out to need that TypeScript never did:
 | C# | Mostly Java, and mostly declarations wrapping declarations. A `for`'s initialiser is a bare `variable_declaration` with no statement around it, and a member written `=>` has a body that is not a block. |
 | C++ | A name sits at the bottom of a stack of declarators — `*`, `&`, `[]`, `()`, `= 1` — and is reached by walking down through them. |
 
+### Following out of a file reaches three of the ten
+
+Inside a file, all ten answer. Across files, a specifier has to name a file, and only three of these
+languages write one:
+
+| | Across files |
+| --- | --- |
+| TypeScript, JavaScript | a relative path, with the endings `reaching.ts` tries |
+| Python | a module name, which is `thing.py` or a folder with an `__init__.py` in it |
+| Rust | `crate::a::b` only. `self::` and `super::` depend on the `mod` items a file writes |
+| Go | an import names a package, which is a directory of files rather than one file |
+| Ruby, C++ | `require_relative` and `#include` name a file and are recorded, and nothing resolves them yet |
+| Java, PHP, C# | a package, a namespace and a namespace, none of which is a path an archive carries |
+
+What is recorded and not yet resolved is deliberate: a Borrowed costs nothing to write down and is
+what a later answer would be built from. What is **not** done is claiming otherwise — the knob's own
+words name the three, because a reader told a name follows across files and finding it does not is
+worse served than one who was never told.
+
 ### Where a member is a Name, and where it is not
 
 Three of these languages reach a member through the thing that holds it and three write it bare,

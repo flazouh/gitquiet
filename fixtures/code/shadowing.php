@@ -8,6 +8,7 @@ namespace App\Shapes;
 
 use App\Base;
 use App\Other\Thing as Widget;
+use App\Grouped\{Alpha, Beta};
 
 const LIMIT = 10;
 

@@ -128,6 +128,17 @@ describe("what a PHP file borrowed", () => {
     })
   })
 
+  test("a group `use` binds every name in the braces", () => {
+    // `use App\\Other\\{Alpha, Beta}` nests its clauses under a
+    // `namespace_use_group`, and each clause is a bare name that is its own
+    // path. Read as an ungrouped clause, every name in a group went unbound.
+    const told = toldBy(root, SOURCE, PHP)
+    expect(told.declares).toContain("Alpha")
+    expect(told.declares).toContain("Beta")
+    expect(told.borrows).toContainEqual({ name: "Alpha", specifier: "App\\Grouped" })
+    expect(told.borrows).toContainEqual({ name: "Beta", specifier: "App\\Grouped" })
+  })
+
   test("an alias binds, and keeps the name the other namespace writes", () => {
     const told = toldBy(root, SOURCE, PHP)
     expect(told.declares).toContain("Widget")

@@ -14,7 +14,7 @@
  * language, gets its own file beside this one.
  */
 
-import type { Borrowed, Dialect, WritingKind } from "../writings"
+import type { Borrowed, Dialect, Offering, WritingKind } from "../writings"
 import { childrenOf, type Syntax } from "../syntax"
 
 /**
@@ -369,7 +369,7 @@ const BODIES: ReadonlySet<string> = new Set(["statement_block"])
  * A member with no body is a member: an interface's and an abstract class's are
  * what a reader presses in a `.d.ts`, and they are written as signatures.
  */
-const membersOf = (node: Syntax): ReadonlyArray<Bound> | null => {
+const membersFor = (node: Syntax): ReadonlyArray<Bound> | null => {
   if (
     node.type !== "class_declaration" &&
     node.type !== "class" &&
@@ -390,11 +390,30 @@ const membersOf = (node: Syntax): ReadonlyArray<Bound> | null => {
   return members
 }
 
+/**
+ * The node types that are a comment.
+ *
+ * One node type, for all three grammars.
+ */
+const COMMENTS: ReadonlySet<string> = new Set(["comment"])
+
+/**
+ * What a node offers the outline: its members, nothing, or no answer.
+ *
+ * A body answers `working`, which ends the walk there and is what keeps a local
+ * out of the outline. See {@link Dialect.offering}.
+ */
+const offering = (node: Syntax): Offering | null => {
+  if (BODIES.has(node.type)) return { at: "working" }
+  const members = membersFor(node)
+  return members === null ? null : { at: "members", members }
+}
+
 export const TYPESCRIPT: Dialect = {
   opens: OPENS,
   names: NAMES,
   bindings,
   passedOn,
-  bodies: BODIES,
-  membersOf
+  comments: COMMENTS,
+  offering
 }

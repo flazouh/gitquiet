@@ -20,7 +20,7 @@
  * later without the vocabulary changing.
  */
 
-import type { Borrowed, Bound, Dialect, WritingKind } from "../writings"
+import type { Borrowed, Bound, Dialect, Offering, WritingKind } from "../writings"
 import { childrenOf, type Syntax } from "../syntax"
 
 /**
@@ -236,10 +236,21 @@ const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyA
           outer.push({ name: parameter, kind: "parameter" })
           continue
         }
-        if (parameter.type !== "type_parameter" && parameter.type !== "constrained_type_parameter") {
+        // `T: Clone` is a `type_parameter` with a `trait_bounds` child, not a
+        // `constrained_type_parameter` — there is no such node in this grammar,
+        // and neither shape has a `left` field, so that branch bound nothing.
+        // `const N: usize` is its own node and was missed entirely.
+        if (parameter.type === "const_parameter") {
+          for (const child of childrenOf(parameter)) {
+            if (child.type === "identifier") {
+              outer.push({ name: child, kind: "parameter" })
+              break
+            }
+          }
           continue
         }
-        const name = parameter.childForFieldName("left") ?? parameter.namedChild(0)
+        if (parameter.type !== "type_parameter") continue
+        const name = parameter.namedChild(0)
         if (name !== null && name.type === "type_identifier") {
           outer.push({ name, kind: "parameter" })
         }
@@ -314,7 +325,7 @@ const BODIES: ReadonlySet<string> = new Set(["block", "closure_expression"])
  * or an `impl`. An `impl` is where a type's methods actually live in Rust, so
  * this is the only way the outline offers them at all.
  */
-const membersOf = (node: Syntax): ReadonlyArray<Bound> | null => {
+const membersFor = (node: Syntax): ReadonlyArray<Bound> | null => {
   const body = node.childForFieldName("body")
   if (body === null) return null
 
@@ -356,11 +367,30 @@ const membersOf = (node: Syntax): ReadonlyArray<Bound> | null => {
 }
 
 /** Rust, as one vocabulary. */
+/**
+ * The node types that are a comment.
+ *
+ * Three, where most grammars have one. `///` is a `doc_comment` and is exactly what a reader wants on the card, so missing these meant Rust had no documentation at all.
+ */
+const COMMENTS: ReadonlySet<string> = new Set(["line_comment", "block_comment", "doc_comment"])
+
+/**
+ * What a node offers the outline: its members, nothing, or no answer.
+ *
+ * A body answers `working`, which ends the walk there and is what keeps a local
+ * out of the outline. See {@link Dialect.offering}.
+ */
+const offering = (node: Syntax): Offering | null => {
+  if (BODIES.has(node.type)) return { at: "working" }
+  const members = membersFor(node)
+  return members === null ? null : { at: "members", members }
+}
+
 export const RUST: Dialect = {
   opens: OPENS,
   names: NAMES,
   bindings,
   passedOn,
-  bodies: BODIES,
-  membersOf
+  comments: COMMENTS,
+  offering
 }

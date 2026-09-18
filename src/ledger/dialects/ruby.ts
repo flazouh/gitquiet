@@ -22,7 +22,7 @@
  * would be pointing a reader at a line that is not the answer.
  */
 
-import type { Borrowed, Bound, Dialect, WritingKind } from "../writings"
+import type { Borrowed, Bound, Dialect, Offering, WritingKind } from "../writings"
 import { childrenOf, type Syntax } from "../syntax"
 
 /**
@@ -198,39 +198,47 @@ const passedOn = function* (statement: Syntax): Generator<Borrowed> {
 }
 
 /**
- * Where the file stops offering, which Ruby says through {@link membersOf}.
+ * The node types that hold code rather than what a file offers.
  *
- * Empty on purpose. Every body in this language is a `body_statement` — a
- * method's, a class's and a module's alike — so stopping at that node type would
- * stop at all three and a module's classes would never be offered. What stops
- * the outline instead is a method answering with no members at all, which ends
- * the walk exactly where the file stops offering and nowhere else.
+ * Ruby cannot say this with a set of body node types the way the others do:
+ * every body in the language is a `body_statement`, a method's and a class's
+ * alike, so no node type tells them apart. What tells them apart is the thing
+ * around it, which is why {@link offering} is asked of the node.
+ *
+ * These are the ones that need no such help — the branch bodies of the control
+ * flow, which hold code wherever they are written. Without them an assignment
+ * inside a top-level `if` reached the outline as though the file offered it.
  */
-const BODIES: ReadonlySet<string> = new Set<string>()
+const WORKING: ReadonlySet<string> = new Set([
+  "method",
+  "singleton_method",
+  "block",
+  "do_block",
+  "lambda",
+  "then",
+  "else",
+  "elsif",
+  "when",
+  "in_clause",
+  "do",
+  "ensure",
+  "rescue"
+])
 
 /**
- * The members a class offers, or nothing where the walk should carry on.
+ * What a node offers the outline: its members, nothing, or no answer.
  *
- * Three answers rather than two. A class answers with its methods and its
- * constants. A method answers with an empty list, which offers nothing and ends
- * the walk there — that is what keeps a local out of the outline. A module
- * answers with nothing at all, so the walk goes into it and the classes written
- * inside are offered with their own members under them.
+ * Three answers, and Ruby needs all three. A class offers its methods and its
+ * constants. A method — and every branch body — offers nothing and ends the walk
+ * there. A module answers nothing at all, so the walk goes into it and the
+ * classes written inside are offered with their own members under them.
  */
-const membersOf = (node: Syntax): ReadonlyArray<Bound> | null => {
-  if (
-    node.type === "method" ||
-    node.type === "singleton_method" ||
-    node.type === "block" ||
-    node.type === "do_block" ||
-    node.type === "lambda"
-  ) {
-    return []
-  }
+const offering = (node: Syntax): Offering | null => {
+  if (WORKING.has(node.type)) return { at: "working" }
   if (node.type !== "class" && node.type !== "singleton_class") return null
 
   const body = node.childForFieldName("body")
-  if (body === null) return []
+  if (body === null) return { at: "members", members: [] }
 
   const members: Array<Bound> = []
   for (const one of childrenOf(body)) {
@@ -245,15 +253,22 @@ const membersOf = (node: Syntax): ReadonlyArray<Bound> | null => {
       }
     }
   }
-  return members
+  return { at: "members", members }
 }
 
 /** Ruby, as one vocabulary. */
+/**
+ * The node types that are a comment.
+ *
+ * One node type.
+ */
+const COMMENTS: ReadonlySet<string> = new Set(["comment"])
+
 export const RUBY: Dialect = {
   opens: OPENS,
   names: NAMES,
   bindings,
   passedOn,
-  bodies: BODIES,
-  membersOf
+  comments: COMMENTS,
+  offering
 }
