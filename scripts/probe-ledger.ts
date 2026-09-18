@@ -100,6 +100,63 @@ try {
   `)
 
   /*
+   * Every other language, through the same three hops.
+   *
+   * `bun test` proves each vocabulary against its grammar on this machine. What
+   * it cannot prove is that the grammar compiles in the offscreen document, that
+   * the right one is chosen for the extension a file is written under, and that
+   * the answer survives the message round trip — which is the whole reason this
+   * file exists, and was true of one language until there were ten.
+   *
+   * Each row presses a name that is written somewhere else in its own fixture,
+   * so a wrong answer is a wrong line rather than an empty one.
+   */
+  const ELSEWHERE: ReadonlyArray<{
+    readonly language: string
+    readonly path: string
+    readonly holds: string
+    readonly word: string
+    readonly wrote: string
+  }> = [
+    { language: "python", path: "shadowing.py", holds: "return area(n, self.size)", word: "area", wrote: "def area(" },
+    { language: "go", path: "shadowing.go", holds: "return Area(n, b.Size)", word: "Area", wrote: "func Area(shape int" },
+    { language: "rust", path: "shadowing.rs", holds: "area(n) + self.size", word: "area", wrote: "fn area(shape: i32)" },
+    { language: "java", path: "Shadowing.java", holds: "total += risky()", word: "risky", wrote: "private int risky()" },
+    { language: "ruby", path: "shadowing.rb", holds: "total += risky", word: "risky", wrote: "def risky" },
+    { language: "php", path: "shadowing.php", holds: "total += risky()", word: "risky", wrote: "function risky()" },
+    { language: "c#", path: "Shadowing.cs", holds: "total += Risky()", word: "Risky", wrote: "private int Risky()" },
+    { language: "c++", path: "shadowing.cpp", holds: "total += risky()", word: "risky", wrote: "int risky()" }
+  ]
+
+  const elsewhere: Record<string, string> = {}
+  for (const one of ELSEWHERE) {
+    const text = await Bun.file(`${import.meta.dir}/../fixtures/code/${one.path}`).text()
+    const lines = text.split("\n")
+    const row = lines.findIndex((line) => line.includes(one.holds))
+    const wrote = lines.findIndex((line) => line.includes(one.wrote))
+    if (row === -1 || wrote === -1) {
+      elsewhere[one.language] = `the fixture no longer holds ${row === -1 ? one.holds : one.wrote}`
+      continue
+    }
+    const column = lines[row]!.indexOf(one.word)
+    const answer = await session.evaluateInExtension<{
+      writing?: { line: number; kind: string }
+      why?: string
+    }>(`
+      chrome.runtime.sendMessage({
+        kind: "gitquiet/ledger-ask",
+        path: ${JSON.stringify(one.path)},
+        text: ${JSON.stringify(text)},
+        question: ${JSON.stringify({ of: "writingAt", at: { row, column } })}
+      })
+    `)
+    const want = wrote + 1
+    const got = answer.writing?.line ?? null
+    elsewhere[one.language] =
+      got === want ? `ok, ${one.word} at ${got}` : `WRONG: wanted ${want}, got ${got ?? answer.why ?? "nothing"}`
+  }
+
+  /*
    * The Ledger itself: a repository read whole, out of the archive.
    *
    * A small public one, and a branch name where a sha would go — the archive
@@ -147,6 +204,7 @@ try {
         andWrittenAt: named.writing ?? null,
         beyondTheRepository: beyond,
         aFileNothingParses: plain.why ?? null,
+        elsewhere,
         warmth,
         warmedInMs: warmedIn,
         namesReady: names.ready,
