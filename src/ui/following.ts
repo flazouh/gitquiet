@@ -302,15 +302,33 @@ export const useFollowing = (
    * asked what it writes down under `two`. Neither half is a guess — the
    * specifier is resolved against the paths the repository really has.
    */
+  /*
+   * The repository, read when a question is asked rather than closed over.
+   *
+   * A screen rebuilds this object every time it reads its metadata again — ten
+   * seconds apart on a pull request, with nothing in it changed. Closed over, it
+   * put a new identity on `ask`, on the handlers built from it, and so on the
+   * object the renderer is handed; and the effect that draws the file lists that
+   * object among the things a redraw depends on. So the file was thrown away and
+   * drawn again on a timer, taking any underline with it, and the door the pane
+   * opens was shut and reopened alongside.
+   *
+   * The type above says these handlers never change. Read through a ref, they
+   * do not, and a question still asks the repository as it stands now.
+   */
+  const repository = useRef(across)
+  repository.current = across
+
   /** The file as the Ledger wants it, read once and kept. */
   const asking = useCallback((): Effect.Effect<Reading, unknown> => {
     if (source === null) return Effect.fail("nothing to read")
 
     /** Which repository, for the tier that keeps a compiler per one. */
+    const over = repository.current
     const within =
-      across?.repo === undefined || across.sha === undefined
+      over?.repo === undefined || over.sha === undefined
         ? {}
-        : { repo: across.repo, sha: across.sha }
+        : { repo: over.repo, sha: over.sha }
 
     const held = text.current
     if (held !== null && held.path === source.path) {
@@ -322,7 +340,7 @@ export const useFollowing = (
         return { path: source.path, text: whole, ...within }
       })
     )
-  }, [across, source])
+  }, [source])
 
   const ask = useCallback(
     (
@@ -361,6 +379,7 @@ export const useFollowing = (
         }
 
         // Borrowed. Which file, out of the ones the repository has?
+        const across = repository.current
         if (across === undefined) return Effect.void
 
         /*
@@ -456,7 +475,7 @@ export const useFollowing = (
         )
       )
     },
-    [across, asking, askRegistry, ledger, source]
+    [asking, askRegistry, ledger, source]
   )
 
   const onNameEnter = useCallback(
@@ -552,7 +571,7 @@ export const useFollowing = (
       const arrive = (writing: Writing, where?: string): void => {
         clear()
         if (where !== undefined && where !== source?.path) {
-          across?.open(where, writing.line)
+          repository.current?.open(where, writing.line)
           return
         }
         showLine(host.current, writing.line)
@@ -589,7 +608,7 @@ export const useFollowing = (
       // told us the pointer left it.
       ask(name, answer, true)
     },
-    [across, anchorOf, ask, clear, host, linesOf, source]
+    [anchorOf, ask, clear, host, linesOf, source]
   )
 
   const drawnBy = useCallback((given: DiffHandle | null) => {
@@ -631,17 +650,35 @@ export const useFollowing = (
    * Nothing is asked. The rule that nothing is asked until the key is held is
    * about questions — about a name, about who uses it — and neither of these is
    * one.
+   *
+   * Opened per file, and shut by nothing else.
+   *
+   * This used to depend on `asking`, which depends on `across`, which a screen
+   * rebuilds whenever it reads its metadata again — every ten seconds on a pull
+   * request, and the object is written fresh each time whether or not anything
+   * in it changed. So the clean-up below ran on a timer and interrupted both
+   * forks: the grammar on its way and the file on its way, each restarted from
+   * nothing. A reader who held the key in one of those windows paid the whole
+   * cost the door exists to have already paid — and paid it again on returning
+   * to the file, because the pane remounts and the cycle begins again.
+   *
+   * The path is what this is about. `asking` is read through a ref so the fetch
+   * still uses the current one without its identity being able to close the
+   * door.
    */
+  const askingNow = useRef(asking)
+  askingNow.current = asking
+  const reading = source?.path ?? null
   useEffect(() => {
-    if (source === null) return
+    if (reading === null) return
 
-    const opening = Effect.runFork(ledger.ready(source.path).pipe(Effect.catch(onward)))
-    const reading = Effect.runFork(asking().pipe(Effect.catch(onward)))
+    const opening = Effect.runFork(ledger.ready(reading).pipe(Effect.catch(onward)))
+    const fetching = Effect.runFork(askingNow.current().pipe(Effect.catch(onward)))
     return () => {
       opening.interruptUnsafe()
-      reading.interruptUnsafe()
+      fetching.interruptUnsafe()
     }
-  }, [asking, ledger, source])
+  }, [ledger, reading])
 
   useEffect(() => {
     if (source === null) return

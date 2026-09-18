@@ -78,6 +78,8 @@ type Stage = {
   outlined: number
   /** How many times the pane said it was ready to be asked, before any key. */
   readied: number
+  /** Draws the same screen again behind fresh metadata. See where it is set. */
+  refresh: () => void
   /** Every set of rows the pane has hung under the code, newest last. */
   readonly shown: Array<ReadonlyArray<{ key: string; line: number }>>
   request: DiffRequest | undefined
@@ -137,6 +139,7 @@ const staged = (
     marked: [],
     outlined: 0,
     readied: 0,
+    refresh: () => {},
     shown: [],
     request: undefined,
     /**
@@ -254,7 +257,15 @@ const staged = (
     watch: () => () => {}
   }
 
-  render(
+  /*
+   * Held still, because a fresh array on every render is a different file.
+   *
+   * Written inline, the redraw this asserts about was the test handing the pane
+   * new lines each time rather than anything the pane did.
+   */
+  const lines = ["// the file this pane is reading", "const shape = () => 1", "", "shape()"]
+
+  const standing = (across: Across | undefined) => (
     <SettingsProvider store={settings}>
       <RendererProvider load={renderer}>
         <LedgerProvider ledger={ledger}>
@@ -263,13 +274,26 @@ const staged = (
             // The declaration is on line 2, which is where `writing` says it is:
             // a Peek slices the file by that number, so the two have to agree or
             // the test is asserting about the wrong lines.
-            lines={["// the file this pane is reading", "const shape = () => 1", "", "shape()"]}
-            across={over.across}
+            lines={lines}
+            across={across}
           />
         </LedgerProvider>
       </RendererProvider>
     </SettingsProvider>
   )
+
+  const { rerender } = render(standing(over.across))
+
+  /*
+   * The same screen, after the metadata behind it was read again.
+   *
+   * What a refresh does is rebuild the snapshot, and everything hanging off it
+   * with it: `snapshot.reference` is written as a fresh object literal per read,
+   * so every memo keyed on that object rather than on what is in it comes out
+   * new. Nothing about the file has changed, and the reader has not moved.
+   */
+  stage.refresh = () =>
+    rerender(standing(over.across === undefined ? undefined : { ...over.across }))
 
   return stage
 }
@@ -1059,6 +1083,62 @@ describe("the waiting a reader used to do", () => {
     // the reader was watching a word not underline through.
     expect(stage.readied).toBeGreaterThan(0)
     expect(stage.asked).toEqual([])
+  })
+
+  /*
+   * Reported from real use: the first hold on a file waits two or three seconds,
+   * the next is instant, and coming back to the file waits all over again.
+   *
+   * The door above is opened inside an effect whose clean-up interrupts it, and
+   * that effect used to be keyed on the identity of the object describing the
+   * repository. A pull request re-reads its metadata every ten seconds, and each
+   * read builds that object afresh — so the door was shut and reopened on a
+   * timer, and a reader who held the key while it was shut paid for the whole of
+   * it: the grammar, and the file the same effect is fetching beside it.
+   *
+   * Nothing here waits on a clock. The screen is simply drawn again behind a
+   * new object saying the same thing, which is what a refresh is.
+   */
+  /** A repository the pane knows about, so a refresh has something to rebuild. */
+  const repository = (): Across => ({
+    paths: new Set(["src/one.ts"]),
+    repo: { owner: "flowline-labs", repo: "flowline" },
+    sha: "abc123",
+    read: () => Effect.succeed(""),
+    open: () => {}
+  })
+
+  test("does not shut the door when the metadata behind it is read again", async () => {
+    const stage = staged(writing, [], { across: repository() })
+    await Effect.runPromise(settled())
+    const opened = stage.readied
+    expect(opened).toBeGreaterThan(0)
+
+    stage.refresh()
+    await Effect.runPromise(settled())
+
+    expect(stage.readied).toBe(opened)
+  })
+
+  /*
+   * And the drawing survives it too, which is the other half of the same fault.
+   *
+   * The handlers the renderer is given hang off the same object, so a refresh
+   * rebuilt them, and the effect that draws the file lists them among the things
+   * a redraw depends on. The file was thrown away and drawn again on the same
+   * ten-second timer — taking any underline on it with it, which to a reader is
+   * a key held over a name that quietly stops working.
+   */
+  test("does not draw the file again when the metadata behind it is read again", async () => {
+    const stage = staged(writing, [], { across: repository() })
+    await Effect.runPromise(settled())
+    const drawn = stage.drew.length
+    expect(drawn).toBeGreaterThan(0)
+
+    stage.refresh()
+    await Effect.runPromise(settled())
+
+    expect(stage.drew.length).toBe(drawn)
   })
 })
 

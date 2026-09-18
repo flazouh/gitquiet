@@ -180,10 +180,20 @@ try {
     await sleep(200)
     await mouse("mouseMoved", spot.x, spot.y, META)
 
+    /*
+     * Wall clock, not the loop counter.
+     *
+     * This used to report `waited` — the counter the loop adds 100 to each
+     * turn — as though it were milliseconds. Every turn also pays a round trip
+     * that walks every shadow root on the page, so the number left out most of
+     * its own cost and read several times faster than the thing it measured. A
+     * whole language sweep was reported in those units.
+     */
+    const startedAt = Date.now()
     let real: number | null = null
-    for (let waited = 0; waited < 12_000; waited += 100) {
+    while (Date.now() - startedAt < 12_000) {
       if (await underlined(spot.word)) {
-        real = waited
+        real = Date.now() - startedAt
         break
       }
       await sleep(100)
