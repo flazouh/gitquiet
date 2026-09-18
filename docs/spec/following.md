@@ -327,20 +327,37 @@ the scope it opens, and what a statement passes on from somewhere else. `src/led
 is the walk; `src/ledger/dialects/` holds one file per language, and `src/ledger/dialects.ts`
 picks one by extension exactly as `parse.ts` picks a grammar.
 
-Five languages read today — TypeScript, JavaScript, Python, Go and Rust — and the three grammars
-TypeScript, TSX and JavaScript need share one vocabulary, because they differ in what they accept
-and not in what they call a `lexical_declaration`.
+Ten languages read today — TypeScript, JavaScript, Python, Go, Rust, Java, Ruby, PHP, C# and C++,
+with C read by C++'s grammar — over eleven grammars and twenty-four extensions. TypeScript, TSX and
+JavaScript share one vocabulary, because they differ in what they accept and not in what they call
+a `lexical_declaration`. Every other language has its own.
 
-What each of the other three is worth saying:
+What each turned out to need that TypeScript never did:
 
 | | Its own rule |
 | --- | --- |
 | Python | A block is not a scope: names bind at the function. A `for` and an `except ... as` bind outward, so a loop variable is readable after its loop. A comprehension is a scope, and is the one place a Python name is hidden. |
 | Go | Four declarations wrap their names in a `_spec` node, so one keyword declares a list. A method is written outside its type, and its name is a `field_identifier`. A receiver is a parameter list with one parameter in it. |
 | Rust | Binds through a pattern in four places — a `for`, an `if let`, a `match` arm and a closure — each holding what it binds to itself. `impl` is a scope, and is where a type's methods actually live. |
+| Java | Calls its own methods with no receiver, so a method's name is a Name and a bare `risky()` resolves. A `catch_clause` names its parameter through no field at all. |
+| Ruby | Its two loops disagree: a block holds its parameters to itself and a `for` leaves its name behind. A constant is its own node type. Every body is the same `body_statement`, so where the outline stops is said by a class answering with members and a method answering with none. |
+| PHP | A variable is a `variable_name` holding a `name`, so the Name pressed is the half without the dollar. Binds at the function, not at the block. |
+| C# | Mostly Java, and mostly declarations wrapping declarations. A `for`'s initialiser is a bare `variable_declaration` with no statement around it, and a member written `=>` has a body that is not a block. |
+| C++ | A name sits at the bottom of a stack of declarators — `*`, `&`, `[]`, `()`, `= 1` — and is reached by walking down through them. |
 
-A `field_identifier` is a Name in none of them, for the reason `property_identifier` is not one in
-TypeScript: a field is reached through the thing that holds it, never written bare.
+### Where a member is a Name, and where it is not
+
+Three of these languages reach a member through the thing that holds it and three write it bare,
+and the difference decides whether a member's node type is a Name:
+
+- **TypeScript, Go and Rust** keep `property_identifier` and `field_identifier` out of their Names.
+  `b.Draw()` is a question about what `b` is, which takes types, and the exact tier is what answers
+  it.
+- **Java, Ruby, PHP and C#** call their own methods with no receiver, so a method's name *is* a
+  Name and is bound into the type's scope.
+- **C++ does both at once**, and is the reason the two are separate questions. A field is bound, so
+  a bare `size_` inside a method resolves; `field_identifier` is still not a Name, so `other.size_`
+  answers nothing rather than answering with this class's own field.
 
 The two lists are chosen apart on purpose. A grammar with no vocabulary parses a file nobody can
 ask a question about, which is a thing worth being able to say — and a test holds one list against

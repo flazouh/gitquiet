@@ -20,12 +20,14 @@ import type { Syntax } from "./syntax"
 /**
  * The languages with a grammar here, by the extensions people write them in.
  *
- * Seven grammars for twelve extensions. TypeScript and TSX are separate grammars
+ * Eleven grammars for twenty-four extensions. TypeScript and TSX are separate grammars
  * and not one with a flag — `<T>x` is a type assertion in one and an unclosed
  * element in the other, and a file parsed by the wrong one is a file full of
  * errors. JavaScript is its own, and reads `.jsx` as well. Python, Go and Rust
- * are one grammar each and one vocabulary each, and nothing about them is
- * shared with the three above.
+ * are one grammar each and one vocabulary each, and so are Java, Ruby, PHP, C#
+ * and C++ — nothing about any of them is shared with the three above. C is read
+ * by the C++ grammar, which accepts it, and a `.h` is ambiguous between the two
+ * by design and is read as the superset.
  *
  * It started at one, deliberately: the resolver was going to be written twice
  * before it was written well, and doing that across three languages at once
@@ -33,10 +35,13 @@ import type { Syntax } from "./syntax"
  * and what these cost is a `.wasm` each — measured on a repository of sixteen
  * files, of which fifteen were passed over for being JavaScript.
  *
- * The three added after it cost 1.8MB of `.wasm` between them and are fetched by
- * the offscreen document, never by the content script. A grammar is compiled the
- * first time a file wants it and not before, so a repository of TypeScript pays
- * for none of them.
+ * The eight added after it cost 16MB of `.wasm` between them, and C# and C++ are
+ * ten of those on their own — both languages have a grammar several times the
+ * size of every other, which is what a preprocessor and forty years of syntax
+ * cost to parse. All of them are fetched by the offscreen document and never by
+ * the content script, and a grammar is compiled the first time a file wants it
+ * and not before: a repository of TypeScript pays for none of them, and one of
+ * C++ pays for that one.
  *
  * The node types the resolver reads are the same in all three: these grammars
  * share their core, and `lexical_declaration` is what a `const` is in each. No
@@ -60,7 +65,20 @@ export const GRAMMARS: Readonly<Record<string, string>> = {
   pyi: "tree-sitter-python.wasm",
   go: "tree-sitter-go.wasm",
   rs: "tree-sitter-rust.wasm",
-  java: "tree-sitter-java.wasm"
+  java: "tree-sitter-java.wasm",
+  rb: "tree-sitter-ruby.wasm",
+  php: "tree-sitter-php.wasm",
+  cs: "tree-sitter-c-sharp.wasm",
+  cc: "tree-sitter-cpp.wasm",
+  cpp: "tree-sitter-cpp.wasm",
+  cxx: "tree-sitter-cpp.wasm",
+  hpp: "tree-sitter-cpp.wasm",
+  hh: "tree-sitter-cpp.wasm",
+  hxx: "tree-sitter-cpp.wasm",
+  // C is read by the C++ grammar, which accepts it. A `.h` is ambiguous between
+  // the two by design and is read as the superset, which parses both.
+  h: "tree-sitter-cpp.wasm",
+  c: "tree-sitter-cpp.wasm"
 }
 
 /** Where the grammars and the runtime are, handed in rather than worked out. */

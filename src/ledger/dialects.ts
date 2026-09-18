@@ -13,9 +13,13 @@
  */
 
 import type { Dialect } from "./writings"
+import { CPP } from "./dialects/cpp"
+import { CSHARP } from "./dialects/csharp"
 import { GO } from "./dialects/go"
 import { JAVA } from "./dialects/java"
+import { PHP } from "./dialects/php"
 import { PYTHON } from "./dialects/python"
+import { RUBY } from "./dialects/ruby"
 import { RUST } from "./dialects/rust"
 import { TYPESCRIPT } from "./dialects/typescript"
 
@@ -33,7 +37,18 @@ const DIALECTS: Readonly<Record<string, Dialect>> = {
   pyi: PYTHON,
   go: GO,
   rs: RUST,
-  java: JAVA
+  java: JAVA,
+  rb: RUBY,
+  php: PHP,
+  cs: CSHARP,
+  cc: CPP,
+  cpp: CPP,
+  cxx: CPP,
+  hpp: CPP,
+  hh: CPP,
+  hxx: CPP,
+  h: CPP,
+  c: CPP
 }
 
 /**

@@ -4,6 +4,10 @@ import { GRAMMARS } from "./parse"
 import { GO } from "./dialects/go"
 import { PYTHON } from "./dialects/python"
 import { JAVA } from "./dialects/java"
+import { CPP } from "./dialects/cpp"
+import { CSHARP } from "./dialects/csharp"
+import { PHP } from "./dialects/php"
+import { RUBY } from "./dialects/ruby"
 import { RUST } from "./dialects/rust"
 import { TYPESCRIPT } from "./dialects/typescript"
 
@@ -30,12 +34,17 @@ describe("the vocabulary for a path", () => {
     expect(dialectFor("a.go")).toBe(GO)
     expect(dialectFor("a.rs")).toBe(RUST)
     expect(dialectFor("Box.java")).toBe(JAVA)
+    expect(dialectFor("a.rb")).toBe(RUBY)
+    expect(dialectFor("a.php")).toBe(PHP)
+    expect(dialectFor("Box.cs")).toBe(CSHARP)
+    expect(dialectFor("a.cpp")).toBe(CPP)
+    expect(dialectFor("a.h")).toBe(CPP)
   })
 
   test("answers nothing for a language nothing here reads", () => {
     expect(dialectFor("README.md")).toBeNull()
-    expect(dialectFor("a.rb")).toBeNull()
-    expect(dialectFor("a.cpp")).toBeNull()
+    expect(dialectFor("a.swift")).toBeNull()
+    expect(dialectFor("a.kt")).toBeNull()
   })
 
   test("reads the last dot of the last segment", () => {

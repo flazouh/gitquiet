@@ -111,7 +111,14 @@ const LEDGER: ReadonlyArray<readonly [string, string]> = [
   ],
   ["../node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-go.wasm", "tree-sitter-go.wasm"],
   ["../node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-rust.wasm", "tree-sitter-rust.wasm"],
-  ["../node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-java.wasm", "tree-sitter-java.wasm"]
+  ["../node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-java.wasm", "tree-sitter-java.wasm"],
+  ["../node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-ruby.wasm", "tree-sitter-ruby.wasm"],
+  ["../node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-php.wasm", "tree-sitter-php.wasm"],
+  [
+    "../node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-c-sharp.wasm",
+    "tree-sitter-c-sharp.wasm"
+  ],
+  ["../node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-cpp.wasm", "tree-sitter-cpp.wasm"]
 ]
 
 for (const [from, to] of LEDGER) {
