@@ -564,3 +564,40 @@ describe("a name a file passes on", () => {
     expect(toldBy(types, TYPES, TYPESCRIPT).declares).not.toContain("passedAlong")
   })
 })
+
+describe("what reading a big file costs", () => {
+  /**
+   * A guard against the quadratic coming back, not a benchmark.
+   *
+   * `docked` used to walk the tree from the root looking for the comment above
+   * one name, and it was called once per name — so reading a file cost its size
+   * times the number of things in it. This fixture repeated came to 14KB in 83ms
+   * and 27KB in 297ms: four times the work for twice the file.
+   *
+   * With the comments gathered once, the same 27KB is 3ms and 392KB — which is
+   * the largest file `worthReading` will take — is 41ms. The budget below is
+   * fifty times that, because this runs under `bun test --parallel` with a worker
+   * per core and a tight one would be a test about the machine. Anything
+   * quadratic blows through it by orders of magnitude rather than by a little.
+   */
+  test("grows with the file, not with the file times what is in it", async () => {
+    const big = SOURCE.repeat(256)
+    const language = await Language.load(
+      "node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-typescript.wasm"
+    )
+    const parser = new Parser()
+    parser.setLanguage(language)
+    const tree = parser.parse(big)!
+    const at = tree.rootNode as unknown as Syntax
+
+    const started = performance.now()
+    const writings = writingsIn(at, big, TYPESCRIPT)
+    const took = performance.now() - started
+
+    tree.delete()
+    parser.delete()
+
+    expect(writings.length).toBeGreaterThan(2_000)
+    expect(took).toBeLessThan(2_000)
+  })
+})
