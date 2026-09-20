@@ -26,7 +26,14 @@ beforeAll(async () => {
   )
   const parser = new Parser()
   parser.setLanguage(language)
-  root = parser.parse(SOURCE)!.rootNode as unknown as Syntax
+  // Parsed once, and the parser freed the moment it has done its work: it is
+  // WebAssembly memory rather than the kind a garbage collector takes back, and
+  // eleven grammars' worth of it held across `bun test --parallel` workers is a
+  // segmentation fault rather than a failure. The tree stays, because the nodes
+  // every test below reads belong to it.
+  const tree = parser.parse(SOURCE)!
+  parser.delete()
+  root = tree.rootNode as unknown as Syntax
 })
 
 /** The one-based line a word is on, counting from the `nth` time it is written. */
