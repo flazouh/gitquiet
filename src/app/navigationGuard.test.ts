@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { HOST_ID } from "@/ui/theHost"
 import {
   guardOwnedRoute,
   guardDuplicateNavigation,
@@ -6,7 +7,8 @@ import {
   OWNED_ROUTE,
   guardPreparedTraversal,
   suppressNextEvent,
-  whenOwnedRouteIsOffered
+  whenOwnedRouteIsOffered,
+  pressedLink
 } from "./navigationGuard"
 import {
   markPreparedTraversal,
@@ -280,5 +282,138 @@ describe("the page-world guard for an owned route", () => {
     expect(link.hasAttribute(OWNED_ROUTE)).toBe(false)
     expect(link.getAttribute("href")).toBe("/owner/repo/pull/12")
     link.remove()
+  })
+})
+
+/**
+ * Both halves of the shadow boundary, which broke as a pair and hid each other.
+ *
+ * The interface stands in one shadow root. A press inside it is retargeted, so
+ * every handler listening on `window` was told the press landed on the host and
+ * `target.closest("a")` answered null for every link the interface draws — the
+ * guard went blind the moment the interface moved, silently, because a handler
+ * that finds no link politely does nothing.
+ *
+ * And the other half: `MutationObserver` does not cross a shadow boundary
+ * either, so an offer written onto one of our links could not be heard by the
+ * extension world that acts on it.
+ *
+ * Each fault hid the other. Fixing the seeing alone is worse than neither: the
+ * guard then claims a press, cancels it, and drops it — measured on a real
+ * repository's pull requests as a row that could be pressed and did nothing,
+ * where before the press had worked. So they are tested together, and the live
+ * probe checked the pair on github.com before this was written.
+ */
+describe("a press that happens inside our shadow root", () => {
+  const withShadow = (): { page: Document; link: HTMLAnchorElement; host: HTMLElement } => {
+    const page = document.implementation.createHTMLDocument("github")
+    const host = page.createElement("div")
+    host.id = "gitquiet-host"
+    page.body.append(host)
+    const shadow = host.attachShadow({ mode: "open" })
+    const link = page.createElement("a")
+    link.setAttribute("href", "/owner/repo/pull/7")
+    shadow.append(link)
+    return { page, link, host }
+  }
+
+  test("is found through the composed path, where `target` cannot see it", () => {
+    const { link, host } = withShadow()
+
+    // What a listener on `window` is handed: the host, never the anchor.
+    const asRetargeted = { composedPath: () => [link, host], target: host } as unknown as Event
+    expect(host.closest("a")).toBeNull()
+    expect(pressedLink(asRetargeted)).toBe(link)
+  })
+
+  test("and by the target, for an event that carries no composed path", () => {
+    // A synthetic event, which is what a test dispatches and what some older
+    // engines hand over. The fallback is what keeps those working.
+    const page = document.implementation.createHTMLDocument("github")
+    const link = page.createElement("a")
+    link.setAttribute("href", "/owner/repo/pull/7")
+    const inner = page.createElement("span")
+    link.append(inner)
+    page.body.append(link)
+
+    const plain = { composedPath: () => [], target: inner } as unknown as Event
+    expect(pressedLink(plain)).toBe(link)
+  })
+
+  test("nothing at all where the press was not on a link", () => {
+    const page = document.implementation.createHTMLDocument("github")
+    const plain = { composedPath: () => [page.body], target: page.body } as unknown as Event
+    expect(pressedLink(plain)).toBeNull()
+  })
+
+  test("and an offer written on a link in there is heard", async () => {
+    /*
+     * The half that would otherwise go missing. `subtree` does not cross a
+     * shadow boundary, so an observer on `documentElement` hears nothing that
+     * happens in our tree — and the guard's claim would be cancelled and then
+     * dropped.
+     */
+    const { page, link } = withShadow()
+    const heard: Array<string> = []
+    const stop = whenOwnedRouteIsOffered(page, (kind, route) => heard.push(`${kind} ${route}`))
+
+    link.setAttribute("data-gitquiet-owned-route-offer-path", "/owner/repo/pull/7")
+    link.setAttribute("data-gitquiet-owned-route-offer", "click")
+    await new Promise((resume) => setTimeout(resume, 0))
+    stop()
+
+    expect(heard).toEqual(["click /owner/repo/pull/7"])
+  })
+
+  test("and so is one on a link that was never in our tree", async () => {
+    // The document half still works: this watches both trees, not one instead
+    // of the other.
+    const page = document.implementation.createHTMLDocument("github")
+    const link = page.createElement("a")
+    link.setAttribute("href", "/owner/repo/pull/9")
+    page.body.append(link)
+    const heard: Array<string> = []
+    const stop = whenOwnedRouteIsOffered(page, (kind, route) => heard.push(`${kind} ${route}`))
+
+    link.setAttribute("data-gitquiet-owned-route-offer-path", "/owner/repo/pull/9")
+    link.setAttribute("data-gitquiet-owned-route-offer", "press")
+    await new Promise((resume) => setTimeout(resume, 0))
+    stop()
+
+    expect(heard).toEqual(["press /owner/repo/pull/9"])
+  })
+
+  test("and a tree that stands up after the watch began is watched too", async () => {
+    /*
+     * The order this actually happens in: a content script asks to hear offers
+     * at `document_start`, and the interface stands its host up later. A watch
+     * taken only at the start would hear nothing for the whole life of the page.
+     */
+    const page = document.implementation.createHTMLDocument("github")
+    const heard: Array<string> = []
+    const stop = whenOwnedRouteIsOffered(page, (kind, route) => heard.push(`${kind} ${route}`))
+
+    const host = page.createElement("div")
+    host.id = "gitquiet-host"
+    page.body.append(host)
+    const shadow = host.attachShadow({ mode: "open" })
+    await new Promise((resume) => setTimeout(resume, 0))
+
+    const link = page.createElement("a")
+    link.setAttribute("href", "/owner/repo/pull/11")
+    shadow.append(link)
+    link.setAttribute("data-gitquiet-owned-route-offer-path", "/owner/repo/pull/11")
+    link.setAttribute("data-gitquiet-owned-route-offer", "click")
+    await new Promise((resume) => setTimeout(resume, 0))
+    stop()
+
+    expect(heard).toEqual(["click /owner/repo/pull/11"])
+  })
+
+  test("names the same host the interface actually stands on", () => {
+    // The id is spelled in `navigationGuard` rather than imported, to keep
+    // Effect and the whole of `mount` out of the page-world bundle. This is what
+    // stops the two spellings drifting apart.
+    expect(HOST_ID).toBe("gitquiet-host")
   })
 })

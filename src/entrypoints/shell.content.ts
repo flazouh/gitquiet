@@ -15,6 +15,7 @@ import { intendTo, intendedPath, prepareTo, whenPreparing } from "@/app/intent";
 import {
   markOwnedRoute,
   OWNED_ROUTE,
+  pressedLink,
   restoreOwnedRoute,
   whenOwnedRouteIsOffered,
 } from "@/app/navigationGuard";
@@ -870,7 +871,9 @@ export default defineContentScript({
       // taking it over would replace a list the reader is still looking at.
       if (!aPlainPress(event as MouseEvent)) return;
 
-      const route = opening(event.target);
+      // Through the composed path: `event.target` for a press inside our shadow
+      // root is the host, not the link. See `pressedLink`.
+      const route = opening(pressedLink(event) ?? event.target);
       if (route === null) return;
       const { link, what } = route;
 
