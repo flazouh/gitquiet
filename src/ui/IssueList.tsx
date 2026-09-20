@@ -27,6 +27,7 @@ export const IssueList = ({
   what,
   within,
   nothing,
+  onQuery,
   seed = "",
   onPage
 }: {
@@ -53,6 +54,14 @@ export const IssueList = ({
   /** What to say where GitHub answered with no issues at all. */
   readonly nothing: ReactNode
   readonly onPage: (page: number) => void
+  /**
+   * What the box now says, for a screen that can fetch what it asks for.
+   *
+   * The box narrows the rows on the page, and that is the whole answer for
+   * every term but a state or an author — those name rows that were never
+   * fetched to be narrowed. The screen decides; this only tells it.
+   */
+  readonly onQuery?: (query: string) => void
 }) => {
   /*
    * Seeded in the first render rather than after it. A filter arriving a moment
@@ -112,7 +121,10 @@ export const IssueList = ({
         viewer={viewer}
         what={what}
         about="issues"
-        onQuery={setQuery}
+        onQuery={(typed) => {
+          setQuery(typed)
+          onQuery?.(typed)
+        }}
       />
 
       {/*

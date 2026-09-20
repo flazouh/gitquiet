@@ -129,3 +129,57 @@ export const queryFor = ({ repo, query }: IssueList): string => {
  */
 export const seeding = ({ query }: IssueList): string =>
   readerTerms(query).filter(understood).join(" ")
+
+/**
+ * The address that fetches what the filter box is asking, or nothing while this
+ * page's rows can already answer it.
+ *
+ * The same rule the pull request list keeps, for the same reason and in the same
+ * words: the box narrows the rows on the screen and asks GitHub for nothing,
+ * which is right for every term but a state or an author. The rows were fetched
+ * `is:open` unless the address said otherwise, so `is:closed` typed into the box
+ * excludes every row there is — and the box's own placeholder offers that term.
+ * Measured on this repository: eight closed issues, two open, and `is:closed`
+ * answered "Nothing matches that."
+ *
+ * An author is the same question in either direction. The fetch is capped, so
+ * rows beyond the cap were never on the page to be narrowed, and narrowing to a
+ * reader's own issues silently drops the ones that did not fit.
+ */
+export const addressFor = (list: IssueList, box: string): Option.Option<string> => {
+  const mine = readerTerms(list.query)
+  const statesIn = (terms: ReadonlyArray<string>): ReadonlySet<string> =>
+    new Set(
+      terms
+        .filter((term) => term.toLowerCase().startsWith("is:"))
+        .map((term) => term.toLowerCase().slice(3))
+        .filter((state) => STATES.includes(state))
+    )
+
+  // What the page holds: whatever the address asked for, or `is:open` where it
+  // asked for nothing — which is what `queryFor` adds.
+  const had = statesIn(mine)
+  const holds = had.size === 0 ? new Set(["open"]) : had
+  const wanted = statesIn(termsIn(box))
+  const states = wanted.size === 0 ? holds.has("open") : [...wanted].every((one) => holds.has(one))
+
+  const authorsIn = (terms: ReadonlyArray<string>): ReadonlySet<string> =>
+    new Set(
+      terms
+        .filter((term) => term.toLowerCase().startsWith("author:"))
+        .map((term) => term.toLowerCase())
+    )
+  const askedFor = authorsIn(termsIn(box))
+  const fetchedFor = authorsIn(mine)
+  const authors =
+    askedFor.size === fetchedFor.size && [...askedFor].every((who) => fetchedFor.has(who))
+
+  if (states && authors) return Option.none()
+
+  const kept = mine.filter((term) => !understood(term))
+  const terms = [...kept, ...termsIn(box).filter(understood)]
+
+  const path = `/${list.repo.owner}/${list.repo.repo}/issues`
+  if (terms.length === 0) return Option.some(path)
+  return Option.some(`${path}?${new URLSearchParams({ q: terms.join(" ") }).toString()}`)
+}

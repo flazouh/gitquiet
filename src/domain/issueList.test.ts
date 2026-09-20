@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Option } from "effect"
-import { type IssueList, issueListIn, queryFor, seeding } from "./issueList"
+import { addressFor, type IssueList, issueListIn, queryFor, seeding } from "./issueList"
 
 const at = (path: string) => `https://github.com${path}`
 
@@ -134,5 +134,56 @@ describe("what the filter box says when the address carried a search", () => {
     for (const term of seeded(query).split(" ").filter((one) => one.length > 0)) {
       expect(carried).toContain(term)
     }
+  })
+})
+
+/**
+ * Asking the box for rows the page was never fetched with.
+ *
+ * Found by running a QA row that had been left open: this repository has eight
+ * closed issues and two open ones, the filter box offers `is:closed` in its own
+ * placeholder, and typing it answered "Nothing matches that." The rows on the
+ * page were fetched `is:open`, and the box only narrows what is there.
+ */
+describe("the box asking for issues this page does not hold", () => {
+  const list = (query = ""): IssueList => ({
+    repo: { owner: "flowline-labs", repo: "flowline" },
+    query,
+    page: 1
+  })
+
+  const moved = (query: string, box: string) => Option.getOrNull(addressFor(list(query), box))
+
+  test("moves for a state the page was not fetched with", () => {
+    expect(moved("", "is:closed")).toBe(
+      "/flowline-labs/flowline/issues?q=is%3Aclosed"
+    )
+  })
+
+  test("stays where the box asks for what is already here", () => {
+    // Fetched open by default, and the box asks for open.
+    expect(moved("", "is:open")).toBeNull()
+    // And narrowing by a word is what the sieve is for.
+    expect(moved("", "flicker")).toBeNull()
+  })
+
+  test("moves back when the state is taken away again", () => {
+    // Rows fetched closed cannot answer about open ones either.
+    expect(moved("is:closed", "")).toBe("/flowline-labs/flowline/issues")
+  })
+
+  test("moves for an author, in either direction", () => {
+    expect(moved("", "author:me")).toBe(
+      "/flowline-labs/flowline/issues?q=author%3Ame"
+    )
+    expect(moved("author:me", "")).toBe("/flowline-labs/flowline/issues")
+  })
+
+  test("carries the terms the search still needs", () => {
+    // `sort:` is the search's and the box cannot act on it, so it survives the
+    // move rather than being dropped on the way.
+    expect(moved("sort:created-asc", "is:closed")).toBe(
+      "/flowline-labs/flowline/issues?q=sort%3Acreated-asc+is%3Aclosed"
+    )
   })
 })
