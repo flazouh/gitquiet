@@ -6,8 +6,15 @@
  * Two faults were reported from real use and neither could have been found by a
  * message: holding Command underlined a name only after a wait, and pressing one
  * did nothing at all. Both are about what happens between a hand and a screen,
- * so this is a hand and a screen — pointer events on a real page, timed, with
- * every frame recorded.
+ * so this is a real page, a real extension and a real Ledger, timed, with every
+ * frame recorded.
+ *
+ * What it is *not*, and used to say it was: a hand. The gestures below are
+ * `PointerEvent`s dispatched at the token, which reach the handler without ever
+ * being hit-tested against the layout — so this measures whether following
+ * answers, not whether a pointer can arrive. That is a different question and it
+ * has its own probe: `scripts/probe-following-pointer.ts` sends Chrome's own
+ * input and prints the two numbers together. Read them as a pair.
  *
  * Writes `.output/qa/following.mp4` and the frames beside it.
  */
@@ -374,8 +381,36 @@ try {
   filming = false
   await rolling
 
+  /*
+   * A run that never found the name is not a run that found nothing wrong.
+   *
+   * `word: null` is what this answers when the pane never drew the name asked
+   * about — a word that is not in the diff, a line number from another file, a
+   * page that failed to draw at all. Reported beside `problems: []` it reads
+   * exactly like a clean run, and a QA pass on a multi-file commit took it for
+   * one: three nulls, no problems, and nothing had been checked.
+   *
+   * So the absence is said out loud, in the same place as everything else that
+   * went wrong.
+   */
+  const missing = [
+    held.word === null ? `never found "${HOLD}" to hold the key over` : null,
+    held.word !== null && held.underlineMs === null ? `holding the key over "${HOLD}" never underlined it` : null,
+    pressed.word === null ? `never found "${PRESS}" to press` : null
+  ].filter((one): one is string => one !== null)
+
   console.log(
-    JSON.stringify({ held, again, pressed, frames, problems: session.problems().slice(0, 4) }, null, 2)
+    JSON.stringify(
+      {
+        held,
+        again,
+        pressed,
+        frames,
+        problems: [...missing, ...session.problems().slice(0, 4)]
+      },
+      null,
+      2
+    )
   )
 } finally {
   session.stop()

@@ -28,6 +28,16 @@ import { sizesOf } from "./sizes"
  */
 const BRANCHES_AT_ONCE = 8
 const SEARCH_PAGES_AT_ONCE = 4
+/**
+ * How many pages of a search are worth reading, which is also all there are.
+ *
+ * Forty was chosen here as a thousand rows nobody scrolls. It is also, by
+ * coincidence, exactly where GitHub's search stops: it serves no result past the
+ * thousandth and reports no more than forty pages, whatever the repository
+ * holds. So this is never *less* than what is on offer, and any rule that asks
+ * whether the pages exceed it is a rule that cannot come out true — see the
+ * note on `pages` below, which is where that went wrong.
+ */
 const MAX_SEARCH_PAGES = 40
 
 /**
@@ -104,12 +114,30 @@ const allPages = Effect.fn("repoList.allPages")(function* (
     { concurrency: SEARCH_PAGES_AT_ONCE }
   )
 
+  const rows = [first, ...rest].flatMap((found) => found.rows)
+
   return {
-    rows: [first, ...rest].flatMap((found) => found.rows),
-    pages:
-      total > MAX_SEARCH_PAGES
-        ? Option.map(first.pages, (pages) => ({ ...pages, current: 1 }))
+    rows,
+    /*
+     * Whether what is in hand is all there is, decided by the rows rather than
+     * by the page numbers.
+     *
+     * GitHub's search never serves past a thousand results, so it never reports
+     * more than forty pages, and `total > MAX_SEARCH_PAGES` is a comparison that
+     * cannot come out true. A repository with 2,795 open pull requests read the
+     * forty pages it is allowed, held a thousand rows, and then said "1000 pull
+     * requests" — the cap drawn as though it were the repository. Measured on
+     * `openrouter-web`, where the count flickered to the true 2,795 while the
+     * first page was up and fell back to the cap once the read finished.
+     *
+     * The count beside the pages is the repository's own and is not capped, so
+     * the honest test is whether it is larger than what was actually read.
+     */
+    pages: Option.flatMap(first.pages, (pages) =>
+      pages.count > rows.length
+        ? Option.some<Pages>({ ...pages, current: 1 })
         : Option.none<Pages>()
+    )
   }
 })
 

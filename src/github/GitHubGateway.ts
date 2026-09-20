@@ -1790,6 +1790,22 @@ const MOST_BATCHES = 30
  * belongs to the repository rather than to the pull request carrying it, so its
  * routes have no number to put in the path.
  */
+/** A tree kept in the store: the paths of one commit, and nothing else. */
+type KeptTree = { readonly paths: ReadonlyArray<string> }
+
+/**
+ * Whether what came back out of the store is still the shape that went in.
+ *
+ * The same reason as every other guard here: an entry written by a version of
+ * this extension that has since been updated is exactly the shape that would
+ * otherwise be handed to a resolver and fail there.
+ */
+const isKeptTree = (value: unknown): value is KeptTree => {
+  if (typeof value !== "object" || value === null) return false
+  const kept: Partial<KeptTree> = value
+  return Array.isArray(kept.paths) && kept.paths.every((one) => typeof one === "string")
+}
+
 const readRepoRoute = Effect.fn("GitHubGateway.readRepoRoute")(function* (
   reference: RepoRef,
   route: string
@@ -4222,17 +4238,45 @@ export const layer = Layer.succeed(GitHubGateway, {
       })
     }),
 
+    /*
+     * The whole tree, read once per commit and then kept.
+     *
+     * A commit's tree cannot change, so this is the one read here that is safe
+     * to keep for ever under its own name. It was not kept at all, and that is
+     * what a reader feels: following a borrowed name needs the paths to resolve
+     * the specifier against, and on a repository of any size the answer is
+     * megabytes. Measured on `OpenRouterTeam/openrouter-web`, holding the key
+     * over an imported name waited about thirty seconds for it — and waited
+     * again on the next visit to the same pull request, because nothing
+     * remembered it across a page load.
+     *
+     * Kept under the sha, so a push reads the new tree and never the old one.
+     */
     treePaths: Effect.fn("GitHubGateway.treePaths")(function* (
       reference: RepoRef,
       sha: string
     ) {
       const route = `/tree-list/${sha}`
+      const key = `/${reference.owner}/${reference.repo}${route}`
+
+      const kept = yield* recallRoute(key).pipe(
+        Effect.catch(() => Effect.succeed(Option.none<unknown>()))
+      )
+      // Checked rather than trusted: the store outlives the code.
+      if (Option.isSome(kept) && isKeptTree(kept.value)) return kept.value.paths
+
       const raw = yield* readRepoRoute(reference, route)
 
-      return yield* decodeTreeList(raw).pipe(
+      const paths = yield* decodeTreeList(raw).pipe(
         Effect.map((list) => list.paths),
         Effect.catch(undecodableFrom(reference, route))
       )
+
+      // Detached, because a reader waiting on the paths should not also wait on
+      // them being written down.
+      yield* Effect.forkDetach(rememberRoute(key, { paths } satisfies KeptTree))
+
+      return paths
     }),
 
     rememberedRepoHome: Effect.fn("GitHubGateway.rememberedRepoHome")(function* (

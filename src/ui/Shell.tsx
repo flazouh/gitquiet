@@ -412,19 +412,30 @@ export const Shell = ({
     setPaths(new Set())
   }, [snapshot.headSha])
 
+  /*
+   * Held on what the reference says, not on the object that says it.
+   *
+   * `snapshot.reference` is written fresh on every read, so a memo keyed on it
+   * comes out new every ten seconds whether or not the pull request moved. What
+   * hangs off this is the whole of Following: a new `across` rebuilds the
+   * handlers, which redraws the file, which throws away any underline on it —
+   * and reopens the door the pane opens so that holding the key never waits.
+   * `reach` below has always been keyed on the two strings for the same reason.
+   */
+  const { owner, repo } = snapshot.reference
   const across = useMemo(
     (): Across | undefined =>
       readPaths === undefined || readWholeFile === undefined
         ? undefined
         : {
             paths,
-            repo: snapshot.reference,
+            repo: { owner, repo },
             sha: snapshot.headSha,
             read: (path) => readWholeFile(snapshot.headSha, path),
             open: (path, line) => setWanted({ path, line }),
             reach: reachOut
           },
-    [paths, readPaths, readWholeFile, snapshot.headSha, snapshot.reference, reachOut]
+    [paths, readPaths, readWholeFile, snapshot.headSha, owner, repo, reachOut]
   )
 
   const onPost = useMemo(

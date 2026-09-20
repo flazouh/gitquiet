@@ -19,6 +19,15 @@
  * later is, to a reader, a click that did nothing.
  *
  * Edit NAMES, paste, read. Nothing is sent anywhere; it prints to the console.
+ *
+ * What this cannot tell you: whether a hand can reach the name. Every gesture
+ * below is dispatched at the token element, which skips hit-testing entirely —
+ * so a name under an overlay, in a pane that is not the live one, or on a line
+ * nothing can point at, answers here exactly as a reachable one does. A QA pass
+ * spent an afternoon on the gap between the two. `scripts/probe-following-
+ * pointer.ts` sends Chrome's own pointer and reports both numbers side by side;
+ * use it when the question is "does this work", and this when the question is
+ * "why did it stop working" on a page only a session can reach.
  */
 ;(async () => {
   /** The names to press, as a reader would, and the line each is on. */
