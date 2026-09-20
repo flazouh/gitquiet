@@ -80,6 +80,14 @@ type Stage = {
   readied: number
   /** Draws the same screen again behind fresh metadata. See where it is set. */
   refresh: (instead?: Across) => void
+  /**
+   * Whether each ask about another repository was allowed to reach a registry.
+   *
+   * The knob is the reader's and it is a privacy one: asking npm where a package
+   * was published tells somebody else the name of a dependency. So what the
+   * setting says has to arrive at the question, not merely near it.
+   */
+  readonly registryAsked: Array<boolean | undefined>
   /** Every set of rows the pane has hung under the code, newest last. */
   readonly shown: Array<ReadonlyArray<{ key: string; line: number }>>
   request: DiffRequest | undefined
@@ -104,6 +112,8 @@ const staged = (
     readonly where?: Where
     readonly named?: Writing
     readonly across?: Across
+    /** The knob that decides whether a registry may be asked at all. */
+    readonly registry?: "on" | "off"
     /** What the repository answers, for a panel with nothing proven in it. */
     readonly uses?: ReadonlyArray<{
       readonly path: string
@@ -140,6 +150,7 @@ const staged = (
     outlined: 0,
     readied: 0,
     refresh: () => {},
+    registryAsked: [],
     shown: [],
     request: undefined,
     /**
@@ -235,7 +246,11 @@ const staged = (
         { line: 2, from: 7, to: 12 },
         { line: 4, from: 1, to: 6 }
       ]),
-    beyond: () => Effect.succeed(over.beyond ?? { why: "nothing there" }),
+    beyond: (_repo, _sha, _specifier, _name, registry) =>
+      Effect.sync(() => {
+        stage.registryAsked.push(registry)
+        return over.beyond ?? { why: "nothing there" }
+      }),
     usesAcross: () =>
       Effect.succeed({
         ready: true,
@@ -252,7 +267,11 @@ const staged = (
   }
 
   const settings: Store = {
-    read: Effect.succeed(DEFAULTS),
+    read: Effect.succeed(
+      over.registry === undefined
+        ? DEFAULTS
+        : { ...DEFAULTS, diff: { ...DEFAULTS.diff, registry: over.registry } }
+    ),
     write: () => Effect.void,
     watch: () => () => {}
   }
@@ -1177,6 +1196,51 @@ describe("the waiting a reader used to do", () => {
     await Effect.runPromise(settled())
 
     expect(stage.drew.length).toBe(drawn)
+  })
+})
+
+describe("the knob that decides whether npm may be asked", () => {
+  /*
+   * A privacy knob, so what it says has to arrive at the question.
+   *
+   * Asking a registry where a package was published tells somebody else the
+   * name of a dependency this repository has. The reader may turn that off, and
+   * off has to mean nothing is asked — not "asked and ignored".
+   */
+  const borrowedFromAPackage = (registry: "on" | "off") =>
+    staged(null, [], {
+      registry,
+      where: { at: "elsewhere", borrowed: { name: "one", specifier: "@yourorg/thing" } },
+      beyond: { owner: "yourorg", repo: "thing", path: "src/one.ts", line: 4, name: "one" },
+      across: {
+        paths: new Set(["src/one.ts"]),
+        repo: { owner: "flowline-labs", repo: "flowline" },
+        sha: "abc123",
+        read: () => Effect.succeed(""),
+        open: () => {}
+      }
+    })
+
+  test("lets a registry be asked where the reader left it on, which is the default", async () => {
+    const stage = borrowedFromAPackage("on")
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    expect(stage.registryAsked).toEqual([true])
+  })
+
+  test("says no at the question itself where the reader turned it off", async () => {
+    const stage = borrowedFromAPackage("off")
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    // Still asked — the free readings are the whole point and cost nobody
+    // anything — but asked with the registry withheld.
+    expect(stage.registryAsked).toEqual([false])
   })
 })
 

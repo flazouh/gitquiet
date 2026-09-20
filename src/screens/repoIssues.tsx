@@ -3,7 +3,7 @@ import { rememberedRepositories } from "@/app/destinations"
 import { forgetIntent, intendedPath } from "@/app/intent"
 import { type ListedIssues, loadIssueList, rememberedIssueList } from "@/app/issueList"
 import { drawingIssues } from "@/app/rows"
-import { type IssueList, issueListIn, queryFor, seeding } from "@/domain/issueList"
+import { addressFor, type IssueList, issueListIn, queryFor, seeding } from "@/domain/issueList"
 import { reportError } from "@/observability/report"
 import type { View } from "@/domain/Settings"
 import { chosenSettings } from "@/app/settings"
@@ -148,6 +148,25 @@ const open = (
     press(`${address.pathname}${address.search}`)
   }
 
+  /**
+   * The filter box, asking for rows this page was never fetched with.
+   *
+   * The same rule the pull request list keeps, arrived at the same way: the box
+   * narrows what is on the screen, which answers every term but a state or an
+   * author — those name rows the search never carried. `addressFor` says when
+   * the box has asked exactly that, and the answer is a new address.
+   *
+   * A tick later rather than in the call, because the list announces its
+   * remembered filter from inside its own first render, and the move takes this
+   * screen down — React must not be asked to unmount the tree it is standing up.
+   */
+  const boxAsked = (box: string): void => {
+    Option.match(addressFor(list, box), {
+      onNone: () => {},
+      onSome: (address) => queueMicrotask(() => press(address))
+    })
+  }
+
   return standAScreen({
     place: REPO_ISSUES,
     draw: (standing) => (
@@ -158,6 +177,7 @@ const open = (
         recallRepositories={recallRepositories}
         preload={remembered}
         onPage={goToPage}
+        onQuery={boxAsked}
         where={openedNamed("issue-list", list)}
         seed={seeding(list)}
         onStepAside={standing.stepAside}
