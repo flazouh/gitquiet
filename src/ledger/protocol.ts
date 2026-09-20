@@ -79,12 +79,12 @@ export type LedgerAnswer = {
   /** Where a borrowed name said it came from, when that is the answer. */
   readonly borrowed?: Borrowed
   /**
-   * The other files the asking one took whole, where it took more than one.
+   * The other files the asking one took whole, said as specifiers.
    *
-   * A name that came through a `require_relative`, an `#include` or a Go import
-   * is bound in none of them, so which file writes it is found by asking each.
+   * A name that came through an `#include` or a `require_relative` is bound in
+   * none of them, so which file writes it is found by asking each in turn.
    */
-  readonly orFrom?: ReadonlyArray<Borrowed>
+  readonly orFrom?: ReadonlyArray<string>
   readonly writings?: ReadonlyArray<Writing>
   readonly uses?: ReadonlyArray<Use>
   readonly why?: string

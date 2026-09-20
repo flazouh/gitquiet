@@ -301,8 +301,19 @@ const offering = (node: Syntax): Offering | null => {
   return members === null ? null : { at: "members", members }
 }
 
+/**
+ * Whether a name bound nowhere may be looked for in the headers this file
+ * included.
+ *
+ * Always, because C++ writes a member as a `field_identifier` and this
+ * vocabulary leaves that out of its Names — so anything reaching here is a bare
+ * identifier, which really is a free name.
+ */
+const looksWhole = (): boolean => true
+
 export const CPP: Dialect = {
   opens: OPENS,
+  looksWhole,
   names: NAMES,
   bindings,
   passedOn,

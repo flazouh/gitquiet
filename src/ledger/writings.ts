@@ -76,14 +76,13 @@ export type Found =
       readonly at: "elsewhere"
       readonly borrowed: Borrowed
       /**
-       * The other files this one borrowed whole, where there are any.
+       * The other files this one took whole, said as specifiers.
        *
-       * A `require_relative`, an `#include` and a Go import bring in everything
-       * the other file writes and name none of it, so a name reached that way is
-       * bound nowhere here and the only honest answer is "one of these". The
-       * caller asks each in turn until one writes the name.
+       * Specifiers rather than Borroweds because the name is the one that was
+       * pressed and is the same for every one of them — a list of Borroweds
+       * would be that name copied, beside a claim the file never made.
        */
-      readonly orFrom?: ReadonlyArray<Borrowed>
+      readonly orFrom?: ReadonlyArray<string>
     }
 
 /** One place a Name is used, which is a line and the columns it sits between. */
@@ -125,6 +124,27 @@ export type Dialect = {
     readonly outer: ReadonlyArray<Bound>
     readonly inner: ReadonlyArray<Bound>
   }
+  /**
+   * Whether a name this file binds nowhere may be looked for in the files it
+   * took whole, given the node it was pressed on and the node above it.
+   *
+   * Absent for most languages, and absent is the safe answer. A file that takes
+   * another whole — `require_relative`, `#include` — says nothing about which
+   * names came from it, so pointing a bare name at one is a guess. It is only
+   * worth making where a guess cannot be wrong in the ordinary case:
+   *
+   *  - **C++ may.** A member is a `field_identifier` and is not a Name at all,
+   *    so a bare identifier really is a free name.
+   *  - **Ruby may, except through a receiver.** `x.risky` writes `risky` as the
+   *    same `identifier` a free name uses, and what `x` is takes types to know.
+   *  - **Go may not.** Its imports are used qualified — `shapes.Area` — so a
+   *    bare name in Go is a name of its own package, written in a sibling file
+   *    this never reads. Answering it with an imported package's name of the
+   *    same spelling is the one mistake this feature exists to prevent.
+   *  - **TypeScript may not.** `export * from` is a re-export: it passes names
+   *    on rather than reading them, so nothing here arrived that way.
+   */
+  readonly looksWhole?: (name: Syntax, above: Syntax | null) => boolean
   /**
    * What a statement passes on from somewhere else, which is a re-export.
    *
@@ -269,7 +289,8 @@ export const writingAt = (
   source: string,
   at: Spot,
   dialect: Dialect
-): Found | null => found(root, source, at, new Map(), dialect, commentsBy(root, dialect))
+): Found | null =>
+  found(root, source, at, new Map(), dialect, commentsBy(root, dialect), onceWhole(root, dialect))
 
 /**
  * The same, with the scopes it worked out kept, for a caller asking many times.
@@ -285,7 +306,15 @@ const found = (
   at: Spot,
   memo: Memo,
   dialect: Dialect,
-  comments: ReadonlyMap<number, Syntax>
+  comments: ReadonlyMap<number, Syntax>,
+  /**
+   * Worked out once by the caller, for the reason the comments are.
+   *
+   * `usesIn` asks this once per mention of a name, and walking the tree for the
+   * file's borrows on each of those is the same shape as the quadratic
+   * {@link commentsBy} was written to remove.
+   */
+  whole: () => ReadonlyArray<Borrowed>
 ): Found | null => {
   const path = pathTo(root, at)
   const name = path.at(-1)
@@ -313,26 +342,44 @@ const found = (
   }
 
   /*
-   * Bound nowhere in this file, which for three of the ten languages is where
-   * the answer starts rather than where it stops.
+   * Bound nowhere in this file, which for two of the ten languages is where the
+   * answer starts rather than where it stops.
    *
-   * Ruby's `require_relative`, C++'s `#include` and Go's import bring in
-   * everything another file writes and name none of it, so a name that came
-   * through one is a name this file never binds. What the file does say is which
-   * files it took whole, and the name is written in one of them.
+   * C++'s `#include` and Ruby's `require_relative` bring in everything another
+   * file writes and name none of it, so a name that came through one is a name
+   * this file never binds. What the file does say is which files it took whole.
    *
-   * The same rule `usesAcross` already applies from the other end: a whole-file
-   * borrow carries every name that file writes, so it is followed for any name
-   * asked about.
+   * Only where the Dialect says a guess cannot be wrong in the ordinary case,
+   * which is the whole of {@link Dialect.looksWhole}: a bare name in Go is a
+   * name of its own package and not of an imported one, and answering it with an
+   * imported package's name of the same spelling would be a press landing on
+   * somebody else's name.
    */
-  const whole = wholeFileBorrows(root, dialect)
-  const first = whole[0]
+  if (dialect.looksWhole === undefined) return null
+  if (!dialect.looksWhole(name, path.at(-2) ?? null)) return null
+
+  const took = whole()
+  const first = took[0]
   if (first === undefined) return null
-  const asked = whole.map((one) => ({ name: name.text, specifier: one.specifier }))
   return {
     at: "elsewhere",
     borrowed: { name: name.text, specifier: first.specifier },
-    ...(asked.length > 1 ? { orFrom: asked.slice(1) } : {})
+    ...(took.length > 1 ? { orFrom: took.slice(1).map((one) => one.specifier) } : {})
+  }
+}
+
+/**
+ * The same, worked out at most once however many times it is asked for.
+ *
+ * Most presses land on a name the file binds and never reach the fallback, so
+ * the walk is worth not making; a sweep that reaches it once reaches it for
+ * every mention, so it is worth not making twice.
+ */
+const onceWhole = (root: Syntax, dialect: Dialect): (() => ReadonlyArray<Borrowed>) => {
+  let held: ReadonlyArray<Borrowed> | undefined
+  return () => {
+    if (held === undefined) held = wholeFileBorrows(root, dialect)
+    return held
   }
 }
 
@@ -463,10 +510,11 @@ export const usesIn = (
   // the whole tree once for every use of the name — which is the cost the note
   // on `commentsBy` says was taken out of `writingsIn`, left in the hot path.
   const comments = commentsBy(root, dialect)
+  const whole = onceWhole(root, dialect)
 
   const walk = (node: Syntax): void => {
     if (dialect.names.has(node.type) && node.text === writing.name) {
-      const here = found(root, source, node.startPosition, memo, dialect, comments)
+      const here = found(root, source, node.startPosition, memo, dialect, comments, whole)
       if (
         here !== null &&
         here.at === "here" &&

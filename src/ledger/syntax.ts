@@ -132,7 +132,10 @@ export const lastNameIn = (
  */
 export const pathBefore = (whole: string, separator: string): string => {
   const at = whole.lastIndexOf(separator)
-  return at === -1 ? whole : whole.slice(0, at)
+  // Nothing, rather than the whole string, for a name with no separator in it.
+  // `use Thing;` came from nowhere this can name, and answering "Thing" made the
+  // name arrive twice — `Thing/Thing.php` — and the real file never matched.
+  return at === -1 ? "" : whole.slice(0, at)
 }
 
 /**

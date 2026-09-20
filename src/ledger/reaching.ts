@@ -67,7 +67,7 @@ const plainly = (path: string): string | null => {
 export const couldBe = (
   from: string,
   specifier: string,
-  paths: ReadonlySet<string> = new Set(),
+  paths: ReadonlySet<string>,
   /**
    * The name that was borrowed, for the three languages whose specifier is not
    * the whole address.
@@ -80,32 +80,65 @@ export const couldBe = (
    */
   name?: string
 ): ReadonlyArray<string> => {
-  const extension = extensionOf(from)
-  if (extension === "py" || extension === "pyi") return couldBePython(from, specifier)
-  if (extension === "rs") return couldBeRust(specifier)
-  if (extension === "rb") return couldBeRuby(from, specifier)
-  if (extension === "go") return couldBeGo(specifier, paths)
-  if (extension === "java") return couldBeJava(specifier, name)
-  if (extension === "php") return couldBePhp(specifier, name)
-  if (extension === "cs") return couldBeCSharp(specifier, name)
-  if (extension !== undefined && extension !== null && CPP.has(extension)) {
-    return couldBeCpp(from, specifier)
-  }
+  const resolver = RESOLVERS[extensionOf(from) ?? ""]
+  return (resolver ?? couldBeTypeScript)({ from, specifier, paths, name })
+}
 
-  if (!specifier.startsWith(".")) return []
+/** What every resolver is handed, so that each takes only what it needs. */
+type Asked = {
+  readonly from: string
+  readonly specifier: string
+  readonly paths: ReadonlySet<string>
+  readonly name?: string
+}
 
-  const folder = folderOf(from)
-  const asked = plainly(`${folder}/${specifier}`)
-  if (asked === null) return []
-
-  return endingsFor(asked)
+/**
+ * Which resolver reads a file's specifiers, by the extension it is written under.
+ *
+ * Keyed the same way `src/ledger/dialects.ts` keys its vocabularies, and for the
+ * same reason: a language's rules belong in one place, read off a table somebody
+ * can check against the language. A file whose extension is not here is read as
+ * TypeScript, which is what every other extension meant before any of these.
+ *
+ * `dialects.test.ts` holds this list against that one, so the two cannot drift
+ * into a file that parses and resolves nothing, or resolves and parses nothing.
+ */
+const RESOLVERS: Readonly<Record<string, (asked: Asked) => ReadonlyArray<string>>> = {
+  ts: couldBeTypeScript,
+  mts: couldBeTypeScript,
+  cts: couldBeTypeScript,
+  tsx: couldBeTypeScript,
+  js: couldBeTypeScript,
+  mjs: couldBeTypeScript,
+  cjs: couldBeTypeScript,
+  jsx: couldBeTypeScript,
+  py: couldBePython,
+  pyi: couldBePython,
+  rs: couldBeRust,
+  rb: couldBeRuby,
+  go: couldBeGo,
+  java: couldBeJava,
+  php: couldBePhp,
+  cs: couldBeCSharp,
+  c: couldBeCpp,
+  h: couldBeCpp,
+  cc: couldBeCpp,
+  cpp: couldBeCpp,
+  cxx: couldBeCpp,
+  hpp: couldBeCpp,
+  hh: couldBeCpp,
+  hxx: couldBeCpp
 }
 
 /** The folder a file sits in, which is where every relative specifier starts. */
 const folderOf = (path: string): string => path.slice(0, Math.max(0, path.lastIndexOf("/")))
 
-/** The extensions the C++ grammar reads, which all resolve an include the same way. */
-const CPP: ReadonlySet<string> = new Set(["c", "h", "cc", "cpp", "cxx", "hpp", "hh", "hxx"])
+/** What a relative specifier names, which is a path with its ending left off. */
+function couldBeTypeScript({ from, specifier }: Asked): ReadonlyArray<string> {
+  if (!specifier.startsWith(".")) return []
+  const asked = plainly(`${folderOf(from)}/${specifier}`)
+  return asked === null ? [] : endingsFor(asked)
+}
 
 /**
  * What a `require_relative` names, which is the one exact answer of the four.
@@ -117,7 +150,7 @@ const CPP: ReadonlySet<string> = new Set(["c", "h", "cc", "cpp", "cxx", "hpp", "
  * A plain `require` names a gem and never reaches here — `ruby.ts` records only
  * the relative one, because a gem is not a file in this repository.
  */
-const couldBeRuby = (from: string, specifier: string): ReadonlyArray<string> => {
+function couldBeRuby({ from, specifier }: Asked): ReadonlyArray<string> {
   const asked = plainly(`${folderOf(from)}/${specifier}`)
   if (asked === null || asked === "") return []
   return asked.endsWith(".rb") ? [asked] : [`${asked}.rb`]
@@ -134,7 +167,7 @@ const couldBeRuby = (from: string, specifier: string): ReadonlyArray<string> => 
  * The path keeps its ending: C++ writes it, where every other language here
  * leaves it off.
  */
-const couldBeCpp = (from: string, specifier: string): ReadonlyArray<string> => {
+function couldBeCpp({ from, specifier }: Asked): ReadonlyArray<string> {
   const beside = plainly(`${folderOf(from)}/${specifier}`)
   const plain = plainly(specifier)
   const asked: Array<string> = []
@@ -162,7 +195,7 @@ const couldBeCpp = (from: string, specifier: string): ReadonlyArray<string> => {
  * `import java.util.List` reaches nothing, which is right: it is the standard
  * library, and no root here holds it.
  */
-const couldBeJava = (specifier: string, name?: string): ReadonlyArray<string> => {
+function couldBeJava({ specifier, name }: Asked): ReadonlyArray<string> {
   const whole = named(specifier, name, ".")
   const asked = whole.split(".").filter((part) => part !== "").join("/")
   if (asked === "") return []
@@ -178,7 +211,12 @@ const couldBeJava = (specifier: string, name?: string): ReadonlyArray<string> =>
 const named = (specifier: string, name: string | undefined, separator: string): string => {
   if (name === undefined || name === "*" || name === "default") return specifier
   if (specifier === "") return name
-  return specifier.endsWith(separator + name) ? specifier : `${specifier}${separator}${name}`
+  // Always put it back. A guard against a specifier that already ends in the
+  // name looks like a safety net and is a trap: every caller records the
+  // specifier with `pathBefore`, which has already taken the last segment off,
+  // so the only thing the guard caught was a namespace whose last segment
+  // happens to match the type — and `App\Thing\Thing` is an ordinary class.
+  return `${specifier}${separator}${name}`
 }
 
 /** Where a build tool puts Java sources, tried in this order. */
@@ -200,7 +238,7 @@ const JAVA_ROOTS: ReadonlyArray<string> = [
  * is not read here, so every shape it usually takes is offered and the one the
  * repository really holds is the one that answers.
  */
-const couldBePhp = (specifier: string, name?: string): ReadonlyArray<string> => {
+function couldBePhp({ specifier, name }: Asked): ReadonlyArray<string> {
   const parts = named(specifier, name, "\\").split("\\").filter((part) => part !== "")
   if (parts.length === 0) return []
   const whole = parts.join("/")
@@ -223,7 +261,7 @@ const couldBePhp = (specifier: string, name?: string): ReadonlyArray<string> => 
  * Only an aliased `using` arrives here. A plain one opens a namespace and names
  * nothing, so `csharp.ts` records no borrow for it.
  */
-const couldBeCSharp = (specifier: string, name?: string): ReadonlyArray<string> => {
+function couldBeCSharp({ specifier, name }: Asked): ReadonlyArray<string> {
   const parts = named(specifier, name, ".").split(".").filter((part) => part !== "")
   if (parts.length === 0) return []
   const whole = parts.join("/")
@@ -251,7 +289,7 @@ const couldBeCSharp = (specifier: string, name?: string): ReadonlyArray<string> 
  * A test file is left out. `_test.go` is compiled into the package and a reader
  * following a name wants where it is written, not where it is exercised.
  */
-const couldBeGo = (specifier: string, paths: ReadonlySet<string>): ReadonlyArray<string> => {
+function couldBeGo({ specifier, paths }: Asked): ReadonlyArray<string> {
   const parts = specifier.split("/").filter((part) => part !== "")
   if (parts.length === 0) return []
 
@@ -320,7 +358,7 @@ const goPackages = (paths: ReadonlySet<string>): ReadonlyMap<string, ReadonlyArr
  * a module of the standard library reaches nothing rather than reaching the
  * wrong thing.
  */
-const couldBePython = (from: string, specifier: string): ReadonlyArray<string> => {
+function couldBePython({ from, specifier }: Asked): ReadonlyArray<string> {
   const dots = specifier.length - specifier.replace(/^\.+/, "").length
   const rest = specifier.slice(dots)
   const parts = rest === "" ? [] : rest.split(".")
@@ -367,7 +405,7 @@ const pythonEndings = (asked: string): ReadonlyArray<string> => [
  * `std::`, and any other crate, is outside the repository, which is the same
  * answer every dependency gets everywhere else here.
  */
-const couldBeRust = (specifier: string): ReadonlyArray<string> => {
+function couldBeRust({ specifier }: Asked): ReadonlyArray<string> {
   const parts = specifier.split("::").filter((part) => part !== "")
   if (parts[0] !== "crate" || parts.length < 2) return []
   const asked = parts.slice(1).join("/")
@@ -401,7 +439,11 @@ export const endingsFor = (asked: string): ReadonlyArray<string> => {
 }
 
 /**
- * The path a specifier names, out of the paths that exist, or nothing.
+ * The one path a specifier names, out of the paths that exist, or nothing.
+ *
+ * The first of {@link reachingAll}. Nothing in the interface uses it — both
+ * callers want every candidate — and it stays because a test that means "this
+ * specifier is that file" should be able to say so in one line.
  *
  * Nothing is the answer for a dependency, for a specifier that resolves out of
  * the repository, and for a file the tree has never heard of. All three leave
@@ -413,6 +455,9 @@ export const reaching = (
   paths: ReadonlySet<string>,
   name?: string
 ): string | null => reachingAll(from, specifier, paths, name)[0] ?? null
+
+/** The extensions a specifier can be resolved for, for a test that holds two lists together. */
+export const RESOLVES: ReadonlySet<string> = new Set(Object.keys(RESOLVERS))
 
 /**
  * Every file a specifier could be, out of the paths that exist, best first.

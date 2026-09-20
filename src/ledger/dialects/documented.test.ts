@@ -1,5 +1,5 @@
-import { beforeAll, describe, expect, test } from "bun:test"
-import { Language, Parser } from "web-tree-sitter"
+import { afterAll, beforeAll, describe, expect, test } from "bun:test"
+import { Language, Parser, type Tree } from "web-tree-sitter"
 import type { Syntax } from "../syntax"
 import { usesIn, writingsIn, type Dialect } from "../writings"
 import { CPP } from "./cpp"
@@ -113,6 +113,12 @@ const CASES: ReadonlyArray<Case> = [
 ]
 
 const parsed = new Map<string, Syntax>()
+const held: Array<Tree> = []
+
+afterAll(() => {
+  for (const tree of held) tree.delete()
+  held.length = 0
+})
 
 beforeAll(async () => {
   await Parser.init({ locateFile: () => "node_modules/web-tree-sitter/web-tree-sitter.wasm" })
@@ -120,7 +126,12 @@ beforeAll(async () => {
     const language = await Language.load(`node_modules/@vscode/tree-sitter-wasm/wasm/${one.wasm}`)
     const parser = new Parser()
     parser.setLanguage(language)
-    parsed.set(one.language, parser.parse(one.source)!.rootNode as unknown as Syntax)
+    const tree = parser.parse(one.source)!
+    // Both are WebAssembly memory. The parser has done its work; the tree is
+    // what the nodes belong to and is freed when the file is done with.
+    parser.delete()
+    held.push(tree)
+    parsed.set(one.language, tree.rootNode as unknown as Syntax)
   }
 })
 

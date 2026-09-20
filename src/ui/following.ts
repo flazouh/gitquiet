@@ -3,6 +3,15 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import type { Beyond, Reading, Where, Writing } from "../ports/Ledger"
 import type { Bounds, DiffHandle, Modifiers, Name } from "../ports/Renderer"
 import { reachingAll } from "../ledger/reaching"
+
+/**
+ * How many files one press may read before it gives up.
+ *
+ * A name brought in by an import is one file. A name looked for in the files
+ * this one took whole is as many as it took, times as many files as each of
+ * those could be — and every one of them is a read a reader is waiting on.
+ */
+const MOST_CANDIDATES = 12
 import { useLedger } from "./ledger"
 import { useSettings } from "./useSettings"
 import { sameName } from "../diff/engine"
@@ -456,29 +465,30 @@ export const useFollowing = (
           return Effect.void
         }
         /*
-         * Every file the specifier could be, asked in turn until one writes the
-         * name. Most languages name a file and there is only ever one; Go names
-         * a package, which is a folder, and which of its files holds the name is
-         * not something the import says.
+         * Every file this name could have come from, asked in turn until one
+         * writes it. Most languages name a file and there is only ever one; Go
+         * names a package, which is a folder, and a file that took others whole
+         * says which files rather than which names.
          *
          * In turn rather than at once: the first answers for every language but
          * one, and a reader pressing a name should not fetch a whole package to
          * find out.
          */
-        // Every file this could have come from, and for each of those every
-        // file that specifier could be. One borrow and one file is the ordinary
-        // case; a Ruby or C++ file that took several whole has several, and a Go
-        // import names a folder rather than a file.
-        const candidates = [found.borrowed, ...(found.orFrom ?? [])].flatMap((from) =>
-          reachingAll(source.path, from.specifier, across.paths, from.name)
-        )
+        const asked = found.borrowed.name
+        const candidates = [found.borrowed.specifier, ...(found.orFrom ?? [])]
+          .flatMap((specifier) => reachingAll(source.path, specifier, across.paths, asked))
+          // Capped over the whole list and not only per specifier: a C++ file
+          // that includes twenty headers, pressed on a name none of them writes,
+          // would otherwise read all twenty before saying nothing.
+          .slice(0, MOST_CANDIDATES)
         if (candidates.length === 0) return Effect.void
 
-        const asking = (at: number): Effect.Effect<void> => {
+        // Named apart from the outer `asking`, which is a different question.
+        const trying = (at: number): Effect.Effect<void> => {
           const path = candidates[at]
           if (path === undefined) return Effect.void
 
-          const onwards = (): Effect.Effect<void> => asking(at + 1)
+          const onwards = (): Effect.Effect<void> => trying(at + 1)
 
           return across.read(path).pipe(
             Effect.flatMap((text) =>
@@ -494,13 +504,15 @@ export const useFollowing = (
               then(writing.value, path)
               return Effect.void
             }),
-            // A file that would not come is the next one's turn, and the last
-            // one leaves the reader where they were with no underline.
-            Effect.catch(onwards)
+            // A file that would not come is the next one's turn — reported
+            // first, because `onward` is the only trace this extension keeps and
+            // swallowing the cause here made a failed read look like a file that
+            // simply said nothing.
+            Effect.catch((cause) => onward(cause).pipe(Effect.andThen(onwards())))
           )
         }
 
-        return asking(0).pipe(Effect.catch(onward))
+        return trying(0)
       }
 
       Effect.runFork(

@@ -37,7 +37,7 @@ describe("which file a specifier names", () => {
   test("leaves the repository alone for a dependency", () => {
     expect(reaching("src/ui/RepoTree.tsx", "effect", PATHS)).toBeNull()
     expect(reaching("src/ui/RepoTree.tsx", "@effect/platform", PATHS)).toBeNull()
-    expect(couldBe("src/ui/RepoTree.tsx", "react")).toEqual([])
+    expect(couldBe("src/ui/RepoTree.tsx", "react", PATHS)).toEqual([])
   })
 
   test("answers nothing for a file the repository does not have", () => {
@@ -45,7 +45,7 @@ describe("which file a specifier names", () => {
   })
 
   test("does not climb out of the repository", () => {
-    expect(couldBe("src/one.ts", "../../../../etc/passwd")).toEqual([])
+    expect(couldBe("src/one.ts", "../../../../etc/passwd", PATHS)).toEqual([])
     expect(reaching("src/one.ts", "../..", PATHS)).toBeNull()
   })
 
@@ -289,6 +289,28 @@ describe("what a quoted C++ include names", () => {
   })
 })
 
+/**
+ * A press, said the way production says it.
+ *
+ * `java.ts`, `php.ts` and `csharp.ts` record an import as the name it brought
+ * and the package it came from — `Box` from `com.ex.shapes` — because that is
+ * what reads well on a card. Both halves are then needed to build a path, and
+ * every caller passes both. A test that passed only the specifier was testing a
+ * call that never happens, which is how a bug in putting the two back together
+ * lived through a green suite.
+ */
+const pressed = (
+  from: string,
+  whole: string,
+  paths: ReadonlySet<string>,
+  separator = "."
+): string | null => {
+  const at = whole.lastIndexOf(separator)
+  const name = at === -1 ? whole : whole.slice(at + separator.length)
+  const specifier = at === -1 ? "" : whole.slice(0, at)
+  return reachingAll(from, specifier, paths, name)[0] ?? null
+}
+
 describe("what a Java import names", () => {
   const paths = new Set([
     "src/main/java/com/example/app/Box.java",
@@ -298,19 +320,19 @@ describe("what a Java import names", () => {
   ])
 
   test("a package is a folder and a type is a file", () => {
-    expect(reaching("src/main/java/com/example/app/Main.java", "com.example.app.Box", paths)).toBe(
-      "src/main/java/com/example/app/Box.java"
-    )
+    expect(
+      pressed("src/main/java/com/example/app/Main.java", "com.example.app.Box", paths)
+    ).toBe("src/main/java/com/example/app/Box.java")
   })
 
   test("finds a type in another module of the same build", () => {
     expect(
-      reaching("src/main/java/com/example/app/Main.java", "com.example.core.Engine", paths)
+      pressed("src/main/java/com/example/app/Main.java", "com.example.core.Engine", paths)
     ).toBe("core/src/main/java/com/example/core/Engine.java")
   })
 
   test("the standard library is not in this repository", () => {
-    expect(reaching("src/main/java/com/example/app/Main.java", "java.util.List", paths)).toBeNull()
+    expect(pressed("src/main/java/com/example/app/Main.java", "java.util.List", paths)).toBeNull()
   })
 })
 
@@ -319,15 +341,15 @@ describe("what a PHP use names", () => {
 
   test("PSR-4 maps the namespace prefix onto a source root", () => {
     // `App\` is mapped to `src/`, so `App\Other\Thing` is `src/Other/Thing.php`.
-    expect(reaching("src/Main.php", "App\\Other\\Thing", paths)).toBe("src/Other/Thing.php")
+    expect(pressed("src/Main.php", "App\\Other\\Thing", paths, "\\")).toBe("src/Other/Thing.php")
   })
 
   test("a repository that keeps the prefix as a folder answers too", () => {
-    expect(reaching("src/Main.php", "App\\Legacy\\Old", paths)).toBe("src/App/Legacy/Old.php")
+    expect(pressed("src/Main.php", "App\\Legacy\\Old", paths, "\\")).toBe("src/App/Legacy/Old.php")
   })
 
   test("a namespace this repository does not hold reaches nothing", () => {
-    expect(reaching("src/Main.php", "Vendor\\Package\\Thing", paths)).toBeNull()
+    expect(pressed("src/Main.php", "Vendor\\Package\\Thing", paths, "\\")).toBeNull()
   })
 })
 
@@ -365,5 +387,48 @@ describe("what a Go import names, which is a folder", () => {
 
   test("a package this repository does not hold reaches nothing", () => {
     expect(reachingAll("main.go", "github.com/pkg/errors", paths)).toEqual([])
+  })
+})
+
+describe("a namespace whose last part is the type's own name", () => {
+  const paths = new Set(["src/Thing/Thing.php", "src/Solo.php", "App/Deep/Deep.java"])
+
+  test("PHP keeps both, rather than taking one for the other", () => {
+    // `App\\Thing\\Thing` is an ordinary PSR-4 class. A guard that skipped
+    // putting the name back when the specifier already ended in it resolved
+    // this to `src/Thing.php`, which is a different file.
+    expect(pressed("src/Main.php", "App\\Thing\\Thing", paths, "\\")).toBe("src/Thing/Thing.php")
+  })
+
+  test("a use with no namespace at all still names a file", () => {
+    // `use Solo;` came from nowhere this can name. Answering "Solo" as the
+    // namespace made the name arrive twice and matched nothing.
+    expect(pressed("src/Main.php", "Solo", paths, "\\")).toBe("src/Solo.php")
+  })
+
+  test("Java keeps both too", () => {
+    expect(pressed("src/Main.java", "App.Deep.Deep", paths)).toBe("App/Deep/Deep.java")
+  })
+})
+
+describe("what a C# alias names", () => {
+  const paths = new Set(["src/Other/Thing.cs", "App/Legacy/Old.cs", "src/App/Deep/Down.cs"])
+
+  test("a namespace laid out as folders under a source root", () => {
+    expect(pressed("src/Main.cs", "App.Other.Thing", paths)).toBe("src/Other/Thing.cs")
+  })
+
+  test("a repository that keeps the whole namespace as folders", () => {
+    expect(pressed("src/Main.cs", "App.Legacy.Old", paths)).toBe("App/Legacy/Old.cs")
+  })
+
+  test("and one that keeps it under src", () => {
+    expect(pressed("src/Main.cs", "App.Deep.Down", paths)).toBe("src/App/Deep/Down.cs")
+  })
+
+  test("a namespace this repository does not hold reaches nothing", () => {
+    // A namespace in C# is not a folder, so this is convention and nothing more.
+    // What is not held is not guessed at.
+    expect(pressed("src/Main.cs", "System.Text.Json", paths)).toBeNull()
   })
 })

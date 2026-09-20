@@ -1,5 +1,5 @@
-import { beforeAll, describe, expect, test } from "bun:test"
-import { Language, Parser } from "web-tree-sitter"
+import { afterAll, beforeAll, describe, expect, test } from "bun:test"
+import { Language, Parser, type Tree } from "web-tree-sitter"
 import { dialectFor } from "../dialects"
 import { reachingAll } from "../reaching"
 import type { Syntax } from "../syntax"
@@ -117,12 +117,30 @@ beforeAll(async () => {
   }
 })
 
-/** A file parsed by the grammar its extension names. */
+/**
+ * A file parsed by the grammar its extension names.
+ *
+ * The parser is freed as soon as it has parsed and the tree is kept until the
+ * file is done with, because both are WebAssembly memory rather than the kind a
+ * garbage collector takes back. A test that made one of each per call and freed
+ * neither ran eleven grammars' worth of leak past a worker under
+ * `bun test --parallel`, which is a segmentation fault rather than a failure.
+ */
+const held: Array<Tree> = []
+
 const parsed = (wasm: string, text: string): Syntax => {
   const parser = new Parser()
   parser.setLanguage(languages.get(wasm)!)
-  return parser.parse(text)!.rootNode as unknown as Syntax
+  const tree = parser.parse(text)!
+  parser.delete()
+  held.push(tree)
+  return tree.rootNode as unknown as Syntax
 }
+
+afterAll(() => {
+  for (const tree of held) tree.delete()
+  held.length = 0
+})
 
 /** The last place a word is written, which is the use rather than the import. */
 const lastUse = (text: string, word: string): { row: number; column: number } => {
@@ -146,8 +164,8 @@ describe("a press that leaves the file it was made in", () => {
       if (found?.at !== "elsewhere") return
 
       const paths = new Set(Object.keys(one.files))
-      const candidates = [found.borrowed, ...(found.orFrom ?? [])].flatMap((from) =>
-        reachingAll(one.from, from.specifier, paths, from.name)
+      const candidates = [found.borrowed.specifier, ...(found.orFrom ?? [])].flatMap(
+        (specifier) => reachingAll(one.from, specifier, paths, found.borrowed.name)
       )
       expect(candidates).toContain(one.wrote)
 
@@ -182,7 +200,7 @@ describe("a file that was taken whole, and named nothing it brought", () => {
     // Both files are offered, in the order the file took them, because which of
     // them writes the name is not something either `require` says.
     expect(found.borrowed).toEqual({ name: "Second", specifier: "one" })
-    expect(found.orFrom).toEqual([{ name: "Second", specifier: "two" }])
+    expect(found.orFrom).toEqual(["two"])
   })
 
   test("a file that took nothing whole still answers nothing", () => {

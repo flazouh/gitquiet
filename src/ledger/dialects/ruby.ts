@@ -252,8 +252,32 @@ const offering = (node: Syntax): Offering | null => {
  */
 const COMMENTS: ReadonlySet<string> = new Set(["comment"])
 
+/**
+ * Whether a name bound nowhere may be looked for in the files this one required.
+ *
+ * Yes, except through a receiver. Ruby writes the method of `x.risky` with the
+ * same `identifier` a free name uses, and what `x` is takes types to know — so
+ * answering it with whichever required file happens to write a `risky` would be
+ * a guess wearing a fact's clothes. A bare `Helper` has no receiver, and is the
+ * case this exists for.
+ *
+ * Compared by where it starts rather than by identity: tree-sitter hands out a
+ * fresh object every time a child is asked for.
+ */
+const looksWhole = (name: Syntax, above: Syntax | null): boolean => {
+  if (above === null || above.type !== "call") return true
+  if (above.childForFieldName("receiver") === null) return true
+  const method = above.childForFieldName("method")
+  if (method === null) return true
+  return (
+    method.startPosition.row !== name.startPosition.row ||
+    method.startPosition.column !== name.startPosition.column
+  )
+}
+
 export const RUBY: Dialect = {
   opens: OPENS,
+  looksWhole,
   names: NAMES,
   bindings,
   passedOn,

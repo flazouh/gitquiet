@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { dialectFor } from "./dialects"
 import { GRAMMARS } from "./parse"
+import { RESOLVES } from "./reaching"
 import { GO } from "./dialects/go"
 import { PYTHON } from "./dialects/python"
 import { JAVA } from "./dialects/java"
@@ -72,5 +73,17 @@ describe("the grammar list and the vocabulary list", () => {
     const parsed = Object.keys(GRAMMARS).sort()
     const read = parsed.filter((extension) => dialectFor(`a.${extension}`) !== null)
     expect(read).toEqual(parsed)
+  })
+})
+
+describe("the vocabulary list and the resolver list", () => {
+  test("name the same extensions, so a file that parses can also be followed", () => {
+    // Three tables are keyed by extension: a grammar turns a file into a tree,
+    // a vocabulary says what its node types mean, and a resolver turns what the
+    // file says it borrowed into a path. A language missing from the third
+    // parses and reads and then answers every press with nothing, which is a
+    // reader told nothing with nothing in the console to say why.
+    const read = Object.keys(GRAMMARS).sort()
+    expect(read.filter((extension) => RESOLVES.has(extension))).toEqual(read)
   })
 })

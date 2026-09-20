@@ -75,8 +75,8 @@ export type Where =
   | {
       readonly at: "elsewhere"
       readonly borrowed: Borrowed
-      /** The other files this one took whole, where the name is bound in none. */
-      readonly orFrom?: ReadonlyArray<Borrowed>
+      /** The other files this one took whole, said as specifiers. */
+      readonly orFrom?: ReadonlyArray<string>
     }
 
 export type Ledger = {
