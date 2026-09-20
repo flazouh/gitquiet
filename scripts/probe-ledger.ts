@@ -12,6 +12,7 @@
  * So this asks the Ledger, from the page, about a file of this repository's own,
  * and checks it comes back with the same answers `writings.test.ts` gets.
  */
+import { reachingAll } from "../src/ledger/reaching"
 import { withExtension } from "./chrome"
 
 const PAGE = "https://github.com/microsoft/vscode/pull/327442"
@@ -157,6 +158,139 @@ try {
   }
 
   /*
+   * Following a name out of the file it is read in, in the languages that name
+   * another file their own way.
+   *
+   * The three hops again, and one more: the resolver says the name came from
+   * elsewhere, `reaching` turns what the file said into a path, and the file at
+   * that path is asked what it writes under the name. `bun test` holds each on
+   * this machine; what it cannot hold is that the offscreen document answers the
+   * same way about a file it was handed over a message.
+   */
+  const ACROSS: ReadonlyArray<{
+    readonly language: string
+    readonly from: string
+    readonly press: string
+    readonly files: Readonly<Record<string, string>>
+    readonly wrote: string
+    readonly at: number
+  }> = [
+    {
+      language: "java",
+      from: "src/main/java/com/ex/Main.java",
+      press: "Box",
+      wrote: "src/main/java/com/ex/shapes/Box.java",
+      at: 2,
+      files: {
+        "src/main/java/com/ex/Main.java":
+          "package com.ex;\nimport com.ex.shapes.Box;\nclass Main { int go() { return new Box(1).size(); } }\n",
+        "src/main/java/com/ex/shapes/Box.java":
+          "package com.ex.shapes;\npublic class Box { public Box(int n) {} public int size() { return 1; } }\n"
+      }
+    },
+    {
+      language: "php",
+      from: "src/Main.php",
+      press: "Thing",
+      wrote: "src/Other/Thing.php",
+      at: 3,
+      files: {
+        "src/Main.php":
+          "<?php\nnamespace App;\nuse App\\Other\\Thing;\nfunction go() { return new Thing(); }\n",
+        "src/Other/Thing.php": "<?php\nnamespace App\\Other;\nclass Thing { }\n"
+      }
+    },
+    {
+      language: "c#",
+      from: "src/Main.cs",
+      press: "Widget",
+      wrote: "src/Other/Thing.cs",
+      at: 1,
+      files: {
+        "src/Main.cs": "using Widget = App.Other.Thing;\nclass Main { Widget w; }\n",
+        "src/Other/Thing.cs": "namespace App.Other { public class Thing { } }\n"
+      }
+    },
+    {
+      language: "ruby",
+      from: "app/main.rb",
+      press: "Helper",
+      wrote: "app/helper.rb",
+      at: 1,
+      files: {
+        "app/main.rb":
+          "require_relative 'helper'\n\nclass Main\n  def go\n    Helper.new\n  end\nend\n",
+        "app/helper.rb": "class Helper\nend\n"
+      }
+    },
+    {
+      language: "c++",
+      from: "src/main.cpp",
+      press: "helper",
+      wrote: "src/helper.h",
+      at: 1,
+      files: {
+        "src/main.cpp": "#include \"helper.h\"\n\nint main() { return helper(); }\n",
+        "src/helper.h": "inline int helper() { return 1; }\n"
+      }
+    }
+  ]
+
+  const across_: Record<string, string> = {}
+  for (const one of ACROSS) {
+    const text = one.files[one.from]!
+    const lines = text.split("\n")
+    let row = -1
+    let column = -1
+    for (let at = lines.length - 1; at > 0 && row === -1; at--) {
+      const found = lines[at]!.lastIndexOf(one.press)
+      if (found !== -1) {
+        row = at
+        column = found
+      }
+    }
+
+    const said = await session.evaluateInExtension<{
+      borrowed?: { name: string; specifier: string }
+      orFrom?: ReadonlyArray<{ name: string; specifier: string }>
+    }>(`
+      chrome.runtime.sendMessage({
+        kind: "gitquiet/ledger-ask",
+        path: ${JSON.stringify(one.from)},
+        text: ${JSON.stringify(text)},
+        question: ${JSON.stringify({ of: "writingAt", at: { row, column } })}
+      })
+    `)
+
+    if (said.borrowed === undefined) {
+      across_[one.language] = "the press said nothing was borrowed"
+      continue
+    }
+
+    const paths = new Set(Object.keys(one.files))
+    const where = [said.borrowed, ...(said.orFrom ?? [])].flatMap((from) =>
+      reachingAll(one.from, from.specifier, paths, from.name)
+    )
+    if (!where.includes(one.wrote)) {
+      across_[one.language] = `reached [${where.join(", ")}] and not ${one.wrote}`
+      continue
+    }
+
+    const written = await session.evaluateInExtension<{ writing?: { line: number } }>(`
+      chrome.runtime.sendMessage({
+        kind: "gitquiet/ledger-ask",
+        path: ${JSON.stringify(one.wrote)},
+        text: ${JSON.stringify(one.files[one.wrote]!)},
+        question: ${JSON.stringify({ of: "writingNamed", name: "" })}
+      })
+    `.replace('"name":""', `"name":${JSON.stringify(said.borrowed.name)}`))
+
+    const got = written.writing?.line ?? null
+    across_[one.language] =
+      got === one.at ? `ok, ${said.borrowed.name} at ${one.wrote}:${got}` : `WRONG: wanted ${one.at}, got ${got}`
+  }
+
+  /*
    * The Ledger itself: a repository read whole, out of the archive.
    *
    * A small public one, and a branch name where a sha would go — the archive
@@ -205,6 +339,7 @@ try {
         beyondTheRepository: beyond,
         aFileNothingParses: plain.why ?? null,
         elsewhere,
+        across: across_,
         warmth,
         warmedInMs: warmedIn,
         namesReady: names.ready,
