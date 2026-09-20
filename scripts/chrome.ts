@@ -198,6 +198,17 @@ export type Options = {
    * what `Page.addScriptToEvaluateOnNewDocument` is for.
    */
   readonly before?: string
+  /**
+   * Whether to wait for the page's load event before handing the session back.
+   *
+   * On by default, because a probe usually wants a drawn page. Off for the one
+   * question that cannot be asked that way: how responsive a page is *while* it
+   * is arriving. `spf13/cobra`'s `command.go` takes twenty-six seconds to fire
+   * `load` with no extension at all, so a probe that waits for it spends its
+   * whole budget waiting and prints nothing — which reads exactly like a clean
+   * run. Measured, and the reason this switch exists.
+   */
+  readonly awaitLoad?: boolean
 }
 
 /** Launches Chrome with the built extension and opens `url` in a fresh profile. */
@@ -320,7 +331,7 @@ export const withExtension = async (
   }
   const loaded = tab.once("Page.loadEventFired")
   await tab.send("Page.navigate", { url })
-  await loaded
+  if (options.awaitLoad !== false) await loaded
 
   const evaluateIn = async <A,>(
     expression: string,
@@ -345,17 +356,48 @@ export const withExtension = async (
 
   // The content script replaces the whole document, so waiting for our own root
   // is the only reliable signal that it ran.
-  await evaluate<boolean>(`
+  /*
+   * Waited for from here, not from inside the page.
+   *
+   * The cap below is a page-side `setTimeout`, and a page whose main thread is
+   * held does not run timers — so on a heavy file this never came back at all
+   * and the probe hung rather than measuring the very thing it was sent to
+   * measure. Raced against a timer on this side, which keeps running whatever
+   * the page is doing.
+   */
+  const withinNode = <A,>(work: Promise<A>, ms: number, fallback: A): Promise<A> =>
+    Promise.race([work, sleep(ms).then(() => fallback)])
+
+  await withinNode(evaluate<boolean>(`
     new Promise((resolve) => {
       const found = () => document.querySelector("#gitquiet-root") !== null
       if (found()) return resolve(true)
-      const observer = new MutationObserver(() => {
-        if (found()) { observer.disconnect(); resolve(true) }
-      })
-      observer.observe(document.documentElement, { childList: true, subtree: true })
-      setTimeout(() => { observer.disconnect(); resolve(found()) }, 20000)
+      const until = Date.now() + 20000
+      /*
+       * The document may not exist yet.
+       *
+       * Asked before the load event — which is how a probe measures a page
+       * while it is arriving — there can be no \`documentElement\` to observe,
+       * and \`observe\` throws on null. That threw inside an evaluate, so the
+       * probe died before printing anything and three runs read as a page that
+       * behaved.
+       */
+      const watch = () => {
+        const root = document.documentElement
+        if (root === null) {
+          if (Date.now() > until) return resolve(false)
+          setTimeout(watch, 50)
+          return
+        }
+        const observer = new MutationObserver(() => {
+          if (found()) { observer.disconnect(); resolve(true) }
+        })
+        observer.observe(root, { childList: true, subtree: true })
+        setTimeout(() => { observer.disconnect(); resolve(found()) }, Math.max(0, until - Date.now()))
+      }
+      watch()
     })
-  `)
+  `), 25_000, false)
   await sleep(2000)
 
   return {
