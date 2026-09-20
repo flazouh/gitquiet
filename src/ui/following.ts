@@ -319,6 +319,9 @@ export const useFollowing = (
   const repository = useRef(across)
   repository.current = across
 
+  /** A Name whose answer waits on the repository's paths. See the effect below. */
+  const awaiting = useRef<Name | null>(null)
+
   /** The file as the Ledger wants it, read once and kept. */
   const asking = useCallback((): Effect.Effect<Reading, unknown> => {
     if (source === null) return Effect.fail("nothing to read")
@@ -435,9 +438,20 @@ export const useFollowing = (
         }
 
         if (across.paths.size === 0) {
-          // Nothing to resolve against yet. Ask for the tree, so the next press
-          // has one — rather than reading it on every review that never follows
-          // a name out of its diff.
+          /*
+           * Nothing to resolve against yet. Ask for the tree — rather than
+           * reading it on every review that never follows a name out of its
+           * diff — and remember the name that asked, so the answer arrives for
+           * this hold rather than the next one.
+           *
+           * Dropping it was the honest cost of not having read the tree, and it
+           * is what a reader reports as a wait: holding the key over an imported
+           * name did nothing at all, holding it again a moment later worked, and
+           * coming back to the file did nothing again because the pane remounts
+           * with no tree. Nothing here is asked any sooner; what changes is that
+           * the question already asked is not thrown away.
+           */
+          awaiting.current = name
           across.reach?.()
           return Effect.void
         }
@@ -478,6 +492,26 @@ export const useFollowing = (
     [asking, askRegistry, ledger, source]
   )
 
+  /*
+   * The name that asked before the repository's paths had been read.
+   *
+   * Kept for the moment they land, and answered then if the pointer is still on
+   * it. One name, because a reader has one pointer — and cleared on the way out
+   * so a tree arriving long after a reader moved on marks nothing.
+   */
+  useEffect(() => {
+    const name = awaiting.current
+    if (name === null) return
+    if ((repository.current?.paths.size ?? 0) === 0) return
+
+    awaiting.current = null
+    const here = on.current
+    // Only where the reader is still there. The answer to a question nobody is
+    // waiting for is an underline under a word the pointer has left.
+    if (here === null || !sameName(here.name, name)) return
+    ask(name, (writing, where) => draw(name, writing, where))
+  }, [across, ask, draw])
+
   const onNameEnter = useCallback(
     (name: Name, held: Modifiers) => {
       on.current = { name, writing: null }
@@ -490,6 +524,7 @@ export const useFollowing = (
 
   const onNameLeave = useCallback(() => {
     on.current = null
+    awaiting.current = null
     clear()
   }, [clear])
 

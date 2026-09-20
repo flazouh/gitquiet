@@ -79,7 +79,7 @@ type Stage = {
   /** How many times the pane said it was ready to be asked, before any key. */
   readied: number
   /** Draws the same screen again behind fresh metadata. See where it is set. */
-  refresh: () => void
+  refresh: (instead?: Across) => void
   /** Every set of rows the pane has hung under the code, newest last. */
   readonly shown: Array<ReadonlyArray<{ key: string; line: number }>>
   request: DiffRequest | undefined
@@ -292,8 +292,8 @@ const staged = (
    * so every memo keyed on that object rather than on what is in it comes out
    * new. Nothing about the file has changed, and the reader has not moved.
    */
-  stage.refresh = () =>
-    rerender(standing(over.across === undefined ? undefined : { ...over.across }))
+  stage.refresh = (instead?: Across) =>
+    rerender(standing(instead ?? (over.across === undefined ? undefined : { ...over.across })))
 
   return stage
 }
@@ -651,6 +651,44 @@ describe("a name this file borrowed from another", () => {
     expect(read).toEqual([])
     expect(opened).toEqual([])
     expect(stage.marked).toEqual([])
+  })
+
+  /*
+   * Reported from real use, and the second half of the same wait: holding the
+   * key over an imported name did nothing at all, holding it again a moment
+   * later worked, and coming back to the file did nothing again.
+   *
+   * A pull request does not read the repository's tree until a name is followed
+   * out of its diff, which is right — most reviews never follow one. What was
+   * wrong is what happened to the question that triggered the read: it was
+   * dropped. The reader held the key, the tree was fetched for their benefit,
+   * and they were shown nothing until they moved away and came back.
+   */
+  test("answers the name that asked, once the tree it needed arrives", async () => {
+    const reached: Array<true> = []
+    const without: Across = {
+      paths: new Set(),
+      reach: () => { reached.push(true) },
+      read: () => Effect.succeed("export const two = () => 2"),
+      open: () => {}
+    }
+    const stage = staged(null, [], { where: borrowed, named: elsewhere, across: without })
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    // The tree was asked for, and nothing is underlined yet — there is nothing
+    // honest to underline until it lands.
+    expect(reached).toHaveLength(1)
+    expect(stage.marked).toEqual([])
+
+    // It lands, which is a new `across` carrying the paths.
+    stage.refresh({ ...without, paths: new Set(["src/one.ts", "src/whole.ts"]) })
+    await Effect.runPromise(settled())
+
+    // Without a second hold: the reader never let go of the key.
+    expect(stage.marked.map(([, how]) => how)).toContain("sure")
   })
 
   test("does nothing at all where the pane cannot reach other files", async () => {
