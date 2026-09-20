@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { couldBe, inPackage, reaching, within } from "./reaching"
+import { couldBe, inPackage, reaching, reachingAll, within } from "./reaching"
 
 /** A repository laid out the way most of them are. */
 const PATHS = new Set([
@@ -239,5 +239,131 @@ describe("a Rust path, as a file", () => {
     // guessing between the two it could be is offering a reader a file at random.
     expect(reaching("src/a/b.rs", "self::thing", paths)).toBeNull()
     expect(reaching("src/a/b.rs", "super::thing", paths)).toBeNull()
+  })
+})
+
+describe("what a Ruby require_relative names", () => {
+  const paths = new Set(["app/main.rb", "app/local/helper.rb", "app/sibling.rb", "lib/thing.rb"])
+
+  test("names a file beside the one that wrote it", () => {
+    expect(reaching("app/main.rb", "sibling", paths)).toBe("app/sibling.rb")
+  })
+
+  test("takes a path under that folder", () => {
+    expect(reaching("app/main.rb", "local/helper", paths)).toBe("app/local/helper.rb")
+  })
+
+  test("climbs with dots, as a path does", () => {
+    expect(reaching("app/local/helper.rb", "../sibling", paths)).toBe("app/sibling.rb")
+  })
+
+  test("a gem is not a file in this repository", () => {
+    // `require 'set'` never reaches here — ruby.ts records only the relative
+    // one — and a name that happens to look like a path still has to exist.
+    expect(reaching("app/main.rb", "set", paths)).toBeNull()
+  })
+})
+
+describe("what a quoted C++ include names", () => {
+  const paths = new Set([
+    "src/main.cpp",
+    "src/local/helper.h",
+    "include/shared/thing.h",
+    "lib/vendor.h"
+  ])
+
+  test("names a header beside the file that included it", () => {
+    expect(reaching("src/main.cpp", "local/helper.h", paths)).toBe("src/local/helper.h")
+  })
+
+  test("falls back to where a repository keeps headers", () => {
+    expect(reaching("src/main.cpp", "shared/thing.h", paths)).toBe("include/shared/thing.h")
+  })
+
+  test("keeps the ending, which C++ writes and the others leave off", () => {
+    expect(reaching("src/main.cpp", "vendor.h", paths)).toBe("lib/vendor.h")
+  })
+
+  test("a header this repository does not hold reaches nothing", () => {
+    expect(reaching("src/main.cpp", "vector", paths)).toBeNull()
+  })
+})
+
+describe("what a Java import names", () => {
+  const paths = new Set([
+    "src/main/java/com/example/app/Box.java",
+    "src/main/java/com/example/app/Main.java",
+    "core/src/main/java/com/example/core/Engine.java",
+    "flat/com/example/Plain.java"
+  ])
+
+  test("a package is a folder and a type is a file", () => {
+    expect(reaching("src/main/java/com/example/app/Main.java", "com.example.app.Box", paths)).toBe(
+      "src/main/java/com/example/app/Box.java"
+    )
+  })
+
+  test("finds a type in another module of the same build", () => {
+    expect(
+      reaching("src/main/java/com/example/app/Main.java", "com.example.core.Engine", paths)
+    ).toBe("core/src/main/java/com/example/core/Engine.java")
+  })
+
+  test("the standard library is not in this repository", () => {
+    expect(reaching("src/main/java/com/example/app/Main.java", "java.util.List", paths)).toBeNull()
+  })
+})
+
+describe("what a PHP use names", () => {
+  const paths = new Set(["src/Other/Thing.php", "src/App/Legacy/Old.php", "lib/Deep/Down.php"])
+
+  test("PSR-4 maps the namespace prefix onto a source root", () => {
+    // `App\` is mapped to `src/`, so `App\Other\Thing` is `src/Other/Thing.php`.
+    expect(reaching("src/Main.php", "App\\Other\\Thing", paths)).toBe("src/Other/Thing.php")
+  })
+
+  test("a repository that keeps the prefix as a folder answers too", () => {
+    expect(reaching("src/Main.php", "App\\Legacy\\Old", paths)).toBe("src/App/Legacy/Old.php")
+  })
+
+  test("a namespace this repository does not hold reaches nothing", () => {
+    expect(reaching("src/Main.php", "Vendor\\Package\\Thing", paths)).toBeNull()
+  })
+})
+
+describe("what a Go import names, which is a folder", () => {
+  const paths = new Set([
+    "main.go",
+    "shapes/box.go",
+    "shapes/circle.go",
+    "shapes/box_test.go",
+    "shapes/inner/deep.go",
+    "vendor/other/thing.go"
+  ])
+
+  test("every file of the package, because the import does not say which", () => {
+    // A Go package is a directory, and which of its files writes the name asked
+    // about is not something the import path says.
+    expect(reachingAll("main.go", "example.com/app/shapes", paths)).toEqual([
+      "shapes/box.go",
+      "shapes/circle.go"
+    ])
+  })
+
+  test("takes the longest tail of the path that is really a folder here", () => {
+    // `go.mod` is not read, so the module's own prefix is found by checking.
+    expect(reachingAll("main.go", "shapes", paths)).toEqual(["shapes/box.go", "shapes/circle.go"])
+  })
+
+  test("leaves out a test file, which exercises a name rather than writing it", () => {
+    expect(reachingAll("main.go", "shapes", paths)).not.toContain("shapes/box_test.go")
+  })
+
+  test("does not reach into a folder below the package, since a package does not nest", () => {
+    expect(reachingAll("main.go", "shapes", paths)).not.toContain("shapes/inner/deep.go")
+  })
+
+  test("a package this repository does not hold reaches nothing", () => {
+    expect(reachingAll("main.go", "github.com/pkg/errors", paths)).toEqual([])
   })
 })

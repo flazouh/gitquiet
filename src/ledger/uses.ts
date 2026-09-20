@@ -16,7 +16,7 @@
  * `docs/spec/following.md` has the words.
  */
 
-import { reaching } from "./reaching"
+import { reachingAll } from "./reaching"
 import type { Mention, Told } from "./writings"
 
 /** One Use, with the file it is in and how sure the answer is. */
@@ -85,15 +85,18 @@ const reaches = (
     // followed for any name asked about. A named one is only itself.
     if (from.name !== asked.name && from.name !== "*" && from.name !== "default") continue
 
-    const to = reaching(path, from.specifier, paths)
-    if (to === null) continue
-    if (to === asked.path) return true
+    // Every file the specifier could be, not only the first. Go imports a
+    // folder rather than a file, so which of a package's files writes the name
+    // is not something the import says.
+    for (const to of reachingAll(path, from.specifier, paths, from.name)) {
+      if (to === asked.path) return true
 
-    if (left === 0 || seen.has(to)) continue
-    const next = files.get(to)
-    if (next === undefined) continue
-    seen.add(to)
-    if (reaches(to, next, asked, paths, files, left - 1, seen)) return true
+      if (left === 0 || seen.has(to)) continue
+      const next = files.get(to)
+      if (next === undefined) continue
+      seen.add(to)
+      if (reaches(to, next, asked, paths, files, left - 1, seen)) return true
+    }
   }
   return false
 }

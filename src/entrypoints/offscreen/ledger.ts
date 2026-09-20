@@ -138,7 +138,12 @@ const answer = (work: LedgerWork): Effect.Effect<LedgerAnswer> =>
       if (answer === null) return { kind: LEDGER_ANSWER, writing: null }
       return answer.at === "here"
         ? { kind: LEDGER_ANSWER, writing: answer.writing }
-        : { kind: LEDGER_ANSWER, writing: null, borrowed: answer.borrowed }
+        : {
+            kind: LEDGER_ANSWER,
+            writing: null,
+            borrowed: answer.borrowed,
+            ...(answer.orFrom === undefined ? {} : { orFrom: answer.orFrom })
+          }
     }
     if (question.of === "writingNamed") {
       return {

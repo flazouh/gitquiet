@@ -94,7 +94,11 @@ export const ledgerThrough = (post: Post): Ledger => ({
     asked(post, reading, { of: "writingAt", at }).pipe(
       Effect.map((answer): Option.Option<Where> => {
         if (answer.borrowed !== undefined) {
-          return Option.some({ at: "elsewhere", borrowed: answer.borrowed })
+          return Option.some({
+            at: "elsewhere",
+            borrowed: answer.borrowed,
+            ...(answer.orFrom === undefined ? {} : { orFrom: answer.orFrom })
+          })
         }
         return answer.writing === null || answer.writing === undefined
           ? Option.none()

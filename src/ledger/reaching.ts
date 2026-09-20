@@ -64,18 +64,240 @@ const plainly = (path: string): string | null => {
  * Exported for its own test: which endings are tried and in which order is a
  * judgement, and a judgement with a test on it is one somebody can argue with.
  */
-export const couldBe = (from: string, specifier: string): ReadonlyArray<string> => {
+export const couldBe = (
+  from: string,
+  specifier: string,
+  paths: ReadonlySet<string> = new Set(),
+  /**
+   * The name that was borrowed, for the three languages whose specifier is not
+   * the whole address.
+   *
+   * A Java import names a type — `import com.ex.shapes.Box` — and this file
+   * records `Box` as the name and `com.ex.shapes` as where it came from, which
+   * reads well and is half a path. PHP and C# split the same way. So the name is
+   * put back on the end before a path is built from it, and every other language
+   * ignores it because its specifier already names the file.
+   */
+  name?: string
+): ReadonlyArray<string> => {
   const extension = extensionOf(from)
   if (extension === "py" || extension === "pyi") return couldBePython(from, specifier)
   if (extension === "rs") return couldBeRust(specifier)
+  if (extension === "rb") return couldBeRuby(from, specifier)
+  if (extension === "go") return couldBeGo(specifier, paths)
+  if (extension === "java") return couldBeJava(specifier, name)
+  if (extension === "php") return couldBePhp(specifier, name)
+  if (extension === "cs") return couldBeCSharp(specifier, name)
+  if (extension !== undefined && extension !== null && CPP.has(extension)) {
+    return couldBeCpp(from, specifier)
+  }
 
   if (!specifier.startsWith(".")) return []
 
-  const folder = from.slice(0, Math.max(0, from.lastIndexOf("/")))
+  const folder = folderOf(from)
   const asked = plainly(`${folder}/${specifier}`)
   if (asked === null) return []
 
   return endingsFor(asked)
+}
+
+/** The folder a file sits in, which is where every relative specifier starts. */
+const folderOf = (path: string): string => path.slice(0, Math.max(0, path.lastIndexOf("/")))
+
+/** The extensions the C++ grammar reads, which all resolve an include the same way. */
+const CPP: ReadonlySet<string> = new Set(["c", "h", "cc", "cpp", "cxx", "hpp", "hh", "hxx"])
+
+/**
+ * What a `require_relative` names, which is the one exact answer of the four.
+ *
+ * Ruby says the path itself and leaves off the `.rb`, relative to the file that
+ * wrote it. There is nothing to guess: `require_relative "local/helper"` in
+ * `app/main.rb` is `app/local/helper.rb` and nothing else.
+ *
+ * A plain `require` names a gem and never reaches here — `ruby.ts` records only
+ * the relative one, because a gem is not a file in this repository.
+ */
+const couldBeRuby = (from: string, specifier: string): ReadonlyArray<string> => {
+  const asked = plainly(`${folderOf(from)}/${specifier}`)
+  if (asked === null || asked === "") return []
+  return asked.endsWith(".rb") ? [asked] : [`${asked}.rb`]
+}
+
+/**
+ * What a quoted `#include` names.
+ *
+ * The path as written, tried against the folder the including file sits in and
+ * then against the places a repository keeps headers. Quoted rather than angled
+ * is the whole of what makes it this repository's — `cpp.ts` records only the
+ * quoted ones, because angle brackets mean the compiler's own search path.
+ *
+ * The path keeps its ending: C++ writes it, where every other language here
+ * leaves it off.
+ */
+const couldBeCpp = (from: string, specifier: string): ReadonlyArray<string> => {
+  const beside = plainly(`${folderOf(from)}/${specifier}`)
+  const plain = plainly(specifier)
+  const asked: Array<string> = []
+  for (const one of [beside, plain]) {
+    if (one !== null && one !== "" && !asked.includes(one)) asked.push(one)
+  }
+  if (plain !== null && plain !== "") {
+    for (const root of ["include", "src", "lib"]) {
+      const under = `${root}/${plain}`
+      if (!asked.includes(under)) asked.push(under)
+    }
+  }
+  return asked
+}
+
+/**
+ * What a Java import names, as a path.
+ *
+ * A package is a folder and a type is a file, so `com.example.app.Box` is
+ * `com/example/app/Box.java` — under one of the roots a build tool puts sources
+ * in. Maven and Gradle both use `src/main/java`, a module of either prefixes it
+ * with the module's own folder, and a repository with no build tool at all
+ * writes the package straight off the root.
+ *
+ * `import java.util.List` reaches nothing, which is right: it is the standard
+ * library, and no root here holds it.
+ */
+const couldBeJava = (specifier: string, name?: string): ReadonlyArray<string> => {
+  const whole = named(specifier, name, ".")
+  const asked = whole.split(".").filter((part) => part !== "").join("/")
+  if (asked === "") return []
+  return JAVA_ROOTS.map((root) => (root === "" ? `${asked}.java` : `${root}/${asked}.java`))
+}
+
+/**
+ * A specifier with the name it brought in put back on the end.
+ *
+ * Nothing is added for `*` or `default`, which name no type and are how a
+ * whole-file borrow is written here.
+ */
+const named = (specifier: string, name: string | undefined, separator: string): string => {
+  if (name === undefined || name === "*" || name === "default") return specifier
+  if (specifier === "") return name
+  return specifier.endsWith(separator + name) ? specifier : `${specifier}${separator}${name}`
+}
+
+/** Where a build tool puts Java sources, tried in this order. */
+const JAVA_ROOTS: ReadonlyArray<string> = [
+  "src/main/java",
+  "src",
+  "",
+  "app/src/main/java",
+  "lib/src/main/java",
+  "core/src/main/java"
+]
+
+/**
+ * What a PHP `use` names, as a path.
+ *
+ * PSR-4 says a namespace is a folder and a class is a file, and that a prefix of
+ * the namespace maps to a source root — `App\Other\Thing` is `src/Other/Thing.php`
+ * where `App\` is mapped to `src/`. The mapping lives in `composer.json`, which
+ * is not read here, so every shape it usually takes is offered and the one the
+ * repository really holds is the one that answers.
+ */
+const couldBePhp = (specifier: string, name?: string): ReadonlyArray<string> => {
+  const parts = named(specifier, name, "\\").split("\\").filter((part) => part !== "")
+  if (parts.length === 0) return []
+  const whole = parts.join("/")
+  const after = parts.slice(1).join("/")
+
+  const asked: Array<string> = [`src/${after}.php`, `src/${whole}.php`, `${whole}.php`]
+  if (after !== "") asked.push(`lib/${after}.php`, `app/${after}.php`)
+  return asked.filter((one, at) => one !== ".php" && asked.indexOf(one) === at)
+}
+
+/**
+ * What a C# alias names, as a path.
+ *
+ * Convention only, and thinner than the others: a namespace in C# is not a
+ * folder and may be written across any number of files. What is offered is the
+ * shape most projects use anyway — `App.Other.Thing` at `App/Other/Thing.cs` —
+ * checked against the paths that exist, so a project laid out any other way
+ * reaches nothing rather than reaching the wrong file.
+ *
+ * Only an aliased `using` arrives here. A plain one opens a namespace and names
+ * nothing, so `csharp.ts` records no borrow for it.
+ */
+const couldBeCSharp = (specifier: string, name?: string): ReadonlyArray<string> => {
+  const parts = named(specifier, name, ".").split(".").filter((part) => part !== "")
+  if (parts.length === 0) return []
+  const whole = parts.join("/")
+  const after = parts.slice(1).join("/")
+  const asked = [`${whole}.cs`, `src/${whole}.cs`]
+  if (after !== "") asked.push(`src/${after}.cs`, `${after}.cs`)
+  return asked.filter((one, at) => asked.indexOf(one) === at)
+}
+
+/**
+ * What a Go import names, which is a folder rather than a file.
+ *
+ * Every other language here imports a file. Go imports a package, and a package
+ * is a directory: `example.com/app/shapes` is every `.go` file in `shapes/`, and
+ * which of them writes the name asked about is not something the import says.
+ * So this answers with all of them, and the caller takes the first that holds
+ * the name — which is what {@link reachingAll} is for.
+ *
+ * The module's own prefix is in `go.mod`, which is not read here. What is done
+ * instead is the same guess-and-check the rest of this file does: the longest
+ * tail of the import path that is really a folder in this repository is the
+ * folder meant. `example.com/app/shapes` tries `example.com/app/shapes`, then
+ * `app/shapes`, then `shapes`, and stops at the first that holds a `.go` file.
+ *
+ * A test file is left out. `_test.go` is compiled into the package and a reader
+ * following a name wants where it is written, not where it is exercised.
+ */
+const couldBeGo = (specifier: string, paths: ReadonlySet<string>): ReadonlyArray<string> => {
+  const parts = specifier.split("/").filter((part) => part !== "")
+  if (parts.length === 0) return []
+
+  const packages = goPackages(paths)
+  for (let at = 0; at < parts.length; at++) {
+    const inside = packages.get(parts.slice(at).join("/"))
+    if (inside !== undefined) return inside
+  }
+  return []
+}
+
+/**
+ * Every folder of Go in a repository, by the folder's own path.
+ *
+ * Worked out once per set of paths rather than once per import. `reaches` asks
+ * about every borrow of every file when it counts the uses of a name, and a
+ * sweep that read the whole path list on each of those was the length of the
+ * repository times the number of imports in it — 20,000 paths and a thousand
+ * asks is several seconds of walking a list to find the same answers again.
+ *
+ * Held against the set itself, which a sweep keeps for its length and drops
+ * afterwards, so nothing here outlives the reading it was built for.
+ *
+ * A test file is left out. `_test.go` is compiled into the package and a reader
+ * following a name wants where it is written, not where it is exercised.
+ */
+const GO_PACKAGES = new WeakMap<ReadonlySet<string>, ReadonlyMap<string, ReadonlyArray<string>>>()
+
+const goPackages = (paths: ReadonlySet<string>): ReadonlyMap<string, ReadonlyArray<string>> => {
+  const held = GO_PACKAGES.get(paths)
+  if (held !== undefined) return held
+
+  const folders = new Map<string, Array<string>>()
+  for (const path of paths) {
+    if (!path.endsWith(".go") || path.endsWith("_test.go")) continue
+    const slash = path.lastIndexOf("/")
+    if (slash === -1) continue
+    const folder = path.slice(0, slash)
+    const inside = folders.get(folder)
+    if (inside === undefined) folders.set(folder, [path])
+    else inside.push(path)
+  }
+  for (const inside of folders.values()) inside.sort()
+
+  GO_PACKAGES.set(paths, folders)
+  return folders
 }
 
 /**
@@ -188,8 +410,32 @@ export const endingsFor = (asked: string): ReadonlyArray<string> => {
 export const reaching = (
   from: string,
   specifier: string,
-  paths: ReadonlySet<string>
-): string | null => couldBe(from, specifier).find((path) => paths.has(path)) ?? null
+  paths: ReadonlySet<string>,
+  name?: string
+): string | null => reachingAll(from, specifier, paths, name)[0] ?? null
+
+/**
+ * Every file a specifier could be, out of the paths that exist, best first.
+ *
+ * One answer is enough for a language whose import names a file, which is most
+ * of them. Go's names a folder, and which file in it writes the name asked
+ * about is not something the import says — so the caller is given all of them
+ * and takes the first that holds the name.
+ *
+ * Capped, because a Go package can be thirty files and a reader pressing a name
+ * should not cost thirty reads. The cap is generous next to a real package and
+ * small next to a directory somebody has let grow.
+ */
+export const reachingAll = (
+  from: string,
+  specifier: string,
+  paths: ReadonlySet<string>,
+  name?: string,
+  most = 12
+): ReadonlyArray<string> =>
+  couldBe(from, specifier, paths, name)
+    .filter((path) => paths.has(path))
+    .slice(0, most)
 
 /**
  * The file a path inside the repository names, out of the paths that exist.

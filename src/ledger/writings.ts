@@ -72,7 +72,19 @@ export type Borrowed = {
 /** Where a Name is written: in this file, or in one this file names. */
 export type Found =
   | { readonly at: "here"; readonly writing: Writing }
-  | { readonly at: "elsewhere"; readonly borrowed: Borrowed }
+  | {
+      readonly at: "elsewhere"
+      readonly borrowed: Borrowed
+      /**
+       * The other files this one borrowed whole, where there are any.
+       *
+       * A `require_relative`, an `#include` and a Go import bring in everything
+       * the other file writes and name none of it, so a name reached that way is
+       * bound nowhere here and the only honest answer is "one of these". The
+       * caller asks each in turn until one writes the name.
+       */
+      readonly orFrom?: ReadonlyArray<Borrowed>
+    }
 
 /** One place a Name is used, which is a line and the columns it sits between. */
 export type Use = {
@@ -299,7 +311,49 @@ const found = (
       writing: docked(written(bound.name, bound.kind, lines), bound.name, comments, lines)
     }
   }
-  return null
+
+  /*
+   * Bound nowhere in this file, which for three of the ten languages is where
+   * the answer starts rather than where it stops.
+   *
+   * Ruby's `require_relative`, C++'s `#include` and Go's import bring in
+   * everything another file writes and name none of it, so a name that came
+   * through one is a name this file never binds. What the file does say is which
+   * files it took whole, and the name is written in one of them.
+   *
+   * The same rule `usesAcross` already applies from the other end: a whole-file
+   * borrow carries every name that file writes, so it is followed for any name
+   * asked about.
+   */
+  const whole = wholeFileBorrows(root, dialect)
+  const first = whole[0]
+  if (first === undefined) return null
+  const asked = whole.map((one) => ({ name: name.text, specifier: one.specifier }))
+  return {
+    at: "elsewhere",
+    borrowed: { name: name.text, specifier: first.specifier },
+    ...(asked.length > 1 ? { orFrom: asked.slice(1) } : {})
+  }
+}
+
+/**
+ * The files this one borrowed whole, which name nothing they brought in.
+ *
+ * Only the `*` ones: a named borrow binds the name it brought and is found by
+ * the walk above long before this. Walked on demand rather than kept, because
+ * most presses land on a name the file does bind and never ask.
+ */
+const wholeFileBorrows = (root: Syntax, dialect: Dialect): ReadonlyArray<Borrowed> => {
+  if (dialect.passedOn === undefined) return []
+  const whole: Array<Borrowed> = []
+  const walk = (node: Syntax): void => {
+    for (const from of dialect.passedOn!(node)) {
+      if (from.name === "*") whole.push(from)
+    }
+    for (const child of childrenOf(node)) walk(child)
+  }
+  walk(root)
+  return whole
 }
 
 /**

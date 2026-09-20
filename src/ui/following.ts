@@ -2,7 +2,7 @@ import { Effect, Option } from "effect"
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react"
 import type { Beyond, Reading, Where, Writing } from "../ports/Ledger"
 import type { Bounds, DiffHandle, Modifiers, Name } from "../ports/Renderer"
-import { reaching } from "../ledger/reaching"
+import { reachingAll } from "../ledger/reaching"
 import { useLedger } from "./ledger"
 import { useSettings } from "./useSettings"
 import { sameName } from "../diff/engine"
@@ -455,24 +455,52 @@ export const useFollowing = (
           across.reach?.()
           return Effect.void
         }
-        const path = reaching(source.path, found.borrowed.specifier, across.paths)
-        if (path === null) return Effect.void
-
-        return across.read(path).pipe(
-          Effect.flatMap((text) =>
-            ledger
-              .writingNamed({ path, text }, found.borrowed.name)
-              .pipe(Effect.map((writing) => ({ writing, text })))
-          ),
-          Effect.map(({ writing, text }) => {
-            if (Option.isNone(writing) || (!insist && on.current?.name !== name)) return
-            on.current = { name, writing: writing.value, where: path, text }
-            then(writing.value, path)
-          }),
-          // A file that would not come, or that says nothing under that name.
-          // The reader is left where they were, with no underline.
-          Effect.catch(onward)
+        /*
+         * Every file the specifier could be, asked in turn until one writes the
+         * name. Most languages name a file and there is only ever one; Go names
+         * a package, which is a folder, and which of its files holds the name is
+         * not something the import says.
+         *
+         * In turn rather than at once: the first answers for every language but
+         * one, and a reader pressing a name should not fetch a whole package to
+         * find out.
+         */
+        // Every file this could have come from, and for each of those every
+        // file that specifier could be. One borrow and one file is the ordinary
+        // case; a Ruby or C++ file that took several whole has several, and a Go
+        // import names a folder rather than a file.
+        const candidates = [found.borrowed, ...(found.orFrom ?? [])].flatMap((from) =>
+          reachingAll(source.path, from.specifier, across.paths, from.name)
         )
+        if (candidates.length === 0) return Effect.void
+
+        const asking = (at: number): Effect.Effect<void> => {
+          const path = candidates[at]
+          if (path === undefined) return Effect.void
+
+          const onwards = (): Effect.Effect<void> => asking(at + 1)
+
+          return across.read(path).pipe(
+            Effect.flatMap((text) =>
+              ledger
+                .writingNamed({ path, text }, found.borrowed.name)
+                .pipe(Effect.map((writing) => ({ writing, text })))
+            ),
+            Effect.flatMap(({ writing, text }) => {
+              // Nothing under that name here, so the next file this could be.
+              if (Option.isNone(writing)) return onwards()
+              if (!insist && on.current?.name !== name) return Effect.void
+              on.current = { name, writing: writing.value, where: path, text }
+              then(writing.value, path)
+              return Effect.void
+            }),
+            // A file that would not come is the next one's turn, and the last
+            // one leaves the reader where they were with no underline.
+            Effect.catch(onwards)
+          )
+        }
+
+        return asking(0).pipe(Effect.catch(onward))
       }
 
       Effect.runFork(

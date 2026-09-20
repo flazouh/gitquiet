@@ -72,7 +72,12 @@ export type Spot = { readonly row: number; readonly column: number }
  */
 export type Where =
   | { readonly at: "here"; readonly writing: Writing }
-  | { readonly at: "elsewhere"; readonly borrowed: Borrowed }
+  | {
+      readonly at: "elsewhere"
+      readonly borrowed: Borrowed
+      /** The other files this one took whole, where the name is bound in none. */
+      readonly orFrom?: ReadonlyArray<Borrowed>
+    }
 
 export type Ledger = {
   /** Where the Name at a spot is written, or nothing — which is a real answer. */
