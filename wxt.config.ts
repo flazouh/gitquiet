@@ -250,7 +250,25 @@ export default defineConfig({
       "video/**",
       "shots/**",
       "public/*.js",
-      "public/screens/**"
+      "public/screens/**",
+      /*
+       * The probes, which no rebuild runs.
+       *
+       * This archive exists so a reviewer can build the extension from it, and
+       * the scripts that do that — `build-*` — stay. A probe drives a browser at
+       * a live page to find out what a reader sees; it is not part of any build,
+       * and Mozilla has no more use for forty of them than for the videos above.
+       *
+       * Written as a pattern rather than as the files, because the archive has a
+       * five megabyte ceiling and this is exactly how it was reached: two probes
+       * added while closing QA rows put it 4,899 bytes over, and the next one
+       * would have done it again.
+       */
+      "scripts/probe-*",
+      "scripts/qa-*",
+      "scripts/benchmark-*",
+      "scripts/shots-*",
+      "scripts/following-in-the-console.js"
     ],
     /*
      * This is an allowlist, not an addition to one: WXT defaults it to `**\/*`

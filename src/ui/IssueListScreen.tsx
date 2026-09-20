@@ -23,6 +23,13 @@ export type IssueListScreenProps = {
   /** Goes to another page of the same list, by changing the address GitHub reads. */
   readonly onPage: (page: number) => void
   /**
+   * What the filter box now says, for the screen above to act on.
+   *
+   * A state or an author typed into the box names rows this page was never
+   * fetched with — see `addressFor` in `src/domain/issueList.ts`.
+   */
+  readonly onQuery?: (query: string) => void
+  /**
    * What the address already asked for, where it asked for anything.
    *
    * The rows were fetched by it, so the box has to say it. Only the terms the
@@ -67,6 +74,7 @@ export const IssueListScreen = ({
   preload,
   onStepAside,
   onPage,
+  onQuery,
   seed,
   where,
   at,
@@ -115,6 +123,7 @@ export const IssueListScreen = ({
             seed={seed}
             nothing={`No open issues in ${named}.`}
             onPage={onPage}
+            onQuery={onQuery}
           />
         </div>
       )}
