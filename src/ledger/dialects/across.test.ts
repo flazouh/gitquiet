@@ -3,7 +3,8 @@ import { Language, Parser, type Tree } from "web-tree-sitter"
 import { dialectFor } from "../dialects"
 import { reachingAll } from "../reaching"
 import type { Syntax } from "../syntax"
-import { writingAt, writingNamed } from "../writings"
+import { toldBy, writingAt, writingNamed, type Told } from "../writings"
+import { usesAcross } from "../uses"
 
 /**
  * Following a name out of the file it is read in, end to end, per language.
@@ -104,16 +105,49 @@ const CASES: ReadonlyArray<Case> = [
   }
 ]
 
+/*
+ * Go imports a package and uses it qualified, so the press is on the second half
+ * of `shapes.Area` and the first half says which import it came through. The
+ * package is a folder, and the name is in whichever of its files writes it.
+ */
+const GO_FILES: Readonly<Record<string, string>> = {
+  "cmd/app/main.go": [
+    "package main",
+    "",
+    "import (",
+    '\t"fmt"',
+    '\t"example.com/app/shapes"',
+    '\tsh "example.com/app/shapes"',
+    '\t"gopkg.in/yaml.v3"',
+    '\t"example.com/app/codec/v2"',
+    ")",
+    "",
+    "type Box struct{ n int }",
+    "",
+    "func (b Box) Draw() int { return b.n }",
+    "",
+    "func main() {",
+    "\tvar one shapes.Box",
+    "\tlocal := Box{}",
+    "\tfmt.Println(shapes.Area(1), sh.Area(2), one, local.Draw())",
+    "\t_ = yaml.Marshal",
+    "\t_ = codec.Encode",
+    "}",
+    ""
+  ].join("\n"),
+  "shapes/area.go": "package shapes\n\nfunc Area(n int) int { return n * n }\n",
+  "shapes/box.go": "package shapes\n\n// Box is a box.\ntype Box struct{ Size int }\n",
+  "shapes/box_test.go": "package shapes\n\nfunc Area() {}\n",
+  "codec/v2/encode.go": "package codec\n\nfunc Encode() {}\n"
+}
+
 const languages = new Map<string, Language>()
 
 beforeAll(async () => {
   await Parser.init({ locateFile: () => "node_modules/web-tree-sitter/web-tree-sitter.wasm" })
-  for (const one of CASES) {
-    if (languages.has(one.wasm)) continue
-    languages.set(
-      one.wasm,
-      await Language.load(`node_modules/@vscode/tree-sitter-wasm/wasm/${one.wasm}`)
-    )
+  for (const wasm of [...CASES.map((one) => one.wasm), "tree-sitter-go.wasm"]) {
+    if (languages.has(wasm)) continue
+    languages.set(wasm, await Language.load(`node_modules/@vscode/tree-sitter-wasm/wasm/${wasm}`))
   }
 })
 
@@ -214,5 +248,101 @@ describe("a file that was taken whole, and named nothing it brought", () => {
       dialectFor("app/main.rb")!
     )
     expect(found).toBeNull()
+  })
+})
+
+describe("a Go name used through the package it came from", () => {
+  const FROM = "cmd/app/main.go"
+  const text = GO_FILES[FROM]!
+  const paths = new Set(Object.keys(GO_FILES))
+
+  /** The press on `word`, on the line holding `holds`, the `nth` time it is written there. */
+  const press = (holds: string, word: string, nth = 0) => {
+    const lines = text.split("\n")
+    const row = lines.findIndex((line) => line.includes(holds))
+    let column = -1
+    for (let at = 0; at <= nth; at++) column = lines[row]!.indexOf(word, column + 1)
+    return writingAt(parsed("tree-sitter-go.wasm", text), text, { row, column }, dialectFor(FROM)!)
+  }
+
+  /** Where a press lands, all the way to the line of the file that writes it. */
+  const landing = (holds: string, word: string, nth = 0): { path: string; line: number } | null => {
+    const found = press(holds, word, nth)
+    if (found?.at !== "elsewhere") return null
+    for (const path of reachingAll(FROM, found.borrowed.specifier, paths, found.borrowed.name)) {
+      const writing = writingNamed(
+        parsed("tree-sitter-go.wasm", GO_FILES[path]!),
+        GO_FILES[path]!,
+        found.borrowed.name,
+        dialectFor(path)!
+      )
+      if (writing !== null) return { path, line: writing.line }
+    }
+    return null
+  }
+
+  test("a call reaches the function, in whichever file of the package writes it", () => {
+    expect(press("fmt.Println(shapes.Area", "Area")).toEqual({
+      at: "elsewhere",
+      borrowed: { name: "Area", specifier: "example.com/app/shapes" }
+    })
+    expect(landing("fmt.Println(shapes.Area", "Area")).toEqual({ path: "shapes/area.go", line: 3 })
+  })
+
+  test("a type reaches its package's type, never the file's own of the same name", () => {
+    expect(landing("var one shapes.Box", "Box")).toEqual({ path: "shapes/box.go", line: 4 })
+  })
+
+  test("an alias is the import it names", () => {
+    expect(landing("sh.Area(2)", "Area", 1)).toEqual({ path: "shapes/area.go", line: 3 })
+  })
+
+  test("a package whose name is not the last part of its path is still found", () => {
+    // `gopkg.in/yaml.v3` is package `yaml`, and `…/codec/v2` is package `codec`.
+    expect(press("yaml.Marshal", "Marshal")).toEqual({
+      at: "elsewhere",
+      borrowed: { name: "Marshal", specifier: "gopkg.in/yaml.v3" }
+    })
+    expect(landing("codec.Encode", "Encode")).toEqual({ path: "codec/v2/encode.go", line: 3 })
+  })
+
+  test("a method on a value is not a package's name, and answers nothing", () => {
+    // What `local` is takes types to know. Guessing an import would be wrong.
+    expect(press("local.Draw()", "Draw")).toBeNull()
+  })
+
+  test("a use through the package is a use of the name, where the package is written", () => {
+    // The other direction: from `Area` where it is written, to the lines that
+    // call it. `shapes.Area` spells the name as a field, which is not a Name,
+    // so nothing counted it and the panel said nobody depended on it.
+    const told = new Map<string, Told>()
+    for (const [path, source] of Object.entries(GO_FILES)) {
+      told.set(path, toldBy(parsed("tree-sitter-go.wasm", source), source, dialectFor(path)!))
+    }
+    const lines = text.split("\n")
+    const calls = lines.findIndex((line) => line.includes("fmt.Println(shapes.Area")) + 1
+
+    const uses = usesAcross(told, { name: "Area", path: "shapes/area.go", line: 3 }, paths)
+      .filter((use) => use.path === FROM)
+
+    expect(uses.map((use) => [use.line, use.sure])).toEqual([
+      [calls, true],
+      [calls, true]
+    ])
+  })
+
+  test("a method on a value is not counted as a use of a package's name", () => {
+    const told = toldBy(parsed("tree-sitter-go.wasm", text), text, dialectFor(FROM)!)
+
+    // `local` is a value, so `local.Draw()` is a question about types.
+    expect(told.mentions.filter((one) => one.name === "Draw")).toEqual([])
+  })
+
+  test("a package outside the repository is said, and simply not found", () => {
+    expect(press("fmt.Println", "Println")).toEqual({
+      at: "elsewhere",
+      borrowed: { name: "Println", specifier: "fmt" }
+    })
+    expect(landing("fmt.Println", "Println")).toBeNull()
   })
 })

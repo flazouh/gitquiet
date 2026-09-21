@@ -146,6 +146,26 @@ export type Dialect = {
    */
   readonly looksWhole?: (name: Syntax, above: Syntax | null) => boolean
   /**
+   * The package a name is read through, where it is written after one.
+   *
+   * Go uses what it imports qualified: `shapes.Area`, `shapes.Box`. The second
+   * half is the name a reader presses and the first half says which import it
+   * came through, so the answer is that import's, with the pressed name. A
+   * qualifier this file binds as anything but an import is a value, and what a
+   * value's member is takes types to know, so it answers nothing.
+   *
+   * Absent where a language has no such spelling, and nothing is asked.
+   */
+  readonly qualifierOf?: (name: Syntax, above: Syntax | null) => Syntax | null
+  /**
+   * The name an import binds where no node in the file says it.
+   *
+   * A Go import with no alias binds its package's name, which Go reads off the
+   * package and not the file. That is usually the last part of the path, and
+   * this says how it is usually spelled otherwise.
+   */
+  readonly namedBy?: (specifier: string) => string
+  /**
    * What a statement passes on from somewhere else, which is a re-export.
    *
    * Absent where the language has none. Five of the ten carried an empty
@@ -318,16 +338,16 @@ const found = (
 ): Found | null => {
   const path = pathTo(root, at)
   const name = path.at(-1)
-  if (name === undefined || !dialect.names.has(name.type)) return null
+  if (name === undefined) return null
 
-  const lines = source.split("\n")
+  // Asked before the name is, because `shapes.Box` is never the file's own `Box`.
+  const qualifier = dialect.qualifierOf?.(name, path.at(-2) ?? null) ?? null
+  if (qualifier !== null) return throughQualifier(name, qualifier, path, memo, dialect, whole)
 
-  for (let step = path.length - 1; step >= 0; step--) {
-    const node = path[step]
-    if (node === undefined || !dialect.opens.has(node.type)) continue
+  if (!dialect.names.has(name.type)) return null
 
-    const bound = declarationsOf(node, memo, dialect).get(name.text)
-    if (bound === undefined) continue
+  const bound = boundIn(path, name.text, memo, dialect)
+  if (bound !== undefined) {
     // An import binds the name, and where it was written is in another file.
     // What this file knows is what it states, which is enough for whoever can
     // read that file to finish the question. Pointing a reader at the import
@@ -335,6 +355,7 @@ const found = (
     if (bound.kind === "import") {
       return bound.from === undefined ? null : { at: "elsewhere", borrowed: bound.from }
     }
+    const lines = source.split("\n")
     return {
       at: "here",
       writing: docked(written(bound.name, bound.kind, lines), bound.name, comments, lines)
@@ -366,6 +387,56 @@ const found = (
     borrowed: { name: name.text, specifier: first.specifier },
     ...(took.length > 1 ? { orFrom: took.slice(1).map((one) => one.specifier) } : {})
   }
+}
+
+/**
+ * The nearest binding of a spelling, from the innermost scope on the path out.
+ *
+ * The path from the root to the Name is the scope chain read from the inside
+ * out, which is why shadowing needs no rule of its own: the inner scope is
+ * simply the one asked first.
+ */
+const boundIn = (
+  path: ReadonlyArray<Syntax>,
+  text: string,
+  memo: Memo,
+  dialect: Dialect
+): Bound | undefined => {
+  for (let step = path.length - 1; step >= 0; step--) {
+    const node = path[step]
+    if (node === undefined || !dialect.opens.has(node.type)) continue
+    const bound = declarationsOf(node, memo, dialect).get(text)
+    if (bound !== undefined) return bound
+  }
+  return undefined
+}
+
+/**
+ * A name read through a package: `Area` in `shapes.Area`.
+ *
+ * The qualifier is looked up where the name is, since it is written beside it.
+ * An alias is bound, as an import, and says its path. A plain import binds no
+ * node, so the qualifier is bound nowhere and is matched against the name each
+ * import implies. Anything else the qualifier is bound as is a value, and see
+ * {@link Dialect.qualifierOf} for why that answers nothing.
+ */
+const throughQualifier = (
+  name: Syntax,
+  qualifier: Syntax,
+  path: ReadonlyArray<Syntax>,
+  memo: Memo,
+  dialect: Dialect,
+  whole: () => ReadonlyArray<Borrowed>
+): Found | null => {
+  const bound = boundIn(path, qualifier.text, memo, dialect)
+  if (bound !== undefined) {
+    if (bound.kind !== "import" || bound.from === undefined) return null
+    return { at: "elsewhere", borrowed: { name: name.text, specifier: bound.from.specifier } }
+  }
+  const through = whole().find((one) => dialect.namedBy?.(one.specifier) === qualifier.text)
+  return through === undefined
+    ? null
+    : { at: "elsewhere", borrowed: { name: name.text, specifier: through.specifier } }
 }
 
 /**
@@ -586,6 +657,14 @@ export type Told = {
   readonly borrows: ReadonlyArray<Borrowed>
 }
 
+/** Where a word is, as a Mention of it. */
+const mentionOf = (node: Syntax): Mention => ({
+  name: node.text,
+  line: node.startPosition.row + 1,
+  from: node.startPosition.column + 1,
+  to: node.endPosition.column + 1
+})
+
 /**
  * Everything a Ledger keeps about one file, in one walk.
  *
@@ -603,32 +682,48 @@ export const toldBy = (root: Syntax, source: string, dialect: Dialect): Told => 
   const mentions: Array<Mention> = []
   const declares = new Set<string>()
   const borrows: Array<Borrowed> = []
+  /** Names read through something, kept until it is known which of those are packages. */
+  const qualified: Array<{ readonly mention: Mention; readonly through: string }> = []
+  /** What this file calls the packages it imported: an alias, or the name the path implies. */
+  const packages = new Set<string>()
 
-  const walk = (node: Syntax): void => {
-    if (dialect.names.has(node.type)) {
-      mentions.push({
-        name: node.text,
-        line: node.startPosition.row + 1,
-        from: node.startPosition.column + 1,
-        to: node.endPosition.column + 1
-      })
-    }
+  const walk = (node: Syntax, above: Syntax | null): void => {
+    const qualifier = dialect.qualifierOf?.(node, above) ?? null
+    if (qualifier !== null) qualified.push({ mention: mentionOf(node), through: qualifier.text })
+    else if (dialect.names.has(node.type)) mentions.push(mentionOf(node))
 
     const { outer, inner } = dialect.bindings(node)
     for (const bound of [...outer, ...inner]) {
       declares.add(bound.name.text)
-      if (bound.from !== undefined) borrows.push(bound.from)
+      if (bound.from === undefined) continue
+      borrows.push(bound.from)
+      if (bound.kind === "import") packages.add(bound.name.text)
     }
 
     // A re-export borrows without binding, so it is walked for on its own and
     // adds to `borrows` and to nothing else. See {@link passedOn}.
     if (dialect.passedOn !== undefined) {
-      for (const from of dialect.passedOn(node)) borrows.push(from)
+      for (const from of dialect.passedOn(node)) {
+        borrows.push(from)
+        if (dialect.namedBy !== undefined) packages.add(dialect.namedBy(from.specifier))
+      }
     }
 
-    for (const child of childrenOf(node)) walk(child)
+    for (const child of childrenOf(node)) walk(child, node)
   }
-  walk(root)
+  walk(root, null)
+
+  /*
+   * A name read through a package is a use of that package's name: `Area` in
+   * `shapes.Area`. Read through anything else it is a value's member, and
+   * counting it would make every `.Close()` in a file that imports a package a
+   * Sure use of that package's `Close` — so it is left out, as a field was.
+   */
+  for (const one of qualified) {
+    if (packages.has(one.through)) mentions.push(one.mention)
+  }
+  // In the order they are written, which is the order a panel lists them in.
+  if (qualified.length > 0) mentions.sort((a, b) => a.line - b.line || a.from - b.from)
 
   return {
     writings: writingsIn(root, source, dialect),

@@ -283,6 +283,46 @@ const membersFor = (node: Syntax): ReadonlyArray<Bound> | null => {
   return members
 }
 
+/**
+ * The package a name is read through: `shapes` in `shapes.Area` and `shapes.Box`.
+ *
+ * A call or a value is a `selector_expression`, whose field is a
+ * `field_identifier`; a type is a `qualified_type`, whose name is a
+ * `type_identifier`. Told apart from the half before them by type alone, so no
+ * node has to be compared with another. Only a bare identifier qualifies:
+ * `a.b.C` reaches `C` through a value, which is not a package.
+ */
+const qualifierOf = (name: Syntax, above: Syntax | null): Syntax | null => {
+  if (above === null) return null
+  if (above.type === "selector_expression" && name.type === "field_identifier") {
+    const operand = above.childForFieldName("operand")
+    return operand?.type === "identifier" ? operand : null
+  }
+  if (above.type === "qualified_type" && name.type === "type_identifier") {
+    return above.childForFieldName("package")
+  }
+  return null
+}
+
+/**
+ * The name a package is used by, from the path it is imported by.
+ *
+ * The last part of the path, as Go's convention has it, less the spellings a
+ * package path wears that its name cannot: a major version, `/v2` or `.v3`, and
+ * the `go-` or `.go` a repository adds to say what language it is in. A package
+ * that breaks the convention is aliased by whoever imports it, and an alias is
+ * bound and never asked here.
+ */
+const namedBy = (specifier: string): string => {
+  const parts = specifier.split("/").filter((part) => part !== "")
+  const last = parts.length > 1 && /^v\d+$/u.test(parts.at(-1)!) ? parts.at(-2)! : (parts.at(-1) ?? "")
+  return last
+    .replace(/\.v\d+$/u, "")
+    .replace(/^go-/u, "")
+    .replace(/[.-]go$/u, "")
+    .replace(/-/gu, "")
+}
+
 /** Go, as one vocabulary. */
 /**
  * The node types that are a comment.
@@ -308,6 +348,8 @@ export const GO: Dialect = {
   names: NAMES,
   bindings,
   passedOn,
+  qualifierOf,
+  namedBy,
   comments: COMMENTS,
   offering
 }
