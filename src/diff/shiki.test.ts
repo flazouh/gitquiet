@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test"
-import { bundledLanguages } from "./shiki"
+import { bundledLanguages, createHighlighterCore, createJavaScriptRegexEngine, type LanguageRegistration } from "./shiki"
 
 /**
  * The two lines Pierre's `resolveLanguage` runs against this map, copied rather
@@ -49,5 +49,85 @@ describe("the languages a diff can be drawn in", () => {
       const [grammar] = await asPierreAsks(lang)
       expect(grammar?.name).toBe(lang)
     }
+  })
+})
+
+/*
+ * Opening cobra's `command.go` froze the page for over ninety seconds. One rule
+ * of the Go grammar — a struct written on one line, `struct{ a, b int }` — starts
+ * after any `{`, a `{` in a comment included, and splits the words that follow
+ * into names and types every way it can before it gives up. JavaScriptCore took a
+ * second over one comment line; V8, which is what a reader's browser runs, never
+ * finished. The comment was going to win that line anyway.
+ */
+describe("the Go grammar, on a line it has no business with", () => {
+  const STRUCT = [
+    "type Command struct {",
+    "\t// Use is the one-line usage message.",
+    "\t//   { } marks a set of choices when one of the choices is required. If the choices are optional they go in brackets",
+    "\tUse string",
+    "}"
+  ]
+
+  const highlighter = async (grammar: ReadonlyArray<LanguageRegistration>) =>
+    createHighlighterCore({ themes: [], langs: [[...grammar]], engine: createJavaScriptRegexEngine() })
+
+  const scopes = async (grammar: ReadonlyArray<LanguageRegistration>, lines: ReadonlyArray<string>) => {
+    const go = (await highlighter(grammar)).getLanguage("go")
+    let state: Parameters<typeof go.tokenizeLine>[1] = null
+    const out: Array<string> = []
+    for (const line of lines) {
+      const got = go.tokenizeLine(line, state, 0)
+      state = got.ruleStack
+      for (const token of got.tokens) out.push(`${line.slice(token.startIndex, token.endIndex ?? line.length)}=${token.scopes.at(-1)}`)
+    }
+    return out
+  }
+
+  it("reads a comment inside a struct in no time at all", async () => {
+    const { default: grammar } = await bundledLanguages.go!()
+    const go = (await highlighter(grammar)).getLanguage("go")
+    // Its patterns compiled first, which is a cost every file pays once and not
+    // the cost in question.
+    let state: Parameters<typeof go.tokenizeLine>[1] = go.tokenizeLine(STRUCT[0]!, null, 0).ruleStack
+    go.tokenizeLine(STRUCT[1]!, state, 0)
+
+    /*
+     * Five of those lines, for a budget no load can spend. JavaScriptCore gives
+     * up on the shipped rule after about a second a line, where V8 does not give
+     * up at all: five seconds before, and a few milliseconds now. A budget of one
+     * is only reached by a test that is failing.
+     */
+    const comment = STRUCT[2]!
+    const started = performance.now()
+    for (let line = 0; line < 5; line++) state = go.tokenizeLine(comment, state, 0).ruleStack
+
+    expect(performance.now() - started).toBeLessThan(1000)
+  })
+
+  it("still reads a struct written on one line as its fields and their types", async () => {
+    const { default: patched } = await bundledLanguages.go!()
+    const { default: theirs } = await import("@shikijs/langs/go")
+    const lines = [
+      "type Point struct{ X, Y int; Label string }",
+      "type Wrap struct{ io.Reader }",
+      "type Seen struct{ items map[string]interface{}; done chan struct{} }",
+      "type Tight struct{ a int}",
+      ...STRUCT.filter((line) => !line.includes("{ }"))
+    ]
+
+    expect(await scopes(patched, lines)).toEqual(await scopes(theirs, lines))
+  })
+
+  it("closes a struct literal's fields at its own brace", async () => {
+    // The one place the two differ, and the shipped rule is the one that is off:
+    // it took `}{}` as a type and left the brace that ends the fields unmarked.
+    const { default: patched } = await bundledLanguages.go!()
+    const line = "var p = struct{ ch chan<- int; buf []byte }{}"
+
+    const read = await scopes(patched, [line])
+    expect(read.filter((one) => one.startsWith("}="))[0]).toBe("}=punctuation.definition.end.bracket.curly.go")
+    expect(read).toContain("ch=variable.other.property.go")
+    expect(read).toContain("byte=storage.type.byte.go")
   })
 })

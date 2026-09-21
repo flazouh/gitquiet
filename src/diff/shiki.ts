@@ -46,7 +46,10 @@ const GRAMMARS: Record<string, Grammars> = {
   scss: () => import("@shikijs/langs/scss"),
   html: () => import("@shikijs/langs/html"),
   python: () => import("@shikijs/langs/python"),
-  go: () => import("@shikijs/langs/go"),
+  go: () =>
+    Effect.runPromise(
+      Effect.promise(() => import("@shikijs/langs/go")).pipe(Effect.map(withStructsThatEnd))
+    ),
   rust: () => import("@shikijs/langs/rust"),
   java: () => import("@shikijs/langs/java"),
   ruby: () => import("@shikijs/langs/ruby"),
@@ -66,6 +69,66 @@ const GRAMMARS: Record<string, Grammars> = {
 }
 
 type Grammars = () => PromiseLike<{ readonly default: ReadonlyArray<LanguageRegistration> }>
+
+/**
+ * The Go grammar's rule for a struct written on one line, as it ships.
+ *
+ * It starts after any `{` — one in a comment included — and matches fields until
+ * the `}`. Where there is no `}` to reach, it tries every way of splitting the words
+ * that follow into names and types before giving up, and that is exponential in the
+ * words. Opening cobra's `command.go`, whose struct has a comment with a `{` in it
+ * and a hundred characters after, froze the page for over ninety seconds: V8 never
+ * finished the line, where Oniguruma's own engine does not notice.
+ */
+const STRUCT_ON_ONE_LINE =
+  '(?<=\\{)((?:\\s*(?:(?:\\w+,\\s*)+{0,1}\\w+\\s+)?(?:\\s*[]*\\[]+{0,1}(?:<-\\s*)?\\bchan\\b(?:\\s*<-)?\\s*)+{0,1}[^"/`\\s]+;?)+)\\s*(?=})'
+
+/**
+ * The same rule, in time linear in the line.
+ *
+ * Two changes. A field, once matched, is not split again: each is an atomic group,
+ * `(?>…)`, so a failure costs one pass over the words rather than every way of
+ * reading them. And a type stops at a `}` — except the `{}` of `interface{}` and
+ * `struct{}` — so no field swallows the brace the rule is looking for.
+ */
+const STRUCT_ON_ONE_LINE_LINEAR =
+  '(?<=\\{)((?:(?>\\s*(?:(?:\\w+,\\s*)+{0,1}\\w+\\s+)?(?:\\s*[]*\\[]+{0,1}(?:<-\\s*)?\\bchan\\b(?:\\s*<-)?\\s*)+{0,1}(?:[^"/`\\s{}]|\\{\\})+;?))+)\\s*(?=})'
+
+/**
+ * Go, with that one rule replaced.
+ *
+ * Copied along the path to it rather than changed where it lies: the module is
+ * shared, and the grammar as it ships is what a test compares against. Where the
+ * rule is not found as written — a newer grammar — nothing is replaced, and the
+ * test that times this line is what says so.
+ */
+const withStructsThatEnd = (
+  loaded: { readonly default: ReadonlyArray<LanguageRegistration> }
+): { readonly default: ReadonlyArray<LanguageRegistration> } => {
+  const [go, ...rest] = loaded.default
+  const fields = go?.repository?.["struct_variables_types_fields"]
+  const patterns = fields?.patterns
+  if (go === undefined || fields === undefined || patterns === undefined) return loaded
+  if (!patterns.some((one) => one.match === STRUCT_ON_ONE_LINE)) return loaded
+
+  return {
+    default: [
+      {
+        ...go,
+        repository: {
+          ...go.repository,
+          struct_variables_types_fields: {
+            ...fields,
+            patterns: patterns.map((one) =>
+              one.match === STRUCT_ON_ONE_LINE ? { ...one, match: STRUCT_ON_ONE_LINE_LINEAR } : one
+            )
+          }
+        } as LanguageRegistration["repository"]
+      },
+      ...rest
+    ]
+  }
+}
 
 /**
  * The language a reader opened, with nothing to colour it with: its own name, so
