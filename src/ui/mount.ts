@@ -571,6 +571,21 @@ export const reveal = (target: Document): void => {
 export const handBack = (target: Document): void => {
   if (target.documentElement.hasAttribute(GATING)) return
   reveal(target)
+  /*
+   * And the page's name, which is what actually hides their page.
+   *
+   * `gates.load.css` hides every one of their boxes for as long as the document
+   * is named for one of ours, and being revealed does not enter into it. So a
+   * hand-back that only revealed left the reader looking at nothing: found on
+   * github.com/login, which the sign-on screen is started by, reads, finds no
+   * wall on, and hands back — onto a black page. The shell's own path for a
+   * screen that failed to arrive learned this already and unmarks; this did not.
+   *
+   * Nobody is gating, so nobody is arriving, and the name is this page's own
+   * rather than the next one's. Their stylesheets come back with it, because a
+   * page handed back undressed is not their page either.
+   */
+  unmarkPage(target)
 }
 
 /**

@@ -169,6 +169,39 @@ describe("one screen leaving while another arrives", () => {
     expect(page.documentElement.hasAttribute("data-gitquiet-revealed")).toBe(true)
   })
 
+  test("a page handed back loses its name, which is what the rule hiding it keys on", () => {
+    /*
+     * Found on github.com/login: a black page. The sign-on screen is started by a
+     * root class GitHub puts on its login box as well as on an organisation's
+     * wall, reads the page, finds no wall and hands it back — correctly. And the
+     * reader saw nothing, because handing back only said the page may be shown,
+     * while the rule that hides every one of their boxes is keyed on the page
+     * having a name, and nothing took the name off.
+     *
+     * The same for every hand-back: a second factor, a device check, a gist, a
+     * press that was abandoned.
+     */
+    const page = githubPage()
+    markPage(page, CONVERSATION)
+
+    handBack(page)
+
+    expect(page.documentElement.hasAttribute("data-gitquiet-page")).toBe(false)
+  })
+
+  test("keeps the name where another screen is arriving, since it is that screen's", () => {
+    // The name moves on the press, a second before the address does, so that the
+    // arriving page's rules are in force from the instant the reader asked. A
+    // screen leaving must not take the arriving one's name away with its own.
+    const page = githubPage()
+    markPage(page, CONVERSATION)
+    gate(page)
+
+    handBack(page)
+
+    expect(page.documentElement.getAttribute("data-gitquiet-page")).toBe("conversation")
+  })
+
   test("the screen arriving reveals for itself, so the page is never stuck", () => {
     // The other half of the first case: having not revealed on the way out,
     // something has to reveal on the way in, or the reader waits for the

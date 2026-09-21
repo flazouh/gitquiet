@@ -1,11 +1,15 @@
 import { afterEach, describe, expect, test } from "bun:test"
+import { Effect } from "effect"
+import { PAGE } from "./mount"
 import {
+  dressShadow,
   HOST_ID,
   keepTheirStylesOff,
   letTheirStylesBack,
   oursInForce,
   theHost,
-  theirStyles
+  theirStyles,
+  theSheet
 } from "./theHost"
 
 /**
@@ -122,4 +126,73 @@ describe("their stylesheets are off only while ours is on", () => {
    * `scripts/` asserts the real thing: their sheets off and ours still applying,
    * on a real page, which is where the question has an answer.
    */
+})
+
+describe("their stylesheets are off only while the page is ours", () => {
+  /*
+   * Found on github.com/login, after the page stopped being blank: it came back
+   * in Times New Roman. The sign-on screen is started by a root class GitHub
+   * puts on its login box too, finds no wall and hands the page back — mark off,
+   * their sheets back. Then the shell finished building our stylesheet and turned
+   * theirs off again, because the one thing `keepTheirStylesOff` asked was whether
+   * ours was in force, and it was. Nobody asked whether the page was still ours.
+   *
+   * And this module is bundled into four scripts, each with its own watcher, so a
+   * screen letting their sheets back disconnected its own watcher and not the
+   * shell's — which went on turning them off on every change to the page.
+   *
+   * The mark is on the document, which every copy shares. So that is what each
+   * of them asks.
+   */
+  const inForce = async (page: Document): Promise<void> => {
+    const real = globalThis.fetch
+    globalThis.fetch = (async () => new Response(":root { color: blue }")) as unknown as typeof fetch
+    const built = await Effect.runPromise(
+      theSheet("chrome-extension://gitquiet/styles.css").pipe(
+        Effect.ensuring(
+          Effect.sync(() => {
+            globalThis.fetch = real
+          })
+        )
+      )
+    )
+    dressShadow(theHost(page).shadow, built)
+    expect(oursInForce(page)).toBe(true)
+  }
+
+  test("keeps theirs on where the page is not one of ours", async () => {
+    const page = freshPage()
+    await inForce(page)
+
+    keepTheirStylesOff(page)
+
+    expect(howMany(page)).toEqual({ on: 2, off: 0 })
+  })
+
+  test("still turns theirs off where the page is ours, which is the saving", async () => {
+    const page = freshPage()
+    await inForce(page)
+    page.documentElement.setAttribute(PAGE, "conversation")
+
+    keepTheirStylesOff(page)
+
+    expect(howMany(page).off).toBe(2)
+  })
+
+  test("gives them back when the mark comes off, whoever takes it off", async () => {
+    const page = freshPage()
+    await inForce(page)
+    page.documentElement.setAttribute(PAGE, "sign-on")
+    keepTheirStylesOff(page)
+    expect(howMany(page).off).toBe(2)
+
+    // Another copy of this module hands the page back: the mark goes, and its own
+    // watcher with it. This one is still watching, and the next change it sees
+    // is on a page that is no longer ours.
+    page.documentElement.removeAttribute(PAGE)
+    page.body.append(page.createElement("div"))
+    await new Promise((go) => setTimeout(go, 0))
+
+    expect(howMany(page)).toEqual({ on: 2, off: 0 })
+  })
 })

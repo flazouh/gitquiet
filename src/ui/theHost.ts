@@ -22,7 +22,7 @@
  * one would put our own tree out of reach of the probes that photograph it.
  */
 import { Effect } from "effect"
-import { OUTSIDE } from "./mount"
+import { OUTSIDE, PAGE } from "./mount"
 
 export const HOST_ID = "gitquiet-host"
 
@@ -249,9 +249,9 @@ let watching: MutationObserver | null = null
  * sheet is put back on.
  */
 export const keepTheirStylesOff = (target: Document): void => {
-  // Never before ours is on. See {@link oursInForce}: turning theirs off while
-  // ours is still coming is how a page ends up with no styles at all.
-  if (!oursInForce(target)) {
+  // Never before ours is on, and never on a page that is not ours. See
+  // {@link worthTurningOff}.
+  if (!worthTurningOff(target)) {
     letTheirStylesBack(target)
     return
   }
@@ -260,17 +260,45 @@ export const keepTheirStylesOff = (target: Document): void => {
   if (watching !== null) return
 
   watching = new MutationObserver(() => {
-    // Asked again every time, because ours can stop being in force — a host
-    // replaced, a sheet that never arrived — and the answer has to be able to
-    // change back.
-    if (!oursInForce(target)) {
+    // Asked again every time, because either answer can change underneath this:
+    // ours stops being in force — a host replaced, a sheet that never arrived —
+    // or the page stops being ours, handed back by a screen in another script.
+    if (!worthTurningOff(target)) {
       letTheirStylesBack(target)
       return
     }
     theirStyles(target, false)
   })
-  watching.observe(target.documentElement, { childList: true, subtree: true })
+  // The mark itself as well as the page under it, so a page handed back gets its
+  // sheets back the moment the mark comes off and not at the next change to it.
+  watching.observe(target.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: [PAGE]
+  })
 }
+
+/**
+ * Whether their stylesheets are worth turning off: ours is in force, and the page
+ * is one of ours.
+ *
+ * Both halves shipped missing. The first, in v0.17.0: theirs turned off before
+ * ours had arrived, and a page with no stylesheets at all — see
+ * {@link oursInForce}. The second, found on github.com/login: the sign-on screen
+ * is started by a root class GitHub puts on its login box as well as on an
+ * organisation's wall, and hands the login page back when it finds no wall. Then
+ * the shell finished building our stylesheet and turned theirs off again, because
+ * ours was in force — on a page that was not ours any more, which the reader saw
+ * as their login form in Times New Roman.
+ *
+ * Asked of the document rather than remembered here, because this module is
+ * bundled into four scripts and each has its own watcher. A screen handing the
+ * page back disconnects its own, and every other copy learns of it from the one
+ * thing they all share: the page no longer has a name.
+ */
+const worthTurningOff = (target: Document): boolean =>
+  oursInForce(target) && target.documentElement.hasAttribute(PAGE)
 
 /**
  * The host off a document, and forgotten, for a suite that is many documents in one.
