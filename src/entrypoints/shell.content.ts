@@ -40,10 +40,12 @@ import {
 } from "@/ui/going";
 import {
   activatePreparedTraversal,
+  gate,
   hasPreparedScreen,
   holdTheSurface,
   markPage,
   prepareCachedTraversal,
+  reveal,
   theScreenArrived,
   theScreenHasRoute,
   theScreenIsNotElsewhere,
@@ -781,11 +783,20 @@ export default defineContentScript({
         // Said before the screen is fetched, so that it is already there to be read
         // the instant it starts — which is a full second before the address agrees.
         if (going !== undefined) intendTo(window, going);
-        document.documentElement.setAttribute(GATING, "");
+        /*
+         * Gated and no longer shown, both. A page shown for GitHub's Code tab keeps
+         * its showing mark into the press, and the gate alone hides nothing: when
+         * the screen being left stood aside before this one arrived, GitHub's page
+         * for the new address was on the screen until it did.
+         */
+        gate(document);
 
         clearTimeout(givingUp);
         givingUp = setTimeout(() => {
-          if (!up.has(what)) ungate();
+          if (up.has(what)) return;
+          // The screen is not coming, so their page is shown rather than a black one.
+          ungate();
+          reveal(document);
         }, GIVE_UP);
 
         fetchIt(what);

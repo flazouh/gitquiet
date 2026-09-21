@@ -22,7 +22,7 @@
  * one would put our own tree out of reach of the probes that photograph it.
  */
 import { Effect } from "effect"
-import { HIDING_MARKS, OUTSIDE, theirPageHidden } from "./mount"
+import { HIDING_MARKS, OUTSIDE, PAGE, theirPageHidden } from "./mount"
 
 export const HOST_ID = "gitquiet-host"
 
@@ -37,6 +37,19 @@ export const HOST_ID = "gitquiet-host"
  * on. See `docs/plan/restyle-scope.md`.
  */
 let sheet: CSSStyleSheet | null = null
+
+/**
+ * Every sheet of ours, as every copy of this module can see it.
+ *
+ * This module is bundled into four scripts, and `sheet` above is one per script.
+ * They share one isolated world, so the set lives on its global under a registered
+ * symbol: a screen's copy that never built a sheet still knows the shell's for
+ * ours. Asked of its own `sheet`, it said ours was not in force, and its watch put
+ * their sheets back on under our interface after every change.
+ */
+const OURS = Symbol.for("gitquiet.ourSheets")
+const ourSheets: WeakSet<CSSStyleSheet> = ((globalThis as { [OURS]?: WeakSet<CSSStyleSheet> })[OURS] ??=
+  new WeakSet())
 
 /**
  * `:root` is the document's element and a shadow root has none.
@@ -66,6 +79,7 @@ export const theSheet = (href: string): Effect.Effect<CSSStyleSheet, unknown> =>
 
     const built = new CSSStyleSheet()
     built.replaceSync(forAShadowRoot(css))
+    ourSheets.add(built)
     sheet = built
     return built
   })
@@ -185,9 +199,8 @@ export const dressShadow = (shadow: ShadowRoot, built: CSSStyleSheet): void => {
  * styles at all is a broken site.
  */
 export const oursInForce = (target: Document): boolean => {
-  if (sheet === null) return false
   const shadow = ourTree(target)
-  return shadow !== null && shadow.adoptedStyleSheets.includes(sheet)
+  return shadow !== null && shadow.adoptedStyleSheets.some((adopted) => ourSheets.has(adopted))
 }
 
 /**
@@ -243,31 +256,35 @@ let watching: MutationObserver | null = null
  * costing 4.822ms instead of 0.022ms. The ones that arrive late are the ones that
  * carry the `:has()` rules.
  *
- * So the head is watched for as long as we hold the page. The observer is cheap —
- * it wakes on added nodes and does nothing unless a sheet came with them — and it
- * is disconnected the moment the page is handed back, which is also when every
- * sheet is put back on.
+ * So the document is watched for as long as it is named as one of ours, shown or
+ * not. The observer is cheap — it wakes on added nodes and on the marks, and does
+ * nothing unless a sheet's state is wrong — and it is disconnected when the name
+ * comes off, which is also when every sheet is put back on.
  */
 export const keepTheirStylesOff = (target: Document): void => {
-  // Never before ours is on, and never on a page that is not ours. See
-  // {@link worthTurningOff}.
-  if (!worthTurningOff(target)) {
+  // A page that is not one of ours has nothing to watch for. The shell dresses
+  // itself on every page GitHub has, and most of them are never named.
+  if (!target.documentElement.hasAttribute(PAGE)) {
     letTheirStylesBack(target)
     return
   }
-
-  theirStyles(target, false)
+  // Never before ours is on, and never while their page is on the screen. See
+  // {@link worthTurningOff}.
+  theirStyles(target, !worthTurningOff(target))
   if (watching !== null) return
 
+  /*
+   * Watched whatever the answer is now, and let go only by
+   * {@link letTheirStylesBack}. A page shown when it is named does not stay
+   * shown: a press from GitHub's Code tab names the pull request first and gates
+   * it after, and nothing names it again. A watch started only on a hidden page
+   * missed that, and left their sheets on under ours for the whole screen.
+   */
   watching = new MutationObserver(() => {
     // Asked again every time, because either answer can change underneath this:
     // ours stops being in force — a host replaced, a sheet that never arrived —
-    // or the page stops being ours, handed back by a screen in another script.
-    if (!worthTurningOff(target)) {
-      letTheirStylesBack(target)
-      return
-    }
-    theirStyles(target, false)
+    // or their page is shown or hidden, by a screen in another script.
+    theirStyles(target, !worthTurningOff(target))
   })
   // The marks as well as the page under them, so a page handed back gets its
   // sheets back the moment it is handed back and not at the next change to it.

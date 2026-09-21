@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { handBack, PAGE } from "./mount"
+import { gate, handBack, markPage, PAGE, reveal } from "./mount"
+import { PLACES } from "./place"
 import {
   dressShadow,
   HOST_ID,
@@ -98,7 +99,7 @@ describe("their stylesheets are off only while ours is on", () => {
     ours.replaceSync(":host { color: blue }")
     shadow.adoptedStyleSheets = [ours]
 
-    // `oursInForce` asks about the sheet this module built, so a sheet a test
+    // `oursInForce` asks about a sheet this extension built, so a sheet a test
     // adopts by hand is not it — which is the honest answer and the safe one.
     expect(oursInForce(page)).toBe(false)
     keepTheirStylesOff(page)
@@ -193,5 +194,45 @@ describe("their stylesheets are off only while the page is ours", () => {
     await new Promise((go) => setTimeout(go, 0))
 
     expect(howMany(page)).toEqual({ on: 2, off: 0 })
+  })
+
+  test("turns them off again when a page shown is taken back, though it was shown when named", async () => {
+    /*
+     * A reader on GitHub's Code tab, handed back and shown, presses into a pull
+     * request. The press names the page before it gates it, so at the naming their
+     * page was on the screen and there was nothing to turn off. Nothing names it
+     * again afterwards, so the gate has to be heard or their sheets stay on under
+     * ours for the whole screen — every change to it paying their `:has()` rules.
+     */
+    const page = freshPage()
+    await inForce(page)
+    reveal(page)
+    markPage(page, PLACES[0]!)
+    expect(howMany(page).off).toBe(0)
+
+    gate(page)
+    await new Promise((go) => setTimeout(go, 0))
+
+    expect(howMany(page).off).toBe(2)
+  })
+
+  test("is answered the same by every copy of this module, whichever built the sheet", async () => {
+    /*
+     * This module is bundled into four scripts. The shell builds our sheet and a
+     * screen's copy never does, so a copy asking after its own sheet heard "not in
+     * force" for ever, and its watch turned their sheets back on after every change
+     * the shell's watch turned them off for. Seen live: a repository's front page
+     * taken, with all twenty-seven of their sheets on under ours.
+     */
+    // @ts-expect-error: a query string is a second instance of the module, as a second bundle is.
+    const another = (await import("./theHost?another-copy")) as typeof import("./theHost")
+    const page = freshPage()
+    await inForce(page)
+    page.documentElement.setAttribute(PAGE, "conversation")
+
+    expect(another.oursInForce(page)).toBe(true)
+    another.keepTheirStylesOff(page)
+    expect(howMany(page).off).toBe(2)
+    another.letTheirStylesBack(page)
   })
 })

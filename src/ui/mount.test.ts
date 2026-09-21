@@ -16,6 +16,7 @@ import {
   theScreenIsNotElsewhere,
   theScreenLeft,
   theScreenMoved,
+  ungate,
   whenTheScreenMoves
 } from "./mount"
 import { ACTIONS, CONVERSATION, HOME, REPO_PULLS } from "./place"
@@ -214,6 +215,26 @@ describe("one screen leaving while another arrives", () => {
 
   test("is never hidden on a page that is not one of ours", () => {
     const page = githubPage()
+    expect(theirPageHidden(page)).toBe(false)
+  })
+
+  test("is hidden again by a press from a page that was shown, until the press gives up", () => {
+    /*
+     * GitHub's Code tab is shown and keeps its name. A press into a pull request
+     * gates; a gate that left the showing mark on hid nothing, and the page GitHub
+     * drew for the new address was on the screen until ours stood on it. A press
+     * that is never answered shows their page again, rather than a black one.
+     */
+    const page = githubPage()
+    markPage(page, CONVERSATION)
+    handBack(page)
+    expect(theirPageHidden(page)).toBe(false)
+
+    gate(page)
+    expect(theirPageHidden(page)).toBe(true)
+
+    ungate(page)
+    reveal(page)
     expect(theirPageHidden(page)).toBe(false)
   })
 
