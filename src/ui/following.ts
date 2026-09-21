@@ -24,12 +24,17 @@ const MOST_MODULES = 20
  * The Go modules a repository declares, read once for its set of paths.
  *
  * Only for a Go file, and only the first time: every later press finds them
- * known. A `go.mod` that will not come is left out rather than stopping the
- * press, which then guesses for that module as it did before any were read.
+ * known. The shallowest first, since the root's is the module most imports are
+ * of and nested ones can outnumber the cap. A `go.mod` that will not come, or one
+ * past the cap, is left out rather than stopping the press, which then guesses
+ * for any import the ones it read do not hold.
  */
 const learnGoModules = (source: string, across: Across): Effect.Effect<void> => {
   if (!source.endsWith(".go") || goModulesKnown(across.paths)) return Effect.void
-  const mods = [...across.paths].filter(isGoMod).slice(0, MOST_MODULES)
+  const every = [...across.paths]
+    .filter(isGoMod)
+    .sort((a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b))
+  const mods = every.slice(0, MOST_MODULES)
   return Effect.forEach(
     mods,
     (path) =>
@@ -41,7 +46,7 @@ const learnGoModules = (source: string, across: Across): Effect.Effect<void> => 
   ).pipe(
     Effect.map((read) => {
       const texts = new Map(read.filter((one) => one !== null))
-      knowGoModules(across.paths, goModulesIn(texts))
+      knowGoModules(across.paths, goModulesIn(texts), texts.size === every.length)
     })
   )
 }

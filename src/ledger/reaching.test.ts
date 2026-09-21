@@ -489,6 +489,15 @@ describe("a Go import, read against the modules go.mod declares", () => {
     expect(reachingAll("main.go", "github.com/x/y/api/v1", paths)).toEqual(["api/v1/types.go"])
   })
 
+  test("a repository whose go.mod files were not all read still guesses for the rest", () => {
+    // A press reads twenty at most, and a read can fail. What was not read may
+    // hold the import, so nothing matching is not the same as nothing here.
+    const paths = new Set(["go.mod", "api/go.mod", "shapes/box.go"])
+    knowGoModules(paths, new Map([["github.com/x/y/api", "api"]]), false)
+
+    expect(reachingAll("main.go", "github.com/x/y/shapes", paths)).toEqual(["shapes/box.go"])
+  })
+
   test("a repository whose go.mod files said nothing is guessed at as before", () => {
     const paths = new Set(["shapes/box.go"])
     knowGoModules(paths, new Map())
@@ -502,6 +511,7 @@ describe("what a go.mod says its module is", () => {
     expect(goModuleOf("// the app\nmodule github.com/x/y\n\ngo 1.22\n")).toBe("github.com/x/y")
     expect(goModuleOf('module "github.com/x/y" // quoted\n')).toBe("github.com/x/y")
     expect(goModuleOf("go 1.22\n")).toBeNull()
+    expect(goModuleOf("module (\n\tgithub.com/x/y\n)\n")).toBeNull()
   })
 
   test("finds every module in a repository, by the folder its go.mod is in", () => {

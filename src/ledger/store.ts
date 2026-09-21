@@ -36,7 +36,8 @@ export type Manifest = {
    *
    * Kept here because a `go.mod` is not a file anything parses, so a Ledger that
    * comes back off disk would otherwise not know them. Absent on a manifest kept
-   * before this was, which is answered with the guess until it is read again.
+   * before this was, and that commit is answered with the guess for as long as
+   * it is kept: the manifest is renewed as it is, not read again.
    */
   readonly goModules?: ReadonlyArray<readonly [string, string]>
 }

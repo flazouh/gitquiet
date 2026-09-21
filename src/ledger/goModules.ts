@@ -14,7 +14,9 @@ const NOT_OURS = /(^|\/)(vendor|testdata|node_modules)\//u
 
 /** The module a `go.mod` declares, or nothing where it declares none. */
 export const goModuleOf = (text: string): string | null => {
-  const line = /^\s*module\s+"?([^\s"]+)"?/mu.exec(text)
+  // Not `(`: a block would be the one spelling of a module line this does not
+  // read, and a module named `(` would hold nothing and refuse every import.
+  const line = /^\s*module\s+"?([^\s"(]+)"?/mu.exec(text)
   return line?.[1] ?? null
 }
 

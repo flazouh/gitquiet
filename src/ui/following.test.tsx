@@ -811,6 +811,38 @@ describe("a name this file borrowed from another", () => {
     expect(opened).toEqual([{ path: "command.go", line: 2 }])
   })
 
+  test("reads the root go.mod first, and guesses for what it could not read", async () => {
+    // Nested modules can outnumber the cap and sort before the root's; the root
+    // is the one most imports are of, so it is read first.
+    const nested = Array.from({ length: 25 }, (_, at) => `a${String(at).padStart(2, "0")}/go.mod`)
+    const read: Array<string> = []
+    const opened: Array<{ path: string; line: number }> = []
+    const across: Across = {
+      paths: new Set([...nested, "go.mod", "shapes/box.go", "cmd/main.go"]),
+      read: (path) =>
+        Effect.sync(() => {
+          read.push(path)
+          return path.endsWith("go.mod") ? `module example.com/${path.replace("/go.mod", "")}\n` : "package shapes\n"
+        }),
+      open: (path, line) => opened.push({ path, line })
+    }
+    const stage = staged(null, [], {
+      path: "cmd/main.go",
+      where: { at: "elsewhere", borrowed: { name: "two", specifier: "github.com/x/y/shapes" } },
+      named: elsewhere,
+      across
+    })
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    expect(read[0]).toBe("go.mod")
+    expect(opened).toEqual([{ path: "shapes/box.go", line: 2 }])
+  })
+
   test("does nothing at all where the pane cannot reach other files", async () => {
     const stage = staged(null, [], { where: borrowed, named: elsewhere })
     await Effect.runPromise(settled())

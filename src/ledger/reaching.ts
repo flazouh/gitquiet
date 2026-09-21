@@ -298,10 +298,11 @@ function couldBeGo({ specifier, paths }: Asked): ReadonlyArray<string> {
   const packages = goPackages(paths)
 
   // Where `go.mod` has been read, it answers, and a guess is not made.
-  const modules = GO_MODULES.get(paths)
-  if (modules !== undefined && modules.size > 0) {
-    const folder = inModule(specifier, modules)
-    return folder === null ? [] : (packages.get(folder) ?? [])
+  const known = GO_MODULES.get(paths)
+  if (known !== undefined && known.modules.size > 0) {
+    const folder = inModule(specifier, known.modules)
+    if (folder !== null) return packages.get(folder) ?? []
+    if (known.whole) return []
   }
 
   for (let at = 0; at < Math.min(parts.length, startsTried(parts)); at++) {
@@ -320,14 +321,24 @@ function couldBeGo({ specifier, paths }: Asked): ReadonlyArray<string> {
  * {@link GO_PACKAGES}, so nothing here outlives the reading it was for. An empty
  * map says they were read and declared nothing, and the guess below stands.
  */
-const GO_MODULES = new WeakMap<ReadonlySet<string>, ReadonlyMap<string, string>>()
+const GO_MODULES = new WeakMap<
+  ReadonlySet<string>,
+  { readonly modules: ReadonlyMap<string, string>; readonly whole: boolean }
+>()
 
-/** Says which modules a repository's `go.mod` files declare, by path to their folder. */
+/**
+ * Says which modules a repository's `go.mod` files declare, by path to their folder.
+ *
+ * `whole` where every one of them was read. Where some were not — a press reads
+ * twenty at most, and a read can fail — an import no module read so far holds may
+ * still be one of the repository's, and is guessed at rather than refused.
+ */
 export const knowGoModules = (
   paths: ReadonlySet<string>,
-  modules: ReadonlyMap<string, string>
+  modules: ReadonlyMap<string, string>,
+  whole = true
 ): void => {
-  GO_MODULES.set(paths, modules)
+  GO_MODULES.set(paths, { modules, whole })
 }
 
 /** Whether the modules of this set of paths have been told yet. */
