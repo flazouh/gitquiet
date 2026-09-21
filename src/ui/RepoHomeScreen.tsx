@@ -105,8 +105,10 @@ export type RepoHomeScreenProps = {
   readonly reading?: string | null
   /** The branch GitHub resolved for a file link, when it differs from the tree. */
   readonly readingBranch?: string
-  /** A file was chosen in the tree. The address follows. */
-  readonly onRead?: (path: string | null) => void
+  /** The line to arrive at in that file, where a name followed there is written. */
+  readonly readingLine?: number
+  /** A file was chosen in the tree, or a name followed into one. The address follows. */
+  readonly onRead?: (path: string | null, line?: number) => void
   /**
    * A branch was chosen in the picker. The screen rebuilds for it in place,
    * and the address follows — the same shape as a file opening, for the same
@@ -506,6 +508,7 @@ const Paper = ({
   front,
   reading,
   readingBranch,
+  readingLine,
   opened,
   loadReadme,
   across
@@ -513,6 +516,7 @@ const Paper = ({
   readonly front: Front
   readonly reading: string | null
   readonly readingBranch?: string
+  readonly readingLine?: number
   readonly opened: Read
   readonly loadReadme: RepoHomeScreenProps["loadReadme"]
   readonly across?: Across
@@ -527,6 +531,7 @@ const Paper = ({
       repo={front.repo}
       branch={readingBranch ?? front.branch}
       head={front.head}
+      at={readingLine}
       across={across}
     />
   )
@@ -621,6 +626,7 @@ export const RepoHomeScreen = ({
   shelf,
   reading = null,
   readingBranch,
+  readingLine,
   onRead,
   onBranch
 }: RepoHomeScreenProps) => {
@@ -697,7 +703,9 @@ export const RepoHomeScreen = ({
             repo,
             sha: front?.head,
             read: (path) => shelf.ask(branch, path).pipe(Effect.map((file) => file.lines.join("\n"))),
-            open: (path) => onRead?.(path)
+            // The line as well: a name followed into another file is arrived at
+            // where it is written, not at the top of the file.
+            open: (path, line) => onRead?.(path, line)
           },
     [held, paths.length, shelf, branch, onRead, repo, front?.head]
   )
@@ -764,6 +772,7 @@ export const RepoHomeScreen = ({
                 front={front}
                 reading={reading}
                 readingBranch={readingBranch}
+                readingLine={readingLine}
                 opened={opened}
                 loadReadme={loadReadme}
                 across={across}
@@ -805,6 +814,7 @@ export const RepoHomeScreen = ({
                 front={front}
                 reading={reading}
                 readingBranch={readingBranch}
+                readingLine={readingLine}
                 opened={opened}
                 loadReadme={loadReadme}
                 across={across}

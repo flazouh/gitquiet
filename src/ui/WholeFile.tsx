@@ -44,6 +44,14 @@ export type WholeFileProps = {
    */
   readonly following?: boolean
   /**
+   * A line to arrive at, once, when the file is drawn.
+   *
+   * A name followed here from another file is written on it. Once per file and
+   * line, so a redraw — a setting changed, a theme — does not pull a reader who
+   * has scrolled on back to where they arrived.
+   */
+  readonly at?: number
+  /**
    * How to reach the other files of this repository, for a name borrowed from
    * one of them.
    *
@@ -90,6 +98,9 @@ const peekRow = (peeked: Peeked | null): HTMLElement | undefined => {
   return box
 }
 
+/** How many times, fifty milliseconds apart, a line is looked for: two seconds. */
+const ARRIVING = 40
+
 /**
  * A file nothing has happened to, drawn by the renderer every diff on every
  * other screen is drawn by.
@@ -111,7 +122,8 @@ export const WholeFile = ({
   fillNote,
   onPick,
   following = true,
-  across
+  across,
+  at
 }: WholeFileProps) => {
   const host = useRef<HTMLDivElement | null>(null)
   const load = useRenderer()
@@ -245,6 +257,31 @@ export const WholeFile = ({
       live.destroy()
     }
   }, [engine, patch, path, choices, painted.scheme, painted.pack, notes, onPick, names])
+
+  const arrived = useRef<string | null>(null)
+  useEffect(() => {
+    if (at === undefined || engine === null) return
+    const here = `${path}:${at}`
+    if (arrived.current === here) return
+    /*
+     * Tried again for a while, because the renderer may put the rows in after it
+     * was asked to draw. On a clock and not on frames: frames are as fast as the
+     * page allows, and a count of them is no promise about time. The rows are in
+     * a shadow root, where an observer on this element sees nothing arrive.
+     */
+    let tries = 0
+    let next: ReturnType<typeof setTimeout> | undefined
+    const arrive = (): void => {
+      if (showLine(host.current, at)) {
+        arrived.current = here
+        return
+      }
+      tries += 1
+      if (tries < ARRIVING) next = setTimeout(arrive, 50)
+    }
+    arrive()
+    return () => clearTimeout(next)
+  }, [at, path, engine, patch])
 
   if (Option.isNone(patch)) {
     return <p className="px-4 py-3 text-sm text-ink-muted">This file is empty.</p>

@@ -12,6 +12,9 @@ import { reachingAll } from "../ledger/reaching"
  * those could be — and every one of them is a read a reader is waiting on.
  */
 const MOST_CANDIDATES = 12
+
+/** A file whose bare imports name npm packages rather than folders of this repository. */
+const SCRIPT = /\.[cm]?[jt]sx?$/u
 import { useLedger } from "./ledger"
 import { useSettings } from "./useSettings"
 import { sameName } from "../diff/engine"
@@ -399,8 +402,14 @@ export const useFollowing = (
          * against a folder no archive carries — so where it resolves is a
          * repository, and that is a question for the Ledger rather than for a
          * list of paths. See `src/ledger/packages.ts`.
+         *
+         * In JavaScript and TypeScript only, which are the languages that
+         * lookup knows: it reads `package.json`. Every other language writes its
+         * own packages without a dot — `example.com/app/shapes`,
+         * `com.ex.shapes.Box`, `App\\Thing` — and sending those there found
+         * nothing, so they never reached this repository's own files below.
          */
-        if (!found.borrowed.specifier.startsWith(".")) {
+        if (!found.borrowed.specifier.startsWith(".") && SCRIPT.test(source.path)) {
           if (across.repo === undefined || across.sha === undefined) return Effect.void
 
           return ledger

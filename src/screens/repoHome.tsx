@@ -296,7 +296,7 @@ const open = (
    * Their router is not told: this is our screen either way, and handing them a
    * navigation for it is the round trip this page exists to avoid.
    */
-  const goTo = (reading: string | null): void => {
+  const goTo = (reading: string | null, line?: number): void => {
     /*
      * Closing a file returns to the tree it was open in, which is the bare
      * address only while the tree is the default branch's. On a chosen branch
@@ -308,20 +308,30 @@ const open = (
     const at = reading === null
       ? root
       : `/${home.repo.owner}/${home.repo.repo}/blob/${branchNow}/${escaped(reading)}`
-    if (window.location.pathname === at) return
+    // GitHub's own anchor for a line, so the address says where the reader is.
+    const anchor = reading === null || line === undefined ? "" : `#L${line}`
+    if (window.location.pathname === at) {
+      if (anchor === "" || window.location.hash === anchor) return
+      window.history.pushState(null, "", `${at}${anchor}`)
+      showingLine = line
+      page.redraw()
+      return
+    }
     claimAt = at
     onMove(at, {
       repo: home.repo,
       branch: reading === null ? home.branch : branchNow,
       reading
     })
-    window.history.pushState(null, "", at)
-    show(reading, branchNow)
+    window.history.pushState(null, "", `${at}${anchor}`)
+    show(reading, branchNow, line)
   }
 
   // Which file is open in the reading pane, or the README where none is.
   let showing = home.reading
   let showingBranch = home.branch ?? undefined
+  /** Where in that file to arrive, where a name was followed there. */
+  let showingLine: number | undefined
   /*
    * The pathname the claim below says, mutable because this screen outlives an
    * address change: a file opening in the tree and the way back out of it are
@@ -350,6 +360,7 @@ const open = (
         shelf={shelf}
         reading={showing}
         readingBranch={showingBranch}
+        readingLine={showingLine}
         onRead={goTo}
         onBranch={onBranch}
       />
@@ -357,9 +368,10 @@ const open = (
   })
 
   /** Another file in the same tree, which is a redraw rather than a new page. */
-  function show(reading: string | null, branch: string | null): void {
+  function show(reading: string | null, branch: string | null, line?: number): void {
     showing = reading
     showingBranch = branch ?? undefined
+    showingLine = line
     page.redraw()
   }
 

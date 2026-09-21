@@ -114,6 +114,10 @@ const staged = (
     readonly across?: Across
     /** The knob that decides whether a registry may be asked at all. */
     readonly registry?: "on" | "off"
+    /** The file the pane reads. A TypeScript file unless a case says otherwise. */
+    readonly path?: string
+    /** A line the pane was opened at, where a name was followed to it. */
+    readonly at?: number
     /** What the repository answers, for a panel with nothing proven in it. */
     readonly uses?: ReadonlyArray<{
       readonly path: string
@@ -289,12 +293,13 @@ const staged = (
       <RendererProvider load={renderer}>
         <LedgerProvider ledger={ledger}>
           <WholeFile
-            path="src/one.ts"
+            path={over.path ?? "src/one.ts"}
             // The declaration is on line 2, which is where `writing` says it is:
             // a Peek slices the file by that number, so the two have to agree or
             // the test is asserting about the wrong lines.
             lines={lines}
             across={across}
+            at={over.at}
           />
         </LedgerProvider>
       </RendererProvider>
@@ -729,6 +734,45 @@ describe("a name this file borrowed from another", () => {
 
     // Without a second hold: the reader never let go of the key.
     expect(stage.marked.map(([, how]) => how)).toContain("sure")
+  })
+
+  /*
+   * Found pressing `render.HTMLRender` in gin: nothing, not even an underline.
+   * Every specifier that did not start with a dot went to the npm registry
+   * lookup, which reads `package.json`. A Go import never starts with a dot, and
+   * neither does a Java, PHP, C#, Rust or absolute Python one, so none of them
+   * ever reached the repository's own files.
+   */
+  test("follows an import that names a package of this repository, in a language with no registry", async () => {
+    const opened: Array<{ path: string; line: number }> = []
+    const read: Array<string> = []
+    const across: Across = {
+      paths: new Set(["cmd/main.go", "whole/two.go", "whole/other.go"]),
+      repo: { owner: "flazouh", repo: "gitquiet" },
+      sha: "abc",
+      read: (path) =>
+        Effect.sync(() => {
+          read.push(path)
+          return "package whole\n\nfunc two() {}\n"
+        }),
+      open: (path, line) => opened.push({ path, line })
+    }
+    const stage = staged(null, [], {
+      path: "cmd/main.go",
+      where: { at: "elsewhere", borrowed: { name: "two", specifier: "example.com/app/whole" } },
+      named: elsewhere,
+      across
+    })
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    expect(read[0]).toBe("whole/other.go")
+    expect(stage.marked.map(([, how]) => how)).toContain("sure")
+    expect(opened).toEqual([{ path: "whole/other.go", line: 2 }])
   })
 
   test("does nothing at all where the pane cannot reach other files", async () => {
@@ -1843,5 +1887,25 @@ describe("the trail through a call chain", () => {
     expect(host).not.toBeNull()
     // A child of `body`, because that is the only place the gate's rule looks.
     expect(host?.parentElement).toBe(document.body)
+  })
+})
+
+describe("arriving at a line of a file a name was followed into", () => {
+  const frames = (): Promise<void> => new Promise((go) => setTimeout(go, 120))
+
+  test("scrolls to it once it is drawn, and once only", async () => {
+    const stage = staged(null, [], { at: 4 })
+    await Effect.runPromise(settled())
+    // The rows come after the frame the file was asked to draw in.
+    const row = drawRow(stage, 4)
+    await frames()
+
+    expect(row.scrolled()).toBe(1)
+
+    // A redraw does not pull a reader who has scrolled on back to it.
+    stage.refresh(undefined)
+    await Effect.runPromise(settled())
+    await frames()
+    expect(row.scrolled()).toBe(1)
   })
 })

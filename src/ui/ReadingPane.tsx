@@ -26,6 +26,8 @@ export type ReadingProps = {
   readonly head?: string
   /** How to reach the repository's other files, for a name borrowed from one. */
   readonly across?: Across
+  /** A line to arrive at once the file is drawn. */
+  readonly at?: number
 }
 
 /**
@@ -65,7 +67,8 @@ export const Reading = ({
   repo,
   branch,
   head,
-  across
+  across,
+  at
 }: ReadingProps) => {
   const [way, setWay] = useState<"rendered" | "source">("rendered")
 
@@ -127,7 +130,7 @@ export const Reading = ({
             />
           </div>
         ) : (
-          <WholeFile path={opened.path} lines={opened.lines} across={across} />
+          <WholeFile path={opened.path} lines={opened.lines} across={across} at={at} />
         )}
       </div>
     </section>
