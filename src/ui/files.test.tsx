@@ -586,3 +586,48 @@ describe("a Peek in a diff", () => {
     expect(request.fillNote?.("peeking")?.textContent).toContain("line 2")
   })
 })
+
+/*
+ * fluentai#2817 adds a generated catalogue of 14,193 lines, and the pull request
+ * was laggy everywhere in it. Drawing that one file holds the page for over two
+ * seconds and leaves ninety-six thousand nodes behind — and a pane is drawn ahead
+ * of the reader, so a neighbour of the file being read paid it too. GitHub holds
+ * such a diff back until it is asked for, and so does this.
+ */
+describe("a file too large to draw without being asked", () => {
+  const huge: ChangedFile = { ...file, path: "src/catalogue.generated.ts", linesAdded: 14193, linesDeleted: 0 }
+
+  test("says how large it is, and draws nothing", async () => {
+    render(pane({ file: huge }))
+
+    expect(await screen.findByText(/14,193 lines/)).toBeTruthy()
+    await new Promise((go) => setTimeout(go, 50))
+    expect(asked).toHaveLength(0)
+  })
+
+  test("does not even fetch it", async () => {
+    let fetched = 0
+    render(
+      pane({
+        file: { ...huge, diff: Option.none() },
+        ask: () =>
+          Effect.sync(() => {
+            fetched += 1
+            return Option.none()
+          })
+      })
+    )
+
+    await screen.findByText(/14,193 lines/)
+    await new Promise((go) => setTimeout(go, 50))
+    expect(fetched).toBe(0)
+  })
+
+  test("draws it when the reader asks", async () => {
+    render(pane({ file: huge }))
+
+    await userEvent.click(await screen.findByRole("button", { name: "Show the diff" }))
+
+    expect((await drawn()).path).toBe("src/catalogue.generated.ts")
+  })
+})

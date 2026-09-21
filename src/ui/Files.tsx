@@ -12,6 +12,7 @@ import type { Revealer } from "../app/revealing"
 import type { DiffEngine, DiffHandle, DiffSide, Note as NoteAt, Picked } from "../ports/Renderer"
 import type { Uploaded } from "../domain/attaching"
 import type { Suggesting } from "../domain/suggesting"
+import { drawnWhenAsked } from "../domain/heavyFile"
 import { toPatch } from "../domain/toPatch"
 import { withoutWhitespace } from "../domain/withoutWhitespace"
 import type { ChangedFile, ChangeType, FileDiff, ReviewThread } from "../domain/PullRequest"
@@ -463,6 +464,16 @@ const FileDiffPaneView = ({
   const [unavailable, setUnavailable] = useState(false)
   const [picked, setPicked] = useState<Picked | null>(null)
 
+  /*
+   * A file too large to draw without being asked, until it is asked. Neither
+   * fetched nor drawn: this pane is drawn ahead of the reader, so a file beside
+   * the one being read would otherwise hold the page for the one being read.
+   * See `domain/heavyFile.ts`.
+   */
+  const [letThrough, setLetThrough] = useState(false)
+  useEffect(() => setLetThrough(false), [file.path])
+  const heldBack = drawnWhenAsked(file) && !letThrough
+
   // GitHub serves the first few files' content with the page and holds the rest
   // back, so most files arrive as a summary and a promise. The library decides
   // whether that costs a request; this only has to ask.
@@ -470,7 +481,7 @@ const FileDiffPaneView = ({
   const [asking, setAsking] = useState(false)
 
   useEffect(() => {
-    if (Option.isSome(file.diff)) {
+    if (Option.isSome(file.diff) || heldBack) {
       setAsking(false)
       return
     }
@@ -503,7 +514,7 @@ const FileDiffPaneView = ({
       clearTimeout(late)
       asking.interruptUnsafe()
     }
-  }, [file.path, file.diff, ask])
+  }, [file.path, file.diff, ask, heldBack])
 
   const whole = useMemo(
     (): ChangedFile => (Option.isSome(file.diff) ? file : { ...file, diff: fetched }),
@@ -715,7 +726,7 @@ const FileDiffPaneView = ({
   // closure was every mounted file drawn again several times per click.
   const canPost = onPost !== undefined
   // Metadata refreshes can recreate the Option while keeping the patch unchanged.
-  const source = Option.getOrNull(shown)
+  const source = heldBack ? null : Option.getOrNull(shown)
 
   useEffect(() => {
     const container = host.current
@@ -1033,7 +1044,21 @@ const FileDiffPaneView = ({
           ))}
         </section>
       )}
-      {prose !== undefined ? (
+      {heldBack ? (
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5 text-sm text-ink-muted">
+          <p>
+            This file changes {(file.linesAdded + file.linesDeleted).toLocaleString("en-US")} lines,
+            so it is drawn only when you ask. Drawing it holds the page while it draws.
+          </p>
+          <button
+            type="button"
+            onClick={() => setLetThrough(true)}
+            className="text-ink underline decoration-line underline-offset-2 hover:decoration-ink"
+          >
+            Show the diff
+          </button>
+        </div>
+      ) : prose !== undefined ? (
         <ProseDiff diff={prose} />
       ) : asking ? (
         <p className="px-4 py-2.5 text-sm text-ink-muted">Fetching this file…</p>
