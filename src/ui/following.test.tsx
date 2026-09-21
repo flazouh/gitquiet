@@ -318,6 +318,24 @@ const staged = (
 }
 
 /**
+ * Draws the row a line is on, the way the renderer draws one, and counts scrolls.
+ *
+ * The stage's renderer draws nothing at all, which is the shape of a line the
+ * diff folded away — so a test about a press that is *taken* somewhere has to
+ * put the row there first, or it is a test about the fold.
+ */
+const drawRow = (stage: Stage, line: number): { readonly scrolled: () => number } => {
+  const row = document.createElement("div")
+  row.setAttribute("data-line", String(line))
+  let scrolled = 0
+  row.scrollIntoView = () => {
+    scrolled += 1
+  }
+  stage.into[0]?.append(row)
+  return { scrolled: () => scrolled }
+}
+
+/**
  * The renderer's callbacks arrive one render after the mount, and the Ledger's
  * answer a tick after it is asked. Two turns covers both.
  */
@@ -514,6 +532,9 @@ describe("the card beside the name", () => {
   test("goes when the name is pressed, because the panel has the screen now", async () => {
     const stage = staged()
     await Effect.runPromise(settled())
+    // Drawn, so the press is taken there. Undrawn, the press would open the
+    // Writing's own lines instead, which say `line 2` too.
+    drawRow(stage, writing.line)
 
     stage.request?.onNameEnter?.(name, held({ go: true }))
     await Effect.runPromise(settled())
@@ -976,6 +997,99 @@ describe("what a press on an underlined name does", () => {
 
     expect(screen.queryByText("2 in this file")).toBeNull()
     expect(stage.shown.at(-1)).toHaveLength(1)
+  })
+})
+
+describe("a press on a name written on a line the diff folded away", () => {
+  /*
+   * Found on a live pull request: `runGitCommand` is written on line 45 of the
+   * file it is used in, and a pull request that changed lines 71 to 93 draws
+   * lines 21 to 70 as one "50 unmodified lines" bar. The Ledger answered, the
+   * underline went on, and a press did nothing — `showLine` looked for a row
+   * with `data-line="45"`, found none because the renderer never drew one, and
+   * answered false to a caller that did not ask.
+   *
+   * Nothing on the screen said so, which is the part worth a test: an underline
+   * is a promise, and a press that breaks it silently reads as a feature that
+   * does not work.
+   */
+  test("shows the Writing's own lines where it cannot scroll to them", async () => {
+    // The stage's renderer draws no rows at all, which is exactly the shape of
+    // a Writing inside a folded hunk: the answer is known and its line is not
+    // on the screen.
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    await waitFor(() => {
+      const [rows] = stage.shown.slice(-1)
+      expect(rows?.some((note) => note.line === name.line)).toBe(true)
+    })
+    const filled = stage.request?.fillNote?.("gitquiet/peek")
+    expect(filled?.textContent).toContain("const shape = () => 1")
+  })
+
+  test("still only scrolls where the line is drawn, and hangs nothing", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    const row = drawRow(stage, writing.line)
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    expect(row.scrolled()).toBe(1)
+    // A reader who can see the line is taken there and shown nothing else.
+    expect(stage.shown.at(-1)?.some((note) => note.key === "gitquiet/peek") ?? false).toBe(false)
+  })
+})
+
+describe("a use in the panel on a line the diff folded away", () => {
+  /*
+   * The panel lists the whole file's uses and the diff draws its hunks, so a
+   * use can be listed on a line that has no row. Pressing one scrolled nowhere
+   * and then closed the panel — taking away the preview, which reads the whole
+   * file and was already showing that very use. The press was worse than doing
+   * nothing: the reader lost the answer and went nowhere.
+   */
+  const pressed = async (stage: Stage): Promise<void> => {
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    await userEvent.keyboard("u")
+    await screen.findByText("2 in this file")
+    const [row] = screen
+      .getAllByRole("button")
+      .filter((one) => (one.textContent ?? "").includes("shape()"))
+    expect(row).toBeDefined()
+    await userEvent.click(row!)
+    await Effect.runPromise(settled())
+  }
+
+  test("stays open, so the preview still shows the use", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+
+    await pressed(stage)
+
+    expect(screen.queryByText("2 in this file")).not.toBeNull()
+  })
+
+  test("closes where the line is drawn, because the reader was taken there", async () => {
+    const stage = staged()
+    await Effect.runPromise(settled())
+    // `shape()` is on line 4 of the stage's file.
+    const row = drawRow(stage, 4)
+
+    await pressed(stage)
+
+    expect(row.scrolled()).toBe(1)
+    expect(screen.queryByText("2 in this file")).toBeNull()
   })
 })
 

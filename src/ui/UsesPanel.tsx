@@ -65,7 +65,14 @@ export type UsesPanelProps = {
    */
   readonly where?: string
   /** Puts one on the screen. The pane scrolls; the address does not change. */
-  readonly onGo: (line: number) => void
+  /**
+   * Scrolls to a line of this file, and says whether it could.
+   *
+   * It can fail. In a pull request's diff the Uses are the whole file's, and the
+   * diff draws only its hunks: a use on a line folded into an "unmodified lines"
+   * bar has no row to scroll to.
+   */
+  readonly onGo: (line: number) => boolean
   readonly onClose: () => void
   /**
    * Opens another file at a line, where the screen can.
@@ -671,9 +678,16 @@ export const UsesPanel = ({
   }, [engine, source, onLine, onColumn, reading.path, painted.scheme, painted.pack, choices])
 
   const goTo = (row: Row): void => {
-    if (row.path !== undefined && row.path !== reading.path) onOpen?.(row.path, row.line)
-    else onGo(row.line)
-    onClose()
+    if (row.path !== undefined && row.path !== reading.path) {
+      onOpen?.(row.path, row.line)
+      onClose()
+      return
+    }
+    // Closed only where the scroll landed. A use on a line the diff folded away
+    // has no row to scroll to, and closing the panel then took away the one
+    // thing still showing it — the preview, which reads the whole file and is
+    // already on that row, since a row is hovered before it is pressed.
+    if (onGo(row.line)) onClose()
   }
 
   /*

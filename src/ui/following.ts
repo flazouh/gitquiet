@@ -607,16 +607,17 @@ export const useFollowing = (
     (name: Name, held: Modifiers) => {
       if (!held.go) return
 
+      const peek = (writing: Writing, where?: string): void => {
+        clear()
+        setPeeked({
+          writing,
+          under: name.line,
+          lines: linesOf(writing, where),
+          ...(where === undefined ? {} : { where })
+        })
+      }
+
       if (held.shift) {
-        const peek = (writing: Writing, where?: string): void => {
-          clear()
-          setPeeked({
-            writing,
-            under: name.line,
-            lines: linesOf(writing, where),
-            ...(where === undefined ? {} : { where })
-          })
-        }
         const already =
           on.current !== null && sameName(on.current.name, name) ? on.current.writing : null
         if (already !== null) peek(already, on.current?.where)
@@ -649,7 +650,22 @@ export const useFollowing = (
           repository.current?.open(where, writing.line)
           return
         }
-        showLine(host.current, writing.line)
+        if (showLine(host.current, writing.line)) return
+        /*
+         * The line is not on the screen, so there is nowhere to scroll to.
+         *
+         * A pull request draws the hunks and a few lines either side, and folds
+         * the rest into an "unmodified lines" bar — so a name written in the
+         * same file is very often written on a line the diff never drew. The
+         * answer is right and the row it names does not exist, and `showLine`
+         * said so with a `false` nobody read: the underline went on, the press
+         * did nothing, and nothing said why.
+         *
+         * The Peek is the same answer without the scroll. It reads the lines
+         * from the whole file the Ledger was asked about, which holds every
+         * line whether or not the diff drew it.
+         */
+        peek(writing, where)
       }
 
       const show = (writing: Writing, where?: string): void => {
