@@ -39,9 +39,14 @@ describe("the generated gate stylesheets", () => {
      * There is one rule now and it is keyed on the mark being there at all, so
      * there is no list to fall off: a place added tomorrow is gated by the same
      * line, and the sheet names no page and no markup of GitHub's.
+     *
+     * Two states of the mark, not one: a page still arriving, and a page a screen
+     * of ours has taken. A page handed back keeps its name and is shown — keyed on
+     * the name alone, every hand-back left the reader in front of a black page.
      */
     const sheet = readFileSync("src/ui/gates.load.css", "utf8")
-    expect(sheet).toContain("html[data-gitquiet-page] body >")
+    expect(sheet).toContain("html[data-gitquiet-page]:not([data-gitquiet-revealed]) body >")
+    expect(sheet).toContain("html[data-gitquiet-page][data-gitquiet-taken] body >")
     for (const place of PLACES) expect(sheet).not.toContain(`data-gitquiet-page="${place.name}"`)
   })
 })

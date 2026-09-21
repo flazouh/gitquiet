@@ -1,5 +1,5 @@
 import { BAR_ON_PAGE } from "./barSlot"
-import { OUTSIDE, PAGE } from "./mount"
+import { OUTSIDE, THEIR_PAGE_HIDDEN } from "./mount"
 import { HOST_ID } from "./theHost"
 import type { Place } from "./place"
 
@@ -55,7 +55,7 @@ const block = (selectors: ReadonlyArray<string>): string => {
 export const loadSheet = (_places: ReadonlyArray<Place>): string =>
   [
     "/* Their page, for as long as one of ours is drawn over it. */",
-    block([`html[${PAGE}] body > *:not(#${HOST_ID}):not([${OUTSIDE}])`])
+    block(THEIR_PAGE_HIDDEN.map((root) => `${root} body > *:not(#${HOST_ID}):not([${OUTSIDE}])`))
   ].join("\n")
 
 export const softSheet = (_places: ReadonlyArray<Place>): string =>

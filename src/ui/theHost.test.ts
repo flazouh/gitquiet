@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { PAGE } from "./mount"
+import { handBack, PAGE } from "./mount"
 import {
   dressShadow,
   HOST_ID,
@@ -132,16 +132,16 @@ describe("their stylesheets are off only while the page is ours", () => {
   /*
    * Found on github.com/login, after the page stopped being blank: it came back
    * in Times New Roman. The sign-on screen is started by a root class GitHub
-   * puts on its login box too, finds no wall and hands the page back — mark off,
-   * their sheets back. Then the shell finished building our stylesheet and turned
-   * theirs off again, because the one thing `keepTheirStylesOff` asked was whether
-   * ours was in force, and it was. Nobody asked whether the page was still ours.
+   * puts on its login box too, finds no wall and hands the page back. Then the
+   * shell finished building our stylesheet and turned theirs off again, because
+   * the one thing `keepTheirStylesOff` asked was whether ours was in force, and
+   * it was. Nobody asked whether their page was being shown.
    *
    * And this module is bundled into four scripts, each with its own watcher, so a
    * screen letting their sheets back disconnected its own watcher and not the
    * shell's — which went on turning them off on every change to the page.
    *
-   * The mark is on the document, which every copy shares. So that is what each
+   * The marks are on the document, which every copy shares. So that is what each
    * of them asks.
    */
   const inForce = async (page: Document): Promise<void> => {
@@ -179,18 +179,17 @@ describe("their stylesheets are off only while the page is ours", () => {
     expect(howMany(page).off).toBe(2)
   })
 
-  test("gives them back when the mark comes off, whoever takes it off", async () => {
+  test("gives them back the moment the page is handed back, whichever copy does it", async () => {
     const page = freshPage()
     await inForce(page)
     page.documentElement.setAttribute(PAGE, "sign-on")
     keepTheirStylesOff(page)
     expect(howMany(page).off).toBe(2)
 
-    // Another copy of this module hands the page back: the mark goes, and its own
-    // watcher with it. This one is still watching, and the next change it sees
-    // is on a page that is no longer ours.
-    page.documentElement.removeAttribute(PAGE)
-    page.body.append(page.createElement("div"))
+    // Another copy of this module hands the page back, which is one attribute on
+    // the document they share. Nothing else changes: no child is added, so it is
+    // the watch on the marks that has to notice, and not the watch on the page.
+    handBack(page)
     await new Promise((go) => setTimeout(go, 0))
 
     expect(howMany(page)).toEqual({ on: 2, off: 0 })

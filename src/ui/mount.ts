@@ -571,21 +571,6 @@ export const reveal = (target: Document): void => {
 export const handBack = (target: Document): void => {
   if (target.documentElement.hasAttribute(GATING)) return
   reveal(target)
-  /*
-   * And the page's name, which is what actually hides their page.
-   *
-   * `gates.load.css` hides every one of their boxes for as long as the document
-   * is named for one of ours, and being revealed does not enter into it. So a
-   * hand-back that only revealed left the reader looking at nothing: found on
-   * github.com/login, which the sign-on screen is started by, reads, finds no
-   * wall on, and hands back — onto a black page. The shell's own path for a
-   * screen that failed to arrive learned this already and unmarks; this did not.
-   *
-   * Nobody is gating, so nobody is arriving, and the name is this page's own
-   * rather than the next one's. Their stylesheets come back with it, because a
-   * page handed back undressed is not their page either.
-   */
-  unmarkPage(target)
 }
 
 /**
@@ -624,6 +609,39 @@ export const gate = (target: Document): void => {
  * visible. A rule keyed off this hides them from the instant they exist.
  */
 const TAKEN = "data-gitquiet-taken"
+
+/**
+ * When their page is kept off the screen: the document is one of ours, and either
+ * nothing of ours has stood up yet or something of ours is standing on it now.
+ *
+ * Two states, which is what the load sheet always said it was for. Before
+ * anything is up, the page is named and not yet revealed — the moment a
+ * server-rendered page would otherwise paint first. While a screen is in charge,
+ * the page is taken, and the takeover reveals as well, so revealed alone cannot be
+ * the test. Every other state is a page handed back: revealed and not taken.
+ *
+ * It was one state for a while, and that was a black page on every hand-back. The
+ * shadow-root rewrite kept the sheet keyed on the name alone and dropped the
+ * `:not(revealed)` every rule had carried before it, so revealing stopped showing
+ * anything. A reader who chose GitHub's own view got the way back and nothing
+ * under it; a screen that failed or gave up left the page blank; GitHub's login,
+ * which the sign-on screen is started by and hands back, came up black.
+ *
+ * Kept as selectors because a stylesheet has to say it too: `gateCss.ts` writes the
+ * sheet from these and {@link theirPageHidden} asks the document the same thing,
+ * so the rule and the code that turns their stylesheets off cannot disagree.
+ */
+export const THEIR_PAGE_HIDDEN: ReadonlyArray<string> = [
+  `html[${PAGE}]:not([${REVEALED}])`,
+  `html[${PAGE}][${TAKEN}]`
+]
+
+/** Whether their page is off the screen now. See {@link THEIR_PAGE_HIDDEN}. */
+export const theirPageHidden = (target: Document): boolean =>
+  THEIR_PAGE_HIDDEN.some((root) => target.documentElement.matches(root))
+
+/** The marks {@link THEIR_PAGE_HIDDEN} reads, for anything that watches for it to change. */
+export const HIDING_MARKS: ReadonlyArray<string> = [PAGE, REVEALED, TAKEN]
 
 /**
  * Which of this extension's screens is the one on the page.

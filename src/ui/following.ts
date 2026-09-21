@@ -571,8 +571,11 @@ export const useFollowing = (
   /** The lines a Writing is written on, out of whichever file holds it. */
   const linesOf = useCallback(
     (writing: Writing, where?: string): ReadonlyArray<string> => {
-      const whole =
-        where === undefined || where === source?.path ? text.current?.text : on.current?.text
+      // The kept text only if it is this file's: `source` can move on between a
+      // question and its answer, and a Peek of the file before it would be the
+      // right line numbers over the wrong lines.
+      const held = text.current !== null && text.current.path === source?.path ? text.current.text : null
+      const whole = where === undefined || where === source?.path ? held : on.current?.text
       const all = (whole ?? "").split("\n")
       // Enough to see what it is: the line it starts on and the few under it.
       // A Peek is not a second file view — the press beside it opens the file.

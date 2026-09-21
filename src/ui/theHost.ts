@@ -22,7 +22,7 @@
  * one would put our own tree out of reach of the probes that photograph it.
  */
 import { Effect } from "effect"
-import { OUTSIDE, PAGE } from "./mount"
+import { HIDING_MARKS, OUTSIDE, theirPageHidden } from "./mount"
 
 export const HOST_ID = "gitquiet-host"
 
@@ -269,19 +269,19 @@ export const keepTheirStylesOff = (target: Document): void => {
     }
     theirStyles(target, false)
   })
-  // The mark itself as well as the page under it, so a page handed back gets its
-  // sheets back the moment the mark comes off and not at the next change to it.
+  // The marks as well as the page under them, so a page handed back gets its
+  // sheets back the moment it is handed back and not at the next change to it.
   watching.observe(target.documentElement, {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: [PAGE]
+    attributeFilter: [...HIDING_MARKS]
   })
 }
 
 /**
- * Whether their stylesheets are worth turning off: ours is in force, and the page
- * is one of ours.
+ * Whether their stylesheets are worth turning off: ours is in force, and their page
+ * is off the screen.
  *
  * Both halves shipped missing. The first, in v0.17.0: theirs turned off before
  * ours had arrived, and a page with no stylesheets at all — see
@@ -289,16 +289,17 @@ export const keepTheirStylesOff = (target: Document): void => {
  * is started by a root class GitHub puts on its login box as well as on an
  * organisation's wall, and hands the login page back when it finds no wall. Then
  * the shell finished building our stylesheet and turned theirs off again, because
- * ours was in force — on a page that was not ours any more, which the reader saw
- * as their login form in Times New Roman.
+ * ours was in force — on a page that was being shown, which the reader saw as
+ * their login form in Times New Roman.
  *
- * Asked of the document rather than remembered here, because this module is
- * bundled into four scripts and each has its own watcher. A screen handing the
- * page back disconnects its own, and every other copy learns of it from the one
- * thing they all share: the page no longer has a name.
+ * "Off the screen" is the same question the gate sheet asks, answered by the same
+ * selectors, so their sheets are off exactly while their boxes are hidden and not
+ * a moment longer. Asked of the document rather than remembered here, because this
+ * module is bundled into four scripts and each has its own watcher: a screen
+ * handing the page back reaches every other copy through the marks they share.
  */
 const worthTurningOff = (target: Document): boolean =>
-  oursInForce(target) && target.documentElement.hasAttribute(PAGE)
+  oursInForce(target) && theirPageHidden(target)
 
 /**
  * The host off a document, and forgotten, for a suite that is many documents in one.

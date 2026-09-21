@@ -5,6 +5,7 @@ import {
   ROOT_ID,
   gate,
   handBack,
+  theirPageHidden,
   interfaceContainer,
   markPage,
   reveal,
@@ -169,37 +170,51 @@ describe("one screen leaving while another arrives", () => {
     expect(page.documentElement.hasAttribute("data-gitquiet-revealed")).toBe(true)
   })
 
-  test("a page handed back loses its name, which is what the rule hiding it keys on", () => {
+  test("a page handed back is shown, though it keeps its name", () => {
     /*
      * Found on github.com/login: a black page. The sign-on screen is started by a
      * root class GitHub puts on its login box as well as on an organisation's
      * wall, reads the page, finds no wall and hands it back — correctly. And the
-     * reader saw nothing, because handing back only said the page may be shown,
-     * while the rule that hides every one of their boxes is keyed on the page
-     * having a name, and nothing took the name off.
+     * reader saw nothing, because the rule hiding their page was keyed on the
+     * name alone and a hand-back reveals without unnaming.
      *
-     * The same for every hand-back: a second factor, a device check, a gist, a
-     * press that was abandoned.
+     * The same for every hand-back: GitHub's own view chosen in the settings, a
+     * screen that failed or gave up, a second factor, a device check, a gist.
      */
     const page = githubPage()
     markPage(page, CONVERSATION)
+    expect(theirPageHidden(page)).toBe(true)
 
     handBack(page)
 
-    expect(page.documentElement.hasAttribute("data-gitquiet-page")).toBe(false)
+    expect(theirPageHidden(page)).toBe(false)
+    expect(page.documentElement.getAttribute("data-gitquiet-page")).toBe("conversation")
   })
 
-  test("keeps the name where another screen is arriving, since it is that screen's", () => {
-    // The name moves on the press, a second before the address does, so that the
-    // arriving page's rules are in force from the instant the reader asked. A
-    // screen leaving must not take the arriving one's name away with its own.
+  test("stays hidden under a screen of ours, which reveals as it takes the page", () => {
+    // A takeover reveals as well as taking, so revealed alone cannot be the test.
+    const page = githubPage()
+    markPage(page, CONVERSATION)
+
+    takeOverSlot(page, interfaceContainer(page, CONVERSATION), CONVERSATION)
+
+    expect(page.documentElement.hasAttribute("data-gitquiet-revealed")).toBe(true)
+    expect(theirPageHidden(page)).toBe(true)
+  })
+
+  test("stays hidden where another screen is arriving, since the page is that screen's", () => {
     const page = githubPage()
     markPage(page, CONVERSATION)
     gate(page)
 
     handBack(page)
 
-    expect(page.documentElement.getAttribute("data-gitquiet-page")).toBe("conversation")
+    expect(theirPageHidden(page)).toBe(true)
+  })
+
+  test("is never hidden on a page that is not one of ours", () => {
+    const page = githubPage()
+    expect(theirPageHidden(page)).toBe(false)
   })
 
   test("the screen arriving reveals for itself, so the page is never stuck", () => {
