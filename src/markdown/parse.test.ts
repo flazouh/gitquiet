@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { parseMarkdown } from "./parse"
+import { proxiedImages } from "./github"
 
 describe("parsing markdown into a document", () => {
   test("reuses a document when its source and address context have not changed", () => {
@@ -661,6 +662,92 @@ See #1945 and @alice.
     ])
     expect(doc.footnotes).toMatchObject([
       { id: "1", blocks: [{ type: "paragraph", children: [{ type: "text", text: "the note" }] }] }
+    ])
+  })
+})
+
+/*
+ * React's README opens `# [React](https://react.dev/) &middot; [![GitHub license](…)`.
+ * Marked keeps an entity as it was written, and text drawn by React is drawn as it is
+ * given, so the heading read "React &middot;" where GitHub's reads "React ·".
+ */
+describe("reading the entities markdown is allowed to have", () => {
+  test("draws a named or numbered entity as the character it names", () => {
+    const doc = parseMarkdown("React &middot; &copy; &#169; &#x2014; &amp;")
+
+    expect(doc.blocks).toMatchObject([
+      { type: "paragraph", children: [{ type: "text", text: "React · © © — &" }] }
+    ])
+  })
+
+  test("leaves code as it was written, where an entity is what it says", () => {
+    const doc = parseMarkdown("`&middot;`")
+
+    expect(doc.blocks).toMatchObject([
+      { type: "paragraph", children: [{ type: "code", text: "&middot;" }] }
+    ])
+  })
+
+  test("never turns an entity into markup", () => {
+    const doc = parseMarkdown("a &lt;img src=x onerror=alert(1)&gt; b")
+
+    expect(doc.blocks).toMatchObject([
+      { type: "paragraph", children: [{ type: "text", text: "a <img src=x onerror=alert(1)> b" }] }
+    ])
+  })
+
+  test("reads an image's words and an html attribute the same way", () => {
+    const doc = parseMarkdown('![Tom &amp; Jerry](https://example.com/a.png)\n\n<img src="https://example.com/b.png?x=1&amp;y=2" alt="A &middot; B">')
+
+    expect(doc.blocks).toMatchObject([
+      { type: "paragraph", children: [{ type: "image", alt: "Tom & Jerry" }] },
+      { type: "html", tag: "img", attrs: { src: "https://example.com/b.png?x=1&y=2", alt: "A · B" } }
+    ])
+  })
+
+  test("still refuses a script address spelled with entities", () => {
+    const doc = parseMarkdown('<a href="jav&#x61;script:alert(1)">x</a>')
+
+    expect(JSON.stringify(doc.blocks)).not.toContain("javascript")
+  })
+})
+
+/*
+ * GitHub's page allows pictures only from its own hosts, and our README is drawn inside
+ * it, so `img.shields.io` was refused and every badge was its alt text. GitHub's own
+ * rendering fetches the same picture through its proxy, at an address signed on their
+ * side that we cannot make, and says which picture it stands for.
+ */
+describe("pictures from a host GitHub's page refuses", () => {
+  const proxied = new Map([
+    ["https://img.shields.io/badge/license-MIT-blue.svg", "https://camo.githubusercontent.com/7013/6874"]
+  ])
+
+  test("are fetched through GitHub's proxy where their rendering says how", () => {
+    const doc = parseMarkdown(
+      '[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](x)\n\n<img src="https://img.shields.io/badge/license-MIT-blue.svg">',
+      { proxied }
+    )
+
+    expect(JSON.stringify(doc.blocks)).not.toContain("img.shields.io")
+    expect(JSON.stringify(doc.blocks).match(/camo\.githubusercontent\.com\/7013\/6874/g)?.length).toBe(2)
+  })
+
+  test("are left as written where their rendering does not name them", () => {
+    const doc = parseMarkdown("![npm](https://img.shields.io/npm/v/react.svg)", { proxied })
+
+    expect(doc.blocks).toMatchObject([
+      { type: "paragraph", children: [{ type: "image", src: "https://img.shields.io/npm/v/react.svg" }] }
+    ])
+  })
+
+  test("are read out of GitHub's rendering, entities and all", () => {
+    const html =
+      '<p><a href="x"><img src="https://camo.githubusercontent.com/aa/bb" alt="npm" data-canonical-src="https://img.shields.io/npm/v/react.svg?style=flat&amp;x=1" style="max-width: 100%;"></a>' +
+      '<img src="/facebook/react/raw/main/logo.png" alt="logo"></p>'
+
+    expect([...proxiedImages(html)]).toEqual([
+      ["https://img.shields.io/npm/v/react.svg?style=flat&x=1", "https://camo.githubusercontent.com/aa/bb"]
     ])
   })
 })

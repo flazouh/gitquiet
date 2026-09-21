@@ -327,6 +327,36 @@ describe("a repository's front page", () => {
     expect(await screen.findByText("Flowline")).toBeTruthy()
   })
 
+  /*
+   * GitHub's page refuses pictures from anywhere but its own hosts, so a badge
+   * drawn from its source address was its alt text. Their rendering says where
+   * their proxy serves it, and the source is drawn with that.
+   */
+  test("draws a badge through GitHub's proxy, as their own rendering does", async () => {
+    showing(
+      () =>
+        Effect.succeed(
+          front("caller", {
+            welcome: Option.some({
+              name: "README.md",
+              path: "README.md",
+              html: '<h1>React <img src="https://camo.githubusercontent.com/70/68" alt="GitHub license" data-canonical-src="https://img.shields.io/badge/license-MIT-blue.svg"></h1>',
+              timedOut: false
+            })
+          })
+        ),
+      {
+        loadReadme: () =>
+          Effect.succeed("# React &middot; ![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)")
+      }
+    )
+
+    const badge = await screen.findByAltText("GitHub license")
+    await waitFor(() => expect(badge.closest(".markdown")).toBeTruthy())
+    expect(document.querySelector(".markdown img")?.getAttribute("src")).toBe("https://camo.githubusercontent.com/70/68")
+    expect(document.querySelector(".markdown h1")?.textContent).toContain("React ·")
+  })
+
   test("asks for nothing where GitHub could not render the README either", async () => {
     let asked = 0
 

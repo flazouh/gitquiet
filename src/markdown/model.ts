@@ -144,6 +144,11 @@ export type ParseOptions = {
    * and have no directory to be beside.
    */
   readonly at?: string
+  /**
+   * Where GitHub's proxy serves a picture from a host their page refuses, by the
+   * address the markdown wrote. Read out of their rendering by `proxiedImages`.
+   */
+  readonly proxied?: ReadonlyMap<string, string>
 }
 
 export type TableAlign = "left" | "center" | "right" | null

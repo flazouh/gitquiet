@@ -18,6 +18,7 @@ import type {
   TextBlock
 } from "./model"
 import { hrefOf } from "./sanitize"
+import { decodeEntities } from "./entities"
 
 /**
  * Parsed documents already used in this tab.
@@ -35,7 +36,8 @@ const documentKey = (source: string, options: ParseOptions): string =>
     options.owner ?? null,
     options.repo ?? null,
     options.branch ?? null,
-    options.at ?? null
+    options.at ?? null,
+    options.proxied === undefined ? null : [...options.proxied]
   ])
 
 export const parseMarkdown = (
@@ -220,7 +222,7 @@ const applyHtml = (
     }
     if (piece.kind === "text") {
       if (piece.text.trim() === "") continue
-      emit({ type: "text", text: piece.text })
+      emit({ type: "text", text: decodeEntities(piece.text) })
       continue
     }
     if (piece.kind === "close") {
@@ -356,7 +358,7 @@ const inlineOf = (token: Token): ReadonlyArray<MarkdownInline> => {
     case "text":
       if (!("text" in token)) return []
       if (Array.isArray(token.tokens)) return inlinesOf(token.tokens)
-      return [{ type: "text", text: token.text }]
+      return [{ type: "text", text: decodeEntities(token.text) }]
     case "escape":
       return "text" in token ? [{ type: "text", text: token.text }] : []
     case "link":
@@ -423,5 +425,5 @@ const isImage = (token: Token): token is Tokens.Image =>
  */
 const imageOf = (token: Tokens.Image): ReadonlyArray<MarkdownInline> => {
   const src = hrefOf(token.href)
-  return src === null ? [] : [{ type: "image", src, alt: token.text }]
+  return src === null ? [] : [{ type: "image", src, alt: decodeEntities(token.text) }]
 }

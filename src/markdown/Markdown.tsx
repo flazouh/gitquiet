@@ -16,7 +16,8 @@ export const Markdown = ({
   owner,
   repo,
   branch,
-  at
+  at,
+  proxied
 }: {
   readonly markdown: string
   readonly owner?: string
@@ -25,8 +26,10 @@ export const Markdown = ({
   readonly branch?: string
   /** Where this markdown itself is, so an address beside it is read from beside it. */
   readonly at?: string
+  /** Pictures GitHub's page would refuse, and where their proxy serves them. */
+  readonly proxied?: ReadonlyMap<string, string>
 }) => {
-  const options: ParseOptions = { owner, repo, branch, at }
+  const options: ParseOptions = { owner, repo, branch, at, proxied }
   const doc = parseMarkdown(markdown, options)
   return (
     <div className="markdown">

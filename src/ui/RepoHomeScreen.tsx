@@ -20,6 +20,7 @@ import { GoToFile } from "./GoToFile"
 import { GoToName } from "./GoToName"
 import { GitHubHtml } from "./GitHubHtml"
 import { Markdown } from "./Markdown"
+import { proxiedImages } from "../markdown/github"
 import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import { DrawnAt } from "./drawnAt"
 import type { Shelf } from "../app/shelf"
@@ -357,6 +358,8 @@ const Readme = ({
   readonly loadReadme: RepoHomeScreenProps["loadReadme"]
 }) => {
   const source = useSource(welcome, branch, loadReadme)
+  // Their rendering is the only place the proxy's address for a badge is written.
+  const proxied = useMemo(() => proxiedImages(welcome.html), [welcome.html])
 
   return (
     <section
@@ -379,6 +382,7 @@ const Readme = ({
               repo={repo.repo}
               branch={branch}
               at={welcome.path}
+              proxied={proxied}
             />
           )}
         </div>

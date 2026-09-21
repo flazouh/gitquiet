@@ -1,5 +1,6 @@
 import { nameToEmoji } from "gemoji"
-import { everyAddressIn } from "./html"
+import { everyAddressIn, piecesOf } from "./html"
+import { hrefOf } from "./sanitize"
 import type {
   AlertKind,
   Footnote,
@@ -123,6 +124,8 @@ const ROOTED = /^(?:[a-z][a-z0-9+.-]*:|\/)/iu
  */
 const inTheRepository = (src: string, options: ParseOptions): string => {
   const { owner, repo } = options
+  const proxy = options.proxied?.get(src)
+  if (proxy !== undefined) return proxy
   if (owner === undefined || repo === undefined) return src
   if (src === "" || ROOTED.test(src)) return src
   /*
@@ -133,6 +136,30 @@ const inTheRepository = (src: string, options: ParseOptions): string => {
    */
   const from = `${RAW}/${owner}/${repo}/${options.branch ?? "HEAD"}/${options.at ?? ""}`
   return new URL(src, from).toString()
+}
+
+/**
+ * Where GitHub's proxy serves each picture their rendering fetched from elsewhere.
+ *
+ * Their page allows pictures from their own hosts and no others, and the README is
+ * drawn inside their page, so a badge from `img.shields.io` written as it is was
+ * refused and drawn as its words. Their rendering fetched the same badge through
+ * `camo.githubusercontent.com`, at an address signed on their side that nothing
+ * here can make, and kept the address it stands for in `data-canonical-src`.
+ *
+ * A picture on their own hosts has no such attribute and needs none.
+ */
+export const proxiedImages = (html: string): ReadonlyMap<string, string> => {
+  const proxied = new Map<string, string>()
+  for (const piece of piecesOf(html)) {
+    if (piece.kind !== "open" || piece.tag !== "img") continue
+    const wrote = piece.attrs["data-canonical-src"]
+    // Their own rendering, and still asked, because it is an address we will draw.
+    const src = hrefOf(piece.attrs["src"] ?? "")
+    if (wrote === undefined || src === null || wrote === "" || src === "") continue
+    proxied.set(wrote, src)
+  }
+  return proxied
 }
 
 /**

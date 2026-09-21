@@ -1,3 +1,4 @@
+import { decodeEntities } from "./entities"
 import { hrefOf } from "./sanitize"
 
 export const ALLOWED_TAGS = new Set(["a", "picture", "details", "summary", "source", "img", "br"])
@@ -85,7 +86,9 @@ const attrsOf = (raw: string): Readonly<Record<string, string>> => {
   for (const match of raw.matchAll(pair)) {
     const name = match[1]?.toLowerCase()
     if (name === undefined) continue
-    attrs[name] = match[2] ?? match[3] ?? match[4] ?? ""
+    // Read before anything asks what the value is, so an address spelled with
+    // entities is judged as the address the browser would have followed.
+    attrs[name] = decodeEntities(match[2] ?? match[3] ?? match[4] ?? "")
   }
   return attrs
 }
