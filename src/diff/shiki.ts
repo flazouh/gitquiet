@@ -48,7 +48,7 @@ const GRAMMARS: Record<string, Grammars> = {
   python: () => import("@shikijs/langs/python"),
   go: () =>
     Effect.runPromise(
-      Effect.promise(() => import("@shikijs/langs/go")).pipe(Effect.map(withStructsThatEnd))
+      Effect.promise(() => import("@shikijs/langs/go")).pipe(Effect.map(goThatFinishes))
     ),
   rust: () => import("@shikijs/langs/rust"),
   java: () => import("@shikijs/langs/java"),
@@ -95,40 +95,56 @@ const STRUCT_ON_ONE_LINE_LINEAR =
   '(?<=\\{)((?:(?>\\s*(?:(?:\\w+,\\s*)+{0,1}\\w+\\s+)?(?:\\s*[]*\\[]+{0,1}(?:<-\\s*)?\\bchan\\b(?:\\s*<-)?\\s*)+{0,1}(?:[^"/`\\s{}]|\\{\\})+;?))+)\\s*(?=})'
 
 /**
- * Go, with that one rule replaced.
+ * The group Go's grammar writes for a channel type, repeated: `chan chan int`.
  *
- * Copied along the path to it rather than changed where it lies: the module is
- * shared, and the grammar as it ships is what a test compares against. Where the
- * rule is not found as written — a newer grammar — nothing is replaced, and the
- * test that times this line is what says so.
+ * Two spellings, with and without a leading `\s*`, across twenty-three rules.
+ * Each ends in `\s*` and the leading one begins with it, so the spaces between two
+ * `chan`s can be split between them every way there is, and a line that then fails
+ * to match tries all of them: under V8, sixteen `chan`s took one rule eight seconds
+ * and eighteen did not finish. Made atomic, one iteration keeps the spaces it
+ * took, which is all a match could ever want — nothing after the group starts
+ * with a space — and the same lines take three milliseconds.
  */
-const withStructsThatEnd = (
-  loaded: { readonly default: ReadonlyArray<LanguageRegistration> }
-): { readonly default: ReadonlyArray<LanguageRegistration> } => {
-  const [go, ...rest] = loaded.default
-  const fields = go?.repository?.["struct_variables_types_fields"]
-  const patterns = fields?.patterns
-  if (go === undefined || fields === undefined || patterns === undefined) return loaded
-  if (!patterns.some((one) => one.match === STRUCT_ON_ONE_LINE)) return loaded
+const CHANNELS =
+  /\(\?:((?:\\s\*)?\[\]\*\\\[\]\+\{0,1\}\(\?:<-\\s\*\)\?\\bchan\\b\(\?:\\s\*<-\)\?\\s\*)\)\+/g
 
-  return {
-    default: [
-      {
-        ...go,
-        repository: {
-          ...go.repository,
-          struct_variables_types_fields: {
-            ...fields,
-            patterns: patterns.map((one) =>
-              one.match === STRUCT_ON_ONE_LINE ? { ...one, match: STRUCT_ON_ONE_LINE_LINEAR } : one
-            )
-          }
-        } as LanguageRegistration["repository"]
-      },
-      ...rest
-    ]
-  }
+/** One pattern of Go's, without the two ways it has of running away. */
+const unrunaway = (source: string): string =>
+  (source === STRUCT_ON_ONE_LINE ? STRUCT_ON_ONE_LINE_LINEAR : source).replace(
+    CHANNELS,
+    "(?:(?>$1))+"
+  )
+
+/** A grammar's rules with every pattern in them passed through `fix`. */
+const everyPattern = (node: unknown, fix: (source: string) => string): unknown => {
+  if (Array.isArray(node)) return node.map((one) => everyPattern(one, fix))
+  if (node === null || typeof node !== "object") return node
+  return Object.fromEntries(
+    Object.entries(node).map(([key, value]) => [
+      key,
+      typeof value === "string" && PATTERN_KEYS.has(key) ? fix(value) : everyPattern(value, fix)
+    ])
+  )
 }
+
+/** Where a TextMate rule keeps a regular expression. */
+const PATTERN_KEYS: ReadonlySet<string> = new Set(["match", "begin", "end", "while"])
+
+/**
+ * Go, without the rules that run away.
+ *
+ * Rebuilt rather than changed where it lies: the module is shared, and the
+ * grammar as it ships is what a test compares against. Where a pattern is not
+ * found as written — a newer grammar — it is left as it is, and the tests that
+ * time these lines are what say so.
+ */
+const goThatFinishes = (
+  loaded: { readonly default: ReadonlyArray<LanguageRegistration> }
+): { readonly default: ReadonlyArray<LanguageRegistration> } => ({
+  default: loaded.default.map(
+    (grammar) => everyPattern(grammar, unrunaway) as LanguageRegistration
+  )
+})
 
 /**
  * The language a reader opened, with nothing to colour it with: its own name, so
