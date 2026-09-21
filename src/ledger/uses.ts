@@ -163,17 +163,33 @@ export const usesAcross = (
     }
     if (mentions.length === 0) continue
 
-    const how = sureness(path, told, asked, paths, files)
-    if (how === "no") continue
+    // Asked once for the file, and only if a mention needs it.
+    let how: "sure" | "likely" | "no" | undefined
+    /** Whether an import leads to where the name is written, per import. */
+    const leads = new Map<string, boolean>()
 
     for (const mention of mentions) {
-      found.push({
-        path,
-        line: mention.line,
-        from: mention.from,
-        to: mention.to,
-        sure: how === "sure"
-      })
+      /*
+       * Read through a package, a mention means that package's name and nothing
+       * else: `errors.New` is never `store.New`, whatever else the file borrowed.
+       * So it is judged alone, and is Sure or not a use at all.
+       */
+      let sure: boolean
+      if (mention.through !== undefined) {
+        let reached = leads.get(mention.through)
+        if (reached === undefined) {
+          reached = reachingAll(path, mention.through, paths, asked.name).includes(asked.path)
+          leads.set(mention.through, reached)
+        }
+        if (!reached) continue
+        sure = true
+      } else {
+        how ??= sureness(path, told, asked, paths, files)
+        if (how === "no") continue
+        sure = how === "sure"
+      }
+
+      found.push({ path, line: mention.line, from: mention.from, to: mention.to, sure })
       if (found.length >= most) return found
     }
   }

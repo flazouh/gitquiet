@@ -639,6 +639,12 @@ export const writingNamed = (
  * afford to keep for every file in a repository.
  */
 export type Mention = {
+  /**
+   * The import it is read through, where it is written after a package: `Area`
+   * in `shapes.Area`. Such a mention means that package's name and no other, so
+   * it is judged on its own rather than by what else the file borrowed.
+   */
+  readonly through?: string
   readonly name: string
   readonly line: number
   readonly from: number
@@ -682,48 +688,63 @@ export const toldBy = (root: Syntax, source: string, dialect: Dialect): Told => 
   const mentions: Array<Mention> = []
   const declares = new Set<string>()
   const borrows: Array<Borrowed> = []
-  /** Names read through something, kept until it is known which of those are packages. */
-  const qualified: Array<{ readonly mention: Mention; readonly through: string }> = []
-  /** What this file calls the packages it imported: an alias, or the name the path implies. */
-  const packages = new Set<string>()
+  /**
+   * Names read through a qualifier this file binds nowhere, kept until every
+   * import has been seen: the name a plain import binds is said by no node.
+   */
+  const unbound: Array<{ readonly mention: Mention; readonly qualifier: string }> = []
+  /** Scopes worked out once for the whole walk, as `found` keeps them for one press. */
+  const memo: Memo = new Map()
+  /** The nodes from the root down to this one, which is the scope chain. */
+  const path: Array<Syntax> = []
 
-  const walk = (node: Syntax, above: Syntax | null): void => {
-    const qualifier = dialect.qualifierOf?.(node, above) ?? null
-    if (qualifier !== null) qualified.push({ mention: mentionOf(node), through: qualifier.text })
-    else if (dialect.names.has(node.type)) mentions.push(mentionOf(node))
+  const walk = (node: Syntax): void => {
+    path.push(node)
+    const qualifier = dialect.qualifierOf?.(node, path.at(-2) ?? null) ?? null
+    if (qualifier !== null) {
+      /*
+       * Resolved where it is written, as a press on it would be: a loop's `store`
+       * shadows the package `store`, and `store.New` there is not the package's.
+       */
+      const bound = boundIn(path, qualifier.text, memo, dialect)
+      if (bound === undefined) unbound.push({ mention: mentionOf(node), qualifier: qualifier.text })
+      else if (bound.kind === "import" && bound.from !== undefined) {
+        mentions.push({ ...mentionOf(node), through: bound.from.specifier })
+      }
+    } else if (dialect.names.has(node.type)) mentions.push(mentionOf(node))
 
     const { outer, inner } = dialect.bindings(node)
     for (const bound of [...outer, ...inner]) {
       declares.add(bound.name.text)
-      if (bound.from === undefined) continue
-      borrows.push(bound.from)
-      if (bound.kind === "import") packages.add(bound.name.text)
+      if (bound.from !== undefined) borrows.push(bound.from)
     }
 
     // A re-export borrows without binding, so it is walked for on its own and
     // adds to `borrows` and to nothing else. See {@link passedOn}.
     if (dialect.passedOn !== undefined) {
-      for (const from of dialect.passedOn(node)) {
-        borrows.push(from)
-        if (dialect.namedBy !== undefined) packages.add(dialect.namedBy(from.specifier))
-      }
+      for (const from of dialect.passedOn(node)) borrows.push(from)
     }
 
-    for (const child of childrenOf(node)) walk(child, node)
+    for (const child of childrenOf(node)) walk(child)
+    path.pop()
   }
-  walk(root, null)
+  walk(root)
 
   /*
-   * A name read through a package is a use of that package's name: `Area` in
-   * `shapes.Area`. Read through anything else it is a value's member, and
-   * counting it would make every `.Close()` in a file that imports a package a
-   * Sure use of that package's `Close` — so it is left out, as a field was.
+   * A qualifier bound nowhere is a plain import's name, where one implies it, and
+   * the mention is a use of that package's name. Otherwise it is something of this
+   * package's own, written in a sibling file, and counting it would make every
+   * `.Close()` in a file that imports a package a use of that package's `Close`.
    */
-  for (const one of qualified) {
-    if (packages.has(one.through)) mentions.push(one.mention)
+  if (unbound.length > 0 && dialect.namedBy !== undefined) {
+    const whole = wholeFileBorrows(root, dialect)
+    for (const one of unbound) {
+      const through = whole.find((from) => dialect.namedBy!(from.specifier) === one.qualifier)
+      if (through !== undefined) mentions.push({ ...one.mention, through: through.specifier })
+    }
   }
   // In the order they are written, which is the order a panel lists them in.
-  if (qualified.length > 0) mentions.sort((a, b) => a.line - b.line || a.from - b.from)
+  if (unbound.length > 0) mentions.sort((a, b) => a.line - b.line || a.from - b.from)
 
   return {
     writings: writingsIn(root, source, dialect),

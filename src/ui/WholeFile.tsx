@@ -260,7 +260,13 @@ export const WholeFile = ({
 
   const arrived = useRef<string | null>(null)
   useEffect(() => {
-    if (at === undefined || engine === null) return
+    // Opened at no line forgets the last arrival, so the next one to the same
+    // line is an arrival again: this pane is kept across files.
+    if (at === undefined) {
+      arrived.current = null
+      return
+    }
+    if (engine === null) return
     const here = `${path}:${at}`
     if (arrived.current === here) return
     /*

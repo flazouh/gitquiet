@@ -388,6 +388,21 @@ describe("what a Go import names, which is a folder", () => {
   test("a package this repository does not hold reaches nothing", () => {
     expect(reachingAll("main.go", "github.com/pkg/errors", paths)).toEqual([])
   })
+
+  test("a package of somebody else's repository is not a folder of this one that ends the same", () => {
+    // `github.com/owner/repo` is a module, so what follows it is the only part
+    // that can be a folder here. `shapes` alone is somebody else's `shapes`.
+    expect(reachingAll("main.go", "github.com/other/lib/shapes", paths)).toEqual([
+      "shapes/box.go",
+      "shapes/circle.go"
+    ])
+    expect(reachingAll("main.go", "github.com/other/shapes", paths)).toEqual([])
+  })
+
+  test("the standard library is never a folder of this repository", () => {
+    // `net/http` is Go's own. A top-level `http/` here is somebody's wrapper.
+    expect(reachingAll("main.go", "net/shapes", paths)).toEqual([])
+  })
 })
 
 describe("a namespace whose last part is the type's own name", () => {

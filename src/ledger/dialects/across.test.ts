@@ -346,3 +346,50 @@ describe("a Go name used through the package it came from", () => {
     expect(landing("fmt.Println", "Println")).toBeNull()
   })
 })
+
+/*
+ * What the review found in the other direction. A file is Sure about a name when
+ * it borrows from the package that writes it, and that was decided per file: any
+ * `New` read through any package in a file importing the right one was a Sure use.
+ */
+describe("a Go use is the package it is read through, not the file it is in", () => {
+  const go = (source: string) => toldBy(parsed("tree-sitter-go.wasm", source), source, dialectFor("cmd/main.go")!)
+
+  const usesOfNew = (main: string) => {
+    const files: Record<string, string> = {
+      "cmd/main.go": main,
+      "store/store.go": "package store\n\nfunc New() int { return 1 }\n",
+      "metrics/metrics.go": "package metrics\n\nfunc Inc() {}\n"
+    }
+    const told = new Map<string, Told>()
+    for (const [path, source] of Object.entries(files)) told.set(path, go(source))
+    return usesAcross(told, { name: "New", path: "store/store.go", line: 3 }, new Set(Object.keys(files)))
+      .filter((use) => use.path === "cmd/main.go")
+      .map((use) => use.line)
+  }
+
+  test("another package's name of the same spelling is not a use", () => {
+    const main = 'package main\n\nimport (\n\t"errors"\n\t"example.com/app/store"\n)\n\nfunc main() {\n\t_ = errors.New("x")\n\t_ = store.New()\n}\n'
+    expect(usesOfNew(main)).toEqual([10])
+  })
+
+  test("a value named like the package is not the package", () => {
+    const main = 'package main\n\nimport "example.com/app/store"\n\nfunc main() {\n\tfor _, store := range stores {\n\t\t_ = store.New()\n\t}\n\t_ = store.New()\n}\n'
+    expect(usesOfNew(main)).toEqual([9])
+  })
+
+  test("a blank or aliased import does not lend its package's name to the file", () => {
+    // `_` brings in nothing a file can write, and an alias replaces the name, so
+    // `metrics` here can only be something of this package's own.
+    const main = 'package main\n\nimport (\n\t_ "example.com/app/metrics"\n\tm "example.com/app/store"\n)\n\nfunc main() {\n\tmetrics.Inc()\n\tstore.New()\n}\n'
+    const text = main
+    const lines = text.split("\n")
+    const at = (holds: string, word: string) => {
+      const row = lines.findIndex((line) => line.includes(holds))
+      return { row, column: lines[row]!.indexOf(word) }
+    }
+    const root = parsed("tree-sitter-go.wasm", text)
+    expect(writingAt(root, text, at("metrics.Inc", "Inc"), dialectFor("cmd/main.go")!)).toBeNull()
+    expect(writingAt(root, text, at("store.New", "New"), dialectFor("cmd/main.go")!)).toBeNull()
+  })
+})

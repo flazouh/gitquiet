@@ -80,6 +80,8 @@ type Stage = {
   readied: number
   /** Draws the same screen again behind fresh metadata. See where it is set. */
   refresh: (instead?: Across) => void
+  /** Draws the same file again as if it were opened at a line, or at none. */
+  openAt: (line: number | undefined) => void
   /**
    * Whether each ask about another repository was allowed to reach a registry.
    *
@@ -154,6 +156,7 @@ const staged = (
     outlined: 0,
     readied: 0,
     refresh: () => {},
+    openAt: () => {},
     registryAsked: [],
     shown: [],
     request: undefined,
@@ -288,7 +291,7 @@ const staged = (
    */
   const lines = ["// the file this pane is reading", "const shape = () => 1", "", "shape()"]
 
-  const standing = (across: Across | undefined) => (
+  const standing = (across: Across | undefined, at: number | undefined) => (
     <SettingsProvider store={settings}>
       <RendererProvider load={renderer}>
         <LedgerProvider ledger={ledger}>
@@ -299,14 +302,14 @@ const staged = (
             // the test is asserting about the wrong lines.
             lines={lines}
             across={across}
-            at={over.at}
+            at={at}
           />
         </LedgerProvider>
       </RendererProvider>
     </SettingsProvider>
   )
 
-  const { rerender } = render(standing(over.across))
+  const { rerender } = render(standing(over.across, over.at))
 
   /*
    * The same screen, after the metadata behind it was read again.
@@ -317,7 +320,8 @@ const staged = (
    * new. Nothing about the file has changed, and the reader has not moved.
    */
   stage.refresh = (instead?: Across) =>
-    rerender(standing(instead ?? (over.across === undefined ? undefined : { ...over.across })))
+    rerender(standing(instead ?? (over.across === undefined ? undefined : { ...over.across }), over.at))
+  stage.openAt = (line) => rerender(standing(over.across, line))
 
   return stage
 }
@@ -1907,5 +1911,22 @@ describe("arriving at a line of a file a name was followed into", () => {
     await Effect.runPromise(settled())
     await frames()
     expect(row.scrolled()).toBe(1)
+  })
+
+  test("arrives again when the file is opened at that line a second time", async () => {
+    // Found in review: the pane is kept across files, so the memory of having
+    // arrived outlived a trip to another file and the second arrival did nothing.
+    const stage = staged(null, [], { at: 4 })
+    await Effect.runPromise(settled())
+    const row = drawRow(stage, 4)
+    await frames()
+    expect(row.scrolled()).toBe(1)
+
+    stage.openAt(undefined)
+    await frames()
+    stage.openAt(4)
+    await frames()
+
+    expect(row.scrolled()).toBe(2)
   })
 })

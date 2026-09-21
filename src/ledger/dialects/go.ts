@@ -244,6 +244,11 @@ const kindOfValue = (value: Syntax): WritingKind =>
  */
 const passedOn = function* (statement: Syntax): Generator<Borrowed> {
   if (statement.type !== "import_spec") return
+  // Plain imports only. An alias is bound and says its path there; `_` brings in
+  // nothing a file can write; `.` brings names in bare, which Go never follows
+  // (see `looksWhole`). Offered here, each lent its package's name to a
+  // qualifier that could only have been something of this package's own.
+  if (statement.childForFieldName("name") !== null) return
   const path = pathOf(statement.childForFieldName("path"))
   if (path === null) return
   yield { name: "*", specifier: path }

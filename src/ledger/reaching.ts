@@ -294,11 +294,34 @@ function couldBeGo({ specifier, paths }: Asked): ReadonlyArray<string> {
   if (parts.length === 0) return []
 
   const packages = goPackages(paths)
-  for (let at = 0; at < parts.length; at++) {
+  for (let at = 0; at < Math.min(parts.length, startsTried(parts)); at++) {
     const inside = packages.get(parts.slice(at).join("/"))
     if (inside !== undefined) return inside
   }
   return []
+}
+
+/**
+ * How many places an import path is tried from, dropping its front one part at a time.
+ *
+ * All of it but the last part, once, and that let `google.golang.org/grpc` land on a
+ * repository's own `grpc/` wrapper. What can be dropped is the module, and some of
+ * those have a known length:
+ *
+ *  - **No dot in the first part** is the standard library, `net/http`, or an old
+ *    path written from the root of the repository. Only the whole of it is a folder.
+ *  - **A code host** names its modules by owner and repository, so three parts go:
+ *    `github.com/gin-gonic/gin/render` is `render`.
+ *  - **Anything else** is a host that says nothing about its length, and the old
+ *    guess stands.
+ */
+const HOSTS: ReadonlySet<string> = new Set(["github.com", "gitlab.com", "bitbucket.org", "codeberg.org"])
+
+const startsTried = (parts: ReadonlyArray<string>): number => {
+  const first = parts[0] ?? ""
+  if (!first.includes(".")) return 1
+  if (HOSTS.has(first)) return parts.length > 3 ? 4 : 0
+  return parts.length
 }
 
 /**
