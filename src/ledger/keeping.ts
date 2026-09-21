@@ -45,10 +45,16 @@ export const stillToRead = (
 }
 
 /** What a commit held, for the store to keep. */
-export const manifestOf = (at: string, files: ReadonlyArray<Named>, seen: number): Manifest => ({
+export const manifestOf = (
+  at: string,
+  files: ReadonlyArray<Named>,
+  seen: number,
+  goModules: ReadonlyMap<string, string> = new Map()
+): Manifest => ({
   at,
   files: files.map((file) => [file.path, file.sha] as const),
-  seen
+  seen,
+  ...(goModules.size === 0 ? {} : { goModules: [...goModules] })
 })
 
 /**

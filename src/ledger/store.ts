@@ -31,6 +31,14 @@ export type Manifest = {
   readonly files: ReadonlyArray<readonly [string, string]>
   /** When it was last read, for deciding what to let go of. */
   readonly seen: number
+  /**
+   * The Go modules its `go.mod` files declare, module to folder.
+   *
+   * Kept here because a `go.mod` is not a file anything parses, so a Ledger that
+   * comes back off disk would otherwise not know them. Absent on a manifest kept
+   * before this was, which is answered with the guess until it is read again.
+   */
+  readonly goModules?: ReadonlyArray<readonly [string, string]>
 }
 
 /** What a store can be asked. Named so the offscreen document can be handed a fake one. */

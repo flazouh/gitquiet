@@ -280,11 +280,13 @@ function couldBeCSharp({ specifier, name }: Asked): ReadonlyArray<string> {
  * So this answers with all of them, and the caller takes the first that holds
  * the name — which is what {@link reachingAll} is for.
  *
- * The module's own prefix is in `go.mod`, which is not read here. What is done
- * instead is the same guess-and-check the rest of this file does: the longest
- * tail of the import path that is really a folder in this repository is the
- * folder meant. `example.com/app/shapes` tries `example.com/app/shapes`, then
- * `app/shapes`, then `shapes`, and stops at the first that holds a `.go` file.
+ * Which part of the path is the module is said by `go.mod`, and where it has been
+ * read (see {@link knowGoModules}) that is the answer: the folder is the module's
+ * own, plus what follows it in the path, and an import of no module here is not
+ * this repository's. Where it has not, the same guess-and-check the rest of this
+ * file does: the longest tail of the import path that is really a folder here.
+ * `example.com/app/shapes` tries `example.com/app/shapes`, then `app/shapes`,
+ * then `shapes`, and stops at the first that holds a `.go` file.
  *
  * A test file is left out. `_test.go` is compiled into the package and a reader
  * following a name wants where it is written, not where it is exercised.
@@ -294,11 +296,59 @@ function couldBeGo({ specifier, paths }: Asked): ReadonlyArray<string> {
   if (parts.length === 0) return []
 
   const packages = goPackages(paths)
+
+  // Where `go.mod` has been read, it answers, and a guess is not made.
+  const modules = GO_MODULES.get(paths)
+  if (modules !== undefined && modules.size > 0) {
+    const folder = inModule(specifier, modules)
+    return folder === null ? [] : (packages.get(folder) ?? [])
+  }
+
   for (let at = 0; at < Math.min(parts.length, startsTried(parts)); at++) {
     const inside = packages.get(parts.slice(at).join("/"))
     if (inside !== undefined) return inside
   }
   return []
+}
+
+/**
+ * What each repository's `go.mod` files said, by the set of paths it was read for.
+ *
+ * Told rather than asked for, because reading a file is not something this can
+ * do: the page reads them through the repository it is showing, and the Ledger
+ * out of the archive it already has. Held against the set itself, like
+ * {@link GO_PACKAGES}, so nothing here outlives the reading it was for. An empty
+ * map says they were read and declared nothing, and the guess below stands.
+ */
+const GO_MODULES = new WeakMap<ReadonlySet<string>, ReadonlyMap<string, string>>()
+
+/** Says which modules a repository's `go.mod` files declare, by path to their folder. */
+export const knowGoModules = (
+  paths: ReadonlySet<string>,
+  modules: ReadonlyMap<string, string>
+): void => {
+  GO_MODULES.set(paths, modules)
+}
+
+/** Whether the modules of this set of paths have been told yet. */
+export const goModulesKnown = (paths: ReadonlySet<string>): boolean => GO_MODULES.has(paths)
+
+/**
+ * The folder an import is, inside the module nearest to it.
+ *
+ * Nearest because modules nest: `github.com/x/y/api` may be a module of its own
+ * inside `github.com/x/y`, and a package under it belongs to it. Nothing where no
+ * module here holds the import, which is Go's own library or somebody else's.
+ */
+const inModule = (specifier: string, modules: ReadonlyMap<string, string>): string | null => {
+  let nearest: readonly [string, string] | null = null
+  for (const [module, folder] of modules) {
+    if (specifier !== module && !specifier.startsWith(`${module}/`)) continue
+    if (nearest === null || module.length > nearest[0].length) nearest = [module, folder]
+  }
+  if (nearest === null) return null
+  const rest = specifier.slice(nearest[0].length + 1)
+  return [nearest[1], rest].filter((part) => part !== "").join("/")
 }
 
 /**
@@ -348,9 +398,10 @@ const goPackages = (paths: ReadonlySet<string>): ReadonlyMap<string, ReadonlyArr
   const folders = new Map<string, Array<string>>()
   for (const path of paths) {
     if (!path.endsWith(".go") || path.endsWith("_test.go")) continue
+    // The root is a folder too, spelled as nothing: a module's own package is
+    // often written there, as cobra's is.
     const slash = path.lastIndexOf("/")
-    if (slash === -1) continue
-    const folder = path.slice(0, slash)
+    const folder = slash === -1 ? "" : path.slice(0, slash)
     const inside = folders.get(folder)
     if (inside === undefined) folders.set(folder, [path])
     else inside.push(path)

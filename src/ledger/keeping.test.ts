@@ -56,4 +56,11 @@ describe("what a commit held", () => {
 
     expect(manifest).toEqual({ at: "one/two@abc", files: [["a.ts", "aaa"]], seen: 1234 })
   })
+
+  test("and the Go modules it declares, which no parsed file carries", () => {
+    // A Ledger back off disk has what its files say and never read a `go.mod`.
+    const manifest = manifestOf("one/two@abc", [file("a.go", "aaa")], 1, new Map([["github.com/one/two", ""]]))
+
+    expect(manifest.goModules).toEqual([["github.com/one/two", ""]])
+  })
 })

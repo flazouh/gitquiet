@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { couldBe, inPackage, reaching, reachingAll, within } from "./reaching"
+import { couldBe, inPackage, knowGoModules, reaching, reachingAll, within } from "./reaching"
+import { goModuleOf, goModulesIn } from "./goModules"
 
 /** A repository laid out the way most of them are. */
 const PATHS = new Set([
@@ -445,5 +446,75 @@ describe("what a C# alias names", () => {
     // A namespace in C# is not a folder, so this is convention and nothing more.
     // What is not held is not guessed at.
     expect(pressed("src/Main.cs", "System.Text.Json", paths)).toBeNull()
+  })
+})
+
+/*
+ * Without `go.mod`, which part of an import path is the module is a guess, and
+ * three layouts defeated it: a package at the root of the repository, a module
+ * kept in a folder, and a host that says nothing about its length.
+ */
+describe("a Go import, read against the modules go.mod declares", () => {
+  test("a package at the root of the repository is the root", () => {
+    const paths = new Set(["go.mod", "command.go", "args.go", "command_test.go", "doc/md_docs.go"])
+    knowGoModules(paths, new Map([["github.com/spf13/cobra", ""]]))
+
+    expect(reachingAll("doc/md_docs.go", "github.com/spf13/cobra", paths)).toEqual([
+      "args.go",
+      "command.go"
+    ])
+    expect(reachingAll("command.go", "github.com/spf13/cobra/doc", paths)).toEqual(["doc/md_docs.go"])
+  })
+
+  test("a module kept in a folder is read from that folder", () => {
+    const paths = new Set(["server/go.mod", "server/shapes/box.go", "shapes/other.go"])
+    knowGoModules(paths, new Map([["github.com/x/y", "server"]]))
+
+    expect(reachingAll("server/main.go", "github.com/x/y/shapes", paths)).toEqual(["server/shapes/box.go"])
+  })
+
+  test("an import of no module here is somebody else's, however its folders end", () => {
+    const paths = new Set(["go.mod", "grpc/server.go", "http/client.go"])
+    knowGoModules(paths, new Map([["github.com/me/app", ""]]))
+
+    expect(reachingAll("main.go", "google.golang.org/grpc", paths)).toEqual([])
+    expect(reachingAll("main.go", "net/http", paths)).toEqual([])
+    expect(reachingAll("main.go", "github.com/me/app/grpc", paths)).toEqual(["grpc/server.go"])
+  })
+
+  test("the module nearest the package wins, where one module is inside another", () => {
+    const paths = new Set(["go.mod", "api/go.mod", "api/v1/types.go", "v1/other.go"])
+    knowGoModules(paths, new Map([["github.com/x/y", ""], ["github.com/x/y/api", "api"]]))
+
+    expect(reachingAll("main.go", "github.com/x/y/api/v1", paths)).toEqual(["api/v1/types.go"])
+  })
+
+  test("a repository whose go.mod files said nothing is guessed at as before", () => {
+    const paths = new Set(["shapes/box.go"])
+    knowGoModules(paths, new Map())
+
+    expect(reachingAll("main.go", "example.com/app/shapes", paths)).toEqual(["shapes/box.go"])
+  })
+})
+
+describe("what a go.mod says its module is", () => {
+  test("reads the module line, quoted or not, past comments", () => {
+    expect(goModuleOf("// the app\nmodule github.com/x/y\n\ngo 1.22\n")).toBe("github.com/x/y")
+    expect(goModuleOf('module "github.com/x/y" // quoted\n')).toBe("github.com/x/y")
+    expect(goModuleOf("go 1.22\n")).toBeNull()
+  })
+
+  test("finds every module in a repository, by the folder its go.mod is in", () => {
+    const files = new Map([
+      ["go.mod", "module github.com/x/y\n"],
+      ["api/go.mod", "module github.com/x/y/api\n"],
+      ["vendor/github.com/z/go.mod", "module github.com/z\n"],
+      ["README.md", "module nothing\n"]
+    ])
+
+    expect([...goModulesIn(files)]).toEqual([
+      ["github.com/x/y", ""],
+      ["github.com/x/y/api", "api"]
+    ])
   })
 })

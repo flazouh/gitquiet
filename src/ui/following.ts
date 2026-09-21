@@ -2,7 +2,8 @@ import { Effect, Option } from "effect"
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react"
 import type { Beyond, Reading, Where, Writing } from "../ports/Ledger"
 import type { Bounds, DiffHandle, Modifiers, Name } from "../ports/Renderer"
-import { reachingAll } from "../ledger/reaching"
+import { goModulesKnown, knowGoModules, reachingAll } from "../ledger/reaching"
+import { goModulesIn, isGoMod } from "../ledger/goModules"
 
 /**
  * How many files one press may read before it gives up.
@@ -12,6 +13,38 @@ import { reachingAll } from "../ledger/reaching"
  * those could be — and every one of them is a read a reader is waiting on.
  */
 const MOST_CANDIDATES = 12
+
+/**
+ * How many `go.mod` files a press reads before it resolves a Go import. A
+ * repository of more modules than this is resolved with the ones it has read.
+ */
+const MOST_MODULES = 20
+
+/**
+ * The Go modules a repository declares, read once for its set of paths.
+ *
+ * Only for a Go file, and only the first time: every later press finds them
+ * known. A `go.mod` that will not come is left out rather than stopping the
+ * press, which then guesses for that module as it did before any were read.
+ */
+const learnGoModules = (source: string, across: Across): Effect.Effect<void> => {
+  if (!source.endsWith(".go") || goModulesKnown(across.paths)) return Effect.void
+  const mods = [...across.paths].filter(isGoMod).slice(0, MOST_MODULES)
+  return Effect.forEach(
+    mods,
+    (path) =>
+      across.read(path).pipe(
+        Effect.map((text) => [path, text] as const),
+        Effect.catch(() => Effect.succeed(null))
+      ),
+    { concurrency: 4 }
+  ).pipe(
+    Effect.map((read) => {
+      const texts = new Map(read.filter((one) => one !== null))
+      knowGoModules(across.paths, goModulesIn(texts))
+    })
+  )
+}
 
 /** A file whose bare imports name npm packages rather than folders of this repository. */
 const SCRIPT = /\.[cm]?[jt]sx?$/u
@@ -484,44 +517,52 @@ export const useFollowing = (
          * find out.
          */
         const asked = found.borrowed.name
-        const candidates = [found.borrowed.specifier, ...(found.orFrom ?? [])]
-          .flatMap((specifier) => reachingAll(source.path, specifier, across.paths, asked))
-          // Capped over the whole list and not only per specifier: a C++ file
-          // that includes twenty headers, pressed on a name none of them writes,
-          // would otherwise read all twenty before saying nothing.
-          .slice(0, MOST_CANDIDATES)
-        if (candidates.length === 0) return Effect.void
+        // Read before the candidates are, because they are what a Go import is
+        // resolved against. See {@link learnGoModules}.
+        return learnGoModules(source.path, across).pipe(
+          Effect.andThen(
+            Effect.suspend(() => {
+              const candidates = [found.borrowed.specifier, ...(found.orFrom ?? [])]
+                .flatMap((specifier) => reachingAll(source.path, specifier, across.paths, asked))
+                // Capped over the whole list and not only per specifier: a C++ file
+                // that includes twenty headers, pressed on a name none of them writes,
+                // would otherwise read all twenty before saying nothing.
+                .slice(0, MOST_CANDIDATES)
+              if (candidates.length === 0) return Effect.void
 
-        // Named apart from the outer `asking`, which is a different question.
-        const trying = (at: number): Effect.Effect<void> => {
-          const path = candidates[at]
-          if (path === undefined) return Effect.void
+              // Named apart from the outer `asking`, which is a different question.
+              const trying = (at: number): Effect.Effect<void> => {
+                const path = candidates[at]
+                if (path === undefined) return Effect.void
 
-          const onwards = (): Effect.Effect<void> => trying(at + 1)
+                const onwards = (): Effect.Effect<void> => trying(at + 1)
 
-          return across.read(path).pipe(
-            Effect.flatMap((text) =>
-              ledger
-                .writingNamed({ path, text }, found.borrowed.name)
-                .pipe(Effect.map((writing) => ({ writing, text })))
-            ),
-            Effect.flatMap(({ writing, text }) => {
-              // Nothing under that name here, so the next file this could be.
-              if (Option.isNone(writing)) return onwards()
-              if (!insist && on.current?.name !== name) return Effect.void
-              on.current = { name, writing: writing.value, where: path, text }
-              then(writing.value, path)
-              return Effect.void
-            }),
-            // A file that would not come is the next one's turn — reported
-            // first, because `onward` is the only trace this extension keeps and
-            // swallowing the cause here made a failed read look like a file that
-            // simply said nothing.
-            Effect.catch((cause) => onward(cause).pipe(Effect.andThen(onwards())))
+                return across.read(path).pipe(
+                  Effect.flatMap((text) =>
+                    ledger
+                      .writingNamed({ path, text }, found.borrowed.name)
+                      .pipe(Effect.map((writing) => ({ writing, text })))
+                  ),
+                  Effect.flatMap(({ writing, text }) => {
+                    // Nothing under that name here, so the next file this could be.
+                    if (Option.isNone(writing)) return onwards()
+                    if (!insist && on.current?.name !== name) return Effect.void
+                    on.current = { name, writing: writing.value, where: path, text }
+                    then(writing.value, path)
+                    return Effect.void
+                  }),
+                  // A file that would not come is the next one's turn — reported
+                  // first, because `onward` is the only trace this extension keeps and
+                  // swallowing the cause here made a failed read look like a file that
+                  // simply said nothing.
+                  Effect.catch((cause) => onward(cause).pipe(Effect.andThen(onwards())))
+                )
+              }
+
+              return trying(0)
+            })
           )
-        }
-
-        return trying(0)
+        )
       }
 
       Effect.runFork(

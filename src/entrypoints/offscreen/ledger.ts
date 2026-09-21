@@ -20,7 +20,8 @@ import {
   withinPackage,
   type Held
 } from "@/ledger/packages"
-import { inPackage, within } from "@/ledger/reaching"
+import { inPackage, knowGoModules, within } from "@/ledger/reaching"
+import { goModulesIn } from "@/ledger/goModules"
 import { asking, publishedAt } from "@/ledger/registry"
 import { heldIn, holdIn, holdingOf } from "@/ledger/holding"
 import { idbStore, noStore, type Store } from "@/ledger/store"
@@ -316,6 +317,9 @@ const exactFrom = (work: LedgerWarmWork, at: string): Effect.Effect<void> =>
  */
 const holdingPackages = new Map<string, ReadonlyMap<string, Held>>()
 
+/** The Go modules each repository declares, module to folder. See `src/ledger/goModules.ts`. */
+const holdingModules = new Map<string, ReadonlyMap<string, string>>()
+
 /** What is being read now, so two asks do not read a repository twice. */
 let warming: { readonly at: string; readonly work: Effect.Effect<LedgerWarmth> } | null = null
 
@@ -395,6 +399,7 @@ const read = (work: LedgerWarmWork, at: string): Effect.Effect<LedgerWarmth> =>
 
       if (whollyKnown(manifest, known)) {
         const files = byPath(manifest, known)
+        if (manifest.goModules !== undefined) holdingModules.set(at, new Map(manifest.goModules))
         // A Ledger off disk knows what the files say and not what the
         // repository is made of: a `package.json` is not a file this parses, so
         // nothing kept it. Reading them again is one archive, and only a reader
@@ -446,6 +451,8 @@ const read = (work: LedgerWarmWork, at: string): Effect.Effect<LedgerWarmth> =>
 
     const packages = packagesIn(whole)
     holdingPackages.set(at, packages)
+    const modules = goModulesIn(whole)
+    holdingModules.set(at, modules)
     hold(kept(at, files, whole.size - files.size, packages))
 
     // After the answer, never before it. The tier below is already answering,
@@ -454,7 +461,7 @@ const read = (work: LedgerWarmWork, at: string): Effect.Effect<LedgerWarmth> =>
 
     yield* store.keepTold(fresh).pipe(Effect.catch(onward))
     yield* store
-      .keepManifest(manifestOf(at, held, Date.now()))
+      .keepManifest(manifestOf(at, held, Date.now(), modules))
       .pipe(Effect.catch(onward))
     yield* store.forgetBeyond(ON_DISK).pipe(Effect.catch(() => Effect.succeed(0)))
 
@@ -576,8 +583,12 @@ const across = (work: LedgerAcrossWork): LedgerAcross => {
   }
 
   const asked: Asked = { name: work.name, path: work.path, line: work.line }
+  const paths = new Set(ledger.files.keys())
+  // A Go import is read against the modules the repository declares, where known.
+  const modules = holdingModules.get(at)
+  if (modules !== undefined) knowGoModules(paths, modules)
   return {
-    uses: usesAcross(ledger.files, asked, new Set(ledger.files.keys()), work.most ?? 200),
+    uses: usesAcross(ledger.files, asked, paths, work.most ?? 200),
     ready: true
   }
 }

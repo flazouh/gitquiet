@@ -779,6 +779,38 @@ describe("a name this file borrowed from another", () => {
     expect(opened).toEqual([{ path: "whole/other.go", line: 2 }])
   })
 
+  test("reads go.mod to find a package kept at the root of the repository", async () => {
+    // `github.com/spf13/cobra` is the root: only `go.mod` says the module ends there.
+    const opened: Array<{ path: string; line: number }> = []
+    const read: Array<string> = []
+    const across: Across = {
+      paths: new Set(["go.mod", "command.go", "doc/md_docs.go"]),
+      repo: { owner: "spf13", repo: "cobra" },
+      sha: "abc",
+      read: (path) =>
+        Effect.sync(() => {
+          read.push(path)
+          return path === "go.mod" ? "module github.com/spf13/cobra\n\ngo 1.22\n" : "package cobra\n"
+        }),
+      open: (path, line) => opened.push({ path, line })
+    }
+    const stage = staged(null, [], {
+      path: "doc/md_docs.go",
+      where: { at: "elsewhere", borrowed: { name: "two", specifier: "github.com/spf13/cobra" } },
+      named: elsewhere,
+      across
+    })
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    expect(read).toEqual(["go.mod", "command.go"])
+    expect(opened).toEqual([{ path: "command.go", line: 2 }])
+  })
+
   test("does nothing at all where the pane cannot reach other files", async () => {
     const stage = staged(null, [], { where: borrowed, named: elsewhere })
     await Effect.runPromise(settled())
