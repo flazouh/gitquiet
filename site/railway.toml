@@ -4,9 +4,9 @@ buildCommand = "bun install --frozen-lockfile && bun run build"
 
 [deploy]
 # `serve` cannot 301 www to the apex. `site/serve.ts` does that, keeps `/welcome`
-# and `/privacy` as their own files, and still 404s an address the site does not
-# have rather than rewriting it to the landing page.
+# and `/privacy` as their own files, redirects `/` to `/install`, and 404s unknown
+# addresses rather than rewriting them.
 startCommand = "bun serve.ts"
-healthcheckPath = "/"
+healthcheckPath = "/install"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"

@@ -22,7 +22,7 @@
  * extension's own components rather than pictures of them.
  *
  * Every rule it carries is scoped to `:is(#gitquiet-root, [data-gitquiet-outside])`,
- * so importing it here cannot reach this page's own type or spacing. `Live.tsx` puts
+ * so importing it here cannot reach this page's own type or spacing. product shots put
  * that attribute on each screen's wrapper, which is the repeatable half of the pair:
  * an id can only be in a document once and there are twelve screens.
  */
@@ -226,8 +226,8 @@ body {
 /**
  * A screen, once it has something to draw.
  *
- * Twelve of these mount from nothing when `Live` decides the reader is near, and the
- * mount is a whole React tree with a mock repository in it. Before this they snapped
+ * Twelve of these used to mount from nothing when a landing section scrolled near;
+ * each mount is a whole React tree with a mock repository in it. Before this they snapped
  * from an empty dark frame to a full interface in one frame. It happens 800 pixels
  * ahead of the fold and is invisible at a normal scroll, so this is only for the fast
  * scroll that catches it — hence a fade with no travel. A screen that also slid would

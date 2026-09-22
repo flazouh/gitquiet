@@ -19,10 +19,9 @@ import "./index.css"
 /**
  * Every way in, at `/install`, with the state each one is actually in.
  *
- * The landing page has one button because a reader on it is deciding whether they want
- * this at all. A reader here has decided, and is on a particular browser on a
- * particular machine, so this page answers the question they have: which file, how big,
- * and is it ready.
+ * The apex (`/`) redirects here. A reader on this page has decided they want GitQuiet,
+ * and is on a particular browser on a particular machine, so this page answers which
+ * file, how big, and whether it is ready.
  *
  * Two of the rows are read live — see `ways.ts`. The Firefox row is the one this page
  * cannot ask about, and no longer needs to: Mozilla approved the first listing the day

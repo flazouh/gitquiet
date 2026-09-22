@@ -26,10 +26,8 @@ const THEIR_PULLS = "https://github.com/pulls"
  * window already has: `Supplied` is the stage every screen on this site runs under, and
  * `element` keeps its theme and its portalled bar inside the card rather than on `<html>`.
  *
- * Not `Live`, which the landing page uses. That draws the site's own bordered frame
- * around a screen and holds it back until it scrolls into view. Both are right in a
- * column of twelve screens and wrong here: this card is already the frame, and a frame
- * inside it is the double edge this panel was redrawn to get rid of.
+ * This card is already the frame: nesting another bordered frame inside it is the
+ * double edge this panel was redrawn to get rid of.
  */
 const Screen = ({ shot }: { readonly shot: Shot }) => {
   const view = viewNamed(shot)
@@ -97,9 +95,9 @@ const Welcome = () => {
       />
 
       {/*
-        The same strip the landing page and the install page carry, and the control in it
-        is read off where the reader came from. Somebody the extension just sent has
-        nothing to install, so they get the source; anybody else gets every way in.
+        The same strip the install page carries, and the control in it is read off
+        where the reader came from. Somebody the extension just sent has nothing to
+        install, so they get the source; anybody else gets every way in.
       */}
       <div className={`relative z-1 ${HELD}`}>
         <Nav>

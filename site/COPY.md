@@ -1,8 +1,10 @@
-# Landing page copy
+# Site copy notes
 
-Rewritten 2026-09-07: dark, minimal, one demo video. No feature grid, no bed mesh on the page.
+Marketing landing at `/` removed 2026-09-22; apex redirects to `/install`.
+Sections below that described the live landing (hero / demo / closing) are retired
+history. Keep the banned-words and retired-screen notes — they still guide other pages.
 
-Earlier rewrite 2026-08-16.
+Earlier rewrites: 2026-09-07 (dark demo landing), 2026-08-16.
 
 
 ## The frame
@@ -50,32 +52,10 @@ length is not the constraint. CodeRabbit runs to 3166 words.
 
 ---
 
-## 1. Hero
+## (retired) Hero / Demo / Closing
 
-**Skip link:** Skip to the screens
-
-**Nav:** gitquiet · Add to Chrome
-
-**Headline**
-
-> A faster, quieter GitHub.
-
-**Primary button:** Add to Chrome
-
-Nothing under it. The button stands alone, and the closing card is where the
-other browsers are named.
-
----
-
-## 2. Demo
-
-One custom player. The clip is the product. No feature captions underneath.
-
----
-
-## 3. Closing
-
-Same headline again, Add to Chrome, and the other browsers. No bed card.
+Removed with the landing page (2026-09-22). The apex no longer carries a hero,
+demo video, or closing card; `/` redirects to `/install`.
 
 ---
 
@@ -113,24 +93,7 @@ Removed 2026-09-07. Captions that used to sit beside live screens:
 
 ---
 
-## 4. Close
-
-**Heading**
-
-> A faster, quieter GitHub.
-
-The headline again, word for word, and nothing after it. Every closing slogan
-written for this card read as a second claim, and a product whose argument is
-that it is quiet cannot end by raising its voice. The reader has been shown
-twelve screens by this point, so the card repeats the line the page opened with
-and gets out of the way.
-
-**Button:** Add to Chrome
-**Under it:** Also for Safari, or as a macOS app.
-
----
-
-## 5. Footer
+## Footer (shared)
 
 gitquiet · Source, under AGPL-3.0 · Not affiliated with GitHub.
 
@@ -151,4 +114,3 @@ same pass:
 | --- | --- |
 | `README.md` | 18 |
 | `site/src/assets.tsx` | 292 |
-| `site/src/features.ts` | caption 1 |

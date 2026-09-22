@@ -56,15 +56,7 @@ const META = {
 } as const
 
 describe("crawler-visible copy inside #page", () => {
-  test("home has the live h1", () => {
-    expect(h1In(html("../index.html"))).toBe("A faster, quieter GitHub.")
-  })
-
-  test("home crawler copy links the two job pages", () => {
-    const source = html("../index.html")
-    expect(source).toContain("/github-pr-inbox")
-    expect(source).toContain("/github-review-queue")
-  })
+  // Marketing landing (index.html) removed; `/` redirects to `/install`.
 
   test("install has the live h1", () => {
     expect(h1In(html("../install.html"))).toBe("Install GitQuiet.")
@@ -166,15 +158,6 @@ describe("crawler-visible titles and metas", () => {
 })
 
 describe("first-paint shell", () => {
-  test("home hides the crawler main on dark first paint", () => {
-    const source = html("../index.html")
-    expect(source).toContain("#page > main")
-    expect(source).toContain("clip: rect(0, 0, 0, 0)")
-    expect(source).toContain("100dvh")
-    expect(source).toContain("#0c0b10")
-    expect(source).not.toContain("#ff9ad1")
-  })
-
   test("install hides the crawler main on the bed", () => {
     const source = html("../install.html")
     expect(source).toContain("#page > main")

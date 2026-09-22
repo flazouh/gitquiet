@@ -3,9 +3,9 @@
  * slash with the same file at a second address.
  *
  * Without `-s`, `serve` already maps `/welcome` to `welcome.html` and `/privacy` to
- * `privacy.html`. This file keeps that, then adds the two redirects the live site
- * was missing: `www.gitquiet.com` to `https://gitquiet.com`, and a trailing slash
- * (except `/`) to the same path without it.
+ * `privacy.html`. This file keeps that, then adds the redirects the live site needs:
+ * `www.gitquiet.com` to `https://gitquiet.com`, a trailing slash (except `/`) to the
+ * same path without it, and `/` itself to `/install` (the marketing landing is gone).
  */
 import { stat } from "node:fs/promises"
 import { extname, join, resolve, sep } from "node:path"
@@ -58,7 +58,8 @@ const pageAt = async (pathname: string): Promise<Response | undefined> => {
   const exact = await fileAt(join(ROOT, decoded))
   if (exact !== undefined) return exact
 
-  if (decoded === "/" || decoded === "") return fileAt(join(ROOT, "index.html"))
+  // Apex used to serve index.html (marketing landing). That page is gone.
+  if (decoded === "/" || decoded === "") return
 
   const asHtml = await fileAt(join(ROOT, `${decoded}.html`))
   if (asHtml !== undefined) return asHtml
@@ -83,6 +84,10 @@ Bun.serve({
 
     if (slash) {
       return Response.redirect(`${path}${url.search}`, 301)
+    }
+
+    if (path === "/" || path === "") {
+      return Response.redirect(`/install${url.search}`, 301)
     }
 
     const page = await pageAt(url.pathname)

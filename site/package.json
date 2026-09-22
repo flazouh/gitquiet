@@ -2,7 +2,7 @@
   "name": "site",
   "private": true,
   "type": "module",
-  "description": "The gitquiet landing page, and the store assets rendered from the same brand.",
+  "description": "The gitquiet.com site (install, welcome, compare, job pages) and store assets from the same brand.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

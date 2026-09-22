@@ -245,8 +245,8 @@ export const Above = ({ children }: { readonly children: ReactNode }) => (
 /**
  * The strip at the top, where the caller says what the controls are.
  *
- * The nav owns the arrangement and nothing else, because the two pages want
- * different presses in it: the landing page wants the store, and the page that
+ * The nav owns the arrangement and nothing else, because callers want different
+ * presses in it: welcome wants Install (or Source), and the install page that
  * lists every store does not want one of them singled out.
  */
 export const Nav = ({

@@ -53,7 +53,7 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        index: fileURLToPath(new URL("./index.html", import.meta.url)),
+        // No index/landing entry: `/` redirects to `/install` in site/serve.ts.
         assets: fileURLToPath(new URL("./assets.html", import.meta.url)),
         /*
          * `/welcome`, which the extension opens the first time it is installed.
@@ -61,15 +61,14 @@ export default defineConfig({
          * A page of its own rather than a route: there is no router here, and one
          * would be a dependency and a history to maintain for a second address.
          * `site/serve.ts` resolves `/welcome` to this file. It does not rewrite
-         * unknown addresses to `index.html`; that used to answer `/welcome` with
-         * the landing page.
+         * unknown addresses to a home page; missing paths 404.
          */
         welcome: fileURLToPath(new URL("./welcome.html", import.meta.url)),
 
         /*
-         * `/install`, which is every way in with the state each one is in. Reached
-         * from the hero, from the footer, and from the store listings, so it is a
-         * page of its own for the same reason `/welcome` is.
+         * `/install`, which is every way in with the state each one is in, and the
+         * home target after the marketing landing was removed. Reached from the
+         * apex redirect, the footer, and the store listings.
          */
         install: fileURLToPath(new URL("./install.html", import.meta.url)),
 
