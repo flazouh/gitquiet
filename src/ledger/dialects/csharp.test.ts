@@ -155,3 +155,17 @@ describe("every use of one C# name", () => {
     expect(uses).toContain(lineWith("total += Risky()"))
   })
 })
+
+describe("a C# alias, which names what it stands for", () => {
+  test("is not a namespace taken whole, whatever it aliases", async () => {
+    const text = "using Json = Newtonsoft.Json;\nusing Widget = App.Other.Thing;\nusing App.Real;\nclass A {}\n"
+    const parser = new Parser()
+    parser.setLanguage(await Language.load("node_modules/@vscode/tree-sitter-wasm/wasm/tree-sitter-c-sharp.wasm"))
+    const tree = parser.parse(text)!
+    parser.delete()
+    const said = toldBy(tree.rootNode as unknown as Syntax, text, CSHARP).borrows.filter((one) => one.name === "*")
+    tree.delete()
+
+    expect(said.map((one) => one.specifier)).toEqual(["App.Real"])
+  })
+})

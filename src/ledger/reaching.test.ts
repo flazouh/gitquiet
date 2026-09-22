@@ -615,3 +615,18 @@ describe("a package path, ranked and counted once", () => {
     expect(reachingAll("Main.java", "com.ex.shapes", paths, "Box")).toEqual([])
   })
 })
+
+describe("a C# namespace, which is not a file", () => {
+  test("taken whole, it names no file of its own", () => {
+    // `using App.Other.Thing;` read as the file `App/Other/Thing.cs` made every
+    // use of any name in a file that opened it a Sure use of that file.
+    const paths = new Set(["src/App/Other/Thing.cs"])
+    expect(reachingAll("src/B.cs", "App.Other.Thing", paths, "*")).toEqual([])
+  })
+
+  test("of one part, it does not reach a root file of the same name", () => {
+    // `using System;` and a `Settings` is not the repository's root `Settings.cs`.
+    const paths = new Set(["Settings.cs", "src/Api/Settings.cs"])
+    expect(reachingAll("src/Api/Foo.cs", "System", paths, "Settings")).not.toContain("Settings.cs")
+  })
+})

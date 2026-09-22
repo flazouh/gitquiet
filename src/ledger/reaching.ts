@@ -337,12 +337,19 @@ function couldBePhp({ from, specifier, name, paths }: Asked): ReadonlyArray<stri
  * nothing, so `csharp.ts` records no borrow for it.
  */
 function couldBeCSharp({ from, specifier, name, paths }: Asked): ReadonlyArray<string> {
+  // A namespace taken whole is not a file. Read as one, `using App.Other;` was the
+  // file `App/Other.cs`, and every name used in a file that opened it was a Sure
+  // use of whatever that file wrote.
+  if (name === "*") return []
   const parts = named(specifier, name, ".").split(".").filter((part) => part !== "")
   if (parts.length === 0) return []
   const whole = parts.join("/")
   const after = parts.slice(1).join("/")
   const asked = [`${whole}.cs`, `src/${whole}.cs`]
-  if (after !== "") asked.push(`src/${after}.cs`, `${after}.cs`)
+  // The project's own name left off, `App.Other.Thing` at `src/Other/Thing.cs` —
+  // for a namespace of two parts or more. Of one, `System.Settings` would be the
+  // root's `Settings.cs`, which is a guess about a name and not about a place.
+  if (parts.length > 2) asked.push(`src/${after}.cs`, `${after}.cs`)
   asked.push(...endingIn(`${whole}.cs`, from, paths))
   return nearestFirst(asked, from)
 }

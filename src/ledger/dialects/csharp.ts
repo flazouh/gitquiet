@@ -315,15 +315,15 @@ const offering = (node: Syntax): Offering | null => {
  */
 const passedOn = function* (statement: Syntax): Generator<Borrowed> {
   if (statement.type === "using_directive") {
+    // `using Json = Newtonsoft.Json;` is an alias, bound and named where it is
+    // written, whatever it stands for. The `=` is the one thing every spelling of
+    // one has, and no other `using` does.
+    if (statement.text.includes("=")) return
     let path: Syntax | null = null
-    let alias = false
     for (const child of childrenOf(statement)) {
-      if (child.type === "qualified_name") path = child
-      else if (child.type === "identifier" && path === null) path = child
-      else if (child.type === "identifier") alias = true
+      if (child.type === "qualified_name" || (child.type === "identifier" && path === null)) path = child
     }
-    // `using Widget = App.Thing` has two names, and the first is the alias.
-    if (path !== null && !alias) yield { name: "*", specifier: path.text }
+    if (path !== null) yield { name: "*", specifier: path.text }
     return
   }
   if (statement.type === "namespace_declaration" || statement.type === "file_scoped_namespace_declaration") {
