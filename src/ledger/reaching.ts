@@ -324,13 +324,48 @@ const JAVA_ROOTS: ReadonlyArray<string> = [
 function couldBePhp({ from, specifier, name, paths }: Asked): ReadonlyArray<string> {
   const parts = named(specifier, name, "\\").split("\\").filter((part) => part !== "")
   if (parts.length === 0) return []
+  // Where `composer.json` has been read, what it maps comes first: every prefix the
+  // class is under, the longest first, each in every folder it is mapped to.
+  const mapped = mappedBy(parts.join("\\"), PHP_PREFIXES.get(paths))
   const whole = parts.join("/")
   const after = parts.slice(1).join("/")
 
   const asked: Array<string> = [`src/${after}.php`, `src/${whole}.php`, `${whole}.php`]
   if (after !== "") asked.push(`lib/${after}.php`, `app/${after}.php`)
   asked.push(...endingIn(`${whole}.php`, from, paths))
-  return nearestFirst(asked.filter((one) => one !== ".php"), from)
+  return nearestFirst([...mapped, ...asked.filter((one) => one !== ".php")], from, mapped.length)
+}
+
+/**
+ * What each repository's `composer.json` files map, by the set of paths it was read
+ * for. Told, as `go.mod` is, by whoever can read a file. See `composer.ts`.
+ */
+const PHP_PREFIXES = new WeakMap<ReadonlySet<string>, ReadonlyMap<string, ReadonlyArray<string>>>()
+
+/** Says which folders a repository's `composer.json` files map each namespace prefix to. */
+export const knowPhpPrefixes = (
+  paths: ReadonlySet<string>,
+  prefixes: ReadonlyMap<string, ReadonlyArray<string>>
+): void => {
+  PHP_PREFIXES.set(paths, prefixes)
+}
+
+/** Whether the prefixes of this set of paths have been told yet. */
+export const phpPrefixesKnown = (paths: ReadonlySet<string>): boolean => PHP_PREFIXES.has(paths)
+
+/** The files a class could be under the prefixes it falls under, longest prefix first. */
+const mappedBy = (
+  whole: string,
+  prefixes: ReadonlyMap<string, ReadonlyArray<string>> | undefined
+): ReadonlyArray<string> => {
+  if (prefixes === undefined) return []
+  return [...prefixes]
+    .filter(([prefix]) => whole.startsWith(prefix))
+    .toSorted(([a], [b]) => b.length - a.length)
+    .flatMap(([prefix, folders]) => {
+      const rest = whole.slice(prefix.length).split("\\").join("/")
+      return folders.map((folder) => `${folder === "" ? "" : `${folder}/`}${rest}.php`)
+    })
 }
 
 /**

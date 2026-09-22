@@ -49,12 +49,14 @@ export const manifestOf = (
   at: string,
   files: ReadonlyArray<Named>,
   seen: number,
-  goModules: ReadonlyMap<string, string> = new Map()
+  goModules: ReadonlyMap<string, string> = new Map(),
+  phpPrefixes: ReadonlyMap<string, ReadonlyArray<string>> = new Map()
 ): Manifest => ({
   at,
   files: files.map((file) => [file.path, file.sha] as const),
   seen,
-  ...(goModules.size === 0 ? {} : { goModules: [...goModules] })
+  ...(goModules.size === 0 ? {} : { goModules: [...goModules] }),
+  ...(phpPrefixes.size === 0 ? {} : { phpPrefixes: [...phpPrefixes] })
 })
 
 /**

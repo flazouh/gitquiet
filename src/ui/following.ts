@@ -2,8 +2,9 @@ import { Effect, Option } from "effect"
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react"
 import type { Beyond, Reading, Where, Writing } from "../ports/Ledger"
 import type { Bounds, DiffHandle, Modifiers, Name } from "../ports/Renderer"
-import { goModulesKnown, knowGoModules, reachingAll } from "../ledger/reaching"
+import { goModulesKnown, knowGoModules, knowPhpPrefixes, phpPrefixesKnown, reachingAll } from "../ledger/reaching"
 import { goModulesIn, isGoMod } from "../ledger/goModules"
+import { isComposerJson, phpPrefixesIn } from "../ledger/composer"
 
 /**
  * How many files one press may read before it gives up.
@@ -23,28 +24,50 @@ const MOST_CANDIDATES = 12
 const MOST_HOPS = 3
 
 /**
- * How many `go.mod` files a press reads before it resolves a Go import. A
- * repository of more modules than this is resolved with the ones it has read.
+ * How many `go.mod` or `composer.json` files a press reads before it resolves an
+ * import. A repository of more than this is resolved with the ones it has read.
  */
 const MOST_MODULES = 20
 
 /**
- * The Go modules a repository declares, read once for its set of paths.
+ * The files that say how a language's imports map to folders, read once per set of
+ * paths: Go's `go.mod` and PHP's `composer.json`.
  *
- * Only for a Go file, and only the first time: every later press finds them
- * known. The shallowest first, since the root's is the module most imports are
- * of and nested ones can outnumber the cap. A `go.mod` that will not come, or one
- * past the cap, is left out rather than stopping the press, which then guesses
- * for any import the ones it read do not hold.
+ * Only for a file of that language, and only the first time: every later press
+ * finds them known. The shallowest first, since the root's is the one most imports
+ * are of and nested ones can outnumber the cap. One that will not come, or one past
+ * the cap, is left out rather than stopping the press, which then guesses for any
+ * import the ones it read do not hold.
  */
-const learnGoModules = (source: string, across: Across): Effect.Effect<void> => {
-  if (!source.endsWith(".go") || goModulesKnown(across.paths)) return Effect.void
+const LAYOUTS: ReadonlyArray<{
+  readonly for: string
+  readonly says: (path: string) => boolean
+  readonly known: (paths: ReadonlySet<string>) => boolean
+  readonly learn: (paths: ReadonlySet<string>, read: ReadonlyMap<string, string>, whole: boolean) => void
+}> = [
+  {
+    for: ".go",
+    says: isGoMod,
+    known: goModulesKnown,
+    learn: (paths, read, whole) => knowGoModules(paths, goModulesIn(read), whole)
+  },
+  {
+    for: ".php",
+    says: isComposerJson,
+    known: phpPrefixesKnown,
+    learn: (paths, read) => knowPhpPrefixes(paths, phpPrefixesIn(read))
+  }
+]
+
+const learnLayout = (source: string, across: Across): Effect.Effect<void> => {
+  const layout = LAYOUTS.find((one) => source.endsWith(one.for))
+  if (layout === undefined || layout.known(across.paths)) return Effect.void
   const every = [...across.paths]
-    .filter(isGoMod)
+    .filter(layout.says)
     .sort((a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b))
-  const mods = every.slice(0, MOST_MODULES)
+  const files = every.slice(0, MOST_MODULES)
   return Effect.forEach(
-    mods,
+    files,
     (path) =>
       across.read(path).pipe(
         Effect.map((text) => [path, text] as const),
@@ -54,7 +77,7 @@ const learnGoModules = (source: string, across: Across): Effect.Effect<void> => 
   ).pipe(
     Effect.map((read) => {
       const texts = new Map(read.filter((one) => one !== null))
-      knowGoModules(across.paths, goModulesIn(texts), texts.size === every.length)
+      layout.learn(across.paths, texts, texts.size === every.length)
     })
   )
 }
@@ -531,8 +554,8 @@ export const useFollowing = (
          */
         const asked = found.borrowed.name
         // Read before the candidates are, because they are what a Go import is
-        // resolved against. See {@link learnGoModules}.
-        return learnGoModules(source.path, across).pipe(
+        // resolved against. See {@link learnLayout}.
+        return learnLayout(source.path, across).pipe(
           Effect.andThen(
             Effect.suspend(() => {
               /** Every file a borrow could be read from, capped over all of them. */

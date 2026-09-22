@@ -40,6 +40,8 @@ export type Manifest = {
    * it is kept: the manifest is renewed as it is, not read again.
    */
   readonly goModules?: ReadonlyArray<readonly [string, string]>
+  /** What its `composer.json` files map each PHP namespace prefix to, for the same reason. */
+  readonly phpPrefixes?: ReadonlyArray<readonly [string, ReadonlyArray<string>]>
 }
 
 /** What a store can be asked. Named so the offscreen document can be handed a fake one. */

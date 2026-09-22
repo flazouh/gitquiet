@@ -861,6 +861,38 @@ describe("a name this file borrowed from another", () => {
     expect(opened).toEqual([{ path: "shapes/box.go", line: 2 }])
   })
 
+  test("reads composer.json to find a class in a folder its namespace is mapped to", async () => {
+    const opened: Array<{ path: string; line: number }> = []
+    const read: Array<string> = []
+    const across: Across = {
+      paths: new Set(["composer.json", "src/Support/Stringable.php", "src/Conditionable/Traits/two.php"]),
+      read: (path) =>
+        Effect.sync(() => {
+          read.push(path)
+          return path === "composer.json"
+            ? JSON.stringify({ autoload: { "psr-4": { "Illuminate\\Support\\": ["src/Support/", "src/Conditionable/"] } } })
+            : "<?php\ntrait Conditionable {}\n"
+        }),
+      open: (path, line) => opened.push({ path, line })
+    }
+    const stage = staged(null, [], {
+      path: "src/Support/Stringable.php",
+      where: { at: "elsewhere", borrowed: { name: "two", specifier: "Illuminate\\Support\\Traits" } },
+      named: elsewhere,
+      namedIn: "src/Conditionable/Traits/two.php",
+      across
+    })
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    expect(read[0]).toBe("composer.json")
+    expect(opened).toEqual([{ path: "src/Conditionable/Traits/two.php", line: 2 }])
+  })
+
   test("reads go.mod to find a package kept at the root of the repository", async () => {
     // `github.com/spf13/cobra` is the root: only `go.mod` says the module ends there.
     const opened: Array<{ path: string; line: number }> = []

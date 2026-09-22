@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { couldBe, inPackage, knowGoModules, reaching, reachingAll, within } from "./reaching"
+import { couldBe, inPackage, knowGoModules, knowPhpPrefixes, reaching, reachingAll, within } from "./reaching"
 import { goModuleOf, goModulesIn } from "./goModules"
 
 /** A repository laid out the way most of them are. */
@@ -668,5 +668,17 @@ describe("a Rust path, from where the crate and the module really are", () => {
   test("super:: is the module around it", () => {
     expect(reachingAll("src/shapes/circle.rs", "super::square", paths)).toEqual(["src/shapes/square/mod.rs"])
     expect(reachingAll("src/shapes/square/side.rs", "super::super::circle", paths)).toEqual(["src/shapes/circle.rs"])
+  })
+})
+
+describe("a PHP class, read against the namespaces composer.json maps", () => {
+  test("is found in whichever folder its namespace is mapped to", () => {
+    const paths = new Set(["src/Illuminate/Conditionable/Traits/Conditionable.php", "src/Illuminate/Support/Str.php"])
+    knowPhpPrefixes(paths, new Map([["Illuminate\\", ["src/Illuminate"]], ["Illuminate\\Support\\", ["src/Illuminate/Macroable", "src/Illuminate/Conditionable"]]]))
+
+    expect(reachingAll("src/Illuminate/Support/Stringable.php", "Illuminate\\Support\\Traits", paths, "Conditionable")[0]).toBe(
+      "src/Illuminate/Conditionable/Traits/Conditionable.php"
+    )
+    expect(reachingAll("src/Illuminate/Support/Stringable.php", "Illuminate\\Support", paths, "Str")[0]).toBe("src/Illuminate/Support/Str.php")
   })
 })
