@@ -195,11 +195,66 @@ function couldBeCpp({ from, specifier }: Asked): ReadonlyArray<string> {
  * `import java.util.List` reaches nothing, which is right: it is the standard
  * library, and no root here holds it.
  */
-function couldBeJava({ specifier, name }: Asked): ReadonlyArray<string> {
+function couldBeJava({ from, specifier, name, paths }: Asked): ReadonlyArray<string> {
   const whole = named(specifier, name, ".")
   const asked = whole.split(".").filter((part) => part !== "").join("/")
   if (asked === "") return []
-  return JAVA_ROOTS.map((root) => (root === "" ? `${asked}.java` : `${root}/${asked}.java`))
+  // The class itself, for a static import: `…base.Preconditions.checkNotNull`
+  // names a method, and the file is the class it is a member of.
+  const owner = specifier.split(".").filter((part) => part !== "").join("/")
+  return [
+    ...JAVA_ROOTS.map((root) => (root === "" ? `${asked}.java` : `${root}/${asked}.java`)),
+    ...endingIn(`${asked}.java`, from, paths),
+    ...(owner === "" ? [] : endingIn(`${owner}.java`, from, paths))
+  ]
+}
+
+/**
+ * Every path that ends in `tail`, nearest the file that asked first.
+ *
+ * A Java, PHP or C# import says where a file is inside a package and not where
+ * the package is: Guava keeps its sources in `guava/src`, a multi-module build in
+ * `module/src/main/java`, and neither is a root anybody could list. So the tail is
+ * matched against the paths the repository has, whole segments only — `Box.java`
+ * under another package is another `Box`. Where several match, as a library and
+ * its Android copy do, the one sharing the most folders with the asking file is
+ * the one it builds against.
+ */
+const endingIn = (tail: string, from: string, paths: ReadonlySet<string>): ReadonlyArray<string> => {
+  const name = tail.slice(tail.lastIndexOf("/") + 1)
+  const near = (path: string): number => {
+    const a = path.split("/")
+    const b = from.split("/")
+    let shared = 0
+    while (shared < a.length && shared < b.length && a[shared] === b[shared]) shared += 1
+    return shared
+  }
+  return (byName(paths).get(name) ?? [])
+    .filter((path) => path === tail || path.endsWith(`/${tail}`))
+    .toSorted((a, b) => near(b) - near(a) || a.length - b.length)
+}
+
+/**
+ * Every path by its file name, once per set of paths.
+ *
+ * {@link endingIn} is asked for every borrow of every file when the uses of a
+ * name are counted, and reading twenty thousand paths on each would be the
+ * quadratic `goPackages` was written to avoid.
+ */
+const BY_NAME = new WeakMap<ReadonlySet<string>, ReadonlyMap<string, ReadonlyArray<string>>>()
+
+const byName = (paths: ReadonlySet<string>): ReadonlyMap<string, ReadonlyArray<string>> => {
+  const held = BY_NAME.get(paths)
+  if (held !== undefined) return held
+  const named = new Map<string, Array<string>>()
+  for (const path of paths) {
+    const name = path.slice(path.lastIndexOf("/") + 1)
+    const same = named.get(name)
+    if (same === undefined) named.set(name, [path])
+    else same.push(path)
+  }
+  BY_NAME.set(paths, named)
+  return named
 }
 
 /**
@@ -238,7 +293,7 @@ const JAVA_ROOTS: ReadonlyArray<string> = [
  * is not read here, so every shape it usually takes is offered and the one the
  * repository really holds is the one that answers.
  */
-function couldBePhp({ specifier, name }: Asked): ReadonlyArray<string> {
+function couldBePhp({ from, specifier, name, paths }: Asked): ReadonlyArray<string> {
   const parts = named(specifier, name, "\\").split("\\").filter((part) => part !== "")
   if (parts.length === 0) return []
   const whole = parts.join("/")
@@ -246,6 +301,7 @@ function couldBePhp({ specifier, name }: Asked): ReadonlyArray<string> {
 
   const asked: Array<string> = [`src/${after}.php`, `src/${whole}.php`, `${whole}.php`]
   if (after !== "") asked.push(`lib/${after}.php`, `app/${after}.php`)
+  asked.push(...endingIn(`${whole}.php`, from, paths))
   return asked.filter((one, at) => one !== ".php" && asked.indexOf(one) === at)
 }
 
@@ -261,13 +317,14 @@ function couldBePhp({ specifier, name }: Asked): ReadonlyArray<string> {
  * Only an aliased `using` arrives here. A plain one opens a namespace and names
  * nothing, so `csharp.ts` records no borrow for it.
  */
-function couldBeCSharp({ specifier, name }: Asked): ReadonlyArray<string> {
+function couldBeCSharp({ from, specifier, name, paths }: Asked): ReadonlyArray<string> {
   const parts = named(specifier, name, ".").split(".").filter((part) => part !== "")
   if (parts.length === 0) return []
   const whole = parts.join("/")
   const after = parts.slice(1).join("/")
   const asked = [`${whole}.cs`, `src/${whole}.cs`]
   if (after !== "") asked.push(`src/${after}.cs`, `${after}.cs`)
+  asked.push(...endingIn(`${whole}.cs`, from, paths))
   return asked.filter((one, at) => asked.indexOf(one) === at)
 }
 

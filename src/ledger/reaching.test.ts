@@ -528,3 +528,58 @@ describe("what a go.mod says its module is", () => {
     ])
   })
 })
+
+/*
+ * Found pressing names in Guava, whose sources sit under `guava/src` and not in
+ * any of the roots a build tool is guessed to use. A multi-module Maven or Gradle
+ * project is the same shape: `module/src/main/java`, with a module name nobody
+ * can list in advance. The package path says where the file is; the root is
+ * whatever holds it.
+ */
+describe("a package path, wherever the repository keeps its sources", () => {
+  const paths = new Set([
+    "guava/src/com/google/common/base/Preconditions.java",
+    "guava/src/com/google/common/annotations/GwtCompatible.java",
+    "android/guava/src/com/google/common/annotations/GwtCompatible.java",
+    "src/Illuminate/Support/Traits/Dumpable.php",
+    "src/MediatR/NotificationPublishers/ForeachAwaitPublisher.cs"
+  ])
+
+  test("a Java type is found under a root no list names", () => {
+    expect(reachingAll("guava/src/com/google/common/base/Joiner.java", "com.google.common.annotations", paths, "GwtCompatible")[0]).toBe(
+      "guava/src/com/google/common/annotations/GwtCompatible.java"
+    )
+  })
+
+  test("the copy nearest the file that asked comes first", () => {
+    expect(reachingAll("android/guava/src/com/google/common/base/Joiner.java", "com.google.common.annotations", paths, "GwtCompatible")[0]).toBe(
+      "android/guava/src/com/google/common/annotations/GwtCompatible.java"
+    )
+  })
+
+  test("a static import is read from the class it names", () => {
+    // `import static com.google.common.base.Preconditions.checkNotNull` names a
+    // method, and the file is the class it is a member of.
+    expect(reachingAll("guava/src/com/google/common/base/Joiner.java", "com.google.common.base.Preconditions", paths, "checkNotNull")).toContain(
+      "guava/src/com/google/common/base/Preconditions.java"
+    )
+  })
+
+  test("a PHP class is found wherever its namespace path is", () => {
+    expect(reachingAll("src/Illuminate/Support/Stringable.php", "Illuminate\\Support\\Traits", paths, "Dumpable")).toContain(
+      "src/Illuminate/Support/Traits/Dumpable.php"
+    )
+  })
+
+  test("a C# type is found wherever its namespace path is", () => {
+    expect(reachingAll("src/MediatR/Mediator.cs", "MediatR.NotificationPublishers", paths, "ForeachAwaitPublisher")).toContain(
+      "src/MediatR/NotificationPublishers/ForeachAwaitPublisher.cs"
+    )
+  })
+
+  test("a path that only ends in the same name is not the package", () => {
+    // `Box.java` under another package is another Box.
+    const other = new Set(["lib/other/shapes/Box.java"])
+    expect(reachingAll("Main.java", "com.ex.shapes", other, "Box")).toEqual([])
+  })
+})
