@@ -177,6 +177,16 @@ export type Dialect = {
    */
   readonly moduleThrough?: (from: Borrowed, qualifier: string) => string
   /**
+   * Whether a file taken whole passes its names on to whoever imports this one.
+   *
+   * TypeScript's `export * from` does, and so does Python's `from x import *`: an
+   * importer of the barrel or the package reads those names through it. Go's
+   * import, C#'s `using`, C++'s `#include` and Ruby's `require` do not — they take
+   * a file for this one's own use — and following one of them from a file that
+   * does not write a name lands on another package's name of the same spelling.
+   */
+  readonly passesOnWhole?: boolean
+  /**
    * What a statement passes on from somewhere else, which is a re-export.
    *
    * Absent where the language has none. Five of the ten carried an empty
@@ -492,6 +502,8 @@ export const borrowedAs = (
   }
   const named = passed.find((one) => one.name === name)
   if (named !== undefined) return { borrowed: named }
+  // Only where taking a file whole passes it on. See {@link Dialect.passesOnWhole}.
+  if (dialect.passesOnWhole !== true) return null
   const whole = passed.filter((one) => one.name === "*").map((one) => one.specifier)
   const [first, ...rest] = whole
   if (first === undefined) return null
@@ -705,6 +717,12 @@ export type Mention = {
    * it is judged on its own rather than by what else the file borrowed.
    */
   readonly through?: string
+  /**
+   * Whether the name is one the grammar writes as a plain name, so that a
+   * `through` reaching no file at all is read as the mention it always was.
+   * `Status.ACTIVE` read through a class is `through` a module nobody has.
+   */
+  readonly orPlain?: true
   readonly name: string
   readonly line: number
   readonly from: number
@@ -770,7 +788,11 @@ export const toldBy = (root: Syntax, source: string, dialect: Dialect): Told => 
       const plain = dialect.names.has(node.type)
       if (bound === undefined) unbound.push({ mention: mentionOf(node), qualifier: qualifier.text, plain })
       else if (bound.kind === "import" && bound.from !== undefined) {
-        mentions.push({ ...mentionOf(node), through: moduleOf(bound.from, qualifier.text, dialect) })
+        mentions.push({
+          ...mentionOf(node),
+          through: moduleOf(bound.from, qualifier.text, dialect),
+          ...(plain ? { orPlain: true as const } : {})
+        })
       } else if (plain) {
         // A value's member, and a mention as it always was where the grammar
         // writes it as a name: `self.helper` is a Likely use of `helper`.

@@ -545,11 +545,15 @@ export const useFollowing = (
                   .slice(0, MOST_CANDIDATES)
 
               /*
-               * Each file in turn, until one writes the name. One that does not may
-               * pass it on — a package's `__init__.py`, a barrel, a Rust `pub use` —
-               * and says where from, so the Follow goes on from there, a few files
-               * deep at most. Nothing is read twice, so two files naming each other
-               * end the walk rather than keeping it.
+               * Every file it could be, before any of them is followed further.
+               *
+               * One that does not write the name may pass it on — a package's
+               * `__init__.py`, a barrel, a Rust `pub use` — and says where from.
+               * Those are gone on from only once none of the rest writes it: a Go
+               * package is several files, and the sibling that writes `Box` is the
+               * answer where going on through the one before it is another
+               * package's. A few files deep at most, nothing read twice for the
+               * same name, and nothing read at all once the pointer has left.
                */
               const seek = (
                 candidates: ReadonlyArray<string>,
@@ -557,13 +561,16 @@ export const useFollowing = (
                 hops: number,
                 seen: Set<string>
               ): Effect.Effect<boolean> => {
+                const gone = () => !insist && on.current?.name !== name
+                const passers: Array<Reading> = []
+
                 const trying = (at: number): Effect.Effect<boolean> => {
                   const path = candidates[at]
-                  if (path === undefined) return Effect.succeed(false)
+                  if (path === undefined || gone()) return Effect.succeed(false)
 
                   const onwards = (): Effect.Effect<boolean> => trying(at + 1)
-                  if (seen.has(path)) return onwards()
-                  seen.add(path)
+                  if (seen.has(`${wanted}@${path}`)) return onwards()
+                  seen.add(`${wanted}@${path}`)
 
                   return across.read(path).pipe(
                     Effect.flatMap((text) =>
@@ -571,24 +578,15 @@ export const useFollowing = (
                         .writingNamed({ path, text }, wanted)
                         .pipe(Effect.map((writing) => ({ writing, text })))
                     ),
-                    Effect.flatMap(({ writing, text }): Effect.Effect<boolean, unknown> => {
-                      if (Option.isSome(writing)) {
-                        if (!insist && on.current?.name !== name) return Effect.succeed(true)
-                        on.current = { name, writing: writing.value, where: path, text }
-                        then(writing.value, path)
-                        return Effect.succeed(true)
+                    Effect.flatMap(({ writing, text }): Effect.Effect<boolean> => {
+                      if (Option.isNone(writing)) {
+                        passers.push({ path, text })
+                        return onwards()
                       }
-                      // Nothing under that name here: where it came from, or the next file.
-                      if (hops >= MOST_HOPS) return onwards()
-                      return ledger.borrowedAs({ path, text }, wanted).pipe(
-                        Effect.flatMap((passed) =>
-                          Option.isNone(passed)
-                            ? onwards()
-                            : seek(candidatesFor(path, passed.value), passed.value.borrowed.name, hops + 1, seen).pipe(
-                                Effect.flatMap((done) => (done ? Effect.succeed(true) : onwards()))
-                              )
-                        )
-                      )
+                      if (gone()) return Effect.succeed(true)
+                      on.current = { name, writing: writing.value, where: path, text }
+                      then(writing.value, path)
+                      return Effect.succeed(true)
                     }),
                     // A file that would not come is the next one's turn — reported
                     // first, because `onward` is the only trace this extension keeps and
@@ -597,7 +595,25 @@ export const useFollowing = (
                     Effect.catch((cause) => onward(cause).pipe(Effect.andThen(onwards())))
                   )
                 }
-                return trying(0)
+
+                /** Each file that did not write it, asked where it got it, in turn. */
+                const deeper = (at: number): Effect.Effect<boolean, unknown> => {
+                  const passer = passers[at]
+                  if (passer === undefined || hops >= MOST_HOPS || gone()) return Effect.succeed(false)
+                  return ledger.borrowedAs(passer, wanted).pipe(
+                    Effect.flatMap((passed) =>
+                      Option.isNone(passed)
+                        ? Effect.succeed(false)
+                        : seek(candidatesFor(passer.path, passed.value), passed.value.borrowed.name, hops + 1, seen)
+                    ),
+                    Effect.flatMap((done) => (done ? Effect.succeed(true) : deeper(at + 1)))
+                  )
+                }
+
+                return trying(0).pipe(
+                  Effect.flatMap((done) => (done ? Effect.succeed(true) : deeper(0))),
+                  Effect.catch((cause) => onward(cause).pipe(Effect.as(false)))
+                )
               }
 
               const candidates = candidatesFor(source.path, found)

@@ -167,8 +167,32 @@ export const usesAcross = (
 
     // Asked once for the file, and only if a mention needs it.
     let how: "sure" | "likely" | "no" | undefined
-    /** Whether an import leads to where the name is written, per import. */
-    const leads = new Map<string, boolean>()
+    /** What each module a mention was read through says about it, per module. */
+    const leads = new Map<string, "sure" | "plain" | "no">()
+    /*
+     * A module leads to the name where it is the file that writes it, or passes
+     * it on to one that does — a package's `__init__.py`, a barrel. Where it
+     * reaches no file at all and the name is written as a plain one, it is read
+     * as the mention it always was: `Status.ACTIVE` read through a class is read
+     * through a module nobody has.
+     */
+    const leadsTo = (module: string, orPlain: boolean): "sure" | "plain" | "no" => {
+      const held = leads.get(module)
+      if (held !== undefined) return held
+      const reached = reachingAll(path, module, paths, asked.name)
+      const onward = (to: string): boolean => {
+        const next = files.get(to)
+        return next !== undefined && reaches(to, next, asked, paths, files, THROUGH - 1, new Set([path, to]))
+      }
+      const said =
+        reached.includes(asked.path) || reached.some(onward)
+          ? "sure"
+          : reached.length === 0 && orPlain
+            ? "plain"
+            : "no"
+      leads.set(module, said)
+      return said
+    }
 
     for (const mention of mentions) {
       /*
@@ -177,15 +201,10 @@ export const usesAcross = (
        * So it is judged alone, and is Sure or not a use at all.
        */
       let sure: boolean
-      if (mention.through !== undefined) {
-        let reached = leads.get(mention.through)
-        if (reached === undefined) {
-          reached = reachingAll(path, mention.through, paths, asked.name).includes(asked.path)
-          leads.set(mention.through, reached)
-        }
-        if (!reached) continue
-        sure = true
-      } else {
+      const through = mention.through === undefined ? "plain" : leadsTo(mention.through, mention.orPlain === true)
+      if (through === "no") continue
+      if (through === "sure") sure = true
+      else {
         how ??= sureness(path, told, asked, paths, files)
         if (how === "no") continue
         sure = how === "sure"

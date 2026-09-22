@@ -616,3 +616,49 @@ describe("a Ruby constant from a file a plain require loaded", () => {
     expect(reachingAll("lib/faraday.rb", "json", paths)).toEqual([])
   })
 })
+
+/*
+ * From review of 6c4e9d3. A file that does not write a name may pass it on, and
+ * a press goes on from there — but only a real re-export passes a name on. A Go
+ * file's imports do not: `shapes/a.go` importing `other` does not hand
+ * `other.Box` to anybody pressing `shapes.Box`.
+ */
+describe("what a file passes on, and what it only took", () => {
+  test("a Go file's imports pass nothing on", () => {
+    const text = 'package shapes\n\nimport "example.com/app/other"\n\nfunc f() { other.Do() }\n'
+    expect(borrowedAs(parsed("tree-sitter-go.wasm", text), "Box", dialectFor("shapes/a.go")!)).toBeNull()
+  })
+
+  test("a Python package's star import passes its names on", () => {
+    const text = "from .base import *\n"
+    expect(borrowedAs(parsed("tree-sitter-python.wasm", text), "Model", dialectFor("db/models/__init__.py")!)).toEqual({
+      borrowed: { name: "Model", specifier: ".base" }
+    })
+  })
+
+  test("a Python use through a package's module is a Sure use, through the package", () => {
+    const FILES: Record<string, string> = {
+      "app/sites.py": "from db import models\n\n\nclass Site(models.Model):\n    pass\n",
+      "db/models/__init__.py": "from db.models.base import Model\n",
+      "db/models/base.py": "class Model:\n    pass\n",
+      "db/__init__.py": ""
+    }
+    const told = new Map<string, Told>()
+    for (const [path, source] of Object.entries(FILES)) told.set(path, toldBy(parsed("tree-sitter-python.wasm", source), source, dialectFor(path)!))
+
+    const uses = usesAcross(told, { name: "Model", path: "db/models/base.py", line: 1 }, new Set(Object.keys(FILES)))
+    expect(uses.filter((use) => use.path === "app/sites.py").map((use) => [use.line, use.sure])).toEqual([[4, true]])
+  })
+
+  test("a Python attribute of an imported class is still a use, if not a proven one", () => {
+    const FILES: Record<string, string> = {
+      "app/views.py": "from app.models import Status\n\nx = Status.ACTIVE\n",
+      "app/models.py": "class Status:\n    ACTIVE = 1\n"
+    }
+    const told = new Map<string, Told>()
+    for (const [path, source] of Object.entries(FILES)) told.set(path, toldBy(parsed("tree-sitter-python.wasm", source), source, dialectFor(path)!))
+
+    const uses = usesAcross(told, { name: "ACTIVE", path: "app/models.py", line: 2 }, new Set(Object.keys(FILES)))
+    expect(uses.filter((use) => use.path === "app/views.py").map((use) => use.line)).toEqual([3])
+  })
+})

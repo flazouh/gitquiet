@@ -390,6 +390,8 @@ export const TYPESCRIPT: Dialect = {
   names: NAMES,
   bindings,
   passedOn,
+  // `export * from` is a re-export: a barrel's importers read those names through it.
+  passesOnWhole: true,
   comments: COMMENTS,
   offering
 }

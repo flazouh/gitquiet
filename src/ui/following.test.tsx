@@ -828,6 +828,39 @@ describe("a name this file borrowed from another", () => {
     expect(opened).toEqual([{ path: "db/models/base.py", line: 2 }])
   })
 
+  test("asks every file it could be before going on through one that passes it on", async () => {
+    // A Go package is several files. The first may not write the name and may pass
+    // something on; a sibling that writes it is the answer, and deeper is not.
+    const opened: Array<{ path: string; line: number }> = []
+    const read: Array<string> = []
+    const across: Across = {
+      paths: new Set(["cmd/main.go", "shapes/a.go", "shapes/box.go", "other/o.go"]),
+      read: (path) =>
+        Effect.sync(() => {
+          read.push(path)
+          return "package x\n"
+        }),
+      open: (path, line) => opened.push({ path, line })
+    }
+    const stage = staged(null, [], {
+      path: "cmd/main.go",
+      where: { at: "elsewhere", borrowed: { name: "two", specifier: "example.com/app/shapes" } },
+      named: elsewhere,
+      namedIn: "shapes/box.go",
+      passing: { "shapes/a.go": { name: "two", specifier: "example.com/app/other" } },
+      across
+    })
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    expect(read).not.toContain("other/o.go")
+    expect(opened).toEqual([{ path: "shapes/box.go", line: 2 }])
+  })
+
   test("reads go.mod to find a package kept at the root of the repository", async () => {
     // `github.com/spf13/cobra` is the root: only `go.mod` says the module ends there.
     const opened: Array<{ path: string; line: number }> = []

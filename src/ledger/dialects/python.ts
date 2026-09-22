@@ -390,10 +390,26 @@ const moduleThrough = (from: Borrowed, qualifier: string): string => {
   return from.specifier.endsWith(".") ? `${from.specifier}${from.name}` : `${from.specifier}.${from.name}`
 }
 
+/**
+ * What a file passes on: every name of a module it imported with a star.
+ *
+ * `from .base import *` binds nothing this can name, and hands each name `base`
+ * has to whoever imports this file — which is how a package's `__init__.py`
+ * offers what its modules write.
+ */
+const passedOn = function* (statement: Syntax): Generator<Borrowed> {
+  if (statement.type !== "import_from_statement") return
+  if (![...childrenOf(statement)].some((child) => child.type === "wildcard_import")) return
+  const specifier = moduleOf(statement)
+  if (specifier !== null) yield { name: "*", specifier }
+}
+
 export const PYTHON: Dialect = {
   opens: OPENS,
   names: NAMES,
   bindings,
+  passedOn,
+  passesOnWhole: true,
   qualifierOf,
   moduleThrough,
   comments: COMMENTS,
