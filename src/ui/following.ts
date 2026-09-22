@@ -23,6 +23,9 @@ const MOST_CANDIDATES = 12
  */
 const MOST_HOPS = 3
 
+/** How many of the files a name could be are read at once. */
+const AT_ONCE = 4
+
 /**
  * How many `go.mod` or `composer.json` files a press reads before it resolves an
  * import. A repository of more than this is resolved with the ones it has read.
@@ -587,35 +590,52 @@ export const useFollowing = (
                 const gone = () => !insist && on.current?.name !== name
                 const passers: Array<Reading> = []
 
+                /*
+                 * Read a few at a time and asked in order. One after another, the
+                 * seventh of a gem's requires waited on six round trips before it
+                 * was read; four at once, and only ever the next four, is two.
+                 */
                 const trying = (at: number): Effect.Effect<boolean> => {
-                  const path = candidates[at]
-                  if (path === undefined || gone()) return Effect.succeed(false)
+                  if (at >= candidates.length || gone()) return Effect.succeed(false)
+                  const batch = candidates
+                    .slice(at, at + AT_ONCE)
+                    .filter((path) => !seen.has(`${wanted}@${path}`))
+                  for (const path of batch) seen.add(`${wanted}@${path}`)
 
-                  const onwards = (): Effect.Effect<boolean> => trying(at + 1)
-                  if (seen.has(`${wanted}@${path}`)) return onwards()
-                  seen.add(`${wanted}@${path}`)
+                  return Effect.forEach(
+                    batch,
+                    (path) =>
+                      across.read(path).pipe(
+                        Effect.map((text): Reading | null => ({ path, text })),
+                        // A file that would not come is the next one's turn — reported
+                        // first, because `onward` is the only trace this extension keeps
+                        // and swallowing the cause made a failed read look like a file
+                        // that simply said nothing.
+                        Effect.catch((cause) => onward(cause).pipe(Effect.as(null)))
+                      ),
+                    { concurrency: AT_ONCE }
+                  ).pipe(
+                    Effect.flatMap((read) => asked(read.filter((one) => one !== null), 0)),
+                    Effect.flatMap((done) => (done ? Effect.succeed(true) : trying(at + AT_ONCE)))
+                  )
+                }
 
-                  return across.read(path).pipe(
-                    Effect.flatMap((text) =>
-                      ledger
-                        .writingNamed({ path, text }, wanted)
-                        .pipe(Effect.map((writing) => ({ writing, text })))
-                    ),
-                    Effect.flatMap(({ writing, text }): Effect.Effect<boolean> => {
+                /** The files of one batch asked in order, until one writes the name. */
+                const asked = (read: ReadonlyArray<Reading>, at: number): Effect.Effect<boolean> => {
+                  const one = read[at]
+                  if (one === undefined) return Effect.succeed(false)
+                  return ledger.writingNamed(one, wanted).pipe(
+                    Effect.flatMap((writing): Effect.Effect<boolean> => {
                       if (Option.isNone(writing)) {
-                        passers.push({ path, text })
-                        return onwards()
+                        passers.push(one)
+                        return asked(read, at + 1)
                       }
                       if (gone()) return Effect.succeed(true)
-                      on.current = { name, writing: writing.value, where: path, text }
-                      then(writing.value, path)
+                      on.current = { name, writing: writing.value, where: one.path, text: one.text }
+                      then(writing.value, one.path)
                       return Effect.succeed(true)
                     }),
-                    // A file that would not come is the next one's turn — reported
-                    // first, because `onward` is the only trace this extension keeps and
-                    // swallowing the cause here made a failed read look like a file that
-                    // simply said nothing.
-                    Effect.catch((cause) => onward(cause).pipe(Effect.andThen(onwards())))
+                    Effect.catch((cause) => onward(cause).pipe(Effect.andThen(asked(read, at + 1))))
                   )
                 }
 
