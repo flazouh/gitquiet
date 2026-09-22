@@ -6,25 +6,12 @@ import { BED } from "@/ui/bed"
 /**
  * Dark-glass poster field for the marketing site.
  *
- * Charcoal anchors with visible muted teal/sand pools — Wafer atmosphere,
- * Luminar poster proportions. Not pink mesh, not cobalt CTA blue, not grayscale.
+ * The shared Wafer bed — muted teal/sand stops at Luminar poster proportions.
+ * Not pink mesh, not cobalt CTA blue, not grayscale.
  */
 
-const FIELD = "#0c0c0c"
-const FIELD_MID = "#131315"
-
-/** Charcoal only as anchors; BED teals/sands carry the field. */
-const FIELD_COLORS = [
-  FIELD,
-  BED[0],
-  BED[1],
-  BED[2],
-  FIELD_MID,
-  BED[4],
-  BED[3],
-  BED[0],
-  BED[1]
-]
+/** Use the same five stops as the poster and the app's shared Wafer gradient. */
+const FIELD_COLORS = [...BED]
 
 const FIELD_SHADER = {
   colors: FIELD_COLORS,
@@ -84,7 +71,7 @@ export const Atmosphere = ({
         aria-hidden
         className="absolute inset-0"
         style={{
-          background: `radial-gradient(120% 95% at 18% 100%, ${BED[3]}33 0%, transparent 55%), ${FIELD}`
+          background: `radial-gradient(120% 95% at 18% 100%, ${BED[3]}33 0%, transparent 55%), ${BED[3]}`
         }}
       />
       <div aria-hidden className="absolute inset-0">
