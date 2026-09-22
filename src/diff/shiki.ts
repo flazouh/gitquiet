@@ -98,21 +98,26 @@ const STRUCT_ON_ONE_LINE_LINEAR =
  * The group Go's grammar writes for a channel type, repeated: `chan chan int`.
  *
  * Two spellings, with and without a leading `\s*`, across twenty-three rules.
- * Each ends in `\s*` and the leading one begins with it, so the spaces between two
- * `chan`s can be split between them every way there is, and a line that then fails
- * to match tries all of them: under V8, sixteen `chan`s took one rule eight seconds
- * and eighteen did not finish. Made atomic, one iteration keeps the spaces it
- * took, which is all a match could ever want — nothing after the group starts
- * with a space — and the same lines take three milliseconds.
+ * Each iteration ends in `\s*` and the leading one begins with it, so the spaces
+ * between two `chan`s can be split between them every way there is, and a line
+ * that then fails to match tries all of them: under V8, sixteen `chan`s took one
+ * rule eight seconds and eighteen did not finish.
+ *
+ * Rewritten so the spaces have one owner. The leading `\s*` is taken once, before
+ * the loop; each iteration's channel is atomic; the spaces after it stay outside
+ * the atomic part, so they can still be given back. That last part matters: a
+ * `var` rule looks past them for `struct` or `func`, and a group that kept them
+ * read the `*` in `*<-chan func()` as multiplication. The same lines take a few
+ * milliseconds, and the scopes are the grammar's own.
  */
 const CHANNELS =
-  /\(\?:((?:\\s\*)?\[\]\*\\\[\]\+\{0,1\}\(\?:<-\\s\*\)\?\\bchan\\b\(\?:\\s\*<-\)\?\\s\*)\)\+/g
+  /\(\?:(\\s\*)?(\[\]\*\\\[\]\+\{0,1\}\(\?:<-\\s\*\)\?\\bchan\\b\(\?:\\s\*<-\)\?)\\s\*\)\+/g
 
 /** One pattern of Go's, without the two ways it has of running away. */
 const unrunaway = (source: string): string =>
   (source === STRUCT_ON_ONE_LINE ? STRUCT_ON_ONE_LINE_LINEAR : source).replace(
     CHANNELS,
-    "(?:(?>$1))+"
+    "(?:$1(?:(?>$2)\\s*)+)"
   )
 
 /** A grammar's rules with every pattern in them passed through `fix`. */

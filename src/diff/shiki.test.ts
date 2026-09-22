@@ -149,6 +149,13 @@ describe("the Go grammar, on a line it has no business with", () => {
     const { default: theirs } = await import("@shikijs/langs/go")
     const lines = [
       "var jobs chan chan<- int",
+      // A pointer to a channel: the rule after the group looks past the spaces it
+      // ends in, so a group that kept them read this `*` as multiplication.
+      "var x *<-chan func()",
+      "var y []*<-chan struct{}",
+      "const (",
+      "\ta, b *<-chan map[string]int = nil, nil",
+      ")",
       "func pump(in <-chan chan string, out chan<- []byte) (<-chan error, error) {",
       "\treturn nil, nil",
       "}",
