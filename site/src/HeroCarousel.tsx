@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "re
 
 /**
  * Hero product carousel — five real screenshots, edge-to-edge in the poster.
+ * Sized to a fixed 16/10 frame (screenshot ratio) so object-cover never crops chrome L/R.
  *
  * Auto-advances every 5s unless the user prefers reduced motion, or the frame
  * is hovered / focused. Prev / next + dots overlay the image; arrow keys when focused.
@@ -115,9 +116,9 @@ export const HeroCarousel = () => {
           setPaused(false)
         }
       }}
-      className="relative h-full w-full max-w-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/25"
+      className="relative w-full max-w-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/25"
     >
-      <div className="relative aspect-[16/10] h-full overflow-hidden bg-[#131315] md:aspect-auto md:min-h-[28rem]">
+      <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#131315]">
         {SLIDES.map((item, i) => {
           const active = i === index
           return (
