@@ -1,6 +1,6 @@
-import { useEffect } from "react"
+import { PAPER } from "@/ui/bed"
+import { HERO_SHADOW } from "./brand"
 import { Bed } from "./Bed"
-import { Demo } from "./Demo"
 import {
   AddToChrome,
   Aside,
@@ -14,7 +14,7 @@ import {
 } from "./Shell"
 
 const Elsewhere = () => (
-  <p className="m-0 text-[15px] leading-relaxed text-ink/60">
+  <p className="m-0 text-[15px] leading-relaxed text-white/55">
     Also for <Quietly at={INSTALL_AT}>Safari, Firefox and the Mac</Quietly>.
   </p>
 )
@@ -26,93 +26,100 @@ const Elsewhere = () => (
  * (and a reader) can leave, without turning home into a second job page.
  */
 const Jobs = () => (
-  <p className="m-0 mt-6 text-[15px] leading-relaxed text-ink/70">
+  <p className="m-0 text-[15px] leading-relaxed text-ink/70">
     A <Quietly at="/github-pr-inbox">GitHub PR inbox</Quietly> and a{" "}
-    <Quietly at="/github-review-queue">review queue</Quietly>, in the tab. Not an AI reviewer.
+    <Quietly at="/github-review-queue">review queue</Quietly>, in the tab. Not an AI
+    reviewer.
   </p>
 )
 
 /**
- * Home: one line, one press, one demo, then the bed card.
+ * The product view in the hero: a framed still of the pull-request screen.
  *
- * No feature grid. No rules. The clip already carries the product; the bed
- * is only the closing card, the same one the page used to close on.
+ * Not the old demo video. A screenshot is quieter, loads as a normal image, and
+ * matches the charcoal bed without fighting it for attention.
  */
-export const Page = () => {
-  useEffect(() => {
-    const html = document.documentElement
-    const body = document.body
-    const prev = {
-      htmlBg: html.style.background,
-      bodyBg: body.style.background,
-      scheme: html.style.colorScheme
-    }
-    html.style.background = "#0c0b10"
-    html.style.colorScheme = "dark"
-    body.style.background = "#0c0b10"
-    return () => {
-      html.style.background = prev.htmlBg
-      html.style.colorScheme = prev.scheme
-      body.style.background = prev.bodyBg
-    }
-  }, [])
+const ProductView = () => (
+  <figure className="m-0">
+    <img
+      src="/shots/pull-request@2x.png"
+      width={1280}
+      height={800}
+      alt="GitQuiet pull request view: unresolved threads and checks above the diff"
+      decoding="async"
+      fetchPriority="high"
+      className="block w-full rounded-2xl bg-paper ring-1 ring-white/10"
+      style={{ boxShadow: HERO_SHADOW }}
+    />
+  </figure>
+)
 
-  return (
-    <div className="min-h-dvh bg-[#0c0b10] text-[#f4f2ef]">
-      <SkipTo id="demo" says="Skip to the demo" />
+/**
+ * Home: Luminar-shaped hero card on the charcoal Wafer bed, copy left, PR shot right.
+ *
+ * One rounded full-viewport card with the living Bed mesh behind it. Light ink on
+ * the dark field. Cool paper outside the card. Below the fold stays short — jobs
+ * links and the shared footer.
+ */
+export const Page = () => (
+  <div className="min-h-dvh antialiased" style={{ background: PAPER, color: "var(--color-ink, #15171B)" }}>
+    <SkipTo id="product" says="Skip to the product" />
 
-      <div className={HELD}>
-        <Nav dark>
-          <Source dark />
-          <Aside at={INSTALL_AT} dark>
-            Downloads
-          </Aside>
-          <AddToChrome light />
-        </Nav>
+    <header className="p-2.5 sm:p-3">
+      <div className="relative flex min-h-[calc(100svh-20px)] flex-col overflow-hidden rounded-[24px] sm:min-h-[calc(100svh-24px)] sm:rounded-[28px]">
+        {/*
+          Bed writes position inline, so this has to as well — same pattern as Above
+          in Shell. Absolute fill keeps the mesh behind the flex column of content.
+        */}
+        <Bed
+          alive
+          rotation={14}
+          scale={1.45}
+          className="pointer-events-none absolute inset-0"
+          style={{ position: "absolute", inset: 0 }}
+        />
 
-        <div className="pb-10 pt-10 sm:pb-14 sm:pt-16">
-          <h1 className="m-0 max-w-4xl text-balance text-[clamp(2.4rem,6.5vw,4.25rem)] font-semibold leading-[1.02] tracking-[-0.04em] text-white">
-            A faster, quieter GitHub.
-          </h1>
-
-          <div className="mt-8 sm:mt-10">
-            <AddToChrome big light />
+        <div className="relative z-10 flex min-h-[calc(100svh-20px)] flex-1 flex-col sm:min-h-[calc(100svh-24px)]">
+          <div className="px-5 sm:px-9">
+            <Nav dark>
+              <Source dark />
+              <Aside at={INSTALL_AT} dark>
+                Downloads
+              </Aside>
+              <AddToChrome blue />
+            </Nav>
           </div>
-        </div>
 
-        <section id="demo" className="pb-16 sm:pb-24">
-          <Demo />
-        </section>
-
-        <section className="pb-16 sm:pb-24">
-          <div className="relative isolate overflow-hidden rounded-2xl">
-            {/* Bed writes position inline, so this has to as well. */}
-            <Bed
-              rotation={200}
-              scale={1.3}
-              className="-z-10"
-              style={{ position: "absolute", inset: 0 }}
-            />
-            <div className="px-8 py-20 text-center text-ink sm:px-16 sm:py-24">
-              <h2 className="m-0 text-balance text-[clamp(1.75rem,4.5vw,3rem)] font-semibold leading-[1.05] tracking-[-0.035em]">
+          <div
+            id="product"
+            className="mt-auto grid flex-1 items-center gap-10 px-5 pb-10 pt-4 sm:px-9 sm:pb-14 md:grid-cols-2 md:gap-12 lg:gap-16"
+          >
+            <div className="max-w-xl">
+              <h1 className="m-0 text-balance text-[clamp(2.4rem,5.2vw,4.5rem)] font-semibold leading-[1.02] tracking-[-0.04em] text-white">
                 A faster, quieter GitHub.
-              </h2>
-
-              <div className="mt-10 flex justify-center">
-                <AddToChrome big />
-              </div>
-
-              <div className="mt-5">
+              </h1>
+              <p className="mt-5 max-w-md text-pretty text-[17px] leading-relaxed text-white/70 sm:text-lg">
+                A quieter PR inbox — next action, not an AI reviewer.
+              </p>
+              <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4 sm:mt-9">
+                <AddToChrome big blue />
                 <Elsewhere />
               </div>
+            </div>
 
-              <Jobs />
+            <div className="min-w-0">
+              <ProductView />
             </div>
           </div>
-        </section>
-
-        <Footer dark />
+        </div>
       </div>
+    </header>
+
+    <div className={HELD}>
+      <div className="pb-4 pt-10 sm:pt-12">
+        <Jobs />
+      </div>
+      <Footer />
     </div>
-  )
-}
+  </div>
+)

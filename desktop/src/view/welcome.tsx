@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion"
 import { useEffect, useState } from "react"
 import { SpinnerIcon } from "../../../src/ui/art"
-import { BED_COLOURS, INK } from "../../../src/ui/bed"
+import { BED_COLOURS, ON_BED_INK, TOUR_SHEET_COLOURS } from "../../../src/ui/bed"
 import { Mark, Wordmark } from "../../../src/ui/Mark"
 import { Tour } from "../../../src/ui/onboarding/Tour"
 import { spring } from "../lib/springs"
@@ -291,19 +291,19 @@ export const Welcome = ({ onSignedIn }: { readonly onSignedIn: (viewer: Viewer) 
      * The brand's three colours, declared here rather than on the tour inside: the line
      * under the panel is a sibling of it, and a custom property is only visible below
      * where it is declared. Declared on the tour, that line fell through to the
-     * interface's own ink — near-white in dark mode, on a gradient that is light in
-     * both.
+     * interface's own ink — near-white in dark mode — which was invisible on the
+     * old light bed and would be wrong on charcoal without these host tokens.
      */
     <main className="welcome" style={BED_COLOURS}>
       <Bed className="welcome-bed" />
 
       {/* The lockup a reader saw on gitquiet.com, above the panel and on every step. */}
       <div className="welcome-lockup">
-        <Mark size={26} color={INK} />
-        <Wordmark size={24} color={INK} />
+        <Mark size={26} color={ON_BED_INK} />
+        <Wordmark size={24} color={ON_BED_INK} />
       </div>
 
-      <div className="welcome-sheet">
+      <div className="welcome-sheet" style={TOUR_SHEET_COLOURS}>
         <Tour
           show={(shot) => <Fixture shot={shot} />}
           ending={{

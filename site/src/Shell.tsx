@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { INK, MUTED, PAPER } from "@/ui/bed"
+import { CTA, INK, MUTED, ON_BED_INK } from "@/ui/bed"
 import { Mark, Wordmark } from "@/ui/Mark"
 import { Bed } from "./Bed"
 import { inShort, useStars } from "./stars"
@@ -138,34 +138,45 @@ export const Press = ({
   at,
   big = false,
   light = false,
+  blue = false,
   children
 }: {
   readonly at: string
   readonly big?: boolean
   /** Filled light plate for a dark page. */
   readonly light?: boolean
+  /** Luminar CTA: bright blue plate, white label — for dark heroes. */
+  readonly blue?: boolean
   readonly children: ReactNode
-}) => (
-  <a
-    href={at}
-    className={`inline-flex items-center justify-center whitespace-nowrap ${EDGE} font-semibold transition-[transform,background-color] duration-[var(--duration-press)] ease-out active:scale-[var(--scale-press)] ${
-      light
-        ? "bg-white text-[#0c0b10] hover:bg-white/90"
-        : "bg-ink text-paper hover:bg-ink/85"
-    } ${big ? "px-7 py-3.5 text-[17px]" : "px-4 py-2 text-[14px] sm:px-5 sm:py-2.5 sm:text-[15px]"}`}
-  >
-    {children}
-  </a>
-)
+}) => {
+  const plate = blue
+    ? "text-white hover:brightness-110"
+    : light
+      ? "bg-white text-[#15171B] hover:bg-white/90"
+      : "bg-ink text-paper hover:bg-ink/85"
+  return (
+    <a
+      href={at}
+      className={`inline-flex items-center justify-center whitespace-nowrap ${EDGE} font-semibold transition-[transform,background-color,filter] duration-[var(--duration-press)] ease-out active:scale-[var(--scale-press)] ${plate} ${
+        big ? "px-7 py-3.5 text-[17px]" : "px-4 py-2 text-[14px] sm:px-5 sm:py-2.5 sm:text-[15px]"
+      }`}
+      style={blue ? { background: CTA } : undefined}
+    >
+      {children}
+    </a>
+  )
+}
 
 export const AddToChrome = ({
   big = false,
-  light = false
+  light = false,
+  blue = false
 }: {
   readonly big?: boolean
   readonly light?: boolean
+  readonly blue?: boolean
 }) => (
-  <Press at={STORE_AT} big={big} light={light}>
+  <Press at={STORE_AT} big={big} light={light} blue={blue}>
     Add to Chrome
   </Press>
 )
@@ -213,7 +224,9 @@ export const SkipTo = ({ id, says }: { readonly id: string; readonly says: strin
 )
 
 /**
- * The lit top of a page: the mesh, faded out into the paper, with the column on it.
+ * The lit top of a page: the charcoal mesh, faded out into cool paper, with the
+ * column on it. Type on this band is light — the field is dark — so callers use
+ * `Nav dark`, light copy utilities, and a blue or light `AddToChrome`.
  *
  * One copy, because this is the part of the site that is hardest to write twice
  * correctly. `Bed` puts `position: relative` in its own inline style, so the position
@@ -224,7 +237,7 @@ export const SkipTo = ({ id, says }: { readonly id: string; readonly says: strin
 const FADE = "linear-gradient(to bottom, black 58%, transparent 100%)"
 
 export const Above = ({ children }: { readonly children: ReactNode }) => (
-  <header className="relative isolate overflow-hidden">
+  <header className="relative isolate overflow-hidden text-white">
     <Bed
       alive
       rotation={14}
@@ -256,7 +269,7 @@ export const Nav = ({
   readonly children: ReactNode
   readonly dark?: boolean
 }) => {
-  const mark = dark ? PAPER : INK
+  const mark = dark ? ON_BED_INK : INK
   return (
     <nav className="flex items-center justify-between py-7">
       <a href="/" className="flex items-center gap-2.5" aria-label="GitQuiet">
@@ -279,7 +292,7 @@ export const Footer = ({ dark = false }: { readonly dark?: boolean }) => (
     }`}
   >
     <div className="flex items-center gap-2.5">
-      <Mark size={22} color={dark ? "rgba(244,242,239,0.4)" : MUTED} />
+      <Mark size={22} color={dark ? "rgba(243,244,247,0.4)" : MUTED} />
       <span>gitquiet</span>
     </div>
 

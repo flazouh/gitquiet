@@ -20,9 +20,9 @@
  * `--bed-muted` and `--bed-paper`, declared by whatever the host mounts this inside,
  * as `BED_COLOURS` from `bed.ts`. On the host's own root rather than on `.tour`,
  * because a host says things beside the tour that are on the same gradient — and a
- * custom property is only visible below where it is declared. They are the site's ink
- * on the site's gradient, and they do not turn over in dark mode: the gradient is
- * light in both.
+ * custom property is only visible below where it is declared. `BED_COLOURS` is light
+ * ink on the charcoal field. A frosted light tour sheet redeclares page ink via
+ * `TOUR_SHEET_COLOURS` so tour copy stays dark on white.
  *
  * The host gives this a box with no padding on it, and this file insets everything from
  * it. The card cannot do that itself: the picture and the words stand off the rim by
