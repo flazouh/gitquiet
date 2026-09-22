@@ -145,7 +145,7 @@ const languages = new Map<string, Language>()
 
 beforeAll(async () => {
   await Parser.init({ locateFile: () => "node_modules/web-tree-sitter/web-tree-sitter.wasm" })
-  for (const wasm of [...CASES.map((one) => one.wasm), "tree-sitter-go.wasm"]) {
+  for (const wasm of [...CASES.map((one) => one.wasm), "tree-sitter-go.wasm", "tree-sitter-c-sharp.wasm"]) {
     if (languages.has(wasm)) continue
     languages.set(wasm, await Language.load(`node_modules/@vscode/tree-sitter-wasm/wasm/${wasm}`))
   }
@@ -391,5 +391,72 @@ describe("a Go use is the package it is read through, not the file it is in", ()
     const root = parsed("tree-sitter-go.wasm", text)
     expect(writingAt(root, text, at("metrics.Inc", "Inc"), dialectFor("cmd/main.go")!)).toBeNull()
     expect(writingAt(root, text, at("store.New", "New"), dialectFor("cmd/main.go")!)).toBeNull()
+  })
+})
+
+/*
+ * Found pressing `ForeachAwaitPublisher` in MediatR: nothing. Almost every C# file
+ * brings its types in with a plain `using Some.Namespace;`, which names none of
+ * them, and uses its own namespace's types from the files beside it. Both are a
+ * namespace taken whole, and C# writes one type to a file named after it.
+ */
+describe("a C# type from a namespace the file opened", () => {
+  const FILES: Readonly<Record<string, string>> = {
+    "src/MediatR/Mediator.cs": [
+      "using System;",
+      "using MediatR.NotificationPublishers;",
+      "",
+      "namespace MediatR;",
+      "",
+      "public class Mediator",
+      "{",
+      "    public void Go()",
+      "    {",
+      "        var publisher = new ForeachAwaitPublisher();",
+      "        var wrapper = new RequestHandlerWrapper();",
+      "        publisher.Publish();",
+      "    }",
+      "}",
+      ""
+    ].join("\n"),
+    "src/MediatR/NotificationPublishers/ForeachAwaitPublisher.cs":
+      "namespace MediatR.NotificationPublishers;\n\npublic class ForeachAwaitPublisher\n{\n    public void Publish() {}\n}\n",
+    "src/MediatR/RequestHandlerWrapper.cs": "namespace MediatR;\n\npublic class RequestHandlerWrapper\n{\n}\n"
+  }
+  const FROM = "src/MediatR/Mediator.cs"
+  const paths = new Set(Object.keys(FILES))
+
+  const landing = (holds: string, word: string): { path: string; line: number } | null => {
+    const text = FILES[FROM]!
+    const lines = text.split("\n")
+    const row = lines.findIndex((line) => line.includes(holds))
+    const found = writingAt(parsed("tree-sitter-c-sharp.wasm", text), text, { row, column: lines[row]!.indexOf(word) }, dialectFor(FROM)!)
+    if (found?.at !== "elsewhere") return null
+    for (const specifier of [found.borrowed.specifier, ...(found.orFrom ?? [])]) {
+      for (const path of reachingAll(FROM, specifier, paths, found.borrowed.name)) {
+        const other = FILES[path]!
+        const writing = writingNamed(parsed("tree-sitter-c-sharp.wasm", other), other, found.borrowed.name, dialectFor(path)!)
+        if (writing !== null) return { path, line: writing.line }
+      }
+    }
+    return null
+  }
+
+  test("a type from a namespace a plain using opened", () => {
+    expect(landing("new ForeachAwaitPublisher()", "ForeachAwaitPublisher")).toEqual({
+      path: "src/MediatR/NotificationPublishers/ForeachAwaitPublisher.cs",
+      line: 3
+    })
+  })
+
+  test("a type of the file's own namespace, written beside it", () => {
+    expect(landing("new RequestHandlerWrapper()", "RequestHandlerWrapper")).toEqual({
+      path: "src/MediatR/RequestHandlerWrapper.cs",
+      line: 3
+    })
+  })
+
+  test("a member reached through a value answers nothing", () => {
+    expect(landing("publisher.Publish()", "Publish")).toBeNull()
   })
 })

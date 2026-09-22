@@ -138,11 +138,12 @@ describe("what a C# file borrowed", () => {
     expect(told.borrows).toContainEqual({ name: "Thing", specifier: "App.Other" })
   })
 
-  test("a plain using names nothing, because it opens a namespace", () => {
+  test("a plain using takes its namespace whole, naming nothing in it", () => {
     // `using System;` brings in every name that namespace holds and names none
-    // of them, so there is nothing a reader can press and nothing to record.
-    const said = toldBy(root, SOURCE, CSHARP).borrows.map((one) => one.specifier)
-    expect(said).not.toContain("System")
+    // of them. So nothing is bound, and the namespace is recorded whole: a type
+    // bound nowhere is looked for in it.
+    const said = toldBy(root, SOURCE, CSHARP).borrows.filter((one) => one.specifier === "System")
+    expect(said).toEqual([{ name: "*", specifier: "System" }])
   })
 })
 

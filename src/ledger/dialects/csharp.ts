@@ -19,7 +19,7 @@
  * `Limit` in the file's outline.
  */
 
-import type { Bound, Dialect, Offering, WritingKind } from "../writings"
+import type { Borrowed, Bound, Dialect, Offering, WritingKind } from "../writings"
 import { childrenOf, kindFrom, lastNameIn, pathBefore, type Syntax } from "../syntax"
 
 /** The node types that open a scope. */
@@ -304,10 +304,60 @@ const offering = (node: Syntax): Offering | null => {
   return members === null ? null : { at: "members", members }
 }
 
+/**
+ * The namespaces a file takes whole: each plain `using`, and its own.
+ *
+ * A plain `using MediatR.NotificationPublishers;` names none of the types it
+ * brings in, and a file uses its own namespace's types from the files beside it
+ * without saying so at all. Both are a namespace taken whole, and C# writes one
+ * type to a file named after it — so a type bound nowhere is looked for as a file
+ * of that name in each. An alias is bound, and says what it names already.
+ */
+const passedOn = function* (statement: Syntax): Generator<Borrowed> {
+  if (statement.type === "using_directive") {
+    let path: Syntax | null = null
+    let alias = false
+    for (const child of childrenOf(statement)) {
+      if (child.type === "qualified_name") path = child
+      else if (child.type === "identifier" && path === null) path = child
+      else if (child.type === "identifier") alias = true
+    }
+    // `using Widget = App.Thing` has two names, and the first is the alias.
+    if (path !== null && !alias) yield { name: "*", specifier: path.text }
+    return
+  }
+  if (statement.type === "namespace_declaration" || statement.type === "file_scoped_namespace_declaration") {
+    const name = statement.childForFieldName("name")
+    if (name !== null) yield { name: "*", specifier: name.text }
+  }
+}
+
+/** Whether two nodes are the same stretch of the file. */
+const same = (a: Syntax | null, b: Syntax): boolean =>
+  a !== null &&
+  a.startPosition.row === b.startPosition.row &&
+  a.startPosition.column === b.startPosition.column
+
+/**
+ * Whether a name bound nowhere may be a type from a namespace taken whole.
+ *
+ * Not where it is reached through something: `publisher.Publish()` is a member,
+ * and what `publisher` is takes types to know — Ruby's rule, for the same reason.
+ * Nor the right of a qualified name, `Ns.Thing`, which says its namespace itself.
+ */
+const looksWhole = (name: Syntax, above: Syntax | null): boolean => {
+  if (above === null) return true
+  if (above.type === "member_access_expression") return !same(above.childForFieldName("name"), name)
+  if (above.type === "qualified_name") return same(above.namedChild(0), name)
+  return true
+}
+
 export const CSHARP: Dialect = {
   opens: OPENS,
   names: NAMES,
   bindings,
+  looksWhole,
+  passedOn,
   comments: COMMENTS,
   offering
 }

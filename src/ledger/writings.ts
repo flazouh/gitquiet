@@ -137,6 +137,9 @@ export type Dialect = {
    *    so a bare identifier really is a free name.
    *  - **Ruby may, except through a receiver.** `x.risky` writes `risky` as the
    *    same `identifier` a free name uses, and what `x` is takes types to know.
+   *  - **C# may, except through a receiver.** A plain `using` opens a whole
+   *    namespace and names none of its types, and one type is one file named
+   *    after it — so a type bound nowhere is looked for by its own name.
    *  - **Go may not.** Its imports are used qualified — `shapes.Area` — so a
    *    bare name in Go is a name of its own package, written in a sibling file
    *    this never reads. Answering it with an imported package's name of the
