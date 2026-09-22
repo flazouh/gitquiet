@@ -1,6 +1,6 @@
 import { useEffect } from "react"
 import { Atmosphere } from "./Atmosphere"
-import { PrPanel } from "./PrPanel"
+import { HeroCarousel } from "./HeroCarousel"
 import {
   AddToChrome,
   Aside,
@@ -14,8 +14,8 @@ import {
 
 /**
  * Home: Luminar poster hero — full-viewport rounded card, nav inside,
- * copy left + composed PR panel right. Sober Wafer atmosphere. New prose.
- * No demo video, no recycled product PNGs, no old Shell demo chrome.
+ * copy left + screenshot carousel right. Sober Wafer atmosphere. New prose.
+ * No demo video, no recycled store shots, no old Shell demo chrome.
  */
 
 const Elsewhere = () => (
@@ -81,7 +81,7 @@ export const Page = () => {
             </div>
 
             <div className="flex justify-center md:justify-end">
-              <PrPanel />
+              <HeroCarousel />
             </div>
           </div>
         </div>
