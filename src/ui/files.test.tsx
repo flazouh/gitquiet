@@ -623,6 +623,23 @@ describe("a file too large to draw without being asked", () => {
     expect(fetched).toBe(0)
   })
 
+  test("says what is waiting in it, where something has been said about it", async () => {
+    // Its comments hang inside the drawing, so a file not drawn hid them without
+    // a word.
+    const said = aThread("t1", [aComment(person("ana"), "look here")], false, anchoredAt(huge.path, 2))
+    render(pane({ file: huge, threads: [said] }))
+
+    expect(await screen.findByText(/1 comment/)).toBeTruthy()
+  })
+
+  test("draws it at once where the reader was sent to a line of it", async () => {
+    // An address, a thread's link and the uses panel all arrive with a line, and
+    // a line in a file not drawn is a line nobody can be taken to.
+    render(pane({ file: huge, atLine: 40 }))
+
+    expect((await drawn()).path).toBe("src/catalogue.generated.ts")
+  })
+
   test("draws it when the reader asks", async () => {
     render(pane({ file: huge }))
 

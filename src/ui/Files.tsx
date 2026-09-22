@@ -469,10 +469,12 @@ const FileDiffPaneView = ({
    * fetched nor drawn: this pane is drawn ahead of the reader, so a file beside
    * the one being read would otherwise hold the page for the one being read.
    * See `domain/heavyFile.ts`.
+   *
+   * A line to go to is asking. An address, a thread's link and the uses panel
+   * all arrive with one, and a line in a file not drawn is one nobody can reach.
    */
   const [letThrough, setLetThrough] = useState(false)
-  useEffect(() => setLetThrough(false), [file.path])
-  const heldBack = drawnWhenAsked(file) && !letThrough
+  const heldBack = drawnWhenAsked(file) && !letThrough && atLine === undefined
 
   // GitHub serves the first few files' content with the page and holds the rest
   // back, so most files arrive as a summary and a promise. The library decides
@@ -664,6 +666,14 @@ const FileDiffPaneView = ({
     () => threadsOn(threads, file.path, drawn),
     [threads, file.path, drawn]
   )
+
+  // What a held-back file keeps inside the drawing it has not had yet.
+  const waiting = [
+    counted(hung.length, "comment"),
+    counted(drafts.length, "draft")
+  ]
+    .filter((one) => one !== "")
+    .join(" and ")
 
   // Every note that should be hanging in the diff: what has been said about
   // this file, what has been written about it, and the lines being written
@@ -1047,8 +1057,11 @@ const FileDiffPaneView = ({
       {heldBack ? (
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5 text-sm text-ink-muted">
           <p>
-            This file changes {(file.linesAdded + file.linesDeleted).toLocaleString("en-US")} lines,
-            so it is drawn only when you ask. Drawing it holds the page while it draws.
+            This file changes {(file.linesAdded + file.linesDeleted).toLocaleString("en-US")} lines.
+            It waits until you ask, because drawing it holds the page.
+            {/* Its remarks and drafts hang inside the drawing, so they wait too,
+                and are said here rather than hidden without a word. */}
+            {waiting === "" ? null : ` ${waiting} wait in it.`}
           </p>
           <button
             type="button"
@@ -1083,6 +1096,10 @@ const FileDiffPaneView = ({
     </div>
   )
 }
+
+/** A count and its noun, or nothing where there are none. */
+const counted = (count: number, noun: string): string =>
+  count === 0 ? "" : `${count} ${noun}${count === 1 ? "" : "s"}`
 
 /** Keeps a prepared drawing intact when only the visible file changes. */
 export const FileDiffPane = memo(FileDiffPaneView)
