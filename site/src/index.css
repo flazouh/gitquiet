@@ -91,10 +91,11 @@
  * needs them at run time.
  */
 @theme {
-  --color-paper: #fbf9f7;
-  --color-ink: #1b1725;
-  --color-muted: #5f596d;
-  --color-rule: rgba(27, 23, 37, 0.12);
+  --radius: 8px;
+  --color-paper: #f2f2ee;
+  --color-ink: #141416;
+  --color-muted: #6c7878;
+  --color-rule: rgba(20, 20, 22, 0.12);
 
   /*
    * One family, and no monospace.
@@ -187,8 +188,8 @@ body {
   background: rgba(255, 255, 255, 0.7);
   padding: 28px;
   box-shadow:
-    0 1px 2px rgba(27, 23, 37, 0.04),
-    0 14px 36px -18px rgba(27, 23, 37, 0.14);
+    0 1px 2px rgba(20, 20, 22, 0.04),
+    0 14px 36px -18px rgba(20, 20, 22, 0.14);
 
   /*
    * Cards arriving as they cross the fold rather than as a block.

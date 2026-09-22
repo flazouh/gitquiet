@@ -17,8 +17,7 @@
     // `bun` as well as vite's own, because the pure reads in `ways.ts` are tested
     // beside themselves and `bun test` is what the repository runs.
     "types": ["vite/client", "bun"],
-    "paths": { "@/*": ["../src/*"] },
-    "baseUrl": "."
+    "paths": { "@/*": ["../src/*"] }
   },
   "include": ["src", "vite.config.ts"]
 }

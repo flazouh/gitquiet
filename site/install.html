@@ -8,14 +8,14 @@
     <title>Install GitQuiet - Chrome, Safari, Firefox and macOS</title>
     <meta
       name="description"
-      content="Every way to install GitQuiet: the Chrome Web Store, Firefox, a Safari disk image, and a signed macOS app. Current version and file sizes, read live."
+      content="Install GitQuiet: Chrome Web Store, Firefox, a Safari disk image, and a signed macOS app. Current version and file sizes, read live."
     />
     <link rel="canonical" href="https://gitquiet.com/install" />
 
     <meta property="og:title" content="Install GitQuiet" />
     <meta
       property="og:description"
-      content="Chrome, Firefox, a Safari disk image and a macOS app. One codebase, four ways in, nothing to configure."
+      content="Chrome, Firefox, a Safari disk image and a macOS app. Four installs, one quieter client."
     />
     <meta property="og:url" content="https://gitquiet.com/install" />
     <meta property="og:image" content="https://gitquiet.com/og.png" />
@@ -24,14 +24,9 @@
     <meta name="twitter:title" content="Install GitQuiet" />
     <meta
       name="twitter:description"
-      content="Chrome, Firefox, a Safari disk image and a macOS app. One codebase, four ways in."
+      content="Chrome, Firefox, a Safari disk image and a macOS app. Four installs, one quieter client."
     />
     <meta name="twitter:image" content="https://gitquiet.com/og.png" />
-    <!--
-      First paint before the bundle runs: the bed colours, and the crawler <main>
-      clipped out of view. Indexes still read that copy in the HTML; readers no longer
-      see a bare shell flash before React replaces #page.
-    -->
     <style>
       html,
       body {
@@ -39,12 +34,12 @@
         min-height: 100%;
         min-height: 100dvh;
         background:
-          radial-gradient(120% 120% at 12% 18%, #ff9ad1 0%, transparent 58%),
-          radial-gradient(110% 110% at 86% 12%, #ffc69d 0%, transparent 55%),
-          radial-gradient(120% 120% at 78% 82%, #a9c2ff 0%, transparent 60%),
-          radial-gradient(130% 130% at 22% 88%, #b79bff 0%, transparent 62%),
-          #ece0ff;
-        color: #1b1725;
+          radial-gradient(120% 120% at 12% 18%, #9ca8a8 0%, transparent 58%),
+          radial-gradient(110% 110% at 86% 12%, #848478 0%, transparent 55%),
+          radial-gradient(120% 120% at 78% 82%, #606054 0%, transparent 60%),
+          radial-gradient(130% 130% at 22% 88%, #6c7878 0%, transparent 62%),
+          #b0b8b8;
+        color: #141416;
       }
       #page > main {
         position: absolute;
@@ -61,15 +56,9 @@
   </head>
   <body>
     <div id="page">
-      <!--
-        The copy a crawler that never runs the bundle can still read. Indexes that skip
-        JavaScript kept only /privacy, because that file is HTML and this one was an
-        empty #page waiting for React. createRoot replaces this on mount; that is
-        intended.
-      -->
       <main>
-        <h1>Install GitQuiet.</h1>
-        <p>One codebase, four ways in. Nothing to configure after any of them.</p>
+        <h1>Get GitQuiet.</h1>
+        <p>Four installs. Same quieter client. Nothing to configure after any of them.</p>
         <p>
           <a href="https://chromewebstore.google.com/detail/gitquiet/ichobjnihnofjkpoegikjhefmoekaahe">Chrome</a>
           <a href="https://github.com/flazouh/gitquiet/releases/latest/download/GitQuiet-safari.dmg">Safari</a>
@@ -81,7 +70,7 @@
           <a href="/github-pr-inbox">a GitHub PR inbox, in the tab</a>.
         </p>
         <p>
-          For a queue you drain, next review rather than recency, see
+          For a queue you drain—next review, not recency—see
           <a href="/github-review-queue">a GitHub review queue, in the tab</a>.
         </p>
       </main>

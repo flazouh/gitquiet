@@ -15,14 +15,6 @@ import {
 } from "./Shell"
 import "./index.css"
 
-/**
- * The GitHub PR inbox job, at `/github-pr-inbox`.
- *
- * A page of its own rather than a fifth compare. Compare URLs stay the four in
- * `compare/pages.ts`. Pullwatch and Attention Set are named here, not given
- * `/compare/` addresses.
- */
-
 const GITHUB_INBOX_AT =
   "https://github.blog/changelog/2026-07-09-new-pull-requests-dashboard-is-now-generally-available/"
 
@@ -36,7 +28,7 @@ const Inbox = () => (
     <Above>
       <Nav>
         <Source />
-        <Aside at={INSTALL_AT}>Downloads</Aside>
+        <Aside at={INSTALL_AT}>Install</Aside>
         <AddToChrome />
       </Nav>
 
@@ -46,14 +38,13 @@ const Inbox = () => (
           A GitHub PR inbox, in the tab
         </h1>
         <p className="mt-6 max-w-xl text-pretty text-[17px] leading-relaxed text-ink/70">
-          One list of the pull requests that need you, on the GitHub session you
-          already have.
+          One list of pull requests that need you—on the GitHub session you already have.
         </p>
         <div className="mt-10">
           <AddToChrome big />
         </div>
         <p className="m-0 mt-5 text-[15px] leading-relaxed text-ink/60">
-          Or see <Quietly at={INSTALL_AT}>every way to install</Quietly>.
+          Or see <Quietly at={INSTALL_AT}>every install</Quietly>.
         </p>
       </div>
     </Above>
@@ -62,26 +53,24 @@ const Inbox = () => (
       <section id="job" className="border-t border-rule py-16">
         <h2 className="m-0 text-[22px] font-semibold tracking-[-0.02em]">The job</h2>
         <p className="m-0 mt-4 max-w-2xl text-[16px] leading-relaxed text-muted">
-          People who look for a GitHub PR inbox want one list of pull requests
-          that need them. A PR dashboard is the same job under an older name. Not
-          a notifications archive. Not an AI reviewer.
+          Searchers for a GitHub PR inbox want one list of pull requests that need them. A PR
+          dashboard is the same job under an older name. Not a notifications archive. Not an AI
+          reviewer.
         </p>
         <p className="m-0 mt-4 max-w-2xl text-[16px] leading-relaxed text-muted">
-          For a queue you drain, next review rather than recency, see{" "}
+          For a queue you drain—next review, not recency—see{" "}
           <Quietly at="/github-review-queue">a GitHub review queue, in the tab</Quietly>.
         </p>
       </section>
 
       <section className="border-t border-rule py-16">
-        <h2 className="m-0 text-[22px] font-semibold tracking-[-0.02em]">GitHub's Inbox</h2>
+        <h2 className="m-0 text-[22px] font-semibold tracking-[-0.02em]">GitHub&apos;s Inbox</h2>
         <p className="m-0 mt-4 max-w-2xl text-[16px] leading-relaxed text-muted">
           GitHub shipped Inbox at github.com/pulls. The{" "}
-          <Quietly at={GITHUB_INBOX_AT}>pull requests dashboard</Quietly> is now
-          generally available: a list of review requests, things that need fixing,
-          ready to merge. GitQuiet is the inbox on github.com. Existing GitHub
-          session. No extra login. Every pull request you are in, across
-          repositories, filed by next action: Needs You, Waiting, Running,
-          Settled. It writes back through GitHub's own routes.
+          <Quietly at={GITHUB_INBOX_AT}>pull requests dashboard</Quietly> is generally available:
+          review requests, things that need fixing, ready to merge. GitQuiet is that inbox on
+          github.com—existing session, no extra login—filed by next action: Needs You, Waiting,
+          Running, Settled. Writes go back through GitHub&apos;s own routes.
         </p>
       </section>
 
@@ -90,19 +79,17 @@ const Inbox = () => (
           Not a popup, and not a side panel
         </h2>
         <p className="m-0 mt-4 max-w-2xl text-[16px] leading-relaxed text-muted">
-          <Quietly at={PULLWATCH_AT}>Pullwatch</Quietly> is a read-only toolbar
-          popup on the same session. A popup is not the page.
+          <Quietly at={PULLWATCH_AT}>Pullwatch</Quietly> is a read-only toolbar popup on the same
+          session. A popup is not the page.
         </p>
         <p className="m-0 mt-4 max-w-2xl text-[16px] leading-relaxed text-muted">
           <Quietly at="/compare/prflow">PRFlow</Quietly> and{" "}
-          <Quietly at="/compare/github-pr-sidebar">GitHub PR Sidebar</Quietly> are
-          Chromium side panels that ask for a PAT. They sit beside the tab.
-          GitQuiet is the tab.
+          <Quietly at="/compare/github-pr-sidebar">GitHub PR Sidebar</Quietly> are Chromium side
+          panels that ask for a PAT. They sit beside the tab. GitQuiet is the tab.
         </p>
         <p className="m-0 mt-4 max-w-2xl text-[16px] leading-relaxed text-muted">
-          Attention Set is a PAT whose-turn popup: Needs you / Waiting, no
-          Running. A near-miss, not a URL of its own. Graphite is stacked pull
-          requests. A different job.
+          Attention Set is a PAT whose-turn popup (Needs you / Waiting, no Running)—a near-miss,
+          not its own URL. Graphite is stacked pull requests: a different job.
         </p>
       </section>
 
@@ -125,7 +112,7 @@ const Inbox = () => (
           <AddToChrome big />
         </div>
         <p className="m-0 mt-5 text-[15px] leading-relaxed text-ink/60">
-          <Quietly at={INSTALL_AT}>Every way to install</Quietly>
+          <Quietly at={INSTALL_AT}>Install</Quietly>
         </p>
       </section>
     </main>

@@ -5,12 +5,15 @@ import { Bed } from "./Bed"
 import { inShort, useStars } from "./stars"
 
 /**
- * The parts every page of this site draws the same way.
+ * Marketing chrome rebuilt for Luminar proportions + sober Wafer colour.
  *
- * Written once because the pages share them. They carry the same nav, the same
- * footer and the same lit header, and a second copy of any of them is a pair that
- * drifts: the radius on one, the star chip on the other, and a reader moving between
- * them feels a site assembled rather than made.
+ * Button metrics from Luminar CtaButton / Hero:
+ *   hero CTA  h-12 rounded-lg px-6 text-[15px]
+ *   card radius 24–28px (poster)
+ *   page gutter p-2.5 / p-3
+ *   control radius --radius: 8px  → rounded-lg
+ *
+ * Mono CTAs (near-black / white). No cobalt, no pink Shell leftovers.
  */
 
 export const STORE_AT =
@@ -18,25 +21,13 @@ export const STORE_AT =
 
 export const SOURCE_AT = "https://github.com/flazouh/gitquiet"
 
-/** Where every way in is listed, with the state each one is in. */
 export const INSTALL_AT = "/install"
 
-/**
- * The corner every button on this site turns.
- *
- * One radius for the lot, rather than a pill for the small ones and a rectangle for the
- * big one: two roundings on one strip is the sort of difference a reader feels without
- * being able to name. Eight pixels against the twelve the screens are drawn in, so a
- * control reads as tighter than the thing it acts on.
- *
- * A caller cannot write `focus:${EDGE}`. Tailwind reads these files for whole class
- * names, and a variant glued to a constant is not one, so the rule would simply never
- * be generated. `SkipTo` writes its own out in full for that reason.
- */
-const EDGE = "rounded-md"
+/** Control corner: 8px, matching Luminar `--radius`. */
+const EDGE = "rounded-lg"
 
-/** The column every page is set in. */
-export const HELD = "mx-auto max-w-[1180px] px-6"
+/** Inner column for simple pages (install, jobs, compare). */
+export const HELD = "mx-auto w-full max-w-6xl px-6"
 
 const Octocat = ({ size = 17 }: { readonly size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -50,29 +41,14 @@ const Star = ({ size = 14 }: { readonly size?: number }) => (
   </svg>
 )
 
-/**
- * A control in the nav that is not the one to press.
- *
- * No outline, and no plate under the pointer either. One filled button is what a nav
- * wants a reader to press, and anything drawn around the rest argues with that. The
- * darkening ink and the press are the whole of the feedback.
- *
- * Shared by the source and by the word beside it, so the two keep the same height as
- * each other and the same corner as the filled button they stand next to.
- */
-const WORD = `items-center ${EDGE} px-3 py-2 text-[14px] font-semibold text-ink/70 transition-[transform,color] duration-[var(--duration-press)] ease-out hover:text-ink active:scale-[var(--scale-press)] sm:px-3.5 sm:py-2.5 sm:text-[15px]`
+const WORD =
+  `items-center ${EDGE} px-3 py-2 text-[14px] font-medium transition-colors duration-[var(--duration-press)] ease-out sm:px-3.5 sm:text-[15px]`
 
-/**
- * The source button, which is the mark, the count, and nothing else.
- *
- * The word "GitHub" went: the cat says it, the count beside it says it again, and the
- * button sits a centimetre from a heading that names the site.
- */
 export const Source = ({ dark = false }: { readonly dark?: boolean }) => {
   const many = useStars()
   const word = dark
-    ? WORD.replace("text-ink/70", "text-white/60").replace("hover:text-ink", "hover:text-white")
-    : WORD
+    ? `${WORD} text-white/60 hover:text-white`
+    : `${WORD} text-ink/65 hover:text-ink`
 
   return (
     <a
@@ -85,13 +61,6 @@ export const Source = ({ dark = false }: { readonly dark?: boolean }) => {
       className={`inline-flex ${word} gap-1.5`}
     >
       <Octocat size={16} />
-      {/*
-       * The count, once it is known, and nothing at all until then.
-       *
-       * A nought while the read runs says the repository has no stars, which is a worse
-       * thing to say than nothing. The button holds none of the layout either way: the
-       * install button is to its right and keeps the corner.
-       */}
       {many === undefined ? null : (
         <span className="live-in flex items-center gap-1 tabular">
           <Star size={13} />
@@ -102,18 +71,6 @@ export const Source = ({ dark = false }: { readonly dark?: boolean }) => {
   )
 }
 
-/**
- * A word in the nav, next to the button rather than instead of it.
- *
- * The store button is the press this site wants, and a reader on Safari or on Firefox
- * needs the other route said out loud rather than found in a footer. So it is a word
- * and not a second button: two filled controls a centimetre apart is a reader choosing
- * between them instead of pressing one.
- *
- * Away below 640px, where the nav has the mark, the source and the store button in
- * about three hundred pixels. The hero says the same thing directly under its button,
- * so a phone loses the shortcut rather than the route.
- */
 export const Aside = ({
   at,
   children,
@@ -124,8 +81,8 @@ export const Aside = ({
   readonly dark?: boolean
 }) => {
   const word = dark
-    ? WORD.replace("text-ink/70", "text-white/60").replace("hover:text-ink", "hover:text-white")
-    : WORD
+    ? `${WORD} text-white/60 hover:text-white`
+    : `${WORD} text-ink/65 hover:text-ink`
   return (
     <a href={at} className={`hidden sm:inline-flex ${word}`}>
       {children}
@@ -133,7 +90,7 @@ export const Aside = ({
   )
 }
 
-/** The filled button, wherever a page wants one press to be the obvious one. */
+/** Mono filled press — near-black on light, white on dark. Luminar hero metrics when `big`. */
 export const Press = ({
   at,
   big = false,
@@ -142,22 +99,22 @@ export const Press = ({
 }: {
   readonly at: string
   readonly big?: boolean
-  /** Filled light plate for a dark page. */
   readonly light?: boolean
   readonly children: ReactNode
 }) => (
   <a
     href={at}
-    className={`inline-flex items-center justify-center whitespace-nowrap ${EDGE} font-semibold transition-[transform,background-color] duration-[var(--duration-press)] ease-out active:scale-[var(--scale-press)] ${
+    className={`inline-flex items-center justify-center whitespace-nowrap ${EDGE} font-medium transition-[transform,background-color] duration-[var(--duration-press)] ease-out active:scale-[var(--scale-press)] ${
       light
-        ? "bg-white text-[#0c0b10] hover:bg-white/90"
-        : "bg-ink text-paper hover:bg-ink/85"
-    } ${big ? "px-7 py-3.5 text-[17px]" : "px-4 py-2 text-[14px] sm:px-5 sm:py-2.5 sm:text-[15px]"}`}
+        ? "bg-white text-[#0c0c0c] hover:bg-white/90"
+        : "bg-[#141416] text-[#f2f2ee] hover:bg-[#141416]/90"
+    } ${big ? "h-12 px-6 text-[15px]" : "h-8 px-4 text-[13px] sm:h-9 sm:px-5 sm:text-[14px]"}`}
   >
     {children}
   </a>
 )
 
+/** Primary store CTA — new wording; same Chrome Web Store URL. */
 export const AddToChrome = ({
   big = false,
   light = false
@@ -166,22 +123,12 @@ export const AddToChrome = ({
   readonly light?: boolean
 }) => (
   <Press at={STORE_AT} big={big} light={light}>
-    Add to Chrome
+    Install for Chrome
   </Press>
 )
 
-/** A file the browser saves rather than an address it goes to. */
 const SAVED = /\.(dmg|zip|pkg)$/
 
-/*
- * The underlined link inside a paragraph, which is every link here that is not a
- * button. Four places wrote this by hand, and three of them had drifted off the
- * shared duration the buttons animate on.
- *
- * A link that leaves the site opens beside it, and a link to a file does not: the
- * download leaves the page where it was, so a second tab is one the reader has to
- * close after it has finished doing nothing.
- */
 export const Quietly = ({ at, children }: { readonly at: string; readonly children: ReactNode }) => {
   const away = at.startsWith("http") && !SAVED.test(at)
 
@@ -197,32 +144,18 @@ export const Quietly = ({ at, children }: { readonly at: string; readonly childr
   )
 }
 
-/**
- * Past the nav, to the part of the page the reader came for.
- *
- * Here rather than on each page, because the nav it skips is here. Each page says
- * what it is skipping to, since that is the one part of it that differs.
- */
 export const SkipTo = ({ id, says }: { readonly id: string; readonly says: string }) => (
   <a
     href={`#${id}`}
-    className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-ink focus:px-4 focus:py-2 focus:text-paper"
+    className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-ink focus:px-4 focus:py-2 focus:text-paper"
   >
     {says}
   </a>
 )
 
-/**
- * The lit top of a page: the mesh, faded out into the paper, with the column on it.
- *
- * One copy, because this is the part of the site that is hardest to write twice
- * correctly. `Bed` puts `position: relative` in its own inline style, so the position
- * here has to be inline as well to outrank it, and the mask has to be given to WebKit
- * under its own name. Both are the sort of line that gets pasted, edited on one page,
- * and left on the other.
- */
 const FADE = "linear-gradient(to bottom, black 58%, transparent 100%)"
 
+/** Lit header band for install / job / compare — sober bed, not pink. */
 export const Above = ({ children }: { readonly children: ReactNode }) => (
   <header className="relative isolate overflow-hidden">
     <Bed
@@ -237,18 +170,10 @@ export const Above = ({ children }: { readonly children: ReactNode }) => (
         WebkitMaskImage: FADE
       }}
     />
-
     <div className={HELD}>{children}</div>
   </header>
 )
 
-/**
- * The strip at the top, where the caller says what the controls are.
- *
- * The nav owns the arrangement and nothing else, because the two pages want
- * different presses in it: the landing page wants the store, and the page that
- * lists every store does not want one of them singled out.
- */
 export const Nav = ({
   children,
   dark = false
@@ -258,16 +183,18 @@ export const Nav = ({
 }) => {
   const mark = dark ? PAPER : INK
   return (
-    <nav className="flex items-center justify-between py-7">
+    <nav
+      className={`flex items-center justify-between ${
+        dark ? "px-5 pt-5 text-white/85 sm:px-9 sm:pt-6" : "py-7"
+      }`}
+    >
       <a href="/" className="flex items-center gap-2.5" aria-label="GitQuiet">
-        <Mark size={30} color={mark} />
-        {/* On the narrowest phones the mark carries the name on its own, so the
-            install button keeps the width it needs. */}
-        <span className="hidden min-[360px]:inline">
-          <Wordmark size={20} color={mark} />
+        <Mark size={dark ? 24 : 28} color={mark} />
+        <span className={`hidden min-[360px]:inline ${dark ? "" : ""}`}>
+          <Wordmark size={dark ? 18 : 20} color={mark} />
         </span>
       </a>
-      <div className="flex items-center gap-2">{children}</div>
+      <div className={`flex items-center ${dark ? "gap-5 sm:gap-7" : "gap-2"}`}>{children}</div>
     </nav>
   )
 }
@@ -279,7 +206,7 @@ export const Footer = ({ dark = false }: { readonly dark?: boolean }) => (
     }`}
   >
     <div className="flex items-center gap-2.5">
-      <Mark size={22} color={dark ? "rgba(244,242,239,0.4)" : MUTED} />
+      <Mark size={22} color={dark ? "rgba(242,242,238,0.4)" : MUTED} />
       <span>gitquiet</span>
     </div>
 
@@ -290,7 +217,7 @@ export const Footer = ({ dark = false }: { readonly dark?: boolean }) => (
           dark ? "text-white/40 hover:text-white" : "text-muted hover:text-ink"
         }`}
       >
-        Every way to install
+        Install
       </a>
       <a
         href={SOURCE_AT}
@@ -299,7 +226,7 @@ export const Footer = ({ dark = false }: { readonly dark?: boolean }) => (
         }`}
       >
         <Octocat size={15} />
-        Source, under AGPL-3.0
+        Source · AGPL-3.0
       </a>
       <p className="m-0">Not affiliated with GitHub.</p>
     </div>

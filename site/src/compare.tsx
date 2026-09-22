@@ -30,7 +30,7 @@ const Compare = ({ page }: { readonly page: Compared }) => {
       <Above>
         <Nav>
           <Source />
-          <Aside at={INSTALL_AT}>Downloads</Aside>
+          <Aside at={INSTALL_AT}>Install</Aside>
           <AddToChrome />
         </Nav>
 

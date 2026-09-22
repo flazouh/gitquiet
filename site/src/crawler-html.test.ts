@@ -3,11 +3,6 @@ import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { COMPARED } from "./compare/pages"
 
-/**
- * The HTML files themselves, not a built bundle. A crawler that never runs
- * JavaScript reads these, and a vite build would only prove the bundler still
- * copies them.
- */
 const html = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8")
 
 const pageOf = (source: string): string => {
@@ -67,7 +62,7 @@ describe("crawler-visible copy inside #page", () => {
   })
 
   test("install has the live h1", () => {
-    expect(h1In(html("../install.html"))).toBe("Install GitQuiet.")
+    expect(h1In(html("../install.html"))).toBe("Get GitQuiet.")
   })
 
   test.each([...COMPARED])("$slug has the live h1, dek and we", (page) => {
@@ -166,21 +161,23 @@ describe("crawler-visible titles and metas", () => {
 })
 
 describe("first-paint shell", () => {
-  test("home hides the crawler main on dark first paint", () => {
+  test("home hides the crawler main on sober dark first paint", () => {
     const source = html("../index.html")
     expect(source).toContain("#page > main")
     expect(source).toContain("clip: rect(0, 0, 0, 0)")
     expect(source).toContain("100dvh")
-    expect(source).toContain("#0c0b10")
+    expect(source).toContain("#0c0c0c")
     expect(source).not.toContain("#ff9ad1")
+    expect(source).not.toContain("#0c0b10")
   })
 
-  test("install hides the crawler main on the bed", () => {
+  test("install hides the crawler main on the sober bed", () => {
     const source = html("../install.html")
     expect(source).toContain("#page > main")
     expect(source).toContain("clip: rect(0, 0, 0, 0)")
     expect(source).toContain("100dvh")
-    expect(source).toContain("#ff9ad1")
+    expect(source).toContain("#9ca8a8")
+    expect(source).not.toContain("#ff9ad1")
   })
 
   test("job and compare pages hide the crawler main on paper", () => {
@@ -194,7 +191,30 @@ describe("first-paint shell", () => {
       expect(source).toContain("#page > main")
       expect(source).toContain("clip: rect(0, 0, 0, 0)")
       expect(source).toContain("100dvh")
-      expect(source).toContain("#fbf9f7")
+      expect(source).toContain("#f2f2ee")
+    }
+  })
+})
+
+describe("no recycled marketing shots", () => {
+  test("site/src never loads public shot PNGs", () => {
+    const root = fileURLToPath(new URL(".", import.meta.url))
+    const { readdirSync, statSync } = require("node:fs") as typeof import("node:fs")
+    const { join } = require("node:path") as typeof import("node:path")
+    const walk = (dir: string): string[] => {
+      const out: string[] = []
+      for (const name of readdirSync(dir)) {
+        const path = join(dir, name)
+        if (statSync(path).isDirectory()) out.push(...walk(path))
+        else if (/\.(tsx?|css)$/.test(name) && !name.endsWith(".test.ts")) out.push(path)
+      }
+      return out
+    }
+    // Public asset URLs only — fixture imports from repo `shots/` (Supplied/views) are fine.
+    const publicShot = /["'`]\/shots\/|src=\{\`\/shots\//
+    for (const file of walk(root)) {
+      const text = readFileSync(file, "utf8")
+      expect(publicShot.test(text), file).toBe(false)
     }
   })
 })
