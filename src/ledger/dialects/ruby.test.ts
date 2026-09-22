@@ -3,6 +3,7 @@ import { Language, Parser } from "web-tree-sitter"
 import type { Syntax } from "../syntax"
 import { toldBy, usesIn, writingAt, writingsIn, type Writing } from "../writings"
 import { RUBY } from "./ruby"
+import { reachingAll } from "../reaching"
 
 /**
  * The Ruby vocabulary, against the real Ruby grammar.
@@ -150,11 +151,13 @@ describe("what a Ruby file required", () => {
     })
   })
 
-  test("does not claim a gem is a file in this repository", () => {
-    // `require 'set'` names a gem. Following it leaves the repository, which is
-    // the same answer every dependency gets everywhere else here.
+  test("records a plain require, which reaches a file only where the repository has one", () => {
+    // `require 'set'` names a file on the load path. Somebody else's gem is not in
+    // this repository, so it reaches nothing — the same answer every dependency
+    // gets everywhere else here — and a gem's own `lib` file is reached.
     const said = toldBy(root, SOURCE, RUBY).borrows.map((one) => one.specifier)
-    expect(said).not.toContain("set")
+    expect(said).toContain("set")
+    expect(reachingAll("app/main.rb", "set", new Set(["app/main.rb"]))).toEqual([])
   })
 })
 

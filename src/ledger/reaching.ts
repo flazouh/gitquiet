@@ -141,19 +141,28 @@ function couldBeTypeScript({ from, specifier }: Asked): ReadonlyArray<string> {
 }
 
 /**
- * What a `require_relative` names, which is the one exact answer of the four.
+ * What a `require` or a `require_relative` names.
  *
- * Ruby says the path itself and leaves off the `.rb`, relative to the file that
- * wrote it. There is nothing to guess: `require_relative "local/helper"` in
- * `app/main.rb` is `app/local/helper.rb` and nothing else.
- *
- * A plain `require` names a gem and never reaches here — `ruby.ts` records only
- * the relative one, because a gem is not a file in this repository.
+ * Ruby says the path itself and leaves off the `.rb`. Relative to the file that
+ * wrote it first, which is all a `require_relative` can mean: `"local/helper"` in
+ * `app/main.rb` is `app/local/helper.rb`. Then on the load path, which is what a
+ * plain `require` means — a gem's `lib` — and a gem that is not this repository's
+ * is a path it does not have, which reaches nothing.
  */
-function couldBeRuby({ from, specifier }: Asked): ReadonlyArray<string> {
-  const asked = plainly(`${folderOf(from)}/${specifier}`)
-  if (asked === null || asked === "") return []
-  return asked.endsWith(".rb") ? [asked] : [`${asked}.rb`]
+function couldBeRuby({ from, specifier, paths }: Asked): ReadonlyArray<string> {
+  const ending = (path: string) => (path.endsWith(".rb") ? path : `${path}.rb`)
+  const beside = plainly(`${folderOf(from)}/${specifier}`)
+  const loaded = plainly(specifier)
+  return nearestFirst(
+    [
+      ...(beside === null || beside === "" ? [] : [ending(beside)]),
+      // A plain `require` is found on the load path: a gem's `lib`, which in a
+      // repository holding several gems is one of theirs.
+      ...(loaded === null || loaded === "" ? [] : [`lib/${ending(loaded)}`, ...endingIn(`lib/${ending(loaded)}`, from, paths)])
+    ],
+    from,
+    1
+  )
 }
 
 /**

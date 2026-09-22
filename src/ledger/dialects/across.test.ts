@@ -573,3 +573,46 @@ describe("a Python attribute read through a value", () => {
     expect(told.mentions.filter((one) => one.name === "helper").map((one) => one.line)).toEqual([2, 6])
   })
 })
+
+/*
+ * Found pressing `Connection` in Faraday: nothing. A gem requires its own files
+ * with a plain `require 'faraday/connection'`, which Ruby finds on the load path,
+ * and the load path is the gem's `lib`. Only `require_relative` was followed.
+ */
+describe("a Ruby constant from a file a plain require loaded", () => {
+  const FILES: Readonly<Record<string, string>> = {
+    "lib/faraday.rb": "require 'json'\nrequire 'faraday/connection'\n\nmodule Faraday\n  def self.go\n    Connection.new\n  end\nend\n",
+    "lib/faraday/connection.rb": "module Faraday\n  class Connection\n  end\nend\n",
+    "gems/other/lib/other/thing.rb": "module Other\n  class Thing\n  end\nend\n",
+    "gems/other/lib/other.rb": "require 'other/thing'\n\nOther::Thing\nThing.new\n"
+  }
+  const paths = new Set(Object.keys(FILES))
+
+  const landing = (from: string, word: string): { path: string; line: number } | null => {
+    const text = FILES[from]!
+    const lines = text.split("\n")
+    const row = lines.findLastIndex((line) => line.includes(word))
+    const found = writingAt(parsed("tree-sitter-ruby.wasm", text), text, { row, column: lines[row]!.lastIndexOf(word) }, dialectFor(from)!)
+    if (found?.at !== "elsewhere") return null
+    for (const specifier of [found.borrowed.specifier, ...(found.orFrom ?? [])]) {
+      for (const path of reachingAll(from, specifier, paths, found.borrowed.name)) {
+        const other = FILES[path]!
+        const writing = writingNamed(parsed("tree-sitter-ruby.wasm", other), other, found.borrowed.name, dialectFor(path)!)
+        if (writing !== null) return { path, line: writing.line }
+      }
+    }
+    return null
+  }
+
+  test("is found under the gem's lib", () => {
+    expect(landing("lib/faraday.rb", "Connection")).toEqual({ path: "lib/faraday/connection.rb", line: 2 })
+  })
+
+  test("and under the lib of a gem kept in a folder of the repository", () => {
+    expect(landing("gems/other/lib/other.rb", "Thing")).toEqual({ path: "gems/other/lib/other/thing.rb", line: 2 })
+  })
+
+  test("a require of another gem reaches no file", () => {
+    expect(reachingAll("lib/faraday.rb", "json", paths)).toEqual([])
+  })
+})

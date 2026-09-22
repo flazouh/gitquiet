@@ -169,13 +169,17 @@ const bindings = (node: Syntax): { outer: ReadonlyArray<Bound>; inner: ReadonlyA
  * it defined is simply there afterwards — so it is said as a Borrowed of `*`,
  * which is what every other star here means.
  *
- * A plain `require` is not recorded: it names a gem rather than a file in this
- * repository, and following it leaves the repository.
+ * A plain `require` is recorded too. It names a file on the load path, which for
+ * a gem's own files is its `lib` — Faraday requires `faraday/connection` and
+ * means `lib/faraday/connection.rb` — and for somebody else's gem is a file this
+ * repository does not have, which then reaches nothing. See `couldBeRuby`.
  */
+const REQUIRES: ReadonlySet<string> = new Set(["require", "require_relative"])
+
 const passedOn = function* (statement: Syntax): Generator<Borrowed> {
   if (statement.type !== "call") return
   const name = statement.childForFieldName("method")
-  if (name === null || name.text !== "require_relative") return
+  if (name === null || !REQUIRES.has(name.text)) return
 
   const args = statement.childForFieldName("arguments")
   if (args === null) return
