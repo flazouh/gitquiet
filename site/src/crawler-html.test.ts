@@ -166,24 +166,24 @@ describe("crawler-visible titles and metas", () => {
 })
 
 describe("first-paint shell", () => {
-  test("home hides the crawler main on dark first paint", () => {
+  test("home hides the crawler main on sober atmosphere first paint", () => {
     const source = html("../index.html")
     expect(source).toContain("#page > main")
     expect(source).toContain("clip: rect(0, 0, 0, 0)")
     expect(source).toContain("100dvh")
-    expect(source).toContain("#0c0b10")
+    expect(source).toContain("#A8B0AE")
     expect(source).not.toContain("#ff9ad1")
   })
 
-  test("install hides the crawler main on the bed", () => {
+  test("install hides the crawler main on sober atmosphere", () => {
     const source = html("../install.html")
     expect(source).toContain("#page > main")
     expect(source).toContain("clip: rect(0, 0, 0, 0)")
     expect(source).toContain("100dvh")
-    expect(source).toContain("#ff9ad1")
+    expect(source).toContain("#A8B0AE")
   })
 
-  test("job and compare pages hide the crawler main on paper", () => {
+  test("job and compare pages hide the crawler main on sober atmosphere", () => {
     const files = [
       "../github-pr-inbox.html",
       "../github-review-queue.html",
@@ -194,7 +194,7 @@ describe("first-paint shell", () => {
       expect(source).toContain("#page > main")
       expect(source).toContain("clip: rect(0, 0, 0, 0)")
       expect(source).toContain("100dvh")
-      expect(source).toContain("#fbf9f7")
+      expect(source).toContain("#A8B0AE")
     }
   })
 })
