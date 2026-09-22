@@ -9,14 +9,43 @@
  * Data and nothing else. The shader library that reads these numbers is a WebGL
  * dependency, and this folder is reachable from the extension's bundle as well —
  * so the numbers are shared and the canvas that draws them is not.
+ *
+ * Palette: muted Wafer atmosphere (desaturated teal-grey + sandy/olive beige) with
+ * near-black glass. Not pastel pink/lavender, not hot magenta mesh pools, not
+ * Luminar cobalt.
  */
 
 import type { CSSProperties } from "react"
 
-/** Paper, ink, and the quiet grey between them. The three the page is built out of. */
-export const PAPER = "#fbf9f7"
-export const INK = "#1b1725"
-export const MUTED = "#5f596d"
+/** Sampled teal-greys from the Wafer reference. */
+export const TEAL = {
+  deep: "#6C7878",
+  mid: "#9CA8A8",
+  soft: "#90A8A8"
+} as const
+
+/** Sampled olive/sand from the Wafer reference. */
+export const SAND = {
+  deep: "#606054",
+  mid: "#848478",
+  olive: "#6C6C54"
+} as const
+
+/** Near-black glass panels that sit on the atmosphere. */
+export const GLASS = "#131315"
+export const GLASS_DEEP = "#0C0C0C"
+
+/**
+ * Soft atmosphere floor for page chrome outside a glass panel.
+ * Mid teal-sand so dark ink stays legible without pink paper.
+ */
+export const PAPER = "#A8B0AE"
+export const INK = "#0E0E10"
+export const MUTED = "#4A504C"
+
+/** Light ink for type that sits on dark glass. */
+export const ON_GLASS = "#F3F4F7"
+export const ON_GLASS_MUTED = "rgba(243, 244, 247, 0.62)"
 
 /**
  * The same three, as the custom properties `onboarding.css` reads.
@@ -36,14 +65,20 @@ export const BED_COLOURS = {
 } as CSSProperties
 
 /**
- * The five stops, in the order the mesh mixes them.
- *
- * Pastel rather than saturated, and that is the whole reason ink sits directly on
- * this instead of on a card over it: every one of the five is light enough that
- * `INK` clears the contrast requirement on top of it, so the words can be on the
- * gradient rather than in a box floating above it.
+ * Nine MeshGradient slots — only sober teal/sand/charcoal.
+ * Sparse enough that the field stays atmospheric, not a party mesh.
  */
-export const BED = ["#ff9ad1", "#ffc69d", "#ece0ff", "#a9c2ff", "#b79bff"] as const
+export const BED = [
+  TEAL.deep,
+  TEAL.mid,
+  SAND.mid,
+  TEAL.soft,
+  SAND.olive,
+  "#B0B8B0",
+  SAND.deep,
+  "#787868",
+  GLASS
+] as const
 
 /** The bed at rest, which is what a reader who asked for less motion is given. */
 export const BED_SHADER = {
@@ -54,56 +89,43 @@ export const BED_SHADER = {
   waveY: 0.34,
   waveYShift: 0.25,
   mixing: 0.42,
-
-  grainMixer: 0.28,
-
-  grainOverlay: 0.12
+  grainMixer: 0.22,
+  grainOverlay: 0.45
 }
 
 /**
  * The bed while it moves, slowly enough that nobody watching it can say what changed.
- *
- * `speed: 0.16` is the number this was tuned to: fast enough that the screen is alive
- * when a reader looks up from their browser, slow enough that it never asks to be
- * watched. It is a background, and a background that performs is a background nobody
- * can read over.
+ * Tuned as background, not spectacle — lower swirl/distortion than the old pastel bed.
  */
 export const BED_MOTION = {
   colors: [...BED],
-  speed: 0.16,
-  distortion: 0.72,
-  swirl: 0.48,
+  speed: 0.1,
+  distortion: 0.28,
+  swirl: 0.05,
   grainMixer: BED_SHADER.grainMixer,
   grainOverlay: BED_SHADER.grainOverlay
 }
 
-/** The mark's own purple, which is the logo and never a background. */
-export const MARK = "#8b5cf6"
+/** Mark accent on light atmosphere — sober dark teal-grey, never violet. */
+export const MARK = "#3E4848"
 
 /**
  * How the bed is turned and over-scaled where it stands behind a whole screen.
  *
- * The mesh's seams run corner to corner at rest, and both screens that use it this way
- * are wider than they are tall, so at `scale: 1` the middle — where every word is —
- * sat in the flattest part of it. The app's window and the site's welcome page have to
- * agree on these two numbers, because a reader arrives at the second from the first.
+ * The app's window and the site's welcome page have to agree on these two numbers,
+ * because a reader arrives at the second from the first.
  */
 export const BED_BEHIND = { rotation: 14, scale: 1.45 } as const
 
 /**
  * The bed as plain CSS, for the moment before the shader has compiled and for a
- * machine where it never will.
- *
- * Five soft radial gradients at the five stops, over the last of them. It is not the
- * mesh — the mesh warps and grains, and this does neither — but it is the same five
- * colours in the same corners, so the swap when the canvas arrives is a screen
- * settling rather than a screen changing. Without it, the first frame of the first
- * screen of the app is white.
+ * machine where it never will. Soft teal→sand radials, no pink.
  */
 export const BED_IN_CSS = [
-  `radial-gradient(120% 120% at 12% 18%, ${BED[0]} 0%, transparent 58%)`,
-  `radial-gradient(110% 110% at 86% 12%, ${BED[1]} 0%, transparent 55%)`,
-  `radial-gradient(120% 120% at 78% 82%, ${BED[3]} 0%, transparent 60%)`,
-  `radial-gradient(130% 130% at 22% 88%, ${BED[4]} 0%, transparent 62%)`,
-  BED[2]
+  `radial-gradient(42% 58% at 12% 22%, ${TEAL.mid} 0%, transparent 72%)`,
+  `radial-gradient(46% 64% at 88% 18%, ${TEAL.soft}cc 0%, transparent 72%)`,
+  `radial-gradient(40% 52% at 78% 86%, ${SAND.mid}b3 0%, transparent 70%)`,
+  `radial-gradient(44% 56% at 18% 84%, ${SAND.olive}99 0%, transparent 68%)`,
+  `radial-gradient(50% 40% at 50% 48%, ${TEAL.deep}66 0%, transparent 65%)`,
+  PAPER
 ].join(", ")

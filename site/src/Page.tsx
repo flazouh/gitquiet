@@ -1,118 +1,101 @@
-import { useEffect } from "react"
-import { Bed } from "./Bed"
-import { Demo } from "./Demo"
 import {
   AddToChrome,
   Aside,
   Footer,
+  GlassFrame,
   HELD,
   INSTALL_AT,
   Nav,
+  Poster,
   Quietly,
   SkipTo,
-  Source
-} from "./Shell"
+  Source,
+  chromeTokens
+} from "./chrome"
+
+const { PAPER, INK } = chromeTokens
 
 const Elsewhere = () => (
-  <p className="m-0 text-[15px] leading-relaxed text-ink/60">
+  <p className="m-0 text-[15px] leading-relaxed text-ink/55">
     Also for <Quietly at={INSTALL_AT}>Safari, Firefox and the Mac</Quietly>.
   </p>
 )
 
 /**
  * The only other sentence the home page says.
- *
- * The commercial heads live on their own URLs. This names them so a crawler
- * (and a reader) can leave, without turning home into a second job page.
+ * Job pages keep their own URLs; this names them so a crawler (and a reader) can leave.
  */
 const Jobs = () => (
-  <p className="m-0 mt-6 text-[15px] leading-relaxed text-ink/70">
+  <p className="m-0 text-[15px] leading-relaxed text-ink/70">
     A <Quietly at="/github-pr-inbox">GitHub PR inbox</Quietly> and a{" "}
-    <Quietly at="/github-review-queue">review queue</Quietly>, in the tab. Not an AI reviewer.
+    <Quietly at="/github-review-queue">review queue</Quietly>, in the tab. Not an AI
+    reviewer.
   </p>
 )
 
+/** Product still: PR view in dark glass — not old Shell/demo chrome. */
+const ProductView = () => (
+  <figure className="m-0">
+    <GlassFrame>
+      <img
+        src="/shots/pull-request@2x.png"
+        width={1280}
+        height={800}
+        alt="GitQuiet pull request view"
+        decoding="async"
+        fetchPriority="high"
+        className="block h-auto w-full"
+      />
+    </GlassFrame>
+  </figure>
+)
+
 /**
- * Home: one line, one press, one demo, then the bed card.
- *
- * No feature grid. No rules. The clip already carries the product; the bed
- * is only the closing card, the same one the page used to close on.
+ * Home: Luminar-shaped poster hero on sober Wafer atmosphere.
+ * Copy left, PR shot right. No demo video. No pink bed.
  */
-export const Page = () => {
-  useEffect(() => {
-    const html = document.documentElement
-    const body = document.body
-    const prev = {
-      htmlBg: html.style.background,
-      bodyBg: body.style.background,
-      scheme: html.style.colorScheme
-    }
-    html.style.background = "#0c0b10"
-    html.style.colorScheme = "dark"
-    body.style.background = "#0c0b10"
-    return () => {
-      html.style.background = prev.htmlBg
-      html.style.colorScheme = prev.scheme
-      body.style.background = prev.bodyBg
-    }
-  }, [])
+export const Page = () => (
+  <div className="min-h-dvh antialiased" style={{ background: PAPER, color: INK }}>
+    <SkipTo id="product" says="Skip to the product" />
 
-  return (
-    <div className="min-h-dvh bg-[#0c0b10] text-[#f4f2ef]">
-      <SkipTo id="demo" says="Skip to the demo" />
-
-      <div className={HELD}>
-        <Nav dark>
-          <Source dark />
-          <Aside at={INSTALL_AT} dark>
-            Downloads
-          </Aside>
-          <AddToChrome light />
+    <Poster>
+      <div className="px-5 sm:px-9">
+        <Nav>
+          <Source />
+          <Aside at={INSTALL_AT}>Downloads</Aside>
+          <AddToChrome />
         </Nav>
+      </div>
 
-        <div className="pb-10 pt-10 sm:pb-14 sm:pt-16">
-          <h1 className="m-0 max-w-4xl text-balance text-[clamp(2.4rem,6.5vw,4.25rem)] font-semibold leading-[1.02] tracking-[-0.04em] text-white">
+      <div
+        id="product"
+        className="mt-auto grid flex-1 items-center gap-10 px-5 pb-10 pt-4 sm:px-9 sm:pb-14 md:grid-cols-2 md:gap-12 lg:gap-16"
+      >
+        <div className="max-w-xl">
+          <h1 className="m-0 text-balance text-[clamp(2.4rem,5.2vw,4.5rem)] font-semibold leading-[1.02] tracking-[-0.04em] text-ink">
             A faster, quieter GitHub.
           </h1>
-
-          <div className="mt-8 sm:mt-10">
-            <AddToChrome big light />
+          <p className="mt-5 max-w-md text-pretty text-[17px] leading-relaxed text-ink/65 sm:text-lg">
+            Every pull request you are in, one screen, sorted by next action. Not an AI
+            reviewer.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4 sm:mt-9">
+            <AddToChrome big />
+            <Elsewhere />
           </div>
         </div>
 
-        <section id="demo" className="pb-16 sm:pb-24">
-          <Demo />
-        </section>
-
-        <section className="pb-16 sm:pb-24">
-          <div className="relative isolate overflow-hidden rounded-2xl">
-            {/* Bed writes position inline, so this has to as well. */}
-            <Bed
-              rotation={200}
-              scale={1.3}
-              className="-z-10"
-              style={{ position: "absolute", inset: 0 }}
-            />
-            <div className="px-8 py-20 text-center text-ink sm:px-16 sm:py-24">
-              <h2 className="m-0 text-balance text-[clamp(1.75rem,4.5vw,3rem)] font-semibold leading-[1.05] tracking-[-0.035em]">
-                A faster, quieter GitHub.
-              </h2>
-
-              <div className="mt-10 flex justify-center">
-                <AddToChrome big />
-              </div>
-
-              <div className="mt-5">
-                <Elsewhere />
-              </div>
-
-              <Jobs />
-            </div>
-          </div>
-        </section>
-
-        <Footer dark />
+        <div className="min-w-0">
+          <ProductView />
+        </div>
       </div>
+    </Poster>
+
+    <div className={HELD}>
+      <div className="pb-4 pt-10 sm:pt-12">
+        <Jobs />
+      </div>
+      <Footer />
     </div>
-  )
-}
+  </div>
+)
