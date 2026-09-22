@@ -111,15 +111,15 @@ const Install = () => {
       <SkipTo id="ways" says="Skip to the downloads" />
 
       <Above>
-        <Nav>
-          <Source />
+        <Nav dark>
+          <Source dark />
         </Nav>
 
         <div className="pb-16 pt-10 sm:pt-16">
           <h1 className="m-0 max-w-3xl text-balance text-[clamp(2.1rem,5.5vw,3.4rem)] font-semibold leading-[1.05] tracking-[-0.04em]">
             Install GitQuiet.
           </h1>
-          <p className="mt-6 max-w-xl text-pretty text-[17px] leading-relaxed text-ink/70">
+          <p className="mt-6 max-w-xl text-pretty text-[17px] leading-relaxed text-white/70">
             One codebase, four ways in. Nothing to configure after any of them.
           </p>
 
@@ -133,7 +133,7 @@ const Install = () => {
             serves what it last approved. So the sentence says release and stops.
           */}
           {release === undefined ? null : (
-            <p className="live-in m-0 mt-5 text-[15px] text-ink/60">
+            <p className="live-in m-0 mt-5 text-[15px] text-white/55">
               <Quietly at={`${SOURCE_AT}/releases/latest`}>
                 <span className="tabular">Version {release.version}</span>
               </Quietly>{" "}

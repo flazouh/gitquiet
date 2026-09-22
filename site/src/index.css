@@ -91,10 +91,10 @@
  * needs them at run time.
  */
 @theme {
-  --color-paper: #fbf9f7;
-  --color-ink: #1b1725;
-  --color-muted: #5f596d;
-  --color-rule: rgba(27, 23, 37, 0.12);
+  --color-paper: #F6F7F9;
+  --color-ink: #15171B;
+  --color-muted: #5C6370;
+  --color-rule: rgba(21, 23, 27, 0.12);
 
   /*
    * One family, and no monospace.
@@ -171,12 +171,12 @@ body {
  * A card with no stroke on it.
  *
  * The separation is the surface and the shadow, which is what the paper allows: the
- * page is `#fbf9f7`, so white at 70 percent reads as a sheet lifted off it rather
+ * page is `#F6F7F9`, so white at 70 percent reads as a sheet lifted off it rather
  * than as a panel drawn on it. A hairline around that would say the same thing twice
  * and say it worse, because the rule is the heaviest mark on a page this light.
  *
  * Two shadow lanes, both ink rather than black, for the reason `--color-rule` is ink:
- * a grey shadow on warm paper turns the paper cold in a ring around every card. The
+ * a grey shadow on cool paper turns muddy in a ring around every card. The
  * near one seats the edge, the far one carries the lift, and neither is dark enough to
  * be seen as a shadow when you are reading the words instead of looking at the box.
  */

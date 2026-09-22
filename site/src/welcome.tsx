@@ -1,5 +1,5 @@
 import "@fontsource-variable/inter"
-import { BED_BEHIND, BED_COLOURS, BED_IN_CSS } from "@/ui/bed"
+import { BED_BEHIND, BED_COLOURS, BED_IN_CSS, TOUR_SHEET_COLOURS } from "@/ui/bed"
 import { SETTINGS } from "@/ui/keeping"
 import type { Shot } from "@/ui/onboarding/beats"
 import { Held } from "@/ui/onboarding/Held"
@@ -85,7 +85,7 @@ const Welcome = () => {
         that.
         `z-index: 0` under content at `z-index: 1`, rather than the tidier-looking
         `-1`: a negative one puts the gradient behind the page's own background,
-        which is paper, and paper is not see-through. The screen went white.
+        which is cool paper, and paper is not see-through. The screen went white.
         `BED_IN_CSS` is the floor under the shader: without it this page is white
         until WebGL has compiled, and white for good on a machine with no WebGL.
       */}
@@ -101,9 +101,13 @@ const Welcome = () => {
         nothing to install, so they get the source; anybody else gets every way in.
       */}
       <div className={`relative z-1 ${HELD}`}>
-        <Nav>
-          <Source />
-          {already ? null : <Press at={INSTALL_AT}>Install</Press>}
+        <Nav dark>
+          <Source dark />
+          {already ? null : (
+            <Press at={INSTALL_AT} blue>
+              Install
+            </Press>
+          )}
         </Nav>
       </div>
 
@@ -121,7 +125,10 @@ const Welcome = () => {
           `100dvh` less the nav, the footer and this section's own padding, so the card is
           as tall as the room left rather than as tall as the window.
         */}
-        <div className="flex h-[min(620px,calc(100dvh-260px))] w-full max-w-[1040px] flex-col overflow-hidden rounded-[14px] bg-white/80 shadow-[inset_0_0_0_1px_rgba(27,23,37,0.06),0_1px_2px_rgba(27,23,37,0.05),0_24px_60px_-26px_rgba(27,23,37,0.24)] backdrop-blur-[12px]">
+        <div
+          className="flex h-[min(620px,calc(100dvh-260px))] w-full max-w-[1040px] flex-col overflow-hidden rounded-[14px] bg-white/90 shadow-[inset_0_0_0_1px_rgba(21,23,27,0.08),0_1px_2px_rgba(19,19,21,0.06),0_24px_60px_-26px_rgba(19,19,21,0.45)] backdrop-blur-[12px]"
+          style={TOUR_SHEET_COLOURS}
+        >
           <Tour
             show={(shot) => <Screen shot={shot} />}
             ending={
@@ -155,7 +162,7 @@ const Welcome = () => {
       </main>
 
       <div className={`relative z-1 ${HELD}`}>
-        <Footer />
+        <Footer dark />
       </div>
     </div>
   )

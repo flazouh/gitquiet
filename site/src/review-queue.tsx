@@ -31,25 +31,27 @@ const ReviewQueue = () => (
     <SkipTo id="job" says="Skip to the job" />
 
     <Above>
-      <Nav>
-        <Source />
-        <Aside at={INSTALL_AT}>Downloads</Aside>
-        <AddToChrome />
+      <Nav dark>
+        <Source dark />
+        <Aside at={INSTALL_AT} dark>
+          Downloads
+        </Aside>
+        <AddToChrome blue />
       </Nav>
 
       <div className="pb-16 pt-10 sm:pt-16">
-        <p className="eyebrow m-0">GitHub review queue</p>
+        <p className="eyebrow m-0 text-white/55">GitHub review queue</p>
         <h1 className="m-0 mt-4 max-w-3xl text-balance text-[clamp(2.1rem,5.5vw,3.4rem)] font-semibold leading-[1.05] tracking-[-0.04em]">
           A GitHub review queue, in the tab
         </h1>
-        <p className="mt-6 max-w-xl text-pretty text-[17px] leading-relaxed text-ink/70">
+        <p className="mt-6 max-w-xl text-pretty text-[17px] leading-relaxed text-white/70">
           A queue you drain. Next review, not recency. On the GitHub session you
           already have.
         </p>
         <div className="mt-10">
-          <AddToChrome big />
+          <AddToChrome big blue />
         </div>
-        <p className="m-0 mt-5 text-[15px] leading-relaxed text-ink/60">
+        <p className="m-0 mt-5 text-[15px] leading-relaxed text-white/55">
           Or see <Quietly at={INSTALL_AT}>every way to install</Quietly>.
         </p>
       </div>
@@ -115,7 +117,7 @@ const ReviewQueue = () => (
           A faster, quieter GitHub.
         </h2>
         <div className="mt-10">
-          <AddToChrome big />
+          <AddToChrome big blue />
         </div>
         <p className="m-0 mt-5 text-[15px] leading-relaxed text-ink/60">
           <Quietly at={INSTALL_AT}>Every way to install</Quietly>

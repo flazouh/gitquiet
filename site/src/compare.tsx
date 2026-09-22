@@ -28,22 +28,24 @@ const Compare = ({ page }: { readonly page: Compared }) => {
       <SkipTo id="axis" says="Skip to the comparison" />
 
       <Above>
-        <Nav>
-          <Source />
-          <Aside at={INSTALL_AT}>Downloads</Aside>
-          <AddToChrome />
+        <Nav dark>
+          <Source dark />
+          <Aside at={INSTALL_AT} dark>
+            Downloads
+          </Aside>
+          <AddToChrome blue />
         </Nav>
 
         <div className="pb-16 pt-10 sm:pt-16">
-          <p className="eyebrow m-0">
+          <p className="eyebrow m-0 text-white/55">
             GitQuiet vs {page.name}
           </p>
           <h1 className="m-0 mt-4 max-w-3xl text-balance text-[clamp(2.1rem,5.5vw,3.4rem)] font-semibold leading-[1.05] tracking-[-0.04em]">
             {page.h1}
           </h1>
-          <p className="mt-6 max-w-xl text-pretty text-[17px] leading-relaxed text-ink/70">{page.dek}</p>
+          <p className="mt-6 max-w-xl text-pretty text-[17px] leading-relaxed text-white/70">{page.dek}</p>
           <div className="mt-10">
-            <AddToChrome big />
+            <AddToChrome big blue />
           </div>
         </div>
       </Above>

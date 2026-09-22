@@ -9,41 +9,80 @@
  * Data and nothing else. The shader library that reads these numbers is a WebGL
  * dependency, and this folder is reachable from the extension's bundle as well —
  * so the numbers are shared and the canvas that draws them is not.
+ *
+ * Model (Wafer accents on a Luminar-shaped charcoal field): near-black field with
+ * sparse colourful pools; light ink sits on the field. Cool paper + dark ink are for
+ * page chrome *outside* the bed — not for type drawn on the mesh.
  */
 
 import type { CSSProperties } from "react"
 
-/** Paper, ink, and the quiet grey between them. The three the page is built out of. */
-export const PAPER = "#fbf9f7"
-export const INK = "#1b1725"
-export const MUTED = "#5f596d"
+/** Cool paper page body (outside the bed), and the ink that sits on it. */
+export const PAPER = "#F6F7F9"
+export const INK = "#15171B"
+export const MUTED = "#5C6370"
+
+/** Near-black charcoal the mesh mostly fills with. */
+export const FIELD = "#131315"
+
+/** Light ink for type that sits on the charcoal field. */
+export const ON_BED_INK = "#F3F4F7"
+export const ON_BED_MUTED = "rgba(243, 244, 247, 0.62)"
+
+/** Luminar CTA blue — primary store button on a dark hero. */
+export const CTA = "#0A6CFF"
 
 /**
- * The same three, as the custom properties `onboarding.css` reads.
- *
- * Set by whatever a host puts the onboarding inside rather than by the onboarding
- * itself, because a custom property is only visible below where it is declared. The
- * app's window says the private line under the panel in `--bed-muted`, and that line
- * is a sibling of the panel: declared on the tour, it fell through to the interface's
- * own ink, which is near-white in dark mode and invisible on this gradient.
+ * Wafer accent pools sampled from the reference UI. Sparse on purpose: the field
+ * stays charcoal; these read as light pools, not a rainbow page.
+ */
+export const ACCENTS = {
+  pink: "#E53061",
+  magenta: "#E665B3",
+  coral: "#ED494A",
+  peach: "#E9A86D",
+  mint: "#87F0BA"
+} as const
+
+/**
+ * The same three, as the custom properties `onboarding.css` reads — for surfaces
+ * *on the bed* (light ink / dark field). A frosted light tour sheet that hosts the
+ * tour must re-declare page `INK` / `PAPER` on itself so tour text stays dark on
+ * white; the host root keeps these for nav, lockup, and siblings on the mesh.
  *
  * One cast, here, because React's own type has no room for a custom property.
  */
 export const BED_COLOURS = {
+  "--bed-ink": ON_BED_INK,
+  "--bed-muted": ON_BED_MUTED,
+  "--bed-paper": FIELD
+} as CSSProperties
+
+/**
+ * Page ink / paper redeclared on a light tour sheet so `.tour` contrast holds
+ * after the host flips `--bed-*` to on-bed (light-on-dark) tokens.
+ */
+export const TOUR_SHEET_COLOURS = {
   "--bed-ink": INK,
   "--bed-muted": MUTED,
   "--bed-paper": PAPER
 } as CSSProperties
 
 /**
- * The five stops, in the order the mesh mixes them.
- *
- * Pastel rather than saturated, and that is the whole reason ink sits directly on
- * this instead of on a card over it: every one of the five is light enough that
- * `INK` clears the contrast requirement on top of it, so the words can be on the
- * gradient rather than in a box floating above it.
+ * Nine MeshGradient slots, charcoal-led like Luminar's FIELD_COLORS: field fills
+ * most slots so Wafer accents read as pools of light, not a saturated page.
  */
-export const BED = ["#ff9ad1", "#ffc69d", "#ece0ff", "#a9c2ff", "#b79bff"] as const
+export const BED = [
+  FIELD,
+  FIELD,
+  ACCENTS.pink,
+  FIELD,
+  FIELD,
+  FIELD,
+  ACCENTS.magenta,
+  FIELD,
+  ACCENTS.mint
+] as const
 
 /** The bed at rest, which is what a reader who asked for less motion is given. */
 export const BED_SHADER = {
@@ -54,31 +93,28 @@ export const BED_SHADER = {
   waveY: 0.34,
   waveYShift: 0.25,
   mixing: 0.42,
-
-  grainMixer: 0.28,
-
-  grainOverlay: 0.12
+  grainMixer: 0.2,
+  grainOverlay: 0.55
 }
 
 /**
  * The bed while it moves, slowly enough that nobody watching it can say what changed.
  *
- * `speed: 0.16` is the number this was tuned to: fast enough that the screen is alive
- * when a reader looks up from their browser, slow enough that it never asks to be
- * watched. It is a background, and a background that performs is a background nobody
- * can read over.
+ * Tuned closer to Luminar's charcoal hero on a dark field: lower swirl/distortion,
+ * speed ~0.12. It is a background, and a background that performs is a background
+ * nobody can read over.
  */
 export const BED_MOTION = {
   colors: [...BED],
-  speed: 0.16,
-  distortion: 0.72,
-  swirl: 0.48,
+  speed: 0.12,
+  distortion: 0.3,
+  swirl: 0.05,
   grainMixer: BED_SHADER.grainMixer,
   grainOverlay: BED_SHADER.grainOverlay
 }
 
-/** The mark's own purple, which is the logo and never a background. */
-export const MARK = "#8b5cf6"
+/** The mark's own accent on the site — mint from the Wafer set, not the old violet. */
+export const MARK = ACCENTS.mint
 
 /**
  * How the bed is turned and over-scaled where it stands behind a whole screen.
@@ -94,16 +130,16 @@ export const BED_BEHIND = { rotation: 14, scale: 1.45 } as const
  * The bed as plain CSS, for the moment before the shader has compiled and for a
  * machine where it never will.
  *
- * Five soft radial gradients at the five stops, over the last of them. It is not the
- * mesh — the mesh warps and grains, and this does neither — but it is the same five
- * colours in the same corners, so the swap when the canvas arrives is a screen
- * settling rather than a screen changing. Without it, the first frame of the first
- * screen of the app is white.
+ * Charcoal field with sparse Wafer radial pools — same spirit as Luminar's
+ * `.hero-charcoal-fallback`. Not the mesh (no warp, no grain), but the same field
+ * and accents in the same corners, so the swap when the canvas arrives is a screen
+ * settling rather than a screen changing.
  */
 export const BED_IN_CSS = [
-  `radial-gradient(120% 120% at 12% 18%, ${BED[0]} 0%, transparent 58%)`,
-  `radial-gradient(110% 110% at 86% 12%, ${BED[1]} 0%, transparent 55%)`,
-  `radial-gradient(120% 120% at 78% 82%, ${BED[3]} 0%, transparent 60%)`,
-  `radial-gradient(130% 130% at 22% 88%, ${BED[4]} 0%, transparent 62%)`,
-  BED[2]
+  `radial-gradient(42% 58% at 8% 22%, ${ACCENTS.pink}b8 0%, transparent 72%)`,
+  `radial-gradient(46% 64% at 92% 18%, ${ACCENTS.magenta}c7 0%, transparent 72%)`,
+  `radial-gradient(36% 48% at 78% 88%, ${ACCENTS.coral}66 0%, transparent 70%)`,
+  `radial-gradient(40% 52% at 18% 86%, ${ACCENTS.mint}59 0%, transparent 68%)`,
+  `radial-gradient(50% 40% at 55% 48%, ${ACCENTS.peach}33 0%, transparent 65%)`,
+  FIELD
 ].join(", ")
