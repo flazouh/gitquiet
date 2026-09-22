@@ -11,6 +11,9 @@ import type { ChangedFile } from "./PullRequest"
  */
 export const HEAVY_LINES = 2000
 
+/** Whether this many lines are too many to draw without being asked. */
+export const tooLongToDraw = (lines: number): boolean => lines > HEAVY_LINES
+
 /**
  * Whether a file is drawn only when the reader asks for it.
  *
@@ -19,4 +22,4 @@ export const HEAVY_LINES = 2000
  * zero, and is drawn as it always was.
  */
 export const drawnWhenAsked = (file: Pick<ChangedFile, "linesAdded" | "linesDeleted">): boolean =>
-  file.linesAdded + file.linesDeleted > HEAVY_LINES
+  tooLongToDraw(file.linesAdded + file.linesDeleted)

@@ -1,5 +1,6 @@
 import { Option } from "effect"
 import { useEffect, useState } from "react"
+import { tooLongToDraw } from "../domain/heavyFile"
 import type { Opened } from "../domain/repoHome"
 import { CARD } from "./dress"
 import { FileAlso } from "./FileAlso"
@@ -79,6 +80,18 @@ export const Reading = ({
     setWay("rendered")
   }, [path])
 
+  /*
+   * A file too long to draw without being asked, until it is asked — the cap the
+   * pull request's files have, for the same reason. See `domain/heavyFile.ts`.
+   *
+   * The path that was let through rather than a flag: this pane is kept across
+   * files, and a flag cleared after the next file arrived would have drawn that
+   * file once first. A line to arrive at is asking, as it is there.
+   */
+  const [letThrough, setLetThrough] = useState<string | null>(null)
+  const heldBack =
+    opened !== undefined && tooLongToDraw(opened.lines.length) && letThrough !== path && at === undefined
+
   const canRender = opened !== undefined && Option.isSome(opened.rendered)
   const source = opened === undefined ? "" : opened.lines.join("\n")
   const showing = canRender && way === "rendered"
@@ -119,6 +132,20 @@ export const Reading = ({
           </p>
         ) : opened === undefined ? (
           <p className="px-4 py-3 text-sm text-ink-muted">Reading this file…</p>
+        ) : heldBack && !showing ? (
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 text-sm text-ink-muted">
+            <p>
+              This file is {opened.lines.length.toLocaleString("en-US")} lines. It waits until you
+              ask, because drawing it holds the page.
+            </p>
+            <button
+              type="button"
+              onClick={() => setLetThrough(path)}
+              className="text-ink underline decoration-line underline-offset-2 hover:decoration-ink"
+            >
+              Show the file
+            </button>
+          </div>
         ) : showing ? (
           <div className="px-6 py-5">
             <Markdown

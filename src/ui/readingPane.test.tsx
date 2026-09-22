@@ -136,3 +136,58 @@ describe("the file, and what their page still owns of it", () => {
     expect(within(pane()).queryByText("← README")).toBeNull()
   })
 })
+
+/*
+ * The same cap the pull request's files have, for the same reason: drawing a
+ * file is synchronous, and a generated one of fourteen thousand lines held the
+ * page for over two seconds. See `domain/heavyFile.ts`.
+ */
+describe("a file too long to draw without being asked", () => {
+  const long = opened({ path: "src/catalogue.generated.ts", lines: Array.from({ length: 2500 }, (_, at) => `export const n${at} = ${at}`) })
+
+  test("says how long it is, and waits", () => {
+    showing({ path: "src/catalogue.generated.ts", opened: long })
+
+    expect(within(pane()).getByText(/2,500 lines/)).toBeTruthy()
+    expect(within(pane()).getByRole("button", { name: "Show the file" })).toBeTruthy()
+  })
+
+  test("draws it when the reader asks", async () => {
+    showing({ path: "src/catalogue.generated.ts", opened: long })
+
+    await userEvent.click(within(pane()).getByRole("button", { name: "Show the file" }))
+
+    expect(within(pane()).queryByText(/2,500 lines/)).toBeNull()
+  })
+
+  test("holds the next long file back, though the pane is kept", async () => {
+    // The pane outlives a file, so the one let through must not let the next.
+    const view = showing({ path: "src/catalogue.generated.ts", opened: long })
+    await userEvent.click(within(pane()).getByRole("button", { name: "Show the file" }))
+
+    const next = opened({ path: "src/other.generated.ts", lines: long.lines })
+    view.rerender(
+      <Reading
+        path="src/other.generated.ts"
+        opened={next}
+        repo={{ owner: "flowline-labs", repo: "flowline" }}
+        branch="main"
+        head="abc123"
+      />
+    )
+
+    expect(within(pane()).getByText(/2,500 lines/)).toBeTruthy()
+  })
+
+  test("draws it at once where a name was followed to a line of it", () => {
+    showing({ path: "src/catalogue.generated.ts", opened: long, at: 40 })
+
+    expect(within(pane()).queryByText(/2,500 lines/)).toBeNull()
+  })
+
+  test("draws a file of ordinary length as it always did", () => {
+    showing()
+
+    expect(within(pane()).queryByText(/lines\. It waits/)).toBeNull()
+  })
+})
