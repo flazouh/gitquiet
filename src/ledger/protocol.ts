@@ -30,6 +30,7 @@ export const LEDGER_ANSWER = "gitquiet/ledger-answer" as const
 export type Question =
   | { readonly of: "writingAt"; readonly at: Spot }
   | { readonly of: "writingNamed"; readonly name: string }
+  | { readonly of: "borrowedAs"; readonly name: string }
   | { readonly of: "usesIn"; readonly writing: Writing }
   | { readonly of: "writingsIn" }
 

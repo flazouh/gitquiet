@@ -109,6 +109,18 @@ export const ledgerThrough = (post: Post): Ledger => ({
     asked(post, reading, { of: "writingNamed", name }).pipe(
       Effect.map((answer) => Option.fromNullishOr(answer.writing))
     ),
+  borrowedAs: (reading: Reading, name: string) =>
+    asked(post, reading, { of: "borrowedAs", name }).pipe(
+      Effect.map((answer) =>
+        answer.borrowed === undefined
+          ? Option.none()
+          : Option.some({
+              at: "elsewhere" as const,
+              borrowed: answer.borrowed,
+              ...(answer.orFrom === undefined ? {} : { orFrom: answer.orFrom })
+            })
+      )
+    ),
   usesIn: (reading: Reading, writing: Writing) =>
     asked(post, reading, { of: "usesIn", writing }).pipe(
       Effect.map((answer): ReadonlyArray<Use> => answer.uses ?? [])

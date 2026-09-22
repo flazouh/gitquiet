@@ -15,6 +15,7 @@ const NOTHING: Ledger = {
   ready: () => Effect.void,
   writingAt: () => Effect.succeed(Option.none()),
   writingNamed: () => Effect.succeed(Option.none()),
+  borrowedAs: () => Effect.succeed(Option.none()),
   usesIn: () => Effect.succeed([]),
   writingsIn: () => Effect.succeed([]),
   warm: () => Effect.succeed({ ready: false }),

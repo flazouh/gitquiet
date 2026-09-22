@@ -54,6 +54,7 @@ import {
   usesIn,
   writingAt,
   writingNamed,
+  borrowedAs,
   writingsIn,
   type Told,
   type Writing
@@ -151,6 +152,10 @@ const answer = (work: LedgerWork): Effect.Effect<LedgerAnswer> =>
         kind: LEDGER_ANSWER,
         writing: writingNamed(root, work.text, question.name, dialect)
       }
+    }
+    if (question.of === "borrowedAs") {
+      const passed = borrowedAs(root, question.name, dialect)
+      return passed === null ? { kind: LEDGER_ANSWER, writing: null } : { kind: LEDGER_ANSWER, writing: null, ...passed }
     }
     if (question.of === "usesIn") {
       return { kind: LEDGER_ANSWER, uses: usesIn(root, work.text, question.writing, dialect) }

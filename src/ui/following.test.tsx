@@ -113,6 +113,10 @@ const staged = (
   over: {
     readonly where?: Where
     readonly named?: Writing
+    /** The one file that writes `named`, where only one does. Every file, unsaid. */
+    readonly namedIn?: string
+    /** What each file says about where it got a name it does not write. */
+    readonly passing?: Readonly<Record<string, { readonly name: string; readonly specifier: string }>>
     readonly across?: Across
     /** The knob that decides whether a registry may be asked at all. */
     readonly registry?: "on" | "off"
@@ -241,8 +245,18 @@ const staged = (
           )
         )
       ),
-    writingNamed: () =>
-      Effect.succeed(over.named === undefined ? Option.none() : Option.some(over.named)),
+    writingNamed: (reading) =>
+      Effect.succeed(
+        over.named === undefined || (over.namedIn !== undefined && reading.path !== over.namedIn)
+          ? Option.none()
+          : Option.some(over.named)
+      ),
+    borrowedAs: (reading) => {
+      const passed = over.passing?.[reading.path]
+      return Effect.succeed(
+        passed === undefined ? Option.none() : Option.some({ at: "elsewhere" as const, borrowed: passed })
+      )
+    },
     writingsIn: () =>
       Effect.sync(() => {
         stage.outlined += 1
@@ -777,6 +791,41 @@ describe("a name this file borrowed from another", () => {
     expect(read[0]).toBe("whole/other.go")
     expect(stage.marked.map(([, how]) => how)).toContain("sure")
     expect(opened).toEqual([{ path: "whole/other.go", line: 2 }])
+  })
+
+  /*
+   * A package's `__init__.py` writes none of what it offers; it imports `Model`
+   * from `base.py` for its importers. So does a barrel, and a Rust `pub use`.
+   */
+  test("follows a name on through the file that passed it on", async () => {
+    const opened: Array<{ path: string; line: number }> = []
+    const read: Array<string> = []
+    const across: Across = {
+      paths: new Set(["app/models.py", "db/models/__init__.py", "db/models/base.py"]),
+      read: (path) =>
+        Effect.sync(() => {
+          read.push(path)
+          return "class Model: pass\n"
+        }),
+      open: (path, line) => opened.push({ path, line })
+    }
+    const stage = staged(null, [], {
+      path: "app/models.py",
+      where: { at: "elsewhere", borrowed: { name: "two", specifier: "db.models" } },
+      named: elsewhere,
+      namedIn: "db/models/base.py",
+      passing: { "db/models/__init__.py": { name: "two", specifier: "db.models.base" } },
+      across
+    })
+    await Effect.runPromise(settled())
+
+    stage.request?.onNameEnter?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+    stage.request?.onName?.(name, held({ go: true }))
+    await Effect.runPromise(settled())
+
+    expect(read).toEqual(["db/models/__init__.py", "db/models/base.py"])
+    expect(opened).toEqual([{ path: "db/models/base.py", line: 2 }])
   })
 
   test("reads go.mod to find a package kept at the root of the repository", async () => {

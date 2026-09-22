@@ -3,7 +3,7 @@ import { Language, Parser, type Tree } from "web-tree-sitter"
 import { dialectFor } from "../dialects"
 import { reachingAll } from "../reaching"
 import type { Syntax } from "../syntax"
-import { toldBy, writingAt, writingNamed, type Told } from "../writings"
+import { borrowedAs, toldBy, writingAt, writingNamed, type Told } from "../writings"
 import { usesAcross } from "../uses"
 
 /**
@@ -145,7 +145,7 @@ const languages = new Map<string, Language>()
 
 beforeAll(async () => {
   await Parser.init({ locateFile: () => "node_modules/web-tree-sitter/web-tree-sitter.wasm" })
-  for (const wasm of [...CASES.map((one) => one.wasm), "tree-sitter-go.wasm", "tree-sitter-c-sharp.wasm"]) {
+  for (const wasm of [...CASES.map((one) => one.wasm), "tree-sitter-go.wasm", "tree-sitter-c-sharp.wasm", "tree-sitter-python.wasm"]) {
     if (languages.has(wasm)) continue
     languages.set(wasm, await Language.load(`node_modules/@vscode/tree-sitter-wasm/wasm/${wasm}`))
   }
@@ -489,5 +489,87 @@ describe("a Java class kept in two copies", () => {
 
   test("and not of the other copy", () => {
     expect(usesOf("android/guava/src/com/ex/Box.java")).not.toContain(true)
+  })
+})
+
+/*
+ * Found pressing `Model` in `class Site(models.Model)`: nothing. Python reads a
+ * module's names through the module as often as it imports them: `from
+ * django.db import models`, then `models.Model`. And `models` is a package whose
+ * `__init__.py` writes none of it, but brings `Model` in from `base.py` for its
+ * importers — so the press has to follow that too.
+ */
+describe("a Python name read through the module it is in", () => {
+  const FILES: Readonly<Record<string, string>> = {
+    "django/contrib/sites/models.py": "from django.db import models\nimport os.path\n\n\nclass Site(models.Model):\n    name = os.path.join('a', 'b')\n    other = models.Local\n",
+    "django/db/models/__init__.py": "from django.db.models.base import Model\n\n__all__ = ['Model']\n",
+    "django/db/models/base.py": "class Model:\n    pass\n"
+  }
+  const FROM = "django/contrib/sites/models.py"
+  const paths = new Set(Object.keys(FILES))
+
+  const press = (holds: string, word: string) => {
+    const text = FILES[FROM]!
+    const lines = text.split("\n")
+    const row = lines.findIndex((line) => line.includes(holds))
+    return writingAt(parsed("tree-sitter-python.wasm", text), text, { row, column: lines[row]!.indexOf(word) }, dialectFor(FROM)!)
+  }
+
+  /** A press followed through whatever files pass the name on, three at most. */
+  const landing = (holds: string, word: string): { path: string; line: number } | null => {
+    const found = press(holds, word)
+    if (found?.at !== "elsewhere") return null
+    let asked = [{ from: FROM, borrowed: found.borrowed }]
+    for (let hop = 0; hop < 3; hop++) {
+      const next: typeof asked = []
+      for (const { from, borrowed } of asked) {
+        for (const path of reachingAll(from, borrowed.specifier, paths, borrowed.name)) {
+          const text = FILES[path]!
+          const root = parsed("tree-sitter-python.wasm", text)
+          const writing = writingNamed(root, text, borrowed.name, dialectFor(path)!)
+          if (writing !== null) return { path, line: writing.line }
+          const passed = borrowedAs(root, borrowed.name, dialectFor(path)!)
+          if (passed !== null) next.push({ from: path, borrowed: passed.borrowed })
+        }
+      }
+      asked = next
+    }
+    return null
+  }
+
+  test("says the module the name was read through", () => {
+    expect(press("class Site(models.Model)", "Model")).toEqual({
+      at: "elsewhere",
+      borrowed: { name: "Model", specifier: "django.db.models" }
+    })
+  })
+
+  test("follows the package's own import to where the name is written", () => {
+    expect(landing("class Site(models.Model)", "Model")).toEqual({ path: "django/db/models/base.py", line: 1 })
+  })
+
+  test("a plain import names the first module, as the file can write it", () => {
+    expect(press("os.path.join", "path")).toEqual({
+      at: "elsewhere",
+      borrowed: { name: "path", specifier: "os" }
+    })
+  })
+})
+
+describe("a Python attribute read through a value", () => {
+  const TEXT = "class Box:\n    def helper(self):\n        return 1\n\n    def run(self):\n        return self.helper()\n"
+
+  test("still reaches the method the class writes", () => {
+    const lines = TEXT.split("\n")
+    const row = lines.findIndex((line) => line.includes("self.helper()"))
+    const found = writingAt(parsed("tree-sitter-python.wasm", TEXT), TEXT, { row, column: lines[row]!.indexOf("helper") }, dialectFor("box.py")!)
+
+    expect(found?.at === "here" ? found.writing.line : null).toBe(2)
+  })
+
+  test("still counts as a mention of that name", () => {
+    const told = toldBy(parsed("tree-sitter-python.wasm", TEXT), TEXT, dialectFor("box.py")!)
+
+    expect(told.mentions.filter((one) => one.name === "helper").map((one) => one.line)).toEqual([2, 6])
   })
 })

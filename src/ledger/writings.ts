@@ -169,6 +169,14 @@ export type Dialect = {
    */
   readonly namedBy?: (specifier: string) => string
   /**
+   * The module a qualifier bound as an import stands for.
+   *
+   * Go's import is the package, and its specifier says so. Python's need not be:
+   * `from django.db import models` binds `models`, which is `django.db.models`,
+   * and `import os.path` binds `os`, which is `os`. Absent, the specifier is it.
+   */
+  readonly moduleThrough?: (from: Borrowed, qualifier: string) => string
+  /**
    * What a statement passes on from somewhere else, which is a re-export.
    *
    * Absent where the language has none. Five of the ten carried an empty
@@ -345,7 +353,17 @@ const found = (
 
   // Asked before the name is, because `shapes.Box` is never the file's own `Box`.
   const qualifier = dialect.qualifierOf?.(name, path.at(-2) ?? null) ?? null
-  if (qualifier !== null) return throughQualifier(name, qualifier, path, memo, dialect, whole)
+  if (qualifier !== null) {
+    const through = throughQualifier(name, qualifier, path, memo, dialect, whole)
+    if (through !== null) return through
+    /*
+     * Read through a value, it is not a module's name. Where the grammar reads it
+     * as a plain name anyway — Python's `self.helper` — it is answered as one, as
+     * it was before modules were asked about: the class writes `helper`.
+     */
+    const bound = boundIn(path, qualifier.text, memo, dialect)
+    if (bound === undefined || bound.kind === "import" || !dialect.names.has(name.type)) return null
+  }
 
   if (!dialect.names.has(name.type)) return null
 
@@ -434,12 +452,51 @@ const throughQualifier = (
   const bound = boundIn(path, qualifier.text, memo, dialect)
   if (bound !== undefined) {
     if (bound.kind !== "import" || bound.from === undefined) return null
-    return { at: "elsewhere", borrowed: { name: name.text, specifier: bound.from.specifier } }
+    return { at: "elsewhere", borrowed: { name: name.text, specifier: moduleOf(bound.from, qualifier.text, dialect) } }
   }
   const through = whole().find((one) => dialect.namedBy?.(one.specifier) === qualifier.text)
   return through === undefined
     ? null
     : { at: "elsewhere", borrowed: { name: name.text, specifier: through.specifier } }
+}
+
+/** The module an import names, when it is used as a qualifier. See {@link Dialect.moduleThrough}. */
+const moduleOf = (from: Borrowed, qualifier: string, dialect: Dialect): string =>
+  dialect.moduleThrough?.(from, qualifier) ?? from.specifier
+
+/**
+ * Where a file got a name it does not write, or nothing where it did not get it.
+ *
+ * The next step of a Follow that reached a file passing the name on: a Python
+ * package's `__init__.py` imports `Model` from `base.py` for its importers, a
+ * TypeScript barrel re-exports, Rust writes `pub use`. What the file bound the
+ * name to comes first; a whole-file re-export, which could be carrying it, after.
+ */
+export const borrowedAs = (
+  root: Syntax,
+  name: string,
+  dialect: Dialect
+): { readonly borrowed: Borrowed; readonly orFrom?: ReadonlyArray<string> } | null => {
+  const bound = declarationsOf(root, new Map(), dialect).get(name)
+  if (bound?.kind === "import" && bound.from !== undefined) {
+    return { borrowed: { name: bound.from.name === "*" ? name : bound.from.name, specifier: bound.from.specifier } }
+  }
+
+  const passed: Array<Borrowed> = []
+  if (dialect.passedOn !== undefined) {
+    const walk = (node: Syntax): void => {
+      for (const from of dialect.passedOn!(node)) passed.push(from)
+      for (const child of childrenOf(node)) walk(child)
+    }
+    walk(root)
+  }
+  const named = passed.find((one) => one.name === name)
+  if (named !== undefined) return { borrowed: named }
+  const whole = passed.filter((one) => one.name === "*").map((one) => one.specifier)
+  const [first, ...rest] = whole
+  if (first === undefined) return null
+  const borrowed = { name, specifier: first }
+  return rest.length === 0 ? { borrowed } : { borrowed, orFrom: rest }
 }
 
 /**
@@ -695,7 +752,7 @@ export const toldBy = (root: Syntax, source: string, dialect: Dialect): Told => 
    * Names read through a qualifier this file binds nowhere, kept until every
    * import has been seen: the name a plain import binds is said by no node.
    */
-  const unbound: Array<{ readonly mention: Mention; readonly qualifier: string }> = []
+  const unbound: Array<{ readonly mention: Mention; readonly qualifier: string; readonly plain: boolean }> = []
   /** Scopes worked out once for the whole walk, as `found` keeps them for one press. */
   const memo: Memo = new Map()
   /** The nodes from the root down to this one, which is the scope chain. */
@@ -710,9 +767,14 @@ export const toldBy = (root: Syntax, source: string, dialect: Dialect): Told => 
        * shadows the package `store`, and `store.New` there is not the package's.
        */
       const bound = boundIn(path, qualifier.text, memo, dialect)
-      if (bound === undefined) unbound.push({ mention: mentionOf(node), qualifier: qualifier.text })
+      const plain = dialect.names.has(node.type)
+      if (bound === undefined) unbound.push({ mention: mentionOf(node), qualifier: qualifier.text, plain })
       else if (bound.kind === "import" && bound.from !== undefined) {
-        mentions.push({ ...mentionOf(node), through: bound.from.specifier })
+        mentions.push({ ...mentionOf(node), through: moduleOf(bound.from, qualifier.text, dialect) })
+      } else if (plain) {
+        // A value's member, and a mention as it always was where the grammar
+        // writes it as a name: `self.helper` is a Likely use of `helper`.
+        mentions.push(mentionOf(node))
       }
     } else if (dialect.names.has(node.type)) mentions.push(mentionOf(node))
 
@@ -739,11 +801,12 @@ export const toldBy = (root: Syntax, source: string, dialect: Dialect): Told => 
    * package's own, written in a sibling file, and counting it would make every
    * `.Close()` in a file that imports a package a use of that package's `Close`.
    */
-  if (unbound.length > 0 && dialect.namedBy !== undefined) {
-    const whole = wholeFileBorrows(root, dialect)
+  if (unbound.length > 0) {
+    const whole = dialect.namedBy === undefined ? [] : wholeFileBorrows(root, dialect)
     for (const one of unbound) {
       const through = whole.find((from) => dialect.namedBy!(from.specifier) === one.qualifier)
       if (through !== undefined) mentions.push({ ...one.mention, through: through.specifier })
+      else if (one.plain) mentions.push(one.mention)
     }
   }
   // In the order they are written, which is the order a panel lists them in.

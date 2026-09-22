@@ -28,7 +28,7 @@
  * to an overload, and reads the same way to a reader going top to bottom.
  */
 
-import type { Bound, Dialect, Offering, WritingKind } from "../writings"
+import type { Borrowed, Bound, Dialect, Offering, WritingKind } from "../writings"
 import { childrenOf, kindFrom, namesUnder, type Syntax } from "../syntax"
 
 /**
@@ -353,10 +353,49 @@ const offering = (node: Syntax): Offering | null => {
   return members === null ? null : { at: "members", members }
 }
 
+/**
+ * The module a name is read through: `models` in `models.Model`.
+ *
+ * An `attribute` whose object is a bare name. The attribute half is a plain
+ * `identifier` in this grammar, as a free name is, so it is told apart by where it
+ * sits rather than by its type.
+ */
+const qualifierOf = (name: Syntax, above: Syntax | null): Syntax | null => {
+  if (above === null || above.type !== "attribute") return null
+  const attribute = above.childForFieldName("attribute")
+  if (
+    attribute === null ||
+    attribute.startPosition.row !== name.startPosition.row ||
+    attribute.startPosition.column !== name.startPosition.column
+  ) {
+    return null
+  }
+  const object = above.childForFieldName("object")
+  return object?.type === "identifier" ? object : null
+}
+
+/**
+ * The module an imported name stands for, as a qualifier.
+ *
+ * `from django.db import models` binds `models`, which is `django.db.models` —
+ * the module, the name and a dot, or no dot after a relative `.`. A plain `import
+ * os.path` binds `os`, the first module of the path, since that is the name the
+ * file can write; `import os.path as p` binds `p`, which is all of it.
+ */
+const moduleThrough = (from: Borrowed, qualifier: string): string => {
+  if (from.name === from.specifier) {
+    const first = from.specifier.split(".")[0] ?? from.specifier
+    return qualifier === first ? first : from.specifier
+  }
+  return from.specifier.endsWith(".") ? `${from.specifier}${from.name}` : `${from.specifier}.${from.name}`
+}
+
 export const PYTHON: Dialect = {
   opens: OPENS,
   names: NAMES,
   bindings,
+  qualifierOf,
+  moduleThrough,
   comments: COMMENTS,
   offering
 }

@@ -15,6 +15,14 @@ import { goModulesIn, isGoMod } from "../ledger/goModules"
 const MOST_CANDIDATES = 12
 
 /**
+ * How many files a Follow goes on through, where each passes the name on.
+ *
+ * A package re-exporting from a module re-exporting from another is two; three
+ * covers any layout written on purpose, and bounds a chain nobody meant.
+ */
+const MOST_HOPS = 3
+
+/**
  * How many `go.mod` files a press reads before it resolves a Go import. A
  * repository of more modules than this is resolved with the ones it has read.
  */
@@ -527,44 +535,74 @@ export const useFollowing = (
         return learnGoModules(source.path, across).pipe(
           Effect.andThen(
             Effect.suspend(() => {
-              const candidates = [found.borrowed.specifier, ...(found.orFrom ?? [])]
-                .flatMap((specifier) => reachingAll(source.path, specifier, across.paths, asked))
-                // Capped over the whole list and not only per specifier: a C++ file
-                // that includes twenty headers, pressed on a name none of them writes,
-                // would otherwise read all twenty before saying nothing.
-                .slice(0, MOST_CANDIDATES)
-              if (candidates.length === 0) return Effect.void
+              /** Every file a borrow could be read from, capped over all of them. */
+              const candidatesFor = (from: string, where: Extract<Where, { readonly at: "elsewhere" }>) =>
+                [where.borrowed.specifier, ...(where.orFrom ?? [])]
+                  .flatMap((specifier) => reachingAll(from, specifier, across.paths, where.borrowed.name))
+                  // Capped over the whole list and not only per specifier: a C++ file
+                  // that includes twenty headers, pressed on a name none of them writes,
+                  // would otherwise read all twenty before saying nothing.
+                  .slice(0, MOST_CANDIDATES)
 
-              // Named apart from the outer `asking`, which is a different question.
-              const trying = (at: number): Effect.Effect<void> => {
-                const path = candidates[at]
-                if (path === undefined) return Effect.void
+              /*
+               * Each file in turn, until one writes the name. One that does not may
+               * pass it on — a package's `__init__.py`, a barrel, a Rust `pub use` —
+               * and says where from, so the Follow goes on from there, a few files
+               * deep at most. Nothing is read twice, so two files naming each other
+               * end the walk rather than keeping it.
+               */
+              const seek = (
+                candidates: ReadonlyArray<string>,
+                wanted: string,
+                hops: number,
+                seen: Set<string>
+              ): Effect.Effect<boolean> => {
+                const trying = (at: number): Effect.Effect<boolean> => {
+                  const path = candidates[at]
+                  if (path === undefined) return Effect.succeed(false)
 
-                const onwards = (): Effect.Effect<void> => trying(at + 1)
+                  const onwards = (): Effect.Effect<boolean> => trying(at + 1)
+                  if (seen.has(path)) return onwards()
+                  seen.add(path)
 
-                return across.read(path).pipe(
-                  Effect.flatMap((text) =>
-                    ledger
-                      .writingNamed({ path, text }, found.borrowed.name)
-                      .pipe(Effect.map((writing) => ({ writing, text })))
-                  ),
-                  Effect.flatMap(({ writing, text }) => {
-                    // Nothing under that name here, so the next file this could be.
-                    if (Option.isNone(writing)) return onwards()
-                    if (!insist && on.current?.name !== name) return Effect.void
-                    on.current = { name, writing: writing.value, where: path, text }
-                    then(writing.value, path)
-                    return Effect.void
-                  }),
-                  // A file that would not come is the next one's turn — reported
-                  // first, because `onward` is the only trace this extension keeps and
-                  // swallowing the cause here made a failed read look like a file that
-                  // simply said nothing.
-                  Effect.catch((cause) => onward(cause).pipe(Effect.andThen(onwards())))
-                )
+                  return across.read(path).pipe(
+                    Effect.flatMap((text) =>
+                      ledger
+                        .writingNamed({ path, text }, wanted)
+                        .pipe(Effect.map((writing) => ({ writing, text })))
+                    ),
+                    Effect.flatMap(({ writing, text }): Effect.Effect<boolean, unknown> => {
+                      if (Option.isSome(writing)) {
+                        if (!insist && on.current?.name !== name) return Effect.succeed(true)
+                        on.current = { name, writing: writing.value, where: path, text }
+                        then(writing.value, path)
+                        return Effect.succeed(true)
+                      }
+                      // Nothing under that name here: where it came from, or the next file.
+                      if (hops >= MOST_HOPS) return onwards()
+                      return ledger.borrowedAs({ path, text }, wanted).pipe(
+                        Effect.flatMap((passed) =>
+                          Option.isNone(passed)
+                            ? onwards()
+                            : seek(candidatesFor(path, passed.value), passed.value.borrowed.name, hops + 1, seen).pipe(
+                                Effect.flatMap((done) => (done ? Effect.succeed(true) : onwards()))
+                              )
+                        )
+                      )
+                    }),
+                    // A file that would not come is the next one's turn — reported
+                    // first, because `onward` is the only trace this extension keeps and
+                    // swallowing the cause here made a failed read look like a file that
+                    // simply said nothing.
+                    Effect.catch((cause) => onward(cause).pipe(Effect.andThen(onwards())))
+                  )
+                }
+                return trying(0)
               }
 
-              return trying(0)
+              const candidates = candidatesFor(source.path, found)
+              if (candidates.length === 0) return Effect.void
+              return seek(candidates, asked, 0, new Set()).pipe(Effect.asVoid)
             })
           )
         )

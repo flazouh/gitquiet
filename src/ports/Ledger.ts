@@ -95,6 +95,17 @@ export type Ledger = {
     reading: Reading,
     name: string
   ) => Effect.Effect<Option.Option<Writing>, LedgerUnavailable>
+  /**
+   * Where this file got a name it does not write, for a Follow that reached it.
+   *
+   * The step after `writingNamed` finds nothing: a Python package's
+   * `__init__.py`, a barrel's re-export or a Rust `pub use` passes the name on,
+   * and this says where to, so the Follow can go on from there.
+   */
+  readonly borrowedAs: (
+    reading: Reading,
+    name: string
+  ) => Effect.Effect<Option.Option<Extract<Where, { readonly at: "elsewhere" }>>, LedgerUnavailable>
   /** Everywhere in this file that means the same Writing. */
   readonly usesIn: (
     reading: Reading,
