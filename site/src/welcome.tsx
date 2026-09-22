@@ -26,9 +26,8 @@ const THEIR_PULLS = "https://github.com/pulls"
  * window already has: `Supplied` is the stage every screen on this site runs under, and
  * `element` keeps its theme and its portalled bar inside the card rather than on `<html>`.
  *
- * Not `Live`, which the landing page uses. That draws the site's own bordered frame
- * around a screen and holds it back until it scrolls into view. Both are right in a
- * column of twelve screens and wrong here: this card is already the frame, and a frame
+ * Not a second product frame around the screen. That belonged to the old landing
+ * column of live screens. Wrong here: this card is already the frame, and a frame
  * inside it is the double edge this panel was redrawn to get rid of.
  */
 const Screen = ({ shot }: { readonly shot: Shot }) => {
