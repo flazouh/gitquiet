@@ -233,8 +233,8 @@ describe("a file that was taken whole, and named nothing it brought", () => {
 
     // Both files are offered, in the order the file took them, because which of
     // them writes the name is not something either `require` says.
-    expect(found.borrowed).toEqual({ name: "Second", specifier: "one" })
-    expect(found.orFrom).toEqual(["two"])
+    expect(found.borrowed).toEqual({ name: "Second", specifier: "./one" })
+    expect(found.orFrom).toEqual(["./two"])
   })
 
   test("a file that took nothing whole still answers nothing", () => {
@@ -688,5 +688,53 @@ describe("a Rust name a module hands on with pub use", () => {
     const [written] = reachingAll(barrel!, passed!.borrowed.specifier, paths, "HiArgs")
     const other = FILES[written!]!
     expect(writingNamed(parsed("tree-sitter-rust.wasm", other), other, "HiArgs", dialectFor(written!)!)?.line).toBe(1)
+  })
+})
+
+/*
+ * From review of f52cbcd and edfdbf1: the uses panel follows what a file took
+ * whole, and past the first file that is only right where taking a file whole
+ * passes its names on.
+ */
+describe("the uses a whole-file borrow proves, and the ones it does not", () => {
+  const told = (files: Readonly<Record<string, string>>, wasm: (path: string) => string) => {
+    const out = new Map<string, Told>()
+    for (const [path, source] of Object.entries(files)) out.set(path, toldBy(parsed(wasm(path), source), source, dialectFor(path)!))
+    return out
+  }
+
+  test("a Go use of one package is not a use of a package its files import", () => {
+    const FILES = {
+      "cmd/main.go": 'package main\n\nimport "example.com/app/shapes"\n\nfunc main() { shapes.Box() }\n',
+      "shapes/shapes.go": 'package shapes\n\nimport "example.com/app/other"\n\nfunc Box() { other.Do() }\n',
+      "other/box.go": "package other\n\nfunc Box() {}\n"
+    }
+    const uses = usesAcross(told(FILES, () => "tree-sitter-go.wasm"), { name: "Box", path: "other/box.go", line: 3 }, new Set(Object.keys(FILES)))
+
+    expect(uses.filter((use) => use.path === "cmd/main.go" && use.sure)).toEqual([])
+  })
+
+  test("a Ruby file that writes its own class is not a use of the one it required", () => {
+    const FILES = {
+      "lib/faraday/connection.rb": "module Faraday\n  class Connection\n  end\nend\n",
+      "lib/faraday/adapter/thing.rb": "require 'faraday/connection'\n\nclass Connection\nend\n\nConnection.new\n"
+    }
+    const uses = usesAcross(told(FILES, () => "tree-sitter-ruby.wasm"), { name: "Connection", path: "lib/faraday/connection.rb", line: 2 }, new Set(Object.keys(FILES)))
+
+    expect(uses.filter((use) => use.path === "lib/faraday/adapter/thing.rb")).toEqual([])
+  })
+
+  test("a plain require is never found beside the file, nor in a vendored gem", () => {
+    const paths = new Set(["lib/mygem/client.rb", "lib/mygem/logger.rb", "vendor/bundle/gems/json-2/lib/json.rb", "lib/mygem.rb"])
+
+    expect(reachingAll("lib/mygem/client.rb", "logger", paths)).toEqual([])
+    expect(reachingAll("lib/mygem/client.rb", "json", paths)).toEqual([])
+    expect(reachingAll("lib/mygem/client.rb", "mygem", paths)).toEqual(["lib/mygem.rb"])
+  })
+
+  test("a require_relative is only ever beside the file", () => {
+    const paths = new Set(["lib/mygem/logger.rb", "lib/logger.rb"])
+
+    expect(reachingAll("lib/mygem/client.rb", "./logger", paths)).toEqual(["lib/mygem/logger.rb"])
   })
 })

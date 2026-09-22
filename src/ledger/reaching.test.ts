@@ -246,12 +246,14 @@ describe("a Rust path, as a file", () => {
 describe("what a Ruby require_relative names", () => {
   const paths = new Set(["app/main.rb", "app/local/helper.rb", "app/sibling.rb", "lib/thing.rb"])
 
+  // `ruby.ts` records a `require_relative` with the `./` its meaning has, which is
+  // what tells it from a plain `require` here.
   test("names a file beside the one that wrote it", () => {
-    expect(reaching("app/main.rb", "sibling", paths)).toBe("app/sibling.rb")
+    expect(reaching("app/main.rb", "./sibling", paths)).toBe("app/sibling.rb")
   })
 
   test("takes a path under that folder", () => {
-    expect(reaching("app/main.rb", "local/helper", paths)).toBe("app/local/helper.rb")
+    expect(reaching("app/main.rb", "./local/helper", paths)).toBe("app/local/helper.rb")
   })
 
   test("climbs with dots, as a path does", () => {
@@ -259,8 +261,8 @@ describe("what a Ruby require_relative names", () => {
   })
 
   test("a gem is not a file in this repository", () => {
-    // `require 'set'` never reaches here — ruby.ts records only the relative
-    // one — and a name that happens to look like a path still has to exist.
+    // `require 'set'` is looked for on the load path, and a name that happens to
+    // look like a path still has to exist.
     expect(reaching("app/main.rb", "set", paths)).toBeNull()
   })
 })

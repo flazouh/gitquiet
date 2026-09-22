@@ -183,9 +183,13 @@ const passedOn = function* (statement: Syntax): Generator<Borrowed> {
 
   const args = statement.childForFieldName("arguments")
   if (args === null) return
+  // Said as a relative path where it is one, so that `couldBeRuby` knows the two
+  // apart: a `require_relative` is beside the file, and a `require` never is.
+  const relative = name.text === "require_relative"
   for (const one of childrenOf(args)) {
     const path = stringOf(one)
-    if (path !== null) yield { name: "*", specifier: path }
+    if (path === null) continue
+    yield { name: "*", specifier: relative && !path.startsWith(".") ? `./${path}` : path }
   }
 }
 

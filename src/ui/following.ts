@@ -624,6 +624,8 @@ export const useFollowing = (
                   const passer = passers[at]
                   if (passer === undefined || hops >= MOST_HOPS || gone()) return Effect.succeed(false)
                   return ledger.borrowedAs(passer, wanted).pipe(
+                    // One file that cannot say is one file, not the end of the rest.
+                    Effect.catch(() => Effect.succeed(Option.none())),
                     Effect.flatMap((passed) =>
                       Option.isNone(passed)
                         ? Effect.succeed(false)

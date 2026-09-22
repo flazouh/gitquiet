@@ -143,27 +143,29 @@ function couldBeTypeScript({ from, specifier }: Asked): ReadonlyArray<string> {
 /**
  * What a `require` or a `require_relative` names.
  *
- * Ruby says the path itself and leaves off the `.rb`. Relative to the file that
- * wrote it first, which is all a `require_relative` can mean: `"local/helper"` in
- * `app/main.rb` is `app/local/helper.rb`. Then on the load path, which is what a
- * plain `require` means — a gem's `lib` — and a gem that is not this repository's
- * is a path it does not have, which reaches nothing.
+ * Ruby says the path itself and leaves off the `.rb`. A `require_relative`,
+ * recorded with its `./`, is beside the file that wrote it and nowhere else:
+ * `"local/helper"` in `app/main.rb` is `app/local/helper.rb`. A plain `require` is
+ * on the load path — a gem's `lib` — and never beside the file: `require 'logger'`
+ * is Ruby's own logger, whatever a gem keeps next to the file asking.
  */
 function couldBeRuby({ from, specifier, paths }: Asked): ReadonlyArray<string> {
   const ending = (path: string) => (path.endsWith(".rb") ? path : `${path}.rb`)
-  const beside = plainly(`${folderOf(from)}/${specifier}`)
+  if (specifier.startsWith(".")) {
+    const beside = plainly(`${folderOf(from)}/${specifier}`)
+    return beside === null || beside === "" ? [] : [ending(beside)]
+  }
+  // A plain `require` is found on the load path: a gem's `lib`, which in a
+  // repository holding several gems is one of theirs — and never a gem vendored
+  // into it, which is somebody else's.
   const loaded = plainly(specifier)
-  return nearestFirst(
-    [
-      ...(beside === null || beside === "" ? [] : [ending(beside)]),
-      // A plain `require` is found on the load path: a gem's `lib`, which in a
-      // repository holding several gems is one of theirs.
-      ...(loaded === null || loaded === "" ? [] : [`lib/${ending(loaded)}`, ...endingIn(`lib/${ending(loaded)}`, from, paths)])
-    ],
-    from,
-    1
-  )
+  if (loaded === null || loaded === "") return []
+  const onPath = `lib/${ending(loaded)}`
+  return nearestFirst([onPath, ...endingIn(onPath, from, paths).filter((path) => !VENDORED.test(path))], from)
 }
+
+/** Somebody else's code, kept inside this repository. */
+const VENDORED = /(^|\/)(vendor|node_modules)\//u
 
 /**
  * What a quoted `#include` names.

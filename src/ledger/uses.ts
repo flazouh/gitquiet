@@ -16,6 +16,7 @@
  * `docs/spec/following.md` has the words.
  */
 
+import { dialectFor } from "./dialects"
 import { importsAFolder, reachingAll } from "./reaching"
 import type { Mention, Told } from "./writings"
 
@@ -78,12 +79,21 @@ const reaches = (
   paths: ReadonlySet<string>,
   files: ReadonlyMap<string, Told>,
   left: number,
-  seen: Set<string>
+  seen: Set<string>,
+  /** Whether this is the file the use is in, rather than one it was followed to. */
+  first = true
 ): boolean => {
   for (const from of told.borrows) {
     // A whole-module borrow carries every name that file writes, so it is
     // followed for any name asked about. A named one is only itself.
     if (from.name !== asked.name && from.name !== "*" && from.name !== "default") continue
+    /*
+     * Past the file the use is in, a file taken whole is followed only where that
+     * passes its names on — a barrel's `export *`, a package's `import *`. A Go
+     * file's imports, a C++ include and a Ruby require are for the file's own use,
+     * and following them counted `shapes.Box` a Sure use of `other.Box`.
+     */
+    if (from.name === "*" && !first && dialectFor(path)?.passesOnWhole !== true) continue
 
     // Every file the specifier could be, not only the first. Go imports a
     // folder rather than a file, so which of a package's files writes the name
@@ -97,7 +107,7 @@ const reaches = (
       const next = files.get(to)
       if (next === undefined) continue
       seen.add(to)
-      if (reaches(to, next, asked, paths, files, left - 1, seen)) return true
+      if (reaches(to, next, asked, paths, files, left - 1, seen, false)) return true
     }
   }
   return false
@@ -117,6 +127,13 @@ const sureness = (
   for (const from of told.borrows) {
     if (from.name === asked.name) borrowed = true
   }
+  /*
+   * Its own first, where it did not name the borrow: a Ruby file that requires
+   * the one writing `Connection` and writes its own `Connection` is using its own.
+   * Taking a file whole says nothing about which names it came for; writing one
+   * says which it meant.
+   */
+  if (!borrowed && told.declares.includes(asked.name)) return "no"
   if (reaches(path, told, asked, paths, files, THROUGH, new Set([path]))) return "sure"
 
   /*
@@ -182,7 +199,7 @@ export const usesAcross = (
       const reached = reachingAll(path, module, paths, asked.name)
       const onward = (to: string): boolean => {
         const next = files.get(to)
-        return next !== undefined && reaches(to, next, asked, paths, files, THROUGH - 1, new Set([path, to]))
+        return next !== undefined && reaches(to, next, asked, paths, files, THROUGH - 1, new Set([path, to]), false)
       }
       const said =
         reached.includes(asked.path) || reached.some(onward)

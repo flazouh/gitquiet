@@ -21,6 +21,18 @@ import type { Told } from "./writings"
 
 const NAME = "gitquiet-ledger"
 const VERSION = 1
+
+/**
+ * Which reading of a file a saying is, part of the key it is kept under.
+ *
+ * Raised whenever what a file is found to say changes shape — a plain Ruby
+ * `require` recorded, a Python star import, a mention read through a module — so
+ * a file read before is read again rather than answered with what was true then.
+ */
+const READER = 2
+
+/** The key a file's saying is kept under. */
+const keyFor = (sha: string): string => `${READER}:${sha}`
 const TOLD = "told"
 const COMMITS = "commits"
 
@@ -117,7 +129,7 @@ export const idbStore: Store = {
 
   told: (shas) =>
     inStore(TOLD, "readonly", (store) =>
-      Effect.forEach(shas, (sha) => done<Told | undefined>(store.get(sha)).pipe(
+      Effect.forEach(shas, (sha) => done<Told | undefined>(store.get(keyFor(sha))).pipe(
         Effect.map((found) => [sha, found] as const)
       ), { concurrency: "unbounded" }).pipe(
         Effect.map((pairs) => {
@@ -130,7 +142,7 @@ export const idbStore: Store = {
 
   keepTold: (told) =>
     inStore(TOLD, "readwrite", (store) =>
-      Effect.forEach(told, ([sha, one]) => done(store.put(one, sha)), {
+      Effect.forEach(told, ([sha, one]) => done(store.put(one, keyFor(sha))), {
         concurrency: "unbounded",
         discard: true
       })

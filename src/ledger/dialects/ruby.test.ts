@@ -144,10 +144,10 @@ describe("the outline of a Ruby file", () => {
 })
 
 describe("what a Ruby file required", () => {
-  test("says the file a require_relative names", () => {
+  test("says the file a require_relative names, as the relative path it is", () => {
     expect(toldBy(root, SOURCE, RUBY).borrows).toContainEqual({
       name: "*",
-      specifier: "local/helper"
+      specifier: "./local/helper"
     })
   })
 
