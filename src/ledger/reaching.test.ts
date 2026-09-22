@@ -630,3 +630,43 @@ describe("a C# namespace, which is not a file", () => {
     expect(reachingAll("src/Api/Foo.cs", "System", paths, "Settings")).not.toContain("Settings.cs")
   })
 })
+
+/*
+ * Found pressing `HiArgs` in ripgrep: nothing. Its crate's root is
+ * `crates/core/main.rs`, not `src/`, and `flags/mod.rs` hands `HiArgs` on with a
+ * `pub use` of its own module. A crate's root is the folder its `main.rs` or
+ * `lib.rs` is in; and a module's own folder is the file's name without `.rs`,
+ * or the folder of a `mod.rs`, which Rust says and nothing has to guess.
+ */
+describe("a Rust path, from where the crate and the module really are", () => {
+  const paths = new Set([
+    "crates/core/main.rs",
+    "crates/core/flags/mod.rs",
+    "crates/core/flags/hiargs.rs",
+    "crates/core/search.rs",
+    "src/lib.rs",
+    "src/shapes.rs",
+    "src/shapes/circle.rs",
+    "src/shapes/square/mod.rs",
+    "src/shapes/square/side.rs"
+  ])
+
+  test("crate:: is the folder the crate's main.rs is in", () => {
+    expect(reachingAll("crates/core/main.rs", "crate::flags", paths)).toEqual(["crates/core/flags/mod.rs"])
+    expect(reachingAll("crates/core/flags/mod.rs", "crate::flags::hiargs", paths)).toEqual(["crates/core/flags/hiargs.rs"])
+  })
+
+  test("crate:: is still src/ where that is where lib.rs is", () => {
+    expect(reachingAll("src/shapes/circle.rs", "crate::shapes", paths)).toEqual(["src/shapes.rs"])
+  })
+
+  test("self:: is the module's own folder, whether it is a file or a mod.rs", () => {
+    expect(reachingAll("src/shapes.rs", "self::circle", paths)).toEqual(["src/shapes/circle.rs"])
+    expect(reachingAll("src/shapes/square/mod.rs", "self::side", paths)).toEqual(["src/shapes/square/side.rs"])
+  })
+
+  test("super:: is the module around it", () => {
+    expect(reachingAll("src/shapes/circle.rs", "super::square", paths)).toEqual(["src/shapes/square/mod.rs"])
+    expect(reachingAll("src/shapes/square/side.rs", "super::super::circle", paths)).toEqual(["src/shapes/circle.rs"])
+  })
+})

@@ -570,23 +570,63 @@ const pythonEndings = (asked: string): ReadonlyArray<string> => [
 /**
  * What a Rust path could be, as a file.
  *
- * `crate::a::b` and nothing else. A crate's root is `src/`, a module is `a.rs`
- * or `a/mod.rs`, and those two are the whole of what is worth guessing.
+ * A module is `a.rs` or `a/mod.rs`, under the folder of the module it is in. Where
+ * that folder is, is what the path's first word says:
  *
- * `self::` and `super::` are not here. Both are relative to the module a file
- * declares rather than to the file itself — `src/x/y.rs` declaring `mod a` puts
- * `a` at `src/x/y/a.rs`, and the same file reached as `src/x/y/mod.rs` puts it
- * at `src/x/y/a.rs` too. Reading `mod` items is what tells those apart, and
- * guessing between them would be offering a reader a file at random.
+ *  - **`crate::`** is the crate's root, the folder its `lib.rs` or `main.rs` is in —
+ *    `src/` by Cargo's default, and `crates/core/` for ripgrep's binary, which
+ *    guessing `src/` never reached.
+ *  - **`self::`** is the module's own folder: the file's name without `.rs`, or the
+ *    folder of a `mod.rs`, `lib.rs` or `main.rs`. Rust says this; `src/x/y.rs` and
+ *    `src/x/y/mod.rs` both put `mod a` at `src/x/y/a.rs`.
+ *  - **`super::`** is the folder of the module around it, once for each.
  *
- * `std::`, and any other crate, is outside the repository, which is the same
- * answer every dependency gets everywhere else here.
+ * A `#[path]` attribute moves a module anywhere, and is not read. `std::`, and any
+ * other crate, is outside the repository, the answer every dependency gets.
  */
-function couldBeRust({ specifier }: Asked): ReadonlyArray<string> {
+function couldBeRust({ from, specifier, paths }: Asked): ReadonlyArray<string> {
   const parts = specifier.split("::").filter((part) => part !== "")
-  if (parts[0] !== "crate" || parts.length < 2) return []
-  const asked = parts.slice(1).join("/")
-  return [`src/${asked}.rs`, `src/${asked}/mod.rs`]
+  const first = parts[0]
+  let folder: string
+  let at = 1
+  if (first === "crate") folder = crateRootOf(from, paths)
+  else if (first === "self") folder = moduleFolderOf(from)
+  else if (first === "super") {
+    folder = moduleFolderOf(from)
+    at = 0
+    while (parts[at] === "super") {
+      folder = folderOf(folder)
+      at += 1
+    }
+  } else return []
+  const rest = parts.slice(at)
+  if (rest.length === 0) return []
+  const asked = [folder, ...rest].filter((part) => part !== "").join("/")
+  return [`${asked}.rs`, `${asked}/mod.rs`]
+}
+
+/** The file names a crate is rooted at, which Cargo looks for. */
+const CRATE_ROOTS: ReadonlyArray<string> = ["lib.rs", "main.rs"]
+
+/**
+ * The folder of the crate a file is in: the nearest one up holding a `lib.rs` or a
+ * `main.rs`. `src` where none does, which is Cargo's default and the old guess.
+ */
+const crateRootOf = (from: string, paths: ReadonlySet<string>): string => {
+  let folder = folderOf(from)
+  for (;;) {
+    const here = folder
+    if (CRATE_ROOTS.some((root) => paths.has(here === "" ? root : `${here}/${root}`))) return here
+    if (here === "") return "src"
+    folder = folderOf(here)
+  }
+}
+
+/** The folder a Rust file's own submodules are in. */
+const moduleFolderOf = (file: string): string => {
+  const name = file.slice(file.lastIndexOf("/") + 1)
+  if (name === "mod.rs" || CRATE_ROOTS.includes(name)) return folderOf(file)
+  return file.replace(/\.rs$/u, "")
 }
 
 /**

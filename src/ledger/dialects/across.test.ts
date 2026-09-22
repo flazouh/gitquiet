@@ -145,7 +145,7 @@ const languages = new Map<string, Language>()
 
 beforeAll(async () => {
   await Parser.init({ locateFile: () => "node_modules/web-tree-sitter/web-tree-sitter.wasm" })
-  for (const wasm of [...CASES.map((one) => one.wasm), "tree-sitter-go.wasm", "tree-sitter-c-sharp.wasm", "tree-sitter-python.wasm"]) {
+  for (const wasm of [...CASES.map((one) => one.wasm), "tree-sitter-go.wasm", "tree-sitter-c-sharp.wasm", "tree-sitter-python.wasm", "tree-sitter-rust.wasm"]) {
     if (languages.has(wasm)) continue
     languages.set(wasm, await Language.load(`node_modules/@vscode/tree-sitter-wasm/wasm/${wasm}`))
   }
@@ -660,5 +660,33 @@ describe("what a file passes on, and what it only took", () => {
 
     const uses = usesAcross(told, { name: "ACTIVE", path: "app/models.py", line: 2 }, new Set(Object.keys(FILES)))
     expect(uses.filter((use) => use.path === "app/views.py").map((use) => use.line)).toEqual([3])
+  })
+})
+
+describe("a Rust name a module hands on with pub use", () => {
+  const FILES: Readonly<Record<string, string>> = {
+    "crates/core/main.rs": "mod flags;\n\nuse crate::flags::{HiArgs, SearchMode};\n\nfn search(args: &HiArgs) {}\n",
+    "crates/core/flags/mod.rs": "pub(crate) use crate::flags::{\n    hiargs::HiArgs,\n    parse::SearchMode,\n};\n\nmod hiargs;\nmod parse;\n",
+    "crates/core/flags/hiargs.rs": "pub(crate) struct HiArgs {\n    x: u8,\n}\n"
+  }
+  const paths = new Set(Object.keys(FILES))
+
+  test("is followed to the file that writes it", () => {
+    const from = "crates/core/main.rs"
+    const text = FILES[from]!
+    const lines = text.split("\n")
+    const row = lines.findIndex((line) => line.includes("fn search"))
+    const found = writingAt(parsed("tree-sitter-rust.wasm", text), text, { row, column: lines[row]!.indexOf("HiArgs") }, dialectFor(from)!)
+    expect(found?.at).toBe("elsewhere")
+    if (found?.at !== "elsewhere") return
+
+    const [barrel] = reachingAll(from, found.borrowed.specifier, paths, found.borrowed.name)
+    expect(barrel).toBe("crates/core/flags/mod.rs")
+    const passed = borrowedAs(parsed("tree-sitter-rust.wasm", FILES[barrel!]!), "HiArgs", dialectFor(barrel!)!)
+    expect(passed?.borrowed).toEqual({ name: "HiArgs", specifier: "crate::flags::hiargs" })
+
+    const [written] = reachingAll(barrel!, passed!.borrowed.specifier, paths, "HiArgs")
+    const other = FILES[written!]!
+    expect(writingNamed(parsed("tree-sitter-rust.wasm", other), other, "HiArgs", dialectFor(written!)!)?.line).toBe(1)
   })
 })
