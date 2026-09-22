@@ -202,11 +202,14 @@ function couldBeJava({ from, specifier, name, paths }: Asked): ReadonlyArray<str
   // The class itself, for a static import: `…base.Preconditions.checkNotNull`
   // names a method, and the file is the class it is a member of.
   const owner = specifier.split(".").filter((part) => part !== "").join("/")
-  return [
-    ...JAVA_ROOTS.map((root) => (root === "" ? `${asked}.java` : `${root}/${asked}.java`)),
-    ...endingIn(`${asked}.java`, from, paths),
-    ...(owner === "" ? [] : endingIn(`${owner}.java`, from, paths))
-  ]
+  const classes = nearestFirst(
+    [
+      ...JAVA_ROOTS.map((root) => (root === "" ? `${asked}.java` : `${root}/${asked}.java`)),
+      ...endingIn(`${asked}.java`, from, paths)
+    ],
+    from
+  )
+  return owner === "" ? classes : nearestFirst([...classes, ...endingIn(`${owner}.java`, from, paths)], from, classes.length)
 }
 
 /**
@@ -222,16 +225,32 @@ function couldBeJava({ from, specifier, name, paths }: Asked): ReadonlyArray<str
  */
 const endingIn = (tail: string, from: string, paths: ReadonlySet<string>): ReadonlyArray<string> => {
   const name = tail.slice(tail.lastIndexOf("/") + 1)
-  const near = (path: string): number => {
-    const a = path.split("/")
-    const b = from.split("/")
-    let shared = 0
-    while (shared < a.length && shared < b.length && a[shared] === b[shared]) shared += 1
-    return shared
-  }
   return (byName(paths).get(name) ?? [])
     .filter((path) => path === tail || path.endsWith(`/${tail}`))
-    .toSorted((a, b) => near(b) - near(a) || a.length - b.length)
+    .toSorted((a, b) => sharedWith(from, b) - sharedWith(from, a) || a.length - b.length)
+}
+
+/** How many leading folders two paths have in common. */
+const sharedWith = (from: string, path: string): number => {
+  const a = path.split("/")
+  const b = from.split("/")
+  let shared = 0
+  while (shared < a.length && shared < b.length && a[shared] === b[shared]) shared += 1
+  return shared
+}
+
+/**
+ * Candidates once each, the nearest to the asking file first.
+ *
+ * Nearest across the conventions and the matches alike: a module beside the file
+ * that asked is the one it builds against, and a root another module keeps is not,
+ * though a convention names it first. Otherwise in the order given. The first
+ * `fixed` stay where they are, ahead of what follows them.
+ */
+const nearestFirst = (candidates: ReadonlyArray<string>, from: string, fixed = 0): ReadonlyArray<string> => {
+  const once = candidates.filter((one, at) => candidates.indexOf(one) === at)
+  const rest = once.slice(fixed).toSorted((a, b) => sharedWith(from, b) - sharedWith(from, a))
+  return [...once.slice(0, fixed), ...rest]
 }
 
 /**
@@ -302,7 +321,7 @@ function couldBePhp({ from, specifier, name, paths }: Asked): ReadonlyArray<stri
   const asked: Array<string> = [`src/${after}.php`, `src/${whole}.php`, `${whole}.php`]
   if (after !== "") asked.push(`lib/${after}.php`, `app/${after}.php`)
   asked.push(...endingIn(`${whole}.php`, from, paths))
-  return asked.filter((one, at) => one !== ".php" && asked.indexOf(one) === at)
+  return nearestFirst(asked.filter((one) => one !== ".php"), from)
 }
 
 /**
@@ -325,7 +344,7 @@ function couldBeCSharp({ from, specifier, name, paths }: Asked): ReadonlyArray<s
   const asked = [`${whole}.cs`, `src/${whole}.cs`]
   if (after !== "") asked.push(`src/${after}.cs`, `${after}.cs`)
   asked.push(...endingIn(`${whole}.cs`, from, paths))
-  return asked.filter((one, at) => asked.indexOf(one) === at)
+  return nearestFirst(asked, from)
 }
 
 /**
@@ -597,6 +616,15 @@ export const reaching = (
   paths: ReadonlySet<string>,
   name?: string
 ): string | null => reachingAll(from, specifier, paths, name)[0] ?? null
+
+/**
+ * Whether an import names a folder of files rather than one file.
+ *
+ * Go's alone: a package is every file in it. Everywhere else the candidates are
+ * guesses at one file, and only the first that exists is it — a library kept
+ * twice, as Guava keeps an Android copy, is two files an import reaches one of.
+ */
+export const importsAFolder = (path: string): boolean => extensionOf(path) === "go"
 
 /** The extensions a specifier can be resolved for, for a test that holds two lists together. */
 export const RESOLVES: ReadonlySet<string> = new Set(Object.keys(RESOLVERS))

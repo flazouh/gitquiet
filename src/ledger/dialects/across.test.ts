@@ -460,3 +460,34 @@ describe("a C# type from a namespace the file opened", () => {
     expect(landing("publisher.Publish()", "Publish")).toBeNull()
   })
 })
+
+/*
+ * From review: Guava keeps its sources twice, for the JVM and for Android. Every
+ * importer of one copy could also reach the other, and was counted a Sure use of
+ * both. An import that names a file names one file: the one it reaches first.
+ */
+describe("a Java class kept in two copies", () => {
+  const FILES: Readonly<Record<string, string>> = {
+    "guava/src/com/ex/Box.java": "package com.ex;\npublic class Box {}\n",
+    "android/guava/src/com/ex/Box.java": "package com.ex;\npublic class Box {}\n",
+    "guava/src/com/ex/app/Main.java": "package com.ex.app;\nimport com.ex.Box;\nclass Main { Box box; }\n"
+  }
+
+  const usesOf = (path: string) => {
+    const told = new Map<string, Told>()
+    for (const [one, source] of Object.entries(FILES)) {
+      told.set(one, toldBy(parsed("tree-sitter-java.wasm", source), source, dialectFor(one)!))
+    }
+    return usesAcross(told, { name: "Box", path, line: 2 }, new Set(Object.keys(FILES)))
+      .filter((use) => use.path === "guava/src/com/ex/app/Main.java")
+      .map((use) => use.sure)
+  }
+
+  test("an importer is a Sure use of the copy it reaches", () => {
+    expect(usesOf("guava/src/com/ex/Box.java")).toContain(true)
+  })
+
+  test("and not of the other copy", () => {
+    expect(usesOf("android/guava/src/com/ex/Box.java")).not.toContain(true)
+  })
+})

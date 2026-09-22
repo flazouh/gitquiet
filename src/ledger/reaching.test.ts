@@ -583,3 +583,35 @@ describe("a package path, wherever the repository keeps its sources", () => {
     expect(reachingAll("Main.java", "com.ex.shapes", other, "Box")).toEqual([])
   })
 })
+
+describe("a package path, ranked and counted once", () => {
+  test("a module beside the asking file comes before a root another module keeps", () => {
+    const paths = new Set(["src/main/java/com/ex/Box.java", "moduleA/src/main/java/com/ex/Box.java"])
+
+    expect(reachingAll("moduleA/src/main/java/com/ex/Main.java", "com.ex", paths, "Box")[0]).toBe(
+      "moduleA/src/main/java/com/ex/Box.java"
+    )
+  })
+
+  test("each file is offered once", () => {
+    const paths = new Set(["src/com/ex/Box.java", "src/main/java/com/ex/Box.java"])
+    const found = reachingAll("src/com/ex/Main.java", "com.ex", paths, "Box")
+
+    expect(found).toEqual([...new Set(found)])
+  })
+
+  test("a PHP or C# file no convention reaches is found by its path", () => {
+    const paths = new Set(["packages/core/lib/Illuminate/Support/Str.php", "code/Shared/Money/Amount.cs"])
+
+    expect(reachingAll("packages/core/lib/Illuminate/Support/Arr.php", "Illuminate\\Support", paths, "Str")).toEqual([
+      "packages/core/lib/Illuminate/Support/Str.php"
+    ])
+    expect(reachingAll("code/App/Program.cs", "Shared.Money", paths, "Amount")).toEqual(["code/Shared/Money/Amount.cs"])
+  })
+
+  test("a near miss of a folder is not the package", () => {
+    const paths = new Set(["xcom/ex/shapes/Box.java"])
+
+    expect(reachingAll("Main.java", "com.ex.shapes", paths, "Box")).toEqual([])
+  })
+})

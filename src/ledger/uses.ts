@@ -16,7 +16,7 @@
  * `docs/spec/following.md` has the words.
  */
 
-import { reachingAll } from "./reaching"
+import { importsAFolder, reachingAll } from "./reaching"
 import type { Mention, Told } from "./writings"
 
 /** One Use, with the file it is in and how sure the answer is. */
@@ -88,7 +88,9 @@ const reaches = (
     // Every file the specifier could be, not only the first. Go imports a
     // folder rather than a file, so which of a package's files writes the name
     // is not something the import says.
-    for (const to of reachingAll(path, from.specifier, paths, from.name)) {
+    // Every file of a Go package; the one file anywhere else. See `importsAFolder`.
+    const reached = reachingAll(path, from.specifier, paths, from.name)
+    for (const to of importsAFolder(path) ? reached : reached.slice(0, 1)) {
       if (to === asked.path) return true
 
       if (left === 0 || seen.has(to)) continue
