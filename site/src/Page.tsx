@@ -64,9 +64,9 @@ export const Page = () => {
 
           <div
             id="product"
-            className="relative z-10 mt-auto grid flex-1 items-center gap-10 px-5 pb-10 pt-8 sm:px-9 sm:pb-14 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] md:items-center md:gap-12 md:px-0 md:py-0 md:pl-9 md:pr-0 lg:gap-16"
+            className="relative z-10 mt-auto flex flex-1 flex-col gap-10 px-5 pb-10 pt-8 sm:px-9 sm:pb-14 md:block md:px-0 md:py-0 md:pl-9 md:pr-0"
           >
-            <div className="md:flex md:flex-col md:justify-center md:py-14 md:pr-6 lg:pr-10">
+            <div className="md:flex md:min-h-[calc(100svh-20px-3rem)] md:max-w-[min(42%,28rem)] md:flex-col md:justify-center md:py-14 md:pr-6 lg:max-w-[30rem] lg:pr-10">
               <h1 className="m-0 max-w-[18ch] text-balance text-[clamp(2.5rem,5.2vw,4.75rem)] font-medium leading-[1.02] tracking-tight text-white">
                 A faster, quieter GitHub.
               </h1>
@@ -80,7 +80,8 @@ export const Page = () => {
               </div>
             </div>
 
-            <div className="flex w-full md:self-center">
+            {/* Flush to poster right — rounded shot + bottom controls live in HeroCarousel */}
+            <div className="w-full md:absolute md:right-0 md:top-1/2 md:w-[min(56%,40rem)] md:-translate-y-1/2 md:pl-4">
               <HeroCarousel />
             </div>
           </div>

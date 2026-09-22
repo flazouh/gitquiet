@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react"
 
 /**
- * Hero product carousel — five real screenshots, edge-to-edge in the poster.
- * Sized to a fixed 16/10 frame (screenshot ratio) so object-cover never crops chrome L/R.
- *
- * Auto-advances every 5s unless the user prefers reduced motion, or the frame
- * is hovered / focused. Prev / next + dots overlay the image; arrow keys when focused.
+ * Hero product carousel — rounded screenshot well + bottom controls section.
+ * Fixed 16/10 image frame so object-cover never crops chrome L→R. Flush to the
+ * poster’s right edge on md+ (parent pins the stack).
  */
 
 const SLIDES = [
@@ -118,29 +116,33 @@ export const HeroCarousel = () => {
       }}
       className="relative w-full max-w-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/25"
     >
-      <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#131315]">
-        {SLIDES.map((item, i) => {
-          const active = i === index
-          return (
-            <img
-              key={item.src}
-              src={item.src}
-              alt={active ? item.alt : ""}
-              width={1280}
-              height={800}
-              decoding={i === 0 ? "sync" : "async"}
-              fetchPriority={i === 0 ? "high" : "low"}
-              aria-hidden={!active}
-              className={`absolute inset-0 h-full w-full object-cover object-top ${fade} ${
-                active ? "opacity-100" : "pointer-events-none opacity-0"
-              }`}
-            />
-          )
-        })}
+      <div className="overflow-hidden rounded-2xl bg-[rgba(12,12,12,0.72)] sm:rounded-[20px]">
+        <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#131315]">
+          {SLIDES.map((item, i) => {
+            const active = i === index
+            return (
+              <img
+                key={item.src}
+                src={item.src}
+                alt={active ? item.alt : ""}
+                width={1280}
+                height={800}
+                decoding={i === 0 ? "sync" : "async"}
+                fetchPriority={i === 0 ? "high" : "low"}
+                aria-hidden={!active}
+                className={`absolute inset-0 h-full w-full object-cover object-top ${fade} ${
+                  active ? "opacity-100" : "pointer-events-none opacity-0"
+                }`}
+              />
+            )
+          })}
+        </div>
 
-        {/* Controls overlay — no bordered chrome bar */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-black/45 via-black/15 to-transparent px-4 pb-4 pt-14 sm:px-5 sm:pb-5">
-          <div className="pointer-events-auto flex items-center gap-1.5" role="group" aria-label="Choose slide">
+        <div
+          className="flex items-center justify-between gap-3 border-t px-4 py-3 sm:px-5"
+          style={{ borderColor: "rgba(156,168,168,0.14)" }}
+        >
+          <div className="flex items-center gap-1.5" role="group" aria-label="Choose slide">
             {SLIDES.map((item, i) => (
               <button
                 key={item.src}
@@ -149,21 +151,21 @@ export const HeroCarousel = () => {
                 aria-label={`${item.label}: ${item.alt}`}
                 onClick={() => go(i)}
                 className={`h-2 rounded-full ${calm ? "" : "transition-all"} ${
-                  i === index ? "w-5 bg-white/90" : "w-2 bg-white/40 hover:bg-white/65"
+                  i === index ? "w-5 bg-white/85" : "w-2 bg-white/30 hover:bg-white/50"
                 }`}
               />
             ))}
           </div>
 
-          <div className="pointer-events-auto flex items-center gap-2">
-            <span className="mr-1 hidden text-[12px] tabular text-white/70 sm:inline">
+          <div className="flex items-center gap-2">
+            <span className="mr-1 hidden text-[12px] tabular text-white/45 sm:inline" aria-live="polite">
               {index + 1} / {count}
             </span>
             <button
               type="button"
               aria-label="Previous slide"
               onClick={prev}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-black/35 text-white/90 backdrop-blur-sm hover:bg-black/50 hover:text-white"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] text-white/80 ring-1 ring-white/10 hover:bg-white/[0.12] hover:text-white"
             >
               <Chevron dir="prev" />
             </button>
@@ -171,7 +173,7 @@ export const HeroCarousel = () => {
               type="button"
               aria-label="Next slide"
               onClick={next}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-black/35 text-white/90 backdrop-blur-sm hover:bg-black/50 hover:text-white"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] text-white/80 ring-1 ring-white/10 hover:bg-white/[0.12] hover:text-white"
             >
               <Chevron dir="next" />
             </button>
