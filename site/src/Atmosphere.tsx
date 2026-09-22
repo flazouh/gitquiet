@@ -1,38 +1,15 @@
 import { MeshGradient, StaticMeshGradient } from "@paper-design/shaders-react"
 import type { CSSProperties } from "react"
 import { useEffect, useState } from "react"
-import { BED } from "@/ui/bed"
+import { BED_IN_CSS, BED_MOTION, BED_SHADER } from "@/ui/bed"
 
 /**
  * Dark-glass poster field for the marketing site.
  *
  * The shared Wafer bed — muted teal/sand stops at Luminar poster proportions.
- * Not pink mesh, not cobalt CTA blue, not grayscale.
+ * Not pink mesh, not cobalt CTA blue, not grayscale. Shader grain + soft teal
+ * shade only; no extra SVG noise or charcoal base that would crush chroma.
  */
-
-/** Use the same five stops as the poster and the app's shared Wafer gradient. */
-const FIELD_COLORS = [...BED]
-
-const FIELD_SHADER = {
-  colors: FIELD_COLORS,
-  positions: 48,
-  waveX: 0.38,
-  waveXShift: 0.55,
-  waveY: 0.3,
-  waveYShift: 0.22,
-  mixing: 0.36,
-  grainMixer: 0.22,
-  grainOverlay: 0.28
-}
-
-const FIELD_MOTION = {
-  colors: FIELD_COLORS,
-  speed: 0.1,
-  distortion: 0.28,
-  swirl: 0.06,
-  grainMixer: FIELD_SHADER.grainMixer,
-  grainOverlay: FIELD_SHADER.grainOverlay
-}
 
 const useCalm = (): boolean => {
   const [calm, setCalm] = useState(() =>
@@ -70,32 +47,22 @@ export const Atmosphere = ({
       <div
         aria-hidden
         className="absolute inset-0"
-        style={{
-          background: `radial-gradient(120% 95% at 18% 100%, ${BED[3]}33 0%, transparent 55%), ${BED[3]}`
-        }}
+        style={{ background: BED_IN_CSS }}
       />
       <div aria-hidden className="absolute inset-0">
         {alive && !calm ? (
-          <MeshGradient {...FIELD_MOTION} scale={1.15} fit="cover" style={canvas} />
+          <MeshGradient {...BED_MOTION} scale={1.15} fit="cover" style={canvas} />
         ) : (
-          <StaticMeshGradient {...FIELD_SHADER} scale={1.15} fit="cover" style={canvas} />
+          <StaticMeshGradient {...BED_SHADER} scale={1.15} fit="cover" style={canvas} />
         )}
       </div>
-      <div
-        aria-hidden
-        className="absolute inset-0 opacity-[0.35]"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E\")"
-        }}
-      />
       {shade === "headline-left" ? (
         <div
           aria-hidden
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(120% 95% at 14% 100%, rgba(16, 32, 34, 0.38) 0%, transparent 68%)"
+              "radial-gradient(120% 95% at 14% 100%, rgba(26, 36, 38, 0.26) 0%, transparent 68%)"
           }}
         />
       ) : null}
