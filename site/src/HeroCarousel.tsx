@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react"
-import { HERO_SHADOW, SCREEN_EDGE } from "./brand"
 
 /**
- * Hero product carousel — five real screenshots in a Luminar-proportion frame.
+ * Hero product carousel — five real screenshots, edge-to-edge in the poster.
  *
  * Auto-advances every 5s unless the user prefers reduced motion, or the frame
- * is hovered / focused. Prev / next + dots; arrow keys when focused.
+ * is hovered / focused. Prev / next + dots overlay the image; arrow keys when focused.
  */
 
 const SLIDES = [
@@ -116,45 +115,31 @@ export const HeroCarousel = () => {
           setPaused(false)
         }
       }}
-      className="relative w-full max-w-[560px] outline-none focus-visible:ring-2 focus-visible:ring-white/25 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0c0c]"
+      className="relative h-full w-full max-w-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/25"
     >
-      <div
-        className="relative overflow-hidden rounded-2xl border backdrop-blur-md sm:rounded-[20px]"
-        style={{
-          background: "rgba(12, 12, 12, 0.72)",
-          borderColor: SCREEN_EDGE,
-          boxShadow: HERO_SHADOW
-        }}
-      >
-        {/* ~16–20px inner padding, soft ring — Luminar frame */}
-        <div className="p-4 sm:p-5">
-          <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-[#131315] ring-1 ring-white/[0.08]">
-            {SLIDES.map((item, i) => {
-              const active = i === index
-              return (
-                <img
-                  key={item.src}
-                  src={item.src}
-                  alt={active ? item.alt : ""}
-                  width={1280}
-                  height={800}
-                  decoding={i === 0 ? "sync" : "async"}
-                  fetchPriority={i === 0 ? "high" : "low"}
-                  aria-hidden={!active}
-                  className={`absolute inset-0 h-full w-full object-cover object-top ${fade} ${
-                    active ? "opacity-100" : "pointer-events-none opacity-0"
-                  }`}
-                />
-              )
-            })}
-          </div>
-        </div>
+      <div className="relative aspect-[16/10] h-full overflow-hidden bg-[#131315] md:aspect-auto md:min-h-[28rem]">
+        {SLIDES.map((item, i) => {
+          const active = i === index
+          return (
+            <img
+              key={item.src}
+              src={item.src}
+              alt={active ? item.alt : ""}
+              width={1280}
+              height={800}
+              decoding={i === 0 ? "sync" : "async"}
+              fetchPriority={i === 0 ? "high" : "low"}
+              aria-hidden={!active}
+              className={`absolute inset-0 h-full w-full object-cover object-top ${fade} ${
+                active ? "opacity-100" : "pointer-events-none opacity-0"
+              }`}
+            />
+          )
+        })}
 
-        <div
-          className="flex items-center justify-between gap-3 border-t px-4 py-3 sm:px-5"
-          style={{ borderColor: "rgba(156,168,168,0.14)" }}
-        >
-          <div className="flex items-center gap-1.5" role="group" aria-label="Choose slide">
+        {/* Controls overlay — no bordered chrome bar */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-black/45 via-black/15 to-transparent px-4 pb-4 pt-14 sm:px-5 sm:pb-5">
+          <div className="pointer-events-auto flex items-center gap-1.5" role="group" aria-label="Choose slide">
             {SLIDES.map((item, i) => (
               <button
                 key={item.src}
@@ -163,21 +148,21 @@ export const HeroCarousel = () => {
                 aria-label={`${item.label}: ${item.alt}`}
                 onClick={() => go(i)}
                 className={`h-2 rounded-full ${calm ? "" : "transition-all"} ${
-                  i === index ? "w-5 bg-white/85" : "w-2 bg-white/30 hover:bg-white/50"
+                  i === index ? "w-5 bg-white/90" : "w-2 bg-white/40 hover:bg-white/65"
                 }`}
               />
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="mr-1 hidden text-[12px] tabular text-white/45 sm:inline" aria-live="polite">
+          <div className="pointer-events-auto flex items-center gap-2">
+            <span className="mr-1 hidden text-[12px] tabular text-white/70 sm:inline">
               {index + 1} / {count}
             </span>
             <button
               type="button"
               aria-label="Previous slide"
               onClick={prev}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] text-white/80 ring-1 ring-white/10 hover:bg-white/[0.12] hover:text-white"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-black/35 text-white/90 backdrop-blur-sm hover:bg-black/50 hover:text-white"
             >
               <Chevron dir="prev" />
             </button>
@@ -185,7 +170,7 @@ export const HeroCarousel = () => {
               type="button"
               aria-label="Next slide"
               onClick={next}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] text-white/80 ring-1 ring-white/10 hover:bg-white/[0.12] hover:text-white"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-black/35 text-white/90 backdrop-blur-sm hover:bg-black/50 hover:text-white"
             >
               <Chevron dir="next" />
             </button>

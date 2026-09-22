@@ -14,7 +14,7 @@ import {
 
 /**
  * Home: Luminar poster hero — full-viewport rounded card, nav inside,
- * copy left + screenshot carousel right. Sober Wafer atmosphere. New prose.
+ * copy left + screenshot carousel right (flush on md+). Sober Wafer atmosphere.
  * No demo video, no recycled store shots, no old Shell demo chrome.
  */
 
@@ -64,9 +64,9 @@ export const Page = () => {
 
           <div
             id="product"
-            className="relative z-10 mt-auto grid flex-1 items-center gap-10 px-5 pb-10 pt-8 sm:px-9 sm:pb-14 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] md:gap-12 lg:gap-16"
+            className="relative z-10 mt-auto grid flex-1 items-center gap-10 px-5 pb-10 pt-8 sm:px-9 sm:pb-14 md:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] md:items-stretch md:gap-12 md:px-0 md:py-0 md:pl-9 md:pr-0 lg:gap-16"
           >
-            <div>
+            <div className="md:flex md:flex-col md:justify-center md:py-14 md:pr-6 lg:pr-10">
               <h1 className="m-0 max-w-[18ch] text-balance text-[clamp(2.5rem,5.2vw,4.75rem)] font-medium leading-[1.02] tracking-tight text-white">
                 A faster, quieter GitHub.
               </h1>
@@ -80,7 +80,7 @@ export const Page = () => {
               </div>
             </div>
 
-            <div className="flex justify-center md:justify-end">
+            <div className="flex min-h-0 w-full md:h-full md:min-h-full">
               <HeroCarousel />
             </div>
           </div>
