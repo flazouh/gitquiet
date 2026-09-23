@@ -121,8 +121,8 @@ export const HeroCarousel = () => {
       }}
       className="relative flex w-full max-w-none flex-col gap-3 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/25"
     >
-      {/* Flush-right embed: round left only (tighter), square right, no border/ring */}
-      <div className="relative aspect-[16/10] w-full min-w-0 overflow-hidden rounded-l-lg rounded-r-none">
+      {/* Flush-right embed: small left-only radius, square right, no border/ring */}
+      <div className="relative aspect-[16/10] w-full min-w-0 overflow-hidden rounded-l-sm rounded-r-none">
         {SLIDES.map((item, i) => {
           const active = i === index
           return (
