@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react"
 
 /**
- * Hero product carousel — flush-right screenshot embed + light prev/next
- * outside on the left. Frame is rounded on the left only (right edge square
- * and flush to the poster clip). No border/ring/chrome well. Fixed 16/10
- * aspect; shots fill with object-cover object-top.
+ * Hero product carousel — flush-right screenshot embed with light prev/next
+ * UNDER the frame, left-aligned to the shot’s left edge. Frame is rounded on
+ * the left only (tighter radius; right edge square and flush to the poster
+ * clip). No border/ring/chrome well. Fixed 16/10 aspect; shots fill with
+ * object-cover object-top. Stack (shot then controls) on all breakpoints.
  */
 
 const SLIDES = [
@@ -118,22 +119,10 @@ export const HeroCarousel = () => {
           setPaused(false)
         }
       }}
-      className="relative flex w-full max-w-none flex-col gap-3 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/25 md:flex-row md:items-center md:gap-3"
+      className="relative flex w-full max-w-none flex-col gap-3 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/25"
     >
-      {/* Light prev/next — outside the shot, left of the frame on md+ */}
-      <div className="order-2 flex shrink-0 items-center justify-end gap-1.5 md:order-1 md:flex-col md:items-stretch md:justify-center">
-        <button type="button" aria-label="Previous slide" onClick={prev} className={controlClass}>
-          <Chevron dir="prev" />
-          Prev
-        </button>
-        <button type="button" aria-label="Next slide" onClick={next} className={controlClass}>
-          Next
-          <Chevron dir="next" />
-        </button>
-      </div>
-
-      {/* Flush-right embed: round left only, square right, no border/ring */}
-      <div className="relative order-1 aspect-[16/10] w-full min-w-0 flex-1 overflow-hidden rounded-l-xl rounded-r-none md:order-2">
+      {/* Flush-right embed: round left only (tighter), square right, no border/ring */}
+      <div className="relative aspect-[16/10] w-full min-w-0 overflow-hidden rounded-l-lg rounded-r-none">
         {SLIDES.map((item, i) => {
           const active = i === index
           return (
@@ -152,6 +141,18 @@ export const HeroCarousel = () => {
             />
           )
         })}
+      </div>
+
+      {/* Light prev/next — under the shot, left-aligned to the frame’s left edge */}
+      <div className="flex shrink-0 items-center justify-start gap-1.5">
+        <button type="button" aria-label="Previous slide" onClick={prev} className={controlClass}>
+          <Chevron dir="prev" />
+          Prev
+        </button>
+        <button type="button" aria-label="Next slide" onClick={next} className={controlClass}>
+          Next
+          <Chevron dir="next" />
+        </button>
       </div>
 
       <p className="sr-only" aria-live="polite">

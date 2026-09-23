@@ -5,8 +5,9 @@ import { AddToChrome, Nav, SkipTo, Source } from "./Shell"
 
 /**
  * Home: Luminar poster hero — full-viewport rounded card, nav inside,
- * copy left + screenshot carousel right (flush embed, light controls left). Live Wafer Atmosphere.
- * No demo video, no recycled store shots, no old Shell demo chrome.
+ * copy left + larger flush-right screenshot carousel (controls under the
+ * shot). Live Wafer Atmosphere. No demo video, no recycled store shots,
+ * no old Shell demo chrome.
  */
 
 export const Page = () => {
@@ -48,7 +49,7 @@ export const Page = () => {
             id="product"
             className="relative z-10 mt-auto flex flex-1 flex-col gap-10 px-5 pb-10 pt-8 sm:px-9 sm:pb-14 md:block md:px-0 md:py-0 md:pl-9 md:pr-0"
           >
-            <div className="md:flex md:min-h-[calc(100svh-20px-3rem)] md:max-w-[min(42%,28rem)] md:flex-col md:justify-center md:py-14 md:pr-6 lg:max-w-[30rem] lg:pr-10">
+            <div className="md:flex md:min-h-[calc(100svh-20px-3rem)] md:max-w-[min(36%,26rem)] md:flex-col md:justify-center md:py-14 md:pr-6 lg:max-w-[28rem] lg:pr-10">
               <h1 className="m-0 max-w-[18ch] text-balance text-[clamp(2.5rem,5.2vw,4.75rem)] font-medium leading-[1.02] tracking-tight text-white">
                 A faster, quieter GitHub.
               </h1>
@@ -61,8 +62,8 @@ export const Page = () => {
               </div>
             </div>
 
-            {/* Flush-right shot; light prev/next sit left of the frame (outside it) */}
-            <div className="w-full md:absolute md:right-0 md:top-1/2 md:w-[min(58%,42rem)] md:-translate-y-1/2 md:pl-6">
+            {/* Larger flush-right shot; prev/next sit under the frame (left-aligned) */}
+            <div className="w-full md:absolute md:right-0 md:top-1/2 md:w-[min(64%,48rem)] md:-translate-y-1/2 md:pl-6">
               <HeroCarousel />
             </div>
           </div>
