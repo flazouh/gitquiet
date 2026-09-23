@@ -1,18 +1,37 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react"
-
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent
+} from "react"
 /**
  * Hero product carousel — flush-right screenshot embed with light prev/next
- * UNDER the frame, left-aligned to the shot’s left edge. Frame is rounded on
+ * UNDER the frame, left-aligned to the shot left edge. Frame is rounded on
  * the left only (tighter radius; right edge square and flush to the poster
  * clip). No border/ring/chrome well. Fixed 16/10 aspect; shots fill with
  * object-cover object-top. Stack (shot then controls) on all breakpoints.
+ *
+ * Phase 1 of #100: Inbox + Repo mount live fixture UI (Held + Supplied);
+ * Pull request / Review / Peek stay on PNGs until later phases. Stage is
+ * dynamic-imported and mounted only while its slide is active.
  */
 
-const SLIDES = [
+type Slide = {
+  readonly src: string
+  readonly alt: string
+  readonly label: string
+  readonly live?: "working-set" | "repo-home"
+}
+
+const SLIDES: ReadonlyArray<Slide> = [
   {
     src: "/hero/inbox.png",
     alt: "GitQuiet pull request inbox",
-    label: "Inbox"
+    label: "Inbox",
+    live: "working-set"
   },
   {
     src: "/hero/pull-request.png",
@@ -32,11 +51,14 @@ const SLIDES = [
   {
     src: "/hero/repo.png",
     alt: "Repository home",
-    label: "Repo"
+    label: "Repo",
+    live: "repo-home"
   }
-] as const
+]
 
 const INTERVAL_MS = 5000
+
+const HeroStage = lazy(() => import("./HeroStage"))
 
 const useCalm = (): boolean => {
   const [calm, setCalm] = useState(() =>
@@ -72,6 +94,7 @@ export const HeroCarousel = () => {
   const calm = useCalm()
   const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
+  const [liveReady, setLiveReady] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
 
   const count = SLIDES.length
@@ -81,6 +104,12 @@ export const HeroCarousel = () => {
   )
   const prev = useCallback(() => go(index - 1), [go, index])
   const next = useCallback(() => go(index + 1), [go, index])
+
+  const slide = SLIDES[index]!
+
+  useEffect(() => {
+    setLiveReady(false)
+  }, [index])
 
   useEffect(() => {
     if (calm || paused) return
@@ -100,8 +129,8 @@ export const HeroCarousel = () => {
     }
   }
 
-  const slide = SLIDES[index]!
   const fade = calm ? "" : "transition-opacity duration-500 ease-out"
+  const onLiveReady = useCallback(() => setLiveReady(true), [])
 
   return (
     <div
@@ -125,6 +154,7 @@ export const HeroCarousel = () => {
       <div className="relative aspect-[16/10] w-full min-w-0 overflow-hidden rounded-l-sm rounded-r-none">
         {SLIDES.map((item, i) => {
           const active = i === index
+          const hidePng = active && item.live !== undefined && liveReady
           return (
             <img
               key={item.src}
@@ -134,16 +164,23 @@ export const HeroCarousel = () => {
               height={800}
               decoding={i === 0 ? "sync" : "async"}
               fetchPriority={i === 0 ? "high" : "low"}
-              aria-hidden={!active}
+              aria-hidden={!active || hidePng}
               className={`absolute inset-0 h-full w-full object-cover object-top ${fade} ${
-                active ? "opacity-100" : "pointer-events-none opacity-0"
+                active && !hidePng ? "opacity-100" : "pointer-events-none opacity-0"
               }`}
             />
           )
         })}
+
+        {slide.live !== undefined ? (
+          <Suspense fallback={null}>
+            <HeroStage key={slide.live} scene={slide.live} onReady={onLiveReady} />
+          </Suspense>
+        ) : null}
+
       </div>
 
-      {/* Light prev/next — under the shot, left-aligned to the frame’s left edge */}
+      {/* Light prev/next — under the shot, left-aligned to the frame left edge */}
       <div className="flex shrink-0 items-center justify-start gap-1.5">
         <button type="button" aria-label="Previous slide" onClick={prev} className={controlClass}>
           <Chevron dir="prev" />
