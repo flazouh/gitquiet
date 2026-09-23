@@ -9,11 +9,11 @@ import type { View } from "../../shots/view"
  *
  * Dark stage pack comes from `Supplied` default STAGE_CHOSEN. Each scene's
  * fixture is dynamic-imported so Inbox/Repo never pull the pull-request mock.
- * Diff-engine stays lazy inside `Supplied` and only fetches when the PR screen
- * asks the renderer.
+ * Diff-engine stays lazy inside `Supplied` and only fetches when a PR / Review
+ * screen asks the renderer. Review reuses the same pullRequest mock chunk.
  */
 
-export type HeroLiveScene = "working-set" | "repo-home" | "pull-request"
+export type HeroLiveScene = "working-set" | "repo-home" | "pull-request" | "pull-request-review"
 
 const loadScene = (scene: HeroLiveScene): Promise<View> => {
   switch (scene) {
@@ -23,6 +23,8 @@ const loadScene = (scene: HeroLiveScene): Promise<View> => {
       return import("../../shots/mock/repoHome").then((m) => m.REPO_HOME_VIEW)
     case "pull-request":
       return import("../../shots/mock/pullRequest").then((m) => m.PULL_REQUEST_VIEW)
+    case "pull-request-review":
+      return import("../../shots/mock/pullRequest").then((m) => m.PULL_REQUEST_REVIEW_VIEW)
   }
 }
 

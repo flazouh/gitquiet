@@ -149,6 +149,10 @@ export type PullRequestScreenProps = {
    */
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
   readonly signedIn?: () => boolean
+  /**
+   * Opens Review Mode on first paint. Threaded to {@link Shell}; see there.
+   */
+  readonly initialReviewing?: boolean
 }
 
 /**
@@ -264,7 +268,8 @@ export const PullRequestScreen = ({
   loadTail,
   loadSteps,
   watch,
-  signedIn = viewerOnPage
+  signedIn = viewerOnPage,
+  initialReviewing
 }: PullRequestScreenProps) => {
   /*
    * The same three states the lists have, from the same hook.
@@ -564,6 +569,7 @@ export const PullRequestScreen = ({
           loadTail={loadTail}
           loadSteps={loadSteps}
           onUseGitHub={onUseGitHub}
+          initialReviewing={initialReviewing}
         />
       ) : null}
       {waiting ? (

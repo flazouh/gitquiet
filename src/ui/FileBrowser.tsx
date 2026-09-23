@@ -343,6 +343,8 @@ export const FileBrowser = ({
   display,
 }: FileBrowserProps) => {
   const keys = useKeyboard(given);
+  /** The Files region — Review Mode marks this host, not `<html>`. */
+  const host = useRef<HTMLElement>(null);
   /*
    * Which files the rail is holding, which is a stored choice with a local echo
    * over it.
@@ -830,8 +832,26 @@ export const FileBrowser = ({
 
   // Review Mode changes only the box around this component. The page stays
   // mounted under it, and its scroll position remains ready for the return.
+  //
+  // The attribute lives on this Files host so a marketing Held mount is not
+  // polluted via `<html>` / body scroll-lock. On a real GitHub page (no
+  // `data-gitquiet-outside` ancestor) we still mark `<html>` and lock body —
+  // the bar is portaled to `body`, and `quiet.css` keys the extension path off
+  // `html[data-gitquiet-reviewing]`.
   useEffect(() => {
     if (review?.active !== true) return;
+
+    const panel = host.current;
+    if (panel === null) return;
+
+    panel.setAttribute("data-gitquiet-reviewing", "");
+
+    const outside = panel.closest("[data-gitquiet-outside]");
+    if (outside !== null) {
+      return () => {
+        panel.removeAttribute("data-gitquiet-reviewing");
+      };
+    }
 
     const before = document.body.style.overflow;
     const left = window.scrollX;
@@ -840,6 +860,7 @@ export const FileBrowser = ({
     document.body.style.overflow = "hidden";
 
     return () => {
+      panel.removeAttribute("data-gitquiet-reviewing");
       document.documentElement.removeAttribute("data-gitquiet-reviewing");
       document.body.style.overflow = before;
       window.scrollTo(left, top);
@@ -870,6 +891,7 @@ export const FileBrowser = ({
   if (onRail.length === 0) {
     return (
       <section
+        ref={host}
         aria-label="Files"
         className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md bg-canvas"
       >
@@ -880,6 +902,7 @@ export const FileBrowser = ({
 
   return (
     <section
+      ref={host}
       aria-label="Files"
       className={
         review?.active === true

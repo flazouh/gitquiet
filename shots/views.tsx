@@ -11,7 +11,7 @@ import { NOTIFICATIONS_VIEW } from "./mock/notifications"
 import { ORG_DISCUSSIONS_VIEW } from "./mock/orgDiscussions"
 import { PERSON_REPOS_VIEW } from "./mock/personRepos"
 import { PROFILE_VIEW } from "./mock/profile"
-import { PULL_REQUEST_VIEW } from "./mock/pullRequest"
+import { PULL_REQUEST_REVIEW_VIEW, PULL_REQUEST_VIEW } from "./mock/pullRequest"
 import { RAISE_VIEW } from "./mock/raise"
 import { RELEASES_VIEW } from "./mock/releases"
 import { REPO_HOME_VIEW } from "./mock/repoHome"
@@ -39,6 +39,7 @@ import type { View } from "./view"
 export const VIEWS: ReadonlyArray<View> = [
   WORKING_SET_VIEW,
   PULL_REQUEST_VIEW,
+  PULL_REQUEST_REVIEW_VIEW,
   COMMIT_VIEW,
   REPO_PULLS_VIEW,
   ISSUE_VIEW,

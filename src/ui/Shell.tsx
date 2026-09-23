@@ -142,6 +142,13 @@ export type ShellProps = {
   readonly keys?: Keys
   /** Gives the page back to GitHub, and remembers to keep giving it back. */
   readonly onUseGitHub?: () => void
+  /**
+   * Opens Review Mode on first paint.
+   *
+   * For fixtures and marketing mounts that need the full-screen review box
+   * without a click. Absent elsewhere; the reader toggles it themselves.
+   */
+  readonly initialReviewing?: boolean
 }
 
 const NO_READER = new Error("Nothing is wired to read commits.")
@@ -212,7 +219,8 @@ export const Shell = ({
   loadTail,
   loadSteps,
   keys,
-  onUseGitHub
+  onUseGitHub,
+  initialReviewing
 }: ShellProps) => {
   const [preparedStage, setPreparedStage] = useState(preparing ? 0 : PREPARED)
   const preparationReported = useRef(false)
@@ -234,7 +242,7 @@ export const Shell = ({
   const [reading, setReading] = useState<string | undefined>(undefined)
   // Review Mode changes the file browser's box, not the browser itself. Its
   // file, scroll position, warmed diffs, and drafts therefore stay in place.
-  const [reviewing, setReviewing] = useState(false)
+  const [reviewing, setReviewing] = useState(initialReviewing === true)
   // Whether the details column and the files panel are up. Toggled from the
   // PR header's second line (sidebar marks at the extremes).
   const [detailsOpen, setDetailsOpen] = useState(true)

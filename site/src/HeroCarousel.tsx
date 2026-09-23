@@ -15,10 +15,10 @@ import type { HeroLiveScene } from "./HeroStage"
  * clip). No border/ring/chrome well. Fixed 16/10 aspect; shots fill with
  * object-cover object-top. Stack (shot then controls) on all breakpoints.
  *
- * Phase 2 of #100: Inbox + Pull request + Repo mount live fixture UI
- * (Held + Supplied); Review / Peek stay on PNGs until later phases. Stage is
- * dynamic-imported and mounted only while its slide is active. Autoplay waits
- * on live `onReady` so a slow PR paint never advances mid-blank.
+ * Phase 3 of #100: Inbox + Pull request + Review + Repo mount live fixture UI
+ * (Held + Supplied); Peek stays on PNG until Phase 4. Stage is dynamic-imported
+ * and mounted only while its slide is active. Autoplay waits on live `onReady`
+ * so a slow PR/Review paint never advances mid-blank.
  */
 
 type Slide = {
@@ -44,7 +44,8 @@ const SLIDES: ReadonlyArray<Slide> = [
   {
     src: "/hero/review.png",
     alt: "Review mode stepping through changes",
-    label: "Review"
+    label: "Review",
+    live: "pull-request-review"
   },
   {
     src: "/hero/peek.png",
