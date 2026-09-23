@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react"
 
 /**
- * Hero product carousel — screenshot well + compact prev/next.
- * Image is scaled ~4/3 so ~3/4 of the bitmap fills the frame (rest clipped
- * under the bezel); object-top keeps chrome. Fixed 16/10 frame. Flush to the
- * poster’s right edge on md+ (parent pins the stack).
+ * Hero product carousel — flush-right screenshot embed + light prev/next
+ * outside on the left. Frame is rounded on the left only (right edge square
+ * and flush to the poster clip). No border/ring/chrome well. Fixed 16/10
+ * aspect; shots fill with object-cover object-top.
  */
 
 const SLIDES = [
@@ -64,6 +64,9 @@ const Chevron = ({ dir }: { readonly dir: "prev" | "next" }) => (
   </svg>
 )
 
+const controlClass =
+  "inline-flex h-8 items-center gap-1 rounded-md bg-white/90 px-3 text-[11px] font-medium tracking-wide text-neutral-800 shadow-sm ring-1 ring-black/5 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+
 export const HeroCarousel = () => {
   const calm = useCalm()
   const [index, setIndex] = useState(0)
@@ -115,53 +118,40 @@ export const HeroCarousel = () => {
           setPaused(false)
         }
       }}
-      className="relative w-full max-w-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/25"
+      className="relative flex w-full max-w-none flex-col gap-3 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/25 md:flex-row md:items-center md:gap-3"
     >
-      <div className="overflow-hidden rounded-[11px] bg-[rgba(12,12,12,0.72)] ring-1 ring-white/[0.10]">
-        <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#131315]">
-          {SLIDES.map((item, i) => {
-            const active = i === index
-            return (
-              <img
-                key={item.src}
-                src={item.src}
-                alt={active ? item.alt : ""}
-                width={1280}
-                height={800}
-                decoding={i === 0 ? "sync" : "async"}
-                fetchPriority={i === 0 ? "high" : "low"}
-                aria-hidden={!active}
-                className={`absolute left-1/2 top-0 h-[133%] w-[133%] max-w-none -translate-x-1/2 object-cover object-top ${fade} ${
-                  active ? "opacity-100" : "pointer-events-none opacity-0"
-                }`}
-              />
-            )
-          })}
-        </div>
+      {/* Light prev/next — outside the shot, left of the frame on md+ */}
+      <div className="order-2 flex shrink-0 items-center justify-end gap-1.5 md:order-1 md:flex-col md:items-stretch md:justify-center">
+        <button type="button" aria-label="Previous slide" onClick={prev} className={controlClass}>
+          <Chevron dir="prev" />
+          Prev
+        </button>
+        <button type="button" aria-label="Next slide" onClick={next} className={controlClass}>
+          Next
+          <Chevron dir="next" />
+        </button>
+      </div>
 
-        <div
-          className="flex items-center justify-end gap-1.5 border-t px-3 py-2"
-          style={{ borderColor: "rgba(156,168,168,0.14)" }}
-        >
-          <button
-            type="button"
-            aria-label="Previous slide"
-            onClick={prev}
-            className="inline-flex h-7 items-center gap-1 rounded-md bg-white/[0.06] px-2.5 text-[11px] font-medium tracking-wide text-white/75 ring-1 ring-white/10 hover:bg-white/[0.12] hover:text-white"
-          >
-            <Chevron dir="prev" />
-            Prev
-          </button>
-          <button
-            type="button"
-            aria-label="Next slide"
-            onClick={next}
-            className="inline-flex h-7 items-center gap-1 rounded-md bg-white/[0.06] px-2.5 text-[11px] font-medium tracking-wide text-white/75 ring-1 ring-white/10 hover:bg-white/[0.12] hover:text-white"
-          >
-            Next
-            <Chevron dir="next" />
-          </button>
-        </div>
+      {/* Flush-right embed: round left only, square right, no border/ring */}
+      <div className="relative order-1 aspect-[16/10] w-full min-w-0 flex-1 overflow-hidden rounded-l-xl rounded-r-none md:order-2">
+        {SLIDES.map((item, i) => {
+          const active = i === index
+          return (
+            <img
+              key={item.src}
+              src={item.src}
+              alt={active ? item.alt : ""}
+              width={1280}
+              height={800}
+              decoding={i === 0 ? "sync" : "async"}
+              fetchPriority={i === 0 ? "high" : "low"}
+              aria-hidden={!active}
+              className={`absolute inset-0 h-full w-full object-cover object-top ${fade} ${
+                active ? "opacity-100" : "pointer-events-none opacity-0"
+              }`}
+            />
+          )
+        })}
       </div>
 
       <p className="sr-only" aria-live="polite">

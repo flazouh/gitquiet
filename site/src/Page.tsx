@@ -5,7 +5,7 @@ import { AddToChrome, Nav, SkipTo, Source } from "./Shell"
 
 /**
  * Home: Luminar poster hero — full-viewport rounded card, nav inside,
- * copy left + screenshot carousel right (flush on md+). Live Wafer Atmosphere.
+ * copy left + screenshot carousel right (flush embed, light controls left). Live Wafer Atmosphere.
  * No demo video, no recycled store shots, no old Shell demo chrome.
  */
 
@@ -61,8 +61,8 @@ export const Page = () => {
               </div>
             </div>
 
-            {/* Flush to poster right — rounded shot + bottom controls live in HeroCarousel */}
-            <div className="w-full md:absolute md:right-0 md:top-1/2 md:w-[min(56%,40rem)] md:-translate-y-1/2 md:pl-4">
+            {/* Flush-right shot; light prev/next sit left of the frame (outside it) */}
+            <div className="w-full md:absolute md:right-0 md:top-1/2 md:w-[min(58%,42rem)] md:-translate-y-1/2 md:pl-6">
               <HeroCarousel />
             </div>
           </div>
