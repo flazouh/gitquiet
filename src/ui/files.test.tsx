@@ -584,6 +584,51 @@ describe("a Peek in a diff", () => {
       expect(filled?.textContent).toContain("const two = 2")
     })
     expect(request.fillNote?.("peeking")?.textContent).toContain("line 2")
+    expect(request.fillNote?.("peeking")?.querySelector("[data-gitquiet-peek]")).not.toBeNull()
+  })
+
+  test("opens with a seeded Peek without a Shift-press", async () => {
+    render(
+      reading({
+        initialPeeked: {
+          writing,
+          under: 5,
+          lines: ["const two = 2"]
+        }
+      })
+    )
+    const request = await drawn()
+
+    // Seeded on first paint: notes ride with the DiffRequest, before showNotes.
+    expect(request.notes?.some((note) => note.key === "peeking")).toBe(true)
+    expect(request.notes?.find((note) => note.key === "peeking")?.line).toBe(5)
+
+    await waitFor(() => {
+      const filled = request.fillNote?.("peeking")
+      expect(filled?.querySelector("[data-gitquiet-peek]")).not.toBeNull()
+      expect(filled?.textContent).toContain("const two = 2")
+    })
+  })
+
+  test("puts a seeded Peek away on Escape", async () => {
+    render(
+      reading({
+        initialPeeked: {
+          writing,
+          under: 5,
+          lines: ["const two = 2"]
+        }
+      })
+    )
+    const request = await drawn()
+    expect(request.notes?.some((note) => note.key === "peeking")).toBe(true)
+
+    await userEvent.keyboard("{Escape}")
+
+    // After handle exists, unpeek updates notes via showNotes.
+    await waitFor(() => {
+      expect(noted.at(-1)?.some((note) => note.key === "peeking")).toBe(false)
+    })
   })
 })
 

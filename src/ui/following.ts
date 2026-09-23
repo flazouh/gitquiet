@@ -285,7 +285,14 @@ export type Source = {
 export const useFollowing = (
   source: Source | null,
   host: RefObject<HTMLElement | null>,
-  across?: Across
+  across?: Across,
+  /**
+   * A Peek already open on first paint.
+   *
+   * For fixtures and marketing mounts that need the Writing under a line without
+   * a Shift-press. Absent elsewhere; the reader peeks themselves.
+   */
+  initialPeeked?: Peeked | null
 ): Follows => {
   const ledger = useLedger()
   /*
@@ -306,7 +313,7 @@ export const useFollowing = (
   const text = useRef<{ readonly path: string; readonly text: string } | null>(null)
   const handle = useRef<DiffHandle | null>(null)
   const [shown, setShown] = useState<Shown | null>(null)
-  const [peeked, setPeeked] = useState<Peeked | null>(null)
+  const [peeked, setPeeked] = useState<Peeked | null>(initialPeeked ?? null)
   const [asked, setAsked] = useState<{
     writing: Writing
     where?: string

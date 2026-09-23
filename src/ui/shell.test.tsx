@@ -52,7 +52,8 @@ const standAt = (reference: PullRequestSnapshot["reference"]): void => {
 const showing = (
   snapshot: PullRequestSnapshot,
   fetchDiffs: (paths: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<FetchedDiff>> = () =>
-    Effect.succeed([])
+    Effect.succeed([]),
+  seed: { readonly initialReviewing?: boolean } = {}
 ) => {
   const layers = layerFromSnapshots([snapshot])
   const reference = snapshot.reference
@@ -64,6 +65,7 @@ const showing = (
       load={() => loadPullRequest(reference).pipe(Effect.provide(layers))}
       fetchDiffs={fetchDiffs}
       onStepAside={() => {}}
+      initialReviewing={seed.initialReviewing}
     />
   )
 }
@@ -904,13 +906,54 @@ describe("the files, as one thing", () => {
 
     expect(section("Files")).toBe(files)
     expect(files.className).toContain("fixed")
+    // Extension path: Files host + `<html>` (no `data-gitquiet-outside` ancestor).
+    expect(files.hasAttribute("data-gitquiet-reviewing")).toBe(true)
     expect(document.documentElement.hasAttribute("data-gitquiet-reviewing")).toBe(true)
 
     await userEvent.keyboard("{Escape}")
 
     expect(section("Files")).toBe(files)
     expect(files.className).not.toContain("fixed")
+    expect(files.hasAttribute("data-gitquiet-reviewing")).toBe(false)
     expect(document.documentElement.hasAttribute("data-gitquiet-reviewing")).toBe(false)
+  })
+
+  test("opens in review mode when seeded with initialReviewing", async () => {
+    showing(aPullRequest(), () => Effect.succeed([]), { initialReviewing: true })
+    await awaitPage()
+
+    const files = section("Files")
+    expect(files.className).toContain("fixed")
+    expect(within(files).getByRole("button", { name: "Exit review" })).toBeDefined()
+    expect(files.hasAttribute("data-gitquiet-reviewing")).toBe(true)
+    expect(document.documentElement.hasAttribute("data-gitquiet-reviewing")).toBe(true)
+  })
+
+  test("scopes reviewing to the Files host under data-gitquiet-outside", async () => {
+    const snapshot = aPullRequest()
+    const layers = layerFromSnapshots([snapshot])
+    const reference = snapshot.reference
+    standAt(reference)
+
+    render(
+      <div data-gitquiet-outside>
+        <PullRequestScreen
+          reference={reference}
+          load={() => loadPullRequest(reference).pipe(Effect.provide(layers))}
+          fetchDiffs={() => Effect.succeed([])}
+          onStepAside={() => {}}
+          initialReviewing
+        />
+      </div>
+    )
+    await awaitPage()
+
+    const files = section("Files")
+    expect(files.className).toContain("fixed")
+    expect(files.hasAttribute("data-gitquiet-reviewing")).toBe(true)
+    // Marketing / Held path: do not mark `<html>` or lock body scroll.
+    expect(document.documentElement.hasAttribute("data-gitquiet-reviewing")).toBe(false)
+    expect(document.body.style.overflow).not.toBe("hidden")
   })
 
   test("keeps the tree and the code in a single region", async () => {

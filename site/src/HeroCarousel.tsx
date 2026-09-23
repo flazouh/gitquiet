@@ -1,42 +1,69 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react"
-
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent
+} from "react"
+import type { HeroLiveScene } from "./HeroStage"
 /**
  * Hero product carousel — flush-right screenshot embed with light prev/next
- * UNDER the frame, left-aligned to the shot’s left edge. Frame is rounded on
+ * UNDER the frame, left-aligned to the shot left edge. Frame is rounded on
  * the left only (tighter radius; right edge square and flush to the poster
  * clip). No border/ring/chrome well. Fixed 16/10 aspect; shots fill with
  * object-cover object-top. Stack (shot then controls) on all breakpoints.
+ *
+ * Phase 4 of #100: Inbox + Pull request + Review + Peek + Repo mount live
+ * fixture UI (Held + Supplied). Stage is dynamic-imported and mounted only while
+ * its slide is active. Autoplay waits on live `onReady` so a slow PR/Review/Peek
+ * paint never advances mid-blank.
  */
 
-const SLIDES = [
+type Slide = {
+  readonly src: string
+  readonly alt: string
+  readonly label: string
+  readonly live?: HeroLiveScene
+}
+
+const SLIDES: ReadonlyArray<Slide> = [
   {
     src: "/hero/inbox.png",
     alt: "GitQuiet pull request inbox",
-    label: "Inbox"
+    label: "Inbox",
+    live: "working-set"
   },
   {
     src: "/hero/pull-request.png",
     alt: "Pull request with files and diff",
-    label: "Pull request"
+    label: "Pull request",
+    live: "pull-request"
   },
   {
     src: "/hero/review.png",
     alt: "Review mode stepping through changes",
-    label: "Review"
+    label: "Review",
+    live: "pull-request-review"
   },
   {
     src: "/hero/peek.png",
     alt: "Peek at a symbol in the file",
-    label: "Peek"
+    label: "Peek",
+    live: "pull-request-peek"
   },
   {
     src: "/hero/repo.png",
     alt: "Repository home",
-    label: "Repo"
+    label: "Repo",
+    live: "repo-home"
   }
-] as const
+]
 
 const INTERVAL_MS = 5000
+
+const HeroStage = lazy(() => import("./HeroStage"))
 
 const useCalm = (): boolean => {
   const [calm, setCalm] = useState(() =>
@@ -72,6 +99,7 @@ export const HeroCarousel = () => {
   const calm = useCalm()
   const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
+  const [liveReady, setLiveReady] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
 
   const count = SLIDES.length
@@ -82,13 +110,25 @@ export const HeroCarousel = () => {
   const prev = useCallback(() => go(index - 1), [go, index])
   const next = useCallback(() => go(index + 1), [go, index])
 
+  const slide = SLIDES[index]!
+
+  useEffect(() => {
+    setLiveReady(false)
+  }, [index])
+
   useEffect(() => {
     if (calm || paused) return
+    /*
+     * Hold the interval while a live scene is still painting. PNG slides and
+     * ready live scenes get a full INTERVAL_MS; once onReady fires the effect
+     * restarts so the painted frame is not cut short by time spent waiting.
+     */
+    if (slide.live !== undefined && !liveReady) return
     const tick = window.setInterval(() => {
       setIndex((i) => (i + 1) % count)
     }, INTERVAL_MS)
     return () => window.clearInterval(tick)
-  }, [calm, paused, count])
+  }, [calm, paused, count, slide.live, liveReady])
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "ArrowLeft") {
@@ -100,8 +140,8 @@ export const HeroCarousel = () => {
     }
   }
 
-  const slide = SLIDES[index]!
   const fade = calm ? "" : "transition-opacity duration-500 ease-out"
+  const onLiveReady = useCallback(() => setLiveReady(true), [])
 
   return (
     <div
@@ -125,6 +165,7 @@ export const HeroCarousel = () => {
       <div className="relative aspect-[16/10] w-full min-w-0 overflow-hidden rounded-l-sm rounded-r-none">
         {SLIDES.map((item, i) => {
           const active = i === index
+          const hidePng = active && item.live !== undefined && liveReady
           return (
             <img
               key={item.src}
@@ -134,16 +175,23 @@ export const HeroCarousel = () => {
               height={800}
               decoding={i === 0 ? "sync" : "async"}
               fetchPriority={i === 0 ? "high" : "low"}
-              aria-hidden={!active}
+              aria-hidden={!active || hidePng}
               className={`absolute inset-0 h-full w-full object-cover object-top ${fade} ${
-                active ? "opacity-100" : "pointer-events-none opacity-0"
+                active && !hidePng ? "opacity-100" : "pointer-events-none opacity-0"
               }`}
             />
           )
         })}
+
+        {slide.live !== undefined ? (
+          <Suspense fallback={null}>
+            <HeroStage key={slide.live} scene={slide.live} onReady={onLiveReady} />
+          </Suspense>
+        ) : null}
+
       </div>
 
-      {/* Light prev/next — under the shot, left-aligned to the frame’s left edge */}
+      {/* Light prev/next — under the shot, left-aligned to the frame left edge */}
       <div className="flex shrink-0 items-center justify-start gap-1.5">
         <button type="button" aria-label="Previous slide" onClick={prev} className={controlClass}>
           <Chevron dir="prev" />

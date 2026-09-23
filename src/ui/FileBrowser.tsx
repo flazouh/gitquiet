@@ -30,7 +30,7 @@ import { chordFor, type Keys } from "../keys/commands";
 import { Cap } from "./Cap";
 import { draftsIn, dropDraft, saveDraft, type Draft } from "./drafts";
 import { FileDiffPane, FileTreePane, type FileDiffPaneProps } from "./Files";
-import type { Across } from "./following";
+import type { Across, Peeked } from "./following";
 import type { Revealer } from "../app/revealing";
 import { FileHeading } from "./FileHeading";
 import { Counts } from "./Counts";
@@ -107,6 +107,10 @@ export type FileBrowserProps = {
    * repository's paths, and then a borrowed name has no underline.
    */
   readonly across?: Across;
+  /**
+   * A Peek already open on first paint. Handed to the open file's pane.
+   */
+  readonly initialPeeked?: Peeked;
   /**
    * Opens a file the pull request did not change, to read and to quote from.
    *
@@ -234,6 +238,7 @@ type DrawingProps = {
   readonly suggest?: FileBrowserProps["suggest"];
   readonly onUpload?: FileBrowserProps["onUpload"];
   readonly revealing?: FileBrowserProps["revealing"];
+  readonly initialPeeked?: Peeked;
 };
 
 /** Changes the visible drawing without rendering the prepared diff inside it again. */
@@ -258,6 +263,7 @@ const Drawing = memo(
     onUpload,
     revealing,
     across,
+    initialPeeked,
   }: DrawingProps) => {
     const heldDrafts = useMemo(() => draftsIn(drafts, file.path), [drafts, file.path]);
     const post = useMemo<FileDiffPaneProps["onPost"]>(
@@ -306,6 +312,7 @@ const Drawing = memo(
           onUpload={onUpload}
           revealing={revealing}
           across={across}
+          initialPeeked={initialPeeked}
         />
       </div>
     );
@@ -337,12 +344,15 @@ export const FileBrowser = ({
   onUpload,
   revealing,
   across,
+  initialPeeked,
   onBringIn,
   review,
   onReading,
   display,
 }: FileBrowserProps) => {
   const keys = useKeyboard(given);
+  /** The Files region — Review Mode marks this host, not `<html>`. */
+  const host = useRef<HTMLElement>(null);
   /*
    * Which files the rail is holding, which is a stored choice with a local echo
    * over it.
@@ -830,8 +840,26 @@ export const FileBrowser = ({
 
   // Review Mode changes only the box around this component. The page stays
   // mounted under it, and its scroll position remains ready for the return.
+  //
+  // The attribute lives on this Files host so a marketing Held mount is not
+  // polluted via `<html>` / body scroll-lock. On a real GitHub page (no
+  // `data-gitquiet-outside` ancestor) we still mark `<html>` and lock body —
+  // the bar is portaled to `body`, and `quiet.css` keys the extension path off
+  // `html[data-gitquiet-reviewing]`.
   useEffect(() => {
     if (review?.active !== true) return;
+
+    const panel = host.current;
+    if (panel === null) return;
+
+    panel.setAttribute("data-gitquiet-reviewing", "");
+
+    const outside = panel.closest("[data-gitquiet-outside]");
+    if (outside !== null) {
+      return () => {
+        panel.removeAttribute("data-gitquiet-reviewing");
+      };
+    }
 
     const before = document.body.style.overflow;
     const left = window.scrollX;
@@ -840,6 +868,7 @@ export const FileBrowser = ({
     document.body.style.overflow = "hidden";
 
     return () => {
+      panel.removeAttribute("data-gitquiet-reviewing");
       document.documentElement.removeAttribute("data-gitquiet-reviewing");
       document.body.style.overflow = before;
       window.scrollTo(left, top);
@@ -870,6 +899,7 @@ export const FileBrowser = ({
   if (onRail.length === 0) {
     return (
       <section
+        ref={host}
         aria-label="Files"
         className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md bg-canvas"
       >
@@ -880,6 +910,7 @@ export const FileBrowser = ({
 
   return (
     <section
+      ref={host}
       aria-label="Files"
       className={
         review?.active === true
@@ -1185,6 +1216,13 @@ export const FileBrowser = ({
                     onUpload={onUpload}
                     revealing={revealing}
                     across={across}
+                    initialPeeked={
+                      one.path === file?.path &&
+                      initialPeeked !== undefined &&
+                      (initialPeeked.where === undefined || initialPeeked.where === one.path)
+                        ? initialPeeked
+                        : undefined
+                    }
                   />
                 ))}
           </div>
