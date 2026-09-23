@@ -28,7 +28,7 @@ import type { Keys } from "../keys/commands"
 import { CommitView } from "./CommitView"
 import { BroughtIn } from "./BroughtIn"
 import { FileBrowser } from "./FileBrowser"
-import type { Across } from "./following"
+import type { Across, Peeked } from "./following"
 import { GoToName } from "./GoToName"
 import { Header } from "./Header"
 import { About } from "./About"
@@ -149,6 +149,13 @@ export type ShellProps = {
    * without a click. Absent elsewhere; the reader toggles it themselves.
    */
   readonly initialReviewing?: boolean
+  /**
+   * A Peek already open on first paint.
+   *
+   * For fixtures and marketing mounts. Threaded to the open file's
+   * FileBrowser; also seeds wanted so that line is on screen.
+   */
+  readonly initialPeeked?: Peeked
 }
 
 const NO_READER = new Error("Nothing is wired to read commits.")
@@ -220,7 +227,8 @@ export const Shell = ({
   loadSteps,
   keys,
   onUseGitHub,
-  initialReviewing
+  initialReviewing,
+  initialPeeked
 }: ShellProps) => {
   const [preparedStage, setPreparedStage] = useState(preparing ? 0 : PREPARED)
   const preparationReported = useRef(false)
@@ -528,6 +536,11 @@ export const Shell = ({
       return { path: at.path, line: at.lines?.from }
     }
 
+    if (initialPeeked !== undefined) {
+      const path = initialPeeked.where ?? snapshot.files[0]?.path
+      return path === undefined ? undefined : { path, line: initialPeeked.under }
+    }
+
     /*
      * Their Files tab, which names no file and means all of them.
      *
@@ -831,6 +844,7 @@ export const Shell = ({
                   onUpload={onUpload}
                   revealing={revealing}
                   across={across}
+                  initialPeeked={initialPeeked}
                   onBringIn={
                     readPaths === undefined || readWholeFile === undefined
                       ? undefined

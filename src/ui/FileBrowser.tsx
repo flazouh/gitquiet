@@ -30,7 +30,7 @@ import { chordFor, type Keys } from "../keys/commands";
 import { Cap } from "./Cap";
 import { draftsIn, dropDraft, saveDraft, type Draft } from "./drafts";
 import { FileDiffPane, FileTreePane, type FileDiffPaneProps } from "./Files";
-import type { Across } from "./following";
+import type { Across, Peeked } from "./following";
 import type { Revealer } from "../app/revealing";
 import { FileHeading } from "./FileHeading";
 import { Counts } from "./Counts";
@@ -107,6 +107,10 @@ export type FileBrowserProps = {
    * repository's paths, and then a borrowed name has no underline.
    */
   readonly across?: Across;
+  /**
+   * A Peek already open on first paint. Handed to the open file's pane.
+   */
+  readonly initialPeeked?: Peeked;
   /**
    * Opens a file the pull request did not change, to read and to quote from.
    *
@@ -234,6 +238,7 @@ type DrawingProps = {
   readonly suggest?: FileBrowserProps["suggest"];
   readonly onUpload?: FileBrowserProps["onUpload"];
   readonly revealing?: FileBrowserProps["revealing"];
+  readonly initialPeeked?: Peeked;
 };
 
 /** Changes the visible drawing without rendering the prepared diff inside it again. */
@@ -258,6 +263,7 @@ const Drawing = memo(
     onUpload,
     revealing,
     across,
+    initialPeeked,
   }: DrawingProps) => {
     const heldDrafts = useMemo(() => draftsIn(drafts, file.path), [drafts, file.path]);
     const post = useMemo<FileDiffPaneProps["onPost"]>(
@@ -306,6 +312,7 @@ const Drawing = memo(
           onUpload={onUpload}
           revealing={revealing}
           across={across}
+          initialPeeked={initialPeeked}
         />
       </div>
     );
@@ -337,6 +344,7 @@ export const FileBrowser = ({
   onUpload,
   revealing,
   across,
+  initialPeeked,
   onBringIn,
   review,
   onReading,
@@ -1208,6 +1216,13 @@ export const FileBrowser = ({
                     onUpload={onUpload}
                     revealing={revealing}
                     across={across}
+                    initialPeeked={
+                      one.path === file?.path &&
+                      initialPeeked !== undefined &&
+                      (initialPeeked.where === undefined || initialPeeked.where === one.path)
+                        ? initialPeeked
+                        : undefined
+                    }
                   />
                 ))}
           </div>

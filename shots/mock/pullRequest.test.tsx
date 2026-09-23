@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
 import { Supplied } from "../Supplied"
-import { PULL_REQUEST_REVIEW_VIEW, PULL_REQUEST_VIEW } from "./pullRequest"
+import {
+  PULL_REQUEST_PEEK_VIEW,
+  PULL_REQUEST_REVIEW_VIEW,
+  PULL_REQUEST_VIEW
+} from "./pullRequest"
 
 afterEach(cleanup)
 
@@ -90,5 +94,29 @@ describe("the pull request review view", () => {
     const files = await screen.findByRole("region", { name: "Files" })
     expect(files.className).toContain("fixed")
     expect(within(files).getByRole("button", { name: "Exit review" })).toBeDefined()
+  })
+})
+
+
+describe("the pull request peek view", () => {
+  test("is the same frame as the pull request, already peeked", () => {
+    expect(PULL_REQUEST_PEEK_VIEW.name).toBe("pull-request-peek")
+    expect([PULL_REQUEST_PEEK_VIEW.width, PULL_REQUEST_PEEK_VIEW.height]).toEqual([1280, 800])
+    expect(PULL_REQUEST_PEEK_VIEW.ready).toBe("[data-gitquiet-peek]")
+  })
+
+  test("draws the same pull request with a Peek seed", async () => {
+    render(
+      <Supplied chosen={PULL_REQUEST_PEEK_VIEW.chosen}>
+        {PULL_REQUEST_PEEK_VIEW.draw()}
+      </Supplied>
+    )
+
+    // Engine attach of note rows is capture/hero's job; here we only need the
+    // screen to mount with the same fixture identity as the PR view.
+    expect(
+      await screen.findByText(/Keep a keep-alive socket open when a streaming response aborts/)
+    ).toBeDefined()
+    expect(screen.getByText("serve-abort-mid-chunk")).toBeDefined()
   })
 })

@@ -5,16 +5,20 @@ import { VIEWS } from "./views"
 /**
  * Views that are a second layout of a screen already covered, rather than a screen of their own.
  *
- * Two entries. An organisation's discussions and a repository's are one screen — the same
+ * Three entries. An organisation's discussions and a repository's are one screen — the same
  * parser, the same components, the same rule — drawn into two page layouts GitHub keeps apart,
  * and the second is where GitHub runs its own product feedback. A picture of one is not a picture
- * of the other, so both are on the stage. `pull-request-review` is the same pull-request fixture
- * already in Review Mode, for the home hero and for a second store photograph of that layout.
+ * of the other, so both are on the stage. `pull-request-review` and `pull-request-peek` are the same pull-request fixture
+ * already reviewing or peeked, for the home hero and for store photographs of those layouts.
  *
  * Named here rather than allowed by loosening the test. A view that belongs to no screen at all
  * is a picture of something nobody can reach, and that is still worth failing over.
  */
-const LAYOUTS: ReadonlyArray<string> = ["pull-request-review", "org-discussions"]
+const LAYOUTS: ReadonlyArray<string> = [
+  "pull-request-review",
+  "pull-request-peek",
+  "org-discussions"
+]
 
 describe("the performance stage", () => {
   const names = VIEWS.map((view) => view.name)

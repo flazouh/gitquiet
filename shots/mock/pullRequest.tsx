@@ -11,6 +11,8 @@ import type {
   ThreadComment
 } from "../../src/domain/PullRequest"
 import { hold } from "../../src/ui/held"
+import type { Peeked } from "../../src/ui/following"
+import type { Writing } from "../../src/ledger/writings"
 import { PullRequestScreen } from "../../src/ui/PullRequestScreen"
 import { alreadyKnown, nothingRemembered, settled, STORE, type View } from "../view"
 import { faceOf, MOCK_VIEWER } from "./faces"
@@ -693,9 +695,43 @@ const keepWhatIsUnsent = (): void => {
 
 /*
  * Shared screen props for the pull-request photograph and its Review Mode twin.
- * Same fixture graph either way; only `initialReviewing` differs.
+ * Same fixture graph; `initialReviewing` and/or `initialPeeked` seed the layout.
  */
-const drawPullRequest = (seed?: { readonly initialReviewing?: boolean }) => {
+/**
+ * Deterministic Peek on the open `server.zig` hunk: Shift-peek at the
+ * `detachByteStream` call (new-side line 2426), showing the Writing's body from
+ * the same fixture patch. Truthful to the bun #23014 mock text.
+ */
+const DETACH_BYTE_STREAM: Writing = {
+  name: "detachByteStream",
+  kind: "function",
+  line: 2613,
+  from: 12,
+  to: 28,
+  signature: "pub fn detachByteStream(this: *RequestContext) void {",
+  doc: null,
+  sure: true
+}
+
+const INITIAL_PEEKED: Peeked = {
+  writing: DETACH_BYTE_STREAM,
+  under: 2426,
+  lines: [
+    "pub fn detachByteStream(this: *RequestContext) void {",
+    "    if (this.byte_stream) |stream| {",
+    "        stream.unpipeWithoutDeref();",
+    "        this.byte_stream = null;",
+    "        this.flags.aborted_mid_chunk = !stream.has_received_last_chunk;",
+    "    }",
+    "}"
+  ],
+  where: "src/bun.js/api/server.zig"
+}
+
+const drawPullRequest = (seed?: {
+  readonly initialReviewing?: boolean
+  readonly initialPeeked?: Peeked
+}) => {
   keepWhatIsUnsent()
 
   return (
@@ -706,6 +742,7 @@ const drawPullRequest = (seed?: { readonly initialReviewing?: boolean }) => {
       recallRepositories={nothingRemembered()}
       fetchDiffs={settled([])}
       initialReviewing={seed?.initialReviewing}
+      initialPeeked={seed?.initialPeeked}
       /*
        * The whole of each file, so the stage exercises revealing the lines
        * between the hunks with the real renderer rather than a stub.
@@ -810,4 +847,19 @@ export const PULL_REQUEST_REVIEW_VIEW: View = {
   ...STORE,
   ready: "[data-code]",
   draw: () => drawPullRequest({ initialReviewing: true })
+}
+
+/**
+ * The same pull request with a Peek already open under a changed line.
+ *
+ * A second layout of the pull-request screen — see `LAYOUTS` in `views.test.ts`.
+ * Ready waits on the real Peek root so autoplay does not advance on a blank.
+ */
+export const PULL_REQUEST_PEEK_VIEW: View = {
+  name: "pull-request-peek",
+  caption:
+    "A Peek under a changed line, so a reviewer reads what a name does without leaving the diff",
+  ...STORE,
+  ready: "[data-gitquiet-peek]",
+  draw: () => drawPullRequest({ initialPeeked: INITIAL_PEEKED })
 }
