@@ -7,6 +7,7 @@ import {
   useState,
   type KeyboardEvent
 } from "react"
+import type { HeroLiveScene } from "./HeroStage"
 /**
  * Hero product carousel — flush-right screenshot embed with light prev/next
  * UNDER the frame, left-aligned to the shot left edge. Frame is rounded on
@@ -14,16 +15,17 @@ import {
  * clip). No border/ring/chrome well. Fixed 16/10 aspect; shots fill with
  * object-cover object-top. Stack (shot then controls) on all breakpoints.
  *
- * Phase 1 of #100: Inbox + Repo mount live fixture UI (Held + Supplied);
- * Pull request / Review / Peek stay on PNGs until later phases. Stage is
- * dynamic-imported and mounted only while its slide is active.
+ * Phase 2 of #100: Inbox + Pull request + Repo mount live fixture UI
+ * (Held + Supplied); Review / Peek stay on PNGs until later phases. Stage is
+ * dynamic-imported and mounted only while its slide is active. Autoplay waits
+ * on live `onReady` so a slow PR paint never advances mid-blank.
  */
 
 type Slide = {
   readonly src: string
   readonly alt: string
   readonly label: string
-  readonly live?: "working-set" | "repo-home"
+  readonly live?: HeroLiveScene
 }
 
 const SLIDES: ReadonlyArray<Slide> = [
@@ -36,7 +38,8 @@ const SLIDES: ReadonlyArray<Slide> = [
   {
     src: "/hero/pull-request.png",
     alt: "Pull request with files and diff",
-    label: "Pull request"
+    label: "Pull request",
+    live: "pull-request"
   },
   {
     src: "/hero/review.png",
@@ -113,11 +116,17 @@ export const HeroCarousel = () => {
 
   useEffect(() => {
     if (calm || paused) return
+    /*
+     * Hold the interval while a live scene is still painting. PNG slides and
+     * ready live scenes get a full INTERVAL_MS; once onReady fires the effect
+     * restarts so the painted frame is not cut short by time spent waiting.
+     */
+    if (slide.live !== undefined && !liveReady) return
     const tick = window.setInterval(() => {
       setIndex((i) => (i + 1) % count)
     }, INTERVAL_MS)
     return () => window.clearInterval(tick)
-  }, [calm, paused, count])
+  }, [calm, paused, count, slide.live, liveReady])
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "ArrowLeft") {

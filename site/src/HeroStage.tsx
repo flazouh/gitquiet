@@ -1,7 +1,5 @@
-import { useEffect, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { Held } from "@/ui/onboarding/Held"
-import { REPO_HOME_VIEW } from "../../shots/mock/repoHome"
-import { WORKING_SET_VIEW } from "../../shots/mock/workingSet"
 import { Supplied } from "../../shots/Supplied"
 import type { View } from "../../shots/view"
 
@@ -9,16 +7,36 @@ import type { View } from "../../shots/view"
  * Live product mount for the home hero — same fixture path as `/welcome`
  * (`Held` + `Supplied` + one `View`), without welcome light theme override.
  *
- * Dark stage pack comes from `Supplied` default STAGE_CHOSEN. Inbox and Repo
- * only: import fixtures directly so the home carousel never pulls the pull-request
- * mock (or its diff-engine graph) for these scenes.
+ * Dark stage pack comes from `Supplied` default STAGE_CHOSEN. Each scene's
+ * fixture is dynamic-imported so Inbox/Repo never pull the pull-request mock.
+ * Diff-engine stays lazy inside `Supplied` and only fetches when the PR screen
+ * asks the renderer.
  */
 
-export type HeroLiveScene = "working-set" | "repo-home"
+export type HeroLiveScene = "working-set" | "repo-home" | "pull-request"
 
-const SCENES: Record<HeroLiveScene, View> = {
-  "working-set": WORKING_SET_VIEW,
-  "repo-home": REPO_HOME_VIEW
+const loadScene = (scene: HeroLiveScene): Promise<View> => {
+  switch (scene) {
+    case "working-set":
+      return import("../../shots/mock/workingSet").then((m) => m.WORKING_SET_VIEW)
+    case "repo-home":
+      return import("../../shots/mock/repoHome").then((m) => m.REPO_HOME_VIEW)
+    case "pull-request":
+      return import("../../shots/mock/pullRequest").then((m) => m.PULL_REQUEST_VIEW)
+  }
+}
+
+/**
+ * View.ready may name a node inside the diff engine's shadow root (`[data-code]`).
+ * Plain `querySelector` from the host never sees that; pierce open shadow roots
+ * the same way `shots/capture.js` does.
+ */
+const somewhere = (within: ParentNode, selector: string): boolean => {
+  if (within.querySelector(selector) !== null) return true
+  for (const node of within.querySelectorAll("*")) {
+    if (node.shadowRoot !== null && somewhere(node.shadowRoot, selector)) return true
+  }
+  return false
 }
 
 const Screen = ({
@@ -53,28 +71,31 @@ const Screen = ({
       }
     }
 
-    if (host.querySelector(gate) !== null) {
+    if (somewhere(host, gate)) {
       done()
       return () => {
         cancelled = true
       }
     }
 
-    const watch = new MutationObserver(() => {
-      if (host.querySelector(gate) !== null) {
-        watch.disconnect()
+    /*
+     * Poll rather than MutationObserver alone: shadow-root content updates do not
+     * notify an observer on the light host, and the PR gate lives in one.
+     */
+    const poll = window.setInterval(() => {
+      if (somewhere(host, gate)) {
+        window.clearInterval(poll)
         done()
       }
-    })
-    watch.observe(host, { childList: true, subtree: true })
+    }, 100)
     const timeout = window.setTimeout(() => {
-      watch.disconnect()
+      window.clearInterval(poll)
       done()
     }, 8000)
 
     return () => {
       cancelled = true
-      watch.disconnect()
+      window.clearInterval(poll)
       window.clearTimeout(timeout)
     }
   }, [host, view, onReady])
@@ -99,7 +120,20 @@ export const HeroStage = ({
   readonly scene: HeroLiveScene
   readonly onReady?: () => void
 }): ReactNode => {
-  const view = SCENES[scene]
+  const [view, setView] = useState<View | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setView(null)
+    void loadScene(scene).then((next) => {
+      if (!cancelled) setView(next)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [scene])
+
+  if (view === null) return null
 
   return (
     <div className="hero-stage absolute inset-0 h-full w-full" data-hero-scene={scene}>
