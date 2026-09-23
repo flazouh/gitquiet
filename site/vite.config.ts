@@ -6,6 +6,23 @@ import { defineConfig, type Plugin } from "vite"
 
 const here = (path: string) => fileURLToPath(new URL(path, import.meta.url))
 
+
+const redirectGoneInstall = (): Plugin => ({
+  name: "gitquiet:redirect-gone-install",
+  configureServer: (server) => {
+    server.middlewares.use((request, response, next) => {
+      const path = (request.url ?? "").split("?", 1)[0]
+      if (path === "/install" || path === "/install/") {
+        response.statusCode = 301
+        response.setHeader("Location", "/")
+        response.end()
+        return
+      }
+      next()
+    })
+  }
+})
+
 const chunkBeside = (file: string, missing: string): Plugin => {
   const from = here(`../public/${file}`)
   const at = `/${file}`
@@ -38,6 +55,7 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    redirectGoneInstall(),
     chunkBeside("diff-engine.js", "bun run build:diff-engine"),
     chunkBeside("markdown-highlighter.js", "bun run build:markdown-highlighter"),
     chunkBeside("markdown-mermaid.js", "bun run build:markdown-mermaid")
@@ -65,13 +83,6 @@ export default defineConfig({
          * the landing page.
          */
         welcome: fileURLToPath(new URL("./welcome.html", import.meta.url)),
-
-        /*
-         * `/install`, which is every way in with the state each one is in. Reached
-         * from the hero, from the footer, and from the store listings, so it is a
-         * page of its own for the same reason `/welcome` is.
-         */
-        install: fileURLToPath(new URL("./install.html", import.meta.url)),
 
         /*
          * `/github-pr-inbox`, a job page for github pr inbox, not a fifth compare.

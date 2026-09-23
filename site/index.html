@@ -8,14 +8,14 @@
     <title>GitQuiet - A faster, quieter GitHub</title>
     <meta
       name="description"
-      content="A faster, quieter GitHub. Every pull request you're in, one screen, sorted by next action. Not an AI reviewer. No extra login."
+      content="A faster, quieter GitHub. Pull requests that need you, filed by next action—on the session you already have. Not an AI reviewer."
     />
     <link rel="canonical" href="https://gitquiet.com/" />
 
     <meta property="og:title" content="GitQuiet - A faster, quieter GitHub" />
     <meta
       property="og:description"
-      content="A faster, quieter GitHub. Every pull request you're in, one screen, sorted by next action. Not an AI reviewer. No extra login."
+      content="A faster, quieter GitHub. Pull requests that need you, filed by next action—on the session you already have. Not an AI reviewer."
     />
     <meta property="og:url" content="https://gitquiet.com/" />
     <meta property="og:image" content="https://gitquiet.com/og.png" />
@@ -24,12 +24,11 @@
     <meta name="twitter:title" content="GitQuiet - A faster, quieter GitHub" />
     <meta
       name="twitter:description"
-      content="A faster, quieter GitHub. Every pull request you're in, one screen, sorted by next action. Not an AI reviewer. No extra login."
+      content="A faster, quieter GitHub. Pull requests that need you, filed by next action—on the session you already have. Not an AI reviewer."
     />
     <meta name="twitter:image" content="https://gitquiet.com/og.png" />
     <!--
-      First paint before the bundle runs: dark paper, crawler <main> clipped out of
-      view. The bed lives inside the demo now, not behind the page.
+      First paint: sober dark field before the bundle. Crawler <main> clipped out of view.
     -->
     <style>
       html,
@@ -37,8 +36,8 @@
         margin: 0;
         min-height: 100%;
         min-height: 100dvh;
-        background: #0c0b10;
-        color: #f4f2ef;
+        background: #0c0c0c;
+        color: #f2f2ee;
         color-scheme: dark;
       }
       #page > main {
@@ -56,18 +55,14 @@
   </head>
   <body>
     <div id="page">
-      <!--
-        The copy a crawler that never runs the bundle can still read. Indexes that skip
-        JavaScript kept only /privacy, because that file is HTML and this one was an
-        empty #page waiting for React. createRoot replaces this on mount; that is
-        intended.
-      -->
       <main>
         <h1>A faster, quieter GitHub.</h1>
-        <p>A faster, quieter GitHub. Every pull request you're in, one screen, sorted by next action. Not an AI reviewer. No extra login.</p>
         <p>
-          <a href="https://chromewebstore.google.com/detail/gitquiet/ichobjnihnofjkpoegikjhefmoekaahe">Add to Chrome</a>
-          <a href="/install">Install</a>
+          Pull requests that need you, filed by next action—on the session you already have. Not an
+          AI reviewer.
+        </p>
+        <p>
+          <a href="https://chromewebstore.google.com/detail/gitquiet/ichobjnihnofjkpoegikjhefmoekaahe">Install for Chrome</a>
           <a href="/github-pr-inbox">GitHub PR inbox</a>
           <a href="/github-review-queue">GitHub review queue</a>
         </p>

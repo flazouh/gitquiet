@@ -14,11 +14,9 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "noEmit": true,
-    // `bun` as well as vite's own, because the pure reads in `ways.ts` are tested
-    // beside themselves and `bun test` is what the repository runs.
+    // vite/client for the site; bun for `bun test` under site/src.
     "types": ["vite/client", "bun"],
-    "paths": { "@/*": ["../src/*"] },
-    "baseUrl": "."
+    "paths": { "@/*": ["../src/*"] }
   },
   "include": ["src", "vite.config.ts"]
 }

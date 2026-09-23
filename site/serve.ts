@@ -85,6 +85,10 @@ Bun.serve({
       return Response.redirect(`${path}${url.search}`, 301)
     }
 
+    if (path === "/install") {
+      return Response.redirect("/" + url.search, 301)
+    }
+
     const page = await pageAt(url.pathname)
     if (page !== undefined) return page
     return new Response("Not found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } })
