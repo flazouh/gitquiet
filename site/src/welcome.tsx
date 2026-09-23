@@ -8,7 +8,7 @@ import { mount } from "./mount"
 import { Supplied } from "../../shots/Supplied"
 import { viewNamed } from "../../shots/views"
 import { Bed } from "./Bed"
-import { Footer, HELD, INSTALL_AT, Nav, Press, Source, STORE_AT } from "./Shell"
+import { Footer, HELD, Nav, Source, STORE_AT } from "./Shell"
 import "./index.css"
 import "@/ui/onboarding.css"
 
@@ -50,7 +50,6 @@ const Welcome = () => {
       <div className={`relative z-1 ${HELD}`}>
         <Nav>
           <Source />
-          {already ? null : <Press at={INSTALL_AT}>Install</Press>}
         </Nav>
       </div>
 
@@ -75,14 +74,9 @@ const Welcome = () => {
                       "It works on the pages you already use. Firefox, Safari, and a Mac app too."
                     ],
                     act: (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <a className="tour-press" href={STORE_AT}>
-                          Install for Chrome
-                        </a>
-                        <a className="tour-quietly" href={INSTALL_AT}>
-                          Every install
-                        </a>
-                      </div>
+                      <a className="tour-press" href={STORE_AT}>
+                        Install for Chrome
+                      </a>
                     )
                   }
             }

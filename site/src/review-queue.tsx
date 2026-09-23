@@ -4,10 +4,8 @@ import { mount } from "./mount"
 import {
   Above,
   AddToChrome,
-  Aside,
   Footer,
   HELD,
-  INSTALL_AT,
   Nav,
   Quietly,
   SkipTo,
@@ -25,7 +23,6 @@ const ReviewQueue = () => (
     <Above>
       <Nav>
         <Source />
-        <Aside at={INSTALL_AT}>Install</Aside>
         <AddToChrome />
       </Nav>
 
@@ -40,9 +37,6 @@ const ReviewQueue = () => (
         <div className="mt-10">
           <AddToChrome big />
         </div>
-        <p className="m-0 mt-5 text-[15px] leading-relaxed text-ink/60">
-          Or see <Quietly at={INSTALL_AT}>every install</Quietly>.
-        </p>
       </div>
     </Above>
 
@@ -102,9 +96,6 @@ const ReviewQueue = () => (
         <div className="mt-10">
           <AddToChrome big />
         </div>
-        <p className="m-0 mt-5 text-[15px] leading-relaxed text-ink/60">
-          <Quietly at={INSTALL_AT}>Install</Quietly>
-        </p>
       </section>
     </main>
 

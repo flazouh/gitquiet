@@ -61,9 +61,6 @@ describe("crawler-visible copy inside #page", () => {
     expect(source).toContain("/github-review-queue")
   })
 
-  test("install has the live h1", () => {
-    expect(h1In(html("../install.html"))).toBe("Get GitQuiet.")
-  })
 
   test.each([...COMPARED])("$slug has the live h1, dek and we", (page) => {
     const source = html(`../compare/${page.slug}.html`)
@@ -86,13 +83,6 @@ describe("crawler-visible copy inside #page", () => {
     expect(source).not.toContain("/compare/attention-set")
   })
 
-  test("install crawler copy links the inbox job", () => {
-    expect(html("../install.html")).toContain("/github-pr-inbox")
-  })
-
-  test("install crawler copy links the review-queue job", () => {
-    expect(html("../install.html")).toContain("/github-review-queue")
-  })
 
   test("inbox crawler copy links the sibling review-queue job", () => {
     expect(html("../github-pr-inbox.html")).toContain("/github-review-queue")
@@ -109,11 +99,6 @@ describe("crawler-visible copy inside #page", () => {
 })
 
 describe("crawler-visible titles and metas", () => {
-  test("install does not claim Safari is on the Mac App Store", () => {
-    const source = html("../install.html")
-    expect(source).not.toContain("Mac App Store")
-    expect(source).toContain("Safari disk image")
-  })
 
   test.each([...COMPARED])("$slug title, meta, og and twitter", (page) => {
     const source = html(`../compare/${page.slug}.html`)
@@ -171,14 +156,6 @@ describe("first-paint shell", () => {
     expect(source).not.toContain("#0c0b10")
   })
 
-  test("install hides the crawler main on the sober bed", () => {
-    const source = html("../install.html")
-    expect(source).toContain("#page > main")
-    expect(source).toContain("clip: rect(0, 0, 0, 0)")
-    expect(source).toContain("100dvh")
-    expect(source).toContain("#9ca8a8")
-    expect(source).not.toContain("#ff9ad1")
-  })
 
   test("job and compare pages hide the crawler main on paper", () => {
     const files = [

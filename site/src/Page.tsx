@@ -1,28 +1,13 @@
 import { useEffect } from "react"
 import { Atmosphere } from "./Atmosphere"
 import { HeroCarousel } from "./HeroCarousel"
-import {
-  AddToChrome,
-  Aside,
-  Footer,
-  INSTALL_AT,
-  Nav,
-  Quietly,
-  SkipTo,
-  Source
-} from "./Shell"
+import { AddToChrome, Nav, SkipTo, Source } from "./Shell"
 
 /**
  * Home: Luminar poster hero — full-viewport rounded card, nav inside,
- * copy left + screenshot carousel right (flush on md+). Sober Wafer atmosphere.
+ * copy left + screenshot carousel right (flush on md+). Live Wafer Atmosphere.
  * No demo video, no recycled store shots, no old Shell demo chrome.
  */
-
-const Elsewhere = () => (
-  <p className="m-0 text-[15px] leading-relaxed text-white/70">
-    Also on <Quietly at={INSTALL_AT}>Safari, Firefox, and Mac</Quietly>.
-  </p>
-)
 
 export const Page = () => {
   useEffect(() => {
@@ -55,9 +40,6 @@ export const Page = () => {
           <div className="relative z-10">
             <Nav dark>
               <Source dark />
-              <Aside at={INSTALL_AT} dark>
-                Install
-              </Aside>
               <AddToChrome light />
             </Nav>
           </div>
@@ -76,7 +58,6 @@ export const Page = () => {
               </p>
               <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-4">
                 <AddToChrome big light />
-                <Elsewhere />
               </div>
             </div>
 
@@ -87,15 +68,6 @@ export const Page = () => {
           </div>
         </div>
       </header>
-
-      <div className="mx-auto w-full max-w-6xl px-6 pb-4 pt-10">
-        <p className="m-0 max-w-2xl text-[15px] leading-relaxed text-white/55">
-          Looking for a{" "}
-          <Quietly at="/github-pr-inbox">GitHub PR inbox</Quietly> or a{" "}
-          <Quietly at="/github-review-queue">review queue</Quietly>? Same quiet client, in the tab.
-        </p>
-        <Footer dark />
-      </div>
     </div>
   )
 }

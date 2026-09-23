@@ -67,13 +67,6 @@ export default defineConfig({
         welcome: fileURLToPath(new URL("./welcome.html", import.meta.url)),
 
         /*
-         * `/install`, which is every way in with the state each one is in. Reached
-         * from the hero, from the footer, and from the store listings, so it is a
-         * page of its own for the same reason `/welcome` is.
-         */
-        install: fileURLToPath(new URL("./install.html", import.meta.url)),
-
-        /*
          * `/github-pr-inbox`, a job page for github pr inbox, not a fifth compare.
          *
          * Same reason it is a file rather than a router: `site/serve.ts` maps

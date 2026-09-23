@@ -21,12 +21,11 @@ export const STORE_AT =
 
 export const SOURCE_AT = "https://github.com/flazouh/gitquiet"
 
-export const INSTALL_AT = "/install"
 
 /** Control corner: 8px, matching Luminar `--radius`. */
 const EDGE = "rounded-lg"
 
-/** Inner column for simple pages (install, jobs, compare). */
+/** Inner column for simple pages (jobs, compare, welcome). */
 export const HELD = "mx-auto w-full max-w-6xl px-6"
 
 const Octocat = ({ size = 17 }: { readonly size?: number }) => (
@@ -155,7 +154,7 @@ export const SkipTo = ({ id, says }: { readonly id: string; readonly says: strin
 
 const FADE = "linear-gradient(to bottom, black 58%, transparent 100%)"
 
-/** Lit header band for install / job / compare — sober bed, not pink. */
+/** Lit header band for job / compare — sober bed, not pink. */
 export const Above = ({ children }: { readonly children: ReactNode }) => (
   <header className="relative isolate overflow-hidden">
     <Bed
@@ -211,14 +210,6 @@ export const Footer = ({ dark = false }: { readonly dark?: boolean }) => (
     </div>
 
     <div className="flex flex-wrap items-center gap-6">
-      <a
-        href={INSTALL_AT}
-        className={`transition-colors duration-[var(--duration-press)] ease-out ${
-          dark ? "text-white/40 hover:text-white" : "text-muted hover:text-ink"
-        }`}
-      >
-        Install
-      </a>
       <a
         href={SOURCE_AT}
         className={`inline-flex items-center gap-2 transition-colors duration-[var(--duration-press)] ease-out ${
