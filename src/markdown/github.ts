@@ -304,9 +304,11 @@ const splitText = (
   inLink = false
 ): ReadonlyArray<MarkdownInline> => {
   const found: Array<{ start: number; end: number; node: MarkdownInline }> = []
-
   // Everything that would be an anchor of its own, which a link's text cannot hold.
-  for (const match of inLink ? [] : text.matchAll(SHORTHAND)) {
+  const anchors = (pattern: RegExp): Iterable<RegExpExecArray> =>
+    inLink ? [] : text.matchAll(pattern)
+
+  for (const match of anchors(SHORTHAND)) {
     const owner = match[1]
     const repo = match[2]
     const number = match[3]
@@ -318,8 +320,8 @@ const splitText = (
     })
   }
 
-  if (!inLink && options.owner !== undefined && options.repo !== undefined) {
-    for (const match of text.matchAll(ISSUE)) {
+  if (options.owner !== undefined && options.repo !== undefined) {
+    for (const match of anchors(ISSUE)) {
       const number = match[1]
       if (number === undefined) continue
       const start = match.index
@@ -339,7 +341,7 @@ const splitText = (
     }
   }
 
-  for (const match of inLink ? [] : text.matchAll(MENTION)) {
+  for (const match of anchors(MENTION)) {
     const login = match[1]
     if (login === undefined) continue
     const start = match.index
@@ -352,7 +354,7 @@ const splitText = (
     found.push({ start, end, node: { type: "mention", login } })
   }
 
-  for (const match of inLink ? [] : text.matchAll(FOOTNOTE_REF)) {
+  for (const match of anchors(FOOTNOTE_REF)) {
     if (text[match.index + match[0].length] === ":") continue
     const id = match[1]
     if (id === undefined) continue

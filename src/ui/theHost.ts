@@ -27,41 +27,37 @@ import { HIDING_MARKS, OUTSIDE, PAGE, theirPageHidden } from "./mount"
 export const HOST_ID = "gitquiet-host"
 
 /**
- * The stylesheet every shadow root of ours adopts, constructed once.
+ * What every copy of this module has to agree on, kept on the isolated world's global.
  *
- * Constructed rather than a `<link>`: a link inside a shadow root is fetched per
- * root and blocks that root's first paint, and the same sheet object adopted into
- * many roots is parsed once for all of them. Ours is ninety kilobytes and seven
- * hundred and sixty-nine rules, and it is not what makes a keystroke expensive —
- * measured at 0.036ms a mutation with their sheets off, against 9.485ms with them
- * on. See `docs/plan/restyle-scope.md`.
- */
-/**
- * The sheet and the host, shared by every copy of this module for the reason
- * {@link ourSheets} is below. Kept per copy, the shell built the sheet and made the host,
- * and when GitHub replaced `body` a screen's copy stood a new host up with no sheet to
- * adopt: a commit drawn with no styles at all, measured on a press from a repository's
- * front page.
+ * This module is bundled into four scripts. They share one isolated world, so this
+ * lives on its global under a registered symbol rather than once per script.
+ *
+ * - `sheet`: the stylesheet every shadow root of ours adopts, constructed once.
+ *   Constructed rather than a `<link>`: a link inside a shadow root is fetched per root
+ *   and blocks that root's first paint, and one sheet object adopted into many roots is
+ *   parsed once. Measured at 0.036ms a mutation with their sheets off, against 9.485ms
+ *   with them on. See `docs/plan/restyle-scope.md`.
+ * - `hosts`: the host each document has had. See {@link theHost}.
+ * - `ourSheets`: every sheet of ours, for {@link oursInForce}.
+ *
+ * Each of these was once per copy, and each broke the same way: the shell built the
+ * sheet and made the host, and a screen's copy knew neither. Asked of its own sheet, it
+ * said ours was not in force and put their sheets back on under our interface. And when
+ * GitHub replaced `body`, it stood a new host up with nothing to adopt: a commit drawn
+ * with no styles at all, measured on a press from a repository's front page.
  */
 const SHARED = Symbol.for("gitquiet.theHost")
-type Shared = { sheet: CSSStyleSheet | null; readonly hosts: WeakMap<Document, HTMLElement> }
+type Shared = {
+  sheet: CSSStyleSheet | null
+  readonly hosts: WeakMap<Document, HTMLElement>
+  readonly ourSheets: WeakSet<CSSStyleSheet>
+}
 const shared: Shared = ((globalThis as { [SHARED]?: Shared })[SHARED] ??= {
   sheet: null,
-  hosts: new WeakMap()
+  hosts: new WeakMap(),
+  ourSheets: new WeakSet()
 })
-
-/**
- * Every sheet of ours, as every copy of this module can see it.
- *
- * This module is bundled into four scripts, and `sheet` above is one per script.
- * They share one isolated world, so the set lives on its global under a registered
- * symbol: a screen's copy that never built a sheet still knows the shell's for
- * ours. Asked of its own `sheet`, it said ours was not in force, and its watch put
- * their sheets back on under our interface after every change.
- */
-const OURS = Symbol.for("gitquiet.ourSheets")
-const ourSheets: WeakSet<CSSStyleSheet> = ((globalThis as { [OURS]?: WeakSet<CSSStyleSheet> })[OURS] ??=
-  new WeakSet())
+const ourSheets = shared.ourSheets
 
 /**
  * `:root` is the document's element and a shadow root has none.
