@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { loadWhereReadFailed } from "./issue"
+import { loadWhereNoDocumentWasServed } from "./softArrival"
 
 /** A window as much as the rule reads: the address, the document's entry, and a way to load. */
 const aWindow = (at: string, servedAt: string | null) => {
@@ -30,14 +30,14 @@ describe("an issue read that failed", () => {
   test("loads the address once where no document was served for it", () => {
     const { view, loaded } = aWindow(`https://github.com${ROUTE}`, "https://github.com/flazouh/gitquiet/issues/100")
 
-    expect(loadWhereReadFailed(view, ROUTE)).toBe(true)
+    expect(loadWhereNoDocumentWasServed(view, ROUTE)).toBe(true)
     expect(loaded).toEqual([`https://github.com${ROUTE}`])
   })
 
   test("never loads a document that was served for this address, so it cannot loop", () => {
     const { view, loaded } = aWindow(`https://github.com${ROUTE}`, `https://github.com${ROUTE}`)
 
-    expect(loadWhereReadFailed(view, ROUTE)).toBe(false)
+    expect(loadWhereNoDocumentWasServed(view, ROUTE)).toBe(false)
     expect(loaded).toEqual([])
   })
 
@@ -45,7 +45,7 @@ describe("an issue read that failed", () => {
     // An issue read ahead of a press fails while the reader is still on the list.
     const { view, loaded } = aWindow("https://github.com/flazouh/gitquiet/issues", "https://github.com/flazouh/gitquiet/issues")
 
-    expect(loadWhereReadFailed(view, ROUTE)).toBe(false)
+    expect(loadWhereNoDocumentWasServed(view, ROUTE)).toBe(false)
     expect(loaded).toEqual([])
   })
 })

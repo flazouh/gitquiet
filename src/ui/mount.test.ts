@@ -358,6 +358,41 @@ describe("handing the page from one interface to the next", () => {
   })
 
 
+  test("leaves the page to the screen that took it, when the one it replaced steps aside late", () => {
+    /*
+     * Measured on Back from a repository to a commit: the commit took the page, and a
+     * millisecond later the repository's own screen stepped aside and took the mark off
+     * with it. GitHub's commit was drawn under our bar, with ours hidden behind it.
+     */
+    const page = githubPage()
+    const list = listUp(page)
+    takeOverSlot(page, interfaceContainer(page, CONVERSATION), CONVERSATION)
+
+    list.stepAside()
+
+    expect(page.documentElement.hasAttribute("data-gitquiet-taken")).toBe(true)
+    expect(page.documentElement.getAttribute("data-gitquiet-shown")).toBe(CONVERSATION.name)
+  })
+
+  test("says it is in charge again when GitHub restores a page's own marks over it", async () => {
+    /*
+     * Measured on Back to a commit: Turbo restored its snapshot of the page and set the
+     * root element's attributes to the snapshot's, which had no `taken` on it. GitHub's
+     * commit was drawn under our bar, with ours standing hidden behind it.
+     */
+    const page = githubPage()
+    const card = takeOverSlot(page, interfaceContainer(page, CONVERSATION), CONVERSATION)!
+
+    page.documentElement.removeAttribute("data-gitquiet-taken")
+    page.documentElement.removeAttribute("data-gitquiet-shown")
+    await Promise.resolve()
+
+    expect(card.container.isConnected).toBe(true)
+    expect(page.documentElement.hasAttribute("data-gitquiet-taken")).toBe(true)
+    expect(page.documentElement.getAttribute("data-gitquiet-shown")).toBe(CONVERSATION.name)
+    card.stepAside()
+  })
+
   test("says whether the page went back to GitHub, which is what it was asked", () => {
     const page = githubPage()
 

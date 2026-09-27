@@ -92,7 +92,22 @@ export const theBarSlot = (page: Document, within?: HTMLElement | undefined): HT
   slot.style.top = "0"
   slot.style.zIndex = "30"
   held.insertBefore(slot, held.firstChild)
+  if (within === undefined) markWhileABarStands(page, slot)
   return slot
+}
+
+/**
+ * Keeps {@link BAR_ON_PAGE} true exactly while a bar of ours is in the page's slot.
+ *
+ * The mark is what hides their header, and it was written once and never taken off. A
+ * press from one of our screens to a page of theirs, a file's history for one, took our
+ * bar down and left the mark: a page with no header at all. Written when the slot is made
+ * as well, so their header never shows for the frame before our bar renders into it.
+ */
+const markWhileABarStands = (page: Document, slot: HTMLElement): void => {
+  new MutationObserver(() => {
+    page.documentElement.toggleAttribute(BAR_ON_PAGE, slot.children.length > 0)
+  }).observe(slot, { childList: true })
 }
 
 /** The bar already standing in this container, which is the one this container's screen made. */

@@ -1,7 +1,8 @@
 import { Effect, Fiber, Option } from "effect"
 import { issueEntitled } from "@/app/entitling"
-import { loadIssue, loadWhereReadFailed, rememberedIssue, reopenIssue, sayOnIssue, settleIssue } from "@/app/issue"
+import { loadIssue, rememberedIssue, reopenIssue, sayOnIssue, settleIssue } from "@/app/issue"
 import { uploadFile } from "@/app/attaching"
+import { loadWhereNoDocumentWasServed } from "@/app/softArrival"
 import { loadSuggesting } from "@/app/suggesting"
 import { rememberedRepositories } from "@/app/destinations"
 import { forgetIntent, intendedPath } from "@/app/intent"
@@ -83,8 +84,8 @@ const open = (
           }
         })
       ),
-      // A pull request's number reached through `/issues/N`. See `loadWhereReadFailed`.
-      Effect.tapError(() => Effect.sync(() => loadWhereReadFailed(window, route)))
+      // A pull request's number reached through `/issues/N`. See `softArrival.ts`.
+      Effect.tapError(() => Effect.sync(() => loadWhereNoDocumentWasServed(window, route)))
     )
 
   // Started before anything is waited on, exactly as a pull request's is: the
@@ -226,6 +227,11 @@ export const start = (): void => {
   let close = (): void => {}
   let shown: string | null = null
   let view: View = "ours"
+  // Kept current, because another screen can change it: "Leave GitQuiet" on a pull
+  // request, then their own link to a list, drew our list over a page the reader left.
+  store.watch((changed) => {
+    view = changed.page.view
+  })
 
   // Declared rather than assigned, because the three call each other in a ring.
 

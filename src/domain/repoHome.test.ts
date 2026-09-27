@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Option } from "effect"
 import {
+  namedIn,
   type Entry,
   type Footing,
   type Kind,
@@ -202,5 +203,35 @@ describe("who wrote the last commit", () => {
   test("leaves a row whose SHA was not answered alone", () => {
     const named = namedBy(new Map([["a.ts", touch]]), new Map())
     expect(named.get("a.ts")?.who).toEqual(Option.none())
+  })
+})
+
+/*
+ * A README links a folder as `./desktop`, and it arrives as `/blob/main/desktop`. GitHub's
+ * server redirects that to the folder, and the screen then tried to read `desktop` as a
+ * file: "This file could not be read", beside a tree showing the folder.
+ */
+describe("what an address inside the repository names", () => {
+  const PATHS = ["README.md", "desktop/README.md", "desktop/src/main.ts", "desktop/package.json", "site/index.html"]
+
+  test("a file, where the tree holds it", () => {
+    expect(namedIn("desktop/package.json", PATHS)).toEqual({ kind: "file", path: "desktop/package.json" })
+  })
+
+  test("a folder, with its README and what is directly in it", () => {
+    expect(namedIn("desktop", PATHS)).toEqual({
+      kind: "folder",
+      path: "desktop",
+      readme: "desktop/README.md",
+      entries: ["README.md", "src/", "package.json"]
+    })
+  })
+
+  test("a folder with no README", () => {
+    expect(namedIn("site", PATHS)).toEqual({ kind: "folder", path: "site", readme: null, entries: ["index.html"] })
+  })
+
+  test("a file, where the tree has not said anything yet", () => {
+    expect(namedIn("desktop", [])).toEqual({ kind: "file", path: "desktop" })
   })
 })

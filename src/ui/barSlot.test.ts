@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { BAR_ID, keepTheBarSlot, takeTheBarDown, theBarSlot, theBarStands, whenAnotherBarStands } from "./barSlot"
+import { BAR_ID, BAR_ON_PAGE, keepTheBarSlot, takeTheBarDown, theBarSlot, theBarStands, whenAnotherBarStands } from "./barSlot"
 
 const aPage = (): Document => {
   const page = document.implementation.createHTMLDocument("github")
@@ -91,6 +91,25 @@ describe("where our bar stands", () => {
 
     expect(slot.isConnected).toBe(false)
     stop()
+  })
+
+  test("hides their header only while a bar of ours is in the slot", async () => {
+    // Measured on a file's history: the bar came down on the way to a page of theirs,
+    // the mark stayed, and the page had no header at all, theirs or ours.
+    const page = aPage()
+    const slot = theBarSlot(page)
+    const bar = page.createElement("header")
+    slot.append(bar)
+    await Promise.resolve()
+    expect(page.documentElement.hasAttribute(BAR_ON_PAGE)).toBe(true)
+
+    bar.remove()
+    await Promise.resolve()
+    expect(page.documentElement.hasAttribute(BAR_ON_PAGE)).toBe(false)
+
+    slot.append(bar)
+    await Promise.resolve()
+    expect(page.documentElement.hasAttribute(BAR_ON_PAGE)).toBe(true)
   })
 
   test("stops being watched when the screen goes", async () => {

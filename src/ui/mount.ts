@@ -1308,6 +1308,17 @@ export const takeOverSlot = (
     }
 
     /*
+     * Our marks, put back where GitHub took them off a page this screen still holds.
+     * Turbo restoring a snapshot sets the root element's attributes to the snapshot's.
+     * Measured on Back to a commit: `taken` went, and their commit was drawn under our bar.
+     */
+    if (container.isConnected && !container.hasAttribute(LEAVING)) {
+      const root = target.documentElement
+      if (!root.hasAttribute(TAKEN)) root.setAttribute(TAKEN, "")
+      if (root.getAttribute(SHOWN) !== place.name) root.setAttribute(SHOWN, place.name)
+    }
+
+    /*
      * Another interface is taking the document over, and this one is on the
      * screen only until it does. Tending it past that point would start a fight:
      * this takeover would keep the region it was given, that one would take it
@@ -1396,7 +1407,11 @@ export const takeOverSlot = (
     if (parent !== null && !parent.hasAttribute(WITHIN)) markWithin(target, container)
   })
   watcher.observe(ground, { childList: true, subtree: true })
-  watcher.observe(target.documentElement, { childList: true })
+  watcher.observe(target.documentElement, {
+    childList: true,
+    attributes: true,
+    attributeFilter: [TAKEN, SHOWN]
+  })
 
   return {
     container,

@@ -255,3 +255,42 @@ describe("their stylesheets are off only while the page is ours", () => {
     expect(screen.oursInForce(page)).toBe(true)
   })
 })
+
+describe("our sheet inside the shadow root", () => {
+  test("reads its fonts from beside the stylesheet, not from GitHub", async () => {
+    /*
+     * A constructed sheet resolves `url()` against the page unless told otherwise, so the
+     * fonts the stylesheet names were asked of github.com and never arrived. Measured on a
+     * pull request: every screen in the fallback font.
+     */
+    const made: Array<CSSStyleSheetInit | undefined> = []
+    const Real = globalThis.CSSStyleSheet
+    const realFetch = globalThis.fetch
+    globalThis.CSSStyleSheet = class extends Real {
+      constructor(init?: CSSStyleSheetInit) {
+        super(init)
+        made.push(init)
+      }
+    }
+    globalThis.fetch = (async () => new Response("@font-face { src: url(./inter.woff2) }")) as unknown as typeof fetch
+    // @ts-expect-error: a query string is a fresh instance of the module, with no sheet built yet.
+    const fresh = (await import("./theHost?own-base")) as typeof import("./theHost")
+    const shared = (globalThis as Record<symbol, { sheet: CSSStyleSheet | null }>)[Symbol.for("gitquiet.theHost")]!
+    const had = shared.sheet
+    shared.sheet = null
+    await Effect.runPromise(
+      fresh.theSheet("chrome-extension://gitquiet/screens/styles.css").pipe(
+        Effect.ensuring(
+          Effect.sync(() => {
+            globalThis.CSSStyleSheet = Real
+            globalThis.fetch = realFetch
+            shared.sheet = had
+          })
+        )
+      )
+    )
+
+    expect(made).toEqual([{ baseURL: "chrome-extension://gitquiet/screens/styles.css" }])
+  })
+})
+

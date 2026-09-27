@@ -53,6 +53,11 @@ export const start = (): void => {
   /** This screen, so the way back it puts up is not taken down by another. */
   const me = aScreen("compare")
   let view: View = "ours"
+  // Kept current, because another screen can change it: "Leave GitQuiet" on a pull
+  // request, then their own link to a list, drew our list over a page the reader left.
+  store.watch((changed) => {
+    view = changed.page.view
+  })
   let standing: Standing | null = null
   let stood: string | null = null
 

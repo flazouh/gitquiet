@@ -677,10 +677,16 @@ export default defineContentScript({
       /** Nothing where the press is GitHub's to route. See {@link answerPress}. */
       mine?: Ours,
     ): void => {
-      // Their page is the one being opened, so there is nothing to hold back
-      // and nothing to fetch. Leaving the gate alone here is the whole of it:
-      // a reader who has turned this off never sees a frame of it.
-      if (view === "github") return;
+      // Their page is the one being opened, so there is nothing to hold back.
+      // Leaving the gate alone here is the whole of it: a reader who has turned
+      // this off never sees a frame of it. The screen is still started, because
+      // it is what hands the page straight back and puts the way back on it: on
+      // a soft move to their list after "Leave GitQuiet", nothing started one,
+      // and the choice was a door that only opened one way.
+      if (view === "github") {
+        if (!up.has(what)) fetchIt(what);
+        return;
+      }
 
       /** Whether the screen this press asked for is up, address and all. Set once the press is ours. */
       let arrived: (() => boolean) | undefined;

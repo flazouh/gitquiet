@@ -172,3 +172,12 @@ export const personIn = (page: Document): Option.Option<Person> => {
  */
 export const personOnPage = (html: string): Option.Option<Person> =>
   personIn(new DOMParser().parseFromString(html, "text/html"))
+
+/**
+ * Whether the page GitHub served is an organisation's, which shares a person's address.
+ *
+ * Their hovercard tag names what the page is about, and on a person's page it is not
+ * there at all. Measured on `/fluentai-pro` and `/microsoft` against `/flazouh`.
+ */
+export const anOrganisation = (page: Document): boolean =>
+  page.querySelector('meta[name="hovercard-subject-tag"][content^="organization:"]') !== null

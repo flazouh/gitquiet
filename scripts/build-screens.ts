@@ -75,6 +75,12 @@ const result = await build({
     // React reads it, and outside WXT's own build nothing has said what it is.
     "process.env.NODE_ENV": '"production"'
   },
+  /*
+   * Relative, so the stylesheet names its fonts beside itself in `screens/`. The default
+   * wrote `url(/inter-….woff2)`, the extension's root, where the fonts are not, and every
+   * screen drew in the fallback font.
+   */
+  base: "./",
   build: {
     outDir: OUT,
     emptyOutDir: true,

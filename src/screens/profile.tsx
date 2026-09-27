@@ -2,6 +2,8 @@ import { Effect, Option } from "effect"
 import { forgetIntent, intendedPath } from "@/app/intent"
 import { theirWholeList } from "@/app/personRepos"
 import { theirAnswering } from "@/app/profile"
+import { loadWhereNoDocumentWasServed } from "@/app/softArrival"
+import { anOrganisation } from "@/github/person"
 import { chosenSettings } from "@/app/settings"
 import {
   aScreen,
@@ -80,7 +82,8 @@ const open = (
    * there is none on the page to read. Built once rather than per draw, so the screen is
    * handed the same reader of it every time it renders. See `theirColumn`.
    */
-  const column = theirColumn(page)
+  // An organisation, found on a press that loaded no document. Their server serves it.
+  const column = theirColumn(page, () => loadWhereNoDocumentWasServed(window, at))
 
   return standAScreen({
     place: PROFILE,
@@ -117,6 +120,11 @@ export const start = (): void => {
   let close = (): void => {}
   let on: string | undefined
   let view: View = "ours"
+  // Kept current, because another screen can change it: "Leave GitQuiet" on a pull
+  // request, then their own link to a list, drew our list over a page the reader left.
+  store.watch((changed) => {
+    view = changed.page.view
+  })
 
   const show = (url: string): void => {
     const page = profileIn(url)
@@ -136,6 +144,16 @@ export const start = (): void => {
     close()
     close = () => {}
     on = undefined
+
+    /*
+     * An organisation's page, served under the same one-segment address as a person's.
+     * Theirs to draw: nothing here reads an organisation. Asked again once the document
+     * is parsed, below, because this can run before the tag that says so has arrived.
+     */
+    if (anOrganisation(document)) {
+      leaveTheirPages(document, me)
+      return
+    }
 
     // Their page, because that is what was asked for last time — with the way back
     // on it, because a page that hands over and offers nothing is a door that only
@@ -163,6 +181,15 @@ export const start = (): void => {
   }
 
   whenAddressChanges(window, () => show(window.location.href))
+
+  // The same question once the document is parsed. See the organisation in `show`.
+  const askAgainIfAnOrganisation = (): void => {
+    if (!anOrganisation(document) || on === undefined) return
+    on = undefined
+    show(window.location.href)
+  }
+  if (document.readyState === "loading")
+    document.addEventListener("DOMContentLoaded", askAgainIfAnOrganisation, { once: true })
 
   Effect.runFork(
     chosenSettings(store).pipe(

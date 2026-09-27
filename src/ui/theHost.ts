@@ -85,7 +85,9 @@ export const theSheet = (href: string): Effect.Effect<CSSStyleSheet, unknown> =>
     const said = yield* Effect.tryPromise({ try: () => fetch(href), catch: (cause) => cause })
     const css = yield* Effect.tryPromise({ try: () => said.text(), catch: (cause) => cause })
 
-    const built = new CSSStyleSheet()
+    // Against its own address, so the fonts it names are read from beside it. A
+    // constructed sheet otherwise resolves `url()` against GitHub's page.
+    const built = new CSSStyleSheet({ baseURL: href })
     built.replaceSync(forAShadowRoot(css))
     ourSheets.add(built)
     shared.sheet = built
