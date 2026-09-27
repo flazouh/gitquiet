@@ -165,3 +165,16 @@ afterEach(forgetTheSpot)
  * worker is a fact about the machine.
  */
 afterEach(() => forgetTheHost(document))
+
+/*
+ * The tab shown again, after a test that hid it.
+ *
+ * Tests stand a tab being hidden by defining `visibilityState` on the document, and
+ * the definition outlives the test that made it. In CI's single process the next file
+ * to ask whether the tab is visible was told it was not, so `useLive` never read again
+ * on the way back to the tab: three of its tests failed on CI and passed everywhere
+ * else, depending only on which file ran before them.
+ */
+afterEach(() => {
+  Reflect.deleteProperty(document, "visibilityState")
+})
