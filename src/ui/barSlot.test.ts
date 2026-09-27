@@ -93,6 +93,29 @@ describe("where our bar stands", () => {
     stop()
   })
 
+  /*
+   * Measured on a press from a repository to one of its commits: Turbo swapped `body`, the
+   * arriving screen asked for the slot before the old keeper had carried the old one across,
+   * found none and made a second, and then the keeper put the first back beside it. Each
+   * swap could add one, and the page that froze had three.
+   */
+  test("stays one slot when a body is swapped and the bar is asked for before the keeper runs", async () => {
+    const page = aPage()
+    const first = theBarSlot(page)
+    const stop = keepTheBarSlot(page, first)
+
+    const fresh = page.createElement("body")
+    page.body.replaceWith(fresh)
+    const asked = theBarSlot(page)
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(asked).toBe(first)
+    expect(page.querySelectorAll("[data-gitquiet-bar]")).toHaveLength(1)
+    expect(fresh.firstElementChild).toBe(first)
+    stop()
+  })
+
   test("hides their header only while a bar of ours is in the slot", async () => {
     // Measured on a file's history: the bar came down on the way to a page of theirs,
     // the mark stayed, and the page had no header at all, theirs or ours.
