@@ -1,6 +1,6 @@
 import { Effect, Fiber, Option } from "effect"
 import { issueEntitled } from "@/app/entitling"
-import { loadIssue, rememberedIssue, reopenIssue, sayOnIssue, settleIssue } from "@/app/issue"
+import { loadIssue, loadWhereReadFailed, rememberedIssue, reopenIssue, sayOnIssue, settleIssue } from "@/app/issue"
 import { uploadFile } from "@/app/attaching"
 import { loadSuggesting } from "@/app/suggesting"
 import { rememberedRepositories } from "@/app/destinations"
@@ -82,7 +82,9 @@ const open = (
             document.title = issueEntitled(reference, snapshot.title)
           }
         })
-      )
+      ),
+      // A pull request's number reached through `/issues/N`. See `loadWhereReadFailed`.
+      Effect.tapError(() => Effect.sync(() => loadWhereReadFailed(window, route)))
     )
 
   // Started before anything is waited on, exactly as a pull request's is: the

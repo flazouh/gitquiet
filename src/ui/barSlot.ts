@@ -173,11 +173,28 @@ export const keepTheBarSlot = (
    * and watching for a replacement that cannot come would be a callback on every render
    * of the tree above it.
    */
-  const held: ParentNode = within ?? page.body
+  /*
+   * `body` asked for each time, never kept. A Turbo visit replaces `body` itself, and a
+   * keeper holding the old one put the slot back into a detached node, heard its own
+   * insert and did it again: a microtask loop that froze the tab. Measured on a press
+   * from a repository's commits to one commit.
+   */
+  const heldNow = (): ParentNode => within ?? page.body
+  let watched: ParentNode | null = null
   const putBack = (): void => {
-    if (slot.isConnected) return
+    const held = heldNow()
+    if (held !== watched) {
+      watched = held
+      watch.observe(held, { childList: true })
+    }
+    if (slot.isConnected || !held.isConnected) return
+    // Not over a page handed to GitHub. See {@link takeTheBarDown}.
+    if (within === undefined && !page.documentElement.hasAttribute(BAR_ON_PAGE)) return
     held.insertBefore(slot, held.firstChild)
   }
+  const watch = new MutationObserver(putBack)
+  // The document's own children, which is where a swapped `body` shows up.
+  if (within === undefined) watch.observe(page.documentElement, { childList: true })
 
   /*
    * At once, and not only on the next change.
@@ -191,8 +208,31 @@ export const keepTheBarSlot = (
    */
   putBack()
 
-  const watch = new MutationObserver(putBack)
-
-  watch.observe(held, { childList: true })
   return () => watch.disconnect()
+}
+
+/**
+ * Gives GitHub its own bar back, for a page handed over to them.
+ *
+ * {@link BAR_ON_PAGE} is what hides their header, so it cannot outlive our bar. Measured on
+ * a pull request: after "Leave GitQuiet" their header stayed hidden and an empty slot of ours
+ * sat at the top of their page. The slot goes only when nothing of ours is in it: a bar still
+ * drawn there is a bar a screen is still using.
+ */
+export const takeTheBarDown = (page: Document): void => {
+  page.documentElement.removeAttribute(BAR_ON_PAGE)
+  const slot = page.getElementById(BAR_ID)
+  if (slot === null) return
+  // The screen handing over unmounts its bar a moment after this, so the slot is
+  // taken off once it is empty, unless a bar has stood up on the page again since.
+  const goIfEmpty = (): boolean => {
+    if (slot.children.length > 0) return false
+    if (!page.documentElement.hasAttribute(BAR_ON_PAGE)) slot.remove()
+    return true
+  }
+  if (goIfEmpty()) return
+  const watch = new MutationObserver(() => {
+    if (goIfEmpty()) watch.disconnect()
+  })
+  watch.observe(slot, { childList: true })
 }

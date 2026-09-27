@@ -1297,8 +1297,16 @@ export const takeOverSlot = (
   // replaced node is an observer of a node no longer in the document: it never
   // fires again, so the interface is never put back, and the page stays blank
   // behind a rule that is still hiding GitHub's.
-  const ground = target.body
+  //
+  // And a Turbo Drive visit replaces the body itself, so which body is asked
+  // again on every change. The swap is heard on the root element's own children.
+  let ground = target.body
   const watcher = new MutationObserver((changes) => {
+    if (target.body !== null && target.body !== ground) {
+      ground = target.body
+      watcher.observe(ground, { childList: true, subtree: true })
+    }
+
     /*
      * Another interface is taking the document over, and this one is on the
      * screen only until it does. Tending it past that point would start a fight:
@@ -1388,6 +1396,7 @@ export const takeOverSlot = (
     if (parent !== null && !parent.hasAttribute(WITHIN)) markWithin(target, container)
   })
   watcher.observe(ground, { childList: true, subtree: true })
+  watcher.observe(target.documentElement, { childList: true })
 
   return {
     container,

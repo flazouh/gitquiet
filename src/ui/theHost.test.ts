@@ -235,4 +235,23 @@ describe("their stylesheets are off only while the page is ours", () => {
     expect(howMany(page).off).toBe(2)
     another.letTheirStylesBack(page)
   })
+
+  test("keeps our sheet on a host another copy puts back after GitHub threw it away", async () => {
+    /*
+     * Measured on a press from a repository's front page to one of its commits: GitHub
+     * replaced `body` and took our host with it, and the commit screen's copy of this
+     * module stood a host up again. That copy never built the sheet and never saw the
+     * host the shell made, so the commit was drawn with no styles at all.
+     */
+    // @ts-expect-error: a query string is a second instance of the module, as a second bundle is.
+    const screen = (await import("./theHost?a-screen")) as typeof import("./theHost")
+    const page = freshPage()
+    await inForce(page)
+
+    page.body.replaceChildren()
+    const { shadow } = screen.theHost(page)
+
+    expect(shadow.adoptedStyleSheets.length).toBe(1)
+    expect(screen.oursInForce(page)).toBe(true)
+  })
 })

@@ -512,7 +512,14 @@ export default defineContentScript({
       lingering = step.lingering;
 
       if (step.ripe !== null) {
-        if (found !== null && linkAddress(found.link).pathname === step.ripe.path)
+        // Marked only where this script answers the press. A marked link has its click
+        // cancelled by the page-world guard, so marking one it leaves to the browser, the
+        // bar's own Notifications for one, made the press do nothing at all.
+        if (
+          found !== null &&
+          linkAddress(found.link).pathname === step.ripe.path &&
+          opening(found.link) !== null
+        )
           markOwnedRoute(found.link);
         prepareTo(window, step.ripe.path);
         readAhead.offer(
@@ -877,6 +884,10 @@ export default defineContentScript({
     };
 
     const pressed = (event: Event): void => {
+      // Their pages, by the reader's choice. Answering here cancels the click and then
+      // `open` does nothing, which left their own Actions tab dead after "Leave GitQuiet".
+      if (view === "github") return;
+
       // A plain press only. Anything held down turns this into a new tab, a new
       // window or a download, and the page stays exactly where it is — so
       // taking it over would replace a list the reader is still looking at.
@@ -910,6 +921,7 @@ export default defineContentScript({
     };
 
     whenOwnedRouteIsOffered(document, (kind, href, link) => {
+      if (view === "github") return;
       const route = opening(link, new URL(href, window.location.origin));
       if (route === null) return;
       const { pathname, search, hash } = route.destination;

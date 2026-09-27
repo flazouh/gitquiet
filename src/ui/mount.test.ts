@@ -90,6 +90,28 @@ describe("arriving after the document has finished, which is what a soft navigat
     expect(page.documentElement.hasAttribute("data-gitquiet-taken")).toBe(true)
   })
 
+  /*
+   * A Turbo Drive visit replaces `body` itself. Measured on a press from a repository's
+   * commits to one commit: the new body arrived and the old one left with our host in it.
+   */
+  test("puts the interface back when Turbo replaces the body itself", async () => {
+    const page = aFinishedPage()
+    const takeover = await Effect.runPromise(takeOverSlotWhenReady(page, interfaceContainer(page), 400, 20))
+
+    const fresh = page.createElement("body")
+    fresh.innerHTML = `<div id="repo-content-pjax-container"><div class="js-updatable-content">the next page</div></div>`
+    page.body.replaceWith(fresh)
+    await new Promise((wake) => setTimeout(wake, 20))
+
+    expect(takeover!.container.isConnected).toBe(true)
+    expect(fresh.contains(page.getElementById("gitquiet-host"))).toBe(true)
+
+    // And still watched from the new body, not the old one.
+    page.getElementById("gitquiet-host")!.remove()
+    await new Promise((wake) => setTimeout(wake, 20))
+    expect(takeover!.container.isConnected).toBe(true)
+  })
+
 })
 
 /** The mark the shell writes while it holds a page back, before a screen is up. */

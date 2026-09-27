@@ -36,7 +36,19 @@ export const HOST_ID = "gitquiet-host"
  * measured at 0.036ms a mutation with their sheets off, against 9.485ms with them
  * on. See `docs/plan/restyle-scope.md`.
  */
-let sheet: CSSStyleSheet | null = null
+/**
+ * The sheet and the host, shared by every copy of this module for the reason
+ * {@link ourSheets} is below. Kept per copy, the shell built the sheet and made the host,
+ * and when GitHub replaced `body` a screen's copy stood a new host up with no sheet to
+ * adopt: a commit drawn with no styles at all, measured on a press from a repository's
+ * front page.
+ */
+const SHARED = Symbol.for("gitquiet.theHost")
+type Shared = { sheet: CSSStyleSheet | null; readonly hosts: WeakMap<Document, HTMLElement> }
+const shared: Shared = ((globalThis as { [SHARED]?: Shared })[SHARED] ??= {
+  sheet: null,
+  hosts: new WeakMap()
+})
 
 /**
  * Every sheet of ours, as every copy of this module can see it.
@@ -72,7 +84,7 @@ const forAShadowRoot = (css: string): string => css.replace(/:root\b/g, ":host")
  */
 export const theSheet = (href: string): Effect.Effect<CSSStyleSheet, unknown> =>
   Effect.gen(function* () {
-    if (sheet !== null) return sheet
+    if (shared.sheet !== null) return shared.sheet
 
     const said = yield* Effect.tryPromise({ try: () => fetch(href), catch: (cause) => cause })
     const css = yield* Effect.tryPromise({ try: () => said.text(), catch: (cause) => cause })
@@ -80,12 +92,12 @@ export const theSheet = (href: string): Effect.Effect<CSSStyleSheet, unknown> =>
     const built = new CSSStyleSheet()
     built.replaceSync(forAShadowRoot(css))
     ourSheets.add(built)
-    sheet = built
+    shared.sheet = built
     return built
   })
 
 /** The sheet if it has already been built, for a caller that cannot wait. */
-export const theSheetIfReady = (): CSSStyleSheet | null => sheet
+export const theSheetIfReady = (): CSSStyleSheet | null => shared.sheet
 
 /**
  * The host and its shadow root, made once and found thereafter.
@@ -110,7 +122,7 @@ export const theSheetIfReady = (): CSSStyleSheet | null => sheet
  * So the host is remembered and put back. The shadow root survives with it, and
  * with the shadow root everything standing in it.
  */
-const hosts = new WeakMap<Document, HTMLElement>()
+const hosts = shared.hosts
 
 export const theHost = (target: Document): { host: HTMLElement; shadow: ShadowRoot } => {
   const had = target.getElementById(HOST_ID) ?? hosts.get(target) ?? null
@@ -122,6 +134,7 @@ export const theHost = (target: Document): { host: HTMLElement; shadow: ShadowRo
   }
 
   const shadow = host.shadowRoot ?? host.attachShadow({ mode: "open" })
+  const sheet = shared.sheet
   if (sheet !== null && !shadow.adoptedStyleSheets.includes(sheet)) {
     shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, sheet]
   }

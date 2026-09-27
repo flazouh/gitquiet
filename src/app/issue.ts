@@ -9,7 +9,30 @@
 import { Effect, Option } from "effect"
 import type { Settled, Settling } from "../domain/Issue"
 import type { IssueRef } from "../domain/issues"
+import { servedFor, type Timings } from "../github/persisted"
 import { GitHubGateway } from "../ports/GitHubGateway"
+
+/**
+ * Loads the address once where an issue read failed on a soft arrival.
+ *
+ * `#99` is written the same for an issue and a pull request, and our markdown links both
+ * to `/issues/99`. GitHub's server answers that address for a pull request with a redirect
+ * to `/pull/99`, but a soft navigation never asks the server, so the read fails and the
+ * screen says so with nothing of GitHub's behind it. A load lets their server say which it
+ * is. A document served for this address is never loaded again, so this cannot loop, and
+ * a read ahead for a page the reader is not on never moves them.
+ */
+export const loadWhereReadFailed = (
+  view: {
+    readonly location: Pick<Location, "pathname" | "href" | "replace">
+    readonly performance: Timings
+  },
+  route: string
+): boolean => {
+  if (view.location.pathname !== route || servedFor(view.performance, route)) return false
+  view.location.replace(view.location.href)
+  return true
+}
 
 export const loadIssue = Effect.fn("loadIssue")(function* (reference: IssueRef) {
   const gateway = yield* GitHubGateway

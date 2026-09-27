@@ -238,27 +238,37 @@ const asAlert = (block: Extract<MarkdownBlock, { type: "blockquote" }>): Markdow
   return { type: "alert", kind: rawKind as AlertKind, blocks }
 }
 
+/**
+ * `inLink` is true inside a link's own text. A reference or a mention there would be an
+ * anchor inside an anchor, and the inner one takes the press: `[#99](…/pull/99)` went to
+ * `/issues/99`, where the issue screen cannot read a pull request.
+ */
 const decorateInlines = (
   nodes: ReadonlyArray<MarkdownInline>,
-  options: ParseOptions
-): ReadonlyArray<MarkdownInline> => nodes.flatMap((node) => decorateInline(node, options))
+  options: ParseOptions,
+  inLink = false
+): ReadonlyArray<MarkdownInline> => nodes.flatMap((node) => decorateInline(node, options, inLink))
 
-const decorateInline = (node: MarkdownInline, options: ParseOptions): ReadonlyArray<MarkdownInline> => {
+const decorateInline = (
+  node: MarkdownInline,
+  options: ParseOptions,
+  inLink = false
+): ReadonlyArray<MarkdownInline> => {
   switch (node.type) {
     case "text":
-      return splitText(node.text, options)
+      return splitText(node.text, options, inLink)
     case "link":
       return [
         {
           ...node,
           href: node.href === null ? null : linkedInTheRepository(node.href, options),
-          children: decorateInlines(node.children, options)
+          children: decorateInlines(node.children, options, true)
         }
       ]
     case "strong":
     case "em":
     case "delete":
-      return [{ ...node, children: decorateInlines(node.children, options) }]
+      return [{ ...node, children: decorateInlines(node.children, options, inLink) }]
     case "image":
       return [{ ...node, src: inTheRepository(node.src, options) }]
     case "html":
@@ -288,10 +298,15 @@ const isInline = (node: MarkdownBlock | MarkdownInline): node is MarkdownInline 
   }
 }
 
-const splitText = (text: string, options: ParseOptions): ReadonlyArray<MarkdownInline> => {
+const splitText = (
+  text: string,
+  options: ParseOptions,
+  inLink = false
+): ReadonlyArray<MarkdownInline> => {
   const found: Array<{ start: number; end: number; node: MarkdownInline }> = []
 
-  for (const match of text.matchAll(SHORTHAND)) {
+  // Everything that would be an anchor of its own, which a link's text cannot hold.
+  for (const match of inLink ? [] : text.matchAll(SHORTHAND)) {
     const owner = match[1]
     const repo = match[2]
     const number = match[3]
@@ -303,7 +318,7 @@ const splitText = (text: string, options: ParseOptions): ReadonlyArray<MarkdownI
     })
   }
 
-  if (options.owner !== undefined && options.repo !== undefined) {
+  if (!inLink && options.owner !== undefined && options.repo !== undefined) {
     for (const match of text.matchAll(ISSUE)) {
       const number = match[1]
       if (number === undefined) continue
@@ -324,7 +339,7 @@ const splitText = (text: string, options: ParseOptions): ReadonlyArray<MarkdownI
     }
   }
 
-  for (const match of text.matchAll(MENTION)) {
+  for (const match of inLink ? [] : text.matchAll(MENTION)) {
     const login = match[1]
     if (login === undefined) continue
     const start = match.index
@@ -337,7 +352,7 @@ const splitText = (text: string, options: ParseOptions): ReadonlyArray<MarkdownI
     found.push({ start, end, node: { type: "mention", login } })
   }
 
-  for (const match of text.matchAll(FOOTNOTE_REF)) {
+  for (const match of inLink ? [] : text.matchAll(FOOTNOTE_REF)) {
     if (text[match.index + match[0].length] === ":") continue
     const id = match[1]
     if (id === undefined) continue
