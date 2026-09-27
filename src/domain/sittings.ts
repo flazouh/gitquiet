@@ -499,3 +499,42 @@ export const worthAskingForBranches = (
     .filter((one) => (crowd.get(repoOf(one.reference)) ?? 0) > 1)
     .map((one) => one.reference)
 }
+/** One row's name, the same for a pull request and an issue from one read to the next. */
+const rowKey = (reference: { readonly owner: string; readonly repo: string; readonly number: number }, kind: string) =>
+  `${kind}:${reference.owner}/${reference.repo}#${reference.number}`
+
+/**
+ * The order a list is drawn in, to be held while the reader points into it.
+ *
+ * A list that re-sorts under the pointer sends a press to whichever row moved there.
+ * Measured on Home: a press aimed at one pull request opened another, because a read
+ * landed while the pointer rested and the rows changed places under it.
+ */
+export const orderOf = (sittings: ReadonlyArray<Sitting>): ReadonlyArray<string> =>
+  sittings.flatMap((sitting) => [
+    ...sitting.piles.map((pile) => rowKey(pile.one.reference, "pr")),
+    ...sitting.issues.map((issue) => rowKey(issue.reference, "issue"))
+  ])
+
+/**
+ * Fresh rows, drawn in a held order: each row where it was, a new row after them all, a
+ * row that left gone. Only the order is held. What a row says is always the fresh read.
+ */
+export const inOrder = (
+  sittings: ReadonlyArray<Sitting>,
+  order: ReadonlyArray<string>
+): ReadonlyArray<Sitting> => {
+  const at = new Map(order.map((key, index) => [key, index]))
+  const place = (key: string): number => at.get(key) ?? Number.MAX_SAFE_INTEGER
+  const steady = <A,>(rows: ReadonlyArray<A>, key: (row: A) => string): ReadonlyArray<A> =>
+    rows
+      .map((row, index) => ({ row, index, held: place(key(row)) }))
+      .sort((one, two) => one.held - two.held || one.index - two.index)
+      .map(({ row }) => row)
+
+  return sittings.map((sitting) => ({
+    ...sitting,
+    piles: steady(sitting.piles, (pile) => rowKey(pile.one.reference, "pr")),
+    issues: steady(sitting.issues, (issue) => rowKey(issue.reference, "issue"))
+  }))
+}

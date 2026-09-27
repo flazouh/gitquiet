@@ -220,6 +220,10 @@ export const standAScreen = (screen: Screen): Standing => {
   const standDown = (event?: Event): void => {
     if (down) return
     down = true
+    // The container outlives this stand-up: it is the same one on the next visit to this
+    // page. Left on it, the listener kept this whole screen alive for the rest of the
+    // session, one more per visit.
+    container.removeEventListener(GOING, standDown)
     activation?.cancel()
     const keepLive = event instanceof CustomEvent && event.detail === true
     stopWaitingForABody()

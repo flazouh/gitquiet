@@ -13,6 +13,8 @@ import type { PullRequestRef } from "../domain/PullRequestRef"
 import { asked, sieveOf, termsIn, undecided } from "../domain/sieve"
 import { stepping } from "../domain/stepping"
 import {
+  inOrder,
+  orderOf,
   type Piled,
   setAside,
   type Sitting,
@@ -1201,7 +1203,20 @@ export const WorkingSet = ({
    */
   const viewer = useMemo(() => loginOnPage(), [])
   const sieve = useMemo(() => sieveOf(query, viewer), [query, viewer])
-  const shown = useMemo(() => sifted(sittings, sieve), [sittings, sieve])
+  /*
+   * The order held while the reader points into the list. A read landing under a resting
+   * pointer re-sorted the rows, and the press went to whichever one moved there: measured
+   * on Home, a press aimed at one pull request opened another. Only the order is held;
+   * every row still says what the latest read says. See `inOrder`.
+   */
+  const [pointing, setPointing] = useState(false)
+  const heldOrder = useRef<ReadonlyArray<string>>([])
+  const steady = useMemo(
+    () => (pointing ? inOrder(sittings, heldOrder.current) : sittings),
+    [pointing, sittings]
+  )
+  if (!pointing) heldOrder.current = orderOf(sittings)
+  const shown = useMemo(() => sifted(steady, sieve), [steady, sieve])
 
   /*
    * Whether this reader keeps their issues in the Courts or under them.
@@ -1481,6 +1496,8 @@ export const WorkingSet = ({
       <div
         ref={list}
         data-gitquiet-activation="list"
+        onPointerEnter={() => setPointing(true)}
+        onPointerLeave={() => setPointing(false)}
         /* Four pixels between the filter row and the Courts, and between the Courts themselves.
            Each Court is its own filled card, so the fill is what separates them; the twelve
            pixels of canvas this started at was a gutter doing a border's job twice over. */
