@@ -4,6 +4,7 @@ import { type Answering } from "../domain/answering"
 import { grouped, type ListedRepository } from "../domain/life"
 import type { Person } from "../domain/person"
 import { personIn } from "../github/person"
+import { rateLimitedUntil } from "../github/rateLimit"
 import { ASIDE } from "./dress"
 import { PersonAside } from "./PersonAside"
 import { PersonTabs } from "./PersonTabs"
@@ -241,6 +242,19 @@ const Instead = ({
 )
 
 /**
+ * What the Answering band says when its read failed.
+ *
+ * GitHub's hourly allowance for a stranger is not a fault, and saying "could not read"
+ * about it sent a reader looking for one. It comes back at a time GitHub names.
+ */
+const answeringFailed = (login: string, why: unknown): string => {
+  const back = rateLimitedUntil(why)
+  return back === null
+    ? `Could not read what ${login} did on other people's work.`
+    : `GitHub answers this sixty times an hour for this browser, and the hour is used up. It comes back at ${back.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.`
+}
+
+/**
  * A person's profile, arranged around the one question a reader brings to it.
  *
  * Their own page leads with a year of green squares, which is used as the answer to
@@ -331,7 +345,7 @@ export const ProfileScreen = ({
               <Instead
                 name="Answering"
                 art="comments"
-                what={`Could not read what ${login} did on other people's work.`}
+                what={answeringFailed(login, said.why)}
               />
             ) : null}
 

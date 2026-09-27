@@ -44,11 +44,13 @@ export const theirCard = Effect.fn("theirCard")(function* (
 /**
  * One of a person's pages, read before the reader asks for it.
  *
- * Two requests at most, and on the profile they are the two the screen would make: their
- * page, which carries the column and the first thirty repositories, and their events,
- * which is the question the profile is arranged around. The card and the rows are one
- * fetch — see `GitHubGateway.person` — so what a pointer near a link costs is one document
- * and one small JSON route.
+ * Two requests, both of which the screen would make: their card, and the first page of
+ * their repositories. See `GitHubGateway.person`.
+ *
+ * Their events are not read here, although the profile leads with them. They come from
+ * GitHub's public API, which allows a stranger sixty reads an hour for the whole address,
+ * and a pointer passes near far more names than a reader opens: an afternoon of reading
+ * lists spent the hour on people nobody opened. The press reads them. See `rateLimit.ts`.
  *
  * Their stars tab never reaches this: `warming.ts` refuses it, because there is no screen
  * for it yet and reading a page ahead that GitHub is going to draw itself is a request
@@ -62,10 +64,7 @@ export const warmPerson = Effect.fn("warmPerson")(function* (page: PersonPage) {
       // The card itself rather than `theirCard`, which reads the store first to report
       // what is remembered. Nobody is here to be reported to.
       gateway.person(page.login, page.narrowing),
-      gateway.personRepositories(page.login, 1, page.narrowing),
-      // Their events, for the band the profile leads with. Nothing on the repositories tab
-      // reads them, so that tab does not pay for them.
-      ...(page.tab === "profile" ? [gateway.activity(page.login, "browsed")] : [])
+      gateway.personRepositories(page.login, 1, page.narrowing)
     ],
     { concurrency: "unbounded" }
   )

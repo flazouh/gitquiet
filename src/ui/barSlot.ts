@@ -60,6 +60,19 @@ export const BAR_AT = `:is(#${BAR_ID}, [${BAR_MARK}])`
  * is. That way the page can never be left with no bar at all, which is what a rule keyed on "we
  * are taking over" would do for as long as the takeover took.
  */
+/**
+ * The page's own slot, remembered by every copy of this module.
+ *
+ * Found by id alone, a slot Turbo had just carried off with the old `body` was not found,
+ * and a second one was made; the keeper then put the first back beside it. Measured on a
+ * press from a repository to one of its commits: two slots, then three, and GitHub's React
+ * stuck committing under them. So the slot is remembered and put back, as the host is.
+ */
+const SLOTS = Symbol.for("gitquiet.barSlots")
+const slots: WeakMap<Document, HTMLElement> = ((globalThis as { [SLOTS]?: WeakMap<Document, HTMLElement> })[
+  SLOTS
+] ??= new WeakMap())
+
 export const theBarSlot = (page: Document, within?: HTMLElement | undefined): HTMLElement => {
   const held: ParentNode = within ?? page.body
   // Said of the document whichever call makes it true, including the one that
@@ -67,8 +80,12 @@ export const theBarSlot = (page: Document, within?: HTMLElement | undefined): HT
   // rather than the element, and a second interface arriving must not leave the
   // page with both bars. See {@link BAR_ON_PAGE}.
   if (within === undefined) page.documentElement.setAttribute(BAR_ON_PAGE, "")
-  const standing = within === undefined ? page.getElementById(BAR_ID) : firstBarIn(within)
-  if (standing !== null) return standing
+  const standing =
+    within === undefined ? (page.getElementById(BAR_ID) ?? slots.get(page) ?? null) : firstBarIn(within)
+  if (standing !== null) {
+    if (!standing.isConnected) held.insertBefore(standing, held.firstChild)
+    return standing
+  }
 
   const slot = page.createElement("div")
   /*
@@ -92,7 +109,10 @@ export const theBarSlot = (page: Document, within?: HTMLElement | undefined): HT
   slot.style.top = "0"
   slot.style.zIndex = "30"
   held.insertBefore(slot, held.firstChild)
-  if (within === undefined) markWhileABarStands(page, slot)
+  if (within === undefined) {
+    slots.set(page, slot)
+    markWhileABarStands(page, slot)
+  }
   return slot
 }
 
@@ -205,6 +225,8 @@ export const keepTheBarSlot = (
     if (slot.isConnected || !held.isConnected) return
     // Not over a page handed to GitHub. See {@link takeTheBarDown}.
     if (within === undefined && !page.documentElement.hasAttribute(BAR_ON_PAGE)) return
+    // And never beside another: one page, one slot.
+    if (within === undefined && page.getElementById(BAR_ID) !== null) return
     held.insertBefore(slot, held.firstChild)
   }
   const watch = new MutationObserver(putBack)

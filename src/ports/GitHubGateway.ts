@@ -76,6 +76,12 @@ export type GatewayFailure =
    * is told, and why what they are told is that GitHub is having trouble.
    */
   | "down"
+  /**
+   * GitHub's hourly allowance for a stranger is spent, and the detail is when it comes
+   * back, in milliseconds. Apart from `rejected` because nothing is wrong: the same read
+   * works at that time, and the reader can be told so. See `github/rateLimit.ts`.
+   */
+  | "rate-limited"
   | "undecodable"
   | "not-recorded"
   | "sign-on"
