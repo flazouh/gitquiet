@@ -27,29 +27,37 @@ import { HIDING_MARKS, OUTSIDE, PAGE, theirPageHidden } from "./mount"
 export const HOST_ID = "gitquiet-host"
 
 /**
- * The stylesheet every shadow root of ours adopts, constructed once.
+ * What every copy of this module has to agree on, kept on the isolated world's global.
  *
- * Constructed rather than a `<link>`: a link inside a shadow root is fetched per
- * root and blocks that root's first paint, and the same sheet object adopted into
- * many roots is parsed once for all of them. Ours is ninety kilobytes and seven
- * hundred and sixty-nine rules, and it is not what makes a keystroke expensive —
- * measured at 0.036ms a mutation with their sheets off, against 9.485ms with them
- * on. See `docs/plan/restyle-scope.md`.
- */
-let sheet: CSSStyleSheet | null = null
-
-/**
- * Every sheet of ours, as every copy of this module can see it.
+ * This module is bundled into four scripts. They share one isolated world, so this
+ * lives on its global under a registered symbol rather than once per script.
  *
- * This module is bundled into four scripts, and `sheet` above is one per script.
- * They share one isolated world, so the set lives on its global under a registered
- * symbol: a screen's copy that never built a sheet still knows the shell's for
- * ours. Asked of its own `sheet`, it said ours was not in force, and its watch put
- * their sheets back on under our interface after every change.
+ * - `sheet`: the stylesheet every shadow root of ours adopts, constructed once.
+ *   Constructed rather than a `<link>`: a link inside a shadow root is fetched per root
+ *   and blocks that root's first paint, and one sheet object adopted into many roots is
+ *   parsed once. Measured at 0.036ms a mutation with their sheets off, against 9.485ms
+ *   with them on. See `docs/plan/restyle-scope.md`.
+ * - `hosts`: the host each document has had. See {@link theHost}.
+ * - `ourSheets`: every sheet of ours, for {@link oursInForce}.
+ *
+ * Each of these was once per copy, and each broke the same way: the shell built the
+ * sheet and made the host, and a screen's copy knew neither. Asked of its own sheet, it
+ * said ours was not in force and put their sheets back on under our interface. And when
+ * GitHub replaced `body`, it stood a new host up with nothing to adopt: a commit drawn
+ * with no styles at all, measured on a press from a repository's front page.
  */
-const OURS = Symbol.for("gitquiet.ourSheets")
-const ourSheets: WeakSet<CSSStyleSheet> = ((globalThis as { [OURS]?: WeakSet<CSSStyleSheet> })[OURS] ??=
-  new WeakSet())
+const SHARED = Symbol.for("gitquiet.theHost")
+type Shared = {
+  sheet: CSSStyleSheet | null
+  readonly hosts: WeakMap<Document, HTMLElement>
+  readonly ourSheets: WeakSet<CSSStyleSheet>
+}
+const shared: Shared = ((globalThis as { [SHARED]?: Shared })[SHARED] ??= {
+  sheet: null,
+  hosts: new WeakMap(),
+  ourSheets: new WeakSet()
+})
+const ourSheets = shared.ourSheets
 
 /**
  * `:root` is the document's element and a shadow root has none.
@@ -72,20 +80,22 @@ const forAShadowRoot = (css: string): string => css.replace(/:root\b/g, ":host")
  */
 export const theSheet = (href: string): Effect.Effect<CSSStyleSheet, unknown> =>
   Effect.gen(function* () {
-    if (sheet !== null) return sheet
+    if (shared.sheet !== null) return shared.sheet
 
     const said = yield* Effect.tryPromise({ try: () => fetch(href), catch: (cause) => cause })
     const css = yield* Effect.tryPromise({ try: () => said.text(), catch: (cause) => cause })
 
-    const built = new CSSStyleSheet()
+    // Against its own address, so the fonts it names are read from beside it. A
+    // constructed sheet otherwise resolves `url()` against GitHub's page.
+    const built = new CSSStyleSheet({ baseURL: href })
     built.replaceSync(forAShadowRoot(css))
     ourSheets.add(built)
-    sheet = built
+    shared.sheet = built
     return built
   })
 
 /** The sheet if it has already been built, for a caller that cannot wait. */
-export const theSheetIfReady = (): CSSStyleSheet | null => sheet
+export const theSheetIfReady = (): CSSStyleSheet | null => shared.sheet
 
 /**
  * The host and its shadow root, made once and found thereafter.
@@ -110,7 +120,7 @@ export const theSheetIfReady = (): CSSStyleSheet | null => sheet
  * So the host is remembered and put back. The shadow root survives with it, and
  * with the shadow root everything standing in it.
  */
-const hosts = new WeakMap<Document, HTMLElement>()
+const hosts = shared.hosts
 
 export const theHost = (target: Document): { host: HTMLElement; shadow: ShadowRoot } => {
   const had = target.getElementById(HOST_ID) ?? hosts.get(target) ?? null
@@ -122,6 +132,7 @@ export const theHost = (target: Document): { host: HTMLElement; shadow: ShadowRo
   }
 
   const shadow = host.shadowRoot ?? host.attachShadow({ mode: "open" })
+  const sheet = shared.sheet
   if (sheet !== null && !shadow.adoptedStyleSheets.includes(sheet)) {
     shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, sheet]
   }

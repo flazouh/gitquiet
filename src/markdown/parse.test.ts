@@ -341,6 +341,33 @@ describe("parsing markdown into a document", () => {
     ])
   })
 
+  /*
+   * A link inside a link is two anchors on one spot, and the inner one takes the press.
+   * Measured on flazouh/gitquiet#100, whose body links `[#99](…/pull/99)`: the `#99`
+   * inside was made an issue link to `/issues/99`, so the press went to an issue page
+   * for a pull request and drew "This issue could not be read".
+   */
+  test("does not make a reference or a mention inside a link into a link of its own", () => {
+    const doc = parseMarkdown("see [#99 by @octocat](https://github.com/flazouh/gitquiet/pull/99)", {
+      owner: "flazouh",
+      repo: "gitquiet"
+    })
+
+    expect(doc.blocks).toMatchObject([
+      {
+        type: "paragraph",
+        children: [
+          { type: "text", text: "see " },
+          {
+            type: "link",
+            href: "https://github.com/flazouh/gitquiet/pull/99",
+            children: [{ type: "text", text: "#99 by @octocat" }]
+          }
+        ]
+      }
+    ])
+  })
+
   test("reads every address in a source's set the same way", () => {
     const doc = parseMarkdown(
       `<picture>

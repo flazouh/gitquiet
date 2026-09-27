@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Option } from "effect"
-import { personIn } from "./person"
+import { anOrganisation, personIn } from "./person"
 
 const read = (html: string): Document => new DOMParser().parseFromString(html, "text/html")
 
@@ -156,3 +156,25 @@ describe("the same column on their overview, which is another template", () => {
     expect(got(who.tally.stars)).toBe("115")
   })
 })
+
+/*
+ * An organisation shares a person's address. Measured: `/fluentai-pro` was drawn as a
+ * person with "no public repository", because nothing asked which of the two it was.
+ */
+describe("an organisation's page", () => {
+  const withTag = (content: string): Document =>
+    new DOMParser().parseFromString(
+      `<html><head><meta name="hovercard-subject-tag" content="${content}"></head><body></body></html>`,
+      "text/html"
+    )
+
+  test("is told by the tag GitHub puts on it", () => {
+    expect(anOrganisation(withTag("organization:186180938"))).toBe(true)
+  })
+
+  test("is not a person's page, which carries no such tag", () => {
+    expect(anOrganisation(new DOMParser().parseFromString("<html><head></head></html>", "text/html"))).toBe(false)
+    expect(anOrganisation(withTag("user:1"))).toBe(false)
+  })
+})
+

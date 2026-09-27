@@ -512,7 +512,14 @@ export default defineContentScript({
       lingering = step.lingering;
 
       if (step.ripe !== null) {
-        if (found !== null && linkAddress(found.link).pathname === step.ripe.path)
+        // Marked only where this script answers the press. A marked link has its click
+        // cancelled by the page-world guard, so marking one it leaves to the browser, the
+        // bar's own Notifications for one, made the press do nothing at all.
+        if (
+          found !== null &&
+          linkAddress(found.link).pathname === step.ripe.path &&
+          opening(found.link) !== null
+        )
           markOwnedRoute(found.link);
         prepareTo(window, step.ripe.path);
         readAhead.offer(
@@ -670,10 +677,16 @@ export default defineContentScript({
       /** Nothing where the press is GitHub's to route. See {@link answerPress}. */
       mine?: Ours,
     ): void => {
-      // Their page is the one being opened, so there is nothing to hold back
-      // and nothing to fetch. Leaving the gate alone here is the whole of it:
-      // a reader who has turned this off never sees a frame of it.
-      if (view === "github") return;
+      // Their page is the one being opened, so there is nothing to hold back.
+      // Leaving the gate alone here is the whole of it: a reader who has turned
+      // this off never sees a frame of it. The screen is still started, because
+      // it is what hands the page straight back and puts the way back on it: on
+      // a soft move to their list after "Leave GitQuiet", nothing started one,
+      // and the choice was a door that only opened one way.
+      if (view === "github") {
+        if (!up.has(what)) fetchIt(what);
+        return;
+      }
 
       /** Whether the screen this press asked for is up, address and all. Set once the press is ours. */
       let arrived: (() => boolean) | undefined;
@@ -877,6 +890,10 @@ export default defineContentScript({
     };
 
     const pressed = (event: Event): void => {
+      // Their pages, by the reader's choice. Answering here cancels the click and then
+      // `open` does nothing, which left their own Actions tab dead after "Leave GitQuiet".
+      if (view === "github") return;
+
       // A plain press only. Anything held down turns this into a new tab, a new
       // window or a download, and the page stays exactly where it is — so
       // taking it over would replace a list the reader is still looking at.
@@ -910,6 +927,7 @@ export default defineContentScript({
     };
 
     whenOwnedRouteIsOffered(document, (kind, href, link) => {
+      if (view === "github") return;
       const route = opening(link, new URL(href, window.location.origin));
       if (route === null) return;
       const { pathname, search, hash } = route.destination;

@@ -113,6 +113,11 @@ export const start = (): void => {
 
   let close = (): void => {}
   let view: View = "ours"
+  // Kept current, because another screen can change it: "Leave GitQuiet" on a pull
+  // request, then their own link to a list, drew our list over a page the reader left.
+  store.watch((changed) => {
+    view = changed.page.view
+  })
 
   // Declared rather than assigned, because the three call each other in a ring.
 

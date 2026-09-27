@@ -56,6 +56,15 @@ describe("reading a person's page from its address", () => {
     expect(read("https://github.com/copilot")).toEqual(Option.none())
   })
 
+  test("is not their free trial page, and still reads a managed user's login", () => {
+    // Measured: a press on "Start a 30 day free trial" went to `/get_started`, and the
+    // profile screen took their page and read "get_started" as a person.
+    expect(read("https://github.com/get_started")).toEqual(Option.none())
+    // An Enterprise Managed User's login carries an underscore, so the shape of the
+    // name cannot be what refuses the page above.
+    expect(Option.isSome(read("https://github.com/alex_acme"))).toBe(true)
+  })
+
   test("reads a reserved name whatever its case", () => {
     expect(read("https://github.com/Settings")).toEqual(Option.none())
     expect(read("https://github.com/Pricing")).toEqual(Option.none())

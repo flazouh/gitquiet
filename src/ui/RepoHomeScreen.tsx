@@ -9,7 +9,7 @@ import type {
   Touch,
   Welcome as Welcoming
 } from "../domain/repoHome"
-import { leadFor } from "../domain/repoHome"
+import { leadFor, type Named, namedIn } from "../domain/repoHome"
 import type { Repository } from "../domain/repositories"
 import { chordFor, type Chord } from "../keys/commands"
 import { mountSprite } from "./FileHeading"
@@ -507,6 +507,7 @@ const Facts = ({
 const Paper = ({
   front,
   reading,
+  named,
   readingBranch,
   readingLine,
   opened,
@@ -515,6 +516,7 @@ const Paper = ({
 }: {
   readonly front: Front
   readonly reading: string | null
+  readonly named?: Named | null
   readonly readingBranch?: string
   readonly readingLine?: number
   readonly opened: Read
@@ -523,9 +525,11 @@ const Paper = ({
 }) =>
   reading === null ? (
     <Welcome front={front} loadReadme={loadReadme} />
+  ) : named?.kind === "folder" && named.readme === null ? (
+    <Folder folder={named} repo={front.repo} branch={readingBranch ?? front.branch} />
   ) : (
     <Reading
-      path={reading}
+      path={named?.kind === "folder" && named.readme !== null ? named.readme : reading}
       opened={opened.file}
       failed={opened.failed}
       repo={front.repo}
@@ -535,6 +539,33 @@ const Paper = ({
       across={across}
     />
   )
+
+/** A folder with no README, as the list of what is in it. */
+const Folder = ({
+  folder,
+  repo,
+  branch
+}: {
+  readonly folder: Extract<Named, { kind: "folder" }>
+  readonly repo: { readonly owner: string; readonly repo: string }
+  readonly branch: string
+}) => (
+  <section aria-label="Folder" className={`min-w-0 overflow-hidden lg:col-start-2 lg:row-start-2 ${CARD}`}>
+    <div className="px-3 py-1.5 text-sm font-semibold text-ink">{folder.path}/</div>
+    <ul className="bg-raised py-1">
+      {folder.entries.map((entry) => (
+        <li key={entry}>
+          <a
+            className="block px-4 py-1 text-sm text-ink hover:bg-hover"
+            href={`/${repo.owner}/${repo.repo}/${entry.endsWith("/") ? "tree" : "blob"}/${branch}/${folder.path}/${entry.replace(/\/$/, "")}`}
+          >
+            {entry}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </section>
+)
 
 type Read = {
   /** The branch and file this answer is about, so another answer is ignored. */
@@ -639,7 +670,6 @@ export const RepoHomeScreen = ({
   const stands = useStanding(loadStanding)
 
   const front = read.status === "ready" ? read.value : undefined
-  const opened = useOpened(reading, readingBranch ?? front?.branch, shelf)
 
   /*
    * Go to file.
@@ -654,6 +684,13 @@ export const RepoHomeScreen = ({
    */
   const keys = useKeyboard()
   const [paths, setPaths] = useState<ReadonlyArray<string>>([])
+  // A folder is read as its README, as GitHub draws one. See `namedIn`.
+  const named = reading === null ? null : namedIn(reading, paths)
+  const opened = useOpened(
+    named?.kind === "folder" ? named.readme : reading,
+    readingBranch ?? front?.branch,
+    shelf
+  )
   const [finding, setFinding] = useState(false)
   const [naming, setNaming] = useState(false)
   /*
@@ -771,6 +808,7 @@ export const RepoHomeScreen = ({
               <Paper
                 front={front}
                 reading={reading}
+                named={named}
                 readingBranch={readingBranch}
                 readingLine={readingLine}
                 opened={opened}
@@ -813,6 +851,7 @@ export const RepoHomeScreen = ({
               <Paper
                 front={front}
                 reading={reading}
+                named={named}
                 readingBranch={readingBranch}
                 readingLine={readingLine}
                 opened={opened}

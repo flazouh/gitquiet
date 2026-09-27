@@ -32,12 +32,20 @@ import type { TheirColumn } from "@/ui/usePerson"
  * refused to draw their repositories because their face could not be read would be a
  * worse page than one with no face on it.
  */
-export const theirColumn = (page: PersonPage): TheirColumn | undefined => {
+export const theirColumn = (
+  page: PersonPage,
+  /**
+   * Their page read and no person on it: an organisation, which shares the address. Only
+   * a read that answered says so, never one that failed.
+   */
+  onNobody: () => void = () => {}
+): TheirColumn | undefined => {
   if (!ourOwnRowsDrawn(window)) return undefined
 
   const reading = held<Person | undefined, never>((partly) =>
     theirCard(page.login, page.narrowing, partly).pipe(
       throughGitHub,
+      Effect.tap((found) => Effect.sync(() => (Option.isNone(found) ? onNobody() : undefined))),
       Effect.map(Option.getOrUndefined),
       Effect.catch(() => Effect.succeed(undefined))
     )
