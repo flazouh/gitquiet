@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, fireEvent, render, screen } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { useState } from "react"
+import { pressFromShadow, shadowStage } from "../../tests/fromShadow"
 import { Menu } from "./Menu"
 
 // `screen` reads the whole document, and every test file in a run shares one: a menu left
@@ -86,6 +87,29 @@ describe("pinning from a row", () => {
 
     expect(toggled).toBe(1)
     expect(shut).toBe(0)
+  })
+
+  test("keeps the menu for a press on its own pin inside a shadow root", async () => {
+    // The document hears a press in our shadow root as a press on the host, and a menu
+    // asking the target read its own pin as elsewhere and shut under the pointer.
+    const { stage, remove } = shadowStage()
+    let shut = 0
+    render(
+      <Menu
+        name="Your repositories"
+        open
+        onShut={() => (shut += 1)}
+        rows={pinnable(false, () => undefined)}
+      />,
+      { container: stage }
+    )
+
+    await act(async () =>
+      pressFromShadow(within(stage).getByRole("button", { name: "Pin flazouh/gitquiet" }), "pointerdown")
+    )
+
+    expect(shut).toBe(0)
+    remove()
   })
 
   test("says Unpin on a row already held", () => {

@@ -107,7 +107,12 @@ export const theBarSlot = (page: Document, within?: HTMLElement | undefined): HT
    */
   slot.style.position = "sticky"
   slot.style.top = "0"
-  slot.style.zIndex = "30"
+  /*
+   * Over the list's own layers and under the page's overlays. The filter row is `z-30`
+   * and later in the page, so 30 here lost the tie and the row painted through the bar's
+   * menus. The palette's veil (40) and the floating cards (50) still cover the bar.
+   */
+  slot.style.zIndex = "35"
   held.insertBefore(slot, held.firstChild)
   if (within === undefined) {
     slots.set(page, slot)

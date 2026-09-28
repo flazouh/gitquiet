@@ -4,7 +4,7 @@ import type { PullRequestState } from "../domain/PullRequest"
 import { asked, termsIn, toggling } from "../domain/sieve"
 import type { Opinion } from "../domain/workingSet"
 import { type Art, checkName, pullRequestName, type Set, useArt } from "./art"
-import { useMenuPhase } from "./useMenuPhase"
+import { pressedWithin, useMenuPhase } from "./useMenuPhase"
 import {
   CHECK_TONE,
   OPINION_TONE,
@@ -405,8 +405,7 @@ export const Filters = ({
       setOpen(undefined)
     }
     const away = (event: MouseEvent) => {
-      const on = event.target
-      if (on instanceof Node && row.current?.contains(on) === true) return
+      if (pressedWithin(event, row.current)) return
       setByKey(false)
       setOpen(undefined)
     }

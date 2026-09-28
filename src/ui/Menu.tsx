@@ -3,7 +3,7 @@ import { type ArtName, useArt } from "./art"
 import { FLOAT } from "./dress"
 import { Field } from "./Field"
 import { Owner } from "./Owner"
-import { useMenuPhase } from "./useMenuPhase"
+import { pressedWithin, useMenuPhase } from "./useMenuPhase"
 
 /** One line in a menu: somewhere to go, or something to do. */
 export type Row = {
@@ -150,9 +150,7 @@ export const Menu = ({
 
     const onPress = (event: PointerEvent) => {
       setByKey(false)
-      const inside =
-        event.target instanceof Node && surface.current?.parentElement?.contains(event.target)
-      if (!inside) onShut()
+      if (!pressedWithin(event, surface.current?.parentElement)) onShut()
     }
 
     document.addEventListener("keydown", onKey, true)
