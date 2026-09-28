@@ -92,7 +92,7 @@ import {
   rememberLanded,
   rememberRoute,
   rememberSize,
-  rememberStanding,
+  rememberStandings,
   rememberStat,
   recallStats
 } from "./cache"
@@ -2996,11 +2996,7 @@ export const layer = Layer.succeed(GitHubGateway, {
       // Kept, and forked rather than waited for, exactly as a stack and a size
       // are: the list this was read for is about to be on the screen either way,
       // and the write only changes what the next visit opens with.
-      yield* Effect.forkDetach(
-        Effect.forEach(joined, ([id, standing]) => rememberStanding(id, standing), {
-          discard: true
-        })
-      )
+      yield* Effect.forkDetach(rememberStandings(joined))
 
       return joined as Standings
     }),

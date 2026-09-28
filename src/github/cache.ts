@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect"
+import { Effect, Option, Semaphore } from "effect"
 import type { Stat } from "../domain/commitList"
 import { keyOf, type PullRequestRef } from "../domain/PullRequestRef"
 import type { Branches } from "../domain/sittings"
@@ -86,25 +86,49 @@ export const recall = Effect.fn("snapshots.recall")(function* (reference: PullRe
   return isEntry(entry) ? Option.some(entry.payloads) : Option.none<RawPayloads>()
 })
 
+/** Keys written but not yet in their index, by index. */
+const pending = new Map<string, Array<string>>()
+
+/** One index write at a time, so no two read the same index and both write it back. */
+const indexTurn = Semaphore.makeUnsafe(1)
+
 /**
- * Notes that a key was just written, and drops whatever that pushed off the end.
+ * Notes that keys were just written, and drops whatever that pushed off the end.
  *
  * Keys by recency, newest first, so the one that goes is the one least recently
  * read. Reading something again counts as recent, which is what keeps the pull
  * request someone is living in from being evicted by the forty they glanced at.
+ *
+ * Written one at a time, and together where they can be. Each row of a list is kept by
+ * its own fiber the moment it is read, and each used to read the index, add its key and
+ * write it back: two of those at once dropped one key, and a list of a thousand rows was
+ * two thousand round trips through storage. Now a key waits its turn, and whichever
+ * turn comes first writes every key waiting for that index; the rest find theirs
+ * already in and go.
  */
 const keepRecent = Effect.fn("snapshots.keepRecent")(function* (
   store: ForgetfulKeyValue,
   index: string,
-  key: string,
+  keys: ReadonlyArray<string>,
   cap: number
 ) {
-  const held = yield* orNothing(() => store.get(index), {})
-  const ordered = [key, ...asKeys(held[index]).filter((kept) => kept !== key)]
-  const evicted = ordered.slice(cap)
+  pending.set(index, [...(pending.get(index) ?? []), ...keys])
 
-  yield* orNothing(() => store.set({ [index]: ordered.slice(0, cap) }), undefined)
-  if (evicted.length > 0) yield* orNothing(() => store.remove(evicted), undefined)
+  yield* indexTurn.withPermit(
+    Effect.gen(function* () {
+      const waiting = pending.get(index) ?? []
+      if (waiting.length === 0) return
+      pending.delete(index)
+
+      const fresh = [...new Set(waiting.toReversed())]
+      const held = yield* orNothing(() => store.get(index), {})
+      const ordered = [...fresh, ...asKeys(held[index]).filter((kept) => !fresh.includes(kept))]
+      const evicted = ordered.slice(cap)
+
+      yield* orNothing(() => store.set({ [index]: ordered.slice(0, cap) }), undefined)
+      if (evicted.length > 0) yield* orNothing(() => store.remove(evicted), undefined)
+    })
+  )
 })
 
 /**
@@ -136,7 +160,7 @@ export const remember = Effect.fn("snapshots.remember")(function* (
 
   const key = keyFor(reference)
   yield* orNothing(() => store.set({ [key]: { at: Date.now(), payloads } satisfies Entry }), undefined)
-  yield* keepRecent(store, INDEX, key, KEPT)
+  yield* keepRecent(store, INDEX, [key], KEPT)
 })
 
 /**
@@ -279,7 +303,7 @@ export const rememberRoute = Effect.fn("snapshots.rememberRoute")(function* (
   yield* keepRecent(
     store,
     standing ? STANDING_INDEX : ROUTE_INDEX,
-    key,
+    [key],
     standing ? STANDING_KEPT : ROUTES_KEPT
   )
 })
@@ -327,6 +351,13 @@ const SIZE = "size:"
  */
 const STANDING = "stand:"
 const ROW_INDEX = "row:index"
+const STANDINGS_INDEX = "stand-index"
+
+/**
+ * How many checks are kept: two lists of a thousand, which is the most one list reads.
+ * Under a hundred bytes each, so a fifth of a megabyte at the most.
+ */
+const STANDINGS_KEPT = 2000
 
 /**
  * How many of these facts are kept.
@@ -404,7 +435,7 @@ const keepRow = Effect.fn("snapshots.keepRow")(function* (
   if (store === undefined) return
 
   yield* orNothing(() => store.set({ [key]: { at: Date.now(), value } satisfies Held<unknown> }), undefined)
-  yield* keepRecent(store, index, key, cap)
+  yield* keepRecent(store, index, [key], cap)
 })
 
 export const rememberBranches = (reference: PullRequestRef, branches: Branches) =>
@@ -413,14 +444,40 @@ export const rememberBranches = (reference: PullRequestRef, branches: Branches) 
 export const rememberSize = (reference: PullRequestRef, size: Size) =>
   keepRow(rowKey(SIZE, reference), size)
 
-export const rememberStanding = (
-  id: string,
-  standing: { readonly checks: Option.Option<CheckRollup>; readonly reviewed: Option.Option<Opinion> }
-) =>
-  keepRow(`${STANDING}${id}`, {
-    checks: Option.getOrNull(standing.checks),
-    reviewed: Option.getOrNull(standing.reviewed)
-  } satisfies KeptStanding)
+/**
+ * The checks of a whole list at once: one write for the values and one for the index.
+ *
+ * Under an index of their own, because they are the one fact here that decides where a
+ * row is filed, and they shared four hundred slots with the sizes. A list of a thousand
+ * wrote its checks and then its sizes, and the sizes pushed every check out: the next
+ * visit filed its rows without them and moved them a moment later.
+ */
+export const rememberStandings = Effect.fn("snapshots.rememberStandings")(function* (
+  standings: ReadonlyMap<
+    string,
+    { readonly checks: Option.Option<CheckRollup>; readonly reviewed: Option.Option<Opinion> }
+  >
+) {
+  const store = area()
+  if (store === undefined || standings.size === 0) return
+
+  const at = Date.now()
+  const items = Object.fromEntries(
+    [...standings].map(([id, standing]) => [
+      `${STANDING}${id}`,
+      {
+        at,
+        value: {
+          checks: Option.getOrNull(standing.checks),
+          reviewed: Option.getOrNull(standing.reviewed)
+        } satisfies KeptStanding
+      } satisfies Held<KeptStanding>
+    ])
+  )
+
+  yield* orNothing(() => store.set(items), undefined)
+  yield* keepRecent(store, STANDINGS_INDEX, Object.keys(items), STANDINGS_KEPT)
+})
 
 /**
  * What is kept about these rows: their stacks by name, their sizes and their
