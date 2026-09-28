@@ -64,6 +64,17 @@ const MAX_SEARCH_PAGES = 40
  * still reload past a transient this did not outlast.
  */
 const SETTLE_EMPTY_SEARCH = 2
+
+/**
+ * How long the first page waits for the reader's shelves before it is drawn without them.
+ *
+ * The shelves decide Needs You, and they usually land just behind the first page:
+ * two tenths of a second on `openrouter-web`. Drawn without them, the page grew a
+ * Needs You that much later and pushed every row down under a reader who had just
+ * started on them. Short, because a reader waiting on slow shelves is a reader
+ * looking at nothing: past this the page is drawn and the shelves join it after.
+ */
+const SHELVES_WAIT = "400 millis"
 const EMPTY_SEARCH_WAIT = "300 millis"
 
 /**
@@ -339,7 +350,10 @@ export const loadRepoList = Effect.fn("loadRepoList")(function* (
     return gateway.rememberedRows(read).pipe(
       Effect.map((kept) => {
         if (mine !== drawn) return
-        const rows = withStandings(onTheirShelves(withSizes(read, kept.sizes), shelved), early)
+        // The checks kept from the last visit until this read's own land: they decide
+        // Needs You, and without them a row filed there moved in a moment later.
+        const standings = new Map([...kept.standings, ...early])
+        const rows = withStandings(onTheirShelves(withSizes(read, kept.sizes), shelved), standings)
         partly({
           sittings: sittingsIn(rows, (one) =>
             Option.fromNullishOr(kept.branches.get(keyOf(one.reference)))
@@ -379,6 +393,11 @@ export const loadRepoList = Effect.fn("loadRepoList")(function* (
   const found = yield* allPages(list, (next) =>
     Effect.gen(function* () {
       const first = paged === undefined
+      if (first) {
+        // Put on here rather than left to the watcher above, which may wake after this.
+        const landed = yield* Effect.timeoutOption(Fiber.join(shelving), SHELVES_WAIT)
+        if (Option.isSome(landed)) shelved = landed.value.flat()
+      }
       paged = next
       yield* draw
       // The first page's checks, while the rest of it is read. They are what files a

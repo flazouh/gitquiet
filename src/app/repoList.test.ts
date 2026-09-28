@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
+import { forgetEverything, installStorage } from "../../tests/storage"
 import { Effect, Option } from "effect"
 import type { RepoList } from "../domain/repoList"
 import { layer } from "../github/GitHubGateway"
@@ -14,8 +15,13 @@ import { type Listed, loadRepoList } from "./repoList"
  */
 
 const realFetch = globalThis.fetch
+let undo: Array<() => void> = []
+/** Put back after the test that asked, whether it passed or not. */
+const afterThis = (put: () => void) => undo.push(put)
 afterEach(() => {
   globalThis.fetch = realFetch
+  for (const put of undo) put()
+  undo = []
 })
 
 const intercept = (
@@ -85,8 +91,8 @@ const oneStranger = (url: string): Response => {
 }
 
 /** An answer that arrives a moment after everything answered at once. */
-const later = (answer: Response): Promise<Response> =>
-  new Promise((ready) => setTimeout(() => ready(answer), 20))
+const later = (answer: Response, ms = 20): Promise<Response> =>
+  new Promise((ready) => setTimeout(() => ready(answer), ms))
 
 const list: RepoList = { repo: { owner: "vercel", repo: "next.js" }, query: "", page: 1 }
 
@@ -262,9 +268,10 @@ describe("reading one page of a repository's pull requests", () => {
     // The whole point of the staging. A repository with twenty-five open pull requests
     // is six rounds of branch reads away from a complete list and one read away from a
     // useful one, and the reader spent that difference looking at a skeleton.
+    // Shelves slower than the first page is willing to wait for them.
     intercept((url) =>
       url.includes("filter=ready-to-merge")
-        ? later(aShelf([aRow({ category: "READY_TO_MERGE" })]))
+        ? later(aShelf([aRow({ category: "READY_TO_MERGE" })]), 700)
         : oneStranger(url)
     )
 
@@ -277,6 +284,24 @@ describe("reading one page of a repository's pull requests", () => {
     expect(stages[0]?.sittings[0]?.court).toBe("waiting")
     expect(stages[0]?.sittings[0]?.count).toBe(1)
     expect(listed.sittings[0]?.court).toBe("needs-you")
+  })
+
+  test("waits a moment for shelves just behind the first page, so Needs You is in its first frame", async () => {
+    // Measured on `openrouter-web`: the shelves landed two tenths of a second after the
+    // first page, and Needs You arrived that much later, pushing the rows down under a
+    // reader who had just started on them.
+    intercept((url) =>
+      url.includes("filter=ready-to-merge")
+        ? later(aShelf([aRow({ category: "READY_TO_MERGE" })]), 50)
+        : oneStranger(url)
+    )
+
+    const stages: Array<Listed> = []
+    await Effect.runPromise(
+      loadRepoList(list, (stage) => stages.push(stage)).pipe(Effect.provide(layer))
+    )
+
+    expect(stages[0]?.sittings[0]?.court).toBe("needs-you")
   })
 
   test("files the reader's own work under Needs You before the last page lands", async () => {
@@ -378,6 +403,55 @@ describe("reading one page of a repository's pull requests", () => {
     expect(
       stages.some((stage) => stage.paging && stage.sittings.some((one) => one.court === "needs-you"))
     ).toBe(true)
+  })
+
+  test("files the reader's own rows by the checks it kept, before this read's checks land", async () => {
+    // Otherwise a row whose checks put it under Needs You starts in Waiting and moves a
+    // moment later, on every visit, although the answer was already in the store.
+    let slow = false
+    intercept((url) => {
+      if (url.includes("filter=waiting-for-review")) {
+        return aShelf([aRow({ id: "PR_2", number: 2, category: "WAITING_FOR_REVIEW" })])
+      }
+      if (url.includes("/pulls/inbox/deferred")) {
+        const answer = json({
+          payload: {
+            pullsInboxSurfaceContentDeferredData: {
+              results: [
+                { id: "PR_2", statusCheckRollup: { state: "SUCCESS", totalCount: 2, successCount: 2 } }
+              ]
+            }
+          }
+        })
+        return slow ? later(answer, 700) : answer
+      }
+      if (url.includes("/pulls?q=")) {
+        const page = url.includes("page=2") ? 2 : 1
+        return searchAnswer([aRow({ id: `PR_${page}`, number: page })], {
+          currentPage: page,
+          totalPages: 2,
+          totalCount: 2
+        })
+      }
+      return oneStranger(url)
+    })
+
+    // A store to keep the checks in, which nothing else in this file wants.
+    const before = (globalThis as { browser?: unknown }).browser
+    installStorage()
+    forgetEverything()
+    afterThis(() => Object.assign(globalThis, { browser: before }))
+
+    await read()
+    // The checks are kept in the background, after the read has already answered.
+    await new Promise((kept) => setTimeout(kept, 50))
+    slow = true
+    const stages: Array<Listed> = []
+    await Effect.runPromise(
+      loadRepoList(list, (stage) => stages.push(stage)).pipe(Effect.provide(layer))
+    )
+
+    expect(stages[0]?.sittings.find((one) => one.court === "needs-you")?.count).toBe(1)
   })
 
   test("asks for the first page's checks before the pages behind it land", async () => {
