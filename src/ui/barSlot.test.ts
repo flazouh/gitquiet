@@ -19,6 +19,15 @@ describe("where our bar stands", () => {
     expect(theBarSlot(page)).toBe(page.body.firstElementChild as HTMLElement)
   })
 
+  test("over the filter row it scrolls past, and over the menus it opens across it", () => {
+    // The filter row is `relative z-30` and stands later in the page, so a bar on the
+    // same 30 lost the tie: the row painted through the bar's open menus, and over the
+    // bar itself once the list scrolled under it.
+    const page = aPage()
+
+    expect(Number(theBarSlot(page).style.zIndex)).toBeGreaterThan(30)
+  })
+
   test("once, however many screens ask for it", () => {
     const page = aPage()
 
