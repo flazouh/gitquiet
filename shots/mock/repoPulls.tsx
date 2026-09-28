@@ -321,7 +321,8 @@ export const LIST: Listed = {
    * rows instead would print "14 pull requests" under a bar that says `vercel/next.js`,
    * which is the most misleading true thing this screen could say.
    */
-  pages: Option.some({ current: 1, total: 86, count: 2136 })
+  pages: Option.some({ current: 1, total: 86, count: 2136 }),
+  paging: false
 }
 
 export const REPO_PULLS_VIEW: View = {

@@ -1,5 +1,5 @@
 import { Effect, Fiber, Option } from "effect"
-import { onTheirShelves, queryFor, type RepoList } from "../domain/repoList"
+import { onTheirShelves, queryFor, type RepoList, shelvedAhead } from "../domain/repoList"
 import { keyOf } from "../domain/PullRequestRef"
 import { type Branches, type Sitting, sittingsIn, worthAskingForBranches } from "../domain/sittings"
 import {
@@ -13,7 +13,6 @@ import {
   type Found,
   GitHubGateway,
   type Pages,
-  type RememberedRows,
   WorkingSetError
 } from "../ports/GitHubGateway"
 import { sizesOf } from "./sizes"
@@ -67,23 +66,48 @@ const MAX_SEARCH_PAGES = 40
 const SETTLE_EMPTY_SEARCH = 2
 const EMPTY_SEARCH_WAIT = "300 millis"
 
+/**
+ * Whether what is in hand is all there is, decided by the rows rather than by the
+ * page numbers.
+ *
+ * GitHub's search never serves past a thousand results, so it never reports more
+ * than forty pages, and `total > MAX_SEARCH_PAGES` is a comparison that cannot come
+ * out true. A repository with 2,795 open pull requests read the forty pages it is
+ * allowed, held a thousand rows, and then said "1000 pull requests" — the cap drawn
+ * as though it were the repository. Measured on `openrouter-web`, where the count
+ * flickered to the true 2,795 while the first page was up and fell back to the cap
+ * once the read finished.
+ *
+ * The count beside the pages is the repository's own and is not capped, so the
+ * honest test is whether it is larger than what was actually read.
+ */
+const pagesBeyond = (first: Found, rows: number): Option.Option<Pages> =>
+  Option.flatMap(first.pages, (pages) =>
+    pages.count > rows ? Option.some<Pages>({ ...pages, current: 1 }) : Option.none<Pages>()
+  )
+
+/** The rows read so far, and whether the pages behind them are still coming. */
+type Paged = {
+  readonly rows: ReadonlyArray<InvolvedPullRequest>
+  readonly pages: Option.Option<Pages>
+  readonly paging: boolean
+}
+
 const allPages = Effect.fn("repoList.allPages")(function* (
   list: RepoList,
   /**
-   * The first page, the moment it lands, rather than when the last one does.
+   * The list each time it grows, rather than once the last page lands.
    *
-   * Everything below used to be awaited before a single row reached the screen,
-   * and `MAX_SEARCH_PAGES` is forty at four at a time — ten rounds of a second
-   * each on a repository with a thousand open pull requests. Measured as ten
-   * seconds of "Reading this repository's pull requests…" on `openrouter-web`,
-   * with the first twenty-five rows sitting in hand for nine of them.
+   * `MAX_SEARCH_PAGES` is forty at four at a time: ten rounds of a second each on a
+   * repository with a thousand open pull requests. Everything used to wait on all of
+   * them, and then only on the first: measured on `openrouter-web`, twenty-five rows
+   * sat under a count of "25 of 2,834" for eight seconds with nothing to say more
+   * was coming, and then the list jumped to a thousand at once.
    *
-   * The staging below this exists precisely so a page arrives in a round trip
-   * instead of four, and the paging was in front of all of it. So the first
-   * page is handed over the moment it is read, and the rest of the list fills
-   * in behind it the way the Courts and the sizes already do.
+   * Handed over in page order, so a page that lands early waits for the ones above
+   * it. The list only ever grows at the bottom, which is where a reader is not.
    */
-  afterFirst: (found: Found) => Effect.Effect<void> = () => Effect.void
+  grew: (paged: Paged) => Effect.Effect<void> = () => Effect.void
 ) {
   const gateway = yield* GitHubGateway
 
@@ -100,45 +124,38 @@ const allPages = Effect.fn("repoList.allPages")(function* (
     )
 
   const first = yield* firstPage(SETTLE_EMPTY_SEARCH)
-  yield* afterFirst(first)
 
   const total = Option.match(first.pages, {
     onNone: () => 1,
     onSome: (pages) => pages.total
   })
-  const lastPage = Math.min(total, MAX_SEARCH_PAGES)
-  const rest = yield* Effect.all(
-    Array.from({ length: Math.max(0, lastPage - 1) }, (_, at) =>
-      gateway.search(queryFor(list), at + 2)
+  const behind: Array<Found | undefined> = Array.from({
+    length: Math.max(0, Math.min(total, MAX_SEARCH_PAGES) - 1)
+  })
+  /** How many of the pages behind the first are in hand with every page above them. */
+  let upTo = 0
+  const sofar = (): Paged => {
+    const rows = [first, ...behind.slice(0, upTo)].flatMap((found) => found?.rows ?? [])
+    return { rows, pages: pagesBeyond(first, rows.length), paging: upTo < behind.length }
+  }
+
+  yield* grew(sofar())
+
+  yield* Effect.all(
+    behind.map((_, at) =>
+      gateway.search(queryFor(list), at + 2).pipe(
+        Effect.flatMap((found) => {
+          behind[at] = found
+          const was = upTo
+          while (upTo < behind.length && behind[upTo] !== undefined) upTo += 1
+          return upTo === was ? Effect.void : grew(sofar())
+        })
+      )
     ),
-    { concurrency: SEARCH_PAGES_AT_ONCE }
+    { concurrency: SEARCH_PAGES_AT_ONCE, discard: true }
   )
 
-  const rows = [first, ...rest].flatMap((found) => found.rows)
-
-  return {
-    rows,
-    /*
-     * Whether what is in hand is all there is, decided by the rows rather than
-     * by the page numbers.
-     *
-     * GitHub's search never serves past a thousand results, so it never reports
-     * more than forty pages, and `total > MAX_SEARCH_PAGES` is a comparison that
-     * cannot come out true. A repository with 2,795 open pull requests read the
-     * forty pages it is allowed, held a thousand rows, and then said "1000 pull
-     * requests" — the cap drawn as though it were the repository. Measured on
-     * `openrouter-web`, where the count flickered to the true 2,795 while the
-     * first page was up and fell back to the cap once the read finished.
-     *
-     * The count beside the pages is the repository's own and is not capped, so
-     * the honest test is whether it is larger than what was actually read.
-     */
-    pages: Option.flatMap(first.pages, (pages) =>
-      pages.count > rows.length
-        ? Option.some<Pages>({ ...pages, current: 1 })
-        : Option.none<Pages>()
-    )
-  }
+  return sofar()
 })
 
 const branchesOf = Effect.fn("repoList.branchesOf")(function* (
@@ -163,6 +180,12 @@ const branchesOf = Effect.fn("repoList.branchesOf")(function* (
 export type Listed = {
   readonly sittings: ReadonlyArray<Sitting>
   readonly pages: Option.Option<Pages>
+  /**
+   * Whether more of the list is on its way, so the count can say it is not the answer yet.
+   *
+   * True on a page drawn from memory too: the live read is always behind it.
+   */
+  readonly paging: boolean
 }
 
 /**
@@ -217,7 +240,8 @@ export const rememberedRepoList = Effect.fn("rememberedRepoList")(function* (lis
     sittings: sittingsIn(withSizes(withStandings(rows, kept.standings), kept.sizes), (one) =>
       Option.fromNullishOr(kept.branches.get(keyOf(one.reference)))
     ),
-    pages: found.value.pages
+    pages: found.value.pages,
+    paging: true
   })
 })
 
@@ -264,26 +288,6 @@ export const loadRepoList = Effect.fn("loadRepoList")(function* (
   )
 
   /**
-   * The rows as a list, with what the store remembers standing in for what is
-   * still coming.
-   *
-   * Taken out of `sofar` below so the first page can be drawn with it before
-   * the rest of the pages are read: the two draws want the same shape and the
-   * same remembered stacks, and a first page drawn by a second rule would be a
-   * first page that looked different from the list it becomes.
-   */
-  const listedAs = (
-    rows: ReadonlyArray<InvolvedPullRequest>,
-    pages: Found["pages"],
-    kept: RememberedRows
-  ): Listed => ({
-    sittings: sittingsIn(withSizes(rows, kept.sizes), (one) =>
-      Option.fromNullishOr(kept.branches.get(keyOf(one.reference)))
-    ),
-    pages
-  })
-
-  /**
    * Which shelf each row was on when this reader last looked.
    *
    * A row's court comes from its shelf — `courtOfOne` reads it — and the shelf
@@ -299,31 +303,95 @@ export const loadRepoList = Effect.fn("loadRepoList")(function* (
    * confirm them.
    *
    * Empty on a reader's first visit to a repository, and then the rows are
-   * filed once the shelves arrive. Nothing can be done about that one, and
-   * nobody is watching a list they have never seen before get rearranged.
+   * filed once the shelves arrive — which is why the shelves are put on the
+   * list the moment they land rather than once the paging is over.
    */
-  const asRemembered = yield* Effect.all(
-    SHELVES.map((shelf) => gateway.rememberedShelf(shelf))
-  ).pipe(
+  let shelved = yield* Effect.all(SHELVES.map((shelf) => gateway.rememberedShelf(shelf))).pipe(
     Effect.map((shelves) =>
       shelves.flatMap(Option.getOrElse((): ReadonlyArray<InvolvedPullRequest> => []))
     ),
     Effect.orElseSucceed((): ReadonlyArray<InvolvedPullRequest> => [])
   )
+  /** The checks and reviews asked for before the pages behind them land. */
+  let early: Standings = new Map()
+  let paged: Paged | undefined
+  /** Which draw is the latest, so a slow one cannot land over a newer list. */
+  let drawn = 0
 
-  const found = yield* allPages(list, (first) =>
-    /*
-     * Drawn the moment the first page lands, and never at the cost of the read.
-     * A store that will not answer is not a reason to hold the list back — the
-     * pages behind this one are on their way and are the answer either way.
-     */
-    gateway.rememberedRows(first.rows).pipe(
-      Effect.map((kept) =>
-        partly(listedAs(onTheirShelves(first.rows, asRemembered), first.pages, kept))
-      ),
+  /*
+   * The list as it stands, whichever read moved it.
+   *
+   * Three reads move it while the pages are still arriving — the pages, the shelves,
+   * the first page's checks — and they land in any order. Measured on `openrouter-web`
+   * before this: the shelves were in hand within a second and were put on the list
+   * after the fortieth page, nine seconds in, so Needs You arrived last and pushed a
+   * thousand rows down under the reader.
+   *
+   * With what the store remembers standing in for what is still coming, and never at
+   * the cost of the read: a store that will not answer is not a reason to hold the
+   * list back.
+   */
+  const draw = Effect.suspend(() => {
+    if (paged === undefined) return Effect.void
+    const now = paged
+    const mine = ++drawn
+    const read = [...now.rows, ...shelvedAhead(list, now.rows, shelved)]
+    return gateway.rememberedRows(read).pipe(
+      Effect.map((kept) => {
+        if (mine !== drawn) return
+        const rows = withStandings(onTheirShelves(withSizes(read, kept.sizes), shelved), early)
+        partly({
+          sittings: sittingsIn(rows, (one) =>
+            Option.fromNullishOr(kept.branches.get(keyOf(one.reference)))
+          ),
+          pages: now.pages,
+          paging: now.paging
+        })
+      }),
       Effect.catch(() => Effect.void)
     )
+  })
+
+  /** Checks and reviews as they land, added to what is already known rather than replacing it. */
+  const standingsOf = (rows: ReadonlyArray<InvolvedPullRequest>) =>
+    gateway.standingsFor(rows.map((one) => one.id)).pipe(
+      Effect.flatMap((standings) => {
+        early = new Map([...early, ...standings])
+        return draw
+      }),
+      Effect.catch(() => Effect.void)
+    )
+
+  // The reader's own rows the pages have not reached get their checks as soon as they
+  // are known to be here: a failing check is what files one under Needs You.
+  const shelvesOn = yield* Effect.forkChild(
+    Fiber.join(shelving).pipe(
+      Effect.flatMap((shelves) => {
+        shelved = shelves.flat()
+        const ahead = shelvedAhead(list, paged?.rows ?? [], shelved)
+        return ahead.length === 0 ? draw : Effect.andThen(draw, standingsOf(ahead))
+      })
+    ),
+    { startImmediately: true }
   )
+  let standingsOn: Fiber.Fiber<void> | undefined
+
+  const found = yield* allPages(list, (next) =>
+    Effect.gen(function* () {
+      const first = paged === undefined
+      paged = next
+      yield* draw
+      // The first page's checks, while the rest of it is read. They are what files a
+      // row under Needs You, and on one page the full read below is the same request.
+      if (first && next.paging) {
+        standingsOn = yield* Effect.forkChild(standingsOf(next.rows), { startImmediately: true })
+      }
+    })
+  )
+
+  // Both early reads are settled before the stages below, which each draw a later list.
+  yield* Fiber.join(shelvesOn)
+  if (standingsOn !== undefined) yield* Fiber.join(standingsOn)
 
   /*
    * What the store already knows about these rows, before the reads that find it
@@ -334,28 +402,28 @@ export const loadRepoList = Effect.fn("loadRepoList")(function* (
    * this read's first stage landed, and stayed that way for the several seconds
    * the merge boxes take: the reader watched their own list get worse.
    */
-  const kept = yield* gateway.rememberedRows(found.rows)
+  const every = [...found.rows, ...shelvedAhead(list, found.rows, shelved)]
+  const kept = yield* gateway.rememberedRows(every)
   const stackedAsKept = (one: InvolvedPullRequest) =>
     Option.fromNullishOr(kept.branches.get(keyOf(one.reference)))
 
   /** The list as it stands, with what is kept standing in for what is still coming. */
   const sofar = (rows: ReadonlyArray<InvolvedPullRequest>): Listed => ({
     sittings: sittingsIn(rows, stackedAsKept),
-    pages: found.pages
+    pages: found.pages,
+    paging: false
   })
 
   // The kept sizes go on the rows themselves rather than into `sofar`, so that a
   // live size arriving later replaces one rather than being replaced by it.
-  const measuredAsKept = withSizes(found.rows, kept.sizes)
-  partly(sofar(onTheirShelves(measuredAsKept, asRemembered)))
+  const rows = onTheirShelves(withSizes(every, kept.sizes), shelved)
 
-  const shelves = yield* Fiber.join(shelving)
-  const rows = onTheirShelves(measuredAsKept, shelves.flat())
-  partly(sofar(rows))
-
-  const standings = yield* gateway
-    .standingsFor(rows.map((one) => one.id))
-    .pipe(Effect.orElseSucceed((): Standings => new Map()))
+  // Over what the early reads found rather than instead of it: a row this answer leaves
+  // out keeps the checks it was already drawn with.
+  const standings = yield* gateway.standingsFor(rows.map((one) => one.id)).pipe(
+    Effect.map((all): Standings => new Map([...early, ...all])),
+    Effect.orElseSucceed((): Standings => early)
+  )
 
   const known = withStandings(rows, standings)
   partly(sofar(known))
@@ -382,6 +450,7 @@ export const loadRepoList = Effect.fn("loadRepoList")(function* (
       const live = branches.get(keyOf(one.reference))
       return live !== undefined && Option.isSome(live) ? live : stackedAsKept(one)
     }),
-    pages: found.pages
+    pages: found.pages,
+    paging: false
   }
 })

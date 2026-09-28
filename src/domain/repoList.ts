@@ -293,3 +293,33 @@ export const onTheirShelves = (
     return found === undefined ? row : { ...row, shelf: found.shelf, why: found.why }
   })
 }
+
+/**
+ * The reader's own pull requests in this repository that the rows read so far do not hold.
+ *
+ * The search is newest first and read a page at a time, and the reader's own work is
+ * often old: measured on `openrouter-web`, both of the reader's pull requests were
+ * thirty-five pages down, so Needs You stayed empty for the nine seconds of paging and
+ * then pushed a thousand rows down under the reader. The shelves had them in the first
+ * second. And past the thousandth row, where the search stops, they never arrived.
+ *
+ * Only rows this address asks for, which is what {@link onTheirShelves} insists on too:
+ * in this repository, still open, on a list whose address named nothing narrower. A
+ * label or an author is a search the shelves cannot answer.
+ */
+export const shelvedAhead = (
+  list: RepoList,
+  rows: ReadonlyArray<InvolvedPullRequest>,
+  shelved: ReadonlyArray<InvolvedPullRequest>
+): ReadonlyArray<InvolvedPullRequest> => {
+  if (readerTerms(list.query).length > 0) return []
+
+  const here = (one: InvolvedPullRequest) =>
+    one.reference.owner.toLowerCase() === list.repo.owner.toLowerCase() &&
+    one.reference.repo.toLowerCase() === list.repo.repo.toLowerCase()
+  const held = new Set(rows.map((one) => one.id))
+
+  return [...shelvedById(shelved).values()].filter(
+    (one) => here(one) && (one.state === "open" || one.state === "draft") && !held.has(one.id)
+  )
+}

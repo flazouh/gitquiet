@@ -8,6 +8,7 @@ import { ReadFailed, viewerOnPage } from "./ReadFailed"
 import { DrawnAt } from "./drawnAt"
 import { type Load, useLive } from "./useLive"
 import type { Repository } from "../domain/repositories"
+import { SpinnerIcon } from "./spinner"
 import { TheBar } from "./TheBar"
 import { WorkingSet } from "./WorkingSet"
 
@@ -69,21 +70,37 @@ const WORKING = "Reading this repository's pull requests…"
  * The one thing this page has to say that the Working Set does not. A repository can
  * A capped read must say how much of the repository it could show.
  */
-const Tally = ({ pages, rows }: { readonly pages: Listed["pages"]; readonly rows: number }) =>
-  Option.match(pages, {
-    onNone: () => (
-      <span className="text-sm text-ink-muted">
-        {rows} {rows === 1 ? "pull request" : "pull requests"}
-      </span>
-    ),
-    onSome: (where) => (
-      <span className="text-sm text-ink-muted">
-        {`${rows.toLocaleString()} of ${where.count.toLocaleString()} ${
-          where.count === 1 ? "pull request" : "pull requests"
-        }`}
-      </span>
-    )
+const Tally = ({
+  pages,
+  rows,
+  paging
+}: {
+  readonly pages: Listed["pages"]
+  readonly rows: number
+  readonly paging: boolean
+}) => {
+  const counted = Option.match(pages, {
+    onNone: () => `${rows.toLocaleString()} ${rows === 1 ? "pull request" : "pull requests"}`,
+    onSome: (where) =>
+      `${rows.toLocaleString()} of ${where.count.toLocaleString()} ${
+        where.count === 1 ? "pull request" : "pull requests"
+      }`
   })
+
+  /*
+   * Said as a read in progress while the pages behind the first are on their way.
+   * "25 of 2,834" on its own reads as the answer, and stood for eight seconds on
+   * `openrouter-web` before the list became a thousand rows at once.
+   */
+  return paging ? (
+    <span className="flex items-center gap-1.5 text-sm text-ink-muted">
+      <SpinnerIcon size={12} aria-label="Reading" />
+      {`Reading ${counted}…`}
+    </span>
+  ) : (
+    <span className="text-sm text-ink-muted">{counted}</span>
+  )
+}
 
 export const RepoPullsScreen = ({
   repo,
@@ -147,7 +164,7 @@ export const RepoPullsScreen = ({
               headings a centimetre apart carrying the same twelve characters
               read as two lists rather than as one. */}
           <div className="flex items-center justify-end pt-3">
-            <Tally pages={listed.pages} rows={rows} />
+            <Tally pages={listed.pages} rows={rows} paging={listed.paging} />
           </div>
           <WorkingSet
             sittings={listed.sittings}
