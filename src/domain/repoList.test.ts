@@ -1,6 +1,14 @@
 import { describe, expect, test } from "bun:test"
 import { Option } from "effect"
-import { addressFor, onTheirShelves, queryFor, type RepoList, repoListIn, seeding } from "./repoList"
+import {
+  addressFor,
+  onTheirShelves,
+  queryFor,
+  type RepoList,
+  repoListIn,
+  seeding,
+  shelvedAhead
+} from "./repoList"
 import type { InvolvedPullRequest, Shelf } from "./workingSet"
 
 const read = (url: string) => repoListIn(url)
@@ -284,6 +292,45 @@ describe("writing the reader's own involvement back onto a page of a repository"
 
     expect(shown).toHaveLength(1)
     expect(shown[0]?.id).toBe("1")
+  })
+
+  describe("the reader's own rows the pages have not reached", () => {
+    const list = (query = ""): RepoList => ({ repo: { owner: "o", repo: "r" }, query, page: 1 })
+
+    test("are drawn at once, rather than when their page lands", () => {
+      // Measured on `openrouter-web`: the reader's two pull requests were months old,
+      // thirty-five pages down, and Needs You was empty for nine seconds of paging.
+      const ahead = shelvedAhead(list(), [row(1)], [on(1, "needs-action"), on(50, "needs-action")])
+
+      expect(ahead.map((one) => one.id)).toEqual(["50"])
+    })
+
+    test("once, on the more urgent of their shelves", () => {
+      const ahead = shelvedAhead(list(), [], [on(50, "waiting-for-review"), on(50, "ready-to-merge")])
+
+      expect(ahead).toHaveLength(1)
+      expect(ahead[0]?.shelf).toEqual(Option.some("ready-to-merge"))
+    })
+
+    test("only from this repository, since the shelves cross all of them", () => {
+      const elsewhere = row(50, {
+        reference: { owner: "o", repo: "other", number: 50 },
+        shelf: Option.some("needs-action")
+      })
+
+      expect(shelvedAhead(list(), [], [elsewhere])).toEqual([])
+    })
+
+    test("only while they are still open, which is all this list asks for", () => {
+      expect(shelvedAhead(list(), [], [row(50, { state: "merged", shelf: Option.some("needs-action") })])).toEqual([])
+    })
+
+    test("not at all where the address asked a narrower question", () => {
+      // A label, an author or a state from the address is a search the shelves cannot
+      // answer, and a row that would fail it is a row the address did not ask for.
+      expect(shelvedAhead(list("label:bug"), [], [on(50, "needs-action")])).toEqual([])
+      expect(shelvedAhead(list("is:closed"), [], [on(50, "needs-action")])).toEqual([])
+    })
   })
 
   test("keeps everything else the search said about the row", () => {

@@ -474,6 +474,11 @@ export const start = (): void => {
    * does before the first of these functions is called.
    */
   let view: View = "ours"
+  // Kept current, because another screen can change it: "Leave GitQuiet" on a pull
+  // request, then their own link to a list, drew our list over a page the reader left.
+  store.watch((changed) => {
+    view = changed.page.view
+  })
 
   // Declared rather than assigned, because the three of them call each other
   // in a ring — showing a page can hand it over, handing it over leaves the

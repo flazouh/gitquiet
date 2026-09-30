@@ -1,4 +1,5 @@
 import { Effect, Option } from "effect"
+import { loadWhereNoDocumentWasServed } from "@/app/softArrival"
 import { forgetIntent, intendedPath } from "@/app/intent"
 import { type TheirList, theirWholeList } from "@/app/personRepos"
 import { chosenSettings } from "@/app/settings"
@@ -54,7 +55,8 @@ const open = (
    * Their column, where the press that brought the reader here loaded no document and
    * there is none on the page to read. See `theirColumn`.
    */
-  const column = theirColumn(page)
+  // An organisation, found on a press that loaded no document. Their server redirects it.
+  const column = theirColumn(page, () => loadWhereNoDocumentWasServed(window, at))
 
   /*
    * Who they are is not read here, and that is deliberate. The column is in the markup
@@ -98,6 +100,11 @@ export const start = (): void => {
   let close = (): void => {}
   let on: string | undefined
   let view: View = "ours"
+  // Kept current, because another screen can change it: "Leave GitQuiet" on a pull
+  // request, then their own link to a list, drew our list over a page the reader left.
+  store.watch((changed) => {
+    view = changed.page.view
+  })
 
   const show = (url: string): void => {
     const page = personReposIn(url)

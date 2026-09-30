@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { act, cleanup, render, screen, within } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Effect, Option } from "effect"
 import { afterwards } from "../../tests/afterwards"
@@ -1213,3 +1213,29 @@ describe("moving through the Working Set without the mouse", () => {
     expect(arriving.at(-1)?.style.getPropertyValue("--row-at")).toBe("5")
   })
 })
+
+/*
+ * A list re-sorted under a resting pointer sends the press to whichever row moved there.
+ * Measured on Home: a press aimed at #2967 opened #3006.
+ */
+describe("a list the reader is pointing into", () => {
+  const order = () =>
+    screen.getAllByRole("link", { name: /pull request \d/ }).map((row) => row.textContent?.match(/pull request (\d)/)?.[1])
+  const reversed = (rows: ReadonlyArray<InvolvedPullRequest>) =>
+    flat(rows).map((sitting) => ({ ...sitting, piles: [...sitting.piles].reverse() }))
+
+  test("keeps its rows where they were while a read lands, and moves them once the pointer leaves", () => {
+    const rows = [on("needs-action", 1), on("needs-action", 2), on("needs-action", 3)]
+    const { container, rerender } = render(<WorkingSet sittings={flat(rows)} onOpen={() => {}} />)
+    const before = order()
+    const list = container.querySelector('[data-gitquiet-activation="list"]')!
+
+    fireEvent.pointerEnter(list)
+    rerender(<WorkingSet sittings={reversed(rows)} onOpen={() => {}} />)
+    expect(order()).toEqual(before)
+
+    fireEvent.pointerLeave(list)
+    expect(order()).toEqual([...before].reverse())
+  })
+})
+

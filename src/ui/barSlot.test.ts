@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { BAR_ID, keepTheBarSlot, theBarSlot, theBarStands, whenAnotherBarStands } from "./barSlot"
+import { BAR_ID, BAR_ON_PAGE, keepTheBarSlot, takeTheBarDown, theBarSlot, theBarStands, whenAnotherBarStands } from "./barSlot"
 
 const aPage = (): Document => {
   const page = document.implementation.createHTMLDocument("github")
@@ -17,6 +17,15 @@ describe("where our bar stands", () => {
     const page = aPage()
 
     expect(theBarSlot(page)).toBe(page.body.firstElementChild as HTMLElement)
+  })
+
+  test("over the filter row it scrolls past, and over the menus it opens across it", () => {
+    // The filter row is `relative z-30` and stands later in the page, so a bar on the
+    // same 30 lost the tie: the row painted through the bar's open menus, and over the
+    // bar itself once the list scrolled under it.
+    const page = aPage()
+
+    expect(Number(theBarSlot(page).style.zIndex)).toBeGreaterThan(30)
   })
 
   test("once, however many screens ask for it", () => {
@@ -38,6 +47,101 @@ describe("where our bar stands", () => {
     expect(slot.isConnected).toBe(true)
     expect(page.body.firstElementChild).toBe(slot)
     stop()
+  })
+
+  /*
+   * A Turbo visit replaces `body` itself, not its children. Measured on a press from a
+   * repository's commits to one commit: the keeper still held the old body, put the slot
+   * back into it, heard its own insert, and did it again for ever. The tab froze.
+   */
+  test("follows a body Turbo swapped in, and does not spin on the old one", async () => {
+    const page = aPage()
+    const slot = theBarSlot(page)
+    const stop = keepTheBarSlot(page, slot)
+    const old = page.body
+    // Fails the test instead of hanging it, if the keeper spins on the old body.
+    let inserts = 0
+    const insert = old.insertBefore.bind(old)
+    old.insertBefore = <T extends Node>(node: T, child: Node | null): T => {
+      inserts += 1
+      if (inserts > 20) throw new Error("the keeper is spinning on a detached body")
+      return insert(node, child)
+    }
+
+    const fresh = page.createElement("body")
+    fresh.innerHTML = `<div class="logged-in"><main></main></div>`
+    old.replaceWith(fresh)
+    // Whatever tears the leaving page down still touches the old body, and one
+    // mutation there is all the loop needed to start.
+    old.append(page.createElement("span"))
+    for (let tick = 0; tick < 5; tick++) await Promise.resolve()
+
+    expect(inserts).toBe(0)
+    expect(page.body).toBe(fresh)
+    expect(fresh.firstElementChild).toBe(slot)
+
+    // And it keeps watching the new body, not the old one.
+    slot.remove()
+    await Promise.resolve()
+    expect(fresh.firstElementChild).toBe(slot)
+    stop()
+  })
+
+  test("is not put back once the page has been handed to GitHub", async () => {
+    // The leaving bar's keeper outlives the hand-over by a render, and it put the slot
+    // straight back: an empty band of ours over their page after "Leave GitQuiet".
+    const page = aPage()
+    const slot = theBarSlot(page)
+    const stop = keepTheBarSlot(page, slot)
+
+    takeTheBarDown(page)
+    slot.remove()
+    await Promise.resolve()
+
+    expect(slot.isConnected).toBe(false)
+    stop()
+  })
+
+  /*
+   * Measured on a press from a repository to one of its commits: Turbo swapped `body`, the
+   * arriving screen asked for the slot before the old keeper had carried the old one across,
+   * found none and made a second, and then the keeper put the first back beside it. Each
+   * swap could add one, and the page that froze had three.
+   */
+  test("stays one slot when a body is swapped and the bar is asked for before the keeper runs", async () => {
+    const page = aPage()
+    const first = theBarSlot(page)
+    const stop = keepTheBarSlot(page, first)
+
+    const fresh = page.createElement("body")
+    page.body.replaceWith(fresh)
+    const asked = theBarSlot(page)
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(asked).toBe(first)
+    expect(page.querySelectorAll("[data-gitquiet-bar]")).toHaveLength(1)
+    expect(fresh.firstElementChild).toBe(first)
+    stop()
+  })
+
+  test("hides their header only while a bar of ours is in the slot", async () => {
+    // Measured on a file's history: the bar came down on the way to a page of theirs,
+    // the mark stayed, and the page had no header at all, theirs or ours.
+    const page = aPage()
+    const slot = theBarSlot(page)
+    const bar = page.createElement("header")
+    slot.append(bar)
+    await Promise.resolve()
+    expect(page.documentElement.hasAttribute(BAR_ON_PAGE)).toBe(true)
+
+    bar.remove()
+    await Promise.resolve()
+    expect(page.documentElement.hasAttribute(BAR_ON_PAGE)).toBe(false)
+
+    slot.append(bar)
+    await Promise.resolve()
+    expect(page.documentElement.hasAttribute(BAR_ON_PAGE)).toBe(true)
   })
 
   test("stops being watched when the screen goes", async () => {

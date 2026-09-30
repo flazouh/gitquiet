@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { pressFromShadow, shadowStage } from "../../tests/fromShadow"
 import { Filters } from "./Filters"
 
 afterEach(cleanup)
@@ -202,6 +203,41 @@ describe("the filter row above a list", () => {
     await waitFor(() => expect(container.querySelector(".t-menu") === null).toBe(true), {
       timeout: 1000
     })
+  })
+
+  test("takes a press on its own menu inside a shadow root, which is where it stands on GitHub", async () => {
+    // The document hears a press inside a shadow root as a press on the host, so a
+    // row that asked `event.target` whether the press was its own was told no, shut
+    // the menu on the press, and the click that followed landed on nothing. Every
+    // term in every chip, measured on a live repository list.
+    const { stage, remove } = shadowStage()
+    let asked = ""
+    render(
+      <Filters
+        query=""
+        authors={["octocat"]}
+        viewer="flazouh"
+        what="the Working Set"
+        onQuery={(next) => {
+          asked = next
+        }}
+      />,
+      { container: stage }
+    )
+    const inside = within(stage)
+
+    await userEvent.click(inside.getByRole("button", { name: /Author/ }))
+    const mine = inside.getByRole("menuitemcheckbox", { name: /Mine/ })
+    // The press alone first: a menu told to leave stops taking pointers in a
+    // stylesheet this environment does not load, so the click alone proves nothing.
+    await act(async () => pressFromShadow(mine, "mousedown"))
+
+    expect(stage.querySelector(".t-menu.is-closing")).toBeNull()
+
+    await userEvent.click(mine)
+
+    expect(asked).toBe("author:me")
+    remove()
   })
 
   test("opens the menu from the chip rather than from the middle of the page", async () => {

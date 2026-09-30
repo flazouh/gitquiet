@@ -38,9 +38,14 @@ const involved = (number: number, over: Partial<InvolvedPullRequest> = {}): Invo
   ...over
 })
 
-const listed = (rows: ReadonlyArray<InvolvedPullRequest>, pages?: Listed["pages"]): Listed => ({
+const listed = (
+  rows: ReadonlyArray<InvolvedPullRequest>,
+  pages?: Listed["pages"],
+  paging = false
+): Listed => ({
   sittings: sittingsIn(rows, () => Option.none()),
-  pages: pages ?? Option.none()
+  pages: pages ?? Option.none(),
+  paging
 })
 
 const showing = (
@@ -126,6 +131,19 @@ describe("a repository's pull request list", () => {
     )
 
     expect(await screen.findByText(/1 of 1,989 pull requests/)).toBeTruthy()
+  })
+
+  test("says it is still reading while the pages behind the first are on their way", async () => {
+    // Measured on `openrouter-web`: "25 of 2,834 pull requests" stood for eight seconds
+    // with nothing to say more was coming, and read as the answer. Then it was 1,000.
+    showing(() =>
+      Effect.succeed(
+        listed([involved(1)], Option.some({ current: 1, total: 40, count: 2834 }), true)
+      )
+    )
+
+    expect(await screen.findByText("Reading 1 of 2,834 pull requests…")).toBeTruthy()
+    expect(screen.getByRole("img", { name: "Reading" })).toBeTruthy()
   })
 
   test("counts the rows itself when every page is here", async () => {

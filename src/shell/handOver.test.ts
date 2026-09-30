@@ -3,6 +3,7 @@ import { Effect } from "effect"
 import { DEFAULT_SPOT, type Settings, type Spot } from "@/domain/Settings"
 import { forgetful } from "@/app/settings"
 import type { Store } from "@/ports/Settings"
+import { BAR_ID, BAR_ON_PAGE, theBarSlot } from "@/ui/barSlot"
 import { WAY_BACK_ID } from "@/ui/wayBack"
 import {
   aScreen,
@@ -72,6 +73,7 @@ afterEach(() => {
   document.body.innerHTML = ""
   document.documentElement.removeAttribute(REVEALED)
   document.documentElement.removeAttribute(GATING)
+  document.documentElement.removeAttribute(BAR_ON_PAGE)
 })
 
 describe("handing a page to GitHub", () => {
@@ -82,6 +84,32 @@ describe("handing a page to GitHub", () => {
 
     expect(document.documentElement.hasAttribute(REVEALED)).toBe(true)
     expect(document.documentElement.hasAttribute(GATING)).toBe(false)
+  })
+
+  test("gives them their own bar back", () => {
+    // Measured on a pull request: after "Leave GitQuiet" their header stayed hidden
+    // behind the mark that said our bar was standing, and an empty slot of ours sat
+    // at the top of their page.
+    gatedPage()
+    theBarSlot(document)
+
+    handOver(forgetful())
+
+    expect(document.documentElement.hasAttribute(BAR_ON_PAGE)).toBe(false)
+    expect(document.getElementById(BAR_ID)).toBeNull()
+  })
+
+  test("takes our slot off once the leaving screen's bar has gone from it", async () => {
+    gatedPage()
+    const bar = document.createElement("header")
+    theBarSlot(document).append(bar)
+
+    handOver(forgetful())
+    expect(document.getElementById(BAR_ID)).not.toBeNull()
+    bar.remove()
+    await Promise.resolve()
+
+    expect(document.getElementById(BAR_ID)).toBeNull()
   })
 
   test("puts the way back on it in the same breath", () => {

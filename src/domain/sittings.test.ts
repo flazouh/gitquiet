@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Option } from "effect"
 import type { InvolvedPullRequest, Shelf } from "./workingSet"
-import { afterDoing, saysItIs, sittingsIn, worthAskingForBranches } from "./sittings"
+import { afterDoing, inOrder, orderOf, type Sitting, saysItIs, sittingsIn, worthAskingForBranches } from "./sittings"
 
 const involved = (
   number: number,
@@ -397,3 +397,41 @@ describe("which pull requests are worth asking branches for", () => {
     expect(asked.map((one) => one.number)).toEqual([1, 2])
   })
 })
+
+/*
+ * A list that re-sorts under the pointer sends a press to the row that moved there.
+ * Measured on Home: a press aimed at #2967 opened #3006, because a read landed while the
+ * pointer rested and the rows changed places under it.
+ */
+describe("holding a list's order while the reader is pointing into it", () => {
+  const court = (...numbers: ReadonlyArray<number>): Sitting => ({
+    court: "waiting",
+    piles: numbers.map((number) => ({ one: involved(number), court: "waiting", above: [] })),
+    issues: [],
+    count: numbers.length
+  })
+  const numbers = (sittings: ReadonlyArray<Sitting>) =>
+    sittings.map((sitting) => sitting.piles.map((pile) => pile.one.reference.number))
+
+  test("keeps every row where it was, however the read reordered them", () => {
+    const held = orderOf([court(1, 2, 3)])
+
+    expect(numbers(inOrder([court(3, 1, 2)], held))).toEqual([[1, 2, 3]])
+  })
+
+  test("puts a row that arrived after the ones already there, and drops one that left", () => {
+    const held = orderOf([court(1, 2, 3)])
+
+    expect(numbers(inOrder([court(4, 3, 1)], held))).toEqual([[1, 3, 4]])
+  })
+
+  test("draws the fresh rows themselves, only in the held order", () => {
+    const held = orderOf([court(1, 2)])
+    const fresh = court(2, 1)
+    const renamed = { ...fresh, piles: fresh.piles.map((pile) => ({ ...pile, one: { ...pile.one, title: "new" } })) }
+
+    const drawn = inOrder([renamed], held)
+    expect(drawn[0]?.piles.map((pile) => pile.one.title)).toEqual(["new", "new"])
+  })
+})
+

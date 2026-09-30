@@ -7,7 +7,7 @@ import { loadRepoList, rememberedRepoList } from "../app/repoList"
 import { loadWorkingSet, rememberedWorkingSet } from "../app/workingSet"
 import type { PullRequestRef } from "../domain/PullRequestRef"
 import type { RepoList } from "../domain/repoList"
-import { recall, remember, rememberRoute } from "./cache"
+import { recall, recallRows, remember, rememberRoute, rememberSize, rememberStandings } from "./cache"
 import { layer } from "./GitHubGateway"
 import type { RawPayloads } from "./snapshot"
 
@@ -507,5 +507,56 @@ describe("keeping a repository's list to open again", () => {
     )
 
     expect(remembered.sittings[0]?.piles[0]?.one.reference.number).toBe(2)
+  })
+})
+
+describe("keeping what each row of a long list showed", () => {
+  const rowsOf = (count: number) =>
+    Array.from({ length: count }, (_, at) => ({ id: `PR_${at}`, reference: ref(at + 1) }))
+  const passing = {
+    checks: Option.some({ state: "passing" as const, total: 1, passed: 1 }),
+    reviewed: Option.none()
+  }
+  const sizeOf = { added: 1, deleted: 1 }
+
+  test("keeps the checks of a thousand rows when their sizes are kept after them", async () => {
+    // Measured on `openrouter-web`: a list of a thousand wrote a thousand checks and then
+    // a thousand sizes into one index of four hundred, so the sizes pushed every check
+    // out and the next visit filed rows without them — and moved them a moment later.
+    const rows = rowsOf(1000)
+
+    await Effect.runPromise(rememberStandings(new Map(rows.map((one) => [one.id, passing]))))
+    await Promise.all(rows.map((one) => Effect.runPromise(rememberSize(one.reference, sizeOf))))
+
+    const kept = await Effect.runPromise(recallRows(rows))
+    expect(kept.standings.size).toBe(1000)
+  })
+
+  test("loses no row to writes that land at the same moment", async () => {
+    // Each size is kept by its own fiber the moment it is read, and two of them reading
+    // the index, adding their key and writing it back each dropped the other's key.
+    const rows = rowsOf(50)
+
+    await Promise.all(rows.map((one) => Effect.runPromise(rememberSize(one.reference, sizeOf))))
+
+    expect(stored("row:index")).toHaveLength(50)
+  })
+
+  test("writes the index once for checks kept together, rather than once a row", async () => {
+    const local = (globalThis as unknown as {
+      browser: { storage: { local: { set: (items: Record<string, unknown>) => Promise<void> } } }
+    }).browser.storage.local
+    const set = local.set
+    let indexWrites = 0
+    local.set = (items) => {
+      if (Object.keys(items).some((key) => key.endsWith("index"))) indexWrites += 1
+      return set(items)
+    }
+
+    const rows = rowsOf(200)
+    await Effect.runPromise(rememberStandings(new Map(rows.map((one) => [one.id, passing]))))
+    local.set = set
+
+    expect(indexWrites).toBe(1)
   })
 })

@@ -58,3 +58,14 @@ export const useMenuPhase = (open: boolean, atOnce = false): Phase => {
 
   return phase
 }
+
+/**
+ * Whether a press the document heard landed inside `within`.
+ *
+ * Asked of the composed path and never of the target. Our screens stand in a shadow root,
+ * and the document hears every press in there as a press on the host: a menu that asked
+ * the target read a press on its own item as a press elsewhere, shut on it, and the click
+ * that followed landed on nothing. Every filter chip on a repository list, measured live.
+ */
+export const pressedWithin = (event: Event, within: Element | null | undefined): boolean =>
+  within !== null && within !== undefined && event.composedPath().includes(within)

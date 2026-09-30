@@ -542,3 +542,47 @@ describe("a read already running by the time the screen asks for it", () => {
     expect(again).toEqual(["first"])
   })
 })
+
+/*
+ * Each screen that stood up listened on its container for being taken off the page, and
+ * nothing took the listener off again. The container is the same one on every visit to
+ * that page, so a session left one closure per visit on it, each holding that visit's
+ * screen. Measured over forty presses: one `gitquiet:going` listener more per round.
+ */
+describe("a screen that has come down", () => {
+  beforeEach(tidy)
+  afterEach(tidy)
+
+  test("leaves nothing listening on its container", async () => {
+    const live = new Map<EventTarget, number>()
+    // The prototype an element's `addEventListener` really lives on, which under the
+    // test DOM is not the global `EventTarget`'s.
+    let owner: object = document.createElement("div")
+    while (!Object.hasOwn(owner, "addEventListener")) owner = Object.getPrototypeOf(owner)
+    const listening = owner as EventTarget
+    const add = listening.addEventListener
+    const remove = listening.removeEventListener
+    listening.addEventListener = function (this: EventTarget, type: string, ...rest: Array<never>) {
+      if (type === "gitquiet:going") live.set(this, (live.get(this) ?? 0) + 1)
+      return add.call(this, type, ...(rest as [never]))
+    } as typeof add
+    listening.removeEventListener = function (this: EventTarget, type: string, ...rest: Array<never>) {
+      if (type === "gitquiet:going") live.set(this, (live.get(this) ?? 0) - 1)
+      return remove.call(this, type, ...(rest as [never]))
+    } as typeof remove
+
+    history.replaceState(null, "", "/mine")
+    theirPage()
+    for (let visit = 0; visit < 3; visit++) {
+      const standing = standAScreen({ place: MINE, draw: () => <p>visit {visit}</p> })
+      await drawn(`visit ${visit}`)
+      standing.close()
+      await settled()
+    }
+
+    listening.addEventListener = add
+    listening.removeEventListener = remove
+    expect([...live.values()].reduce((all, one) => all + one, 0)).toBe(0)
+  })
+})
+

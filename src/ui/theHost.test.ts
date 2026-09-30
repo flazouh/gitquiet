@@ -235,4 +235,62 @@ describe("their stylesheets are off only while the page is ours", () => {
     expect(howMany(page).off).toBe(2)
     another.letTheirStylesBack(page)
   })
+
+  test("keeps our sheet on a host another copy puts back after GitHub threw it away", async () => {
+    /*
+     * Measured on a press from a repository's front page to one of its commits: GitHub
+     * replaced `body` and took our host with it, and the commit screen's copy of this
+     * module stood a host up again. That copy never built the sheet and never saw the
+     * host the shell made, so the commit was drawn with no styles at all.
+     */
+    // @ts-expect-error: a query string is a second instance of the module, as a second bundle is.
+    const screen = (await import("./theHost?a-screen")) as typeof import("./theHost")
+    const page = freshPage()
+    await inForce(page)
+
+    page.body.replaceChildren()
+    const { shadow } = screen.theHost(page)
+
+    expect(shadow.adoptedStyleSheets.length).toBe(1)
+    expect(screen.oursInForce(page)).toBe(true)
+  })
 })
+
+describe("our sheet inside the shadow root", () => {
+  test("reads its fonts from beside the stylesheet, not from GitHub", async () => {
+    /*
+     * A constructed sheet resolves `url()` against the page unless told otherwise, so the
+     * fonts the stylesheet names were asked of github.com and never arrived. Measured on a
+     * pull request: every screen in the fallback font.
+     */
+    const made: Array<CSSStyleSheetInit | undefined> = []
+    const Real = globalThis.CSSStyleSheet
+    const realFetch = globalThis.fetch
+    globalThis.CSSStyleSheet = class extends Real {
+      constructor(init?: CSSStyleSheetInit) {
+        super(init)
+        made.push(init)
+      }
+    }
+    globalThis.fetch = (async () => new Response("@font-face { src: url(./inter.woff2) }")) as unknown as typeof fetch
+    // @ts-expect-error: a query string is a fresh instance of the module, with no sheet built yet.
+    const fresh = (await import("./theHost?own-base")) as typeof import("./theHost")
+    const shared = (globalThis as Record<symbol, { sheet: CSSStyleSheet | null }>)[Symbol.for("gitquiet.theHost")]!
+    const had = shared.sheet
+    shared.sheet = null
+    await Effect.runPromise(
+      fresh.theSheet("chrome-extension://gitquiet/screens/styles.css").pipe(
+        Effect.ensuring(
+          Effect.sync(() => {
+            globalThis.CSSStyleSheet = Real
+            globalThis.fetch = realFetch
+            shared.sheet = had
+          })
+        )
+      )
+    )
+
+    expect(made).toEqual([{ baseURL: "chrome-extension://gitquiet/screens/styles.css" }])
+  })
+})
+

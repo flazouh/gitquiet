@@ -477,3 +477,40 @@ export const repoHomeIn = (url: string): Option.Option<RepoHome> => {
  */
 export const unescaped = (segment: string): string =>
   Option.getOrElse(Option.liftThrowable(decodeURIComponent)(segment), () => segment)
+
+/** What an address inside the repository names: a file, or a folder of them. */
+export type Named =
+  | { readonly kind: "file"; readonly path: string }
+  | {
+      readonly kind: "folder"
+      readonly path: string
+      /** Its README, which is what GitHub draws under a folder. */
+      readonly readme: string | null
+      /** What is directly in it, a folder ending in `/`, in the order the tree read them. */
+      readonly entries: ReadonlyArray<string>
+    }
+
+/**
+ * Tells a file from a folder by the paths the tree holds.
+ *
+ * The address cannot: a README links a folder as `./desktop`, which arrives as
+ * `/blob/main/desktop`, and GitHub's server is what redirects it. A file until the tree
+ * has said otherwise, which is the answer every address had before this.
+ */
+export const namedIn = (reading: string, paths: ReadonlyArray<string>): Named => {
+  const inside = `${reading.replace(/\/$/, "")}/`
+  const under = paths.filter((path) => path.startsWith(inside))
+  if (under.length === 0 || paths.includes(reading)) return { kind: "file", path: reading }
+
+  const entries = [
+    ...new Set(
+      under.map((path) => {
+        const rest = path.slice(inside.length)
+        const slash = rest.indexOf("/")
+        return slash === -1 ? rest : `${rest.slice(0, slash)}/`
+      })
+    )
+  ]
+  const readme = under.find((path) => /^readme(\.(md|markdown))?$/i.test(path.slice(inside.length))) ?? null
+  return { kind: "folder", path: reading, readme, entries }
+}

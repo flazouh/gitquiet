@@ -4,6 +4,7 @@ import { Effect, Option } from "effect"
 import type { Answering } from "../domain/answering"
 import type { ListedRepository } from "../domain/life"
 import type { Person } from "../domain/person"
+import { WorkingSetError } from "../ports/GitHubGateway"
 import { type Owned, ProfileScreen } from "./ProfileScreen"
 
 afterEach(cleanup)
@@ -75,6 +76,8 @@ const shown = (
     readonly owned?: Owned
     readonly failing?: boolean
     readonly failingAnswering?: boolean
+    /** What the Answering read fails with, where it fails with something in particular. */
+    readonly answeringFailure?: unknown
     /** Both reads still running, which is a press this extension answered a moment ago. */
     readonly stillReading?: boolean
   } = {}
@@ -86,9 +89,11 @@ const shown = (
       answering={() =>
         over.stillReading
           ? never
-          : over.failingAnswering
-            ? Effect.fail(new Error("no") as never)
-            : Effect.succeed(over.said ?? answered())
+          : over.answeringFailure !== undefined
+            ? Effect.fail(over.answeringFailure as never)
+            : over.failingAnswering
+              ? Effect.fail(new Error("no") as never)
+              : Effect.succeed(over.said ?? answered())
       }
       owned={() =>
         over.stillReading
@@ -198,6 +203,23 @@ describe("a read that failed", () => {
       "Could not read flazouh's repositories"
     )
     expect(screen.queryByRole("button", { name: "Show GitHub's page" })).toBeNull()
+  })
+
+  test("says GitHub's hourly allowance is spent, and when it comes back", async () => {
+    // Measured: an afternoon of reading spent the sixty an hour GitHub gives a stranger,
+    // and the band said it "could not read", as though something were broken.
+    const back = new Date("2026-08-15T14:05:00")
+    shown({
+      answeringFailure: new WorkingSetError({
+        route: "events",
+        reason: "rate-limited",
+        detail: String(back.getTime())
+      })
+    })
+
+    const band = (await screen.findByRole("region", { name: "Answering" })).textContent ?? ""
+    expect(band).toContain("sixty times an hour")
+    expect(band).toContain(back.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }))
   })
 
   test("offers their page back where neither read answered", async () => {

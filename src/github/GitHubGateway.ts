@@ -73,6 +73,7 @@ import { sendingOf } from "./theirForm"
 import { isKeptNotices, noticesOnPage } from "./notifications"
 import { asKept, personKept } from "./keptPerson"
 import { personOnPage } from "./person"
+import { spentUntil, theBudgetIsSpent, theBudgetRunsOut } from "./rateLimit"
 import { hasNextOnPage, repositoriesOnPage } from "./personRepos"
 import { type Person, tabRoute } from "../domain/person"
 import type { Notice, Press } from "../domain/notices"
@@ -91,7 +92,7 @@ import {
   rememberLanded,
   rememberRoute,
   rememberSize,
-  rememberStanding,
+  rememberStandings,
   rememberStat,
   recallStats
 } from "./cache"
@@ -415,6 +416,16 @@ const eventsAt = (route: string): Effect.Effect<Came<unknown>> =>
   askingOnce(
     route,
     Effect.gen(function* () {
+      // Not asked while GitHub has said the allowance is gone. See `rateLimit.ts`.
+      const spent = theBudgetIsSpent()
+      if (spent !== null) {
+        return yield* Effect.fail<Came<unknown>>({
+          ok: false,
+          why: "rate-limited",
+          detail: String(spent.getTime())
+        })
+      }
+
       const response = yield* Effect.tryPromise({
         try: () => fetch(route, { credentials: "omit", headers: { Accept: "application/json" } }),
         catch: (cause): Came<unknown> => ({
@@ -423,6 +434,16 @@ const eventsAt = (route: string): Effect.Effect<Came<unknown>> =>
           detail: String(cause)
         })
       })
+
+      const until = spentUntil(response.status, response.headers)
+      if (until !== null) {
+        theBudgetRunsOut(until)
+        return yield* Effect.fail<Came<unknown>>({
+          ok: false,
+          why: "rate-limited",
+          detail: String(until.getTime())
+        })
+      }
 
       if (!response.ok) {
         return yield* Effect.fail<Came<unknown>>({
@@ -1599,7 +1620,11 @@ const readDiscussion = Effect.fn("readDiscussion")(function* (reference: Discuss
 /** A read of one of a person's addresses, or why it did not come. */
 type Came<Value> =
   | { readonly ok: true; readonly value: Value }
-  | { readonly ok: false; readonly why: "unreachable" | "rejected"; readonly detail: string }
+  | {
+      readonly ok: false
+      readonly why: "unreachable" | "rejected" | "rate-limited"
+      readonly detail: string
+    }
 
 /**
  * One of a person's own pages, as the document they serve it as, folded together with the
@@ -2971,11 +2996,7 @@ export const layer = Layer.succeed(GitHubGateway, {
       // Kept, and forked rather than waited for, exactly as a stack and a size
       // are: the list this was read for is about to be on the screen either way,
       // and the write only changes what the next visit opens with.
-      yield* Effect.forkDetach(
-        Effect.forEach(joined, ([id, standing]) => rememberStanding(id, standing), {
-          discard: true
-        })
-      )
+      yield* Effect.forkDetach(rememberStandings(joined))
 
       return joined as Standings
     }),

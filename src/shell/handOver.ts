@@ -28,6 +28,7 @@
  */
 
 import { rememberView, rememberSpot } from "@/app/settings"
+import { takeTheBarDown } from "@/ui/barSlot"
 import type { Spot } from "@/domain/Settings"
 import type { Store } from "@/ports/Settings"
 import { gate, handBack, reveal, ungate } from "@/ui/mount"
@@ -136,6 +137,7 @@ export const handOverToGitHub = (
 
   reveal(target)
   ungate(target)
+  takeTheBarDown(target)
 
   up = {
     who,
