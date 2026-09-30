@@ -334,6 +334,21 @@ const Html = ({ node }: { readonly node: HtmlNode }) => {
       return <details open={node.attrs.open !== undefined}>{children}</details>
     case "summary":
       return <summary>{children}</summary>
+    case "span":
+      return <span>{children}</span>
+    case "p":
+      return <p className={alignClass(node.attrs.align)}>{children}</p>
+    case "div":
+      return <div className={alignClass(node.attrs.align)}>{children}</div>
+    case "h1":
+    case "h2":
+    case "h3":
+    case "h4":
+    case "h5":
+    case "h6": {
+      const Heading = node.tag
+      return <Heading className={alignClass(node.attrs.align)}>{children}</Heading>
+    }
     case "a":
       return node.attrs.href === undefined ? (
         <>{children}</>
@@ -367,7 +382,8 @@ const isInline = (node: MarkdownBlock | MarkdownInline): node is MarkdownInline 
   }
 }
 
-const alignClass = (align: TableAlign): string | undefined => {
+/** A table cell's alignment, or an `align` attribute `attrsFor` already narrowed to left, center or right. */
+const alignClass = (align: TableAlign | string | undefined): string | undefined => {
   if (align === "center") return "text-center"
   if (align === "right") return "text-right"
   return undefined

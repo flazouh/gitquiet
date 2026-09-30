@@ -1,7 +1,19 @@
 import { decodeEntities } from "./entities"
 import { hrefOf } from "./sanitize"
 
-export const ALLOWED_TAGS = new Set(["a", "picture", "details", "summary", "source", "img", "br"])
+/**
+ * GitHub's own allowlist, as far as a README's layout needs it. `p`, `div` and the
+ * headings carry `align`, which is how nearly every centred README header is written;
+ * without them their contents fell out one to a line.
+ */
+export const ALIGNED_TAGS = new Set(["p", "div", "h1", "h2", "h3", "h4", "h5", "h6"])
+
+export const ALLOWED_TAGS = new Set(["a", "picture", "details", "summary", "source", "img", "br", "span", ...ALIGNED_TAGS])
+
+/** Elements whose children run as a line of text, where a space between two of them shows. */
+export const FLOW_TAGS = new Set(["a", "span", "summary", ...ALIGNED_TAGS])
+
+const ALIGNS = new Set(["left", "center", "right"])
 
 const SKIP_TAGS = new Set(["script", "style", "iframe", "object", "embed", "link", "meta"])
 
@@ -14,7 +26,9 @@ const ATTRS: Readonly<Record<string, ReadonlySet<string>>> = {
   picture: new Set(),
   details: new Set(["open"]),
   summary: new Set(),
-  br: new Set()
+  br: new Set(),
+  span: new Set(),
+  ...Object.fromEntries([...ALIGNED_TAGS].map((tag) => [tag, new Set(["align"])]))
 }
 
 const URL_ATTRS = new Set(["href", "src"])
@@ -68,6 +82,11 @@ export const attrsFor = (tag: string, attrs: Readonly<Record<string, string>>): 
     if (URL_ATTRS.has(name)) {
       const safe = hrefOf(value)
       if (safe !== null) kept[name] = safe
+      continue
+    }
+    if (name === "align") {
+      const align = value.trim().toLowerCase()
+      if (ALIGNS.has(align)) kept[name] = align
       continue
     }
     if (name === "srcset") {

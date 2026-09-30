@@ -210,12 +210,57 @@ describe("parsing markdown into a document", () => {
     ])
   })
 
-  test("unwraps a div and keeps the words inside it", () => {
+  test("keeps a div and the words inside it", () => {
     const doc = parseMarkdown("<div>kept text</div>")
 
     expect(doc.blocks).toMatchObject([
-      { type: "paragraph", children: [{ type: "text", text: "kept text" }] }
+      { type: "html", tag: "div", children: [{ type: "text", text: "kept text" }] }
     ])
+  })
+
+  test("keeps a centred README header as one line, the way GitHub draws it", () => {
+    // Bun's README, cut down: links with spaced bullets between them.
+    const doc = parseMarkdown(
+      [
+        '<div align="center">',
+        '  <a href="https://bun.com/docs">Documentation</a>',
+        "  <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>",
+        '  <a href="https://bun.com/discord">Discord</a>',
+        "</div>"
+      ].join("\n")
+    )
+
+    expect(doc.blocks).toHaveLength(1)
+    expect(doc.blocks[0]).toMatchObject({
+      type: "html",
+      tag: "div",
+      attrs: { align: "center" },
+      // The spaces at either end collapse in the browser, as they do on GitHub.
+      children: [
+        { type: "text", text: " " },
+        { type: "html", tag: "a", children: [{ type: "text", text: "Documentation" }] },
+        { type: "text", text: " " },
+        { type: "html", tag: "span", children: [{ type: "text", text: "  •  " }] },
+        { type: "text", text: " " },
+        { type: "html", tag: "a", children: [{ type: "text", text: "Discord" }] },
+        { type: "text", text: " " }
+      ]
+    })
+  })
+
+  test("keeps a centred heading and paragraph", () => {
+    const doc = parseMarkdown('<h1 align="center">Bun</h1>\n\n<p align="center">fast</p>')
+
+    expect(doc.blocks).toMatchObject([
+      { type: "html", tag: "h1", attrs: { align: "center" }, children: [{ type: "text", text: "Bun" }] },
+      { type: "html", tag: "p", attrs: { align: "center" }, children: [{ type: "text", text: "fast" }] }
+    ])
+  })
+
+  test("drops an align it does not know, and every other attribute on a block", () => {
+    const doc = parseMarkdown('<p align="evil" style="color:red" onclick="x()">text</p>')
+
+    expect(doc.blocks).toMatchObject([{ type: "html", tag: "p", attrs: {} }])
   })
 
   test("drops an image whose source is a javascript: address", () => {
