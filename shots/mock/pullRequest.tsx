@@ -11,6 +11,8 @@ import type {
   ThreadComment
 } from "../../src/domain/PullRequest"
 import { hold } from "../../src/ui/held"
+import type { Peeked } from "../../src/ui/following"
+import type { Writing } from "../../src/ledger/writings"
 import { PullRequestScreen } from "../../src/ui/PullRequestScreen"
 import { alreadyKnown, nothingRemembered, settled, STORE, type View } from "../view"
 import { faceOf, MOCK_VIEWER } from "./faces"
@@ -691,6 +693,126 @@ const keepWhatIsUnsent = (): void => {
   )
 }
 
+/*
+ * Shared screen props for the pull-request photograph and its Review Mode twin.
+ * Same fixture graph; `initialReviewing` and/or `initialPeeked` seed the layout.
+ */
+/**
+ * Deterministic Peek on the open `server.zig` hunk: Shift-peek at the
+ * `detachByteStream` call (new-side line 2426), showing the Writing's body from
+ * the same fixture patch. Truthful to the bun #23014 mock text.
+ */
+const DETACH_BYTE_STREAM: Writing = {
+  name: "detachByteStream",
+  kind: "function",
+  line: 2613,
+  from: 12,
+  to: 28,
+  signature: "pub fn detachByteStream(this: *RequestContext) void {",
+  doc: null,
+  sure: true
+}
+
+const INITIAL_PEEKED: Peeked = {
+  writing: DETACH_BYTE_STREAM,
+  under: 2426,
+  lines: [
+    "pub fn detachByteStream(this: *RequestContext) void {",
+    "    if (this.byte_stream) |stream| {",
+    "        stream.unpipeWithoutDeref();",
+    "        this.byte_stream = null;",
+    "        this.flags.aborted_mid_chunk = !stream.has_received_last_chunk;",
+    "    }",
+    "}"
+  ],
+  where: "src/bun.js/api/server.zig"
+}
+
+const drawPullRequest = (seed?: {
+  readonly initialReviewing?: boolean
+  readonly initialPeeked?: Peeked
+}) => {
+  keepWhatIsUnsent()
+
+  return (
+    <PullRequestScreen
+      reference={REFERENCE}
+      load={settled(LOADED)}
+      preload={alreadyKnown(LOADED)}
+      recallRepositories={nothingRemembered()}
+      fetchDiffs={settled([])}
+      initialReviewing={seed?.initialReviewing}
+      initialPeeked={seed?.initialPeeked}
+      /*
+       * The whole of each file, so the stage exercises revealing the lines
+       * between the hunks with the real renderer rather than a stub.
+       */
+      readWholeFile={(sha, path) =>
+        Effect.succeed(
+          UNTOUCHED[path]?.join("\n") ?? wholeOf(path, sha === BASE_SHA ? "before" : "after")
+        )
+      }
+      /*
+       * Every path, for bringing in a file the pull request did not change.
+       * The changed ones plus a few it did not touch, which is the case the
+       * pane exists for.
+       */
+      readPaths={() =>
+        Effect.succeed([
+          ...FILES.map((one) => one.path),
+          ...Object.keys(UNTOUCHED)
+        ])
+      }
+      onStepAside={() => {}}
+      onUseGitHub={() => {}}
+      signedIn={() => true}
+      /*
+       * The writes answer as GitHub answers, with the thing that was written rather
+       * than with nothing. Nothing is pressed while a capture is taken, and a
+       * callback that returned a stub would be a screen holding a stub the moment
+       * somebody opened the stage by hand and pressed one.
+       */
+      postComment={(note) =>
+        Effect.succeed({
+          id: `T-${note.path}:${note.lines === null ? "file" : note.lines.line}`,
+          isResolved: false,
+          // A File Remark comes back anchored to the file and to no line,
+          // which is what makes the pane draw it above the diff rather than
+          // hang a row somewhere in it.
+          at:
+            note.lines === null
+              ? Option.some({ path: note.path, lines: null })
+              : at(note.path, note.lines.line),
+          comments: [said("C-said", person(VIEWER), note.body, 0)]
+        })
+      }
+      postRemark={(body) =>
+        Effect.succeed({
+          id: "R-said",
+          author: person(VIEWER),
+          body,
+          html: `<p>${body}</p>`,
+          createdAt: minutesAgo(0)
+        })
+      }
+      onSettle={() => Effect.void}
+      onReply={(_commentId, body) =>
+        Effect.succeed([said("C-answered", person(VIEWER), body, 0)])
+      }
+      onReview={() => Effect.void}
+      actions={{
+        merge: () => Effect.void,
+        update: () => Effect.void,
+        // Both of the rare ones, so the overflow behind the glyph draws the
+        // shape it really has: a draft door and the one press that ends the
+        // pull request. Wired to nothing, like the three above it.
+        toDraft: () => Effect.void,
+        close: () => Effect.void
+      }}
+    />
+  )
+}
+
 export const PULL_REQUEST_VIEW: View = {
   name: "pull-request",
   caption:
@@ -709,83 +831,35 @@ export const PULL_REQUEST_VIEW: View = {
    * matches a plain `querySelector` from the document.
    */
   ready: "[data-code]",
-  draw: () => {
-    keepWhatIsUnsent()
+  draw: () => drawPullRequest()
+}
 
-    return (
-      <PullRequestScreen
-        reference={REFERENCE}
-        load={settled(LOADED)}
-        preload={alreadyKnown(LOADED)}
-        recallRepositories={nothingRemembered()}
-        fetchDiffs={settled([])}
-        /*
-         * The whole of each file, so the stage exercises revealing the lines
-         * between the hunks with the real renderer rather than a stub.
-         */
-        readWholeFile={(sha, path) =>
-          Effect.succeed(
-            UNTOUCHED[path]?.join("\n") ?? wholeOf(path, sha === BASE_SHA ? "before" : "after")
-          )
-        }
-        /*
-         * Every path, for bringing in a file the pull request did not change.
-         * The changed ones plus a few it did not touch, which is the case the
-         * pane exists for.
-         */
-        readPaths={() =>
-          Effect.succeed([
-            ...FILES.map((one) => one.path),
-            ...Object.keys(UNTOUCHED)
-          ])
-        }
-        onStepAside={() => {}}
-        onUseGitHub={() => {}}
-        signedIn={() => true}
-        /*
-         * The writes answer as GitHub answers, with the thing that was written rather
-         * than with nothing. Nothing is pressed while a capture is taken, and a
-         * callback that returned a stub would be a screen holding a stub the moment
-         * somebody opened the stage by hand and pressed one.
-         */
-        postComment={(note) =>
-          Effect.succeed({
-            id: `T-${note.path}:${note.lines === null ? "file" : note.lines.line}`,
-            isResolved: false,
-            // A File Remark comes back anchored to the file and to no line,
-            // which is what makes the pane draw it above the diff rather than
-            // hang a row somewhere in it.
-            at:
-              note.lines === null
-                ? Option.some({ path: note.path, lines: null })
-                : at(note.path, note.lines.line),
-            comments: [said("C-said", person(VIEWER), note.body, 0)]
-          })
-        }
-        postRemark={(body) =>
-          Effect.succeed({
-            id: "R-said",
-            author: person(VIEWER),
-            body,
-            html: `<p>${body}</p>`,
-            createdAt: minutesAgo(0)
-          })
-        }
-        onSettle={() => Effect.void}
-        onReply={(_commentId, body) =>
-          Effect.succeed([said("C-answered", person(VIEWER), body, 0)])
-        }
-        onReview={() => Effect.void}
-        actions={{
-          merge: () => Effect.void,
-          update: () => Effect.void,
-          // Both of the rare ones, so the overflow behind the glyph draws the
-          // shape it really has: a draft door and the one press that ends the
-          // pull request. Wired to nothing, like the three above it.
-          toDraft: () => Effect.void,
-          close: () => Effect.void
-        }}
-      />
-    )
-  }
+/**
+ * The same pull request, already in Review Mode.
+ *
+ * A second layout of the same screen rather than a screen of its own — see
+ * `LAYOUTS` in `views.test.ts`. The home hero mounts this for the Review slide.
+ */
+export const PULL_REQUEST_REVIEW_VIEW: View = {
+  name: "pull-request-review",
+  caption:
+    "Review Mode on the same pull request, stepping file by file through what changed",
+  ...STORE,
+  ready: "[data-code]",
+  draw: () => drawPullRequest({ initialReviewing: true })
+}
+
+/**
+ * The same pull request with a Peek already open under a changed line.
+ *
+ * A second layout of the pull-request screen — see `LAYOUTS` in `views.test.ts`.
+ * Ready waits on the real Peek root so autoplay does not advance on a blank.
+ */
+export const PULL_REQUEST_PEEK_VIEW: View = {
+  name: "pull-request-peek",
+  caption:
+    "A Peek under a changed line, so a reviewer reads what a name does without leaving the diff",
+  ...STORE,
+  ready: "[data-gitquiet-peek]",
+  draw: () => drawPullRequest({ initialPeeked: INITIAL_PEEKED })
 }

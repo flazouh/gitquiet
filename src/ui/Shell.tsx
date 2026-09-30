@@ -28,7 +28,7 @@ import type { Keys } from "../keys/commands"
 import { CommitView } from "./CommitView"
 import { BroughtIn } from "./BroughtIn"
 import { FileBrowser } from "./FileBrowser"
-import type { Across } from "./following"
+import type { Across, Peeked } from "./following"
 import { GoToName } from "./GoToName"
 import { Header } from "./Header"
 import { About } from "./About"
@@ -142,6 +142,20 @@ export type ShellProps = {
   readonly keys?: Keys
   /** Gives the page back to GitHub, and remembers to keep giving it back. */
   readonly onUseGitHub?: () => void
+  /**
+   * Opens Review Mode on first paint.
+   *
+   * For fixtures and marketing mounts that need the full-screen review box
+   * without a click. Absent elsewhere; the reader toggles it themselves.
+   */
+  readonly initialReviewing?: boolean
+  /**
+   * A Peek already open on first paint.
+   *
+   * For fixtures and marketing mounts. Threaded to the open file's
+   * FileBrowser; also seeds wanted so that line is on screen.
+   */
+  readonly initialPeeked?: Peeked
 }
 
 const NO_READER = new Error("Nothing is wired to read commits.")
@@ -212,7 +226,9 @@ export const Shell = ({
   loadTail,
   loadSteps,
   keys,
-  onUseGitHub
+  onUseGitHub,
+  initialReviewing,
+  initialPeeked
 }: ShellProps) => {
   const [preparedStage, setPreparedStage] = useState(preparing ? 0 : PREPARED)
   const preparationReported = useRef(false)
@@ -234,7 +250,7 @@ export const Shell = ({
   const [reading, setReading] = useState<string | undefined>(undefined)
   // Review Mode changes the file browser's box, not the browser itself. Its
   // file, scroll position, warmed diffs, and drafts therefore stay in place.
-  const [reviewing, setReviewing] = useState(false)
+  const [reviewing, setReviewing] = useState(initialReviewing === true)
   // Whether the details column and the files panel are up. Toggled from the
   // PR header's second line (sidebar marks at the extremes).
   const [detailsOpen, setDetailsOpen] = useState(true)
@@ -518,6 +534,11 @@ export const Shell = ({
       // pointing at what starts on 42, and putting the middle of the run in the
       // centre of the screen would be answering a question nobody asked.
       return { path: at.path, line: at.lines?.from }
+    }
+
+    if (initialPeeked !== undefined) {
+      const path = initialPeeked.where ?? snapshot.files[0]?.path
+      return path === undefined ? undefined : { path, line: initialPeeked.under }
     }
 
     /*
@@ -823,6 +844,7 @@ export const Shell = ({
                   onUpload={onUpload}
                   revealing={revealing}
                   across={across}
+                  initialPeeked={initialPeeked}
                   onBringIn={
                     readPaths === undefined || readWholeFile === undefined
                       ? undefined

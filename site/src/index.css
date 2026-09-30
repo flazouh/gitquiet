@@ -305,3 +305,20 @@ body {
     transform: none !important;
   }
 }
+
+
+/**
+ * Hero fixture stage — Held fills the 16/10 frame; parent clips left-only radius.
+ * Pointer-events off so carousel chrome keeps focus/keyboard; same as welcome Held.
+ */
+.hero-stage {
+  z-index: 1;
+}
+
+.hero-stage .tour-held {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: 0;
+}

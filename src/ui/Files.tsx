@@ -24,7 +24,7 @@ import { draftKey, type Draft } from "./drafts"
 import { Note } from "./Note"
 import { ProseDiff } from "./ProseDiff"
 import { useRenderer } from "./renderer"
-import { useFollowing, type Across } from "./following"
+import { useFollowing, type Across, type Peeked } from "./following"
 import { Peek } from "./Peek"
 import { BeyondCard } from "./BeyondCard"
 import { FollowCard } from "./FollowCard"
@@ -419,6 +419,10 @@ export type FileDiffPaneProps = {
    * a file arrived in it. See `attaching.ts`.
    */
   readonly onUpload?: (file: File) => Effect.Effect<Uploaded, unknown>
+  /**
+   * A Peek already open on first paint. Threaded to {@link useFollowing}; see there.
+   */
+  readonly initialPeeked?: Peeked
 }
 
 /** Long enough that a cached answer or a quick one never flashes a message. */
@@ -455,7 +459,8 @@ const FileDiffPaneView = ({
   suggest,
   onUpload,
   revealing,
-  across
+  across,
+  initialPeeked
 }: FileDiffPaneProps) => {
   const host = useRef<HTMLDivElement | null>(null)
   const painted = usePaintedTheme()
@@ -634,7 +639,7 @@ const FileDiffPaneView = ({
     unbeyond,
     peeked,
     unpeek
-  } = useFollowing(following, host, across)
+  } = useFollowing(following, host, across, initialPeeked)
 
   /*
    * `u`, for the name the pointer is on, as on every other screen that draws

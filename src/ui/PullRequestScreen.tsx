@@ -20,6 +20,7 @@ import { useWaiting } from "./useWaiting"
 import { Waiting } from "./Waiting"
 import type { MergeActions } from "./Ask"
 import { Shell } from "./Shell"
+import type { Peeked } from "./following"
 import type { Answering } from "./ThreadView"
 import type { Review as Said } from "../ports/GitHubGateway"
 import type { Repository } from "../domain/repositories"
@@ -149,6 +150,14 @@ export type PullRequestScreenProps = {
    */
   readonly recallRepositories?: () => Effect.Effect<Option.Option<ReadonlyArray<Repository>>>
   readonly signedIn?: () => boolean
+  /**
+   * Opens Review Mode on first paint. Threaded to {@link Shell}; see there.
+   */
+  readonly initialReviewing?: boolean
+  /**
+   * A Peek already open on first paint. Threaded to {@link Shell}; see there.
+   */
+  readonly initialPeeked?: Peeked
 }
 
 /**
@@ -264,7 +273,9 @@ export const PullRequestScreen = ({
   loadTail,
   loadSteps,
   watch,
-  signedIn = viewerOnPage
+  signedIn = viewerOnPage,
+  initialReviewing,
+  initialPeeked
 }: PullRequestScreenProps) => {
   /*
    * The same three states the lists have, from the same hook.
@@ -564,6 +575,8 @@ export const PullRequestScreen = ({
           loadTail={loadTail}
           loadSteps={loadSteps}
           onUseGitHub={onUseGitHub}
+          initialReviewing={initialReviewing}
+          initialPeeked={initialPeeked}
         />
       ) : null}
       {waiting ? (

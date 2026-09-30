@@ -14,7 +14,7 @@ import type { Peeked } from "./following"
  * properties instead. Same row, two reaches.
  */
 export const Peek = ({ peeked }: { readonly peeked: Peeked }) => (
-  <div className="text-xs">
+  <div className="text-xs" data-gitquiet-peek="">
     <p className="m-0 mb-1 text-[0.6875rem] text-ink-muted">
       {peeked.where === undefined
         ? `line ${peeked.writing.line}`
