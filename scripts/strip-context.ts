@@ -10,7 +10,7 @@ const FORCE = process.argv.includes("--force")
 
 const SELF = "scripts/strip-context.ts"
 
-const DELETE_DIRS = ["docs/", "plans/", "site/", "video/", "store/", "shots/", "fixtures/", "tests/", ".claude/", ".github/ISSUE_TEMPLATE/"]
+const DELETE_DIRS = ["docs/", "plans/", "site/", "store/", "shots/", "fixtures/", "tests/", ".claude/", ".github/ISSUE_TEMPLATE/"]
 
 const DELETE_FILES = new Set([
   "README.md",
