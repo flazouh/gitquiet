@@ -1,5 +1,5 @@
 import { marked, type Token, type Tokens } from "marked"
-import { attrsFor, isAllowed, isSkipped, piecesOf, type HtmlPiece } from "./html"
+import { attrsFor, FLOW_TAGS, isAllowed, isSkipped, piecesOf, type HtmlPiece } from "./html"
 import { decorateGitHub } from "./github"
 import type {
   CodeBlock,
@@ -221,7 +221,13 @@ const applyHtml = (
       continue
     }
     if (piece.kind === "text") {
-      if (piece.text.trim() === "") continue
+      if (piece.text.trim() === "") {
+        // Space between two things inside an element is a space the browser would draw:
+        // two badges or two links on one line. At the top level it is only layout.
+        const top = stack[stack.length - 1]
+        if (top?.kind === "html" && FLOW_TAGS.has(top.tag)) emit({ type: "text", text: " " })
+        continue
+      }
       emit({ type: "text", text: decodeEntities(piece.text) })
       continue
     }

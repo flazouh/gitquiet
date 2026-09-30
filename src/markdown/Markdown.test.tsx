@@ -112,6 +112,22 @@ describe("rendering our markdown document", () => {
     expect(screen.getByText("item").closest("details")).not.toBeNull()
   })
 
+  test("draws a centred README header centred, on one line", () => {
+    render(
+      <Markdown
+        markdown={'<h1 align="center">Bun</h1>\n\n<div align="center">\n  <a href="https://bun.com/docs">Docs</a>\n  <a href="https://bun.com/discord">Discord</a>\n</div>'}
+      />
+    )
+
+    const heading = screen.getByText("Bun").closest("h1")
+    expect(heading?.className).toContain("text-center")
+    const docs = screen.getByText("Docs")
+    const discord = screen.getByText("Discord")
+    // One block holds both links, so they sit on one line as GitHub draws them.
+    expect(docs.closest("div")).toBe(discord.closest("div"))
+    expect(docs.closest("div")?.className).toContain("text-center")
+  })
+
   test("turns a mention and an issue number into links", () => {
     render(<Markdown markdown={"Thanks @alice for #12"} owner="ori" repo="cli" />)
 
