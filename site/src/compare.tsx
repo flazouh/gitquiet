@@ -4,10 +4,8 @@ import { comparedAt, COMPARED, type Compared } from "./compare/pages"
 import {
   Above,
   AddToChrome,
-  Aside,
   Footer,
   HELD,
-  INSTALL_AT,
   Nav,
   Quietly,
   SkipTo,
@@ -30,7 +28,6 @@ const Compare = ({ page }: { readonly page: Compared }) => {
       <Above>
         <Nav>
           <Source />
-          <Aside at={INSTALL_AT}>Downloads</Aside>
           <AddToChrome />
         </Nav>
 

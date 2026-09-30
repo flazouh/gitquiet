@@ -9,14 +9,17 @@
  * Data and nothing else. The shader library that reads these numbers is a WebGL
  * dependency, and this folder is reachable from the extension's bundle as well —
  * so the numbers are shared and the canvas that draws them is not.
+ *
+ * Sober Wafer atmosphere: muted teal-grey and sand/olive. No pastel pink, no cobalt,
+ * no hot orb accents.
  */
 
 import type { CSSProperties } from "react"
 
 /** Paper, ink, and the quiet grey between them. The three the page is built out of. */
-export const PAPER = "#fbf9f7"
-export const INK = "#1b1725"
-export const MUTED = "#5f596d"
+export const PAPER = "#f2f2ee"
+export const INK = "#141416"
+export const MUTED = "#6c7878"
 
 /**
  * The same three, as the custom properties `onboarding.css` reads.
@@ -38,12 +41,11 @@ export const BED_COLOURS = {
 /**
  * The five stops, in the order the mesh mixes them.
  *
- * Pastel rather than saturated, and that is the whole reason ink sits directly on
- * this instead of on a card over it: every one of the five is light enough that
- * `INK` clears the contrast requirement on top of it, so the words can be on the
- * gradient rather than in a box floating above it.
+ * Muted teal-grey and sand/olive — light enough that dark ink still clears contrast
+ * when words sit on the mesh (install header), sober enough that the home poster can
+ * shade them into dark glass without reading as a party gradient.
  */
-export const BED = ["#ff9ad1", "#ffc69d", "#ece0ff", "#a9c2ff", "#b79bff"] as const
+export const BED = ["#9ca8a8", "#848478", "#b0b8b8", "#606054", "#6c7878"] as const
 
 /** The bed at rest, which is what a reader who asked for less motion is given. */
 export const BED_SHADER = {
@@ -54,9 +56,7 @@ export const BED_SHADER = {
   waveY: 0.34,
   waveYShift: 0.25,
   mixing: 0.42,
-
   grainMixer: 0.28,
-
   grainOverlay: 0.12
 }
 
@@ -77,8 +77,8 @@ export const BED_MOTION = {
   grainOverlay: BED_SHADER.grainOverlay
 }
 
-/** The mark's own purple, which is the logo and never a background. */
-export const MARK = "#8b5cf6"
+/** The mark's own colour — quiet teal-grey, never a loud accent. */
+export const MARK = "#6c7878"
 
 /**
  * How the bed is turned and over-scaled where it stands behind a whole screen.

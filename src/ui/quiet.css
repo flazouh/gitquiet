@@ -62,8 +62,16 @@ html[data-gitquiet-gating] footer.footer {
  * Review Mode owns every viewport pixel. The bar is in a separate stacking
  * context above the screen root, so a larger z-index inside the root cannot
  * cover it.
+ *
+ * Two openings: `html[…]` for the extension (attribute still written on
+ * `<html>` when the Files host is not under `data-gitquiet-outside`), and
+ * `[data-gitquiet-outside]:has([data-gitquiet-reviewing])` for Held / marketing
+ * mounts where the attribute stays on the Files host and the bar lives inside
+ * the outside root. Scoped `:has` on the outside host — not `html:has` — so the
+ * document is not marked as wholly affected.
  */
-html[data-gitquiet-reviewing] :is(#gitquiet-bar, [data-gitquiet-bar]) {
+html[data-gitquiet-reviewing] :is(#gitquiet-bar, [data-gitquiet-bar]),
+[data-gitquiet-outside]:has([data-gitquiet-reviewing]) :is(#gitquiet-bar, [data-gitquiet-bar]) {
   visibility: hidden;
   pointer-events: none;
 }

@@ -1,43 +1,15 @@
 import { useEffect } from "react"
-import { Bed } from "./Bed"
-import { Demo } from "./Demo"
-import {
-  AddToChrome,
-  Aside,
-  Footer,
-  HELD,
-  INSTALL_AT,
-  Nav,
-  Quietly,
-  SkipTo,
-  Source
-} from "./Shell"
-
-const Elsewhere = () => (
-  <p className="m-0 text-[15px] leading-relaxed text-ink/60">
-    Also for <Quietly at={INSTALL_AT}>Safari, Firefox and the Mac</Quietly>.
-  </p>
-)
+import { Atmosphere } from "./Atmosphere"
+import { HeroCarousel } from "./HeroCarousel"
+import { AddToChrome, Nav, SkipTo, Source } from "./Shell"
 
 /**
- * The only other sentence the home page says.
- *
- * The commercial heads live on their own URLs. This names them so a crawler
- * (and a reader) can leave, without turning home into a second job page.
+ * Home: Luminar poster hero — full-viewport rounded card, nav inside,
+ * copy left + larger flush-right screenshot carousel (controls under the
+ * shot). Live Wafer Atmosphere. No demo video, no recycled store shots,
+ * no old Shell demo chrome.
  */
-const Jobs = () => (
-  <p className="m-0 mt-6 text-[15px] leading-relaxed text-ink/70">
-    A <Quietly at="/github-pr-inbox">GitHub PR inbox</Quietly> and a{" "}
-    <Quietly at="/github-review-queue">review queue</Quietly>, in the tab. Not an AI reviewer.
-  </p>
-)
 
-/**
- * Home: one line, one press, one demo, then the bed card.
- *
- * No feature grid. No rules. The clip already carries the product; the bed
- * is only the closing card, the same one the page used to close on.
- */
 export const Page = () => {
   useEffect(() => {
     const html = document.documentElement
@@ -47,9 +19,9 @@ export const Page = () => {
       bodyBg: body.style.background,
       scheme: html.style.colorScheme
     }
-    html.style.background = "#0c0b10"
+    html.style.background = "#0c0c0c"
     html.style.colorScheme = "dark"
-    body.style.background = "#0c0b10"
+    body.style.background = "#0c0c0c"
     return () => {
       html.style.background = prev.htmlBg
       html.style.colorScheme = prev.scheme
@@ -58,61 +30,45 @@ export const Page = () => {
   }, [])
 
   return (
-    <div className="min-h-dvh bg-[#0c0b10] text-[#f4f2ef]">
-      <SkipTo id="demo" says="Skip to the demo" />
+    <div className="min-h-dvh bg-[#0c0c0c] text-[#f2f2ee] antialiased">
+      <SkipTo id="product" says="Skip to the product" />
 
-      <div className={HELD}>
-        <Nav dark>
-          <Source dark />
-          <Aside at={INSTALL_AT} dark>
-            Downloads
-          </Aside>
-          <AddToChrome light />
-        </Nav>
+      {/* Luminar gutter + poster card */}
+      <header className="p-2.5 sm:p-3">
+        <div className="relative flex min-h-[calc(100svh-20px)] flex-col overflow-hidden rounded-[24px] sm:min-h-[calc(100svh-24px)] sm:rounded-[28px]">
+          <Atmosphere />
 
-        <div className="pb-10 pt-10 sm:pb-14 sm:pt-16">
-          <h1 className="m-0 max-w-4xl text-balance text-[clamp(2.4rem,6.5vw,4.25rem)] font-semibold leading-[1.02] tracking-[-0.04em] text-white">
-            A faster, quieter GitHub.
-          </h1>
-
-          <div className="mt-8 sm:mt-10">
-            <AddToChrome big light />
+          <div className="relative z-10">
+            <Nav dark>
+              <Source dark />
+              <AddToChrome light />
+            </Nav>
           </div>
-        </div>
 
-        <section id="demo" className="pb-16 sm:pb-24">
-          <Demo />
-        </section>
-
-        <section className="pb-16 sm:pb-24">
-          <div className="relative isolate overflow-hidden rounded-2xl">
-            {/* Bed writes position inline, so this has to as well. */}
-            <Bed
-              rotation={200}
-              scale={1.3}
-              className="-z-10"
-              style={{ position: "absolute", inset: 0 }}
-            />
-            <div className="px-8 py-20 text-center text-ink sm:px-16 sm:py-24">
-              <h2 className="m-0 text-balance text-[clamp(1.75rem,4.5vw,3rem)] font-semibold leading-[1.05] tracking-[-0.035em]">
+          <div
+            id="product"
+            className="relative z-10 mt-auto flex flex-1 flex-col gap-10 px-5 pb-10 pt-8 sm:px-9 sm:pb-14 md:block md:px-0 md:py-0 md:pl-9 md:pr-0"
+          >
+            <div className="md:flex md:min-h-[calc(100svh-20px-3rem)] md:max-w-[min(36%,26rem)] md:flex-col md:justify-center md:py-14 md:pr-6 lg:max-w-[28rem] lg:pr-10">
+              <h1 className="m-0 max-w-[18ch] text-balance text-[clamp(2.5rem,5.2vw,4.75rem)] font-medium leading-[1.02] tracking-tight text-white">
                 A faster, quieter GitHub.
-              </h2>
-
-              <div className="mt-10 flex justify-center">
-                <AddToChrome big />
+              </h1>
+              <p className="mt-6 max-w-md text-lg leading-relaxed text-white/90 sm:text-xl">
+                Pull requests that need you, filed by next action—on the session you already have.
+                Not an AI reviewer.
+              </p>
+              <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-4">
+                <AddToChrome big light />
               </div>
+            </div>
 
-              <div className="mt-5">
-                <Elsewhere />
-              </div>
-
-              <Jobs />
+            {/* Larger flush-right shot; prev/next sit under the frame (left-aligned) */}
+            <div className="w-full md:absolute md:right-0 md:top-1/2 md:w-[min(64%,48rem)] md:-translate-y-1/2 md:pl-6">
+              <HeroCarousel />
             </div>
           </div>
-        </section>
-
-        <Footer dark />
-      </div>
+        </div>
+      </header>
     </div>
   )
 }
