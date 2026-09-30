@@ -1,6 +1,6 @@
 [build]
 builder = "RAILPACK"
-buildCommand = "bun install --frozen-lockfile && bun install --frozen-lockfile --cwd site && bun run --cwd site build"
+buildCommand = "bun install --frozen-lockfile && bun install --frozen-lockfile --cwd site && bun run build:diff-engine && bun run build:markdown-mermaid && bun run --cwd site build"
 
 [deploy]
 startCommand = "bun site/serve.ts"

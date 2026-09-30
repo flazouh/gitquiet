@@ -40,7 +40,10 @@ export const Page = () => {
 
           <div className="relative z-10">
             <Nav dark>
-              <Source dark />
+              {/* The star count leaves no room for the install button on a phone. */}
+              <span className="hidden sm:inline-flex">
+                <Source dark />
+              </span>
               <AddToChrome light />
             </Nav>
           </div>
